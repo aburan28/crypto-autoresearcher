@@ -1,8 +1,9 @@
-## Handoff: Null-calibrated recursive coverage
+## Handoff: Null-calibrated recursive coverage v2
 
 ### Claim or task
 
-Implement the frozen successor that tests whether the verified eight-term coordinate signal is exceptional against paired null distributions on clean curves.
+Repair and independently audit the finite-null experiment before any canonical
+execution.
 
 ### Status
 
@@ -10,39 +11,44 @@ HYPOTHESIS
 
 ### Assumptions
 
-- Thirty-one replicates per null family are a toy percentile screen.
-- Exact support and order-seeded scans are reproducible measurements, not an attack.
-- The p mod 4 restriction remains explicit.
+- Thirty-one replicates per constructor are an exploratory toy percentile
+  screen, not a calibrated family-wise test.
+- Random-scalar and random-x are independently seeded samples of the same
+  point-set null; random-x also controls construction cost.
+- The charged binary-pow and lookup-byte models are disclosed proxies.
+- The `p mod 4 = 3` restriction remains explicit.
 
 ### Evidence so far
 
-- EXP-ECDLP-RECURSIVE-001 independently replayed 216 configurations.
-- Its passing rows had maximal four-term support and no advice compression.
-- Its two one-draw null controls differed by 0.5705x to 1.4155x.
-- One curve was anomalous, requiring generator/verifier repair.
-- The successor generator rejects trace 0 or 1, special j, composite order,
-  and nonmonotone schedules, and its nine-curve reduced smoke stayed clean.
-- The independent verifier passed 14 self-tests and exactly replayed an
-  externally generated reduced document.
+- The v1 audit preserved curve arithmetic, seed uniqueness, exact supports,
+  percentile direction/ties, and reduced reconstruction.
+- The audit returned `REVISE` on two S0 and three S1 protocol defects; no
+  canonical run was launched.
+- The v2 generator makes positive, order, curve, rho, field-distinctness, and
+  seed controls mandatory.
+- A 128-target reduced smoke passed on nine curves over nine distinct fields.
+- The structured-group literature map identifies a formal embedding gap rather
+  than claiming that coordinate density equals the model's `delta`.
 
 ### Failure modes
 
-- Runtime exceeds budget with 62 nulls per curve.
-- Support-order scans dominate or expose unstable first-witness costs.
-- Empirical percentiles remain too coarse at toy sizes.
-- A positive coverage signal fails later rank or descent gates.
+- The independent v2 verifier or execution-plan enforcement may still find a
+  mismatch.
+- Finite-null ranks may not survive all 31+31 samples.
+- Charged operation proxies may conceal hardware or bandwidth costs.
+- A coverage pass may fail rank, linear algebra, factor-base-log, or descent
+  gates.
 
 ### Next concrete action
 
-Obtain an independent pre-run audit of the final source hashes and frozen gate;
-launch no canonical run unless that audit returns `GO`.
+Finish the independent v2 verifier and execution-plan tests, freeze every hash
+and exact argv, then request a second pre-run audit. Launch nothing without
+`GO`.
 
 ### Artifact paths
 
-- `experiments/EXP-ECDLP-RECURSIVE-002/specification.json`
-- `experiments/EXP-ECDLP-RECURSIVE-002/contract.md`
-- `experiments/EXP-ECDLP-RECURSIVE-001/result-red-team.md`
-- `experiments/EXP-ECDLP-RECURSIVE-001/evidence.json`
+- `experiments/EXP-ECDLP-RECURSIVE-002/pre-run-audit-v1.md`
 - `experiments/EXP-ECDLP-RECURSIVE-002/src/null_calibrated_coverage.py`
 - `experiments/EXP-ECDLP-RECURSIVE-002/src/verify_null_calibrated_coverage.py`
 - `tests/test_null_calibrated_coverage.py`
+- `notes/structured_group_coordinate_predicates_literature_20260717.md`

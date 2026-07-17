@@ -84,6 +84,21 @@ def j_invariant(p: int, a: int, b: int) -> int:
     return 1728 * four_a3 * pow(denominator, -1, p) % p
 
 
+def curve_rejection_reason(p: int, a: int, b: int, order: int) -> str | None:
+    if (4 * pow(a, 3, p) + 27 * pow(b, 2, p)) % p == 0:
+        return "singular"
+    trace = p + 1 - order
+    if trace == 0:
+        return "trace_zero"
+    if trace == 1:
+        return "anomalous_trace_one"
+    if not ENERGY.is_prime(order):
+        return "composite_order"
+    if j_invariant(p, a, b) in (0, 1728 % p):
+        return "special_j"
+    return None
+
+
 def generate_clean_curve(
     bits: int, seed: int, max_attempts: int = 256
 ) -> dict[str, Any]:
@@ -106,20 +121,12 @@ def generate_clean_curve(
         curve = Curve(p, a, b)
         counted_orders += 1
         order = ENERGY.curve_order(curve)
+        rejection = curve_rejection_reason(p, a, b, order)
+        if rejection is not None:
+            rejections[rejection] += 1
+            continue
         trace = p + 1 - order
-        if trace == 0:
-            rejections["trace_zero"] += 1
-            continue
-        if trace == 1:
-            rejections["anomalous_trace_one"] += 1
-            continue
-        if not ENERGY.is_prime(order):
-            rejections["composite_order"] += 1
-            continue
         j_value = j_invariant(p, a, b)
-        if j_value in (0, 1728 % p):
-            rejections["special_j"] += 1
-            continue
 
         generator_ops = Ops()
         start = rng.randrange(p)
@@ -181,6 +188,54 @@ def point_key(point: Point) -> tuple[int, int, int]:
     return (-1, 0, 0) if point is None else (0, point[0], point[1])
 
 
+def binary_pow_field_multiplications(exponent: int) -> int:
+    if exponent < 1:
+        return 0
+    return exponent.bit_length() - 1 + exponent.bit_count() - 1
+
+
+def charged_build_diagnostics(
+    factor_base: dict[str, Any], p: int
+) -> dict[str, Any]:
+    diagnostics = dict(factor_base["build_diagnostics"])
+    square_root_tests = diagnostics["square_root_tests"]
+    successful_roots = diagnostics["subgroup_tests"]
+    legendre_multiplications = square_root_tests * binary_pow_field_multiplications(
+        (p - 1) // 2
+    )
+    root_multiplications = successful_roots * (
+        binary_pow_field_multiplications((p + 1) // 4) + 1
+    )
+    map_multiplications = 0
+    map_inversions = 0
+    if factor_base["name"] == "square_map":
+        map_multiplications = square_root_tests
+    elif factor_base["name"] == "rational_union":
+        final_source = factor_base["fibers"][-1]["source"]
+        final_t = final_source["t"]
+        zero_denominator_t = (-final_source["e"]) % p
+        map_inversions = final_t - int(zero_denominator_t < final_t)
+        map_inversions += int(final_source["map"] == "mobius")
+        map_multiplications = final_t + 1 + map_inversions
+    diagnostics.update(
+        {
+            "legendre_exponentiations": square_root_tests,
+            "square_root_exponentiations": successful_roots,
+            "charged_pow_field_multiplications": (
+                legendre_multiplications + root_multiplications
+            ),
+            "coordinate_rhs_field_multiplications": 3 * square_root_tests,
+            "map_field_multiplications": map_multiplications,
+            "map_field_inversions": map_inversions,
+            "charged_cost_model": (
+                "binary-square-and-multiply field-multiplication proxy; "
+                "successful roots conservatively include one root verification"
+            ),
+        }
+    )
+    return diagnostics
+
+
 def compile_base(
     curve: Any,
     q: int,
@@ -202,6 +257,35 @@ def compile_base(
     exact_epsilon = len(exact_support) / q
 
     canonical_items = sorted(advice_map.items(), key=lambda item: point_key(item[0]))
+    exact_order_control_ops = Ops()
+    target_order_expectations: list[dict[str, Any]] = []
+    for target_index, target_record in enumerate(targets):
+        target = PRIOR.point_from_json(target_record["point"])
+        successful_partials = 0
+        for partial, _ in canonical_items:
+            complement = curve.add(
+                target, curve.neg(partial), exact_order_control_ops
+            )
+            successful_partials += int(complement in advice_map)
+        exact_membership = target in exact_support
+        if (successful_partials > 0) != exact_membership:
+            raise AssertionError("exact first-hit count disagrees with support")
+        numerator = advice_entries + 1 if successful_partials else advice_entries
+        denominator = successful_partials + 1 if successful_partials else 1
+        target_order_expectations.append(
+            {
+                "target_index": target_index,
+                "successful_partials": successful_partials,
+                "exact_membership": exact_membership,
+                "expected_first_hit_numerator": numerator,
+                "expected_first_hit_denominator": denominator,
+                "expected_first_hit_lookups": numerator / denominator,
+            }
+        )
+    exact_uniform_average = statistics.fmean(
+        row["expected_first_hit_lookups"] for row in target_order_expectations
+    )
+
     order_results: list[dict[str, Any]] = []
     first_witness: dict[str, Any] | None = None
     for order_index, order_seed in enumerate(order_seeds):
@@ -210,10 +294,12 @@ def compile_base(
         ops = Ops()
         lookups = 0
         per_target_ops: list[int] = []
+        per_target_lookups: list[int] = []
         successes = 0
         for target_index, target_record in enumerate(targets):
             target = PRIOR.point_from_json(target_record["point"])
             before = ops.group_operations
+            before_lookups = lookups
             found: tuple[int, ...] | None = None
             for partial, partial_witness in ordered_items:
                 complement = curve.add(target, curve.neg(partial), ops)
@@ -224,6 +310,7 @@ def compile_base(
                 found = partial_witness + other_witness
                 break
             per_target_ops.append(ops.group_operations - before)
+            per_target_lookups.append(lookups - before_lookups)
             exact_membership = target in exact_support
             if (found is not None) != exact_membership:
                 raise AssertionError("shuffled split scan disagrees with exact support")
@@ -238,12 +325,15 @@ def compile_base(
                         "indices": list(found),
                         "target": target_record["point"],
                     }
+        sampled_average = statistics.fmean(per_target_lookups)
         order_results.append(
             {
                 "order_seed": order_seed,
                 "sampled_successful_targets": successes,
                 "online_group_operations": ops.group_operations,
                 "online_lookups": lookups,
+                "per_target_group_operations": per_target_ops,
+                "per_target_lookups": per_target_lookups,
                 "average_online_group_operations_per_target": statistics.fmean(
                     per_target_ops
                 ),
@@ -251,6 +341,10 @@ def compile_base(
                     per_target_ops
                 ),
                 "maximum_online_group_operations_per_target": max(per_target_ops),
+                "relative_error_to_exact_uniform_expectation": abs(
+                    sampled_average - exact_uniform_average
+                )
+                / exact_uniform_average,
             }
         )
 
@@ -258,25 +352,54 @@ def compile_base(
         result["average_online_group_operations_per_target"]
         for result in order_results
     ]
-    robust_online = statistics.median(order_averages)
+    sampled_median_online = statistics.median(order_averages)
     order_variation = max(order_averages) / min(order_averages)
+    sampled_expectation_error = max(
+        row["relative_error_to_exact_uniform_expectation"]
+        for row in order_results
+    )
+    order_control_passed = (
+        order_variation <= 1.25 and sampled_expectation_error <= 0.25
+    )
     frontier_score = (
-        compiled_artifact_bytes * robust_online**2 / (exact_epsilon * q)
+        compiled_artifact_bytes * exact_uniform_average**2 / (exact_epsilon * q)
     )
     offline_ops = {
         key: factor_base["build_ops"][key] + asdict(compiler_ops)[key]
         for key in asdict(compiler_ops)
     }
+    build_diagnostics = factor_base["build_diagnostics"]
+    offline_charged_cost = {
+        "group_operations": offline_ops["group_operations"],
+        "charged_field_multiplications": (
+            offline_ops["field_multiplications"]
+            + build_diagnostics["charged_pow_field_multiplications"]
+            + build_diagnostics["coordinate_rhs_field_multiplications"]
+            + build_diagnostics["map_field_multiplications"]
+        ),
+        "charged_field_inversions": (
+            offline_ops["field_inversions"]
+            + build_diagnostics["map_field_inversions"]
+        ),
+        "model": (
+            "curve-operation counters plus binary-pow multiplication proxy, "
+            "coordinate RHS arithmetic, and explicit map arithmetic"
+        ),
+    }
+    median_lookups = statistics.median(
+        result["online_lookups"] for result in order_results
+    )
     return {
         "name": factor_base["name"],
         "seed": factor_base["seed"],
         "size": factor_base["size"],
         "factor_base_digest": stable_digest(factor_base),
         "build_ops": factor_base["build_ops"],
-        "build_diagnostics": factor_base["build_diagnostics"],
+        "build_diagnostics": build_diagnostics,
         "compiler_ops": asdict(compiler_ops),
         "diagnostic_expansion_ops": asdict(expansion_ops),
         "offline_ops": offline_ops,
+        "offline_charged_cost": offline_charged_cost,
         "four_term_support_size": advice_entries,
         "generic_signed_four_term_maximum": signed_class_count(len(points) // 2, 4),
         "eight_term_support_size": len(exact_support),
@@ -286,14 +409,34 @@ def compile_base(
         "advice_map_deep_bytes": advice_map_bytes,
         "factor_base_deep_bytes": factor_base_bytes,
         "compiled_artifact_deep_bytes": compiled_artifact_bytes,
-        "order_results": order_results,
-        "order_robust_online_group_operations_per_target": robust_online,
-        "order_variation_ratio": order_variation,
-        "functional_frontier_score": frontier_score,
-        "estimated_lookup_traffic_bytes": int(
-            statistics.median(result["online_lookups"] for result in order_results)
-            * 64
+        "functional_artifact_retention": (
+            "reconstructible from factor-base digest and frozen sources; "
+            "not duplicated in the result document"
         ),
+        "target_order_expectations": target_order_expectations,
+        "exact_order_control_group_operations": (
+            exact_order_control_ops.group_operations
+        ),
+        "exact_uniform_average_first_hit_lookups_per_target": (
+            exact_uniform_average
+        ),
+        "order_results": order_results,
+        "sampled_median_online_group_operations_per_target": (
+            sampled_median_online
+        ),
+        "order_independent_online_group_operations_per_target": (
+            exact_uniform_average
+        ),
+        "order_variation_ratio": order_variation,
+        "maximum_sampled_expectation_relative_error": sampled_expectation_error,
+        "order_control_passed": order_control_passed,
+        "functional_frontier_score": frontier_score,
+        "lookup_traffic_model": {
+            "lookups_at_sampled_median": median_lookups,
+            "assumed_bytes_per_lookup": 64,
+            "assumed_traffic_bytes": int(median_lookups * 64),
+            "boundary": "assumption only; lookup count is measured",
+        },
         "first_witness": first_witness,
     }
 
@@ -301,6 +444,14 @@ def compile_base(
 def empirical_percentile(
     value: float, distribution: list[float], higher_is_better: bool
 ) -> float:
+    return empirical_percentile_detail(value, distribution, higher_is_better)[
+        "percentile"
+    ]
+
+
+def empirical_percentile_detail(
+    value: float, distribution: list[float], higher_is_better: bool
+) -> dict[str, Any]:
     if not distribution:
         raise ValueError("empty null distribution")
     if higher_is_better:
@@ -308,7 +459,15 @@ def empirical_percentile(
     else:
         favorable = sum(item > value for item in distribution)
     tied = sum(item == value for item in distribution)
-    return (1 + favorable + 0.5 * tied) / (len(distribution) + 1)
+    denominator = len(distribution) + 1
+    return {
+        "percentile": (1 + favorable + 0.5 * tied) / denominator,
+        "favorable_null_count": favorable,
+        "tied_null_count": tied,
+        "null_count": len(distribution),
+        "finite_null_denominator": denominator,
+        "higher_is_better": higher_is_better,
+    }
 
 
 def distribution_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -318,13 +477,21 @@ def distribution_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "functional_frontier_score": False,
         "four_term_support_size": True,
         "offline_group_operations": False,
+        "offline_charged_field_multiplications": False,
+        "offline_charged_field_inversions": False,
     }
     summary: dict[str, Any] = {"replicates": len(rows)}
     for metric in metrics:
         values = [
-            row["offline_ops"]["group_operations"]
-            if metric == "offline_group_operations"
-            else row[metric]
+            (
+                row["offline_ops"]["group_operations"]
+                if metric == "offline_group_operations"
+                else row["offline_charged_cost"][
+                    metric.removeprefix("offline_")
+                ]
+                if metric.startswith("offline_charged_")
+                else row[metric]
+            )
             for row in rows
         ]
         summary[metric] = {
@@ -341,30 +508,44 @@ def attach_percentiles(
     null_rows: dict[str, list[dict[str, Any]]],
 ) -> None:
     candidate["null_percentiles"] = {}
+    candidate["null_rank_details"] = {}
     for null_name, rows in null_rows.items():
-        candidate["null_percentiles"][null_name] = {
-            "eight_term_support": empirical_percentile(
+        rank_details = {
+            "eight_term_support": empirical_percentile_detail(
                 candidate["eight_term_support_size"],
                 [row["eight_term_support_size"] for row in rows],
                 True,
             ),
-            "coverage_efficiency": empirical_percentile(
+            "coverage_efficiency": empirical_percentile_detail(
                 candidate["coverage_efficiency"],
                 [row["coverage_efficiency"] for row in rows],
                 True,
             ),
-            "functional_frontier": empirical_percentile(
+            "functional_frontier": empirical_percentile_detail(
                 candidate["functional_frontier_score"],
                 [row["functional_frontier_score"] for row in rows],
                 False,
             ),
         }
-    random_x_offline = statistics.median(
-        row["offline_ops"]["group_operations"] for row in null_rows["random_x"]
-    )
-    candidate["offline_group_operations_ratio_to_random_x_median"] = (
-        candidate["offline_ops"]["group_operations"] / random_x_offline
-    )
+        candidate["null_rank_details"][null_name] = rank_details
+        candidate["null_percentiles"][null_name] = {
+            metric: detail["percentile"]
+            for metric, detail in rank_details.items()
+        }
+    candidate["offline_cost_ratios_to_random_x_median"] = {}
+    for metric in (
+        "group_operations",
+        "charged_field_multiplications",
+        "charged_field_inversions",
+    ):
+        candidate_value = candidate["offline_charged_cost"][metric]
+        random_x_median = statistics.median(
+            row["offline_charged_cost"][metric]
+            for row in null_rows["random_x"]
+        )
+        candidate["offline_cost_ratios_to_random_x_median"][metric] = (
+            candidate_value / random_x_median if random_x_median else 1.0
+        )
     candidate["split_support_ratio_to_random_medians"] = {
         null_name: candidate["four_term_support_size"]
         / statistics.median(row["four_term_support_size"] for row in rows)
@@ -377,8 +558,13 @@ def attach_percentiles(
             and values["functional_frontier"] >= 0.90
             for values in candidate["null_percentiles"].values()
         )
-        and candidate["order_variation_ratio"] <= 1.25
-        and candidate["offline_group_operations_ratio_to_random_x_median"] <= 4.0
+        and candidate["order_control_passed"]
+        and all(
+            ratio <= 4.0
+            for ratio in candidate[
+                "offline_cost_ratios_to_random_x_median"
+            ].values()
+        )
     )
     candidate["split_compression_gate_passed"] = all(
         ratio <= 0.8
@@ -398,7 +584,47 @@ def make_base(
         family, "sign_complete", curve, q, generator, size, seed
     )
     result["seed"] = seed
+    result["build_diagnostics"] = charged_build_diagnostics(result, curve.p)
     return result
+
+
+def aggregate_family_gate(
+    instances: list[dict[str, Any]],
+    candidate_families: list[str],
+    bit_sizes: list[int],
+    seeds: list[int],
+    controls_passed: bool,
+) -> dict[str, Any]:
+    family_counts: dict[str, int] = {family: 0 for family in candidate_families}
+    family_sizes: dict[str, set[int]] = {family: set() for family in candidate_families}
+    family_seeds: dict[str, set[int]] = {family: set() for family in candidate_families}
+    for instance in instances:
+        for row in instance["candidate_rows"]:
+            if not row["instance_gate_passed"]:
+                continue
+            family = row["name"]
+            family_counts[family] += 1
+            family_sizes[family].add(instance["curve"]["bits"])
+            family_seeds[family].add(instance["seed"])
+    promoted = []
+    if controls_passed:
+        promoted = sorted(
+            family
+            for family in candidate_families
+            if family_counts[family] >= 6
+            and family_sizes[family] == set(bit_sizes)
+            and family_seeds[family] == set(seeds)
+        )
+    return {
+        "family_pass_counts": family_counts,
+        "family_pass_sizes": {
+            family: sorted(values) for family, values in family_sizes.items()
+        },
+        "family_pass_seeds": {
+            family: sorted(values) for family, values in family_seeds.items()
+        },
+        "promoted_families": promoted,
+    }
 
 
 def run_experiment(
@@ -433,12 +659,17 @@ def run_experiment(
     candidate_families = ["x_interval", "square_map", "rational_union"]
     null_families = ["random", "random_x"]
     instances: list[dict[str, Any]] = []
+    used_field_moduli: set[int] = set()
+    used_base_seeds: set[int] = set()
     for seed_index, seed in enumerate(seeds):
         previous_q = 0
         for bits in bit_sizes:
             selection_seed = seed + bits * 1009
             curve_record = generate_clean_curve(bits, selection_seed)
             q = curve_record["q"]
+            if curve_record["p"] in used_field_moduli:
+                raise AssertionError("field modulus repeated across scheduled curves")
+            used_field_moduli.add(curve_record["p"])
             if q <= previous_q:
                 raise AssertionError("clean subgroup schedule is not strictly increasing")
             previous_q = q
@@ -458,7 +689,6 @@ def run_experiment(
                 for scalar in target_scalars
             ]
             size = PRIOR.choose_factor_base_size(q, 8, occupancy_lambda)
-            used_base_seeds: set[int] = set()
 
             def claim_base_seed(value: int) -> int:
                 if value in used_base_seeds:
@@ -563,28 +793,46 @@ def run_experiment(
                 }
             )
 
-    family_counts: dict[str, int] = {family: 0 for family in candidate_families}
-    family_sizes: dict[str, set[int]] = {family: set() for family in candidate_families}
-    family_seeds: dict[str, set[int]] = {family: set() for family in candidate_families}
-    for instance in instances:
-        for row in instance["candidate_rows"]:
-            if not row["instance_gate_passed"]:
-                continue
-            family = row["name"]
-            family_counts[family] += 1
-            family_sizes[family].add(instance["curve"]["bits"])
-            family_seeds[family].add(instance["seed"])
-    promoted = sorted(
-        family
-        for family in candidate_families
-        if family_counts[family] >= 6
-        and family_sizes[family] == set(bit_sizes)
-        and family_seeds[family] == set(seeds)
+    all_curves_clean = all(
+        instance["curve"]["trace"] not in (0, 1)
+        and instance["curve"]["j_invariant"]
+        not in (0, 1728 % instance["curve"]["p"])
+        and instance["curve"]["q"] == instance["curve"]["order"]
+        for instance in instances
+    )
+    all_positive_controls_passed = all(
+        instance["scalar_progression_control"]["positive_control_passed"]
+        for instance in instances
+    )
+    all_rho_trials_verified = all(
+        trial["verified"]
+        for instance in instances
+        for trial in instance["rho"]["trials"]
+    )
+    all_order_controls_passed = all(
+        row["order_control_passed"]
+        for instance in instances
+        for row in [
+            *instance["null_rows"]["random"],
+            *instance["null_rows"]["random_x"],
+            *instance["candidate_rows"],
+            instance["scalar_progression_control"],
+        ]
+    )
+    controls_passed = (
+        all_curves_clean
+        and all_positive_controls_passed
+        and all_rho_trials_verified
+        and all_order_controls_passed
+        and len(used_field_moduli) == len(instances)
+    )
+    family_gate = aggregate_family_gate(
+        instances, candidate_families, bit_sizes, seeds, controls_passed
     )
     return {
-        "protocol": "EXP-ECDLP-RECURSIVE-002-v1",
+        "protocol": "EXP-ECDLP-RECURSIVE-002-v2",
         "claim_status": ["HYPOTHESIS", "TOY-EVIDENCE", "HEURISTIC", "MODEL-BOUND"],
-        "valid": True,
+        "valid": controls_passed,
         "source": dict(SOURCE_HASHES),
         "config": {
             "bit_sizes": bit_sizes,
@@ -602,34 +850,17 @@ def run_experiment(
         "instances": instances,
         "summary": {
             "instances_completed": len(instances),
-            "all_curves_clean": all(
-                instance["curve"]["trace"] not in (0, 1)
-                and instance["curve"]["j_invariant"]
-                not in (0, 1728 % instance["curve"]["p"])
-                and instance["curve"]["q"] == instance["curve"]["order"]
-                for instance in instances
-            ),
-            "all_positive_controls_passed": all(
-                instance["scalar_progression_control"]["positive_control_passed"]
-                for instance in instances
-            ),
-            "all_rho_trials_verified": all(
-                trial["verified"]
-                for instance in instances
-                for trial in instance["rho"]["trials"]
-            ),
-            "family_pass_counts": family_counts,
-            "family_pass_sizes": {
-                family: sorted(values) for family, values in family_sizes.items()
-            },
-            "family_pass_seeds": {
-                family: sorted(values) for family, values in family_seeds.items()
-            },
-            "promoted_families": promoted,
-            "preflight_gate_passed": bool(promoted),
+            "distinct_field_moduli": len(used_field_moduli),
+            "globally_unique_factor_base_seeds": len(used_base_seeds),
+            "all_curves_clean": all_curves_clean,
+            "all_positive_controls_passed": all_positive_controls_passed,
+            "all_rho_trials_verified": all_rho_trials_verified,
+            "all_order_controls_passed": all_order_controls_passed,
+            **family_gate,
+            "preflight_gate_passed": bool(family_gate["promoted_families"]),
             "split_compression_claim": False,
             "breakthrough_claim": False,
-            "boundary": "A promotion is a replicated toy additive-geometry signal only; rank, descent, exponent, and deployment remain untested.",
+            "boundary": "An exploratory finite-null pass on at least six of nine distinct-field toy curves only; rank, descent, exponent, family-wise inference, and deployment remain untested.",
         },
     }
 
