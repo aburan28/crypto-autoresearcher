@@ -15,7 +15,8 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 
 | ID | Hypothesis | Status | Owner | Next action |
 |---|---|---|---|---|
-| H-ECDLP-RECURSIVE-001 | A coordinate factor base retains at least `0.8x` random exact support while reducing matched-random functional-advice-byte `S*T^2/(epsilon*q)` to at most `0.8x`. | HYPOTHESIS, v1 REVISE, v2 GO and approved | executor | Run canonical generator, commit, then run verifier. |
+| H-ECDLP-RECURSIVE-001 | A coordinate factor base retains at least `0.8x` random exact support while reducing matched-random functional-advice-byte `S*T^2/(epsilon*q)` to at most `0.8x`. | OBSERVATION, REVISE INTERPRETATION | coordinator | Preserve runs; transfer only the coverage signal into a repaired null-calibration successor. |
+| H-ECDLP-RECURSIVE-002 | A coordinate family's eight-term coverage/frontier statistic is extreme against replicated random-scalar and random-x null distributions on non-special curves and under order-independent scans. | HYPOTHESIS, implementation frozen | red team | Audit final source hashes and frozen gate before any canonical run. |
 | TH-ECDLP-SPLIT-001 | Useful factor bases may combine high final additive expansion with exact intermediate compression. | CONJECTURE | theory and red team | Formalize necessary expansion/compression inequalities and search for counterexamples. |
 | TH-ECDLP-MAP-UNION-001 | Unions of compositional rational-map images may improve recursive support geometry without exceptional curves. | CONJECTURE | algorithm designer | Test only after the recursive preflight establishes a sound measurement surface. |
 
@@ -25,13 +26,15 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 |---|---|---|---|---|
 | EXP-ECDLP-ENERGY-001-V2 | Promotion of the frozen x-interval, square-map, or rational-union configurations. | Three generated toy curves, `B in {8,12}`, five-term sign-complete sums. Family-level behavior remains open. | Exact supports were random/x-interval/rational-union `456,456,2668`; square map `376,400,2622`; scalar progression `41,41,61`. | Ordinary multiset occupancy misses inverse-pair cancellations; use exact signed support and a construction-matched random-x control. |
 | EXP-ECDLP-ENERGY-001-COST | Treating exhaustive representation census or counter-only storage as an online compiler cost. | Original frozen implementation only. | Independent red-team audit and interpretation amendment. | Stop at the first witness, retain functional witnesses, and separate diagnostic expansion from compiler work. |
+| EXP-ECDLP-RECURSIVE-001-COMPRESSION | Promotion of split-compression for the frozen passing rows. | Sign-complete `m=8`, 12-16 bit run only; family-level coverage remains open. | Every passing row had generic-maximum four-term support and advice-byte ratio near one. | Separate expansion significance from compiler compression; do not let online coverage masquerade as smaller advice. |
 
 ## Positive signals
 
 | ID | Signal | Parameter regime | Evidence | Next validation |
 |---|---|---|---|---|
 | CTRL-ECDLP-ENERGY-001 | Scalar progression compresses intermediate/final support as expected. | Same frozen toy instances. | Exact support `41,41,61`, well below random. | Retain as a positive compression/negative expansion control. |
-| INFRA-ECDLP-RECURSIVE-001 | Generator and independent verifier exactly replay source hashes, curves, factor bases, supports, split witnesses, counters, rho trials, and promotion logic. | Reduced noncanonical test config. | Eight repository tests pass; verifier self-test passes 18 hash, parser, mutation, gate, and replay tests. | Fresh pre-run review, then canonical immutable generator and verifier runs if approved. |
+| INFRA-ECDLP-RECURSIVE-001 | Generator and independent verifier exactly replay source hashes, curves, factor bases, supports, split witnesses, counters, rho trials, and promotion logic. | Six canonical toy instances and 216 configurations. | Both immutable runs completed valid; generator/verifier raw hashes are recorded in evidence. | Reuse the verification pattern while adding anomalous/special-curve rejection. |
+| SIG-ECDLP-RECURSIVE-001 | Three coordinate families showed verified sign-complete `m=8` coverage/first-witness gate crossings. | Frozen 12-16 bit instances, including one anomalous curve and one draw per null. | Counts `4,3,3`, but no family passed three instances against both random controls. | Estimate null percentiles and remove order/special-curve confounds before family promotion. |
 
 ## Baselines
 
@@ -55,6 +58,9 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 - `experiments/EXP-ECDLP-ENERGY-001/interpretation-amendment-v2.md`
 - `experiments/EXP-ECDLP-ENERGY-001/red-team-audit.md`
 - `experiments/EXP-ECDLP-RECURSIVE-001/contract.md`
+- `experiments/EXP-ECDLP-RECURSIVE-001/result-red-team.md`
+- `experiments/EXP-ECDLP-RECURSIVE-001/evidence.json`
+- `experiments/EXP-ECDLP-RECURSIVE-001/decision.json`
 - `notes/ecdlp_recursive_expansion_literature_map_20260717.md`
 - `notes/ecdlp_unordered_occupancy_split_support_theory_20260717.md`
 - `notes/coordinate_decomposition_theories_20260717.md`

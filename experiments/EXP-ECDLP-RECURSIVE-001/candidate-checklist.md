@@ -69,6 +69,10 @@ The candidate uses coordinate membership and fixed-curve preprocessing unavailab
 - Relation rank, linear algebra, or individual descent erase a preflight advantage.
 - Fully charged preprocessing leaves the candidate at or above the generic fixed-curve frontier.
 
-## First experiment
+## Frozen outcome
 
-Run `EXP-ECDLP-RECURSIVE-001` only after an independent pre-run `GO`. Preserve the generator and verifier as separate immutable runs and require exact agreement before interpretation.
+`EXP-ECDLP-RECURSIVE-001` completed and independently replayed. Its frozen gate crossed for three sign-complete `m=8` families, but every passing row had generic-maximum four-term support and near-random advice bytes. One curve was anomalous despite this checklist, and one-draw random controls were too dispersed for family promotion. The decision is `REVISE_INTERPRETATION`, not a compiler or ECDLP promotion.
+
+## Next experiment
+
+Use a versioned successor with non-anomalous/special-`j` enforcement, replicated paired nulls, order-independent scan cost, and exact support percentiles. Preserve both frozen runs unchanged.
