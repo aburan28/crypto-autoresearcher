@@ -1,0 +1,74 @@
+# ECDLP Candidate Checklist
+
+## Candidate name
+
+Symmetry-corrected recursive coordinate expansion and split compiler.
+
+## Target curve family
+
+- prime field: generated ordinary prime-order short-Weierstrass curves over `F_p`
+- binary field: no
+- extension field: no
+- special curve class: none selected; special `j`, smooth `p-1`, anomalous, supersingular, and non-prime-order cases invalidate a run
+
+## What structure is exploited?
+
+Coordinate predicates define factor-base fibers whose exact additive support may expand near a random set at depth `m`, while smaller split supports may admit reusable fixed-curve advice.
+
+## Why does deployed prime-field ECDLP not obviously kill it?
+
+The candidate uses coordinate membership and fixed-curve preprocessing unavailable in the generic-group model. This is an `UNTESTED` route, not evidence of a deployment-level advantage.
+
+## Factor base
+
+- definition: matched-cardinality random-scalar, random-x, x-interval, square-map, rational-union, and scalar-progression families under sign-canonical and sign-complete modes
+- size: smallest even `B` satisfying `binomial(B+m-1,m)/q >= 0.5`; this is a `HEURISTIC` sizing rule only
+- membership test cost: recorded through each construction path; random-x uses the same square-root and subgroup path as coordinate predicates
+
+## Relation generation
+
+- relation shape: `P_1 + ... + P_m = Q` for `m in {5,6,8}`
+- expected probability: exact `|mA|/q` is primary; unordered Poisson occupancy is only a control
+- decomposition method: compile witness-bearing supports of depths `floor(m/2)` and `ceil(m/2)`, scan the smaller side, and stop at the first exact complement
+- cost per attempt: measured online group operations and lookups per target
+- cost per relation: measured per successful target, with unsuccessful targets retained
+
+## Linear algebra
+
+- matrix dimensions: not yet defined
+- density: not yet measured
+- rank expectation: `UNTESTED`
+- modulus: eventual relations would be over the prime subgroup order `q`
+
+## Individual logarithm / target descent
+
+- method: not yet defined
+- expected cost: `OPEN`; a preflight promotion cannot become an attack claim without this gate
+
+## Baselines
+
+- rho cost: measured on every generated curve using the same affine arithmetic; generic expectation is `Theta(sqrt(q))`
+- parallel rho cost: not measured in this preflight
+- BSGS cost and memory: `Theta(sqrt(q))` reference baseline
+- closest known IC cost: rational-map and summation-polynomial point-decomposition methods; this prototype does not claim novelty for those factor-base families
+
+## Claimed advantage
+
+- asymptotic: none
+- constant factor: none before a canonical verified run
+- memory: candidate must reduce functional advice entries or account for any larger byte footprint
+- parallelism: not evaluated
+- amortized many-target setting: the intended fixed-curve use case, with offline and online costs reported separately
+
+## Things that would kill the idea
+
+- Coordinate families match random exact support and split costs after fair construction controls.
+- Compression appears only with proportional loss of final support.
+- Functional witness bytes or memory bandwidth dominate the nominal advice count.
+- A signal fails across seeds or sizes, disappears under independent replay, or relies on exceptional curves.
+- Relation rank, linear algebra, or individual descent erase a preflight advantage.
+- Fully charged preprocessing leaves the candidate at or above the generic fixed-curve frontier.
+
+## First experiment
+
+Run `EXP-ECDLP-RECURSIVE-001` only after an independent pre-run `GO`. Preserve the generator and verifier as separate immutable runs and require exact agreement before interpretation.

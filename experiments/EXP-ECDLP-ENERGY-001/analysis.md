@@ -1,5 +1,7 @@
 # Analysis: EXP-ECDLP-ENERGY-001
 
+> **Interpretation amended 2026-07-17.** See `interpretation-amendment-v2.md`. Exact fivefold support supersedes sampled target ratios and the finite `binomial(B+4,5)` explanation below. The frozen no-promotion outcome remains valid; family-level persistence remains open.
+
 ## Status
 
 `NEGATIVE RESULT`, `OBSERVATION`, `TOY-EVIDENCE`, `HEURISTIC`, and `MODEL-BOUND`.
@@ -38,14 +40,14 @@ Pr[target covered] = 1 - exp(-lambda_ordered).
 
 It predicted random-control target coverage of `95.19%`, `96.41%`, and `85.31%`, but the observed values were `7.03%`, `7.03%`, and `3.13%`. Ordered representations are not independent events: a single five-element multiset creates many permutations of the same relation.
 
-The post-run diagnostic
+The original post-run diagnostic
 
 ```text
 lambda_unordered = binomial(B + 4, 5) / q
 Pr[target covered] = 1 - exp(-lambda_unordered)
 ```
 
-predicts `7.07%`, `7.73%`, and `3.31%`, closely matching the observations. This is an `OBSERVATION`, not a preregistered success. It implies that constant-probability five-term set decomposition needs approximately `binomial(B+4,5) ~= q`, including the roughly `(5!)^(1/5)` factor omitted by the ordered occupancy model. The exponent is unchanged, but relation counts, constants, and toy parameter choices are materially affected.
+predicts `7.07%`, `7.73%`, and `3.31%`, which happened to be close to the 128-target samples. The red-team exact-support census showed that this finite explanation is incomplete for sign-complete sets because inverse-pair cancellations identify additional multisets. Retain `binomial(B+4,5)/q` only as a leading-order sizing heuristic pending a signed-coefficient occupancy model; do not use it as the explanation of these three samples.
 
 ## Interpretation
 
