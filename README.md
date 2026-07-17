@@ -21,12 +21,20 @@ The project separates research into three primary roles:
 
 ```text
 AGENTS.md                              Global rules and inter-agent contract
+CLAUDE.md                              Claude Code harness wiring and conventions
 agents/coordinator.md                  Coordinator authority and decision semantics
 agents/idea-generator.md               Hypothesis-generation and novelty discipline
 agents/executor.md                     Execution, artifact, and failure semantics
+.claude/agents/                        Operational subagent definitions (Claude Code)
+.claude/skills/                        Lifecycle skills: /propose-ideas, /design-experiment,
+                                       /run-experiment, /review-evidence, /research-status,
+                                       /curate-knowledge
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
 templates/research-records.md          YAML templates for all shared records
+ledger/                                Canonical YAML research records
+experiments/                           Frozen contracts and immutable run artifacts
+knowledge/                             Curated long-term knowledge corpus
 ROADMAP.md                             Initial engineering and ECDLP research roadmap
 ```
 
@@ -54,6 +62,15 @@ replicate | expand | refine | support | weaken | reject scoped | pause
 Only the Coordinator may change the official status of a hypothesis. The Idea Generator proposes; the Executor measures; the Coordinator decides what the evidence justifies.
 
 ## Getting started
+
+When working in Claude Code, the lifecycle is driven by skills — see
+[`CLAUDE.md`](CLAUDE.md):
+
+```text
+/research-status → /propose-ideas → /design-experiment → /run-experiment → /review-evidence
+```
+
+Manual path:
 
 1. Read [`AGENTS.md`](AGENTS.md).
 2. Review the role contract for the agent being instantiated.
