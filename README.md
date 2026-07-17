@@ -28,6 +28,10 @@ docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
 templates/research-records.md          YAML templates for all shared records
 ROADMAP.md                             Initial engineering and ECDLP research roadmap
+schemas/                               Strict JSON schemas for shared records
+src/crypto_autoresearcher/             Validation, ID, ledger, and immutable-run CLI
+experiments/                            Frozen protocols, implementations, and run artifacts
+tests/                                  Dependency-free unit and toy arithmetic checks
 ```
 
 ## Operating loop
@@ -62,6 +66,36 @@ Only the Coordinator may change the official status of a hypothesis. The Idea Ge
 5. Store every run with its exact command, revision, environment, seed, raw result, logs, and validity status.
 6. Record the Coordinator decision that follows from the evidence.
 
+## Local CLI
+
+The initial CLI uses only the Python standard library. Run it without installing the package:
+
+```bash
+PYTHONPATH=src python3 -m crypto_autoresearcher validate experiments
+PYTHONPATH=src python3 -m crypto_autoresearcher new-id EXP ECDLP-ENERGY
+PYTHONPATH=src python3 -m crypto_autoresearcher index --output ledger.json
+```
+
+Approved experiments run through an immutable wrapper. The wrapper refuses a dirty tree unless an exploratory caller explicitly supplies `--allow-dirty`, and it never overwrites a run ID:
+
+```bash
+PYTHONPATH=src python3 -m crypto_autoresearcher run \
+  --experiment-dir experiments/EXP-ECDLP-ENERGY-001 \
+  --run-id RUN-ECDLP-ENERGY-001 --seed 1469001 --timeout 600 -- \
+  python3 experiments/EXP-ECDLP-ENERGY-001/src/coordinate_energy.py \
+  --bit-sizes 15 17 19 --seed 1469001 --targets 128 --rho-trials 8
+```
+
+Run the test suite with:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -v
+```
+
+## First research program
+
+[`EXP-ECDLP-ENERGY-001`](experiments/EXP-ECDLP-ENERGY-001/contract.md) is a verification-first toy preflight for coordinate additive energy, recursive two-/three-sum compilation, five-term decomposition, and fixed-curve preprocessing. It includes matched random and high-energy controls, measured Pollard rho, separate offline/online accounting, and an independent arithmetic verifier. Its protocol explicitly forbids interpreting toy success as a faster-than-rho or deployed-curve result.
+
 ## Status
 
-The semantic foundation is defined. The next implementation milestone is a schema-validated orchestration CLI, immutable run wrapper, coordinator queue, and pluggable agent adapter interface.
+The semantic foundation, schema-validated local CLI, immutable run wrapper, generated ledger index, and first verification-first ECDLP experiment are implemented. Coordinator queues and pluggable agent adapters remain the next orchestration milestone.
