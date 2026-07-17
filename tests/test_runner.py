@@ -71,6 +71,8 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(manifest["status"], "completed_valid")
             self.assertEqual(manifest["result"]["metrics"], {"answer": 42})
             self.assertIn("raw-result.json", manifest["artifacts"])
+            self.assertFalse(any(run_dir.rglob("._*")))
+            self.assertFalse(any(name.startswith("._") for name in manifest["artifacts"]))
             with self.assertRaises(RecordValidationError):
                 run_experiment(
                     repo_root=REPO_ROOT,

@@ -95,6 +95,12 @@ def _parse_stdout(stdout: str) -> tuple[dict[str, Any], str | None]:
     return value, None
 
 
+def _remove_appledouble(root: Path) -> None:
+    for path in root.rglob("._*"):
+        if path.is_file():
+            path.unlink()
+
+
 def run_experiment(
     repo_root: Path,
     experiment_dir: Path,
@@ -184,6 +190,7 @@ def run_experiment(
     (temp_dir / "stderr.log").write_text(stderr, encoding="utf-8")
     write_json(temp_dir / "environment.json", _environment())
     write_json(temp_dir / "raw-result.json", raw_result)
+    _remove_appledouble(temp_dir)
 
     cpu_seconds = (
         usage_after.ru_utime
@@ -246,6 +253,7 @@ def run_experiment(
         }
     }
     write_json(temp_dir / "manifest.json", manifest)
+    _remove_appledouble(temp_dir)
     os.replace(temp_dir, final_dir)
     return final_dir
 
