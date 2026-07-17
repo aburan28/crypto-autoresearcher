@@ -1,0 +1,68 @@
+experiment:
+  id: EXP-REP-001
+  hypothesis_id: H-REP-001
+  version: 1
+  title: >-
+    Model-native PDP solving degree: twisted-Edwards vs Weierstrass Semaev,
+    matched curve and points, d_reg and solve-time scaling in factor-base degree.
+  status: approved
+  objective: >-
+    Reduce the uncertainty in RQ-REP-001: measure whether the twisted-Edwards
+    native decomposition system has a d_reg and solve-time scaling in d strictly
+    below the matched Weierstrass Semaev system on the SAME curve/points.
+  inputs:
+    curve_generation: >-
+      Sample twisted-Edwards (a,d) over F_p (p ~ 2^12..2^20). Derive the
+      birational short-Weierstrass form and the point map so a single point set
+      is shared by both models.
+    factor_base: >-
+      d shared points; Weierstrass membership prod(x_i - x_W(f)) on x-coords;
+      Edwards membership prod(y_i - y_E(f)) on y-coords. Same points f.
+    targets: >-
+      Decomposable R = F_i (+ F_j (+ F_k)) so each system has a genuine solution.
+  controls:
+    - Matched Weierstrass Semaev system on the identical curve, points, and R
+      (the baseline; same 0-dim decomposition variety, different coordinates).
+    - Matched-degree random dense system in the same #vars/degrees, as a
+      generic semi-regular d_reg reference (rules out "low d_reg is trivial").
+    - Same-seed re-run (determinism / infra-failure separation).
+  independent_variables:
+    - curve model (weierstrass | edwards)
+    - m (number of summands: 2, 3)
+    - factor-base degree d (4, 6, 8, 12, 16)
+  metrics:
+    primary:
+      - d_reg = output Groebner-basis max total degree, per (model, m, d)
+      - per-PDP solve wall-time, per (model, m, d); fitted exponent gamma in d
+    secondary:
+      - number of GB generators; monomials at d_reg; #solutions (decompositions)
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 300
+    total_cpu_hours: 1
+    maximum_memory_gb: 8
+    maximum_runs: 200
+  stopping_rules:
+    - Stop the d-sweep for a model once a single GB median exceeds 120 s
+      (adaptive ceiling; larger d recorded as censored, not failed).
+  invalidation_rules:
+    - A run whose GB times out or errors is marked failed_infrastructure and
+      EXCLUDED from the exponent fit (AGENTS rule 5), never counted as evidence.
+    - A model whose system is not 0-dimensional (no membership) is invalid.
+  success_criterion: >-
+    Edwards d_reg strictly below Weierstrass at >=3 of the reachable d with a
+    NON-decreasing gap, OR Edwards time-exponent gamma below Weierstrass with
+    non-overlapping bootstrap CIs. (Would justify a scaling study; still toy.)
+  falsification_criterion: >-
+    Edwards and Weierstrass d_reg equal at every matched d, OR any Edwards
+    advantage is a constant offset with non-growing gap and overlapping time-
+    exponent CIs -> model-invariant exponent (scoped negative, IC-5-consistent).
+  required_artifacts:
+    - runs/<run-id>/manifest.yaml (command, commit, env, seed, params)
+    - runs/<run-id>/raw.json (per-(model,m,d) d_reg + times)
+    - runs/<run-id>/stdout.txt
+    - analysis.md (fit, CIs, verdict against the criteria)
+  assigned_to: executor
+  approved_by: coordinator
