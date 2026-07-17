@@ -15,7 +15,7 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 
 | ID | Hypothesis | Status | Owner | Next action |
 |---|---|---|---|---|
-| H-ECDLP-RECURSIVE-001 | A coordinate factor base retains at least `0.8x` random exact target coverage while reducing split advice or online work to at most `0.8x` random. | HYPOTHESIS, review required | executor | Independent pre-run audit of the frozen protocol and verifier. |
+| H-ECDLP-RECURSIVE-001 | A coordinate factor base retains at least `0.8x` random exact support while reducing matched-random functional-advice-byte `S*T^2/(epsilon*q)` to at most `0.8x`. | HYPOTHESIS, v1 REVISE, v2 review required | executor | Fresh independent audit of v2 revision closure. |
 | TH-ECDLP-SPLIT-001 | Useful factor bases may combine high final additive expansion with exact intermediate compression. | CONJECTURE | theory and red team | Formalize necessary expansion/compression inequalities and search for counterexamples. |
 | TH-ECDLP-MAP-UNION-001 | Unions of compositional rational-map images may improve recursive support geometry without exceptional curves. | CONJECTURE | algorithm designer | Test only after the recursive preflight establishes a sound measurement surface. |
 
@@ -31,7 +31,7 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 | ID | Signal | Parameter regime | Evidence | Next validation |
 |---|---|---|---|---|
 | CTRL-ECDLP-ENERGY-001 | Scalar progression compresses intermediate/final support as expected. | Same frozen toy instances. | Exact support `41,41,61`, well below random. | Retain as a positive compression/negative expansion control. |
-| INFRA-ECDLP-RECURSIVE-001 | Generator and independent verifier exactly replay curves, factor bases, supports, split witnesses, counters, rho trials, and promotion logic. | Reduced noncanonical test config. | Eight repository tests pass; verifier self-test passes 13 mutation/replay tests. | Pre-run review, then canonical immutable generator and verifier runs if approved. |
+| INFRA-ECDLP-RECURSIVE-001 | Generator and independent verifier exactly replay source hashes, curves, factor bases, supports, split witnesses, counters, rho trials, and promotion logic. | Reduced noncanonical test config. | Eight repository tests pass; verifier self-test passes 18 hash, parser, mutation, gate, and replay tests. | Fresh pre-run review, then canonical immutable generator and verifier runs if approved. |
 
 ## Baselines
 

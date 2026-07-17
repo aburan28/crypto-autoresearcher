@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent verifier for EXP-ECDLP-RECURSIVE-001-v1.
+"""Independent verifier for EXP-ECDLP-RECURSIVE-001-v2.
 
 This module intentionally does not import the experiment implementation or its
 coordinate-energy prerequisite.  It reconstructs the complete claimed result
@@ -25,10 +25,20 @@ from typing import Any
 
 Point = tuple[int, int] | None
 
-PROTOCOL = "EXP-ECDLP-RECURSIVE-001-v1"
+PROTOCOL = "EXP-ECDLP-RECURSIVE-001-v2"
 VERIFIER_PROTOCOL = f"{PROTOCOL}-independent-verifier"
 RECURSIVE_SOURCE_SHA256 = (
-    "f17cb9d63eca4473d0b3ab15563a233f3252449a7d599bf1f468577a64b54275"
+    "c8e6986dd48e341b3e585a170990a018210602f99fc6cd748b81902f1b4e446d"
+)
+COORDINATE_ENERGY_SOURCE_SHA256 = (
+    "7e9b16c18c5855ef7786f78d42300e63fb2a3dcf768413355a31d14160c6ea71"
+)
+RECURSIVE_SOURCE_PATH = Path(__file__).with_name("recursive_expansion.py").resolve()
+COORDINATE_ENERGY_SOURCE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "EXP-ECDLP-ENERGY-001"
+    / "src"
+    / "coordinate_energy.py"
 )
 FAMILIES = [
     "random",
@@ -57,6 +67,30 @@ FROZEN_CONFIG = {
     "families": FAMILIES,
     "symmetry_modes": SYMMETRY_MODES,
 }
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verify_source_hashes() -> dict[str, str]:
+    actual = {
+        "recursive_expansion_sha256": sha256_file(RECURSIVE_SOURCE_PATH),
+        "coordinate_energy_sha256": sha256_file(COORDINATE_ENERGY_SOURCE_PATH),
+    }
+    expected = {
+        "recursive_expansion_sha256": RECURSIVE_SOURCE_SHA256,
+        "coordinate_energy_sha256": COORDINATE_ENERGY_SOURCE_SHA256,
+    }
+    if actual != expected:
+        raise AssertionError(
+            f"source hash mismatch: expected {expected!r}, observed {actual!r}"
+        )
+    return actual
 
 
 @dataclass
@@ -288,6 +322,8 @@ def reconstruct_curve(bits: int, selection_seed: int, max_attempts: int = 128) -
             "id": f"recursive-toy-p{p}-a{a}-b{b}-q{order}",
             "bits": bits,
             "p": p,
+            "p_mod_4": p % 4,
+            "field_modulus_policy": "seeded bits-bit prime constrained to p mod 4 = 3",
             "a": a,
             "b": b,
             "order": order,
@@ -637,6 +673,9 @@ def compile_configuration(
         "s_t_squared_over_epsilon_q": (
             advice_entries * average_online_ops**2 / (epsilon * q)
         ),
+        "functional_advice_bytes_t_squared_over_epsilon_q": (
+            advice_bytes * average_online_ops**2 / (epsilon * q)
+        ),
         "offline_group_operations_per_supported_point": (
             offline_ops["group_operations"] / final_support
         ),
@@ -676,6 +715,9 @@ def attach_ratios(configurations: list[dict[str, Any]]) -> None:
         row["advice_entries_ratio_to_random"] = (
             row["advice_entries"] / control["advice_entries"]
         )
+        row["advice_deep_bytes_ratio_to_random"] = (
+            row["advice_deep_bytes"] / control["advice_deep_bytes"]
+        )
         row["online_group_operations_ratio_to_random"] = (
             row["online_group_operations_per_target"]
             / control["online_group_operations_per_target"]
@@ -687,6 +729,10 @@ def attach_ratios(configurations: list[dict[str, Any]]) -> None:
         row["offline_group_operations_ratio_to_random_x"] = (
             row["offline_ops"]["group_operations"]
             / random_x_control["offline_ops"]["group_operations"]
+        )
+        row["success_adjusted_st2_ratio_to_random"] = (
+            row["functional_advice_bytes_t_squared_over_epsilon_q"]
+            / control["functional_advice_bytes_t_squared_over_epsilon_q"]
         )
 
 
@@ -771,11 +817,7 @@ def promotion_decisions(
             key = f"{row['name']}|{row['symmetry_mode']}|m={row['m']}"
             passed = (
                 row["final_support_ratio_to_random"] >= 0.8
-                and min(
-                    row["advice_entries_ratio_to_random"],
-                    row["online_group_operations_ratio_to_random"],
-                )
-                <= 0.8
+                and row["success_adjusted_st2_ratio_to_random"] <= 0.8
                 and row["offline_group_operations_ratio_to_random_x"] <= 4.0
             )
             if passed:
@@ -901,6 +943,10 @@ def reconstruct_document(config: dict[str, Any]) -> dict[str, Any]:
         "protocol": PROTOCOL,
         "claim_status": CLAIM_STATUS,
         "valid": True,
+        "source": {
+            "recursive_expansion_sha256": RECURSIVE_SOURCE_SHA256,
+            "coordinate_energy_sha256": COORDINATE_ENERGY_SOURCE_SHA256,
+        },
         "config": copy.deepcopy(config),
         "instances": instances,
         "summary": {
@@ -919,6 +965,7 @@ def reconstruct_document(config: dict[str, Any]) -> dict[str, Any]:
             "promoted_configurations": promoted,
             "preflight_gate_passed": bool(promoted),
             "breakthrough_claim": False,
+            "promotion_metric": "functional advice bytes * online group operations^2 / (exact success probability * subgroup order), normalized to matched random",
             "boundary": "A promotion signal would justify a source-tagged follow-up, not an ECDLP break.",
         },
     }
@@ -929,6 +976,7 @@ def verify_document(document: Any, enforce_frozen: bool = True) -> dict[str, Any
         raise AssertionError("top-level JSON value must be an object")
     if document.get("protocol") != PROTOCOL:
         raise AssertionError("unexpected protocol")
+    source_hashes = verify_source_hashes()
     config = validate_config(document.get("config"), enforce_frozen)
     expected = reconstruct_document(config)
     assert_exact(document, expected)
@@ -937,7 +985,7 @@ def verify_document(document: Any, enforce_frozen: bool = True) -> dict[str, Any
     return {
         "valid": True,
         "protocol": VERIFIER_PROTOCOL,
-        "source": {"recursive_expansion_sha256": RECURSIVE_SOURCE_SHA256},
+        "source": source_hashes,
         "summary": {
             "instances_verified": len(expected["instances"]),
             "configurations_verified": sum(
@@ -956,6 +1004,7 @@ def verify_document(document: Any, enforce_frozen: bool = True) -> dict[str, Any
             "preflight_gate_passed": bool(promoted),
             "breakthrough_claim": False,
             "frozen_config_enforced": enforce_frozen,
+            "promotion_metric": "functional advice bytes * online group operations^2 / (exact success probability * subgroup order), normalized to matched random",
             "boundary": (
                 "Independent arithmetic verification of frozen toy evidence only."
                 if enforce_frozen
@@ -993,6 +1042,7 @@ def expect_rejection(document: dict[str, Any], label: str) -> str:
 
 
 def run_self_test() -> dict[str, Any]:
+    source_hashes = verify_source_hashes()
     tiny_config = {
         "bit_sizes": [8],
         "seeds": [1701],
@@ -1006,7 +1056,21 @@ def run_self_test() -> dict[str, Any]:
     validate_config(tiny_config, enforce_frozen=False)
     fixture = reconstruct_document(tiny_config)
     verify_document(fixture, enforce_frozen=False)
-    checks = ["tiny_round_trip_exact"]
+    checks = ["tiny_round_trip_exact", "generator_and_dependency_hashes_enforced"]
+
+    try:
+        parse_json(b'{"duplicate":1,"duplicate":2}')
+    except ValueError:
+        checks.append("duplicate_json_key_rejected")
+    else:
+        raise AssertionError("duplicate JSON key was accepted")
+
+    try:
+        parse_json(b'{"nonfinite":NaN}')
+    except ValueError:
+        checks.append("nonfinite_json_constant_rejected")
+    else:
+        raise AssertionError("non-finite JSON constant was accepted")
 
     bool_mutation = copy.deepcopy(fixture)
     bool_mutation["instances"][0]["targets"][0]["scalar"] = True
@@ -1068,6 +1132,14 @@ def run_self_test() -> dict[str, Any]:
     ] += 0.25
     checks.append(expect_rejection(ratio_mutation, "random_x_offline_ratio"))
 
+    success_adjusted_mutation = copy.deepcopy(fixture)
+    success_adjusted_mutation["instances"][0]["configurations"][0][
+        "success_adjusted_st2_ratio_to_random"
+    ] += 0.25
+    checks.append(
+        expect_rejection(success_adjusted_mutation, "success_adjusted_st2_ratio")
+    )
+
     synthetic_gate_row = {
         "name": "x_interval",
         "symmetry_mode": "sign_canonical",
@@ -1077,6 +1149,7 @@ def run_self_test() -> dict[str, Any]:
         "online_group_operations_ratio_to_random": 1.0,
         "offline_group_operations_ratio_to_random": 100.0,
         "offline_group_operations_ratio_to_random_x": 4.0,
+        "success_adjusted_st2_ratio_to_random": 0.8,
     }
     synthetic_instances = [
         {"configurations": [copy.deepcopy(synthetic_gate_row)]} for _ in range(3)
@@ -1096,6 +1169,20 @@ def run_self_test() -> dict[str, Any]:
     if blocked_counts or blocked_promoted:
         raise AssertionError("random offline ratio incorrectly overrode random_x gate")
     checks.append("random_ratio_cannot_override_random_x_offline_gate")
+
+    entry_only_instances = [
+        {"configurations": [copy.deepcopy(synthetic_gate_row)]} for _ in range(3)
+    ]
+    for instance in entry_only_instances:
+        row = instance["configurations"][0]
+        row["advice_entries_ratio_to_random"] = 0.01
+        row["online_group_operations_ratio_to_random"] = 0.01
+        row["offline_group_operations_ratio_to_random_x"] = 0.01
+        row["success_adjusted_st2_ratio_to_random"] = 0.8000000001
+    entry_only_counts, entry_only_promoted = promotion_decisions(entry_only_instances)
+    if entry_only_counts or entry_only_promoted:
+        raise AssertionError("entry or online ratio bypassed the functional ST2 gate")
+    checks.append("entry_and_online_ratios_cannot_override_functional_st2_gate")
 
     witness_mutation = copy.deepcopy(fixture)
     witness_row = next(
@@ -1124,7 +1211,7 @@ def run_self_test() -> dict[str, Any]:
     return {
         "valid": True,
         "protocol": f"{VERIFIER_PROTOCOL}-selftest",
-        "source": {"recursive_expansion_sha256": RECURSIVE_SOURCE_SHA256},
+        "source": source_hashes,
         "tests": checks,
         "tiny_fixture": {
             "sha256": hashlib.sha256(fixture_bytes).hexdigest(),

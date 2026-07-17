@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import math
@@ -14,18 +15,35 @@ from typing import Any
 
 
 Point = tuple[int, int] | None
+SCRIPT_PATH = Path(__file__).resolve()
+ENERGY_SOURCE_PATH = (
+    SCRIPT_PATH.parents[2]
+    / "EXP-ECDLP-ENERGY-001"
+    / "src"
+    / "coordinate_energy.py"
+)
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+SOURCE_HASHES = {
+    "recursive_expansion_sha256": sha256_file(SCRIPT_PATH),
+    "coordinate_energy_sha256": sha256_file(ENERGY_SOURCE_PATH),
+}
 
 
 def load_energy_module() -> Any:
-    source = (
-        Path(__file__).resolve().parents[2]
-        / "EXP-ECDLP-ENERGY-001"
-        / "src"
-        / "coordinate_energy.py"
+    spec = importlib.util.spec_from_file_location(
+        "coordinate_energy_v1", ENERGY_SOURCE_PATH
     )
-    spec = importlib.util.spec_from_file_location("coordinate_energy_v1", source)
     if spec is None or spec.loader is None:
-        raise RuntimeError(f"cannot load prerequisite module: {source}")
+        raise RuntimeError(f"cannot load prerequisite module: {ENERGY_SOURCE_PATH}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
@@ -94,6 +112,8 @@ def generate_prime_order_curve(bits: int, seed: int, max_attempts: int = 128) ->
             "id": f"recursive-toy-p{p}-a{a}-b{b}-q{order}",
             "bits": bits,
             "p": p,
+            "p_mod_4": p % 4,
+            "field_modulus_policy": "seeded bits-bit prime constrained to p mod 4 = 3",
             "a": a,
             "b": b,
             "order": order,
@@ -328,6 +348,9 @@ def compile_configuration(
         "estimated_compiler_memory_traffic_bytes": compiler_ops.group_operations * 3 * 16,
         "s_t_squared_over_q": advice_entries * average_online_ops**2 / q,
         "s_t_squared_over_epsilon_q": advice_entries * average_online_ops**2 / (epsilon * q),
+        "functional_advice_bytes_t_squared_over_epsilon_q": (
+            advice_bytes * average_online_ops**2 / (epsilon * q)
+        ),
         "offline_group_operations_per_supported_point": offline_ops["group_operations"] / final_support,
     }
     return result
@@ -357,6 +380,9 @@ def attach_random_ratios(configurations: list[dict[str, Any]]) -> None:
         result["advice_entries_ratio_to_random"] = (
             result["advice_entries"] / random_result["advice_entries"]
         )
+        result["advice_deep_bytes_ratio_to_random"] = (
+            result["advice_deep_bytes"] / random_result["advice_deep_bytes"]
+        )
         result["online_group_operations_ratio_to_random"] = (
             result["online_group_operations_per_target"]
             / random_result["online_group_operations_per_target"]
@@ -368,6 +394,10 @@ def attach_random_ratios(configurations: list[dict[str, Any]]) -> None:
         result["offline_group_operations_ratio_to_random_x"] = (
             result["offline_ops"]["group_operations"]
             / random_x_result["offline_ops"]["group_operations"]
+        )
+        result["success_adjusted_st2_ratio_to_random"] = (
+            result["functional_advice_bytes_t_squared_over_epsilon_q"]
+            / random_result["functional_advice_bytes_t_squared_over_epsilon_q"]
         )
 
 
@@ -489,20 +519,17 @@ def run_experiment(
             key = f"{result['name']}|{result['symmetry_mode']}|m={result['m']}"
             passed = (
                 result["final_support_ratio_to_random"] >= 0.8
-                and min(
-                    result["advice_entries_ratio_to_random"],
-                    result["online_group_operations_ratio_to_random"],
-                )
-                <= 0.8
+                and result["success_adjusted_st2_ratio_to_random"] <= 0.8
                 and result["offline_group_operations_ratio_to_random_x"] <= 4.0
             )
             if passed:
                 promotion_counts[key] = promotion_counts.get(key, 0) + 1
     promoted = sorted(key for key, count in promotion_counts.items() if count >= 3)
     return {
-        "protocol": "EXP-ECDLP-RECURSIVE-001-v1",
+        "protocol": "EXP-ECDLP-RECURSIVE-001-v2",
         "claim_status": ["HYPOTHESIS", "TOY-EVIDENCE", "HEURISTIC", "MODEL-BOUND"],
         "valid": True,
+        "source": dict(SOURCE_HASHES),
         "config": {
             "bit_sizes": bit_sizes,
             "seeds": seeds,
@@ -530,6 +557,7 @@ def run_experiment(
             "promoted_configurations": promoted,
             "preflight_gate_passed": bool(promoted),
             "breakthrough_claim": False,
+            "promotion_metric": "functional advice bytes * online group operations^2 / (exact success probability * subgroup order), normalized to matched random",
             "boundary": "A promotion signal would justify a source-tagged follow-up, not an ECDLP break.",
         },
     }

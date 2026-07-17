@@ -6,10 +6,10 @@ Symmetry-corrected recursive coordinate expansion and split compiler.
 
 ## Target curve family
 
-- prime field: generated ordinary prime-order short-Weierstrass curves over `F_p`
+- prime field: generated ordinary prime-order short-Weierstrass curves over seeded `F_p` with `p mod 4 = 3`
 - binary field: no
 - extension field: no
-- special curve class: none selected; special `j`, smooth `p-1`, anomalous, supersingular, and non-prime-order cases invalidate a run
+- special curve class: no weak curve class selected; the modulus congruence is restricted for deterministic square roots, while special `j`, selected smooth `p-1`, anomalous, supersingular, and non-prime-order cases invalidate a run
 
 ## What structure is exploited?
 
@@ -56,7 +56,7 @@ The candidate uses coordinate membership and fixed-curve preprocessing unavailab
 
 - asymptotic: none
 - constant factor: none before a canonical verified run
-- memory: candidate must reduce functional advice entries or account for any larger byte footprint
+- memory: promotion charges functional advice deep bytes through a matched-random `S*T^2/(epsilon*q)` ratio; entry count alone cannot pass
 - parallelism: not evaluated
 - amortized many-target setting: the intended fixed-curve use case, with offline and online costs reported separately
 

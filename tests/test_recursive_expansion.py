@@ -112,8 +112,9 @@ class RecursiveExpansionTests(unittest.TestCase):
             self.assertTrue(verified["valid"])
             self.assertEqual(
                 verified["protocol"],
-                "EXP-ECDLP-RECURSIVE-001-v1-independent-verifier",
+                "EXP-ECDLP-RECURSIVE-001-v2-independent-verifier",
             )
+            self.assertEqual(verified["source"], document["source"])
             self.assertTrue(verified["summary"]["recursive_supports_rebuilt"])
             self.assertTrue(
                 verified["summary"]["split_advice_and_first_witnesses_replayed"]
@@ -135,7 +136,7 @@ class RecursiveExpansionTests(unittest.TestCase):
         )
         result = json.loads(completed.stdout)
         self.assertTrue(result["valid"])
-        self.assertEqual(len(result["tests"]), 13)
+        self.assertEqual(len(result["tests"]), 18)
         self.assertFalse(result["experiment_harness_executed"])
 
 
