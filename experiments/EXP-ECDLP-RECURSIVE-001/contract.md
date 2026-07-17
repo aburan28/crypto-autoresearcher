@@ -46,7 +46,7 @@ Narrow the hypothesis if no coordinate family meets the joint gate or any arithm
 
 ## Reproduction command
 
-The specification remains `review_required`; the immutable runner must reject execution until coordinator approval is recorded. After an independent pre-run `GO`, use the repository runner with the exact frozen arguments:
+Protocol `v2` received an independent pre-run `GO` at commit `90ff031`, and coordinator approval is recorded in `specification.json`. Use the repository runner with the exact frozen arguments:
 
 ```bash
 PYTHONPATH=src python3 -B -m crypto_autoresearcher.cli run \

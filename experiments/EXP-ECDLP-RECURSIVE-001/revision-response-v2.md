@@ -2,7 +2,7 @@
 
 ## Status
 
-`OPEN`, awaiting independent re-audit. No canonical run has occurred.
+`OBSERVATION`: independently audited `GO` at commit `90ff031`. No canonical run has occurred.
 
 The `v1` static audit returned `REVISE`. Its preserved SHA-256 is `8b6b3723f3198dcc607eb17b5937adab16f0305142a8ad67dd1fc484e3a933b7`.
 
@@ -62,4 +62,4 @@ The functional-byte `S*T^2/(epsilon*q)` ratio is an implementation-specific matc
 
 ## Next concrete action
 
-Obtain a fresh static red-team verdict on protocol `v2`. Keep `status: review_required` and `approved_by: null` until that verdict is `GO`.
+Record coordinator approval in a separate Git commit, then launch the exact first immutable command from `contract.md`.

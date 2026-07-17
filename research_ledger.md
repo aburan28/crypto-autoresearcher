@@ -15,7 +15,7 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 
 | ID | Hypothesis | Status | Owner | Next action |
 |---|---|---|---|---|
-| H-ECDLP-RECURSIVE-001 | A coordinate factor base retains at least `0.8x` random exact support while reducing matched-random functional-advice-byte `S*T^2/(epsilon*q)` to at most `0.8x`. | HYPOTHESIS, v1 REVISE, v2 review required | executor | Fresh independent audit of v2 revision closure. |
+| H-ECDLP-RECURSIVE-001 | A coordinate factor base retains at least `0.8x` random exact support while reducing matched-random functional-advice-byte `S*T^2/(epsilon*q)` to at most `0.8x`. | HYPOTHESIS, v1 REVISE, v2 GO and approved | executor | Run canonical generator, commit, then run verifier. |
 | TH-ECDLP-SPLIT-001 | Useful factor bases may combine high final additive expansion with exact intermediate compression. | CONJECTURE | theory and red team | Formalize necessary expansion/compression inequalities and search for counterexamples. |
 | TH-ECDLP-MAP-UNION-001 | Unions of compositional rational-map images may improve recursive support geometry without exceptional curves. | CONJECTURE | algorithm designer | Test only after the recursive preflight establishes a sound measurement surface. |
 

@@ -2,11 +2,11 @@
 
 ### Claim or task
 
-Re-audit protocol `v2` after closing the independent `REVISE` findings against the frozen recursive coordinate-support preflight.
+Launch the independently approved protocol `v2` generator as the first immutable run without changing audited source bytes or frozen parameters.
 
 ### Status
 
-OPEN
+OBSERVATION
 
 ### Assumptions
 
@@ -19,6 +19,7 @@ OPEN
 ### Evidence so far
 
 - The `v1` draft at `b28b813` received `REVISE`; the exact audit SHA-256 is `8b6b3723f3198dcc607eb17b5937adab16f0305142a8ad67dd1fc484e3a933b7`.
+- Protocol `v2` at `90ff031` received `GO`; the exact audit SHA-256 is `541e36ea90f0aeb6e0146f42efbe6b8760ca2d5f32806f781210efa324cd0690`.
 - `recursive_expansion.py` `v2` SHA-256: `c8e6986dd48e341b3e585a170990a018210602f99fc6cd748b81902f1b4e446d`.
 - `verify_recursive_expansion.py` `v2` SHA-256: `d677d1bc9c7efa9c3a94704eddd2f80ea651074f55c4a8452e5295f5d9797552`.
 - Imported `coordinate_energy.py` SHA-256: `7e9b16c18c5855ef7786f78d42300e63fb2a3dcf768413355a31d14160c6ea71`.
@@ -39,7 +40,7 @@ OPEN
 
 ### Next concrete action
 
-Have a separate red-team agent verify closure of every `pre-run-audit-v1.md` finding and issue a fresh `GO`, `REVISE`, or `NO-GO`. Do not approve or launch before that verdict.
+Run `RUN-ECDLP-RECURSIVE-001` through the immutable wrapper with the exact generator command in `contract.md`, then commit its artifacts before running the verifier.
 
 ### Artifact paths
 
@@ -47,6 +48,7 @@ Have a separate red-team agent verify closure of every `pre-run-audit-v1.md` fin
 - `experiments/EXP-ECDLP-RECURSIVE-001/contract.md`
 - `experiments/EXP-ECDLP-RECURSIVE-001/candidate-checklist.md`
 - `experiments/EXP-ECDLP-RECURSIVE-001/pre-run-audit-v1.md`
+- `experiments/EXP-ECDLP-RECURSIVE-001/pre-run-audit-v2.md`
 - `experiments/EXP-ECDLP-RECURSIVE-001/revision-response-v2.md`
 - `experiments/EXP-ECDLP-RECURSIVE-001/src/recursive_expansion.py`
 - `experiments/EXP-ECDLP-RECURSIVE-001/src/verify_recursive_expansion.py`

@@ -6,7 +6,7 @@
 
 The generator and independent verifier are implemented. A reduced noncanonical smoke run was used only to test determinism, invariants, and verifier integration; it is not experiment evidence and is not registered as a run.
 
-The `v1` draft at commit `b28b813` received an independent `REVISE` verdict. The audit is preserved in `pre-run-audit-v1.md`. Protocol `v2` addresses its four required fixes, but the specification remains `review_required` with `approved_by: null`. No canonical generator or verifier run may be launched until a fresh audit returns `GO`.
+The `v1` draft at commit `b28b813` received an independent `REVISE` verdict. The audit is preserved in `pre-run-audit-v1.md`. Protocol `v2` at commit `90ff031` closed its four required fixes and received an independent `GO`, preserved in `pre-run-audit-v2.md` with SHA-256 `541e36ea90f0aeb6e0146f42efbe6b8760ca2d5f32806f781210efa324cd0690`. The specification is approved for the two frozen toy runs only.
 
 ## V1 revision closure
 
@@ -37,4 +37,4 @@ The `v1` draft at commit `b28b813` received an independent `REVISE` verdict. The
 
 ## Next decision
 
-Obtain an independent `GO`, `REVISE`, or `NO-GO` pre-run audit. On `GO`, record coordinator approval in a separate Git commit, run the frozen generator through the immutable wrapper, run the independent verifier as a second immutable run, and red-team the interpretation before any promotion decision.
+Run the frozen generator through the immutable wrapper. Commit that run, run the independent verifier as the second immutable run, and red-team the interpretation before any promotion decision.
