@@ -1,9 +1,9 @@
-## Handoff: Null-calibrated recursive coverage v2
+## Handoff: Null-calibrated recursive coverage v3 execution gate
 
 ### Claim or task
 
-Repair and independently audit the finite-null experiment before any canonical
-execution.
+Independently audit the repaired execution trust boundary before any canonical
+31+31 finite-null run.
 
 ### Status
 
@@ -16,39 +16,46 @@ HYPOTHESIS
 - Random-scalar and random-x are independently seeded samples of the same
   point-set null; random-x also controls construction cost.
 - The charged binary-pow and lookup-byte models are disclosed proxies.
-- The `p mod 4 = 3` restriction remains explicit.
+- The arithmetic programs are frozen, single-process Python under a non-root
+  POSIX `RLIMIT_NPROC` boundary.
+- No signing key exists; the final human audit of the external lock hash and
+  approved commit is the trust anchor.
 
 ### Evidence so far
 
-- The v1 audit preserved curve arithmetic, seed uniqueness, exact supports,
-  percentile direction/ties, and reduced reconstruction.
-- The audit returned `REVISE` on two S0 and three S1 protocol defects; no
-  canonical run was launched.
-- The v2 generator makes positive, order, curve, rho, field-distinctness, and
-  seed controls mandatory.
-- A 128-target reduced smoke passed on nine curves over nine distinct fields.
-- The structured-group literature map identifies a formal embedding gap rather
-  than claiming that coordinate density equals the model's `delta`.
+- The v1 audit returned `REVISE`; arithmetic protocol v2 repaired its
+  arithmetic, control, order, and cost findings.
+- The v2 audit returned `REVISE` on plan provenance, forged predecessors,
+  descendant resources, post-run state, and path identity. No canonical run
+  was launched.
+- The v3 harness rejects plan removal/replacement, unisolated or inline Python,
+  runtime-policy mismatch, forged predecessors, post-launch mutations, and
+  same-inode aliases.
+- A sampling-only fast-detach probe failed 12 of 12 trials. The failure is
+  preserved, and locked runs now prohibit child creation with a passing
+  regression.
+- The frozen v2 generator/verifier hashes and nine-curve schedule are unchanged.
 
 ### Failure modes
 
-- The independent v2 verifier or execution-plan enforcement may still find a
-  mismatch.
-- Finite-null ranks may not survive all 31+31 samples.
-- Charged operation proxies may conceal hardware or bandwidth costs.
-- A coverage pass may fail rank, linear algebra, factor-base-log, or descent
-  gates.
+- A third auditor may find another mutable trust input or receipt/transition
+  ambiguity.
+- The external lock ceremony may not match the reviewed commit exactly.
+- Finite-null ranks may not survive the full 31+31 samples.
+- A coverage pass may later fail rank, linear algebra, factor-base-log, or
+  descent gates.
 
 ### Next concrete action
 
-Finish the independent v2 verifier and execution-plan tests, freeze every hash
-and exact argv, then request a second pre-run audit. Launch nothing without
-`GO`.
+Freeze the final v3 protocol hashes in `specification.json`, commit the
+review-required protocol, and request a third independent pre-run audit. Do not
+launch run `003` without both that `GO` and a final lock/approval-commit check.
 
 ### Artifact paths
 
-- `experiments/EXP-ECDLP-RECURSIVE-002/pre-run-audit-v1.md`
+- `experiments/EXP-ECDLP-RECURSIVE-002/pre-run-audit-v2.md`
+- `experiments/EXP-ECDLP-RECURSIVE-002/revision-response-v3.md`
+- `experiments/EXP-ECDLP-RECURSIVE-002/pre-run-adversarial-probe-v3a.md`
 - `experiments/EXP-ECDLP-RECURSIVE-002/src/null_calibrated_coverage.py`
 - `experiments/EXP-ECDLP-RECURSIVE-002/src/verify_null_calibrated_coverage.py`
-- `tests/test_null_calibrated_coverage.py`
-- `notes/structured_group_coordinate_predicates_literature_20260717.md`
+- `tests/test_runner.py`

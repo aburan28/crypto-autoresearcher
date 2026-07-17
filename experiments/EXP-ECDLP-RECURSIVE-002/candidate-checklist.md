@@ -2,7 +2,7 @@
 
 ## Candidate name
 
-Replicated-null recursive coverage calibration v2.
+Replicated-null recursive coverage calibration, arithmetic v2 / execution v3.
 
 ## Target curve family
 
@@ -50,5 +50,6 @@ observation.
 
 ## First experiment
 
-Obtain a second independent pre-run `GO` on the v2 hashes and execution plan,
-then execute the 12-16 bit finite-null screen through the enforced harness.
+Obtain a third independent pre-run `GO` on the v3 lock/receipt harness and
+complete protocol hash set. Then make the approval-only commit, mint and audit
+the external lock, and only then execute the 12-16 bit finite-null screen.

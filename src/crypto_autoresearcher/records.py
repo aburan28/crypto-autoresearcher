@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any, Iterable
@@ -14,6 +15,8 @@ SCHEMA_BY_KEY = {
     "coordinator_decision": "coordinator-decision.schema.json",
     "handoff": "handoff.schema.json",
     "run": "run-manifest.schema.json",
+    "execution_approval": "execution-approval.schema.json",
+    "runner_receipt": "runner-receipt.schema.json",
 }
 
 
@@ -21,18 +24,71 @@ class RecordValidationError(ValueError):
     pass
 
 
+def loads_json_strict(content: str, source: str = "<json>") -> Any:
+    def reject_constant(value: str) -> Any:
+        raise RecordValidationError(
+            f"{source}: non-finite JSON constant is forbidden: {value}"
+        )
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise RecordValidationError(
+                    f"{source}: duplicate JSON object key: {key!r}"
+                )
+            result[key] = value
+        return result
+
+    def finite_float(value: str) -> float:
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            raise RecordValidationError(
+                f"{source}: non-finite JSON number is forbidden: {value}"
+            )
+        return parsed
+
+    try:
+        return json.loads(
+            content,
+            parse_constant=reject_constant,
+            parse_float=finite_float,
+            object_pairs_hook=unique_object,
+        )
+    except RecordValidationError:
+        raise
+    except json.JSONDecodeError as exc:
+        raise RecordValidationError(f"{source}: invalid JSON: {exc}") from exc
+
+
 def read_json(path: Path) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        content = path.read_text(encoding="utf-8")
+    except OSError as exc:
         raise RecordValidationError(f"{path}: invalid JSON: {exc}") from exc
+    return loads_json_strict(content, str(path))
+
+
+def canonical_json_bytes(value: Any) -> bytes:
+    try:
+        return json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise RecordValidationError(f"value is not strict canonical JSON: {exc}") from exc
 
 
 def write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    try:
+        content = json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    except (TypeError, ValueError) as exc:
+        raise RecordValidationError(f"{path}: cannot write strict JSON: {exc}") from exc
+    path.write_text(content, encoding="utf-8")
 
 
 def find_repo_root(start: Path) -> Path:
@@ -134,6 +190,8 @@ def iter_record_paths(paths: Iterable[Path]) -> Iterable[Path]:
         "decision.json",
         "handoff.json",
         "manifest.json",
+        "execution-approval.json",
+        "runner-receipt.json",
     }
     for path in paths:
         if path.is_file():

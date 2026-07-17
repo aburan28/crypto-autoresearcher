@@ -76,15 +76,32 @@ PYTHONPATH=src python3 -m crypto_autoresearcher new-id EXP ECDLP-ENERGY
 PYTHONPATH=src python3 -m crypto_autoresearcher index --output ledger.json
 ```
 
-Approved experiments run through an immutable wrapper. The wrapper refuses a dirty tree unless an exploratory caller explicitly supplies `--allow-dirty`, and it never overwrites a run ID:
+Unapproved `draft` experiments may use explicit `--allow-dirty` development
+runs. They cannot produce locked receipts and are not canonical evidence:
+
+```bash
+PYTHONPATH=src python3 -m crypto_autoresearcher run --allow-dirty \
+  --experiment-dir experiments/EXP-DRAFT-001 \
+  --run-id RUN-DRAFT-001 --seed 1 --timeout 60 -- \
+  python3 experiments/EXP-DRAFT-001/src/run.py
+```
+
+An `approved` experiment must declare an execution plan and cannot fall back to
+development mode. Canonical launch additionally requires an externally audited
+approval file and its expected SHA-256:
 
 ```bash
 PYTHONPATH=src python3 -m crypto_autoresearcher run \
-  --experiment-dir experiments/EXP-ECDLP-ENERGY-001 \
-  --run-id RUN-ECDLP-ENERGY-001 --seed 1469001 --timeout 600 -- \
-  python3 experiments/EXP-ECDLP-ENERGY-001/src/coordinate_energy.py \
-  --bit-sizes 15 17 19 --seed 1469001 --targets 128 --rho-trials 8
+  --experiment-dir experiments/EXP-NAME-001 \
+  --run-id RUN-NAME-001 --seed 1 \
+  --approval-lock /absolute/path/execution-approval.json \
+  --approval-lock-sha256 <audited-sha256> -- \
+  /absolute/path/to/python -I -S -B experiments/EXP-NAME-001/src/run.py
 ```
+
+The lock binds the approved commit, specification, plan, complete protocol
+hashes, Python runtime, and resource policy. Locked runs emit a strict runner
+receipt, recheck state after execution, and never overwrite a run ID.
 
 Run the test suite with:
 

@@ -17,8 +17,8 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 | ID | Hypothesis | Status | Owner | Next action |
 |---|---|---|---|---|
 | H-ECDLP-RECURSIVE-001 | A coordinate factor base retains at least `0.8x` random exact support while reducing matched-random functional-advice-byte `S*T^2/(epsilon*q)` to at most `0.8x`. | OBSERVATION, REVISE INTERPRETATION | coordinator | Preserve runs; transfer only the coverage signal into a repaired null-calibration successor. |
-| H-ECDLP-RECURSIVE-002 | A coordinate family passes an exploratory eight-term finite-null and exact uniform-order frontier gate on distinct-field non-special curves. | HYPOTHESIS, v1 REVISE, v2 repair in progress | executor and red team | Finish v2 verifier/execution enforcement and request a second pre-run audit; do not launch before GO. |
-| SGCP-EMBED-001 | A canonical recursive EC witness forest can instantiate the structured generic-group partial operation with nonvacuous constrained-label density. | OPEN | theory and red team | Produce a machine-checkable operation/label certificate or the smallest injectivity, associativity, or unique-factorization counterexample. |
+| H-ECDLP-RECURSIVE-002 | A coordinate family passes an exploratory eight-term finite-null and exact uniform-order frontier gate on distinct-field non-special curves. | HYPOTHESIS, v1 REVISE, v2 REVISE, v3 review required | executor and red team | Independently audit the v3 lock/receipt protocol; do not launch before third-audit GO and final lock/commit GO. |
+| SGCP-EMBED-001 | A canonical recursive EC witness forest can instantiate the structured generic-group partial operation with nonvacuous constrained-label density. | OPEN, contract frozen | theory and red team | Implement the downward-closed injective prime-multiset label builder/verifier and run the 5-bit control preflight. |
 | TH-ECDLP-SPLIT-001 | Useful factor bases may combine high final additive expansion with exact intermediate compression. | CONJECTURE | theory and red team | Formalize necessary expansion/compression inequalities and search for counterexamples. |
 | TH-ECDLP-MAP-UNION-001 | Unions of compositional rational-map images may improve recursive support geometry without exceptional curves. | CONJECTURE | algorithm designer | Test only after the recursive preflight establishes a sound measurement surface. |
 
@@ -30,6 +30,8 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 | EXP-ECDLP-ENERGY-001-COST | Treating exhaustive representation census or counter-only storage as an online compiler cost. | Original frozen implementation only. | Independent red-team audit and interpretation amendment. | Stop at the first witness, retain functional witnesses, and separate diagnostic expansion from compiler work. |
 | EXP-ECDLP-RECURSIVE-001-COMPRESSION | Promotion of split-compression for the frozen passing rows. | Sign-complete `m=8`, 12-16 bit run only; family-level coverage remains open. | Every passing row had generic-maximum four-term support and advice-byte ratio near one. | Separate expansion significance from compiler compression; do not let online coverage masquerade as smaller advice. |
 | EXP-ECDLP-RECURSIVE-002-PREFLIGHT-V1 | Approval of the first successor protocol at commit `96fcc1b`. | Protocol/execution layer only; no canonical mathematical evidence run occurred. | Independent audit found unenforced command/budgets, nonbinding positive control, aggregate-only order checks, and uncharged coordinate arithmetic. | A correct arithmetic core is insufficient unless execution, controls, resource limits, and interpretation are mechanically bound. |
+| EXP-ECDLP-RECURSIVE-002-PREFLIGHT-V2 | Approval of execution protocol v2 at commit `878acef`. | Harness provenance/resource layer only; arithmetic protocol v2 survived and no canonical run occurred. | Independent audit found mutable plan trust, forgeable predecessor provenance, descendant escape, absent post-run checks, and same-inode aliases. | External approval, exact Git transitions, strict receipts, post-run rechecks, and file identity belong in the evidence boundary. |
+| EXP-ECDLP-RECURSIVE-002-V3A-DESCENDANTS | Claim that process-table sampling observes every detached descendant. | Twelve fast new-session children on the recorded macOS/Python runner preflight. | All 12 escaped observation and were reported quiescent before their 0.4-second sleep ended. | Sampling is defense in depth, not containment; frozen locked runs now forbid child creation with non-root `RLIMIT_NPROC=0`. |
 
 ## Positive signals
 
@@ -67,6 +69,10 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 - `experiments/EXP-ECDLP-RECURSIVE-001/decision.json`
 - `experiments/EXP-ECDLP-RECURSIVE-002/pre-run-audit-v1.md`
 - `experiments/EXP-ECDLP-RECURSIVE-002/revision-response-v2.md`
+- `experiments/EXP-ECDLP-RECURSIVE-002/pre-run-audit-v2.md`
+- `experiments/EXP-ECDLP-RECURSIVE-002/revision-response-v3.md`
+- `experiments/EXP-ECDLP-RECURSIVE-002/pre-run-adversarial-probe-v3a.md`
+- `notes/sgcp_embed_001_contract_20260717.md`
 - `notes/ecdlp_recursive_expansion_literature_map_20260717.md`
 - `notes/structured_group_coordinate_predicates_literature_20260717.md`
 - `notes/ecdlp_unordered_occupancy_split_support_theory_20260717.md`

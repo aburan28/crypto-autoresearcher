@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ from .records import (
     build_ledger_index,
     find_repo_root,
     iter_record_paths,
+    loads_json_strict,
     next_id,
     validate_record,
     write_json,
@@ -20,8 +22,17 @@ from .runner import run_experiment
 
 def _json_value(value: str) -> Any:
     try:
-        return json.loads(value)
-    except json.JSONDecodeError:
+        return loads_json_strict(value, "CLI parameter")
+    except RecordValidationError:
+        if (
+            value in {"NaN", "Infinity", "-Infinity"}
+            or value.lstrip().startswith(("{", "["))
+            or re.fullmatch(
+                r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?",
+                value,
+            )
+        ):
+            raise
         return value
 
 
@@ -52,7 +63,9 @@ def _parser() -> argparse.ArgumentParser:
     index = subparsers.add_parser("index", help="build the experiment ledger index")
     index.add_argument("--output", type=Path, default=Path("ledger.json"))
 
-    run = subparsers.add_parser("run", help="execute an approved immutable run")
+    run = subparsers.add_parser(
+        "run", help="execute a draft development run or approved locked run"
+    )
     run.add_argument("--experiment-dir", type=Path, required=True)
     run.add_argument("--run-id", required=True)
     run.add_argument("--seed", type=int, required=True)
@@ -61,6 +74,8 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--timeout", type=float)
     run.add_argument("--cwd", type=Path)
     run.add_argument("--allow-dirty", action="store_true")
+    run.add_argument("--approval-lock", type=Path)
+    run.add_argument("--approval-lock-sha256")
     run.add_argument("command", nargs=argparse.REMAINDER)
     return parser
 
@@ -107,6 +122,12 @@ def main(argv: list[str] | None = None) -> int:
                     if args.cwd is None or args.cwd.is_absolute()
                     else repo_root / args.cwd
                 ),
+                approval_lock_path=(
+                    args.approval_lock
+                    if args.approval_lock is None or args.approval_lock.is_absolute()
+                    else repo_root / args.approval_lock
+                ),
+                approval_lock_sha256=args.approval_lock_sha256,
             )
             manifest = json.loads((run_path / "manifest.json").read_text(encoding="utf-8"))
             print(json.dumps({"run_path": str(run_path), **manifest["run"]}, indent=2))
