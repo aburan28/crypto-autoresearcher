@@ -9,6 +9,8 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 - [ ] Can a coordinate-defined factor base preserve near-random exact `m`-fold support while compressing a recursive split compiler?
 - [ ] Can a fixed-curve coordinate relation compiler beat the generic preprocessing frontier after advice bytes, bandwidth, success probability, and all offline operations are charged?
 - [ ] Can an outer-aware coordinate predicate or batched addition-law circuit eliminate the final-factor scan and beat the exact `D2+D3` preprocessing/query floor?
+- [ ] Does an uneliminated five-addition circuit over bounded public source roots admit a complete generalized-root algorithm with strict slack beyond the `B^5 approximately p` box-volume boundary?
+- [ ] After dense nested norms also failed, can a scalar-only transposed norm with compact selectors keep every internal target boundary below D2 scale, expose both child values, and return signed source witnesses?
 - [ ] If a preflight family passes, does its relation matrix retain rank and admit an individual-log descent?
 - [ ] Can the expansion/compression objective be given a coordinate-specific structured-group theorem or counterexample?
 - [ ] Does the complete balanced four-witness universe contain a useful injective formal order ideal, and what constrained-label fraction, absolute final coverage, and charged audit cost does it induce?
@@ -25,6 +27,8 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 | H-ECDLP-SOURCE-TAG-JOIN-001 | Compositional factor-base provenance makes the D2+D2 inverse join more predictable than occupancy- and symmetry-matched random source tags. | OBSERVATION, REVISE, scoped NEGATIVE RESULT, development only | theory and algorithm designer | Preserve the verified functional path and gate repairs; do not repeat selected-witness inner tag tuning. |
 | H-ECDLP-OUTER-TRANSLATOR-001 | A target-conditioned source-domain resultant or batched coordinate circuit removes the D5 outer scan with advice below full D3 and online field work below exact D2 scanning. | NEGATIVE RESULT plus OBSERVATIONS, verified development only | theory, algorithm designer, and experiment engineer | Reuse only the verified oracle, witness path, and batch primitive in a non-partition successor. |
 | H-ECDLP-RECURSIVE-S3-QUOTIENT-001 | Actual coordinate factor bases admit a target-independent exact quotient of recursive S3 transition states that remains composable and witness-liftable without full target-state materialization. | REJECTED_SCOPED; RESTRICTED THEOREMS for coefficient, all-target x-orbit, and linear-profile injectivity | theory and red team | Preserve the partition and linear-module barriers; dimension a nonlinear first-witness branch operator before implementation. |
+| H-ECDLP-GENROOT-CIRCUIT-001 | A bounded public-source representation retained through an exact five-addition circuit admits a complete dedicated root finder with a credible one-instance relation path below `B^2.5`. | RESTRICTED THEOREM correctness GO; CONJECTURE solver; first-power tensor-box lattice REJECTED_SCOPED with independent GO; implementation NO-GO | theory, algorithm designer, benchmark, and red team | Dimension a mathematically distinct composition-tower, support-adapted, implicit, or non-lattice root operator before source. |
+| H-ECDLP-SUBSET-NORM-TREE-001 | A fixed-curve D2 subset tree admits exact target-translated D3 node predicates and witness lift through a complete compact structured representation. | RESTRICTED THEOREM self-reduction, root algebra, and ordered-source norm GO; companion, dense sequential norm, tuple-stream, and standard product-basis black-box interfaces REJECTED_SCOPED; scalar-only transposed operator REVISE; implementation NO-GO | theory, literature, benchmark, and red team | Specify compact selectors and a scalar-only transposed norm; dimension every internal boundary, both child values, and exact certificates before source. |
 | TH-ECDLP-SPLIT-001 | Useful factor bases may combine high final additive expansion with exact intermediate compression. | CONJECTURE | theory and red team | Formalize necessary expansion/compression inequalities and search for counterexamples. |
 | TH-ECDLP-MAP-UNION-001 | Unions of compositional rational-map images may improve recursive support geometry without exceptional curves. | CONJECTURE | algorithm designer | Test only after the recursive preflight establishes a sound measurement surface. |
 
@@ -51,6 +55,9 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 | EXP-ECDLP-SOURCE-TAG-JOIN-001-COMPILER | Promotion of the source-tag scanner as fixed-curve preprocessing progress. | Same verified toy targets with exact-D2, payload-matched partial-D4, full-D4, equal-advice BSGS, and rho baselines. | Best candidate/exact-D2 `S*T^2` ratios grew `1819x/11605x/34882x`; best candidate/partial-D4 online ratios grew `16.3x/34.9x/101.1x`; all 270 descents still verified. | Correct witness recovery is not useful compilation. Establish exact outer `2+3` as the floor, then test actual coordinate elimination rather than tag order. |
 | EXP-ECDLP-SOURCE-TAG-JOIN-001-GATES | Interpreting every structural gate failure as candidate evidence. | Development protocol only. | No 10-bit row met null movement plus saturation prerequisites; total-payload ratio was mechanically unable to reach `0.8` for every four-tag row because shared D2 storage dominates. | Resample ineffective nulls and gate incremental route information structurally; reserve total advice for compiler comparisons. |
 | EXP-ECDLP-OUTER-TRANSLATOR-001-EXPLICIT | Promotion of explicit accepted-source products `G_Q` followed by complete D2 root product `H_Q mod M2`. | Six generated 8/10/12-bit prime-order curves, two seeds, four translator families; noncanonical `p mod 4 = 3` development only. | All 24 family-instances were exact, but workspace was `6.61x-22.19x` compressed D3, every numeric weight-50 online ratio was at least `9.68x`, and zero target or family continuation gates passed. | Advice and favorable degree slopes are insufficient if target-conditioned state is materialized; test quotient/composability before constructing `G_Q` or `H_Q`. |
+| EXP-ECDLP-GENROOT-CIRCUIT-001-LATTICE-V1 | Promotion or implementation of the explicitly materialized first-power tensor-box bounded-root lattice. | Paper-only `B=p^(1/5)` census for one fixed feasible addition branch with five degree-`Theta(B)` source polynomials and full-field circuit variables. | Columns and raw generators are `Theta(B^5)`, unconditionally failing the preprocessing gate; dense expanded nonzeros are conditionally `Theta(B^6)`, and the heuristic determinant-volume screen has slack `-Theta(B)` without excluding exceptional short combinations. | Constant circuit width does not beat the explicit source box; search support-adapted, composition-tower, implicit, or non-lattice root-set operators. |
+| EXP-ECDLP-SUBSET-NORM-TREE-001-COMPANION-V1 | Promotion or child construction of the empty-generator companion-displacement or direct explicit-factor approximant interfaces. | Paper-only root preflight over the exact oriented quadratic encoding; `N2=Theta(B^2),N3=Theta(B^3)` only in the collision-light specialization. | `Delta_J(T_Q)=0`, but `ker(Delta_J)=K[J]` has dimension `N2`; the frozen dense boundary is the `N2`-coefficient remainder, while direct factor specialization processes `N3` translations. Independent theory, benchmark, and red-team reviews pass this scoped interpretation. | Low displacement rank alone is non-identifying. Search target-parametric scalar norms, nested source resultants, alternate displacement operators, source-recursive circuits, or batching without claiming a universal lower bound. |
+| EXP-ECDLP-SUBSET-NORM-TREE-001-SOURCE-NORM-V1 | Promotion or implementation of explicitly expanded source CRT/resultants, sequential coefficient-output norms, direct ordered-triple streams, or standard product-basis determinant/Krylov interfaces. | Paper-only ordered signed source algebra; balanced `d_i=Theta(B),n_I=Theta(B^2)` only in the collision-light specialization. | Exact norm semantics and finite-child factorization pass review, but frozen dense sequential routes emit `Theta(B^2)` target slots; tuple and standard black-box routes expose `Theta(B^3)` work, traffic, or vector coordinates. | A scalar output does not imply compact computation. Search compact selectors and scalar-only transposition while leaving fused, reordered, structured, and composition-tower routes open. |
 
 ## Positive signals
 
@@ -77,6 +84,9 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 | Exact D2 complement lookup | Fixed curve, exact `D2+D2` inner join | At most `|D2|` EC subtractions and dictionary probes per D4 target, wrapped in the disclosed D5 scan | Factor base plus exact D2 keys and witnesses | Executed on every source-tag target; every candidate loses the task-matched query and descent `S*T^2` diagnostics. |
 | Payload-matched partial D4 plus D2 fallback | Fixed curve, public SHA-ranked cache | Cached exact lookup with exact-D2 fallback under no more candidate advice | D2 plus as many D4 entries as the candidate payload permits | Executed on every source-tag target; no candidate beats query or descent online work. |
 | Exact D2+D3 complement lookup | Fixed curve, exact five-term lookup | At most `|D2|` EC subtractions and D3 probes per target after D3 compilation | Exact D2 plus symmetry-compressed D3 keys and witnesses | Complete outer-aware comparator in the outer-translator run; every explicit coordinate translator target lost online and workspace gates. |
+| D2 subset-resultant self-reduction | Fixed curve, exact five-term lookup | `Theta(log |D2|)` exact node-oracle calls plus terminal D3 witness lift | D2 product tree plus every node operator and lift index | Conditional call-count theorem only; node specialization and witness lift are the unproved costs. |
+| Companion-displacement root interface | Fixed curve, exact root predicate | Rank-zero commutator plus `Theta(N2)` dense remainder boundary, or `Theta(N3)` direct translated-factor processing | `Theta(N2)` fixed root advice plus interface payload | Scoped negative baseline; rank zero does not compress the target or lower-bound alternate implicit representations. |
+| Constructive generic preprocessing | Fixed generator, arbitrary target DLP | With advice `m`, representative upper-bound scale `sqrt(n/m)` online after charged construction near `sqrt(n*m)` | `Theta(m)` group elements | Stronger-problem kill screen; report offline work, advice bits, success probability, and number of amortized targets separately. |
 | Split support compiler | Fixed curve, coordinate-specific | Measured offline support construction plus first-witness online scan | Functional witness maps measured by deep bytes | Candidate preflight only; rank, relation collection, linear algebra, and descent are absent. |
 
 ## Literature map
@@ -89,6 +99,11 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 | Structured generic groups | Corrigan-Gibbs-Kogan preprocessing bounds; Corrigan-Gibbs-Henzinger-Wu structured model | Fixed-generator `ST^2` is tight under random generic encodings; the structured bound adds a `delta*T` escape term. | A unary predicate `L(x)=0` does not itself define the model's partial operation or `delta`; construct or refute a valid EC witness embedding. |
 | Split joins | 3SUM-Indexing and Dinur-Golovnev application-specific compiler | A materialized `4F + 4F` target query is an abelian-group 3SUM-Indexing instance. | Test whether integer subfunction decomposition/hashing and witness recovery transfer to EC groups without hiding source storage. |
 | Batched prime-field decomposition | No directly matched primary algorithm found in the 2026-07-17 refresh | Existing point-decomposition work is predominantly single-target algebraic solving or relation generation. | Search multipoint resultants, modular composition, and incidence bounds; require an explicit full-witness translation and batch baseline before any novelty claim. |
+| Dedicated generalized root finding | Petit-Kosters-Messeng, PKC 2016 | Composed rational maps reduce factor-base membership to low-degree chains; a non-Groebner generalized-root algorithm is explicitly left open. | Derive a complete root finder and an actual inequality below the `B^5 approximately p` source box, including full-field variables and witness certification. |
+| Extension-field EC joins | Delaplace-May 2019/2020; Delaplace-Fouque-Kirchner-May 2020 | Bivariate multipoint evaluation shares join work and fixed-curve preprocessing, but evaluates every second-list point and relies on extension-field structure. | Exact sparse zero reporting and witness lift without a D2-length output on ordinary prime-field curves. |
+| Structured polynomial operators | Neiger-Rosenkilde-Solomatov; Pernet-Signargout-Karpman-Villard | Preprocessed multipoint and low-displacement algorithms are fast once genericity or a structured displacement equation is proved. | Derive the translated-D3 root-node operator and its exact displacement rank; toolbox results do not establish that structure. |
+| Resultants and displacement generators | Villard; Bostan-Jeannerod-Mouilleron-Schost; Kaltofen-Villard | Generic resultants, displacement generators, and block Krylov are exact once their explicit inputs and short generators exist. | The companion commutator is rank zero but non-identifying; derive a short target specialization and hereditary boundary data for the actual EC family. |
+| Scalar source norms | Jeronimo-Sabia; Poteaux-Schost; Bostan-Flajolet-Salvy-Schost; Moroz-Schost | Sparse resultant SLPs, triangular norms, special root products, and truncated resultants give exact scalar or structured tools under their stated interfaces. | No source gives strict sub-B2 target specialization, compact complete selectors, both child predicates, and signed witnesses for three degree-B EC source algebras; test bounded separation without treating mixed volume as a lower bound. |
 
 ## Durable artifacts
 
@@ -143,6 +158,49 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 - `experiments/EXP-ECDLP-OUTER-TRANSLATOR-001/development/DEV-OUTER-TRANSLATOR-001/analysis.json`
 - `experiments/EXP-ECDLP-RECURSIVE-S3-QUOTIENT-001/linear-module-theory-review-v1.md`
 - `experiments/EXP-ECDLP-RECURSIVE-S3-QUOTIENT-001/decision.json`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/contract.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/theory.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/object-dimension-ledger.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/first-power-box-lattice-negative-v1.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/pre-implementation-theory-review-v1.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/pre-implementation-theory-review-v2.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/pre-implementation-benchmark-review-v1.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/pre-implementation-benchmark-review-v2.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/pre-implementation-benchmark-review-v3.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/pre-implementation-red-team-v1.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/first-power-box-lattice-red-team-v1.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/first-power-box-lattice-red-team-v2.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/pre-implementation-literature-review-v1.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/candidate-review-v1.md`
+- `experiments/EXP-ECDLP-GENROOT-CIRCUIT-001/candidate-review-v2.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/contract.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/theory.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/object-dimension-ledger.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/pre-implementation-theory-review-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/pre-implementation-theory-review-v2.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/pre-implementation-benchmark-review-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/pre-implementation-benchmark-review-v2.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/pre-implementation-benchmark-review-v3.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/pre-implementation-red-team-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/pre-implementation-literature-review-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/root-operator-preflight-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/root-operator-theory-review-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/root-operator-red-team-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/root-operator-benchmark-review-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/decision.json`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/candidate-review-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/nested-source-norm-preflight-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/nested-source-norm-theory-review-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/nested-source-norm-theory-review-v2.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/nested-source-norm-red-team-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/nested-source-norm-red-team-v2.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/nested-source-norm-benchmark-review-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/nested-source-norm-benchmark-review-v2.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/decision-v2.json`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/nested-source-norm-literature-review-v1.md`
+- `experiments/EXP-ECDLP-SUBSET-NORM-TREE-001/candidate-review-v2.md`
+- `notes/ecdlp_generalized_root_subset_norm_literature_20260718.md`
+- `notes/ecdlp_relation_preprocessing_accounting_20260718.md`
 - `notes/sgcp_embed_001_contract_20260717.md`
 - `notes/ecdlp_recursive_expansion_literature_map_20260717.md`
 - `notes/structured_group_coordinate_predicates_literature_20260717.md`
