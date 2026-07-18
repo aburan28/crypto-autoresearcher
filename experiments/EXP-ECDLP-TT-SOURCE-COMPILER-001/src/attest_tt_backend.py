@@ -11,6 +11,7 @@ import json
 import os
 import platform
 import re
+import struct
 import sys
 from pathlib import Path
 from typing import Any, Sequence
@@ -62,6 +63,17 @@ def normalized_python_version() -> str:
         else compiler
     )
     return f"{build_match.group(1)}, {compiler_short}"
+
+
+def normalized_platform() -> str:
+    system = platform.system()
+    machine = platform.machine()
+    if system == "Darwin":
+        release = platform.mac_ver()[0]
+        processor = "arm" if machine == "arm64" else machine
+        bits = f"{struct.calcsize('P') * 8}bit"
+        return "-".join(("macOS", release, machine, processor, bits, "Mach-O"))
+    return platform.platform()
 
 
 def numpy_distribution_closure() -> tuple[list[dict[str, Any]], str]:
@@ -152,7 +164,7 @@ def build_attestation(matrix_path: Path) -> dict[str, Any]:
             normalized_python_version(),
             "python_version",
         ),
-        compare(expected["platform"], platform.platform(), "platform"),
+        compare(expected["platform"], normalized_platform(), "platform"),
         compare(expected["machine"], platform.machine(), "machine"),
         compare(expected["numpy_version"], np.__version__, "numpy_version"),
         compare(

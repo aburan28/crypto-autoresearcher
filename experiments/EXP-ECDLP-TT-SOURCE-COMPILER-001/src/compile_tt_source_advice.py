@@ -866,7 +866,15 @@ def run_compiler(manifest_path: Path, matrix_path: Path) -> dict[str, Any]:
 
     backend = build_attestation(matrix_path)
     if not backend.get("valid"):
-        raise RuntimeError("pinned backend attestation failed")
+        failures = [
+            item
+            for item in backend.get("checks", [])
+            if item.get("match") is not True
+        ]
+        raise RuntimeError(
+            "pinned backend attestation failed: "
+            + json.dumps(failures, sort_keys=True, separators=(",", ":"))
+        )
     runtime = TTRuntime(
         operation_caps=matrix["source_partition_operation_cap"],
         traffic_keys=matrix["traffic_bucket_order"],
@@ -934,6 +942,11 @@ def run_compiler(manifest_path: Path, matrix_path: Path) -> dict[str, Any]:
         "repository_git_metadata_present": True,
         "target_or_mutation_files_present": True,
         "stdout_only_output": True,
+        "runtime_receipt": {
+            "schema": "tt-source-staging-runtime-receipt-v1",
+            "status": "unattested_development",
+            "valid": False,
+        },
     }
     traffic = snapshot["traffic"]
     accounting = {

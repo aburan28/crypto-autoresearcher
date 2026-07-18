@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
 """Independent source verifier for EXP-ECDLP-TT-SOURCE-COMPILER-001.
 
-The baseline verifier is a one-file, standard-library-only closure.  It does
+The verifier is a one-file, standard-library-only closure.  It does
 not import the producer runtime or compiler.  Its runtime data inputs are the
 target-redacted source manifest, the target-free source execution matrix, and
-the producer's canonical raw JSON result.  No control, target, mutation, or
-prior-artifact path is accepted by the source-phase CLI.
+the producer's canonical raw JSON result. Strict development preflight also
+requires the harness-supplied SHA-256 of the validated static-closure report,
+but never reads that target-hash-bearing report. No control, target, mutation,
+or prior-artifact path is accepted by the CLI.
 
 CLI
 ---
 
-Baseline::
+Strict development preflight::
 
     python3 verify_tt_source_advice.py \
       --manifest source-instance-manifest-v1.json \
       --execution-matrix source-execution-matrix-v2.json \
-      --raw-result source-generator-raw-result.json
+      --raw-result source-generator-raw-result.json \
+      --expected-static-closure-audit-sha256 DIGEST \
+      --strict-preflight-development
 
 ``--describe-schema`` emits the machine-readable input/output schema without
 reading experiment inputs.  ``--self-test`` runs deterministic local checks.
@@ -28,11 +32,9 @@ the verifier's flat records or the producer's independently validated
 ``exact-fp-tt-v1`` wrapper; both carry flat row-major core values.
 
 Success and failure both write exactly one canonical JSON object to stdout.
-Failures have ``valid:false`` and return a nonzero process status.  The
-successful payload includes the verification record and the three canonical
-objects the harness may split into ``frozen-source-advice.json``,
-``frozen-source-control-certificates.json``, and
-``source-advice-receipt.json``.
+Failures have ``valid:false`` and return a nonzero process status.  Because the
+experiment has no execution plan, successful development modes emit audits and
+candidate digests only; they never emit or freeze advice objects.
 """
 
 from __future__ import annotations
@@ -41,6 +43,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import resource
 import sys
 import time
@@ -319,6 +322,10 @@ def sha256_bytes(data: bytes) -> str:
 
 def sha256_value(value: Any) -> str:
     return sha256_bytes(canonical_bytes(value))
+
+
+def lexical_path_within(path: str, root: str) -> bool:
+    return path == root or path.startswith(root + os.sep)
 
 
 def compact_json_bytes(value: Any) -> bytes:
@@ -2083,7 +2090,292 @@ def audit_native_backend_attestation(record: Mapping[str, Any]) -> dict[str, Any
     }
 
 
-def audit_capability(value: Any) -> dict[str, Any]:
+def audit_runtime_receipt_digest(
+    receipt_value: Any,
+    raw_provenance_value: Any,
+) -> str:
+    receipt = exact_object(receipt_value, "raw_result.capability_audit.runtime_receipt")
+    runtime_receipt_digest = sha256_value(receipt)
+    raw_provenance = exact_object(raw_provenance_value, "raw_result.provenance")
+    require_equal(
+        validate_hex_digest(
+            raw_provenance.get("runtime_receipt_sha256"),
+            "raw_result.provenance.runtime_receipt_sha256",
+        ),
+        runtime_receipt_digest,
+        "raw_result.provenance.runtime_receipt_sha256",
+        "runtime_receipt_digest_mismatch",
+    )
+    return runtime_receipt_digest
+
+
+def audit_staging_runtime_receipt(
+    value: Any,
+    *,
+    expected_static_closure_audit_sha256: str,
+    raw_provenance_value: Any,
+    manifest_bytes: bytes,
+    matrix_bytes: bytes,
+) -> dict[str, Any]:
+    path = "raw_result.capability_audit.runtime_receipt"
+    receipt = exact_object(value, path)
+    required = {
+        "denied_event_count",
+        "denied_events",
+        "directory_paths",
+        "environment",
+        "environment_events",
+        "event_counts",
+        "expected_stage_sha256",
+        "filesystem_event_names",
+        "finished_ns",
+        "read_file_count",
+        "read_files",
+        "runtime_files",
+        "runtime_roots",
+        "schema",
+        "stage_file_count",
+        "stage_files",
+        "stage_root",
+        "stage_root_basename",
+        "stage_sha256",
+        "stage_started_ns",
+        "static_closure_audit_sha256",
+        "valid",
+    }
+    require_keys(receipt, required, path, required)
+    require_equal(
+        receipt["schema"],
+        "tt-source-staging-runtime-receipt-v1",
+        f"{path}.schema",
+    )
+    require_equal(exact_bool(receipt["valid"], f"{path}.valid"), True, f"{path}.valid")
+    require_equal(receipt["denied_event_count"], 0, f"{path}.denied_event_count")
+    require_equal(receipt["denied_events"], [], f"{path}.denied_events")
+    expected_environment = {
+        "MKL_NUM_THREADS": "1",
+        "NUMEXPR_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "PYTHONHASHSEED": "0",
+        "VECLIB_MAXIMUM_THREADS": "1",
+    }
+    require_equal(receipt["environment"], expected_environment, f"{path}.environment")
+    expected_environment_events = [
+        {"event": "os.putenv", "key": "OPENBLAS_MAIN_FREE", "value": "1"},
+        {"event": "os.putenv", "key": "GOTOBLAS_MAIN_FREE", "value": "1"},
+        {"event": "os.unsetenv", "key": "OPENBLAS_MAIN_FREE", "value": None},
+        {"event": "os.unsetenv", "key": "GOTOBLAS_MAIN_FREE", "value": None},
+    ]
+    require_equal(
+        receipt["environment_events"],
+        expected_environment_events,
+        f"{path}.environment_events",
+    )
+    require_equal(
+        receipt["filesystem_event_names"],
+        ["open", "stat", "lstat", "listdir", "scandir", "glob", "readlink", "chdir"],
+        f"{path}.filesystem_event_names",
+    )
+    event_counts = exact_object(receipt["event_counts"], f"{path}.event_counts")
+    expected_event_keys = {
+        "open", "stat", "lstat", "listdir", "scandir", "glob", "readlink", "chdir",
+        "compile", "ctypes_dlopen", "exec", "import",
+    }
+    require_equal(set(event_counts), expected_event_keys, f"{path}.event_counts keys")
+    for key in expected_event_keys:
+        exact_int(event_counts[key], f"{path}.event_counts.{key}", 0)
+
+    expected_stage_names = {
+        "attest_tt_backend.py",
+        "compile_tt_source_advice.py",
+        "run_tt_source_partition.py",
+        "source-execution-matrix-v2.json",
+        "source-instance-manifest-v1.json",
+        "tt_source_runtime.py",
+    }
+    stage_files = exact_list(receipt["stage_files"], f"{path}.stage_files", 6)
+    normalized_stage_files: list[dict[str, Any]] = []
+    for index, row_value in enumerate(stage_files):
+        row_path = f"{path}.stage_files[{index}]"
+        row = exact_object(row_value, row_path)
+        require_keys(row, {"bytes", "path", "sha256"}, row_path, {"bytes", "path", "sha256"})
+        name = exact_string(row["path"], f"{row_path}.path")
+        normalized_stage_files.append(
+            {
+                "bytes": exact_int(row["bytes"], f"{row_path}.bytes", 1),
+                "path": name,
+                "sha256": validate_hex_digest(row["sha256"], f"{row_path}.sha256"),
+            }
+        )
+    stage_by_name = {item["path"]: item for item in normalized_stage_files}
+    require_equal(set(stage_by_name), expected_stage_names, f"{path}.stage_files names")
+    require_equal(
+        stage_by_name["source-execution-matrix-v2.json"],
+        {
+            "bytes": len(matrix_bytes),
+            "path": "source-execution-matrix-v2.json",
+            "sha256": sha256_bytes(matrix_bytes),
+        },
+        f"{path}.stage_files source execution matrix",
+    )
+    require_equal(
+        stage_by_name["source-instance-manifest-v1.json"],
+        {
+            "bytes": len(manifest_bytes),
+            "path": "source-instance-manifest-v1.json",
+            "sha256": sha256_bytes(manifest_bytes),
+        },
+        f"{path}.stage_files source manifest",
+    )
+    raw_provenance = exact_object(raw_provenance_value, "raw_result.provenance")
+    producer_rows = exact_list(
+        raw_provenance.get("local_source_files"),
+        "raw_result.provenance.local_source_files",
+        3,
+    )
+    for index, row_value in enumerate(producer_rows):
+        row_path = f"raw_result.provenance.local_source_files[{index}]"
+        row = exact_object(row_value, row_path)
+        name = exact_string(row.get("path"), f"{row_path}.path")
+        require_equal(
+            stage_by_name.get(name),
+            {
+                "bytes": exact_int(row.get("bytes"), f"{row_path}.bytes", 1),
+                "path": name,
+                "sha256": validate_hex_digest(row.get("sha256"), f"{row_path}.sha256"),
+            },
+            row_path,
+            "staging_producer_identity_mismatch",
+        )
+    require_equal(receipt["stage_file_count"], 6, f"{path}.stage_file_count")
+    computed_stage_digest = closure_digest(normalized_stage_files, f"{path}.stage_files")
+    stage_digest_value = validate_hex_digest(receipt["stage_sha256"], f"{path}.stage_sha256")
+    require_equal(stage_digest_value, computed_stage_digest, f"{path}.stage_sha256")
+    require_equal(
+        validate_hex_digest(receipt["expected_stage_sha256"], f"{path}.expected_stage_sha256"),
+        stage_digest_value,
+        f"{path}.expected_stage_sha256",
+    )
+    static_audit_digest = validate_hex_digest(
+        receipt["static_closure_audit_sha256"], f"{path}.static_closure_audit_sha256"
+    )
+    require_equal(
+        static_audit_digest,
+        expected_static_closure_audit_sha256,
+        f"{path}.static_closure_audit_sha256",
+        "stale_static_closure_audit",
+    )
+    stage_root = exact_string(receipt["stage_root"], f"{path}.stage_root")
+    if not os.path.isabs(stage_root) or os.path.normpath(stage_root) != stage_root:
+        reject("staging_root_path", f"{path}: staging root must be normalized and absolute")
+    stage_basename = exact_string(receipt["stage_root_basename"], f"{path}.stage_root_basename")
+    if not stage_basename.startswith("tt-source-partition-"):
+        reject("staging_root_name", f"{path}: unexpected staging root basename")
+    require_equal(os.path.basename(stage_root), stage_basename, f"{path}.stage_root_basename")
+    runtime_roots = [
+        exact_string(item, f"{path}.runtime_roots[{index}]")
+        for index, item in enumerate(exact_list(receipt["runtime_roots"], f"{path}.runtime_roots"))
+    ]
+    expected_runtime_roots = [
+        str(Path(EXPECTED_BACKEND["python_executable"]).parent.parent),
+    ]
+    require_equal(runtime_roots, expected_runtime_roots, f"{path}.runtime_roots")
+    runtime_files = [
+        exact_string(item, f"{path}.runtime_files[{index}]")
+        for index, item in enumerate(exact_list(receipt["runtime_files"], f"{path}.runtime_files"))
+    ]
+    expected_runtime_files = [
+        "/System/Library/CoreServices/SystemVersion.plist",
+    ]
+    require_equal(runtime_files, expected_runtime_files, f"{path}.runtime_files")
+    read_files = exact_list(receipt["read_files"], f"{path}.read_files")
+    require_equal(receipt["read_file_count"], len(read_files), f"{path}.read_file_count")
+    read_paths: set[str] = set()
+    stage_read_names: set[str] = set()
+    for index, row_value in enumerate(read_files):
+        row_path = f"{path}.read_files[{index}]"
+        row = exact_object(row_value, row_path)
+        require_keys(row, {"path", "sha256"}, row_path, {"path", "sha256"})
+        read_path = exact_string(row["path"], f"{row_path}.path")
+        if (
+            not os.path.isabs(read_path)
+            or os.path.normpath(read_path) != read_path
+            or read_path in read_paths
+        ):
+            reject("runtime_read_path", f"{row_path}: path must be unique, normalized, and absolute")
+        stage_relative: str | None = None
+        if lexical_path_within(read_path, stage_root):
+            stage_relative = os.path.relpath(read_path, stage_root)
+            if stage_relative not in expected_stage_names:
+                reject("runtime_stage_read", f"{row_path}: unexpected staged read {stage_relative!r}")
+            stage_read_names.add(stage_relative)
+        elif read_path not in runtime_files and not any(
+            lexical_path_within(read_path, root) for root in runtime_roots
+        ):
+            reject("runtime_read_outside_allowlist", f"{row_path}: read is outside the runtime allowlist")
+        read_paths.add(read_path)
+        observed_digest = validate_hex_digest(row["sha256"], f"{row_path}.sha256")
+        if stage_relative is not None:
+            require_equal(
+                observed_digest,
+                stage_by_name[stage_relative]["sha256"],
+                f"{row_path}.sha256",
+                "runtime_stage_read_digest_mismatch",
+            )
+    require_equal(
+        {
+            "attest_tt_backend.py",
+            "compile_tt_source_advice.py",
+            "source-execution-matrix-v2.json",
+            "source-instance-manifest-v1.json",
+            "tt_source_runtime.py",
+        }
+        - stage_read_names,
+        set(),
+        f"{path}.read_files",
+        "runtime_required_stage_read_missing",
+    )
+    directory_paths = [
+        exact_string(item, f"{path}.directory_paths[{index}]")
+        for index, item in enumerate(exact_list(receipt["directory_paths"], f"{path}.directory_paths"))
+    ]
+    require_equal(directory_paths, sorted(set(directory_paths)), f"{path}.directory_paths order")
+    for directory_path in directory_paths:
+        if not os.path.isabs(directory_path) or os.path.normpath(directory_path) != directory_path:
+            reject("runtime_directory_path", f"{path}: directory paths must be normalized and absolute")
+        if directory_path != stage_root and not any(
+            lexical_path_within(directory_path, root) for root in runtime_roots
+        ):
+            reject("runtime_directory_outside_allowlist", f"{path}: directory is outside the allowlist")
+    started_ns = exact_int(receipt["stage_started_ns"], f"{path}.stage_started_ns", 0)
+    finished_ns = exact_int(receipt["finished_ns"], f"{path}.finished_ns", started_ns)
+    runtime_receipt_digest = audit_runtime_receipt_digest(
+        receipt,
+        raw_provenance_value,
+    )
+    return {
+        "environment_event_count": len(expected_environment_events),
+        "event_counts": event_counts,
+        "finished_ns": finished_ns,
+        "read_file_count": len(read_files),
+        "stage_file_count": 6,
+        "stage_sha256": stage_digest_value,
+        "stage_started_ns": started_ns,
+        "static_closure_audit_sha256": static_audit_digest,
+        "runtime_receipt_sha256": runtime_receipt_digest,
+        "valid": True,
+    }
+
+
+def audit_capability(
+    value: Any,
+    *,
+    expected_static_closure_audit_sha256: str,
+    raw_provenance_value: Any,
+    manifest_bytes: bytes,
+    matrix_bytes: bytes,
+) -> dict[str, Any]:
     record = exact_object(value, "raw_result.capability_audit")
     exact_zero_keys = (
         "full_tuple_enumerations",
@@ -2112,6 +2404,7 @@ def audit_capability(value: Any) -> dict[str, Any]:
         "repository_git_metadata_present",
         "target_or_mutation_files_present",
         "stdout_only_output",
+        "runtime_receipt",
     }
     require_keys(record, required, "raw_result.capability_audit", required)
     for key in exact_zero_keys:
@@ -2128,10 +2421,18 @@ def audit_capability(value: Any) -> dict[str, Any]:
         require_equal(exact_bool(record[key], f"raw_result.capability_audit.{key}"), True, f"raw_result.capability_audit.{key}")
     for key in ("repository_git_metadata_present", "target_or_mutation_files_present"):
         require_equal(exact_bool(record[key], f"raw_result.capability_audit.{key}"), False, f"raw_result.capability_audit.{key}")
+    runtime_receipt = audit_staging_runtime_receipt(
+        record["runtime_receipt"],
+        expected_static_closure_audit_sha256=expected_static_closure_audit_sha256,
+        raw_provenance_value=raw_provenance_value,
+        manifest_bytes=manifest_bytes,
+        matrix_bytes=matrix_bytes,
+    )
     return {
         "diagnostic_sample_count": 35,
         "maximum_live_mode_indices_outside_tt_kernels": maximum_modes,
         "maximum_ndarray_dimensions": maximum_dimensions,
+        "runtime_receipt": runtime_receipt,
         "valid": True,
     }
 
@@ -2169,6 +2470,7 @@ def audit_capability_development(value: Any) -> dict[str, Any]:
         "maximum_live_mode_indices_outside_tt_kernels",
         "diagnostic_sample_count",
         "maximum_ndarray_dimensions",
+        "runtime_receipt",
     }
     require_keys(record, required, "raw_result.capability_audit", required)
     for key in exact_zero_keys:
@@ -2194,6 +2496,19 @@ def audit_capability_development(value: Any) -> dict[str, Any]:
         key: exact_bool(record[key], f"raw_result.capability_audit.{key}")
         for key in boolean_keys
     }
+    runtime_receipt = exact_object(
+        record["runtime_receipt"],
+        "raw_result.capability_audit.runtime_receipt",
+    )
+    require_equal(
+        runtime_receipt,
+        {
+            "schema": "tt-source-staging-runtime-receipt-v1",
+            "status": "unattested_development",
+            "valid": False,
+        },
+        "raw_result.capability_audit.runtime_receipt",
+    )
     return {
         "artifact_freeze_authorized": False,
         "diagnostic_sample_count": 35,
@@ -3281,11 +3596,14 @@ def rss_bytes() -> int:
 
 def schema_description() -> dict[str, Any]:
     return {
-        "baseline_cli": [
+        "strict_preflight_development_cli": [
             "--manifest PATH",
             "--execution-matrix PATH",
             "--raw-result PATH",
+            "--expected-static-closure-audit-sha256 DIGEST",
+            "--strict-preflight-development",
         ],
+        "artifact_freeze_available": False,
         "canonical_json": {
             "allow_nan": False,
             "ascii_escaping": True,
@@ -3296,12 +3614,20 @@ def schema_description() -> dict[str, Any]:
             "trailing_bytes": "exactly one newline",
             "utf8": True,
         },
-        "development_cli": ["--describe-schema", "--self-test"],
+        "development_cli": [
+            "--describe-schema",
+            "--self-test",
+            "--semantic-only-development",
+            "--implementation-audit-development",
+            "--strict-preflight-development",
+        ],
         "source_phase_data_read_allowlist": [
             "--manifest PATH",
             "--execution-matrix PATH",
             "--raw-result PATH",
         ],
+        "strict_preflight_scalar_binding":
+            "--expected-static-closure-audit-sha256 DIGEST",
         "control_manifest_cli_accepted": False,
         "output": {
             "failure": {
@@ -3311,18 +3637,18 @@ def schema_description() -> dict[str, Any]:
                 "schema": OUTPUT_SCHEMA,
                 "valid": False,
             },
-            "success_artifacts": {
-                "frozen_source_advice": ADVICE_SCHEMA,
-                "frozen_source_control_certificates": CONTROL_CERTIFICATE_SCHEMA,
-                "source_advice_receipt": RECEIPT_SCHEMA,
-            },
+            "success_artifacts": None,
             "success_keys": [
-                "artifacts",
+                "artifact_freeze_authorized",
+                "audits",
+                "boundary",
+                "candidate_artifact_digests",
                 "partition",
                 "protocol",
+                "raw_result_sha256",
                 "schema",
-                "source_verification",
                 "valid",
+                "verifier_accounting",
             ],
         },
         "producer_raw_result": {
@@ -3445,13 +3771,16 @@ def schema_description() -> dict[str, Any]:
                 "operation_vector",
                 "traffic_buckets",
             ],
-            "provenance_required_keys": [
+            "provenance_required_keys_development_base": [
                 "source_manifest_sha256",
                 "source_execution_matrix_sha256",
                 "rcb_gate_text_sha256",
                 "local_source_files",
                 "local_source_closure_sha256",
                 "data_reads",
+            ],
+            "provenance_strict_preflight_additional_required_keys": [
+                "runtime_receipt_sha256",
             ],
             "schema": RAW_SCHEMA,
             "tensor_core": {
@@ -3660,17 +3989,26 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--execution-matrix", type=Path)
     parser.add_argument("--raw-result", type=Path)
+    parser.add_argument("--expected-static-closure-audit-sha256")
     parser.add_argument("--describe-schema", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--semantic-only-development", action="store_true")
     parser.add_argument("--implementation-audit-development", action="store_true")
+    parser.add_argument("--strict-preflight-development", action="store_true")
     parser.add_argument("--help", action="store_true")
     args = parser.parse_args(argv)
     special = sum(bool(item) for item in (args.describe_schema, args.self_test, args.help))
     if special > 1:
         reject("argument_error", "choose only one of --describe-schema, --self-test, or --help")
     if special:
-        if any((args.manifest, args.execution_matrix, args.raw_result)):
+        if any(
+            (
+                args.manifest,
+                args.execution_matrix,
+                args.raw_result,
+                args.expected_static_closure_audit_sha256,
+            )
+        ):
             reject("argument_error", "schema/help/self-test modes do not accept experiment inputs")
         return args
     missing = [
@@ -3684,10 +4022,46 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ]
     if missing:
         reject("argument_error", f"missing required arguments: {', '.join(missing)}")
-    if args.semantic_only_development and args.implementation_audit_development:
+    development_modes = sum(
+        bool(item)
+        for item in (
+            args.semantic_only_development,
+            args.implementation_audit_development,
+            args.strict_preflight_development,
+        )
+    )
+    if development_modes > 1:
         reject(
             "argument_error",
             "choose only one development verification mode",
+        )
+    if development_modes == 0:
+        reject(
+            "execution_not_authorized",
+            "artifact freeze is unavailable because the experiment has no execution_plan",
+        )
+    if (
+        args.strict_preflight_development
+        and args.expected_static_closure_audit_sha256 is None
+    ):
+        reject(
+            "argument_error",
+            "--strict-preflight-development requires "
+            "--expected-static-closure-audit-sha256",
+        )
+    if args.expected_static_closure_audit_sha256 is not None:
+        validate_hex_digest(
+            args.expected_static_closure_audit_sha256,
+            "--expected-static-closure-audit-sha256",
+        )
+    if (
+        not args.strict_preflight_development
+        and args.expected_static_closure_audit_sha256 is not None
+    ):
+        reject(
+            "argument_error",
+            "--expected-static-closure-audit-sha256 is accepted only by strict "
+            "development preflight",
         )
     return args
 
@@ -3800,11 +4174,28 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     )
     backend_audit = audit_backend_attestation(raw["backend_attestation"])
     development_audit = bool(args.implementation_audit_development)
-    capability_audit = (
-        audit_capability_development(raw["capability_audit"])
-        if development_audit
-        else audit_capability(raw["capability_audit"])
-    )
+    strict_preflight = bool(args.strict_preflight_development)
+    source_phase_binding_audit: dict[str, Any] | None = None
+    if strict_preflight:
+        expected_static_digest = validate_hex_digest(
+            args.expected_static_closure_audit_sha256,
+            "--expected-static-closure-audit-sha256",
+        )
+        capability_audit = audit_capability(
+            raw["capability_audit"],
+            expected_static_closure_audit_sha256=expected_static_digest,
+            raw_provenance_value=raw["provenance"],
+            manifest_bytes=manifest_bytes,
+            matrix_bytes=matrix_bytes,
+        )
+        source_phase_binding_audit = {
+            "expected_static_closure_audit_sha256": expected_static_digest,
+            "valid": True,
+        }
+    elif development_audit:
+        capability_audit = audit_capability_development(raw["capability_audit"])
+    else:
+        reject("execution_not_authorized", "artifact freeze mode is unavailable")
     producer_accounting = audit_accounting(raw["accounting"])
     advice, controls, semantic_audit = verify_source_cells(raw["cells"], specs, meter)
     control_audit = audit_control_certificates(raw["controls"])
@@ -3891,6 +4282,8 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         "valid": True,
         "verifier_accounting": verifier_accounting,
     }
+    if source_phase_binding_audit is not None:
+        source_verification["audits"]["source_phase_binding"] = source_phase_binding_audit
     if development_audit:
         result = {
             "artifact_freeze_authorized": False,
@@ -3913,20 +4306,31 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         }
         _ACTIVE_OPERATION_VECTOR = None
         return result
-    result = {
-        "artifacts": {
-            "frozen_source_advice": advice,
-            "frozen_source_control_certificates": controls,
-            "source_advice_receipt": receipt,
-        },
-        "partition": "source_verifier",
-        "protocol": PROTOCOL,
-        "schema": OUTPUT_SCHEMA,
-        "source_verification": source_verification,
-        "valid": True,
-    }
-    _ACTIVE_OPERATION_VECTOR = None
-    return result
+    if strict_preflight:
+        result = {
+            "artifact_freeze_authorized": False,
+            "audits": source_verification["audits"],
+            "boundary": (
+                "Development-only strict source preflight with external static-closure, "
+                "filesystem, environment, staging, IR, allocation, accounting, semantic, "
+                "and rank checks. The experiment has no execution_plan, so no source "
+                "artifact is emitted or frozen."
+            ),
+            "candidate_artifact_digests": {
+                "control_certificate_sha256": controls_digest,
+                "retained_advice_sha256": advice_digest,
+                "source_advice_receipt_sha256": receipt_digest,
+            },
+            "partition": "source_verifier_strict_preflight_development",
+            "protocol": PROTOCOL,
+            "raw_result_sha256": raw_digest,
+            "schema": "tt-source-strict-preflight-development-verification-v1",
+            "valid": True,
+            "verifier_accounting": verifier_accounting,
+        }
+        _ACTIVE_OPERATION_VECTOR = None
+        return result
+    reject("execution_not_authorized", "artifact freeze mode is unavailable")
 
 
 def failure_payload(error: BaseException) -> dict[str, Any]:
