@@ -151,8 +151,8 @@ A valid derivation must state:
 - all preprocessing and advice used to build every `A_I`;
 - the sum of ranks, nonzeros, and operations on a root-to-leaf path;
 - how a positive terminal predicate yields a D3 witness.
-- how the representation restricts to every child subset without rebuilding a
-  D2-length target object;
+- how one chosen child is decided at each known-zero parent without rebuilding
+  a D2-length target object, or how a direct root locator bypasses descent;
 - exact certificates for both zero and nonzero node decisions, including
   identity and target-dependent degree-drop cases.
 
@@ -221,7 +221,66 @@ These are `REJECTED_SCOPED` interface results, not lower bounds on the scalar
 function. A separable tensor is a counterexample to any ambient-dimension lower
 bound. Compact selectors, simultaneous or reordered elimination, structured
 tensor contraction, scalar-only transposition, source-composition towers, and
-parent circuits retaining both child scalars remain open.
+parent circuits producing one chosen-child decision remain open.
+
+## Scoped coordinate-moment and canonical-separation negative
+
+`bounded-separation-preflight-v3.md` works in the actual split source algebra.
+For `U_Q=A_Q/Delta_Q`, the minimal-polynomial degree equals the number `t_Q` of
+distinct component values, so
+
+```text
+dim_K span{A_Q^k*Delta_Q^(n-k):0<=k<=n}=min(n+1,t_Q).
+```
+
+On the complete collision-light support, `t_Q=Theta(B^3)` and
+`n=N2=Theta(B^2)`. A node-oblivious coefficient-linear interface that recovers
+the complete algebra element therefore has width `n+1`. This is a restricted
+linear-interface theorem, not a lower bound on one fixed nonlinear predicate.
+
+For explicit CP descriptions of `A_Q` and `Delta_Q`, the uncollected canonical
+symmetric-power slot count is
+
+```text
+sum_(k in supp(M_I))
+  binom(k+r_A-1,r_A-1)*binom(n-k+r_D-1,r_D-1).
+```
+
+The global EC coordinate is not rank-one separable: its zero and pole divisors
+are nonvertical addition fibers in `E^3`. Hence one global base rank is at least
+two, although finite quotient reduction may still collapse active terms. The
+explicit trace resolvent has recurrence order `t_Q` and recreates the
+translated D3 polynomial. These explicit interfaces are `REJECTED_SCOPED`;
+minimal quotient CP/TT rank and fixed-node nonlinear circuits remain open.
+
+At a known-zero finite parent, first-witness descent evaluates one chosen child.
+If its field norm is nonzero, the sibling norm must be zero. Both child values
+are necessary only for all-root enumeration. Root-to-leaf work and traffic are
+cumulative gates.
+
+## Historical three-source TT zero-locator sketch
+
+Status: `SUPERSEDED PAPER DRAFT` by the direct five-source construction in
+`experiments/EXP-ECDLP-TT-ZERO-LOCATOR-001/preflight-v4.md`. The paragraph
+below is preserved as provenance, not as the current accounting surface.
+
+The 2026 arbitrary-field TT normal form suggests a direct locator. For the
+finite-branch membership tensor `G_Q`, define componentwise
+
+```text
+Z_Q=1-G_Q^(|K|-1).
+```
+
+Then `Z_Q[x]=1` exactly at source components where `G_Q[x]=0`. An exact leading
+nonzero TT index would return the three signed source factors; one D2 lookup
+returns the other two. This bypasses the subset tree and scalar norm.
+
+The historical candidate was `OPEN`, `NOVELTY-UNVERIFIED`. Constructing `G_Q`
+by dense Horner, D2 factor multiplication, or canonical CP enumeration already
+hits the B2 boundary. The successor removes this unspecified three-source
+object: it binds a complete five-source RCB circuit, an exact projective
+equality scalar `g_Q`, and `1-g_Q^(p^2-1)`. Its exact final ranks are now known,
+but its intermediate Hadamard/normalization ranks remain the fatal obligation.
 
 ## Immediate obstruction
 
@@ -235,6 +294,8 @@ sublinear representation including its kernel boundary data.
 
 ## Next concrete action
 
-Specify the scalar-only transposed norm and compact selector interfaces. Reject
-them before source work if any internal boundary has `Omega(B^2)` target
-coordinates or if child values and certificates are not exact.
+Use `experiments/EXP-ECDLP-TT-ZERO-LOCATOR-001/preflight-v4.md` as the current
+paper contract. Derive or refute the gate-by-gate central-rank certificate for
+the bound RCB-plus-norm-indicator circuit. Source remains unauthorized if a
+central rank reaches `Omega(B)`, any cumulative Tier-B target resource reaches
+`Omega(B^2)`, or fixed advice/workspace reaches `Omega(B^3)`.

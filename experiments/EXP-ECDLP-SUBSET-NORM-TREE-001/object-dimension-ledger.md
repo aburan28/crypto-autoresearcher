@@ -217,7 +217,8 @@ compact branch selector:            UNDEFINED, REVIEW_REQUIRED
 internal vector spaces and oracles: UNDEFINED
 target-parametric boundary size:    UNDEFINED
 construction work and traffic:      UNDEFINED
-both child scalars or update law:    UNDEFINED
+chosen-child scalar/update law:      UNDEFINED for first witness
+both child scalars:                  required only for all-root enumeration
 positive and negative certificates: UNDEFINED
 signed terminal provenance:         Theta(B) baseline available
 ```
@@ -230,6 +231,56 @@ evaluate every D2 predicate:     Theta(B^2) target output
 form dense C_Q mod M_root:       Theta(B^2) target state
 ```
 
+Bounded-separation v3 entry:
+
+```text
+node degree n:                     N2=Theta(B^2)
+distinct translated values t_Q:   N3-epsilon_+(Q)+o_3*1_(Q!=O)
+linear homogeneous moment span:   min(n+1,t_Q)
+node-oblivious linear width:       n+1 in collision-light full support
+canonical formal slots:            sum_k binom(k+r_A-1,r_A-1)
+                                    *binom(n-k+r_D-1,r_D-1)
+canonical active slots:            proof obligation after finite reduction
+global EC rank-one ratio:           excluded by addition-fiber divisors
+explicit trace recurrence order:   t_Q=Theta(B^3), REJECTED_SCOPED
+first-witness child law:            one chosen child at each known-zero parent
+path work and traffic:              each summed, strict o(B^2) required
+aggregate peak target state:        strict o(B^2) required
+minimal CP/TT/circuit size:         OPEN
+fixed-node nonlinear predicate:     OPEN
+decision:                           decision-v3.json, weaken
+```
+
+Historical three-source TT zero-locator sketch (`SUPERSEDED PAPER DRAFT`):
+
+```text
+finite-branch tensor:               G_Q in K^(d_1*d_2*d_3)
+zero indicator:                     Z_Q=1-G_Q^(|K|-1), exact componentwise
+logical zero test:                  Z_Q is zero tensor iff no finite hit
+witness locator:                    leading nonzero TT index, conditional
+source-to-public provenance:        three registered source IDs
+remaining leaves:                   one charged D2 pair-witness lookup
+root D2-identity route:             charged Theta(B) Member_D3 scan
+TT state at uniform rank r:         O(B*r^2), literature-derived inference
+coarse exact normalization work:    O(B*r^3) per step, literature-derived
+state threshold:                    r=o(B^(1/2)) before other state
+per-normalization work threshold:   r=o(B^(1/3)) before logs/circuit length
+G_Q circuit length and ranks:        UNDEFINED, FATAL OBLIGATION
+indicator Hadamard chain:            O(log |K|) normalizations, UNDEFINED ranks
+complete selector/branch cover:      UNDEFINED
+total target work and traffic:       UNDEFINED, must be strict o(B^2)
+total fixed advice/workspace:        UNDEFINED, must be strict o(B^3)
+decision:                            PAPER PREFLIGHT REQUIRED, NO SOURCE
+```
+
+The `O(B*r^3)` normalization line and resulting `r=o(B^(1/3))` threshold above
+undercharge the standard raw Hadamard route. They are retained only as
+historical provenance. The current direct five-source ledger is
+`experiments/EXP-ECDLP-TT-ZERO-LOCATOR-001/object-dimension-ledger-v4.md`; it
+charges raw allocation `B*(2*r^2+3*r^4)`, exact reduction `O(B*P^3)` with
+`P<=r^2`, every target construction/certificate/replay term, and cumulative
+traffic separately.
+
 ## Immediate kill conditions
 
 - Root specialization has `Omega(B^2)` live coefficients, values, or traffic.
@@ -237,8 +288,9 @@ form dense C_Q mod M_root:       Theta(B^2) target state
 - Exactness requires a hidden D2 mask or target answer table.
 - Identity support or target-dependent degree drop requires an unreported D3
   membership oracle.
-- A compact root operator does not restrict to child subsets without rebuilding
-  a D2-length target object.
+- A tree-based compact root operator cannot choose one child without rebuilding
+  a D2-length target object. A direct root zero locator may instead return the
+  source tuple and bypass the tree, but must fully charge that locator.
 - A positive leaf cannot produce a registered D3 witness through the charged
   `Theta(B)` D2-lift baseline or a fully dimensioned improvement.
 - The matched random operator has the same rank and cost within the
@@ -248,5 +300,7 @@ form dense C_Q mod M_root:       Theta(B^2) target state
 
 ## Next concrete action
 
-Define the scalar-only transposed norm and compact selector interfaces and fill
-every successor entry above before creating source code.
+Use the completed direct v4 paper preflight and derive or refute the first
+RCB-plus-norm-indicator central-rank certificate. Do not create source code if
+the central rank reaches `Omega(B)`, any cumulative Tier-B target resource
+reaches `Omega(B^2)`, or fixed advice/workspace reaches `Omega(B^3)`.
