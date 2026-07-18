@@ -117,12 +117,16 @@ coordinator_decision:
 handoff:
   id: TASK-YYYYMMDD-NNN
   from: coordinator
-  to: idea-generator | executor
+  to: idea-generator | executor | reviewer
   objective: null
   uncertainty_reduced: null
   inputs: []
   constraints: []
   deliverables: []
+  inference:
+    policy: coordinator-ultra-code | research-sol-max | executor-terra | review-xhigh
+    fallback_allowed: false
+    independent_session_required: false
   budget:
     wall_clock_seconds: null
     memory_gb: null
