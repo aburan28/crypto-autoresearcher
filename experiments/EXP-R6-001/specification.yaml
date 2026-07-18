@@ -1,0 +1,119 @@
+experiment:
+  id: EXP-R6-001
+  hypothesis_id: H-R6-001
+  version: 1
+  title: >-
+    R6 arbitrary explicit factor-base membership solve: chained Semaev m=3 +
+    prod(x_i - x(f)) on an explicit birthday base, total-cost exponent vs rho
+    with four mandatory controls.
+  status: approved
+  objective: >-
+    Reduce the uncertainty in RQ-R6-001 (AUTOLAB_TASKS T1, "the single
+    highest-value open object"): measure the full relation_cost x solve_cost
+    exponent of the explicit-membership PDP on generic E/F_p across
+    l = 2^20..2^30, >=8 targets per scale, against all four mandatory controls.
+  inputs:
+    systems: >-
+      Chained Semaev m=3 (m=4 spot arm) over F_p from semaev_tree_prime.py with
+      the structured x_i^q=1 membership REPLACED by prod_{f in F}(x_i - x(f))
+      for an explicit index set F, |F| = l^{1/m}. Two base arms: random index
+      set and interval index set (both arbitrary, neither structured-smooth).
+    targets: ">=8 random R per (curve, l), with known k for verification."
+    curves: ">=3 generic prime-field curves per l; matched-order pairs for control 3."
+    baseline: T24-verified rho implementation (constants anchored by H040).
+  controls:
+    - "(1) Generic baseline: Pollard rho / BSGS on the SAME instances (must sit
+      at l^0.5; constants verified by H040/T24)."
+    - "(2) Matched random curve, same subgroup order l."
+    - "(3) Same-order isogenous curve."
+    - "(4) Matched random polynomial system of identical shape with curve
+      structure stripped (T11-certified support-matched null; EXP-DREG-001
+      instrument where sizes overlap)."
+    - A WIN must beat ALL FOUR controls; bookkeeping leaks are named as such.
+  independent_variables:
+    - l (2^20, 2^24, 2^28, 2^30)
+    - m (3, 4)
+    - base arm (random | interval)
+    - target R (>=8 per cell)
+    - control arm (4 arms)
+  metrics:
+    primary:
+      - total cost = relation_cost x solve_cost in group-op-equivalents per
+        solved target; fitted exponent alpha + bootstrap 90% CI across l
+      - cost ratio vs the rho control per scale
+    secondary:
+      - d_ff, d_reg of the constrained system per scale (EXP-DREG-001 instrument)
+      - decomposition probability per target; relation count; wall time; peak RSS
+      - the smooth-subgroup no-win signature diagnostics (degree vs time)
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: ">=3 curves x >=8 targets per scale"
+  budget:
+    wall_clock_seconds_per_run: 14400
+    total_cpu_hours: 240
+    maximum_memory_gb: 40
+    maximum_runs: 160
+  stopping_rules:
+    - Cells exceeding the wall/memory cap are censored (recorded with partial
+      checkpoint), never counted as evidence.
+    - Stop the l-ladder after two consecutive fully-censored scales.
+    - If any scale's pre-registered d_reg measurement is censored for ALL 8
+      targets, the scale is reported as scale-censored, not extrapolated.
+  invalidation_rules:
+    - Timeout/OOM = failed_infrastructure (AGENTS rule 5), excluded from fits.
+    - A system that is not 0-dimensional after membership (builder bug) = invalid.
+    - A target whose recovered k fails verification invalidates the run and
+      triggers a builder audit before any further runs.
+    - Solve-only cost numbers are never mixed into the total-cost fit.
+  success_criterion: >-
+    Fitted total-cost exponent alpha with bootstrap 90% CI entirely below 0.5
+    on >=4 ladder points, AND below every one of the four controls on the same
+    instances. (Alive at the bar; triggers the H096 gate.)
+  falsification_criterion: >-
+    alpha CI overlaps or exceeds 0.5, or tracks the rho control, or the
+    no-win signature (degree flat, time exponential) recurs: scoped KILL of the
+    arbitrary explicit-membership R6 variant — "no signal seen at reachable
+    scale," with censoring reported.
+  required_artifacts:
+    - runs/<run-id>/manifest.yaml (command, commit, dirty-tree, env, seeds, params)
+    - runs/<run-id>/raw.json (per-target costs, d_ff/d_reg, control costs)
+    - runs/<run-id>/stdout.txt and stderr.txt
+    - analysis.md (exponent fit + CIs, control comparison table, censoring
+      table, verdict against the frozen criteria)
+  assigned_to: executor
+  approved_by: coordinator   # DEC-20260717-002
+
+handoff:
+  id: TASK-20260717-002
+  from: coordinator
+  to: executor
+  objective: >-
+    Implement the explicit-membership swap in semaev_tree_prime.py and run the
+    four-scale total-cost ladder with all four mandatory controls.
+  uncertainty_reduced: >-
+    Whether the last open R6 variant (arbitrary explicit birthday base) has a
+    measured sub-birthday total exponent — the residual of the program's
+    central wall.
+  inputs:
+    - experiments/EXP-R6-001/specification.yaml
+    - ecdlp-autolab src/: semaev_tree_prime.py, dreg_measure.py, dsolv_scaling.py
+    - T24-verified pollard_rho.py; T11-certified null harness
+    - EXP-DREG-001 instrument (for the d_reg secondaries where sizes overlap)
+  constraints:
+    - Full relation x solve accounting; solve-only numbers labeled and separated.
+    - All four controls run on identical instances; no control, no claim.
+    - Do not run while status is review_required (status is approved).
+  deliverables:
+    - per-cell total-cost table with CIs and control comparisons
+    - d_ff/d_reg secondaries per scale
+    - analysis.md with the frozen-criteria verdict and censoring table
+  budget:
+    wall_clock_seconds: 864000
+    memory_gb: 40
+    maximum_runs: 160
+  completion_gate:
+    - Every planned cell has a terminal state (measured | censored | invalid).
+    - All four control arms present for every measured scale.
+    - Recovered k verified for every solved target.
+    - Raw results, resource metrics, and summaries agree; artifacts checksummed.
+  return_format: execution_report
