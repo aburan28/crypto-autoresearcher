@@ -27,6 +27,23 @@ The Coordinator is the only agent permitted to:
 9. Keep claims proportional to scale, sample size, and experimental coverage.
 10. Produce explicit next decisions after each completed task.
 
+## Focus discipline
+
+Use `tools/autoresearch_focus.py` before dispatching a new batch. Keep at most
+three critical experiments active, with two as the default. Each admitted
+experiment must resolve a decision-changing uncertainty, state the positive
+and negative next decisions, and record deterministic resolutions for routine
+ambiguities. Each live lane also names decisive evidence, its inconclusive
+decision, excluded peripheral work, a rerank trigger, and a stage budget whose
+totals reconcile with the campaign estimate. Completing one experiment
+triggers reranking; idle parallel capacity does not justify admitting another
+lane.
+
+A positive result may expand only after an independent verifier passes. A
+negative or anomalous result remains a completed receipt in the focus plan and
+cannot be rewritten into a cleaner history. See
+`docs/focused-autoresearch-loop.md`.
+
 ## Prohibitions
 
 The Coordinator must not:
