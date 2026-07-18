@@ -97,11 +97,26 @@ def path_within(path: str, root: str) -> bool:
 
 
 class RuntimeAudit:
-    def __init__(self, stage_root: str) -> None:
+    def __init__(
+        self,
+        stage_root: str,
+        *,
+        expected_stage_files: Sequence[str] = EXPECTED_STAGE_FILES,
+        cache_modules: Sequence[str] = (
+            "attest_tt_backend",
+            "compile_tt_source_advice",
+            "tt_source_runtime",
+        ),
+        expected_environment_events: Sequence[Mapping[str, Any]] = (
+            *EXPECTED_ENVIRONMENT_EVENTS,
+        ),
+    ) -> None:
         self.stage_root = stage_root
         self.cwd = stage_root
+        self.expected_stage_files = tuple(expected_stage_files)
+        self.expected_environment_events = tuple(expected_environment_events)
         self.stage_files = {
-            os.path.join(stage_root, name) for name in EXPECTED_STAGE_FILES
+            os.path.join(stage_root, name) for name in self.expected_stage_files
         }
         cache_tag = sys.implementation.cache_tag
         self.cache_probe_paths = {
@@ -112,11 +127,7 @@ class RuntimeAudit:
                     "__pycache__",
                     f"{module}.{cache_tag}.pyc",
                 )
-                for module in (
-                    "attest_tt_backend",
-                    "compile_tt_source_advice",
-                    "tt_source_runtime",
-                )
+                for module in cache_modules
             ),
         }
         self.runtime_roots = (os.path.normpath(sys.base_prefix),)
@@ -253,7 +264,10 @@ class RuntimeAudit:
                 self.deny(event, "environment mutation arguments are invalid")
             observed = {"event": event, "key": key, "value": value}
             index = len(self.environment_events)
-            if index >= len(EXPECTED_ENVIRONMENT_EVENTS) or observed != EXPECTED_ENVIRONMENT_EVENTS[index]:
+            if (
+                index >= len(self.expected_environment_events)
+                or observed != self.expected_environment_events[index]
+            ):
                 self.deny(event, f"unexpected environment mutation {observed!r}")
             self.environment_events.append(observed)
             return
@@ -289,7 +303,7 @@ class RuntimeAudit:
                 "path": name,
                 "sha256": sha256_file(os.path.join(self.stage_root, name)),
             }
-            for name in EXPECTED_STAGE_FILES
+            for name in self.expected_stage_files
         ]
         actual_stage_digest = stage_digest(stage_rows)
         read_rows: list[dict[str, Any]] = []
@@ -330,7 +344,7 @@ class RuntimeAudit:
                 not self.denied_events
                 and actual_stage_digest == expected_stage_sha256
                 and dict(os.environ) == EXPECTED_ENVIRONMENT
-                and tuple(self.environment_events) == EXPECTED_ENVIRONMENT_EVENTS
+                and tuple(self.environment_events) == self.expected_environment_events
             ),
         }
 

@@ -28,6 +28,13 @@ EXPERIMENT_DIR = SOURCE_DIR.parent
 ROLE_PRODUCER = "producer"
 ROLE_VERIFIER = "verifier"
 ROLES = (ROLE_PRODUCER, ROLE_VERIFIER)
+EXPECTED_HARNESS_FILES = (
+    "audit_tt_source_closure.py",
+    "run_tt_source_partition.py",
+    "run_tt_source_verifier_partition.py",
+    "stage_tt_source_partition.py",
+    "stage_tt_target_partition.py",
+)
 
 CANONICAL_IR_KINDS = (
     "input_coordinate",
@@ -473,6 +480,15 @@ def sha256_file(path: Path) -> str:
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
+    return digest.hexdigest()
+
+
+def closure_digest(rows: Sequence[Mapping[str, Any]]) -> str:
+    digest = hashlib.sha256()
+    for row in sorted(rows, key=lambda item: str(item["path"])):
+        digest.update(str(row["path"]).encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(bytes.fromhex(str(row["sha256"])))
     return digest.hexdigest()
 
 
@@ -2664,6 +2680,14 @@ def build_audit_report(
         | set(cross_violations)
     )
     valid = bool(scanners) and not violations
+    harness_rows = [
+        {
+            "bytes": (source_root / name).stat().st_size,
+            "path": name,
+            "sha256": sha256_file(source_root / name),
+        }
+        for name in EXPECTED_HARNESS_FILES
+    ]
     report: dict[str, Any] = {
         "auditor": {
             "path": SCRIPT_PATH.name,
@@ -2676,6 +2700,10 @@ def build_audit_report(
             "source_execution": False,
         },
         "cross_role": cross_report,
+        "harness": {
+            "closure_sha256": closure_digest(harness_rows),
+            "files": harness_rows,
+        },
         "limitations": [
             "Static audit does not replace isolated-staging runtime filesystem, allocation, environment, or IR-event interception.",
             "External standard-library and NumPy files are classified here; their complete file and loader identities belong to attest_tt_backend.py and the pre-run receipt.",
@@ -2722,6 +2750,7 @@ def schema_document() -> dict[str, Any]:
             "auditor",
             "boundary",
             "cross_role",
+            "harness",
             "limitations",
             "payload_sha256",
             "policy",
