@@ -18,11 +18,22 @@ EXPECTED_PRODUCER_FILES = (
     "tt_target_runtime.py",
 )
 EXPECTED_VERIFIER_FILES = ("verify_tt_target_advice.py",)
+EXPECTED_HARNESS_FILES = (
+    "attest_tt_backend.py",
+    "audit_tt_target_closure.py",
+    "run_tt_target_partition.py",
+    "stage_tt_target_partition.py",
+)
 FORBIDDEN_IMPORT_ROOTS = {
+    "_thread",
+    "ctypes",
     "itertools",
+    "mmap",
+    "multiprocessing",
     "requests",
     "socket",
     "subprocess",
+    "threading",
     "urllib",
 }
 FORBIDDEN_CALLS = {
@@ -31,6 +42,14 @@ FORBIDDEN_CALLS = {
     "connect",
     "eval",
     "exec",
+    "execl",
+    "execle",
+    "execlp",
+    "execlpe",
+    "execv",
+    "execve",
+    "execvp",
+    "execvpe",
     "fork",
     "popen",
     "posix_spawn",
@@ -214,6 +233,19 @@ def audit_closures(
                 violations.append(
                     {"file": report["file"], "role": role, **violation}
                 )
+    harness_paths = tuple((source_root / name).resolve() for name in EXPECTED_HARNESS_FILES)
+    for path in harness_paths:
+        if path.parent != source_root or not path.is_file():
+            violations.append({"kind": "harness_file_missing", "file": path.name})
+    harness_rows = [
+        {
+            "bytes": path.stat().st_size,
+            "path": path.name,
+            "sha256": file_digest(path),
+        }
+        for path in harness_paths
+        if path.is_file()
+    ]
     return {
         "artifact_freeze_authorized": False,
         "boundary": (
@@ -225,6 +257,10 @@ def audit_closures(
             "entry": producer_entry.name,
             "files": list(producer_names),
             "reports": role_reports["producer"],
+        },
+        "harness": {
+            "closure_sha256": closure_digest(source_root, harness_paths),
+            "files": harness_rows,
         },
         "schema": SCHEMA,
         "valid": not violations,

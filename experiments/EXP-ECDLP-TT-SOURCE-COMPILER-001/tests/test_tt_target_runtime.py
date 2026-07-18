@@ -70,6 +70,20 @@ class TargetRuntimeTests(unittest.TestCase):
             [41, 43, 47],
         ]
 
+    def test_input_retention_is_first_persistent_runtime_state(self) -> None:
+        engine = runtime()
+
+        engine.record_input_retention(17)
+
+        snapshot = engine.snapshot()
+        self.assertEqual(snapshot["resources"]["persistent_input_field_words"], 17)
+        self.assertEqual(snapshot["resources"]["peak_live_field_words"], 17)
+        self.assertEqual(snapshot["events"][0]["kind"], "target_input_retention")
+        self.assertEqual(snapshot["operations"]["copied_words"], 34)
+        self.assertEqual(snapshot["logical_traffic_words"], 34)
+        with self.assertRaisesRegex(AssertionError, "first runtime event"):
+            engine.record_input_retention(1)
+
     def test_weighted_sum_matches_every_dense_value_and_uses_eight_factors(self) -> None:
         engine = runtime()
         left = rank_one(engine, "left", self.left_vectors)

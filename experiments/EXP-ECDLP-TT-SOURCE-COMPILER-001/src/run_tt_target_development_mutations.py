@@ -134,6 +134,19 @@ def mutate_persistent_target_output(raw: dict[str, Any]) -> None:
     raw["runtime"]["resources"]["persistent_target_output_words"] = 0
 
 
+def mutate_persistent_input(raw: dict[str, Any]) -> None:
+    raw["runtime"]["resources"]["persistent_input_field_words"] = 0
+
+
+def mutate_input_retention_event(raw: dict[str, Any]) -> None:
+    event = next(
+        event
+        for event in raw["runtime"]["events"]
+        if event["kind"] == "target_input_retention"
+    )
+    event["field_words"] -= 1
+
+
 def mutate_target_disposal(raw: dict[str, Any]) -> None:
     event = next(
         event
@@ -252,6 +265,16 @@ MUTATIONS: tuple[tuple[str, Mutation, str], ...] = (
         "persistent_target_output",
         mutate_persistent_target_output,
         "resource persistent_target_output_words does not match independent replay",
+    ),
+    (
+        "persistent_input",
+        mutate_persistent_input,
+        "resource persistent_input_field_words does not match independent replay",
+    ),
+    (
+        "input_retention_event",
+        mutate_input_retention_event,
+        "target runtime event stream changed",
     ),
     (
         "target_disposal",

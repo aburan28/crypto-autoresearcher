@@ -88,6 +88,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "maximum_int64_dot_length",
         "maximum_local_matrix_words",
         "maximum_tt_object_words",
+        "persistent_input_field_words",
         "persistent_source_words",
         "persistent_target_output_words",
     )

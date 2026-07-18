@@ -41,6 +41,12 @@ OPERATION_KEYS = (
     "copied_words",
 )
 MAX_RAW_BYTES = 268435456
+REGISTRY_SCALARS = frozenset(
+    {"discriminant", "norm_n", "p", "trace_t", "trace_zero_norm_n"}
+)
+REGISTRY_VECTORS = frozenset(
+    {"general_trace_coefficients", "projective", "trace_zero_coefficients"}
+)
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -565,6 +571,37 @@ def source_map(bundle: Mapping[str, Any]) -> dict[str, dict[str, Tensor]]:
     return result
 
 
+def independent_candidate_field_words(value: Any) -> int:
+    if isinstance(value, list):
+        return sum(independent_candidate_field_words(item) for item in value)
+    if not isinstance(value, dict):
+        return 0
+    cores = value.get("cores")
+    if isinstance(cores, list):
+        return sum(
+            len(core["values"])
+            for core in cores
+            if isinstance(core, dict) and isinstance(core.get("values"), list)
+        )
+    return sum(independent_candidate_field_words(item) for item in value.values())
+
+
+def independent_registry_field_words(value: Any) -> int:
+    if isinstance(value, list):
+        return sum(independent_registry_field_words(item) for item in value)
+    if not isinstance(value, dict):
+        return 0
+    total = 0
+    for key, item in value.items():
+        if key in REGISTRY_SCALARS and isinstance(item, int) and not isinstance(item, bool):
+            total += 1
+        elif key in REGISTRY_VECTORS and isinstance(item, list):
+            total += sum(isinstance(entry, int) and not isinstance(entry, bool) for entry in item)
+        else:
+            total += independent_registry_field_words(item)
+    return total
+
+
 def empty_operation_vector() -> dict[str, int]:
     return {key: 0 for key in OPERATION_KEYS}
 
@@ -688,7 +725,12 @@ class RankReplay:
 
 
 def replay_direct_sum_cores(
-    tensors: Sequence[Tensor], coefficients: Sequence[int], p: int, B: int
+    tensors: Sequence[Tensor],
+    coefficients: Sequence[int],
+    p: int,
+    B: int,
+    meter: Meter | None = None,
+    live_base: int = 0,
 ) -> list[ReplayCore]:
     active = [
         (tensor, coefficient % p)
@@ -708,6 +750,14 @@ def replay_direct_sum_cores(
         )
         for mode in range(5)
     ]
+    raw_words = sum(core.words for core in result)
+    if meter is not None:
+        meter.add(
+            reductions=2 * len(coefficients),
+            copied_words=raw_words,
+        )
+        meter.traffic(raw_words)
+        meter.live(live_base + raw_words)
     left_offsets = [0] * 5
     right_offsets = [0] * 5
     for mode, destination in enumerate(result):
@@ -721,6 +771,12 @@ def replay_direct_sum_cores(
                         value = source.at(left, physical, right)
                         if mode == 0:
                             value = coefficient * value % p
+                            if meter is not None:
+                                meter.add(muls=1, reductions=1)
+                        elif meter is not None:
+                            meter.add(copied_words=2)
+                        if meter is not None:
+                            meter.traffic(2)
                         destination.put(
                             left_start + left,
                             physical,
@@ -734,7 +790,16 @@ def replay_direct_sum_cores(
     return result
 
 
-def replay_core_matrix(core: ReplayCore, phase: str) -> list[list[int]]:
+def replay_core_matrix(
+    core: ReplayCore,
+    phase: str,
+    meter: Meter | None = None,
+    live_base: int = 0,
+) -> list[list[int]]:
+    if meter is not None:
+        meter.add(copied_words=2 * core.words)
+        meter.traffic(2 * core.words)
+        meter.live(live_base + core.words)
     if phase == "left_sweep":
         return [
             [
@@ -756,11 +821,28 @@ def replay_core_matrix(core: ReplayCore, phase: str) -> list[list[int]]:
     raise AssertionError(f"unknown replay phase {phase!r}")
 
 
-def replay_rank_factor(matrix: Sequence[Sequence[int]], p: int) -> RankReplay:
+def replay_rank_factor(
+    matrix: Sequence[Sequence[int]],
+    p: int,
+    meter: Meter | None = None,
+    live_base: int = 0,
+) -> RankReplay:
     m = len(matrix)
     n = len(matrix[0]) if m else 0
     if m == 0 or n == 0 or any(len(row) != n for row in matrix):
         raise AssertionError("rank replay requires a nonempty rectangular matrix")
+    matrix_words = m * n
+    maximum_rank = min(m, n)
+    maximum_factor_words = m * maximum_rank + maximum_rank * n
+    if meter is not None:
+        meter.add(copied_words=4 * matrix_words)
+        meter.traffic(4 * matrix_words)
+        meter.live(
+            live_base
+            + 3 * matrix_words
+            + n
+            + maximum_factor_words
+        )
     original = [list(row) for row in matrix]
     work = [list(row) for row in matrix]
     pivot_columns: list[int] = []
@@ -775,21 +857,34 @@ def replay_rank_factor(matrix: Sequence[Sequence[int]], p: int) -> RankReplay:
             if row in used_rows:
                 continue
             pivot_scan_count += 1
+            if meter is not None:
+                meter.add(comparisons=1)
+                meter.traffic(1)
             if work[row][column] != 0:
                 chosen = row
                 break
         if chosen is None:
             continue
         inverse = pow(work[chosen][column], -1, p)
+        if meter is not None:
+            meter.add(inversions=1, reductions=1, comparisons=1)
+            meter.add(muls=n, reductions=n)
+            meter.traffic(2 * n)
         work[chosen] = [value * inverse % p for value in work[chosen]]
         for row in range(m):
             if row == chosen:
                 continue
             elimination_scan_count += 1
             factor = work[row][column]
+            if meter is not None:
+                meter.add(comparisons=1)
+                meter.traffic(1)
             if factor == 0:
                 continue
             elimination_nonzero_count += 1
+            if meter is not None:
+                meter.add(muls=n, subs=n, reductions=n)
+                meter.traffic(3 * n)
             work[row] = [
                 (value - factor * pivot_value) % p
                 for value, pivot_value in zip(work[row], work[chosen])
@@ -802,6 +897,10 @@ def replay_rank_factor(matrix: Sequence[Sequence[int]], p: int) -> RankReplay:
         for row in range(m)
     ]
     right = [work[row][:] for row in pivot_rows]
+    if meter is not None:
+        factor_words = m * len(pivot_columns) + len(pivot_rows) * n
+        meter.add(copied_words=2 * factor_words)
+        meter.traffic(2 * factor_words)
     return RankReplay(
         left,
         right,
@@ -814,7 +913,11 @@ def replay_rank_factor(matrix: Sequence[Sequence[int]], p: int) -> RankReplay:
 
 
 def replay_matrix_product(
-    left: Sequence[Sequence[int]], right: Sequence[Sequence[int]], p: int
+    left: Sequence[Sequence[int]],
+    right: Sequence[Sequence[int]],
+    p: int,
+    meter: Meter | None = None,
+    live_base: int = 0,
 ) -> list[list[int]]:
     rows = len(left)
     inner = len(right)
@@ -827,6 +930,16 @@ def replay_matrix_product(
         or any(len(row) != columns for row in right)
     ):
         raise AssertionError("matrix replay received incompatible dimensions")
+    output_words = rows * columns
+    products = output_words * inner
+    if meter is not None:
+        meter.add(
+            adds=output_words * max(inner - 1, 0),
+            muls=products,
+            reductions=output_words,
+        )
+        meter.traffic(2 * products + output_words)
+        meter.live(live_base + output_words)
     return [
         [
             sum(left[row][inner_index] * right[inner_index][column] for inner_index in range(inner))
@@ -838,7 +951,10 @@ def replay_matrix_product(
 
 
 def replay_core_from_matrix(
-    matrix: Sequence[Sequence[int]], shape: tuple[int, int, int]
+    matrix: Sequence[Sequence[int]],
+    shape: tuple[int, int, int],
+    meter: Meter | None = None,
+    live_base: int = 0,
 ) -> ReplayCore:
     left, physical, right = shape
     rows = len(matrix)
@@ -851,6 +967,10 @@ def replay_core_from_matrix(
     values = [value for row in matrix for value in row]
     if len(values) != left * physical * right:
         raise AssertionError("replayed core word count changed")
+    if meter is not None:
+        meter.add(copied_words=2 * len(values))
+        meter.traffic(2 * len(values))
+        meter.live(live_base + len(values))
     return ReplayCore(left, physical, right, values)
 
 
@@ -860,7 +980,9 @@ def audit_runtime(
     schedule: Sequence[ExpectedTarget],
     target_rows: Sequence[Any],
     sources: Mapping[str, Mapping[str, Tensor]],
-) -> dict[str, Any]:
+    meter: Meter,
+    input_field_words: int,
+) -> tuple[dict[str, Any], list[Tensor]]:
     if not isinstance(raw_runtime, dict):
         raise ValueError("target runtime ledger is missing")
     counts = raw_runtime.get("counts")
@@ -888,6 +1010,7 @@ def audit_runtime(
     expected_counts = {
         "artifact_serialization_events": 2,
         "imported_source_tensors": 41,
+        "input_retention_events": 1,
         "target_coefficient_formations": 25,
         "target_disposals": 25,
         "target_linear_combinations": 25,
@@ -954,6 +1077,7 @@ def audit_runtime(
         raise ValueError("target generator RSS gate exceeded")
     allowed_kinds = {
         "source_advice_import",
+        "target_input_retention",
         "target_coefficient_formation",
         "target_direct_sum",
         "rank_factor",
@@ -978,6 +1102,9 @@ def audit_runtime(
     import_events = [
         event for event in events if event.get("kind") == "source_advice_import"
     ]
+    input_events = [
+        event for event in events if event.get("kind") == "target_input_retention"
+    ]
     combination_events = [
         event for event in events if event.get("kind") == "target_linear_combination"
     ]
@@ -991,6 +1118,7 @@ def audit_runtime(
         event for event in events if event.get("kind") == "target_disposal"
     ]
     if (
+        len(input_events),
         len(import_events),
         len(coefficient_events),
         len(direct_sum_events),
@@ -1000,18 +1128,19 @@ def audit_runtime(
         len(emit_events),
         len(disposal_events),
         len(artifact_events),
-    ) != (41, 25, 25, 200, 200, 25, 25, 25, 2):
+    ) != (1, 41, 25, 25, 200, 200, 25, 25, 25, 2):
         raise ValueError(
-            "target runtime event counts do not match 41+25+25+200+200+25+25+25+2"
+            "target runtime event counts do not match 1+41+25+25+200+200+25+25+25+2"
         )
-    if len(events) != 568:
+    if len(events) != 569:
         raise ValueError("target runtime event stream contains extra events")
 
     replayed_operations = empty_operation_vector()
     replayed_traffic = empty_traffic_vector(buckets)
+    persistent_input_field_words = input_field_words
     persistent_source_words = 0
     maximum_tt_object_words = 0
-    peak_live_field_words = 0
+    peak_live_field_words = input_field_words
     expected_imports = [
         tensor for cell in sources.values() for tensor in cell.values()
     ]
@@ -1028,8 +1157,11 @@ def audit_runtime(
         ("right_sweep", 1),
     )
     expected_event_stream: list[tuple[Any, ...]] = [
-        ("source_advice_import", tensor.name) for tensor in expected_imports
+        ("target_input_retention", input_field_words)
     ]
+    expected_event_stream.extend(
+        ("source_advice_import", tensor.name) for tensor in expected_imports
+    )
     expected_event_stream.extend(
         ("target_coefficient_formation", expected.target_cell_id)
         for expected in schedule
@@ -1061,7 +1193,9 @@ def audit_runtime(
     observed_event_stream: list[tuple[Any, ...]] = []
     for event in events:
         kind = event["kind"]
-        if kind == "source_advice_import":
+        if kind == "target_input_retention":
+            observed_event_stream.append((kind, event.get("field_words")))
+        elif kind == "source_advice_import":
             observed_event_stream.append((kind, event.get("name")))
         elif kind in (
             "target_coefficient_formation",
@@ -1090,15 +1224,43 @@ def audit_runtime(
         raise ValueError(
             f"target runtime event stream changed at position {mismatch}"
         )
+    input_event = input_events[0]
+    expected_ops = empty_operation_vector()
+    expected_ops["copied_words"] = 2 * input_field_words
+    expected_traffic = empty_traffic_vector(buckets)
+    add_traffic(
+        expected_traffic,
+        "advice_deserialize",
+        reads=input_field_words,
+        writes=input_field_words,
+    )
+    if (
+        input_event.get("field_words") != input_field_words
+        or input_event.get("predicted_live_field_words") != input_field_words
+    ):
+        raise ValueError("target input retention does not match bound input objects")
+    require_event_accounting(
+        input_event,
+        expected_ops,
+        expected_traffic,
+        buckets,
+        "target_input_retention[0]",
+    )
+    add_operations(replayed_operations, expected_ops)
+    for bucket in buckets:
+        add_traffic(replayed_traffic, bucket, **expected_traffic[bucket])
+
     for index, (event, tensor) in enumerate(zip(import_events, expected_imports)):
         path = f"source_advice_import[{index}]"
         persistent_source_words += tensor.words
         maximum_tt_object_words = max(maximum_tt_object_words, tensor.words)
-        peak_live_field_words = max(peak_live_field_words, persistent_source_words)
+        predicted_import_live = input_field_words + persistent_source_words
+        peak_live_field_words = max(peak_live_field_words, predicted_import_live)
         if (
             event.get("name") != tensor.name
             or event.get("words") != tensor.words
             or event.get("persistent_source_words") != persistent_source_words
+            or event.get("predicted_live_field_words") != predicted_import_live
         ):
             raise ValueError(f"{path} metadata does not match bound source advice")
         expected_ops = empty_operation_vector()
@@ -1177,6 +1339,12 @@ def audit_runtime(
             expected_B=B,
         )
         target_tensors.append(target_tensor)
+        meter.add(
+            comparisons=2 * target_tensor.words,
+            copied_words=4 * target_tensor.words,
+        )
+        meter.traffic(4 * target_tensor.words)
+        meter.retain(2 * target_tensor.words)
         coefficients = tuple(coefficient % p for coefficient in expected.coefficients)
         expected_terms = [
             {
@@ -1202,7 +1370,12 @@ def audit_runtime(
         ] if active else []
         raw_words = sum(shape_words(shape) for shape in shapes)
         output_words_before_target.append(persistent_target_output_words)
-        predicted_live = persistent_source_words + persistent_target_output_words + raw_words
+        predicted_live = (
+            persistent_input_field_words
+            + persistent_source_words
+            + persistent_target_output_words
+            + raw_words
+        )
         if (
             event.get("label") != expected.target_cell_id
             or event.get("field_modulus") != p
@@ -1257,10 +1430,14 @@ def audit_runtime(
     maximum_local_matrix_words = 0
     maximum_int64_dot_length = 0
     maximum_int64_accumulator_bound = 0
-    sequential_peak_live_words = persistent_source_words
+    sequential_peak_live_words = persistent_input_field_words + persistent_source_words
     for target_index, (expected, target_tensor) in enumerate(zip(schedule, target_tensors)):
         output_words_before = output_words_before_target[target_index]
-        persistent_words = persistent_source_words + output_words_before
+        persistent_words = (
+            persistent_input_field_words
+            + persistent_source_words
+            + output_words_before
+        )
         sequential_peak_live_words = max(
             sequential_peak_live_words, direct_live_by_target[target_index]
         )
@@ -1271,6 +1448,8 @@ def audit_runtime(
             expected.coefficients,
             target_tensor.p,
             target_tensor.B,
+            meter,
+            meter.persistent_words,
         )
         cores = [core.shape for core in replay_cores]
         if cores != raw_shapes[target_index]:
@@ -1307,10 +1486,16 @@ def audit_runtime(
                 m, n = left_rank * B, right_rank
             else:
                 m, n = left_rank, B * right_rank
-            matrix = replay_core_matrix(replay_cores[mode], phase)
+            replay_words = sum(core.words for core in replay_cores)
+            replay_live_base = meter.persistent_words + replay_words
+            matrix = replay_core_matrix(
+                replay_cores[mode], phase, meter, replay_live_base
+            )
             if (len(matrix), len(matrix[0])) != (m, n):
                 raise AssertionError("numeric factor replay changed its matrix shape")
-            rank_replay = replay_rank_factor(matrix, p)
+            rank_replay = replay_rank_factor(
+                matrix, p, meter, replay_live_base
+            )
             rank = rank_replay.rank
             if rank < 1:
                 raise ValueError(f"{factor_path} unexpectedly has rank zero")
@@ -1351,6 +1536,7 @@ def audit_runtime(
             if certificate != expected_certificate:
                 raise ValueError(f"{factor_path} certificate does not match shape replay")
             certificate_payload = canonical_json_bytes(certificate)
+            meter.add(hash_bytes=len(certificate_payload))
             expected_factor_digest = sha256_bytes(certificate_payload)
             validate_digest(factor.get("factor_digest_sha256"), f"{factor_path}.factor_digest_sha256")
             if factor.get("factor_digest_sha256") != expected_factor_digest:
@@ -1424,7 +1610,10 @@ def audit_runtime(
                 raise ValueError(f"{absorption_path} has an unknown target label")
             if phase == "left_sweep":
                 replay_cores[mode] = replay_core_from_matrix(
-                    rank_replay.left, (left_rank, B, rank)
+                    rank_replay.left,
+                    (left_rank, B, rank),
+                    meter,
+                    replay_live_base + 3 * matrix_words + factor_words,
                 )
                 cores[mode] = (left_rank, B, rank)
                 neighbor_right = cores[mode + 1][2]
@@ -1434,18 +1623,42 @@ def audit_runtime(
                 output_shape = (rank, B * neighbor_right)
                 transient_words = matrix_words + rank * n
                 neighbor_matrix = replay_core_matrix(
-                    replay_cores[mode + 1], "right_sweep"
+                    replay_cores[mode + 1],
+                    "right_sweep",
+                    meter,
+                    meter.persistent_words
+                    + sum(core.words for core in replay_cores)
+                    + 3 * matrix_words
+                    + factor_words,
+                )
+                absorption_live_base = (
+                    meter.persistent_words
+                    + sum(core.words for core in replay_cores)
+                    + 3 * matrix_words
+                    + factor_words
+                    + sum(len(row) for row in neighbor_matrix)
                 )
                 absorption_output = replay_matrix_product(
-                    rank_replay.right, neighbor_matrix, p
+                    rank_replay.right,
+                    neighbor_matrix,
+                    p,
+                    meter,
+                    absorption_live_base,
                 )
                 replay_cores[mode + 1] = replay_core_from_matrix(
-                    absorption_output, (rank, B, neighbor_right)
+                    absorption_output,
+                    (rank, B, neighbor_right),
+                    meter,
+                    absorption_live_base
+                    + sum(len(row) for row in absorption_output),
                 )
                 cores[mode + 1] = (rank, B, neighbor_right)
             else:
                 replay_cores[mode] = replay_core_from_matrix(
-                    rank_replay.right, (rank, B, right_rank)
+                    rank_replay.right,
+                    (rank, B, right_rank),
+                    meter,
+                    replay_live_base + 3 * matrix_words + factor_words,
                 )
                 cores[mode] = (rank, B, right_rank)
                 neighbor_left = cores[mode - 1][0]
@@ -1455,13 +1668,34 @@ def audit_runtime(
                 output_shape = (neighbor_left * B, rank)
                 transient_words = matrix_words + m * rank
                 neighbor_matrix = replay_core_matrix(
-                    replay_cores[mode - 1], "left_sweep"
+                    replay_cores[mode - 1],
+                    "left_sweep",
+                    meter,
+                    meter.persistent_words
+                    + sum(core.words for core in replay_cores)
+                    + 3 * matrix_words
+                    + factor_words,
+                )
+                absorption_live_base = (
+                    meter.persistent_words
+                    + sum(core.words for core in replay_cores)
+                    + 3 * matrix_words
+                    + factor_words
+                    + sum(len(row) for row in neighbor_matrix)
                 )
                 absorption_output = replay_matrix_product(
-                    neighbor_matrix, rank_replay.left, p
+                    neighbor_matrix,
+                    rank_replay.left,
+                    p,
+                    meter,
+                    absorption_live_base,
                 )
                 replay_cores[mode - 1] = replay_core_from_matrix(
-                    absorption_output, (neighbor_left, B, rank)
+                    absorption_output,
+                    (neighbor_left, B, rank),
+                    meter,
+                    absorption_live_base
+                    + sum(len(row) for row in absorption_output),
                 )
                 cores[mode - 1] = (neighbor_left, B, rank)
             inner = left_shape[1]
@@ -1535,10 +1769,17 @@ def audit_runtime(
         for mode, (replayed_core, observed_core) in enumerate(
             zip(replay_cores, target_tensor.cores)
         ):
+            meter.add(comparisons=2 * observed_core.words)
+            meter.traffic(2 * observed_core.words)
             if (
                 replayed_core.shape
                 != (observed_core.left, observed_core.physical, observed_core.right)
-                or tuple(replayed_core.values) != observed_core.values
+                or any(
+                    replayed != observed
+                    for replayed, observed in zip(
+                        replayed_core.values, observed_core.values
+                    )
+                )
             ):
                 raise ValueError(
                     f"target {expected.target_cell_id} core {mode} differs from numeric replay"
@@ -1571,12 +1812,19 @@ def audit_runtime(
 
         emit = emit_events[target_index]
         emit_path = f"target_emit[{target_index}]"
+        meter.add(copied_words=2 * target_tensor.words)
+        meter.traffic(2 * target_tensor.words)
+        meter.live(meter.persistent_words + target_tensor.words)
         canonical = target_tensor.canonical_record()
         payload = canonical_json_bytes(canonical) + b"\n"
+        meter.add(hash_bytes=len(payload))
         digest = sha256_bytes(payload)
         output_words_after = output_words_before + target_tensor.words
         predicted_emit_live = (
-            persistent_source_words + output_words_after + target_tensor.words
+            persistent_input_field_words
+            + persistent_source_words
+            + output_words_after
+            + target_tensor.words
         )
         if (
             emit.get("label") != expected.target_cell_id
@@ -1609,7 +1857,11 @@ def audit_runtime(
         )
 
         disposal = disposal_events[target_index]
-        predicted_disposal_live = persistent_source_words + output_words_after
+        predicted_disposal_live = (
+            persistent_input_field_words
+            + persistent_source_words
+            + output_words_after
+        )
         if (
             disposal.get("label") != expected.target_cell_id
             or disposal.get("words") != target_tensor.words
@@ -1628,7 +1880,10 @@ def audit_runtime(
         )
 
     target_field_words = sum(tensor.words for tensor in target_tensors)
+    meter.add(copied_words=target_field_words)
+    meter.traffic(target_field_words)
     target_payload = canonical_json_bytes(target_rows) + b"\n"
+    meter.add(hash_bytes=len(target_payload))
     target_digest = sha256_bytes(target_payload)
     digest_event, output_event = artifact_events
     if (
@@ -1692,6 +1947,7 @@ def audit_runtime(
         "peak_live_field_words": peak_live_field_words,
         "maximum_int64_dot_length": maximum_int64_dot_length,
         "maximum_int64_accumulator_bound": maximum_int64_accumulator_bound,
+        "persistent_input_field_words": persistent_input_field_words,
         "persistent_source_words": persistent_source_words,
         "persistent_target_output_words": persistent_target_output_words,
     }
@@ -1711,7 +1967,7 @@ def audit_runtime(
             raise ValueError(f"target runtime resource gate exceeded for {key}")
     if maximum_int64_accumulator_bound >= gates["signed_int64_maximum"]:
         raise ValueError("target runtime accumulator reaches the signed-int64 limit")
-    return {
+    return ({
         "absorption_events": 200,
         "advice_import_events": 41,
         "artifact_serialization_events": 2,
@@ -1720,13 +1976,14 @@ def audit_runtime(
         "disposal_events": 25,
         "emit_events": 25,
         "factor_events": 200,
+        "input_retention_events": 1,
         "linear_combination_events": 25,
         "logical_traffic_words": traffic_total,
         "operation_vector": parsed_operations,
         "resource_maxima": resources,
         "resource_replay": replayed_resources,
         "valid": True,
-    }
+    }, target_tensors)
 
 
 def verify(args: argparse.Namespace) -> dict[str, Any]:
@@ -1748,6 +2005,20 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     matrix = matrix_record.get("execution_matrix")
     if not isinstance(target, dict) or not isinstance(matrix, dict):
         raise ValueError("target manifest or execution matrix wrapper is malformed")
+    verifier_caps = matrix["partition_operation_caps"]["target_verifier"]
+    meter = Meter(
+        verifier_caps,
+        matrix["partition_traffic_caps_words"]["target_verifier"],
+        matrix["resource_gates"]["predicted_peak_live_field_words"],
+    )
+    meter.add(
+        hash_bytes=(
+            len(bundle_bytes)
+            + len(target_bytes)
+            + len(matrix_bytes)
+            + len(raw_bytes)
+        )
+    )
     if (
         raw.get("schema") != RAW_SCHEMA
         or raw.get("partition") != "target_generator_development"
@@ -1813,7 +2084,9 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError("target raw serialized-byte accounting mismatch")
     if len(raw_bytes) > matrix["resource_gates"]["raw_result_bytes_per_partition"]:
         raise ValueError("target raw result exceeds its serialized-byte gate")
-    if summary.get("targets_sha256") != artifact_digest(target_rows):
+    target_rows_payload = canonical_json_bytes(target_rows) + b"\n"
+    meter.add(hash_bytes=len(target_rows_payload))
+    if summary.get("targets_sha256") != sha256_bytes(target_rows_payload):
         raise ValueError("target raw summary target digest mismatch")
     raw_claim = raw.get("claim_boundary")
     if not isinstance(raw_claim, dict) or raw_claim.get("toy_restricted_model_bound") is not True:
@@ -1827,18 +2100,32 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     )
     if any(raw_claim.get(key) is not False for key in forbidden_claims):
         raise ValueError("target raw result makes an unauthorized claim")
+    advice_payload = canonical_json_bytes(bundle["candidate_retained_advice"]) + b"\n"
+    controls_payload = canonical_json_bytes(bundle["candidate_control_certificates"]) + b"\n"
+    meter.add(hash_bytes=len(advice_payload) + len(controls_payload))
+    input_field_words = (
+        independent_candidate_field_words(bundle["candidate_retained_advice"])
+        + independent_candidate_field_words(bundle["candidate_control_certificates"])
+        + independent_registry_field_words(target)
+    )
     sources = source_map(bundle)
-    runtime_audit = audit_runtime(
-        raw.get("runtime"), matrix, schedule, target_rows, sources
+    source_words = sum(
+        tensor.words for tensors in sources.values() for tensor in tensors.values()
     )
-    verifier_caps = matrix["partition_operation_caps"]["target_verifier"]
-    meter = Meter(
-        verifier_caps,
-        matrix["partition_traffic_caps_words"]["target_verifier"],
-        matrix["resource_gates"]["predicted_peak_live_field_words"],
+    meter.add(
+        comparisons=2 * source_words,
+        copied_words=2 * input_field_words + 2 * source_words,
     )
-    meter.retain(
-        sum(tensor.words for tensors in sources.values() for tensor in tensors.values())
+    meter.traffic(2 * input_field_words + 2 * source_words)
+    meter.retain(input_field_words + source_words)
+    runtime_audit, target_tensors = audit_runtime(
+        raw.get("runtime"),
+        matrix,
+        schedule,
+        target_rows,
+        sources,
+        meter,
+        input_field_words,
     )
     source_values: dict[tuple[str, str], tuple[int, ...]] = {}
     for source_id, tensors in sources.items():
@@ -1867,14 +2154,11 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         for key, value in metadata.items():
             if row.get(key) != value:
                 raise ValueError(f"target record {expected.target_cell_id} changed {key}")
-        tensor = parse_tensor(
-            row.get("tensor"),
-            expected_name=expected.target_cell_id,
-            expected_p=sources[expected.source_cell_id][expected.source_names[0]].p,
-            expected_B=sources[expected.source_cell_id][expected.source_names[0]].B,
-        )
+        tensor = target_tensors[index]
         observed_values = dense_values(tensor, meter)
         expected_values = [0] * len(observed_values)
+        meter.add(copied_words=len(expected_values))
+        meter.traffic(len(expected_values))
         meter.live(
             meter.persistent_words
             + tensor.words
@@ -1887,6 +2171,8 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
                 expected_values[offset] = (expected_values[offset] + coefficient * value) % tensor.p
             meter.add(muls=len(values), adds=len(values), reductions=len(values))
             meter.traffic(2 * len(values))
+        meter.add(comparisons=len(expected_values))
+        meter.traffic(2 * len(expected_values))
         if any(
             expected_value != observed_value
             for expected_value, observed_value in zip(expected_values, observed_values)
@@ -1975,11 +2261,20 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         },
         "valid": True,
         "verifier_accounting": {
+            "accounting_scope": [
+                "input_and_artifact_hashing",
+                "source_and_target_tensor_parsing",
+                "numeric_direct_sum_and_two_sweep_replay",
+                "producer_ledger_reconciliation",
+                "exhaustive_target_semantics",
+                "exact_unfolding_ranks",
+            ],
             "cpu_ns": time.process_time_ns() - cpu_start,
             "logical_traffic_words": meter.traffic_words,
             "operation_vector": meter.operations,
             "peak_live_field_words": meter.peak_live_words,
             "peak_rss_bytes": rss_bytes,
+            "retained_field_words": meter.persistent_words,
             "wall_clock_ns": time.perf_counter_ns() - wall_start,
         },
     }

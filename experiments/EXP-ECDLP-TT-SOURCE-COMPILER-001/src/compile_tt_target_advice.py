@@ -32,6 +32,18 @@ PRIMARY_TRACE_SCHEDULE = {
 }
 MAX_INPUT_BYTES = 16 * 1024 * 1024
 MAX_RAW_RESULT_BYTES = 268435456
+TARGET_FIELD_SCALAR_KEYS = {
+    "discriminant",
+    "norm_n",
+    "p",
+    "trace_t",
+    "trace_zero_norm_n",
+}
+TARGET_FIELD_VECTOR_KEYS = {
+    "general_trace_coefficients",
+    "projective",
+    "trace_zero_coefficients",
+}
 
 
 def sha256_bytes(value: bytes) -> str:
@@ -112,6 +124,37 @@ def read_json(path: Path, label: str, maximum_bytes: int = MAX_INPUT_BYTES) -> t
     if not isinstance(value, dict):
         raise ValueError(f"{label} must be a JSON object")
     return value, data
+
+
+def retained_tensor_field_words(value: Any) -> int:
+    if isinstance(value, Mapping):
+        cores = value.get("cores")
+        if isinstance(cores, list):
+            total = 0
+            for core in cores:
+                if isinstance(core, Mapping) and isinstance(core.get("values"), list):
+                    total += len(core["values"])
+            return total
+        return sum(retained_tensor_field_words(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return sum(retained_tensor_field_words(item) for item in value)
+    return 0
+
+
+def target_registry_field_words(value: Any) -> int:
+    if isinstance(value, Mapping):
+        total = 0
+        for key, item in value.items():
+            if key in TARGET_FIELD_SCALAR_KEYS and isinstance(item, int):
+                total += 1
+            elif key in TARGET_FIELD_VECTOR_KEYS and isinstance(item, list):
+                total += sum(isinstance(entry, int) for entry in item)
+            else:
+                total += target_registry_field_words(item)
+        return total
+    if isinstance(value, (list, tuple)):
+        return sum(target_registry_field_words(item) for item in value)
+    return 0
 
 
 def exact_int(value: Any, path: str, minimum: int = 0) -> int:
@@ -434,6 +477,12 @@ def compile_targets(
     )
     advice = bundle["candidate_retained_advice"]
     controls = bundle["candidate_control_certificates"]
+    input_field_words = (
+        retained_tensor_field_words(advice)
+        + retained_tensor_field_words(controls)
+        + target_registry_field_words(target)
+    )
+    runtime.record_input_retention(input_field_words)
     sources = source_tensor_map(runtime, advice, controls)
     jobs = build_schedule(target, runtime)
     if reverse_schedule:
@@ -490,6 +539,8 @@ def compile_targets(
         raise AssertionError("target runtime did not record 25 target disposals")
     if counts["artifact_serialization_events"] != 1:
         raise AssertionError("target runtime did not meter the target-list digest")
+    if counts["input_retention_events"] != 1:
+        raise AssertionError("target runtime did not meter decoded input retention")
     return records, runtime, target_digest
 
 

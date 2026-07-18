@@ -185,6 +185,7 @@ class TargetTTRuntime:
         self.counts = {
             "artifact_serialization_events": 0,
             "imported_source_tensors": 0,
+            "input_retention_events": 0,
             "target_coefficient_formations": 0,
             "target_disposals": 0,
             "target_linear_combinations": 0,
@@ -198,6 +199,7 @@ class TargetTTRuntime:
         self.maximum_int64_dot_length = 0
         self.maximum_int64_accumulator_bound = 0
         self.peak_live_field_words = 0
+        self.persistent_input_field_words = 0
         self.persistent_source_words = 0
         self.persistent_target_output_words = 0
         self.first_refusal: dict[str, Any] | None = None
@@ -211,7 +213,36 @@ class TargetTTRuntime:
 
     @property
     def persistent_field_words(self) -> int:
-        return self.persistent_source_words + self.persistent_target_output_words
+        return (
+            self.persistent_input_field_words
+            + self.persistent_source_words
+            + self.persistent_target_output_words
+        )
+
+    def record_input_retention(self, field_words: int) -> None:
+        """Meter decoded input field values retained throughout target compilation."""
+
+        if self.events or self.persistent_field_words:
+            raise AssertionError("target input retention must be the first runtime event")
+        field_words = _exact_int(field_words, "input.field_words", 0)
+        before_operations = dict(self.operations)
+        before_traffic = self._traffic_snapshot(self.traffic)
+        self._charge(copied_words=2 * field_words)
+        self._charge_traffic(
+            "advice_deserialize", reads=field_words, writes=field_words
+        )
+        self.persistent_input_field_words = field_words
+        self._observe_live_words(field_words, "target_input_retention")
+        self.counts["input_retention_events"] += 1
+        self.events.append(
+            {
+                "field_words": field_words,
+                "kind": "target_input_retention",
+                "operation_vector": self._operation_delta(before_operations),
+                "predicted_live_field_words": field_words,
+                "traffic": self._traffic_delta(before_traffic),
+            }
+        )
 
     def _refuse(self, reason: str, detail: Mapping[str, Any]) -> None:
         if self.first_refusal is None:
@@ -401,7 +432,8 @@ class TargetTTRuntime:
         self._charge(comparisons=2 * tensor.words)
         self._charge_traffic("digest_read", reads=tensor.words)
         candidate_source_words = self.persistent_source_words + tensor.words
-        self._observe_live_words(candidate_source_words, "source_advice_import")
+        predicted_live = self.persistent_input_field_words + candidate_source_words
+        self._observe_live_words(predicted_live, "source_advice_import")
         self._charge(copied_words=2 * tensor.words)
         self._charge_traffic(
             "advice_deserialize", reads=tensor.words, writes=tensor.words
@@ -416,6 +448,7 @@ class TargetTTRuntime:
                 "traffic": self._traffic_delta(before_traffic),
                 "words": tensor.words,
                 "persistent_source_words": self.persistent_source_words,
+                "predicted_live_field_words": predicted_live,
             }
         )
         return tensor
@@ -1070,7 +1103,12 @@ class TargetTTRuntime:
         before_operations = dict(self.operations)
         before_traffic = self._traffic_snapshot(self.traffic)
         candidate_output_words = self.persistent_target_output_words + tensor.words
-        predicted_live = self.persistent_source_words + candidate_output_words + tensor.words
+        predicted_live = (
+            self.persistent_input_field_words
+            + self.persistent_source_words
+            + candidate_output_words
+            + tensor.words
+        )
         self._observe_live_words(predicted_live, f"{tensor.name}:target_emit")
         self._charge(copied_words=2 * tensor.words)
         self._charge_traffic(
@@ -1179,6 +1217,7 @@ class TargetTTRuntime:
                 "maximum_int64_dot_length": self.maximum_int64_dot_length,
                 "maximum_int64_accumulator_bound": self.maximum_int64_accumulator_bound,
                 "peak_live_field_words": self.peak_live_field_words,
+                "persistent_input_field_words": self.persistent_input_field_words,
                 "persistent_source_words": self.persistent_source_words,
                 "persistent_target_output_words": self.persistent_target_output_words,
                 "rss": self.rss_record(),
