@@ -1,0 +1,117 @@
+schema_version: "1.0"
+
+# Human-readable policy aliases are stable across runtimes. The adapter layer must
+# resolve each alias to the exact model identifier supported by the active client.
+policies:
+  coordinator-ultra-code:
+    display_name: GPT-5.6 Sol Ultra Code
+    family: gpt-5.6-sol
+    profile: ultra-code
+    reasoning_effort: high
+    purpose:
+      - orchestration
+      - task_decomposition
+      - state_transitions
+      - code_aware_planning
+      - contradiction_resolution
+    may_change_official_state: true
+    fallback_policy: coordinator-sol-max
+
+  coordinator-sol-max:
+    display_name: GPT-5.6 Sol Max
+    family: gpt-5.6-sol
+    profile: max
+    reasoning_effort: high
+    purpose:
+      - orchestration
+      - task_decomposition
+      - synthesis
+    may_change_official_state: true
+
+  research-sol-max:
+    display_name: GPT-5.6 Sol Max
+    family: gpt-5.6-sol
+    profile: max
+    reasoning_effort: high
+    purpose:
+      - literature_synthesis
+      - hypothesis_generation
+      - mechanism_search
+      - experiment_design
+      - mathematical_analysis
+    may_change_official_state: false
+
+  review-xhigh:
+    display_name: GPT-5.6 Sol
+    family: gpt-5.6-sol
+    profile: reasoning
+    reasoning_effort: xhigh
+    purpose:
+      - adversarial_review
+      - proof_review
+      - breakthrough_review
+      - closure_review
+      - contradiction_resolution
+    may_change_official_state: false
+    independent_session_required: true
+
+  executor-code:
+    display_name: GPT-5.6 Sol Code
+    family: gpt-5.6-sol
+    profile: code
+    reasoning_effort: high
+    purpose:
+      - implementation
+      - debugging
+      - experiment_execution
+      - artifact_collection
+    may_change_official_state: false
+
+role_defaults:
+  coordinator: coordinator-ultra-code
+  idea_generator: research-sol-max
+  research: research-sol-max
+  executor: executor-code
+  reviewer: review-xhigh
+  red_team: review-xhigh
+
+routing_rules:
+  - id: critical-result-review
+    when:
+      any:
+        - claimed_breakthrough: true
+        - proposed_state_transition: supported
+        - proposed_state_transition: rejected
+        - proposed_state_transition: closed
+        - contradicts_prior_evidence: true
+    require:
+      policy: review-xhigh
+      independent_session: true
+      reviewer_must_not_be_originating_agent: true
+
+  - id: coordinator-code-path
+    when:
+      any:
+        - task_contains_code_changes: true
+        - task_requires_repo_orchestration: true
+        - task_requires_experiment_pipeline_design: true
+    require:
+      policy: coordinator-ultra-code
+
+  - id: research-depth
+    when:
+      any:
+        - task_type: hypothesis_generation
+        - task_type: literature_synthesis
+        - task_type: mathematical_analysis
+        - task_type: experiment_design
+    require:
+      policy: research-sol-max
+
+runtime_resolution:
+  strict: true
+  rules:
+    - Never silently downgrade a requested policy.
+    - If the exact runtime model identifier is unavailable, stop the task or use the declared fallback only when the handoff explicitly permits fallback.
+    - Record requested_policy, resolved_model_id, reasoning_effort, fallback_used, and adapter_version in every agent session and run manifest.
+    - Treat UI labels and API model identifiers as separate fields.
