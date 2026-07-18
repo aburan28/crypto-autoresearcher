@@ -48,6 +48,17 @@ research work. This file wires that contract into Claude Code.
 - Commit ledger/experiment changes with messages referencing the record
   IDs they touch. Never rewrite history over pushed run records.
 
+## Model policy note
+
+`orchestration/model-policies.yaml` defines role→model routing (GPT-5.6
+family policy aliases) for the future runtime adapter described in
+AGENTS.md and the roadmap. Claude Code cannot resolve those identifiers:
+subagent frontmatter in `.claude/agents/` supports only Claude models, so
+all three subagents use `model: inherit` here. When running under this
+harness, record `requested_policy` from the handoff and the actual
+resolved model in each run manifest's `inference` block, with
+`fallback_used: true` if they differ — never silently substitute.
+
 ## Typical loop
 
 ```text
