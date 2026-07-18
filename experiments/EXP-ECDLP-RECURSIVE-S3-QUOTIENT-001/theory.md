@@ -2,12 +2,14 @@
 
 ## Status
 
-`RESTRICTED THEOREM`, `MODEL-BOUND`, `REVIEW_REQUIRED`.
+`RESTRICTED THEOREMS`, `MODEL-BOUND`, `REJECTED_SCOPED`.
 
 The results below rule out one proposed initial observation and sharply limit
-exact arbitrary-target equivalence classes. They do not rule out implicit
-resultants, low-rank modules, multipoint operators, target distributions,
-approximate filters with exact fallback, or ECDLP improvements generally.
+exact arbitrary-target equivalence classes and exact low-dimensional linear
+profile modules. They do not rule out implicit resultants, full-rank structured
+transforms, nonlinear branch operators, multipoint operators, target
+distributions, approximate filters with exact fallback, or ECDLP improvements
+generally.
 
 ## Setup
 
@@ -157,6 +159,83 @@ by `k` is invertible modulo `n`, so `R=S` or `R=-S`. Thus `[R]=[S]`. QED.
 - Target subsets or target distributions do not provide the all-target profile
   assumed here.
 
+## Theorem 4: prime-cycle translation profiles have full linear rank
+
+Let `G=C_q` for prime `q`, let `D` be nonempty and proper, and let `f=1_D`.
+Over `Q` or `C`, convolution by `f`,
+
+```text
+T_f(g) = f * g,
+```
+
+is invertible. Consequently all `q` oriented profiles `T_f(delta_R)` are
+linearly independent. For odd `q`, the x-orbit multiplicity profiles
+
+```text
+T_f(delta_0),
+T_f(delta_R + delta_-R),  1 <= R <= (q-1)/2,
+```
+
+are also linearly independent.
+
+### Proof
+
+Write
+
+```text
+F_D(X) = sum_{d in D} X^d
+```
+
+using representatives `0,...,q-1`, and let `zeta` be a primitive qth root of
+unity. The Fourier eigenvalues of `T_f` are `F_D(zeta^k)`. At `k=0` the
+eigenvalue is `|D|`, which is nonzero. For `k != 0`, `zeta^k` is primitive and
+has minimal polynomial
+
+```text
+Phi_q(X) = 1 + X + ... + X^(q-1).
+```
+
+If `F_D(zeta^k)=0`, then `Phi_q` divides `F_D` over `Q`. Since `F_D` has degree
+less than `q` and 0/1 coefficients, this forces `F_D=0` or `F_D=Phi_q`, meaning
+`D` is empty or all of `G`. Both contradict the assumptions. Every Fourier
+eigenvalue is therefore nonzero, so `T_f` is invertible over `C`. Its matrix has
+integer entries and nonzero determinant, so it is also invertible over `Q`.
+
+The point masses `delta_R` form a basis. Their images under an invertible map
+are independent. The orbit vectors `delta_0` and `delta_R+delta_-R` are also
+independent, so their images are independent as well. QED.
+
+### Even-subspace correction
+
+The orbit vectors form a basis of the even subspace `E+`. Their profiles form a
+basis of `T_f(E+)`. If `D=-D`, as for a sign-complete exact complement support,
+then convolution preserves inversion symmetry and `T_f(E+)=E+`. Without that
+symmetry, the image basis remains independent but need not itself be even.
+
+### Linear-module corollary
+
+Any exact linear factorization over `Q` or `C` of the complete all-target
+oriented compatibility matrix needs latent dimension at least the number of
+retained oriented states. The corresponding x-orbit multiplicity matrix needs
+latent dimension at least the number of retained x-orbits. Thus injective state
+names cannot be replaced by a lower-dimensional exact linear profile module.
+
+### Finite-characteristic and model limits
+
+- Over a field `K`, convolution is invertible exactly when
+  `gcd(F_D(X),X^q-1)=1` in `K[X]`. Rank can drop modulo exceptional primes, so
+  every finite-field linear-module preflight must compute this gcd.
+- In characteristic `q`, `X^q-1=(X-1)^q` and `F_D(1)=|D| != 0 mod q`, so the
+  convolution remains invertible even though the Fourier proof is unavailable.
+- The theorem requires all targets and exact integer orientation multiplicity.
+  Target restriction, Boolean OR support, or one-witness semantics are different
+  operators.
+- Full rank does not imply a large circuit. Circulant operators have succinct
+  descriptions and fast transforms when their character coordinates are
+  available. The theorem does not rule out full-rank structured transforms,
+  nonlinear first-witness reporting, adaptive subtree predicates, or sparse
+  recovery with an exact charged fallback.
+
 ## Consequence for the draft quotient
 
 The original proposal combined state-separating choices:
@@ -173,11 +252,18 @@ must remain a planted injective negative control. A viable positive candidate
 must weaken state equality or change representation while proving that exact
 queries do not reconstruct a full member-discrimination vector elsewhere.
 
+Theorem 4 also rejects an exact low-dimensional linear factorization of the
+complete compatibility profiles. This is a rank statement, not a circuit or
+data-structure lower bound.
+
 ## Open positive directions
 
-- A low-rank module of transition operators rather than equality classes.
-- An implicit multipoint operator whose resident state is sublinear even when
-  its logical action distinguishes all points.
+- A full-rank structured transform whose resident representation is succinct
+  and whose first-witness decoder does not emit every profile value.
+- An exact nonlinear subtree predicate that supports first-witness descent with
+  a logarithmic witness trace.
+- An implicit multipoint operator that reports sparse roots without emitting
+  the full evaluation vector.
 - Target-distribution-specific filters with exact fallback and fully charged
   failure probability.
 - A batch operator sharing work across `K` targets without emitting `K|D2_x|`
@@ -188,8 +274,8 @@ control. None is established by these restricted theorems.
 
 ## Next proof obligation
 
-The exact all-target partition quotient is now closed as a scoped barrier under
-complete orientation multiplicities. Formulate the weakest exact implicit
-operator that can answer a registered target batch without storing one state
-or coefficient per D2 x-orbit, then prove that its resident representation and
-witness-lifting path are not a disguised member-discrimination vector.
+The exact all-target partition and exact low-dimensional linear-profile routes
+are now closed as scoped barriers. Write an object-dimension ledger for an exact
+first-witness branch operator. Reject it before implementation if the root
+subtree predicate, cached node state, target specialization, fallback, or
+witness routing contains a full D2 profile or target-support table.

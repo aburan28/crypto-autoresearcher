@@ -2,7 +2,7 @@
 
 ## Status and execution boundary
 
-`CONJECTURE`, `HYPOTHESIS`, `MODEL-BOUND`, `REVIEW_REQUIRED`, `REVISE`.
+`CONJECTURE`, `MODEL-BOUND`, `REJECTED_SCOPED`.
 
 This contract is a theory and barrier preflight. It authorizes no generator,
 canonical run, or development evidence run. Any implementation requires a
@@ -55,19 +55,22 @@ accepted source-root polynomial is a registered injective negative control. By
 branch has two distinct mapped x-values. It must not initialize a candidate
 quotient or count as evidence of recursive expansion.
 
-A mathematically distinct non-injective candidate observation has not yet been
-specified. Until it is, implementation remains blocked.
+A mathematically distinct non-partition representation has not yet been
+specified. The registered quotient and a low-dimensional linear-profile module
+are both closed by `theory.md`. This contract authorizes no implementation.
 
 ## Theory-review v1 obstruction
 
-The first theory review established three restricted state-separation barriers:
+The theory reviews established four restricted state-separation barriers:
 
 1. the denominator-cleared leading-in-Z `f3` coefficient is injective on finite
    state x-coordinates for any non-pole branch with two distinct mapped x-values;
 2. in a prime-order group, exact oriented compatibility behavior over every
    target separates states whenever the complement set is nonempty and proper;
 3. the complete unordered two-orientation compatibility multiplicity over every
-   target separates x-orbits under the same assumptions.
+   target separates x-orbits under the same assumptions;
+4. over `Q` or `C`, every complete oriented translation profile is linearly
+   independent, and the x-orbit multiplicity profiles have full column rank.
 
 Therefore a singleton partition under the original initial and terminal colors
 would be tautological, not evidence about coordinate expansion. The x-orbit
@@ -76,7 +79,7 @@ orientation multiplicities. A successor must change representation to an
 implicit operator that distinguishes states without storing a full
 member-discrimination vector.
 
-## Exact quotient
+## Rejected exact quotient
 
 Compute a layered coarsest stable partition:
 
@@ -93,7 +96,7 @@ Compute a layered coarsest stable partition:
 5. independently prove representative invariance by affine EC addition over
    every state, source root, orientation, and identity route.
 
-A candidate class is valid only if every representative has identical labeled
+A candidate class would be valid only if every representative had identical labeled
 successor classes, terminal observation, orientation action, and witness-lift
 behavior. Approximate clusters, low-rank embeddings, hashes, sampled equality,
 or target-specific merging are diagnostics and cannot enter the exact quotient.
@@ -191,7 +194,7 @@ masks are verifier-only and segregated from eligible advice and query work.
 
 Failure invalidates the implementation, not the hypothesis.
 
-## Continuation gate
+## Historical continuation gate
 
 One fixed coordinate family may continue only if, on both seeds at every size:
 
@@ -226,9 +229,10 @@ target-conditioned vector, or lose witness composability. Preserve separately:
   observations force singleton classes.
 
 The next positive question after singleton refinement is not another partition
-heuristic. It is whether a weaker algebraic representation, such as a low-rank
-module or implicit multipoint operator, can remain exact without reconstructing
-the same full state.
+heuristic or exact low-rank profile. It is whether a full-rank structured
+transform, nonlinear first-witness branch predicate, or sparse-reporting
+multipoint operator can remain exact without reconstructing the same full
+state.
 
 ## Proof and disproof tracks
 
@@ -252,7 +256,8 @@ the same full state.
 ## Review and reproduction status
 
 No reproduction command is registered because execution is not authorized.
-Theory review v1 returned `REVISE`; `theory.md` proves both its coefficient and
-x-orbit-profile injectivity lemmas. The next action is a literature check for
-algebraic branching-program, implicit multipoint, low-rank transition-module,
-and structured-group precedents before specifying a non-partition successor.
+Theory review v1 returned `REVISE`; `theory.md` proves coefficient, x-orbit,
+and prime-cycle linear-rank barriers. The registered exact partition hypothesis
+is rejected only in this model. The next action is an object-dimension ledger
+for a nonlinear first-witness branch operator, followed by a literature-gated
+non-partition successor.
