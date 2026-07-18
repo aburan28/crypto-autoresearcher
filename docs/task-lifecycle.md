@@ -4,6 +4,11 @@
 
 The Coordinator records a research question with scope, motivation, constraints, and the decision it is intended to inform.
 
+The question enters the executable focus queue before experiment design. The
+queue admits at most three active critical experiments and requires explicit
+positive, negative, and inconclusive decision branches plus recorded ambiguity
+resolutions and excluded peripheral work.
+
 ## 2. Ideation
 
 The Idea Generator returns one or more structured proposals. Each proposal must contain a mechanism, predictions, minimal test, falsification criteria, confounders, and interpretation limits.
@@ -22,6 +27,7 @@ The Coordinator creates an experiment contract containing:
 - primary and secondary metrics;
 - seed and replication strategy;
 - resource budget;
+- stage-by-stage wall-clock, CPU, memory, and sharding estimates;
 - stopping and invalidation rules;
 - success and falsification criteria;
 - required artifacts.
@@ -75,6 +81,10 @@ The Coordinator assigns an evidence strength and chooses one transition:
 - `reject_scoped` — valid evidence contradicts the exact tested prediction;
 - `inconclusive` — data do not discriminate explanations;
 - `pause` — low expected information gain relative to cost.
+
+After review, regenerate the focus plan. Do not expand a positive branch until
+an independent verifier is recorded as passing, and do not automatically fill
+capacity when an experiment finishes.
 
 ## 10. Synthesis
 
