@@ -2,13 +2,17 @@ evidence:
   id: EV-DREG-001
   hypothesis_id: H-DREG-001
   experiment_ids: [EXP-DREG-001]
-  run_ids: [RUN-DREG-001-VALIDATE-N12-A, RUN-DREG-001-VALIDATE-N15-A]
+  run_ids: [RUN-DREG-001-VALIDATE-N12-A, RUN-DREG-001-VALIDATE-N15-A, RUN-DREG-001-VALIDATE-N18-A,
+    RUN-DREG-001-VALIDATE-N12-NULL, RUN-DREG-001-VALIDATE-N15-NULL,
+    RUN-DREG-001-CONTROL-N12-DET, RUN-DREG-001-CONTROL-N12-PARTB,
+    RUN-DREG-001-DFF-N12-SEM-c, RUN-DREG-001-DFF-N12-SEM, RUN-DREG-001-DFF-N12-SEM-b]
   type: empirical
   direction: neutral
   strength: preliminary
   observations:
-    - "INSTRUMENT VALIDATION, not yet hypothesis evidence: these are the
-       specification's validation anchors, gating any past-wall measurement."
+    - "INSTRUMENT VALIDATION PHASE COMPLETE — these are the specification's
+       validation anchors and controls, gating any past-wall measurement; they
+       are not by themselves hypothesis evidence."
     - "Anchor 1 PASS: block-m4ri rank at n=12 sem D5 = 28,096 (deficit 1,322
        vs sr_pred 29,418) — exact match to the h012 series; completed_valid,
        28.2 s work, system_hash c47d17c3."
@@ -16,33 +20,74 @@ evidence:
        vs sr_pred 70,935) — exact match to the independent one-call m4ri cell
        (inputs/h100_session/h012b_denseT_n15f.json); completed_valid, 316.7 s
        work, 5 units, system_hash 23c234ed."
-    - "The checkpointable quotient argument (rank = sum of per-subchunk new
-       pivots, block-staircase carriers) is now validated at two independent
-       cells against two different engines; per the EXP-DREG-001 stopping
-       rules, past-wall cells may be recorded once the remaining anchors land."
-    - "Anchor 3 (n=18 sem D5 = 143,882) is in progress as
-       RUN-DREG-001-VALIDATE-N18-A at the time of this record; the null-arm
-       anchors (null == sr_pred at n<=15) and the C1 past-wall cells
-       (n=17 sem/null full) are pending."
-    - "Artifact discipline verified: manifests carry commit e111dd3, dirty-tree
-       status hash, per-dependency sha256, system_hash per system, timing,
-       peak RSS, and artifact checksums — full compliance with
-       docs/evidence-and-reproducibility.md."
-    - "Coordination note: runs are being executed by an independent executor
-       agent session in this workspace; coordinator stood down duplicate runs
-       to avoid resource collision (m4ri cells are multi-GB, 100% CPU)."
+    - "Anchor 3 PASS (executor completion, 2026-07-18T20:01:29Z): block-m4ri
+       rank at n=18 sem D5 = 143,882 (deficit 1,999 vs sr_pred 145,881) —
+       exact match to the two prior engines (peel+core and dense m4ri, H100);
+       completed_valid, 3,212.0 s work, 15 units, wall 3,775.0 s, peak RSS
+       4.63 GB, system_hash b8bec47d."
+    - "Null-arm anchors PASS (executor, this session): n=12 null rank = 29,418
+       == sr_pred exactly (RUN-DREG-001-VALIDATE-N12-NULL); n=15 null rank =
+       70,935 == sr_pred exactly (RUN-DREG-001-VALIDATE-N15-NULL, two
+       invocations via checkpoint resume). The T11 support-matched null is
+       semi-regular at n<=15 as required."
+    - "Controls PASS: same-seed re-run reproduces n=12 sem 28,096 with
+       identical system_hash (determinism); chunk 8,000 vs 12,000 partition
+       reproduces 28,096 (checkpoint-partition consistency at mechanism
+       level); block-m4ri matches dense-m4ri cells at n=15 and n=18 (engine
+       cross-validation)."
+    - "Deficit series reproduced bit-identical by the new instrument:
+       1,322 / 1,862 / 1,999 at n = 12 / 15 / 18 (full exact, sem arm, D=5).
+       Increments +540 then +137: decelerating relative to rank growth within
+       the wall; the growth clause past n=18 remains untested."
+    - "d_ff (sem, ic_first_fall algorithm, max_D=6): n=12 d_ff = 3 at ti=0
+       and 2 at ti=1 (2 of 8 targets; cell then censored). Single samples;
+       no distribution claim. Prior series had flat 2 where resolved."
+    - "Unexpected observation (recorded per AGENTS rule 8): sem Macaulay
+       column support covers 84.2% / 82.2% / 80.8% of C(nb,<=5) at
+       n = 12 / 15 / 18, decreasing with n, while the support-matched null
+       covers 100%. A structural signature distinct from the rank deficit."
+    - "CENSORING (stopping rules; not evidence, AGENTS rule 5): n=17 sem and
+       n=17 null full-rank cells (incl. review correction C1: sr_pred_D =
+       126,922 unverified), n=21 and n=24 cells, d_ff ladders past n=12, and
+       null-arm d_ff were not run — coordinator handoff budget (3,000 s wall,
+       12 runs, 600 s kill rule) was consumed by the anchors; measured cost
+       model: n=17 ~1,300-2,000 s, n=21 ~7-9 h, n=24 ~2-3 days per cell."
+    - "d_ff n=12 sem cell censored mid-run at ti=2: non-preemptible C-level
+       sparse echelon defeated the SIGALRM cap; executor killed the cell at
+       1,027 s per the stopping rule. Two failed_infrastructure driver-debug
+       runs (Sage preparser Integer/RealDoubleElement JSON serialization)
+       preserved with manifests."
+    - "Artifact discipline verified: manifests carry commit, dirty-tree status
+       hash, per-dependency sha256, system_hash per system, timing, peak RSS,
+       and per-file artifact checksums — full compliance with
+       docs/evidence-and-reproducibility.md. See
+       experiments/EXP-DREG-001/analysis.md for the full censoring table,
+       deviations D1-D7, and the resume cost model."
   inference: >-
-    Two of three sem-arm validation anchors reproduce exactly, so the
-    block-m4ri instrument is on track to be trusted for the n=17..24 ladder
-    that decides RQ-DREG-001 (the honest ledger's D6). No bearing yet on the
-    hypothesis itself: the deficit series stands at 1,322 / 1,862 with the
-    deceleration question (growth clause) still open past n=15.
+    All five validation anchors and all controls pass, so the checkpointable
+    block-m4ri instrument is validated for the n=17..24 ladder that decides
+    RQ-DREG-001 (the honest ledger's D6), and the within-wall deficit series
+    1,322 / 1,862 / 1,999 plus null == sr_pred at n<=15 are reproduced
+    bit-identically. No past-wall cell was measured within the session budget,
+    so the hypothesis itself is untouched: none of the success or falsification
+    clauses of H-DREG-001 is evaluable from this data. The decisive cells
+    (n=17 sem/null first) are costed and resumable from the preserved
+    checkpoints.
   boundaries:
-    - "Validation cells only; n <= 15 is at/below the old wall, not past it."
-    - "The n=17 null full-rank cell (review correction C1: sr_pred_D = 126,922
-       currently rests on prediction only) remains unmeasured."
+    - "Measured cells are n <= 18, D = 5, ti = 0 (plus d_ff ti = 0..1 at
+       n=12): at/below the old wall except the n=18 anchor, which re-measures
+       a known cell rather than new territory."
+    - "The n=17 null full-rank cell (review correction C1) remains unmeasured;
+       sr_pred_D = 126,922 still rests on prediction only."
+    - "Timings carry a contention caveat (foreign-session h012c probes on the
+       same host); ranks are exact integers and unaffected."
   unresolved_confounds:
-    - "n=18 anchor must reproduce 143,882 exactly; any mismatch invalidates
-       the instrument and returns it to the validation phase (spec gate)."
-    - "Null-arm anchor cells (null == sr_pred at n<=15) not yet run."
+    - "Past-wall behaviour of the deficit (growth vs deceleration) is exactly
+       what remains unmeasured; the deceleration inside the wall cannot be
+       extrapolated (phase-transition question)."
+    - "d_ff distribution needs >=8 targets per n; only 2 resolved at n=12
+       (values 3 and 2)."
+    - "Checkpoint-partition consistency is demonstrated at n=12 only; the
+       per-cell two-partition control for past-wall cells has not yet been
+       exercisable."
   reviewed_by: coordinator

@@ -1,0 +1,95 @@
+experiment:
+  id: EXP-STR-001
+  hypothesis_id: STR-H-001
+  version: 1
+  status: approved
+  title: "Displacement-rank relation matrices from arithmetic-progression supports (candidate A3): minimal falsifying experiment"
+  objective: >
+    Constrain relation harvesting to supports forming short arithmetic progressions
+    {x, x+d, ..., x+(m-1)d} with d in D, and measure (1) AP hit rate vs random-support
+    baseline, (2) exact displacement rank alpha of the AP-induced relation matrix over F_n,
+    (3) structured-solve cost (model, from measured alpha) vs measured generic Wiedemann
+    at equal matrix. Source: research_directions_20260717.md, "## Candidate: A3".
+  inputs:
+    curve_family: "ordinary prime-field short Weierstrass, prime order n, anomalous n=p excluded"
+    primes: [211, 1009, 4099]
+    D: "integers 1..64 (shift set)"
+    m: [3, 4]
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]
+    factor_base: "x-interval: first B liftable x >= 0, canonical y = min(y, p-y), ordered by x"
+    B_rule: "B = ceil(sqrt(n))   (candidate states B = rho 1/2)"
+    targets_per_instance: 16
+    enumeration_cap: 120000
+    negative_control_samples: 20000
+  controls:
+    - id: positive_D0
+      spec: >
+        "Standard harvesting reproduced at D = {0}" (candidate text). Interpretation frozen here:
+        a 0-difference AP is a degenerate multiset and cannot form a valid m-support, so D = {0}
+        is realized as the AP filter DISABLED, i.e. unconstrained random-support harvesting.
+        PASS if (a) enumeration integrity holds: multiset counts sum to the enumerated tuple
+        count and 8 seeded spot-check tuple sums recomputed with Sage's own EC arithmetic match
+        the script's pure-Python arithmetic exactly; (b) measured random-support hit rate per
+        tuple is within a factor [0.5, 2] of the combinatorial expectation 1/n.
+    - id: negative_random_xsets
+      spec: >
+        "Random x-sets show no AP enrichment." Two legs. (a) Machinery cross-check: direct
+        enumeration of AP m-subsets of F_p with common difference in D must equal the closed
+        form sum_{d in D} max(0, p-(m-1)d). (b) Sampling check: uniform random m-subsets of
+        F_p (no curve structure), adaptive sample size targeting >=25 expected hits
+        (cap 3,000,000), pass if observed hits within 4 binomial sigma of expectation;
+        if even the cap yields <5 expected hits, the leg is marked low_power and leg (a)
+        carries the control. Guards against measuring coincidences of small fields.
+  independent_variables: [p, m, seed]
+  metrics:
+    primary:
+      - ap_hit_rate_per_tuple vs random_hit_rate_per_tuple (exact, from full sum multisets)
+      - relation_penalty_factor = random_hit_rate / ap_hit_rate
+      - ap_supply = number of distinct AP support tuples; supply_ratio = ap_supply / B
+      - displacement_rank alpha of AP relation matrix over F_n (vs same-shape random-support baseline alpha_rand)
+      - solve times at equal matrix: measured Wiedemann, measured dense reference; structured time = MODEL ONLY
+    secondary:
+      - "classic (Z,Z^T) displacement rank with AP rows in (d, x_start) harvest order, vs same-shape random baseline (Toeplitz would give ~2; generic ~ min(rows,B))"
+      - "exact sum-distribution stats from full multisets: distinct sums, coverage, max multiplicity, yield per full enumeration at one target (supply/n vs C(B,m)/n), yield_penalty = C(B,m)/ap_supply"
+      - field-op counts (Wiedemann matvec ops), calibration sec_per_Fp_mul
+      - LA share of fully charged total cost (gate arithmetic)
+  cost_model:
+    wiedemann_ops: "2*B matvecs * (B*w) ops = 2*B^2*w  (w = row weight = m)"
+    structured_ops: "alpha^2 * B * ceil(log2(B))  (candidate cost model; superfast solver NOT implemented at toy scale)"
+    relation_test_cost: "(m-1) EC additions per tuple test * (4 + 15) F_p mul-equivalents (affine add: 4 mul + 1 inv charged at 15 muls)"
+    note: "F_n and F_p ops treated as comparable (n ~ p at toy sizes). Structured-solve time is model-projected from measured alpha; this is a frozen scope note, not a measurement."
+  replication:
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]
+    independent_instances: 36   # 3 primes x 6 seeds x 2 m
+  budget:
+    wall_clock_seconds_total: 2400
+    wall_clock_seconds_per_sage_invocation: 600
+    maximum_runs: 8
+  stopping_rules:
+    - "any single sage invocation > 600 s: kill, record as infrastructure timeout (NOT evidence against the hypothesis)"
+    - "script self-caps at 480 s: stops launching new instances, writes partial raw.json with truncated=true"
+    - "on timeout: reduce seeds to minimum {20260717, 20260718, 20260719} or sizes; record deviation in analysis.md and EV record"
+    - "if C(B,m) > enumeration_cap (120000): seeded uniform sample of cap tuples; deviation recorded"
+  invalidation_rules:
+    - "positive control fail (integrity or hit-rate sanity) => validity_status: invalid with reason"
+    - "negative control fail (AP enrichment in random x-sets) => validity_status: invalid with reason"
+  success_criterion: >
+    Promotion gate (candidate text): LA share of fully charged total cost falls below 10%
+    while the relation-stage penalty stays < 1.5x vs the best ledger baseline at equal toy
+    size, sustained across three sizes; ultimate bar remains a complete-cost exponent
+    trend < 0.49.
+  falsification_criterion: >
+    Disproof track (candidate text): measured alpha growing like sqrt(B), or AP penalty
+    >= n/B. A clean scoped negative is a successful experimental outcome.
+  required_artifacts:
+    - experiments/EXP-STR-001/specification.yaml
+    - experiments/EXP-STR-001/str1_ap_matrix.sage
+    - experiments/EXP-STR-001/runs/RUN-STR-001-a/manifest.yaml
+    - experiments/EXP-STR-001/runs/RUN-STR-001-a/raw.json
+    - experiments/EXP-STR-001/runs/RUN-STR-001-a/stdout.log
+    - experiments/EXP-STR-001/runs/RUN-STR-001-a/stderr.txt
+    - experiments/EXP-STR-001/runs/RUN-STR-001-a/command.txt
+    - experiments/EXP-STR-001/analysis.md
+    - ledger/RQ-STR-001.yaml, ledger/H-STR-001.yaml, ledger/EV-STR-001.yaml
+  assigned_to: executor
+  approved_by: coordinator
