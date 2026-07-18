@@ -63,8 +63,10 @@ LITERATURE_PATH = EXPERIMENT_ROOT / "literature-refresh-2026-07-17.md"
 PRE_RUN_THEORY_V1_PATH = EXPERIMENT_ROOT / "pre-run-theory-review-v1.md"
 PRE_RUN_THEORY_V2_PATH = EXPERIMENT_ROOT / "pre-run-theory-review-v2.md"
 PRE_RUN_THEORY_V3_PATH = EXPERIMENT_ROOT / "pre-run-theory-review-v3.md"
+PRE_RUN_THEORY_V4_PATH = EXPERIMENT_ROOT / "pre-run-theory-review-v4.md"
 PRE_RUN_RED_TEAM_V1_PATH = EXPERIMENT_ROOT / "pre-run-red-team-v1.md"
 PRE_RUN_RED_TEAM_V2_PATH = EXPERIMENT_ROOT / "pre-run-red-team-v2.md"
+PRE_RUN_RED_TEAM_V3_PATH = EXPERIMENT_ROOT / "pre-run-red-team-v3.md"
 MOV_EMBEDDING_DEGREE_THRESHOLD = 20
 LOADED_GENERATOR_SHA256 = hashlib.sha256(SCRIPT_PATH.read_bytes()).hexdigest()
 LOADED_SOURCE_TAG_SHA256 = hashlib.sha256(SOURCE_TAG_PATH.read_bytes()).hexdigest()
@@ -200,8 +202,10 @@ def bound_source_hashes() -> dict[str, str]:
         "pre_run_theory_v1_sha256": PRE_RUN_THEORY_V1_PATH,
         "pre_run_theory_v2_sha256": PRE_RUN_THEORY_V2_PATH,
         "pre_run_theory_v3_sha256": PRE_RUN_THEORY_V3_PATH,
+        "pre_run_theory_v4_sha256": PRE_RUN_THEORY_V4_PATH,
         "pre_run_red_team_v1_sha256": PRE_RUN_RED_TEAM_V1_PATH,
         "pre_run_red_team_v2_sha256": PRE_RUN_RED_TEAM_V2_PATH,
+        "pre_run_red_team_v3_sha256": PRE_RUN_RED_TEAM_V3_PATH,
     }
     missing = [str(path) for path in paths.values() if not path.is_file()]
     if missing:
