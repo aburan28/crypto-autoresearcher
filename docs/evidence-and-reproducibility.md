@@ -74,6 +74,12 @@ run:
     commit: git-sha
     dirty: false
     command: exact command
+  inference:
+    requested_policy: null
+    resolved_model_id: null
+    reasoning_effort: null
+    fallback_used: false
+    adapter_version: null
   environment:
     operating_system: null
     architecture: null

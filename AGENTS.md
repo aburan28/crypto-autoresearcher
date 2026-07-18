@@ -19,7 +19,7 @@ Default policies:
 
 - Coordinator: `coordinator-ultra-code` — GPT-5.6 Sol Ultra Code.
 - Idea Generator and research tasks: `research-sol-max` — GPT-5.6 Sol Max.
-- Executor: `executor-code` — GPT-5.6 Sol Code.
+- Executor: `executor-terra` — GPT-5.6 Terra.
 - Reviewer and red team: `review-xhigh` — GPT-5.6 Sol with `xhigh` reasoning.
 
 The runtime adapter must record both the human-readable policy alias and the exact resolved model identifier. It must never silently downgrade a requested policy. Critical findings require an independent review session using `review-xhigh` and a reviewer that did not originate the claim.
@@ -53,7 +53,7 @@ handoff:
   constraints: []
   deliverables: []
   inference:
-    policy: coordinator-ultra-code | research-sol-max | executor-code | review-xhigh
+    policy: coordinator-ultra-code | research-sol-max | executor-terra | review-xhigh
     fallback_allowed: false
     independent_session_required: false
   budget:
