@@ -1,19 +1,31 @@
-# SGCP-EMBED-001 experiment/proof contract
+# SGCP-EMBED-001 experiment/proof contract, version 3a
 
 Date: 2026-07-17
 
-Status: OPEN / HYPOTHESIS / CONTRACT-ONLY
+Status: OPEN / HYPOTHESIS / IMPLEMENTATION-PREFLIGHT / VERSION-3A
 
 Evidence state: no SGCP experiment, canonical ECDLP run, relation collection, or performance run has been executed under this contract.
 
-Scope restriction: this artifact belongs only under /Volumes/Volume/autolab/research/prototypes. The audited worktree /Volumes/Volume/crypto-autoresearcher-worktrees/coordinate-energy must not be edited, used as an execution directory, or imported as a mutable dependency.
+Version history: version 1 was rejected before execution by
+`pre-run-red-team-v1.md`. Version 2 fixed the degree-two decision set, expanded
+P2 to the complete balanced formal-multiset universe, and separated public from
+private audit data, but `pre-run-theory-review-v2.md` found four remaining
+ambiguities. Version 3 froze graph semantics, support/comparator definitions,
+policy branches, and the control registry and received GO in
+`pre-run-theory-review-v3.md`. Version 3a adds the reviewed monotonic exact-audit
+compression in `pre-run-theory-review-v3a.md`.
+
+Scope restriction: implementation belongs on branch `codex/sgcp-embed-001` in
+`/Volumes/Volume/crypto-autoresearcher-worktrees/sgcp-embed-001`. The frozen
+EXP-ECDLP-RECURSIVE-002 review worktree at commit `f4c8109` must not be edited,
+used as an execution directory, or imported as a mutable dependency.
 
 ## Literature and model binding
 
 Literature basis:
 
-- research/prototypes/structured_group_coordinate_predicates_literature_20260717.md
-- SHA-256: 8a580cf810d1e02a0e2600cae52b34d02800c02bf390de935385ac8d4dca354a
+- `notes/structured_group_coordinate_predicates_literature_20260717.md`
+- SHA-256: `169604e8e0c2bf13cfc2d14067868af2e8c41b8346395e160b2d9103f1e31a60`
 
 Exact model definitions were checked against Corrigan-Gibbs, Henzinger, and Wu, The Structured Generic-Group Model, Definitions 2.2, 2.3, and 3.1 and Theorems 3.2 and B.1:
 
@@ -21,6 +33,15 @@ Exact model definitions were checked against Corrigan-Gibbs, Henzinger, and Wu, 
 - checked PDF SHA-256: 82b40c277230d0603e5b87a3f6f5d045a7b3b8672f15f7e8ae983878296af66f
 
 An implementation must bind both hashes. It must not invoke the theorem if the pinned definitions differ.
+
+Control registry:
+
+- `experiments/EXP-SGCP-EMBED-001/control-registry-v2.json`
+- SHA-256: `cf07a4dedcc7d7895df7959aa809bee9fc8aefeff04a1ef643e7bf211173e5ca`
+
+The builder and independent verifier must bind this exact registry and compare
+every predicate, count, objective row, and counterexample. A renamed control or
+first-error-only check is not equivalent.
 
 ## Claim boundary
 
@@ -40,14 +61,19 @@ A failure is a scoped negative for the stated semantic-label and witness-closure
 
 ## Hypothesis
 
-For every mandatory generated prime-order toy instance, there is a deterministic canonical or exactly pruned family of four-factor witnesses whose minimum associative completion:
+For every mandatory generated prime-order toy instance, there is a deterministic
+or exactly pruned family of balanced four-factor formal multisets whose generated
+formal order ideal:
 
 1. is a Corrigan-Gibbs-Henzinger-Wu structured label space;
 2. admits an injective EC-compatible labeling of order \(q\);
 3. uses one semantic label per EC point and one canonical source per factor-base point;
-4. exposes no \(4F+4F\) operation;
+4. exposes no direct retained-\(4F\) by retained-\(4F\) star edge;
 5. has exact constrained-label fraction \(\delta=|C_\star|/q\);
-6. retains at least 90 percent of raw final split-support coverage on each of the 10-, 11-, and 12-bit toy instances.
+6. retains at least 90 percent of raw final split-support coverage on each of the 10-, 11-, and 12-bit toy instances;
+7. reports absolute retained coverage
+   `|A4_ret + A4_ret| / q` separately, without treating high relative retention
+   as an ECDLP-relevant success.
 
 Coverage is target support for the still-charged final join. It is not relation rank or DLP success.
 
@@ -60,7 +86,7 @@ Under the fixed semantic-label, balanced-four-witness, downward-closed completio
 - a nonempty selected multiset sums to the identity;
 - source-tag multiplicity cannot be represented by one injective labeling;
 - every valid pruning retains less than 50 percent of raw final split-support coverage;
-- meeting retention requires exposing the forbidden final layer.
+- every family meeting the retention gate also forces a direct retained-\(4F\) by retained-\(4F\) star edge.
 
 Coverage between 50 and 90 percent is OPEN / INCONCLUSIVE.
 
@@ -83,7 +109,9 @@ Coverage between 50 and 90 percent is OPEN / INCONCLUSIVE.
 \operatorname{SHA256}(\text{SGCP-EMBED-001|control|qbits|B|rep}).
 \]
 
-Use repetitions 0 through 15 at 5–9 bits and 0 through 7 at 10–12 bits.
+Use repetitions 0 through 15 at 5–9 bits and 0 through 7 at 10–12 bits in the
+later full-sweep random controls. The implementation preflight is deterministic,
+uses only the registered five-bit fixture, and has no random-control replicate.
 
 ## Metrics
 
@@ -99,7 +127,7 @@ Record for every curve, \(B\), and policy:
 - edges per constrained label;
 - normalized edge density;
 - raw witnesses per constrained label;
-- canonical witnesses retained and alternate witnesses discarded;
+- selected balanced formal witnesses, parent-pair multiplicity, and candidates discarded by injectivity pruning;
 - star-table description bits and source-witness bytes;
 - source-tag multiplicity and tags discarded by semantic quotienting;
 - final split-support ratio
@@ -110,26 +138,66 @@ R_{\rm support}=
 {|A_4^{\rm raw}+A_4^{\rm raw}|};
 \]
 
-- target-wise final-witness histogram;
+- raw and retained absolute group-coverage ratios
+
+\[
+\frac{|A_4^{\rm raw}+A_4^{\rm raw}|}{q},\qquad
+\frac{|A_4^{\rm ret}+A_4^{\rm ret}|}{q};
+\]
+
+- target-wise final-witness histogram, stored only in the private audit artifact;
 - identity, commutativity, associativity, compatibility, unique-factorization, acyclicity, source-faithfulness, and final-boundary results;
 - minimized counterexample digest;
 - builder/verifier operations, memory, and wall time as implementation diagnostics only.
+
+Final-support witness histograms count unordered input pairs with replacement;
+support sets are unchanged by this convention.
 
 ## Positive controls
 
 1. PC-FREE-MONOID: a downward-closed free commutative monoid through degree four. It must pass identity, commutativity, associativity, and unique prime-multiset factorization.
 2. PC-CYCLIC-NO-WRAP: a prime cyclic group whose retained degree-at-most-four source sums are distinct before reduction. It must pass all embedding checks.
-3. PC-EC-FOREST: greedily retain one four-witness closure with injective EC evaluation. If one exists, it must pass even if coverage is small.
+3. PC-EC-FOREST: use the fixed registered `B=8` alternate `(1,6,6,6)` and require its injective EC closure to match the registry exactly.
+4. PC-REPEATED-PRIME: the one-prime order ideal through exponents zero to four. It must have one prime multiset per label and the registered parent-pair counts.
 
 A failed positive control invalidates the run.
 
 ## Negative controls
 
 1. NC-BALANCED-ONLY: retain only \(1+1\to2\) and \(2+2\to4\) for a genuine four-leaf witness. Exact associativity must fail.
-2. NC-ALL-WITNESSES: retain all EC witness edges. Once a collision exists, unique factorization must fail.
+2. NC-ALL-WITNESSES: retain every degree-at-most-four EC formal multiset. The semantic injectivity gate must fail before star construction once a collision exists.
 3. NC-DUPLICATE-TAG: demand two source-tag labels for one EC point. The one-label-per-element gate must reject it.
-4. NC-COMPAT-MUTATION: mutate one edge output. Compatibility must fail at that edge.
-5. NC-FINAL-EDGE: add one \(A_4\times A_4\) edge. The boundary gate must fail and delta must be recomputed.
+4. NC-COMPAT-MUTATION: keep an abstract monoid table fixed and mutate only one EC decoding. Compatibility must fail while the abstract model axioms still pass.
+5. NC-FINAL-EDGE: use a synthetic one-prime degree-eight order ideal. All model axioms must pass, the direct \(A_4\times A_4\) boundary gate must fail, and delta must be recomputed.
+6. NC-B6-D2-COLLISION: reconstruct the fixed `(0,3)+(3,17)=(4,10)` formal-product-versus-singleton collision.
+7. NC-B8-CANONICAL-LOSS: canonical `(0,0,0,4)` for output `(6,3)` must fail injectivity while alternate `(1,6,6,6)` for the same output passes.
+8. NC-OPTIMIZER-FIXTURE: a tiny frozen conflict graph must reproduce its unique lexicographic optimum under exhaustive enumeration.
+
+Controls are isolated and report every predicate, not only the first failure.
+
+Frozen control expectations:
+
+- `PC-FREE-MONOID` uses three formal primes through total degree four: 35
+  labels, 75 unordered nonidentity edges, and all 35 labels constrained.
+- `PC-CYCLIC-NO-WRAP` uses `q=509` and weights `(1,5,25,125)` through total
+  degree four: maximum unreduced sum 500, 70 represented and constrained
+  labels, 185 unordered nonidentity edges, and delta `70/509`.
+- `PC-REPEATED-PRIME` uses one prime through exponent four: five labels, four
+  unordered nonidentity edges, immediate parent-pair counts `0,0,1,1,2` by
+  degree zero through four, and one prime multiset for every label.
+- `NC-BALANCED-ONLY` uses exactly `a*b=u`, `c*d=v`, and `u*v=w`; triple
+  `(a,b,v)` has a defined left chain and no right chain.
+- `NC-B6-D2-COLLISION` uses factor indices `(0,3)` and singleton index `5` on
+  the registered `B=6` factor base; both evaluate to `(4,10)`.
+- `NC-B8-CANONICAL-LOSS` uses the exact multisets and output registered above;
+  both must occur in `U4_BAL`.
+- `NC-OPTIMIZER-FIXTURE` uses four ordered candidates with synthetic outputs
+  `(1,2,4,8)` in `Z_17` and conflicts `(0,1)` and `(2,3)`. Four maximum-size
+  feasible pairs tie on three final sums, so the unique full-objective optimum
+  after the lexicographic rule is candidate list `(0,2)`.
+- `NC-FINAL-EDGE` uses the one-prime formal order ideal through degree eight.
+  All nine labels are constrained, all model axioms pass, and the `4+4=8`
+  edge alone triggers the direct final-edge predicate.
 
 A missed negative control invalidates the run.
 
@@ -140,16 +208,16 @@ Report a positive TOY-EVIDENCE / MODEL-EMBEDDING result only if:
 1. every control behaves as preregistered;
 2. every mandatory curve and \(B\) row has an independent certificate;
 3. one fixed coordinate-only policy passes every model axiom on every mandatory row;
-4. the final join is absent from star;
+4. no direct retained-degree-four by retained-degree-four edge occurs in star;
 5. \(R_{\rm support}\ge0.90\) on the 10-, 11-, and 12-bit rows for every \(B\);
-6. delta, edge density, source loss, and table size are reported exactly;
+6. absolute raw and retained group coverage, delta, edge density, source loss, public-table size, and private-audit size are reported exactly;
 7. the existential-hard-distribution limitation is explicit.
 
 This does not establish a faster-than-rho ECDLP algorithm, rank, target descent, or deployment relevance.
 
 ## Falsification criterion
 
-- Fixed-policy negative: the deterministic canonical policy fails an axiom or retention gate. This rules out only that policy.
+- Fixed-policy negative: the deterministic P1 canonical policy or frozen P2 balanced-universe policy fails an axiom or retention gate. This rules out only that policy and candidate universe.
 - Embedding-class negative: exhaustive search or independently certified branch-and-bound proves that every admissible pruning on the smallest failing instance has \(R_{\rm support}<0.50\), or every nonempty four-witness closure violates semantic injectivity.
 
 Any negative report must preserve the minimized counterexample and a model-escape route.
@@ -203,6 +271,22 @@ Enumerate all unordered degree-two multisets. For each nonidentity semantic outp
 
 This BAL object is a witness forest, not yet a structured label space.
 
+Version-2 P2 does not discard noncanonical degree-four formal multisets after
+that audit canonicalization. Its frozen candidate universe is
+
+\[
+U_4^{\rm BAL}=\{\operatorname{sort}(A\uplus B):
+ A,B\text{ are canonical nonidentity degree-two nodes}\}.
+\]
+
+Deduplicate this universe by the flattened formal multiset, retain every
+balanced parent pair as private audit multiplicity, and independently evaluate
+each formal multiset. Distinct candidates with one semantic EC output are
+mutually infeasible because injectivity forbids selecting both. This universe
+includes alternate formal witnesses for a semantic output; it is not one
+canonical representative per output and is not the universe of every possible
+unbalanced four-term expression.
+
 ## 2. Associativity obstruction
 
 ### Restricted theorem: balanced-only failure
@@ -223,9 +307,18 @@ Therefore \(b\star v\) and then \(a\star(b\star v)\) must be defined. A domain c
 
 This rules out only the literal balanced-only operation. It does not rule out associative closure, hiding the two-sum factorization, a weakened model, or a witness-aware model.
 
-## 3. Minimum associative completion
+## 3. Generated formal order ideal
 
-Let \(\mathcal M_{\max}\) contain selected degree-two and degree-four prime multisets. Define
+For P2, let `D4` contain selected degree-four prime multisets and define the
+degree-two decision set, without ambiguity, by
+
+\[
+D_2(D_4)=\{A: |A|=2,\ A\text{ is a submultiset of some }M\in D_4\}.
+\]
+
+There are no independently retained canonical degree-two maxima in P2. Let
+\(\mathcal M_{\max}=D_4\); `D2(D4)` is present only because it is forced by
+downward closure. Define
 
 \[
 \mathcal M=
@@ -233,7 +326,9 @@ Let \(\mathcal M_{\max}\) contain selected degree-two and degree-four prime mult
 \cup\{A:A\text{ is a submultiset of some }M\in\mathcal M_{\max}\}.
 \]
 
-This downward closure includes every degree-three and degree-two regrouping forced by a retained four-witness.
+This generated formal order ideal includes every degree-three and degree-two
+regrouping forced by a retained four-witness. It is not claimed to be minimum
+over all possible structured label spaces.
 
 The candidate is admissible only if
 
@@ -400,12 +495,18 @@ A_4^{\rm ret}=
 \{\operatorname{ev}(M):M\in\mathcal M,\ |M|=4,\ M\text{ retained}\}.
 \]
 
-This experiment forbids:
+The public partial-monoid certificate forbids:
 
 - degree-eight multisets;
 - nonidentity star edges with both inputs in \(A_4^{\rm ret}\);
-- free membership, predecessor, or witness access for \(A_4^{\rm ret}+A_4^{\rm ret}\);
 - target-dependent pruning after seeing \(Q\).
+
+The direct boundary predicate proves only that no nonidentity star edge has two
+retained degree-four inputs. It does not prove absence of an equivalent lookup,
+membership, predecessor, or witness-advice structure. Final pair-sum supports
+and histograms used to score the optimizer belong to a separately hashed private
+audit artifact; report their construction operations and bytes and do not count
+them as free public structure.
 
 The next problem is charged:
 
@@ -420,7 +521,8 @@ If star exposes every \(A_4\times A_4\) pair, every output in \(A_4+A_4\) is con
 \delta\ge |A_4+A_4|/q.
 \]
 
-If \(A_4+A_4=G\), then \(\delta=1\). This concerns free exposure, not a separately charged data structure.
+If \(A_4+A_4=G\), then \(\delta=1\). This concerns direct star exposure, not a
+separately charged audit or data structure.
 
 ## 9. Smallest generated prime-order toy instances
 
@@ -449,20 +551,87 @@ Use canonical \(1+1\to2\) and \(2+2\to4\) edges without closure. This must repro
 
 Take every canonical degree-two and degree-four witness, form full downward closure, and test ev injectivity. Preserve the first collision; do not silently prune.
 
-### P2 max-retention valid closure
+### P2 exact balanced-universe optimum
 
-Search over subsets of canonical degree-four prime multisets. Feasibility requires semantic injectivity of the union of their downward closures, singleton factors, empty multiset, and retained degree-two witnesses.
+Search over subsets of every distinct formal multiset in `U4_BAL`. Feasibility
+requires semantic injectivity of the union of their downward closures, the
+fixed singleton factors, and the empty multiset. `D2` consists exactly of the
+degree-two submultisets forced by selected `D4`; no canonical degree-two node is
+independently retained.
 
 Optimize lexicographically:
 
-1. final split-support coverage;
-2. retained degree-four outputs;
-3. retained source witnesses;
-4. smaller constrained set;
-5. fewer nonidentity edges;
-6. lexicographically smaller witness list.
+1. absolute retained final split-support count;
+2. retained degree-four formal multisets, which equals retained semantic outputs under injectivity;
+3. smaller constrained set;
+4. fewer nonidentity edges;
+5. lexicographically smaller formal-multiset list.
+
+Balanced parent-pair multiplicity is private audit data and is not an optimizer
+credit or exposed structured operation.
 
 Use exhaustive subsets or a complete branch-and-bound certificate at 5–7 bits; exact conflict-graph or MaxSAT certificates where feasible at 8–9 bits. Heuristics at 10–12 bits provide lower bounds only and cannot prove a class negative.
+
+At five bits the proof object must bind the complete sorted `U4_BAL` universe,
+its SHA-256, every individually invalid candidate, every pair conflict, explored
+and pruned node counts, the full objective vector, and the lexicographic optimum.
+The independent verifier reconstructs all of these fields and reruns exhaustive
+search rather than trusting a claimed optimum.
+
+Define the fixed base order ideal and each candidate order ideal by
+
+\[
+I_0=\{\varnothing\}\cup\{\{P\}:P\in F\},\qquad
+I(M)=I_0\cup\operatorname{Sub}(M),
+\]
+
+where `Sub(M)` is the set of every submultiset of `M`, including empty and `M`
+itself. A candidate `M` is individually invalid exactly when `ev` is
+noninjective on `I(M)`. For two distinct individually valid candidates `M,N`,
+the unordered pair `{M,N}` is a conflict edge exactly when `ev` is noninjective
+on `I(M) union I(N)`.
+
+### Conflict-graph completeness lemma
+
+For `D4 subseteq U4_BAL`, its generated family is feasible if and only if `D4`
+contains no individually invalid candidate and is an independent set of the
+conflict graph above.
+
+Proof: every formal element of the generated family belongs to `I0` or to
+`Sub(M)` for some selected `M`. A collision lies either within one `I(M)`, which
+makes that candidate individually invalid, or between elements contributed by
+two selected candidate ideals, which creates their conflict edge. The converse
+is immediate from the definitions.
+
+At five bits the independent verifier must preserve and replay one direct
+collision for every individually invalid vertex. By monotonicity, every subset
+containing such a vertex is infeasible. It must then enumerate every subset of
+the individually valid vertices and exact-compare graph independence with direct
+injectivity on the full generated family. This is an exact proof for every
+subset of `U4_BAL` without materializing the exponentially redundant supersets
+of already invalid vertices. Testing only the optimizer winner is insufficient.
+Record invalid-vertex count, valid-vertex count, exactly `2^valid_count` direct
+subset comparisons, mismatch count, and a digest over the lexicographically
+ordered `(subset, graph_feasible, direct_feasible)` rows.
+
+Define the raw and selected semantic four-term sets and final supports exactly:
+
+\[
+A_4^{\rm raw}=\{\operatorname{ev}(M):M\in U_4^{\rm BAL}\},\qquad
+A_4(D_4)=\{\operatorname{ev}(M):M\in D_4\},
+\]
+
+\[
+S_{\rm raw}=\{x+_E y:x,y\in A_4^{\rm raw}\},\qquad
+S(D_4)=\{x+_E y:x,y\in A_4(D_4)\}.
+\]
+
+Relative support is `|S(D4)|/|S_raw|`; raw absolute coverage is
+`|S_raw|/q`; retained absolute coverage is `|S(D4)|/q`. The optimizer compares
+feasible selections by: maximize `|S(D4)|`; maximize `|D4|`; minimize
+`|C_star|`; minimize the number of unordered nonidentity star-domain pairs;
+then minimize the sorted `D4` list lexicographically under the factor-index
+order induced by `enc(P)`. No other tie-break is permitted.
 
 ## 11. Brute-force certificate schema
 
@@ -472,87 +641,48 @@ Emit canonical JSON with sorted keys and exact integer numerator/denominator rat
 {
   "schema": "sgcp-embed-001-certificate-v1",
   "experiment_id": "SGCP-EMBED-001",
-  "claim_status": "TOY-EVIDENCE|NEGATIVE-RESULT|OPEN",
-  "contract_sha256": "...",
-  "literature_sha256": "8a580cf810d1e02a0e2600cae52b34d02800c02bf390de935385ac8d4dca354a",
-  "sggm_pdf_sha256": "82b40c277230d0603e5b87a3f6f5d045a7b3b8672f15f7e8ae983878296af66f",
-  "implementation": {
-    "git_commit": "...",
-    "builder_sha256": "...",
-    "verifier_sha256": "...",
-    "command_argv": [],
-    "timestamp_utc": "..."
-  },
-  "curve": {
-    "p": 0, "a": 0, "b": 0, "q": 0, "trace": 0,
-    "generator": [0, 0],
-    "point_table_sha256": "...",
-    "group_order_proof": {}
-  },
-  "factor_base": {
-    "B": 0,
-    "L_roots": [],
-    "labels": [],
-    "canonical_sources": [],
-    "discarded_source_tags": []
-  },
-  "raw_witnesses": {
-    "degree2_count": 0,
-    "degree4_count": 0,
-    "multiplicity_histograms": {},
-    "support_sizes": {}
-  },
-  "formal_family": {
-    "maximal_multisets": [],
-    "downward_closure_by_degree": {},
-    "evaluation_map": [],
-    "evaluation_injective": false,
-    "evaluation_collisions": []
-  },
-  "labeling": {
-    "label_order": [],
-    "sigma_scalar_to_label": [],
-    "injective": false,
-    "identity_label": "..."
-  },
-  "star": {
-    "identity_rule_total": false,
-    "unordered_nonidentity_edges": [],
-    "ordered_domain_sha256": "...",
-    "description_bits": 0
-  },
-  "axioms": {
-    "identity": {},
-    "commutativity": {},
-    "associativity": {},
-    "compatibility_coordinates": {},
-    "compatibility_scalars": {},
-    "unique_prime_multiset_factorization": {},
-    "binary_tree_multiplicity": {},
-    "acyclic": {},
-    "final_layer_excluded": {}
-  },
-  "constrained": {
-    "labels": [],
-    "count": 0,
-    "delta": {"numerator": 0, "denominator": 1},
-    "role_counts": {},
-    "edge_density": {}
-  },
-  "retention": {
-    "raw_final_support": 0,
-    "retained_final_support": 0,
-    "support_ratio": {"numerator": 0, "denominator": 1},
-    "target_witness_histograms": {}
-  },
-  "controls": [],
-  "counterexamples": [],
+  "claim_status": "HYPOTHESIS",
+  "bindings": {},
+  "implementation": {},
+  "curve": {},
+  "rows": [
+    {
+      "factor_base": {},
+      "raw_witnesses": {},
+      "public_model": {
+        "labeling": {},
+        "selected_formal_family": {},
+        "star": {},
+        "axioms": {},
+        "constrained": {}
+      },
+      "private_audit": {
+        "balanced_candidate_universe": [],
+        "candidate_universe_sha256": "...",
+        "optimizer_proof": {},
+        "relative_final_support": {"numerator": 0, "denominator": 1},
+        "raw_absolute_group_coverage": {"numerator": 0, "denominator": 1},
+        "retained_absolute_group_coverage": {"numerator": 0, "denominator": 1},
+        "target_witness_histograms": {},
+        "charged_operations": {},
+        "charged_bytes": 0
+      },
+      "controls": []
+    }
+  ],
   "resource_metrics": {},
-  "artifact_digests": {}
+  "artifact_digests": {
+    "public_model_sha256": "...",
+    "private_audit_sha256": "...",
+    "deterministic_payload_sha256": "..."
+  }
 }
 ~~~
 
-The human report is derived from this JSON.
+The builder artifact contains no scalar indices. Scalar compatibility and the
+scalar-table digest appear only in the independent verification report. The
+human report is derived from the public model and the explicitly charged private
+audit; audit fields are never counted as free star advice.
 
 ## 12. Counterexample minimization
 
@@ -582,7 +712,7 @@ A policy failure is not a class negative without a complete, independently verif
 ## 13. Proof track
 
 1. Complete the downward-closed embedding lemma against the exact paper definitions, repeated primes, labels outside ev(\(\mathcal M\)), and identity cases.
-2. Prove the minimum reassociation closure forced by each retained four-prime product.
+2. Prove the generated formal order ideal contains every reassociation product forced by each retained four-prime product.
 3. Derive exact constrained-label counts by degree; include degree three and identity.
 4. Characterize ev injectivity as a restricted \(B_4\) or Freiman-isomorphism condition and identify the weakest condition needed for a selected witness family.
 5. Preserve the theorem boundary: one compatible sigma implies a hard compatible-label distribution, not hardness of the conventional EC encoding.
@@ -592,7 +722,7 @@ A policy failure is not a class negative without a complete, independently verif
 1. Find the smallest closure-induced degree-three collision.
 2. Classify collisions as identity/nonempty, singleton/composite, same-degree, cross-degree, within one closure, or between closures.
 3. Measure witness loss caused by semantic quotienting and injectivity pruning.
-4. Compare the canonical policy with the exact best feasible pruning.
+4. Compare the canonical policy with the exact best feasible pruning over the frozen balanced formal-multiset universe.
 5. Charge star-table description and construction separately as a concrete-algorithm diagnostic even though the model makes star free.
 6. Preserve parameter reversals and do not fit a cryptographic exponent from these toys.
 
@@ -642,7 +772,7 @@ The next experiment should:
 Even after a pass, SGCP-EMBED-001 does not model or prove:
 
 - unary \(L(x)=0\) membership as an operation;
-- discarded noncanonical witnesses;
+- four-term witnesses outside the frozen balanced universe and discarded parent-pair multiplicity;
 - many syntactic labels per semantic point;
 - coordinate arithmetic or star construction cost;
 - summation-polynomial or Gröbner solving;
@@ -663,7 +793,8 @@ These are later proof obligations, not closed frontiers.
 
 ~~~text
 bind contract, literature, and paper hashes
-assert cwd and every output path are outside the audited worktree
+assert cwd is the SGCP branch and every output path is outside the frozen
+    coordinate-energy review worktree
 
 for qbits in 5..12:
     curve = deterministic_curve_search(qbits)
@@ -675,12 +806,15 @@ for qbits in 5..12:
         raw2 = all unordered degree-2 prime multisets
         canonical2 = least witness per nonidentity EC output
         raw4 = balanced pairs of canonical2 nodes
-        canonical4 = least flattened witness per nonidentity EC output
+        U4_BAL = every distinct flattened raw4 formal multiset
+
+        P0 = canonical 1+1 and 2+2 balanced edges without closure
+        P1 = full closure of independently retained canonical D2 and canonical D4
+        P2 = exact subset of U4_BAL; D2 is only the closure forced by selected D4
 
         for policy in [P0, P1, P2]:
-            maxima = choose selected degree-2 and degree-4 multisets
-            formal_M = full downward closure plus empty and F singletons
-            collisions = group formal_M by independent EC evaluation
+            construct the policy-specific edge set or formal family above
+            collisions = group the policy formal family by independent EC evaluation
 
             if collision-free:
                 star = identity plus multiset-union operation
@@ -689,7 +823,7 @@ for qbits in 5..12:
 
             verify every model axiom
             compute Definition 3.1 constrained set
-            compute exact final support without adding final star edges
+            compute exact final support in the charged private audit without adding final star edges
             minimize failures
             emit canonical certificate row
 
@@ -701,17 +835,16 @@ emit hashes and exact-ratio report
 Planned commands, not authorized to run until implementation review:
 
 ~~~bash
-python3 research/prototypes/sgcp_embed_001.py build \
-  --contract research/prototypes/sgcp_embed_001_contract_20260717.md \
-  --toy-bits 5,6,7,8,9,10,11,12 \
-  --factor-base-sizes 4,6,8 \
-  --policies balanced-only,canonical-closure,max-retention-closure \
-  --output research/prototypes/sgcp_embed_001_artifacts/certificate.json
+python3 -B experiments/EXP-SGCP-EMBED-001/src/sgcp_embed.py \
+  --contract notes/sgcp_embed_001_contract_20260717.md \
+  --literature notes/structured_group_coordinate_predicates_literature_20260717.md \
+  --toy-bits 5 \
+  --factor-base-sizes 4 6 8
 
-python3 research/prototypes/verify_sgcp_embed_001.py \
-  --contract research/prototypes/sgcp_embed_001_contract_20260717.md \
-  --certificate research/prototypes/sgcp_embed_001_artifacts/certificate.json \
-  --output research/prototypes/sgcp_embed_001_artifacts/verification.json
+python3 -B experiments/EXP-SGCP-EMBED-001/src/verify_sgcp_embed.py \
+  --contract notes/sgcp_embed_001_contract_20260717.md \
+  --literature notes/structured_group_coordinate_predicates_literature_20260717.md \
+  --input experiments/EXP-SGCP-EMBED-001/preflight/sgcp-embed-001-5bit.json
 ~~~
 
 ## 18. Stop rules
@@ -719,12 +852,12 @@ python3 research/prototypes/verify_sgcp_embed_001.py \
 Invalidate and stop if:
 
 - a bound source hash differs;
-- any output resolves under the audited worktree;
+- any output resolves under the frozen coordinate-energy review worktree;
 - a curve fixture or group-order proof fails;
 - builder-visible data contains scalar indices;
 - a control misbehaves;
 - the certificate cannot be independently reconstructed;
-- any final \(4F+4F\) edge appears.
+- any direct retained-\(4F\) by retained-\(4F\) star edge appears.
 
 No ECDLP promotion is allowed until separate experiments charge final join, relation yield, rank, linear algebra, target descent, and an automorphism-aware rho baseline.
 
@@ -732,7 +865,7 @@ No ECDLP promotion is allowed until separate experiments charge final join, rela
 
 ### Claim or task
 
-Determine whether a canonical EC four-factor witness prefix admits an injective, associative, uniquely factorable structured-label embedding after the regrouping closure forced by the Corrigan-Gibbs-Henzinger-Wu definition, while leaving the target-dependent \(4F+4F\) join charged and external.
+Determine whether the balanced EC four-factor witness universe contains an injective, associative, uniquely factorable structured-label embedding after the regrouping closure forced by the Corrigan-Gibbs-Henzinger-Wu definition, while leaving the target-dependent \(4F+4F\) join charged and external.
 
 ### Status
 
@@ -742,7 +875,7 @@ HYPOTHESIS
 
 - Generated ordinary prime-order toy curves only; no deployed keys or canonical ECDLP run.
 - Exactly one semantic label per EC point and one canonical source per factor-base point.
-- Downward closure of selected degree-two and degree-four prime multisets.
+- For P2, only `D4 subseteq U4_BAL` is selected; `D2(D4)` is forced downward closure, with no independently selected degree-two maxima.
 - Pinned 2026 structured-model definitions and hashes.
 - Final-join advice/work, rank, linear algebra, and descent remain charged obligations.
 
@@ -765,12 +898,15 @@ HYPOTHESIS
 
 ### Next concrete action
 
-Implement the builder and independent verifier under /Volumes/Volume/autolab/research/prototypes, bind their hashes in a versioned amendment, and run only the generated 5-bit control preflight before requesting approval for a full toy sweep.
+Implement the builder and independent verifier under
+`experiments/EXP-SGCP-EMBED-001`, bind their hashes in the experiment record,
+and run only the generated 5-bit control preflight before requesting approval
+for a full toy sweep.
 
 ### Artifact paths
 
-- /Volumes/Volume/autolab/research/prototypes/sgcp_embed_001_contract_20260717.md
-- /Volumes/Volume/autolab/research/prototypes/structured_group_coordinate_predicates_literature_20260717.md
-- Planned: /Volumes/Volume/autolab/research/prototypes/sgcp_embed_001.py
-- Planned: /Volumes/Volume/autolab/research/prototypes/verify_sgcp_embed_001.py
-- Planned: /Volumes/Volume/autolab/research/prototypes/sgcp_embed_001_artifacts/
+- `notes/sgcp_embed_001_contract_20260717.md`
+- `notes/structured_group_coordinate_predicates_literature_20260717.md`
+- Planned: `experiments/EXP-SGCP-EMBED-001/src/sgcp_embed.py`
+- Planned: `experiments/EXP-SGCP-EMBED-001/src/verify_sgcp_embed.py`
+- Planned: `experiments/EXP-SGCP-EMBED-001/preflight/`
