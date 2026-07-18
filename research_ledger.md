@@ -12,6 +12,7 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 - [ ] Does an uneliminated five-addition circuit over bounded public source roots admit a complete generalized-root algorithm with strict slack beyond the `B^5 approximately p` box-volume boundary?
 - [ ] Can a fixed-node nonlinear or quotient-compressed predicate evade the coordinate moment and canonical-stream barriers while keeping one-child first-witness descent below D2 scale?
 - [ ] Does the bound direct five-source RCB equality circuit keep every intermediate norm-indicator TT central rank `o(B)` with constructible row spaces, total target work and traffic `o(B^2)`, and fixed advice `o(B^3)`?
+- [ ] Can the five nonzero trace-zero source tensors for the first norm be compiled into exact source/common-basis TT cores without `B^5` enumeration, with all construction, normalization, traffic, and retained advice charged?
 - [ ] Can an elliptic-coordinate sub-function replace the integer residue splitter in improved 3SUM-Indexing while preserving cheap partner lookup, collision control, and exact signed witnesses?
 - [ ] If a preflight family passes, does its relation matrix retain rank and admit an individual-log descent?
 - [ ] Can the expansion/compression objective be given a coordinate-specific structured-group theorem or counterexample?
@@ -32,6 +33,7 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 | H-ECDLP-GENROOT-CIRCUIT-001 | A bounded public-source representation retained through an exact five-addition circuit admits a complete dedicated root finder with a credible one-instance relation path below `B^2.5`. | RESTRICTED THEOREM correctness GO; CONJECTURE solver; first-power tensor-box lattice REJECTED_SCOPED with independent GO; implementation NO-GO | theory, algorithm designer, benchmark, and red team | Dimension a mathematically distinct composition-tower, support-adapted, implicit, or non-lattice root operator before source. |
 | H-ECDLP-SUBSET-NORM-TREE-001 | A fixed-curve D2 subset tree admits exact target-translated D3 node predicates and witness lift through a complete compact structured representation. | RESTRICTED THEOREMS for self-reduction, source norm, coordinate moments, and one-child descent; companion, dense norm, canonical CP/Horner, linear-moment, and explicit trace interfaces REJECTED_SCOPED; fixed-node nonlinear and quotient TT routes OPEN; implementation NO-GO | theory, literature, benchmark, and red team | Preserve decision-v3; move to a fresh exact TT zero-locator preflight rather than another explicit moment or resultant implementation. |
 | H-ECDLP-TT-ZERO-LOCATOR-001 | A bound complete five-source RCB circuit admits exact compilation of `Zcal_Q=1-g_Q^(p^2-1)` with every central intermediate rank `o(B)`, fixed advice `o(B^3)`, and each target work/traffic resource `o(B^2)`. | RESTRICTED THEOREMS for exact equality, constant pre-indicator formal rank, and final cut ranks; universal low-rank indicator REJECTED_SCOPED; v4 paper preflight GO; implementation NO-GO; central-rank certificate OPEN | theory, algorithm designer, literature, benchmark, and red team | Derive or refute the first norm-Hadamard gate's central-rank certificate for the frozen RCB circuit before source code. |
+| H-ECDLP-TT-NORM-RANK-001 | The frozen five-source RCB first norm has bounded exact TT ranks and admits target specialization from fixed source tensors after charged fixed-curve preprocessing. | RESTRICTED THEOREM and TOY-EVIDENCE for norm/source-span semantics and rank caps; four development runs valid; constructive source advice and online specialization OPEN; no ECDLP improvement | theory, algorithm designer, experiment engineer, benchmark, and red team | Create a fresh contract for non-enumerative exact source-TT construction of the five trace-zero source tensors and replay it against the frozen baseline. |
 | TH-ECDLP-SPLIT-001 | Useful factor bases may combine high final additive expansion with exact intermediate compression. | CONJECTURE | theory and red team | Formalize necessary expansion/compression inequalities and search for counterexamples. |
 | TH-ECDLP-MAP-UNION-001 | Unions of compositional rational-map images may improve recursive support geometry without exceptional curves. | CONJECTURE | algorithm designer | Test only after the recursive preflight establishes a sound measurement surface. |
 
@@ -80,6 +82,7 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 | EXP-ECDLP-OUTER-TRANSLATOR-001-FUNCTIONAL | Source-map substitution, S3/S4 identity routes, scalar resultants, root extraction, and signed five-leaf recovery replay exactly on registered schedules. | 24 translator family-instances and 96 sampled targets across six generated 8/10/12-bit curves; development only. | Independent verification checked 33,584 translator witnesses; all 24 functional gates passed with exact supported and matched target cardinality. | Reuse the exact finite-orbit oracle and independent verifier for implicit recursive-state candidates; sampled correctness is not continuation. |
 | EXP-ECDLP-OUTER-TRANSLATOR-001-BATCH | D2-major Montgomery batching reduces inversions and D2 reads on exact-cardinality target batches. | 144 exact `B` rows and 124 exact `16B` rows across six floor families and two target kinds. | Mean inversion/read ratios were `0.328/0.274` at `B` and `0.0238/0.0212` at `16B`, with multiplication ratios `1.672` and `1.976`; 20 clamped rows failed closed and no timing gate passed. | Preserve as a constant-factor bandwidth primitive; it does not reduce complement-test scaling or establish a practical timing win. |
 | EXP-ECDLP-TT-ZERO-LOCATOR-001-EXACT | The direct five-source formulation has an exact equality scalar and exact final TT-cut rank characterization without a D2 polynomial or three-source membership oracle. | Paper-only complete short-Weierstrass RCB circuit over the registered quadratic encoding field. | `g_Q=0` iff the five-source sum equals `Q`, including `Q=O`; the indicator cut rank is exactly `|D_k intersect (Q-D_(5-k))|`. Theory, accounting, and red-team v4 audits are GO. | Determine constructible intermediate central ranks; final representability alone does not authorize source or imply an ECDLP improvement. |
+| EXP-ECDLP-TT-NORM-RANK-001-FIRST-NORM | The degree-preserving first norm, fixed source span, projective invariance, and exact rank caps replay under separate producer/verifier implementations. | Six generated 8-17 bit prime-order curves, `B in {3,4,5,7,8,10}`; noncanonical development only. | All four runs completed valid; 60 semantic cells and 288 rank jobs had zero mismatches; 15/15 mutations were rejected. At `B=10`, the third-cut pure-power ranks grew `24,48,96,100`. | Construct the fixed source/common-basis TT cores without `B^5` enumeration; do not extend this signal to the Fermat locator. |
 
 ## Baselines
 
@@ -245,6 +248,21 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 - `experiments/EXP-ECDLP-TT-ZERO-LOCATOR-001/revision-history-v4.md`
 - `experiments/EXP-ECDLP-TT-ZERO-LOCATOR-001/decision-v1.json`
 - `experiments/EXP-ECDLP-TT-ZERO-LOCATOR-001/candidate-review-v1.md`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/implementation-v1.md`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/pre-run-implementation-red-team-v1.md`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/pre-run-implementation-accounting-v1.md`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/analysis.md`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/evidence-v1.json`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/decision-v2.json`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/run-manifest.json`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/verification.json`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/operation-ledger.json`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/rank-certificate-digests.json`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/mutation-report.json`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/runs/RUN-ECDLP-TT-NORM-GEN-001/manifest.json`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/runs/RUN-ECDLP-TT-NORM-VERIFY-001/manifest.json`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/runs/RUN-ECDLP-TT-NORM-MUT-GEN-001/manifest.json`
+- `experiments/EXP-ECDLP-TT-NORM-RANK-001/runs/RUN-ECDLP-TT-NORM-MUT-VERIFY-001/manifest.json`
 - `notes/ecdlp_generalized_root_subset_norm_literature_20260718.md`
 - `notes/ecdlp_relation_preprocessing_accounting_20260718.md`
 - `notes/ecdlp_3sum_indexing_transfer_20260718.md`
