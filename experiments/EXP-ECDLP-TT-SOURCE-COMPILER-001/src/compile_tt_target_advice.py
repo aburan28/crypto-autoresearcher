@@ -42,6 +42,55 @@ def artifact_digest(value: Any) -> str:
     return sha256_bytes(canonical_json_bytes(value) + b"\n")
 
 
+def canonical_json_size(value: Any) -> int:
+    """Return exact canonical JSON bytes without materializing the full payload."""
+
+    if value is None:
+        return 4
+    if value is True:
+        return 4
+    if value is False:
+        return 5
+    if isinstance(value, int):
+        return len(str(value))
+    if isinstance(value, str):
+        return len(
+            json.dumps(
+                value,
+                ensure_ascii=True,
+                allow_nan=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+    if isinstance(value, (list, tuple)):
+        return 2 + max(len(value) - 1, 0) + sum(
+            canonical_json_size(item) for item in value
+        )
+    if isinstance(value, dict):
+        if any(not isinstance(key, str) for key in value):
+            raise TypeError("canonical JSON object keys must be strings")
+        return 2 + max(len(value) - 1, 0) + sum(
+            canonical_json_size(key) + 1 + canonical_json_size(item)
+            for key, item in value.items()
+        )
+    raise TypeError(f"unsupported canonical JSON value {type(value).__name__}")
+
+
+def stabilize_serialized_size(result: dict[str, Any]) -> int:
+    """Solve the self-referential serialized_bytes decimal width exactly."""
+
+    result["summary"]["serialized_bytes"] = 0
+    # The trailing newline replaces the one-byte placeholder when solving width.
+    base = canonical_json_size(result)
+    candidate = base + 1
+    while True:
+        updated = base + len(str(candidate))
+        if updated == candidate:
+            result["summary"]["serialized_bytes"] = updated
+            return updated
+        candidate = updated
+
+
 def validate_digest(value: Any, path: str) -> str:
     if (
         not isinstance(value, str)
@@ -168,6 +217,7 @@ def derive_trace_job(
     source_cell_id: str,
     target_cell_id: str | None = None,
     kind: str = "trace_zero",
+    runtime: TargetTTRuntime | None = None,
 ) -> TargetJob:
     curve_id = str(instance["curve_id"])
     p = exact_int(instance.get("p"), f"{curve_id}.p", 2)
@@ -182,12 +232,24 @@ def derive_trace_job(
     projective = tuple(
         exact_int(value, f"{curve_id}.{target_name}.projective") for value in projective_value
     )
-    derived = trace_zero_coefficients(projective, p, n)
     frozen = target.get("trace_zero_coefficients")
-    if not isinstance(frozen, list) or tuple(frozen) != derived:
-        raise ValueError(f"{curve_id}.{target_name} trace-zero coefficients changed")
-    retained = (derived[0], derived[1], derived[2], derived[4], derived[5])
     cell_id = target_cell_id or f"{source_cell_id}:{target_name}"
+    if not isinstance(frozen, list):
+        raise ValueError(f"{curve_id}.{target_name} trace-zero coefficients are missing")
+    if runtime is None:
+        derived = trace_zero_coefficients(projective, p, n)
+        if tuple(frozen) != derived:
+            raise ValueError(f"{curve_id}.{target_name} trace-zero coefficients changed")
+    else:
+        derived = runtime.derive_target_coefficients(
+            label=cell_id,
+            kind="trace_zero",
+            projective=projective,
+            p=p,
+            norm_n=n,
+            frozen_coefficients=frozen,
+        )
+    retained = (derived[0], derived[1], derived[2], derived[4], derived[5])
     return TargetJob(
         target_cell_id=cell_id,
         source_cell_id=source_cell_id,
@@ -207,6 +269,7 @@ def derive_general_job(
     *,
     registry: str,
     source_cell_id: str,
+    runtime: TargetTTRuntime | None = None,
 ) -> TargetJob:
     curve_id = str(instance["curve_id"])
     p = exact_int(instance.get("p"), f"{curve_id}.p", 2)
@@ -216,17 +279,32 @@ def derive_general_job(
         raise ValueError(f"{curve_id} general trace control is malformed")
     target = targets["Q00"]
     projective = tuple(target["projective"])
-    derived = general_basis_coefficients(
-        projective,
-        p,
-        exact_int(control.get("trace_t"), f"{curve_id}.general_trace_control.trace_t"),
-        exact_int(control.get("norm_n"), f"{curve_id}.general_trace_control.norm_n"),
+    trace_t = exact_int(
+        control.get("trace_t"), f"{curve_id}.general_trace_control.trace_t"
+    )
+    norm_n = exact_int(
+        control.get("norm_n"), f"{curve_id}.general_trace_control.norm_n"
     )
     frozen = target.get("general_trace_coefficients")
-    if not isinstance(frozen, list) or tuple(frozen) != derived:
-        raise ValueError(f"{curve_id}.Q00 general coefficients changed")
+    if not isinstance(frozen, list):
+        raise ValueError(f"{curve_id}.Q00 general coefficients are missing")
+    target_cell_id = f"{source_cell_id}:GENERAL_TRACE_Q00"
+    if runtime is None:
+        derived = general_basis_coefficients(projective, p, trace_t, norm_n)
+        if tuple(frozen) != derived:
+            raise ValueError(f"{curve_id}.Q00 general coefficients changed")
+    else:
+        derived = runtime.derive_target_coefficients(
+            label=target_cell_id,
+            kind="general_trace",
+            projective=projective,
+            p=p,
+            norm_n=norm_n,
+            trace_t=trace_t,
+            frozen_coefficients=frozen,
+        )
     return TargetJob(
-        target_cell_id=f"{source_cell_id}:GENERAL_TRACE_Q00",
+        target_cell_id=target_cell_id,
         source_cell_id=source_cell_id,
         curve_id=curve_id,
         registry=registry,
@@ -239,7 +317,9 @@ def derive_general_job(
     )
 
 
-def build_schedule(target: Mapping[str, Any]) -> list[TargetJob]:
+def build_schedule(
+    target: Mapping[str, Any], runtime: TargetTTRuntime | None = None
+) -> list[TargetJob]:
     instances = manifest_instances(target)
     jobs: list[TargetJob] = []
     for curve_id, instance in instances.items():
@@ -252,6 +332,7 @@ def build_schedule(target: Mapping[str, Any]) -> list[TargetJob]:
                         registry=registry,
                         target_name=target_name,
                         source_cell_id=source_cell_id,
+                        runtime=runtime,
                     )
                 )
             jobs.append(
@@ -259,6 +340,7 @@ def build_schedule(target: Mapping[str, Any]) -> list[TargetJob]:
                     instance,
                     registry=registry,
                     source_cell_id=source_cell_id,
+                    runtime=runtime,
                 )
             )
     jobs.append(
@@ -269,6 +351,7 @@ def build_schedule(target: Mapping[str, Any]) -> list[TargetJob]:
             source_cell_id="C08:random_unique:MODEWISE_RESCALED",
             target_cell_id="C08:random_unique:MODEWISE_RESCALED:Q00",
             kind="modewise_rescaled_trace_zero_control",
+            runtime=runtime,
         )
     )
     if len(jobs) != 25 or len({job.target_cell_id for job in jobs}) != 25:
@@ -338,7 +421,7 @@ def compile_targets(
     matrix: Mapping[str, Any],
     *,
     reverse_schedule: bool = False,
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], TargetTTRuntime, str]:
     operation_caps = matrix.get("partition_operation_caps")
     traffic_caps = matrix.get("partition_traffic_caps_words")
     resource_gates = matrix.get("resource_gates")
@@ -352,7 +435,7 @@ def compile_targets(
     advice = bundle["candidate_retained_advice"]
     controls = bundle["candidate_control_certificates"]
     sources = source_tensor_map(runtime, advice, controls)
-    jobs = build_schedule(target)
+    jobs = build_schedule(target, runtime)
     if reverse_schedule:
         jobs.reverse()
     records: list[dict[str, Any]] = []
@@ -366,6 +449,7 @@ def compile_targets(
             job.coefficients,
             label=job.target_cell_id,
         )
+        tensor_record = runtime.target_record(result)
         records.append(
             {
                 "coefficients": list(job.coefficients),
@@ -378,11 +462,18 @@ def compile_targets(
                 "target_cell_id": job.target_cell_id,
                 "target_id": job.target_id,
                 "target_name": job.target_name,
-                "tensor": runtime.target_record(result),
+                "tensor": tensor_record,
             }
         )
-    snapshot = runtime.snapshot()
-    counts = snapshot["counts"]
+        runtime.record_target_disposal(result)
+        del result
+    target_field_words = sum(record["tensor"]["word_count"] for record in records)
+    target_digest = runtime.record_artifact_digest(
+        records,
+        label="target_records",
+        field_words=target_field_words,
+    )
+    counts = runtime.counts
     if counts["target_linear_combinations"] != 25:
         raise AssertionError("target runtime did not execute 25 linear combinations")
     if counts["normalization_calls"] != 25:
@@ -393,7 +484,13 @@ def compile_targets(
         )
     if counts["zero_results"] != 0:
         raise AssertionError("frozen target schedule unexpectedly produced a canonical zero")
-    return records, snapshot
+    if counts["target_coefficient_formations"] != 25:
+        raise AssertionError("target runtime did not meter 25 coefficient formations")
+    if counts["target_disposals"] != 25:
+        raise AssertionError("target runtime did not record 25 target disposals")
+    if counts["artifact_serialization_events"] != 1:
+        raise AssertionError("target runtime did not meter the target-list digest")
+    return records, runtime, target_digest
 
 
 def compile_development(args: argparse.Namespace) -> dict[str, Any]:
@@ -405,8 +502,15 @@ def compile_development(args: argparse.Namespace) -> dict[str, Any]:
     target, matrix, bindings = audit_inputs(
         bundle, target_record, target_bytes, matrix_record, matrix_bytes
     )
-    targets, runtime = compile_targets(bundle, target, matrix)
-    target_digest = artifact_digest(targets)
+    targets, runtime_engine, target_digest = compile_targets(bundle, target, matrix)
+    target_field_words = sum(record["tensor"]["word_count"] for record in targets)
+    runtime_engine.record_output_serialization(
+        label="target_generator_development_result",
+        field_words=target_field_words,
+        size_scan_passes=2,
+        serialization_passes=2,
+    )
+    runtime = runtime_engine.snapshot()
     result = {
         "artifact_freeze_authorized": False,
         "boundary": (
@@ -443,17 +547,25 @@ def compile_development(args: argparse.Namespace) -> dict[str, Any]:
         },
         "targets": targets,
         "timing": {
-            "cpu_ns": time.process_time_ns() - cpu_start,
-            "wall_clock_ns": time.perf_counter_ns() - wall_start,
+            "cpu_ns": 0,
+            "wall_clock_ns": 0,
         },
         "valid": True,
     }
-    for _ in range(3):
-        serialized_bytes = len(canonical_json_bytes(result)) + 1
-        if result["summary"]["serialized_bytes"] == serialized_bytes:
-            break
-        result["summary"]["serialized_bytes"] = serialized_bytes
-    if result["summary"]["serialized_bytes"] > MAX_RAW_RESULT_BYTES:
+    serialized_bytes = stabilize_serialized_size(result)
+    if serialized_bytes > MAX_RAW_RESULT_BYTES:
+        raise ValueError("target raw result exceeds the frozen 256 MiB gate")
+    materialized = canonical_json_bytes(result) + b"\n"
+    if len(materialized) != serialized_bytes:
+        raise AssertionError("target raw result size preflight was not exact")
+    result["runtime"]["resources"]["rss"] = runtime_engine.rss_record()
+    result["timing"] = {
+        "cpu_ns": time.process_time_ns() - cpu_start,
+        "wall_clock_ns": time.perf_counter_ns() - wall_start,
+    }
+    del materialized
+    serialized_bytes = stabilize_serialized_size(result)
+    if serialized_bytes > MAX_RAW_RESULT_BYTES:
         raise ValueError("target raw result exceeds the frozen 256 MiB gate")
     return result
 

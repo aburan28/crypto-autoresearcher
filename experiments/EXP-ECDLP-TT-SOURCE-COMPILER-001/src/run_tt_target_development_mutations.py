@@ -18,6 +18,18 @@ Mutation = Callable[[dict[str, Any]], None]
 
 def rebind_targets(raw: dict[str, Any]) -> None:
     raw["summary"]["targets_sha256"] = verifier.artifact_digest(raw["targets"])
+    payload = verifier.canonical_json_bytes(raw["targets"]) + b"\n"
+    event = next(
+        event
+        for event in raw["runtime"]["events"]
+        if event["kind"] == "target_artifact_serialization"
+        and event["variant"] == "digest"
+    )
+    byte_delta = len(payload) - event["payload_bytes"]
+    event["payload_bytes"] = len(payload)
+    event["digest_sha256"] = verifier.sha256_bytes(payload)
+    event["operation_vector"]["hash_bytes"] += byte_delta
+    raw["runtime"]["operations"]["hash_bytes"] += byte_delta
 
 
 def canonical_raw_bytes(raw: dict[str, Any]) -> bytes:
@@ -118,6 +130,78 @@ def mutate_peak_liveness(raw: dict[str, Any]) -> None:
     raw["runtime"]["resources"]["peak_live_field_words"] = 0
 
 
+def mutate_persistent_target_output(raw: dict[str, Any]) -> None:
+    raw["runtime"]["resources"]["persistent_target_output_words"] = 0
+
+
+def mutate_target_disposal(raw: dict[str, Any]) -> None:
+    event = next(
+        event
+        for event in raw["runtime"]["events"]
+        if event["kind"] == "target_disposal"
+    )
+    event["persistent_target_output_words"] = 0
+
+
+def mutate_coefficient_accounting(raw: dict[str, Any]) -> None:
+    event = next(
+        event
+        for event in raw["runtime"]["events"]
+        if event["kind"] == "target_coefficient_formation"
+    )
+    event["operation_vector"]["muls"] -= 1
+    raw["runtime"]["operations"]["muls"] -= 1
+
+
+def mutate_output_serialization_passes(raw: dict[str, Any]) -> None:
+    event = next(
+        event
+        for event in raw["runtime"]["events"]
+        if event["kind"] == "target_artifact_serialization"
+        and event["variant"] == "output"
+    )
+    event["size_scan_passes"] = 1
+
+
+def mutate_rss_record(raw: dict[str, Any]) -> None:
+    rss = raw["runtime"]["resources"]["rss"]
+    rss["bytes"] = 0
+    rss["raw_ru_maxrss"] = 0
+
+
+def mutate_factor_elimination_forgery(raw: dict[str, Any]) -> None:
+    event = next(
+        event
+        for event in raw["runtime"]["events"]
+        if event["kind"] == "rank_factor"
+        and event["certificate"]["elimination_nonzero_count"] > 0
+    )
+    certificate = event["certificate"]
+    eliminated = certificate["elimination_nonzero_count"]
+    width = certificate["input_shape"][1]
+    certificate["elimination_nonzero_count"] = 0
+    old_hash_bytes = event["operation_vector"]["hash_bytes"]
+    payload = verifier.canonical_json_bytes(certificate)
+    event["factor_digest_sha256"] = verifier.sha256_bytes(payload)
+    event["operation_vector"]["muls"] -= eliminated * width
+    event["operation_vector"]["subs"] -= eliminated * width
+    event["operation_vector"]["reductions"] -= 2 * eliminated * width
+    event["operation_vector"]["hash_bytes"] = len(payload)
+    event["traffic"]["elimination"]["reads"] -= 5 * eliminated * width
+    event["traffic"]["elimination"]["writes"] -= 4 * eliminated * width
+    raw["runtime"]["operations"]["muls"] -= eliminated * width
+    raw["runtime"]["operations"]["subs"] -= eliminated * width
+    raw["runtime"]["operations"]["reductions"] -= 2 * eliminated * width
+    raw["runtime"]["operations"]["hash_bytes"] += len(payload) - old_hash_bytes
+    raw["runtime"]["traffic"]["elimination"]["reads"] -= 5 * eliminated * width
+    raw["runtime"]["traffic"]["elimination"]["writes"] -= 4 * eliminated * width
+    raw["runtime"]["logical_traffic_words"] -= 9 * eliminated * width
+
+
+def mutate_event_stream_order(raw: dict[str, Any]) -> None:
+    raw["runtime"]["events"].sort(key=lambda event: event["kind"])
+
+
 def mutate_target_order(raw: dict[str, Any]) -> None:
     raw["targets"][0], raw["targets"][1] = raw["targets"][1], raw["targets"][0]
     rebind_targets(raw)
@@ -135,10 +219,14 @@ def mutate_claim(raw: dict[str, Any]) -> None:
 
 MUTATIONS: tuple[tuple[str, Mutation, str], ...] = (
     ("coefficient", mutate_coefficient, "changed coefficients"),
-    ("core_with_rebound_digest", mutate_core_with_rebound_digest, "semantic mismatch"),
+    (
+        "core_with_rebound_digest",
+        mutate_core_with_rebound_digest,
+        "differs from numeric replay",
+    ),
     ("rank", mutate_rank, "shape changed"),
     ("source_receipt", mutate_source_receipt, "does not bind source_advice_receipt_sha256"),
-    ("factor_schedule", mutate_factor_schedule, "exact eight-pass schedule"),
+    ("factor_schedule", mutate_factor_schedule, "event stream changed"),
     ("factor_digest_format", mutate_factor_digest_format, "certificate digest mismatch"),
     (
         "operation_total",
@@ -159,6 +247,37 @@ MUTATIONS: tuple[tuple[str, Mutation, str], ...] = (
         "peak_liveness",
         mutate_peak_liveness,
         "resource peak_live_field_words does not match independent replay",
+    ),
+    (
+        "persistent_target_output",
+        mutate_persistent_target_output,
+        "resource persistent_target_output_words does not match independent replay",
+    ),
+    (
+        "target_disposal",
+        mutate_target_disposal,
+        "target disposal event does not match retained output state",
+    ),
+    (
+        "coefficient_accounting",
+        mutate_coefficient_accounting,
+        "operation vector does not match independent replay",
+    ),
+    (
+        "output_serialization_passes",
+        mutate_output_serialization_passes,
+        "target-output serialization event changed",
+    ),
+    ("rss_record", mutate_rss_record, "runtime.resources.rss.bytes"),
+    (
+        "factor_elimination_forgery",
+        mutate_factor_elimination_forgery,
+        "certificate does not match shape replay",
+    ),
+    (
+        "event_stream_order",
+        mutate_event_stream_order,
+        "target runtime event stream changed",
     ),
     ("target_order", mutate_target_order, "tensor name does not match"),
     ("target_count", mutate_target_count, "does not contain 25 target records"),
@@ -182,7 +301,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError("baseline target raw result is not canonical JSON")
     baseline = verifier.verify(verification_args(args, args.raw_result))
     controls: list[dict[str, Any]] = []
-    with tempfile.TemporaryDirectory(prefix="tt-target-mutations-") as temporary:
+    temporary_root = args.temporary_root
+    if temporary_root is not None:
+        temporary_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix="tt-target-mutations-", dir=temporary_root
+    ) as temporary:
         root = Path(temporary)
         for mutation_id, mutation, expected_fragment in MUTATIONS:
             candidate = copy.deepcopy(raw)
@@ -238,6 +362,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--target-manifest", type=Path, required=True)
     parser.add_argument("--execution-matrix", type=Path, required=True)
     parser.add_argument("--raw-result", type=Path, required=True)
+    parser.add_argument("--temporary-root", type=Path)
     return parser.parse_args(argv)
 
 

@@ -11,9 +11,11 @@ def _projective(target: Sequence[int], p: int) -> tuple[int, int, int]:
     if len(target) != 3:
         raise ValueError("target must contain exactly X, Y, Z")
     x, y, z = (int(value) for value in target)
-    if not all(0 <= value < p for value in (x, y, z)):
+    canonical = tuple(value >= 0 and value < p for value in (x, y, z))
+    if not all(canonical):
         raise ValueError("target coordinates must be canonical residues")
-    if x == y == z == 0:
+    zero_coordinates = (x == 0, y == 0, z == 0)
+    if all(zero_coordinates):
         raise ValueError("the all-zero projective tuple is invalid")
     return x, y, z
 

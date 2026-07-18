@@ -171,6 +171,39 @@ class TargetRuntimeTests(unittest.TestCase):
         self.assertEqual(engine.snapshot()["counts"]["normalization_calls"], 1)
         self.assertEqual(engine.snapshot()["counts"]["two_sweep_factorizations"], 0)
 
+    def test_target_coefficient_formation_has_a_disjoint_exact_event(self) -> None:
+        engine = runtime()
+        frozen = (1, 194, 175, 0, 162, 232)
+
+        observed = engine.derive_target_coefficients(
+            label="C08:random_unique:Q00",
+            kind="trace_zero",
+            projective=(142, 114, 1),
+            p=self.p,
+            norm_n=232,
+            frozen_coefficients=frozen,
+        )
+
+        self.assertEqual(observed, frozen)
+        event = engine.snapshot()["events"][0]
+        self.assertEqual(event["kind"], "target_coefficient_formation")
+        self.assertEqual(
+            event["operation_vector"],
+            {
+                "adds": 1,
+                "subs": 2,
+                "muls": 7,
+                "squares": 3,
+                "inversions": 0,
+                "reductions": 8,
+                "comparisons": 17,
+                "hash_bytes": 0,
+                "copied_words": 0,
+            },
+        )
+        self.assertEqual(event["traffic"]["registry_input"]["reads"], 4)
+        self.assertEqual(event["traffic"]["coefficient_input"]["writes"], 6)
+
     def test_noncanonical_source_record_is_rejected(self) -> None:
         producer = runtime()
         tensor = rank_one(producer, "X2", self.left_vectors)

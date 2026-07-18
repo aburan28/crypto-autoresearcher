@@ -85,6 +85,22 @@ class TargetDevelopmentPipelineTests(unittest.TestCase):
             bundle_builder.stable_digest(value),
         )
 
+    def test_exact_json_size_preflight_handles_self_referential_width(self) -> None:
+        value = {
+            "payload": [0, 17, "quoted\"value", {"ascii": True}],
+            "summary": {"serialized_bytes": 0},
+        }
+
+        self.assertEqual(
+            producer.canonical_json_size(value),
+            len(producer.canonical_json_bytes(value)),
+        )
+        expected = producer.stabilize_serialized_size(value)
+        self.assertEqual(
+            expected,
+            len(producer.canonical_json_bytes(value)) + 1,
+        )
+
     def test_development_entrypoints_never_authorize_artifact_freeze(self) -> None:
         entrypoints = (
             "build_tt_source_candidate_bundle.py",

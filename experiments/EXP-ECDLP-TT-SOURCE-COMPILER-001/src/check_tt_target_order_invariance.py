@@ -51,12 +51,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "candidate_control_certificate_sha256": artifact_digest(controls),
         "candidate_retained_advice_sha256": artifact_digest(advice),
     }
-    forward, forward_runtime = compile_targets(
+    forward, forward_engine, _ = compile_targets(
         bundle, target, matrix, reverse_schedule=False
     )
-    reverse, reverse_runtime = compile_targets(
+    reverse, reverse_engine, _ = compile_targets(
         bundle, target, matrix, reverse_schedule=True
     )
+    forward_runtime = forward_engine.snapshot()
+    reverse_runtime = reverse_engine.snapshot()
     source_digests_after = {
         "candidate_control_certificate_sha256": artifact_digest(controls),
         "candidate_retained_advice_sha256": artifact_digest(advice),
@@ -72,8 +74,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             if forward_map[target_id] != reverse_map.get(target_id)
         )
         raise AssertionError(f"target tensors changed under schedule reversal: {changed}")
-    accounting_fields = ("operations", "traffic", "logical_traffic_words")
-    for field in accounting_fields:
+    forward_operations = dict(forward_runtime["operations"])
+    reverse_operations = dict(reverse_runtime["operations"])
+    forward_hash_bytes = forward_operations.pop("hash_bytes")
+    reverse_hash_bytes = reverse_operations.pop("hash_bytes")
+    if forward_operations != reverse_operations:
+        raise AssertionError("target arithmetic changed under schedule reversal")
+    for field in ("traffic", "logical_traffic_words"):
         if forward_runtime[field] != reverse_runtime[field]:
             raise AssertionError(f"target runtime {field} changed under schedule reversal")
     resource_fields = (
@@ -81,8 +88,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "maximum_int64_dot_length",
         "maximum_local_matrix_words",
         "maximum_tt_object_words",
-        "peak_live_field_words",
         "persistent_source_words",
+        "persistent_target_output_words",
     )
     for field in resource_fields:
         if forward_runtime["resources"][field] != reverse_runtime["resources"][field]:
@@ -97,10 +104,20 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "per_target_records_sha256": artifact_digest(forward_map),
         "protocol": PROTOCOL,
         "reverse_order": [record["target_cell_id"] for record in reverse],
+        "schedule_peak_live_field_words": {
+            "forward": forward_runtime["resources"]["peak_live_field_words"],
+            "reverse": reverse_runtime["resources"]["peak_live_field_words"],
+        },
+        "schedule_certificate_hash_bytes": {
+            "forward": forward_hash_bytes,
+            "reverse": reverse_hash_bytes,
+        },
         "schema": "tt-target-order-invariance-development-v1",
         "source_candidate_digests": source_digests_before,
         "summary": {
-            "accounting_equal": True,
+            "arithmetic_and_traffic_equal": True,
+            "schedule_dependent_certificate_bytes_reported": True,
+            "schedule_dependent_peaks_reported": True,
             "source_candidates_unchanged": True,
             "target_records_equal_by_id": 25,
         },

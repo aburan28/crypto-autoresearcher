@@ -396,6 +396,8 @@ class ExpectedTarget:
     target_id: str
     kind: str
     projective: tuple[int, int, int]
+    full_coefficients: tuple[int, ...]
+    coefficient_kind: str
     source_names: tuple[str, ...]
     coefficients: tuple[int, ...]
 
@@ -433,6 +435,8 @@ def expected_schedule(target: Mapping[str, Any]) -> list[ExpectedTarget]:
                         str(row["target_id"]),
                         "trace_zero",
                         projective_value,  # type: ignore[arg-type]
+                        full,
+                        "trace_zero",
                         RETAINED_BASIS,
                         (full[0], full[1], full[2], full[4], full[5]),
                     )
@@ -457,6 +461,8 @@ def expected_schedule(target: Mapping[str, Any]) -> list[ExpectedTarget]:
                     f"{q00['target_id']}-GENERAL-TRACE",
                     "general_trace_control",
                     projective_value,  # type: ignore[arg-type]
+                    full,
+                    "general_trace",
                     SOURCE_BASIS,
                     full,
                 )
@@ -474,6 +480,8 @@ def expected_schedule(target: Mapping[str, Any]) -> list[ExpectedTarget]:
             str(q00["target_id"]),
             "modewise_rescaled_trace_zero_control",
             tuple(q00["projective"]),  # type: ignore[arg-type]
+            full,
+            "trace_zero",
             RETAINED_BASIS,
             (full[0], full[1], full[2], full[4], full[5]),
         )
@@ -642,6 +650,210 @@ def shape_words(shape: Sequence[int]) -> int:
     return words
 
 
+@dataclass
+class ReplayCore:
+    left: int
+    physical: int
+    right: int
+    values: list[int]
+
+    @property
+    def shape(self) -> tuple[int, int, int]:
+        return (self.left, self.physical, self.right)
+
+    @property
+    def words(self) -> int:
+        return len(self.values)
+
+    def at(self, left: int, physical: int, right: int) -> int:
+        return self.values[(left * self.physical + physical) * self.right + right]
+
+    def put(self, left: int, physical: int, right: int, value: int) -> None:
+        self.values[(left * self.physical + physical) * self.right + right] = value
+
+
+@dataclass(frozen=True)
+class RankReplay:
+    left: list[list[int]]
+    right: list[list[int]]
+    pivot_columns: list[int]
+    pivot_rows: list[int]
+    pivot_scan_count: int
+    elimination_scan_count: int
+    elimination_nonzero_count: int
+
+    @property
+    def rank(self) -> int:
+        return len(self.pivot_columns)
+
+
+def replay_direct_sum_cores(
+    tensors: Sequence[Tensor], coefficients: Sequence[int], p: int, B: int
+) -> list[ReplayCore]:
+    active = [
+        (tensor, coefficient % p)
+        for tensor, coefficient in zip(tensors, coefficients)
+        if tensor.tag != "canonical_zero" and coefficient % p != 0
+    ]
+    raw_ranks = tuple(
+        sum(tensor.ranks[cut] for tensor, _ in active) for cut in range(4)
+    )
+    boundaries = (1, *raw_ranks, 1)
+    result = [
+        ReplayCore(
+            boundaries[mode],
+            B,
+            boundaries[mode + 1],
+            [0] * (boundaries[mode] * B * boundaries[mode + 1]),
+        )
+        for mode in range(5)
+    ]
+    left_offsets = [0] * 5
+    right_offsets = [0] * 5
+    for mode, destination in enumerate(result):
+        for tensor, coefficient in active:
+            source = tensor.cores[mode]
+            left_start = 0 if mode == 0 else left_offsets[mode]
+            right_start = 0 if mode == 4 else right_offsets[mode]
+            for left in range(source.left):
+                for physical in range(B):
+                    for right in range(source.right):
+                        value = source.at(left, physical, right)
+                        if mode == 0:
+                            value = coefficient * value % p
+                        destination.put(
+                            left_start + left,
+                            physical,
+                            right_start + right,
+                            value,
+                        )
+            if mode > 0:
+                left_offsets[mode] += source.left
+            if mode < 4:
+                right_offsets[mode] += source.right
+    return result
+
+
+def replay_core_matrix(core: ReplayCore, phase: str) -> list[list[int]]:
+    if phase == "left_sweep":
+        return [
+            [
+                core.at(left, physical, right)
+                for right in range(core.right)
+            ]
+            for left in range(core.left)
+            for physical in range(core.physical)
+        ]
+    if phase == "right_sweep":
+        return [
+            [
+                core.at(left, physical, right)
+                for physical in range(core.physical)
+                for right in range(core.right)
+            ]
+            for left in range(core.left)
+        ]
+    raise AssertionError(f"unknown replay phase {phase!r}")
+
+
+def replay_rank_factor(matrix: Sequence[Sequence[int]], p: int) -> RankReplay:
+    m = len(matrix)
+    n = len(matrix[0]) if m else 0
+    if m == 0 or n == 0 or any(len(row) != n for row in matrix):
+        raise AssertionError("rank replay requires a nonempty rectangular matrix")
+    original = [list(row) for row in matrix]
+    work = [list(row) for row in matrix]
+    pivot_columns: list[int] = []
+    pivot_rows: list[int] = []
+    used_rows: set[int] = set()
+    pivot_scan_count = 0
+    elimination_scan_count = 0
+    elimination_nonzero_count = 0
+    for column in range(n):
+        chosen: int | None = None
+        for row in range(m):
+            if row in used_rows:
+                continue
+            pivot_scan_count += 1
+            if work[row][column] != 0:
+                chosen = row
+                break
+        if chosen is None:
+            continue
+        inverse = pow(work[chosen][column], -1, p)
+        work[chosen] = [value * inverse % p for value in work[chosen]]
+        for row in range(m):
+            if row == chosen:
+                continue
+            elimination_scan_count += 1
+            factor = work[row][column]
+            if factor == 0:
+                continue
+            elimination_nonzero_count += 1
+            work[row] = [
+                (value - factor * pivot_value) % p
+                for value, pivot_value in zip(work[row], work[chosen])
+            ]
+        used_rows.add(chosen)
+        pivot_columns.append(column)
+        pivot_rows.append(chosen)
+    left = [
+        [original[row][column] for column in pivot_columns]
+        for row in range(m)
+    ]
+    right = [work[row][:] for row in pivot_rows]
+    return RankReplay(
+        left,
+        right,
+        pivot_columns,
+        pivot_rows,
+        pivot_scan_count,
+        elimination_scan_count,
+        elimination_nonzero_count,
+    )
+
+
+def replay_matrix_product(
+    left: Sequence[Sequence[int]], right: Sequence[Sequence[int]], p: int
+) -> list[list[int]]:
+    rows = len(left)
+    inner = len(right)
+    columns = len(right[0]) if inner else 0
+    if (
+        rows == 0
+        or inner == 0
+        or columns == 0
+        or any(len(row) != inner for row in left)
+        or any(len(row) != columns for row in right)
+    ):
+        raise AssertionError("matrix replay received incompatible dimensions")
+    return [
+        [
+            sum(left[row][inner_index] * right[inner_index][column] for inner_index in range(inner))
+            % p
+            for column in range(columns)
+        ]
+        for row in range(rows)
+    ]
+
+
+def replay_core_from_matrix(
+    matrix: Sequence[Sequence[int]], shape: tuple[int, int, int]
+) -> ReplayCore:
+    left, physical, right = shape
+    rows = len(matrix)
+    columns = len(matrix[0]) if rows else 0
+    if (rows, columns) not in (
+        (left * physical, right),
+        (left, physical * right),
+    ):
+        raise AssertionError("matrix cannot be reshaped to replay core")
+    values = [value for row in matrix for value in row]
+    if len(values) != left * physical * right:
+        raise AssertionError("replayed core word count changed")
+    return ReplayCore(left, physical, right, values)
+
+
 def audit_runtime(
     raw_runtime: Any,
     matrix: Mapping[str, Any],
@@ -674,7 +886,10 @@ def audit_runtime(
     ):
         raise ValueError("target runtime ledger policy binding changed")
     expected_counts = {
+        "artifact_serialization_events": 2,
         "imported_source_tensors": 41,
+        "target_coefficient_formations": 25,
+        "target_disposals": 25,
         "target_linear_combinations": 25,
         "normalization_calls": 25,
         "two_sweep_factorizations": 200,
@@ -714,17 +929,39 @@ def audit_runtime(
         raise ValueError("target runtime traffic cap exceeded")
     gates = matrix["resource_gates"]
     generator_rss = resources.get("rss")
-    if not isinstance(generator_rss, dict) or exact_int(
-        generator_rss.get("bytes"), "runtime.resources.rss.bytes"
-    ) > gates["peak_rss_bytes"]:
+    if not isinstance(generator_rss, dict):
+        raise ValueError("target generator RSS record is missing")
+    rss_bytes = exact_int(
+        generator_rss.get("bytes"), "runtime.resources.rss.bytes", 1
+    )
+    raw_rss = exact_int(
+        generator_rss.get("raw_ru_maxrss"),
+        "runtime.resources.rss.raw_ru_maxrss",
+        1,
+    )
+    expected_rss_bytes = raw_rss if sys.platform == "darwin" else raw_rss * 1024
+    expected_rss_normalization = (
+        "Darwin ru_maxrss is bytes"
+        if sys.platform == "darwin"
+        else "non-Darwin ru_maxrss is KiB multiplied by 1024"
+    )
+    if (
+        rss_bytes != expected_rss_bytes
+        or generator_rss.get("normalization") != expected_rss_normalization
+    ):
+        raise ValueError("target generator RSS record does not normalize ru_maxrss")
+    if rss_bytes > gates["peak_rss_bytes"]:
         raise ValueError("target generator RSS gate exceeded")
     allowed_kinds = {
         "source_advice_import",
+        "target_coefficient_formation",
         "target_direct_sum",
         "rank_factor",
         "sweep_absorption",
         "target_linear_combination",
         "target_emit",
+        "target_disposal",
+        "target_artifact_serialization",
     }
     if any(not isinstance(event, dict) or event.get("kind") not in allowed_kinds for event in events):
         raise ValueError("target runtime contains an unknown or malformed event")
@@ -744,16 +981,30 @@ def audit_runtime(
     combination_events = [
         event for event in events if event.get("kind") == "target_linear_combination"
     ]
+    coefficient_events = [
+        event for event in events if event.get("kind") == "target_coefficient_formation"
+    ]
+    artifact_events = [
+        event for event in events if event.get("kind") == "target_artifact_serialization"
+    ]
+    disposal_events = [
+        event for event in events if event.get("kind") == "target_disposal"
+    ]
     if (
         len(import_events),
+        len(coefficient_events),
         len(direct_sum_events),
         len(factor_events),
         len(absorption_events),
         len(combination_events),
         len(emit_events),
-    ) != (41, 25, 200, 200, 25, 25):
-        raise ValueError("target runtime event counts do not match 41+25+200+200+25+25")
-    if len(events) != 516:
+        len(disposal_events),
+        len(artifact_events),
+    ) != (41, 25, 25, 200, 200, 25, 25, 25, 2):
+        raise ValueError(
+            "target runtime event counts do not match 41+25+25+200+200+25+25+25+2"
+        )
+    if len(events) != 568:
         raise ValueError("target runtime event stream contains extra events")
 
     replayed_operations = empty_operation_vector()
@@ -766,6 +1017,79 @@ def audit_runtime(
     ]
     if len(expected_imports) != 41:
         raise AssertionError("independent source map does not contain 41 tensors")
+    expected_modes = (
+        ("left_sweep", 0),
+        ("left_sweep", 1),
+        ("left_sweep", 2),
+        ("left_sweep", 3),
+        ("right_sweep", 4),
+        ("right_sweep", 3),
+        ("right_sweep", 2),
+        ("right_sweep", 1),
+    )
+    expected_event_stream: list[tuple[Any, ...]] = [
+        ("source_advice_import", tensor.name) for tensor in expected_imports
+    ]
+    expected_event_stream.extend(
+        ("target_coefficient_formation", expected.target_cell_id)
+        for expected in schedule
+    )
+    for expected in schedule:
+        expected_event_stream.append(("target_direct_sum", expected.target_cell_id))
+        for phase, mode in expected_modes:
+            expected_event_stream.append(
+                ("rank_factor", expected.target_cell_id, phase, mode)
+            )
+            expected_event_stream.append(
+                ("sweep_absorption", expected.target_cell_id, phase, mode)
+            )
+        expected_event_stream.append(
+            ("target_linear_combination", expected.target_cell_id)
+        )
+        expected_event_stream.append(("target_emit", expected.target_cell_id))
+        expected_event_stream.append(("target_disposal", expected.target_cell_id))
+    expected_event_stream.extend(
+        (
+            ("target_artifact_serialization", "digest", "target_records"),
+            (
+                "target_artifact_serialization",
+                "output",
+                "target_generator_development_result",
+            ),
+        )
+    )
+    observed_event_stream: list[tuple[Any, ...]] = []
+    for event in events:
+        kind = event["kind"]
+        if kind == "source_advice_import":
+            observed_event_stream.append((kind, event.get("name")))
+        elif kind in (
+            "target_coefficient_formation",
+            "target_direct_sum",
+            "target_linear_combination",
+            "target_emit",
+            "target_disposal",
+        ):
+            observed_event_stream.append((kind, event.get("label")))
+        elif kind in ("rank_factor", "sweep_absorption"):
+            observed_event_stream.append(
+                (kind, event.get("target_label"), event.get("phase"), event.get("mode"))
+            )
+        else:
+            observed_event_stream.append(
+                (kind, event.get("variant"), event.get("label"))
+            )
+    if observed_event_stream != expected_event_stream:
+        mismatch = next(
+            index
+            for index, pair in enumerate(
+                zip(observed_event_stream, expected_event_stream)
+            )
+            if pair[0] != pair[1]
+        )
+        raise ValueError(
+            f"target runtime event stream changed at position {mismatch}"
+        )
     for index, (event, tensor) in enumerate(zip(import_events, expected_imports)):
         path = f"source_advice_import[{index}]"
         persistent_source_words += tensor.words
@@ -793,11 +1117,49 @@ def audit_runtime(
         for bucket in buckets:
             add_traffic(replayed_traffic, bucket, **expected_traffic[bucket])
 
+    for index, (expected, event) in enumerate(zip(schedule, coefficient_events)):
+        path = f"target_coefficient_formation[{index}]"
+        source_cell = sources[expected.source_cell_id]
+        p = source_cell[expected.source_names[0]].p
+        if (
+            event.get("label") != expected.target_cell_id
+            or event.get("field_modulus") != p
+            or event.get("projective") != list(expected.projective)
+            or event.get("coefficients") != list(expected.full_coefficients)
+            or event.get("target_coefficient_kind") != expected.coefficient_kind
+        ):
+            raise ValueError(f"{path} metadata does not match independent derivation")
+        expected_ops = empty_operation_vector()
+        expected_ops["subs"] = 2
+        expected_ops["squares"] = 3
+        expected_ops["comparisons"] = 17
+        expected_traffic = empty_traffic_vector(buckets)
+        if expected.coefficient_kind == "trace_zero":
+            expected_ops["adds"] = 1
+            expected_ops["muls"] = 7
+            expected_ops["reductions"] = 8
+            registry_reads = 4
+        elif expected.coefficient_kind == "general_trace":
+            expected_ops["adds"] = 4
+            expected_ops["muls"] = 12
+            expected_ops["reductions"] = 10
+            registry_reads = 5
+        else:
+            raise AssertionError("independent target coefficient kind is unknown")
+        add_traffic(expected_traffic, "registry_input", reads=registry_reads)
+        add_traffic(expected_traffic, "coefficient_input", writes=6)
+        require_event_accounting(event, expected_ops, expected_traffic, buckets, path)
+        add_operations(replayed_operations, expected_ops)
+        for bucket in buckets:
+            add_traffic(replayed_traffic, bucket, **expected_traffic[bucket])
+
     target_tensors: list[Tensor] = []
     raw_shapes: list[list[tuple[int, int, int]]] = []
     raw_ranks_by_target: list[tuple[int, int, int, int]] = []
     raw_words_by_target: list[int] = []
     direct_live_by_target: list[int] = []
+    output_words_before_target: list[int] = []
+    persistent_target_output_words = 0
     for index, (expected, row, event) in enumerate(
         zip(schedule, target_rows, direct_sum_events)
     ):
@@ -839,7 +1201,8 @@ def audit_runtime(
             (boundaries[mode], B, boundaries[mode + 1]) for mode in range(5)
         ] if active else []
         raw_words = sum(shape_words(shape) for shape in shapes)
-        predicted_live = persistent_source_words + raw_words
+        output_words_before_target.append(persistent_target_output_words)
+        predicted_live = persistent_source_words + persistent_target_output_words + raw_words
         if (
             event.get("label") != expected.target_cell_id
             or event.get("field_modulus") != p
@@ -866,6 +1229,12 @@ def audit_runtime(
                     writes=words,
                 )
                 if mode == 0 and coefficient != 1:
+                    add_traffic(
+                        expected_traffic,
+                        "direct_sum_copy",
+                        reads=words,
+                        writes=words,
+                    )
                     if coefficient == p - 1:
                         expected_ops["subs"] += words
                     else:
@@ -883,26 +1252,29 @@ def audit_runtime(
         raw_ranks_by_target.append(raw_ranks)
         raw_words_by_target.append(raw_words)
         direct_live_by_target.append(predicted_live)
+        persistent_target_output_words += target_tensor.words
 
-    expected_modes = (
-        ("left_sweep", 0),
-        ("left_sweep", 1),
-        ("left_sweep", 2),
-        ("left_sweep", 3),
-        ("right_sweep", 4),
-        ("right_sweep", 3),
-        ("right_sweep", 2),
-        ("right_sweep", 1),
-    )
     maximum_local_matrix_words = 0
     maximum_int64_dot_length = 0
     maximum_int64_accumulator_bound = 0
     sequential_peak_live_words = persistent_source_words
     for target_index, (expected, target_tensor) in enumerate(zip(schedule, target_tensors)):
+        output_words_before = output_words_before_target[target_index]
+        persistent_words = persistent_source_words + output_words_before
         sequential_peak_live_words = max(
             sequential_peak_live_words, direct_live_by_target[target_index]
         )
-        cores = list(raw_shapes[target_index])
+        source_cell = sources[expected.source_cell_id]
+        source_tensors = [source_cell[name] for name in expected.source_names]
+        replay_cores = replay_direct_sum_cores(
+            source_tensors,
+            expected.coefficients,
+            target_tensor.p,
+            target_tensor.B,
+        )
+        cores = [core.shape for core in replay_cores]
+        if cores != raw_shapes[target_index]:
+            raise AssertionError("numeric direct-sum replay changed raw TT shapes")
         target_factors = factor_events[target_index * 8 : (target_index + 1) * 8]
         target_absorptions = absorption_events[target_index * 8 : (target_index + 1) * 8]
         observed_factor_schedule = tuple(
@@ -935,59 +1307,26 @@ def audit_runtime(
                 m, n = left_rank * B, right_rank
             else:
                 m, n = left_rank, B * right_rank
-            rank = exact_int(factor.get("rank"), f"{factor_path}.rank", 1)
-            if rank > min(m, n):
-                raise ValueError(f"{factor_path} rank exceeds its matrix dimensions")
-            pivot_columns_value = factor.get("pivot_columns")
-            pivot_rows_value = factor.get("pivot_rows")
-            if not isinstance(pivot_columns_value, list) or not isinstance(pivot_rows_value, list):
-                raise ValueError(f"{factor_path} pivot certificate is malformed")
-            pivot_columns = [
-                exact_int(value, f"{factor_path}.pivot_columns", 0)
-                for value in pivot_columns_value
-            ]
-            pivot_rows = [
-                exact_int(value, f"{factor_path}.pivot_rows", 0)
-                for value in pivot_rows_value
-            ]
-            if (
-                len(pivot_columns) != rank
-                or len(pivot_rows) != rank
-                or pivot_columns != sorted(set(pivot_columns))
-                or len(set(pivot_rows)) != rank
-                or any(column >= n for column in pivot_columns)
-                or any(row >= m for row in pivot_rows)
-            ):
-                raise ValueError(f"{factor_path} pivot certificate violates rank bounds")
-            pivot_by_column = dict(zip(pivot_columns, pivot_rows))
-            used_rows: set[int] = set()
-            pivot_scan_count = 0
-            for column in range(n):
-                if column in pivot_by_column:
-                    chosen = pivot_by_column[column]
-                    if chosen in used_rows:
-                        raise ValueError(f"{factor_path} reuses a pivot row")
-                    pivot_scan_count += sum(
-                        row not in used_rows for row in range(chosen + 1)
-                    )
-                    used_rows.add(chosen)
-                else:
-                    pivot_scan_count += m - len(used_rows)
-            elimination_scan_count = rank * (m - 1)
+            matrix = replay_core_matrix(replay_cores[mode], phase)
+            if (len(matrix), len(matrix[0])) != (m, n):
+                raise AssertionError("numeric factor replay changed its matrix shape")
+            rank_replay = replay_rank_factor(matrix, p)
+            rank = rank_replay.rank
+            if rank < 1:
+                raise ValueError(f"{factor_path} unexpectedly has rank zero")
+            pivot_columns = rank_replay.pivot_columns
+            pivot_rows = rank_replay.pivot_rows
+            pivot_scan_count = rank_replay.pivot_scan_count
+            elimination_scan_count = rank_replay.elimination_scan_count
+            elimination_nonzero_count = rank_replay.elimination_nonzero_count
             certificate = factor.get("certificate")
             if not isinstance(certificate, dict):
                 raise ValueError(f"{factor_path} certificate is missing")
-            elimination_nonzero_count = exact_int(
-                certificate.get("elimination_nonzero_count"),
-                f"{factor_path}.certificate.elimination_nonzero_count",
-            )
-            if elimination_nonzero_count > elimination_scan_count:
-                raise ValueError(f"{factor_path} elimination count exceeds its scan count")
             matrix_words = m * n
             maximum_rank = min(m, n)
             maximum_factor_words = m * maximum_rank + maximum_rank * n
             predicted_factor_live = (
-                persistent_source_words
+                persistent_words
                 + current_tt_words
                 + matrix_words
                 + n
@@ -1053,14 +1392,14 @@ def audit_runtime(
             add_traffic(
                 expected_traffic,
                 "row_normalization",
-                reads=rank * n,
-                writes=rank * n,
+                reads=2 * rank * n,
+                writes=2 * rank * n,
             )
             add_traffic(
                 expected_traffic,
                 "elimination",
-                reads=elimination_scan_count + 3 * elimination_nonzero_count * n,
-                writes=2 * elimination_nonzero_count * n,
+                reads=elimination_scan_count + 5 * elimination_nonzero_count * n,
+                writes=4 * elimination_nonzero_count * n,
             )
             add_traffic(
                 expected_traffic,
@@ -1084,6 +1423,9 @@ def audit_runtime(
             if absorption.get("target_label") != expected.target_cell_id:
                 raise ValueError(f"{absorption_path} has an unknown target label")
             if phase == "left_sweep":
+                replay_cores[mode] = replay_core_from_matrix(
+                    rank_replay.left, (left_rank, B, rank)
+                )
                 cores[mode] = (left_rank, B, rank)
                 neighbor_right = cores[mode + 1][2]
                 current_after_factor = sum(shape_words(shape) for shape in cores)
@@ -1091,8 +1433,20 @@ def audit_runtime(
                 right_shape = (right_rank, B * neighbor_right)
                 output_shape = (rank, B * neighbor_right)
                 transient_words = matrix_words + rank * n
+                neighbor_matrix = replay_core_matrix(
+                    replay_cores[mode + 1], "right_sweep"
+                )
+                absorption_output = replay_matrix_product(
+                    rank_replay.right, neighbor_matrix, p
+                )
+                replay_cores[mode + 1] = replay_core_from_matrix(
+                    absorption_output, (rank, B, neighbor_right)
+                )
                 cores[mode + 1] = (rank, B, neighbor_right)
             else:
+                replay_cores[mode] = replay_core_from_matrix(
+                    rank_replay.right, (rank, B, right_rank)
+                )
                 cores[mode] = (rank, B, right_rank)
                 neighbor_left = cores[mode - 1][0]
                 current_after_factor = sum(shape_words(shape) for shape in cores)
@@ -1100,12 +1454,21 @@ def audit_runtime(
                 right_shape = (left_rank, rank)
                 output_shape = (neighbor_left * B, rank)
                 transient_words = matrix_words + m * rank
+                neighbor_matrix = replay_core_matrix(
+                    replay_cores[mode - 1], "left_sweep"
+                )
+                absorption_output = replay_matrix_product(
+                    neighbor_matrix, rank_replay.left, p
+                )
+                replay_cores[mode - 1] = replay_core_from_matrix(
+                    absorption_output, (neighbor_left, B, rank)
+                )
                 cores[mode - 1] = (neighbor_left, B, rank)
             inner = left_shape[1]
             products = left_shape[0] * inner * right_shape[1]
             output_words = shape_words(output_shape)
             predicted_absorption_live = (
-                persistent_source_words
+                persistent_words
                 + current_after_factor
                 + transient_words
                 + output_words
@@ -1132,8 +1495,8 @@ def audit_runtime(
             add_traffic(
                 expected_traffic,
                 "sweep_absorption",
-                reads=2 * products,
-                writes=output_words,
+                reads=2 * products + output_words,
+                writes=2 * output_words,
             )
             add_traffic(
                 expected_traffic,
@@ -1158,20 +1521,29 @@ def audit_runtime(
             peak_live_field_words = max(
                 peak_live_field_words,
                 predicted_absorption_live,
-                persistent_source_words + sum(shape_words(shape) for shape in cores),
+                persistent_words + sum(shape_words(shape) for shape in cores),
             )
             sequential_peak_live_words = max(
                 sequential_peak_live_words,
                 predicted_absorption_live,
-                persistent_source_words + sum(shape_words(shape) for shape in cores),
+                persistent_words + sum(shape_words(shape) for shape in cores),
             )
         if cores != tensor_shapes(target_tensor):
             raise ValueError(
                 f"target {expected.target_cell_id} final TT shapes do not match replay"
             )
+        for mode, (replayed_core, observed_core) in enumerate(
+            zip(replay_cores, target_tensor.cores)
+        ):
+            if (
+                replayed_core.shape
+                != (observed_core.left, observed_core.physical, observed_core.right)
+                or tuple(replayed_core.values) != observed_core.values
+            ):
+                raise ValueError(
+                    f"target {expected.target_cell_id} core {mode} differs from numeric replay"
+                )
         combination = combination_events[target_index]
-        if "operation_vector" in combination or "traffic" in combination:
-            raise ValueError("target combination metadata unexpectedly carries accounting")
         if (
             combination.get("label") != expected.target_cell_id
             or combination.get("coefficients")
@@ -1187,17 +1559,32 @@ def audit_runtime(
                 f"{expected.target_cell_id}: expected peak {sequential_peak_live_words}, "
                 f"observed {combination.get('predicted_live_field_words')}"
             )
+        expected_ops = empty_operation_vector()
+        expected_traffic = empty_traffic_vector(buckets)
+        require_event_accounting(
+            combination,
+            expected_ops,
+            expected_traffic,
+            buckets,
+            f"target_linear_combination[{target_index}]",
+        )
 
         emit = emit_events[target_index]
         emit_path = f"target_emit[{target_index}]"
         canonical = target_tensor.canonical_record()
         payload = canonical_json_bytes(canonical) + b"\n"
         digest = sha256_bytes(payload)
+        output_words_after = output_words_before + target_tensor.words
+        predicted_emit_live = (
+            persistent_source_words + output_words_after + target_tensor.words
+        )
         if (
             emit.get("label") != expected.target_cell_id
             or emit.get("words") != target_tensor.words
             or emit.get("payload_bytes") != len(payload)
             or emit.get("core_digest_sha256") != digest
+            or emit.get("persistent_target_output_words") != output_words_after
+            or emit.get("predicted_live_field_words") != predicted_emit_live
         ):
             raise ValueError(f"{emit_path} metadata does not match target tensor")
         expected_ops = empty_operation_vector()
@@ -1216,6 +1603,84 @@ def audit_runtime(
         for bucket in buckets:
             add_traffic(replayed_traffic, bucket, **expected_traffic[bucket])
         maximum_tt_object_words = max(maximum_tt_object_words, target_tensor.words)
+        peak_live_field_words = max(peak_live_field_words, predicted_emit_live)
+        sequential_peak_live_words = max(
+            sequential_peak_live_words, predicted_emit_live
+        )
+
+        disposal = disposal_events[target_index]
+        predicted_disposal_live = persistent_source_words + output_words_after
+        if (
+            disposal.get("label") != expected.target_cell_id
+            or disposal.get("words") != target_tensor.words
+            or disposal.get("persistent_target_output_words") != output_words_after
+            or disposal.get("predicted_live_field_words") != predicted_disposal_live
+        ):
+            raise ValueError("target disposal event does not match retained output state")
+        expected_ops = empty_operation_vector()
+        expected_traffic = empty_traffic_vector(buckets)
+        require_event_accounting(
+            disposal,
+            expected_ops,
+            expected_traffic,
+            buckets,
+            f"target_disposal[{target_index}]",
+        )
+
+    target_field_words = sum(tensor.words for tensor in target_tensors)
+    target_payload = canonical_json_bytes(target_rows) + b"\n"
+    target_digest = sha256_bytes(target_payload)
+    digest_event, output_event = artifact_events
+    if (
+        digest_event.get("variant") != "digest"
+        or digest_event.get("label") != "target_records"
+        or digest_event.get("field_words") != target_field_words
+        or digest_event.get("payload_bytes") != len(target_payload)
+        or digest_event.get("digest_sha256") != target_digest
+        or digest_event.get("size_scan_passes") != 0
+        or digest_event.get("serialization_passes") != 1
+    ):
+        raise ValueError("target-record digest event does not match independent replay")
+    expected_ops = empty_operation_vector()
+    expected_ops["hash_bytes"] = len(target_payload)
+    expected_ops["copied_words"] = target_field_words
+    expected_traffic = empty_traffic_vector(buckets)
+    add_traffic(expected_traffic, "artifact_serialize", reads=target_field_words)
+    require_event_accounting(
+        digest_event,
+        expected_ops,
+        expected_traffic,
+        buckets,
+        "target_artifact_serialization[digest]",
+    )
+    add_operations(replayed_operations, expected_ops)
+    for bucket in buckets:
+        add_traffic(replayed_traffic, bucket, **expected_traffic[bucket])
+
+    if (
+        output_event.get("variant") != "output"
+        or output_event.get("label") != "target_generator_development_result"
+        or output_event.get("field_words") != target_field_words
+        or output_event.get("size_scan_passes") != 2
+        or output_event.get("serialization_passes") != 2
+        or "digest_sha256" in output_event
+        or "payload_bytes" in output_event
+    ):
+        raise ValueError("target-output serialization event changed")
+    expected_ops = empty_operation_vector()
+    expected_ops["copied_words"] = 2 * target_field_words
+    expected_traffic = empty_traffic_vector(buckets)
+    add_traffic(expected_traffic, "artifact_serialize", reads=4 * target_field_words)
+    require_event_accounting(
+        output_event,
+        expected_ops,
+        expected_traffic,
+        buckets,
+        "target_artifact_serialization[output]",
+    )
+    add_operations(replayed_operations, expected_ops)
+    for bucket in buckets:
+        add_traffic(replayed_traffic, bucket, **expected_traffic[bucket])
 
     if replayed_operations != parsed_operations or replayed_traffic != parsed_traffic:
         raise ValueError(
@@ -1228,6 +1693,7 @@ def audit_runtime(
         "maximum_int64_dot_length": maximum_int64_dot_length,
         "maximum_int64_accumulator_bound": maximum_int64_accumulator_bound,
         "persistent_source_words": persistent_source_words,
+        "persistent_target_output_words": persistent_target_output_words,
     }
     for key, expected_value in replayed_resources.items():
         observed = exact_int(resources.get(key), f"runtime.resources.{key}")
@@ -1248,7 +1714,10 @@ def audit_runtime(
     return {
         "absorption_events": 200,
         "advice_import_events": 41,
+        "artifact_serialization_events": 2,
+        "coefficient_formation_events": 25,
         "direct_sum_events": 25,
+        "disposal_events": 25,
         "emit_events": 25,
         "factor_events": 200,
         "linear_combination_events": 25,
@@ -1437,7 +1906,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
                 cut,
                 tensor.p,
                 meter,
-                local_tensor_words=tensor.words,
+                local_tensor_words=tensor.words + len(expected_values),
             )
             for cut in range(1, 5)
         )

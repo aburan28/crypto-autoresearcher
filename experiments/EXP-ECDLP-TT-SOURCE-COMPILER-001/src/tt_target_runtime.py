@@ -17,6 +17,8 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 
+from tt_target_coefficients import general_basis_coefficients, trace_zero_coefficients
+
 
 OPERATION_KEYS = (
     "adds",
@@ -181,7 +183,10 @@ class TargetTTRuntime:
         self.traffic = _empty_traffic()
         self.events: list[dict[str, Any]] = []
         self.counts = {
+            "artifact_serialization_events": 0,
             "imported_source_tensors": 0,
+            "target_coefficient_formations": 0,
+            "target_disposals": 0,
             "target_linear_combinations": 0,
             "normalization_calls": 0,
             "two_sweep_factorizations": 0,
@@ -194,6 +199,7 @@ class TargetTTRuntime:
         self.maximum_int64_accumulator_bound = 0
         self.peak_live_field_words = 0
         self.persistent_source_words = 0
+        self.persistent_target_output_words = 0
         self.first_refusal: dict[str, Any] | None = None
 
     @property
@@ -202,6 +208,10 @@ class TargetTTRuntime:
             int(row["reads"]) + int(row["writes"])
             for row in self.traffic.values()
         )
+
+    @property
+    def persistent_field_words(self) -> int:
+        return self.persistent_source_words + self.persistent_target_output_words
 
     def _refuse(self, reason: str, detail: Mapping[str, Any]) -> None:
         if self.first_refusal is None:
@@ -491,7 +501,7 @@ class TargetTTRuntime:
         maximum_rank = min(m, n)
         maximum_factor_words = m * maximum_rank + maximum_rank * n
         predicted_live = (
-            self.persistent_source_words
+            self.persistent_field_words
             + current_tt_words
             + words
             + n
@@ -525,7 +535,7 @@ class TargetTTRuntime:
             inverse = pow(pivot, -1, p)
             self._charge(inversions=1, reductions=1, comparisons=1)
             self._charge(muls=n, reductions=n)
-            self._charge_traffic("row_normalization", reads=n, writes=n)
+            self._charge_traffic("row_normalization", reads=2 * n, writes=2 * n)
             np.multiply(work[chosen, :], inverse, out=work[chosen, :])
             np.remainder(work[chosen, :], p, out=work[chosen, :])
             for row in range(m):
@@ -539,7 +549,7 @@ class TargetTTRuntime:
                     continue
                 elimination_nonzero_count += 1
                 self._charge(muls=n, subs=n, reductions=2 * n)
-                self._charge_traffic("elimination", reads=3 * n, writes=2 * n)
+                self._charge_traffic("elimination", reads=5 * n, writes=4 * n)
                 np.multiply(work[chosen, :], factor, out=row_temp)
                 np.remainder(row_temp, p, out=row_temp)
                 np.subtract(work[row, :], row_temp, out=work[row, :])
@@ -633,7 +643,7 @@ class TargetTTRuntime:
         ):
             self._refuse("maximum_int64_accumulator_bound", {"bound": bound})
         predicted_live = (
-            self.persistent_source_words
+            self.persistent_field_words
             + current_tt_words
             + transient_words
             + output_words
@@ -647,7 +657,11 @@ class TargetTTRuntime:
             reductions=output_words,
             comparisons=4,
         )
-        self._charge_traffic("sweep_absorption", reads=2 * products, writes=output_words)
+        self._charge_traffic(
+            "sweep_absorption",
+            reads=2 * products + output_words,
+            writes=2 * output_words,
+        )
         output = np.matmul(left, right)
         np.remainder(output, p, out=output)
         self._assert_canonical_array(output, p, "sweep output")
@@ -686,7 +700,7 @@ class TargetTTRuntime:
             return self.zero_tensor(name=label, p=p, B=B)
         live_words = sum(int(core.size) for core in mutable)
         self._observe_live_words(
-            self.persistent_source_words + live_words,
+            self.persistent_field_words + live_words,
             f"{label}:target_normalization_input",
         )
         for mode in range(4):
@@ -719,7 +733,7 @@ class TargetTTRuntime:
                 mode=mode,
             ).reshape(rank, B, neighbor_right)
             self._observe_live_words(
-                self.persistent_source_words + sum(int(core.size) for core in mutable),
+                self.persistent_field_words + sum(int(core.size) for core in mutable),
                 f"{label}:left_sweep",
             )
             del matrix, left, right, neighbor
@@ -753,7 +767,7 @@ class TargetTTRuntime:
                 mode=mode,
             ).reshape(neighbor_left, B, rank)
             self._observe_live_words(
-                self.persistent_source_words + sum(int(core.size) for core in mutable),
+                self.persistent_field_words + sum(int(core.size) for core in mutable),
                 f"{label}:right_sweep",
             )
             del matrix, left, right, neighbor
@@ -808,7 +822,7 @@ class TargetTTRuntime:
                     "label": label,
                     "operation_vector": self._operation_delta(before_operations),
                     "physical_mode_size": B,
-                    "predicted_live_field_words": self.persistent_source_words,
+                    "predicted_live_field_words": self.persistent_field_words,
                     "raw_ranks": [0, 0, 0, 0],
                     "raw_words": 0,
                     "source_terms": term_records,
@@ -822,7 +836,9 @@ class TargetTTRuntime:
                     "coefficients": list(normalized_coefficients),
                     "raw_ranks": [0, 0, 0, 0],
                     "output_ranks": [0, 0, 0, 0],
-                    "predicted_live_field_words": self.persistent_source_words,
+                    "predicted_live_field_words": self.persistent_field_words,
+                    "operation_vector": _empty_operations(),
+                    "traffic": _empty_traffic(),
                 }
             )
             return result
@@ -835,7 +851,7 @@ class TargetTTRuntime:
         ]
         raw_words = sum(int(np.prod(shape, dtype=np.int64)) for shape in shapes)
         self._check_tt_words(raw_words, f"{label}:raw")
-        predicted_direct_sum_live = self.persistent_source_words + raw_words
+        predicted_direct_sum_live = self.persistent_field_words + raw_words
         self._observe_live_words(
             predicted_direct_sum_live, f"{label}:target_direct_sum_preallocation"
         )
@@ -866,8 +882,11 @@ class TargetTTRuntime:
                 else:
                     self._charge(copied_words=2 * int(source.size))
                     destination[...] = source
+                passes = 2 if mode == 0 and coefficient != 1 else 1
                 self._charge_traffic(
-                    "direct_sum_copy", reads=int(source.size), writes=int(source.size)
+                    "direct_sum_copy",
+                    reads=passes * int(source.size),
+                    writes=passes * int(source.size),
                 )
                 if mode > 0:
                     left_offsets[mode] += int(left_size)
@@ -897,15 +916,162 @@ class TargetTTRuntime:
                 "raw_words": raw_words,
                 "output_ranks": list(result.ranks),
                 "predicted_live_field_words": self.peak_live_field_words,
+                "operation_vector": _empty_operations(),
+                "traffic": _empty_traffic(),
             }
         )
         return result
+
+    def derive_target_coefficients(
+        self,
+        *,
+        label: str,
+        kind: str,
+        projective: Sequence[int],
+        p: int,
+        norm_n: int,
+        frozen_coefficients: Sequence[int],
+        trace_t: int | None = None,
+    ) -> tuple[int, int, int, int, int, int]:
+        """Derive and meter one frozen six-term target coefficient vector."""
+
+        before_operations = dict(self.operations)
+        before_traffic = self._traffic_snapshot(self.traffic)
+        if kind == "trace_zero":
+            expected_operations = {
+                "adds": 1,
+                "subs": 2,
+                "muls": 7,
+                "squares": 3,
+                "reductions": 8,
+                "comparisons": 17,
+            }
+            registry_reads = 4
+        elif kind == "general_trace":
+            if trace_t is None:
+                raise ValueError("general-trace coefficient formation requires trace_t")
+            expected_operations = {
+                "adds": 4,
+                "subs": 2,
+                "muls": 12,
+                "squares": 3,
+                "reductions": 10,
+                "comparisons": 17,
+            }
+            registry_reads = 5
+        else:
+            raise ValueError(f"unknown target coefficient kind {kind!r}")
+        self._charge(**expected_operations)
+        self._charge_traffic("registry_input", reads=registry_reads)
+        self._charge_traffic("coefficient_input", writes=6)
+        if kind == "trace_zero":
+            coefficients = trace_zero_coefficients(projective, p, norm_n)
+        else:
+            coefficients = general_basis_coefficients(
+                projective, p, int(trace_t), norm_n
+            )
+        if len(frozen_coefficients) != 6:
+            raise ValueError("frozen target coefficient vector must have six entries")
+        mismatch = False
+        for observed, frozen in zip(coefficients, frozen_coefficients):
+            if observed != frozen:
+                mismatch = True
+        if mismatch:
+            raise ValueError(f"{label} frozen target coefficients changed")
+        self.counts["target_coefficient_formations"] += 1
+        self.events.append(
+            {
+                "coefficients": list(coefficients),
+                "field_modulus": p,
+                "kind": "target_coefficient_formation",
+                "label": label,
+                "operation_vector": self._operation_delta(before_operations),
+                "projective": list(projective),
+                "target_coefficient_kind": kind,
+                "traffic": self._traffic_delta(before_traffic),
+            }
+        )
+        return coefficients
+
+    def record_artifact_digest(
+        self,
+        value: Any,
+        *,
+        label: str,
+        field_words: int,
+    ) -> str:
+        """Serialize and hash one target artifact with a disjoint event."""
+
+        field_words = _exact_int(field_words, "artifact.field_words", 0)
+        payload = canonical_json_bytes(value) + b"\n"
+        before_operations = dict(self.operations)
+        before_traffic = self._traffic_snapshot(self.traffic)
+        self._charge(copied_words=field_words, hash_bytes=len(payload))
+        self._charge_traffic("artifact_serialize", reads=field_words)
+        digest = hashlib.sha256(payload).hexdigest()
+        self.counts["artifact_serialization_events"] += 1
+        self.events.append(
+            {
+                "digest_sha256": digest,
+                "field_words": field_words,
+                "kind": "target_artifact_serialization",
+                "label": label,
+                "operation_vector": self._operation_delta(before_operations),
+                "payload_bytes": len(payload),
+                "serialization_passes": 1,
+                "size_scan_passes": 0,
+                "traffic": self._traffic_delta(before_traffic),
+                "variant": "digest",
+            }
+        )
+        return digest
+
+    def record_output_serialization(
+        self,
+        *,
+        label: str,
+        field_words: int,
+        size_scan_passes: int,
+        serialization_passes: int,
+    ) -> None:
+        """Precharge deterministic size scans and full output serializations."""
+
+        field_words = _exact_int(field_words, "output.field_words", 0)
+        size_scan_passes = _exact_int(
+            size_scan_passes, "output.size_scan_passes", 0
+        )
+        serialization_passes = _exact_int(
+            serialization_passes, "output.serialization_passes", 0
+        )
+        before_operations = dict(self.operations)
+        before_traffic = self._traffic_snapshot(self.traffic)
+        self._charge(copied_words=serialization_passes * field_words)
+        self._charge_traffic(
+            "artifact_serialize",
+            reads=(size_scan_passes + serialization_passes) * field_words,
+        )
+        self.counts["artifact_serialization_events"] += 1
+        self.events.append(
+            {
+                "field_words": field_words,
+                "kind": "target_artifact_serialization",
+                "label": label,
+                "operation_vector": self._operation_delta(before_operations),
+                "serialization_passes": serialization_passes,
+                "size_scan_passes": size_scan_passes,
+                "traffic": self._traffic_delta(before_traffic),
+                "variant": "output",
+            }
+        )
 
     def target_record(self, tensor: Tensor) -> dict[str, Any]:
         """Serialize one target tensor with a disjoint accounting event."""
 
         before_operations = dict(self.operations)
         before_traffic = self._traffic_snapshot(self.traffic)
+        candidate_output_words = self.persistent_target_output_words + tensor.words
+        predicted_live = self.persistent_source_words + candidate_output_words + tensor.words
+        self._observe_live_words(predicted_live, f"{tensor.name}:target_emit")
         self._charge(copied_words=2 * tensor.words)
         self._charge_traffic(
             "target_emit", reads=tensor.words, writes=tensor.words
@@ -919,18 +1085,37 @@ class TargetTTRuntime:
             "core_digest_sha256": digest,
             "word_count": tensor.words,
         }
+        self.persistent_target_output_words = candidate_output_words
         self.events.append(
             {
                 "core_digest_sha256": digest,
                 "kind": "target_emit",
                 "label": tensor.name,
                 "operation_vector": self._operation_delta(before_operations),
+                "persistent_target_output_words": self.persistent_target_output_words,
+                "predicted_live_field_words": predicted_live,
                 "traffic": self._traffic_delta(before_traffic),
                 "payload_bytes": len(payload),
                 "words": tensor.words,
             }
         )
         return record
+
+    def record_target_disposal(self, tensor: Tensor) -> None:
+        """Record release of target arrays after their canonical record is retained."""
+
+        self.counts["target_disposals"] += 1
+        self.events.append(
+            {
+                "kind": "target_disposal",
+                "label": tensor.name,
+                "operation_vector": _empty_operations(),
+                "persistent_target_output_words": self.persistent_target_output_words,
+                "predicted_live_field_words": self.persistent_field_words,
+                "traffic": _empty_traffic(),
+                "words": tensor.words,
+            }
+        )
 
     def evaluate(self, tensor: Tensor, indices: Sequence[int]) -> int:
         if len(indices) != 5:
@@ -956,7 +1141,7 @@ class TargetTTRuntime:
             raise AssertionError("TT evaluation did not reach a scalar")
         return int(accumulator[0])
 
-    def snapshot(self) -> dict[str, Any]:
+    def rss_record(self) -> dict[str, Any]:
         raw_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         rss_bytes = int(raw_rss) if sys.platform == "darwin" else int(raw_rss) * 1024
         if rss_bytes > self.resource_gates["peak_rss_bytes"]:
@@ -967,6 +1152,17 @@ class TargetTTRuntime:
                     "cap": self.resource_gates["peak_rss_bytes"],
                 },
             )
+        return {
+            "bytes": rss_bytes,
+            "raw_ru_maxrss": int(raw_rss),
+            "normalization": (
+                "Darwin ru_maxrss is bytes"
+                if sys.platform == "darwin"
+                else "non-Darwin ru_maxrss is KiB multiplied by 1024"
+            ),
+        }
+
+    def snapshot(self) -> dict[str, Any]:
         return {
             "schema": "tt-target-runtime-ledger-v1",
             "operation_vector_order": list(OPERATION_KEYS),
@@ -984,15 +1180,8 @@ class TargetTTRuntime:
                 "maximum_int64_accumulator_bound": self.maximum_int64_accumulator_bound,
                 "peak_live_field_words": self.peak_live_field_words,
                 "persistent_source_words": self.persistent_source_words,
-                "rss": {
-                    "bytes": rss_bytes,
-                    "raw_ru_maxrss": int(raw_rss),
-                    "normalization": (
-                        "Darwin ru_maxrss is bytes"
-                        if sys.platform == "darwin"
-                        else "non-Darwin ru_maxrss is KiB multiplied by 1024"
-                    ),
-                },
+                "persistent_target_output_words": self.persistent_target_output_words,
+                "rss": self.rss_record(),
             },
             "first_refusal": self.first_refusal,
         }
