@@ -1,0 +1,113 @@
+experiment:
+  id: EXP-RHO-001
+  hypothesis_id: H-RHO-001
+  version: 1
+  title: >-
+    Generic prime-field full-state r-adding/DP co-design: charged useful
+    collision cost versus conventional rho and random-mapping controls.
+  status: review_required
+  objective: >-
+    Decide whether the candidate has a reproducible >=5% fully charged
+    useful-collision advantage without a walk-quality or correctness regression.
+  inputs:
+    curves: >-
+      Generated ordinary prime-field curves with prime order N near 2^20, 2^24,
+      and 2^28; record p,a,b,N,j and eligibility certificates for every cell.
+    targets: >-
+      96 uniform known scalars per curve and arm, generated only after the
+      public partition key and r-adding table are frozen.
+    baseline_artifacts:
+      - inputs/h100_session/h039_walk_corr.json
+      - inputs/h100_session/h040_rho_const.json
+      - inputs/h100_session/h041_xonly_walk.json
+  controls:
+    - Conventional full-state keyed r=20 walk on identical points, targets, DP density, backend, and workers.
+    - DP-matched random-mapping simulator, used only to form collision/DP distribution bands.
+    - Deliberately imbalanced partition arm, expected to fail the quality or useful-collision gate.
+    - x-only state arm reproducing the H041 failure mode at the smallest scale; it can never satisfy the candidate gate.
+    - Optional negation-folded arm, reported separately as a known constant factor and excluded from the candidate comparison.
+  independent_variables:
+    - subgroup scale N near 2^20, 2^24, 2^28
+    - three independently generated eligible curves per scale
+    - partition arm: baseline vs candidate r=16 vs candidate r=32
+    - DP density: 10, 12, 14 leading-zero bits
+    - 96 paired target seeds per curve/arm
+  metrics:
+    primary:
+      - >-
+        Fully charged point-operation-equivalents per useful scalar-verified
+        collision, including table setup amortized over exactly one target,
+        walk operations, partition/DP operations under three fixed weight
+        profiles, storage/lookups, rejection/escape, and final verification.
+      - Paired candidate/baseline geometric-mean ratio and stratified bootstrap 95% CI by curve and target seed.
+    secondary:
+      - normalized first-collision length / sqrt(N)
+      - useful and rejected collision fractions; fruitless-cycle escape rate
+      - partition occupancy chi-square and autocorrelation through lag 32
+      - DP insert, duplicate, lookup, and storage counts
+      - wall time and peak RSS, reported but never substituted for charged work
+  replication:
+    seeds: [2026071801, 2026071802, 2026071803]
+    independent_instances: 9
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 36
+    maximum_memory_gb: 4
+    maximum_runs: 5184
+  stopping_rules:
+    - Stop an arm at a scale after two complete curves fail the quality or effect-size gate; preserve every receipt.
+    - Timeout, crash, or resource exhaustion is failed infrastructure, not mathematical falsification.
+    - Do not launch hardware work unless all scales pass portable quality and an independent reviewer accepts the receipt set.
+  invalidation_rules:
+    - A scalar recovery with Q != [k]P invalidates the target and triggers a builder audit.
+    - j=0, j=1728, composite subgroup order, GLV/GLS, automorphism folding, or coordinate-only state invalidates the generic arm.
+    - Unmatched target, DP density, workers, point representation, or operation-weight profile invalidates a paired comparison.
+    - Missing setup, DP, rejection, escape, or verification counters invalidates the primary metric.
+  success_criterion: >-
+    Pooled paired 95% CI below 0.95 and each scale's upper bound below 1.00,
+    all quality metrics inside frozen control bands, and every scalar check
+    passing. This authorizes only a hardware-specific successor.
+  falsification_criterion: >-
+    Any scale fails the effect gate, quality leaves the control band, useful
+    yield erases raw-cycle savings, or full accounting removes the gain. Record
+    a scoped negative only for this co-design.
+  required_artifacts:
+    - implementation/ with source hash and fixed operation-weight profiles
+    - runs/<run-id>/manifest.yaml with command, revision, environment, seeds, curve certificates, and dirty-tree state
+    - runs/<run-id>/raw.json with every collision, counter, rejection reason, and scalar check
+    - runs/<run-id>/stdout.log and stderr.log
+    - analysis.md with paired CIs, control bands, censored cells, and scope statement
+    - validator-report.md and red-team-report.md
+  assigned_to: executor
+  approved_by: null
+
+handoff:
+  id: TASK-20260718-RHO-EXEC
+  from: coordinator
+  to: executor
+  objective: >-
+    Implement and run EXP-RHO-001 only after its independent red-team review is
+    accepted and the Coordinator changes the status from review_required to
+    approved.
+  uncertainty_reduced: >-
+    Whether this full-state partition/DP co-design yields a reproducible
+    engineering constant factor on generic ordinary prime-field cells.
+  inputs:
+    - research/pollard-rho-generic/RQ-RHO-001.yaml
+    - research/pollard-rho-generic/H-RHO-001.yaml
+    - research/pollard-rho-generic/EXP-RHO-001-contract.yaml
+    - research/pollard-rho-generic/TASK-20260718-RHO-REDTEAM.yaml
+  constraints:
+    - Do not run before explicit approval.
+    - No x-only candidate state, automorphism fold, interval assumption, or multi-target precomputation.
+    - Preserve every terminal receipt and charge every listed cost category.
+  deliverables:
+    - immutable run receipts and exact scalar-verification evidence
+    - paired analysis against all controls
+    - handoffs for independent validation and red-team review
+  budget: {wall_clock_seconds: 129600, memory_gb: 4, maximum_runs: 5184}
+  completion_gate:
+    - Every planned run has a terminal status.
+    - All paired controls and required counters are present for every analyzed cell.
+    - Every accepted collision has exact scalar verification.
+  return_format: execution_report
