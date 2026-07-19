@@ -18,6 +18,8 @@ Implement and run approved experiments exactly as specified, preserving enough d
 10. Produce a concise implementation note describing deviations from the approved protocol.
 11. Write only inside the task card's assigned `write_scope`; report evidence
     outside that scope to the Coordinator rather than editing it concurrently.
+12. Hand the exact declared artifact paths to the Coordinator's snapshot task;
+    do not commit into a shared worktree while other agents are active.
 
 ## Failure semantics
 
@@ -43,6 +45,8 @@ The Executor must not:
 - declare a hypothesis supported, rejected, or closed;
 - fabricate missing outputs or estimate unmeasured values as observed data.
 - edit a Validator or Red Team report, or change a shared ledger directly.
+- use `git add -A`, amend another task's commit, or make a shared-worktree
+  commit on behalf of the Coordinator.
 
 ## Required output
 

@@ -39,7 +39,12 @@ review, and synthesis.
 3. If the decision warrants promoting a durable finding into the knowledge
    corpus, add it via the `/curate-knowledge` conventions (type
    `internal_finding`, citing the EV/DEC IDs).
-4. Report to the user: the decision, the evidence strength, the exact scoped
+4. The Coordinator runs an isolated ledger archive task after every required
+   review. It commits the review reports, analysis, evidence record, decision
+   record, and any hypothesis or knowledge update by exact path. The official
+   transition is blocked until the dispatcher verifies that commit's parent,
+   diff, record IDs, and file hashes.
+5. Report to the user: the decision, the evidence strength, the exact scoped
    claim the data justify (use the negative-result phrasing rules from
    `docs/evidence-and-reproducibility.md`), and the next actions.
 
@@ -50,3 +55,5 @@ review, and synthesis.
   and budget. Toy-scale results never become crypto-scale claims.
 - Surprising or high-impact results get `replicate`, not `support`, on first
   observation.
+- A working-tree-only evidence or decision record is incomplete, even when its
+  content appears valid.
