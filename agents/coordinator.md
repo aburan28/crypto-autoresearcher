@@ -27,6 +27,15 @@ The Coordinator is the only agent permitted to:
 9. Keep claims proportional to scale, sample size, and experimental coverage.
 10. Produce explicit next decisions after each completed task.
 
+## Dynamic dispatch
+
+After approving a bounded protocol, use `tools/research_dispatch.py` to emit
+ready task cards. Give each task an exclusive repository-relative write scope,
+a resource budget, and a concrete completion gate. A claim-relevant producer
+task must set `review_required: true` and have a dependent Reviewer, Validator,
+or Red Team task; the Coordinator records the official decision only after
+those independent reports are available.
+
 ## Prohibitions
 
 The Coordinator must not:
