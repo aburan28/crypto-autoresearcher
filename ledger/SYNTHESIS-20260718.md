@@ -70,3 +70,20 @@ box-saturation/MV theorem (publishable), and the chord-richness ceiling via char
 - EXP-SIG-002: n = 12 re-run (non-degenerate seed) + multi-seed residual-growth ladder n ∈ {9,…,21}.
 - Theory notes: THM_JETBARRIER1, commutator-kernel, MV/box-saturation, chord ceiling.
 - All artifacts committed; ledger IDs DEC-20260718-001..016 reference EV-* and RUN-* records.
+
+## Addendum — follow-up wave (EXP-DREG-002, EXP-SIG-002/003/004)
+
+- **H-SIG-001: supported_scoped** (DEC-017/019/020). The boolean chained Semaev family carries a
+  **degree-born non-rewritable syzygy cascade**: D3 count exactly 1 (all n = 9..21), D4 residual
+  **2n/3 + 1** (9→11→13→15 at n = 12..21, replicated, zero seed variance, nulls exactly 0), D5
+  deficit fully decomposes as deficit₅ = A4 + residual₅ − 1 with a D5-born component
+  (878/879/1,158). The DREG rank deficit is therefore syzygy-born in mechanism; its
+  n-asymptotics remain open. n = 9 is a uniform exception (mechanism unexplained).
+- **H-DREG-001: still inconclusive** (DEC-018). First past-wall point certified two-partition:
+  n = 17 sem deficit 1,823 (series 1,322/1,862/1,823/1,999, non-monotone; relative deficit
+  4.71%→1.39%); null == sr_pred exactly at n = 17 (C1 discharged, partition A). The n = 21
+  cell and the null-B gate are owned by the concurrent coordinator session — no duplicate dispatch.
+- **Integrity:** EV-SIG-002's D4 series stands as a lower bound; EXP-SIG-004 re-anchored it with
+  the canonical-reduction instrument (continuity verified on all 41 cells). Queued falsifiable
+  checks: n = 24 residual == 17; residual_D birth law at D = 6.
+- DEC-20260718-001..020 issued this session; every decision cites EV/RUN artifacts per rule 10.
