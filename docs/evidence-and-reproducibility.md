@@ -119,6 +119,22 @@ run:
 - Separate exploratory notebooks from canonical analysis scripts.
 - Prefer machine-readable outputs over parsing human-oriented logs.
 
+## Git archival gate
+
+A run manifest's `code.commit` identifies the code revision used for that run;
+it does not by itself prove that the run package, theory, review, or ledger
+record was committed. The dispatch lifecycle therefore uses Coordinator-only
+archive tasks:
+
+- a snapshot archive commits exact producer artifacts before review;
+- a ledger archive commits review reports, evidence, decisions, and any status
+  or knowledge updates before an official transition.
+
+Archive tasks run alone in a shared worktree. Their receipts bind the Git
+commit and parent, exact changed paths, record IDs, and SHA-256 values. The
+dispatcher verifies those facts from Git; a working-tree-only artifact remains
+incomplete evidence.
+
 ## Baseline discipline
 
 Every claimed improvement must compare against a clearly defined baseline under matched conditions. For ECDLP experiments, report generic Pollard-rho context where relevant, but do not treat incomparable operation types as directly equivalent without a cost model.

@@ -34,6 +34,9 @@ specification, experiment design, approval, and handoff.
    authorizes execution and spends compute.
 5. On approval, write the `handoff` record to `ledger/handoffs/` targeting
    the executor, with budget and completion gate filled in.
+6. The Coordinator runs an isolated snapshot archive task that commits the
+   selected proposal, hypothesis, frozen specification, and handoff by exact
+   path. Do not dispatch the Executor until its post-commit receipt verifies.
 
 ## Rules
 

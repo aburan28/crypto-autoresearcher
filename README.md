@@ -33,7 +33,7 @@ agents/red-team.md                     Interpretation and cost-model falsificati
 .claude/agents/                        Operational subagent definitions (Claude Code)
 .claude/skills/                        Lifecycle skills: /propose-ideas, /design-experiment,
                                        /run-experiment, /review-evidence, /research-status,
-                                       /curate-knowledge
+                                       /curate-knowledge, /coordinate-research-goal
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
 docs/dynamic-subagent-dispatch.md      Artifact-driven task dispatch and ownership rules
@@ -89,7 +89,10 @@ Manual path:
 
 ## Status
 
-The semantic foundation is defined. The next implementation milestone is a schema-validated orchestration CLI, immutable run wrapper, coordinator queue, and pluggable agent adapter interface.
+The harness now includes a schema-validated dispatch planner with Coordinator
+snapshot and ledger-commit gates. The next implementation milestones are an
+immutable run wrapper, a goal-batch launcher, and a pluggable agent adapter
+interface.
 
 ## Dynamic subagent dispatch
 
@@ -97,6 +100,13 @@ The dispatch queue assigns unblocked, bounded work to distinct roles with
 exclusive write scopes and independent review. It is deliberately limited to
 three concurrent subagent tasks, so capacity cannot outrun review or cause
 concurrent mutation of research evidence.
+
+The Coordinator alone makes durable research commits: a snapshot commit freezes
+each producer's exact artifacts before review, then a ledger commit records the
+reviews, evidence, decision, and any status change. The dispatcher verifies
+each archive receipt against the real Git diff and recorded file hashes, so
+theories, run packages, review reports, and ledger records cannot be promoted
+from an uncommitted working tree.
 
 ```sh
 python3 tools/research_dispatch.py templates/subagent-task-queue.json \

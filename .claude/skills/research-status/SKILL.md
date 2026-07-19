@@ -26,7 +26,9 @@ Produce a read-only snapshot of the program. Make no state changes.
    - hypotheses referencing missing questions, evidence referencing missing
      runs, experiments approved with null fields;
    - run directories missing required artifacts;
-   - decisions whose `next_actions` have no follow-up handoff.
+   - decisions whose `next_actions` have no follow-up handoff;
+   - theory, experiment, task-report, knowledge, or ledger paths that remain
+     uncommitted or lack a verified Coordinator archive receipt.
 4. Report: a short table per ledger area, experiments in flight with run
    tallies, the latest decision per active hypothesis, integrity flags, and
    the concrete next action the lifecycle implies (e.g. "EXP-ISO-002 is
