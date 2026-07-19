@@ -88,12 +88,19 @@ evidence:
   type: empirical | theoretical | literature
   direction: supports | weakens | contradicts | neutral
   strength: anecdotal | preliminary | replicated | strong | inconclusive | contradictory
+  claim_tier: toy | medium | crypto      # ceiling on what this record may assert
+  certificate_refs: []                   # run certificates backing any claimed solve/relation
   observations: []
   inference: null
   boundaries: []
   unresolved_confounds: []
   reviewed_by: coordinator
 ```
+
+`claim_tier` and certificate semantics are defined in
+`docs/claims-and-verification.md`. The tier may never exceed what the
+supporting runs' parameters allow, and any claimed solve must reference a
+`verified: true` certificate.
 
 ## Coordinator decision
 

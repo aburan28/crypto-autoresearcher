@@ -29,6 +29,12 @@ contract is in `agents/executor.md`; the global inter-agent contract is in
   `raw-result.json`.
 - Record the exact git commit and dirty-tree state before every run. Use
   deterministic seeds; record every source of randomness.
+- **Certificate discipline** (`docs/claims-and-verification.md`): any run that
+  claims a discrete-log solve or a factor-base relation must emit a
+  certificate and re-verify it with code independent of the solver before the
+  run may be `completed_valid`. A failed certificate makes the run
+  `invalid_measurement`, never a `negative_observation`. Pure measurement runs
+  set `certificate.kind: none` explicitly.
 - Enforce the budget: wall-clock, memory, and maximum-run limits from the
   specification are hard limits, applied with timeouts and resource caps.
 - Classify every failure per the taxonomy in `agents/executor.md`
