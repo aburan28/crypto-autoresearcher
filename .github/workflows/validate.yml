@@ -1,0 +1,33 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ledger-and-harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # full history so immutability diff can resolve base
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Validate ledger, experiments, and run records
+        run: python3 tools/validate_ledger.py
+
+      - name: Check run-record immutability
+        run: python3 tools/check_run_immutability.py
+
+      - name: Check knowledge index is current
+        run: python3 tools/build_knowledge_index.py --check
+
+      - name: Run harness tests
+        run: python3 -m pytest -q
