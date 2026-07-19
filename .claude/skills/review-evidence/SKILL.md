@@ -22,10 +22,15 @@ review, and synthesis.
      sets go back to the Executor with concrete defects — stop there;
    - write `experiments/<EXP-ID>/analysis.md` strictly separated into
      Observation / Comparison / Inference / Limitation;
+   - verify certificates: any run claiming a solve/relation must carry a
+     `verified: true` certificate (`docs/claims-and-verification.md`); a
+     failed or missing certificate on a claimed success invalidates that run
+     rather than counting as evidence;
    - create the `evidence` record in `ledger/evidence/EV-<AREA>-<NNN>.yaml`
      with direction, strength (per the hierarchy in
-     `docs/evidence-and-reproducibility.md`), boundaries, and unresolved
-     confounds;
+     `docs/evidence-and-reproducibility.md`), `claim_tier` (never exceeding
+     what the runs' parameters allow), `certificate_refs`, boundaries, and
+     unresolved confounds;
    - record the `coordinator_decision` in `ledger/decisions/` choosing one
      transition: replicate | expand | refine | support | weaken |
      reject_scoped | inconclusive | pause, with rationale, evidence refs,
