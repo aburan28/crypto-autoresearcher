@@ -4,12 +4,33 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from typing import Any, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import research_dispatch as dispatch
+
+
+def handoff() -> dict[str, Any]:
+    return {
+        "objective": "Reduce one bounded uncertainty.",
+        "uncertainty_reduced": "Whether the frozen task completed correctly.",
+        "inputs": ["experiments/EXP-TEST-001/specification.yaml"],
+        "constraints": ["Preserve raw evidence."],
+        "deliverables": ["report.json"],
+        "budget": {
+            "wall_clock_seconds": 60,
+            "memory_gb": 1,
+            "maximum_runs": 1,
+        },
+        "completion_gate": ["A machine-checkable report exists."],
+    }
 
 
 def task(
@@ -20,8 +41,11 @@ def task(
     role: str = "executor",
     review_required: bool = False,
     depends_on: list[str] | None = None,
+    read_scope: list[str] | None = None,
     write_scope: list[str] | None = None,
-) -> dict:
+    artifact_paths: list[str] | None = None,
+) -> dict[str, Any]:
+    default_scope = f"coordination/tasks/{identifier}/"
     return {
         "id": identifier,
         "title": identifier,
@@ -30,93 +54,459 @@ def task(
         "priority": priority,
         "review_required": review_required,
         "depends_on": depends_on or [],
-        "read_scope": ["experiments/EXP-TEST-001/specification.yaml"],
-        "write_scope": write_scope or [f"coordination/tasks/{identifier}/"],
-        "handoff": {
-            "objective": "Reduce one bounded uncertainty.",
-            "uncertainty_reduced": "Whether the frozen task completed correctly.",
-            "inputs": ["experiments/EXP-TEST-001/specification.yaml"],
-            "constraints": ["Preserve raw evidence."],
-            "deliverables": ["report.json"],
-            "budget": {
-                "wall_clock_seconds": 60,
-                "memory_gb": 1,
-                "maximum_runs": 1,
-            },
-            "completion_gate": ["A machine-checkable report exists."],
-        },
+        "read_scope": read_scope or ["experiments/EXP-TEST-001/specification.yaml"],
+        "write_scope": write_scope or [default_scope],
+        "artifact_paths": artifact_paths or [f"coordination/tasks/{identifier}/report.json"],
+        "handoff": handoff(),
     }
 
 
-def queue(*tasks: dict, maximum: int = 2) -> dict:
-    return {
+def archive_task(
+    identifier: str,
+    sources: Sequence[dict[str, Any]],
+    priority: int = 1,
+    *,
+    kind: str = "snapshot",
+    state: str = "queued",
+    depends_on: list[str] | None = None,
+    artifact_paths: list[str] | None = None,
+    write_scope: list[str] | None = None,
+    read_scope: list[str] | None = None,
+    record_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    source_paths = [path for source in sources for path in source["artifact_paths"]]
+    if kind == "ledger":
+        own_paths = artifact_paths or [
+            f"ledger/evidence/{identifier}-EVIDENCE.json",
+            f"ledger/decisions/{identifier}-DECISION.json",
+        ]
+        own_scope = write_scope or ["ledger/evidence/", "ledger/decisions/"]
+        records = (
+            [f"{identifier}-EVIDENCE", f"{identifier}-DECISION"]
+            if record_ids is None
+            else record_ids
+        )
+    else:
+        own_paths = artifact_paths or [f"coordination/archives/{identifier}/snapshot.json"]
+        own_scope = write_scope or [f"coordination/archives/{identifier}/"]
+        records = [] if record_ids is None else record_ids
+    result = task(
+        identifier,
+        priority,
+        state=state,
+        role="coordinator",
+        depends_on=depends_on if depends_on is not None else [source["id"] for source in sources],
+        read_scope=read_scope if read_scope is not None else source_paths,
+        write_scope=own_scope,
+        artifact_paths=own_paths,
+    )
+    result["archive"] = {
+        "kind": kind,
+        "source_task_ids": [source["id"] for source in sources],
+        "commit_sha": None,
+        "parent_sha": None,
+        "path_sha256": {},
+        "record_ids": records,
+    }
+    return result
+
+
+def queue(*tasks: dict[str, Any], maximum: int = 2, goal_id: str | None = None) -> dict[str, Any]:
+    result: dict[str, Any] = {
         "schema": dispatch.SCHEMA,
         "objective": "Reduce a bounded ECDLP research uncertainty.",
         "max_concurrent": maximum,
         "tasks": list(tasks),
     }
+    if goal_id is not None:
+        result["goal_id"] = goal_id
+    return result
+
+
+def deferred_by_id(plan: dict[str, Any]) -> dict[str, list[str]]:
+    return {item["id"]: item["reason"] for item in plan["deferred"]}
+
+
+class FakeGitVerifier:
+    """A verifier fixture that models the immutable commit receipt contract."""
+
+    def __init__(
+        self,
+        *,
+        changed_paths: Sequence[str],
+        contents: dict[str, bytes],
+        message: str,
+        resolves: bool = True,
+        is_head_ancestor: bool = True,
+        parent_matches: bool = True,
+    ) -> None:
+        self.changed_paths = list(changed_paths)
+        self.contents = contents
+        self.message = message
+        self.resolves = resolves
+        self.is_head_ancestor = is_head_ancestor
+        self.parent_matches = parent_matches
+        self.calls: list[tuple[str, tuple[str, ...]]] = []
+
+    def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
+        self.calls.append((task["id"], tuple(expected_paths)))
+        if not self.resolves:
+            raise dispatch.DispatchError("fake archive commit does not resolve")
+        if not self.is_head_ancestor:
+            raise dispatch.DispatchError("fake archive commit is not an ancestor of HEAD")
+        if not self.parent_matches:
+            raise dispatch.DispatchError("fake archive parent mismatch")
+        expected = set(expected_paths)
+        actual = set(self.changed_paths)
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        if missing or extra:
+            raise dispatch.DispatchError(f"fake commit paths missing={missing} extra={extra}")
+        for path in expected:
+            observed = hashlib.sha256(self.contents[path]).hexdigest()
+            if observed != task["archive"]["path_sha256"][path]:
+                raise dispatch.DispatchError(f"fake archive hash mismatch for {path}")
+        for identifier in [task["id"], *task["archive"]["record_ids"]]:
+            if identifier not in self.message:
+                raise dispatch.DispatchError(f"fake archive message missing {identifier}")
+
+
+def completed_archive_queue() -> tuple[dict[str, Any], dict[str, bytes], dict[str, Any]]:
+    worker = task("WORK", 1, state="completed")
+    archive = archive_task("ARCHIVE", [worker], state="completed", record_ids=["REC-ARCHIVE"])
+    contents = {
+        worker["artifact_paths"][0]: b"worker receipt\n",
+        archive["artifact_paths"][0]: b"archive snapshot\n",
+    }
+    archive["archive"].update(
+        {
+            "commit_sha": "a" * 40,
+            "parent_sha": "b" * 40,
+            "path_sha256": {
+                path: hashlib.sha256(content).hexdigest() for path, content in contents.items()
+            },
+        }
+    )
+    return queue(worker, archive), contents, archive
 
 
 class DispatchPlannerTests(unittest.TestCase):
     def test_selects_highest_priority_ready_tasks_under_cap(self) -> None:
-        plan = dispatch.select(queue(task("LOW", 10), task("HIGH", 90), task("MID", 50)))
+        low = task("LOW", 10)
+        high = task("HIGH", 90)
+        middle = task("MID", 50)
+        archive = archive_task("ARCHIVE", [low, high, middle])
+        plan = dispatch.select(queue(low, high, middle, archive))
         self.assertEqual([item["id"] for item in plan["dispatches"]], ["HIGH", "MID"])
-        self.assertEqual(plan["deferred"], [{"id": "LOW", "reason": ["concurrency_cap"]}])
+        self.assertEqual(deferred_by_id(plan)["LOW"], ["concurrency_cap"])
         self.assertTrue(plan["gates"]["concurrency_cap_respected"])
+        self.assertTrue(plan["gates"]["archive_artifact_coverage_complete"])
 
     def test_completed_dependency_unblocks_successor(self) -> None:
         parent = task("PARENT", 1, state="completed")
         child = task("CHILD", 90, depends_on=["PARENT"], role="validator")
-        plan = dispatch.select(queue(parent, child, maximum=1))
+        parent_archive = archive_task("PARENT-ARCHIVE", [parent], state="blocked")
+        child_archive = archive_task("CHILD-ARCHIVE", [child])
+        plan = dispatch.select(queue(parent, child, parent_archive, child_archive, maximum=1))
         self.assertEqual([item["id"] for item in plan["dispatches"]], ["CHILD"])
 
     def test_failed_dependency_blocks_successor(self) -> None:
         parent = task("PARENT", 1, state="failed")
         child = task("CHILD", 90, depends_on=["PARENT"], role="validator")
-        plan = dispatch.select(queue(parent, child, maximum=1))
+        parent_archive = archive_task("PARENT-ARCHIVE", [parent])
+        child_archive = archive_task("CHILD-ARCHIVE", [child])
+        plan = dispatch.select(queue(parent, child, parent_archive, child_archive, maximum=1))
         self.assertEqual(plan["dispatches"], [])
         self.assertEqual(
-            plan["deferred"],
-            [{"id": "CHILD", "reason": ["dependency_not_completed:PARENT:failed"]}],
+            deferred_by_id(plan)["CHILD"], ["dependency_not_completed:PARENT:failed"]
         )
 
     def test_running_task_consumes_a_slot(self) -> None:
         running = task("RUNNING", 1, state="running")
         ready = task("READY", 90)
-        plan = dispatch.select(queue(running, ready, maximum=1))
+        archive = archive_task("ARCHIVE", [running, ready])
+        plan = dispatch.select(queue(running, ready, archive, maximum=1))
         self.assertEqual([item["id"] for item in plan["dispatches"]], ["RUNNING"])
-        self.assertEqual(plan["deferred"], [{"id": "READY", "reason": ["concurrency_cap"]}])
+        self.assertEqual(deferred_by_id(plan)["READY"], ["concurrency_cap"])
 
     def test_overlapping_write_scope_defers_lower_priority_task(self) -> None:
-        first = task("FIRST", 90, write_scope=["experiments/EXP-TEST-001/runs/"])
-        second = task("SECOND", 80, write_scope=["experiments/EXP-TEST-001/runs/RUN-2/"])
-        plan = dispatch.select(queue(first, second, maximum=2))
+        first = task(
+            "FIRST", 90, write_scope=["experiments/EXP-TEST-001/runs/"], artifact_paths=[
+                "experiments/EXP-TEST-001/runs/first.json"
+            ]
+        )
+        second = task(
+            "SECOND",
+            80,
+            write_scope=["experiments/EXP-TEST-001/runs/RUN-2/"],
+            artifact_paths=["experiments/EXP-TEST-001/runs/RUN-2/second.json"],
+        )
+        archive = archive_task("ARCHIVE", [first, second])
+        plan = dispatch.select(queue(first, second, archive, maximum=2))
         self.assertEqual([item["id"] for item in plan["dispatches"]], ["FIRST"])
-        self.assertEqual(plan["deferred"], [{"id": "SECOND", "reason": ["write_scope_conflict:FIRST"]}])
+        self.assertEqual(
+            deferred_by_id(plan)["SECOND"], ["write_scope_conflict:FIRST"]
+        )
 
     def test_rejects_unsafe_write_scope(self) -> None:
         source = queue(task("BAD", 1, write_scope=["../outside/"]))
         with self.assertRaisesRegex(dispatch.DispatchError, "safe repository-relative"):
             dispatch.validate_queue(source)
 
+    def test_rejects_missing_or_nonexact_artifact_paths(self) -> None:
+        missing = task("MISSING", 1)
+        del missing["artifact_paths"]
+        with self.assertRaisesRegex(dispatch.DispatchError, "artifact_paths"):
+            dispatch.validate_queue(queue(missing))
+        directory = task("DIRECTORY", 1, artifact_paths=["coordination/tasks/DIRECTORY/"])
+        with self.assertRaisesRegex(dispatch.DispatchError, "exact safe"):
+            dispatch.validate_queue(queue(directory))
+
+    def test_rejects_artifact_outside_its_write_scope(self) -> None:
+        source = task("BAD", 1, artifact_paths=["ledger/evidence/EVID-BAD.json"])
+        with self.assertRaisesRegex(dispatch.DispatchError, "inside its write_scope"):
+            dispatch.validate_queue(queue(source))
+
     def test_rejects_running_write_scope_conflict(self) -> None:
-        first = task("FIRST", 1, state="running", write_scope=["coordination/live/"])
-        second = task("SECOND", 1, state="running", write_scope=["coordination/live/report/"])
+        first = task(
+            "FIRST",
+            1,
+            state="running",
+            write_scope=["coordination/live/"],
+            artifact_paths=["coordination/live/first.json"],
+        )
+        second = task(
+            "SECOND",
+            1,
+            state="running",
+            write_scope=["coordination/live/report/"],
+            artifact_paths=["coordination/live/report/second.json"],
+        )
+        archive = archive_task("ARCHIVE", [first, second])
         with self.assertRaisesRegex(dispatch.DispatchError, "overlapping write scopes"):
-            dispatch.validate_queue(queue(first, second))
+            dispatch.validate_queue(queue(first, second, archive))
+
+    def test_rejects_unarchived_and_multiply_archived_workers(self) -> None:
+        source = task("SOURCE", 1)
+        with self.assertRaisesRegex(dispatch.DispatchError, "assigned exactly once"):
+            dispatch.validate_queue(queue(source))
+        first = archive_task("FIRST-ARCHIVE", [source])
+        second = archive_task("SECOND-ARCHIVE", [source])
+        with self.assertRaisesRegex(dispatch.DispatchError, "assigned to both"):
+            dispatch.validate_queue(queue(source, first, second))
+
+    def test_archive_must_be_coordinator_direct_and_cover_source_artifacts(self) -> None:
+        source = task("SOURCE", 1)
+        archive = archive_task("ARCHIVE", [source])
+        archive["role"] = "executor"
+        with self.assertRaisesRegex(dispatch.DispatchError, "coordinator role"):
+            dispatch.validate_queue(queue(source, archive))
+
+        archive = archive_task("ARCHIVE", [source], depends_on=[])
+        with self.assertRaisesRegex(dispatch.DispatchError, "directly depend"):
+            dispatch.validate_queue(queue(source, archive))
+
+        archive = archive_task("ARCHIVE", [source], read_scope=["coordination/other/"])
+        with self.assertRaisesRegex(dispatch.DispatchError, "read_scope must cover"):
+            dispatch.validate_queue(queue(source, archive))
+
+    def test_ledger_archive_requires_evidence_decisions_and_record_ids(self) -> None:
+        source = task("SOURCE", 1)
+        ledger = archive_task(
+            "LEDGER", [source], kind="ledger", artifact_paths=["ledger/evidence/LEDGER-EVIDENCE.json"]
+        )
+        ledger["write_scope"] = ["ledger/evidence/"]
+        with self.assertRaisesRegex(dispatch.DispatchError, "ledger/evidence"):
+            dispatch.validate_queue(queue(source, ledger))
+
+        ledger = archive_task("LEDGER", [source], kind="ledger", record_ids=[])
+        with self.assertRaisesRegex(dispatch.DispatchError, "record IDs"):
+            dispatch.validate_queue(queue(source, ledger))
 
     def test_claim_relevant_task_requires_independent_reviewer(self) -> None:
-        source = queue(task("EXEC", 1, review_required=True))
-        with self.assertRaisesRegex(dispatch.DispatchError, "requires an independent"):
-            dispatch.validate_queue(source)
-
-    def test_claim_relevant_task_accepts_independent_reviewer(self) -> None:
         executor = task("EXEC", 1, review_required=True)
-        validator = task("VAL", 1, role="validator", depends_on=["EXEC"])
-        dispatch.validate_queue(queue(executor, validator))
+        snapshot = archive_task("SNAPSHOT", [executor])
+        with self.assertRaisesRegex(dispatch.DispatchError, "requires an independent"):
+            dispatch.validate_queue(queue(executor, snapshot))
+
+    def test_claim_relevant_task_requires_snapshot_then_ledger_review_chain(self) -> None:
+        executor = task("EXEC", 1, review_required=True)
+        snapshot = archive_task("SNAPSHOT", [executor])
+        validator = task("VALIDATE", 1, role="validator", depends_on=["EXEC"])
+        ledger = archive_task("LEDGER", [validator], kind="ledger")
+        with self.assertRaisesRegex(dispatch.DispatchError, "must depend on snapshot"):
+            dispatch.validate_queue(queue(executor, snapshot, validator, ledger))
+
+        validator["depends_on"] = ["EXEC", "SNAPSHOT"]
+        wrong_archive = archive_task("VALIDATE-SNAPSHOT", [validator])
+        with self.assertRaisesRegex(dispatch.DispatchError, "requires a ledger archive"):
+            dispatch.validate_queue(queue(executor, snapshot, validator, wrong_archive))
+
+    def test_claim_relevant_task_accepts_snapshot_review_and_ledger_chain(self) -> None:
+        executor = task("EXEC", 1, review_required=True)
+        snapshot = archive_task("SNAPSHOT", [executor])
+        reviewer = task("REVIEW", 1, role="reviewer", depends_on=["EXEC", "SNAPSHOT"])
+        validator = task("VALIDATE", 1, role="validator", depends_on=["EXEC", "SNAPSHOT"])
+        ledger = archive_task("LEDGER", [reviewer, validator], kind="ledger")
+        dispatch.validate_queue(queue(executor, snapshot, reviewer, validator, ledger))
+
+    def test_ready_archive_runs_alone_and_has_priority_over_workers(self) -> None:
+        completed = task("DONE", 1, state="completed")
+        ready_archive = archive_task("READY-ARCHIVE", [completed], priority=5)
+        worker = task("WORKER", 99)
+        worker_archive = archive_task("WORKER-ARCHIVE", [worker])
+        plan = dispatch.select(queue(completed, ready_archive, worker, worker_archive, maximum=2))
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["READY-ARCHIVE"])
+        self.assertEqual(
+            deferred_by_id(plan)["WORKER"], ["archive_requires_isolation:READY-ARCHIVE"]
+        )
+        self.assertTrue(plan["gates"]["archive_tasks_run_in_isolation"])
+
+    def test_highest_priority_ready_archive_wins_and_defers_other_archives(self) -> None:
+        first = task("FIRST", 1, state="completed")
+        second = task("SECOND", 1, state="completed")
+        lower = archive_task("LOWER", [first], priority=10)
+        higher = archive_task("HIGHER", [second], priority=90)
+        plan = dispatch.select(queue(first, second, lower, higher, maximum=2))
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["HIGHER"])
+        self.assertEqual(deferred_by_id(plan)["LOWER"], ["archive_priority_deferred:HIGHER"])
+
+    def test_ready_archive_drains_running_workers_before_selection(self) -> None:
+        completed = task("DONE", 1, state="completed")
+        ready_archive = archive_task("READY-ARCHIVE", [completed], priority=90)
+        running = task("RUNNING", 1, state="running")
+        running_archive = archive_task("RUNNING-ARCHIVE", [running])
+        waiting = task("WAITING", 80)
+        waiting_archive = archive_task("WAITING-ARCHIVE", [waiting])
+        plan = dispatch.select(
+            queue(completed, ready_archive, running, running_archive, waiting, waiting_archive)
+        )
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["RUNNING"])
+        self.assertEqual(
+            deferred_by_id(plan)["READY-ARCHIVE"],
+            ["archive_requires_isolation:running:RUNNING"],
+        )
+        self.assertEqual(
+            deferred_by_id(plan)["WAITING"], ["archive_pending_isolation:READY-ARCHIVE"]
+        )
+
+    def test_rejects_archive_running_beside_another_task(self) -> None:
+        completed = task("DONE", 1, state="completed")
+        running_archive = archive_task("RUNNING-ARCHIVE", [completed], state="running")
+        worker = task("WORKER", 1, state="running")
+        worker_archive = archive_task("WORKER-ARCHIVE", [worker])
+        with self.assertRaisesRegex(dispatch.DispatchError, "must run alone"):
+            dispatch.validate_queue(
+                queue(completed, running_archive, worker, worker_archive, maximum=2)
+            )
+
+    def test_completed_archive_requires_fake_git_verification_and_exposes_gates(self) -> None:
+        source, contents, archive = completed_archive_queue()
+        verifier = FakeGitVerifier(
+            changed_paths=list(contents),
+            contents=contents,
+            message="ARCHIVE REC-ARCHIVE archival receipt",
+        )
+        plan = dispatch.select(source, repository_verifier=verifier)
+        self.assertEqual(verifier.calls, [("ARCHIVE", tuple(sorted(contents)))])
+        self.assertTrue(plan["gates"]["completed_archive_commits_verified"])
+        with self.assertRaisesRegex(dispatch.DispatchError, "requires a repository verifier"):
+            dispatch.validate_queue(copy.deepcopy(source))
+
+    def test_fake_git_verifier_rejects_missing_extra_and_hash_mismatch(self) -> None:
+        source, contents, _ = completed_archive_queue()
+        paths = list(contents)
+        with self.assertRaisesRegex(dispatch.DispatchError, "missing"):
+            dispatch.validate_queue(
+                copy.deepcopy(source),
+                repository_verifier=FakeGitVerifier(
+                    changed_paths=paths[:1], contents=contents, message="ARCHIVE REC-ARCHIVE"
+                ),
+            )
+        with self.assertRaisesRegex(dispatch.DispatchError, "extra"):
+            dispatch.validate_queue(
+                copy.deepcopy(source),
+                repository_verifier=FakeGitVerifier(
+                    changed_paths=[*paths, "unexpected.txt"],
+                    contents={**contents, "unexpected.txt": b"extra"},
+                    message="ARCHIVE REC-ARCHIVE",
+                ),
+            )
+        changed = dict(contents)
+        changed[paths[0]] = b"tampered"
+        with self.assertRaisesRegex(dispatch.DispatchError, "hash mismatch"):
+            dispatch.validate_queue(
+                copy.deepcopy(source),
+                repository_verifier=FakeGitVerifier(
+                    changed_paths=paths, contents=changed, message="ARCHIVE REC-ARCHIVE"
+                ),
+            )
+
+    def test_actual_git_repository_verifier_accepts_exact_archive_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *arguments],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                ).stdout.strip()
+
+            git("init")
+            git("config", "user.email", "dispatch@example.test")
+            git("config", "user.name", "Dispatch Test")
+            (root / "README.md").write_text("base\n", encoding="utf-8")
+            git("add", "README.md")
+            git("commit", "-m", "base")
+            parent = git("rev-parse", "HEAD")
+
+            worker = task("WORK", 1, state="completed")
+            archive = archive_task("ARCHIVE", [worker], state="completed", record_ids=["REC-ARCHIVE"])
+            expected = [*worker["artifact_paths"], *archive["artifact_paths"]]
+            payloads = {expected[0]: b"worker\n", expected[1]: b"archive\n"}
+            for path, content in payloads.items():
+                destination = root / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+            git("add", *expected)
+            git("commit", "-m", "ARCHIVE REC-ARCHIVE exact archival receipt")
+            archive["archive"].update(
+                {
+                    "commit_sha": git("rev-parse", "HEAD"),
+                    "parent_sha": parent,
+                    "path_sha256": {
+                        path: hashlib.sha256(content).hexdigest()
+                        for path, content in payloads.items()
+                    },
+                }
+            )
+            dispatch.validate_queue(
+                queue(worker, archive), repository_verifier=dispatch.GitRepositoryVerifier(root)
+            )
+
+    def test_goal_id_is_optional_and_echoed_into_the_plan(self) -> None:
+        worker = task("WORK", 1)
+        archive = archive_task("ARCHIVE", [worker])
+        plan = dispatch.select(queue(worker, archive, goal_id="GOAL-20260718-001"))
+        self.assertEqual(plan["goal_id"], "GOAL-20260718-001")
+
+    def test_repository_queue_template_validates(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        source = json.loads(
+            (root / "templates" / "subagent-task-queue.json").read_text(encoding="utf-8")
+        )
+        plan = dispatch.select(source)
+        self.assertEqual(plan["goal_id"], "GOAL-EXAMPLE-001")
+        self.assertEqual([task["id"] for task in plan["dispatches"]], ["TASK-EXEC-001"])
 
     def test_plan_is_stable_for_identical_input(self) -> None:
-        source = queue(task("ONE", 10), task("TWO", 20))
+        first_worker = task("ONE", 10)
+        second_worker = task("TWO", 20)
+        archive = archive_task("ARCHIVE", [first_worker, second_worker])
+        source = queue(first_worker, second_worker, archive)
         first = dispatch.select(copy.deepcopy(source))
         second = dispatch.select(copy.deepcopy(source))
         self.assertEqual(first["plan_sha256"], second["plan_sha256"])

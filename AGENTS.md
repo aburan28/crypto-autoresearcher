@@ -56,6 +56,8 @@ handoff:
   inputs: []
   constraints: []
   deliverables: []
+  artifact_paths: []
+  archived_by: TASK-YYYYMMDD-NNN
   inference:
     policy: coordinator-ultra-code | research-sol-max | executor-terra | review-xhigh
     fallback_allowed: false
@@ -90,6 +92,31 @@ evidence: raw run receipts remain immutable in their experiment directories.
   reject, or expand a research direction.
 - On each terminal receipt, regenerate the dispatch plan before admitting
   further work. Do not fill capacity merely because a slot is free.
+
+## Durable research commits
+
+Research is not durable merely because it appears in a working tree, task
+handoff, or agent response. The Coordinator must use the dispatcher's
+Coordinator-only archival tasks to create and verify commits at two points:
+
+1. A **snapshot commit** follows a producer and commits its exact theory,
+   implementation, run, or task-report artifacts before an independent agent
+   reviews them.
+2. A **ledger commit** follows the required reviews and commits the exact
+   evidence, decision, hypothesis-status, and synthesis records before an
+   official research-state transition.
+
+Workers do not commit into a shared worktree. Commit tasks run alone, stage
+only their declared repository-relative paths, and record a post-commit
+receipt. The dispatcher verifies that receipt against Git: the commit must be
+reachable from `HEAD`, have the expected parent, change exactly the declared
+artifacts, preserve their recorded hashes, and name the task and record IDs.
+
+Every theory, run receipt, validation report, red-team report, persistent-goal
+checkpoint, ledger record, and knowledge item must be assigned to exactly one
+archival task. A missing, dirty, malformed, or scope-expanding commit blocks
+downstream review or promotion; it is an evidence-integrity failure, not a
+mathematical result.
 
 ## Research states
 

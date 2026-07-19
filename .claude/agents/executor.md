@@ -46,6 +46,9 @@ contract is in `agents/executor.md`; the global inter-agent contract is in
   ledger marked invalid with a reason.
 - Report observations separately from interpretation. Note every deviation
   from the approved protocol in `implementation.md`.
+- Return the exact artifact paths to the Coordinator snapshot task. Do not
+  commit into a shared worktree; the Coordinator commits the frozen receipt
+  before Validator or Red Team review.
 
 ## Prohibitions
 

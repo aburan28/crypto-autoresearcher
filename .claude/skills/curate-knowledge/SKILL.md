@@ -34,7 +34,11 @@ it defines the record format, ID scheme, and provenance classes.
 4. Regenerate `knowledge/INDEX.md`: one line per entry — ID, title, type,
    confidence, tags — sorted by ID. The index is derived; entries are the
    source of truth.
-5. Report what was added and any related entries found while grepping.
+5. The Coordinator creates an isolated snapshot or ledger archive commit for
+   the exact entry, index, and any cited internal evidence/decision records.
+   Report the item only after the post-commit verifier accepts its declared
+   paths and hashes.
+6. Report what was added and any related entries found while grepping.
 
 ## Rules
 

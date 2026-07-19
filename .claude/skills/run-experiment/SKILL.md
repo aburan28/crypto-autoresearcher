@@ -32,8 +32,11 @@ validation.
    - run the pre-analysis validation checks (run count, schema, seeds,
      raw/summary agreement, control comparability, deviations);
    - return the `execution_report` YAML.
-3. Commit the new run records (never amend or squash over earlier run
-   commits for the same experiment).
+3. The Coordinator runs an isolated snapshot archive task that stages and
+   commits only the declared run package and execution report. Do not ask the
+   Executor to commit into a shared worktree. The post-commit verifier must
+   bind the exact paths and hashes before `/review-evidence` begins; never
+   amend or squash over earlier run commits for the same experiment.
 4. Report to the user: run tally by terminal status, anomalies, protocol
    deviations, and whether the completion gate passed. Do NOT interpret
    results — that is `/review-evidence`.

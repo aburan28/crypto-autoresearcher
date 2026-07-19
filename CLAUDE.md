@@ -7,9 +7,9 @@ research work. This file wires that contract into Claude Code.
 ## Harness layout
 
 - **Subagents** (`.claude/agents/`): `coordinator`, `idea-generator`,
-  `executor`. These are the operational versions of the role contracts in
-  `agents/*.md`. Research work is done BY these subagents; the top-level
-  session orchestrates and talks to the user.
+  `executor`, `validator`, and `red-team`. These are the operational versions
+  of the role contracts in `agents/*.md`. Research work is done BY these
+  subagents; the top-level session orchestrates and talks to the user.
 - **Skills** (`.claude/skills/`), one per lifecycle stage:
   - `/propose-ideas` — ideation for a research question
   - `/design-experiment` — hypothesis + frozen approved protocol
@@ -17,6 +17,8 @@ research work. This file wires that contract into Claude Code.
   - `/review-evidence` — validation, evidence strength, official decision
   - `/research-status` — read-only ledger overview
   - `/curate-knowledge` — maintain the knowledge corpus
+  - `/coordinate-research-goal` — launch and continuously coordinate a committed
+    research goal across dispatch batches
 - **State**:
   - `ledger/` — canonical YAML records (questions, proposals, hypotheses,
     evidence, decisions, handoffs)
@@ -40,6 +42,9 @@ research work. This file wires that contract into Claude Code.
 5. Never fabricate commands, outputs, timings, statistics, citations, or
    runs. Missing data stays missing and is reported as such.
 6. Every conclusion cites the experiment/run/evidence IDs supporting it.
+7. The Coordinator makes isolated snapshot and ledger commits for declared
+   research artifacts. A theory, run package, review report, or ledger record
+   is not official until the dispatcher's post-commit verifier accepts it.
 
 ## Conventions
 
@@ -49,8 +54,10 @@ research work. This file wires that contract into Claude Code.
   reused. Find the next free number by grepping the relevant directory.
 - Record schemas live in `templates/research-records.md`; copy, don't
   invent fields.
-- Commit ledger/experiment changes with messages referencing the record
-  IDs they touch. Never rewrite history over pushed run records.
+- The Coordinator alone stages declared research paths in the shared worktree:
+  snapshot before review, then ledger commit before a state transition. Commit
+  messages reference the task and record IDs; never rewrite history over
+  pushed run records.
 
 ## Model policy note
 
@@ -70,6 +77,8 @@ resolved model in each run manifest's `inference` block, with
   → /propose-ideas RQ-...
   → /design-experiment IDEA-...
   → /run-experiment EXP-...
+  → (Coordinator snapshot commit + independent validation/red team)
   → /review-evidence EXP-...
+  → (Coordinator ledger commit + verified decision)
   → (decision drives next iteration)
 ```

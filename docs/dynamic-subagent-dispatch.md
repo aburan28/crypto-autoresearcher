@@ -13,7 +13,11 @@ turn a receipt into a conclusion.
 3. The tool emits only the currently ready tasks, limited by `max_concurrent`.
 4. Agents write only under their assigned `write_scope` and return an immutable
    receipt or report.
-5. The Coordinator records a terminal task state, regenerates the dispatch
+5. A Coordinator-only snapshot task commits a producer's exact artifacts before
+   any dependent review begins.
+6. A Coordinator-only ledger task commits reviews, evidence, decisions, and
+   theory/status records before an official state transition.
+7. The Coordinator records a terminal task state, regenerates the dispatch
    plan, then reranks research priorities before admitting successors.
 
 The queue is an append-only coordination history in practice: do not erase a
@@ -52,15 +56,61 @@ write a separate report, such as `coordination/tasks/TASK-VAL-001/`, rather
 than modifying `experiments/EXP-.../runs/...` while the Executor owns that
 package.
 
+## Commit and ledger gate
+
+Every task declares exact `artifact_paths` under its own `write_scope`. Those
+paths are not considered durable until an archival task claims them. An
+archival task is a Coordinator task with an `archive` object:
+
+- `kind: "snapshot"` commits the exact artifacts from a producer before a
+  Validator, Reviewer, or Red Team reads them.
+- `kind: "ledger"` commits the remaining review artifacts plus the required
+  `ledger/evidence/` and `ledger/decisions/` records before a claim changes
+  official status.
+
+An archive task depends directly on every task whose artifacts it commits, and
+it runs alone. This is deliberate: several workers can produce disjoint
+artifacts concurrently, but they must not race on one Git index or `HEAD`.
+The archive receipt names the target commit, its parent, the declared record
+IDs, and a SHA-256 binding for every committed path. When an archive task is
+marked complete, the dispatcher checks Git and rejects the result unless that
+commit is reachable from `HEAD`, has the expected parent, changes exactly the
+declared paths, and matches the recorded hashes.
+
+For a ledger archive, its own artifact paths must include exact files under
+both `ledger/evidence/` and `ledger/decisions/`; each filename must contain an
+ID listed in `archive.record_ids`. This mechanically binds the commit receipt
+to the immutable evidence and decision records it claims to preserve.
+
+Each non-archive task must be claimed by exactly one archive task. Thus a
+theory proposal, run package, validation report, red-team report, ledger
+record, or knowledge item cannot silently remain only in a working tree.
+Claim-relevant producers require both a snapshot archive before independent
+review and a ledger archive after every required review.
+
+## Persistent goals
+
+`/coordinate-research-goal` binds a queue to a committed
+`ledger/goals/GOAL-<AREA>-<NNN>.yaml` record. The record names the objective,
+success and stop conditions, current queue, last decision, and exactly one next
+action. Set the queue's optional top-level `goal_id` to that same record. It
+remains `active` across snapshot/review/ledger cycles. A negative,
+invalid, or inconclusive task narrows the route and creates a successor action;
+it does not complete the larger research goal.
+
 ## Example lifecycle
 
 ```text
-TASK-EXEC-001 (Executor) ──completed──> TASK-VAL-001 (Validator)
-                                      └> TASK-RT-001 (Red Team)
-TASK-VAL-001 + TASK-RT-001 ──completed──> TASK-COORD-001 (Coordinator decision)
+TASK-EXEC-001 (Executor)
+  └─> TASK-SNAPSHOT-001 (Coordinator Git snapshot)
+        ├─> TASK-VAL-001 (Validator)
+        └─> TASK-RT-001 (Red Team)
+TASK-VAL-001 + TASK-RT-001
+  └─> TASK-LEDGER-001 (Coordinator Git ledger commit)
 ```
 
-`TASK-COORD-001` records one of: replicate, expand, refine, scoped rejection,
+`TASK-LEDGER-001` commits the review reports and ledger evidence/decision
+records, then records one of: replicate, expand, refine, scoped rejection,
 inconclusive, or pause. Only then may a new experiment be prioritized. A
 passing validator confirms the receipt, not a better-than-rho result.
 
