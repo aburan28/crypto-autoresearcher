@@ -32,6 +32,12 @@ The experiment enters `review_required` until these fields are complete.
 
 The Coordinator approves the frozen protocol and sends it to the Executor. Protocol changes after approval require a versioned amendment. Exploratory changes must be labeled exploratory and cannot be evaluated against the original confirmatory criterion.
 
+The Coordinator also records a bounded task card in the dispatch queue with an
+exclusive write scope, resource budget, completion gate, and dependencies. Use
+`tools/research_dispatch.py` to select the ready cards. If a producer result
+could change a research claim, mark the task `review_required: true` and create
+a dependent Reviewer, Validator, or Red Team task before dispatching it.
+
 ## 6. Execution
 
 The Executor creates immutable run records. Each planned run reaches one terminal status:

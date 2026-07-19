@@ -8,6 +8,9 @@ This repository defines a multi-agent operating system for reproducible ECDLP ex
 - **Idea Generator** proposes falsifiable mechanisms and experiments.
 - **Executor** implements and runs approved experiments, preserving all artifacts.
 - **Reviewer** independently challenges claims, experiment validity, and proposed state transitions.
+- **Validator** independently checks run integrity, controls, and stated metrics.
+- **Red Team** tries to falsify the interpretation, cost model, and scope of a
+  proposed conclusion.
 
 Only the Coordinator may change the official status of a hypothesis or research direction.
 
@@ -20,7 +23,8 @@ Default policies:
 - Coordinator: `coordinator-ultra-code` — GPT-5.6 Sol Ultra Code.
 - Idea Generator and research tasks: `research-sol-max` — GPT-5.6 Sol Max.
 - Executor: `executor-terra` — GPT-5.6 Terra.
-- Reviewer and red team: `review-xhigh` — GPT-5.6 Sol with `xhigh` reasoning.
+- Reviewer, Validator, and Red Team: `review-xhigh` — GPT-5.6 Sol with
+  `xhigh` reasoning.
 
 The runtime adapter must record both the human-readable policy alias and the exact resolved model identifier. It must never silently downgrade a requested policy. Critical findings require an independent review session using `review-xhigh` and a reviewer that did not originate the claim.
 
@@ -47,7 +51,7 @@ Every inter-agent task must include:
 handoff:
   id: TASK-YYYYMMDD-NNN
   from: coordinator
-  to: idea-generator | executor | reviewer
+  to: idea-generator | executor | reviewer | validator | red-team
   objective: precise uncertainty to reduce
   inputs: []
   constraints: []
@@ -62,6 +66,30 @@ handoff:
     maximum_runs: null
   completion_gate: []
 ```
+
+## Dynamic dispatch
+
+Use `tools/research_dispatch.py` to turn approved handoffs into a bounded,
+artifact-driven dispatch plan. The dispatch queue is a coordination record, not
+evidence: raw run receipts remain immutable in their experiment directories.
+
+- The Coordinator is the only role that may change official research status or
+  edit shared ledgers.
+- Each dispatched task owns non-overlapping repository-relative `write_scope`
+  paths. Agents write their reports beneath their assigned task directory;
+  they do not concurrently edit a shared hypothesis, experiment, or ledger.
+- A task becomes eligible only after every dependency has a `completed` receipt.
+  A failed, invalid, or cancelled dependency blocks its successors until the
+  Coordinator creates a scoped repair or successor task.
+- Keep at most three concurrent subagent tasks. Reserve an independent
+  Reviewer, Validator, or Red Team task whenever a result could change an
+  ECDLP claim.
+- The Executor records observations only. A Reviewer challenges claims, a
+  Validator verifies artifact and control integrity, and a Red Team writes
+  objections and falsification routes. The Coordinator alone may promote,
+  reject, or expand a research direction.
+- On each terminal receipt, regenerate the dispatch plan before admitting
+  further work. Do not fill capacity merely because a slot is free.
 
 ## Research states
 

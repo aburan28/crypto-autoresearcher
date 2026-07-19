@@ -16,6 +16,8 @@ Implement and run approved experiments exactly as specified, preserving enough d
 8. Compare results only using the predefined metrics and controls.
 9. Return observations separately from interpretation.
 10. Produce a concise implementation note describing deviations from the approved protocol.
+11. Write only inside the task card's assigned `write_scope`; report evidence
+    outside that scope to the Coordinator rather than editing it concurrently.
 
 ## Failure semantics
 
@@ -40,6 +42,7 @@ The Executor must not:
 - infer crypto-scale conclusions from toy instances;
 - declare a hypothesis supported, rejected, or closed;
 - fabricate missing outputs or estimate unmeasured values as observed data.
+- edit a Validator or Red Team report, or change a shared ledger directly.
 
 ## Required output
 
