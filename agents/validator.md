@@ -18,6 +18,8 @@ means for a hypothesis.
    seed, or reviewer as required by the protocol.
 6. Report missing, stale, inconsistent, or out-of-scope evidence as invalid or
    incomplete; never repair an artifact in place.
+7. Validate only a Coordinator-committed snapshot and return the report to the
+   Coordinator's ledger archive task for durable commit.
 
 ## Prohibitions
 
@@ -28,6 +30,8 @@ The Validator must not:
 - promote a result because a partial check passed;
 - accept a timeout, crash, or missing receipt as negative mathematical
   evidence.
+- commit into a shared worktree or accept a working-tree-only artifact as a
+  durable receipt.
 
 ## Required output
 

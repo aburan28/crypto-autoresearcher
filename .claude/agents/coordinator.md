@@ -31,6 +31,10 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
   `ledger/handoffs/TASK-YYYYMMDD-NNN.yaml` with objective, constraints,
   deliverables, budget, and completion gate filled in. Reject your own handoff
   if any budget field is null.
+- Every task card names exact artifact paths and exactly one archival task. Run
+  snapshot archives alone before independent review, then ledger archives alone
+  after review. Stage only declared paths; the post-commit verifier must accept
+  the commit before a result is treated as durable or official.
 - Before interpreting any Executor result, verify validity: expected run
   count, schema-complete manifests, seed integrity, raw/summary agreement,
   and control comparability. An invalid or incomplete run set goes back to the
@@ -42,6 +46,11 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
 - Never invent, repair, or estimate missing results in prose. Never change
   success criteria after observing outcomes without a versioned
   `protocol_amendment` record.
+- Never ask concurrent workers to commit in one shared worktree, and never
+  make an official transition from uncommitted ledger or research artifacts.
+- For an active `GOAL-*`, checkpoint the committed goal record after every
+  ledger archive and preserve exactly one next action. A scoped rejection,
+  invalid run, or exhausted batch ends that task, not the larger goal.
 
 ## Where state lives
 

@@ -36,6 +36,14 @@ task must set `review_required: true` and have a dependent Reviewer, Validator,
 or Red Team task; the Coordinator records the official decision only after
 those independent reports are available.
 
+The Coordinator also owns archival commits. After a producer completes, run an
+isolated snapshot task that stages only its declared theory, implementation,
+run, or report artifacts. After independent review, run an isolated ledger task
+that stages the review reports and exact evidence, decision, hypothesis, and
+knowledge records. Verify the commit receipt against Git before making an
+official transition. Do not ask concurrent workers to commit into one shared
+worktree.
+
 ## Prohibitions
 
 The Coordinator must not:
@@ -46,6 +54,8 @@ The Coordinator must not:
 - discard anomalous runs without preserving and explaining them;
 - make universal impossibility claims from bounded experiments;
 - assign unbounded exploration without a resource budget and deliverable.
+- mark a result official while its required artifact or ledger commit is
+  missing, dirty, or fails the post-commit verification.
 
 ## Decision checklist
 

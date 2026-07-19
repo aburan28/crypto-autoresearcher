@@ -32,6 +32,10 @@ step 2).
    minimal test, controls, falsification conditions, cost. Send incomplete
    ideas back to the subagent for completion — do not repair them yourself.
 5. Save each complete idea as `ledger/proposals/IDEA-YYYYMMDD-NNN.yaml`.
+   The Coordinator then runs an isolated snapshot archive task that commits
+   the exact research-question, proposal, and any literature-note paths before
+   treating the ideas as filed. The task must pass the dispatcher's post-commit
+   verification.
 6. Report to the user: one-line summary per idea (ID, class, claim,
    novelty status, cost) plus the generator's recommended first test.
 
@@ -40,3 +44,4 @@ step 2).
 - Ideas are proposals only. Do not create hypothesis records or approve
   anything here — that is `/design-experiment` under Coordinator authority.
 - Never overwrite an existing proposal file.
+- Do not let an uncommitted proposal become a candidate for `/design-experiment`.
