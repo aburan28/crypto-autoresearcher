@@ -1,0 +1,68 @@
+experiment:
+  id: EXP-EQJ-001
+  hypothesis_id: H-EQJ-001
+  version: 1
+  status: approved
+  title: "Equivariant index calculus on the Semaev fiber-product curve: isotypic (B_3) decomposition of the m=4 relation space vs symmetrized baseline and random null"
+  objective: >
+    Measure whether exact group-algebra (Maschke) decomposition of the m=4 Semaev
+    fiber-product relation space under G = S_3 ⋉ (Z/2)^3 (order 48) yields block
+    structure beyond the symmetrized baseline: per-isotype relation masses,
+    multiplicities, per-block ranks, orbit-compressed storage, and blind-descent
+    success, at three toy prime sizes, against a matched random-hypergraph /
+    random-action null. Executor reports numbers only; the Coordinator decides status.
+  operationalization_note: >
+    Sign flips do not preserve a fixed-target sum, so the relation SET U_T is not
+    G-invariant. Faithful reading of the frozen candidate text: the ambient module is
+    the permutation module on U~ = {(P1,P2,P3) : x(P_i) in FB} (the 3 free summands of
+    the m=4 decomposition; the 4th is determined by the target), on which G = B_3 acts
+    exactly (S_3 permutes the 3 slots, (Z/2)^3 flips signs). The relation indicator
+    f of the fiber U_T = {t in U~ : x(T - sum(t)) in FB} is decomposed into isotypic
+    components by exact idempotents pi_lambda; per-block relation mass
+    w_lambda = ||pi_lambda f||^2 is an exact additive split of N = |U_T| (Parseval).
+    Block matrices are B_lambda = pi_lambda * A (mod n) where A is the signed
+    relation x factor-base incidence matrix lifted to U~ rows.
+  inputs:
+    primes: [211, 1009, 4099]
+    m: 4
+    group: "B_3 = S_3 ⋉ (Z/2)^3, |G| = 48, p ∤ |G| at all three sizes"
+    k_factor_base: {211: 12, 1009: 12, 4099: 16}
+    ambient_size_M: {211: 13824, 1009: 13824, 4099: 32768}  # (2k)^3
+    curve_rule: "first (a,b) in lexicographic scan a=1.., b=1.. with 4a^3+27b^2 != 0 and #E(F_p) prime (=> ordinary); identical across seeds"
+    factor_base_rule: "k smallest x-coordinates (as integers in [0,p-1]) that occur on E; canonical lift = point with y in [0,(p-1)/2]"
+    target_rule: "per seed: T0 = t0*Q0, Q0 = canonical point of FB_x[0], t0 seeded in [2, n-1]"
+    seeds: [20260717, 20260718, 20260719]
+    null_draws_per_seed: 8
+    dlp_instances_per_seed: 1
+    dlp_relations_per_instance: "k+4 seeded random a_j,b_j targets T_j = a_j*R + b_j*Q0; first-hit decomposition in seeded shuffle order"
+  controls:
+    - id: POS-1-parseval
+      description: "sum_lambda w_lambda == N exactly (exact rational arithmetic) AND sum_lambda mult_lambda*dim_lambda == M; validates idempotent implementation"
+    - id: POS-2-conservation
+      description: "sum_lambda B_lambda == A (mod n) entrywise; block matrices conserve the full relation matrix (symmetrized-baseline total relations equal exactly)"
+    - id: POS-3-spotcheck
+      description: "5 sampled relations per seed re-verified by fresh EC addition: P1+P2+P3+P4 == T and all x in FB"
+    - id: NEG-1-null
+      description: "8 seeded uniform-random N-subsets of U~ (random hypergraph); note: randomizing the G-action by conjugation is distribution-equivalent to randomizing f, so one null family covers both. If EC per-block profile lies inside the null envelope, block structure is not EC-specific (candidate's kill condition)"
+  independent_variables: [p, seed]
+  metrics:
+    primary: [per-block relation mass w_lambda (exact), isotypic multiplicities mult_lambda, per-block ranks r_lambda mod n, r_full, r_triv, orbit-compressed storage factor N/orbits_hit, blind-descent full-column-rank flags per block, DLP recovery success (baseline vs orbit-scan)]
+    secondary: [LA reduction factor r_full^3 / sum r_lambda^3, combined LA+storage factor, charged-cost exponent proxy across 3 sizes, null-envelope comparison]
+  replication:
+    seeds: [20260717, 20260718, 20260719]
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_wall_clock_seconds: 2400
+    maximum_runs: 8
+  stopping_rules:
+    - "any single sage invocation > 600 s: kill, record infrastructure timeout (NOT evidence), reduce null draws/sizes, record deviation in analysis.md and EV record"
+    - "if p=4099 run exceeds budget, re-run with k=12 and record deviation"
+  invalidation_rules:
+    - "any positive control fails => validity_status: invalid with reason; still report"
+    - "character table does not have 10 classes / 10 irreps for B_3 => invalid (group construction error)"
+  success_criterion: "measured per-block structure deviates from the random null AND (charged exponent trend < 0.49 OR >= 4x LA+storage reduction at equal recovered targets sustained across three sizes)"
+  falsification_criterion: "EC block distribution within null envelope (structure not EC-specific), or multiplicities |G|-symmetric with harvest concentrated in trivial/sign blocks, or LA+storage reduction < 4x"
+  required_artifacts: [specification.yaml, eqj1_isotypic.sage, runs/RUN-EQJ-001-{a,b,c}/{manifest.yaml,raw.json,stderr.txt}, analysis.md, ledger/{RQ,H,EV}-EQJ-001.yaml]
+  assigned_to: executor
+  approved_by: coordinator

@@ -1,0 +1,143 @@
+experiment:
+  id: EXP-BKK-001
+  hypothesis_id: H-BKK-001
+  version: 1
+  status: approved
+  title: "Newton polytopes, mixed volume, and sparse-vs-dense solve cost of the target-sectioned Semaev family (candidate B2, TASK-20260717-B2)"
+  objective: >
+    Execute the minimal falsifying experiment for candidate B2 exactly as specified in
+    research_directions_20260717.md ("Candidate: B2"): compute exact monomial supports and
+    Newton polytopes of the target-sectioned Semaev polynomials S_m(x_1..x_{m-1}; x_R),
+    compute the mixed volume MV vs the dense Bezout bound, solve real membership systems via
+    support-aware (sparse) vs dense composed-resultant routes counting F_p ops, and evaluate
+    the quantitative promotion gate. Stage-0 (offline) question: are the Semaev Newton
+    polytopes saturated (MV = Bezout, B2 dies at stage 0) or is log MV / log Bezout < 1?
+  source_protocol: "research_directions_20260717.md, '## Candidate: B2', sections: Minimal falsifying experiment, Cost model, Quantitative promotion gate, Disproof track"
+
+  # ---------------- frozen objects and conventions ----------------
+  frozen_objects:
+    curve_family: "ordinary prime-field short-Weierstrass E: y^2 = x^3 + a*x + b over F_p, char >= 5, standard exclusions (nonsingular; seeded random a,b != 0)"
+    sectioned_semaev: >
+      S_m(x_1..x_{m-1}; x_R) = T_m(x_1, ..., x_{m-1}, x_R), where T_m is the m-th summation
+      polynomial built by the exact Semaev recursion over F_p:
+      T_3(x_1,x_2,x_3) = (x_1-x_2)^2*x_3^2 - 2*((x_1+x_2)*(x_1*x_2+a)+2*b)*x_3 + ((x_1*x_2-a)^2 - 4*b*(x_1+x_2))
+      (closed form identical to the ledger harvester formula, experiments/EXP-FB-001/fb_structure.sage lines 10-11),
+      T_m = Res_X(T_{m-1}(x_1..x_{m-2}, X), T_3(x_{m-1}, x_m, X)) for m >= 4,
+      computed by exact evaluation-interpolation over F_p (per-variable degree bound D = 2^(m-2), grid 0..D).
+      Formal-degree Sylvester resultants (no leading-coefficient stripping) are used, so the recursion
+      is exact up to an overall nonzero constant; roots and supports are unaffected.
+      n = m-1 free variables; per-variable degree D = 2^(m-2); box = [0,D]^n.
+    bezout_baseline: >
+      Multigraded dense Bezout root count B_m = n! * D^n (exact root count of the generic square system
+      with Newton polytope = full box [0,D]^n). Rationale: the dense solver's cost driver in the
+      candidate's own cost model is D^{O(m)}, the box/monoid size; MX-1478's 1.979 fit is a dense
+      composed-resultant (multigraded) measurement. Under this reading MV = Bezout iff Newton
+      saturation, matching the candidate's kill condition. The total-degree Bezout number D_tot^n
+      is additionally reported as a secondary reference but is NOT the gate baseline.
+    mixed_volume: "MV_m = MV(Delta_m, ..., Delta_m) (n copies) = n! * Vol(Delta_m) (standard BKK identity; exact)."
+    ratio: "rho_m = MV_m / (n! * D^n) = Vol(Delta_m) / D^n in (0,1]; rho_m = 1 iff saturation."
+    op_counting: >
+      One F_p op = one modular multiplication or one modular addition/subtraction executed in solver
+      coefficient arithmetic, counted by instrumented helper functions in bkk1_newton_mv.sage.
+      One modular inversion is counted separately and weighted as 10 muls in totals (stated convention).
+      Data movement, indexing, hashing, curve arithmetic, and RNG are not counted. Wall times are
+      reported separately and are not the primary metric.
+    routes:
+      dense: "composed-resultant construction of S_m by evaluation on the FULL box grid (size (D+1)^n) + nested Newton finite-difference interpolation; FB-restricted solve by dense nested-Horner evaluation on FB^(m-1)."
+      sparse: "support-aware variant: construction from |supp| sample tuples + support-constrained interpolation solved by exact Gaussian elimination over F_p (only when |supp| <= 200); FB-restricted solve by support-restricted evaluation."
+      sparse_fallback: >
+        Predeclared: when |supp| > 200, generic support-constrained interpolation is infeasible by
+        budget (cost ~ |supp|^3/3 ops vs dense tensor-Newton ~ 2*(D+1)^(n+1)); the run records
+        sparse_mode=fallback_analytic with the ANALYTIC op estimate |supp|^3/3 labeled as an estimate
+        (not a measured run), and the sparse construction is charged equivalent to dense for the
+        exponent ratio (justification: at near-box fill the support-constrained system IS the box
+        system and tensor-structured Newton is optimal for both). Recorded as a limitation.
+    factor_base: "first d_m distinct liftable x-coordinates from seeded random x's (ledger 'random' structure style); d_3=12, d_4=10, d_5=8 (keeps FB^(m-1) enumeration <= 4096 tuples)."
+    targets: >
+      Per config two targets: R_main = seeded random nonzero point with x_R != 0 (resampled if x_R = 0,
+      recorded); R_wit = P_1+...+P_{m-1} over the first m-1 FB points (guaranteed >= 1 solution;
+      adjusted to the next index window if the sum is O, recorded). Stage-0 support/polytope/MV uses
+      R_main only (the generic stage-0 object); solve + controls run on both targets.
+    solution_set_semantics: >
+      Algebraic solutions = {(x_1..x_{m-1}) in FBx^(m-1) : S_m(x_1..x_{m-1}; x_R) = 0}.
+      Harvest solutions = {ordered tuples : exists signs eps_i in {+1,-1}, sum eps_i P_i = +/- R},
+      the direct m-summation generalization of the ledger S3 harvester (EXP-FB-001 enumeration style).
+      Equality of the two sets is the Semaev theorem; the control verifies the implementation.
+
+  # ---------------- independent variables ----------------
+  independent_variables:
+    p: [101, 431, 1009]
+    m: [3, 4, 5]
+    seeds: [20260717, 20260718, 20260719]
+
+  # ---------------- metrics ----------------
+  metrics:
+    primary:
+      - "rho_m = MV_m/(n!*D^n) per (p, m, seed), exact rational; gate quantity at m=5"
+      - "log(MV_m)/log(n!*D^n) per (p, m, seed) (candidate cost-model invariant; < 1 strictly required for a win)"
+    secondary:
+      - "|supp(S_m)| and box fill sigma_m = |supp|/(D+1)^n"
+      - "per-variable max degree (must equal D=2^(m-2)), total degree D_tot, total-degree Bezout D_tot^n (reference)"
+      - "polytope vertex count; support symmetry check under S_{m-1}"
+      - "construction F_p ops: C_dense(m), C_sparse(m) (measured or labeled analytic fallback)"
+      - "FB-solve F_p ops: dense nested-Horner vs support-restricted evaluation, per (p, m, seed, target)"
+      - "solve-cost exponents: e_route = least-squares slope of log C_route(m) vs log(D^n) over m in {3,4,5}; ratio e_sparse/e_dense"
+      - "support stability across seeds/targets (union = generic family support; per-instance losses recorded)"
+  replication:
+    seeds: [20260717, 20260718, 20260719]
+    independent_instances: "3 primes x 3 seeds = 9 curve/target instances per m; 27 configs total"
+
+  # ---------------- controls ----------------
+  controls:
+    positive:
+      - id: POS-1
+        description: "solution sets identical to the ledger S3 harvester (m-summation generalization): roots(dense S_m on FB^(m-1)) == roots(sparse S_m) == sign-enumeration harvest, for every (p, m, seed, target). Any mismatch => validity_status invalid."
+      - id: POS-2
+        description: "dense-route and sparse-route polynomials identical coefficient-wise (m <= 4 where sparse interpolation runs)."
+      - id: POS-3
+        description: "recursive T_3 sectioned == closed-form S3 (the ledger formula) coefficient-wise, every config."
+      - id: POS-4
+        description: "witness target R_wit yields a nonempty solution set (sanity that controls are not vacuous)."
+      - id: POS-5
+        description: "polytope machinery self-test on known shapes (triangle, cut square, 3-simplex, box): exact volumes must match; MV cross-checked by >= 2 methods (pulling triangulation, Sage volume, box identity) before metrics are marked valid."
+    negative:
+      - id: NEG-1
+        description: "random same-support systems (seeded uniform nonzero fill of supp(S_m)): Newton polytope and MV must equal the EC instance (MV sees only the hull). Recorded per (p, m, seed), m = 3,4,5."
+      - id: NEG-2
+        description: "random same-support systems solve with identical F_p-op counts under both routes (m <= 4): any win would be generic sparse-system machinery, not EC structure; solution sets must differ from the EC instance (sanity)."
+
+  # ---------------- gate arithmetic (from candidate section, verbatim thresholds) ----------------
+  promotion_gate:
+    g1: "rho_5 <= 0.85 at m = 5 (disproof arithmetic: measured rho_5 >= 0.95 at m = 5 => Newton saturation => MV = Bezout)"
+    g2: "measured solve-exponent ratio e_sparse/e_dense < 0.9 across sizes, trending down in m"
+    g3: "combined charged exponent (with RT-1476 supply) trending below 0.49; charged-exponent change = 0 iff solver cost ratio = 1 and relation supply unchanged (solution sets identical => relation probability unchanged, measured)"
+  budget:
+    wall_clock_seconds_total: 2400
+    wall_clock_seconds_per_sage_invocation: 600
+    maximum_runs: 8
+  stopping_rules:
+    - "any single sage invocation > 600 s: kill it, record as infrastructure timeout (NOT evidence against the hypothesis), reduce seeds (minimum 3: 20260717..20260719) or sizes, record the deviation in analysis.md and the EV record"
+    - "sparse interpolation skipped when |supp| > 200 (fallback_analytic; see routes.sparse_fallback)"
+    - "if Sage Polyhedron construction for a non-box support exceeds 120 s, record polytope_metrics=deferred with support statistics, and note the deviation"
+  invalidation_rules:
+    - "any positive-control mismatch (POS-1..POS-5) => validity_status invalid with reason; still report"
+    - "polytope volume methods disagree => polytope metrics invalid; report support statistics only"
+    - "timeout/kill => affected scope marked failed_infrastructure, not evidence"
+  success_criterion: "all artifacts written; controls pass or deviations recorded; gate arithmetic reported from measured numbers; validity_status set honestly"
+  falsification_criterion: "candidate's own disproof track: rho_5 >= 0.95 (saturation) or solve-exponent ratio >= 0.9"
+  required_artifacts:
+    - experiments/EXP-BKK-001/specification.yaml
+    - experiments/EXP-BKK-001/bkk1_newton_mv.sage
+    - experiments/EXP-BKK-001/runs/RUN-BKK-001-a/{manifest.yaml,raw.json,stderr.txt}
+    - experiments/EXP-BKK-001/runs/RUN-BKK-001-b/{manifest.yaml,raw.json,stderr.txt}
+    - experiments/EXP-BKK-001/runs/RUN-BKK-001-c/{manifest.yaml,raw.json,stderr.txt}
+    - experiments/EXP-BKK-001/runs/RUN-BKK-001-d/{manifest.yaml,raw.json,stderr.txt}
+    - experiments/EXP-BKK-001/analysis.md
+    - ledger/RQ-BKK-001.yaml, ledger/H-BKK-001.yaml, ledger/EV-BKK-001.yaml
+  run_plan:
+    RUN-BKK-001-a: "m=3,4; all p; all seeds; both targets; all controls"
+    RUN-BKK-001-b: "m=5; p=101; all seeds; both targets; controls"
+    RUN-BKK-001-c: "m=5; p=431; all seeds; both targets; controls"
+    RUN-BKK-001-d: "m=5; p=1009; all seeds; both targets; controls"
+  assigned_to: executor
+  approved_by: coordinator

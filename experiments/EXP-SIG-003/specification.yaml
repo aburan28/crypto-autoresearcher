@@ -1,0 +1,142 @@
+experiment:
+  id: EXP-SIG-003
+  hypothesis_id: H-SIG-001
+  version: 1
+  title: "syzygy <-> d_reg-deficit link test: does the non-rewritable low-degree
+    syzygy family generate the Macaulay rank deficit?"
+  status: approved
+  objective: >-
+    DEC-20260718-017 next_action / handoff TASK-20260718-SIG-F3. Two structural
+    anomalies are measured on the SAME boolean chained Semaev m=3 systems:
+    (a) EXP-SIG-002's residual non-rewritable low-degree syzygy family
+    (9, 10, 13, 14 at n = 12, 15, 18, 21, D4, zero seed variance, null = 0);
+    (b) EXP-DREG-001/002's Macaulay rank deficit vs the semi-regular prediction
+    (1,322 / 1,862 / 1,823 / 1,999 at n = 12 / 15 / 17 / 18, D5).
+    This experiment tests whether (a) generates (b): at n = 12 and n = 15,
+    D = 5, compute the rank of the multiplication closure (modulo the K5 model
+    family) of all lower-degree non-model syzygies, and compare it against the
+    measured D5 extra/deficit. Outcome (i) merge: closure rank == extra_5
+    (residual_5 = 0) — the DREG deficit is spanned by SIG-family multiplies.
+    Outcome (ii) independence: residual_5 > 0 — new non-rewritable directions
+    exist at D5 beyond the closure. A dimension argument is sufficient
+    (rank comparisons only; no causality claim).
+  inputs:
+    instrument: "bit-identical copy of the EXP-SIG-001/002 instrument
+      src/h013_f5_signatures.sage (sha256 1ba96fe477c9dc2e7c551c96353c8361d21e40134551342636b2f13015c09087),
+      semaev_tree.py (e9f1681b…), ic_first_fall_fast.py (f1c98bd8…),
+      macaulay_export.py (c00b8aad…) — copies live in experiments/EXP-SIG-003/src/;
+      originals never modified"
+    systems: "boolean chained Semaev m=3, t=3, Weil-descended; standard
+      instances per the EXP-SIG-002 input-side filter (R_x != 0 and no
+      degree-1 descended equation)"
+    cells:
+      - {n: 12, seed: 2, arm: sem,  anchor: "EXP-SIG-002 RUN-h: rank 28,097, deficit 1,321, extra 1,322, residual4 9"}
+      - {n: 12, seed: 2, arm: null, anchor: "EXP-SIG-002 RUN-h: rank == sr_pred 29,418, extra 0"}
+      - {n: 15, seed: 1, arm: sem,  anchor: "EXP-SIG-002 RUN-i / EXP-DREG-001 N15: rank 69,073, deficit 1,862, extra 1,863, residual4 10"}
+      - {n: 15, seed: 1, arm: null, anchor: "EXP-SIG-002 RUN-i: rank == sr_pred 70,935, extra 0"}
+      - {n: 12, seed: 2, arm: sem,  purpose: determinism repeat, anchor: "must equal first cell modulo timing"}
+      - {n: 12, seed: 2026, arm: sem, purpose: "DREG-seed cross-check (EXP-DREG-001 anchor deficit 1,322; EXP-SIG-002 recorded O(1) seed-dependence 1,321 vs 1,322)", optional: budget}
+  controls:
+    - id: C1-continuity-D3D4
+      spec: "sem arm: D3 deficit == extra == 1; D4 deficit == extra == 8n/3
+        (32 at n=12, 40 at n=15); residual_new_at_D4 == 9 (n=12) / 10 (n=15)
+        via the verbatim EXP-SIG-002 v3-multiples logic"
+    - id: C2-continuity-D5
+      spec: "sem arm: D5 rank/deficit/extra reproduce EXP-SIG-002 D5 anchors
+        (28,097/1,321/1,322 at n=12 s2; 69,073/1,862/1,863 at n=15 s1)"
+    - id: C3-null
+      spec: "support-matched null on every cell: extra == 0 AND rank == sr_pred
+        at D3, D4, D5; null residual4 == 0; null closure ranks A3 == A4 == 0;
+        null residual_5 == 0"
+    - id: C4-determinism
+      spec: "n=12 seed 2 sem cell repeated in a second invocation; cell
+        payloads identical modulo timing fields"
+    - id: C5-filter
+      spec: "instance filter applied input-side before outcomes are read:
+        standard iff R_x != '0' and eq_degs_hist has zero degree-1 equations;
+        non-standard cells recorded and excluded"
+    - id: C6-dimension-sanity
+      spec: "measured ranks must satisfy A3 <= A4 <= extra_5 and
+        A4 <= extra_4 * (1 + nb); A3 + A4_beyond_A3 == A4 (D3-closure
+        containment). Any violation = implementation bug -> run invalid,
+        investigate before further cells"
+  independent_variables:
+    - n in {12, 15}
+    - seed (2 at n=12; 1 at n=15; 2026 cross-check at n=12)
+    - arm in {sem, null}
+  metrics:
+    primary:
+      - name: extra_5
+        def: "dim ker(M_5) - rank(K_5) on the sem system (non-model syzygy-space dimension at D5)"
+      - name: deficit_5
+        def: "sr_pred(5) - rank(M_5) (missing-pivot count; EXP-DREG anomaly)"
+      - name: A4
+        def: "rank mod K5 of { mu * sigma : sigma in ker_4 basis, mu in {1} cup {x_j} } — the multiplication closure of ALL lower-degree non-model syzygies at D5 (K4-images land in K5, so only the extra_4 quotient contributes)"
+      - name: residual_5
+        def: "extra_5 - A4 — non-rewritable syzygy directions born at D5"
+      - name: coverage
+        def: "A4 / deficit_5 (fraction of the missing pivots spanned by lower-degree multiplies)"
+      - name: amplification
+        def: "A4 / extra_4 (D5 directions generated per D4 extra syzygy; max possible nb+1)"
+    secondary:
+      - name: A3
+        def: "rank mod K5 of { mu * sigma : sigma in ker_3 basis, deg(mu) <= 2 } (D3-syzygy closure at D5)"
+      - name: A4_beyond_A3
+        def: "incremental rank of the D4 closure over the D3 closure"
+      - name: A4_id
+        def: "rank mod K5 of identity embeddings of ker_4 (persistence of D4 extras at D5; predicted == extra_4)"
+      - name: rankK5_sem_vs_null
+        def: "K5 model-family rank on sem vs null (identity check: deficit_5 = extra_5 + rankK5_sem - rankK5_null)"
+  replication:
+    seeds: [2, 1, 2026]
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_wall_clock_seconds: 3300
+    maximum_memory_gb: 24
+    maximum_runs: 10
+  stopping_rules:
+    - "any single invocation > 600 s: kill at a checkpoint boundary (per-cell
+      flush), record as infrastructure censoring (NOT evidence, AGENTS rule 5),
+      reduce scope: drop the n=15 arm before n=12, drop the seed-2026
+      cross-check first"
+    - "if a C6 sanity check fails: stop, mark the run invalid, investigate the
+      implementation before launching further cells"
+    - "if the n=15 null cell exceeds the soft cap before its D5 echelon starts,
+      record the cell as censored and keep the D3/D4 null controls"
+  invalidation_rules:
+    - "instrument hash mismatch vs the pinned sha256 set -> invalid"
+    - "C1/C2 continuity failure (anchors not reproduced) -> the run is invalid
+      as a link test (instrument drift); record, do not interpret"
+    - "C6 sanity violation -> invalid (implementation bug)"
+    - "non-standard instance (C5) -> cell recorded, excluded from the link table"
+  success_criterion: >-
+    NOT a hypothesis verdict (status belongs to the Coordinator). Clean outcome
+    either way: (i) residual_5 == 0 at both sizes -> the closure spans the
+    extra space (merge, dimension-wise); (ii) residual_5 > 0 -> new
+    non-rewritable directions at D5 (independence). Report numbers only.
+  falsification_criterion: "n/a — link measurement, not a hypothesis test"
+  required_artifacts:
+    - specification.yaml, implementation.md, analysis.md
+    - SIG3_run.sage, make_manifests.py, summarize.py, compare_determinism.py
+    - src/ bit-identical instrument copies (sha256 in every manifest)
+    - runs/RUN-EXP-SIG-003-*/{manifest.yaml, command.txt, environment.json,
+      stdout.txt, stderr.txt, raw.json}
+    - summary.json (machine-readable link table)
+    - ledger/EV-SIG-003.yaml
+  assigned_to: executor
+  approved_by: coordinator (DEC-20260718-017, handoff TASK-20260718-SIG-F3)
+
+pre_execution_dimension_note:
+  text: >-
+    Recorded BEFORE any run (pre-registered expectation, not a result).
+    extra_4 = 32 (n=12) / 40 (n=15); nb = 24 / 30. The D4 closure at D5 has
+    rank <= extra_4 * (1 + nb) = 800 / 1,240, while extra_5 = 1,322 / 1,863.
+    Since K4-images land in K5 and the D3 closure is contained in the D4
+    closure, the lower-degree multiplication closure CANNOT span extra_5 at
+    either size: residual_5 >= 1,322 - 800 = 522 (n=12) and >= 1,863 - 1,240 =
+    623 (n=15) are forced by the dimension bound. Outcome (i) merge is
+    therefore arithmetically impossible at these sizes; the runs MEASURE the
+    actual A4, residual_5, coverage, and amplification, and verify the
+    controls. If a measured A4 exceeds its bound, the bound reasoning (not the
+    arithmetic) is wrong -> C6 violation -> investigate.
