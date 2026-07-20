@@ -29,11 +29,12 @@ LEGACY_SCHEMAS = {
     "sgcp-embed-002-density-frontier-candidate-v5",
     "sgcp-embed-002-density-frontier-candidate-v6",
     "sgcp-embed-002-density-frontier-candidate-v7",
+    "sgcp-embed-002-density-frontier-candidate-v8",
 }
-CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v8"
-VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v8"
+CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v9"
+VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v9"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
-PROTOCOL_VERSION = 8
+PROTOCOL_VERSION = 9
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -69,6 +70,7 @@ MAXIMUM_DIAGNOSTIC_COUNT = 256
 MAXIMUM_DIAGNOSTIC_BYTES = 65_536
 MAXIMUM_DIAGNOSTIC_ITEM_BYTES = 2_048
 MAXIMUM_VERIFICATION_REPORT_BYTES = 8_388_608
+MAXIMUM_REFLECTED_PATH_BYTES = 4_096
 MAXIMUM_PRIMARY_NODES = 5_000_000
 MAXIMUM_REPLAY_NODES_PER_CAP = CANONICAL_NODE_CAP
 MAXIMUM_ROW_FACTOR_BASE_SIZE = max(CANONICAL_FACTOR_BASE_SIZES)
@@ -93,12 +95,15 @@ MAXIMUM_TOTAL_EXPANSION_CELLS = (
     MAXIMUM_CANONICAL_ROWS * MAXIMUM_EXPANSION_CELLS_PER_ROW
 )
 _MAXIMUM_DEGREE4_CANDIDATES = math.comb(MAXIMUM_ROW_FACTOR_BASE_SIZE + 3, 4)
-MAXIMUM_GRAPH_CELLS_PER_ROW = (
-    _MAXIMUM_DEGREE4_CANDIDATES
-    + math.comb(_MAXIMUM_DEGREE4_CANDIDATES, 2)
-    + _MAXIMUM_DEGREE4_CANDIDATES**2
+MAXIMUM_TOTAL_GRAPH_CANDIDATE_EVALUATIONS = (
+    MAXIMUM_CANONICAL_ROWS * _MAXIMUM_DEGREE4_CANDIDATES
 )
-MAXIMUM_TOTAL_GRAPH_CELLS = MAXIMUM_CANONICAL_ROWS * MAXIMUM_GRAPH_CELLS_PER_ROW
+MAXIMUM_TOTAL_GRAPH_ELIGIBLE_CONFLICT_CHECKS = (
+    MAXIMUM_CANONICAL_ROWS * math.comb(_MAXIMUM_DEGREE4_CANDIDATES, 2)
+)
+MAXIMUM_TOTAL_GRAPH_ELIGIBLE_PAIR_OUTPUT_CELLS = (
+    MAXIMUM_CANONICAL_ROWS * _MAXIMUM_DEGREE4_CANDIDATES**2
+)
 MAXIMUM_REPLAY_CACHE_ENTRIES_PER_CAP = (
     MAXIMUM_REPLAY_NODES_PER_CAP + _MAXIMUM_DEGREE4_CANDIDATES**2 + 64
 )
@@ -207,7 +212,7 @@ class BoundedErrors(list[str]):
         if self.truncated:
             return
         self.truncated = True
-        marker = "diagnostics truncated at V8 source ceiling"
+        marker = "diagnostics truncated at V9 source ceiling"
         marker_bytes = len(marker.encode("ascii"))
         if (
             len(self) < MAXIMUM_DIAGNOSTIC_COUNT
@@ -468,7 +473,9 @@ def empty_actual_work() -> dict[str, int | bool]:
         "semantic_curve_point_enumerations": 0,
         "primary_curve_point_enumerations": 0,
         "expansion_cells": 0,
-        "graph_cells": 0,
+        "graph_candidate_evaluations": 0,
+        "graph_eligible_conflict_checks": 0,
+        "graph_eligible_pair_output_cells": 0,
         "replay_nodes": 0,
         "replay_metric_cache_entries": 0,
         "retained_model_replay_cache_entries": 0,
@@ -1216,6 +1223,7 @@ def reconstruct_graph(
     rejected: list[dict[str, Any]] = []
     maps: list[dict[Point, Formal]] = []
     for universe_index, candidate in enumerate(candidates):
+        charge_actual_work("graph_candidate_evaluations")
         family = ideal(len(factors), [candidate["formal"]])
         mapping: dict[Point, Formal] = {}
         first_collision: tuple[Formal, Formal, Point] | None = None
@@ -1244,6 +1252,7 @@ def reconstruct_graph(
     conflict_records: list[dict[str, Any]] = []
     for left in range(len(eligible)):
         for right in range(left + 1, len(eligible)):
+            charge_actual_work("graph_eligible_conflict_checks")
             first_collision = next(
                 (
                     (maps[left][point], maps[right][point], point)
@@ -1338,6 +1347,7 @@ def expansion_metrics(curve: Curve, factors: Sequence[Point]) -> dict[str, Any]:
         formal_multiplicities: Counter[Point] = Counter()
         ordered_multiplicities: Counter[Point] = Counter()
         for formal in itertools.combinations_with_replacement(range(len(factors)), degree):
+            charge_actual_work("expansion_cells")
             point = evaluate(curve, factors, formal)
             formal_multiplicities[point] += 1
             orderings = math.factorial(degree)
@@ -2048,7 +2058,7 @@ def _verify_legacy_row_unchecked(
 def verify_row(row: Any, maximum_nodes: Any) -> dict[str, Any]:
     errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
     errors.append(
-        "legacy direct-row API is disabled in V8; use path-based verify_document"
+        "legacy direct-row API is disabled in V9; use path-based verify_document"
     )
     return {"valid": False, "errors": errors, "primary_nodes": 0}
 
@@ -2111,17 +2121,17 @@ def _closed_dict(
         errors.append(f"{label_name} is not an object")
         return None
     if len(value) > len(expected_keys):
-        errors.append(f"{label_name} has more keys than the V8 source schema")
+        errors.append(f"{label_name} has more keys than the V9 source schema")
         return None
     if len(value) != len(expected_keys) or any(
         key not in expected_keys for key in value
     ):
-        errors.append(f"{label_name} keys do not match the V8 source schema")
+        errors.append(f"{label_name} keys do not match the V9 source schema")
         return None
     return value
 
 
-def v8_row_collection_bound_errors(row: Any) -> list[str]:
+def v9_row_collection_bound_errors(row: Any) -> list[str]:
     """Reject oversized nested containers before deep row traversal."""
     errors = BoundedErrors()
     if type(row) is not dict:
@@ -2141,10 +2151,10 @@ def v8_row_collection_bound_errors(row: Any) -> list[str]:
         "row_sha256",
     }
     if len(row) > len(row_keys):
-        errors.append("density row has more keys than the V8 source schema")
+        errors.append("density row has more keys than the V9 source schema")
         return errors
     if len(row) != len(row_keys) or any(key not in row_keys for key in row):
-        errors.append("density row keys do not match the V8 source schema")
+        errors.append("density row keys do not match the V9 source schema")
         return errors
     for name, expected in (
         ("protocol_version", int),
@@ -2168,11 +2178,11 @@ def v8_row_collection_bound_errors(row: Any) -> list[str]:
         return errors
     B = row.get("B")
     if type(B) is not int or not 4 <= B <= MAXIMUM_ROW_FACTOR_BASE_SIZE or B % 2:
-        errors.append("row.B is outside the V8 source range")
+        errors.append("row.B is outside the V9 source range")
         return errors
     family = row["family"]
     if family not in {*COORDINATE_FAMILIES, NULL_FAMILY}:
-        errors.append("row.family is outside the V8 source vocabulary")
+        errors.append("row.family is outside the V9 source vocabulary")
         return errors
     candidate_bound = math.comb(B + 3, 4)
     representative_bound = math.comb(B + 1, 2)
@@ -2825,7 +2835,7 @@ def v8_row_collection_bound_errors(row: Any) -> list[str]:
     return errors
 
 
-def v8_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
+def v9_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
     """Bound every gate-owned container before the generic shape walk."""
     errors = BoundedErrors()
     if scope == "frozen_fixture":
@@ -2836,7 +2846,7 @@ def v8_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
                     errors.append(f"frozen family gate.{name} is not a string")
         return errors
     if scope != "canonical":
-        errors.append("document scope is outside the V8 source vocabulary")
+        errors.append("document scope is outside the V9 source vocabulary")
         return errors
 
     gate_keys = {
@@ -2990,7 +3000,7 @@ def v8_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
     return errors
 
 
-def v8_document_collection_bound_errors(document: Any) -> list[str]:
+def v9_document_collection_bound_errors(document: Any) -> list[str]:
     """Apply source-sized document bounds before generic JSON traversal."""
     errors = BoundedErrors()
     if type(document) is not dict:
@@ -3010,12 +3020,12 @@ def v8_document_collection_bound_errors(document: Any) -> list[str]:
         "document_sha256",
     }
     if len(document) > len(document_keys):
-        errors.append("document has more keys than the V8 source schema")
+        errors.append("document has more keys than the V9 source schema")
         return errors
     if len(document) != len(document_keys) or any(
         key not in document_keys for key in document
     ):
-        errors.append("document keys do not match the V8 source schema")
+        errors.append("document keys do not match the V9 source schema")
         return errors
     for name, expected in (
         ("schema", str),
@@ -3046,7 +3056,7 @@ def v8_document_collection_bound_errors(document: Any) -> list[str]:
         errors.append("document claim status contains a non-string scalar")
     scope = document["scope"]
     if scope not in {"frozen_fixture", "canonical"}:
-        errors.append("document scope is outside the V8 source vocabulary")
+        errors.append("document scope is outside the V9 source vocabulary")
         return errors
 
     parameters = document["parameters"]
@@ -3169,15 +3179,15 @@ def v8_document_collection_bound_errors(document: Any) -> list[str]:
         )
     for index, row in enumerate(bounded_rows or []):
         errors.extend(
-            f"row[{index}]: {error}" for error in v8_row_collection_bound_errors(row)
+            f"row[{index}]: {error}" for error in v9_row_collection_bound_errors(row)
         )
         if errors.truncated:
             break
-    errors.extend(v8_family_gate_collection_bound_errors(document["family_gate"], scope))
+    errors.extend(v9_family_gate_collection_bound_errors(document["family_gate"], scope))
     return errors
 
 
-def v8_row_schema_errors(row: Any) -> list[str]:
+def v9_row_schema_errors(row: Any) -> list[str]:
     errors = BoundedErrors()
     try:
         require_keys(
@@ -3547,7 +3557,7 @@ def v8_row_schema_errors(row: Any) -> list[str]:
     return errors
 
 
-def v8_row_type_errors(row: dict[str, Any]) -> list[str]:
+def v9_row_type_errors(row: dict[str, Any]) -> list[str]:
     errors = BoundedErrors()
     for name in ("protocol_version", "B"):
         exact_integer(row[name], f"row.{name}", errors)
@@ -4238,10 +4248,10 @@ def _verify_density_row_unchecked(
     expected_node_cap: int | None,
     phases: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    errors = BoundedErrors(v8_row_schema_errors(row))
+    errors = BoundedErrors(v9_row_schema_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
-    errors.extend(v8_row_type_errors(row))
+    errors.extend(v9_row_type_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     supplied_digest = row.get("row_sha256")
@@ -4306,19 +4316,15 @@ def _verify_density_row_unchecked(
             candidate_universe,
         ) = reconstruct_graph(curve, factors)
         expansion = expansion_metrics(curve, factors)
-        charge_actual_work(
-            "expansion_cells",
-            sum(
-                math.comb(row["B"] + degree - 1, degree)
-                for degree in (1, 2, 4, 8)
-            ),
-        )
-        charge_actual_work(
-            "graph_cells",
-            candidate_count
-            + math.comb(candidate_count, 2)
-            + candidate_count**2,
-        )
+        eligible_points = [candidate["point"] for candidate in eligible]
+        point_index = {point: index for index, point in enumerate(group)}
+        pair_outputs: list[list[int]] = []
+        for left in eligible_points:
+            output_row: list[int] = []
+            for right in eligible_points:
+                charge_actual_work("graph_eligible_pair_output_cells")
+                output_row.append(point_index[curve.plus(left, right)])
+            pair_outputs.append(output_row)
     except Exception as error:
         errors.append(f"graph/expansion reconstruction: {type(error).__name__}: {error}")
         mark_actual_work_incomplete()
@@ -4380,13 +4386,6 @@ def _verify_density_row_unchecked(
             "actual_work_complete": True,
         }
     balanced_raw = support_counter(curve, raw_a4)
-
-    points = [candidate["point"] for candidate in eligible]
-    point_index = {point: index for index, point in enumerate(group)}
-    pair_outputs = [
-        [point_index[curve.plus(left, right)] for right in points]
-        for left in points
-    ]
     by_formal = {candidate["formal"]: index for index, candidate in enumerate(eligible)}
     public_frontier = row["public_model"]["density_frontier"]
     private_frontier = row["private_audit"]["density_frontier"]
@@ -4566,7 +4565,7 @@ def _verify_density_row_unchecked(
         try:
             require_independent_exhausted_gate_cell(optimizer)
         except AssertionError as error:
-            cap_errors.append(f"V8 requires an exhausted exact optimizer cell: {error}")
+            cap_errors.append(f"V9 requires an exhausted exact optimizer cell: {error}")
         if not exact_json_equal(optimizer.get("selected_indices"), selected_indices):
             cap_errors.append("optimizer selected-index mismatch")
         if optimizer.get("selected_mask_hex") != hex(selected_mask):
@@ -4964,7 +4963,7 @@ def _verify_density_row_for_tests(
 ) -> dict[str, Any]:
     global _ACTIVE_RESOURCE_RECEIPT
     reset_actual_work()
-    errors = BoundedErrors(v8_row_collection_bound_errors(row))
+    errors = BoundedErrors(v9_row_collection_bound_errors(row))
     if not errors:
         errors.extend(bounded_json_errors(row, "row"))
     errors.extend(maximum_nodes_errors(maximum_nodes))
@@ -5056,7 +5055,7 @@ def verify_density_row(
 ) -> dict[str, Any]:
     errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
     errors.append(
-        "direct density-row API is non-evidence and disabled in V8; use "
+        "direct density-row API is non-evidence and disabled in V9; use "
         "path-based verify_document"
     )
     return {
@@ -5218,7 +5217,7 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     else:
         negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v8",
+        "criterion_version": "sgcp-embed-002-family-gate-v9",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
@@ -5285,7 +5284,7 @@ def expected_row_keys() -> list[tuple[int, int, int, str, int | None]]:
     return result
 
 
-def v8_family_gate_schema_errors(gate: Any, scope: Any) -> list[str]:
+def v9_family_gate_schema_errors(gate: Any, scope: Any) -> list[str]:
     errors = BoundedErrors()
     if type(gate) is not dict:
         return ["family gate is not an object"]
@@ -5452,7 +5451,7 @@ def v8_family_gate_schema_errors(gate: Any, scope: Any) -> list[str]:
     return errors
 
 
-def v8_document_schema_errors(document: Any) -> list[str]:
+def v9_document_schema_errors(document: Any) -> list[str]:
     errors = BoundedErrors()
     try:
         require_keys(
@@ -5471,7 +5470,7 @@ def v8_document_schema_errors(document: Any) -> list[str]:
                 "family_gate",
                 "document_sha256",
             },
-            "V8 document",
+            "V9 document",
         )
         require_keys(
             document["summary"],
@@ -5484,13 +5483,13 @@ def v8_document_schema_errors(document: Any) -> list[str]:
                 "full_objective_exact_cap_cells",
                 "maximum_primary_gap",
             },
-            "V8 document summary",
+            "V9 document summary",
         )
     except (AssertionError, KeyError, TypeError) as error:
         errors.append(f"closed document schema: {error}")
     if type(document) is dict:
         errors.extend(
-            v8_family_gate_schema_errors(
+            v9_family_gate_schema_errors(
                 document.get("family_gate"), document.get("scope")
             )
         )
@@ -5498,7 +5497,7 @@ def v8_document_schema_errors(document: Any) -> list[str]:
     return errors
 
 
-def v8_document_type_errors(document: dict[str, Any]) -> list[str]:
+def v9_document_type_errors(document: dict[str, Any]) -> list[str]:
     errors = BoundedErrors()
     for name in ("schema", "experiment_id", "scope", "interpretation"):
         exact_string(document[name], f"document.{name}", errors)
@@ -5586,7 +5585,7 @@ def record_phase_unit(
         phase["status"] = "incomplete"
 
 
-def v8_nested_digest_and_accounting_errors(row: dict[str, Any]) -> list[str]:
+def v9_nested_digest_and_accounting_errors(row: dict[str, Any]) -> list[str]:
     """Check bounded internal integrity receipts before elliptic-curve work."""
     errors = BoundedErrors()
     curve = row["curve"]
@@ -5648,13 +5647,13 @@ def static_row_errors(
     expected_node_cap: int | None,
 ) -> list[str]:
     prefix = f"row[{row_index}]"
-    collection_errors = v8_row_collection_bound_errors(row)
+    collection_errors = v9_row_collection_bound_errors(row)
     if collection_errors:
         return [f"{prefix}: {error}" for error in collection_errors]
-    errors = BoundedErrors(f"{prefix}: {error}" for error in v8_row_schema_errors(row))
+    errors = BoundedErrors(f"{prefix}: {error}" for error in v9_row_schema_errors(row))
     if errors or type(row) is not dict:
         return errors or [f"{prefix}: row is not an object"]
-    type_errors = v8_row_type_errors(row)
+    type_errors = v9_row_type_errors(row)
     if type_errors:
         return [f"{prefix}: {error}" for error in type_errors]
     envelope_errors = BoundedErrors()
@@ -5673,7 +5672,7 @@ def static_row_errors(
         envelope_errors.append("ordering contract mismatch")
     if envelope_errors:
         return [f"{prefix}: {error}" for error in envelope_errors]
-    integrity_errors = v8_nested_digest_and_accounting_errors(row)
+    integrity_errors = v9_nested_digest_and_accounting_errors(row)
     if integrity_errors:
         return [f"{prefix}: {error}" for error in integrity_errors]
     envelope_errors.extend(density_row_envelope_errors(row, maximum_nodes))
@@ -5698,18 +5697,18 @@ def resource_envelope(
         sum(math.comb(row["B"] + degree - 1, degree) for degree in (1, 2, 4, 8))
         for row in rows
     )
-    graph_cells = 0
+    graph_candidate_evaluations = 0
+    graph_eligible_conflict_checks = 0
+    graph_eligible_pair_output_cells = 0
     metric_cache_entries = 0
     retained_model_calls = 0
     retained_model_cells = 0
     predicate_hash_calls = 0
     for row in rows:
         candidate_bound = math.comb(row["B"] + 3, 4)
-        graph_cells += (
-            candidate_bound
-            + math.comb(candidate_bound, 2)
-            + candidate_bound**2
-        )
+        graph_candidate_evaluations += candidate_bound
+        graph_eligible_conflict_checks += math.comb(candidate_bound, 2)
+        graph_eligible_pair_output_cells += candidate_bound**2
         family_bound = sum(
             math.comb(row["B"] + degree - 1, degree)
             for degree in range(5)
@@ -5777,7 +5776,13 @@ def resource_envelope(
         "semantic_curve_point_enumerations_upper_bound": len(rows),
         "primary_curve_point_enumerations_upper_bound": cap_cells,
         "expansion_cells_upper_bound": expansion_cells,
-        "graph_cells_upper_bound": graph_cells,
+        "graph_candidate_evaluations_upper_bound": graph_candidate_evaluations,
+        "graph_eligible_conflict_checks_upper_bound": (
+            graph_eligible_conflict_checks
+        ),
+        "graph_eligible_pair_output_cells_upper_bound": (
+            graph_eligible_pair_output_cells
+        ),
         "replay_nodes_upper_bound": replay_nodes,
         "independent_primary_nodes_upper_bound": primary_nodes,
         "metric_cache_entries_upper_bound": metric_cache_entries,
@@ -5791,8 +5796,18 @@ def resource_envelope(
         errors.append("cap-cell count exceeds the trusted verifier limit")
     if expansion_cells > MAXIMUM_TOTAL_EXPANSION_CELLS:
         errors.append("expansion-cell bound exceeds the trusted verifier limit")
-    if graph_cells > MAXIMUM_TOTAL_GRAPH_CELLS:
-        errors.append("graph-cell bound exceeds the trusted verifier limit")
+    if graph_candidate_evaluations > MAXIMUM_TOTAL_GRAPH_CANDIDATE_EVALUATIONS:
+        errors.append("graph-candidate bound exceeds the trusted verifier limit")
+    if (
+        graph_eligible_conflict_checks
+        > MAXIMUM_TOTAL_GRAPH_ELIGIBLE_CONFLICT_CHECKS
+    ):
+        errors.append("graph-conflict bound exceeds the trusted verifier limit")
+    if (
+        graph_eligible_pair_output_cells
+        > MAXIMUM_TOTAL_GRAPH_ELIGIBLE_PAIR_OUTPUT_CELLS
+    ):
+        errors.append("graph-pair-output bound exceeds the trusted verifier limit")
     if replay_nodes > MAXIMUM_TOTAL_REPLAY_NODES:
         errors.append("replay-node bound exceeds the trusted verifier limit")
     if primary_nodes > MAXIMUM_TOTAL_PRIMARY_NODES:
@@ -5822,7 +5837,7 @@ def actual_work_reservation_errors(
         "registered_curve_cache_entries"
     }
     if set(actual_work) != expected_actual_keys:
-        errors.append("actual-work receipt keys do not match the V8 source schema")
+        errors.append("actual-work receipt keys do not match the V9 source schema")
         return errors
     if type(actual_work["actual_work_complete"]) is not bool:
         errors.append("actual-work completeness flag is not Boolean")
@@ -5855,7 +5870,15 @@ def actual_work_reservation_errors(
             "primary_curve_point_enumerations_upper_bound"
         ),
         "expansion_cells": "expansion_cells_upper_bound",
-        "graph_cells": "graph_cells_upper_bound",
+        "graph_candidate_evaluations": (
+            "graph_candidate_evaluations_upper_bound"
+        ),
+        "graph_eligible_conflict_checks": (
+            "graph_eligible_conflict_checks_upper_bound"
+        ),
+        "graph_eligible_pair_output_cells": (
+            "graph_eligible_pair_output_cells_upper_bound"
+        ),
         "replay_nodes": "replay_nodes_upper_bound",
         "independent_primary_nodes": "independent_primary_nodes_upper_bound",
         "retained_model_calls": "retained_model_calls_upper_bound",
@@ -6048,7 +6071,7 @@ def canonical_matrix_errors(rows: Any) -> list[str]:
     return errors
 
 
-def _verify_v8_document_value_unchecked(
+def _verify_v9_document_value_unchecked(
     document: dict[str, Any],
     maximum_nodes: int,
     phases: list[dict[str, Any]] | None = None,
@@ -6056,12 +6079,12 @@ def _verify_v8_document_value_unchecked(
     global _ACTIVE_RESOURCE_RECEIPT
     _REGISTERED_CURVE_CACHE.clear()
     reset_actual_work()
-    errors = BoundedErrors(v8_document_schema_errors(document))
+    errors = BoundedErrors(v9_document_schema_errors(document))
     append_phase(phases, "closed_document_schema", "failed" if errors else "passed")
     if errors:
         return errors, [], None
 
-    type_errors = v8_document_type_errors(document)
+    type_errors = v9_document_type_errors(document)
     errors.extend(type_errors)
     append_phase(phases, "exact_document_types", "failed" if type_errors else "passed")
     if errors:
@@ -6261,7 +6284,7 @@ def _verify_v8_document_value_unchecked(
             }
         row_reports.append(report)
         if not report.get("valid"):
-            semantic_errors.append(f"V8 row[{index}] verification failed")
+            semantic_errors.append(f"V9 row[{index}] verification failed")
             semantic_errors.extend(
                 f"row[{index}]: {error}"
                 for error in report.get("errors", [])
@@ -6276,26 +6299,26 @@ def _verify_v8_document_value_unchecked(
     return errors, row_reports, envelope
 
 
-def _verify_v8_document_value_for_tests(
+def _verify_v9_document_value_for_tests(
     document: Any, maximum_nodes: Any
 ) -> tuple[list[str], list[dict[str, Any]]]:
     reset_actual_work()
-    errors = BoundedErrors(v8_document_collection_bound_errors(document))
+    errors = BoundedErrors(v9_document_collection_bound_errors(document))
     if not errors:
         errors.extend(bounded_json_errors(document, "document"))
     errors.extend(maximum_nodes_errors(maximum_nodes))
     if errors:
         return errors, []
     if type(document) is not dict:
-        return ["V8 document is not an object"], []
+        return ["V9 document is not an object"], []
     try:
-        errors, rows, _ = _verify_v8_document_value_unchecked(
+        errors, rows, _ = _verify_v9_document_value_unchecked(
             document, maximum_nodes
         )
         return errors, rows
     except Exception as error:
         return [
-            f"V8 document verifier failure: {type(error).__name__}: {error}"
+            f"V9 document verifier failure: {type(error).__name__}: {error}"
         ], []
 
 
@@ -6336,6 +6359,70 @@ def without_nested_diagnostic_lists(value: Any) -> Any:
     return value
 
 
+def bounded_input_path(path: Path) -> str:
+    """Reflect only source-bounded ASCII path metadata into reports."""
+    try:
+        raw = os.fspath(path)
+    except Exception:
+        return "<input path unavailable>"
+    if type(raw) is not str:
+        return "<non-text input path omitted>"
+    if len(raw) > MAXIMUM_REFLECTED_PATH_BYTES:
+        return f"<input path omitted: character_count={len(raw)}>"
+    try:
+        absolute = str(Path(raw).absolute())
+    except Exception:
+        absolute = raw
+    encoded = absolute.encode("ascii", "backslashreplace")
+    if len(encoded) > MAXIMUM_REFLECTED_PATH_BYTES:
+        return f"<input path omitted: ascii_byte_count={len(encoded)}>"
+    return encoded.decode("ascii")
+
+
+SUCCESSFUL_PHASE_SEQUENCE = (
+    "verifier_budget_preflight",
+    "single_regular_file_snapshot",
+    "strict_json_parse",
+    "source_collection_bounds",
+    "bounded_json_shape",
+    "exact_schema_routing",
+    "closed_document_schema",
+    "exact_document_types",
+    "document_digest_and_protocol_identity",
+    "registered_document_envelope",
+    "closed_registered_row_preflight",
+    "registered_matrix_preflight",
+    "document_summary_and_family_gate_preflight",
+    "trusted_resource_reservation",
+    "curve_factor_graph_and_expansion_reconstruction",
+    "deterministic_optimizer_replay",
+    "retained_model_transcript_reconstruction",
+    "independent_primary_proof",
+    "row_semantic_verification",
+    "actual_work_reservation_dominance",
+)
+
+
+def successful_phase_closure_errors(phases: Sequence[dict[str, Any]]) -> list[str]:
+    errors = BoundedErrors()
+    observed = tuple(phase.get("name") for phase in phases)
+    if observed != SUCCESSFUL_PHASE_SEQUENCE:
+        errors.append("successful phase sequence does not match the V9 source contract")
+        return errors
+    for phase in phases:
+        if phase.get("status") != "passed":
+            errors.append(f"successful phase {phase.get('name')!r} is not passed")
+            continue
+        if "expected_units" in phase and (
+            phase.get("completed_units") != phase.get("expected_units")
+            or phase.get("failed_units") != 0
+        ):
+            errors.append(
+                f"successful unit phase {phase.get('name')!r} is not complete"
+            )
+    return errors
+
+
 def finalize_report_size_and_hash(report: dict[str, Any]) -> int:
     """Finalize integrity fields and return the complete serialized size."""
     report.pop("serialized_report_bytes_before_size_field_and_hash", None)
@@ -6364,11 +6451,6 @@ def verification_report(
     )
     final_errors = BoundedErrors(errors)
     final_errors.extend(dominance_errors)
-    diagnostic_truncated = bool(
-        getattr(errors, "truncated", False)
-        or final_errors.truncated
-        or "diagnostics truncated at V8 source ceiling" in final_errors
-    )
     final_phases = [dict(phase) for phase in phases]
     if resource_receipt is not None:
         final_phases.append(
@@ -6377,6 +6459,20 @@ def verification_report(
                 "status": "failed" if dominance_errors else "passed",
             }
         )
+    if not final_errors:
+        closure_errors = successful_phase_closure_errors(final_phases)
+        final_errors.extend(closure_errors)
+        final_phases.append(
+            {
+                "name": "successful_phase_closure_validity",
+                "status": "failed" if closure_errors else "passed",
+            }
+        )
+    diagnostic_truncated = bool(
+        getattr(errors, "truncated", False)
+        or final_errors.truncated
+        or "diagnostics truncated at V9 source ceiling" in final_errors
+    )
     sanitized_rows = without_nested_diagnostic_lists(list(row_reports))
     report = {
         "schema": VERIFICATION_SCHEMA,
@@ -6386,7 +6482,7 @@ def verification_report(
             "diagnostic module-load snapshot; not executed-code attestation"
         ),
         "verifier_source_attested": False,
-        "input_path": str(path.absolute()),
+        "input_path": bounded_input_path(path),
         "input_symlink_policy": (
             "final path component symlinks are rejected; parent path components "
             "may traverse symlinks"
@@ -6424,7 +6520,7 @@ def verification_report(
     if serialized_size > MAXIMUM_VERIFICATION_REPORT_BYTES:
         fallback_errors = BoundedErrors(final_errors)
         fallback_errors.append(
-            "verification report exceeded the V8 serialized-size ceiling; "
+            "verification report exceeded the V9 serialized-size ceiling; "
             "row details omitted"
         )
         report["valid"] = False
@@ -6448,7 +6544,7 @@ def verification_report(
     if serialized_size > MAXIMUM_VERIFICATION_REPORT_BYTES:
         emergency_errors = BoundedErrors(
             [
-                "verification report exceeded the V8 serialized-size ceiling; "
+                "verification report exceeded the V9 serialized-size ceiling; "
                 "all optional details omitted"
             ]
         )
@@ -6533,7 +6629,7 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         )
     append_phase(phases, "strict_json_parse", "passed")
 
-    collection_errors = v8_document_collection_bound_errors(document)
+    collection_errors = v9_document_collection_bound_errors(document)
     errors.extend(collection_errors)
     append_phase(
         phases,
@@ -6597,7 +6693,7 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         append_phase(phases, "exact_schema_routing", "passed")
         try:
             errors, row_reports, resource_receipt = (
-                _verify_v8_document_value_unchecked(
+                _verify_v9_document_value_unchecked(
                     document, maximum_nodes, phases
                 )
             )
@@ -6606,14 +6702,14 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
             resource_receipt = _ACTIVE_RESOURCE_RECEIPT
             errors = BoundedErrors(
                 [
-                    f"V8 document verifier failure: "
+                    f"V9 document verifier failure: "
                     f"{type(error).__name__}: {error}"
                 ]
             )
             row_reports = []
             append_phase(phases, "verifier_exception_boundary", "failed")
         claim_boundary = (
-            "invalid V8 document; no mathematical interpretation"
+            "invalid V9 document; no mathematical interpretation"
             if errors
             else (
                 "frozen-fixture implementation verification only"
@@ -6625,7 +6721,7 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         append_phase(phases, "exact_schema_routing", "passed")
         append_phase(phases, "unsupported_legacy_rejection", "passed")
         errors = [
-            f"unsupported legacy document schema {schema!r}; V8 performs no legacy row verification"
+            f"unsupported legacy document schema {schema!r}; V9 performs no legacy row verification"
         ]
         row_reports = []
         claim_boundary = "unsupported legacy input; no mathematical checks executed"

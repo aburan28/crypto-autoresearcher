@@ -79,6 +79,79 @@ decisions.
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
 
+## Handoff: SGCP V9 executed-work repair
+
+### Claim or task
+
+Validate and independently review the no-run V9 repair of the exact V8
+accounting and red-team findings without creating a generated density row,
+canonical matrix, runner, launch plan, or run.
+
+### Status
+
+`OBSERVATION` for implementation preflight only. The research claim remains
+`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
+Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
+
+### Assumptions
+
+- Path-based `verify_document` remains the sole evidence-bearing API.
+- Frozen B4 remains the only complete structurally separate five-field oracle.
+- In-process structural receipts are not CPU, wall-time, RSS, parser, allocator,
+  disk, I/O, cache-traffic, or memory-bandwidth models.
+- Frozen p=19, B=4 remains the only constructed density row.
+
+### Evidence so far
+
+- V9 rejects V1-V8 schemas without row verification.
+- The successful frozen path records 31 executed graph candidates, 66 eligible
+  conflict checks, 144 eligible pair-output cells, and 214 expansion cells.
+  Their matching reservations are 35, 595, 1,225, and 214.
+- Graph and expansion work is charged inside each executed loop. Injected
+  second-charge failures preserve exact partial work, failed unit state, the
+  reservation, and `actual_work_complete=false`.
+- Reflected caller paths are limited to 4,096 ASCII bytes or a bounded omission
+  marker. An over-report-ceiling path returns an invalid receipt without
+  raising when budget preflight fails.
+- Public generated-curve construction raises before its private control, and
+  non-frozen public density-row associations fail before factor-base work.
+- An otherwise successful report must close the exact V9 phase sequence and
+  every registered unit. Suppressing one primary-proof update invalidates the
+  final closure phase.
+- The focused 58-test suite passes. No generated density row, canonical matrix,
+  runner, launch plan, or run has been created.
+- All 11 scoped records validate and the regenerated ledger matches. The
+  repository suite passes 201 of 202 tests; its sole failure is the preserved
+  pre-existing SGCP-EMBED-001 immutable-run guard.
+
+### Failure modes
+
+- Canonical B6/B8 exact feasibility, output size, cache occupancy, CPU, wall
+  time, RSS, and memory bandwidth remain unmeasured.
+- B6/B8 secondary objective fields lack a standalone complete five-field
+  oracle.
+- Executed-commit and external-resource attestation still require a future
+  separately reviewed immutable runner.
+- No relation yield, rank, linear algebra, descent, preprocessing crossover,
+  rho improvement, exponent, or ECDLP result is established.
+
+### Next concrete action
+
+Validate records, ledger, focused and repository suites; freeze exact V9
+hashes; commit one snapshot; then obtain fresh read-only theory, accounting,
+and red-team decisions. Do not design a launch plan before three explicit
+`GO` decisions.
+
+### Artifact paths
+
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v9.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v9.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v9.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v9.md`
+- `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
+- `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
+- `tests/test_sgcp_embed_family.py`
+
 ## Handoff: SGCP V8 independent closeout
 
 ### Claim or task

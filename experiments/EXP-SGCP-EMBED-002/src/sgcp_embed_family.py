@@ -3,7 +3,7 @@
 
 The builder uses affine coordinates and EC addition only. It deliberately has
 no scalar-multiplication routine and constructs no discrete-log table.
-Canonical execution remains disabled by the version-7 experiment contract.
+Canonical execution remains disabled by the version-9 experiment contract.
 """
 from __future__ import annotations
 
@@ -23,10 +23,10 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
 
-SCHEMA = "sgcp-embed-002-density-frontier-candidate-v8"
+SCHEMA = "sgcp-embed-002-density-frontier-candidate-v9"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
 CLAIM_STATUS = ["HYPOTHESIS", "TOY-EVIDENCE", "MODEL-BOUND", "NOVELTY-UNVERIFIED"]
-PROTOCOL_VERSION = 8
+PROTOCOL_VERSION = 9
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -69,6 +69,31 @@ FROZEN_FIXTURE = {
 
 Point = tuple[int, int] | None
 Formal = tuple[int, ...]
+FROZEN_POINTS: tuple[Point, ...] = (
+    None,
+    (0, 3),
+    (0, 16),
+    (3, 2),
+    (3, 17),
+    (4, 9),
+    (4, 10),
+    (5, 7),
+    (5, 12),
+    (6, 3),
+    (6, 16),
+    (7, 9),
+    (7, 10),
+    (8, 9),
+    (8, 10),
+    (13, 3),
+    (13, 16),
+    (14, 8),
+    (14, 11),
+    (17, 4),
+    (17, 15),
+    (18, 5),
+    (18, 14),
+)
 
 
 @dataclass
@@ -176,6 +201,24 @@ def stable_json(value: Any) -> bytes:
 
 def stable_digest(value: Any) -> str:
     return hashlib.sha256(stable_json(value)).hexdigest()
+
+
+def frozen_curve_record_contract() -> dict[str, Any]:
+    return {
+        "bits": FROZEN_FIXTURE["bits"],
+        "seed": 5,
+        "p": FROZEN_FIXTURE["p"],
+        "a": FROZEN_FIXTURE["a"],
+        "b": FROZEN_FIXTURE["b"],
+        "q": FROZEN_FIXTURE["q"],
+        "trace": FROZEN_FIXTURE["trace"],
+        "j": 8,
+        "generator": FROZEN_FIXTURE["generator"],
+        "draw": None,
+        "rejected_draws": [],
+        "rejection_count": 0,
+        "rejection_digest": stable_digest([]),
+    }
 
 
 def exact_json_equal(left: Any, right: Any) -> bool:
@@ -306,7 +349,7 @@ def ordered_curve_rejection_reasons(
     return (["duplicate_candidate"] if duplicate else []) + reasons, q
 
 
-def generated_curve(
+def _generated_curve_for_controls(
     bits: int, seed: int, ops: OperationCounts | None = None
 ) -> tuple[Curve, list[Point], dict[str, Any]]:
     bits = require_int(bits, "bits", 5)
@@ -362,6 +405,15 @@ def generated_curve(
     raise RuntimeError(f"no accepted curve after 100000 draws for bits={bits}, seed={seed}")
 
 
+def generated_curve(
+    bits: int, seed: int, ops: OperationCounts | None = None
+) -> tuple[Curve, list[Point], dict[str, Any]]:
+    raise PermissionError(
+        "version-9 public generated-curve construction is disabled; "
+        "private factor-base controls do not authorize density rows"
+    )
+
+
 def frozen_curve(
     ops: OperationCounts | None = None,
 ) -> tuple[Curve, list[Point], dict[str, Any]]:
@@ -372,7 +424,9 @@ def frozen_curve(
     record["rejected_draws"] = []
     record["rejection_count"] = 0
     record["rejection_digest"] = stable_digest([])
-    if record["q"] != FROZEN_FIXTURE["q"] or record["generator"] != FROZEN_FIXTURE["generator"]:
+    if tuple(points) != FROZEN_POINTS or not exact_json_equal(
+        record, frozen_curve_record_contract()
+    ):
         raise AssertionError("frozen curve recount mismatch")
     return curve, points, record
 
@@ -1406,6 +1460,39 @@ def build_density_row(
     node_cap: int,
     ops: OperationCounts,
 ) -> dict[str, Any]:
+    frozen_association = (
+        type(curve) is Curve
+        and type(ops) is OperationCounts
+        and curve.ops is ops
+        and curve.p == FROZEN_FIXTURE["p"]
+        and curve.a == FROZEN_FIXTURE["a"]
+        and curve.b == FROZEN_FIXTURE["b"]
+        and type(points) is list
+        and all(
+            point is None
+            or (
+                type(point) is tuple
+                and len(point) == 2
+                and all(type(coordinate) is int for coordinate in point)
+            )
+            for point in points
+        )
+        and tuple(points) == FROZEN_POINTS
+        and type(curve_info) is dict
+        and exact_json_equal(curve_info, frozen_curve_record_contract())
+        and type(B) is int
+        and B == 4
+        and type(family) is str
+        and family == "least_x_interval"
+        and null_replicate is None
+        and type(node_cap) is int
+        and node_cap == FROZEN_NODE_CAP
+    )
+    if not frozen_association:
+        raise PermissionError(
+            "version-9 generated density-row construction is disabled; "
+            "only the frozen p=19 B=4 control is admitted"
+        )
     started = time.perf_counter()
     factors, factor_record = factor_base(
         curve, points, curve_info, B, family, null_replicate, ops
@@ -1819,7 +1906,7 @@ def evaluate_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     else:
         negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v8",
+        "criterion_version": "sgcp-embed-002-family-gate-v9",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
@@ -2022,7 +2109,7 @@ def build_frozen_control_document(node_cap: int = FROZEN_NODE_CAP) -> dict[str, 
 
 def build_development_document(args: argparse.Namespace) -> dict[str, Any]:
     raise PermissionError(
-        "version-7 development curve-row budget is zero; use the frozen control only"
+        "version-9 development curve-row budget is zero; use the frozen control only"
     )
 
 
@@ -2051,7 +2138,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "canonical execution is disabled: specification status is review_required and maximum_runs is zero"
         )
     raise PermissionError(
-        "version-7 development curve-row budget is zero; run unit and frozen-fixture controls only"
+        "version-9 development curve-row budget is zero; run unit and frozen-fixture controls only"
     )
 
 
