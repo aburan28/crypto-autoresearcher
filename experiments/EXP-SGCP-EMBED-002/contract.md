@@ -1,4 +1,4 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 1
+# Experiment Contract: EXP-SGCP-EMBED-002, version 2
 
 ## Claim status
 
@@ -8,15 +8,16 @@ The experiment is `review_required`; canonical execution is locked at zero runs.
 ## Hypothesis
 
 At least one fixed coordinate predicate family preserves nonvacuous valid
-structured-embedding support across generated 5-8 bit curves and improves
-retained final support per constrained label over matched hash-ranked x-fiber
-controls.
+structured-embedding support across generated 5-8 bit curves and improves the
+certified retained-support frontier at matched constrained-label budgets over
+hash-ranked x-fiber controls.
 
 ## Null hypothesis
 
-After exact matching by curve and factor-base size, the coordinate families do
-not show a stable support-at-density advantage, or valid order ideals lose
-nearly all raw final support as the tested toy size grows.
+After exact matching by curve, factor-base size, and absolute constrained-label
+cap, the coordinate families do not show a stable support-at-density advantage,
+or valid order ideals lose nearly all balanced-raw final support as the tested
+toy size grows.
 
 An implementation failure, invalid control, or unresolved optimizer interval is
 not evidence for this null.
@@ -47,19 +48,32 @@ not expose any `A4 x A4` edge.
 
 ## Optimizer contract
 
-The complete objective is lexicographic:
+For each curve order `q`, evaluate the deduplicated absolute caps
+
+```text
+C in {floor(q/4), floor(q/2), floor(3q/4), q}.
+```
+
+For every cap `C`, require `constrained_count(S) <= C` and use the complete
+lexicographic objective:
 
 1. maximize `R(S)`;
-2. maximize the number of retained degree-four maxima;
-3. minimize constrained labels;
-4. minimize public nonidentity edges;
+2. minimize constrained labels;
+3. minimize public nonidentity edges;
+4. maximize the number of retained degree-four maxima;
 5. choose the lexicographically least maximum list.
 
-The optimizer may terminate by proof, node cap, or row wall cap. It must always
-emit a feasible incumbent with primary lower bound `L` and a frontier-derived
-primary upper bound `U`, with `L <= OPT <= U`. Only `L=U` proves the primary
-optimum. A nonzero-gap row may report the incumbent's secondary fields, but it
-must not label them optimal and must not contribute to a positive family gate.
+The optimizer may terminate by proof, node cap, or cap-cell wall limit. It must
+always emit a feasible incumbent with primary lower bound `L` and a
+frontier-derived primary upper bound `U`, with `L <= OPT <= U`. Only `L=U`
+proves the primary optimum. A nonzero-gap cell may report the incumbent's
+secondary fields, but it must not label them optimal or contribute to a
+positive family gate.
+
+Every capped search must serialize the complete live frontier. Each state binds
+the selected, available, and selected-support masks plus its support/count
+upper bounds. This private certificate is charged. The verifier must reconstruct
+each state and bound without executing the producer search.
 
 The verifier must exact-enumerate all sufficiently small controls and confirm
 that the branch-and-bound interval contains the known optimum. It must also
@@ -100,7 +114,8 @@ parameters, the root polynomial, and a deterministic-selection digest.
 - factor-base sizes: `B in {4,6,8}`
 - coordinate families: three
 - matched null replicates: four
-- conflict-graph node cap: `2,000,000` per row
+- conflict-graph node cap: `2,000,000` per cap cell
+- constrained-label cap fractions: `1/4`, `1/2`, `3/4`, and `1`
 - canonical runs before review: zero
 - proposed post-review roles: one generator and one independent verifier
 
@@ -109,16 +124,30 @@ schedule and cannot support an exponent fit.
 
 ## Metrics
 
-Primary metrics are the exact axiom vector, direct-final-edge count, optimizer
-interval and gap, raw and retained final support, retained/raw ratio,
-constrained count and delta, support per constrained label, and paired
-coordinate-versus-null effects.
+Primary metrics are the exact axiom vector, direct-final-edge count, per-cap
+optimizer interval and gap, balanced-raw/full-eight-fold/retained final
+support, attained constrained count and delta, the certified support frontier,
+and paired coordinate-versus-null differences at identical absolute caps.
 
 Secondary metrics include `|F|`, `|2F|`, `|4F|`, `|8F|`, additive-energy
-histograms, candidate/rejection/conflict graph statistics, components and
-degeneracy, optimizer pruning counts, public bytes, charged private bytes,
-field and point operation counts, memory, wall time, and complete curve and
-predicate provenance.
+histograms under two explicitly separate source measures, candidate/rejection/
+conflict graph statistics, components and degeneracy, optimizer pruning counts,
+public bytes, charged private bytes, field and point operation counts, memory,
+wall time, and complete curve and predicate provenance. Shared precomputation and
+each cap cell must have separate operation receipts whose exact sum is the row
+total. Public-model, private-audit, and per-cap JSON byte counts must be
+independently reproducible from the serialized objects.
+
+For each degree, `formal_multiset_collision_energy` squares multiplicities of
+combinations with replacement. `ordered_tuple_additive_energy` first weights
+each multiset by its multinomial number of orderings and then squares the
+resulting output multiplicities. Neither field may be substituted for the
+other.
+
+`balanced_raw_final_support` means the final pair support of the inherited
+balanced A4 universe. `eight_fold_support` means the full exact support of all
+degree-eight factor-base multisets. Both denominators must appear beside any
+retention ratio.
 
 ## Controls
 
@@ -126,9 +155,10 @@ predicate provenance.
 2. Re-run its twelve hash-bound controls with their complete predicate vectors.
 3. Exact-compare graph independence and direct closure over every subset of
    small registered instances.
-4. Exact-compare branch-and-bound against empty, complete, path, cycle,
-   coverage-tie, and lexical-tie optimizer fixtures.
-5. Force a capped fixture and verify a nonzero interval containing the optimum.
+4. Exact-compare every density-cap result against exhaustive empty, complete,
+   path, cycle, coverage-tie, density-tie, and lexical-tie fixtures.
+5. Force a node-capped fixture and replay every serialized frontier state and
+   bound around the independently known optimum.
 6. Test factor-base cardinality, sign symmetry, Mobius poles, union duplicates,
    and hash-null determinism.
 7. Reject every registered special-curve fixture.
@@ -138,23 +168,24 @@ predicate provenance.
 ## Positive criterion
 
 All controls and exact model checks must pass. At least 90 percent of all
-coordinate and null rows must have zero primary gap, and every remaining gap
-must be at most `max(1,ceil(0.05q))`. One fixed coordinate family must have
-median retained/raw support at least `0.25` at every bit size. The same family
-must achieve at least `1.10x` the paired exact-row null median support per
-constrained label in at least three of four bit strata and have positive paired
-sign in at least 75 percent of exact curve-B comparisons.
+coordinate and null cap cells must have zero primary gap, and every remaining
+gap must be at most `max(1,ceil(0.05q))`. One fixed coordinate family must have
+median retained/balanced-raw support at least `0.25` at the full q cap at every
+bit size. At `floor(q/2)` or `floor(3q/4)`, the same family must exceed the
+paired four-null median by at least `max(1,ceil(0.05q))` retained targets in at
+least three bit strata and have positive paired sign in at least 75 percent of
+exact curve-B-cap comparisons.
 
 This would be a toy coordinate-structure signal and would authorize a larger
 family replication. It would not authorize an ECDLP claim.
 
 ## Falsification and narrowing
 
-With valid controls and sufficiently resolved rows, failure of every fixed
+With valid controls and sufficiently resolved cap cells, failure of every fixed
 family to meet both positive predictions weakens or rejects this exact
-hypothesis. If every coordinate family has median retained/raw support below
-`0.10` in at least three bit strata, record the narrower `COLLAPSE` negative for
-this balanced-order-ideal construction.
+hypothesis. If every coordinate family has median retained/balanced-raw support
+below `0.10` at the full cap in at least three bit strata, record the narrower
+`COLLAPSE` negative for this balanced-order-ideal construction.
 
 Neither result closes coordinate-specific SGGM embeddings in general. The next
 positive question would be whether a different formal quotient, model
@@ -163,13 +194,15 @@ collision geometry.
 
 ## Budgets and stopping
 
-Canonical budget is currently zero. Development tests may use at most 600
-seconds, 2 GiB, and 18 curve-family-B rows and must remain under `development/`
-with the label `implementation evidence only`.
+Canonical budget is currently zero. Version 1 consumed 17 of the 18 authorized
+development curve-family-B rows. Version 2 authorizes unit and frozen-fixture
+controls only; it may not spend the final row or create a new family sweep
+without a reviewed amendment.
 
 Stop immediately on a control mismatch, builder-visible scalar material,
-unmatched factor-base cardinality, invalid curve, graph/direct disagreement,
-invalid optimizer bound, direct final edge, or uncharged private artifact.
+unmatched factor-base cardinality or constrained-label cap, invalid curve,
+graph/direct disagreement, invalid optimizer bound/frontier state, direct final
+edge, confused energy source measure, or uncharged private artifact.
 
 ## Claim boundary
 

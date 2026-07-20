@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import heapq
 import itertools
 import json
 import math
@@ -18,13 +19,28 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
 
-EXPECTED_SCHEMA = "sgcp-embed-002-development-v1"
-VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v1"
+EXPECTED_SCHEMAS = {
+    "sgcp-embed-002-development-v1",
+    "sgcp-embed-002-density-frontier-development-v2",
+}
+VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v2"
 SCRIPT_PATH = Path(__file__).resolve()
 EXPERIMENT_ROOT = SCRIPT_PATH.parents[1]
 DEVELOPMENT_ROOT = EXPERIMENT_ROOT / "development"
 Point = tuple[int, int] | None
 Formal = tuple[int, ...]
+OPERATION_COUNTER_KEYS = {
+    "point_additions",
+    "point_doublings",
+    "field_inversions",
+    "field_multiplications",
+    "multiset_evaluations",
+    "injectivity_checks",
+    "conflict_pair_checks",
+    "hash_calls",
+    "optimizer_nodes",
+    "optimizer_bound_calls",
+}
 
 
 def stable_bytes(value: Any) -> bytes:
@@ -383,16 +399,41 @@ def support_counter(curve: Curve, values: Sequence[Point]) -> Counter[Point]:
 def expansion_metrics(curve: Curve, factors: Sequence[Point]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for degree in (1, 2, 4, 8):
-        multiplicities: Counter[Point] = Counter()
+        formal_multiplicities: Counter[Point] = Counter()
+        ordered_multiplicities: Counter[Point] = Counter()
         for formal in itertools.combinations_with_replacement(range(len(factors)), degree):
-            multiplicities[evaluate(curve, factors, formal)] += 1
-        histogram = Counter(multiplicities.values())
+            point = evaluate(curve, factors, formal)
+            formal_multiplicities[point] += 1
+            orderings = math.factorial(degree)
+            for count in Counter(formal).values():
+                orderings //= math.factorial(count)
+            ordered_multiplicities[point] += orderings
+        formal_histogram = Counter(formal_multiplicities.values())
+        ordered_histogram = Counter(ordered_multiplicities.values())
+        if sum(ordered_multiplicities.values()) != len(factors) ** degree:
+            raise AssertionError("independent ordered-tuple recount mismatch")
         result[str(degree)] = {
-            "formal_witness_count": sum(multiplicities.values()),
-            "support": len(multiplicities),
-            "ordered_additive_energy": sum(value * value for value in multiplicities.values()),
-            "maximum_multiplicity": max(multiplicities.values(), default=0),
-            "multiplicity_histogram": {str(key): histogram[key] for key in sorted(histogram)},
+            "support": len(formal_multiplicities),
+            "formal_multiset_witness_count": sum(formal_multiplicities.values()),
+            "formal_multiset_collision_energy": sum(
+                value * value for value in formal_multiplicities.values()
+            ),
+            "formal_multiset_maximum_multiplicity": max(
+                formal_multiplicities.values(), default=0
+            ),
+            "formal_multiset_multiplicity_histogram": {
+                str(key): formal_histogram[key] for key in sorted(formal_histogram)
+            },
+            "ordered_tuple_witness_count": sum(ordered_multiplicities.values()),
+            "ordered_tuple_additive_energy": sum(
+                value * value for value in ordered_multiplicities.values()
+            ),
+            "ordered_tuple_maximum_multiplicity": max(
+                ordered_multiplicities.values(), default=0
+            ),
+            "ordered_tuple_multiplicity_histogram": {
+                str(key): ordered_histogram[key] for key in sorted(ordered_histogram)
+            },
         }
     return result
 
@@ -408,6 +449,302 @@ def clique_cover(mask: int, conflicts: Sequence[int]) -> int:
         else:
             groups.append(1 << vertex)
     return len(groups)
+
+
+def verify_frontier_certificate(
+    pair_outputs: Sequence[Sequence[int]],
+    point_count: int,
+    conflicts: Sequence[int],
+    optimizer: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    candidate_count = len(conflicts)
+    all_mask = (1 << candidate_count) - 1
+    global_output_masks = [0] * candidate_count
+    for left in range(candidate_count):
+        for right in range(candidate_count):
+            global_output_masks[left] |= 1 << pair_outputs[left][right]
+
+    states = optimizer.get("frontier_states")
+    if not isinstance(states, list):
+        return ["optimizer frontier_states is not a list"]
+    if digest(states) != optimizer.get("frontier_sha256"):
+        errors.append("optimizer frontier digest mismatch")
+    if len(states) != optimizer.get("remaining_frontier_nodes"):
+        errors.append("optimizer frontier count mismatch")
+
+    observed_upper = optimizer["retained_support_lower_bound"]
+    for position, state in enumerate(states):
+        try:
+            selected = int(state["selected_mask_hex"], 16)
+            available = int(state["available_mask_hex"], 16)
+            selected_support = int(state["selected_support_mask_hex"], 16)
+        except (KeyError, TypeError, ValueError) as error:
+            errors.append(f"frontier[{position}] malformed masks: {error}")
+            continue
+        if selected & available or (selected | available) & ~all_mask:
+            errors.append(f"frontier[{position}] mask-domain mismatch")
+        if any(conflicts[vertex] & selected for vertex in bits(selected)):
+            errors.append(f"frontier[{position}] selected set is not independent")
+        if any(conflicts[vertex] & selected for vertex in bits(available)):
+            errors.append(f"frontier[{position}] available vertex conflicts with selected")
+        expected_support = 0
+        selected_vertices = list(bits(selected))
+        for left_index, left in enumerate(selected_vertices):
+            for right in selected_vertices[left_index:]:
+                expected_support |= 1 << pair_outputs[left][right]
+        if selected_support != expected_support:
+            errors.append(f"frontier[{position}] selected support mismatch")
+        alpha = clique_cover(available, conflicts)
+        pair_capacity = selected.bit_count() * alpha + alpha * (alpha + 1) // 2
+        output_upper = selected_support
+        for vertex in bits(available):
+            output_upper |= global_output_masks[vertex]
+        support_upper = min(
+            point_count,
+            selected_support.bit_count() + pair_capacity,
+            output_upper.bit_count(),
+        )
+        count_upper = selected.bit_count() + alpha
+        if support_upper != state.get("support_upper_bound"):
+            errors.append(f"frontier[{position}] support upper-bound mismatch")
+        if count_upper != state.get("selected_count_upper_bound"):
+            errors.append(f"frontier[{position}] count upper-bound mismatch")
+        observed_upper = max(observed_upper, support_upper)
+    if observed_upper != optimizer.get("retained_support_upper_bound"):
+        errors.append("optimizer aggregate frontier upper-bound mismatch")
+    return errors
+
+
+def replay_density_search(
+    pair_outputs: Sequence[Sequence[int]],
+    point_count: int,
+    conflicts: Sequence[int],
+    node_cap: int,
+    constrained_cap: int,
+    tiebreak: Any,
+) -> dict[str, Any]:
+    candidate_count = len(conflicts)
+    metric_cache: dict[int, dict[str, Any]] = {}
+
+    def metrics(mask: int) -> dict[str, Any]:
+        if mask not in metric_cache:
+            metric_cache[mask] = tiebreak(mask)
+        return metric_cache[mask]
+
+    def feasible(mask: int) -> bool:
+        return metrics(mask)["constrained_count"] <= constrained_cap
+
+    global_outputs = [0] * candidate_count
+    for left in range(candidate_count):
+        for right in range(candidate_count):
+            global_outputs[left] |= 1 << pair_outputs[left][right]
+
+    best_mask = 0
+    best_support = 0
+    best_metrics = metrics(0)
+    if not feasible(0):
+        raise AssertionError("replay cap does not admit empty operation")
+    incumbent_updates = 0
+
+    def objective(mask: int, support: int, row_metrics: dict[str, Any]) -> tuple[int, int, int, int]:
+        return (
+            support.bit_count(),
+            -row_metrics["constrained_count"],
+            -row_metrics["public_edge_count"],
+            mask.bit_count(),
+        )
+
+    def better(mask: int, support: int, row_metrics: dict[str, Any]) -> bool:
+        candidate_key = objective(mask, support, row_metrics)
+        best_key = objective(best_mask, best_support, best_metrics)
+        if candidate_key != best_key:
+            return candidate_key > best_key
+        return tuple(row_metrics["witness_list"]) < tuple(best_metrics["witness_list"])
+
+    def update(mask: int, support: int) -> None:
+        nonlocal best_mask, best_support, best_metrics, incumbent_updates
+        row_metrics = metrics(mask)
+        if row_metrics["constrained_count"] > constrained_cap:
+            return
+        if better(mask, support, row_metrics):
+            best_mask = mask
+            best_support = support
+            best_metrics = row_metrics
+            incumbent_updates += 1
+
+    def add(mask: int, support: int, vertex: int) -> tuple[int, int]:
+        for selected in bits(mask):
+            support |= 1 << pair_outputs[selected][vertex]
+        support |= 1 << pair_outputs[vertex][vertex]
+        return mask | (1 << vertex), support
+
+    def greedy(order: Sequence[int]) -> None:
+        mask = 0
+        support = 0
+        blocked = 0
+        for vertex in order:
+            bit = 1 << vertex
+            if blocked & bit:
+                continue
+            candidate_mask, candidate_support = add(mask, support, vertex)
+            if not feasible(candidate_mask):
+                continue
+            mask, support = candidate_mask, candidate_support
+            blocked |= conflicts[vertex] | bit
+        update(mask, support)
+
+    natural = list(range(candidate_count))
+    greedy(natural)
+    greedy(list(reversed(natural)))
+    greedy(sorted(natural, key=lambda vertex: (conflicts[vertex].bit_count(), vertex)))
+    greedy(sorted(natural, key=lambda vertex: (-conflicts[vertex].bit_count(), vertex)))
+
+    mask = 0
+    support = 0
+    allowed = (1 << candidate_count) - 1
+    while allowed:
+        choices: list[tuple[int, int, int, int]] = []
+        for vertex in bits(allowed):
+            candidate_mask, candidate_support = add(mask, support, vertex)
+            if not feasible(candidate_mask):
+                continue
+            choices.append(
+                (
+                    (candidate_support ^ support).bit_count(),
+                    -(conflicts[vertex] & allowed).bit_count(),
+                    -vertex,
+                    vertex,
+                )
+            )
+        if not choices:
+            break
+        vertex = max(choices)[-1]
+        mask, support = add(mask, support, vertex)
+        allowed &= ~(conflicts[vertex] | (1 << vertex))
+    update(mask, support)
+
+    bound_calls = 0
+
+    def bounds_for(mask: int, allowed: int, support: int) -> tuple[int, int]:
+        nonlocal bound_calls
+        bound_calls += 1
+        alpha = clique_cover(allowed, conflicts)
+        pair_capacity = mask.bit_count() * alpha + alpha * (alpha + 1) // 2
+        output_upper = support
+        for vertex in bits(allowed):
+            output_upper |= global_outputs[vertex]
+        return (
+            min(
+                point_count,
+                support.bit_count() + pair_capacity,
+                output_upper.bit_count(),
+            ),
+            mask.bit_count() + alpha,
+        )
+
+    def can_improve(upper_support: int, upper_count: int, mask: int) -> bool:
+        best_support_count = best_support.bit_count()
+        if upper_support < best_support_count:
+            return False
+        if upper_support > best_support_count:
+            return True
+        current = metrics(mask)
+        if current["constrained_count"] > best_metrics["constrained_count"]:
+            return False
+        if (
+            current["constrained_count"] == best_metrics["constrained_count"]
+            and current["public_edge_count"] > best_metrics["public_edge_count"]
+        ):
+            return False
+        if (
+            current["constrained_count"] == best_metrics["constrained_count"]
+            and current["public_edge_count"] == best_metrics["public_edge_count"]
+            and upper_count < best_mask.bit_count()
+        ):
+            return False
+        return True
+
+    frontier: list[tuple[int, int, int, int, int, int]] = []
+    sequence = 0
+
+    def push(mask: int, allowed: int, support: int) -> None:
+        nonlocal sequence
+        if not feasible(mask):
+            return
+        if allowed == 0:
+            update(mask, support)
+            return
+        upper_support, upper_count = bounds_for(mask, allowed, support)
+        if not can_improve(upper_support, upper_count, mask):
+            return
+        sequence += 1
+        heapq.heappush(
+            frontier,
+            (-upper_support, -upper_count, sequence, mask, allowed, support),
+        )
+
+    push(0, (1 << candidate_count) - 1, 0)
+    explored = 0
+    while frontier and explored < node_cap:
+        neg_support, neg_count, _, mask, allowed, support = heapq.heappop(frontier)
+        if not can_improve(-neg_support, -neg_count, mask):
+            continue
+        explored += 1
+        vertex = max(
+            bits(allowed),
+            key=lambda item: (
+                (conflicts[item] & allowed).bit_count(),
+                sum(
+                    1
+                    for selected in bits(mask)
+                    if not (support & (1 << pair_outputs[selected][item]))
+                ),
+                -item,
+            ),
+        )
+        include_mask, include_support = add(mask, support, vertex)
+        without = allowed & ~(1 << vertex)
+        push(include_mask, without & ~conflicts[vertex], include_support)
+        push(mask, without, support)
+
+    frontier = [
+        node
+        for node in frontier
+        if can_improve(-node[0], -node[1], node[3])
+    ]
+    heapq.heapify(frontier)
+    states = [
+        {
+            "selected_mask_hex": hex(node[3]),
+            "available_mask_hex": hex(node[4]),
+            "selected_support_mask_hex": hex(node[5]),
+            "support_upper_bound": -node[0],
+            "selected_count_upper_bound": -node[1],
+        }
+        for node in sorted(frontier, key=lambda item: (item[3], item[4], item[5], item[0], item[1]))
+    ]
+    upper = max(best_support.bit_count(), max((-node[0] for node in frontier), default=0))
+    return {
+        "selected_indices": list(bits(best_mask)),
+        "selected_mask_hex": hex(best_mask),
+        "retained_support_lower_bound": best_support.bit_count(),
+        "retained_support_upper_bound": upper,
+        "absolute_gap": upper - best_support.bit_count(),
+        "primary_exact": upper == best_support.bit_count(),
+        "full_objective_exact": not frontier,
+        "selected_count": best_mask.bit_count(),
+        "constrained_count": best_metrics["constrained_count"],
+        "public_edge_count": best_metrics["public_edge_count"],
+        "witness_list": best_metrics["witness_list"],
+        "explored_nodes": explored,
+        "remaining_frontier_nodes": len(frontier),
+        "frontier_states": states,
+        "frontier_sha256": digest(states),
+        "incumbent_updates": incumbent_updates,
+        "bound_calls": bound_calls,
+        "termination_reason": "full_objective_proved" if not frontier else "node_cap",
+    }
 
 
 def independent_primary_optimum(
@@ -472,6 +809,78 @@ def independent_primary_optimum(
                 without & ~conflicts[vertex],
             )
         )
+    return best, explored, not stack
+
+
+def independent_density_primary_optimum(
+    curve: Curve,
+    factors: Sequence[Point],
+    candidates: Sequence[dict[str, Any]],
+    conflicts: Sequence[int],
+    incumbent_mask: int,
+    constrained_cap: int,
+    maximum_nodes: int,
+) -> tuple[int, int, bool]:
+    points = [candidate["point"] for candidate in candidates]
+    group = curve.points()
+    point_index = {point: index for index, point in enumerate(group)}
+    outputs = [
+        [point_index[curve.plus(left, right)] for right in points]
+        for left in points
+    ]
+    support_cache: dict[int, int] = {}
+    constrained_cache: dict[int, int] = {}
+
+    def selected_support(mask: int) -> int:
+        if mask not in support_cache:
+            selected = list(bits(mask))
+            value = 0
+            for position, left in enumerate(selected):
+                for right in selected[position:]:
+                    value |= 1 << outputs[left][right]
+            support_cache[mask] = value
+        return support_cache[mask]
+
+    def constrained(mask: int) -> int:
+        if mask not in constrained_cache:
+            maxima = [candidates[index]["formal"] for index in bits(mask)]
+            constrained_cache[mask] = retained_model(curve, factors, maxima)[0]
+        return constrained_cache[mask]
+
+    if constrained(incumbent_mask) > constrained_cap:
+        raise AssertionError("producer incumbent exceeds independent density cap")
+    best = selected_support(incumbent_mask).bit_count()
+    stack: list[tuple[int, int]] = [(0, (1 << len(candidates)) - 1)]
+    explored = 0
+    while stack and explored < maximum_nodes:
+        chosen, available = stack.pop()
+        explored += 1
+        if constrained(chosen) > constrained_cap:
+            continue
+        chosen_support = selected_support(chosen)
+        best = max(best, chosen_support.bit_count())
+        active = chosen | available
+        possible_outputs = 0
+        active_vertices = list(bits(active))
+        for position, left in enumerate(active_vertices):
+            for right in active_vertices[position:]:
+                possible_outputs |= 1 << outputs[left][right]
+        alpha = clique_cover(available, conflicts)
+        pair_capacity = chosen.bit_count() * alpha + alpha * (alpha + 1) // 2
+        upper = min(
+            possible_outputs.bit_count(),
+            chosen_support.bit_count() + pair_capacity,
+            len(group),
+        )
+        if upper <= best or available == 0:
+            continue
+        vertex = max(
+            bits(available),
+            key=lambda item: ((conflicts[item] & available).bit_count(), -item),
+        )
+        without = available & ~(1 << vertex)
+        stack.append((chosen, without))
+        stack.append((chosen | (1 << vertex), without & ~conflicts[vertex]))
     return best, explored, not stack
 
 
@@ -652,10 +1061,342 @@ def verify_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
     }
 
 
+def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
+    errors: list[str] = []
+    supplied_digest = row.get("row_sha256")
+    payload = dict(row)
+    payload.pop("row_sha256", None)
+    if supplied_digest != digest(payload):
+        errors.append("row digest mismatch")
+    if row.get("protocol_version") != 2:
+        errors.append("density row protocol version mismatch")
+
+    info = row["curve"]
+    curve = Curve(info["p"], info["a"], info["b"])
+    group = curve.points()
+    q = len(group)
+    expected_curve = {
+        "q": q,
+        "trace": curve.p + 1 - q,
+        "j": curve.j(),
+        "generator": "O" if group[1] is None else [group[1][0], group[1][1]],
+    }
+    for key, value in expected_curve.items():
+        if info.get(key) != value:
+            errors.append(f"curve {key} mismatch")
+    if not is_prime(q) or q.bit_length() != info["bits"]:
+        errors.append("curve group-order acceptance mismatch")
+    if info["trace"] in (0, 1) or info["j"] in (0, 1728 % curve.p):
+        errors.append("curve special-case rejection mismatch")
+    try:
+        factors = verify_factor_base(curve, group, row)
+    except Exception as error:
+        errors.append(f"factor base: {error}")
+        factors = []
+    if not factors:
+        return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
+
+    eligible, conflicts, candidate_count, conflict_count, raw_a4 = reconstruct_graph(
+        curve, factors
+    )
+    graph = row["private_audit"]["graph"]
+    if (
+        graph["candidate_count"],
+        graph["eligible_candidate_count"],
+        graph["conflict_count"],
+    ) != (candidate_count, len(eligible), conflict_count):
+        errors.append("graph count mismatch")
+    expansion = expansion_metrics(curve, factors)
+    if expansion != row["private_audit"]["expansion"]:
+        errors.append("additive expansion mismatch")
+    balanced_raw = support_counter(curve, raw_a4)
+
+    points = [candidate["point"] for candidate in eligible]
+    point_index = {point: index for index, point in enumerate(group)}
+    pair_outputs = [
+        [point_index[curve.plus(left, right)] for right in points]
+        for left in points
+    ]
+    by_formal = {candidate["formal"]: index for index, candidate in enumerate(eligible)}
+    public_frontier = row["public_model"]["density_frontier"]
+    private_frontier = row["private_audit"]["density_frontier"]
+    caps = row["public_model"]["constrained_budget_caps"]
+    expected_caps = sorted({max(1, q // 4), max(1, q // 2), max(1, 3 * q // 4), q})
+    if caps != expected_caps:
+        errors.append("constrained-budget cap schedule mismatch")
+    if len(public_frontier) != len(private_frontier) or len(caps) != len(public_frontier):
+        errors.append("density frontier length mismatch")
+
+    accounting = row["accounting"]
+    expected_cap_accounting = [
+        {
+            "constrained_cap": public["constrained_cap"],
+            "public_embedding_json_bytes": len(stable_bytes(public)),
+            "private_cap_json_bytes": len(stable_bytes(private)),
+        }
+        for public, private in zip(public_frontier, private_frontier)
+    ]
+    if (
+        accounting.get("public_json_bytes") != len(stable_bytes(row["public_model"]))
+        or accounting.get("private_audit_json_bytes")
+        != len(stable_bytes(row["private_audit"]))
+        or accounting.get("per_cap") != expected_cap_accounting
+    ):
+        errors.append("cost-accounting byte receipt mismatch")
+    if type(accounting.get("in_memory_deep_bytes")) is not int or accounting.get(
+        "in_memory_deep_bytes", 0
+    ) <= 0:
+        errors.append("invalid charged in-memory size")
+
+    operation_records = [
+        ("row", row.get("operation_counts")),
+        ("shared", accounting.get("shared_precomputation_operation_counts")),
+        *[
+            (f"cap[{private.get('constrained_cap')}]", private.get("operation_counts"))
+            for private in private_frontier
+        ],
+    ]
+    valid_operation_records = True
+    for label_name, record in operation_records:
+        if (
+            not isinstance(record, dict)
+            or set(record) != OPERATION_COUNTER_KEYS
+            or any(type(value) is not int or value < 0 for value in record.values())
+        ):
+            errors.append(f"invalid {label_name} operation-count receipt")
+            valid_operation_records = False
+    if valid_operation_records:
+        shared_counts = accounting["shared_precomputation_operation_counts"]
+        recomposed_counts = {
+            key: shared_counts[key]
+            + sum(private["operation_counts"][key] for private in private_frontier)
+            for key in OPERATION_COUNTER_KEYS
+        }
+        if recomposed_counts != row["operation_counts"]:
+            errors.append("operation-count decomposition mismatch")
+    cap_wall_times = [private.get("wall_time_seconds") for private in private_frontier]
+    row_wall_time = row.get("wall_time_seconds")
+    if (
+        type(row_wall_time) not in {int, float}
+        or not math.isfinite(row_wall_time)
+        or row_wall_time < 0
+        or any(
+            type(value) not in {int, float}
+            or not math.isfinite(value)
+            or value < 0
+            for value in cap_wall_times
+        )
+        or sum(cap_wall_times) > row_wall_time + 1e-12
+    ):
+        errors.append("invalid wall-time decomposition")
+
+    cap_reports: list[dict[str, Any]] = []
+    for index, (public, private) in enumerate(zip(public_frontier, private_frontier)):
+        cap_errors: list[str] = []
+        cap = caps[index]
+        if public["constrained_cap"] != cap or private["constrained_cap"] != cap:
+            cap_errors.append("cap association mismatch")
+        selected_formals = [tuple(value) for value in public["selected_maxima"]]
+        try:
+            selected_indices = [by_formal[formal] for formal in selected_formals]
+        except KeyError as error:
+            cap_errors.append(f"selected maximum is not eligible: {error}")
+            selected_indices = []
+        selected_mask = sum(1 << candidate for candidate in selected_indices)
+        if any(conflicts[candidate] & selected_mask for candidate in selected_indices):
+            cap_errors.append("selected maxima are not graph independent")
+        optimizer = private["optimizer"]
+        if optimizer.get("objective_mode") != "density" or optimizer.get(
+            "max_constrained"
+        ) != cap:
+            cap_errors.append("optimizer density objective/cap mismatch")
+        if optimizer.get("selected_indices") != selected_indices:
+            cap_errors.append("optimizer selected-index mismatch")
+        if optimizer.get("selected_mask_hex") != hex(selected_mask):
+            cap_errors.append("optimizer selected-mask mismatch")
+        if (
+            optimizer.get("constrained_count"),
+            optimizer.get("public_edge_count"),
+            optimizer.get("witness_list"),
+        ) != (
+            public["constrained_count"],
+            public["public_edge_count"],
+            public["selected_maxima"],
+        ):
+            cap_errors.append("optimizer/public model objective-field mismatch")
+        cap_errors.extend(
+            verify_frontier_certificate(pair_outputs, q, conflicts, optimizer)
+        )
+
+        replay_metric_cache: dict[int, dict[str, Any]] = {}
+
+        def replay_metrics(mask: int) -> dict[str, Any]:
+            if mask not in replay_metric_cache:
+                maxima = [eligible[candidate]["formal"] for candidate in bits(mask)]
+                replay_constrained, replay_edges, _, _, _ = retained_model(
+                    curve, factors, maxima
+                )
+                replay_metric_cache[mask] = {
+                    "constrained_count": replay_constrained,
+                    "public_edge_count": replay_edges,
+                    "witness_list": [list(formal) for formal in sorted(maxima)],
+                }
+            return replay_metric_cache[mask]
+
+        replay = replay_density_search(
+            pair_outputs,
+            q,
+            conflicts,
+            optimizer["node_cap"],
+            cap,
+            replay_metrics,
+        )
+        replay_keys = [
+            "selected_indices",
+            "selected_mask_hex",
+            "retained_support_lower_bound",
+            "retained_support_upper_bound",
+            "absolute_gap",
+            "primary_exact",
+            "full_objective_exact",
+            "selected_count",
+            "constrained_count",
+            "public_edge_count",
+            "witness_list",
+            "explored_nodes",
+            "remaining_frontier_nodes",
+            "frontier_states",
+            "frontier_sha256",
+            "incumbent_updates",
+            "bound_calls",
+            "termination_reason",
+        ]
+        for key in replay_keys:
+            if replay[key] != optimizer.get(key):
+                cap_errors.append(f"deterministic search replay mismatch: {key}")
+
+        constrained, edge_count, family_count, axioms, public_edges = retained_model(
+            curve, factors, selected_formals
+        )
+        if constrained > cap:
+            cap_errors.append("attained constrained count exceeds cap")
+        if (constrained, edge_count, family_count) != (
+            public["constrained_count"],
+            public["public_edge_count"],
+            public["formal_family_count"],
+        ):
+            cap_errors.append("retained model count mismatch")
+        for key, value in axioms.items():
+            if public["axioms"].get(key) != value:
+                cap_errors.append(f"axiom mismatch: {key}")
+        if public_edges != public["public_edges"] or digest(public_edges) != public[
+            "public_edges_sha256"
+        ]:
+            cap_errors.append("public edge table/digest mismatch")
+        delta_divisor = math.gcd(constrained, q)
+        if public["delta"] != {
+            "numerator": constrained // delta_divisor,
+            "denominator": q // delta_divisor,
+        }:
+            cap_errors.append("attained density ratio mismatch")
+
+        selected_points = [eligible[candidate]["point"] for candidate in selected_indices]
+        retained = support_counter(curve, selected_points)
+        retention = private["retention"]
+        if (
+            len(balanced_raw),
+            expansion["8"]["support"],
+            len(retained),
+        ) != (
+            retention["balanced_raw_final_support"],
+            retention["eight_fold_support"],
+            retention["retained_final_support"],
+        ):
+            cap_errors.append("retention support mismatch")
+        if (
+            max(balanced_raw.values(), default=0),
+            max(retained.values(), default=0),
+        ) != (
+            retention["balanced_raw_maximum_multiplicity"],
+            retention["retained_maximum_multiplicity"],
+        ):
+            cap_errors.append("retention multiplicity mismatch")
+        balanced_denominator = max(1, len(balanced_raw))
+        eight_denominator = max(1, expansion["8"]["support"])
+        balanced_divisor = math.gcd(len(retained), balanced_denominator)
+        eight_divisor = math.gcd(len(retained), eight_denominator)
+        group_divisor = math.gcd(len(retained), q)
+        expected_ratios = (
+            {
+                "numerator": len(retained) // balanced_divisor,
+                "denominator": balanced_denominator // balanced_divisor,
+            },
+            {
+                "numerator": len(retained) // eight_divisor,
+                "denominator": eight_denominator // eight_divisor,
+            },
+            {
+                "numerator": len(retained) // group_divisor,
+                "denominator": q // group_divisor,
+            },
+        )
+        if expected_ratios != (
+            retention["retained_to_balanced_raw"],
+            retention["retained_to_eight_fold"],
+            retention["absolute_group_coverage"],
+        ):
+            cap_errors.append("retention ratio mismatch")
+
+        optimum, primary_nodes, complete = independent_density_primary_optimum(
+            curve,
+            factors,
+            eligible,
+            conflicts,
+            selected_mask,
+            cap,
+            maximum_nodes,
+        )
+        lower = optimizer["retained_support_lower_bound"]
+        upper = optimizer["retained_support_upper_bound"]
+        if complete:
+            if not lower <= optimum <= upper:
+                cap_errors.append("producer interval excludes independent density optimum")
+            if optimizer["primary_exact"] and not (lower == upper == optimum):
+                cap_errors.append("producer exact density optimum mismatch")
+        cap_reports.append(
+            {
+                "constrained_cap": cap,
+                "valid": not cap_errors and complete,
+                "errors": cap_errors,
+                "independent_primary_optimum": optimum,
+                "producer_primary_interval": [lower, upper],
+                "primary_nodes": primary_nodes,
+                "primary_proof_complete": complete,
+            }
+        )
+        errors.extend(f"cap[{cap}]: {error}" for error in cap_errors)
+        if not complete:
+            errors.append(f"cap[{cap}]: independent primary proof hit node cap")
+
+    return {
+        "valid": not errors and all(report["valid"] for report in cap_reports),
+        "errors": errors,
+        "curve": {"p": curve.p, "a": curve.a, "b": curve.b, "q": q},
+        "B": row["B"],
+        "family": row["family"],
+        "null_replicate": row["null_replicate"],
+        "candidate_count": candidate_count,
+        "eligible_candidate_count": len(eligible),
+        "conflict_count": conflict_count,
+        "primary_nodes": sum(report["primary_nodes"] for report in cap_reports),
+        "cap_reports": cap_reports,
+    }
+
+
 def verify_document(path: Path, maximum_nodes: int) -> dict[str, Any]:
     document = strict_load(path)
     errors: list[str] = []
-    if document.get("schema") != EXPECTED_SCHEMA:
+    if document.get("schema") not in EXPECTED_SCHEMAS:
         errors.append("unexpected document schema")
     if document.get("canonical") is not False:
         errors.append("development document claims canonical status")
@@ -664,7 +1405,14 @@ def verify_document(path: Path, maximum_nodes: int) -> dict[str, Any]:
     payload.pop("document_sha256", None)
     if supplied != digest(payload):
         errors.append("document digest mismatch")
-    row_reports = [verify_row(row, maximum_nodes) for row in document.get("rows", [])]
+    row_reports = [
+        (
+            verify_density_row(row, maximum_nodes)
+            if row.get("protocol_version") == 2
+            else verify_row(row, maximum_nodes)
+        )
+        for row in document.get("rows", [])
+    ]
     if any(not report["valid"] for report in row_reports):
         errors.append("one or more row verifications failed")
     report = {
@@ -686,8 +1434,9 @@ def verify_document(path: Path, maximum_nodes: int) -> dict[str, Any]:
             "predicate roots, Mobius maps and poles, hash-null ranking, signs, and root polynomial",
             "balanced candidate universe, individual eligibility, and pair-conflict graph",
             "selected graph independence, formal closure, public edges, axioms, density, and retention",
-            "degree-1/2/4/8 support and emitted formal-multiset multiplicity/energy fields",
-            "independent depth-first proof of the primary coverage optimum",
+            "degree-1/2/4/8 support under formal-multiset and ordered-tuple source measures",
+            "serialized optimizer frontier-state and bound replay",
+            "independent depth-first proof of each unconstrained or density-capped primary optimum",
         ],
         "claim_boundary": "development verification only; not canonical hypothesis evidence",
     }

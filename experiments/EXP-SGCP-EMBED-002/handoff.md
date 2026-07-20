@@ -1,15 +1,15 @@
-## Handoff: multi-curve SGCP density-and-expansion successor
+## Handoff: SGCP matched-density evidence-boundary repair
 
 ### Claim or task
 
-Review whether EXP-SGCP-EMBED-002 can distinguish coordinate-specific support
-at constrained density from symmetry-matched random x-fiber behavior without
-overinterpreting optimizer gaps or toy curves.
+Repair EXP-SGCP-EMBED-002 so a complete, provenance-bound matrix can distinguish
+coordinate-specific support at constrained density from four matched hash-x
+controls without overinterpreting optimizer gaps or toy curves.
 
 ### Status
 
-HYPOTHESIS, `TOY-EVIDENCE`, `MODEL-BOUND`, `NOVELTY-UNVERIFIED`, and
-`review_required`; canonical budget is zero.
+HYPOTHESIS, `TOY-EVIDENCE`, `MODEL-BOUND`, `NOVELTY-UNVERIFIED`, and V2
+`REVISE`; canonical budget is zero.
 
 ### Assumptions
 
@@ -18,32 +18,33 @@ HYPOTHESIS, `TOY-EVIDENCE`, `MODEL-BOUND`, `NOVELTY-UNVERIFIED`, and
   indices.
 - Balanced degree-four order ideals and the absent final `A4 x A4` public edge
   are inherited from EXP-SGCP-EMBED-001.
-- Exact rows and certified-gap rows are reported separately.
+- Version 3 will interpret only rows whose primary optimum is independently
+  exact; unresolved rows remain reported but cannot enter a family gate.
 - Relation generation, rank, descent, rho comparison, and isogeny transforms
   are outside this experiment.
 
 ### Evidence so far
 
-- The frozen five-bit predecessor has valid generator and independent-verifier
-  receipts for all three B rows.
-- Its valid embeddings retain nonzero but substantially reduced final support.
-- The structured generic-group theorem has no coordinate-predicate-specific
-  tightness result located in the refreshed primary sources.
-- Elliptic sum-product and integer 3SUM-Indexing results leave this exact model
-  translation and sparse EC sumset question open.
+- The V2 density objective and corrected energy definitions passed frozen
+  controls and independent mathematical review.
+- Independent V2 review found accepted empty-document, provenance, objective,
+  scalar-material, and accounting mutations.
+- The tested object is conditional on the lexicographically least degree-two
+  representative compiler; it is not a factor-base invariant.
+- No version-2 curve-family row was run.
 
 ### Failure modes
 
-- The paired null may still miss a relevant coordinate symmetry.
-- The curve sampler may favor atypical small prime-order curves.
-- Branch-and-bound gaps may prevent a directional family comparison.
-- Support per constrained label may reward a tiny unusable embedding.
-- A positive toy effect may disappear before meaningful factor-base scaling.
+- An incomplete or duplicate matrix could bias a family gate.
+- A producer-chosen curve transcript or Mobius map could create a false effect.
+- A near-copy replay could share a branch-omission bug with the producer.
+- The canonical representative compiler may drive the observed effect.
+- Even a valid toy effect would not supply relations, rank, or descent.
 
 ### Next concrete action
 
-Perform independent theory, accounting, and red-team review of version 1;
-either issue a scoped GO or return exact amendments before any canonical run.
+Implement and mutation-test the no-run V3 closed provenance, complete-grid,
+exact-gate, and scoped-accounting repair before requesting fresh review.
 
 ### Artifact paths
 
@@ -52,3 +53,7 @@ either issue a scoped GO or return exact amendments before any canonical run.
 - `experiments/EXP-SGCP-EMBED-002/specification.json`
 - `experiments/EXP-SGCP-EMBED-002/contract.md`
 - `experiments/EXP-SGCP-EMBED-002/literature-review-v1.md`
+- `experiments/EXP-SGCP-EMBED-002/decision-v2.json`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v2.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v2.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v2.md`

@@ -129,6 +129,13 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertLessEqual(capped["retained_support_lower_bound"], optimum)
         self.assertGreaterEqual(capped["retained_support_upper_bound"], optimum)
         self.assertEqual(capped["termination_reason"], "node_cap")
+        self.assertTrue(capped["frontier_states"])
+        self.assertEqual(
+            VERIFIER["verify_frontier_certificate"](
+                pair_outputs, point_count, conflicts, capped
+            ),
+            [],
+        )
 
     def test_frozen_fixture_reproduces_predecessor_optima(self) -> None:
         expected = {
@@ -140,7 +147,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         curve, points, record = MODULE["frozen_curve"](ops)
         for B, values in expected.items():
             with self.subTest(B=B):
-                row = MODULE["build_row"](
+                row = MODULE["build_legacy_row"](
                     curve,
                     points,
                     record,
@@ -196,7 +203,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
     def test_independent_verifier_reconstructs_row_and_rejects_expansion_mutation(self) -> None:
         ops = MODULE["OperationCounts"]()
         curve, points, record = MODULE["frozen_curve"](ops)
-        row = MODULE["build_row"](
+        row = MODULE["build_legacy_row"](
             curve,
             points,
             record,
@@ -218,9 +225,205 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertFalse(mutation_report["valid"])
         self.assertIn("additive expansion mismatch", mutation_report["errors"])
 
+    def test_density_objective_matches_exhaustive_caps(self) -> None:
+        point_count = 13
+        pair_outputs = [
+            [((left + 2) * (right + 3) + left + right) % point_count for right in range(6)]
+            for left in range(6)
+        ]
+        for left in range(6):
+            for right in range(6):
+                pair_outputs[right][left] = pair_outputs[left][right]
+        conflicts = [0] * 6
+        for left, right in ((0, 1), (1, 2), (2, 3), (3, 4), (4, 5)):
+            conflicts[left] |= 1 << right
+            conflicts[right] |= 1 << left
+        weights = [2, 2, 3, 3, 4, 4]
+
+        def metrics(mask: int) -> dict[str, object]:
+            selected = list(MODULE["iter_mask"](mask))
+            return {
+                "constrained_count": 1 + sum(weights[index] for index in selected),
+                "public_edge_count": sum(index + 1 for index in selected),
+                "witness_list": selected,
+            }
+
+        for cap in (1, 5, 9, 17):
+            with self.subTest(cap=cap):
+                best_key = None
+                best_witness = None
+                for mask in range(1 << len(conflicts)):
+                    if any(conflicts[index] & mask for index in MODULE["iter_mask"](mask)):
+                        continue
+                    row_metrics = metrics(mask)
+                    if row_metrics["constrained_count"] > cap:
+                        continue
+                    support = MODULE["support_mask_for_selection"](
+                        mask, pair_outputs
+                    ).bit_count()
+                    key = (
+                        support,
+                        -row_metrics["constrained_count"],
+                        -row_metrics["public_edge_count"],
+                        mask.bit_count(),
+                    )
+                    witness = tuple(row_metrics["witness_list"])
+                    if best_key is None or key > best_key or (
+                        key == best_key and witness < best_witness
+                    ):
+                        best_key = key
+                        best_witness = witness
+                observed = MODULE["optimize_coverage_graph"](
+                    pair_outputs,
+                    point_count,
+                    conflicts,
+                    100000,
+                    metrics,
+                    max_constrained=cap,
+                    objective_mode="density",
+                )
+                self.assertTrue(observed["full_objective_exact"])
+                self.assertEqual(
+                    (
+                        observed["retained_support_lower_bound"],
+                        -observed["constrained_count"],
+                        -observed["public_edge_count"],
+                        observed["selected_count"],
+                    ),
+                    best_key,
+                )
+                self.assertEqual(tuple(observed["witness_list"]), best_witness)
+                self.assertLessEqual(observed["constrained_count"], cap)
+
+    def test_corrected_energy_matches_ordered_and_multiset_recounts(self) -> None:
+        ops = MODULE["OperationCounts"]()
+        curve, points, record = MODULE["frozen_curve"](ops)
+        factors, _ = MODULE["factor_base"](
+            curve, points, record, 4, "least_x_interval", None, ops
+        )
+        observed = MODULE["degree_expansion"](curve, factors, (2,))["2"]
+        formal_counts = {}
+        for formal in itertools.combinations_with_replacement(range(4), 2):
+            point = MODULE["evaluate_formal"](curve, factors, formal)
+            formal_counts[point] = formal_counts.get(point, 0) + 1
+        ordered_counts = {}
+        for ordered in itertools.product(range(4), repeat=2):
+            point = MODULE["evaluate_formal"](curve, factors, ordered)
+            ordered_counts[point] = ordered_counts.get(point, 0) + 1
+        self.assertEqual(observed["formal_multiset_witness_count"], 10)
+        self.assertEqual(observed["ordered_tuple_witness_count"], 16)
+        self.assertEqual(
+            observed["formal_multiset_collision_energy"],
+            sum(value * value for value in formal_counts.values()),
+        )
+        self.assertEqual(
+            observed["ordered_tuple_additive_energy"],
+            sum(value * value for value in ordered_counts.values()),
+        )
+
+    def test_density_gap_frontier_replays_from_root(self) -> None:
+        point_count = 19
+        candidate_count = 8
+        pair_outputs = [
+            [((left + 5) * (right + 7) + right) % point_count for right in range(candidate_count)]
+            for left in range(candidate_count)
+        ]
+        for left in range(candidate_count):
+            for right in range(candidate_count):
+                pair_outputs[right][left] = pair_outputs[left][right]
+        conflicts = [0] * candidate_count
+        for left, right in ((0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7)):
+            conflicts[left] |= 1 << right
+            conflicts[right] |= 1 << left
+
+        def metrics(mask: int) -> dict[str, object]:
+            selected = list(MODULE["iter_mask"](mask))
+            return {
+                "constrained_count": 1 + 2 * len(selected),
+                "public_edge_count": sum(selected),
+                "witness_list": selected,
+            }
+
+        producer = MODULE["optimize_coverage_graph"](
+            pair_outputs,
+            point_count,
+            conflicts,
+            0,
+            metrics,
+            max_constrained=9,
+            objective_mode="density",
+        )
+        replay = VERIFIER["replay_density_search"](
+            pair_outputs, point_count, conflicts, 0, 9, metrics
+        )
+        self.assertTrue(producer["frontier_states"])
+        for key in replay:
+            self.assertEqual(replay[key], producer[key], key)
+        self.assertEqual(
+            VERIFIER["verify_frontier_certificate"](
+                pair_outputs, point_count, conflicts, producer
+            ),
+            [],
+        )
+
+    def test_frozen_density_frontier_is_exact_and_within_every_cap(self) -> None:
+        ops = MODULE["OperationCounts"]()
+        curve, points, record = MODULE["frozen_curve"](ops)
+        row = MODULE["build_density_row"](
+            curve,
+            points,
+            record,
+            4,
+            "least_x_interval",
+            None,
+            100000,
+            ops,
+        )
+        self.assertEqual(row["public_model"]["constrained_budget_caps"], [5, 11, 17, 23])
+        for public, private in zip(
+            row["public_model"]["density_frontier"],
+            row["private_audit"]["density_frontier"],
+        ):
+            self.assertEqual(public["constrained_cap"], private["constrained_cap"])
+            self.assertLessEqual(public["constrained_count"], public["constrained_cap"])
+            self.assertTrue(private["optimizer"]["primary_exact"])
+            self.assertTrue(private["optimizer"]["full_objective_exact"])
+            self.assertEqual(private["optimizer"]["frontier_states"], [])
+            self.assertEqual(
+                private["retention"]["eight_fold_support"],
+                row["private_audit"]["expansion"]["8"]["support"],
+            )
+        verification = VERIFIER["verify_density_row"](row, 100000)
+        self.assertTrue(verification["valid"], verification["errors"])
+        self.assertEqual(len(verification["cap_reports"]), 4)
+        recomposed_counts = {
+            key: row["accounting"]["shared_precomputation_operation_counts"][key]
+            + sum(
+                private["operation_counts"][key]
+                for private in row["private_audit"]["density_frontier"]
+            )
+            for key in row["operation_counts"]
+        }
+        self.assertEqual(recomposed_counts, row["operation_counts"])
+
+        mutated = copy.deepcopy(row)
+        mutated["accounting"]["public_json_bytes"] += 1
+        mutated["operation_counts"]["point_additions"] += 1
+        digest_payload = dict(mutated)
+        digest_payload.pop("row_sha256")
+        mutated["row_sha256"] = VERIFIER["digest"](digest_payload)
+        mutation_report = VERIFIER["verify_density_row"](mutated, 100000)
+        self.assertFalse(mutation_report["valid"])
+        self.assertIn("cost-accounting byte receipt mismatch", mutation_report["errors"])
+        self.assertIn("operation-count decomposition mismatch", mutation_report["errors"])
+
     def test_main_refuses_canonical_mode(self) -> None:
         with self.assertRaises(PermissionError):
             MODULE["main"](["--output", str(DEVELOPMENT_SENTINEL)])
+        with self.assertRaises(PermissionError):
+            MODULE["main"](
+                ["--development", "--output", str(DEVELOPMENT_SENTINEL)]
+            )
 
 
 DEVELOPMENT_SENTINEL = (
