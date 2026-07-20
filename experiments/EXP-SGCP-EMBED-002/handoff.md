@@ -1,16 +1,18 @@
-## Handoff: SGCP V6 no-run verifier repair
+## Handoff: SGCP V6 independent review closure
 
 ### Claim or task
 
-Close the V5 review blockers in a frozen no-run V6 source boundary without
-creating a curve-family row, canonical matrix, runner, or launch plan, then
-submit that exact boundary to fresh independent review.
+Close the exact-commit V6 theory, accounting, and red-team review, preserve the
+unanimous scoped decision, and define the smallest no-run V7 repair without
+creating a canonical matrix, runner, launch plan, or persisted family row.
 
 ### Status
 
-The underlying research claim remains `HYPOTHESIS`, `TOY-EVIDENCE`,
-`MODEL-BOUND`, and `NOVELTY-UNVERIFIED`. The V6 implementation passes focused
-development controls but has not received independent exact-commit review.
+`NEGATIVE RESULT` for V6 protocol readiness. The underlying research claim
+remains `HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and
+`NOVELTY-UNVERIFIED`.
+
+Theory, accounting, and red team all issued `REVISE` for launch-plan design.
 Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` remains in
 force.
 
@@ -32,30 +34,43 @@ force.
 
 ### Evidence so far
 
-- The V5 theory and red-team `REVISE` findings and accounting-only scoped `GO`
-  are preserved in the three review artifacts and `decision-v5.json`.
-- V6 reads, limits, hashes, decodes, and parses one regular-file byte snapshot;
-  it requires `O_NOFOLLOW` and rejects changed, symlink, and nonregular inputs.
-- Exact registered scope, matrix shape, scalar types, source-owned caps, row
-  digests, and ordering are checked before any curve or row semantics execute.
-- Static resource reservation covers curve draws, expansion and graph cells,
-  primary and replay nodes, replay caches, retained-model calls, and retained
-  cells before semantic work begins.
-- Receipts report only phases that executed and include reserved and actual
-  work. Legacy schemas are rejected instead of routed through fallback logic.
-- The standalone frozen B4 oracle derives the curve, cap, and complete
-  transcript independently of producer and verifier semantic helpers.
+- All nine V6 review-target hashes match exact commit
+  `83023747e7477376d19efbc459f6293e40671c06`.
+- The input-byte snapshot, V1-V5 rejection, exact scalar types, registered
+  grid/caps, frozen B4 semantic reconstruction, and gate arithmetic survived
+  independent review.
+- The fixed graph theorem remains valid: for registered downward ideals,
+  graph independence is equivalent to injectivity on their union.
+- Declared combinatorial budget formulas recompute exactly, but they are not
+  CPU, field-operation, RSS, disk, I/O, or bandwidth bounds.
 - Gate controls discriminate multiset from deduplicated medians, exact
   one-tenth noncollapse, three-strata support, and every-family collapse.
-- All 41 focused tests pass in 2.101 seconds. The exact schemas and generated
-  ledger index still require final post-document validation before commit.
-- No family row, canonical matrix, runner, launch plan, or execution
-  authorization was created.
+- All 41 focused tests passed in the committed log; records and the generated
+  ledger index validated.
+- One focused test constructed a generated canonical-scope Mobius density row
+  in memory despite the zero-family-row boundary. It was not persisted and is
+  excluded from research evidence. No canonical matrix, runner, launch plan,
+  or execution authorization was created.
 
 ### Failure modes
 
-- The 256-MiB input ceiling is not an operating-system RSS guarantee; parser
-  allocation and external resource containment remain launch-plan obligations.
+- Blocking file open precedes regular-file validation, initial file size is not
+  rejected before reading, and FIFO admission can fail to return a receipt.
+- Registered curve derivation precedes row digest authentication and trusted
+  reservation. Invalid optimizer masks/frontiers can also trigger unreserved
+  work.
+- Late-invalid rows can still enter replay and proof. Exception receipts can
+  discard reservation and completed partial work, so phase and actual-work
+  receipts are not truthful on every path.
+- Diagnostic count and bytes are uncapped; parser allocation and external
+  resource containment remain future immutable-runner obligations.
+- Producer cache bytes, verifier peak cache bytes, actual curve draws,
+  retained-model calls/cells, and exact primary-cache occupancy are not fully
+  receipted.
+- The verifier self-hash is diagnostic only because it reopens the source path
+  after module load.
+- The standalone B4 oracle does not directly compare the complete candidate
+  and eligible formal-point lists it computes.
 - Canonical B6/B8 exact closure may exceed the source-owned node ceilings or
   any acceptable future execution envelope.
 - Actual canonical runtime, peak memory, cache occupancy, memory traffic, and
@@ -69,10 +84,13 @@ force.
 
 ### Next concrete action
 
-Commit the exact V6 no-run source, protocol, controls, hashes, and development
-log, then obtain fresh independent theory, accounting, and red-team decisions.
-Do not create a family row or design a launch plan before all three reviewers
-issue explicit `GO` decisions for launch-plan design only.
+Implement one no-run V7 repair: authenticate and statically validate rows
+before curve or graph work; reserve and phase curve work before derivation;
+stop replay/proof after earlier errors; preserve reservation and partial work
+through exceptions; make file admission nonblocking and size-first; cap
+diagnostics; replace the generated-row test with factor-base-only controls; and
+compare complete standalone candidate/eligible lists. Then request fresh exact-
+commit review. Do not design a launch plan before three explicit `GO` decisions.
 
 ### Artifact paths
 
@@ -92,6 +110,10 @@ issue explicit `GO` decisions for launch-plan design only.
 - `experiments/EXP-SGCP-EMBED-002/revision-response-v6.md`
 - `experiments/EXP-SGCP-EMBED-002/development-test-log-v6.md`
 - `experiments/EXP-SGCP-EMBED-002/source-self-review-v6.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v6.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v6.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v6.md`
+- `experiments/EXP-SGCP-EMBED-002/decision-v6.json`
 - `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
