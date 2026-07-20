@@ -28,11 +28,12 @@ LEGACY_SCHEMAS = {
     "sgcp-embed-002-density-frontier-candidate-v4",
     "sgcp-embed-002-density-frontier-candidate-v5",
     "sgcp-embed-002-density-frontier-candidate-v6",
+    "sgcp-embed-002-density-frontier-candidate-v7",
 }
-CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v7"
-VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v7"
+CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v8"
+VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v8"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
-PROTOCOL_VERSION = 7
+PROTOCOL_VERSION = 8
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -67,6 +68,7 @@ MAXIMUM_JSON_STRING_BYTES = 8_388_608
 MAXIMUM_DIAGNOSTIC_COUNT = 256
 MAXIMUM_DIAGNOSTIC_BYTES = 65_536
 MAXIMUM_DIAGNOSTIC_ITEM_BYTES = 2_048
+MAXIMUM_VERIFICATION_REPORT_BYTES = 8_388_608
 MAXIMUM_PRIMARY_NODES = 5_000_000
 MAXIMUM_REPLAY_NODES_PER_CAP = CANONICAL_NODE_CAP
 MAXIMUM_ROW_FACTOR_BASE_SIZE = max(CANONICAL_FACTOR_BASE_SIZES)
@@ -205,7 +207,7 @@ class BoundedErrors(list[str]):
         if self.truncated:
             return
         self.truncated = True
-        marker = "diagnostics truncated at V7 source ceiling"
+        marker = "diagnostics truncated at V8 source ceiling"
         marker_bytes = len(marker.encode("ascii"))
         if (
             len(self) < MAXIMUM_DIAGNOSTIC_COUNT
@@ -236,7 +238,9 @@ class BoundedErrors(list[str]):
 
 
 def bounded_key_sample(values: set[Any]) -> list[str]:
-    return sorted(BoundedErrors._bounded_text(repr(value)) for value in values)[:8]
+    return heapq.nsmallest(
+        8, (BoundedErrors._bounded_text(repr(value)) for value in values)
+    )
 
 
 def require_keys(value: Any, expected: set[str], label_name: str) -> None:
@@ -412,18 +416,30 @@ def exact_digest(value: Any, path: str, errors: list[str]) -> None:
         errors.append(f"invalid lowercase SHA-256 digest at {path}")
 
 
+def sanitized_digest_value(value: Any) -> str | None:
+    if (
+        type(value) is str
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    ):
+        return value
+    return None
+
+
 def forbidden_material(value: Any, path: str = "row") -> list[str]:
     forbidden = ("scalar", "discrete_log", "dlog", "log_table", "secret")
     errors = BoundedErrors()
-    if isinstance(value, dict):
-        for key, child in value.items():
-            lowered = key.lower()
-            if any(token in lowered for token in forbidden):
-                errors.append(f"forbidden material key at {path}.{key}")
-            errors.extend(forbidden_material(child, f"{path}.{key}"))
-    elif isinstance(value, list):
-        for index, child in enumerate(value):
-            errors.extend(forbidden_material(child, f"{path}[{index}]"))
+    stack: list[tuple[Any, str]] = [(value, path)]
+    while stack and not errors.truncated:
+        child, child_path = stack.pop()
+        if type(child) is dict:
+            for key, nested in reversed(child.items()):
+                if type(key) is str and any(token in key.lower() for token in forbidden):
+                    errors.append(f"forbidden material key at {child_path}.{key}")
+                stack.append((nested, f"{child_path}.{key}"))
+        elif type(child) is list:
+            for index in range(len(child) - 1, -1, -1):
+                stack.append((child[index], f"{child_path}[{index}]"))
     return errors
 
 
@@ -453,6 +469,12 @@ def empty_actual_work() -> dict[str, int | bool]:
         "primary_curve_point_enumerations": 0,
         "expansion_cells": 0,
         "graph_cells": 0,
+        "replay_nodes": 0,
+        "replay_metric_cache_entries": 0,
+        "retained_model_replay_cache_entries": 0,
+        "independent_primary_nodes": 0,
+        "primary_support_cache_entries": 0,
+        "primary_constrained_cache_entries": 0,
         "retained_model_calls": 0,
         "retained_model_cells": 0,
     }
@@ -460,6 +482,14 @@ def empty_actual_work() -> dict[str, int | bool]:
 
 _ACTIVE_ACTUAL_WORK: dict[str, int | bool] | None = None
 _ACTIVE_RESOURCE_RECEIPT: dict[str, int] | None = None
+CAP_SEARCH_COUNTERS = (
+    "replay_nodes",
+    "replay_metric_cache_entries",
+    "retained_model_replay_cache_entries",
+    "independent_primary_nodes",
+    "primary_support_cache_entries",
+    "primary_constrained_cache_entries",
+)
 
 
 def reset_actual_work() -> dict[str, int | bool]:
@@ -481,6 +511,20 @@ def charge_actual_work(name: str, amount: int = 1) -> None:
 def mark_actual_work_incomplete() -> None:
     if _ACTIVE_ACTUAL_WORK is not None:
         _ACTIVE_ACTUAL_WORK["actual_work_complete"] = False
+
+
+def actual_work_snapshot(names: Sequence[str]) -> dict[str, int]:
+    source = _ACTIVE_ACTUAL_WORK or empty_actual_work()
+    return {
+        name: source[name]
+        for name in names
+        if type(source.get(name)) is int
+    }
+
+
+def actual_work_delta(before: dict[str, int]) -> dict[str, int]:
+    after = actual_work_snapshot(tuple(before))
+    return {name: after[name] - value for name, value in before.items()}
 
 
 def strict_json_load(raw: bytes, source: Path) -> Any:
@@ -658,6 +702,7 @@ def independent_rejection_reasons(
     if discriminant == 0:
         return ["singular"], None
     curve = Curve(p, a, b)
+    charge_actual_work("registered_curve_point_enumerations")
     q = len(curve.points())
     trace = p + 1 - q
     reasons: list[str] = []
@@ -740,16 +785,14 @@ def registered_curve_bundle(
         reasons, rejection_q = ordered_independent_rejection_reasons(
             p, a, b, bits_value, duplicate
         )
-        if rejection_q is not None:
-            charge_actual_work("registered_curve_point_enumerations")
         if rejection_q is None:
             rejections.append(
                 {"draw": draw, "p": p, "a": a, "b": b, "reasons": reasons}
             )
             continue
         curve = Curve(p, a, b)
-        group = tuple(curve.points())
         charge_actual_work("registered_curve_point_enumerations")
+        group = tuple(curve.points())
         if rejection_q != len(group):
             raise AssertionError("independent rejection recount mismatch")
         if reasons:
@@ -780,8 +823,8 @@ def registered_curve_bundle(
 
 def frozen_curve_record() -> tuple[Curve, tuple[Point, ...], dict[str, Any]]:
     curve = Curve(FROZEN_FIXTURE["p"], FROZEN_FIXTURE["a"], FROZEN_FIXTURE["b"])
-    group = tuple(curve.points())
     charge_actual_work("frozen_curve_point_enumerations")
+    group = tuple(curve.points())
     expected = independent_curve_record(curve, group, FROZEN_FIXTURE["bits"], 5)
     expected.update(
         {
@@ -1087,6 +1130,7 @@ def injective_map(
     by_point: dict[Point, Formal] = {}
     for formal in sorted(set(family), key=lambda value: (len(value), value)):
         point = evaluate(curve, factors, formal)
+        charge_actual_work("retained_model_cells")
         if point in by_point and by_point[point] != formal:
             return by_point, False
         by_point[point] = formal
@@ -1429,6 +1473,7 @@ def replay_density_search(
             if len(metric_cache) >= maximum_metric_cache_entries:
                 raise AssertionError("replay metric-cache entry ceiling exceeded")
             metric_cache[mask] = tiebreak(mask)
+            charge_actual_work("replay_metric_cache_entries")
         return metric_cache[mask]
 
     def feasible(mask: int) -> bool:
@@ -1590,6 +1635,7 @@ def replay_density_search(
         if not can_improve(-neg_support, -neg_count, mask):
             continue
         explored += 1
+        charge_actual_work("replay_nodes")
         vertex = max(
             bits(allowed),
             key=lambda item: (
@@ -1655,8 +1701,8 @@ def independent_primary_optimum(
     maximum_nodes: int = 5000000,
 ) -> tuple[int, int, bool]:
     points = [candidate["point"] for candidate in candidates]
-    group = curve.points()
     charge_actual_work("primary_curve_point_enumerations")
+    group = curve.points()
     point_index = {point: index for index, point in enumerate(group)}
     outputs = [
         [point_index[curve.plus(left, right)] for right in points]
@@ -1723,6 +1769,7 @@ def independent_density_primary_optimum(
     maximum_nodes: int,
 ) -> tuple[int, int, bool, int, int]:
     points = [candidate["point"] for candidate in candidates]
+    charge_actual_work("primary_curve_point_enumerations")
     group = curve.points()
     point_index = {point: index for index, point in enumerate(group)}
     outputs = [
@@ -1740,12 +1787,14 @@ def independent_density_primary_optimum(
                 for right in selected[position:]:
                     value |= 1 << outputs[left][right]
             support_cache[mask] = value
+            charge_actual_work("primary_support_cache_entries")
         return support_cache[mask]
 
     def constrained(mask: int) -> int:
         if mask not in constrained_cache:
             maxima = [candidates[index]["formal"] for index in bits(mask)]
             constrained_cache[mask] = retained_model(curve, factors, maxima)[0]
+            charge_actual_work("primary_constrained_cache_entries")
         return constrained_cache[mask]
 
     if constrained(incumbent_mask) > constrained_cap:
@@ -1756,6 +1805,7 @@ def independent_density_primary_optimum(
     while stack and explored < maximum_nodes:
         chosen, available = stack.pop()
         explored += 1
+        charge_actual_work("independent_primary_nodes")
         if constrained(chosen) > constrained_cap:
             continue
         chosen_support = selected_support(chosen)
@@ -1797,9 +1847,6 @@ def retained_model(
 ]:
     family = ideal(len(factors), maxima)
     charge_actual_work("retained_model_calls")
-    charge_actual_work(
-        "retained_model_cells", len(family) + len(family) * (len(family) - 1) // 2
-    )
     mapping, injective = injective_map(curve, factors, family)
     inverse = {formal: point for point, formal in mapping.items()}
     nonempty = sorted((formal for formal in family if formal), key=lambda value: (len(value), value))
@@ -1807,6 +1854,7 @@ def retained_model(
     compatible = True
     for left_index, left in enumerate(nonempty):
         for right in nonempty[left_index:]:
+            charge_actual_work("retained_model_cells")
             union = tuple(sorted(left + right))
             if union not in family:
                 continue
@@ -1998,29 +2046,1138 @@ def _verify_legacy_row_unchecked(
 
 
 def verify_row(row: Any, maximum_nodes: Any) -> dict[str, Any]:
-    errors = bounded_json_errors(row, "legacy_row")
-    errors.extend(maximum_nodes_errors(maximum_nodes))
-    if errors:
-        return {"valid": False, "errors": errors, "primary_nodes": 0}
+    errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
+    errors.append(
+        "legacy direct-row API is disabled in V8; use path-based verify_document"
+    )
+    return {"valid": False, "errors": errors, "primary_nodes": 0}
+
+
+REJECTION_REASON_ORDER = (
+    "duplicate_candidate",
+    "singular",
+    "wrong_q_bit_length",
+    "nonprime_group_order",
+    "trace_zero",
+    "anomalous_trace_one",
+    "j_zero",
+    "j_1728",
+)
+
+
+def _bounded_list(
+    value: Any,
+    label_name: str,
+    errors: list[str],
+    *,
+    maximum: int | None = None,
+    exact: int | None = None,
+) -> list[Any] | None:
+    if type(value) is not list:
+        errors.append(f"{label_name} is not a list")
+        return None
+    if exact is not None and len(value) != exact:
+        errors.append(f"{label_name} must contain exactly {exact} items")
+        return None
+    if maximum is not None and len(value) > maximum:
+        errors.append(f"{label_name} exceeds its source-derived length bound")
+        return None
+    return value
+
+
+def _bounded_dict(
+    value: Any,
+    label_name: str,
+    errors: list[str],
+    *,
+    maximum: int,
+) -> dict[str, Any] | None:
+    if type(value) is not dict:
+        errors.append(f"{label_name} is not an object")
+        return None
+    if len(value) > maximum:
+        errors.append(f"{label_name} exceeds its source-derived key bound")
+        return None
+    return value
+
+
+def _closed_dict(
+    value: Any,
+    label_name: str,
+    errors: list[str],
+    expected_keys: set[str],
+) -> dict[str, Any] | None:
+    if type(value) is not dict:
+        errors.append(f"{label_name} is not an object")
+        return None
+    if len(value) > len(expected_keys):
+        errors.append(f"{label_name} has more keys than the V8 source schema")
+        return None
+    if len(value) != len(expected_keys) or any(
+        key not in expected_keys for key in value
+    ):
+        errors.append(f"{label_name} keys do not match the V8 source schema")
+        return None
+    return value
+
+
+def v8_row_collection_bound_errors(row: Any) -> list[str]:
+    """Reject oversized nested containers before deep row traversal."""
+    errors = BoundedErrors()
     if type(row) is not dict:
-        return {
-            "valid": False,
-            "errors": ["legacy row is not an object"],
-            "primary_nodes": 0,
-        }
-    try:
-        return _verify_legacy_row_unchecked(row, maximum_nodes)
-    except Exception as error:
-        return {
-            "valid": False,
-            "errors": [
-                f"legacy row verifier failure: {type(error).__name__}: {error}"
-            ],
-            "primary_nodes": 0,
-        }
+        return errors
+    row_keys = {
+        "protocol_version",
+        "curve",
+        "B",
+        "family",
+        "null_replicate",
+        "valid",
+        "public_model",
+        "private_audit",
+        "structural_work",
+        "wall_time_seconds",
+        "accounting",
+        "row_sha256",
+    }
+    if len(row) > len(row_keys):
+        errors.append("density row has more keys than the V8 source schema")
+        return errors
+    if len(row) != len(row_keys) or any(key not in row_keys for key in row):
+        errors.append("density row keys do not match the V8 source schema")
+        return errors
+    for name, expected in (
+        ("protocol_version", int),
+        ("B", int),
+        ("family", str),
+        ("valid", bool),
+        ("curve", dict),
+        ("public_model", dict),
+        ("private_audit", dict),
+        ("structural_work", dict),
+        ("accounting", dict),
+        ("row_sha256", str),
+    ):
+        if type(row[name]) is not expected:
+            errors.append(f"row.{name} has a non-source container/scalar type")
+    if type(row["null_replicate"]) not in {int, type(None)}:
+        errors.append("row.null_replicate has a non-source container/scalar type")
+    if type(row["wall_time_seconds"]) not in {int, float}:
+        errors.append("row.wall_time_seconds has a non-source container/scalar type")
+    if errors:
+        return errors
+    B = row.get("B")
+    if type(B) is not int or not 4 <= B <= MAXIMUM_ROW_FACTOR_BASE_SIZE or B % 2:
+        errors.append("row.B is outside the V8 source range")
+        return errors
+    family = row["family"]
+    if family not in {*COORDINATE_FAMILIES, NULL_FAMILY}:
+        errors.append("row.family is outside the V8 source vocabulary")
+        return errors
+    candidate_bound = math.comb(B + 3, 4)
+    representative_bound = math.comb(B + 1, 2)
+    formal_family_bound = sum(
+        math.comb(B + degree - 1, degree) for degree in range(5)
+    )
+    public_edge_bound = formal_family_bound * (formal_family_bound + 1) // 2
+
+    curve = _closed_dict(
+        row.get("curve"),
+        "curve record",
+        errors,
+        {
+            "bits",
+            "seed",
+            "p",
+            "a",
+            "b",
+            "q",
+            "trace",
+            "j",
+            "generator",
+            "draw",
+            "rejected_draws",
+            "rejection_count",
+            "rejection_digest",
+        },
+    )
+    if curve is not None:
+        _bounded_list(curve["generator"], "curve generator", errors, exact=2)
+        rejected_draws = _bounded_list(
+            curve["rejected_draws"],
+            "curve rejection transcript",
+            errors,
+            maximum=100_000,
+        )
+        for index, rejection in enumerate(rejected_draws or []):
+            if type(rejection) is not dict:
+                errors.append(f"curve rejection[{index}] is not an object")
+                continue
+            rejection = _closed_dict(
+                rejection,
+                f"curve rejection[{index}]",
+                errors,
+                {"draw", "p", "a", "b", "reasons"}
+                | ({"q"} if "q" in rejection else set()),
+            )
+            if rejection is None:
+                continue
+            reasons = _bounded_list(
+                rejection["reasons"],
+                f"curve rejection[{index}] reasons",
+                errors,
+                maximum=len(REJECTION_REASON_ORDER),
+            )
+            if reasons is not None and all(type(reason) is str for reason in reasons):
+                if len(reasons) != len(set(reasons)):
+                    errors.append(f"curve rejection[{index}] reasons are not unique")
+                if any(reason not in REJECTION_REASON_ORDER for reason in reasons):
+                    errors.append(f"curve rejection[{index}] has an unknown reason")
+                else:
+                    expected_order = sorted(
+                        reasons, key=REJECTION_REASON_ORDER.index
+                    )
+                    if reasons != expected_order:
+                        errors.append(
+                            f"curve rejection[{index}] reasons are not source-ordered"
+                        )
+
+    public_model = _closed_dict(
+        row.get("public_model"),
+        "public model",
+        errors,
+        {
+            "factor_base",
+            "ordering_contract",
+            "representative_compiler",
+            "constrained_budget_caps",
+            "density_frontier",
+        },
+    )
+    if public_model is None:
+        return errors
+    factor = _closed_dict(
+        public_model["factor_base"],
+        "factor-base record",
+        errors,
+        {
+            "family",
+            "null_replicate",
+            "B",
+            "admissible_root_count",
+            "selected_roots",
+            "selected_root_count",
+            "excluded_poles",
+            "parameters",
+            "root_polynomial_coefficients_ascending_mod_p",
+            "points",
+            "negation_symmetric",
+            "selection_sha256",
+        },
+    )
+    ordering = _closed_dict(
+        public_model["ordering_contract"],
+        "ordering contract",
+        errors,
+        set(ORDERING_CONTRACT),
+    )
+    compiler = _closed_dict(
+        public_model["representative_compiler"],
+        "representative compiler",
+        errors,
+        {
+            "id",
+            "identity_output_excluded",
+            "representative_count",
+            "representatives",
+            "representatives_sha256",
+        },
+    )
+    if factor is None or ordering is None or compiler is None:
+        return errors
+    _bounded_list(
+        factor["selected_roots"],
+        "factor selected roots",
+        errors,
+        exact=B // 2,
+    )
+    factor_points = _bounded_list(factor["points"], "factor points", errors, exact=B)
+    for index, point in enumerate(factor_points or []):
+        if point is not None:
+            _bounded_list(point, f"factor point[{index}]", errors, exact=2)
+    _bounded_list(
+        factor["excluded_poles"],
+        "factor excluded poles",
+        errors,
+        maximum=2,
+    )
+    _bounded_list(
+        factor["root_polynomial_coefficients_ascending_mod_p"],
+        "factor root polynomial",
+        errors,
+        exact=B // 2 + 1,
+    )
+    parameter_keys = {
+        "least_x_interval": set(),
+        "mobius_interval": {"map"},
+        "two_mobius_union": {"maps", "alternating_positions"},
+        NULL_FAMILY: {"replicate"},
+    }[family]
+    parameters = _closed_dict(
+        factor["parameters"], "factor parameters", errors, parameter_keys
+    )
+    if parameters is None:
+        return errors
+    map_keys = {"u", "v", "w", "determinant", "nonce"}
+    if family == "mobius_interval":
+        _closed_dict(parameters["map"], "Mobius map", errors, map_keys)
+    elif family == "two_mobius_union":
+        maps = _bounded_list(parameters["maps"], "two-Mobius maps", errors, exact=2)
+        _bounded_list(
+            parameters["alternating_positions"],
+            "two-Mobius alternating positions",
+            errors,
+            exact=2,
+        )
+        for index, map_record in enumerate(maps or []):
+            _closed_dict(
+                map_record, f"two-Mobius map[{index}]", errors, map_keys
+            )
+
+    representatives = _bounded_list(
+        compiler["representatives"],
+        "representative transcript",
+        errors,
+        maximum=representative_bound,
+    )
+    for index, representative in enumerate(representatives or []):
+        representative = _closed_dict(
+            representative,
+            f"representative[{index}]",
+            errors,
+            {"point", "formal"},
+        )
+        if representative is None:
+            continue
+        if representative["point"] is not None:
+            _bounded_list(
+                representative["point"],
+                f"representative[{index}] point",
+                errors,
+                exact=2,
+            )
+        _bounded_list(
+            representative["formal"],
+            f"representative[{index}] formal",
+            errors,
+            exact=2,
+        )
+
+    _bounded_list(
+        public_model["constrained_budget_caps"],
+        "constrained cap schedule",
+        errors,
+        exact=MAXIMUM_CAPS_PER_ROW,
+    )
+    public_frontier = _bounded_list(
+        public_model["density_frontier"],
+        "public density frontier",
+        errors,
+        exact=MAXIMUM_CAPS_PER_ROW,
+    )
+    private_audit = _closed_dict(
+        row["private_audit"],
+        "private audit",
+        errors,
+        {
+            "graph",
+            "eligible_universe_indices",
+            "individually_rejected",
+            "conflicts",
+            "density_frontier",
+            "expansion",
+        },
+    )
+    if private_audit is None:
+        return errors
+    graph = _closed_dict(
+        private_audit["graph"],
+        "private graph",
+        errors,
+        {
+            "candidate_count",
+            "eligible_candidate_count",
+            "individually_rejected_count",
+            "conflict_count",
+            "vertices",
+            "edges",
+            "components",
+            "component_count",
+            "degree_min",
+            "degree_max",
+            "degree_histogram",
+            "degeneracy",
+        },
+    )
+    if graph is None:
+        return errors
+    private_frontier = _bounded_list(
+        private_audit["density_frontier"],
+        "private density frontier",
+        errors,
+        exact=MAXIMUM_CAPS_PER_ROW,
+    )
+
+    axiom_keys = {
+        "identity",
+        "commutativity",
+        "associativity",
+        "associativity_method",
+        "compatibility_coordinates",
+        "injective_evaluation",
+        "unique_prime_multiset_factorization",
+        "acyclic_by_formal_degree",
+        "source_recovery",
+        "source_recovery_via_public_table",
+        "direct_final_edge_excluded",
+        "direct_final_edge_absent_by_construction",
+        "forbidden_final_edge_count",
+    }
+    public_cap_keys = {
+        "constrained_cap",
+        "selected_maxima",
+        "formal_family_count",
+        "formal_degree_histogram",
+        "axioms",
+        "constrained_count",
+        "delta",
+        "public_edge_count",
+        "public_edges",
+        "public_edges_sha256",
+        "source_table",
+        "source_table_sha256",
+    }
+    for cap_index, public in enumerate(public_frontier or []):
+        public = _closed_dict(
+            public, f"public cap[{cap_index}]", errors, public_cap_keys
+        )
+        if public is None:
+            continue
+        _closed_dict(
+            public["formal_degree_histogram"],
+            f"public cap[{cap_index}] formal degree histogram",
+            errors,
+            {"0", "1", "2", "3", "4"},
+        )
+        _closed_dict(
+            public["axioms"],
+            f"public cap[{cap_index}] axioms",
+            errors,
+            axiom_keys,
+        )
+        _closed_dict(
+            public["delta"],
+            f"public cap[{cap_index}] delta",
+            errors,
+            {"numerator", "denominator"},
+        )
+        maxima = _bounded_list(
+            public["selected_maxima"],
+            f"public cap[{cap_index}] selected maxima",
+            errors,
+            maximum=candidate_bound,
+        )
+        for formal_index, formal in enumerate(maxima or []):
+            _bounded_list(
+                formal,
+                f"public cap[{cap_index}] selected maximum[{formal_index}]",
+                errors,
+                exact=4,
+            )
+        edges = _bounded_list(
+            public["public_edges"],
+            f"public cap[{cap_index}] edge table",
+            errors,
+            maximum=public_edge_bound,
+        )
+        for edge_index, edge in enumerate(edges or []):
+            _closed_dict(
+                edge,
+                f"public cap[{cap_index}] edge[{edge_index}]",
+                errors,
+                {"left", "right", "output"},
+            )
+        sources = _bounded_list(
+            public["source_table"],
+            f"public cap[{cap_index}] source table",
+            errors,
+            maximum=formal_family_bound,
+        )
+        for source_index, source in enumerate(sources or []):
+            source = _closed_dict(
+                source,
+                f"public cap[{cap_index}] source[{source_index}]",
+                errors,
+                {"label", "formal"},
+            )
+            if source is not None:
+                _bounded_list(
+                    source["formal"],
+                    f"public cap[{cap_index}] source[{source_index}] formal",
+                    errors,
+                    maximum=4,
+                )
+
+    _bounded_list(
+        graph["components"],
+        "graph components",
+        errors,
+        maximum=candidate_bound,
+    )
+    _bounded_dict(
+        graph["degree_histogram"],
+        "graph degree histogram",
+        errors,
+        maximum=candidate_bound,
+    )
+    _bounded_list(
+        private_audit["eligible_universe_indices"],
+        "eligible universe indices",
+        errors,
+        maximum=candidate_bound,
+    )
+    rejected = _bounded_list(
+        private_audit["individually_rejected"],
+        "individual rejection transcript",
+        errors,
+        maximum=candidate_bound,
+    )
+    conflicts = _bounded_list(
+        private_audit["conflicts"],
+        "conflict transcript",
+        errors,
+        maximum=math.comb(candidate_bound, 2),
+    )
+    for label_name, values in (
+        ("individual rejection", rejected or []),
+        ("conflict", conflicts or []),
+    ):
+        for item_index, item in enumerate(values):
+            item_keys = (
+                {"universe_index", "formal", "point", "first_collision"}
+                if label_name == "individual rejection"
+                else {
+                    "left",
+                    "right",
+                    "left_universe_index",
+                    "right_universe_index",
+                    "first_collision",
+                }
+            )
+            item = _closed_dict(
+                item, f"{label_name}[{item_index}]", errors, item_keys
+            )
+            if item is None:
+                continue
+            if label_name == "individual rejection":
+                _bounded_list(
+                    item["formal"],
+                    f"{label_name}[{item_index}] formal",
+                    errors,
+                    exact=4,
+                )
+                if type(item["point"]) is list:
+                    _bounded_list(
+                        item["point"],
+                        f"{label_name}[{item_index}] point",
+                        errors,
+                        exact=2,
+                    )
+            collision = _closed_dict(
+                item["first_collision"],
+                f"{label_name}[{item_index}] collision",
+                errors,
+                {"left", "right", "point"},
+            )
+            if collision is not None:
+                for side in ("left", "right"):
+                    _bounded_list(
+                        collision[side],
+                        f"{label_name}[{item_index}] collision {side}",
+                        errors,
+                        maximum=4,
+                    )
+                if type(collision["point"]) is list:
+                    _bounded_list(
+                        collision["point"],
+                        f"{label_name}[{item_index}] collision point",
+                        errors,
+                        exact=2,
+                    )
+
+    optimizer_keys = {
+        "objective_mode",
+        "max_constrained",
+        "objective_order",
+        "selected_indices",
+        "selected_mask_hex",
+        "retained_support_lower_bound",
+        "retained_support_upper_bound",
+        "absolute_gap",
+        "primary_exact",
+        "full_objective_exact",
+        "selected_count",
+        "constrained_count",
+        "public_edge_count",
+        "witness_list",
+        "explored_nodes",
+        "remaining_frontier_nodes",
+        "frontier_states",
+        "frontier_sha256",
+        "incumbent_updates",
+        "bound_calls",
+        "termination_reason",
+        "node_cap",
+        "bound_method",
+        "metric_cache_entries",
+    }
+    retention_keys = {
+        "balanced_raw_final_support",
+        "eight_fold_support",
+        "retained_final_support",
+        "retained_to_balanced_raw",
+        "retained_to_eight_fold",
+        "absolute_group_coverage",
+        "balanced_raw_maximum_multiplicity",
+        "retained_maximum_multiplicity",
+    }
+    cap_work_keys = {
+        "optimizer_nodes",
+        "optimizer_bound_calls",
+        "optimizer_metric_cache_entries",
+        "full_model_cache_entries",
+        "serialized_frontier_states",
+        "selected_maxima",
+        "retained_final_pair_cells",
+        "public_edges",
+        "source_table_entries",
+    }
+    for cap_index, private in enumerate(private_frontier or []):
+        private = _closed_dict(
+            private,
+            f"private cap[{cap_index}]",
+            errors,
+            {
+                "constrained_cap",
+                "optimizer",
+                "retention",
+                "structural_work",
+                "wall_time_seconds",
+            },
+        )
+        if private is None:
+            continue
+        optimizer = _closed_dict(
+            private["optimizer"],
+            f"private cap[{cap_index}] optimizer",
+            errors,
+            optimizer_keys,
+        )
+        retention = _closed_dict(
+            private["retention"],
+            f"private cap[{cap_index}] retention",
+            errors,
+            retention_keys,
+        )
+        _closed_dict(
+            private["structural_work"],
+            f"private cap[{cap_index}] structural work",
+            errors,
+            cap_work_keys,
+        )
+        if optimizer is None or retention is None:
+            continue
+        _bounded_list(
+            optimizer["objective_order"],
+            f"private cap[{cap_index}] objective order",
+            errors,
+            exact=5,
+        )
+        _bounded_list(
+            optimizer["selected_indices"],
+            f"private cap[{cap_index}] selected indices",
+            errors,
+            maximum=candidate_bound,
+        )
+        witnesses = _bounded_list(
+            optimizer["witness_list"],
+            f"private cap[{cap_index}] witness list",
+            errors,
+            maximum=candidate_bound,
+        )
+        for witness_index, formal in enumerate(witnesses or []):
+            _bounded_list(
+                formal,
+                f"private cap[{cap_index}] witness[{witness_index}]",
+                errors,
+                exact=4,
+            )
+        _bounded_list(
+            optimizer["frontier_states"],
+            f"private cap[{cap_index}] exact frontier",
+            errors,
+            exact=0,
+        )
+        for ratio_name in (
+            "retained_to_balanced_raw",
+            "retained_to_eight_fold",
+            "absolute_group_coverage",
+        ):
+            _closed_dict(
+                retention[ratio_name],
+                f"private cap[{cap_index}] retention {ratio_name}",
+                errors,
+                {"numerator", "denominator"},
+            )
+
+    expansion = _closed_dict(
+        private_audit["expansion"],
+        "private expansion",
+        errors,
+        {"1", "2", "4", "8"},
+    )
+    expansion_keys = {
+        "support",
+        "formal_multiset_witness_count",
+        "formal_multiset_collision_energy",
+        "formal_multiset_maximum_multiplicity",
+        "formal_multiset_multiplicity_histogram",
+        "ordered_tuple_witness_count",
+        "ordered_tuple_additive_energy",
+        "ordered_tuple_maximum_multiplicity",
+        "ordered_tuple_multiplicity_histogram",
+    }
+    if expansion is not None:
+        for degree, cell in expansion.items():
+            cell = _closed_dict(
+                cell, f"expansion[{degree}]", errors, expansion_keys
+            )
+            if cell is None:
+                continue
+            for histogram_name in (
+                "formal_multiset_multiplicity_histogram",
+                "ordered_tuple_multiplicity_histogram",
+            ):
+                _bounded_dict(
+                    cell[histogram_name],
+                    f"expansion[{degree}] {histogram_name}",
+                    errors,
+                    maximum=1 << max(CANONICAL_BITS),
+                )
+
+    _closed_dict(
+        row["structural_work"],
+        "row structural work",
+        errors,
+        {
+            "scope",
+            "degree_multiset_evaluations",
+            "balanced_degree2_formals",
+            "balanced_nonidentity_2F_representatives",
+            "balanced_degree4_parent_pairs",
+            "degree4_candidates",
+            "individual_injectivity_checks",
+            "conflict_pair_checks",
+            "pair_output_cells",
+            "balanced_final_pair_cells",
+        },
+    )
+    accounting = _closed_dict(
+        row["accounting"],
+        "row accounting",
+        errors,
+        {
+            "scope",
+            "public_model_json_bytes",
+            "private_audit_json_bytes",
+            "row_payload_without_accounting_or_digest_json_bytes",
+            "nested_per_cap_json_bytes",
+        },
+    )
+    if accounting is not None:
+        receipts = _bounded_list(
+            accounting["nested_per_cap_json_bytes"],
+            "nested per-cap byte receipts",
+            errors,
+            exact=MAXIMUM_CAPS_PER_ROW,
+        )
+        for index, receipt in enumerate(receipts or []):
+            _closed_dict(
+                receipt,
+                f"nested byte receipt[{index}]",
+                errors,
+                {
+                    "constrained_cap",
+                    "public_embedding_json_bytes",
+                    "private_cap_json_bytes",
+                },
+            )
+    return errors
 
 
-def v7_row_schema_errors(row: Any) -> list[str]:
+def v8_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
+    """Bound every gate-owned container before the generic shape walk."""
+    errors = BoundedErrors()
+    if scope == "frozen_fixture":
+        closed = _closed_dict(gate, "frozen family gate", errors, {"status", "reason"})
+        if closed is not None:
+            for name in ("status", "reason"):
+                if type(closed[name]) is not str:
+                    errors.append(f"frozen family gate.{name} is not a string")
+        return errors
+    if scope != "canonical":
+        errors.append("document scope is outside the V8 source vocabulary")
+        return errors
+
+    gate_keys = {
+        "criterion_version",
+        "null_median",
+        "null_duplicate_policy",
+        "unresolved_policy",
+        "cap_selection_policy",
+        "collapse_policy",
+        "status",
+        "negative_outcome",
+        "passing_family_cap_pairs",
+        "families",
+    }
+    closed_gate = _closed_dict(gate, "canonical family gate", errors, gate_keys)
+    if closed_gate is None:
+        return errors
+    for name in gate_keys - {"passing_family_cap_pairs", "families"}:
+        if type(closed_gate[name]) is not str:
+            errors.append(f"canonical family gate.{name} is not a string")
+
+    pairs = _bounded_list(
+        closed_gate["passing_family_cap_pairs"],
+        "passing family/cap pairs",
+        errors,
+        maximum=len(COORDINATE_FAMILIES) * 2,
+    )
+    for index, pair in enumerate(pairs or []):
+        closed_pair = _closed_dict(
+            pair,
+            f"passing pair[{index}]",
+            errors,
+            {"family", "cap_fraction"},
+        )
+        if closed_pair is not None and any(
+            type(closed_pair[name]) is not str for name in ("family", "cap_fraction")
+        ):
+            errors.append(f"passing pair[{index}] contains a non-string scalar")
+
+    families = _bounded_list(
+        closed_gate["families"],
+        "family gate reports",
+        errors,
+        exact=len(COORDINATE_FAMILIES),
+    )
+    family_keys = {
+        "family",
+        "full_cap_persistence",
+        "full_cap_persistence_pass",
+        "full_cap_collapse_strata",
+        "full_cap_collapse",
+        "matched_null_cap_tests",
+    }
+    persistence_keys = {"bits", "median_retained_to_balanced_raw", "pass"}
+    cap_test_keys = {
+        "cap_fraction",
+        "passing_bit_strata",
+        "positive_comparisons",
+        "comparison_count",
+        "strata",
+        "pass",
+    }
+    stratum_keys = {"bits", "median_threshold_margin", "pass"}
+    for family_index, family in enumerate(families or []):
+        family_path = f"family gate[{family_index}]"
+        closed_family = _closed_dict(family, family_path, errors, family_keys)
+        if closed_family is None:
+            continue
+        if type(closed_family["family"]) is not str:
+            errors.append(f"{family_path}.family is not a string")
+        for name, expected in (
+            ("full_cap_persistence_pass", bool),
+            ("full_cap_collapse_strata", int),
+            ("full_cap_collapse", bool),
+        ):
+            if type(closed_family[name]) is not expected:
+                errors.append(f"{family_path}.{name} has a non-source scalar type")
+
+        persistence = _bounded_list(
+            closed_family["full_cap_persistence"],
+            f"{family_path}.full_cap_persistence",
+            errors,
+            exact=len(CANONICAL_BITS),
+        )
+        for index, item in enumerate(persistence or []):
+            item_path = f"{family_path}.full_cap_persistence[{index}]"
+            closed_item = _closed_dict(item, item_path, errors, persistence_keys)
+            if closed_item is None:
+                continue
+            ratio = _closed_dict(
+                closed_item["median_retained_to_balanced_raw"],
+                f"{item_path}.median_retained_to_balanced_raw",
+                errors,
+                {"numerator", "denominator"},
+            )
+            if type(closed_item["bits"]) is not int or type(closed_item["pass"]) is not bool:
+                errors.append(f"{item_path} contains a non-source scalar type")
+            if ratio is not None and any(type(value) is not int for value in ratio.values()):
+                errors.append(f"{item_path} ratio contains a noninteger scalar")
+
+        cap_tests = _bounded_list(
+            closed_family["matched_null_cap_tests"],
+            f"{family_path}.matched_null_cap_tests",
+            errors,
+            exact=2,
+        )
+        for cap_index, cap_test in enumerate(cap_tests or []):
+            cap_path = f"{family_path}.matched_null_cap_tests[{cap_index}]"
+            closed_cap = _closed_dict(cap_test, cap_path, errors, cap_test_keys)
+            if closed_cap is None:
+                continue
+            if type(closed_cap["cap_fraction"]) is not str or type(closed_cap["pass"]) is not bool:
+                errors.append(f"{cap_path} contains a non-source scalar type")
+            for name in (
+                "passing_bit_strata",
+                "positive_comparisons",
+                "comparison_count",
+            ):
+                if type(closed_cap[name]) is not int:
+                    errors.append(f"{cap_path}.{name} is not an integer")
+            strata = _bounded_list(
+                closed_cap["strata"],
+                f"{cap_path}.strata",
+                errors,
+                exact=len(CANONICAL_BITS),
+            )
+            for stratum_index, stratum in enumerate(strata or []):
+                stratum_path = f"{cap_path}.strata[{stratum_index}]"
+                closed_stratum = _closed_dict(
+                    stratum, stratum_path, errors, stratum_keys
+                )
+                if closed_stratum is None:
+                    continue
+                ratio = _closed_dict(
+                    closed_stratum["median_threshold_margin"],
+                    f"{stratum_path}.median_threshold_margin",
+                    errors,
+                    {"numerator", "denominator"},
+                )
+                if (
+                    type(closed_stratum["bits"]) is not int
+                    or type(closed_stratum["pass"]) is not bool
+                ):
+                    errors.append(f"{stratum_path} contains a non-source scalar type")
+                if ratio is not None and any(
+                    type(value) is not int for value in ratio.values()
+                ):
+                    errors.append(f"{stratum_path} ratio contains a noninteger scalar")
+        if errors.truncated:
+            break
+    return errors
+
+
+def v8_document_collection_bound_errors(document: Any) -> list[str]:
+    """Apply source-sized document bounds before generic JSON traversal."""
+    errors = BoundedErrors()
+    if type(document) is not dict:
+        return errors
+    document_keys = {
+        "schema",
+        "experiment_id",
+        "protocol_version",
+        "claim_status",
+        "scope",
+        "canonical",
+        "interpretation",
+        "parameters",
+        "rows",
+        "summary",
+        "family_gate",
+        "document_sha256",
+    }
+    if len(document) > len(document_keys):
+        errors.append("document has more keys than the V8 source schema")
+        return errors
+    if len(document) != len(document_keys) or any(
+        key not in document_keys for key in document
+    ):
+        errors.append("document keys do not match the V8 source schema")
+        return errors
+    for name, expected in (
+        ("schema", str),
+        ("experiment_id", str),
+        ("protocol_version", int),
+        ("scope", str),
+        ("canonical", bool),
+        ("interpretation", str),
+        ("parameters", dict),
+        ("rows", list),
+        ("summary", dict),
+        ("family_gate", dict),
+        ("document_sha256", str),
+    ):
+        if type(document[name]) is not expected:
+            errors.append(
+                f"document.{name} has a non-source container/scalar type"
+            )
+    if errors:
+        return errors
+    claim_status = _bounded_list(
+        document.get("claim_status"),
+        "document claim status",
+        errors,
+        exact=len(CLAIM_STATUS),
+    )
+    if claim_status is not None and any(type(value) is not str for value in claim_status):
+        errors.append("document claim status contains a non-string scalar")
+    scope = document["scope"]
+    if scope not in {"frozen_fixture", "canonical"}:
+        errors.append("document scope is outside the V8 source vocabulary")
+        return errors
+
+    parameters = document["parameters"]
+    if scope == "frozen_fixture":
+        parameter_keys = {
+            "curve",
+            "B",
+            "family",
+            "null_replicate",
+            "node_cap_per_cap",
+            "representative_compiler",
+            "ordering_contract_sha256",
+        }
+        closed_parameters = _closed_dict(
+            parameters, "frozen parameters", errors, parameter_keys
+        )
+        if closed_parameters is not None:
+            curve_parameters = _closed_dict(
+                closed_parameters["curve"],
+                "frozen parameter curve",
+                errors,
+                set(FROZEN_FIXTURE),
+            )
+            if curve_parameters is not None:
+                generator = _bounded_list(
+                    curve_parameters["generator"],
+                    "frozen parameter generator",
+                    errors,
+                    exact=2,
+                )
+                if generator is not None and any(
+                    type(value) is not int for value in generator
+                ):
+                    errors.append("frozen parameter generator contains a noninteger scalar")
+                if any(
+                    type(curve_parameters[name]) is not int
+                    for name in set(FROZEN_FIXTURE) - {"generator"}
+                ):
+                    errors.append("frozen parameter curve contains a noninteger scalar")
+            for name, expected in (
+                ("B", int),
+                ("family", str),
+                ("node_cap_per_cap", int),
+                ("representative_compiler", str),
+                ("ordering_contract_sha256", str),
+            ):
+                if type(closed_parameters[name]) is not expected:
+                    errors.append(f"frozen parameters.{name} has a non-source scalar type")
+            if closed_parameters["null_replicate"] is not None:
+                errors.append("frozen parameters.null_replicate is not null")
+    else:
+        expected_parameters = expected_canonical_parameters()
+        closed_parameters = _closed_dict(
+            parameters,
+            "canonical parameters",
+            errors,
+            set(expected_parameters),
+        )
+        if closed_parameters is not None:
+            for name in (
+                "bits",
+                "seeds",
+                "factor_base_sizes",
+                "coordinate_families",
+            ):
+                expected_values = expected_parameters[name]
+                values = _bounded_list(
+                    closed_parameters[name],
+                    f"canonical parameters.{name}",
+                    errors,
+                    exact=len(expected_values),
+                )
+                if values is not None and any(
+                    type(value) is not type(expected_values[0]) for value in values
+                ):
+                    errors.append(
+                        f"canonical parameters.{name} contains a non-source scalar"
+                    )
+            for name, expected in (
+                ("null_family", str),
+                ("null_replicates", int),
+                ("node_cap_per_cap", int),
+                ("representative_compiler", str),
+                ("ordering_contract_sha256", str),
+                ("constrained_budget_rule", str),
+            ):
+                if type(closed_parameters[name]) is not expected:
+                    errors.append(
+                        f"canonical parameters.{name} has a non-source scalar type"
+                    )
+
+    summary_keys = {
+        "row_count",
+        "valid_rows",
+        "unique_curve_records",
+        "cap_cell_count",
+        "primary_exact_cap_cells",
+        "full_objective_exact_cap_cells",
+        "maximum_primary_gap",
+    }
+    closed_summary = _closed_dict(document["summary"], "document summary", errors, summary_keys)
+    if closed_summary is not None and any(
+        type(closed_summary[name]) is not int for name in summary_keys
+    ):
+        errors.append("document summary contains a noninteger scalar")
+
+    rows = document.get("rows")
+    bounded_rows = _bounded_list(
+        rows, "document rows", errors, maximum=MAXIMUM_CANONICAL_ROWS
+    )
+    if bounded_rows is not None and scope == "frozen_fixture" and len(rows) != 1:
+        errors.append("frozen document must contain exactly one row")
+    if (
+        bounded_rows is not None
+        and scope == "canonical"
+        and len(rows) != MAXIMUM_CANONICAL_ROWS
+    ):
+        errors.append(
+            f"canonical document must contain exactly {MAXIMUM_CANONICAL_ROWS} rows"
+        )
+    for index, row in enumerate(bounded_rows or []):
+        errors.extend(
+            f"row[{index}]: {error}" for error in v8_row_collection_bound_errors(row)
+        )
+        if errors.truncated:
+            break
+    errors.extend(v8_family_gate_collection_bound_errors(document["family_gate"], scope))
+    return errors
+
+
+def v8_row_schema_errors(row: Any) -> list[str]:
     errors = BoundedErrors()
     try:
         require_keys(
@@ -2390,7 +3547,7 @@ def v7_row_schema_errors(row: Any) -> list[str]:
     return errors
 
 
-def v7_row_type_errors(row: dict[str, Any]) -> list[str]:
+def v8_row_type_errors(row: dict[str, Any]) -> list[str]:
     errors = BoundedErrors()
     for name in ("protocol_version", "B"):
         exact_integer(row[name], f"row.{name}", errors)
@@ -3079,12 +4236,12 @@ def _verify_density_row_unchecked(
     maximum_nodes: int,
     scope: str,
     expected_node_cap: int | None,
-    phases: list[dict[str, str]] | None = None,
+    phases: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    errors = BoundedErrors(v7_row_schema_errors(row))
+    errors = BoundedErrors(v8_row_schema_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
-    errors.extend(v7_row_type_errors(row))
+    errors.extend(v8_row_type_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     supplied_digest = row.get("row_sha256")
@@ -3114,12 +4271,15 @@ def _verify_density_row_unchecked(
     info = row["curve"]
     try:
         curve = verify_curve_provenance(info)
+        charge_actual_work("semantic_curve_point_enumerations")
+        group = curve.points()
     except Exception as error:
-        errors.append(f"curve provenance: {error}")
-        mark_phase(phases, "curve_factor_graph_and_expansion_reconstruction", "failed")
+        mark_actual_work_incomplete()
+        errors.append(f"curve provenance/semantic enumeration: {error}")
+        record_phase_unit(
+            phases, "curve_factor_graph_and_expansion_reconstruction", "failed"
+        )
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
-    group = curve.points()
-    charge_actual_work("semantic_curve_point_enumerations")
     q = len(group)
     try:
         factors = verify_factor_base(curve, group, row)
@@ -3127,7 +4287,9 @@ def _verify_density_row_unchecked(
         errors.append(f"factor base: {error}")
         factors = []
     if not factors:
-        mark_phase(phases, "curve_factor_graph_and_expansion_reconstruction", "failed")
+        record_phase_unit(
+            phases, "curve_factor_graph_and_expansion_reconstruction", "failed"
+        )
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
 
     try:
@@ -3160,7 +4322,9 @@ def _verify_density_row_unchecked(
     except Exception as error:
         errors.append(f"graph/expansion reconstruction: {type(error).__name__}: {error}")
         mark_actual_work_incomplete()
-        mark_phase(phases, "curve_factor_graph_and_expansion_reconstruction", "failed")
+        record_phase_unit(
+            phases, "curve_factor_graph_and_expansion_reconstruction", "failed"
+        )
         return {
             "valid": False,
             "errors": errors,
@@ -3194,7 +4358,7 @@ def _verify_density_row_unchecked(
         errors.append("representative compiler mismatch")
     if not exact_json_equal(expansion, row["private_audit"]["expansion"]):
         errors.append("additive expansion mismatch")
-    mark_phase(
+    record_phase_unit(
         phases,
         "curve_factor_graph_and_expansion_reconstruction",
         "failed" if errors else "passed",
@@ -3345,6 +4509,27 @@ def _verify_density_row_unchecked(
         }
 
     for index, (public, private) in enumerate(zip(public_frontier, private_frontier)):
+        cap_counter_start = actual_work_snapshot(CAP_SEARCH_COUNTERS)
+
+        def cap_search_receipt() -> dict[str, int]:
+            observed = actual_work_delta(cap_counter_start)
+            return {
+                "replay_nodes": observed["replay_nodes"],
+                "replay_metric_cache_entries": observed[
+                    "replay_metric_cache_entries"
+                ],
+                "retained_model_replay_cache_entries": observed[
+                    "retained_model_replay_cache_entries"
+                ],
+                "primary_support_cache_entries": observed[
+                    "primary_support_cache_entries"
+                ],
+                "primary_constrained_cache_entries": observed[
+                    "primary_constrained_cache_entries"
+                ],
+                "primary_nodes": observed["independent_primary_nodes"],
+            }
+
         cap_errors = BoundedErrors()
         cap = caps[index]
         if public["constrained_cap"] != cap or private["constrained_cap"] != cap:
@@ -3381,7 +4566,7 @@ def _verify_density_row_unchecked(
         try:
             require_independent_exhausted_gate_cell(optimizer)
         except AssertionError as error:
-            cap_errors.append(f"V7 requires an exhausted exact optimizer cell: {error}")
+            cap_errors.append(f"V8 requires an exhausted exact optimizer cell: {error}")
         if not exact_json_equal(optimizer.get("selected_indices"), selected_indices):
             cap_errors.append("optimizer selected-index mismatch")
         if optimizer.get("selected_mask_hex") != hex(selected_mask):
@@ -3413,12 +4598,7 @@ def _verify_density_row_unchecked(
                         optimizer["retained_support_lower_bound"],
                         optimizer["retained_support_upper_bound"],
                     ],
-                    "replay_nodes": 0,
-                    "replay_metric_cache_entries": 0,
-                    "retained_model_replay_cache_entries": 0,
-                    "primary_support_cache_entries": 0,
-                    "primary_constrained_cache_entries": 0,
-                    "primary_nodes": 0,
+                    **cap_search_receipt(),
                     "primary_proof_complete": False,
                     "actual_work_complete": True,
                 }
@@ -3443,6 +4623,7 @@ def _verify_density_row_unchecked(
                     "public_edge_count": replay_edges,
                     "witness_list": [list(formal) for formal in sorted(maxima)],
                 }
+                charge_actual_work("retained_model_replay_cache_entries")
             return replay_metric_cache[mask]
 
         try:
@@ -3457,7 +4638,7 @@ def _verify_density_row_unchecked(
             )
         except Exception as error:
             mark_actual_work_incomplete()
-            mark_phase(phases, "deterministic_optimizer_replay", "failed")
+            record_phase_unit(phases, "deterministic_optimizer_replay", "failed")
             cap_errors.append(
                 f"deterministic replay failure: {type(error).__name__}: {error}"
             )
@@ -3471,19 +4652,24 @@ def _verify_density_row_unchecked(
                         optimizer["retained_support_lower_bound"],
                         optimizer["retained_support_upper_bound"],
                     ],
-                    "replay_nodes": 0,
-                    "replay_metric_cache_entries": 0,
-                    "retained_model_replay_cache_entries": len(replay_metric_cache),
-                    "primary_support_cache_entries": 0,
-                    "primary_constrained_cache_entries": 0,
-                    "primary_nodes": 0,
+                    **cap_search_receipt(),
                     "primary_proof_complete": False,
                     "actual_work_complete": False,
                 }
             )
             errors.extend(f"cap[{cap}]: {item}" for item in cap_errors)
             return finish_row(False)
-        mark_phase(phases, "deterministic_optimizer_replay", "passed")
+        replay_receipt = cap_search_receipt()
+        if (
+            replay_receipt["replay_nodes"],
+            replay_receipt["replay_metric_cache_entries"],
+            replay_receipt["retained_model_replay_cache_entries"],
+        ) != (
+            replay["explored_nodes"],
+            replay["metric_cache_entries"],
+            len(replay_metric_cache),
+        ):
+            cap_errors.append("replay actual-work counter mismatch")
         replay_keys = [
             "selected_indices",
             "selected_mask_hex",
@@ -3509,7 +4695,7 @@ def _verify_density_row_unchecked(
             if not exact_json_equal(replay[key], optimizer.get(key)):
                 cap_errors.append(f"deterministic search replay mismatch: {key}")
         if cap_errors:
-            mark_phase(phases, "deterministic_optimizer_replay", "failed")
+            record_phase_unit(phases, "deterministic_optimizer_replay", "failed")
             cap_reports.append(
                 {
                     "constrained_cap": cap,
@@ -3520,18 +4706,14 @@ def _verify_density_row_unchecked(
                         optimizer["retained_support_lower_bound"],
                         optimizer["retained_support_upper_bound"],
                     ],
-                    "replay_nodes": replay["explored_nodes"],
-                    "replay_metric_cache_entries": replay["metric_cache_entries"],
-                    "retained_model_replay_cache_entries": len(replay_metric_cache),
-                    "primary_support_cache_entries": 0,
-                    "primary_constrained_cache_entries": 0,
-                    "primary_nodes": 0,
+                    **cap_search_receipt(),
                     "primary_proof_complete": False,
                     "actual_work_complete": True,
                 }
             )
             errors.extend(f"cap[{cap}]: {item}" for item in cap_errors)
             return finish_row()
+        record_phase_unit(phases, "deterministic_optimizer_replay", "passed")
 
         try:
             (
@@ -3544,7 +4726,9 @@ def _verify_density_row_unchecked(
             ) = retained_model(curve, factors, selected_formals)
         except Exception as error:
             mark_actual_work_incomplete()
-            mark_phase(phases, "retained_model_transcript_reconstruction", "failed")
+            record_phase_unit(
+                phases, "retained_model_transcript_reconstruction", "failed"
+            )
             cap_errors.append(
                 f"retained-model failure: {type(error).__name__}: {error}"
             )
@@ -3558,12 +4742,7 @@ def _verify_density_row_unchecked(
                         optimizer["retained_support_lower_bound"],
                         optimizer["retained_support_upper_bound"],
                     ],
-                    "replay_nodes": replay["explored_nodes"],
-                    "replay_metric_cache_entries": replay["metric_cache_entries"],
-                    "retained_model_replay_cache_entries": len(replay_metric_cache),
-                    "primary_support_cache_entries": 0,
-                    "primary_constrained_cache_entries": 0,
-                    "primary_nodes": 0,
+                    **cap_search_receipt(),
                     "primary_proof_complete": False,
                     "actual_work_complete": False,
                 }
@@ -3676,7 +4855,7 @@ def _verify_density_row_unchecked(
         if not exact_json_equal(private["structural_work"], expected_cap_work):
             cap_errors.append("cap structural-work receipt mismatch")
 
-        mark_phase(
+        record_phase_unit(
             phases,
             "retained_model_transcript_reconstruction",
             "failed" if cap_errors else "passed",
@@ -3692,12 +4871,7 @@ def _verify_density_row_unchecked(
                         optimizer["retained_support_lower_bound"],
                         optimizer["retained_support_upper_bound"],
                     ],
-                    "replay_nodes": replay["explored_nodes"],
-                    "replay_metric_cache_entries": replay["metric_cache_entries"],
-                    "retained_model_replay_cache_entries": len(replay_metric_cache),
-                    "primary_support_cache_entries": 0,
-                    "primary_constrained_cache_entries": 0,
-                    "primary_nodes": 0,
+                    **cap_search_receipt(),
                     "primary_proof_complete": False,
                     "actual_work_complete": True,
                 }
@@ -3723,7 +4897,7 @@ def _verify_density_row_unchecked(
             )
         except Exception as error:
             mark_actual_work_incomplete()
-            mark_phase(phases, "independent_primary_proof", "failed")
+            record_phase_unit(phases, "independent_primary_proof", "failed")
             cap_errors.append(
                 f"independent primary proof failure: {type(error).__name__}: {error}"
             )
@@ -3737,23 +4911,29 @@ def _verify_density_row_unchecked(
                         optimizer["retained_support_lower_bound"],
                         optimizer["retained_support_upper_bound"],
                     ],
-                    "replay_nodes": replay["explored_nodes"],
-                    "replay_metric_cache_entries": replay["metric_cache_entries"],
-                    "retained_model_replay_cache_entries": len(replay_metric_cache),
-                    "primary_support_cache_entries": 0,
-                    "primary_constrained_cache_entries": 0,
-                    "primary_nodes": 0,
+                    **cap_search_receipt(),
                     "primary_proof_complete": False,
                     "actual_work_complete": False,
                 }
             )
             errors.extend(f"cap[{cap}]: {item}" for item in cap_errors)
             return finish_row(False)
+        primary_receipt = cap_search_receipt()
+        if (
+            primary_receipt["primary_nodes"],
+            primary_receipt["primary_support_cache_entries"],
+            primary_receipt["primary_constrained_cache_entries"],
+        ) != (
+            primary_nodes,
+            primary_support_cache_entries,
+            primary_constrained_cache_entries,
+        ):
+            cap_errors.append("primary actual-work counter mismatch")
         lower = optimizer["retained_support_lower_bound"]
         upper = optimizer["retained_support_upper_bound"]
         if complete and not (lower == upper == optimum):
             cap_errors.append("producer exact density optimum mismatch")
-        mark_phase(
+        record_phase_unit(
             phases,
             "independent_primary_proof",
             "failed" if cap_errors or not complete else "passed",
@@ -3765,12 +4945,7 @@ def _verify_density_row_unchecked(
                 "errors": cap_errors,
                 "independent_primary_optimum": optimum,
                 "producer_primary_interval": [lower, upper],
-                "replay_nodes": replay["explored_nodes"],
-                "replay_metric_cache_entries": replay["metric_cache_entries"],
-                "retained_model_replay_cache_entries": len(replay_metric_cache),
-                "primary_support_cache_entries": primary_support_cache_entries,
-                "primary_constrained_cache_entries": primary_constrained_cache_entries,
-                "primary_nodes": primary_nodes,
+                **cap_search_receipt(),
                 "primary_proof_complete": complete,
                 "actual_work_complete": True,
             }
@@ -3782,14 +4957,16 @@ def _verify_density_row_unchecked(
     return finish_row()
 
 
-def verify_density_row(
+def _verify_density_row_for_tests(
     row: Any,
     maximum_nodes: Any,
     scope: str | None = None,
 ) -> dict[str, Any]:
     global _ACTIVE_RESOURCE_RECEIPT
     reset_actual_work()
-    errors = BoundedErrors(bounded_json_errors(row, "row"))
+    errors = BoundedErrors(v8_row_collection_bound_errors(row))
+    if not errors:
+        errors.extend(bounded_json_errors(row, "row"))
     errors.extend(maximum_nodes_errors(maximum_nodes))
     if scope not in {"frozen_fixture", "canonical"}:
         errors.append("density row scope must be explicitly registered")
@@ -3799,6 +4976,8 @@ def verify_density_row(
             "errors": errors,
             "primary_nodes": 0,
             "cap_reports": [],
+            "resource_reservation": None,
+            "actual_work": actual_work_receipt([]),
         }
     if type(row) is not dict:
         return {
@@ -3806,6 +4985,8 @@ def verify_density_row(
             "errors": ["density row is not an object"],
             "primary_nodes": 0,
             "cap_reports": [],
+            "resource_reservation": None,
+            "actual_work": actual_work_receipt([]),
         }
     try:
         _REGISTERED_CURVE_CACHE.clear()
@@ -3845,6 +5026,14 @@ def verify_density_row(
         )
         report["resource_reservation"] = resource_receipt
         report["actual_work"] = actual_work_receipt([report])
+        dominance_errors = actual_work_reservation_errors(
+            report["actual_work"], resource_receipt
+        )
+        if dominance_errors:
+            report["errors"] = BoundedErrors(
+                [*report.get("errors", []), *dominance_errors]
+            )
+            report["valid"] = False
         return report
     except Exception as error:
         mark_actual_work_incomplete()
@@ -3858,6 +5047,26 @@ def verify_density_row(
             "resource_reservation": _ACTIVE_RESOURCE_RECEIPT,
             "actual_work": actual_work_receipt([]),
         }
+
+
+def verify_density_row(
+    row: Any,
+    maximum_nodes: Any,
+    scope: str | None = None,
+) -> dict[str, Any]:
+    errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
+    errors.append(
+        "direct density-row API is non-evidence and disabled in V8; use "
+        "path-based verify_document"
+    )
+    return {
+        "valid": False,
+        "errors": errors,
+        "primary_nodes": 0,
+        "cap_reports": [],
+        "resource_reservation": None,
+        "actual_work": empty_actual_work(),
+    }
 
 
 def fraction_record(value: Fraction) -> dict[str, int]:
@@ -4009,7 +5218,7 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     else:
         negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v7",
+        "criterion_version": "sgcp-embed-002-family-gate-v8",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
@@ -4076,7 +5285,174 @@ def expected_row_keys() -> list[tuple[int, int, int, str, int | None]]:
     return result
 
 
-def v7_document_schema_errors(document: Any) -> list[str]:
+def v8_family_gate_schema_errors(gate: Any, scope: Any) -> list[str]:
+    errors = BoundedErrors()
+    if type(gate) is not dict:
+        return ["family gate is not an object"]
+    if scope == "frozen_fixture":
+        expected = {
+            "status": "NOT_APPLICABLE",
+            "reason": "frozen fixture is not a family matrix",
+        }
+        if not exact_json_equal(gate, expected):
+            errors.append("frozen family gate is not the exact registered object")
+        return errors
+    if scope != "canonical":
+        if len(gate) > 10:
+            errors.append("family gate exceeds the source key bound")
+        return errors
+    try:
+        require_keys(
+            gate,
+            {
+                "criterion_version",
+                "null_median",
+                "null_duplicate_policy",
+                "unresolved_policy",
+                "cap_selection_policy",
+                "collapse_policy",
+                "status",
+                "negative_outcome",
+                "passing_family_cap_pairs",
+                "families",
+            },
+            "canonical family gate",
+        )
+        pairs = _bounded_list(
+            gate["passing_family_cap_pairs"],
+            "passing family/cap pairs",
+            errors,
+            maximum=len(COORDINATE_FAMILIES) * 2,
+        )
+        for index, pair in enumerate(pairs or []):
+            require_keys(pair, {"family", "cap_fraction"}, f"passing pair[{index}]")
+            exact_string(pair["family"], f"passing pair[{index}].family", errors)
+            exact_string(
+                pair["cap_fraction"], f"passing pair[{index}].cap_fraction", errors
+            )
+        families = _bounded_list(
+            gate["families"],
+            "family gate reports",
+            errors,
+            exact=len(COORDINATE_FAMILIES),
+        )
+        for family_index, family in enumerate(families or []):
+            family_path = f"family gate[{family_index}]"
+            require_keys(
+                family,
+                {
+                    "family",
+                    "full_cap_persistence",
+                    "full_cap_persistence_pass",
+                    "full_cap_collapse_strata",
+                    "full_cap_collapse",
+                    "matched_null_cap_tests",
+                },
+                family_path,
+            )
+            exact_string(family["family"], f"{family_path}.family", errors)
+            exact_boolean(
+                family["full_cap_persistence_pass"],
+                f"{family_path}.full_cap_persistence_pass",
+                errors,
+            )
+            exact_integer(
+                family["full_cap_collapse_strata"],
+                f"{family_path}.full_cap_collapse_strata",
+                errors,
+            )
+            exact_boolean(
+                family["full_cap_collapse"],
+                f"{family_path}.full_cap_collapse",
+                errors,
+            )
+            persistence = _bounded_list(
+                family["full_cap_persistence"],
+                f"{family_path}.full_cap_persistence",
+                errors,
+                exact=len(CANONICAL_BITS),
+            )
+            for index, item in enumerate(persistence or []):
+                item_path = f"{family_path}.full_cap_persistence[{index}]"
+                require_keys(
+                    item,
+                    {"bits", "median_retained_to_balanced_raw", "pass"},
+                    item_path,
+                )
+                exact_integer(item["bits"], f"{item_path}.bits", errors)
+                exact_ratio_record(
+                    item["median_retained_to_balanced_raw"],
+                    f"{item_path}.median_retained_to_balanced_raw",
+                    errors,
+                )
+                exact_boolean(item["pass"], f"{item_path}.pass", errors)
+            cap_tests = _bounded_list(
+                family["matched_null_cap_tests"],
+                f"{family_path}.matched_null_cap_tests",
+                errors,
+                exact=2,
+            )
+            for cap_index, cap_test in enumerate(cap_tests or []):
+                cap_path = f"{family_path}.matched_null_cap_tests[{cap_index}]"
+                require_keys(
+                    cap_test,
+                    {
+                        "cap_fraction",
+                        "passing_bit_strata",
+                        "positive_comparisons",
+                        "comparison_count",
+                        "strata",
+                        "pass",
+                    },
+                    cap_path,
+                )
+                exact_string(
+                    cap_test["cap_fraction"], f"{cap_path}.cap_fraction", errors
+                )
+                for name in (
+                    "passing_bit_strata",
+                    "positive_comparisons",
+                    "comparison_count",
+                ):
+                    exact_integer(cap_test[name], f"{cap_path}.{name}", errors)
+                exact_boolean(cap_test["pass"], f"{cap_path}.pass", errors)
+                strata = _bounded_list(
+                    cap_test["strata"],
+                    f"{cap_path}.strata",
+                    errors,
+                    exact=len(CANONICAL_BITS),
+                )
+                for stratum_index, stratum in enumerate(strata or []):
+                    stratum_path = f"{cap_path}.strata[{stratum_index}]"
+                    require_keys(
+                        stratum,
+                        {"bits", "median_threshold_margin", "pass"},
+                        stratum_path,
+                    )
+                    exact_integer(stratum["bits"], f"{stratum_path}.bits", errors)
+                    exact_ratio_record(
+                        stratum["median_threshold_margin"],
+                        f"{stratum_path}.median_threshold_margin",
+                        errors,
+                    )
+                    exact_boolean(stratum["pass"], f"{stratum_path}.pass", errors)
+        for name in (
+            "criterion_version",
+            "null_median",
+            "null_duplicate_policy",
+            "unresolved_policy",
+            "cap_selection_policy",
+            "collapse_policy",
+            "status",
+            "negative_outcome",
+        ):
+            exact_string(gate[name], f"family_gate.{name}", errors)
+    except (AssertionError, KeyError, TypeError) as error:
+        errors.append(f"closed family-gate schema: {error}")
+    return errors
+
+
+def v8_document_schema_errors(document: Any) -> list[str]:
     errors = BoundedErrors()
     try:
         require_keys(
@@ -4095,7 +5471,7 @@ def v7_document_schema_errors(document: Any) -> list[str]:
                 "family_gate",
                 "document_sha256",
             },
-            "V7 document",
+            "V8 document",
         )
         require_keys(
             document["summary"],
@@ -4108,15 +5484,21 @@ def v7_document_schema_errors(document: Any) -> list[str]:
                 "full_objective_exact_cap_cells",
                 "maximum_primary_gap",
             },
-            "V7 document summary",
+            "V8 document summary",
         )
     except (AssertionError, KeyError, TypeError) as error:
         errors.append(f"closed document schema: {error}")
+    if type(document) is dict:
+        errors.extend(
+            v8_family_gate_schema_errors(
+                document.get("family_gate"), document.get("scope")
+            )
+        )
     errors.extend(forbidden_material(document, "document"))
     return errors
 
 
-def v7_document_type_errors(document: dict[str, Any]) -> list[str]:
+def v8_document_type_errors(document: dict[str, Any]) -> list[str]:
     errors = BoundedErrors()
     for name in ("schema", "experiment_id", "scope", "interpretation"):
         exact_string(document[name], f"document.{name}", errors)
@@ -4136,7 +5518,7 @@ def v7_document_type_errors(document: dict[str, Any]) -> list[str]:
 
 
 def append_phase(
-    phases: list[dict[str, str]] | None,
+    phases: list[dict[str, Any]] | None,
     name: str,
     status: str,
 ) -> None:
@@ -4145,7 +5527,7 @@ def append_phase(
 
 
 def mark_phase(
-    phases: list[dict[str, str]] | None,
+    phases: list[dict[str, Any]] | None,
     name: str,
     status: str,
 ) -> None:
@@ -4159,6 +5541,105 @@ def mark_phase(
         existing["status"] = "failed"
 
 
+def initialize_unit_phase(
+    phases: list[dict[str, Any]] | None,
+    name: str,
+    expected_units: int,
+) -> None:
+    if phases is None:
+        return
+    if any(phase["name"] == name for phase in phases):
+        raise AssertionError(f"duplicate unit phase {name!r}")
+    phases.append(
+        {
+            "name": name,
+            "status": "passed" if expected_units == 0 else "incomplete",
+            "expected_units": expected_units,
+            "completed_units": 0,
+            "failed_units": 0,
+        }
+    )
+
+
+def record_phase_unit(
+    phases: list[dict[str, Any]] | None,
+    name: str,
+    status: str,
+) -> None:
+    if phases is None:
+        return
+    phase = next((value for value in phases if value["name"] == name), None)
+    if phase is None or "expected_units" not in phase:
+        raise AssertionError(f"unit phase {name!r} was not initialized")
+    if status not in {"passed", "failed"}:
+        raise AssertionError(f"invalid unit phase status {status!r}")
+    if phase["completed_units"] >= phase["expected_units"]:
+        raise AssertionError(f"unit phase {name!r} exceeded its expected units")
+    phase["completed_units"] += 1
+    if status == "failed":
+        phase["failed_units"] += 1
+    if phase["failed_units"]:
+        phase["status"] = "failed"
+    elif phase["completed_units"] == phase["expected_units"]:
+        phase["status"] = "passed"
+    else:
+        phase["status"] = "incomplete"
+
+
+def v8_nested_digest_and_accounting_errors(row: dict[str, Any]) -> list[str]:
+    """Check bounded internal integrity receipts before elliptic-curve work."""
+    errors = BoundedErrors()
+    curve = row["curve"]
+    if digest(curve["rejected_draws"]) != curve["rejection_digest"]:
+        errors.append("curve rejection transcript digest mismatch")
+
+    factor = row["public_model"]["factor_base"]
+    factor_payload = dict(factor)
+    factor_supplied = factor_payload.pop("selection_sha256")
+    if digest(factor_payload) != factor_supplied:
+        errors.append("factor-base selection digest mismatch")
+
+    compiler = row["public_model"]["representative_compiler"]
+    if digest(compiler["representatives"]) != compiler["representatives_sha256"]:
+        errors.append("representative transcript digest mismatch")
+
+    public_frontier = row["public_model"]["density_frontier"]
+    private_frontier = row["private_audit"]["density_frontier"]
+    for index, (public, private) in enumerate(
+        zip(public_frontier, private_frontier)
+    ):
+        if digest(public["public_edges"]) != public["public_edges_sha256"]:
+            errors.append(f"cap[{index}] public-edge digest mismatch")
+        if digest(public["source_table"]) != public["source_table_sha256"]:
+            errors.append(f"cap[{index}] source-table digest mismatch")
+        optimizer = private["optimizer"]
+        if digest(optimizer["frontier_states"]) != optimizer["frontier_sha256"]:
+            errors.append(f"cap[{index}] optimizer frontier digest mismatch")
+
+    row_payload = dict(row)
+    row_payload.pop("row_sha256")
+    row_payload.pop("accounting")
+    expected_accounting = {
+        "scope": "nested canonical-JSON byte measures; fields are nonadditive",
+        "public_model_json_bytes": len(stable_bytes(row["public_model"])),
+        "private_audit_json_bytes": len(stable_bytes(row["private_audit"])),
+        "row_payload_without_accounting_or_digest_json_bytes": len(
+            stable_bytes(row_payload)
+        ),
+        "nested_per_cap_json_bytes": [
+            {
+                "constrained_cap": public["constrained_cap"],
+                "public_embedding_json_bytes": len(stable_bytes(public)),
+                "private_cap_json_bytes": len(stable_bytes(private)),
+            }
+            for public, private in zip(public_frontier, private_frontier)
+        ],
+    }
+    if not exact_json_equal(row["accounting"], expected_accounting):
+        errors.append("cost-accounting byte receipt mismatch")
+    return errors
+
+
 def static_row_errors(
     row: Any,
     row_index: int,
@@ -4167,10 +5648,13 @@ def static_row_errors(
     expected_node_cap: int | None,
 ) -> list[str]:
     prefix = f"row[{row_index}]"
-    errors = BoundedErrors(f"{prefix}: {error}" for error in v7_row_schema_errors(row))
+    collection_errors = v8_row_collection_bound_errors(row)
+    if collection_errors:
+        return [f"{prefix}: {error}" for error in collection_errors]
+    errors = BoundedErrors(f"{prefix}: {error}" for error in v8_row_schema_errors(row))
     if errors or type(row) is not dict:
         return errors or [f"{prefix}: row is not an object"]
-    type_errors = v7_row_type_errors(row)
+    type_errors = v8_row_type_errors(row)
     if type_errors:
         return [f"{prefix}: {error}" for error in type_errors]
     envelope_errors = BoundedErrors()
@@ -4189,6 +5673,9 @@ def static_row_errors(
         envelope_errors.append("ordering contract mismatch")
     if envelope_errors:
         return [f"{prefix}: {error}" for error in envelope_errors]
+    integrity_errors = v8_nested_digest_and_accounting_errors(row)
+    if integrity_errors:
+        return [f"{prefix}: {error}" for error in integrity_errors]
     envelope_errors.extend(density_row_envelope_errors(row, maximum_nodes))
     envelope_errors.extend(
         registered_row_envelope_errors(
@@ -4249,32 +5736,43 @@ def resource_envelope(
             (row["curve"]["bits"], row["curve"]["seed"]) for row in rows
         }
         curve_cache_entries = len(unique_curve_keys)
+        curve_cache_lookups = len(rows)
         prime_candidates = sum(
             1 << (bits_value - 1) for bits_value, _ in unique_curve_keys
         )
         curve_draws = curve_cache_entries * 100_000
         curve_hash_calls = 3 * curve_draws
         curve_point_enumerations = 2 * curve_draws
+        frozen_curve_point_enumerations = 0
     elif scope == "frozen_fixture":
-        curve_cache_entries = 1
+        curve_cache_entries = 0
+        curve_cache_lookups = 0
         prime_candidates = 0
         curve_draws = 0
         curve_hash_calls = 0
-        curve_point_enumerations = 1
+        curve_point_enumerations = 0
+        frozen_curve_point_enumerations = 1
     else:
         curve_cache_entries = 0
+        curve_cache_lookups = len(rows)
         prime_candidates = MAXIMUM_REGISTERED_PRIME_CANDIDATES + 1
         curve_draws = MAXIMUM_REGISTERED_CURVE_DRAWS + 1
         curve_hash_calls = 3 * curve_draws
         curve_point_enumerations = 2 * curve_draws
+        frozen_curve_point_enumerations = len(rows)
     receipt = {
         "row_count": len(rows),
         "cap_cell_count": cap_cells,
         "registered_curve_cache_entries": curve_cache_entries,
+        "registered_curve_cache_lookups_upper_bound": curve_cache_lookups,
+        "registered_curve_cache_misses_upper_bound": curve_cache_entries,
         "registered_prime_candidates_upper_bound": prime_candidates,
         "registered_curve_draws_upper_bound": curve_draws,
         "registered_curve_hash_calls_upper_bound": curve_hash_calls,
         "registered_curve_point_enumerations_upper_bound": curve_point_enumerations,
+        "frozen_curve_point_enumerations_upper_bound": (
+            frozen_curve_point_enumerations
+        ),
         "predicate_hash_calls_upper_bound": predicate_hash_calls,
         "semantic_curve_point_enumerations_upper_bound": len(rows),
         "primary_curve_point_enumerations_upper_bound": cap_cells,
@@ -4312,6 +5810,135 @@ def resource_envelope(
     if retained_model_cells > MAXIMUM_TOTAL_RETAINED_MODEL_CELLS:
         errors.append("retained-model cell bound exceeds the trusted verifier limit")
     return receipt, errors
+
+
+def actual_work_reservation_errors(
+    actual_work: dict[str, int | bool],
+    reservation: dict[str, int],
+) -> list[str]:
+    """Enforce the source-owned mapping from observed work to reservations."""
+    errors = BoundedErrors()
+    expected_actual_keys = set(empty_actual_work()) | {
+        "registered_curve_cache_entries"
+    }
+    if set(actual_work) != expected_actual_keys:
+        errors.append("actual-work receipt keys do not match the V8 source schema")
+        return errors
+    if type(actual_work["actual_work_complete"]) is not bool:
+        errors.append("actual-work completeness flag is not Boolean")
+    elif actual_work["actual_work_complete"] is not True:
+        errors.append("actual-work receipt is incomplete")
+    for name, value in actual_work.items():
+        if name == "actual_work_complete":
+            continue
+        if type(value) is not int or value < 0:
+            errors.append(f"actual-work counter {name!r} is not a nonnegative integer")
+
+    direct_pairs = {
+        "registered_curve_cache_entries": "registered_curve_cache_entries",
+        "registered_curve_cache_hits": "registered_curve_cache_lookups_upper_bound",
+        "registered_curve_cache_misses": "registered_curve_cache_misses_upper_bound",
+        "registered_prime_candidates": "registered_prime_candidates_upper_bound",
+        "registered_curve_draws": "registered_curve_draws_upper_bound",
+        "registered_curve_hash_calls": "registered_curve_hash_calls_upper_bound",
+        "registered_curve_point_enumerations": (
+            "registered_curve_point_enumerations_upper_bound"
+        ),
+        "frozen_curve_point_enumerations": (
+            "frozen_curve_point_enumerations_upper_bound"
+        ),
+        "predicate_hash_calls": "predicate_hash_calls_upper_bound",
+        "semantic_curve_point_enumerations": (
+            "semantic_curve_point_enumerations_upper_bound"
+        ),
+        "primary_curve_point_enumerations": (
+            "primary_curve_point_enumerations_upper_bound"
+        ),
+        "expansion_cells": "expansion_cells_upper_bound",
+        "graph_cells": "graph_cells_upper_bound",
+        "replay_nodes": "replay_nodes_upper_bound",
+        "independent_primary_nodes": "independent_primary_nodes_upper_bound",
+        "retained_model_calls": "retained_model_calls_upper_bound",
+        "retained_model_cells": "retained_model_cells_upper_bound",
+    }
+    for actual_name, reservation_name in direct_pairs.items():
+        actual = actual_work.get(actual_name)
+        upper = reservation.get(reservation_name)
+        if type(upper) is not int or upper < 0:
+            errors.append(f"reservation field {reservation_name!r} is invalid")
+        elif type(actual) is int and actual > upper:
+            errors.append(
+                f"actual work exceeds reservation: {actual_name}={actual} > "
+                f"{reservation_name}={upper}"
+            )
+
+    cache_total = sum(
+        actual_work.get(name, 0)
+        for name in (
+            "replay_metric_cache_entries",
+            "retained_model_replay_cache_entries",
+            "primary_support_cache_entries",
+            "primary_constrained_cache_entries",
+        )
+        if type(actual_work.get(name, 0)) is int
+    )
+    cache_upper = reservation.get("metric_cache_entries_upper_bound")
+    if type(cache_upper) is not int or cache_upper < 0:
+        errors.append("reservation field 'metric_cache_entries_upper_bound' is invalid")
+    elif cache_total > cache_upper:
+        errors.append(
+            "actual work exceeds reservation: aggregate metric caches="
+            f"{cache_total} > metric_cache_entries_upper_bound={cache_upper}"
+        )
+
+    lookups = actual_work.get("registered_curve_cache_hits", 0) + actual_work.get(
+        "registered_curve_cache_misses", 0
+    )
+    lookup_upper = reservation.get("registered_curve_cache_lookups_upper_bound")
+    if type(lookups) is int and type(lookup_upper) is int and lookups > lookup_upper:
+        errors.append(
+            "actual work exceeds reservation: registered curve cache lookups="
+            f"{lookups} > registered_curve_cache_lookups_upper_bound={lookup_upper}"
+        )
+    if actual_work.get("actual_work_complete") is True:
+        exact_pairs = {
+            "registered_curve_cache_entries": "registered_curve_cache_entries",
+            "registered_curve_cache_misses": (
+                "registered_curve_cache_misses_upper_bound"
+            ),
+            "frozen_curve_point_enumerations": (
+                "frozen_curve_point_enumerations_upper_bound"
+            ),
+            "semantic_curve_point_enumerations": (
+                "semantic_curve_point_enumerations_upper_bound"
+            ),
+            "primary_curve_point_enumerations": (
+                "primary_curve_point_enumerations_upper_bound"
+            ),
+        }
+        for actual_name, reservation_name in exact_pairs.items():
+            actual = actual_work.get(actual_name)
+            expected = reservation.get(reservation_name)
+            if type(actual) is int and type(expected) is int and actual != expected:
+                errors.append(
+                    "actual work exact-count mismatch: "
+                    f"{actual_name}={actual} != {reservation_name}={expected}"
+                )
+        if type(lookups) is int and type(lookup_upper) is int and lookups != lookup_upper:
+            errors.append(
+                "actual work exact-count mismatch: registered curve cache lookups="
+                f"{lookups} != registered_curve_cache_lookups_upper_bound="
+                f"{lookup_upper}"
+            )
+        misses = actual_work.get("registered_curve_cache_misses")
+        entries = actual_work.get("registered_curve_cache_entries")
+        if type(misses) is int and type(entries) is int and misses != entries:
+            errors.append(
+                "actual work cache-accounting mismatch: "
+                f"registered_curve_cache_misses={misses} != "
+                f"registered_curve_cache_entries={entries}"
+            )
+    return errors
 
 
 def canonical_matrix_errors(rows: Any) -> list[str]:
@@ -4421,20 +6048,20 @@ def canonical_matrix_errors(rows: Any) -> list[str]:
     return errors
 
 
-def _verify_v7_document_value_unchecked(
+def _verify_v8_document_value_unchecked(
     document: dict[str, Any],
     maximum_nodes: int,
-    phases: list[dict[str, str]] | None = None,
+    phases: list[dict[str, Any]] | None = None,
 ) -> tuple[list[str], list[dict[str, Any]], dict[str, int] | None]:
     global _ACTIVE_RESOURCE_RECEIPT
     _REGISTERED_CURVE_CACHE.clear()
     reset_actual_work()
-    errors = BoundedErrors(v7_document_schema_errors(document))
+    errors = BoundedErrors(v8_document_schema_errors(document))
     append_phase(phases, "closed_document_schema", "failed" if errors else "passed")
     if errors:
         return errors, [], None
 
-    type_errors = v7_document_type_errors(document)
+    type_errors = v8_document_type_errors(document)
     errors.extend(type_errors)
     append_phase(phases, "exact_document_types", "failed" if type_errors else "passed")
     if errors:
@@ -4556,6 +6183,32 @@ def _verify_v7_document_value_unchecked(
     if errors:
         return errors, [], None
 
+    claim_errors = BoundedErrors()
+    try:
+        expected_summary = independent_document_summary(rows)
+        if scope == "canonical":
+            expected_gate = independent_family_gate(rows)
+    except Exception as error:
+        claim_errors.append(
+            f"static document-claim reconstruction failed: "
+            f"{type(error).__name__}: {error}"
+        )
+    else:
+        if not exact_json_equal(document["summary"], expected_summary):
+            claim_errors.append("document summary mismatch")
+        if expected_gate is not None and not exact_json_equal(
+            document["family_gate"], expected_gate
+        ):
+            claim_errors.append("family gate mismatch")
+    errors.extend(claim_errors)
+    append_phase(
+        phases,
+        "document_summary_and_family_gate_preflight",
+        "failed" if claim_errors else "passed",
+    )
+    if errors:
+        return errors, [], None
+
     envelope, budget_errors = resource_envelope(rows, maximum_nodes, scope)
     _ACTIVE_RESOURCE_RECEIPT = envelope
     errors.extend(budget_errors)
@@ -4566,6 +6219,18 @@ def _verify_v7_document_value_unchecked(
     )
     if errors:
         return errors, [], envelope
+
+    initialize_unit_phase(
+        phases,
+        "curve_factor_graph_and_expansion_reconstruction",
+        envelope["row_count"],
+    )
+    for phase_name in (
+        "deterministic_optimizer_replay",
+        "retained_model_transcript_reconstruction",
+        "independent_primary_proof",
+    ):
+        initialize_unit_phase(phases, phase_name, envelope["cap_cell_count"])
 
     row_reports: list[dict[str, Any]] = []
     semantic_errors = BoundedErrors()
@@ -4596,7 +6261,7 @@ def _verify_v7_document_value_unchecked(
             }
         row_reports.append(report)
         if not report.get("valid"):
-            semantic_errors.append(f"V7 row[{index}] verification failed")
+            semantic_errors.append(f"V8 row[{index}] verification failed")
             semantic_errors.extend(
                 f"row[{index}]: {error}"
                 for error in report.get("errors", [])
@@ -4608,70 +6273,29 @@ def _verify_v7_document_value_unchecked(
         "row_semantic_verification",
         "failed" if semantic_errors else "passed",
     )
-    if errors:
-        return errors, row_reports, envelope
-
-    summary_errors = BoundedErrors()
-    try:
-        expected_summary = independent_document_summary(rows)
-    except Exception as error:
-        mark_actual_work_incomplete()
-        summary_errors.append(
-            f"document summary reconstruction failed: "
-            f"{type(error).__name__}: {error}"
-        )
-    else:
-        if not exact_json_equal(document["summary"], expected_summary):
-            summary_errors.append("document summary mismatch")
-    errors.extend(summary_errors)
-    append_phase(
-        phases,
-        "document_summary_reconstruction",
-        "failed" if summary_errors else "passed",
-    )
-    if errors:
-        return errors, row_reports, envelope
-
-    gate_errors = BoundedErrors()
-    if scope == "canonical":
-        try:
-            expected_gate = independent_family_gate(rows)
-        except Exception as error:
-            mark_actual_work_incomplete()
-            gate_errors.append(
-                f"family gate reconstruction: {type(error).__name__}: {error}"
-            )
-    if expected_gate is not None and not exact_json_equal(
-        document["family_gate"], expected_gate
-    ):
-        gate_errors.append("family gate mismatch")
-    errors.extend(gate_errors)
-    append_phase(
-        phases,
-        "family_gate_reconstruction",
-        "failed" if gate_errors else "passed",
-    )
     return errors, row_reports, envelope
 
 
-def verify_v7_document_value(
+def _verify_v8_document_value_for_tests(
     document: Any, maximum_nodes: Any
 ) -> tuple[list[str], list[dict[str, Any]]]:
     reset_actual_work()
-    errors = BoundedErrors(bounded_json_errors(document, "document"))
+    errors = BoundedErrors(v8_document_collection_bound_errors(document))
+    if not errors:
+        errors.extend(bounded_json_errors(document, "document"))
     errors.extend(maximum_nodes_errors(maximum_nodes))
     if errors:
         return errors, []
     if type(document) is not dict:
-        return ["V7 document is not an object"], []
+        return ["V8 document is not an object"], []
     try:
-        errors, rows, _ = _verify_v7_document_value_unchecked(
+        errors, rows, _ = _verify_v8_document_value_unchecked(
             document, maximum_nodes
         )
         return errors, rows
     except Exception as error:
         return [
-            f"V7 document verifier failure: {type(error).__name__}: {error}"
+            f"V8 document verifier failure: {type(error).__name__}: {error}"
         ], []
 
 
@@ -4685,41 +6309,7 @@ def actual_work_receipt(
         if type(cap) is dict
     ]
     actual_work = dict(_ACTIVE_ACTUAL_WORK or empty_actual_work())
-    actual_work.update(
-        {
-            "registered_curve_cache_entries": len(_REGISTERED_CURVE_CACHE),
-            "replay_nodes": sum(
-                cap.get("replay_nodes", 0)
-                for cap in cap_reports
-                if type(cap.get("replay_nodes", 0)) is int
-            ),
-            "replay_metric_cache_entries": sum(
-                cap.get("replay_metric_cache_entries", 0)
-                for cap in cap_reports
-                if type(cap.get("replay_metric_cache_entries", 0)) is int
-            ),
-            "retained_model_replay_cache_entries": sum(
-                cap.get("retained_model_replay_cache_entries", 0)
-                for cap in cap_reports
-                if type(cap.get("retained_model_replay_cache_entries", 0)) is int
-            ),
-            "independent_primary_nodes": sum(
-                cap.get("primary_nodes", 0)
-                for cap in cap_reports
-                if type(cap.get("primary_nodes", 0)) is int
-            ),
-            "primary_support_cache_entries": sum(
-                cap.get("primary_support_cache_entries", 0)
-                for cap in cap_reports
-                if type(cap.get("primary_support_cache_entries", 0)) is int
-            ),
-            "primary_constrained_cache_entries": sum(
-                cap.get("primary_constrained_cache_entries", 0)
-                for cap in cap_reports
-                if type(cap.get("primary_constrained_cache_entries", 0)) is int
-            ),
-        }
-    )
+    actual_work["registered_curve_cache_entries"] = len(_REGISTERED_CURVE_CACHE)
     actual_work["actual_work_complete"] = bool(
         actual_work.get("actual_work_complete") is True
         and all(
@@ -4734,23 +6324,60 @@ def actual_work_receipt(
     return actual_work
 
 
+def without_nested_diagnostic_lists(value: Any) -> Any:
+    """Copy source-generated reports while keeping diagnostics top-level only."""
+    if type(value) is dict:
+        return {
+            key: ([] if key == "errors" else without_nested_diagnostic_lists(child))
+            for key, child in value.items()
+        }
+    if type(value) is list:
+        return [without_nested_diagnostic_lists(child) for child in value]
+    return value
+
+
+def finalize_report_size_and_hash(report: dict[str, Any]) -> int:
+    """Finalize integrity fields and return the complete serialized size."""
+    report.pop("serialized_report_bytes_before_size_field_and_hash", None)
+    report.pop("verification_sha256", None)
+    pre_integrity_size = len(stable_bytes(report))
+    report["serialized_report_bytes_before_size_field_and_hash"] = pre_integrity_size
+    report["verification_sha256"] = digest(report)
+    return len(stable_bytes(report))
+
+
 def verification_report(
     path: Path,
     supplied: Any,
     input_file_sha256: str | None,
     errors: list[str],
     row_reports: Sequence[dict[str, Any]],
-    phases: Sequence[dict[str, str]],
+    phases: Sequence[dict[str, Any]],
     claim_boundary: str,
     resource_receipt: dict[str, int] | None = None,
 ) -> dict[str, Any]:
+    actual_work = actual_work_receipt(row_reports)
+    dominance_errors = (
+        actual_work_reservation_errors(actual_work, resource_receipt)
+        if resource_receipt is not None
+        else []
+    )
     final_errors = BoundedErrors(errors)
+    final_errors.extend(dominance_errors)
     diagnostic_truncated = bool(
         getattr(errors, "truncated", False)
         or final_errors.truncated
-        or "diagnostics truncated at V7 source ceiling" in final_errors
+        or "diagnostics truncated at V8 source ceiling" in final_errors
     )
-    actual_work = actual_work_receipt(row_reports)
+    final_phases = [dict(phase) for phase in phases]
+    if resource_receipt is not None:
+        final_phases.append(
+            {
+                "name": "actual_work_reservation_dominance",
+                "status": "failed" if dominance_errors else "passed",
+            }
+        )
+    sanitized_rows = without_nested_diagnostic_lists(list(row_reports))
     report = {
         "schema": VERIFICATION_SCHEMA,
         "verifier_source_path": str(SCRIPT_PATH),
@@ -4765,48 +6392,96 @@ def verification_report(
             "may traverse symlinks"
         ),
         "input_file_sha256": input_file_sha256,
-        "input_document_sha256": supplied,
+        "input_document_sha256": sanitized_digest_value(supplied),
         "valid": not final_errors,
         "errors": final_errors,
         "diagnostic_limits": {
             "maximum_count": MAXIMUM_DIAGNOSTIC_COUNT,
             "maximum_bytes": MAXIMUM_DIAGNOSTIC_BYTES,
             "maximum_item_bytes": MAXIMUM_DIAGNOSTIC_ITEM_BYTES,
+            "maximum_serialized_report_bytes": MAXIMUM_VERIFICATION_REPORT_BYTES,
         },
         "diagnostic_observed": {
             "count": len(final_errors),
             "bytes": sum(len(error.encode("ascii")) for error in final_errors),
             "truncated": diagnostic_truncated,
+            "scope": "all emitted diagnostics; nested row/cap lists normalized to top-level",
         },
         "row_count": len(row_reports),
         "valid_row_count": sum(row.get("valid") is True for row in row_reports),
-        "total_replay_nodes": sum(
-            row.get("replay_nodes", 0)
-            for row in row_reports
-            if type(row.get("replay_nodes", 0)) is int
-        ),
-        "total_primary_nodes": sum(
-            row.get("primary_nodes", 0)
-            for row in row_reports
-            if type(row.get("primary_nodes", 0)) is int
-        ),
-        "rows": list(row_reports),
-        "phases": list(phases),
+        "total_replay_nodes": actual_work["replay_nodes"],
+        "total_primary_nodes": actual_work["independent_primary_nodes"],
+        "rows": sanitized_rows,
+        "phases": final_phases,
         "independent_checks": [
-            phase["name"] for phase in phases if phase["status"] == "passed"
+            phase["name"] for phase in final_phases if phase["status"] == "passed"
         ],
         "resource_reservation": resource_receipt,
         "actual_work": actual_work,
         "claim_boundary": claim_boundary,
     }
-    report["verification_sha256"] = digest(report)
+    serialized_size = finalize_report_size_and_hash(report)
+    if serialized_size > MAXIMUM_VERIFICATION_REPORT_BYTES:
+        fallback_errors = BoundedErrors(final_errors)
+        fallback_errors.append(
+            "verification report exceeded the V8 serialized-size ceiling; "
+            "row details omitted"
+        )
+        report["valid"] = False
+        report["errors"] = fallback_errors
+        report["rows"] = []
+        report["row_count"] = 0
+        report["valid_row_count"] = 0
+        report["claim_boundary"] = (
+            "invalid/inconclusive verification report; detailed rows exceeded "
+            "the source output ceiling"
+        )
+        report["diagnostic_observed"] = {
+            "count": len(fallback_errors),
+            "bytes": sum(len(error.encode("ascii")) for error in fallback_errors),
+            "truncated": True,
+            "scope": (
+                "all emitted diagnostics; nested row/cap lists normalized to top-level"
+            ),
+        }
+        serialized_size = finalize_report_size_and_hash(report)
+    if serialized_size > MAXIMUM_VERIFICATION_REPORT_BYTES:
+        emergency_errors = BoundedErrors(
+            [
+                "verification report exceeded the V8 serialized-size ceiling; "
+                "all optional details omitted"
+            ]
+        )
+        report["valid"] = False
+        report["errors"] = emergency_errors
+        report["rows"] = []
+        report["row_count"] = 0
+        report["valid_row_count"] = 0
+        report["phases"] = []
+        report["independent_checks"] = []
+        report["resource_reservation"] = None
+        report["claim_boundary"] = (
+            "invalid/inconclusive verification report; optional details exceeded "
+            "the source output ceiling"
+        )
+        report["diagnostic_observed"] = {
+            "count": len(emergency_errors),
+            "bytes": sum(len(error.encode("ascii")) for error in emergency_errors),
+            "truncated": True,
+            "scope": (
+                "all emitted diagnostics; nested row/cap lists normalized to top-level"
+            ),
+        }
+        serialized_size = finalize_report_size_and_hash(report)
+    if serialized_size > MAXIMUM_VERIFICATION_REPORT_BYTES:
+        raise AssertionError("mandatory verification report exceeds its source ceiling")
     return report
 
 
 def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
     _REGISTERED_CURVE_CACHE.clear()
     reset_actual_work()
-    phases: list[dict[str, str]] = []
+    phases: list[dict[str, Any]] = []
     errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
     append_phase(
         phases,
@@ -4858,6 +6533,27 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         )
     append_phase(phases, "strict_json_parse", "passed")
 
+    collection_errors = v8_document_collection_bound_errors(document)
+    errors.extend(collection_errors)
+    append_phase(
+        phases,
+        "source_collection_bounds",
+        "failed" if collection_errors else "passed",
+    )
+    if errors:
+        supplied = sanitized_digest_value(
+            document.get("document_sha256") if type(document) is dict else None
+        )
+        return verification_report(
+            path,
+            supplied,
+            input_file_sha256,
+            errors,
+            [],
+            phases,
+            "input rejected before full JSON-shape traversal",
+        )
+
     shape_errors = bounded_json_errors(document)
     errors.extend(shape_errors)
     append_phase(
@@ -4865,7 +6561,9 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         "bounded_json_shape",
         "failed" if shape_errors else "passed",
     )
-    supplied = document.get("document_sha256") if type(document) is dict else None
+    supplied = sanitized_digest_value(
+        document.get("document_sha256") if type(document) is dict else None
+    )
     if errors:
         return verification_report(
             path,
@@ -4899,7 +6597,7 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         append_phase(phases, "exact_schema_routing", "passed")
         try:
             errors, row_reports, resource_receipt = (
-                _verify_v7_document_value_unchecked(
+                _verify_v8_document_value_unchecked(
                     document, maximum_nodes, phases
                 )
             )
@@ -4908,14 +6606,14 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
             resource_receipt = _ACTIVE_RESOURCE_RECEIPT
             errors = BoundedErrors(
                 [
-                    f"V7 document verifier failure: "
+                    f"V8 document verifier failure: "
                     f"{type(error).__name__}: {error}"
                 ]
             )
             row_reports = []
             append_phase(phases, "verifier_exception_boundary", "failed")
         claim_boundary = (
-            "invalid V7 document; no mathematical interpretation"
+            "invalid V8 document; no mathematical interpretation"
             if errors
             else (
                 "frozen-fixture implementation verification only"
@@ -4927,7 +6625,7 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         append_phase(phases, "exact_schema_routing", "passed")
         append_phase(phases, "unsupported_legacy_rejection", "passed")
         errors = [
-            f"unsupported legacy document schema {schema!r}; V7 performs no legacy row verification"
+            f"unsupported legacy document schema {schema!r}; V8 performs no legacy row verification"
         ]
         row_reports = []
         claim_boundary = "unsupported legacy input; no mathematical checks executed"

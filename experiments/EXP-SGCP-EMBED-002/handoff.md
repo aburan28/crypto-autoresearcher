@@ -144,3 +144,81 @@ request fresh exact-commit three-way review with `maximum_runs=0`.
 - `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v7.md`
 - `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v7.md`
 - `experiments/EXP-SGCP-EMBED-002/decision-v7.json`
+
+## Handoff: SGCP V8 exact-accounting repair
+
+### Claim or task
+
+Validate and independently review the no-run V8 repair of every V7 blocker
+without creating a generated density row, canonical matrix, runner, launch
+plan, or run.
+
+### Status
+
+`OBSERVATION` for implementation preflight only. The research claim remains
+`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
+Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
+
+### Assumptions
+
+- Path-based `verify_document` is the sole evidence-bearing API.
+- Primary support is independently proved per cap; secondary objective fields
+  are deterministic replay confirmations outside the standalone frozen-B4
+  complete oracle.
+- Structural reservations and actual counters are not wall-time, RSS,
+  allocator, parser, disk, I/O, or memory-bandwidth measurements.
+- Frozen p=19, B=4 remains the only constructed density row.
+
+### Evidence so far
+
+- V8 rejects V1-V7 schemas and disables both public direct-row paths before
+  mathematical helpers.
+- Source-sized document, parameter, row, nested gate, and closed nested-row
+  object checks precede generic traversal; map, reason, formal, transcript,
+  histogram, frontier, and accounting containers are source-bounded there.
+- Nested digests/accounting and reconstructed summary/gate are checked before
+  reservation-dependent semantics.
+- The frozen successful path records the exact actual-work vector: one frozen,
+  one semantic, and four primary point enumerations; 218 replay nodes; 250
+  primary nodes; exact cache, retained-call, and retained-cell counts.
+- Actual work must be complete and dominated by the reservation for validity.
+  Completed paths also require exact cache lookup/miss and point-enumeration
+  counts; under-reservation and suppressed exact charges are both rejected.
+- Replay/proof nodes and cache insertions are globally charged. Injected
+  mid-function failures preserve nonzero failing-cap work and failed unit
+  counts.
+- Aggregate phases pass only after every registered row/cap unit passes.
+- Reflected digests are sanitized, nested diagnostics are normalized to the
+  top level, and the complete report including integrity fields is byte-capped.
+- The focused 54-test suite passes. No generated density row, matrix, runner,
+  plan, or run has been created.
+- All 10 scoped records validate and the generated ledger exactly matches the
+  checked-in ledger. The repository suite passes 197 of 198 tests; its sole
+  failure is the preserved pre-existing SGCP-EMBED-001 immutable-run guard.
+
+### Failure modes
+
+- Canonical B6/B8 runtime, RSS, cache occupancy, output size, and role
+  feasibility remain unmeasured.
+- The canonical secondary objective has implementation diversity but not a
+  structurally separate complete oracle.
+- Executed-commit attestation still requires a future immutable runner.
+- No relation yield, rank, linear algebra, descent, preprocessing crossover,
+  rho improvement, exponent, or ECDLP result is established.
+
+### Next concrete action
+
+Validate records, ledger, focused and repository suites; freeze exact V8
+hashes; commit one snapshot; then obtain fresh read-only theory, accounting,
+and red-team decisions. Do not design a launch plan before three explicit
+`GO` decisions.
+
+### Artifact paths
+
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v8.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v8.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v8.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v8.md`
+- `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
+- `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
+- `tests/test_sgcp_embed_family.py`
