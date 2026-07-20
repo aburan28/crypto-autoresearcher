@@ -27,11 +27,12 @@ LEGACY_SCHEMAS = {
     "sgcp-embed-002-density-frontier-candidate-v3",
     "sgcp-embed-002-density-frontier-candidate-v4",
     "sgcp-embed-002-density-frontier-candidate-v5",
+    "sgcp-embed-002-density-frontier-candidate-v6",
 }
-CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v6"
-VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v6"
+CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v7"
+VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v7"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
-PROTOCOL_VERSION = 6
+PROTOCOL_VERSION = 7
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -63,6 +64,9 @@ MAXIMUM_INPUT_BYTES = 268_435_456
 MAXIMUM_JSON_NODES = 2_000_000
 MAXIMUM_JSON_DEPTH = 64
 MAXIMUM_JSON_STRING_BYTES = 8_388_608
+MAXIMUM_DIAGNOSTIC_COUNT = 256
+MAXIMUM_DIAGNOSTIC_BYTES = 65_536
+MAXIMUM_DIAGNOSTIC_ITEM_BYTES = 2_048
 MAXIMUM_PRIMARY_NODES = 5_000_000
 MAXIMUM_REPLAY_NODES_PER_CAP = CANONICAL_NODE_CAP
 MAXIMUM_ROW_FACTOR_BASE_SIZE = max(CANONICAL_FACTOR_BASE_SIZES)
@@ -128,6 +132,12 @@ MAXIMUM_TOTAL_RETAINED_MODEL_CELLS = (
 MAXIMUM_REGISTERED_CURVE_DRAWS = (
     len(CANONICAL_BITS) * len(CANONICAL_SEEDS) * 100_000
 )
+MAXIMUM_REGISTERED_PRIME_CANDIDATES = len(CANONICAL_SEEDS) * sum(
+    1 << (bits_value - 1) for bits_value in CANONICAL_BITS
+)
+MAXIMUM_TOTAL_PREDICATE_HASH_CALLS = MAXIMUM_CANONICAL_ROWS * (
+    6 * 1024 + (1 << max(CANONICAL_BITS))
+)
 CLAIM_STATUS = ["HYPOTHESIS", "TOY-EVIDENCE", "MODEL-BOUND", "NOVELTY-UNVERIFIED"]
 FROZEN_FIXTURE = {
     "bits": 5,
@@ -172,14 +182,74 @@ def hash_mod(domain: str, fields: Sequence[Any], modulus: int) -> int:
     return int.from_bytes(hashlib.sha256(stable_bytes(payload)).digest(), "big") % modulus
 
 
+class BoundedErrors(list[str]):
+    """Bound diagnostic count and bytes while preserving ordinary messages."""
+
+    def __init__(self, values: Iterable[str] = ()) -> None:
+        super().__init__()
+        self._diagnostic_bytes = 0
+        self.truncated = False
+        self.extend(values)
+
+    @staticmethod
+    def _bounded_text(value: Any) -> str:
+        encoded = str(value).encode("ascii", "backslashreplace")
+        if len(encoded) <= MAXIMUM_DIAGNOSTIC_ITEM_BYTES:
+            return encoded.decode("ascii")
+        suffix = b"...<item truncated>"
+        return (encoded[: MAXIMUM_DIAGNOSTIC_ITEM_BYTES - len(suffix)] + suffix).decode(
+            "ascii"
+        )
+
+    def _mark_truncated(self) -> None:
+        if self.truncated:
+            return
+        self.truncated = True
+        marker = "diagnostics truncated at V7 source ceiling"
+        marker_bytes = len(marker.encode("ascii"))
+        if (
+            len(self) < MAXIMUM_DIAGNOSTIC_COUNT
+            and self._diagnostic_bytes + marker_bytes <= MAXIMUM_DIAGNOSTIC_BYTES
+        ):
+            super().append(marker)
+            self._diagnostic_bytes += marker_bytes
+
+    def append(self, value: Any) -> None:
+        if self.truncated:
+            return
+        text = self._bounded_text(value)
+        encoded_bytes = len(text.encode("ascii"))
+        if (
+            len(self) >= MAXIMUM_DIAGNOSTIC_COUNT - 1
+            or self._diagnostic_bytes + encoded_bytes > MAXIMUM_DIAGNOSTIC_BYTES
+        ):
+            self._mark_truncated()
+            return
+        super().append(text)
+        self._diagnostic_bytes += encoded_bytes
+
+    def extend(self, values: Iterable[Any]) -> None:
+        for value in values:
+            self.append(value)
+            if self.truncated:
+                break
+
+
+def bounded_key_sample(values: set[Any]) -> list[str]:
+    return sorted(BoundedErrors._bounded_text(repr(value)) for value in values)[:8]
+
+
 def require_keys(value: Any, expected: set[str], label_name: str) -> None:
     if not isinstance(value, dict):
         raise AssertionError(f"{label_name} is not an object")
     observed = set(value)
     if observed != expected:
+        missing = expected - observed
+        extra = observed - expected
         raise AssertionError(
-            f"{label_name} keys mismatch: missing={sorted(expected - observed)!r} "
-            f"extra={sorted(observed - expected)!r}"
+            f"{label_name} keys mismatch: missing_count={len(missing)} "
+            f"missing_sample={bounded_key_sample(missing)!r} extra_count={len(extra)} "
+            f"extra_sample={bounded_key_sample(extra)!r}"
         )
 
 
@@ -199,7 +269,7 @@ def exact_json_equal(left: Any, right: Any) -> bool:
 
 def bounded_json_errors(value: Any, path: str = "document") -> list[str]:
     """Validate a finite JSON-shaped value without recursive traversal."""
-    errors: list[str] = []
+    errors = BoundedErrors()
     nodes = 0
     stack: list[tuple[Any, str, int]] = [(value, path, 0)]
     while stack:
@@ -344,7 +414,7 @@ def exact_digest(value: Any, path: str, errors: list[str]) -> None:
 
 def forbidden_material(value: Any, path: str = "row") -> list[str]:
     forbidden = ("scalar", "discrete_log", "dlog", "log_table", "secret")
-    errors: list[str] = []
+    errors = BoundedErrors()
     if isinstance(value, dict):
         for key, child in value.items():
             lowered = key.lower()
@@ -363,6 +433,54 @@ def file_digest(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             state.update(block)
     return state.hexdigest()
+
+
+VERIFIER_SOURCE_DIAGNOSTIC_SHA256 = file_digest(SCRIPT_PATH)
+
+
+def empty_actual_work() -> dict[str, int | bool]:
+    return {
+        "actual_work_complete": True,
+        "registered_curve_cache_hits": 0,
+        "registered_curve_cache_misses": 0,
+        "registered_curve_draws": 0,
+        "registered_curve_hash_calls": 0,
+        "registered_prime_candidates": 0,
+        "predicate_hash_calls": 0,
+        "registered_curve_point_enumerations": 0,
+        "frozen_curve_point_enumerations": 0,
+        "semantic_curve_point_enumerations": 0,
+        "primary_curve_point_enumerations": 0,
+        "expansion_cells": 0,
+        "graph_cells": 0,
+        "retained_model_calls": 0,
+        "retained_model_cells": 0,
+    }
+
+
+_ACTIVE_ACTUAL_WORK: dict[str, int | bool] | None = None
+_ACTIVE_RESOURCE_RECEIPT: dict[str, int] | None = None
+
+
+def reset_actual_work() -> dict[str, int | bool]:
+    global _ACTIVE_ACTUAL_WORK, _ACTIVE_RESOURCE_RECEIPT
+    _ACTIVE_ACTUAL_WORK = empty_actual_work()
+    _ACTIVE_RESOURCE_RECEIPT = None
+    return _ACTIVE_ACTUAL_WORK
+
+
+def charge_actual_work(name: str, amount: int = 1) -> None:
+    if _ACTIVE_ACTUAL_WORK is None:
+        return
+    current = _ACTIVE_ACTUAL_WORK.get(name)
+    if type(current) is not int:
+        raise AssertionError(f"actual-work counter {name!r} is not integral")
+    _ACTIVE_ACTUAL_WORK[name] = current + amount
+
+
+def mark_actual_work_incomplete() -> None:
+    if _ACTIVE_ACTUAL_WORK is not None:
+        _ACTIVE_ACTUAL_WORK["actual_work_complete"] = False
 
 
 def strict_json_load(raw: bytes, source: Path) -> Any:
@@ -387,7 +505,7 @@ def strict_json_load(raw: bytes, source: Path) -> Any:
 
 def read_input_snapshot(path: Path) -> tuple[bytes, str]:
     """Read one regular-file snapshot used for both hashing and parsing."""
-    flags = os.O_RDONLY
+    flags = os.O_RDONLY | os.O_NONBLOCK
     if hasattr(os, "O_CLOEXEC"):
         flags |= os.O_CLOEXEC
     if not hasattr(os, "O_NOFOLLOW"):
@@ -398,17 +516,17 @@ def read_input_snapshot(path: Path) -> tuple[bytes, str]:
         before = os.fstat(descriptor)
         if not stat.S_ISREG(before.st_mode):
             raise ValueError("input is not a regular file")
+        if before.st_size > MAXIMUM_INPUT_BYTES:
+            raise ValueError(
+                f"input byte ceiling exceeded: {before.st_size} > {MAXIMUM_INPUT_BYTES}"
+            )
         blocks: list[bytes] = []
         size = 0
-        while True:
-            block = os.read(descriptor, 1024 * 1024)
+        while size < before.st_size:
+            block = os.read(descriptor, min(1024 * 1024, before.st_size - size))
             if not block:
                 break
             size += len(block)
-            if size > MAXIMUM_INPUT_BYTES:
-                raise ValueError(
-                    f"input byte ceiling exceeded: {size} > {MAXIMUM_INPUT_BYTES}"
-                )
             blocks.append(block)
         after = os.fstat(descriptor)
         before_identity = (
@@ -596,8 +714,12 @@ def registered_curve_bundle(
     if bits_value not in CANONICAL_BITS or seed not in CANONICAL_SEEDS:
         raise AssertionError("curve bits/seed are outside the registered grid")
     if key in _REGISTERED_CURVE_CACHE:
+        charge_actual_work("registered_curve_cache_hits")
         return _REGISTERED_CURVE_CACHE[key]
+    charge_actual_work("registered_curve_cache_misses")
 
+    prime_candidate_count = (1 << bits_value) - (1 << (bits_value - 1))
+    charge_actual_work("registered_prime_candidates", prime_candidate_count)
     primes = [
         value
         for value in range(1 << (bits_value - 1), 1 << bits_value)
@@ -606,6 +728,8 @@ def registered_curve_bundle(
     seen: set[tuple[int, int, int]] = set()
     rejections: list[dict[str, Any]] = []
     for draw in range(100000):
+        charge_actual_work("registered_curve_draws")
+        charge_actual_work("registered_curve_hash_calls", 3)
         p = primes[hash_mod("sgcp-002-curve-p", [bits_value, seed, draw], len(primes))]
         a = hash_mod("sgcp-002-curve-a", [bits_value, seed, draw, p], p)
         b = hash_mod("sgcp-002-curve-b", [bits_value, seed, draw, p], p)
@@ -616,6 +740,8 @@ def registered_curve_bundle(
         reasons, rejection_q = ordered_independent_rejection_reasons(
             p, a, b, bits_value, duplicate
         )
+        if rejection_q is not None:
+            charge_actual_work("registered_curve_point_enumerations")
         if rejection_q is None:
             rejections.append(
                 {"draw": draw, "p": p, "a": a, "b": b, "reasons": reasons}
@@ -623,6 +749,7 @@ def registered_curve_bundle(
             continue
         curve = Curve(p, a, b)
         group = tuple(curve.points())
+        charge_actual_work("registered_curve_point_enumerations")
         if rejection_q != len(group):
             raise AssertionError("independent rejection recount mismatch")
         if reasons:
@@ -654,6 +781,7 @@ def registered_curve_bundle(
 def frozen_curve_record() -> tuple[Curve, tuple[Point, ...], dict[str, Any]]:
     curve = Curve(FROZEN_FIXTURE["p"], FROZEN_FIXTURE["a"], FROZEN_FIXTURE["b"])
     group = tuple(curve.points())
+    charge_actual_work("frozen_curve_point_enumerations")
     expected = independent_curve_record(curve, group, FROZEN_FIXTURE["bits"], 5)
     expected.update(
         {
@@ -664,6 +792,26 @@ def frozen_curve_record() -> tuple[Curve, tuple[Point, ...], dict[str, Any]]:
         }
     )
     return curve, group, expected
+
+
+def frozen_curve_static_record() -> dict[str, Any]:
+    """Construct the registered frozen transcript without enumerating points."""
+    curve = Curve(FROZEN_FIXTURE["p"], FROZEN_FIXTURE["a"], FROZEN_FIXTURE["b"])
+    return {
+        "bits": FROZEN_FIXTURE["bits"],
+        "seed": 5,
+        "p": FROZEN_FIXTURE["p"],
+        "a": FROZEN_FIXTURE["a"],
+        "b": FROZEN_FIXTURE["b"],
+        "q": FROZEN_FIXTURE["q"],
+        "trace": FROZEN_FIXTURE["trace"],
+        "j": curve.j(),
+        "generator": list(FROZEN_FIXTURE["generator"]),
+        "draw": None,
+        "rejected_draws": [],
+        "rejection_count": 0,
+        "rejection_digest": digest([]),
+    }
 
 
 def verify_curve_provenance(info: dict[str, Any]) -> Curve:
@@ -710,6 +858,7 @@ def derive_mobius(
     p = curve_info["p"]
     token = [curve_info[key] for key in ("p", "a", "b", "q", "seed")]
     for nonce in range(1024):
+        charge_actual_work("predicate_hash_calls", 3)
         u = hash_mod("sgcp-002-mobius-u", [token, B, tag, map_index, nonce], p)
         v = hash_mod("sgcp-002-mobius-v", [token, B, tag, map_index, nonce], p)
         w = hash_mod("sgcp-002-mobius-w", [token, B, tag, map_index, nonce], p)
@@ -866,6 +1015,7 @@ def verify_factor_base(curve: Curve, group: Sequence[Point], row: dict[str, Any]
         token = [curve_info[key] for key in ("p", "a", "b", "q", "seed")]
         ranked = []
         for x in roots:
+            charge_actual_work("predicate_hash_calls")
             value = hashlib.sha256(
                 stable_bytes(
                     {
@@ -967,6 +1117,7 @@ def reconstruct_graph(
     list[int],
     list[dict[str, Any]],
     list[dict[str, Any]],
+    list[dict[str, Any]],
 ]:
     degree2: dict[Point, list[Formal]] = defaultdict(list)
     for formal in itertools.combinations_with_replacement(range(len(factors)), 2):
@@ -1006,7 +1157,16 @@ def reconstruct_graph(
         points = {entry[0] for entry in by_formal[formal]}
         if len(points) != 1:
             raise AssertionError("inconsistent formal evaluation")
-        candidates.append({"formal": formal, "point": next(iter(points))})
+        candidates.append(
+            {
+                "formal": formal,
+                "point": next(iter(points)),
+                "parent_pairs": [
+                    entry[1]
+                    for entry in sorted(by_formal[formal], key=lambda entry: entry[1])
+                ],
+            }
+        )
     eligible: list[dict[str, Any]] = []
     eligible_universe_indices: list[int] = []
     rejected: list[dict[str, Any]] = []
@@ -1072,6 +1232,7 @@ def reconstruct_graph(
         eligible_universe_indices,
         rejected,
         conflict_records,
+        candidates,
     )
 
 
@@ -1495,6 +1656,7 @@ def independent_primary_optimum(
 ) -> tuple[int, int, bool]:
     points = [candidate["point"] for candidate in candidates]
     group = curve.points()
+    charge_actual_work("primary_curve_point_enumerations")
     point_index = {point: index for index, point in enumerate(group)}
     outputs = [
         [point_index[curve.plus(left, right)] for right in points]
@@ -1559,7 +1721,7 @@ def independent_density_primary_optimum(
     incumbent_mask: int,
     constrained_cap: int,
     maximum_nodes: int,
-) -> tuple[int, int, bool]:
+) -> tuple[int, int, bool, int, int]:
     points = [candidate["point"] for candidate in candidates]
     group = curve.points()
     point_index = {point: index for index, point in enumerate(group)}
@@ -1620,7 +1782,7 @@ def independent_density_primary_optimum(
         without = available & ~(1 << vertex)
         stack.append((chosen, without))
         stack.append((chosen | (1 << vertex), without & ~conflicts[vertex]))
-    return best, explored, not stack
+    return best, explored, not stack, len(support_cache), len(constrained_cache)
 
 
 def retained_model(
@@ -1634,6 +1796,10 @@ def retained_model(
     list[dict[str, Any]],
 ]:
     family = ideal(len(factors), maxima)
+    charge_actual_work("retained_model_calls")
+    charge_actual_work(
+        "retained_model_cells", len(family) + len(family) * (len(family) - 1) // 2
+    )
     mapping, injective = injective_map(curve, factors, family)
     inverse = {formal: point for point, formal in mapping.items()}
     nonempty = sorted((formal for formal in family if formal), key=lambda value: (len(value), value))
@@ -1854,8 +2020,8 @@ def verify_row(row: Any, maximum_nodes: Any) -> dict[str, Any]:
         }
 
 
-def v6_row_schema_errors(row: Any) -> list[str]:
-    errors: list[str] = []
+def v7_row_schema_errors(row: Any) -> list[str]:
+    errors = BoundedErrors()
     try:
         require_keys(
             row,
@@ -2106,6 +2272,7 @@ def v6_row_schema_errors(row: Any) -> list[str]:
             "termination_reason",
             "node_cap",
             "bound_method",
+            "metric_cache_entries",
         }
         retention_keys = {
             "balanced_raw_final_support",
@@ -2120,6 +2287,8 @@ def v6_row_schema_errors(row: Any) -> list[str]:
         cap_work_keys = {
             "optimizer_nodes",
             "optimizer_bound_calls",
+            "optimizer_metric_cache_entries",
+            "full_model_cache_entries",
             "serialized_frontier_states",
             "selected_maxima",
             "retained_final_pair_cells",
@@ -2221,8 +2390,8 @@ def v6_row_schema_errors(row: Any) -> list[str]:
     return errors
 
 
-def v6_row_type_errors(row: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
+def v7_row_type_errors(row: dict[str, Any]) -> list[str]:
+    errors = BoundedErrors()
     for name in ("protocol_version", "B"):
         exact_integer(row[name], f"row.{name}", errors)
     exact_string(row["family"], "row.family", errors)
@@ -2503,6 +2672,7 @@ def v6_row_type_errors(row: dict[str, Any]) -> list[str]:
                 "incumbent_updates",
                 "bound_calls",
                 "node_cap",
+                "metric_cache_entries",
             ):
                 exact_integer(optimizer[name], f"{path}.optimizer.{name}", errors)
             for name in ("primary_exact", "full_objective_exact"):
@@ -2632,8 +2802,8 @@ def registered_row_envelope_errors(
     maximum_nodes: int,
     expected_node_cap: int | None = None,
 ) -> list[str]:
-    """Reject every nonregistered row association before EC reconstruction."""
-    errors: list[str] = []
+    """Reject every statically decidable nonregistered row association."""
+    errors = BoundedErrors()
     curve_info = row["curve"]
     bits_value = curve_info["bits"]
     seed = curve_info["seed"]
@@ -2642,7 +2812,7 @@ def registered_row_envelope_errors(
     replicate = row["null_replicate"]
 
     if scope == "frozen_fixture":
-        _, _, expected_curve = frozen_curve_record()
+        expected_curve = frozen_curve_static_record()
         if not exact_json_equal(curve_info, expected_curve):
             errors.append("frozen row curve is not the registered fixture")
         if (B, family, replicate) != (4, "least_x_interval", None):
@@ -2660,14 +2830,6 @@ def registered_row_envelope_errors(
             or (family != NULL_FAMILY and replicate is not None)
         ):
             errors.append("row is outside the registered canonical grid")
-        else:
-            try:
-                _, _, expected_curve = registered_curve_bundle(bits_value, seed)
-            except Exception as error:
-                errors.append(f"registered curve derivation: {error}")
-            else:
-                if not exact_json_equal(curve_info, expected_curve):
-                    errors.append("canonical row curve transcript mismatch")
     else:
         errors.append("row scope is not registered")
 
@@ -2687,12 +2849,51 @@ def registered_row_envelope_errors(
 def density_row_envelope_errors(
     row: dict[str, Any], maximum_nodes: int
 ) -> list[str]:
-    errors: list[str] = []
+    errors = BoundedErrors()
     B = row["B"]
     if not 4 <= B <= MAXIMUM_ROW_FACTOR_BASE_SIZE or B % 2:
         errors.append(
             f"factor-base size is outside the even 4..{MAXIMUM_ROW_FACTOR_BASE_SIZE} range"
         )
+        return errors
+    candidate_bound = math.comb(B + 3, 4)
+    representative_bound = math.comb(B + 1, 2)
+    formal_family_bound = sum(
+        math.comb(B + degree - 1, degree) for degree in range(5)
+    )
+    public_edge_bound = formal_family_bound * (formal_family_bound + 1) // 2
+    factor = row["public_model"]["factor_base"]
+    if (
+        len(factor["selected_roots"]) != B // 2
+        or len(factor["points"]) != B
+        or len(factor["excluded_poles"]) > 1 << max(CANONICAL_BITS)
+    ):
+        errors.append("factor-base collection length exceeds its B-derived bound")
+    if len(row["curve"]["rejected_draws"]) > 100_000:
+        errors.append("curve rejection transcript exceeds the source draw ceiling")
+    compiler = row["public_model"]["representative_compiler"]
+    if len(compiler["representatives"]) > representative_bound:
+        errors.append("representative transcript exceeds its B-derived bound")
+    private_audit = row["private_audit"]
+    if (
+        len(private_audit["eligible_universe_indices"]) > candidate_bound
+        or len(private_audit["individually_rejected"]) > candidate_bound
+        or len(private_audit["conflicts"]) > math.comb(candidate_bound, 2)
+        or len(private_audit["graph"]["components"]) > candidate_bound
+        or len(private_audit["graph"]["degree_histogram"]) > candidate_bound + 1
+    ):
+        errors.append("graph transcript exceeds its B-derived bound")
+    for degree in (1, 2, 4, 8):
+        expansion = private_audit["expansion"][str(degree)]
+        formal_bound = math.comb(B + degree - 1, degree)
+        if (
+            len(expansion["formal_multiset_multiplicity_histogram"])
+            > formal_bound
+            or len(expansion["ordered_tuple_multiplicity_histogram"]) > B**degree
+        ):
+            errors.append(
+                f"degree-{degree} expansion histogram exceeds its source bound"
+            )
     caps = row["public_model"]["constrained_budget_caps"]
     public_frontier = row["public_model"]["density_frontier"]
     private_frontier = row["private_audit"]["density_frontier"]
@@ -2705,6 +2906,8 @@ def density_row_envelope_errors(
         if cap <= 0:
             errors.append(f"cap[{index}] is outside 1..q")
         selected_formals = [tuple(value) for value in public["selected_maxima"]]
+        if len(selected_formals) > candidate_bound:
+            errors.append(f"cap[{cap}] selected maxima exceed the B-derived bound")
         if len(selected_formals) != len(set(selected_formals)):
             errors.append(f"cap[{cap}] selected maxima are not unique")
         if selected_formals != sorted(selected_formals):
@@ -2717,10 +2920,26 @@ def density_row_envelope_errors(
             ):
                 errors.append(f"cap[{cap}] selected maximum is out of range")
         optimizer = private["optimizer"]
+        if (
+            len(public["public_edges"]) > public_edge_bound
+            or len(public["source_table"]) > formal_family_bound
+            or len(public["formal_degree_histogram"]) > 5
+        ):
+            errors.append(f"cap[{cap}] public transcript exceeds its B-derived bound")
         if not 0 <= optimizer["node_cap"] <= min(
             MAXIMUM_REPLAY_NODES_PER_CAP, maximum_nodes
         ):
             errors.append(f"cap[{cap}] optimizer node cap is out of range")
+        cache_limit = optimizer["node_cap"] + candidate_bound**2 + 64
+        if not 0 <= optimizer["metric_cache_entries"] <= cache_limit:
+            errors.append(f"cap[{cap}] optimizer metric-cache receipt is out of range")
+        cap_work = private["structural_work"]
+        if (
+            cap_work["optimizer_metric_cache_entries"]
+            != optimizer["metric_cache_entries"]
+            or not 0 <= cap_work["full_model_cache_entries"] <= cache_limit
+        ):
+            errors.append(f"cap[{cap}] producer cache receipt is out of range")
         if optimizer["max_constrained"] <= 0:
             errors.append(f"cap[{cap}] optimizer cap association mismatch")
         selected_indices = optimizer["selected_indices"]
@@ -2728,15 +2947,46 @@ def density_row_envelope_errors(
             set(selected_indices)
         ):
             errors.append(f"cap[{cap}] optimizer indices are not unique and ordered")
-        if any(candidate < 0 for candidate in selected_indices):
+        if any(not 0 <= candidate < candidate_bound for candidate in selected_indices):
             errors.append(f"cap[{cap}] optimizer index is out of range")
-        try:
-            selected_mask = int(optimizer["selected_mask_hex"], 16)
-        except ValueError:
+        mask_text = optimizer["selected_mask_hex"]
+        maximum_mask_chars = 2 + max(1, (candidate_bound + 3) // 4)
+        if (
+            len(mask_text) > maximum_mask_chars
+            or not mask_text.startswith("0x")
+            or any(character not in "0123456789abcdef" for character in mask_text[2:])
+            or len(mask_text) == 2
+        ):
             errors.append(f"cap[{cap}] optimizer mask is not hexadecimal")
         else:
+            selected_mask = int(mask_text, 16)
             if selected_mask < 0 or optimizer["selected_mask_hex"] != hex(selected_mask):
                 errors.append(f"cap[{cap}] optimizer mask is out of range")
+            if selected_mask >= 1 << candidate_bound:
+                errors.append(f"cap[{cap}] optimizer mask exceeds the B-derived bound")
+        if optimizer.get("objective_mode") != "density":
+            errors.append(f"cap[{cap}] optimizer objective mode mismatch")
+        if optimizer.get("max_constrained") != cap:
+            errors.append(f"cap[{cap}] optimizer cap association mismatch")
+        if not exact_json_equal(
+            optimizer.get("objective_order"),
+            [
+                "retained_support:max",
+                "constrained_count:min",
+                "public_edges:min",
+                "retained_maxima:max",
+                "witness_list:lex_min",
+            ],
+        ):
+            errors.append(f"cap[{cap}] optimizer objective-order mismatch")
+        if optimizer.get("bound_method") != (
+            "conflict-clique-cover cardinality plus global pair-output union"
+        ):
+            errors.append(f"cap[{cap}] optimizer bound-method mismatch")
+        try:
+            require_independent_exhausted_gate_cell(optimizer)
+        except AssertionError as error:
+            errors.append(f"cap[{cap}] optimizer exactness: {error}")
     return errors
 
 
@@ -2829,19 +3079,12 @@ def _verify_density_row_unchecked(
     maximum_nodes: int,
     scope: str,
     expected_node_cap: int | None,
+    phases: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
-    errors = v6_row_schema_errors(row)
+    errors = BoundedErrors(v7_row_schema_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
-    errors.extend(v6_row_type_errors(row))
-    if errors:
-        return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
-    errors.extend(density_row_envelope_errors(row, maximum_nodes))
-    errors.extend(
-        registered_row_envelope_errors(
-            row, scope, maximum_nodes, expected_node_cap
-        )
-    )
+    errors.extend(v7_row_type_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     supplied_digest = row.get("row_sha256")
@@ -2859,14 +3102,24 @@ def _verify_density_row_unchecked(
         errors.append("ordering contract mismatch")
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
+    errors.extend(density_row_envelope_errors(row, maximum_nodes))
+    errors.extend(
+        registered_row_envelope_errors(
+            row, scope, maximum_nodes, expected_node_cap
+        )
+    )
+    if errors:
+        return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
 
     info = row["curve"]
     try:
         curve = verify_curve_provenance(info)
     except Exception as error:
         errors.append(f"curve provenance: {error}")
+        mark_phase(phases, "curve_factor_graph_and_expansion_reconstruction", "failed")
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     group = curve.points()
+    charge_actual_work("semantic_curve_point_enumerations")
     q = len(group)
     try:
         factors = verify_factor_base(curve, group, row)
@@ -2874,19 +3127,48 @@ def _verify_density_row_unchecked(
         errors.append(f"factor base: {error}")
         factors = []
     if not factors:
+        mark_phase(phases, "curve_factor_graph_and_expansion_reconstruction", "failed")
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
 
-    (
-        eligible,
-        conflicts,
-        candidate_count,
-        conflict_count,
-        raw_a4,
-        representative_compiler,
-        eligible_universe_indices,
-        rejected,
-        conflict_records,
-    ) = reconstruct_graph(curve, factors)
+    try:
+        (
+            eligible,
+            conflicts,
+            candidate_count,
+            conflict_count,
+            raw_a4,
+            representative_compiler,
+            eligible_universe_indices,
+            rejected,
+            conflict_records,
+            candidate_universe,
+        ) = reconstruct_graph(curve, factors)
+        expansion = expansion_metrics(curve, factors)
+        charge_actual_work(
+            "expansion_cells",
+            sum(
+                math.comb(row["B"] + degree - 1, degree)
+                for degree in (1, 2, 4, 8)
+            ),
+        )
+        charge_actual_work(
+            "graph_cells",
+            candidate_count
+            + math.comb(candidate_count, 2)
+            + candidate_count**2,
+        )
+    except Exception as error:
+        errors.append(f"graph/expansion reconstruction: {type(error).__name__}: {error}")
+        mark_actual_work_incomplete()
+        mark_phase(phases, "curve_factor_graph_and_expansion_reconstruction", "failed")
+        return {
+            "valid": False,
+            "errors": errors,
+            "primary_nodes": 0,
+            "replay_nodes": 0,
+            "cap_reports": [],
+            "actual_work_complete": False,
+        }
     graph = row["private_audit"]["graph"]
     expected_graph = {
         "candidate_count": candidate_count,
@@ -2910,9 +3192,29 @@ def _verify_density_row_unchecked(
         row["public_model"]["representative_compiler"], representative_compiler
     ):
         errors.append("representative compiler mismatch")
-    expansion = expansion_metrics(curve, factors)
     if not exact_json_equal(expansion, row["private_audit"]["expansion"]):
         errors.append("additive expansion mismatch")
+    mark_phase(
+        phases,
+        "curve_factor_graph_and_expansion_reconstruction",
+        "failed" if errors else "passed",
+    )
+    if errors:
+        return {
+            "valid": False,
+            "errors": errors,
+            "curve": {"p": curve.p, "a": curve.a, "b": curve.b, "q": q},
+            "B": row["B"],
+            "family": row["family"],
+            "null_replicate": row["null_replicate"],
+            "candidate_count": candidate_count,
+            "eligible_candidate_count": len(eligible),
+            "conflict_count": conflict_count,
+            "replay_nodes": 0,
+            "primary_nodes": 0,
+            "cap_reports": [],
+            "actual_work_complete": True,
+        }
     balanced_raw = support_counter(curve, raw_a4)
 
     points = [candidate["point"] for candidate in eligible]
@@ -3006,9 +3308,44 @@ def _verify_density_row_unchecked(
     ):
         errors.append("invalid wall-time decomposition")
 
+    if errors:
+        return {
+            "valid": False,
+            "errors": errors,
+            "curve": {"p": curve.p, "a": curve.a, "b": curve.b, "q": q},
+            "B": row["B"],
+            "family": row["family"],
+            "null_replicate": row["null_replicate"],
+            "candidate_count": candidate_count,
+            "eligible_candidate_count": len(eligible),
+            "conflict_count": conflict_count,
+            "replay_nodes": 0,
+            "primary_nodes": 0,
+            "cap_reports": [],
+            "actual_work_complete": True,
+        }
+
     cap_reports: list[dict[str, Any]] = []
+
+    def finish_row(actual_work_complete: bool = True) -> dict[str, Any]:
+        return {
+            "valid": not errors and all(report["valid"] for report in cap_reports),
+            "errors": errors,
+            "curve": {"p": curve.p, "a": curve.a, "b": curve.b, "q": q},
+            "B": row["B"],
+            "family": row["family"],
+            "null_replicate": row["null_replicate"],
+            "candidate_count": candidate_count,
+            "eligible_candidate_count": len(eligible),
+            "conflict_count": conflict_count,
+            "replay_nodes": sum(report["replay_nodes"] for report in cap_reports),
+            "primary_nodes": sum(report["primary_nodes"] for report in cap_reports),
+            "cap_reports": cap_reports,
+            "actual_work_complete": actual_work_complete,
+        }
+
     for index, (public, private) in enumerate(zip(public_frontier, private_frontier)):
-        cap_errors: list[str] = []
+        cap_errors = BoundedErrors()
         cap = caps[index]
         if public["constrained_cap"] != cap or private["constrained_cap"] != cap:
             cap_errors.append("cap association mismatch")
@@ -3044,7 +3381,7 @@ def _verify_density_row_unchecked(
         try:
             require_independent_exhausted_gate_cell(optimizer)
         except AssertionError as error:
-            cap_errors.append(f"V6 requires an exhausted exact optimizer cell: {error}")
+            cap_errors.append(f"V7 requires an exhausted exact optimizer cell: {error}")
         if not exact_json_equal(optimizer.get("selected_indices"), selected_indices):
             cap_errors.append("optimizer selected-index mismatch")
         if optimizer.get("selected_mask_hex") != hex(selected_mask):
@@ -3065,6 +3402,29 @@ def _verify_density_row_unchecked(
         cap_errors.extend(
             verify_frontier_certificate(pair_outputs, q, conflicts, optimizer)
         )
+        if cap_errors:
+            cap_reports.append(
+                {
+                    "constrained_cap": cap,
+                    "valid": False,
+                    "errors": cap_errors,
+                    "independent_primary_optimum": None,
+                    "producer_primary_interval": [
+                        optimizer["retained_support_lower_bound"],
+                        optimizer["retained_support_upper_bound"],
+                    ],
+                    "replay_nodes": 0,
+                    "replay_metric_cache_entries": 0,
+                    "retained_model_replay_cache_entries": 0,
+                    "primary_support_cache_entries": 0,
+                    "primary_constrained_cache_entries": 0,
+                    "primary_nodes": 0,
+                    "primary_proof_complete": False,
+                    "actual_work_complete": True,
+                }
+            )
+            errors.extend(f"cap[{cap}]: {error}" for error in cap_errors)
+            return finish_row()
 
         replay_metric_cache: dict[int, dict[str, Any]] = {}
 
@@ -3085,15 +3445,45 @@ def _verify_density_row_unchecked(
                 }
             return replay_metric_cache[mask]
 
-        replay = replay_density_search(
-            pair_outputs,
-            q,
-            conflicts,
-            optimizer["node_cap"],
-            cap,
-            replay_metrics,
-            optimizer["node_cap"] + len(eligible) * len(eligible) + 64,
-        )
+        try:
+            replay = replay_density_search(
+                pair_outputs,
+                q,
+                conflicts,
+                optimizer["node_cap"],
+                cap,
+                replay_metrics,
+                optimizer["node_cap"] + len(eligible) * len(eligible) + 64,
+            )
+        except Exception as error:
+            mark_actual_work_incomplete()
+            mark_phase(phases, "deterministic_optimizer_replay", "failed")
+            cap_errors.append(
+                f"deterministic replay failure: {type(error).__name__}: {error}"
+            )
+            cap_reports.append(
+                {
+                    "constrained_cap": cap,
+                    "valid": False,
+                    "errors": cap_errors,
+                    "independent_primary_optimum": None,
+                    "producer_primary_interval": [
+                        optimizer["retained_support_lower_bound"],
+                        optimizer["retained_support_upper_bound"],
+                    ],
+                    "replay_nodes": 0,
+                    "replay_metric_cache_entries": 0,
+                    "retained_model_replay_cache_entries": len(replay_metric_cache),
+                    "primary_support_cache_entries": 0,
+                    "primary_constrained_cache_entries": 0,
+                    "primary_nodes": 0,
+                    "primary_proof_complete": False,
+                    "actual_work_complete": False,
+                }
+            )
+            errors.extend(f"cap[{cap}]: {item}" for item in cap_errors)
+            return finish_row(False)
+        mark_phase(phases, "deterministic_optimizer_replay", "passed")
         replay_keys = [
             "selected_indices",
             "selected_mask_hex",
@@ -3113,21 +3503,73 @@ def _verify_density_row_unchecked(
             "incumbent_updates",
             "bound_calls",
             "termination_reason",
+            "metric_cache_entries",
         ]
         for key in replay_keys:
             if not exact_json_equal(replay[key], optimizer.get(key)):
                 cap_errors.append(f"deterministic search replay mismatch: {key}")
+        if cap_errors:
+            mark_phase(phases, "deterministic_optimizer_replay", "failed")
+            cap_reports.append(
+                {
+                    "constrained_cap": cap,
+                    "valid": False,
+                    "errors": cap_errors,
+                    "independent_primary_optimum": None,
+                    "producer_primary_interval": [
+                        optimizer["retained_support_lower_bound"],
+                        optimizer["retained_support_upper_bound"],
+                    ],
+                    "replay_nodes": replay["explored_nodes"],
+                    "replay_metric_cache_entries": replay["metric_cache_entries"],
+                    "retained_model_replay_cache_entries": len(replay_metric_cache),
+                    "primary_support_cache_entries": 0,
+                    "primary_constrained_cache_entries": 0,
+                    "primary_nodes": 0,
+                    "primary_proof_complete": False,
+                    "actual_work_complete": True,
+                }
+            )
+            errors.extend(f"cap[{cap}]: {item}" for item in cap_errors)
+            return finish_row()
 
-        (
-            constrained,
-            edge_count,
-            family_count,
-            axioms,
-            public_edges,
-            source_table,
-        ) = retained_model(
-            curve, factors, selected_formals
-        )
+        try:
+            (
+                constrained,
+                edge_count,
+                family_count,
+                axioms,
+                public_edges,
+                source_table,
+            ) = retained_model(curve, factors, selected_formals)
+        except Exception as error:
+            mark_actual_work_incomplete()
+            mark_phase(phases, "retained_model_transcript_reconstruction", "failed")
+            cap_errors.append(
+                f"retained-model failure: {type(error).__name__}: {error}"
+            )
+            cap_reports.append(
+                {
+                    "constrained_cap": cap,
+                    "valid": False,
+                    "errors": cap_errors,
+                    "independent_primary_optimum": None,
+                    "producer_primary_interval": [
+                        optimizer["retained_support_lower_bound"],
+                        optimizer["retained_support_upper_bound"],
+                    ],
+                    "replay_nodes": replay["explored_nodes"],
+                    "replay_metric_cache_entries": replay["metric_cache_entries"],
+                    "retained_model_replay_cache_entries": len(replay_metric_cache),
+                    "primary_support_cache_entries": 0,
+                    "primary_constrained_cache_entries": 0,
+                    "primary_nodes": 0,
+                    "primary_proof_complete": False,
+                    "actual_work_complete": False,
+                }
+            )
+            errors.extend(f"cap[{cap}]: {item}" for item in cap_errors)
+            return finish_row(False)
         if constrained > cap:
             cap_errors.append("attained constrained count exceeds cap")
         if (constrained, edge_count, family_count) != (
@@ -3219,6 +3661,10 @@ def _verify_density_row_unchecked(
         expected_cap_work = {
             "optimizer_nodes": optimizer["explored_nodes"],
             "optimizer_bound_calls": optimizer["bound_calls"],
+            "optimizer_metric_cache_entries": optimizer[
+                "metric_cache_entries"
+            ],
+            "full_model_cache_entries": optimizer["metric_cache_entries"],
             "serialized_frontier_states": len(optimizer["frontier_states"]),
             "selected_maxima": len(selected_indices),
             "retained_final_pair_cells": len(selected_indices)
@@ -3230,19 +3676,88 @@ def _verify_density_row_unchecked(
         if not exact_json_equal(private["structural_work"], expected_cap_work):
             cap_errors.append("cap structural-work receipt mismatch")
 
-        optimum, primary_nodes, complete = independent_density_primary_optimum(
-            curve,
-            factors,
-            eligible,
-            conflicts,
-            selected_mask,
-            cap,
-            maximum_nodes,
+        mark_phase(
+            phases,
+            "retained_model_transcript_reconstruction",
+            "failed" if cap_errors else "passed",
         )
+        if cap_errors:
+            cap_reports.append(
+                {
+                    "constrained_cap": cap,
+                    "valid": False,
+                    "errors": cap_errors,
+                    "independent_primary_optimum": None,
+                    "producer_primary_interval": [
+                        optimizer["retained_support_lower_bound"],
+                        optimizer["retained_support_upper_bound"],
+                    ],
+                    "replay_nodes": replay["explored_nodes"],
+                    "replay_metric_cache_entries": replay["metric_cache_entries"],
+                    "retained_model_replay_cache_entries": len(replay_metric_cache),
+                    "primary_support_cache_entries": 0,
+                    "primary_constrained_cache_entries": 0,
+                    "primary_nodes": 0,
+                    "primary_proof_complete": False,
+                    "actual_work_complete": True,
+                }
+            )
+            errors.extend(f"cap[{cap}]: {item}" for item in cap_errors)
+            return finish_row()
+
+        try:
+            (
+                optimum,
+                primary_nodes,
+                complete,
+                primary_support_cache_entries,
+                primary_constrained_cache_entries,
+            ) = independent_density_primary_optimum(
+                curve,
+                factors,
+                eligible,
+                conflicts,
+                selected_mask,
+                cap,
+                maximum_nodes,
+            )
+        except Exception as error:
+            mark_actual_work_incomplete()
+            mark_phase(phases, "independent_primary_proof", "failed")
+            cap_errors.append(
+                f"independent primary proof failure: {type(error).__name__}: {error}"
+            )
+            cap_reports.append(
+                {
+                    "constrained_cap": cap,
+                    "valid": False,
+                    "errors": cap_errors,
+                    "independent_primary_optimum": None,
+                    "producer_primary_interval": [
+                        optimizer["retained_support_lower_bound"],
+                        optimizer["retained_support_upper_bound"],
+                    ],
+                    "replay_nodes": replay["explored_nodes"],
+                    "replay_metric_cache_entries": replay["metric_cache_entries"],
+                    "retained_model_replay_cache_entries": len(replay_metric_cache),
+                    "primary_support_cache_entries": 0,
+                    "primary_constrained_cache_entries": 0,
+                    "primary_nodes": 0,
+                    "primary_proof_complete": False,
+                    "actual_work_complete": False,
+                }
+            )
+            errors.extend(f"cap[{cap}]: {item}" for item in cap_errors)
+            return finish_row(False)
         lower = optimizer["retained_support_lower_bound"]
         upper = optimizer["retained_support_upper_bound"]
         if complete and not (lower == upper == optimum):
             cap_errors.append("producer exact density optimum mismatch")
+        mark_phase(
+            phases,
+            "independent_primary_proof",
+            "failed" if cap_errors or not complete else "passed",
+        )
         cap_reports.append(
             {
                 "constrained_cap": cap,
@@ -3253,29 +3768,18 @@ def _verify_density_row_unchecked(
                 "replay_nodes": replay["explored_nodes"],
                 "replay_metric_cache_entries": replay["metric_cache_entries"],
                 "retained_model_replay_cache_entries": len(replay_metric_cache),
-                "primary_cache_entries_upper_bound": 2 * (primary_nodes + 1),
+                "primary_support_cache_entries": primary_support_cache_entries,
+                "primary_constrained_cache_entries": primary_constrained_cache_entries,
                 "primary_nodes": primary_nodes,
                 "primary_proof_complete": complete,
+                "actual_work_complete": True,
             }
         )
         errors.extend(f"cap[{cap}]: {error}" for error in cap_errors)
         if not complete:
             errors.append(f"cap[{cap}]: independent primary proof hit node cap")
 
-    return {
-        "valid": not errors and all(report["valid"] for report in cap_reports),
-        "errors": errors,
-        "curve": {"p": curve.p, "a": curve.a, "b": curve.b, "q": q},
-        "B": row["B"],
-        "family": row["family"],
-        "null_replicate": row["null_replicate"],
-        "candidate_count": candidate_count,
-        "eligible_candidate_count": len(eligible),
-        "conflict_count": conflict_count,
-        "replay_nodes": sum(report["replay_nodes"] for report in cap_reports),
-        "primary_nodes": sum(report["primary_nodes"] for report in cap_reports),
-        "cap_reports": cap_reports,
-    }
+    return finish_row()
 
 
 def verify_density_row(
@@ -3283,7 +3787,9 @@ def verify_density_row(
     maximum_nodes: Any,
     scope: str | None = None,
 ) -> dict[str, Any]:
-    errors = bounded_json_errors(row, "row")
+    global _ACTIVE_RESOURCE_RECEIPT
+    reset_actual_work()
+    errors = BoundedErrors(bounded_json_errors(row, "row"))
     errors.extend(maximum_nodes_errors(maximum_nodes))
     if scope not in {"frozen_fixture", "canonical"}:
         errors.append("density row scope must be explicitly registered")
@@ -3306,13 +3812,42 @@ def verify_density_row(
         expected_node_cap = (
             FROZEN_NODE_CAP if scope == "frozen_fixture" else CANONICAL_NODE_CAP
         )
-        return _verify_density_row_unchecked(
+        preflight_errors = static_row_errors(
+            row, 0, scope, maximum_nodes, expected_node_cap
+        )
+        if preflight_errors:
+            return {
+                "valid": False,
+                "errors": preflight_errors,
+                "primary_nodes": 0,
+                "cap_reports": [],
+                "resource_reservation": None,
+                "actual_work": actual_work_receipt([]),
+            }
+        resource_receipt, resource_errors = resource_envelope(
+            [row], maximum_nodes, scope
+        )
+        _ACTIVE_RESOURCE_RECEIPT = resource_receipt
+        if resource_errors:
+            return {
+                "valid": False,
+                "errors": resource_errors,
+                "primary_nodes": 0,
+                "cap_reports": [],
+                "resource_reservation": resource_receipt,
+                "actual_work": actual_work_receipt([]),
+            }
+        report = _verify_density_row_unchecked(
             row,
             maximum_nodes,
             scope,
             expected_node_cap,
         )
+        report["resource_reservation"] = resource_receipt
+        report["actual_work"] = actual_work_receipt([report])
+        return report
     except Exception as error:
+        mark_actual_work_incomplete()
         return {
             "valid": False,
             "errors": [
@@ -3320,6 +3855,8 @@ def verify_density_row(
             ],
             "primary_nodes": 0,
             "cap_reports": [],
+            "resource_reservation": _ACTIVE_RESOURCE_RECEIPT,
+            "actual_work": actual_work_receipt([]),
         }
 
 
@@ -3472,7 +4009,7 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     else:
         negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v6",
+        "criterion_version": "sgcp-embed-002-family-gate-v7",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
@@ -3539,8 +4076,8 @@ def expected_row_keys() -> list[tuple[int, int, int, str, int | None]]:
     return result
 
 
-def v6_document_schema_errors(document: Any) -> list[str]:
-    errors: list[str] = []
+def v7_document_schema_errors(document: Any) -> list[str]:
+    errors = BoundedErrors()
     try:
         require_keys(
             document,
@@ -3558,7 +4095,7 @@ def v6_document_schema_errors(document: Any) -> list[str]:
                 "family_gate",
                 "document_sha256",
             },
-            "V6 document",
+            "V7 document",
         )
         require_keys(
             document["summary"],
@@ -3571,7 +4108,7 @@ def v6_document_schema_errors(document: Any) -> list[str]:
                 "full_objective_exact_cap_cells",
                 "maximum_primary_gap",
             },
-            "V6 document summary",
+            "V7 document summary",
         )
     except (AssertionError, KeyError, TypeError) as error:
         errors.append(f"closed document schema: {error}")
@@ -3579,8 +4116,8 @@ def v6_document_schema_errors(document: Any) -> list[str]:
     return errors
 
 
-def v6_document_type_errors(document: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
+def v7_document_type_errors(document: dict[str, Any]) -> list[str]:
+    errors = BoundedErrors()
     for name in ("schema", "experiment_id", "scope", "interpretation"):
         exact_string(document[name], f"document.{name}", errors)
     exact_integer(document["protocol_version"], "document.protocol_version", errors)
@@ -3607,6 +4144,21 @@ def append_phase(
         phases.append({"name": name, "status": status})
 
 
+def mark_phase(
+    phases: list[dict[str, str]] | None,
+    name: str,
+    status: str,
+) -> None:
+    """Record a phase at its call site and retain any later failure."""
+    if phases is None:
+        return
+    existing = next((phase for phase in phases if phase["name"] == name), None)
+    if existing is None:
+        phases.append({"name": name, "status": status})
+    elif status == "failed":
+        existing["status"] = "failed"
+
+
 def static_row_errors(
     row: Any,
     row_index: int,
@@ -3615,18 +4167,13 @@ def static_row_errors(
     expected_node_cap: int | None,
 ) -> list[str]:
     prefix = f"row[{row_index}]"
-    errors = [f"{prefix}: {error}" for error in v6_row_schema_errors(row)]
+    errors = BoundedErrors(f"{prefix}: {error}" for error in v7_row_schema_errors(row))
     if errors or type(row) is not dict:
         return errors or [f"{prefix}: row is not an object"]
-    type_errors = v6_row_type_errors(row)
+    type_errors = v7_row_type_errors(row)
     if type_errors:
         return [f"{prefix}: {error}" for error in type_errors]
-    envelope_errors = density_row_envelope_errors(row, maximum_nodes)
-    envelope_errors.extend(
-        registered_row_envelope_errors(
-            row, scope, maximum_nodes, expected_node_cap
-        )
-    )
+    envelope_errors = BoundedErrors()
     supplied = row["row_sha256"]
     payload = dict(row)
     payload.pop("row_sha256")
@@ -3640,11 +4187,19 @@ def static_row_errors(
         row["public_model"]["ordering_contract"], ORDERING_CONTRACT
     ):
         envelope_errors.append("ordering contract mismatch")
+    if envelope_errors:
+        return [f"{prefix}: {error}" for error in envelope_errors]
+    envelope_errors.extend(density_row_envelope_errors(row, maximum_nodes))
+    envelope_errors.extend(
+        registered_row_envelope_errors(
+            row, scope, maximum_nodes, expected_node_cap
+        )
+    )
     return [f"{prefix}: {error}" for error in envelope_errors]
 
 
 def resource_envelope(
-    rows: Sequence[dict[str, Any]], maximum_nodes: int
+    rows: Sequence[dict[str, Any]], maximum_nodes: int, scope: str
 ) -> tuple[dict[str, int], list[str]]:
     cap_cells = sum(len(row["private_audit"]["density_frontier"]) for row in rows)
     replay_nodes = sum(
@@ -3660,6 +4215,7 @@ def resource_envelope(
     metric_cache_entries = 0
     retained_model_calls = 0
     retained_model_cells = 0
+    predicate_hash_calls = 0
     for row in rows:
         candidate_bound = math.comb(row["B"] + 3, 4)
         graph_cells += (
@@ -3672,6 +4228,12 @@ def resource_envelope(
             for degree in range(5)
         )
         retained_cells_per_call = family_bound + math.comb(family_bound, 2)
+        if row["family"] == "mobius_interval":
+            predicate_hash_calls += 3 * 1024
+        elif row["family"] == "two_mobius_union":
+            predicate_hash_calls += 6 * 1024
+        elif row["family"] == NULL_FAMILY:
+            predicate_hash_calls += 1 << row["curve"]["bits"]
         for cell in row["private_audit"]["density_frontier"]:
             replay_cache_bound = (
                 cell["optimizer"]["node_cap"] + candidate_bound**2 + 64
@@ -3682,18 +4244,40 @@ def resource_envelope(
             retained_model_calls += cap_retained_calls
             retained_model_cells += cap_retained_calls * retained_cells_per_call
     primary_nodes = cap_cells * maximum_nodes
-    unique_curves = {
-        digest(row["curve"]): row["curve"] for row in rows
-    }
-    curve_draws = sum(
-        1 if curve["draw"] is None else curve["draw"] + 1
-        for curve in unique_curves.values()
-    )
+    if scope == "canonical":
+        unique_curve_keys = {
+            (row["curve"]["bits"], row["curve"]["seed"]) for row in rows
+        }
+        curve_cache_entries = len(unique_curve_keys)
+        prime_candidates = sum(
+            1 << (bits_value - 1) for bits_value, _ in unique_curve_keys
+        )
+        curve_draws = curve_cache_entries * 100_000
+        curve_hash_calls = 3 * curve_draws
+        curve_point_enumerations = 2 * curve_draws
+    elif scope == "frozen_fixture":
+        curve_cache_entries = 1
+        prime_candidates = 0
+        curve_draws = 0
+        curve_hash_calls = 0
+        curve_point_enumerations = 1
+    else:
+        curve_cache_entries = 0
+        prime_candidates = MAXIMUM_REGISTERED_PRIME_CANDIDATES + 1
+        curve_draws = MAXIMUM_REGISTERED_CURVE_DRAWS + 1
+        curve_hash_calls = 3 * curve_draws
+        curve_point_enumerations = 2 * curve_draws
     receipt = {
         "row_count": len(rows),
         "cap_cell_count": cap_cells,
-        "registered_curve_cache_entries": len(unique_curves),
+        "registered_curve_cache_entries": curve_cache_entries,
+        "registered_prime_candidates_upper_bound": prime_candidates,
         "registered_curve_draws_upper_bound": curve_draws,
+        "registered_curve_hash_calls_upper_bound": curve_hash_calls,
+        "registered_curve_point_enumerations_upper_bound": curve_point_enumerations,
+        "predicate_hash_calls_upper_bound": predicate_hash_calls,
+        "semantic_curve_point_enumerations_upper_bound": len(rows),
+        "primary_curve_point_enumerations_upper_bound": cap_cells,
         "expansion_cells_upper_bound": expansion_cells,
         "graph_cells_upper_bound": graph_cells,
         "replay_nodes_upper_bound": replay_nodes,
@@ -3702,7 +4286,7 @@ def resource_envelope(
         "retained_model_calls_upper_bound": retained_model_calls,
         "retained_model_cells_upper_bound": retained_model_cells,
     }
-    errors: list[str] = []
+    errors = BoundedErrors()
     if len(rows) > MAXIMUM_CANONICAL_ROWS:
         errors.append("row count exceeds the trusted verifier limit")
     if cap_cells > MAXIMUM_CANONICAL_ROWS * MAXIMUM_CAPS_PER_ROW:
@@ -3717,6 +4301,10 @@ def resource_envelope(
         errors.append("primary-proof bound exceeds the trusted verifier limit")
     if curve_draws > MAXIMUM_REGISTERED_CURVE_DRAWS:
         errors.append("curve-draw bound exceeds the trusted verifier limit")
+    if prime_candidates > MAXIMUM_REGISTERED_PRIME_CANDIDATES:
+        errors.append("prime-candidate bound exceeds the trusted verifier limit")
+    if predicate_hash_calls > MAXIMUM_TOTAL_PREDICATE_HASH_CALLS:
+        errors.append("predicate-hash bound exceeds the trusted verifier limit")
     if metric_cache_entries > MAXIMUM_TOTAL_METRIC_CACHE_ENTRIES:
         errors.append("metric-cache bound exceeds the trusted verifier limit")
     if retained_model_calls > MAXIMUM_TOTAL_RETAINED_MODEL_CALLS:
@@ -3833,18 +4421,20 @@ def canonical_matrix_errors(rows: Any) -> list[str]:
     return errors
 
 
-def _verify_v6_document_value_unchecked(
+def _verify_v7_document_value_unchecked(
     document: dict[str, Any],
     maximum_nodes: int,
     phases: list[dict[str, str]] | None = None,
 ) -> tuple[list[str], list[dict[str, Any]], dict[str, int] | None]:
+    global _ACTIVE_RESOURCE_RECEIPT
     _REGISTERED_CURVE_CACHE.clear()
-    errors = v6_document_schema_errors(document)
+    reset_actual_work()
+    errors = BoundedErrors(v7_document_schema_errors(document))
     append_phase(phases, "closed_document_schema", "failed" if errors else "passed")
     if errors:
         return errors, [], None
 
-    type_errors = v6_document_type_errors(document)
+    type_errors = v7_document_type_errors(document)
     errors.extend(type_errors)
     append_phase(phases, "exact_document_types", "failed" if type_errors else "passed")
     if errors:
@@ -3934,7 +4524,7 @@ def _verify_v6_document_value_unchecked(
     if errors:
         return errors, [], None
 
-    row_errors: list[str] = []
+    row_errors = BoundedErrors()
     for index, row in enumerate(rows):
         row_errors.extend(
             static_row_errors(
@@ -3945,6 +4535,8 @@ def _verify_v6_document_value_unchecked(
                 expected_node_cap,
             )
         )
+        if row_errors.truncated:
+            break
     errors.extend(row_errors)
     append_phase(
         phases,
@@ -3964,7 +4556,8 @@ def _verify_v6_document_value_unchecked(
     if errors:
         return errors, [], None
 
-    envelope, budget_errors = resource_envelope(rows, maximum_nodes)
+    envelope, budget_errors = resource_envelope(rows, maximum_nodes, scope)
+    _ACTIVE_RESOURCE_RECEIPT = envelope
     errors.extend(budget_errors)
     append_phase(
         phases,
@@ -3974,17 +4567,41 @@ def _verify_v6_document_value_unchecked(
     if errors:
         return errors, [], envelope
 
-    row_reports = [
-        _verify_density_row_unchecked(
-            row, maximum_nodes, scope, expected_node_cap
-        )
-        for row in rows
-    ]
-    semantic_errors = (
-        ["one or more V6 row verifications failed"]
-        if any(not report["valid"] for report in row_reports)
-        else []
-    )
+    row_reports: list[dict[str, Any]] = []
+    semantic_errors = BoundedErrors()
+    for index, row in enumerate(rows):
+        try:
+            report = _verify_density_row_unchecked(
+                row,
+                maximum_nodes,
+                scope,
+                expected_node_cap,
+                phases,
+            )
+        except Exception as error:
+            mark_actual_work_incomplete()
+            mark_phase(phases, "verifier_exception_boundary", "failed")
+            report = {
+                "valid": False,
+                "errors": BoundedErrors(
+                    [
+                        f"row[{index}] verifier failure: "
+                        f"{type(error).__name__}: {error}"
+                    ]
+                ),
+                "primary_nodes": 0,
+                "replay_nodes": 0,
+                "cap_reports": [],
+                "actual_work_complete": False,
+            }
+        row_reports.append(report)
+        if not report.get("valid"):
+            semantic_errors.append(f"V7 row[{index}] verification failed")
+            semantic_errors.extend(
+                f"row[{index}]: {error}"
+                for error in report.get("errors", [])
+            )
+            break
     errors.extend(semantic_errors)
     append_phase(
         phases,
@@ -3993,19 +4610,16 @@ def _verify_v6_document_value_unchecked(
     )
     if errors:
         return errors, row_reports, envelope
-    for completed_phase in (
-        "curve_factor_graph_and_expansion_reconstruction",
-        "deterministic_optimizer_replay",
-        "retained_model_transcript_reconstruction",
-        "independent_primary_proof",
-    ):
-        append_phase(phases, completed_phase, "passed")
 
-    summary_errors: list[str] = []
+    summary_errors = BoundedErrors()
     try:
         expected_summary = independent_document_summary(rows)
-    except (AttributeError, KeyError, TypeError) as error:
-        summary_errors.append(f"document summary reconstruction failed: {error}")
+    except Exception as error:
+        mark_actual_work_incomplete()
+        summary_errors.append(
+            f"document summary reconstruction failed: "
+            f"{type(error).__name__}: {error}"
+        )
     else:
         if not exact_json_equal(document["summary"], expected_summary):
             summary_errors.append("document summary mismatch")
@@ -4018,12 +4632,15 @@ def _verify_v6_document_value_unchecked(
     if errors:
         return errors, row_reports, envelope
 
-    gate_errors: list[str] = []
+    gate_errors = BoundedErrors()
     if scope == "canonical":
         try:
             expected_gate = independent_family_gate(rows)
         except Exception as error:
-            gate_errors.append(f"family gate reconstruction: {error}")
+            mark_actual_work_incomplete()
+            gate_errors.append(
+                f"family gate reconstruction: {type(error).__name__}: {error}"
+            )
     if expected_gate is not None and not exact_json_equal(
         document["family_gate"], expected_gate
     ):
@@ -4037,24 +4654,84 @@ def _verify_v6_document_value_unchecked(
     return errors, row_reports, envelope
 
 
-def verify_v6_document_value(
+def verify_v7_document_value(
     document: Any, maximum_nodes: Any
 ) -> tuple[list[str], list[dict[str, Any]]]:
-    errors = bounded_json_errors(document, "document")
+    reset_actual_work()
+    errors = BoundedErrors(bounded_json_errors(document, "document"))
     errors.extend(maximum_nodes_errors(maximum_nodes))
     if errors:
         return errors, []
     if type(document) is not dict:
-        return ["V6 document is not an object"], []
+        return ["V7 document is not an object"], []
     try:
-        errors, rows, _ = _verify_v6_document_value_unchecked(
+        errors, rows, _ = _verify_v7_document_value_unchecked(
             document, maximum_nodes
         )
         return errors, rows
     except Exception as error:
         return [
-            f"V6 document verifier failure: {type(error).__name__}: {error}"
+            f"V7 document verifier failure: {type(error).__name__}: {error}"
         ], []
+
+
+def actual_work_receipt(
+    row_reports: Sequence[dict[str, Any]],
+) -> dict[str, int | bool]:
+    cap_reports = [
+        cap
+        for row in row_reports
+        for cap in row.get("cap_reports", [])
+        if type(cap) is dict
+    ]
+    actual_work = dict(_ACTIVE_ACTUAL_WORK or empty_actual_work())
+    actual_work.update(
+        {
+            "registered_curve_cache_entries": len(_REGISTERED_CURVE_CACHE),
+            "replay_nodes": sum(
+                cap.get("replay_nodes", 0)
+                for cap in cap_reports
+                if type(cap.get("replay_nodes", 0)) is int
+            ),
+            "replay_metric_cache_entries": sum(
+                cap.get("replay_metric_cache_entries", 0)
+                for cap in cap_reports
+                if type(cap.get("replay_metric_cache_entries", 0)) is int
+            ),
+            "retained_model_replay_cache_entries": sum(
+                cap.get("retained_model_replay_cache_entries", 0)
+                for cap in cap_reports
+                if type(cap.get("retained_model_replay_cache_entries", 0)) is int
+            ),
+            "independent_primary_nodes": sum(
+                cap.get("primary_nodes", 0)
+                for cap in cap_reports
+                if type(cap.get("primary_nodes", 0)) is int
+            ),
+            "primary_support_cache_entries": sum(
+                cap.get("primary_support_cache_entries", 0)
+                for cap in cap_reports
+                if type(cap.get("primary_support_cache_entries", 0)) is int
+            ),
+            "primary_constrained_cache_entries": sum(
+                cap.get("primary_constrained_cache_entries", 0)
+                for cap in cap_reports
+                if type(cap.get("primary_constrained_cache_entries", 0)) is int
+            ),
+        }
+    )
+    actual_work["actual_work_complete"] = bool(
+        actual_work.get("actual_work_complete") is True
+        and all(
+            row.get("actual_work_complete", True) is True
+            for row in row_reports
+        )
+        and all(
+            cap.get("actual_work_complete", True) is True
+            for cap in cap_reports
+        )
+    )
+    return actual_work
 
 
 def verification_report(
@@ -4067,21 +4744,40 @@ def verification_report(
     claim_boundary: str,
     resource_receipt: dict[str, int] | None = None,
 ) -> dict[str, Any]:
-    cap_reports = [
-        cap
-        for row in row_reports
-        for cap in row.get("cap_reports", [])
-        if type(cap) is dict
-    ]
+    final_errors = BoundedErrors(errors)
+    diagnostic_truncated = bool(
+        getattr(errors, "truncated", False)
+        or final_errors.truncated
+        or "diagnostics truncated at V7 source ceiling" in final_errors
+    )
+    actual_work = actual_work_receipt(row_reports)
     report = {
         "schema": VERIFICATION_SCHEMA,
         "verifier_source_path": str(SCRIPT_PATH),
-        "verifier_source_sha256": file_digest(SCRIPT_PATH),
+        "verifier_source_sha256": VERIFIER_SOURCE_DIAGNOSTIC_SHA256,
+        "verifier_source_hash_scope": (
+            "diagnostic module-load snapshot; not executed-code attestation"
+        ),
+        "verifier_source_attested": False,
         "input_path": str(path.absolute()),
+        "input_symlink_policy": (
+            "final path component symlinks are rejected; parent path components "
+            "may traverse symlinks"
+        ),
         "input_file_sha256": input_file_sha256,
         "input_document_sha256": supplied,
-        "valid": not errors,
-        "errors": errors,
+        "valid": not final_errors,
+        "errors": final_errors,
+        "diagnostic_limits": {
+            "maximum_count": MAXIMUM_DIAGNOSTIC_COUNT,
+            "maximum_bytes": MAXIMUM_DIAGNOSTIC_BYTES,
+            "maximum_item_bytes": MAXIMUM_DIAGNOSTIC_ITEM_BYTES,
+        },
+        "diagnostic_observed": {
+            "count": len(final_errors),
+            "bytes": sum(len(error.encode("ascii")) for error in final_errors),
+            "truncated": diagnostic_truncated,
+        },
         "row_count": len(row_reports),
         "valid_row_count": sum(row.get("valid") is True for row in row_reports),
         "total_replay_nodes": sum(
@@ -4100,31 +4796,7 @@ def verification_report(
             phase["name"] for phase in phases if phase["status"] == "passed"
         ],
         "resource_reservation": resource_receipt,
-        "actual_work": {
-            "registered_curve_cache_entries": len(_REGISTERED_CURVE_CACHE),
-            "replay_nodes": sum(
-                cap.get("replay_nodes", 0)
-                for cap in cap_reports
-                if type(cap.get("replay_nodes", 0)) is int
-            ),
-            "replay_metric_cache_entries": sum(
-                cap.get("replay_metric_cache_entries", 0)
-                + cap.get("retained_model_replay_cache_entries", 0)
-                for cap in cap_reports
-                if type(cap.get("replay_metric_cache_entries", 0)) is int
-                and type(cap.get("retained_model_replay_cache_entries", 0)) is int
-            ),
-            "independent_primary_nodes": sum(
-                cap.get("primary_nodes", 0)
-                for cap in cap_reports
-                if type(cap.get("primary_nodes", 0)) is int
-            ),
-            "primary_cache_entries_observed_upper_bound": sum(
-                cap.get("primary_cache_entries_upper_bound", 0)
-                for cap in cap_reports
-                if type(cap.get("primary_cache_entries_upper_bound", 0)) is int
-            ),
-        },
+        "actual_work": actual_work,
         "claim_boundary": claim_boundary,
     }
     report["verification_sha256"] = digest(report)
@@ -4133,8 +4805,9 @@ def verification_report(
 
 def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
     _REGISTERED_CURVE_CACHE.clear()
+    reset_actual_work()
     phases: list[dict[str, str]] = []
-    errors = maximum_nodes_errors(maximum_nodes)
+    errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
     append_phase(
         phases,
         "verifier_budget_preflight",
@@ -4226,18 +4899,23 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         append_phase(phases, "exact_schema_routing", "passed")
         try:
             errors, row_reports, resource_receipt = (
-                _verify_v6_document_value_unchecked(
+                _verify_v7_document_value_unchecked(
                     document, maximum_nodes, phases
                 )
             )
         except Exception as error:
-            errors = [
-                f"V6 document verifier failure: {type(error).__name__}: {error}"
-            ]
+            mark_actual_work_incomplete()
+            resource_receipt = _ACTIVE_RESOURCE_RECEIPT
+            errors = BoundedErrors(
+                [
+                    f"V7 document verifier failure: "
+                    f"{type(error).__name__}: {error}"
+                ]
+            )
             row_reports = []
             append_phase(phases, "verifier_exception_boundary", "failed")
         claim_boundary = (
-            "invalid V6 document; no mathematical interpretation"
+            "invalid V7 document; no mathematical interpretation"
             if errors
             else (
                 "frozen-fixture implementation verification only"
@@ -4249,7 +4927,7 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         append_phase(phases, "exact_schema_routing", "passed")
         append_phase(phases, "unsupported_legacy_rejection", "passed")
         errors = [
-            f"unsupported legacy document schema {schema!r}; V6 performs no legacy row verification"
+            f"unsupported legacy document schema {schema!r}; V7 performs no legacy row verification"
         ]
         row_reports = []
         claim_boundary = "unsupported legacy input; no mathematical checks executed"

@@ -1,4 +1,4 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 6
+# Experiment Contract: EXP-SGCP-EMBED-002, version 7
 
 ## Claim status
 
@@ -65,7 +65,7 @@ serialized bytes are charged inside the public model and each nested cap
 receipt.
 
 The legacy `source_recovery` boolean records sorted formal normalization only.
-Version 5 interprets source recovery through
+Version 7 interprets source recovery through
 `source_recovery_via_public_table`; it does not treat normalization as an
 inversion algorithm.
 
@@ -166,34 +166,50 @@ nonidentity EC output. These conventions are emitted as a public ordering
 contract with digest
 `8114bd7d1822578e3d1453126968964da213775c6f12f86c764413f737212359`.
 
-V6 key sets and value types are closed throughout rows and documents. JSON
+V7 key sets and value types are closed throughout rows and documents. JSON
 Boolean, integer, float, string, list, object, and null roles are exact. In
 particular, `false` is not integer zero, `-0.0` is not integer zero, and an
 equal-valued float is not an integer receipt. Refreshed byte and document
 digests do not excuse a type mismatch.
 
-The V6 verifier accepts only the V6 document schema. V1-V5 schemas are
+The V7 verifier accepts only the V7 document schema. V1-V6 schemas are
 explicitly rejected without row verification. Each receipt contains an ordered
 phase ledger from actual control flow and lists only completed phases as
 independent checks.
 
-The verifier opens one no-follow regular file, reads at most 256 MiB once, and
-hashes and parses the same immutable byte snapshot. JSON is limited to
-2,000,000 nodes, depth 64, and 8 MiB per string or key. Direct row verification
-requires an explicit registered scope. Only B in `{4,6,8}`, the frozen p=19
-curve or eight exact canonical curve transcripts, the source-owned frozen
-100,000-node replay cap, the source-owned canonical 2,000,000-node replay cap,
-and an exact primary-proof budget in `0..5,000,000` are admitted.
+The verifier opens the final path component with no-follow and nonblocking
+flags, requires a regular file, rejects an initial `st_size` above 256 MiB
+before reading, and hashes and parses the same immutable byte snapshot. Parent
+path components may traverse symlinks; the receipt states this policy. JSON is
+limited to 2,000,000 nodes, depth 64, and 8 MiB per string or key. Diagnostics
+are limited to 256 items, 65,536 ASCII bytes total, and 2,048 bytes per item.
+Direct row verification requires an explicit registered scope. Only B in
+`{4,6,8}`, the exact frozen association or eight canonical `(bits,seed)`
+associations, the source-owned frozen 100,000-node replay cap, the source-owned
+canonical 2,000,000-node replay cap, and an exact primary-proof budget in
+`0..5,000,000` are admitted.
 
-Before row semantics, V6 validates the complete document and row key sets,
-types, digests, scope, grid, curve transcripts, cap schedule, frontier lengths,
-selected-formal range/order/uniqueness/eligibility, optimizer indices and
-masks, and exact node-cap association. It then reserves separate worst-case
-totals for registered curve draws, expansion cells, graph cells, replay nodes,
-independent primary nodes, both replay caches, both primary caches,
-retained-model calls, and retained-model cells. Any over-limit reservation is
-invalid and `INCONCLUSIVE`. A final exception boundary remains after these
-specific checks.
+Before row semantics, V7 validates complete document and row key sets, exact
+types, row and document digests, protocol, scope, grid association, frozen
+static transcript, cap schedule, exact empty-frontier gate, objective order,
+selected-formal and mask bounds, source-owned node caps, and B-derived bounds
+for factors, representatives, candidate indices, conflicts, edge tables,
+source tables, and expansion histograms. No canonical curve derivation occurs
+before this authentication. V7 then reserves separate worst-case totals for
+registered prime candidates, curve draws and hashes, predicate hashes, point
+enumerations, expansion cells, graph cells, replay nodes, independent primary
+nodes, both replay caches, both primary caches, retained-model calls, and
+retained-model cells. Any over-limit reservation is invalid and
+`INCONCLUSIVE`.
+
+Rows are verified sequentially and stop at the first invalid row. Replay,
+retained-model, and primary-proof exceptions preserve earlier cap receipts,
+the trusted reservation, the failing phase, and
+`actual_work_complete=false`. Ordinary authenticated semantic mismatches may
+stop early with complete counters for the work actually executed. The
+verifier source SHA-256 is frozen at module load for diagnostics only; it is
+explicitly not executed-code attestation and is not reopened while building a
+report.
 
 ## Canonical matrix
 
@@ -265,12 +281,13 @@ factor-base multisets. Both denominators appear beside retention ratios.
 
 ## Accounting boundary
 
-Version 5 retains the V3 accounting boundary and emits only independently
+Version 7 retains the V3 accounting boundary and emits only independently
 reconstructible combinatorial cells, including multiset evaluations,
 representative and parent-pair counts, graph checks, pair-output cells,
-optimizer nodes, bound calls, selected maxima, public edges, source-table
-entries, and final-pair cells. These are structural work, not CPU instructions,
-field-operation totals, or a complete end-to-end cost.
+optimizer nodes, bound calls, source-enforced optimizer and full-model cache
+entry counts, selected maxima, public edges, source-table entries, and
+final-pair cells. These are structural work, not CPU instructions,
+allocator-memory bytes, field-operation totals, or a complete end-to-end cost.
 
 Every cap creates a fresh model cache, so cap-local search receipts do not
 depend on cap order. Public-model, private-audit, row-payload, and nested
@@ -281,7 +298,13 @@ Producer row and cap wall times are observational and checked only for finite,
 nonnegative nesting. The producer makes no peak-memory claim. Any future
 canonical execution must obtain generator and verifier wall time, peak RSS,
 serialized output size, and memory traffic from the trusted external runner.
-Verifier work must be reported as a separate role cost.
+Verifier work must be reported as a separate role cost. V7 receipts actual
+registered-curve cache behavior, prime candidates, curve and predicate hashes,
+point enumerations, expansion and graph cells, replay and proof nodes, both
+replay caches, both primary caches, retained-model calls and cells, plus
+whether an exception left those counters incomplete. Python object overhead,
+parser work, process count, disk, I/O, and memory bandwidth remain outside the
+in-process receipt and must be measured externally.
 
 This protocol cannot support a fixed-curve preprocessing crossover claim.
 
@@ -304,7 +327,7 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
    the closed schema.
 10. Reject Boolean/integer/float aliases in optimizer, graph, axiom, ratio,
     mask, node-cap, wall-time, byte-receipt, summary, and document fields.
-11. Verify one frozen V6 document and reject an empty canonical document.
+11. Verify one frozen V7 document and reject an empty canonical document.
 12. Reject missing, extra, duplicate, reordered, wrong-cap, wrong-node-cap,
     inconsistent-curve, and cross-seed-duplicate canonical matrices.
 13. Exact-match producer and independent family gates on a synthetic complete
@@ -319,8 +342,8 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     out-of-range selected formals, duplicate selected formals, negative caps,
     malformed JSON, nonobject roots, duplicate keys, and out-of-range verifier
     budgets.
-16. Relabel a valid V6 body with every V1-V5 schema and require explicit legacy
-    rejection with zero row checks and no V6 mathematical check claims.
+16. Relabel a valid V7 body with every V1-V6 schema and require explicit legacy
+    rejection with zero row checks and no V7 mathematical check claims.
 17. Replace the input path after its snapshot is read and require the receipt
     hash and parsed document to remain bound to the original bytes. Reject
     directories and symlinks before JSON parsing.
@@ -334,6 +357,25 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     `[8,8,10,12]`, strict `1/10` collapse inequality, 17 versus 18 positive
     comparisons, two versus three passing strata, fixed-cap anti-splicing,
     every-family COLLAPSE, and noncollapse classification.
+21. Compare the standalone oracle's complete candidate and eligible lists,
+    including every recursive degree-two parent pair, directly with the
+    verifier reconstruction.
+22. Keep generated controls at curve-provenance and factor-base scope only;
+    construct no generated density row.
+23. Reject FIFOs without blocking, reject an initially oversized sparse file
+    before the first read, reject a final-component symlink, and confirm the
+    disclosed parent-component symlink behavior.
+24. Patch frozen and registered curve helpers, replay, and primary proof and
+    require zero calls for a bad row digest, wrong objective, nonempty frontier,
+    oversized mask, and oversized B-derived public transcript.
+25. Inject replay and primary-proof failures on the second cap and preserve the
+    reservation, first-cap nonzero work, two cap receipts, nested error,
+    failing phase, and `actual_work_complete=false`.
+26. Amplify malformed keys and forbidden-material diagnostics past every
+    source ceiling and require bounded count, total bytes, and item bytes.
+27. Accept exact `1/4` full-cap persistence and reject exact `999/4000` in one
+    stratum; freeze the verifier source digest at module load and prove report
+    construction does not reopen the source path.
 
 ## Positive criterion
 
@@ -363,10 +405,10 @@ changes the measured collision geometry.
 
 ## Budgets and stopping
 
-Version 1 consumed 17 of 18 historical development curve rows. Version 6
+Version 1 consumed 17 of 18 historical development curve rows. Version 7
 authorizes no additional curve-family row. Unit, abstract graph,
-generated-curve provenance, factor-base, and frozen p=19 row/document controls
-are allowed.
+generated-curve provenance, generated factor-base, and frozen p=19
+row/document controls are allowed. A generated density row is not allowed.
 
 Canonical budget remains:
 
@@ -377,7 +419,7 @@ total_cpu_hours = 0
 maximum_memory_gb = 0
 ```
 
-Fresh independent theory, accounting, and red-team GO on one committed V6
+Fresh independent theory, accounting, and red-team GO on one committed V7
 snapshot is necessary but not sufficient to launch. A separate hash-complete
 execution plan and coordinator approval must follow before any budget change.
 
@@ -392,4 +434,5 @@ are finite stress probes, not an `n^(1/5)` schedule.
 
 No canonical reproduction command exists while `maximum_runs` is zero. The
 current producer refuses both development family rows and canonical execution;
-only unit and frozen-fixture functions are authorized for V6 preflight.
+only unit, generated-factor-base, and frozen-fixture functions are authorized
+for V7 preflight.

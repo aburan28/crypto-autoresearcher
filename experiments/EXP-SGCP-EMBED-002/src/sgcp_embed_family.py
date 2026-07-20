@@ -3,7 +3,7 @@
 
 The builder uses affine coordinates and EC addition only. It deliberately has
 no scalar-multiplication routine and constructs no discrete-log table.
-Canonical execution remains disabled by the version-6 experiment contract.
+Canonical execution remains disabled by the version-7 experiment contract.
 """
 from __future__ import annotations
 
@@ -23,10 +23,10 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
 
-SCHEMA = "sgcp-embed-002-density-frontier-candidate-v6"
+SCHEMA = "sgcp-embed-002-density-frontier-candidate-v7"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
 CLAIM_STATUS = ["HYPOTHESIS", "TOY-EVIDENCE", "MODEL-BOUND", "NOVELTY-UNVERIFIED"]
-PROTOCOL_VERSION = 6
+PROTOCOL_VERSION = 7
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -834,9 +834,12 @@ def optimize_coverage_graph(
         }
     )
     metric_cache: dict[int, dict[str, Any]] = {}
+    metric_cache_limit = node_cap + candidate_count**2 + 64
 
     def metrics(mask: int) -> dict[str, Any]:
         if mask not in metric_cache:
+            if len(metric_cache) >= metric_cache_limit:
+                raise RuntimeError("optimizer metric-cache ceiling exceeded")
             metric_cache[mask] = tiebreak(mask)
         return metric_cache[mask]
 
@@ -1097,6 +1100,7 @@ def optimize_coverage_graph(
         "termination_reason": termination,
         "node_cap": node_cap,
         "bound_method": "conflict-clique-cover cardinality plus global pair-output union",
+        "metric_cache_entries": len(metric_cache),
     }
 
 
@@ -1423,9 +1427,12 @@ def build_density_row(
     for cap in constrained_budget_caps(group_size):
         cap_started = time.perf_counter()
         model_cache: dict[int, dict[str, Any]] = {}
+        model_cache_limit = node_cap + len(eligible) ** 2 + 64
 
         def full_model(mask: int) -> dict[str, Any]:
             if mask not in model_cache:
+                if len(model_cache) >= model_cache_limit:
+                    raise RuntimeError("full-model cache ceiling exceeded")
                 selected_for_model = [eligible[index] for index in iter_mask(mask)]
                 model_cache[mask] = model_metrics(
                     curve, factors, selected_for_model
@@ -1518,6 +1525,10 @@ def build_density_row(
             "structural_work": {
                 "optimizer_nodes": optimizer["explored_nodes"],
                 "optimizer_bound_calls": optimizer["bound_calls"],
+                "optimizer_metric_cache_entries": optimizer[
+                    "metric_cache_entries"
+                ],
+                "full_model_cache_entries": len(model_cache),
                 "serialized_frontier_states": len(optimizer["frontier_states"]),
                 "selected_maxima": len(selected),
                 "retained_final_pair_cells": len(selected)
@@ -1808,7 +1819,7 @@ def evaluate_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     else:
         negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v6",
+        "criterion_version": "sgcp-embed-002-family-gate-v7",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
@@ -2011,7 +2022,7 @@ def build_frozen_control_document(node_cap: int = FROZEN_NODE_CAP) -> dict[str, 
 
 def build_development_document(args: argparse.Namespace) -> dict[str, Any]:
     raise PermissionError(
-        "version-6 development curve-row budget is zero; use the frozen control only"
+        "version-7 development curve-row budget is zero; use the frozen control only"
     )
 
 
@@ -2040,7 +2051,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "canonical execution is disabled: specification status is review_required and maximum_runs is zero"
         )
     raise PermissionError(
-        "version-6 development curve-row budget is zero; run unit and frozen-fixture controls only"
+        "version-7 development curve-row budget is zero; run unit and frozen-fixture controls only"
     )
 
 
