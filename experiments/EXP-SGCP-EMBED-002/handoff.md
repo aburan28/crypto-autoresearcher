@@ -79,6 +79,68 @@ decisions.
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
 
+## Handoff: SGCP V8 independent closeout
+
+### Claim or task
+
+Close the exact-commit review of
+`a1719f7d910d3cc454911a55ceb8b30d833a0b2d` and identify the narrowest no-run
+repair before any launch-plan design.
+
+### Status
+
+`NEGATIVE RESULT` for V8 plan-design readiness. Theory issued scoped `GO`;
+accounting and red team issued `REVISE`. Unanimous authorization was not
+obtained, so launch-plan design and execution remain `NO-GO` and
+`maximum_runs=0`.
+
+### Assumptions
+
+- The review applies only to exact committed V8 blobs.
+- The fixed graph theorem and frozen-B4 complete oracle remain scoped positive
+  implementation evidence.
+- B6/B8 lack a standalone complete five-field oracle.
+- Structural counters remain distinct from CPU, RSS, parser/allocator memory,
+  disk, I/O, cache traffic, and memory bandwidth.
+
+### Evidence so far
+
+- All nine V8 test-log hashes match the exact commit.
+- Theory found no medium-or-higher claim-boundary defect.
+- Accounting found `graph_cells` records a candidate-bound potential count
+  rather than exact eligible conflict/pair-output dimensions and that graph or
+  expansion work can disappear from exception receipts.
+- Red team found an unbounded reflected `input_path` can make an invalid-budget
+  call raise after report fallbacks, while direct imports can construct a
+  generated row despite the CLI-only zero-row refusal.
+- Final phase closure is not separately enforced as report validity, and stale
+  producer diagnostics still say `version-7`.
+- No generated V8 density row, matrix, runner, plan, or run was created.
+
+### Failure modes
+
+- Accepted reports can mislabel potential graph dimensions as actual work.
+- Interrupted graph/expansion work can be omitted from diagnostic lower bounds.
+- Caller path metadata can defeat verifier totality before filesystem access.
+- A future launcher could inherit direct producer construction under zero
+  budget unless construction entry points are gated.
+- B6/B8 feasibility and every external resource class remain unmeasured.
+
+### Next concrete action
+
+Implement one no-run successor that records incremental candidate,
+eligible-conflict, eligible-pair-output, and expansion work; bounds reflected
+path metadata; gates direct generated construction; enforces complete phase
+closure; fixes stale diagnostics; and adds focused falsification tests before
+fresh exact-commit review.
+
+### Artifact paths
+
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v8.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v8.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v8.md`
+- `experiments/EXP-SGCP-EMBED-002/decision-v8.json`
+
 ## Handoff: SGCP V7 independent review closure
 
 ### Claim or task
