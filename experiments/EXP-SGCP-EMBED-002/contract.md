@@ -1,4 +1,4 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 5
+# Experiment Contract: EXP-SGCP-EMBED-002, version 6
 
 ## Claim status
 
@@ -166,25 +166,34 @@ nonidentity EC output. These conventions are emitted as a public ordering
 contract with digest
 `8114bd7d1822578e3d1453126968964da213775c6f12f86c764413f737212359`.
 
-V5 key sets and value types are closed throughout rows and documents. JSON
+V6 key sets and value types are closed throughout rows and documents. JSON
 Boolean, integer, float, string, list, object, and null roles are exact. In
 particular, `false` is not integer zero, `-0.0` is not integer zero, and an
 equal-valued float is not an integer receipt. Refreshed byte and document
 digests do not excuse a type mismatch.
 
-The V5 verifier accepts only the V5 document schema. V1-V4 schemas are
-explicitly rejected without row verification, and receipts list only checks
-that actually executed. Input files are limited to 1 GiB; in-memory JSON is
-limited to 10,000,000 nodes, depth 64, and 16 MiB per string or key. Verifier
-primary-proof budgets must be exact integers in `0..100,000,000` and row
-factor-base sizes must be even integers in `4..64`.
+The V6 verifier accepts only the V6 document schema. V1-V5 schemas are
+explicitly rejected without row verification. Each receipt contains an ordered
+phase ledger from actual control flow and lists only completed phases as
+independent checks.
 
-Before replay or indexed access, V5 validates the complete cap schedule and
-frontier lengths, positive cap associations, selected-maximum degree, range,
-ordering, uniqueness and eligibility, optimizer-index ordering and range,
-canonical hexadecimal masks, and optimizer node ceilings. Every row and
-document entrypoint also has a final exception boundary. A bounded malformed
-input therefore returns a deterministic invalid receipt rather than raising.
+The verifier opens one no-follow regular file, reads at most 256 MiB once, and
+hashes and parses the same immutable byte snapshot. JSON is limited to
+2,000,000 nodes, depth 64, and 8 MiB per string or key. Direct row verification
+requires an explicit registered scope. Only B in `{4,6,8}`, the frozen p=19
+curve or eight exact canonical curve transcripts, the source-owned frozen
+100,000-node replay cap, the source-owned canonical 2,000,000-node replay cap,
+and an exact primary-proof budget in `0..5,000,000` are admitted.
+
+Before row semantics, V6 validates the complete document and row key sets,
+types, digests, scope, grid, curve transcripts, cap schedule, frontier lengths,
+selected-formal range/order/uniqueness/eligibility, optimizer indices and
+masks, and exact node-cap association. It then reserves separate worst-case
+totals for registered curve draws, expansion cells, graph cells, replay nodes,
+independent primary nodes, both replay caches, both primary caches,
+retained-model calls, and retained-model cells. Any over-limit reservation is
+invalid and `INCONCLUSIVE`. A final exception boundary remains after these
+specific checks.
 
 ## Canonical matrix
 
@@ -295,7 +304,7 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
    the closed schema.
 10. Reject Boolean/integer/float aliases in optimizer, graph, axiom, ratio,
     mask, node-cap, wall-time, byte-receipt, summary, and document fields.
-11. Verify one frozen V5 document and reject an empty canonical document.
+11. Verify one frozen V6 document and reject an empty canonical document.
 12. Reject missing, extra, duplicate, reordered, wrong-cap, wrong-node-cap,
     inconsistent-curve, and cross-seed-duplicate canonical matrices.
 13. Exact-match producer and independent family gates on a synthetic complete
@@ -310,11 +319,21 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     out-of-range selected formals, duplicate selected formals, negative caps,
     malformed JSON, nonobject roots, duplicate keys, and out-of-range verifier
     budgets.
-16. Relabel a valid V5 body with every V1-V4 schema and require explicit legacy
-    rejection with zero row checks and no V5 mathematical check claims.
-17. Use hand-derived gate fixtures for exact null-median ties and duplicate
-    nulls, 17 versus 18 positive comparisons, two versus three passing strata,
-    fixed-cap anti-splicing, all-fail, and COLLAPSE classification.
+16. Relabel a valid V6 body with every V1-V5 schema and require explicit legacy
+    rejection with zero row checks and no V6 mathematical check claims.
+17. Replace the input path after its snapshot is read and require the receipt
+    hash and parsed document to remain bound to the original bytes. Reject
+    directories and symlinks before JSON parsing.
+18. Reject huge curve bits, nonregistered transcripts, wrong source-owned
+    replay caps, repeated invalid frozen rows, and aggregate replay overbudget
+    before curve, row, replay, or proof semantics.
+19. Compare the complete standalone frozen-B4 factor-base, representative,
+    rejection, conflict, graph, selected-mask, formal-family, constrained-label,
+    public-edge, source-table, digest, axiom, and cap-winner transcripts.
+20. Use hand-derived gate fixtures for the discriminating null multiset
+    `[8,8,10,12]`, strict `1/10` collapse inequality, 17 versus 18 positive
+    comparisons, two versus three passing strata, fixed-cap anti-splicing,
+    every-family COLLAPSE, and noncollapse classification.
 
 ## Positive criterion
 
@@ -344,7 +363,7 @@ changes the measured collision geometry.
 
 ## Budgets and stopping
 
-Version 1 consumed 17 of 18 historical development curve rows. Version 5
+Version 1 consumed 17 of 18 historical development curve rows. Version 6
 authorizes no additional curve-family row. Unit, abstract graph,
 generated-curve provenance, factor-base, and frozen p=19 row/document controls
 are allowed.
@@ -358,7 +377,7 @@ total_cpu_hours = 0
 maximum_memory_gb = 0
 ```
 
-Fresh independent theory, accounting, and red-team GO on one committed V5
+Fresh independent theory, accounting, and red-team GO on one committed V6
 snapshot is necessary but not sufficient to launch. A separate hash-complete
 execution plan and coordinator approval must follow before any budget change.
 
@@ -373,4 +392,4 @@ are finite stress probes, not an `n^(1/5)` schedule.
 
 No canonical reproduction command exists while `maximum_runs` is zero. The
 current producer refuses both development family rows and canonical execution;
-only unit and frozen-fixture functions are authorized for V5 preflight.
+only unit and frozen-fixture functions are authorized for V6 preflight.

@@ -3,7 +3,7 @@
 
 The builder uses affine coordinates and EC addition only. It deliberately has
 no scalar-multiplication routine and constructs no discrete-log table.
-Canonical execution remains disabled by the version-5 experiment contract.
+Canonical execution remains disabled by the version-6 experiment contract.
 """
 from __future__ import annotations
 
@@ -23,10 +23,10 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
 
-SCHEMA = "sgcp-embed-002-density-frontier-candidate-v5"
+SCHEMA = "sgcp-embed-002-density-frontier-candidate-v6"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
 CLAIM_STATUS = ["HYPOTHESIS", "TOY-EVIDENCE", "MODEL-BOUND", "NOVELTY-UNVERIFIED"]
-PROTOCOL_VERSION = 5
+PROTOCOL_VERSION = 6
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -53,6 +53,7 @@ CANONICAL_SEEDS = (101, 211)
 CANONICAL_FACTOR_BASE_SIZES = (4, 6, 8)
 CANONICAL_NULL_REPLICATES = 4
 CANONICAL_NODE_CAP = 2_000_000
+FROZEN_NODE_CAP = 100_000
 SCRIPT_PATH = Path(__file__).resolve()
 EXPERIMENT_ROOT = SCRIPT_PATH.parents[1]
 DEVELOPMENT_ROOT = EXPERIMENT_ROOT / "development"
@@ -1807,7 +1808,7 @@ def evaluate_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     else:
         negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v5",
+        "criterion_version": "sgcp-embed-002-family-gate-v6",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
@@ -1913,12 +1914,14 @@ def validate_canonical_rows(rows: Sequence[dict[str, Any]]) -> None:
 
 
 def frozen_parameters(node_cap: int) -> dict[str, Any]:
+    if type(node_cap) is not int or node_cap != FROZEN_NODE_CAP:
+        raise ValueError(f"frozen node cap must equal {FROZEN_NODE_CAP}")
     return {
         "curve": dict(FROZEN_FIXTURE),
         "B": 4,
         "family": "least_x_interval",
         "null_replicate": None,
-        "node_cap_per_cap": node_cap,
+        "node_cap_per_cap": FROZEN_NODE_CAP,
         "representative_compiler": REPRESENTATIVE_COMPILER,
         "ordering_contract_sha256": stable_digest(ORDERING_CONTRACT),
     }
@@ -1988,7 +1991,9 @@ def build_document(
     return document
 
 
-def build_frozen_control_document(node_cap: int = 100_000) -> dict[str, Any]:
+def build_frozen_control_document(node_cap: int = FROZEN_NODE_CAP) -> dict[str, Any]:
+    if type(node_cap) is not int or node_cap != FROZEN_NODE_CAP:
+        raise ValueError(f"frozen node cap must equal {FROZEN_NODE_CAP}")
     ops = OperationCounts()
     curve, points, record = frozen_curve(ops)
     row = build_density_row(
@@ -2006,7 +2011,7 @@ def build_frozen_control_document(node_cap: int = 100_000) -> dict[str, Any]:
 
 def build_development_document(args: argparse.Namespace) -> dict[str, Any]:
     raise PermissionError(
-        "version-5 development curve-row budget is zero; use the frozen control only"
+        "version-6 development curve-row budget is zero; use the frozen control only"
     )
 
 
@@ -2035,7 +2040,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "canonical execution is disabled: specification status is review_required and maximum_runs is zero"
         )
     raise PermissionError(
-        "version-5 development curve-row budget is zero; run unit and frozen-fixture controls only"
+        "version-6 development curve-row budget is zero; run unit and frozen-fixture controls only"
     )
 
 

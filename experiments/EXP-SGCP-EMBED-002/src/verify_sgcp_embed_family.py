@@ -14,6 +14,7 @@ import itertools
 import json
 import math
 import os
+import stat
 from collections import Counter, defaultdict
 from fractions import Fraction
 from pathlib import Path
@@ -25,11 +26,12 @@ LEGACY_SCHEMAS = {
     "sgcp-embed-002-density-frontier-development-v2",
     "sgcp-embed-002-density-frontier-candidate-v3",
     "sgcp-embed-002-density-frontier-candidate-v4",
+    "sgcp-embed-002-density-frontier-candidate-v5",
 }
-CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v5"
-VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v5"
+CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v6"
+VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v6"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
-PROTOCOL_VERSION = 5
+PROTOCOL_VERSION = 6
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -56,12 +58,76 @@ CANONICAL_SEEDS = (101, 211)
 CANONICAL_FACTOR_BASE_SIZES = (4, 6, 8)
 CANONICAL_NULL_REPLICATES = 4
 CANONICAL_NODE_CAP = 2_000_000
-MAXIMUM_INPUT_BYTES = 1_073_741_824
-MAXIMUM_JSON_NODES = 10_000_000
+FROZEN_NODE_CAP = 100_000
+MAXIMUM_INPUT_BYTES = 268_435_456
+MAXIMUM_JSON_NODES = 2_000_000
 MAXIMUM_JSON_DEPTH = 64
-MAXIMUM_JSON_STRING_BYTES = 16_777_216
-MAXIMUM_PRIMARY_NODES = 100_000_000
-MAXIMUM_ROW_FACTOR_BASE_SIZE = 64
+MAXIMUM_JSON_STRING_BYTES = 8_388_608
+MAXIMUM_PRIMARY_NODES = 5_000_000
+MAXIMUM_REPLAY_NODES_PER_CAP = CANONICAL_NODE_CAP
+MAXIMUM_ROW_FACTOR_BASE_SIZE = max(CANONICAL_FACTOR_BASE_SIZES)
+MAXIMUM_CANONICAL_ROWS = (
+    len(CANONICAL_BITS)
+    * len(CANONICAL_SEEDS)
+    * len(CANONICAL_FACTOR_BASE_SIZES)
+    * (len(COORDINATE_FAMILIES) + CANONICAL_NULL_REPLICATES)
+)
+MAXIMUM_CAPS_PER_ROW = 4
+MAXIMUM_TOTAL_REPLAY_NODES = (
+    MAXIMUM_CANONICAL_ROWS * MAXIMUM_CAPS_PER_ROW * MAXIMUM_REPLAY_NODES_PER_CAP
+)
+MAXIMUM_TOTAL_PRIMARY_NODES = (
+    MAXIMUM_CANONICAL_ROWS * MAXIMUM_CAPS_PER_ROW * MAXIMUM_PRIMARY_NODES
+)
+MAXIMUM_EXPANSION_CELLS_PER_ROW = sum(
+    math.comb(MAXIMUM_ROW_FACTOR_BASE_SIZE + degree - 1, degree)
+    for degree in (1, 2, 4, 8)
+)
+MAXIMUM_TOTAL_EXPANSION_CELLS = (
+    MAXIMUM_CANONICAL_ROWS * MAXIMUM_EXPANSION_CELLS_PER_ROW
+)
+_MAXIMUM_DEGREE4_CANDIDATES = math.comb(MAXIMUM_ROW_FACTOR_BASE_SIZE + 3, 4)
+MAXIMUM_GRAPH_CELLS_PER_ROW = (
+    _MAXIMUM_DEGREE4_CANDIDATES
+    + math.comb(_MAXIMUM_DEGREE4_CANDIDATES, 2)
+    + _MAXIMUM_DEGREE4_CANDIDATES**2
+)
+MAXIMUM_TOTAL_GRAPH_CELLS = MAXIMUM_CANONICAL_ROWS * MAXIMUM_GRAPH_CELLS_PER_ROW
+MAXIMUM_REPLAY_CACHE_ENTRIES_PER_CAP = (
+    MAXIMUM_REPLAY_NODES_PER_CAP + _MAXIMUM_DEGREE4_CANDIDATES**2 + 64
+)
+MAXIMUM_PRIMARY_CACHE_ENTRIES_PER_CAP = 2 * (MAXIMUM_PRIMARY_NODES + 1)
+MAXIMUM_TOTAL_METRIC_CACHE_ENTRIES = (
+    MAXIMUM_CANONICAL_ROWS
+    * MAXIMUM_CAPS_PER_ROW
+    * (
+        2 * MAXIMUM_REPLAY_CACHE_ENTRIES_PER_CAP
+        + MAXIMUM_PRIMARY_CACHE_ENTRIES_PER_CAP
+    )
+)
+MAXIMUM_RETAINED_MODEL_CALLS_PER_CAP = (
+    MAXIMUM_REPLAY_CACHE_ENTRIES_PER_CAP + MAXIMUM_PRIMARY_NODES + 2
+)
+_MAXIMUM_FORMAL_FAMILY_SIZE = sum(
+    math.comb(MAXIMUM_ROW_FACTOR_BASE_SIZE + degree - 1, degree)
+    for degree in range(5)
+)
+MAXIMUM_RETAINED_MODEL_CELLS_PER_CALL = (
+    _MAXIMUM_FORMAL_FAMILY_SIZE
+    + math.comb(_MAXIMUM_FORMAL_FAMILY_SIZE, 2)
+)
+MAXIMUM_TOTAL_RETAINED_MODEL_CALLS = (
+    MAXIMUM_CANONICAL_ROWS
+    * MAXIMUM_CAPS_PER_ROW
+    * MAXIMUM_RETAINED_MODEL_CALLS_PER_CAP
+)
+MAXIMUM_TOTAL_RETAINED_MODEL_CELLS = (
+    MAXIMUM_TOTAL_RETAINED_MODEL_CALLS
+    * MAXIMUM_RETAINED_MODEL_CELLS_PER_CALL
+)
+MAXIMUM_REGISTERED_CURVE_DRAWS = (
+    len(CANONICAL_BITS) * len(CANONICAL_SEEDS) * 100_000
+)
 CLAIM_STATUS = ["HYPOTHESIS", "TOY-EVIDENCE", "MODEL-BOUND", "NOVELTY-UNVERIFIED"]
 FROZEN_FIXTURE = {
     "bits": 5,
@@ -299,33 +365,72 @@ def file_digest(path: Path) -> str:
     return state.hexdigest()
 
 
-def strict_load(path: Path) -> Any:
-    size = path.stat().st_size
-    if size > MAXIMUM_INPUT_BYTES:
-        raise ValueError(
-            f"input byte ceiling exceeded: {size} > {MAXIMUM_INPUT_BYTES}"
-        )
-
+def strict_json_load(raw: bytes, source: Path) -> Any:
     def pairs(values: list[tuple[str, Any]]) -> dict[str, Any]:
         result: dict[str, Any] = {}
         for key, value in values:
             if key in result:
-                raise ValueError(f"duplicate key {key!r} in {path}")
+                raise ValueError(f"duplicate key {key!r} in {source}")
             result[key] = value
         return result
 
     def constant(value: str) -> Any:
-        raise ValueError(f"non-finite constant {value!r} in {path}")
+        raise ValueError(f"non-finite constant {value!r} in {source}")
 
-    value = json.loads(
-        path.read_text(encoding="ascii"),
+    text = raw.decode("ascii")
+    return json.loads(
+        text,
         object_pairs_hook=pairs,
         parse_constant=constant,
     )
-    shape_errors = bounded_json_errors(value)
-    if shape_errors:
-        raise ValueError("; ".join(shape_errors))
-    return value
+
+
+def read_input_snapshot(path: Path) -> tuple[bytes, str]:
+    """Read one regular-file snapshot used for both hashing and parsing."""
+    flags = os.O_RDONLY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if not hasattr(os, "O_NOFOLLOW"):
+        raise RuntimeError("platform lacks the required no-follow open flag")
+    flags |= os.O_NOFOLLOW
+    descriptor = os.open(path, flags)
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError("input is not a regular file")
+        blocks: list[bytes] = []
+        size = 0
+        while True:
+            block = os.read(descriptor, 1024 * 1024)
+            if not block:
+                break
+            size += len(block)
+            if size > MAXIMUM_INPUT_BYTES:
+                raise ValueError(
+                    f"input byte ceiling exceeded: {size} > {MAXIMUM_INPUT_BYTES}"
+                )
+            blocks.append(block)
+        after = os.fstat(descriptor)
+        before_identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        after_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        if before_identity != after_identity or size != after.st_size:
+            raise ValueError("input changed while its snapshot was read")
+        raw = b"".join(blocks)
+        return raw, hashlib.sha256(raw).hexdigest()
+    finally:
+        os.close(descriptor)
 
 
 def is_prime(value: int) -> bool:
@@ -478,6 +583,89 @@ def independent_curve_record(
     }
 
 
+_REGISTERED_CURVE_CACHE: dict[
+    tuple[int, int], tuple[Curve, tuple[Point, ...], dict[str, Any]]
+] = {}
+
+
+def registered_curve_bundle(
+    bits_value: int, seed: int
+) -> tuple[Curve, tuple[Point, ...], dict[str, Any]]:
+    """Derive one preregistered curve without following an input draw count."""
+    key = (bits_value, seed)
+    if bits_value not in CANONICAL_BITS or seed not in CANONICAL_SEEDS:
+        raise AssertionError("curve bits/seed are outside the registered grid")
+    if key in _REGISTERED_CURVE_CACHE:
+        return _REGISTERED_CURVE_CACHE[key]
+
+    primes = [
+        value
+        for value in range(1 << (bits_value - 1), 1 << bits_value)
+        if value > 3 and is_prime(value)
+    ]
+    seen: set[tuple[int, int, int]] = set()
+    rejections: list[dict[str, Any]] = []
+    for draw in range(100000):
+        p = primes[hash_mod("sgcp-002-curve-p", [bits_value, seed, draw], len(primes))]
+        a = hash_mod("sgcp-002-curve-a", [bits_value, seed, draw, p], p)
+        b = hash_mod("sgcp-002-curve-b", [bits_value, seed, draw, p], p)
+        curve_key = (p, a, b)
+        duplicate = curve_key in seen
+        if not duplicate:
+            seen.add(curve_key)
+        reasons, rejection_q = ordered_independent_rejection_reasons(
+            p, a, b, bits_value, duplicate
+        )
+        if rejection_q is None:
+            rejections.append(
+                {"draw": draw, "p": p, "a": a, "b": b, "reasons": reasons}
+            )
+            continue
+        curve = Curve(p, a, b)
+        group = tuple(curve.points())
+        if rejection_q != len(group):
+            raise AssertionError("independent rejection recount mismatch")
+        if reasons:
+            rejections.append(
+                {
+                    "draw": draw,
+                    "p": p,
+                    "a": a,
+                    "b": b,
+                    "q": len(group),
+                    "reasons": reasons,
+                }
+            )
+            continue
+        record = independent_curve_record(curve, group, bits_value, seed)
+        record.update(
+            {
+                "draw": draw,
+                "rejected_draws": rejections,
+                "rejection_count": len(rejections),
+                "rejection_digest": digest(rejections),
+            }
+        )
+        _REGISTERED_CURVE_CACHE[key] = (curve, group, record)
+        return _REGISTERED_CURVE_CACHE[key]
+    raise AssertionError("registered curve derivation exhausted its fixed draw ceiling")
+
+
+def frozen_curve_record() -> tuple[Curve, tuple[Point, ...], dict[str, Any]]:
+    curve = Curve(FROZEN_FIXTURE["p"], FROZEN_FIXTURE["a"], FROZEN_FIXTURE["b"])
+    group = tuple(curve.points())
+    expected = independent_curve_record(curve, group, FROZEN_FIXTURE["bits"], 5)
+    expected.update(
+        {
+            "draw": None,
+            "rejected_draws": [],
+            "rejection_count": 0,
+            "rejection_digest": digest([]),
+        }
+    )
+    return curve, group, expected
+
+
 def verify_curve_provenance(info: dict[str, Any]) -> Curve:
     require_keys(
         info,
@@ -503,75 +691,17 @@ def verify_curve_provenance(info: dict[str, Any]) -> Curve:
     if type(bits_value) is not int or type(seed) is not int:
         raise AssertionError("curve bits/seed are not exact integers")
     if info["draw"] is None:
-        curve = Curve(FROZEN_FIXTURE["p"], FROZEN_FIXTURE["a"], FROZEN_FIXTURE["b"])
-        group = curve.points()
-        expected = independent_curve_record(curve, group, FROZEN_FIXTURE["bits"], 5)
-        expected.update(
-            {
-                "draw": None,
-                "rejected_draws": [],
-                "rejection_count": 0,
-                "rejection_digest": digest([]),
-            }
-        )
+        curve, _, expected = frozen_curve_record()
         if not exact_json_equal(info, expected):
             raise AssertionError("frozen curve provenance mismatch")
         return curve
 
     if type(info["draw"]) is not int or info["draw"] < 0:
         raise AssertionError("generated curve draw is invalid")
-    primes = [
-        value
-        for value in range(1 << (bits_value - 1), 1 << bits_value)
-        if value > 3 and is_prime(value)
-    ]
-    seen: set[tuple[int, int, int]] = set()
-    rejections: list[dict[str, Any]] = []
-    for draw in range(info["draw"] + 1):
-        p = primes[hash_mod("sgcp-002-curve-p", [bits_value, seed, draw], len(primes))]
-        a = hash_mod("sgcp-002-curve-a", [bits_value, seed, draw, p], p)
-        b = hash_mod("sgcp-002-curve-b", [bits_value, seed, draw, p], p)
-        key = (p, a, b)
-        duplicate = key in seen
-        if not duplicate:
-            seen.add(key)
-        reasons, rejection_q = ordered_independent_rejection_reasons(
-            p, a, b, bits_value, duplicate
-        )
-        if rejection_q is None:
-            rejections.append(
-                {"draw": draw, "p": p, "a": a, "b": b, "reasons": reasons}
-            )
-            continue
-        curve = Curve(p, a, b)
-        group = curve.points()
-        if rejection_q != len(group):
-            raise AssertionError("independent rejection recount mismatch")
-        if reasons:
-            rejections.append(
-                {
-                    "draw": draw,
-                    "p": p,
-                    "a": a,
-                    "b": b,
-                    "q": len(group),
-                    "reasons": reasons,
-                }
-            )
-            continue
-        expected = independent_curve_record(curve, group, bits_value, seed)
-        expected.update(
-            {
-                "draw": draw,
-                "rejected_draws": rejections,
-                "rejection_count": len(rejections),
-                "rejection_digest": digest(rejections),
-            }
-        )
-        if draw != info["draw"] or not exact_json_equal(info, expected):
-            raise AssertionError("generated curve transcript mismatch")
-        return curve
-    raise AssertionError("declared accepted draw is not independently accepted")
+    curve, _, expected = registered_curve_bundle(bits_value, seed)
+    if not exact_json_equal(info, expected):
+        raise AssertionError("generated curve transcript mismatch")
+    return curve
 
 
 def derive_mobius(
@@ -1124,12 +1254,19 @@ def replay_density_search(
     node_cap: int,
     constrained_cap: int,
     tiebreak: Any,
+    maximum_metric_cache_entries: int | None = None,
 ) -> dict[str, Any]:
     candidate_count = len(conflicts)
+    if maximum_metric_cache_entries is None:
+        maximum_metric_cache_entries = (
+            node_cap + candidate_count * candidate_count + 64
+        )
     metric_cache: dict[int, dict[str, Any]] = {}
 
     def metrics(mask: int) -> dict[str, Any]:
         if mask not in metric_cache:
+            if len(metric_cache) >= maximum_metric_cache_entries:
+                raise AssertionError("replay metric-cache entry ceiling exceeded")
             metric_cache[mask] = tiebreak(mask)
         return metric_cache[mask]
 
@@ -1344,6 +1481,7 @@ def replay_density_search(
         "frontier_sha256": digest(states),
         "incumbent_updates": incumbent_updates,
         "bound_calls": bound_calls,
+        "metric_cache_entries": len(metric_cache),
         "termination_reason": "full_objective_proved" if not frontier else "node_cap",
     }
 
@@ -1716,7 +1854,7 @@ def verify_row(row: Any, maximum_nodes: Any) -> dict[str, Any]:
         }
 
 
-def v5_row_schema_errors(row: Any) -> list[str]:
+def v6_row_schema_errors(row: Any) -> list[str]:
     errors: list[str] = []
     try:
         require_keys(
@@ -2083,7 +2221,7 @@ def v5_row_schema_errors(row: Any) -> list[str]:
     return errors
 
 
-def v5_row_type_errors(row: dict[str, Any]) -> list[str]:
+def v6_row_type_errors(row: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     for name in ("protocol_version", "B"):
         exact_integer(row[name], f"row.{name}", errors)
@@ -2488,7 +2626,67 @@ def expected_caps_for_group(group_size: int) -> list[int]:
     )
 
 
-def density_row_envelope_errors(row: dict[str, Any]) -> list[str]:
+def registered_row_envelope_errors(
+    row: dict[str, Any],
+    scope: str,
+    maximum_nodes: int,
+    expected_node_cap: int | None = None,
+) -> list[str]:
+    """Reject every nonregistered row association before EC reconstruction."""
+    errors: list[str] = []
+    curve_info = row["curve"]
+    bits_value = curve_info["bits"]
+    seed = curve_info["seed"]
+    B = row["B"]
+    family = row["family"]
+    replicate = row["null_replicate"]
+
+    if scope == "frozen_fixture":
+        _, _, expected_curve = frozen_curve_record()
+        if not exact_json_equal(curve_info, expected_curve):
+            errors.append("frozen row curve is not the registered fixture")
+        if (B, family, replicate) != (4, "least_x_interval", None):
+            errors.append("frozen row grid association mismatch")
+    elif scope == "canonical":
+        if (
+            bits_value not in CANONICAL_BITS
+            or seed not in CANONICAL_SEEDS
+            or B not in CANONICAL_FACTOR_BASE_SIZES
+            or family not in (*COORDINATE_FAMILIES, NULL_FAMILY)
+            or (
+                family == NULL_FAMILY
+                and replicate not in range(CANONICAL_NULL_REPLICATES)
+            )
+            or (family != NULL_FAMILY and replicate is not None)
+        ):
+            errors.append("row is outside the registered canonical grid")
+        else:
+            try:
+                _, _, expected_curve = registered_curve_bundle(bits_value, seed)
+            except Exception as error:
+                errors.append(f"registered curve derivation: {error}")
+            else:
+                if not exact_json_equal(curve_info, expected_curve):
+                    errors.append("canonical row curve transcript mismatch")
+    else:
+        errors.append("row scope is not registered")
+
+    caps = row["public_model"]["constrained_budget_caps"]
+    expected_caps = expected_caps_for_group(curve_info["q"])
+    if not exact_json_equal(caps, expected_caps):
+        errors.append("registered constrained-cap schedule mismatch")
+    for index, cell in enumerate(row["private_audit"]["density_frontier"]):
+        node_cap = cell["optimizer"]["node_cap"]
+        if node_cap > MAXIMUM_REPLAY_NODES_PER_CAP or node_cap > maximum_nodes:
+            errors.append(f"cap[{index}] replay node cap exceeds trusted verifier limit")
+        if expected_node_cap is not None and node_cap != expected_node_cap:
+            errors.append(f"cap[{index}] registered node-cap association mismatch")
+    return errors
+
+
+def density_row_envelope_errors(
+    row: dict[str, Any], maximum_nodes: int
+) -> list[str]:
     errors: list[str] = []
     B = row["B"]
     if not 4 <= B <= MAXIMUM_ROW_FACTOR_BASE_SIZE or B % 2:
@@ -2519,7 +2717,9 @@ def density_row_envelope_errors(row: dict[str, Any]) -> list[str]:
             ):
                 errors.append(f"cap[{cap}] selected maximum is out of range")
         optimizer = private["optimizer"]
-        if not 0 <= optimizer["node_cap"] <= MAXIMUM_PRIMARY_NODES:
+        if not 0 <= optimizer["node_cap"] <= min(
+            MAXIMUM_REPLAY_NODES_PER_CAP, maximum_nodes
+        ):
             errors.append(f"cap[{cap}] optimizer node cap is out of range")
         if optimizer["max_constrained"] <= 0:
             errors.append(f"cap[{cap}] optimizer cap association mismatch")
@@ -2544,6 +2744,7 @@ def density_row_preflight_errors(
     row: dict[str, Any],
     group_size: int,
     eligible: Sequence[dict[str, Any]],
+    maximum_nodes: int,
 ) -> list[str]:
     errors: list[str] = []
     B = row["B"]
@@ -2598,7 +2799,7 @@ def density_row_preflight_errors(
 
         optimizer = private["optimizer"]
         node_cap = optimizer["node_cap"]
-        if not 0 <= node_cap <= MAXIMUM_PRIMARY_NODES:
+        if not 0 <= node_cap <= min(MAXIMUM_REPLAY_NODES_PER_CAP, maximum_nodes):
             errors.append(f"cap[{expected_cap}] optimizer node cap is out of range")
         if optimizer["max_constrained"] != expected_cap:
             errors.append(f"cap[{expected_cap}] optimizer cap association mismatch")
@@ -2624,15 +2825,23 @@ def density_row_preflight_errors(
 
 
 def _verify_density_row_unchecked(
-    row: dict[str, Any], maximum_nodes: int
+    row: dict[str, Any],
+    maximum_nodes: int,
+    scope: str,
+    expected_node_cap: int | None,
 ) -> dict[str, Any]:
-    errors = v5_row_schema_errors(row)
+    errors = v6_row_schema_errors(row)
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
-    errors.extend(v5_row_type_errors(row))
+    errors.extend(v6_row_type_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
-    errors.extend(density_row_envelope_errors(row))
+    errors.extend(density_row_envelope_errors(row, maximum_nodes))
+    errors.extend(
+        registered_row_envelope_errors(
+            row, scope, maximum_nodes, expected_node_cap
+        )
+    )
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     supplied_digest = row.get("row_sha256")
@@ -2648,6 +2857,8 @@ def _verify_density_row_unchecked(
         row["public_model"]["ordering_contract"], ORDERING_CONTRACT
     ):
         errors.append("ordering contract mismatch")
+    if errors:
+        return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
 
     info = row["curve"]
     try:
@@ -2715,7 +2926,7 @@ def _verify_density_row_unchecked(
     private_frontier = row["private_audit"]["density_frontier"]
     caps = row["public_model"]["constrained_budget_caps"]
     expected_caps = expected_caps_for_group(q)
-    errors.extend(density_row_preflight_errors(row, q, eligible))
+    errors.extend(density_row_preflight_errors(row, q, eligible, maximum_nodes))
     if errors:
         return {
             "valid": False,
@@ -2833,7 +3044,7 @@ def _verify_density_row_unchecked(
         try:
             require_independent_exhausted_gate_cell(optimizer)
         except AssertionError as error:
-            cap_errors.append(f"V5 requires an exhausted exact optimizer cell: {error}")
+            cap_errors.append(f"V6 requires an exhausted exact optimizer cell: {error}")
         if not exact_json_equal(optimizer.get("selected_indices"), selected_indices):
             cap_errors.append("optimizer selected-index mismatch")
         if optimizer.get("selected_mask_hex") != hex(selected_mask):
@@ -2859,6 +3070,10 @@ def _verify_density_row_unchecked(
 
         def replay_metrics(mask: int) -> dict[str, Any]:
             if mask not in replay_metric_cache:
+                if len(replay_metric_cache) >= (
+                    optimizer["node_cap"] + len(eligible) * len(eligible) + 64
+                ):
+                    raise AssertionError("retained-model replay cache ceiling exceeded")
                 maxima = [eligible[candidate]["formal"] for candidate in bits(mask)]
                 replay_constrained, replay_edges, _, _, _, _ = retained_model(
                     curve, factors, maxima
@@ -2877,6 +3092,7 @@ def _verify_density_row_unchecked(
             optimizer["node_cap"],
             cap,
             replay_metrics,
+            optimizer["node_cap"] + len(eligible) * len(eligible) + 64,
         )
         replay_keys = [
             "selected_indices",
@@ -3034,6 +3250,10 @@ def _verify_density_row_unchecked(
                 "errors": cap_errors,
                 "independent_primary_optimum": optimum,
                 "producer_primary_interval": [lower, upper],
+                "replay_nodes": replay["explored_nodes"],
+                "replay_metric_cache_entries": replay["metric_cache_entries"],
+                "retained_model_replay_cache_entries": len(replay_metric_cache),
+                "primary_cache_entries_upper_bound": 2 * (primary_nodes + 1),
                 "primary_nodes": primary_nodes,
                 "primary_proof_complete": complete,
             }
@@ -3052,14 +3272,21 @@ def _verify_density_row_unchecked(
         "candidate_count": candidate_count,
         "eligible_candidate_count": len(eligible),
         "conflict_count": conflict_count,
+        "replay_nodes": sum(report["replay_nodes"] for report in cap_reports),
         "primary_nodes": sum(report["primary_nodes"] for report in cap_reports),
         "cap_reports": cap_reports,
     }
 
 
-def verify_density_row(row: Any, maximum_nodes: Any) -> dict[str, Any]:
+def verify_density_row(
+    row: Any,
+    maximum_nodes: Any,
+    scope: str | None = None,
+) -> dict[str, Any]:
     errors = bounded_json_errors(row, "row")
     errors.extend(maximum_nodes_errors(maximum_nodes))
+    if scope not in {"frozen_fixture", "canonical"}:
+        errors.append("density row scope must be explicitly registered")
     if errors:
         return {
             "valid": False,
@@ -3075,7 +3302,16 @@ def verify_density_row(row: Any, maximum_nodes: Any) -> dict[str, Any]:
             "cap_reports": [],
         }
     try:
-        return _verify_density_row_unchecked(row, maximum_nodes)
+        _REGISTERED_CURVE_CACHE.clear()
+        expected_node_cap = (
+            FROZEN_NODE_CAP if scope == "frozen_fixture" else CANONICAL_NODE_CAP
+        )
+        return _verify_density_row_unchecked(
+            row,
+            maximum_nodes,
+            scope,
+            expected_node_cap,
+        )
     except Exception as error:
         return {
             "valid": False,
@@ -3236,7 +3472,7 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     else:
         negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v5",
+        "criterion_version": "sgcp-embed-002-family-gate-v6",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
@@ -3303,7 +3539,7 @@ def expected_row_keys() -> list[tuple[int, int, int, str, int | None]]:
     return result
 
 
-def v5_document_schema_errors(document: Any) -> list[str]:
+def v6_document_schema_errors(document: Any) -> list[str]:
     errors: list[str] = []
     try:
         require_keys(
@@ -3322,7 +3558,7 @@ def v5_document_schema_errors(document: Any) -> list[str]:
                 "family_gate",
                 "document_sha256",
             },
-            "V5 document",
+            "V6 document",
         )
         require_keys(
             document["summary"],
@@ -3335,7 +3571,7 @@ def v5_document_schema_errors(document: Any) -> list[str]:
                 "full_objective_exact_cap_cells",
                 "maximum_primary_gap",
             },
-            "V5 document summary",
+            "V6 document summary",
         )
     except (AssertionError, KeyError, TypeError) as error:
         errors.append(f"closed document schema: {error}")
@@ -3343,7 +3579,7 @@ def v5_document_schema_errors(document: Any) -> list[str]:
     return errors
 
 
-def v5_document_type_errors(document: dict[str, Any]) -> list[str]:
+def v6_document_type_errors(document: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     for name in ("schema", "experiment_id", "scope", "interpretation"):
         exact_string(document[name], f"document.{name}", errors)
@@ -3360,6 +3596,134 @@ def v5_document_type_errors(document: dict[str, Any]) -> list[str]:
         for name, value in document["summary"].items():
             exact_integer(value, f"document.summary.{name}", errors)
     return errors
+
+
+def append_phase(
+    phases: list[dict[str, str]] | None,
+    name: str,
+    status: str,
+) -> None:
+    if phases is not None:
+        phases.append({"name": name, "status": status})
+
+
+def static_row_errors(
+    row: Any,
+    row_index: int,
+    scope: str,
+    maximum_nodes: int,
+    expected_node_cap: int | None,
+) -> list[str]:
+    prefix = f"row[{row_index}]"
+    errors = [f"{prefix}: {error}" for error in v6_row_schema_errors(row)]
+    if errors or type(row) is not dict:
+        return errors or [f"{prefix}: row is not an object"]
+    type_errors = v6_row_type_errors(row)
+    if type_errors:
+        return [f"{prefix}: {error}" for error in type_errors]
+    envelope_errors = density_row_envelope_errors(row, maximum_nodes)
+    envelope_errors.extend(
+        registered_row_envelope_errors(
+            row, scope, maximum_nodes, expected_node_cap
+        )
+    )
+    supplied = row["row_sha256"]
+    payload = dict(row)
+    payload.pop("row_sha256")
+    if supplied != digest(payload):
+        envelope_errors.append("row digest mismatch")
+    if row["protocol_version"] != PROTOCOL_VERSION:
+        envelope_errors.append("row protocol version mismatch")
+    if row["valid"] is not True:
+        envelope_errors.append("row does not claim local validity")
+    if not exact_json_equal(
+        row["public_model"]["ordering_contract"], ORDERING_CONTRACT
+    ):
+        envelope_errors.append("ordering contract mismatch")
+    return [f"{prefix}: {error}" for error in envelope_errors]
+
+
+def resource_envelope(
+    rows: Sequence[dict[str, Any]], maximum_nodes: int
+) -> tuple[dict[str, int], list[str]]:
+    cap_cells = sum(len(row["private_audit"]["density_frontier"]) for row in rows)
+    replay_nodes = sum(
+        cell["optimizer"]["node_cap"]
+        for row in rows
+        for cell in row["private_audit"]["density_frontier"]
+    )
+    expansion_cells = sum(
+        sum(math.comb(row["B"] + degree - 1, degree) for degree in (1, 2, 4, 8))
+        for row in rows
+    )
+    graph_cells = 0
+    metric_cache_entries = 0
+    retained_model_calls = 0
+    retained_model_cells = 0
+    for row in rows:
+        candidate_bound = math.comb(row["B"] + 3, 4)
+        graph_cells += (
+            candidate_bound
+            + math.comb(candidate_bound, 2)
+            + candidate_bound**2
+        )
+        family_bound = sum(
+            math.comb(row["B"] + degree - 1, degree)
+            for degree in range(5)
+        )
+        retained_cells_per_call = family_bound + math.comb(family_bound, 2)
+        for cell in row["private_audit"]["density_frontier"]:
+            replay_cache_bound = (
+                cell["optimizer"]["node_cap"] + candidate_bound**2 + 64
+            )
+            primary_cache_bound = 2 * (maximum_nodes + 1)
+            metric_cache_entries += 2 * replay_cache_bound + primary_cache_bound
+            cap_retained_calls = replay_cache_bound + maximum_nodes + 2
+            retained_model_calls += cap_retained_calls
+            retained_model_cells += cap_retained_calls * retained_cells_per_call
+    primary_nodes = cap_cells * maximum_nodes
+    unique_curves = {
+        digest(row["curve"]): row["curve"] for row in rows
+    }
+    curve_draws = sum(
+        1 if curve["draw"] is None else curve["draw"] + 1
+        for curve in unique_curves.values()
+    )
+    receipt = {
+        "row_count": len(rows),
+        "cap_cell_count": cap_cells,
+        "registered_curve_cache_entries": len(unique_curves),
+        "registered_curve_draws_upper_bound": curve_draws,
+        "expansion_cells_upper_bound": expansion_cells,
+        "graph_cells_upper_bound": graph_cells,
+        "replay_nodes_upper_bound": replay_nodes,
+        "independent_primary_nodes_upper_bound": primary_nodes,
+        "metric_cache_entries_upper_bound": metric_cache_entries,
+        "retained_model_calls_upper_bound": retained_model_calls,
+        "retained_model_cells_upper_bound": retained_model_cells,
+    }
+    errors: list[str] = []
+    if len(rows) > MAXIMUM_CANONICAL_ROWS:
+        errors.append("row count exceeds the trusted verifier limit")
+    if cap_cells > MAXIMUM_CANONICAL_ROWS * MAXIMUM_CAPS_PER_ROW:
+        errors.append("cap-cell count exceeds the trusted verifier limit")
+    if expansion_cells > MAXIMUM_TOTAL_EXPANSION_CELLS:
+        errors.append("expansion-cell bound exceeds the trusted verifier limit")
+    if graph_cells > MAXIMUM_TOTAL_GRAPH_CELLS:
+        errors.append("graph-cell bound exceeds the trusted verifier limit")
+    if replay_nodes > MAXIMUM_TOTAL_REPLAY_NODES:
+        errors.append("replay-node bound exceeds the trusted verifier limit")
+    if primary_nodes > MAXIMUM_TOTAL_PRIMARY_NODES:
+        errors.append("primary-proof bound exceeds the trusted verifier limit")
+    if curve_draws > MAXIMUM_REGISTERED_CURVE_DRAWS:
+        errors.append("curve-draw bound exceeds the trusted verifier limit")
+    if metric_cache_entries > MAXIMUM_TOTAL_METRIC_CACHE_ENTRIES:
+        errors.append("metric-cache bound exceeds the trusted verifier limit")
+    if retained_model_calls > MAXIMUM_TOTAL_RETAINED_MODEL_CALLS:
+        errors.append("retained-model call bound exceeds the trusted verifier limit")
+    if retained_model_cells > MAXIMUM_TOTAL_RETAINED_MODEL_CELLS:
+        errors.append("retained-model cell bound exceeds the trusted verifier limit")
+    return receipt, errors
 
 
 def canonical_matrix_errors(rows: Any) -> list[str]:
@@ -3469,21 +3833,29 @@ def canonical_matrix_errors(rows: Any) -> list[str]:
     return errors
 
 
-def _verify_v5_document_value_unchecked(
-    document: dict[str, Any], maximum_nodes: int
-) -> tuple[list[str], list[dict[str, Any]]]:
-    errors = v5_document_schema_errors(document)
+def _verify_v6_document_value_unchecked(
+    document: dict[str, Any],
+    maximum_nodes: int,
+    phases: list[dict[str, str]] | None = None,
+) -> tuple[list[str], list[dict[str, Any]], dict[str, int] | None]:
+    _REGISTERED_CURVE_CACHE.clear()
+    errors = v6_document_schema_errors(document)
+    append_phase(phases, "closed_document_schema", "failed" if errors else "passed")
     if errors:
-        return errors, []
-    errors.extend(v5_document_type_errors(document))
-    if errors:
-        return errors, []
+        return errors, [], None
 
+    type_errors = v6_document_type_errors(document)
+    errors.extend(type_errors)
+    append_phase(phases, "exact_document_types", "failed" if type_errors else "passed")
+    if errors:
+        return errors, [], None
+
+    authentication_errors: list[str] = []
     supplied = document["document_sha256"]
     payload = dict(document)
     payload.pop("document_sha256")
     if supplied != digest(payload):
-        errors.append("document digest mismatch")
+        authentication_errors.append("document digest mismatch")
     if not exact_json_equal(
         {
             "schema": document["schema"],
@@ -3498,96 +3870,174 @@ def _verify_v5_document_value_unchecked(
             "claim_status": CLAIM_STATUS,
         },
     ):
-        errors.append("document protocol identity mismatch")
+        authentication_errors.append("document protocol identity mismatch")
+    errors.extend(authentication_errors)
+    append_phase(
+        phases,
+        "document_digest_and_protocol_identity",
+        "failed" if authentication_errors else "passed",
+    )
+    if errors:
+        return errors, [], None
 
     scope = document["scope"]
     rows = document["rows"]
     expected_gate: dict[str, Any] | None = None
-    matrix_errors: list[str] = []
+    expected_node_cap: int | None = None
+    scope_errors: list[str] = []
     if scope == "frozen_fixture":
-        node_cap = document["parameters"].get("node_cap_per_cap")
         expected_parameters = {
             "curve": dict(FROZEN_FIXTURE),
             "B": 4,
             "family": "least_x_interval",
             "null_replicate": None,
-            "node_cap_per_cap": node_cap,
+            "node_cap_per_cap": FROZEN_NODE_CAP,
             "representative_compiler": REPRESENTATIVE_COMPILER,
             "ordering_contract_sha256": digest(ORDERING_CONTRACT),
         }
         if (
-            type(node_cap) is not int
+            maximum_nodes < FROZEN_NODE_CAP
             or document["canonical"] is not False
             or document["interpretation"]
             != "frozen-fixture implementation evidence only"
             or not exact_json_equal(document["parameters"], expected_parameters)
             or len(rows) != 1
         ):
-            errors.append("frozen document envelope mismatch")
+            scope_errors.append("frozen document envelope mismatch")
         else:
-            try:
-                associated = (
-                    rows[0].get("curve", {}).get("draw") is None
-                    and type(rows[0].get("B")) is int
-                    and rows[0]["B"] == 4
-                    and rows[0].get("family") == "least_x_interval"
-                    and rows[0].get("null_replicate") is None
-                    and all(
-                        type(cap.get("optimizer", {}).get("node_cap")) is int
-                        and cap["optimizer"]["node_cap"] == node_cap
-                        for cap in rows[0]
-                        .get("private_audit", {})
-                        .get("density_frontier", [])
-                    )
-                )
-            except (AttributeError, KeyError, TypeError):
-                associated = False
-            if not associated:
-                errors.append("frozen row association mismatch")
+            expected_node_cap = FROZEN_NODE_CAP
         expected_gate = {
             "status": "NOT_APPLICABLE",
             "reason": "frozen fixture is not a family matrix",
         }
     elif scope == "canonical":
         if (
-            document["canonical"] is not True
+            maximum_nodes < CANONICAL_NODE_CAP
+            or document["canonical"] is not True
             or document["interpretation"]
             != "canonical candidate; coordinator interpretation still required"
             or not exact_json_equal(
                 document["parameters"], expected_canonical_parameters()
             )
+            or len(rows) != MAXIMUM_CANONICAL_ROWS
         ):
-            errors.append("canonical document envelope mismatch")
-        matrix_errors = canonical_matrix_errors(rows)
-        errors.extend(matrix_errors)
+            scope_errors.append("canonical document envelope mismatch")
+        expected_node_cap = CANONICAL_NODE_CAP
     else:
-        errors.append("unknown document scope")
+        scope_errors.append("unknown document scope")
+    errors.extend(scope_errors)
+    append_phase(
+        phases,
+        "registered_document_envelope",
+        "failed" if scope_errors else "passed",
+    )
+    if errors:
+        return errors, [], None
 
-    row_reports = [verify_density_row(row, maximum_nodes) for row in rows]
-    if any(not report["valid"] for report in row_reports):
-        errors.append("one or more V5 row verifications failed")
+    row_errors: list[str] = []
+    for index, row in enumerate(rows):
+        row_errors.extend(
+            static_row_errors(
+                row,
+                index,
+                scope,
+                maximum_nodes,
+                expected_node_cap,
+            )
+        )
+    errors.extend(row_errors)
+    append_phase(
+        phases,
+        "closed_registered_row_preflight",
+        "failed" if row_errors else "passed",
+    )
+    if errors:
+        return errors, [], None
+
+    matrix_errors = canonical_matrix_errors(rows) if scope == "canonical" else []
+    errors.extend(matrix_errors)
+    append_phase(
+        phases,
+        "registered_matrix_preflight",
+        "failed" if matrix_errors else "passed",
+    )
+    if errors:
+        return errors, [], None
+
+    envelope, budget_errors = resource_envelope(rows, maximum_nodes)
+    errors.extend(budget_errors)
+    append_phase(
+        phases,
+        "trusted_resource_reservation",
+        "failed" if budget_errors else "passed",
+    )
+    if errors:
+        return errors, [], envelope
+
+    row_reports = [
+        _verify_density_row_unchecked(
+            row, maximum_nodes, scope, expected_node_cap
+        )
+        for row in rows
+    ]
+    semantic_errors = (
+        ["one or more V6 row verifications failed"]
+        if any(not report["valid"] for report in row_reports)
+        else []
+    )
+    errors.extend(semantic_errors)
+    append_phase(
+        phases,
+        "row_semantic_verification",
+        "failed" if semantic_errors else "passed",
+    )
+    if errors:
+        return errors, row_reports, envelope
+    for completed_phase in (
+        "curve_factor_graph_and_expansion_reconstruction",
+        "deterministic_optimizer_replay",
+        "retained_model_transcript_reconstruction",
+        "independent_primary_proof",
+    ):
+        append_phase(phases, completed_phase, "passed")
+
+    summary_errors: list[str] = []
     try:
         expected_summary = independent_document_summary(rows)
-    except (AttributeError, KeyError, TypeError):
-        errors.append("document summary reconstruction failed")
+    except (AttributeError, KeyError, TypeError) as error:
+        summary_errors.append(f"document summary reconstruction failed: {error}")
     else:
         if not exact_json_equal(document["summary"], expected_summary):
-            errors.append("document summary mismatch")
-    if scope == "canonical" and not matrix_errors and all(
-        report["valid"] for report in row_reports
-    ):
+            summary_errors.append("document summary mismatch")
+    errors.extend(summary_errors)
+    append_phase(
+        phases,
+        "document_summary_reconstruction",
+        "failed" if summary_errors else "passed",
+    )
+    if errors:
+        return errors, row_reports, envelope
+
+    gate_errors: list[str] = []
+    if scope == "canonical":
         try:
             expected_gate = independent_family_gate(rows)
         except Exception as error:
-            errors.append(f"family gate reconstruction: {error}")
+            gate_errors.append(f"family gate reconstruction: {error}")
     if expected_gate is not None and not exact_json_equal(
         document["family_gate"], expected_gate
     ):
-        errors.append("family gate mismatch")
-    return errors, row_reports
+        gate_errors.append("family gate mismatch")
+    errors.extend(gate_errors)
+    append_phase(
+        phases,
+        "family_gate_reconstruction",
+        "failed" if gate_errors else "passed",
+    )
+    return errors, row_reports, envelope
 
 
-def verify_v5_document_value(
+def verify_v6_document_value(
     document: Any, maximum_nodes: Any
 ) -> tuple[list[str], list[dict[str, Any]]]:
     errors = bounded_json_errors(document, "document")
@@ -3595,39 +4045,16 @@ def verify_v5_document_value(
     if errors:
         return errors, []
     if type(document) is not dict:
-        return ["V5 document is not an object"], []
+        return ["V6 document is not an object"], []
     try:
-        return _verify_v5_document_value_unchecked(document, maximum_nodes)
+        errors, rows, _ = _verify_v6_document_value_unchecked(
+            document, maximum_nodes
+        )
+        return errors, rows
     except Exception as error:
         return [
-            f"V5 document verifier failure: {type(error).__name__}: {error}"
+            f"V6 document verifier failure: {type(error).__name__}: {error}"
         ], []
-
-
-V5_INDEPENDENT_CHECKS = [
-    "bounded strict JSON and document/row digests",
-    "closed V5 row/document schemas with exact JSON scalar types and forbidden scalar-material keys",
-    "preflight cap schedules, associations, ranges, selected-formal uniqueness, masks, and node ceilings",
-    "independent curve draw and rejection transcript derivation",
-    "predicate roots, hash-derived Mobius maps, poles, hash-null ranking, signs, and root polynomial",
-    "complete canonical row grid, cap schedules, cross-seed curve uniqueness, and exact four-null gate",
-    "frozen ordering contract, degree-two representative compiler, and public source table",
-    "balanced candidate universe, individual eligibility, and pair-conflict graph",
-    "selected graph independence, formal closure, public edges, axioms, density, and retention",
-    "degree-1/2/4/8 support under formal-multiset and ordered-tuple source measures",
-    "authenticated full-objective exhaustion, deterministic optimizer replay, and independent exhaustive primary proof",
-    "reconstructed structural-work and nested serialized-byte receipts",
-]
-
-ROUTING_CHECKS = [
-    "bounded strict JSON parsing",
-    "exact schema routing with explicit rejection of unsupported legacy versions",
-]
-
-V5_INVALID_RECEIPT_CHECKS = [
-    *ROUTING_CHECKS,
-    "closed V5 schema and exact-type validation attempted; no later mathematical check is claimed",
-]
 
 
 def verification_report(
@@ -3636,27 +4063,68 @@ def verification_report(
     input_file_sha256: str | None,
     errors: list[str],
     row_reports: Sequence[dict[str, Any]],
-    checks: Sequence[str],
+    phases: Sequence[dict[str, str]],
     claim_boundary: str,
+    resource_receipt: dict[str, int] | None = None,
 ) -> dict[str, Any]:
+    cap_reports = [
+        cap
+        for row in row_reports
+        for cap in row.get("cap_reports", [])
+        if type(cap) is dict
+    ]
     report = {
         "schema": VERIFICATION_SCHEMA,
         "verifier_source_path": str(SCRIPT_PATH),
         "verifier_source_sha256": file_digest(SCRIPT_PATH),
-        "input_path": str(path.resolve()),
+        "input_path": str(path.absolute()),
         "input_file_sha256": input_file_sha256,
         "input_document_sha256": supplied,
         "valid": not errors,
         "errors": errors,
         "row_count": len(row_reports),
         "valid_row_count": sum(row.get("valid") is True for row in row_reports),
+        "total_replay_nodes": sum(
+            row.get("replay_nodes", 0)
+            for row in row_reports
+            if type(row.get("replay_nodes", 0)) is int
+        ),
         "total_primary_nodes": sum(
             row.get("primary_nodes", 0)
             for row in row_reports
             if type(row.get("primary_nodes", 0)) is int
         ),
         "rows": list(row_reports),
-        "independent_checks": list(checks),
+        "phases": list(phases),
+        "independent_checks": [
+            phase["name"] for phase in phases if phase["status"] == "passed"
+        ],
+        "resource_reservation": resource_receipt,
+        "actual_work": {
+            "registered_curve_cache_entries": len(_REGISTERED_CURVE_CACHE),
+            "replay_nodes": sum(
+                cap.get("replay_nodes", 0)
+                for cap in cap_reports
+                if type(cap.get("replay_nodes", 0)) is int
+            ),
+            "replay_metric_cache_entries": sum(
+                cap.get("replay_metric_cache_entries", 0)
+                + cap.get("retained_model_replay_cache_entries", 0)
+                for cap in cap_reports
+                if type(cap.get("replay_metric_cache_entries", 0)) is int
+                and type(cap.get("retained_model_replay_cache_entries", 0)) is int
+            ),
+            "independent_primary_nodes": sum(
+                cap.get("primary_nodes", 0)
+                for cap in cap_reports
+                if type(cap.get("primary_nodes", 0)) is int
+            ),
+            "primary_cache_entries_observed_upper_bound": sum(
+                cap.get("primary_cache_entries_upper_bound", 0)
+                for cap in cap_reports
+                if type(cap.get("primary_cache_entries_upper_bound", 0)) is int
+            ),
+        },
         "claim_boundary": claim_boundary,
     }
     report["verification_sha256"] = digest(report)
@@ -3664,20 +4132,66 @@ def verification_report(
 
 
 def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
+    _REGISTERED_CURVE_CACHE.clear()
+    phases: list[dict[str, str]] = []
     errors = maximum_nodes_errors(maximum_nodes)
+    append_phase(
+        phases,
+        "verifier_budget_preflight",
+        "failed" if errors else "passed",
+    )
     document: Any = None
     input_file_sha256: str | None = None
-    if not errors:
-        try:
-            document = strict_load(path)
-        except Exception as error:
-            errors.append(f"input load failure: {type(error).__name__}: {error}")
-        else:
-            try:
-                input_file_sha256 = file_digest(path)
-            except Exception as error:
-                errors.append(f"input hash failure: {type(error).__name__}: {error}")
+    if errors:
+        return verification_report(
+            path,
+            None,
+            input_file_sha256,
+            errors,
+            [],
+            phases,
+            "input could not enter schema verification",
+        )
 
+    try:
+        raw, input_file_sha256 = read_input_snapshot(path)
+    except Exception as error:
+        errors.append(f"input snapshot failure: {type(error).__name__}: {error}")
+        append_phase(phases, "single_regular_file_snapshot", "failed")
+        return verification_report(
+            path,
+            None,
+            input_file_sha256,
+            errors,
+            [],
+            phases,
+            "input could not enter JSON parsing",
+        )
+    append_phase(phases, "single_regular_file_snapshot", "passed")
+
+    try:
+        document = strict_json_load(raw, path)
+    except Exception as error:
+        errors.append(f"strict JSON parse failure: {type(error).__name__}: {error}")
+        append_phase(phases, "strict_json_parse", "failed")
+        return verification_report(
+            path,
+            None,
+            input_file_sha256,
+            errors,
+            [],
+            phases,
+            "input could not enter schema verification",
+        )
+    append_phase(phases, "strict_json_parse", "passed")
+
+    shape_errors = bounded_json_errors(document)
+    errors.extend(shape_errors)
+    append_phase(
+        phases,
+        "bounded_json_shape",
+        "failed" if shape_errors else "passed",
+    )
     supplied = document.get("document_sha256") if type(document) is dict else None
     if errors:
         return verification_report(
@@ -3686,58 +4200,73 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
             input_file_sha256,
             errors,
             [],
-            ROUTING_CHECKS[:1],
-            "input could not enter schema verification",
+            phases,
+            "input rejected before schema verification",
         )
     if type(document) is not dict:
+        append_phase(phases, "exact_schema_routing", "failed")
         return verification_report(
             path,
             supplied,
             input_file_sha256,
             ["input document is not an object"],
             [],
-            ROUTING_CHECKS,
+            phases,
             "input rejected before protocol verification",
         )
 
     schema = document.get("schema")
+    resource_receipt: dict[str, int] | None = None
     if type(schema) is not str:
         errors = [f"document schema is not a string: {type(schema).__name__}"]
         row_reports = []
         claim_boundary = "malformed schema; no mathematical checks executed"
-        checks = ROUTING_CHECKS
+        append_phase(phases, "exact_schema_routing", "failed")
     elif schema == CURRENT_SCHEMA:
-        errors, row_reports = verify_v5_document_value(document, maximum_nodes)
-        if errors:
-            claim_boundary = "invalid V5 document; no mathematical interpretation"
-            checks = V5_INVALID_RECEIPT_CHECKS
-        else:
-            claim_boundary = (
+        append_phase(phases, "exact_schema_routing", "passed")
+        try:
+            errors, row_reports, resource_receipt = (
+                _verify_v6_document_value_unchecked(
+                    document, maximum_nodes, phases
+                )
+            )
+        except Exception as error:
+            errors = [
+                f"V6 document verifier failure: {type(error).__name__}: {error}"
+            ]
+            row_reports = []
+            append_phase(phases, "verifier_exception_boundary", "failed")
+        claim_boundary = (
+            "invalid V6 document; no mathematical interpretation"
+            if errors
+            else (
                 "frozen-fixture implementation verification only"
                 if document.get("scope") == "frozen_fixture"
                 else "canonical matrix verification; coordinator interpretation still required"
             )
-            checks = V5_INDEPENDENT_CHECKS
+        )
     elif schema in LEGACY_SCHEMAS:
+        append_phase(phases, "exact_schema_routing", "passed")
+        append_phase(phases, "unsupported_legacy_rejection", "passed")
         errors = [
-            f"unsupported legacy document schema {schema!r}; V5 performs no legacy row verification"
+            f"unsupported legacy document schema {schema!r}; V6 performs no legacy row verification"
         ]
         row_reports = []
         claim_boundary = "unsupported legacy input; no mathematical checks executed"
-        checks = ROUTING_CHECKS
     else:
+        append_phase(phases, "exact_schema_routing", "failed")
         errors = [f"unexpected document schema {schema!r}"]
         row_reports = []
         claim_boundary = "unknown input schema; no mathematical checks executed"
-        checks = ROUTING_CHECKS
     return verification_report(
         path,
         supplied,
         input_file_sha256,
         errors,
         row_reports,
-        checks,
+        phases,
         claim_boundary,
+        resource_receipt,
     )
 
 
@@ -3778,6 +4307,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "valid": report["valid"],
                 "row_count": report["row_count"],
                 "valid_row_count": report["valid_row_count"],
+                "total_replay_nodes": report["total_replay_nodes"],
                 "total_primary_nodes": report["total_primary_nodes"],
             },
             sort_keys=True,
