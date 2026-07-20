@@ -3,7 +3,7 @@
 
 The builder uses affine coordinates and EC addition only. It deliberately has
 no scalar-multiplication routine and constructs no discrete-log table.
-Canonical execution remains disabled by the version-4 experiment contract.
+Canonical execution remains disabled by the version-5 experiment contract.
 """
 from __future__ import annotations
 
@@ -23,10 +23,10 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
 
-SCHEMA = "sgcp-embed-002-density-frontier-candidate-v4"
+SCHEMA = "sgcp-embed-002-density-frontier-candidate-v5"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
 CLAIM_STATUS = ["HYPOTHESIS", "TOY-EVIDENCE", "MODEL-BOUND", "NOVELTY-UNVERIFIED"]
-PROTOCOL_VERSION = 4
+PROTOCOL_VERSION = 5
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -1698,6 +1698,7 @@ def evaluate_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
 
     family_reports: list[dict[str, Any]] = []
     passing_pairs: list[dict[str, str]] = []
+    every_family_collapses = True
     for family in COORDINATE_FAMILIES:
         persistence: list[dict[str, Any]] = []
         persistence_pass = True
@@ -1720,6 +1721,13 @@ def evaluate_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
                     "pass": bit_pass,
                 }
             )
+        collapse_strata = sum(
+            ratio_fraction(item["median_retained_to_balanced_raw"])
+            < Fraction(1, 10)
+            for item in persistence
+        )
+        family_collapses = collapse_strata >= 3
+        every_family_collapses &= family_collapses
 
         cap_reports: list[dict[str, Any]] = []
         for cap_fraction in ("1/2", "3/4"):
@@ -1786,16 +1794,27 @@ def evaluate_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
                 "family": family,
                 "full_cap_persistence": persistence,
                 "full_cap_persistence_pass": persistence_pass,
+                "full_cap_collapse_strata": collapse_strata,
+                "full_cap_collapse": family_collapses,
                 "matched_null_cap_tests": cap_reports,
             }
         )
+    status = "PASS" if passing_pairs else "FAIL"
+    if passing_pairs:
+        negative_outcome = "NOT_APPLICABLE"
+    elif every_family_collapses:
+        negative_outcome = "COLLAPSE"
+    else:
+        negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v4",
+        "criterion_version": "sgcp-embed-002-family-gate-v5",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
         "cap_selection_policy": "one fixed family and one fixed cap fraction must pass across strata",
-        "status": "PASS" if passing_pairs else "FAIL",
+        "collapse_policy": "COLLAPSE iff every coordinate family has full-cap median retention below 1/10 in at least three bit strata",
+        "status": status,
+        "negative_outcome": negative_outcome,
         "passing_family_cap_pairs": passing_pairs,
         "families": family_reports,
     }
@@ -1987,7 +2006,7 @@ def build_frozen_control_document(node_cap: int = 100_000) -> dict[str, Any]:
 
 def build_development_document(args: argparse.Namespace) -> dict[str, Any]:
     raise PermissionError(
-        "version-4 development curve-row budget is zero; use the frozen control only"
+        "version-5 development curve-row budget is zero; use the frozen control only"
     )
 
 
@@ -2016,7 +2035,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "canonical execution is disabled: specification status is review_required and maximum_runs is zero"
         )
     raise PermissionError(
-        "version-4 development curve-row budget is zero; run unit and frozen-fixture controls only"
+        "version-5 development curve-row budget is zero; run unit and frozen-fixture controls only"
     )
 
 

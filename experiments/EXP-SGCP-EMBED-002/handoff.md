@@ -1,16 +1,16 @@
-## Handoff: SGCP V4 review closure
+## Handoff: SGCP V5 no-run repair
 
 ### Claim or task
 
-Close the exact-commit V4 review and route its blocking verifier-totality,
-legacy-routing, semantic-oracle, and family-gate findings into a no-run V5
-repair.
+Close the verifier-totality, version-routing, semantic-oracle, and family-gate
+findings from independent V4 review without creating a curve-family row,
+canonical matrix, runner, or launch plan.
 
 ### Status
 
-`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, `NOVELTY-UNVERIFIED`; V4 received
-theory/accounting GO for launch-plan design but red-team REVISE. The launch-plan
-gate remains closed. Development curve rows and canonical runs remain zero.
+`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, `NOVELTY-UNVERIFIED`; the no-run
+V5 repair is implemented and passes focused controls. Fresh exact-commit review
+is still required. Development curve rows and canonical runs remain zero.
 
 ### Assumptions
 
@@ -28,35 +28,38 @@ gate remains closed. Development curve rows and canonical runs remain zero.
 
 ### Evidence so far
 
-- Theory found the finite V4 graph and five-field objective internally
-  consistent within the declared model.
-- Accounting confirmed zero runs and honest local structural/byte receipts,
-  while identifying large unmeasured end-to-end search and memory costs.
-- Red-team type fuzzing rejected 1,374 scalar aliases, but four exact-type,
-  digest-refreshed structural/range mutations crashed the verifier.
-- A V4 body relabeled as V3 can crash, an empty V3 document can pass, and
-  legacy receipts claim checks they did not execute.
-- The third exhaustive oracle is optimizer-independent but not semantically
-  independent of verifier graph/model helpers.
-- The family gate lacks hand-derived threshold and cross-cap boundary fixtures.
+- All four V4 red-team crash cases now return deterministic invalid receipts
+  before graph reconstruction or cap replay.
+- V5 rejects every V1-V4 schema without row verification and uses
+  route-specific receipt check lists.
+- File, JSON-shape, scalar-size, factor-base, optimizer, and verifier-proof
+  ceilings are explicit and tested.
+- A standalone frozen-B4 implementation independently rebuilds EC addition,
+  factor-base fibers, representatives, ideals, conflicts, retained-model costs,
+  final support, and every cap winner.
+- Hand-derived gate fixtures close exact median, duplicate-null, 17/18,
+  18/24, two/three-strata, cross-cap, all-fail, and COLLAPSE boundaries.
+- The focused 33-test suite passes, both research records validate, and the
+  generated ledger index exactly matches `ledger.json`.
+- The 177-test repository suite has 176 passes and one pre-existing immutable
+  predecessor-run guard failure; no V5 assertion failed.
 - No family row, canonical matrix, runner, launch plan, or execution
   authorization was created.
 
 ### Failure modes
 
-- Structural and range errors can survive schema/type validation and reach
-  indexed access, reconstruction, or assertions.
-- A shared legacy fallback can misinterpret a newer body under an older label.
-- Shared semantic constructors can hide an end-to-end graph/model defect.
-- Gate threshold off-by-one or cross-cap-splicing defects are not yet covered by
-  independently expected fixtures.
+- Parsing ceilings are not approved execution resource budgets.
+- The final exception boundary correctly yields `INCONCLUSIVE`, but any
+  unexpected valid-input exception still requires investigation.
+- The standalone semantic oracle covers only frozen p=19, B=4, least-x.
+- Producer and verifier gate code remain structurally similar beyond the
+  hand-derived registered boundaries.
 - Exact closure of every B=8 cap may exceed any future resource envelope.
 
 ### Next concrete action
 
-Implement the V5 no-run verifier-totality and routing repair plus independent
-semantic and family-gate boundary controls, then request fresh exact-hash
-review while retaining `maximum_runs=0`.
+Commit one exact V5 snapshot and request fresh read-only theory, accounting,
+and red-team review while retaining `maximum_runs=0`.
 
 ### Artifact paths
 
@@ -82,6 +85,10 @@ review while retaining `maximum_runs=0`.
 - `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v4.md`
 - `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v4.md`
 - `experiments/EXP-SGCP-EMBED-002/decision-v4.json`
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v5.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v5.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v5.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v5.md`
 - `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`

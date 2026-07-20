@@ -20,15 +20,16 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
 
-EXPECTED_SCHEMAS = {
+LEGACY_SCHEMAS = {
     "sgcp-embed-002-development-v1",
     "sgcp-embed-002-density-frontier-development-v2",
     "sgcp-embed-002-density-frontier-candidate-v3",
     "sgcp-embed-002-density-frontier-candidate-v4",
 }
-VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v4"
+CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v5"
+VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v5"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
-PROTOCOL_VERSION = 4
+PROTOCOL_VERSION = 5
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -55,6 +56,12 @@ CANONICAL_SEEDS = (101, 211)
 CANONICAL_FACTOR_BASE_SIZES = (4, 6, 8)
 CANONICAL_NULL_REPLICATES = 4
 CANONICAL_NODE_CAP = 2_000_000
+MAXIMUM_INPUT_BYTES = 1_073_741_824
+MAXIMUM_JSON_NODES = 10_000_000
+MAXIMUM_JSON_DEPTH = 64
+MAXIMUM_JSON_STRING_BYTES = 16_777_216
+MAXIMUM_PRIMARY_NODES = 100_000_000
+MAXIMUM_ROW_FACTOR_BASE_SIZE = 64
 CLAIM_STATUS = ["HYPOTHESIS", "TOY-EVIDENCE", "MODEL-BOUND", "NOVELTY-UNVERIFIED"]
 FROZEN_FIXTURE = {
     "bits": 5,
@@ -122,6 +129,68 @@ def exact_json_equal(left: Any, right: Any) -> bool:
             exact_json_equal(a, b) for a, b in zip(left, right)
         )
     return left == right
+
+
+def bounded_json_errors(value: Any, path: str = "document") -> list[str]:
+    """Validate a finite JSON-shaped value without recursive traversal."""
+    errors: list[str] = []
+    nodes = 0
+    stack: list[tuple[Any, str, int]] = [(value, path, 0)]
+    while stack:
+        child, child_path, depth = stack.pop()
+        nodes += 1
+        if nodes > MAXIMUM_JSON_NODES:
+            return [f"JSON node ceiling exceeded at {child_path}"]
+        if depth > MAXIMUM_JSON_DEPTH:
+            return [f"JSON depth ceiling exceeded at {child_path}"]
+        if child is None or type(child) in {bool, int, float}:
+            if type(child) is float and not math.isfinite(child):
+                errors.append(f"non-finite JSON number at {child_path}")
+            continue
+        if type(child) is str:
+            try:
+                encoded_length = len(child.encode("ascii"))
+            except UnicodeEncodeError:
+                errors.append(f"non-ASCII JSON string at {child_path}")
+                continue
+            if encoded_length > MAXIMUM_JSON_STRING_BYTES:
+                errors.append(f"JSON string ceiling exceeded at {child_path}")
+            continue
+        if type(child) is list:
+            if len(child) > MAXIMUM_JSON_NODES - nodes:
+                return [f"JSON node ceiling exceeded at {child_path}"]
+            for index in range(len(child) - 1, -1, -1):
+                stack.append((child[index], f"{child_path}[{index}]", depth + 1))
+            continue
+        if type(child) is dict:
+            if len(child) > MAXIMUM_JSON_NODES - nodes:
+                return [f"JSON node ceiling exceeded at {child_path}"]
+            for key, item in reversed(child.items()):
+                if type(key) is not str:
+                    errors.append(f"non-string JSON object key at {child_path}")
+                    continue
+                try:
+                    key_length = len(key.encode("ascii"))
+                except UnicodeEncodeError:
+                    errors.append(f"non-ASCII JSON object key at {child_path}")
+                    continue
+                if key_length > MAXIMUM_JSON_STRING_BYTES:
+                    errors.append(f"JSON object-key ceiling exceeded at {child_path}")
+                    continue
+                stack.append((item, f"{child_path}.{key}", depth + 1))
+            continue
+        errors.append(f"non-JSON value of type {type(child).__name__} at {child_path}")
+    return errors
+
+
+def maximum_nodes_errors(maximum_nodes: Any) -> list[str]:
+    if type(maximum_nodes) is not int:
+        return ["maximum primary nodes is not an exact integer"]
+    if not 0 <= maximum_nodes <= MAXIMUM_PRIMARY_NODES:
+        return [
+            f"maximum primary nodes is outside 0..{MAXIMUM_PRIMARY_NODES}"
+        ]
+    return []
 
 
 def exact_type(value: Any, expected: type, path: str, errors: list[str]) -> bool:
@@ -231,6 +300,12 @@ def file_digest(path: Path) -> str:
 
 
 def strict_load(path: Path) -> Any:
+    size = path.stat().st_size
+    if size > MAXIMUM_INPUT_BYTES:
+        raise ValueError(
+            f"input byte ceiling exceeded: {size} > {MAXIMUM_INPUT_BYTES}"
+        )
+
     def pairs(values: list[tuple[str, Any]]) -> dict[str, Any]:
         result: dict[str, Any] = {}
         for key, value in values:
@@ -242,11 +317,15 @@ def strict_load(path: Path) -> Any:
     def constant(value: str) -> Any:
         raise ValueError(f"non-finite constant {value!r} in {path}")
 
-    return json.loads(
+    value = json.loads(
         path.read_text(encoding="ascii"),
         object_pairs_hook=pairs,
         parse_constant=constant,
     )
+    shape_errors = bounded_json_errors(value)
+    if shape_errors:
+        raise ValueError("; ".join(shape_errors))
+    return value
 
 
 def is_prime(value: int) -> bool:
@@ -1479,7 +1558,9 @@ def retained_model(
     )
 
 
-def verify_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
+def _verify_legacy_row_unchecked(
+    row: dict[str, Any], maximum_nodes: int
+) -> dict[str, Any]:
     errors: list[str] = []
     supplied_digest = row.get("row_sha256")
     payload = dict(row)
@@ -1612,7 +1693,30 @@ def verify_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
     }
 
 
-def v4_row_schema_errors(row: Any) -> list[str]:
+def verify_row(row: Any, maximum_nodes: Any) -> dict[str, Any]:
+    errors = bounded_json_errors(row, "legacy_row")
+    errors.extend(maximum_nodes_errors(maximum_nodes))
+    if errors:
+        return {"valid": False, "errors": errors, "primary_nodes": 0}
+    if type(row) is not dict:
+        return {
+            "valid": False,
+            "errors": ["legacy row is not an object"],
+            "primary_nodes": 0,
+        }
+    try:
+        return _verify_legacy_row_unchecked(row, maximum_nodes)
+    except Exception as error:
+        return {
+            "valid": False,
+            "errors": [
+                f"legacy row verifier failure: {type(error).__name__}: {error}"
+            ],
+            "primary_nodes": 0,
+        }
+
+
+def v5_row_schema_errors(row: Any) -> list[str]:
     errors: list[str] = []
     try:
         require_keys(
@@ -1979,7 +2083,7 @@ def v4_row_schema_errors(row: Any) -> list[str]:
     return errors
 
 
-def v4_row_type_errors(row: dict[str, Any]) -> list[str]:
+def v5_row_type_errors(row: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     for name in ("protocol_version", "B"):
         exact_integer(row[name], f"row.{name}", errors)
@@ -2373,11 +2477,162 @@ def require_independent_exhausted_gate_cell(optimizer: dict[str, Any]) -> None:
         raise AssertionError("family gate received a nonexhausted optimizer cell")
 
 
-def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
-    errors = v4_row_schema_errors(row)
+def expected_caps_for_group(group_size: int) -> list[int]:
+    return sorted(
+        {
+            max(1, group_size // 4),
+            max(1, group_size // 2),
+            max(1, 3 * group_size // 4),
+            group_size,
+        }
+    )
+
+
+def density_row_envelope_errors(row: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    B = row["B"]
+    if not 4 <= B <= MAXIMUM_ROW_FACTOR_BASE_SIZE or B % 2:
+        errors.append(
+            f"factor-base size is outside the even 4..{MAXIMUM_ROW_FACTOR_BASE_SIZE} range"
+        )
+    caps = row["public_model"]["constrained_budget_caps"]
+    public_frontier = row["public_model"]["density_frontier"]
+    private_frontier = row["private_audit"]["density_frontier"]
+    if not (len(caps) == len(public_frontier) == len(private_frontier) == 4):
+        errors.append("density frontier length mismatch")
+        return errors
+    for index, (cap, public, private) in enumerate(
+        zip(caps, public_frontier, private_frontier)
+    ):
+        if cap <= 0:
+            errors.append(f"cap[{index}] is outside 1..q")
+        selected_formals = [tuple(value) for value in public["selected_maxima"]]
+        if len(selected_formals) != len(set(selected_formals)):
+            errors.append(f"cap[{cap}] selected maxima are not unique")
+        if selected_formals != sorted(selected_formals):
+            errors.append(f"cap[{cap}] selected maxima are not lexicographically ordered")
+        for formal in selected_formals:
+            if (
+                len(formal) != 4
+                or formal != tuple(sorted(formal))
+                or any(not 0 <= factor_index < B for factor_index in formal)
+            ):
+                errors.append(f"cap[{cap}] selected maximum is out of range")
+        optimizer = private["optimizer"]
+        if not 0 <= optimizer["node_cap"] <= MAXIMUM_PRIMARY_NODES:
+            errors.append(f"cap[{cap}] optimizer node cap is out of range")
+        if optimizer["max_constrained"] <= 0:
+            errors.append(f"cap[{cap}] optimizer cap association mismatch")
+        selected_indices = optimizer["selected_indices"]
+        if selected_indices != sorted(selected_indices) or len(selected_indices) != len(
+            set(selected_indices)
+        ):
+            errors.append(f"cap[{cap}] optimizer indices are not unique and ordered")
+        if any(candidate < 0 for candidate in selected_indices):
+            errors.append(f"cap[{cap}] optimizer index is out of range")
+        try:
+            selected_mask = int(optimizer["selected_mask_hex"], 16)
+        except ValueError:
+            errors.append(f"cap[{cap}] optimizer mask is not hexadecimal")
+        else:
+            if selected_mask < 0 or optimizer["selected_mask_hex"] != hex(selected_mask):
+                errors.append(f"cap[{cap}] optimizer mask is out of range")
+    return errors
+
+
+def density_row_preflight_errors(
+    row: dict[str, Any],
+    group_size: int,
+    eligible: Sequence[dict[str, Any]],
+) -> list[str]:
+    errors: list[str] = []
+    B = row["B"]
+    if not 4 <= B <= MAXIMUM_ROW_FACTOR_BASE_SIZE or B % 2:
+        errors.append(
+            f"factor-base size is outside the even 4..{MAXIMUM_ROW_FACTOR_BASE_SIZE} range"
+        )
+    expected_caps = expected_caps_for_group(group_size)
+    public_model = row["public_model"]
+    private_audit = row["private_audit"]
+    caps = public_model["constrained_budget_caps"]
+    public_frontier = public_model["density_frontier"]
+    private_frontier = private_audit["density_frontier"]
+    if not exact_json_equal(caps, expected_caps):
+        errors.append("constrained-budget cap schedule mismatch")
+    if not (
+        len(caps) == len(public_frontier) == len(private_frontier) == len(expected_caps)
+    ):
+        errors.append("density frontier length mismatch")
+        return errors
+
+    by_formal = {candidate["formal"]: index for index, candidate in enumerate(eligible)}
+    for index, expected_cap in enumerate(expected_caps):
+        public = public_frontier[index]
+        private = private_frontier[index]
+        cap = caps[index]
+        if cap <= 0 or cap > group_size:
+            errors.append(f"cap[{index}] is outside 1..q")
+        if not (
+            cap == expected_cap
+            and public["constrained_cap"] == expected_cap
+            and private["constrained_cap"] == expected_cap
+        ):
+            errors.append(f"cap[{index}] association mismatch")
+
+        selected_values = public["selected_maxima"]
+        selected_formals = [tuple(value) for value in selected_values]
+        if len(selected_formals) != len(set(selected_formals)):
+            errors.append(f"cap[{expected_cap}] selected maxima are not unique")
+        if selected_formals != sorted(selected_formals):
+            errors.append(f"cap[{expected_cap}] selected maxima are not lexicographically ordered")
+        for formal in selected_formals:
+            if (
+                len(formal) != 4
+                or formal != tuple(sorted(formal))
+                or any(not 0 <= factor_index < B for factor_index in formal)
+            ):
+                errors.append(f"cap[{expected_cap}] selected maximum is out of range")
+                continue
+            if formal not in by_formal:
+                errors.append(f"cap[{expected_cap}] selected maximum is not eligible")
+
+        optimizer = private["optimizer"]
+        node_cap = optimizer["node_cap"]
+        if not 0 <= node_cap <= MAXIMUM_PRIMARY_NODES:
+            errors.append(f"cap[{expected_cap}] optimizer node cap is out of range")
+        if optimizer["max_constrained"] != expected_cap:
+            errors.append(f"cap[{expected_cap}] optimizer cap association mismatch")
+        selected_indices = optimizer["selected_indices"]
+        if selected_indices != sorted(selected_indices) or len(selected_indices) != len(
+            set(selected_indices)
+        ):
+            errors.append(f"cap[{expected_cap}] optimizer indices are not unique and ordered")
+        if any(not 0 <= candidate < len(eligible) for candidate in selected_indices):
+            errors.append(f"cap[{expected_cap}] optimizer index is out of range")
+        try:
+            selected_mask = int(optimizer["selected_mask_hex"], 16)
+        except ValueError:
+            errors.append(f"cap[{expected_cap}] optimizer mask is not hexadecimal")
+        else:
+            if (
+                selected_mask < 0
+                or optimizer["selected_mask_hex"] != hex(selected_mask)
+                or selected_mask >= 1 << len(eligible)
+            ):
+                errors.append(f"cap[{expected_cap}] optimizer mask is out of range")
+    return errors
+
+
+def _verify_density_row_unchecked(
+    row: dict[str, Any], maximum_nodes: int
+) -> dict[str, Any]:
+    errors = v5_row_schema_errors(row)
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
-    errors.extend(v4_row_type_errors(row))
+    errors.extend(v5_row_type_errors(row))
+    if errors:
+        return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
+    errors.extend(density_row_envelope_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     supplied_digest = row.get("row_sha256")
@@ -2459,7 +2714,22 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
     public_frontier = row["public_model"]["density_frontier"]
     private_frontier = row["private_audit"]["density_frontier"]
     caps = row["public_model"]["constrained_budget_caps"]
-    expected_caps = sorted({max(1, q // 4), max(1, q // 2), max(1, 3 * q // 4), q})
+    expected_caps = expected_caps_for_group(q)
+    errors.extend(density_row_preflight_errors(row, q, eligible))
+    if errors:
+        return {
+            "valid": False,
+            "errors": errors,
+            "curve": {"p": curve.p, "a": curve.a, "b": curve.b, "q": q},
+            "B": row["B"],
+            "family": row["family"],
+            "null_replicate": row["null_replicate"],
+            "candidate_count": candidate_count,
+            "eligible_candidate_count": len(eligible),
+            "conflict_count": conflict_count,
+            "primary_nodes": 0,
+            "cap_reports": [],
+        }
     if not exact_json_equal(caps, expected_caps):
         errors.append("constrained-budget cap schedule mismatch")
     if len(public_frontier) != len(private_frontier) or len(caps) != len(public_frontier):
@@ -2563,7 +2833,7 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
         try:
             require_independent_exhausted_gate_cell(optimizer)
         except AssertionError as error:
-            cap_errors.append(f"V4 requires an exhausted exact optimizer cell: {error}")
+            cap_errors.append(f"V5 requires an exhausted exact optimizer cell: {error}")
         if not exact_json_equal(optimizer.get("selected_indices"), selected_indices):
             cap_errors.append("optimizer selected-index mismatch")
         if optimizer.get("selected_mask_hex") != hex(selected_mask):
@@ -2787,6 +3057,36 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
     }
 
 
+def verify_density_row(row: Any, maximum_nodes: Any) -> dict[str, Any]:
+    errors = bounded_json_errors(row, "row")
+    errors.extend(maximum_nodes_errors(maximum_nodes))
+    if errors:
+        return {
+            "valid": False,
+            "errors": errors,
+            "primary_nodes": 0,
+            "cap_reports": [],
+        }
+    if type(row) is not dict:
+        return {
+            "valid": False,
+            "errors": ["density row is not an object"],
+            "primary_nodes": 0,
+            "cap_reports": [],
+        }
+    try:
+        return _verify_density_row_unchecked(row, maximum_nodes)
+    except Exception as error:
+        return {
+            "valid": False,
+            "errors": [
+                f"density row verifier failure: {type(error).__name__}: {error}"
+            ],
+            "primary_nodes": 0,
+            "cap_reports": [],
+        }
+
+
 def fraction_record(value: Fraction) -> dict[str, int]:
     return {"numerator": value.numerator, "denominator": value.denominator}
 
@@ -2834,6 +3134,7 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
 
     reports: list[dict[str, Any]] = []
     winners: list[dict[str, str]] = []
+    every_family_collapses = True
     for family in COORDINATE_FAMILIES:
         persistence_rows: list[dict[str, Any]] = []
         all_persistent = True
@@ -2858,6 +3159,13 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
                     "pass": passes,
                 }
             )
+        collapse_strata = sum(
+            fraction_from_record(item["median_retained_to_balanced_raw"])
+            < Fraction(1, 10)
+            for item in persistence_rows
+        )
+        family_collapses = collapse_strata >= 3
+        every_family_collapses = every_family_collapses and family_collapses
 
         tested_caps: list[dict[str, Any]] = []
         for cap_name, cap_multiplier, cap_divisor in (("1/2", 1, 2), ("3/4", 3, 4)):
@@ -2915,16 +3223,27 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
                 "family": family,
                 "full_cap_persistence": persistence_rows,
                 "full_cap_persistence_pass": all_persistent,
+                "full_cap_collapse_strata": collapse_strata,
+                "full_cap_collapse": family_collapses,
                 "matched_null_cap_tests": tested_caps,
             }
         )
+    status = "PASS" if winners else "FAIL"
+    if winners:
+        negative_outcome = "NOT_APPLICABLE"
+    elif every_family_collapses:
+        negative_outcome = "COLLAPSE"
+    else:
+        negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v4",
+        "criterion_version": "sgcp-embed-002-family-gate-v5",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
         "cap_selection_policy": "one fixed family and one fixed cap fraction must pass across strata",
-        "status": "PASS" if winners else "FAIL",
+        "collapse_policy": "COLLAPSE iff every coordinate family has full-cap median retention below 1/10 in at least three bit strata",
+        "status": status,
+        "negative_outcome": negative_outcome,
         "passing_family_cap_pairs": winners,
         "families": reports,
     }
@@ -2984,7 +3303,7 @@ def expected_row_keys() -> list[tuple[int, int, int, str, int | None]]:
     return result
 
 
-def v4_document_schema_errors(document: Any) -> list[str]:
+def v5_document_schema_errors(document: Any) -> list[str]:
     errors: list[str] = []
     try:
         require_keys(
@@ -3003,7 +3322,7 @@ def v4_document_schema_errors(document: Any) -> list[str]:
                 "family_gate",
                 "document_sha256",
             },
-            "V4 document",
+            "V5 document",
         )
         require_keys(
             document["summary"],
@@ -3016,7 +3335,7 @@ def v4_document_schema_errors(document: Any) -> list[str]:
                 "full_objective_exact_cap_cells",
                 "maximum_primary_gap",
             },
-            "V4 document summary",
+            "V5 document summary",
         )
     except (AssertionError, KeyError, TypeError) as error:
         errors.append(f"closed document schema: {error}")
@@ -3024,7 +3343,7 @@ def v4_document_schema_errors(document: Any) -> list[str]:
     return errors
 
 
-def v4_document_type_errors(document: dict[str, Any]) -> list[str]:
+def v5_document_type_errors(document: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     for name in ("schema", "experiment_id", "scope", "interpretation"):
         exact_string(document[name], f"document.{name}", errors)
@@ -3150,13 +3469,13 @@ def canonical_matrix_errors(rows: Any) -> list[str]:
     return errors
 
 
-def verify_v4_document_value(
+def _verify_v5_document_value_unchecked(
     document: dict[str, Any], maximum_nodes: int
 ) -> tuple[list[str], list[dict[str, Any]]]:
-    errors = v4_document_schema_errors(document)
+    errors = v5_document_schema_errors(document)
     if errors:
         return errors, []
-    errors.extend(v4_document_type_errors(document))
+    errors.extend(v5_document_type_errors(document))
     if errors:
         return errors, []
 
@@ -3173,7 +3492,7 @@ def verify_v4_document_value(
             "claim_status": document["claim_status"],
         },
         {
-            "schema": "sgcp-embed-002-density-frontier-candidate-v4",
+            "schema": CURRENT_SCHEMA,
             "experiment_id": EXPERIMENT_ID,
             "protocol_version": PROTOCOL_VERSION,
             "claim_status": CLAIM_STATUS,
@@ -3246,7 +3565,7 @@ def verify_v4_document_value(
 
     row_reports = [verify_density_row(row, maximum_nodes) for row in rows]
     if any(not report["valid"] for report in row_reports):
-        errors.append("one or more V4 row verifications failed")
+        errors.append("one or more V5 row verifications failed")
     try:
         expected_summary = independent_document_summary(rows)
     except (AttributeError, KeyError, TypeError):
@@ -3268,62 +3587,158 @@ def verify_v4_document_value(
     return errors, row_reports
 
 
-def verify_document(path: Path, maximum_nodes: int) -> dict[str, Any]:
-    document = strict_load(path)
-    supplied = document.get("document_sha256")
-    if document.get("schema") == "sgcp-embed-002-density-frontier-candidate-v4":
-        errors, row_reports = verify_v4_document_value(document, maximum_nodes)
-        claim_boundary = (
-            "frozen-fixture implementation verification only"
-            if document.get("scope") == "frozen_fixture"
-            else "canonical matrix verification; coordinator interpretation still required"
-        )
-    else:
-        errors = []
-        if document.get("schema") not in EXPECTED_SCHEMAS:
-            errors.append("unexpected document schema")
-        if document.get("canonical") is not False:
-            errors.append("development document claims canonical status")
-        payload = dict(document)
-        payload.pop("document_sha256", None)
-        if supplied != digest(payload):
-            errors.append("document digest mismatch")
-        row_reports = [
-            verify_row(row, maximum_nodes) for row in document.get("rows", [])
-        ]
-        if any(not report["valid"] for report in row_reports):
-            errors.append("one or more row verifications failed")
-        claim_boundary = "legacy development verification only"
+def verify_v5_document_value(
+    document: Any, maximum_nodes: Any
+) -> tuple[list[str], list[dict[str, Any]]]:
+    errors = bounded_json_errors(document, "document")
+    errors.extend(maximum_nodes_errors(maximum_nodes))
+    if errors:
+        return errors, []
+    if type(document) is not dict:
+        return ["V5 document is not an object"], []
+    try:
+        return _verify_v5_document_value_unchecked(document, maximum_nodes)
+    except Exception as error:
+        return [
+            f"V5 document verifier failure: {type(error).__name__}: {error}"
+        ], []
+
+
+V5_INDEPENDENT_CHECKS = [
+    "bounded strict JSON and document/row digests",
+    "closed V5 row/document schemas with exact JSON scalar types and forbidden scalar-material keys",
+    "preflight cap schedules, associations, ranges, selected-formal uniqueness, masks, and node ceilings",
+    "independent curve draw and rejection transcript derivation",
+    "predicate roots, hash-derived Mobius maps, poles, hash-null ranking, signs, and root polynomial",
+    "complete canonical row grid, cap schedules, cross-seed curve uniqueness, and exact four-null gate",
+    "frozen ordering contract, degree-two representative compiler, and public source table",
+    "balanced candidate universe, individual eligibility, and pair-conflict graph",
+    "selected graph independence, formal closure, public edges, axioms, density, and retention",
+    "degree-1/2/4/8 support under formal-multiset and ordered-tuple source measures",
+    "authenticated full-objective exhaustion, deterministic optimizer replay, and independent exhaustive primary proof",
+    "reconstructed structural-work and nested serialized-byte receipts",
+]
+
+ROUTING_CHECKS = [
+    "bounded strict JSON parsing",
+    "exact schema routing with explicit rejection of unsupported legacy versions",
+]
+
+V5_INVALID_RECEIPT_CHECKS = [
+    *ROUTING_CHECKS,
+    "closed V5 schema and exact-type validation attempted; no later mathematical check is claimed",
+]
+
+
+def verification_report(
+    path: Path,
+    supplied: Any,
+    input_file_sha256: str | None,
+    errors: list[str],
+    row_reports: Sequence[dict[str, Any]],
+    checks: Sequence[str],
+    claim_boundary: str,
+) -> dict[str, Any]:
     report = {
         "schema": VERIFICATION_SCHEMA,
         "verifier_source_path": str(SCRIPT_PATH),
         "verifier_source_sha256": file_digest(SCRIPT_PATH),
         "input_path": str(path.resolve()),
-        "input_file_sha256": file_digest(path),
+        "input_file_sha256": input_file_sha256,
         "input_document_sha256": supplied,
         "valid": not errors,
         "errors": errors,
         "row_count": len(row_reports),
-        "valid_row_count": sum(bool(row["valid"]) for row in row_reports),
-        "total_primary_nodes": sum(row["primary_nodes"] for row in row_reports),
-        "rows": row_reports,
-        "independent_checks": [
-            "strict JSON and document/row digests",
-            "closed V4 row/document schemas with exact JSON scalar types and forbidden scalar-material keys",
-            "independent curve draw and rejection transcript derivation",
-            "predicate roots, hash-derived Mobius maps, poles, hash-null ranking, signs, and root polynomial",
-            "complete canonical row grid, cap schedules, cross-seed curve uniqueness, and exact four-null gate",
-            "frozen ordering contract, degree-two representative compiler, and public source table",
-            "balanced candidate universe, individual eligibility, and pair-conflict graph",
-            "selected graph independence, formal closure, public edges, axioms, density, and retention",
-            "degree-1/2/4/8 support under formal-multiset and ordered-tuple source measures",
-            "authenticated full-objective exhaustion, deterministic optimizer replay, and independent exhaustive primary proof",
-            "reconstructed structural-work and nested serialized-byte receipts",
-        ],
+        "valid_row_count": sum(row.get("valid") is True for row in row_reports),
+        "total_primary_nodes": sum(
+            row.get("primary_nodes", 0)
+            for row in row_reports
+            if type(row.get("primary_nodes", 0)) is int
+        ),
+        "rows": list(row_reports),
+        "independent_checks": list(checks),
         "claim_boundary": claim_boundary,
     }
     report["verification_sha256"] = digest(report)
     return report
+
+
+def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
+    errors = maximum_nodes_errors(maximum_nodes)
+    document: Any = None
+    input_file_sha256: str | None = None
+    if not errors:
+        try:
+            document = strict_load(path)
+        except Exception as error:
+            errors.append(f"input load failure: {type(error).__name__}: {error}")
+        else:
+            try:
+                input_file_sha256 = file_digest(path)
+            except Exception as error:
+                errors.append(f"input hash failure: {type(error).__name__}: {error}")
+
+    supplied = document.get("document_sha256") if type(document) is dict else None
+    if errors:
+        return verification_report(
+            path,
+            supplied,
+            input_file_sha256,
+            errors,
+            [],
+            ROUTING_CHECKS[:1],
+            "input could not enter schema verification",
+        )
+    if type(document) is not dict:
+        return verification_report(
+            path,
+            supplied,
+            input_file_sha256,
+            ["input document is not an object"],
+            [],
+            ROUTING_CHECKS,
+            "input rejected before protocol verification",
+        )
+
+    schema = document.get("schema")
+    if type(schema) is not str:
+        errors = [f"document schema is not a string: {type(schema).__name__}"]
+        row_reports = []
+        claim_boundary = "malformed schema; no mathematical checks executed"
+        checks = ROUTING_CHECKS
+    elif schema == CURRENT_SCHEMA:
+        errors, row_reports = verify_v5_document_value(document, maximum_nodes)
+        if errors:
+            claim_boundary = "invalid V5 document; no mathematical interpretation"
+            checks = V5_INVALID_RECEIPT_CHECKS
+        else:
+            claim_boundary = (
+                "frozen-fixture implementation verification only"
+                if document.get("scope") == "frozen_fixture"
+                else "canonical matrix verification; coordinator interpretation still required"
+            )
+            checks = V5_INDEPENDENT_CHECKS
+    elif schema in LEGACY_SCHEMAS:
+        errors = [
+            f"unsupported legacy document schema {schema!r}; V5 performs no legacy row verification"
+        ]
+        row_reports = []
+        claim_boundary = "unsupported legacy input; no mathematical checks executed"
+        checks = ROUTING_CHECKS
+    else:
+        errors = [f"unexpected document schema {schema!r}"]
+        row_reports = []
+        claim_boundary = "unknown input schema; no mathematical checks executed"
+        checks = ROUTING_CHECKS
+    return verification_report(
+        path,
+        supplied,
+        input_file_sha256,
+        errors,
+        row_reports,
+        checks,
+        claim_boundary,
+    )
 
 
 def output_path(path: Path) -> Path:
@@ -3355,7 +3770,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    report = verify_document(args.input.resolve(strict=True), args.maximum_primary_nodes)
+    report = verify_document(args.input, args.maximum_primary_nodes)
     write_atomic(output_path(args.output), report)
     print(
         json.dumps(

@@ -1,4 +1,4 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 4
+# Experiment Contract: EXP-SGCP-EMBED-002, version 5
 
 ## Claim status
 
@@ -65,7 +65,7 @@ serialized bytes are charged inside the public model and each nested cap
 receipt.
 
 The legacy `source_recovery` boolean records sorted formal normalization only.
-Version 4 interprets source recovery through
+Version 5 interprets source recovery through
 `source_recovery_via_public_table`; it does not treat normalization as an
 inversion algorithm.
 
@@ -166,11 +166,25 @@ nonidentity EC output. These conventions are emitted as a public ordering
 contract with digest
 `8114bd7d1822578e3d1453126968964da213775c6f12f86c764413f737212359`.
 
-V4 key sets and value types are closed throughout rows and documents. JSON
+V5 key sets and value types are closed throughout rows and documents. JSON
 Boolean, integer, float, string, list, object, and null roles are exact. In
 particular, `false` is not integer zero, `-0.0` is not integer zero, and an
 equal-valued float is not an integer receipt. Refreshed byte and document
 digests do not excuse a type mismatch.
+
+The V5 verifier accepts only the V5 document schema. V1-V4 schemas are
+explicitly rejected without row verification, and receipts list only checks
+that actually executed. Input files are limited to 1 GiB; in-memory JSON is
+limited to 10,000,000 nodes, depth 64, and 16 MiB per string or key. Verifier
+primary-proof budgets must be exact integers in `0..100,000,000` and row
+factor-base sizes must be even integers in `4..64`.
+
+Before replay or indexed access, V5 validates the complete cap schedule and
+frontier lengths, positive cap associations, selected-maximum degree, range,
+ordering, uniqueness and eligibility, optimizer-index ordering and range,
+canonical hexadecimal masks, and optimizer node ceilings. Every row and
+document entrypoint also has a final exception boundary. A bounded malformed
+input therefore returns a deterministic invalid receipt rather than raising.
 
 ## Canonical matrix
 
@@ -220,6 +234,11 @@ The gate tests six preregistered family-cap pairs and reports all winners. One
 same family and one same cap fraction must pass across strata; half-cap evidence
 cannot be spliced with three-quarter-cap evidence.
 
+The complete gate also emits the preregistered negative classification.
+`COLLAPSE` applies exactly when every coordinate family has full-cap median
+retention below `1/10` in at least three bit strata. A complete FAIL that does
+not meet that condition is `WEAKEN_OR_REJECT`; a PASS has no negative outcome.
+
 ## Expansion and energy
 
 For degrees `1`, `2`, `4`, and `8`, report exact support under degree-d
@@ -237,7 +256,7 @@ factor-base multisets. Both denominators appear beside retention ratios.
 
 ## Accounting boundary
 
-Version 4 retains the V3 accounting boundary and emits only independently
+Version 5 retains the V3 accounting boundary and emits only independently
 reconstructible combinatorial cells, including multiset evaluations,
 representative and parent-pair counts, graph checks, pair-output cells,
 optimizer nodes, bound calls, selected maxima, public edges, source-table
@@ -276,14 +295,26 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
    the closed schema.
 10. Reject Boolean/integer/float aliases in optimizer, graph, axiom, ratio,
     mask, node-cap, wall-time, byte-receipt, summary, and document fields.
-11. Verify one frozen V4 document and reject an empty canonical document.
+11. Verify one frozen V5 document and reject an empty canonical document.
 12. Reject missing, extra, duplicate, reordered, wrong-cap, wrong-node-cap,
     inconsistent-curve, and cross-seed-duplicate canonical matrices.
 13. Exact-match producer and independent family gates on a synthetic complete
     168-row matrix; both must reject every independently mutated exactness,
     bound, gap, frontier, digest, and termination field.
 14. Compare the complete five-field density objective and lexical witness tie
-    against a third exhaustive oracle on every independent frozen B=4 subset.
+    against both the prior verifier-assisted oracle and a standalone frozen
+    B=4 implementation that independently rebuilds EC addition, factor-base
+    fibers, representative compilation, ideals, graph conflicts, model costs,
+    final support, and every cap winner.
+15. Require deterministic invalid receipts for truncated cap schedules,
+    out-of-range selected formals, duplicate selected formals, negative caps,
+    malformed JSON, nonobject roots, duplicate keys, and out-of-range verifier
+    budgets.
+16. Relabel a valid V5 body with every V1-V4 schema and require explicit legacy
+    rejection with zero row checks and no V5 mathematical check claims.
+17. Use hand-derived gate fixtures for exact null-median ties and duplicate
+    nulls, 17 versus 18 positive comparisons, two versus three passing strata,
+    fixed-cap anti-splicing, all-fail, and COLLAPSE classification.
 
 ## Positive criterion
 
@@ -313,7 +344,7 @@ changes the measured collision geometry.
 
 ## Budgets and stopping
 
-Version 1 consumed 17 of 18 historical development curve rows. Version 4
+Version 1 consumed 17 of 18 historical development curve rows. Version 5
 authorizes no additional curve-family row. Unit, abstract graph,
 generated-curve provenance, factor-base, and frozen p=19 row/document controls
 are allowed.
@@ -327,7 +358,7 @@ total_cpu_hours = 0
 maximum_memory_gb = 0
 ```
 
-Fresh independent theory, accounting, and red-team GO on one committed V4
+Fresh independent theory, accounting, and red-team GO on one committed V5
 snapshot is necessary but not sufficient to launch. A separate hash-complete
 execution plan and coordinator approval must follow before any budget change.
 
@@ -342,4 +373,4 @@ are finite stress probes, not an `n^(1/5)` schedule.
 
 No canonical reproduction command exists while `maximum_runs` is zero. The
 current producer refuses both development family rows and canonical execution;
-only unit and frozen-fixture functions are authorized for V4 preflight.
+only unit and frozen-fixture functions are authorized for V5 preflight.

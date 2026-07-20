@@ -4,6 +4,7 @@ import copy
 import itertools
 import math
 import runpy
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -137,6 +138,239 @@ def synthetic_gate_rows() -> list[dict[str, object]]:
             }
         )
     return rows
+
+
+def standalone_point_order(point):
+    return (0, 0, 0) if point is None else (1, point[0], point[1])
+
+
+def standalone_add(p, a, left, right):
+    if left is None:
+        return right
+    if right is None:
+        return left
+    x1, y1 = left
+    x2, y2 = right
+    if x1 == x2 and (y1 + y2) % p == 0:
+        return None
+    if left == right:
+        slope = (3 * x1 * x1 + a) * pow(2 * y1, -1, p) % p
+    else:
+        slope = (y2 - y1) * pow((x2 - x1) % p, -1, p) % p
+    x3 = (slope * slope - x1 - x2) % p
+    return x3, (slope * (x1 - x3) - y1) % p
+
+
+def standalone_eval(p, a, factors, formal):
+    point = None
+    for index in formal:
+        point = standalone_add(p, a, point, factors[index])
+    return point
+
+
+def standalone_submultisets(formal):
+    values = {()}
+    for degree in range(1, len(formal) + 1):
+        values.update(itertools.combinations(formal, degree))
+    return values
+
+
+def standalone_ideal(B, maxima):
+    values = {(), *((index,) for index in range(B))}
+    for maximum in maxima:
+        values.update(standalone_submultisets(tuple(sorted(maximum))))
+    return values
+
+
+def standalone_frozen_b4_oracle(row):
+    """Rebuild the B4 object without producer or verifier semantic helpers."""
+    p = row["curve"]["p"]
+    a = row["curve"]["a"]
+    b = row["curve"]["b"]
+    B = row["B"]
+    affine = [
+        (x, y)
+        for x in range(p)
+        for y in range(p)
+        if (y * y - (x * x * x + a * x + b)) % p == 0
+    ]
+    fibers = {}
+    for point in affine:
+        fibers.setdefault(point[0], []).append(point)
+    admissible = [
+        x
+        for x in sorted(fibers)
+        if len(fibers[x]) == 2
+        and (fibers[x][0][1] + fibers[x][1][1]) % p == 0
+    ]
+    roots = admissible[: B // 2]
+    factors = sorted(
+        [point for x in roots for point in fibers[x]], key=standalone_point_order
+    )
+
+    degree2_by_point = {}
+    for formal in itertools.combinations_with_replacement(range(B), 2):
+        point = standalone_eval(p, a, factors, formal)
+        degree2_by_point.setdefault(point, []).append(formal)
+    representatives = [
+        (point, min(degree2_by_point[point]))
+        for point in sorted(degree2_by_point, key=standalone_point_order)
+        if point is not None
+    ]
+
+    candidate_points = {}
+    for left, right in itertools.combinations_with_replacement(
+        range(len(representatives)), 2
+    ):
+        left_point, left_formal = representatives[left]
+        right_point, right_formal = representatives[right]
+        formal = tuple(sorted(left_formal + right_formal))
+        point = standalone_add(p, a, left_point, right_point)
+        if formal in candidate_points:
+            assert candidate_points[formal] == point
+        candidate_points[formal] = point
+    candidates = [
+        {"formal": formal, "point": candidate_points[formal]}
+        for formal in sorted(candidate_points)
+    ]
+
+    eligible = []
+    closure_maps = []
+    for candidate in candidates:
+        family = standalone_ideal(B, [candidate["formal"]])
+        point_to_formal = {}
+        collision = False
+        for formal in sorted(family, key=lambda item: (len(item), item)):
+            point = standalone_eval(p, a, factors, formal)
+            if point in point_to_formal:
+                collision = True
+                break
+            point_to_formal[point] = formal
+        if not collision:
+            eligible.append(candidate)
+            closure_maps.append(point_to_formal)
+
+    conflicts = [0] * len(eligible)
+    conflict_count = 0
+    for left in range(len(eligible)):
+        for right in range(left + 1, len(eligible)):
+            conflict = any(
+                closure_maps[left][point] != closure_maps[right][point]
+                for point in set(closure_maps[left]).intersection(closure_maps[right])
+            )
+            if conflict:
+                conflicts[left] |= 1 << right
+                conflicts[right] |= 1 << left
+                conflict_count += 1
+
+    candidates_by_cap = {}
+    for mask in range(1 << len(eligible)):
+        selected_indices = [
+            index for index in range(len(eligible)) if mask & (1 << index)
+        ]
+        if any(conflicts[index] & mask for index in selected_indices):
+            continue
+        maxima = [eligible[index]["formal"] for index in selected_indices]
+        family = standalone_ideal(B, maxima)
+        evaluations = {
+            formal: standalone_eval(p, a, factors, formal) for formal in family
+        }
+        assert len(set(evaluations.values())) == len(evaluations)
+        nonempty = sorted(
+            (formal for formal in family if formal), key=lambda item: (len(item), item)
+        )
+        constrained = {None}
+        edge_count = 0
+        for position, left in enumerate(nonempty):
+            for right in nonempty[position:]:
+                union = tuple(sorted(left + right))
+                if union not in family:
+                    continue
+                edge_count += 1
+                constrained.update(
+                    (evaluations[left], evaluations[right], evaluations[union])
+                )
+        selected_points = [eligible[index]["point"] for index in selected_indices]
+        support = {
+            standalone_add(p, a, left, right)
+            for position, left in enumerate(selected_points)
+            for right in selected_points[position:]
+        }
+        objective = (len(support), -len(constrained), -edge_count, len(maxima))
+        witness = tuple(sorted(maxima))
+        candidate = {
+            "objective": objective,
+            "witness": witness,
+            "selected_indices": selected_indices,
+            "constrained_count": len(constrained),
+            "public_edge_count": edge_count,
+        }
+        for cap in row["public_model"]["constrained_budget_caps"]:
+            if len(constrained) <= cap:
+                candidates_by_cap.setdefault(cap, []).append(candidate)
+
+    winners = {}
+    for cap, values in candidates_by_cap.items():
+        best_objective = max(value["objective"] for value in values)
+        best_witness = min(
+            value["witness"]
+            for value in values
+            if value["objective"] == best_objective
+        )
+        winners[cap] = next(
+            value
+            for value in values
+            if value["objective"] == best_objective
+            and value["witness"] == best_witness
+        )
+    return {
+        "factors": factors,
+        "candidate_count": len(candidates),
+        "eligible_count": len(eligible),
+        "conflict_count": conflict_count,
+        "winners": winners,
+    }
+
+
+def configure_gate_rows(null_supports=(8, 10, 10, 12)):
+    rows = synthetic_gate_rows()
+    for row in rows:
+        support = null_supports[row["null_replicate"]] if row["family"] == MODULE["NULL_FAMILY"] else 10
+        for private in row["private_audit"]["density_frontier"]:
+            private["optimizer"]["retained_support_lower_bound"] = support
+            private["optimizer"]["retained_support_upper_bound"] = support
+    return rows
+
+
+def set_gate_differences(rows, family, cap_fraction, differences_by_bits):
+    for bits in MODULE["CANONICAL_BITS"]:
+        coordinate_rows = [
+            row
+            for row in rows
+            if row["curve"]["bits"] == bits
+            and row["family"] == family
+            and row["null_replicate"] is None
+        ]
+        coordinate_rows.sort(key=lambda row: (row["curve"]["seed"], row["B"]))
+        for row, difference in zip(coordinate_rows, differences_by_bits[bits]):
+            q = row["curve"]["q"]
+            cap = q // 2 if cap_fraction == "1/2" else 3 * q // 4
+            cell = next(
+                value
+                for value in row["private_audit"]["density_frontier"]
+                if value["constrained_cap"] == cap
+            )
+            cell["optimizer"]["retained_support_lower_bound"] = 10 + difference
+            cell["optimizer"]["retained_support_upper_bound"] = 10 + difference
+
+
+def gate_cap_report(gate, family, cap_fraction):
+    family_report = next(value for value in gate["families"] if value["family"] == family)
+    return next(
+        value
+        for value in family_report["matched_null_cap_tests"]
+        if value["cap_fraction"] == cap_fraction
+    )
 
 
 class SgcpEmbedFamilyTests(unittest.TestCase):
@@ -613,6 +847,40 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             self.assertEqual(public["constrained_count"], winner[0])
             self.assertEqual(public["public_edge_count"], winner[4])
 
+    def test_frozen_b4_matches_standalone_semantic_oracle(self) -> None:
+        row = self.frozen_density_row
+        oracle = standalone_frozen_b4_oracle(row)
+        expected_factors = [
+            tuple(point) for point in row["public_model"]["factor_base"]["points"]
+        ]
+        self.assertEqual(oracle["factors"], expected_factors)
+        graph = row["private_audit"]["graph"]
+        self.assertEqual(oracle["candidate_count"], graph["candidate_count"])
+        self.assertEqual(oracle["eligible_count"], graph["eligible_candidate_count"])
+        self.assertEqual(oracle["conflict_count"], graph["conflict_count"])
+        for public, private in zip(
+            row["public_model"]["density_frontier"],
+            row["private_audit"]["density_frontier"],
+        ):
+            winner = oracle["winners"][public["constrained_cap"]]
+            optimizer = private["optimizer"]
+            self.assertEqual(
+                winner["objective"],
+                (
+                    optimizer["retained_support_lower_bound"],
+                    -optimizer["constrained_count"],
+                    -optimizer["public_edge_count"],
+                    optimizer["selected_count"],
+                ),
+            )
+            self.assertEqual(
+                winner["witness"],
+                tuple(tuple(formal) for formal in optimizer["witness_list"]),
+            )
+            self.assertEqual(winner["selected_indices"], optimizer["selected_indices"])
+            self.assertEqual(winner["constrained_count"], public["constrained_count"])
+            self.assertEqual(winner["public_edge_count"], public["public_edge_count"])
+
     def test_corrected_energy_matches_ordered_and_multiset_recounts(self) -> None:
         ops = MODULE["OperationCounts"]()
         curve, points, record = MODULE["frozen_curve"](ops)
@@ -810,12 +1078,12 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertTrue(
             any(
-                "V4 requires an exhausted exact optimizer cell" in error
+                "V5 requires an exhausted exact optimizer cell" in error
                 for error in report["errors"]
             )
         )
 
-    def test_v4_exact_types_reject_json_equality_aliases(self) -> None:
+    def test_v5_exact_types_reject_json_equality_aliases(self) -> None:
         mutations = (
             (
                 "zero_to_false",
@@ -898,7 +1166,149 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             report["errors"],
         )
 
-    def test_v4_ordering_contract_is_independently_frozen(self) -> None:
+    def test_v5_type_checker_rejects_every_frozen_scalar_type_substitution(self) -> None:
+        scalar_paths = []
+
+        def visit(value, path=()):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    visit(child, path + (key,))
+            elif isinstance(value, list):
+                for index, child in enumerate(value):
+                    visit(child, path + (index,))
+            else:
+                scalar_paths.append(path)
+
+        visit(self.frozen_density_row)
+        checked = 0
+        for path in scalar_paths:
+            mutated = copy.deepcopy(self.frozen_density_row)
+            target = mutated
+            for component in path[:-1]:
+                target = target[component]
+            original = target[path[-1]]
+            if type(original) is bool:
+                replacement = int(original)
+            elif type(original) is int:
+                replacement = float(original)
+            elif type(original) is float:
+                replacement = int(original)
+            elif type(original) is str:
+                replacement = 0
+            elif original is None:
+                replacement = False
+            else:
+                continue
+            target[path[-1]] = replacement
+            errors = VERIFIER["v5_row_type_errors"](mutated)
+            self.assertTrue(errors, path)
+            checked += 1
+        self.assertGreater(checked, 1000)
+
+    def test_v5_preflight_returns_invalid_receipts_for_red_team_crash_cases(self) -> None:
+        mutations = []
+
+        truncated_caps = copy.deepcopy(self.frozen_density_row)
+        truncated_caps["public_model"]["constrained_budget_caps"].pop()
+        refresh_density_accounting(truncated_caps)
+        mutations.append(("truncated_caps", truncated_caps, "frontier length"))
+
+        invalid_formal = copy.deepcopy(self.frozen_density_row)
+        invalid_formal["public_model"]["density_frontier"][0]["selected_maxima"] = [
+            [999]
+        ]
+        refresh_density_accounting(invalid_formal)
+        mutations.append(("invalid_formal", invalid_formal, "out of range"))
+
+        duplicate_formal = copy.deepcopy(self.frozen_density_row)
+        duplicate_cell = next(
+            cell
+            for cell in duplicate_formal["public_model"]["density_frontier"]
+            if cell["selected_maxima"]
+        )
+        duplicate_cell["selected_maxima"].append(
+            copy.deepcopy(duplicate_cell["selected_maxima"][0])
+        )
+        refresh_density_accounting(duplicate_formal)
+        mutations.append(("duplicate_formal", duplicate_formal, "not unique"))
+
+        negative_cap = copy.deepcopy(self.frozen_density_row)
+        negative_cap["public_model"]["constrained_budget_caps"][0] = -1
+        negative_cap["public_model"]["density_frontier"][0]["constrained_cap"] = -1
+        negative_cap["private_audit"]["density_frontier"][0]["constrained_cap"] = -1
+        negative_cap["private_audit"]["density_frontier"][0]["optimizer"][
+            "max_constrained"
+        ] = -1
+        refresh_density_accounting(negative_cap)
+        mutations.append(("negative_cap", negative_cap, "outside 1..q"))
+
+        for label, mutated, expected in mutations:
+            with self.subTest(label=label):
+                first = VERIFIER["verify_density_row"](mutated, 100000)
+                second = VERIFIER["verify_density_row"](mutated, 100000)
+                self.assertFalse(first["valid"])
+                self.assertEqual(first, second)
+                self.assertEqual(first["primary_nodes"], 0)
+                self.assertTrue(
+                    any(expected in error for error in first["errors"]), first["errors"]
+                )
+                self.assertFalse(
+                    any("verifier failure" in error for error in first["errors"]),
+                    first["errors"],
+                )
+                document = MODULE["build_document"](
+                    [self.frozen_density_row],
+                    "frozen_fixture",
+                    MODULE["frozen_parameters"](100000),
+                )
+                document["rows"] = [mutated]
+                resign_document(document)
+                document_errors, document_reports = VERIFIER[
+                    "verify_v5_document_value"
+                ](document, 100000)
+                self.assertTrue(document_errors)
+                self.assertEqual(len(document_reports), 1)
+                self.assertFalse(document_reports[0]["valid"])
+
+    def test_v5_verifier_entrypoints_are_total_with_explicit_ceilings(self) -> None:
+        for maximum_nodes in (False, -1, VERIFIER["MAXIMUM_PRIMARY_NODES"] + 1):
+            with self.subTest(maximum_nodes=maximum_nodes):
+                row_report = VERIFIER["verify_density_row"](
+                    self.frozen_density_row, maximum_nodes
+                )
+                self.assertFalse(row_report["valid"])
+                document = MODULE["build_document"](
+                    [self.frozen_density_row],
+                    "frozen_fixture",
+                    MODULE["frozen_parameters"](100000),
+                )
+                errors, reports = VERIFIER["verify_v5_document_value"](
+                    document, maximum_nodes
+                )
+                self.assertTrue(errors)
+                self.assertEqual(reports, [])
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            malformed = root / "malformed.json"
+            malformed.write_text('{"schema":', encoding="ascii")
+            report = VERIFIER["verify_document"](malformed, 100000)
+            self.assertFalse(report["valid"])
+            self.assertTrue(any("input load failure" in error for error in report["errors"]))
+
+            non_object = root / "non-object.json"
+            non_object.write_text("[]", encoding="ascii")
+            report = VERIFIER["verify_document"](non_object, 100000)
+            self.assertFalse(report["valid"])
+            self.assertIn("input document is not an object", report["errors"])
+
+            duplicate = root / "duplicate.json"
+            duplicate.write_text('{"schema":"x","schema":"y"}', encoding="ascii")
+            report = VERIFIER["verify_document"](duplicate, 100000)
+            self.assertFalse(report["valid"])
+            self.assertTrue(any("duplicate key" in error for error in report["errors"]))
+
+    def test_v5_ordering_contract_is_independently_frozen(self) -> None:
         mutated = copy.deepcopy(self.frozen_density_row)
         mutated["public_model"]["ordering_contract"]["point_labels"] = (
             "affine labels may contain leading zeroes"
@@ -914,7 +1324,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             "frozen_fixture",
             MODULE["frozen_parameters"](100000),
         )
-        errors, reports = VERIFIER["verify_v4_document_value"](document, 100000)
+        errors, reports = VERIFIER["verify_v5_document_value"](document, 100000)
         self.assertEqual(errors, [])
         self.assertTrue(reports[0]["valid"])
 
@@ -934,18 +1344,18 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             }
         )
         resign_document(empty)
-        errors, _ = VERIFIER["verify_v4_document_value"](empty, 100000)
+        errors, _ = VERIFIER["verify_v5_document_value"](empty, 100000)
         self.assertTrue(errors)
         self.assertIn("canonical row grid/order mismatch", errors)
 
-    def test_v4_document_exact_types_are_closed(self) -> None:
+    def test_v5_document_exact_types_are_closed(self) -> None:
         baseline = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
             MODULE["frozen_parameters"](100000),
         )
         mutations = (
-            (("protocol_version",), 4.0),
+            (("protocol_version",), 5.0),
             (("canonical",), 0),
             (("claim_status", 0), 1),
             (("summary", "row_count"), False),
@@ -959,12 +1369,12 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     target = target[component]
                 target[path[-1]] = replacement
                 resign_document(document)
-                errors, _ = VERIFIER["verify_v4_document_value"](
+                errors, _ = VERIFIER["verify_v5_document_value"](
                     document, 100000
                 )
                 self.assertTrue(errors)
 
-    def test_document_router_uses_v4_strict_path_and_rejects_legacy_canonical(
+    def test_document_router_uses_v5_strict_path_and_rejects_every_legacy_schema(
         self,
     ) -> None:
         document = MODULE["build_document"](
@@ -991,21 +1401,47 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertTrue(strict_report["valid"], strict_report["errors"])
         self.assertTrue(
             any(
-                "closed V4 row/document schemas" in check
+                "closed V5 row/document schemas" in check
                 for check in strict_report["independent_checks"]
             )
         )
 
-        legacy = {
+        for legacy_schema in sorted(VERIFIER["LEGACY_SCHEMAS"]):
+            with self.subTest(legacy_schema=legacy_schema):
+                downgraded = copy.deepcopy(document)
+                downgraded["schema"] = legacy_schema
+                resign_document(downgraded)
+                legacy_report = route(downgraded)
+                self.assertFalse(legacy_report["valid"])
+                self.assertTrue(
+                    any(
+                        "unsupported legacy document schema" in error
+                        for error in legacy_report["errors"]
+                    ),
+                    legacy_report["errors"],
+                )
+                self.assertEqual(legacy_report["row_count"], 0)
+                self.assertFalse(
+                    any("graph" in check for check in legacy_report["independent_checks"])
+                )
+
+        empty_v3 = {
             "schema": "sgcp-embed-002-density-frontier-candidate-v3",
-            "canonical": True,
+            "canonical": False,
             "rows": [],
         }
-        legacy["document_sha256"] = VERIFIER["digest"](legacy)
-        legacy_report = route(legacy)
-        self.assertFalse(legacy_report["valid"])
-        self.assertIn(
-            "development document claims canonical status", legacy_report["errors"]
+        empty_v3["document_sha256"] = VERIFIER["digest"](empty_v3)
+        empty_report = route(empty_v3)
+        self.assertFalse(empty_report["valid"])
+        self.assertEqual(empty_report["row_count"], 0)
+
+        malformed_schema = copy.deepcopy(document)
+        malformed_schema["schema"] = []
+        resign_document(malformed_schema)
+        malformed_report = route(malformed_schema)
+        self.assertFalse(malformed_report["valid"])
+        self.assertTrue(
+            any("schema is not a string" in error for error in malformed_report["errors"])
         )
 
     def test_canonical_matrix_envelope_rejects_every_grid_mutation(self) -> None:
@@ -1110,6 +1546,126 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     MODULE["evaluate_family_gate"](mutated)
                 with self.assertRaises(AssertionError):
                     VERIFIER["independent_family_gate"](mutated)
+
+    def test_family_gate_hand_derived_18_of_24_and_three_strata_boundary(self) -> None:
+        rows = configure_gate_rows()
+        family = "least_x_interval"
+        thresholds = {5: 2, 6: 3, 7: 5, 8: 10}
+        differences = {
+            bits: [thresholds[bits]] * 6 if bits in (5, 6, 7) else [0] * 6
+            for bits in MODULE["CANONICAL_BITS"]
+        }
+        set_gate_differences(rows, family, "1/2", differences)
+        producer = MODULE["evaluate_family_gate"](rows)
+        independent = VERIFIER["independent_family_gate"](rows)
+        self.assertEqual(producer, independent)
+        report = gate_cap_report(producer, family, "1/2")
+        self.assertEqual(report["positive_comparisons"], 18)
+        self.assertEqual(report["passing_bit_strata"], 3)
+        self.assertTrue(report["pass"])
+        self.assertEqual(
+            producer["passing_family_cap_pairs"],
+            [{"family": family, "cap_fraction": "1/2"}],
+        )
+        self.assertEqual(producer["negative_outcome"], "NOT_APPLICABLE")
+
+    def test_family_gate_hand_derived_17_of_24_fails_with_three_strata(self) -> None:
+        rows = configure_gate_rows()
+        family = "least_x_interval"
+        differences = {
+            5: [2] * 6,
+            6: [3] * 6,
+            7: [5] * 5 + [0],
+            8: [0] * 6,
+        }
+        set_gate_differences(rows, family, "1/2", differences)
+        gate = VERIFIER["independent_family_gate"](rows)
+        self.assertEqual(gate, MODULE["evaluate_family_gate"](rows))
+        report = gate_cap_report(gate, family, "1/2")
+        self.assertEqual(report["positive_comparisons"], 17)
+        self.assertEqual(report["passing_bit_strata"], 3)
+        self.assertFalse(report["pass"])
+        self.assertEqual(gate["status"], "FAIL")
+
+    def test_family_gate_hand_derived_18_of_24_fails_with_two_strata(self) -> None:
+        rows = configure_gate_rows()
+        family = "least_x_interval"
+        differences = {
+            5: [2] * 6,
+            6: [3] * 6,
+            7: [1, 1, 1, 0, 0, 0],
+            8: [1, 1, 1, 0, 0, 0],
+        }
+        set_gate_differences(rows, family, "1/2", differences)
+        gate = VERIFIER["independent_family_gate"](rows)
+        self.assertEqual(gate, MODULE["evaluate_family_gate"](rows))
+        report = gate_cap_report(gate, family, "1/2")
+        self.assertEqual(report["positive_comparisons"], 18)
+        self.assertEqual(report["passing_bit_strata"], 2)
+        self.assertFalse(report["pass"])
+        self.assertEqual(gate["status"], "FAIL")
+
+    def test_family_gate_forbids_cross_cap_splicing_and_classifies_collapse(self) -> None:
+        rows = configure_gate_rows()
+        family = "least_x_interval"
+        set_gate_differences(
+            rows,
+            family,
+            "1/2",
+            {
+                5: [2] * 6,
+                6: [3] * 6,
+                7: [1, 1, 1, 0, 0, 0],
+                8: [1, 1, 1, 0, 0, 0],
+            },
+        )
+        set_gate_differences(
+            rows,
+            family,
+            "3/4",
+            {5: [2] * 6, 6: [3] * 6, 7: [5] * 5 + [0], 8: [0] * 6},
+        )
+        gate = VERIFIER["independent_family_gate"](rows)
+        self.assertEqual(gate, MODULE["evaluate_family_gate"](rows))
+        half = gate_cap_report(gate, family, "1/2")
+        three_quarters = gate_cap_report(gate, family, "3/4")
+        self.assertEqual(
+            (half["positive_comparisons"], half["passing_bit_strata"]), (18, 2)
+        )
+        self.assertEqual(
+            (
+                three_quarters["positive_comparisons"],
+                three_quarters["passing_bit_strata"],
+            ),
+            (17, 3),
+        )
+        self.assertEqual(gate["passing_family_cap_pairs"], [])
+        self.assertEqual(gate["negative_outcome"], "WEAKEN_OR_REJECT")
+
+        collapsed = configure_gate_rows()
+        for row in collapsed:
+            if row["family"] == MODULE["NULL_FAMILY"]:
+                continue
+            full_cap = next(
+                value
+                for value in row["private_audit"]["density_frontier"]
+                if value["constrained_cap"] == row["curve"]["q"]
+            )
+            full_cap["retention"]["retained_to_balanced_raw"] = {
+                "numerator": 1,
+                "denominator": 20,
+            }
+        collapse_gate = VERIFIER["independent_family_gate"](collapsed)
+        self.assertEqual(collapse_gate, MODULE["evaluate_family_gate"](collapsed))
+        self.assertEqual(collapse_gate["status"], "FAIL")
+        self.assertEqual(collapse_gate["negative_outcome"], "COLLAPSE")
+        self.assertTrue(
+            all(
+                report["full_cap_collapse"]
+                and report["full_cap_collapse_strata"] == 4
+                for report in collapse_gate["families"]
+            )
+        )
 
     def test_main_refuses_canonical_mode(self) -> None:
         with self.assertRaises(PermissionError):
