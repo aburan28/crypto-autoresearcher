@@ -94,6 +94,22 @@ snapshot and ledger-commit gates. The next implementation milestones are an
 immutable run wrapper, a goal-batch launcher, and a pluggable agent adapter
 interface.
 
+## Focused autoresearch
+
+The executable focus layer keeps the campaign on a few decision-changing
+experiments and enforces reproduce-before-expand. Queue v3 also emits an
+attention contract, reconciled stage budget, claim-by-claim verdict matrix,
+experiment/run DAG, scope deviations, and append-only corrections:
+
+```sh
+python3 tools/autoresearch_focus.py focus/focus_queue_20260717.json \
+  --output focus/current_plan.json \
+  --report focus/current_plan.md
+python3 -m unittest tools/test_autoresearch_focus.py
+```
+
+See `docs/focused-autoresearch-loop.md` for the scoring and ambiguity policy.
+
 ## Dynamic subagent dispatch
 
 The dispatch queue assigns unblocked, bounded work to distinct roles with

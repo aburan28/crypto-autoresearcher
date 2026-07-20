@@ -134,6 +134,95 @@ evidence:
 supporting runs' parameters allow, and any claimed solve must reference a
 `verified: true` certificate.
 
+## Focused campaign claim
+
+Use one record per conclusion boundary. A local identity, global construction,
+relation collector, descent, and end-to-end complexity claim are separate
+records.
+
+```yaml
+claim:
+  id: CLM-AREA-NNN
+  statement: null
+  scope: null
+  target_result: null
+  observed_result: null
+  verdict: reproduced | partially_reproduced | not_reproduced | not_attempted | open | invalidated
+  independently_verified: false
+  evidence_artifacts: []
+  evidence_runs: []
+  linked_experiments: []
+  scope_deviations: []
+  blockers: []
+```
+
+## Focused attention and stage budget
+
+Queue v3 requires this record on every active or queued candidate. Stages are
+ordered critical-path phases: wall-clock and CPU totals must reconcile with the
+top-level estimate, and the maximum stage memory must fit its cap.
+
+```yaml
+attention_contract:
+  decisive_evidence: null
+  inconclusive_decision: null
+  local_ambiguity_rule: null
+  peripheral_exclusions: []
+  rerank_trigger: null
+resource_estimate:
+  wall_clock_seconds: null
+  cpu_hours: null
+  maximum_memory_gb: null
+  maximum_runs: null
+  dominant_cost: null
+  complexity_hypothesis: null
+  sharding_plan: null
+  stop_rule: null
+  dominant_stage_id: null
+  stages:
+    - id: preparation
+      purpose: null
+      wall_clock_seconds: null
+      cpu_hours: null
+      maximum_memory_gb: null
+      parallel_shards: 1
+      dominant_operation: null
+      stop_rule: null
+```
+
+## Focused run index
+
+This is a compact campaign index, not a substitute for the immutable run
+receipt with command, revision, environment, logs, and measurements.
+
+```yaml
+run:
+  id: RUN-AREA-NNN
+  experiment_id: EXP-AREA-NNN
+  purpose: null
+  status: planned | running | completed | failed | cancelled | invalid
+  depends_on_runs: []
+  artifacts: []
+  failure_reason: null
+```
+
+## Correction
+
+Corrections append both values. They do not mutate or delete the prior record.
+
+```yaml
+correction:
+  id: CORR-YYYYMMDD-NNN
+  recorded_at: null
+  record_type: candidate | claim | run
+  record_id: null
+  field: null
+  prior_value: null
+  corrected_value: null
+  reason: null
+  evidence_artifacts: []
+```
+
 ## Coordinator decision
 
 ```yaml

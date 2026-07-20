@@ -12,6 +12,11 @@ initial goal checkpoint is committed before work begins.
 
 The Coordinator records a research question with scope, motivation, constraints, and the decision it is intended to inform.
 
+The question enters the executable focus queue before experiment design. The
+queue admits at most three active critical experiments and requires explicit
+positive, negative, and inconclusive decision branches plus recorded ambiguity
+resolutions and excluded peripheral work.
+
 ## 2. Ideation
 
 The Idea Generator returns one or more structured proposals. Each proposal must contain a mechanism, predictions, minimal test, falsification criteria, confounders, and interpretation limits.
@@ -30,6 +35,7 @@ The Coordinator creates an experiment contract containing:
 - primary and secondary metrics;
 - seed and replication strategy;
 - resource budget;
+- stage-by-stage wall-clock, CPU, memory, and sharding estimates;
 - stopping and invalidation rules;
 - success and falsification criteria;
 - required artifacts.
