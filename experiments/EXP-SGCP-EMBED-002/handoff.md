@@ -78,3 +78,69 @@ decisions.
 - `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
+
+## Handoff: SGCP V7 independent review closure
+
+### Claim or task
+
+Close the fresh exact-commit review of
+`fe093d3d80bba38e729fd8c98f78bed569e5087d` and identify the narrowest V8
+repair without authorizing a generated density row, canonical matrix, runner,
+launch plan, or run.
+
+### Status
+
+`NEGATIVE RESULT` for V7 launch-plan-design readiness. All three reviewers
+issued `REVISE`. The research claim remains `HYPOTHESIS`, `TOY-EVIDENCE`,
+`MODEL-BOUND`, and `NOVELTY-UNVERIFIED`; execution remains `NO-GO` and
+`maximum_runs=0`.
+
+### Assumptions
+
+- V7 review evidence is confined to exact commit `fe093d3`.
+- Structural reservation is a source-owned combinatorial admission bound, not
+  a runtime, allocator, RSS, I/O, or bandwidth model.
+- Frozen B4 is the only complete structurally distinct five-field oracle.
+- No current result covers relation yield, rank, linear algebra, descent,
+  preprocessing crossover, rho comparison, or ECDLP scaling.
+
+### Evidence so far
+
+- V7 preserved nonblocking size-first final-file admission, byte-snapshot
+  hashing, registered row authentication, source-owned structural ceilings,
+  sequential prior-cap receipts, exact rational gate fixtures, factor-base-
+  only generated controls, and complete frozen-B4 candidate/eligible checks.
+- V7 still omitted density-primary point-enumeration charges, did not enforce
+  actual-to-reservation dominance, exposed an unrestricted legacy direct row
+  path, and rejected some gate, nested transcript, and diagnostic failures only
+  after avoidable work.
+- Interrupted replay/proof work and global phase labels do not yet express
+  cap-scoped observed lower bounds exactly.
+- Canonical secondary objective fields are replay-confirmed outside frozen B4,
+  not independently proved by a distinct algorithm.
+
+### Failure modes
+
+- A successful receipt can undercount work while claiming completeness.
+- A rejected direct or late-invalid document can consume unreserved semantic
+  work.
+- Mid-function failures can discard observed work, and invalid input can
+  amplify reflected report material.
+- The structural ceiling remains too coarse to justify future wall-time or
+  four-GiB role limits.
+
+### Next concrete action
+
+Implement one no-run V8 repair: close every evidence-bearing entry point and
+nested transcript before semantics; charge exact point enumerations; enforce
+actual-to-reservation dominance; preserve mid-function progress as lower-bound
+receipts; sanitize and recursively bound diagnostics; use cap-aware completion
+semantics; and narrow secondary-objective language. Then validate, commit, and
+request fresh exact-commit three-way review with `maximum_runs=0`.
+
+### Artifact paths
+
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v7.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v7.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v7.md`
+- `experiments/EXP-SGCP-EMBED-002/decision-v7.json`
