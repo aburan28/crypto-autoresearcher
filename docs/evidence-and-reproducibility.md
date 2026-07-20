@@ -74,6 +74,12 @@ run:
     commit: git-sha
     dirty: false
     command: exact command
+  inference:
+    requested_policy: null
+    resolved_model_id: null
+    reasoning_effort: null
+    fallback_used: false
+    adapter_version: null
   environment:
     operating_system: null
     architecture: null
@@ -95,6 +101,11 @@ run:
     metrics: {}
     valid: true
     invalid_reason: null
+    certificate:              # see docs/claims-and-verification.md
+      kind: discrete_log | decomposition | none
+      verified: null          # true once independently re-checked; a failed
+                              # check invalidates the run (invalid_measurement)
+      verifier: null
   artifacts: {}
 ```
 
@@ -107,6 +118,22 @@ run:
 - Record checksums for large external datasets and artifacts.
 - Separate exploratory notebooks from canonical analysis scripts.
 - Prefer machine-readable outputs over parsing human-oriented logs.
+
+## Git archival gate
+
+A run manifest's `code.commit` identifies the code revision used for that run;
+it does not by itself prove that the run package, theory, review, or ledger
+record was committed. The dispatch lifecycle therefore uses Coordinator-only
+archive tasks:
+
+- a snapshot archive commits exact producer artifacts before review;
+- a ledger archive commits review reports, evidence, decisions, and any status
+  or knowledge updates before an official transition.
+
+Archive tasks run alone in a shared worktree. Their receipts bind the Git
+commit and parent, exact changed paths, record IDs, and SHA-256 values. The
+dispatcher verifies those facts from Git; a working-tree-only artifact remains
+incomplete evidence.
 
 ## Baseline discipline
 

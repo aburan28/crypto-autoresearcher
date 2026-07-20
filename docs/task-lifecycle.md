@@ -1,5 +1,13 @@
 # Research Task Lifecycle
 
+## 0. Persistent goal binding
+
+For a sustained campaign, the Coordinator creates or resumes a
+`ledger/goals/GOAL-<AREA>-<NNN>.yaml` record before intake. It binds the
+objective to its research questions, completion criteria, pause conditions,
+budget, batch queue, latest verified commit, and exactly one next action. The
+initial goal checkpoint is committed before work begins.
+
 ## 1. Intake
 
 The Coordinator records a research question with scope, motivation, constraints, and the decision it is intended to inform.
@@ -38,6 +46,16 @@ The experiment enters `review_required` until these fields are complete.
 
 The Coordinator approves the frozen protocol and sends it to the Executor. Protocol changes after approval require a versioned amendment. Exploratory changes must be labeled exploratory and cannot be evaluated against the original confirmatory criterion.
 
+The Coordinator also records a bounded task card in the dispatch queue with an
+exclusive write scope, resource budget, completion gate, and dependencies. Use
+`tools/research_dispatch.py` to select the ready cards. If a producer result
+could change a research claim, mark the task `review_required: true` and create
+a dependent Reviewer, Validator, or Red Team task before dispatching it.
+
+The Coordinator commits the frozen hypothesis, specification, and handoff by
+their exact paths before starting work. A task card must name every artifact it
+will produce and the Coordinator-only archive task that will commit it.
+
 ## 6. Execution
 
 The Executor creates immutable run records. Each planned run reaches one terminal status:
@@ -59,6 +77,15 @@ Before analysis, the Executor checks:
 - agreement between raw and summarized data;
 - control comparability;
 - unexpected protocol deviations.
+
+## 7a. Snapshot commit
+
+After a producer reaches a terminal outcome, the Coordinator runs its isolated
+snapshot archive task before any dependent review. The task stages only the
+declared producer artifacts, creates a commit naming the task and record IDs,
+and records the commit, parent, paths, and file hashes. The dispatcher verifies
+that receipt against Git. A failed snapshot gate stops the review chain; it is
+an evidence-integrity failure, not a negative result.
 
 ## 8. Analysis
 
@@ -82,13 +109,26 @@ The Coordinator assigns an evidence strength and chooses one transition:
 - `inconclusive` — data do not discriminate explanations;
 - `pause` — low expected information gain relative to cost.
 
-After review, regenerate the focus plan. Do not expand a positive branch until
-an independent verifier is recorded as passing, and do not automatically fill
-capacity when an experiment finishes.
+## 9a. Ledger commit and official transition
+
+After every required Validator, Reviewer, and Red Team task completes, the
+Coordinator runs an isolated ledger archive task. It commits the exact review
+reports, analysis, evidence record, decision record, and any hypothesis-status
+or knowledge update. The task must pass the post-commit diff-and-hash check
+before the Coordinator records an official transition. Workers never race to
+commit inside a shared worktree.
 
 ## 10. Synthesis
 
 Synthesis statements must reference hypothesis, experiment, run, evidence, and decision IDs. They must explicitly distinguish toy-scale, medium-scale, and cryptographic-scale evidence.
+
+## 10a. Goal checkpoint, rerank, and continuation
+
+For an active `GOAL-*`, the Coordinator updates the goal record in the ledger
+archive commit with the completed batch, verified commit, decision, and next
+action. Only then rerank and schedule the next bounded batch. A scoped negative
+result, invalid run, or empty batch ends the affected task but leaves the goal
+active unless a declared completion or pause condition is committed.
 
 ## Protocol amendments
 
