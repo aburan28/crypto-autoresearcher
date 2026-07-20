@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import itertools
+import math
 import runpy
 import unittest
 from pathlib import Path
@@ -34,7 +35,110 @@ def exhaustive_graph(
     return best
 
 
+def resign_density_row(row: dict[str, object]) -> None:
+    payload = dict(row)
+    payload.pop("row_sha256", None)
+    row["row_sha256"] = VERIFIER["digest"](payload)
+
+
+def refresh_density_accounting(row: dict[str, object]) -> None:
+    public_model = row["public_model"]
+    private_audit = row["private_audit"]
+    public_caps = public_model["density_frontier"]
+    private_caps = private_audit["density_frontier"]
+    row_payload = dict(row)
+    row_payload.pop("row_sha256", None)
+    row_payload.pop("accounting", None)
+    row["accounting"] = {
+        "scope": "nested canonical-JSON byte measures; fields are nonadditive",
+        "public_model_json_bytes": len(VERIFIER["stable_bytes"](public_model)),
+        "private_audit_json_bytes": len(VERIFIER["stable_bytes"](private_audit)),
+        "row_payload_without_accounting_or_digest_json_bytes": len(
+            VERIFIER["stable_bytes"](row_payload)
+        ),
+        "nested_per_cap_json_bytes": [
+            {
+                "constrained_cap": public["constrained_cap"],
+                "public_embedding_json_bytes": len(VERIFIER["stable_bytes"](public)),
+                "private_cap_json_bytes": len(VERIFIER["stable_bytes"](private)),
+            }
+            for public, private in zip(public_caps, private_caps)
+        ],
+    }
+    resign_density_row(row)
+
+
+def resign_factor_base(row: dict[str, object]) -> None:
+    record = row["public_model"]["factor_base"]
+    payload = dict(record)
+    payload.pop("selection_sha256", None)
+    record["selection_sha256"] = VERIFIER["digest"](payload)
+
+
+def resign_document(document: dict[str, object]) -> None:
+    payload = dict(document)
+    payload.pop("document_sha256", None)
+    document["document_sha256"] = VERIFIER["digest"](payload)
+
+
+def synthetic_gate_rows() -> list[dict[str, object]]:
+    group_sizes = {5: 23, 6: 47, 7: 97, 8: 193}
+    rows = []
+    for bits, seed, B, family, replicate in MODULE["canonical_row_keys"]():
+        q = group_sizes[bits]
+        caps = sorted({max(1, q // 4), max(1, q // 2), max(1, 3 * q // 4), q})
+        if family == MODULE["NULL_FAMILY"]:
+            support = (1, 2, 2, 3)[replicate]
+        else:
+            support = q // 2
+        public_caps = [{"constrained_cap": cap} for cap in caps]
+        private_caps = [
+            {
+                "constrained_cap": cap,
+                "optimizer": {
+                    "retained_support_lower_bound": support,
+                    "primary_exact": True,
+                    "full_objective_exact": True,
+                    "absolute_gap": 0,
+                },
+                "retention": {
+                    "retained_to_balanced_raw": {
+                        "numerator": 1,
+                        "denominator": 2,
+                    }
+                },
+            }
+            for cap in caps
+        ]
+        rows.append(
+            {
+                "curve": {"bits": bits, "seed": seed, "q": q},
+                "B": B,
+                "family": family,
+                "null_replicate": replicate,
+                "public_model": {"density_frontier": public_caps},
+                "private_audit": {"density_frontier": private_caps},
+            }
+        )
+    return rows
+
+
 class SgcpEmbedFamilyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        ops = MODULE["OperationCounts"]()
+        curve, points, record = MODULE["frozen_curve"](ops)
+        cls.frozen_density_row = MODULE["build_density_row"](
+            curve,
+            points,
+            record,
+            4,
+            "least_x_interval",
+            None,
+            100000,
+            ops,
+        )
+
     def test_curve_sampler_enforces_registered_filters(self) -> None:
         for bits, seed in itertools.product((5, 6, 7, 8), (101, 211)):
             with self.subTest(bits=bits, seed=seed):
@@ -50,6 +154,59 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     MODULE["stable_digest"](record["rejected_draws"]),
                     record["rejection_digest"],
                 )
+                verified_curve = VERIFIER["verify_curve_provenance"](record)
+                self.assertEqual(
+                    (verified_curve.p, verified_curve.a, verified_curve.b),
+                    (curve.p, curve.a, curve.b),
+                )
+
+    def test_curve_rejection_transcript_records_duplicates_and_complete_reasons(
+        self,
+    ) -> None:
+        fixtures = [
+            ((17, 0, 0), "singular"),
+            ((17, 0, 1), "trace_zero"),
+            ((17, 1, 3), "anomalous_trace_one"),
+            ((19, 0, 2), "j_zero"),
+            ((17, 1, 0), "j_1728"),
+        ]
+        for (p, a, b), expected_reason in fixtures:
+            with self.subTest(reason=expected_reason):
+                reasons, _ = MODULE["curve_rejection_reasons"](p, a, b, 5)
+                self.assertIn(expected_reason, reasons)
+
+        generated_globals = MODULE["generated_curve"].__globals__
+        original_hash = generated_globals["hash_int"]
+
+        def scripted_hash(domain, fields, modulus, ops=None):
+            draw = fields[2]
+            if domain == "sgcp-002-curve-p":
+                return 1
+            if domain == "sgcp-002-curve-a":
+                return (0, 0, 2)[draw] % modulus
+            if domain == "sgcp-002-curve-b":
+                return (0, 0, 9)[draw] % modulus
+            raise AssertionError(domain)
+
+        generated_globals["hash_int"] = scripted_hash
+        try:
+            _, _, record = MODULE["generated_curve"](5, 999)
+        finally:
+            generated_globals["hash_int"] = original_hash
+        self.assertEqual(record["draw"], 2)
+        self.assertEqual(record["rejected_draws"][0]["reasons"], ["singular"])
+        self.assertEqual(
+            record["rejected_draws"][1]["reasons"], ["duplicate_candidate"]
+        )
+
+    def test_generated_curve_provenance_mutation_is_rejected(self) -> None:
+        ops = MODULE["OperationCounts"]()
+        _, _, record = MODULE["generated_curve"](5, 101, ops)
+        VERIFIER["verify_curve_provenance"](record)
+        mutated = copy.deepcopy(record)
+        mutated["rejection_digest"] = "0" * 64
+        with self.assertRaises(AssertionError):
+            VERIFIER["verify_curve_provenance"](mutated)
 
     def test_predicates_are_matched_and_deterministic(self) -> None:
         ops = MODULE["OperationCounts"]()
@@ -76,6 +233,47 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                 self.assertTrue(first["negation_symmetric"])
                 for point in factors:
                     self.assertIn(curve.neg(point), factors)
+
+    def test_predicate_replicate_rules_and_mobius_transcript_are_enforced(self) -> None:
+        ops = MODULE["OperationCounts"]()
+        curve, points, record = MODULE["frozen_curve"](ops)
+        with self.assertRaises(ValueError):
+            MODULE["factor_base"](
+                curve, points, record, 4, "least_x_interval", 999, ops
+            )
+        with self.assertRaises(ValueError):
+            MODULE["factor_base"](curve, points, record, 4, "hash_x_null", 4, ops)
+
+        row = MODULE["build_density_row"](
+            curve, points, record, 4, "mobius_interval", None, 100000, ops
+        )
+        self.assertTrue(VERIFIER["verify_density_row"](row, 100000)["valid"])
+        mutated = copy.deepcopy(row)
+        mutated["public_model"]["factor_base"]["parameters"]["map"]["nonce"] += 1
+        resign_factor_base(mutated)
+        refresh_density_accounting(mutated)
+        report = VERIFIER["verify_density_row"](mutated, 100000)
+        self.assertFalse(report["valid"])
+        self.assertTrue(
+            any(
+                "Mobius derivation transcript mismatch" in error
+                for error in report["errors"]
+            )
+        )
+
+        illegal = copy.deepcopy(self.frozen_density_row)
+        illegal["null_replicate"] = 999
+        illegal["public_model"]["factor_base"]["null_replicate"] = 999
+        resign_factor_base(illegal)
+        refresh_density_accounting(illegal)
+        report = VERIFIER["verify_density_row"](illegal, 100000)
+        self.assertFalse(report["valid"])
+        self.assertTrue(
+            any(
+                "coordinate family carries a null replicate" in error
+                for error in report["errors"]
+            )
+        )
 
     def test_branch_and_bound_matches_exhaustive_graph_fixtures(self) -> None:
         fixtures = [
@@ -130,6 +328,9 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertGreaterEqual(capped["retained_support_upper_bound"], optimum)
         self.assertEqual(capped["termination_reason"], "node_cap")
         self.assertTrue(capped["frontier_states"])
+        self.assertGreater(capped["absolute_gap"], 0)
+        self.assertFalse(capped["primary_exact"])
+        self.assertFalse(capped["full_objective_exact"])
         self.assertEqual(
             VERIFIER["verify_frontier_certificate"](
                 pair_outputs, point_count, conflicts, capped
@@ -320,6 +521,24 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             observed["ordered_tuple_additive_energy"],
             sum(value * value for value in ordered_counts.values()),
         )
+        all_degrees = MODULE["degree_expansion"](curve, factors)
+        self.assertEqual(
+            all_degrees,
+            VERIFIER["expansion_metrics"](
+                VERIFIER["Curve"](curve.p, curve.a, curve.b),
+                factors,
+            ),
+        )
+        for degree in (1, 2, 4, 8):
+            with self.subTest(degree=degree):
+                metrics = all_degrees[str(degree)]
+                self.assertEqual(
+                    metrics["formal_multiset_witness_count"],
+                    math.comb(len(factors) + degree - 1, degree),
+                )
+                self.assertEqual(
+                    metrics["ordered_tuple_witness_count"], len(factors) ** degree
+                )
 
     def test_density_gap_frontier_replays_from_root(self) -> None:
         point_count = 19
@@ -367,18 +586,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
 
     def test_frozen_density_frontier_is_exact_and_within_every_cap(self) -> None:
-        ops = MODULE["OperationCounts"]()
-        curve, points, record = MODULE["frozen_curve"](ops)
-        row = MODULE["build_density_row"](
-            curve,
-            points,
-            record,
-            4,
-            "least_x_interval",
-            None,
-            100000,
-            ops,
-        )
+        row = self.frozen_density_row
         self.assertEqual(row["public_model"]["constrained_budget_caps"], [5, 11, 17, 23])
         for public, private in zip(
             row["public_model"]["density_frontier"],
@@ -396,26 +604,152 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         verification = VERIFIER["verify_density_row"](row, 100000)
         self.assertTrue(verification["valid"], verification["errors"])
         self.assertEqual(len(verification["cap_reports"]), 4)
-        recomposed_counts = {
-            key: row["accounting"]["shared_precomputation_operation_counts"][key]
-            + sum(
-                private["operation_counts"][key]
-                for private in row["private_audit"]["density_frontier"]
-            )
-            for key in row["operation_counts"]
-        }
-        self.assertEqual(recomposed_counts, row["operation_counts"])
+        self.assertNotIn("operation_counts", row)
+        self.assertEqual(
+            row["structural_work"]["degree_multiset_evaluations"],
+            sum(
+                row["private_audit"]["expansion"][str(degree)][
+                    "formal_multiset_witness_count"
+                ]
+                for degree in (1, 2, 4, 8)
+            ),
+        )
 
         mutated = copy.deepcopy(row)
-        mutated["accounting"]["public_json_bytes"] += 1
-        mutated["operation_counts"]["point_additions"] += 1
-        digest_payload = dict(mutated)
-        digest_payload.pop("row_sha256")
-        mutated["row_sha256"] = VERIFIER["digest"](digest_payload)
+        mutated["accounting"]["public_model_json_bytes"] += 1
+        resign_density_row(mutated)
         mutation_report = VERIFIER["verify_density_row"](mutated, 100000)
         self.assertFalse(mutation_report["valid"])
         self.assertIn("cost-accounting byte receipt mismatch", mutation_report["errors"])
-        self.assertIn("operation-count decomposition mismatch", mutation_report["errors"])
+
+        mutated = copy.deepcopy(row)
+        mutated["structural_work"]["pair_output_cells"] += 1
+        refresh_density_accounting(mutated)
+        mutation_report = VERIFIER["verify_density_row"](mutated, 100000)
+        self.assertFalse(mutation_report["valid"])
+        self.assertIn("row structural-work receipt mismatch", mutation_report["errors"])
+
+    def test_closed_schema_rejects_scalar_material_and_nested_graph_extras(self) -> None:
+        scalar = copy.deepcopy(self.frozen_density_row)
+        scalar["scalar_table"] = []
+        refresh_density_accounting(scalar)
+        report = VERIFIER["verify_density_row"](scalar, 100000)
+        self.assertFalse(report["valid"])
+        self.assertTrue(any("closed row schema" in error for error in report["errors"]))
+        self.assertTrue(
+            any("forbidden material key" in error for error in report["errors"])
+        )
+
+        nested = copy.deepcopy(self.frozen_density_row)
+        nested["private_audit"]["individually_rejected"][0]["note"] = "extra"
+        refresh_density_accounting(nested)
+        report = VERIFIER["verify_density_row"](nested, 100000)
+        self.assertFalse(report["valid"])
+        self.assertTrue(any("closed row schema" in error for error in report["errors"]))
+
+    def test_semantic_mutations_are_rejected_after_receipts_are_refreshed(self) -> None:
+        representative = copy.deepcopy(self.frozen_density_row)
+        compiler = representative["public_model"]["representative_compiler"]
+        compiler["representatives"][0]["formal"] = [3, 3]
+        compiler["representatives_sha256"] = VERIFIER["digest"](
+            compiler["representatives"]
+        )
+        refresh_density_accounting(representative)
+        report = VERIFIER["verify_density_row"](representative, 100000)
+        self.assertFalse(report["valid"])
+        self.assertIn("representative compiler mismatch", report["errors"])
+
+        objective = copy.deepcopy(self.frozen_density_row)
+        objective["private_audit"]["density_frontier"][0]["optimizer"][
+            "objective_order"
+        ][0:2] = ["constrained_count:min", "retained_support:max"]
+        refresh_density_accounting(objective)
+        report = VERIFIER["verify_density_row"](objective, 100000)
+        self.assertFalse(report["valid"])
+        self.assertTrue(
+            any("optimizer objective-order mismatch" in error for error in report["errors"])
+        )
+
+        source = copy.deepcopy(self.frozen_density_row)
+        source_cap = source["public_model"]["density_frontier"][0]
+        source_cap["source_table"][0]["formal"] = [0]
+        source_cap["source_table_sha256"] = VERIFIER["digest"](
+            source_cap["source_table"]
+        )
+        refresh_density_accounting(source)
+        report = VERIFIER["verify_density_row"](source, 100000)
+        self.assertFalse(report["valid"])
+        self.assertTrue(
+            any("public source table/digest mismatch" in error for error in report["errors"])
+        )
+
+        unresolved = copy.deepcopy(self.frozen_density_row)
+        optimizer = unresolved["private_audit"]["density_frontier"][0]["optimizer"]
+        optimizer["primary_exact"] = False
+        optimizer["retained_support_upper_bound"] += 1
+        optimizer["absolute_gap"] = 1
+        refresh_density_accounting(unresolved)
+        report = VERIFIER["verify_density_row"](unresolved, 100000)
+        self.assertFalse(report["valid"])
+        self.assertTrue(
+            any(
+                "V3 requires an exhausted exact optimizer cell" in error
+                for error in report["errors"]
+            )
+        )
+
+    def test_frozen_document_verifies_and_empty_canonical_document_is_rejected(self) -> None:
+        document = MODULE["build_document"](
+            [self.frozen_density_row],
+            "frozen_fixture",
+            MODULE["frozen_parameters"](100000),
+        )
+        errors, reports = VERIFIER["verify_v3_document_value"](document, 100000)
+        self.assertEqual(errors, [])
+        self.assertTrue(reports[0]["valid"])
+
+        with self.assertRaises(ValueError):
+            MODULE["build_document"]([], "canonical", MODULE["canonical_parameters"]())
+
+        empty = copy.deepcopy(document)
+        empty.update(
+            {
+                "scope": "canonical",
+                "canonical": True,
+                "interpretation": "canonical candidate; coordinator interpretation still required",
+                "parameters": MODULE["canonical_parameters"](),
+                "rows": [],
+                "summary": MODULE["document_summary"]([]),
+                "family_gate": {"status": "PASS"},
+            }
+        )
+        resign_document(empty)
+        errors, _ = VERIFIER["verify_v3_document_value"](empty, 100000)
+        self.assertTrue(errors)
+        self.assertIn("canonical row grid/order mismatch", errors)
+
+    def test_family_gate_matches_independent_evaluator_and_refuses_gaps(self) -> None:
+        rows = synthetic_gate_rows()
+        producer = MODULE["evaluate_family_gate"](rows)
+        independent = VERIFIER["independent_family_gate"](rows)
+        self.assertEqual(producer, independent)
+        self.assertEqual(producer["status"], "PASS")
+        self.assertEqual(len(producer["passing_family_cap_pairs"]), 6)
+
+        incomplete = rows[:-1]
+        with self.assertRaises(KeyError):
+            MODULE["evaluate_family_gate"](incomplete)
+        with self.assertRaises(KeyError):
+            VERIFIER["independent_family_gate"](incomplete)
+
+        unresolved = copy.deepcopy(rows)
+        unresolved[0]["private_audit"]["density_frontier"][0]["optimizer"][
+            "primary_exact"
+        ] = False
+        with self.assertRaises(ValueError):
+            MODULE["evaluate_family_gate"](unresolved)
+        with self.assertRaises(AssertionError):
+            VERIFIER["independent_family_gate"](unresolved)
 
     def test_main_refuses_canonical_mode(self) -> None:
         with self.assertRaises(PermissionError):

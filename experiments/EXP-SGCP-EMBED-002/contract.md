@@ -1,40 +1,50 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 2
+# Experiment Contract: EXP-SGCP-EMBED-002, version 3
 
 ## Claim status
 
 `HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
-The experiment is `review_required`; canonical execution is locked at zero runs.
+The experiment is `review_required`; curve-family and canonical execution are
+locked at zero new rows and zero runs.
 
 ## Hypothesis
 
-At least one fixed coordinate predicate family preserves nonvacuous valid
-structured-embedding support across generated 5-8 bit curves and improves the
-certified retained-support frontier at matched constrained-label budgets over
-hash-ranked x-fiber controls.
+At least one fixed coordinate predicate family, composed with the frozen
+lexicographically least degree-two representative compiler, preserves
+nonvacuous structured-embedding support across generated 5-8 bit curves and
+improves the exact retained-support frontier over four hash-ranked x-fiber
+controls at one same constrained-label cap fraction across strata.
+
+This is a predicate-plus-compiler hypothesis. It is not an invariant of the
+factor base or curve.
 
 ## Null hypothesis
 
-After exact matching by curve, factor-base size, and absolute constrained-label
-cap, the coordinate families do not show a stable support-at-density advantage,
-or valid order ideals lose nearly all balanced-raw final support as the tested
-toy size grows.
+On one complete valid exact matrix, no fixed coordinate-family and cap-fraction
+pair simultaneously passes the full-cap persistence and matched-null advantage
+rules below.
 
-An implementation failure, invalid control, or unresolved optimizer interval is
-not evidence for this null.
+Missing rows, unresolved optimization, resource exhaustion, invalid controls,
+or implementation and verifier failures are `INCONCLUSIVE`, not evidence for
+the null.
 
 ## Mathematical object
 
 For each accepted prime-order curve `E(F_p)` and even factor-base size `B`, a
-predicate selects `B/2` non-2-torsion x-fibers. The factor base `F` contains both
-points over every selected x-coordinate.
+predicate selects `B/2` two-point x-fibers. The factor base `F` contains both
+signs above every selected x-coordinate.
 
-The balanced candidate universe and its formal downward closures are inherited
-without weakening from EXP-SGCP-EMBED-001. A degree-four maximum is individually
-eligible exactly when EC evaluation is injective on its order ideal. Two
-eligible maxima conflict exactly when evaluation on the union of their order
-ideals is noninjective. A set of maxima is admissible exactly when it is an
-independent set in this conflict graph. The verifier must separately test the
-pairwise-conflict iff full-union-collision lemma on every exhaustive audit row.
+The frozen compiler enumerates all degree-two multisets over `F`, groups them
+by EC output, discards the identity output, and retains the lexicographically
+least formal witness in every remaining output class. The complete
+representative table, compiler identifier, and table digest are public.
+
+Pairs of these representatives induce degree-four formal maxima. A maximum is
+individually eligible exactly when EC evaluation is injective on its downward
+closure. Two eligible maxima conflict exactly when evaluation on the union of
+their downward closures is noninjective. For this fixed construction, a set of
+maxima is admissible exactly when it is independent in that pair-conflict
+graph. The verifier reconstructs individual rejections, first collisions,
+eligible universe indices, and pair-conflict first collisions.
 
 For an admissible selected set `S`, let `A4(S)` be the EC evaluations of its
 degree-four maxima and define
@@ -43,174 +53,252 @@ degree-four maxima and define
 R(S) = |{P + Q : P,Q in A4(S), P <= Q}|.
 ```
 
-The private audit may compute this final join. The public partial operation may
-not expose any `A4 x A4` edge.
+The final join and `R(S)` are private audit data. The public partial operation
+must contain no `A4 x A4` edge.
+
+## Source interface
+
+Every constrained coordinate label must have exactly one formal source in an
+emitted public label-to-formal table. The verifier independently reconstructs
+that table and its digest. The table is explicit fixed-row advice, and its
+serialized bytes are charged inside the public model and each nested cap
+receipt.
+
+The legacy `source_recovery` boolean records sorted formal normalization only.
+Version 3 interprets source recovery through
+`source_recovery_via_public_table`; it does not treat normalization as an
+inversion algorithm.
 
 ## Optimizer contract
 
-For each curve order `q`, evaluate the deduplicated absolute caps
+For curve order `q`, use the deduplicated increasing caps
 
 ```text
-C in {floor(q/4), floor(q/2), floor(3q/4), q}.
+floor(q/4), floor(q/2), floor(3q/4), q.
 ```
 
-For every cap `C`, require `constrained_count(S) <= C` and use the complete
+At every cap `C`, require `constrained_count(S) <= C` and use this exact
 lexicographic objective:
 
 1. maximize `R(S)`;
 2. minimize constrained labels;
 3. minimize public nonidentity edges;
-4. maximize the number of retained degree-four maxima;
+4. maximize retained degree-four maxima;
 5. choose the lexicographically least maximum list.
 
-The optimizer may terminate by proof, node cap, or cap-cell wall limit. It must
-always emit a feasible incumbent with primary lower bound `L` and a
-frontier-derived primary upper bound `U`, with `L <= OPT <= U`. Only `L=U`
-proves the primary optimum. A nonzero-gap cell may report the incumbent's
-secondary fields, but it must not label them optimal or contribute to a
-positive family gate.
+The per-cap producer node cap is `2,000,000`. The bound is the minimum of group
+size, the global pair-output union, and the incumbent support plus a
+conflict-clique-cover pair-capacity bound.
 
-Every capped search must serialize the complete live frontier. Each state binds
-the selected, available, and selected-support masks plus its support/count
-upper bounds. This private certificate is charged. The verifier must reconstruct
-each state and bound without executing the producer search.
+Every canonical cap cell must satisfy all of the following:
 
-The verifier must exact-enumerate all sufficiently small controls and confirm
-that the branch-and-bound interval contains the known optimum. It must also
-recompute every bound used to prune a canonical row.
+- `primary_exact=true`;
+- `full_objective_exact=true`;
+- lower bound equals upper bound;
+- `absolute_gap=0`;
+- no remaining or serialized live frontier;
+- termination is `full_objective_proved`;
+- deterministic independent replay matches every objective and search field;
+- a separately written depth-first primary proof finishes and matches the
+  optimum.
 
-## Curves
+One unresolved primary or secondary cell invalidates the entire 672-cell
+matrix. Gap-bearing cells remain useful only as abstract optimizer controls.
+
+## Curves and provenance
 
 - q bit sizes: `5`, `6`, `7`, `8`
 - curve seeds: `101`, `211`
 - accepted model: `y^2 = x^3 + ax + b` over prime `p > 3`
 - exact prime group order `q` with the requested bit length
-- reject singular curves, trace zero, anomalous trace one, `j=0`, and `j=1728`
+- reject duplicate candidates, singular curves, wrong-bit or nonprime q,
+  trace zero, anomalous trace one, `j=0`, and `j=1728`
 - generator: least nonidentity affine point in canonical order
 - frozen regression: `p=19,a=2,b=9,q=23,G=(0,3)`
 
-The sampler must record every rejected draw and its reason. The regression is a
-control and is not counted as a random family instance.
+The sampler is deterministic and generated, not statistically random. It must
+record every draw and every applicable rejection reason. Duplicate draws are
+retained explicitly. The verifier independently rederives the prime list,
+hash-derived `(p,a,b)`, complete rejection transcript, accepted curve,
+invariants, generator, and digest. The eight accepted `(p,a,b,q)` records must
+be distinct across bit-seed pairs.
+
+The frozen regression is implementation evidence only and is not a family
+instance.
 
 ## Predicates
 
-Each family selects exactly `B/2` admissible roots and then includes both point
-signs.
+Every predicate selects exactly `B/2` admissible roots and includes both signs.
 
-- `least_x_interval`: rank roots by their canonical integer x-coordinate.
-- `mobius_interval`: rank by `(u*x+v)/(x+w) mod p`, with domain-separated,
-  public nondegenerate parameters and deterministic pole handling.
-- `two_mobius_union`: alternately take roots from two independently derived
-  Mobius rankings, skipping duplicates and poles until the exact cardinality is
-  reached.
-- `hash_x_null`: rank roots by a domain-separated SHA-256 digest. Four
-  independent null replicates are matched to each curve and B.
+- `least_x_interval`: canonical integer x order.
+- `mobius_interval`: `(u*x+v)/(x+w) mod p`, using the first nondegenerate
+  domain-separated hash-derived map and deterministic pole removal.
+- `two_mobius_union`: alternate through two independently derived Mobius
+  rankings, skipping per-map poles and duplicate selected roots until full.
+- `hash_x_null`: domain-separated SHA-256 ranking with exact replicate in
+  `{0,1,2,3}`.
 
-All emitted factor bases include selected roots, both signs, public predicate
-parameters, the root polynomial, and a deterministic-selection digest.
+Coordinate rows require `null_replicate=null`. Hash-null rows require one exact
+integer replicate in the frozen range. The verifier rederives every map,
+nonce, determinant, ranking, pole list, alternating position, hash value,
+selected root, root polynomial, point, sign pair, and selection digest.
 
-## Parameters
+## Canonical matrix
 
-- factor-base sizes: `B in {4,6,8}`
-- coordinate families: three
-- matched null replicates: four
-- conflict-graph node cap: `2,000,000` per cap cell
-- constrained-label cap fractions: `1/4`, `1/2`, `3/4`, and `1`
-- canonical runs before review: zero
-- proposed post-review roles: one generator and one independent verifier
+The exact order is:
 
-The fixed B values are finite stress probes. They are not an `n^(1/5)` scaling
-schedule and cannot support an exponent fit.
+```text
+for bits in 5,6,7,8:
+  for seed in 101,211:
+    for B in 4,6,8:
+      least_x_interval
+      mobius_interval
+      two_mobius_union
+      hash_x_null replicate 0
+      hash_x_null replicate 1
+      hash_x_null replicate 2
+      hash_x_null replicate 3
+```
 
-## Metrics
+This is exactly 168 rows and 672 cap cells. Missing, extra, duplicate,
+reordered, wrong-cap, wrong-node-budget, internally inconsistent, or
+cross-seed-duplicate rows invalidate the document before interpretation.
 
-Primary metrics are the exact axiom vector, direct-final-edge count, per-cap
-optimizer interval and gap, balanced-raw/full-eight-fold/retained final
-support, attained constrained count and delta, the certified support frontier,
-and paired coordinate-versus-null differences at identical absolute caps.
+## Frozen family gate
 
-Secondary metrics include `|F|`, `|2F|`, `|4F|`, `|8F|`, additive-energy
-histograms under two explicitly separate source measures, candidate/rejection/
-conflict graph statistics, components and degeneracy, optimizer pruning counts,
-public bytes, charged private bytes, field and point operation counts, memory,
-wall time, and complete curve and predicate provenance. Shared precomputation and
-each cap cell must have separate operation receipts whose exact sum is the row
-total. Public-model, private-audit, and per-cap JSON byte counts must be
-independently reproducible from the serialized objects.
+All arithmetic is exact rational arithmetic.
 
-For each degree, `formal_multiset_collision_energy` squares multiplicities of
-combinations with replacement. `ordered_tuple_additive_energy` first weights
-each multiset by its multinomial number of orderings and then squares the
-resulting output multiplicities. Neither field may be substituted for the
-other.
+### Full-cap persistence
 
-`balanced_raw_final_support` means the final pair support of the inherited
-balanced A4 universe. `eight_fold_support` means the full exact support of all
-degree-eight factor-base multisets. Both denominators must appear beside any
-retention ratio.
+For each coordinate family and bit stratum, take the exact median of the six
+full-cap `retained_to_balanced_raw` ratios from two seeds and three B values.
+The family passes persistence only if all four medians are at least `1/4`.
+
+### Matched-null advantage
+
+For every curve-B pair and cap fraction `1/2` or `3/4`, take the exact
+arithmetic mean of the middle two of the four precommitted null supports.
+Duplicate null selections and equal support values remain in the four-value
+sample; there is no resampling or deduplication.
+
+Subtract this null median and `max(1,ceil(q/20))` from coordinate support. A
+bit stratum passes when the exact median of its six threshold margins is
+nonnegative. A fixed family-cap pair passes when at least three bit strata pass
+and at least 18 of all 24 unthresholded coordinate-minus-null-median
+comparisons are positive.
+
+The gate tests six preregistered family-cap pairs and reports all winners. One
+same family and one same cap fraction must pass across strata; half-cap evidence
+cannot be spliced with three-quarter-cap evidence.
+
+## Expansion and energy
+
+For degrees `1`, `2`, `4`, and `8`, report exact support under degree-d
+factor-base multisets.
+
+`formal_multiset_collision_energy` squares output multiplicities when each
+multiset is counted once. `ordered_tuple_additive_energy` first weights each
+multiset by its multinomial number of orderings and then squares the resulting
+output multiplicities. The verifier independently reconstructs both measures,
+their witness totals, maxima, and histograms.
+
+`balanced_raw_final_support` is the final pair support of the compiled balanced
+A4 universe. `eight_fold_support` is the exact support of all degree-eight
+factor-base multisets. Both denominators appear beside retention ratios.
+
+## Accounting boundary
+
+Version 3 removes producer operation-total claims. It emits only independently
+reconstructible combinatorial cells, including multiset evaluations,
+representative and parent-pair counts, graph checks, pair-output cells,
+optimizer nodes, bound calls, selected maxima, public edges, source-table
+entries, and final-pair cells. These are structural work, not CPU instructions,
+field-operation totals, or a complete end-to-end cost.
+
+Every cap creates a fresh model cache, so cap-local search receipts do not
+depend on cap order. Public-model, private-audit, row-payload, and nested
+per-cap canonical-JSON sizes are recomputed by the verifier. The nested sizes
+overlap the row-level objects and are explicitly nonadditive.
+
+Producer row and cap wall times are observational and checked only for finite,
+nonnegative nesting. The producer makes no peak-memory claim. Any future
+canonical execution must obtain generator and verifier wall time, peak RSS,
+serialized output size, and memory traffic from the trusted external runner.
+Verifier work must be reported as a separate role cost.
+
+This protocol cannot support a fixed-curve preprocessing crossover claim.
 
 ## Controls
 
-1. Reproduce the three frozen EXP-SGCP-EMBED-001 least-x P2 primary outcomes.
-2. Re-run its twelve hash-bound controls with their complete predicate vectors.
-3. Exact-compare graph independence and direct closure over every subset of
-   small registered instances.
-4. Exact-compare every density-cap result against exhaustive empty, complete,
-   path, cycle, coverage-tie, density-tie, and lexical-tie fixtures.
-5. Force a node-capped fixture and replay every serialized frontier state and
-   bound around the independently known optimum.
-6. Test factor-base cardinality, sign symmetry, Mobius poles, union duplicates,
-   and hash-null determinism.
-7. Reject every registered special-curve fixture.
-8. Require coordinate-decoding and non-homomorphic-permutation mutations to
-   fail semantic compatibility.
+1. Reproduce the frozen predecessor and inherited hash-bound controls.
+2. Exact-compare pair-conflict independence with direct closure on every
+   frozen B=4 subset.
+3. Exact-compare both optimizers with exhaustive abstract fixtures, including
+   density and lexical ties.
+4. Force and verify a nonzero optimizer gap at node cap zero.
+5. Independently recount all four expansion degrees and both energy measures.
+6. Independently rederive generated curve and predicate provenance.
+7. Exercise singular, trace-zero, anomalous, `j=0`, `j=1728`, and duplicate
+   draw records.
+8. Reject illegal replicate bindings and mutations to Mobius nonce, objective
+   order, representative table, source table, exactness, structural work, and
+   bytes after refreshing enclosing digests.
+9. Reject scalar-material additions and extra nested transcript fields under
+   the closed schema.
+10. Verify one frozen V3 document and reject an empty canonical document.
+11. Exact-match producer and independent family gates on a synthetic complete
+    168-row matrix; both must reject missing or unresolved cells.
 
 ## Positive criterion
 
-All controls and exact model checks must pass. At least 90 percent of all
-coordinate and null cap cells must have zero primary gap, and every remaining
-gap must be at most `max(1,ceil(0.05q))`. One fixed coordinate family must have
-median retained/balanced-raw support at least `0.25` at the full q cap at every
-bit size. At `floor(q/2)` or `floor(3q/4)`, the same family must exceed the
-paired four-null median by at least `max(1,ceil(0.05q))` retained targets in at
-least three bit strata and have positive paired sign in at least 75 percent of
-exact curve-B-cap comparisons.
+After a separately approved canonical launch, all controls, 168 rows, and 672
+cap cells must be valid and exact. At least one fixed family-cap pair must pass
+both full-cap persistence and matched-null advantage exactly as frozen above.
 
-This would be a toy coordinate-structure signal and would authorize a larger
-family replication. It would not authorize an ECDLP claim.
+This would be a toy coordinate-structure signal authorizing a larger compiler
+and curve-family replication. It would not authorize an ECDLP claim.
 
 ## Falsification and narrowing
 
-With valid controls and sufficiently resolved cap cells, failure of every fixed
-family to meet both positive predictions weakens or rejects this exact
-hypothesis. If every coordinate family has median retained/balanced-raw support
-below `0.10` at the full cap in at least three bit strata, record the narrower
-`COLLAPSE` negative for this balanced-order-ideal construction.
+On one complete valid exact matrix, failure of every fixed family-cap pair
+weakens or rejects this exact predicate-plus-compiler hypothesis. If every
+family has full-cap median retention below `1/10` in at least three strata,
+record the narrower `COLLAPSE` negative.
 
 Neither result closes coordinate-specific SGGM embeddings in general. The next
-positive question would be whether a different formal quotient, model
-transformation, or source-recoverable non-tree operation avoids the measured
-collision geometry.
+positive question would be whether another representative compiler, formal
+quotient, model transformation, or source-recoverable non-tree operation
+changes the measured collision geometry.
 
 ## Budgets and stopping
 
-Canonical budget is currently zero. Version 1 consumed 17 of the 18 authorized
-development curve-family-B rows. Version 2 authorizes unit and frozen-fixture
-controls only; it may not spend the final row or create a new family sweep
-without a reviewed amendment.
+Version 1 consumed 17 of 18 historical development curve rows. Version 3
+authorizes no additional curve-family row. Unit, abstract graph,
+generated-curve provenance, factor-base, and frozen p=19 row/document controls
+are allowed.
 
-Stop immediately on a control mismatch, builder-visible scalar material,
-unmatched factor-base cardinality or constrained-label cap, invalid curve,
-graph/direct disagreement, invalid optimizer bound/frontier state, direct final
-edge, confused energy source measure, or uncharged private artifact.
+Canonical budget remains:
+
+```text
+maximum_runs = 0
+wall_clock_seconds_per_run = 0
+total_cpu_hours = 0
+maximum_memory_gb = 0
+```
+
+Fresh independent theory, accounting, and red-team GO on one committed V3
+snapshot is necessary but not sufficient to launch. A separate hash-complete
+execution plan and coordinator approval must follow before any budget change.
 
 ## Claim boundary
 
-No exponent, relation yield, matrix rank, individual logarithm, preprocessing
-crossover, rho improvement, or deployment claim is in scope. Isogeny/model
-transforms and direct five-term decomposition are separate successors.
+No exponent, relation yield, matrix rank, factor-base logarithm, individual
+descent, preprocessing crossover, memory-bandwidth advantage, rho improvement,
+deployment relevance, or prime-field ECDLP result is in scope. Fixed B values
+are finite stress probes, not an `n^(1/5)` schedule.
 
 ## Reproduction command
 
-No canonical reproduction command exists until independent theory, accounting,
-and red-team review freeze the implementation and hash-complete execution plan.
+No canonical reproduction command exists while `maximum_runs` is zero. The
+current producer refuses both development family rows and canonical execution;
+only unit and frozen-fixture functions are authorized for V3 preflight.

@@ -15,6 +15,7 @@ import json
 import math
 import os
 from collections import Counter, defaultdict
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
@@ -22,8 +23,35 @@ from typing import Any, Iterable, Iterator, Sequence
 EXPECTED_SCHEMAS = {
     "sgcp-embed-002-development-v1",
     "sgcp-embed-002-density-frontier-development-v2",
+    "sgcp-embed-002-density-frontier-candidate-v3",
 }
-VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v2"
+VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v3"
+EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
+PROTOCOL_VERSION = 3
+REPRESENTATIVE_COMPILER = (
+    "lexicographically_least_formal_per_nonidentity_2F_output_v1"
+)
+COORDINATE_FAMILIES = (
+    "least_x_interval",
+    "mobius_interval",
+    "two_mobius_union",
+)
+NULL_FAMILY = "hash_x_null"
+CANONICAL_BITS = (5, 6, 7, 8)
+CANONICAL_SEEDS = (101, 211)
+CANONICAL_FACTOR_BASE_SIZES = (4, 6, 8)
+CANONICAL_NULL_REPLICATES = 4
+CANONICAL_NODE_CAP = 2_000_000
+CLAIM_STATUS = ["HYPOTHESIS", "TOY-EVIDENCE", "MODEL-BOUND", "NOVELTY-UNVERIFIED"]
+FROZEN_FIXTURE = {
+    "bits": 5,
+    "p": 19,
+    "a": 2,
+    "b": 9,
+    "q": 23,
+    "trace": -3,
+    "generator": [0, 3],
+}
 SCRIPT_PATH = Path(__file__).resolve()
 EXPERIMENT_ROOT = SCRIPT_PATH.parents[1]
 DEVELOPMENT_ROOT = EXPERIMENT_ROOT / "development"
@@ -51,6 +79,37 @@ def stable_bytes(value: Any) -> bytes:
 
 def digest(value: Any) -> str:
     return hashlib.sha256(stable_bytes(value)).hexdigest()
+
+
+def hash_mod(domain: str, fields: Sequence[Any], modulus: int) -> int:
+    payload = {"domain": domain, "fields": list(fields)}
+    return int.from_bytes(hashlib.sha256(stable_bytes(payload)).digest(), "big") % modulus
+
+
+def require_keys(value: Any, expected: set[str], label_name: str) -> None:
+    if not isinstance(value, dict):
+        raise AssertionError(f"{label_name} is not an object")
+    observed = set(value)
+    if observed != expected:
+        raise AssertionError(
+            f"{label_name} keys mismatch: missing={sorted(expected - observed)!r} "
+            f"extra={sorted(observed - expected)!r}"
+        )
+
+
+def forbidden_material(value: Any, path: str = "row") -> list[str]:
+    forbidden = ("scalar", "discrete_log", "dlog", "log_table", "secret")
+    errors: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            lowered = key.lower()
+            if any(token in lowered for token in forbidden):
+                errors.append(f"forbidden material key at {path}.{key}")
+            errors.extend(forbidden_material(child, f"{path}.{key}"))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            errors.extend(forbidden_material(child, f"{path}[{index}]"))
+    return errors
 
 
 def file_digest(path: Path) -> str:
@@ -180,6 +239,167 @@ class Curve:
         return sorted(result, key=point_order)
 
 
+def independent_rejection_reasons(
+    p: int, a: int, b: int, bits_value: int
+) -> tuple[list[str], int | None]:
+    discriminant = (4 * pow(a, 3, p) + 27 * pow(b, 2, p)) % p
+    if discriminant == 0:
+        return ["singular"], None
+    curve = Curve(p, a, b)
+    q = len(curve.points())
+    trace = p + 1 - q
+    reasons: list[str] = []
+    if q.bit_length() != bits_value:
+        reasons.append("wrong_q_bit_length")
+    if not is_prime(q):
+        reasons.append("nonprime_group_order")
+    if trace == 0:
+        reasons.append("trace_zero")
+    if trace == 1:
+        reasons.append("anomalous_trace_one")
+    if curve.j() == 0:
+        reasons.append("j_zero")
+    if curve.j() == 1728 % p:
+        reasons.append("j_1728")
+    return reasons, q
+
+
+def independent_curve_record(
+    curve: Curve, group: Sequence[Point], bits_value: int, seed: int
+) -> dict[str, Any]:
+    generator = next(point for point in group if point is not None)
+    q = len(group)
+    return {
+        "bits": bits_value,
+        "seed": seed,
+        "p": curve.p,
+        "a": curve.a,
+        "b": curve.b,
+        "q": q,
+        "trace": curve.p + 1 - q,
+        "j": curve.j(),
+        "generator": [generator[0], generator[1]],
+    }
+
+
+def verify_curve_provenance(info: dict[str, Any]) -> Curve:
+    require_keys(
+        info,
+        {
+            "bits",
+            "seed",
+            "p",
+            "a",
+            "b",
+            "q",
+            "trace",
+            "j",
+            "generator",
+            "draw",
+            "rejected_draws",
+            "rejection_count",
+            "rejection_digest",
+        },
+        "curve record",
+    )
+    bits_value = info["bits"]
+    seed = info["seed"]
+    if type(bits_value) is not int or type(seed) is not int:
+        raise AssertionError("curve bits/seed are not exact integers")
+    if info["draw"] is None:
+        curve = Curve(FROZEN_FIXTURE["p"], FROZEN_FIXTURE["a"], FROZEN_FIXTURE["b"])
+        group = curve.points()
+        expected = independent_curve_record(curve, group, FROZEN_FIXTURE["bits"], 5)
+        expected.update(
+            {
+                "draw": None,
+                "rejected_draws": [],
+                "rejection_count": 0,
+                "rejection_digest": digest([]),
+            }
+        )
+        if info != expected:
+            raise AssertionError("frozen curve provenance mismatch")
+        return curve
+
+    if type(info["draw"]) is not int or info["draw"] < 0:
+        raise AssertionError("generated curve draw is invalid")
+    primes = [
+        value
+        for value in range(1 << (bits_value - 1), 1 << bits_value)
+        if value > 3 and is_prime(value)
+    ]
+    seen: set[tuple[int, int, int]] = set()
+    rejections: list[dict[str, Any]] = []
+    for draw in range(info["draw"] + 1):
+        p = primes[hash_mod("sgcp-002-curve-p", [bits_value, seed, draw], len(primes))]
+        a = hash_mod("sgcp-002-curve-a", [bits_value, seed, draw, p], p)
+        b = hash_mod("sgcp-002-curve-b", [bits_value, seed, draw, p], p)
+        key = (p, a, b)
+        if key in seen:
+            rejections.append(
+                {"draw": draw, "p": p, "a": a, "b": b, "reasons": ["duplicate_candidate"]}
+            )
+            continue
+        seen.add(key)
+        reasons, rejection_q = independent_rejection_reasons(p, a, b, bits_value)
+        if reasons == ["singular"]:
+            rejections.append(
+                {"draw": draw, "p": p, "a": a, "b": b, "reasons": reasons}
+            )
+            continue
+        curve = Curve(p, a, b)
+        group = curve.points()
+        if rejection_q != len(group):
+            raise AssertionError("independent rejection recount mismatch")
+        if reasons:
+            rejections.append(
+                {
+                    "draw": draw,
+                    "p": p,
+                    "a": a,
+                    "b": b,
+                    "q": len(group),
+                    "reasons": reasons,
+                }
+            )
+            continue
+        expected = independent_curve_record(curve, group, bits_value, seed)
+        expected.update(
+            {
+                "draw": draw,
+                "rejected_draws": rejections,
+                "rejection_count": len(rejections),
+                "rejection_digest": digest(rejections),
+            }
+        )
+        if draw != info["draw"] or info != expected:
+            raise AssertionError("generated curve transcript mismatch")
+        return curve
+    raise AssertionError("declared accepted draw is not independently accepted")
+
+
+def derive_mobius(
+    curve_info: dict[str, Any], B: int, tag: str, map_index: int
+) -> dict[str, int]:
+    p = curve_info["p"]
+    token = [curve_info[key] for key in ("p", "a", "b", "q", "seed")]
+    for nonce in range(1024):
+        u = hash_mod("sgcp-002-mobius-u", [token, B, tag, map_index, nonce], p)
+        v = hash_mod("sgcp-002-mobius-v", [token, B, tag, map_index, nonce], p)
+        w = hash_mod("sgcp-002-mobius-w", [token, B, tag, map_index, nonce], p)
+        determinant = (u * w - v) % p
+        if determinant:
+            return {
+                "u": u,
+                "v": v,
+                "w": w,
+                "determinant": determinant,
+                "nonce": nonce,
+            }
+    raise AssertionError("independent Mobius derivation failed")
+
+
 def polynomial(roots: Sequence[int], p: int) -> list[int]:
     result = [1]
     for root in roots:
@@ -225,25 +445,71 @@ def map_ranking(roots: Sequence[int], p: int, params: dict[str, Any]) -> tuple[l
 
 def verify_factor_base(curve: Curve, group: Sequence[Point], row: dict[str, Any]) -> list[Point]:
     record = row["public_model"]["factor_base"]
+    require_keys(
+        record,
+        {
+            "family",
+            "null_replicate",
+            "B",
+            "admissible_root_count",
+            "selected_roots",
+            "selected_root_count",
+            "excluded_poles",
+            "parameters",
+            "root_polynomial_coefficients_ascending_mod_p",
+            "points",
+            "negation_symmetric",
+            "selection_sha256",
+        },
+        "factor-base record",
+    )
     digest_payload = dict(record)
     supplied_selection_digest = digest_payload.pop("selection_sha256", None)
     if supplied_selection_digest != digest(digest_payload):
         raise AssertionError("factor-base selection digest mismatch")
     B = row["B"]
     family = row["family"]
+    replicate = row["null_replicate"]
+    if (
+        type(B) is not int
+        or B < 4
+        or B % 2
+        or record["B"] != B
+        or record["family"] != family
+        or record["null_replicate"] != replicate
+    ):
+        raise AssertionError("factor-base row binding mismatch")
+    if family in COORDINATE_FAMILIES and replicate is not None:
+        raise AssertionError("coordinate family carries a null replicate")
+    if family == NULL_FAMILY and (
+        type(replicate) is not int or not 0 <= replicate < CANONICAL_NULL_REPLICATES
+    ):
+        raise AssertionError("hash-null replicate is outside the frozen range")
     fibers = admissible(curve, group)
     roots = sorted(fibers)
     required = B // 2
     if family == "least_x_interval":
+        if record["parameters"] != {}:
+            raise AssertionError("least-x parameters are not empty")
         expected = roots[:required]
         poles: list[int] = []
     elif family == "mobius_interval":
-        ranking, poles = map_ranking(roots, curve.p, record["parameters"]["map"])
+        require_keys(record["parameters"], {"map"}, "Mobius parameters")
+        expected_map = derive_mobius(row["curve"], B, family, 0)
+        if record["parameters"]["map"] != expected_map:
+            raise AssertionError("Mobius derivation transcript mismatch")
+        ranking, poles = map_ranking(roots, curve.p, expected_map)
         expected = ranking[:required]
     elif family == "two_mobius_union":
+        require_keys(
+            record["parameters"], {"maps", "alternating_positions"}, "two-map parameters"
+        )
+        expected_maps = [derive_mobius(row["curve"], B, family, index) for index in range(2)]
+        if record["parameters"]["maps"] != expected_maps:
+            raise AssertionError("two-map derivation transcript mismatch")
         rankings: list[list[int]] = []
         pole_set: set[int] = set()
-        for params in record["parameters"]["maps"]:
+        for params in expected_maps:
             ranking, map_poles = map_ranking(roots, curve.p, params)
             rankings.append(ranking)
             pole_set.update(map_poles)
@@ -267,7 +533,8 @@ def verify_factor_base(curve: Curve, group: Sequence[Point], row: dict[str, Any]
             raise AssertionError("two-map positions mismatch")
         poles = sorted(pole_set)
     elif family == "hash_x_null":
-        replicate = row["null_replicate"]
+        if record["parameters"] != {"replicate": replicate}:
+            raise AssertionError("hash-null parameter mismatch")
         curve_info = row["curve"]
         token = [curve_info[key] for key in ("p", "a", "b", "q", "seed")]
         ranked = []
@@ -301,6 +568,12 @@ def verify_factor_base(curve: Curve, group: Sequence[Point], row: dict[str, Any]
         raise AssertionError("factor point list mismatch")
     if len(factors) != B or any(curve.negate(point) not in factors for point in factors):
         raise AssertionError("factor-base cardinality or sign mismatch")
+    if (
+        record["admissible_root_count"] != len(roots)
+        or record["selected_root_count"] != required
+        or record["negation_symmetric"] is not True
+    ):
+        raise AssertionError("factor-base count/flag mismatch")
     return factors
 
 
@@ -337,9 +610,31 @@ def injective_map(
     return by_point, True
 
 
+def point_record(point: Point) -> str | list[int]:
+    return "O" if point is None else [point[0], point[1]]
+
+
+def collision_record(left: Formal, right: Formal, point: Point) -> dict[str, Any]:
+    return {
+        "left": list(left),
+        "right": list(right),
+        "point": point_record(point),
+    }
+
+
 def reconstruct_graph(
     curve: Curve, factors: Sequence[Point]
-) -> tuple[list[dict[str, Any]], list[int], int, int, list[Point]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[int],
+    int,
+    int,
+    list[Point],
+    dict[str, Any],
+    list[int],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
     degree2: dict[Point, list[Formal]] = defaultdict(list)
     for formal in itertools.combinations_with_replacement(range(len(factors)), 2):
         degree2[evaluate(curve, factors, formal)].append(formal)
@@ -348,6 +643,20 @@ def reconstruct_graph(
         for point in sorted(degree2, key=point_order)
         if point is not None
     ]
+    representative_records = [
+        {
+            "point": [point[0], point[1]],
+            "formal": list(formal),
+        }
+        for point, formal in canonical2
+    ]
+    compiler = {
+        "id": REPRESENTATIVE_COMPILER,
+        "identity_output_excluded": True,
+        "representative_count": len(representative_records),
+        "representatives": representative_records,
+        "representatives_sha256": digest(representative_records),
+    }
     by_formal: dict[Formal, list[tuple[Point, tuple[Formal, Formal]]]] = defaultdict(list)
     raw_a4: set[Point] = set()
     for left_index, right_index in itertools.combinations_with_replacement(
@@ -366,25 +675,114 @@ def reconstruct_graph(
             raise AssertionError("inconsistent formal evaluation")
         candidates.append({"formal": formal, "point": next(iter(points))})
     eligible: list[dict[str, Any]] = []
+    eligible_universe_indices: list[int] = []
+    rejected: list[dict[str, Any]] = []
     maps: list[dict[Point, Formal]] = []
-    for candidate in candidates:
-        mapping, valid = injective_map(curve, factors, ideal(len(factors), [candidate["formal"]]))
+    for universe_index, candidate in enumerate(candidates):
+        family = ideal(len(factors), [candidate["formal"]])
+        mapping: dict[Point, Formal] = {}
+        first_collision: tuple[Formal, Formal, Point] | None = None
+        for formal in sorted(family, key=lambda value: (len(value), value)):
+            point = evaluate(curve, factors, formal)
+            if point in mapping:
+                first_collision = (mapping[point], formal, point)
+                break
+            mapping[point] = formal
+        valid = first_collision is None
         if valid:
             eligible.append(candidate)
+            eligible_universe_indices.append(universe_index)
             maps.append(mapping)
+        else:
+            assert first_collision is not None
+            rejected.append(
+                {
+                    "universe_index": universe_index,
+                    "formal": list(candidate["formal"]),
+                    "point": point_record(candidate["point"]),
+                    "first_collision": collision_record(*first_collision),
+                }
+            )
     conflicts = [0] * len(eligible)
-    edge_count = 0
+    conflict_records: list[dict[str, Any]] = []
     for left in range(len(eligible)):
         for right in range(left + 1, len(eligible)):
-            collision = any(
-                maps[left][point] != maps[right][point]
-                for point in set(maps[left]).intersection(maps[right])
+            first_collision = next(
+                (
+                    (maps[left][point], maps[right][point], point)
+                    for point in sorted(
+                        set(maps[left]).intersection(maps[right]), key=point_order
+                    )
+                    if maps[left][point] != maps[right][point]
+                ),
+                None,
             )
-            if collision:
+            if first_collision is not None:
                 conflicts[left] |= 1 << right
                 conflicts[right] |= 1 << left
-                edge_count += 1
-    return eligible, conflicts, len(candidates), edge_count, sorted(raw_a4, key=point_order)
+                conflict_records.append(
+                    {
+                        "left": left,
+                        "right": right,
+                        "left_universe_index": eligible_universe_indices[left],
+                        "right_universe_index": eligible_universe_indices[right],
+                        "first_collision": collision_record(*first_collision),
+                    }
+                )
+    return (
+        eligible,
+        conflicts,
+        len(candidates),
+        len(conflict_records),
+        sorted(raw_a4, key=point_order),
+        compiler,
+        eligible_universe_indices,
+        rejected,
+        conflict_records,
+    )
+
+
+def independent_graph_metrics(conflicts: Sequence[int]) -> dict[str, Any]:
+    count = len(conflicts)
+    degrees = [(mask & ((1 << count) - 1)).bit_count() for mask in conflicts]
+    unseen = set(range(count))
+    components: list[list[int]] = []
+    while unseen:
+        start = min(unseen)
+        unseen.remove(start)
+        stack = [start]
+        component: list[int] = []
+        while stack:
+            vertex = stack.pop()
+            component.append(vertex)
+            neighbors = set(bits(conflicts[vertex])) & unseen
+            unseen.difference_update(neighbors)
+            stack.extend(sorted(neighbors, reverse=True))
+        components.append(sorted(component))
+    remaining = set(range(count))
+    degeneracy = 0
+    while remaining:
+        vertex = min(
+            remaining,
+            key=lambda item: (
+                sum(neighbor in remaining for neighbor in bits(conflicts[item])),
+                item,
+            ),
+        )
+        degree = sum(neighbor in remaining for neighbor in bits(conflicts[vertex]))
+        degeneracy = max(degeneracy, degree)
+        remaining.remove(vertex)
+    histogram = Counter(degrees)
+    return {
+        "vertices": count,
+        "edges": sum(degrees) // 2,
+        "components": [len(component) for component in components],
+        "component_count": len(components),
+        "degree_min": min(degrees, default=0),
+        "degree_max": max(degrees, default=0),
+        "degree_histogram": {str(key): histogram[key] for key in sorted(histogram)},
+        "degeneracy": degeneracy,
+    }
 
 
 def support_counter(curve: Curve, values: Sequence[Point]) -> Counter[Point]:
@@ -886,7 +1284,14 @@ def independent_density_primary_optimum(
 
 def retained_model(
     curve: Curve, factors: Sequence[Point], maxima: Sequence[Formal]
-) -> tuple[int, int, int, dict[str, bool], list[dict[str, str]]]:
+) -> tuple[
+    int,
+    int,
+    int,
+    dict[str, Any],
+    list[dict[str, str]],
+    list[dict[str, Any]],
+]:
     family = ideal(len(factors), maxima)
     mapping, injective = injective_map(curve, factors, family)
     inverse = {formal: point for point, formal in mapping.items()}
@@ -904,10 +1309,22 @@ def retained_model(
     constrained: set[Point] = {None}
     for left, right, output in edges:
         constrained.update((inverse[left], inverse[right], inverse[output]))
+    forbidden_count = sum(
+        len(left) == 4 and len(right) == 4 for left, right, _ in edges
+    )
+    source_table = [
+        {"label": label(point), "formal": list(mapping[point])}
+        for point in sorted(constrained, key=point_order)
+    ]
+    source_table_valid = (
+        len(source_table) == len(constrained)
+        and len({entry["label"] for entry in source_table}) == len(constrained)
+    )
     axioms = {
         "identity": True,
         "commutativity": True,
         "associativity": all(subsets(formal).issubset(family) for formal in family),
+        "associativity_method": "downward-closed formal multiset union",
         "compatibility_coordinates": compatible,
         "injective_evaluation": injective,
         "unique_prime_multiset_factorization": injective,
@@ -915,9 +1332,10 @@ def retained_model(
             len(output) > max(len(left), len(right)) for left, right, output in edges
         ),
         "source_recovery": all(tuple(sorted(formal)) == formal for formal in family),
-        "direct_final_edge_excluded": not any(
-            len(left) == 4 and len(right) == 4 for left, right, _ in edges
-        ),
+        "source_recovery_via_public_table": source_table_valid,
+        "direct_final_edge_excluded": forbidden_count == 0,
+        "direct_final_edge_absent_by_construction": forbidden_count == 0,
+        "forbidden_final_edge_count": forbidden_count,
     }
     public_edges = [
         {
@@ -927,7 +1345,14 @@ def retained_model(
         }
         for left, right, output in edges
     ]
-    return len(constrained), len(edges), len(family), axioms, public_edges
+    return (
+        len(constrained),
+        len(edges),
+        len(family),
+        axioms,
+        public_edges,
+        source_table,
+    )
 
 
 def verify_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
@@ -962,7 +1387,9 @@ def verify_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
     if not factors:
         return {"valid": False, "errors": errors, "primary_nodes": 0}
 
-    eligible, conflicts, candidate_count, conflict_count, raw_a4 = reconstruct_graph(curve, factors)
+    eligible, conflicts, candidate_count, conflict_count, raw_a4, *_ = reconstruct_graph(
+        curve, factors
+    )
     graph = row["private_audit"]["graph"]
     observed_graph = (
         graph["candidate_count"],
@@ -1003,7 +1430,7 @@ def verify_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
     if expansion_metrics(curve, factors) != row["private_audit"]["expansion"]:
         errors.append("additive expansion mismatch")
 
-    constrained, edge_count, family_count, axioms, public_edges = retained_model(
+    constrained, edge_count, family_count, axioms, public_edges, _ = retained_model(
         curve, factors, selected_formals
     )
     public = row["public_model"]
@@ -1061,33 +1488,317 @@ def verify_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
     }
 
 
-def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
+def v3_row_schema_errors(row: Any) -> list[str]:
     errors: list[str] = []
+    try:
+        require_keys(
+            row,
+            {
+                "protocol_version",
+                "curve",
+                "B",
+                "family",
+                "null_replicate",
+                "valid",
+                "public_model",
+                "private_audit",
+                "structural_work",
+                "wall_time_seconds",
+                "accounting",
+                "row_sha256",
+            },
+            "density row",
+        )
+        require_keys(
+            row["public_model"],
+            {
+                "factor_base",
+                "representative_compiler",
+                "constrained_budget_caps",
+                "density_frontier",
+            },
+            "public model",
+        )
+        require_keys(
+            row["public_model"]["representative_compiler"],
+            {
+                "id",
+                "identity_output_excluded",
+                "representative_count",
+                "representatives",
+                "representatives_sha256",
+            },
+            "representative compiler",
+        )
+        for index, record in enumerate(
+            row["public_model"]["representative_compiler"]["representatives"]
+        ):
+            require_keys(record, {"point", "formal"}, f"representative[{index}]")
+        axiom_keys = {
+            "identity",
+            "commutativity",
+            "associativity",
+            "associativity_method",
+            "compatibility_coordinates",
+            "injective_evaluation",
+            "unique_prime_multiset_factorization",
+            "acyclic_by_formal_degree",
+            "source_recovery",
+            "source_recovery_via_public_table",
+            "direct_final_edge_excluded",
+            "direct_final_edge_absent_by_construction",
+            "forbidden_final_edge_count",
+        }
+        public_cap_keys = {
+            "constrained_cap",
+            "selected_maxima",
+            "formal_family_count",
+            "formal_degree_histogram",
+            "axioms",
+            "constrained_count",
+            "delta",
+            "public_edge_count",
+            "public_edges",
+            "public_edges_sha256",
+            "source_table",
+            "source_table_sha256",
+        }
+        for index, public in enumerate(row["public_model"]["density_frontier"]):
+            require_keys(public, public_cap_keys, f"public cap[{index}]")
+            require_keys(public["axioms"], axiom_keys, f"public cap[{index}] axioms")
+            require_keys(public["delta"], {"numerator", "denominator"}, f"cap[{index}] delta")
+            for edge_index, edge in enumerate(public["public_edges"]):
+                require_keys(
+                    edge,
+                    {"left", "right", "output"},
+                    f"cap[{index}] edge[{edge_index}]",
+                )
+            for source_index, source in enumerate(public["source_table"]):
+                require_keys(
+                    source,
+                    {"label", "formal"},
+                    f"cap[{index}] source[{source_index}]",
+                )
+        require_keys(
+            row["private_audit"],
+            {
+                "graph",
+                "eligible_universe_indices",
+                "individually_rejected",
+                "conflicts",
+                "density_frontier",
+                "expansion",
+            },
+            "private audit",
+        )
+        require_keys(
+            row["private_audit"]["graph"],
+            {
+                "candidate_count",
+                "eligible_candidate_count",
+                "individually_rejected_count",
+                "conflict_count",
+                "vertices",
+                "edges",
+                "components",
+                "component_count",
+                "degree_min",
+                "degree_max",
+                "degree_histogram",
+                "degeneracy",
+            },
+            "graph metrics",
+        )
+        collision_keys = {"left", "right", "point"}
+        for index, rejected in enumerate(row["private_audit"]["individually_rejected"]):
+            require_keys(
+                rejected,
+                {"universe_index", "formal", "point", "first_collision"},
+                f"individually rejected[{index}]",
+            )
+            require_keys(
+                rejected["first_collision"],
+                collision_keys,
+                f"individually rejected[{index}] collision",
+            )
+        for index, conflict in enumerate(row["private_audit"]["conflicts"]):
+            require_keys(
+                conflict,
+                {
+                    "left",
+                    "right",
+                    "left_universe_index",
+                    "right_universe_index",
+                    "first_collision",
+                },
+                f"conflict[{index}]",
+            )
+            require_keys(
+                conflict["first_collision"],
+                collision_keys,
+                f"conflict[{index}] collision",
+            )
+        optimizer_keys = {
+            "objective_mode",
+            "max_constrained",
+            "objective_order",
+            "selected_indices",
+            "selected_mask_hex",
+            "retained_support_lower_bound",
+            "retained_support_upper_bound",
+            "absolute_gap",
+            "primary_exact",
+            "full_objective_exact",
+            "selected_count",
+            "constrained_count",
+            "public_edge_count",
+            "witness_list",
+            "explored_nodes",
+            "remaining_frontier_nodes",
+            "frontier_states",
+            "frontier_sha256",
+            "incumbent_updates",
+            "bound_calls",
+            "termination_reason",
+            "node_cap",
+            "bound_method",
+        }
+        retention_keys = {
+            "balanced_raw_final_support",
+            "eight_fold_support",
+            "retained_final_support",
+            "retained_to_balanced_raw",
+            "retained_to_eight_fold",
+            "absolute_group_coverage",
+            "balanced_raw_maximum_multiplicity",
+            "retained_maximum_multiplicity",
+        }
+        cap_work_keys = {
+            "optimizer_nodes",
+            "optimizer_bound_calls",
+            "serialized_frontier_states",
+            "selected_maxima",
+            "retained_final_pair_cells",
+            "public_edges",
+            "source_table_entries",
+        }
+        for index, private in enumerate(row["private_audit"]["density_frontier"]):
+            require_keys(
+                private,
+                {
+                    "constrained_cap",
+                    "optimizer",
+                    "retention",
+                    "structural_work",
+                    "wall_time_seconds",
+                },
+                f"private cap[{index}]",
+            )
+            require_keys(private["optimizer"], optimizer_keys, f"optimizer[{index}]")
+            for state_index, state in enumerate(private["optimizer"]["frontier_states"]):
+                require_keys(
+                    state,
+                    {
+                        "selected_mask_hex",
+                        "available_mask_hex",
+                        "selected_support_mask_hex",
+                        "support_upper_bound",
+                        "selected_count_upper_bound",
+                    },
+                    f"frontier[{index}][{state_index}]",
+                )
+            require_keys(private["retention"], retention_keys, f"retention[{index}]")
+            for ratio_name in (
+                "retained_to_balanced_raw",
+                "retained_to_eight_fold",
+                "absolute_group_coverage",
+            ):
+                require_keys(
+                    private["retention"][ratio_name],
+                    {"numerator", "denominator"},
+                    f"retention[{index}].{ratio_name}",
+                )
+            require_keys(private["structural_work"], cap_work_keys, f"cap work[{index}]")
+        expansion_keys = {
+            "support",
+            "formal_multiset_witness_count",
+            "formal_multiset_collision_energy",
+            "formal_multiset_maximum_multiplicity",
+            "formal_multiset_multiplicity_histogram",
+            "ordered_tuple_witness_count",
+            "ordered_tuple_additive_energy",
+            "ordered_tuple_maximum_multiplicity",
+            "ordered_tuple_multiplicity_histogram",
+        }
+        if set(row["private_audit"]["expansion"]) != {"1", "2", "4", "8"}:
+            raise AssertionError("expansion degree keys mismatch")
+        for degree, expansion in row["private_audit"]["expansion"].items():
+            require_keys(expansion, expansion_keys, f"expansion[{degree}]")
+        require_keys(
+            row["structural_work"],
+            {
+                "scope",
+                "degree_multiset_evaluations",
+                "balanced_degree2_formals",
+                "balanced_nonidentity_2F_representatives",
+                "balanced_degree4_parent_pairs",
+                "degree4_candidates",
+                "individual_injectivity_checks",
+                "conflict_pair_checks",
+                "pair_output_cells",
+                "balanced_final_pair_cells",
+            },
+            "row structural work",
+        )
+        require_keys(
+            row["accounting"],
+            {
+                "scope",
+                "public_model_json_bytes",
+                "private_audit_json_bytes",
+                "row_payload_without_accounting_or_digest_json_bytes",
+                "nested_per_cap_json_bytes",
+            },
+            "row accounting",
+        )
+        for index, receipt in enumerate(row["accounting"]["nested_per_cap_json_bytes"]):
+            require_keys(
+                receipt,
+                {
+                    "constrained_cap",
+                    "public_embedding_json_bytes",
+                    "private_cap_json_bytes",
+                },
+                f"nested byte receipt[{index}]",
+            )
+    except (AssertionError, KeyError, TypeError) as error:
+        errors.append(f"closed row schema: {error}")
+    errors.extend(forbidden_material(row))
+    return errors
+
+
+def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
+    errors = v3_row_schema_errors(row)
+    if errors:
+        return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     supplied_digest = row.get("row_sha256")
     payload = dict(row)
     payload.pop("row_sha256", None)
     if supplied_digest != digest(payload):
         errors.append("row digest mismatch")
-    if row.get("protocol_version") != 2:
+    if row.get("protocol_version") != PROTOCOL_VERSION:
         errors.append("density row protocol version mismatch")
+    if row.get("valid") is not True:
+        errors.append("density row does not claim local validity")
 
     info = row["curve"]
-    curve = Curve(info["p"], info["a"], info["b"])
+    try:
+        curve = verify_curve_provenance(info)
+    except Exception as error:
+        errors.append(f"curve provenance: {error}")
+        return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     group = curve.points()
     q = len(group)
-    expected_curve = {
-        "q": q,
-        "trace": curve.p + 1 - q,
-        "j": curve.j(),
-        "generator": "O" if group[1] is None else [group[1][0], group[1][1]],
-    }
-    for key, value in expected_curve.items():
-        if info.get(key) != value:
-            errors.append(f"curve {key} mismatch")
-    if not is_prime(q) or q.bit_length() != info["bits"]:
-        errors.append("curve group-order acceptance mismatch")
-    if info["trace"] in (0, 1) or info["j"] in (0, 1728 % curve.p):
-        errors.append("curve special-case rejection mismatch")
     try:
         factors = verify_factor_base(curve, group, row)
     except Exception as error:
@@ -1096,16 +1807,35 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
     if not factors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
 
-    eligible, conflicts, candidate_count, conflict_count, raw_a4 = reconstruct_graph(
-        curve, factors
-    )
+    (
+        eligible,
+        conflicts,
+        candidate_count,
+        conflict_count,
+        raw_a4,
+        representative_compiler,
+        eligible_universe_indices,
+        rejected,
+        conflict_records,
+    ) = reconstruct_graph(curve, factors)
     graph = row["private_audit"]["graph"]
-    if (
-        graph["candidate_count"],
-        graph["eligible_candidate_count"],
-        graph["conflict_count"],
-    ) != (candidate_count, len(eligible), conflict_count):
-        errors.append("graph count mismatch")
+    expected_graph = {
+        "candidate_count": candidate_count,
+        "eligible_candidate_count": len(eligible),
+        "individually_rejected_count": candidate_count - len(eligible),
+        "conflict_count": conflict_count,
+        **independent_graph_metrics(conflicts),
+    }
+    if graph != expected_graph:
+        errors.append("graph metric mismatch")
+    if row["private_audit"]["eligible_universe_indices"] != eligible_universe_indices:
+        errors.append("eligible universe-index list mismatch")
+    if row["private_audit"]["individually_rejected"] != rejected:
+        errors.append("individual rejection transcript mismatch")
+    if row["private_audit"]["conflicts"] != conflict_records:
+        errors.append("conflict transcript mismatch")
+    if row["public_model"]["representative_compiler"] != representative_compiler:
+        errors.append("representative compiler mismatch")
     expansion = expansion_metrics(curve, factors)
     if expansion != row["private_audit"]["expansion"]:
         errors.append("additive expansion mismatch")
@@ -1136,44 +1866,40 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
         }
         for public, private in zip(public_frontier, private_frontier)
     ]
-    if (
-        accounting.get("public_json_bytes") != len(stable_bytes(row["public_model"]))
-        or accounting.get("private_audit_json_bytes")
-        != len(stable_bytes(row["private_audit"]))
-        or accounting.get("per_cap") != expected_cap_accounting
-    ):
+    row_payload = dict(row)
+    row_payload.pop("row_sha256")
+    row_payload.pop("accounting")
+    if accounting != {
+        "scope": "nested canonical-JSON byte measures; fields are nonadditive",
+        "public_model_json_bytes": len(stable_bytes(row["public_model"])),
+        "private_audit_json_bytes": len(stable_bytes(row["private_audit"])),
+        "row_payload_without_accounting_or_digest_json_bytes": len(
+            stable_bytes(row_payload)
+        ),
+        "nested_per_cap_json_bytes": expected_cap_accounting,
+    }:
         errors.append("cost-accounting byte receipt mismatch")
-    if type(accounting.get("in_memory_deep_bytes")) is not int or accounting.get(
-        "in_memory_deep_bytes", 0
-    ) <= 0:
-        errors.append("invalid charged in-memory size")
-
-    operation_records = [
-        ("row", row.get("operation_counts")),
-        ("shared", accounting.get("shared_precomputation_operation_counts")),
-        *[
-            (f"cap[{private.get('constrained_cap')}]", private.get("operation_counts"))
-            for private in private_frontier
+    expected_structural_work = {
+        "scope": "deterministic combinatorial cells; not CPU instructions",
+        "degree_multiset_evaluations": sum(
+            expansion[str(degree)]["formal_multiset_witness_count"]
+            for degree in (1, 2, 4, 8)
+        ),
+        "balanced_degree2_formals": math.comb(row["B"] + 1, 2),
+        "balanced_nonidentity_2F_representatives": representative_compiler[
+            "representative_count"
         ],
-    ]
-    valid_operation_records = True
-    for label_name, record in operation_records:
-        if (
-            not isinstance(record, dict)
-            or set(record) != OPERATION_COUNTER_KEYS
-            or any(type(value) is not int or value < 0 for value in record.values())
-        ):
-            errors.append(f"invalid {label_name} operation-count receipt")
-            valid_operation_records = False
-    if valid_operation_records:
-        shared_counts = accounting["shared_precomputation_operation_counts"]
-        recomposed_counts = {
-            key: shared_counts[key]
-            + sum(private["operation_counts"][key] for private in private_frontier)
-            for key in OPERATION_COUNTER_KEYS
-        }
-        if recomposed_counts != row["operation_counts"]:
-            errors.append("operation-count decomposition mismatch")
+        "balanced_degree4_parent_pairs": math.comb(
+            representative_compiler["representative_count"] + 1, 2
+        ),
+        "degree4_candidates": candidate_count,
+        "individual_injectivity_checks": candidate_count,
+        "conflict_pair_checks": len(eligible) * (len(eligible) - 1) // 2,
+        "pair_output_cells": len(eligible) * (len(eligible) + 1) // 2,
+        "balanced_final_pair_cells": len(raw_a4) * (len(raw_a4) + 1) // 2,
+    }
+    if row["structural_work"] != expected_structural_work:
+        errors.append("row structural-work receipt mismatch")
     cap_wall_times = [private.get("wall_time_seconds") for private in private_frontier]
     row_wall_time = row.get("wall_time_seconds")
     if (
@@ -1210,6 +1936,27 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
             "max_constrained"
         ) != cap:
             cap_errors.append("optimizer density objective/cap mismatch")
+        if optimizer.get("objective_order") != [
+            "retained_support:max",
+            "constrained_count:min",
+            "public_edges:min",
+            "retained_maxima:max",
+            "witness_list:lex_min",
+        ]:
+            cap_errors.append("optimizer objective-order mismatch")
+        if optimizer.get("bound_method") != (
+            "conflict-clique-cover cardinality plus global pair-output union"
+        ):
+            cap_errors.append("optimizer bound-method mismatch")
+        if not (
+            optimizer.get("primary_exact") is True
+            and optimizer.get("full_objective_exact") is True
+            and optimizer.get("absolute_gap") == 0
+            and optimizer.get("remaining_frontier_nodes") == 0
+            and optimizer.get("frontier_states") == []
+            and optimizer.get("termination_reason") == "full_objective_proved"
+        ):
+            cap_errors.append("V3 requires an exhausted exact optimizer cell")
         if optimizer.get("selected_indices") != selected_indices:
             cap_errors.append("optimizer selected-index mismatch")
         if optimizer.get("selected_mask_hex") != hex(selected_mask):
@@ -1233,7 +1980,7 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
         def replay_metrics(mask: int) -> dict[str, Any]:
             if mask not in replay_metric_cache:
                 maxima = [eligible[candidate]["formal"] for candidate in bits(mask)]
-                replay_constrained, replay_edges, _, _, _ = retained_model(
+                replay_constrained, replay_edges, _, _, _, _ = retained_model(
                     curve, factors, maxima
                 )
                 replay_metric_cache[mask] = {
@@ -1275,7 +2022,14 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
             if replay[key] != optimizer.get(key):
                 cap_errors.append(f"deterministic search replay mismatch: {key}")
 
-        constrained, edge_count, family_count, axioms, public_edges = retained_model(
+        (
+            constrained,
+            edge_count,
+            family_count,
+            axioms,
+            public_edges,
+            source_table,
+        ) = retained_model(
             curve, factors, selected_formals
         )
         if constrained > cap:
@@ -1286,6 +2040,11 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
             public["formal_family_count"],
         ):
             cap_errors.append("retained model count mismatch")
+        expected_histogram = Counter(len(formal) for formal in ideal(row["B"], selected_formals))
+        if public["formal_degree_histogram"] != {
+            str(degree): expected_histogram[degree] for degree in sorted(expected_histogram)
+        }:
+            cap_errors.append("formal degree histogram mismatch")
         for key, value in axioms.items():
             if public["axioms"].get(key) != value:
                 cap_errors.append(f"axiom mismatch: {key}")
@@ -1293,6 +2052,10 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
             "public_edges_sha256"
         ]:
             cap_errors.append("public edge table/digest mismatch")
+        if source_table != public["source_table"] or digest(source_table) != public[
+            "source_table_sha256"
+        ]:
+            cap_errors.append("public source table/digest mismatch")
         delta_divisor = math.gcd(constrained, q)
         if public["delta"] != {
             "numerator": constrained // delta_divisor,
@@ -1347,6 +2110,20 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
         ):
             cap_errors.append("retention ratio mismatch")
 
+        expected_cap_work = {
+            "optimizer_nodes": optimizer["explored_nodes"],
+            "optimizer_bound_calls": optimizer["bound_calls"],
+            "serialized_frontier_states": len(optimizer["frontier_states"]),
+            "selected_maxima": len(selected_indices),
+            "retained_final_pair_cells": len(selected_indices)
+            * (len(selected_indices) + 1)
+            // 2,
+            "public_edges": edge_count,
+            "source_table_entries": len(source_table),
+        }
+        if private["structural_work"] != expected_cap_work:
+            cap_errors.append("cap structural-work receipt mismatch")
+
         optimum, primary_nodes, complete = independent_density_primary_optimum(
             curve,
             factors,
@@ -1358,11 +2135,8 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
         )
         lower = optimizer["retained_support_lower_bound"]
         upper = optimizer["retained_support_upper_bound"]
-        if complete:
-            if not lower <= optimum <= upper:
-                cap_errors.append("producer interval excludes independent density optimum")
-            if optimizer["primary_exact"] and not (lower == upper == optimum):
-                cap_errors.append("producer exact density optimum mismatch")
+        if complete and not (lower == upper == optimum):
+            cap_errors.append("producer exact density optimum mismatch")
         cap_reports.append(
             {
                 "constrained_cap": cap,
@@ -1393,28 +2167,364 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
     }
 
 
-def verify_document(path: Path, maximum_nodes: int) -> dict[str, Any]:
-    document = strict_load(path)
+def fraction_record(value: Fraction) -> dict[str, int]:
+    return {"numerator": value.numerator, "denominator": value.denominator}
+
+
+def fraction_from_record(value: dict[str, int]) -> Fraction:
+    return Fraction(value["numerator"], value["denominator"])
+
+
+def independent_median(values: Sequence[Fraction]) -> Fraction:
+    ordered = sorted(values)
+    if not ordered:
+        raise AssertionError("empty median input")
+    midpoint = len(ordered) // 2
+    if len(ordered) & 1:
+        return ordered[midpoint]
+    return (ordered[midpoint - 1] + ordered[midpoint]) / 2
+
+
+def private_cap(row: dict[str, Any], cap: int) -> dict[str, Any]:
+    matches = [
+        value
+        for value in row["private_audit"]["density_frontier"]
+        if value["constrained_cap"] == cap
+    ]
+    if len(matches) != 1:
+        raise AssertionError(f"expected one private cap {cap}, found {len(matches)}")
+    return matches[0]
+
+
+def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    index: dict[tuple[int, int, int, str, int | None], dict[str, Any]] = {}
+    for row in rows:
+        for cell in row["private_audit"]["density_frontier"]:
+            optimizer = cell["optimizer"]
+            if not (
+                optimizer["primary_exact"] is True
+                and optimizer["full_objective_exact"] is True
+                and optimizer["absolute_gap"] == 0
+            ):
+                raise AssertionError("family gate received an unresolved optimizer cell")
+        key = (
+            row["curve"]["bits"],
+            row["curve"]["seed"],
+            row["B"],
+            row["family"],
+            row["null_replicate"],
+        )
+        if key in index:
+            raise AssertionError(f"duplicate family-gate row {key!r}")
+        index[key] = row
+
+    reports: list[dict[str, Any]] = []
+    winners: list[dict[str, str]] = []
+    for family in COORDINATE_FAMILIES:
+        persistence_rows: list[dict[str, Any]] = []
+        all_persistent = True
+        for bit_size in CANONICAL_BITS:
+            observed_ratios = [
+                fraction_from_record(
+                    private_cap(
+                        index[(bit_size, seed, B, family, None)],
+                        index[(bit_size, seed, B, family, None)]["curve"]["q"],
+                    )["retention"]["retained_to_balanced_raw"]
+                )
+                for seed in CANONICAL_SEEDS
+                for B in CANONICAL_FACTOR_BASE_SIZES
+            ]
+            median_ratio = independent_median(observed_ratios)
+            passes = median_ratio >= Fraction(1, 4)
+            all_persistent = all_persistent and passes
+            persistence_rows.append(
+                {
+                    "bits": bit_size,
+                    "median_retained_to_balanced_raw": fraction_record(median_ratio),
+                    "pass": passes,
+                }
+            )
+
+        tested_caps: list[dict[str, Any]] = []
+        for cap_name, cap_multiplier, cap_divisor in (("1/2", 1, 2), ("3/4", 3, 4)):
+            positives = 0
+            passing_strata = 0
+            strata: list[dict[str, Any]] = []
+            for bit_size in CANONICAL_BITS:
+                threshold_margins: list[Fraction] = []
+                for seed in CANONICAL_SEEDS:
+                    for B in CANONICAL_FACTOR_BASE_SIZES:
+                        candidate = index[(bit_size, seed, B, family, None)]
+                        q = candidate["curve"]["q"]
+                        cap = cap_multiplier * q // cap_divisor
+                        candidate_support = private_cap(candidate, cap)["optimizer"][
+                            "retained_support_lower_bound"
+                        ]
+                        null_values = [
+                            private_cap(
+                                index[(bit_size, seed, B, NULL_FAMILY, replicate)], cap
+                            )["optimizer"]["retained_support_lower_bound"]
+                            for replicate in range(CANONICAL_NULL_REPLICATES)
+                        ]
+                        null_median = independent_median(
+                            [Fraction(value, 1) for value in null_values]
+                        )
+                        difference = Fraction(candidate_support, 1) - null_median
+                        positives += int(difference > 0)
+                        threshold = max(1, (q + 19) // 20)
+                        threshold_margins.append(difference - threshold)
+                median_margin = independent_median(threshold_margins)
+                stratum_pass = median_margin >= 0
+                passing_strata += int(stratum_pass)
+                strata.append(
+                    {
+                        "bits": bit_size,
+                        "median_threshold_margin": fraction_record(median_margin),
+                        "pass": stratum_pass,
+                    }
+                )
+            cap_pass = passing_strata >= 3 and positives >= 18
+            tested_caps.append(
+                {
+                    "cap_fraction": cap_name,
+                    "passing_bit_strata": passing_strata,
+                    "positive_comparisons": positives,
+                    "comparison_count": 24,
+                    "strata": strata,
+                    "pass": cap_pass,
+                }
+            )
+            if all_persistent and cap_pass:
+                winners.append({"family": family, "cap_fraction": cap_name})
+        reports.append(
+            {
+                "family": family,
+                "full_cap_persistence": persistence_rows,
+                "full_cap_persistence_pass": all_persistent,
+                "matched_null_cap_tests": tested_caps,
+            }
+        )
+    return {
+        "criterion_version": "sgcp-embed-002-family-gate-v3",
+        "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
+        "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
+        "unresolved_policy": "any nonexact primary or secondary cell invalidates the matrix before gate evaluation",
+        "cap_selection_policy": "one fixed family and one fixed cap fraction must pass across strata",
+        "status": "PASS" if winners else "FAIL",
+        "passing_family_cap_pairs": winners,
+        "families": reports,
+    }
+
+
+def expected_canonical_parameters() -> dict[str, Any]:
+    return {
+        "bits": list(CANONICAL_BITS),
+        "seeds": list(CANONICAL_SEEDS),
+        "factor_base_sizes": list(CANONICAL_FACTOR_BASE_SIZES),
+        "coordinate_families": list(COORDINATE_FAMILIES),
+        "null_family": NULL_FAMILY,
+        "null_replicates": CANONICAL_NULL_REPLICATES,
+        "node_cap_per_cap": CANONICAL_NODE_CAP,
+        "representative_compiler": REPRESENTATIVE_COMPILER,
+        "constrained_budget_rule": "floor(q/4),floor(q/2),floor(3q/4),q",
+    }
+
+
+def independent_document_summary(rows: Sequence[dict[str, Any]]) -> dict[str, int]:
+    cap_cells = [
+        cap
+        for row in rows
+        for cap in row["private_audit"]["density_frontier"]
+    ]
+    return {
+        "row_count": len(rows),
+        "valid_rows": sum(row["valid"] is True for row in rows),
+        "unique_curve_records": len({digest(row["curve"]) for row in rows}),
+        "cap_cell_count": len(cap_cells),
+        "primary_exact_cap_cells": sum(
+            cap["optimizer"]["primary_exact"] is True for cap in cap_cells
+        ),
+        "full_objective_exact_cap_cells": sum(
+            cap["optimizer"]["full_objective_exact"] is True for cap in cap_cells
+        ),
+        "maximum_primary_gap": max(
+            (cap["optimizer"]["absolute_gap"] for cap in cap_cells), default=0
+        ),
+    }
+
+
+def expected_row_keys() -> list[tuple[int, int, int, str, int | None]]:
+    result: list[tuple[int, int, int, str, int | None]] = []
+    for bits_value in CANONICAL_BITS:
+        for seed in CANONICAL_SEEDS:
+            for B in CANONICAL_FACTOR_BASE_SIZES:
+                result.extend(
+                    (bits_value, seed, B, family, None)
+                    for family in COORDINATE_FAMILIES
+                )
+                result.extend(
+                    (bits_value, seed, B, NULL_FAMILY, replicate)
+                    for replicate in range(CANONICAL_NULL_REPLICATES)
+                )
+    return result
+
+
+def verify_v3_document_value(
+    document: dict[str, Any], maximum_nodes: int
+) -> tuple[list[str], list[dict[str, Any]]]:
     errors: list[str] = []
-    if document.get("schema") not in EXPECTED_SCHEMAS:
-        errors.append("unexpected document schema")
-    if document.get("canonical") is not False:
-        errors.append("development document claims canonical status")
-    supplied = document.get("document_sha256")
+    try:
+        require_keys(
+            document,
+            {
+                "schema",
+                "experiment_id",
+                "protocol_version",
+                "scope",
+                "canonical",
+                "claim_status",
+                "interpretation",
+                "parameters",
+                "rows",
+                "summary",
+                "family_gate",
+                "document_sha256",
+            },
+            "V3 document",
+        )
+    except AssertionError as error:
+        return [f"closed document schema: {error}"], []
+    supplied = document["document_sha256"]
     payload = dict(document)
-    payload.pop("document_sha256", None)
+    payload.pop("document_sha256")
     if supplied != digest(payload):
         errors.append("document digest mismatch")
-    row_reports = [
-        (
-            verify_density_row(row, maximum_nodes)
-            if row.get("protocol_version") == 2
-            else verify_row(row, maximum_nodes)
-        )
-        for row in document.get("rows", [])
-    ]
+    if (
+        document["schema"] != "sgcp-embed-002-density-frontier-candidate-v3"
+        or document["experiment_id"] != EXPERIMENT_ID
+        or document["protocol_version"] != PROTOCOL_VERSION
+        or document["claim_status"] != CLAIM_STATUS
+    ):
+        errors.append("document protocol identity mismatch")
+
+    scope = document["scope"]
+    rows = document["rows"]
+    if not isinstance(rows, list):
+        return [*errors, "document rows is not a list"], []
+    if scope == "frozen_fixture":
+        node_cap = document["parameters"].get("node_cap_per_cap")
+        expected_parameters = {
+            "curve": dict(FROZEN_FIXTURE),
+            "B": 4,
+            "family": "least_x_interval",
+            "null_replicate": None,
+            "node_cap_per_cap": node_cap,
+            "representative_compiler": REPRESENTATIVE_COMPILER,
+        }
+        if (
+            document["canonical"] is not False
+            or document["interpretation"]
+            != "frozen-fixture implementation evidence only"
+            or document["parameters"] != expected_parameters
+            or len(rows) != 1
+        ):
+            errors.append("frozen document envelope mismatch")
+        elif not (
+            rows[0].get("curve", {}).get("draw") is None
+            and rows[0].get("B") == 4
+            and rows[0].get("family") == "least_x_interval"
+            and rows[0].get("null_replicate") is None
+            and all(
+                cap.get("optimizer", {}).get("node_cap") == node_cap
+                for cap in rows[0].get("private_audit", {}).get("density_frontier", [])
+            )
+        ):
+            errors.append("frozen row association mismatch")
+        expected_gate = {
+            "status": "NOT_APPLICABLE",
+            "reason": "frozen fixture is not a family matrix",
+        }
+    elif scope == "canonical":
+        if (
+            document["canonical"] is not True
+            or document["interpretation"]
+            != "canonical candidate; coordinator interpretation still required"
+            or document["parameters"] != expected_canonical_parameters()
+        ):
+            errors.append("canonical document envelope mismatch")
+        observed_keys = [
+            (
+                row.get("curve", {}).get("bits"),
+                row.get("curve", {}).get("seed"),
+                row.get("B"),
+                row.get("family"),
+                row.get("null_replicate"),
+            )
+            for row in rows
+        ]
+        if observed_keys != expected_row_keys():
+            errors.append("canonical row grid/order mismatch")
+        curve_by_seed: dict[tuple[int, int], tuple[int, int, int, int]] = {}
+        for row in rows:
+            curve_info = row.get("curve", {})
+            key = (curve_info.get("bits"), curve_info.get("seed"))
+            value = tuple(curve_info.get(name) for name in ("p", "a", "b", "q"))
+            if key in curve_by_seed and curve_by_seed[key] != value:
+                errors.append(f"inconsistent curve record for {key!r}")
+            curve_by_seed[key] = value
+        if len(set(curve_by_seed.values())) != len(curve_by_seed):
+            errors.append("cross-seed duplicate accepted curve")
+        if any(
+            cap.get("optimizer", {}).get("node_cap") != CANONICAL_NODE_CAP
+            for row in rows
+            for cap in row.get("private_audit", {}).get("density_frontier", [])
+        ):
+            errors.append("canonical node-cap mismatch")
+        try:
+            expected_gate = independent_family_gate(rows)
+        except Exception as error:
+            errors.append(f"family gate reconstruction: {error}")
+            expected_gate = None
+    else:
+        errors.append("unknown document scope")
+        expected_gate = None
+
+    row_reports = [verify_density_row(row, maximum_nodes) for row in rows]
     if any(not report["valid"] for report in row_reports):
-        errors.append("one or more row verifications failed")
+        errors.append("one or more V3 row verifications failed")
+    if document["summary"] != independent_document_summary(rows):
+        errors.append("document summary mismatch")
+    if expected_gate is not None and document["family_gate"] != expected_gate:
+        errors.append("family gate mismatch")
+    return errors, row_reports
+
+
+def verify_document(path: Path, maximum_nodes: int) -> dict[str, Any]:
+    document = strict_load(path)
+    supplied = document.get("document_sha256")
+    if document.get("schema") == "sgcp-embed-002-density-frontier-candidate-v3":
+        errors, row_reports = verify_v3_document_value(document, maximum_nodes)
+        claim_boundary = (
+            "frozen-fixture implementation verification only"
+            if document.get("scope") == "frozen_fixture"
+            else "canonical matrix verification; coordinator interpretation still required"
+        )
+    else:
+        errors = []
+        if document.get("schema") not in EXPECTED_SCHEMAS:
+            errors.append("unexpected document schema")
+        if document.get("canonical") is not False:
+            errors.append("development document claims canonical status")
+        payload = dict(document)
+        payload.pop("document_sha256", None)
+        if supplied != digest(payload):
+            errors.append("document digest mismatch")
+        row_reports = [
+            verify_row(row, maximum_nodes) for row in document.get("rows", [])
+        ]
+        if any(not report["valid"] for report in row_reports):
+            errors.append("one or more row verifications failed")
+        claim_boundary = "legacy development verification only"
     report = {
         "schema": VERIFICATION_SCHEMA,
         "verifier_source_path": str(SCRIPT_PATH),
@@ -1430,15 +2540,18 @@ def verify_document(path: Path, maximum_nodes: int) -> dict[str, Any]:
         "rows": row_reports,
         "independent_checks": [
             "strict JSON and document/row digests",
-            "curve equation, point count, prime order, trace, j-invariant, and generator",
-            "predicate roots, Mobius maps and poles, hash-null ranking, signs, and root polynomial",
+            "closed V3 row/document schemas and forbidden scalar-material keys",
+            "independent curve draw and rejection transcript derivation",
+            "predicate roots, hash-derived Mobius maps, poles, hash-null ranking, signs, and root polynomial",
+            "complete canonical row grid, cross-seed curve uniqueness, and exact four-null gate",
+            "frozen degree-two representative compiler and public source table",
             "balanced candidate universe, individual eligibility, and pair-conflict graph",
             "selected graph independence, formal closure, public edges, axioms, density, and retention",
             "degree-1/2/4/8 support under formal-multiset and ordered-tuple source measures",
-            "serialized optimizer frontier-state and bound replay",
-            "independent depth-first proof of each unconstrained or density-capped primary optimum",
+            "deterministic optimizer replay plus independent exhaustive primary proof",
+            "reconstructed structural-work and nested serialized-byte receipts",
         ],
-        "claim_boundary": "development verification only; not canonical hypothesis evidence",
+        "claim_boundary": claim_boundary,
     }
     report["verification_sha256"] = digest(report)
     return report

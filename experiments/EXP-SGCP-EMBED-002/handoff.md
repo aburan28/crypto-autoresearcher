@@ -1,50 +1,56 @@
-## Handoff: SGCP matched-density evidence-boundary repair
+## Handoff: SGCP V3 independent preflight review
 
 ### Claim or task
 
-Repair EXP-SGCP-EMBED-002 so a complete, provenance-bound matrix can distinguish
-coordinate-specific support at constrained density from four matched hash-x
-controls without overinterpreting optimizer gaps or toy curves.
+Audit whether the committed no-run V3 snapshot closes the provenance, exact
+matrix, family-gate, representative-compiler, source-interface, and accounting
+holes that forced the V2 `REVISE` decision.
 
 ### Status
 
-HYPOTHESIS, `TOY-EVIDENCE`, `MODEL-BOUND`, `NOVELTY-UNVERIFIED`, and V2
-`REVISE`; canonical budget is zero.
+`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, `NOVELTY-UNVERIFIED`, and V3
+`review_required`; development curve rows and canonical runs remain zero.
 
 ### Assumptions
 
 - Prime-order ordinary short-Weierstrass toy curves only.
-- The builder sees coordinates and public predicate parameters, never scalar
-  indices.
-- Balanced degree-four order ideals and the absent final `A4 x A4` public edge
-  are inherited from EXP-SGCP-EMBED-001.
-- Version 3 will interpret only rows whose primary optimum is independently
-  exact; unresolved rows remain reported but cannot enter a family gate.
-- Relation generation, rank, descent, rho comparison, and isogeny transforms
-  are outside this experiment.
+- The deterministic curve generator and predicates use coordinates but never
+  scalar indices.
+- The tested object is each predicate composed with the frozen
+  lexicographically least nonidentity-2F representative compiler.
+- Every canonical primary and secondary optimizer cell must be exact; one gap
+  invalidates the whole matrix.
+- The public label-to-formal source table is explicit charged advice.
+- Structural-work fields are combinatorial cells, not operation totals.
+- Relation generation, rank, descent, preprocessing crossover, rho comparison,
+  and exponent claims are outside this experiment.
 
 ### Evidence so far
 
-- The V2 density objective and corrected energy definitions passed frozen
-  controls and independent mathematical review.
-- Independent V2 review found accepted empty-document, provenance, objective,
-  scalar-material, and accounting mutations.
-- The tested object is conditional on the lexicographically least degree-two
-  representative compiler; it is not a factor-base invariant.
-- No version-2 curve-family row was run.
+- V2's finite density objective and corrected energy definitions survived
+  independent review, but V2 accepted provenance, schema, scalar, objective,
+  exactness, and empty-document mutations.
+- V3 independently derives curve and predicate transcripts, freezes the exact
+  168-row/672-cell matrix and six-pair gate, closes schemas, and recursively
+  rejects scalar-material keys.
+- V3 emits and verifies the representative table and public source table.
+- V3 removes operation-total and peak-memory claims, resets cap-local caches,
+  and labels JSON bytes as nested and nonadditive.
+- The focused V3 unit/frozen suite passes without creating a curve-family row.
 
 ### Failure modes
 
-- An incomplete or duplicate matrix could bias a family gate.
-- A producer-chosen curve transcript or Mobius map could create a false effect.
-- A near-copy replay could share a branch-omission bug with the producer.
-- The canonical representative compiler may drive the observed effect.
-- Even a valid toy effect would not supply relations, rank, or descent.
+- Producer replay and verifier replay may still share a search-model error;
+  the separate depth-first proof must be evaluated for independence.
+- Exact closure of every B=8 cap may exceed future budgets.
+- A complete family effect may be entirely compiler-specific.
+- Observational wall time is not external cost evidence.
+- The protocol still has no relation-generation, rank, descent, or attack path.
 
 ### Next concrete action
 
-Implement and mutation-test the no-run V3 closed provenance, complete-grid,
-exact-gate, and scoped-accounting repair before requesting fresh review.
+Run three fresh read-only reviews on one committed V3 snapshot and issue
+separate `GO` or `REVISE` decisions for theory, accounting, and red-team scope.
 
 ### Artifact paths
 
@@ -54,6 +60,10 @@ exact-gate, and scoped-accounting repair before requesting fresh review.
 - `experiments/EXP-SGCP-EMBED-002/contract.md`
 - `experiments/EXP-SGCP-EMBED-002/literature-review-v1.md`
 - `experiments/EXP-SGCP-EMBED-002/decision-v2.json`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v2.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v2.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v2.md`
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v3.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v3.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v3.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v3.md`
+- `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
+- `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
+- `tests/test_sgcp_embed_family.py`
