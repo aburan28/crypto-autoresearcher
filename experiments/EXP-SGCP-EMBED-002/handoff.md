@@ -79,6 +79,65 @@ decisions.
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
 
+## Handoff: SGCP V9 independent closeout
+
+### Claim or task
+
+Close exact-commit review of
+`224189ce2acc054c4e319597940f34bb0edee619` and identify the narrowest no-run
+successor before any launch-plan design.
+
+### Status
+
+`NEGATIVE RESULT` for V9 plan-design readiness. Theory and accounting issued
+scoped `GO`; red team issued `REVISE`. Unanimous authorization was not obtained,
+so launch-plan design and execution remain `NO-GO` and `maximum_runs=0`.
+
+### Assumptions
+
+- Review evidence applies only to exact committed V9 blobs.
+- Frozen B4 remains the only standalone complete five-field oracle.
+- Structural counters remain distinct from CPU, RSS, parser/allocator memory,
+  disk, I/O, cache traffic, and memory bandwidth.
+- Counter suppression is a bounded instrumentation-fault probe, not an
+  input-driven attacker claim.
+
+### Evidence so far
+
+- All nine V9 test-log hashes match the exact commit.
+- Theory found no medium-or-higher mathematical or claim-boundary defect.
+- Accounting confirmed the 31/66/144/214 successful dimensions and
+  35/595/1,225/214 reservations, while noting that most successful counters are
+  dominance- rather than equality-checked.
+- Red team found public `build_legacy_row` reaches non-frozen row mathematics
+  despite the zero generated-row boundary.
+- The coordinator suppressed each new graph/expansion counter independently;
+  every completed frozen verification remained valid with actual count zero.
+- No generated V9 density row, matrix, runner, plan, or run was created.
+
+### Failure modes
+
+- A future launcher could inherit unauthorized work through the legacy builder.
+- A missing successful-path charge can understate work while passing dominance.
+- B6/B8 still lack a standalone complete five-field oracle.
+- Canonical B6/B8 feasibility and every external resource class remain
+  unmeasured.
+
+### Next concrete action
+
+Implement one no-run V10 successor that gates every row-producing callable,
+equality-checks completed graph/expansion deltas against independently derived
+dimensions, adds suppression controls, and narrows secondary-proof wording;
+then validate, commit, and request fresh exact-commit review.
+
+### Artifact paths
+
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v9.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v9.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v9.md`
+- `experiments/EXP-SGCP-EMBED-002/coordinator-suppression-probe-v9.md`
+- `experiments/EXP-SGCP-EMBED-002/decision-v9.json`
+
 ## Handoff: SGCP V9 executed-work repair
 
 ### Claim or task
