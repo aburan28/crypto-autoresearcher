@@ -3,7 +3,7 @@
 
 The builder uses affine coordinates and EC addition only. It deliberately has
 no scalar-multiplication routine and constructs no discrete-log table.
-Canonical execution remains disabled by the version-3 experiment contract.
+Canonical execution remains disabled by the version-4 experiment contract.
 """
 from __future__ import annotations
 
@@ -23,13 +23,25 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
 
-SCHEMA = "sgcp-embed-002-density-frontier-candidate-v3"
+SCHEMA = "sgcp-embed-002-density-frontier-candidate-v4"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
 CLAIM_STATUS = ["HYPOTHESIS", "TOY-EVIDENCE", "MODEL-BOUND", "NOVELTY-UNVERIFIED"]
-PROTOCOL_VERSION = 3
+PROTOCOL_VERSION = 4
 REPRESENTATIVE_COMPILER = (
-    "lexicographically_least_formal_per_nonidentity_2F_output_v1"
+    "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
+ORDERING_CONTRACT = {
+    "factor_points": "ascending affine (x,y), coordinates reduced to 0..p-1",
+    "formal_indices": "zero-based positions in factor_points; formal tuples nondecreasing",
+    "formal_order": "shorter degree first where mixed, then integer-tuple lexicographic order",
+    "point_order": "identity first, then ascending affine (x,y)",
+    "point_labels": "identity is O; affine is canonical unsigned decimal x:y",
+    "least_x_tie": "ascending integer x",
+    "mobius_tie": "ascending (score,x); poles excluded from that map ranking",
+    "two_mobius_tie": "alternate map 0 then 1, skip selected duplicates, preserve per-map order",
+    "hash_x_tie": "ascending (64-character lowercase SHA-256 hex digest,x)",
+    "representative_tie": "lexicographically least nondecreasing formal tuple per EC output",
+}
 COORDINATE_FAMILIES = (
     "least_x_interval",
     "mobius_interval",
@@ -165,6 +177,20 @@ def stable_digest(value: Any) -> str:
     return hashlib.sha256(stable_json(value)).hexdigest()
 
 
+def exact_json_equal(left: Any, right: Any) -> bool:
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return set(left) == set(right) and all(
+            exact_json_equal(left[key], right[key]) for key in left
+        )
+    if isinstance(left, list):
+        return len(left) == len(right) and all(
+            exact_json_equal(a, b) for a, b in zip(left, right)
+        )
+    return left == right
+
+
 def point_key(point: Point) -> tuple[int, int, int]:
     return (-1, 0, 0) if point is None else (0, point[0], point[1])
 
@@ -272,6 +298,13 @@ def curve_rejection_reasons(
     return reasons, q
 
 
+def ordered_curve_rejection_reasons(
+    p: int, a: int, b: int, bits: int, duplicate: bool
+) -> tuple[list[str], int | None]:
+    reasons, q = curve_rejection_reasons(p, a, b, bits)
+    return (["duplicate_candidate"] if duplicate else []) + reasons, q
+
+
 def generated_curve(
     bits: int, seed: int, ops: OperationCounts | None = None
 ) -> tuple[Curve, list[Point], dict[str, Any]]:
@@ -291,20 +324,13 @@ def generated_curve(
         a = hash_int("sgcp-002-curve-a", [bits, seed, draw, p], p, ops)
         b = hash_int("sgcp-002-curve-b", [bits, seed, draw, p], p, ops)
         key = (p, a, b)
-        if key in seen:
-            rejections.append(
-                {
-                    "draw": draw,
-                    "p": p,
-                    "a": a,
-                    "b": b,
-                    "reasons": ["duplicate_candidate"],
-                }
-            )
-            continue
-        seen.add(key)
-        reasons, rejection_q = curve_rejection_reasons(p, a, b, bits)
-        if reasons == ["singular"]:
+        duplicate = key in seen
+        if not duplicate:
+            seen.add(key)
+        reasons, rejection_q = ordered_curve_rejection_reasons(
+            p, a, b, bits, duplicate
+        )
+        if rejection_q is None:
             rejections.append(
                 {"draw": draw, "p": p, "a": a, "b": b, "reasons": reasons}
             )
@@ -1512,6 +1538,7 @@ def build_density_row(
     }
     public_model = {
         "factor_base": factor_record,
+        "ordering_contract": ORDERING_CONTRACT,
         "representative_compiler": universe["representative_compiler"],
         "constrained_budget_caps": constrained_budget_caps(group_size),
         "density_frontier": public_frontier,
@@ -1630,17 +1657,34 @@ def cap_pair(row: dict[str, Any], cap: int) -> tuple[dict[str, Any], dict[str, A
     return pairs[0]
 
 
+def require_exhausted_gate_cell(optimizer: dict[str, Any]) -> None:
+    integer_fields = (
+        "retained_support_lower_bound",
+        "retained_support_upper_bound",
+        "absolute_gap",
+        "remaining_frontier_nodes",
+    )
+    if any(type(optimizer.get(name)) is not int for name in integer_fields):
+        raise ValueError("family gate optimizer exactness fields are not integers")
+    if not (
+        optimizer.get("primary_exact") is True
+        and optimizer.get("full_objective_exact") is True
+        and optimizer["retained_support_lower_bound"]
+        == optimizer["retained_support_upper_bound"]
+        and optimizer["absolute_gap"] == 0
+        and optimizer["remaining_frontier_nodes"] == 0
+        and optimizer.get("frontier_states") == []
+        and optimizer.get("frontier_sha256") == stable_digest([])
+        and optimizer.get("termination_reason") == "full_objective_proved"
+    ):
+        raise ValueError("family gate received a nonexhausted optimizer cell")
+
+
 def evaluate_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     by_key: dict[tuple[int, int, int, str, int | None], dict[str, Any]] = {}
     for row in rows:
         for cell in row["private_audit"]["density_frontier"]:
-            optimizer = cell["optimizer"]
-            if not (
-                optimizer["primary_exact"] is True
-                and optimizer["full_objective_exact"] is True
-                and optimizer["absolute_gap"] == 0
-            ):
-                raise ValueError("family gate received an unresolved optimizer cell")
+            require_exhausted_gate_cell(cell["optimizer"])
         key = (
             row["curve"]["bits"],
             row["curve"]["seed"],
@@ -1746,10 +1790,10 @@ def evaluate_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
             }
         )
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v3",
+        "criterion_version": "sgcp-embed-002-family-gate-v4",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
-        "unresolved_policy": "any nonexact primary or secondary cell invalidates the matrix before gate evaluation",
+        "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
         "cap_selection_policy": "one fixed family and one fixed cap fraction must pass across strata",
         "status": "PASS" if passing_pairs else "FAIL",
         "passing_family_cap_pairs": passing_pairs,
@@ -1767,6 +1811,7 @@ def canonical_parameters() -> dict[str, Any]:
         "null_replicates": CANONICAL_NULL_REPLICATES,
         "node_cap_per_cap": CANONICAL_NODE_CAP,
         "representative_compiler": REPRESENTATIVE_COMPILER,
+        "ordering_contract_sha256": stable_digest(ORDERING_CONTRACT),
         "constrained_budget_rule": "floor(q/4),floor(q/2),floor(3q/4),q",
     }
 
@@ -1795,21 +1840,55 @@ def validate_canonical_rows(rows: Sequence[dict[str, Any]]) -> None:
         )
         for row in rows
     ]
-    if observed != canonical_row_keys():
+    if (
+        observed != canonical_row_keys()
+        or any(type(value) is not int for key in observed for value in key[:3])
+        or any(
+            type(key[3]) is not str
+            or (key[4] is not None and type(key[4]) is not int)
+            for key in observed
+        )
+    ):
         raise ValueError("canonical row grid/order mismatch")
     curves: dict[tuple[int, int], tuple[int, int, int, int]] = {}
+    curve_records: dict[tuple[int, int], dict[str, Any]] = {}
     for row in rows:
         curve = row["curve"]
         key = (curve["bits"], curve["seed"])
         value = tuple(curve[name] for name in ("p", "a", "b", "q"))
+        if any(type(item) is not int for item in (*key, *value)):
+            raise ValueError("canonical curve key/value has a noninteger type")
         if key in curves and curves[key] != value:
             raise ValueError(f"inconsistent canonical curve record for {key!r}")
+        if key in curve_records and not exact_json_equal(curve_records[key], curve):
+            raise ValueError(f"inconsistent canonical curve transcript for {key!r}")
         curves[key] = value
-        if any(
-            cell["optimizer"]["node_cap"] != CANONICAL_NODE_CAP
-            for cell in row["private_audit"]["density_frontier"]
+        curve_records[key] = curve
+        caps = constrained_budget_caps(curve["q"])
+        if not exact_json_equal(
+            row["public_model"]["constrained_budget_caps"], caps
         ):
-            raise ValueError("canonical optimizer node-cap mismatch")
+            raise ValueError("canonical constrained-cap schedule mismatch")
+        public_caps = [
+            cell["constrained_cap"]
+            for cell in row["public_model"]["density_frontier"]
+        ]
+        private_caps = [
+            cell["constrained_cap"]
+            for cell in row["private_audit"]["density_frontier"]
+        ]
+        if not exact_json_equal(public_caps, caps) or not exact_json_equal(
+            private_caps, caps
+        ):
+            raise ValueError("canonical cap-cell association mismatch")
+        for cell in row["private_audit"]["density_frontier"]:
+            optimizer = cell["optimizer"]
+            if (
+                type(optimizer["node_cap"]) is not int
+                or optimizer["node_cap"] != CANONICAL_NODE_CAP
+            ):
+                raise ValueError("canonical optimizer node-cap mismatch")
+            require_exhausted_gate_cell(optimizer)
     if len(set(curves.values())) != len(curves):
         raise ValueError("cross-seed duplicate accepted curve")
 
@@ -1822,6 +1901,7 @@ def frozen_parameters(node_cap: int) -> dict[str, Any]:
         "null_replicate": None,
         "node_cap_per_cap": node_cap,
         "representative_compiler": REPRESENTATIVE_COMPILER,
+        "ordering_contract_sha256": stable_digest(ORDERING_CONTRACT),
     }
 
 
@@ -1833,7 +1913,7 @@ def document_summary(rows: Sequence[dict[str, Any]]) -> dict[str, int]:
     ]
     return {
         "row_count": len(rows),
-        "valid_rows": sum(bool(row["valid"]) for row in rows),
+        "valid_rows": sum(row["valid"] is True for row in rows),
         "unique_curve_records": len(
             {
                 stable_digest(row["curve"])
@@ -1842,10 +1922,10 @@ def document_summary(rows: Sequence[dict[str, Any]]) -> dict[str, int]:
         ),
         "cap_cell_count": len(cap_cells),
         "primary_exact_cap_cells": sum(
-            bool(cell["optimizer"]["primary_exact"]) for cell in cap_cells
+            cell["optimizer"]["primary_exact"] is True for cell in cap_cells
         ),
         "full_objective_exact_cap_cells": sum(
-            bool(cell["optimizer"]["full_objective_exact"])
+            cell["optimizer"]["full_objective_exact"] is True
             for cell in cap_cells
         ),
         "maximum_primary_gap": max(
@@ -1907,7 +1987,7 @@ def build_frozen_control_document(node_cap: int = 100_000) -> dict[str, Any]:
 
 def build_development_document(args: argparse.Namespace) -> dict[str, Any]:
     raise PermissionError(
-        "version-3 development curve-row budget is zero; use the frozen control only"
+        "version-4 development curve-row budget is zero; use the frozen control only"
     )
 
 
@@ -1936,7 +2016,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "canonical execution is disabled: specification status is review_required and maximum_runs is zero"
         )
     raise PermissionError(
-        "version-3 development curve-row budget is zero; run unit and frozen-fixture controls only"
+        "version-4 development curve-row budget is zero; run unit and frozen-fixture controls only"
     )
 
 

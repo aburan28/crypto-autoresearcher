@@ -24,13 +24,26 @@ EXPECTED_SCHEMAS = {
     "sgcp-embed-002-development-v1",
     "sgcp-embed-002-density-frontier-development-v2",
     "sgcp-embed-002-density-frontier-candidate-v3",
+    "sgcp-embed-002-density-frontier-candidate-v4",
 }
-VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v3"
+VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v4"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
-PROTOCOL_VERSION = 3
+PROTOCOL_VERSION = 4
 REPRESENTATIVE_COMPILER = (
-    "lexicographically_least_formal_per_nonidentity_2F_output_v1"
+    "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
+ORDERING_CONTRACT = {
+    "factor_points": "ascending affine (x,y), coordinates reduced to 0..p-1",
+    "formal_indices": "zero-based positions in factor_points; formal tuples nondecreasing",
+    "formal_order": "shorter degree first where mixed, then integer-tuple lexicographic order",
+    "point_order": "identity first, then ascending affine (x,y)",
+    "point_labels": "identity is O; affine is canonical unsigned decimal x:y",
+    "least_x_tie": "ascending integer x",
+    "mobius_tie": "ascending (score,x); poles excluded from that map ranking",
+    "two_mobius_tie": "alternate map 0 then 1, skip selected duplicates, preserve per-map order",
+    "hash_x_tie": "ascending (64-character lowercase SHA-256 hex digest,x)",
+    "representative_tie": "lexicographically least nondecreasing formal tuple per EC output",
+}
 COORDINATE_FAMILIES = (
     "least_x_interval",
     "mobius_interval",
@@ -95,6 +108,103 @@ def require_keys(value: Any, expected: set[str], label_name: str) -> None:
             f"{label_name} keys mismatch: missing={sorted(expected - observed)!r} "
             f"extra={sorted(observed - expected)!r}"
         )
+
+
+def exact_json_equal(left: Any, right: Any) -> bool:
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return set(left) == set(right) and all(
+            exact_json_equal(left[key], right[key]) for key in left
+        )
+    if isinstance(left, list):
+        return len(left) == len(right) and all(
+            exact_json_equal(a, b) for a, b in zip(left, right)
+        )
+    return left == right
+
+
+def exact_type(value: Any, expected: type, path: str, errors: list[str]) -> bool:
+    if type(value) is not expected:
+        errors.append(
+            f"exact type mismatch at {path}: expected {expected.__name__}, "
+            f"got {type(value).__name__}"
+        )
+        return False
+    return True
+
+
+def exact_integer(value: Any, path: str, errors: list[str]) -> bool:
+    return exact_type(value, int, path, errors)
+
+
+def exact_boolean(value: Any, path: str, errors: list[str]) -> bool:
+    return exact_type(value, bool, path, errors)
+
+
+def exact_string(value: Any, path: str, errors: list[str]) -> bool:
+    return exact_type(value, str, path, errors)
+
+
+def exact_float(value: Any, path: str, errors: list[str]) -> bool:
+    return exact_type(value, float, path, errors)
+
+
+def exact_integer_list(value: Any, path: str, errors: list[str]) -> None:
+    if not exact_type(value, list, path, errors):
+        return
+    for index, child in enumerate(value):
+        exact_integer(child, f"{path}[{index}]", errors)
+
+
+def exact_string_list(value: Any, path: str, errors: list[str]) -> None:
+    if not exact_type(value, list, path, errors):
+        return
+    for index, child in enumerate(value):
+        exact_string(child, f"{path}[{index}]", errors)
+
+
+def exact_formal(value: Any, path: str, errors: list[str]) -> None:
+    exact_integer_list(value, path, errors)
+
+
+def exact_point_record(value: Any, path: str, errors: list[str]) -> None:
+    if type(value) is str:
+        if value != "O":
+            errors.append(f"invalid identity point record at {path}")
+        return
+    if not exact_type(value, list, path, errors):
+        return
+    if len(value) != 2:
+        errors.append(f"affine point record at {path} does not have two coordinates")
+        return
+    exact_integer(value[0], f"{path}[0]", errors)
+    exact_integer(value[1], f"{path}[1]", errors)
+
+
+def exact_ratio_record(value: Any, path: str, errors: list[str]) -> None:
+    if not exact_type(value, dict, path, errors):
+        return
+    if set(value) != {"numerator", "denominator"}:
+        errors.append(f"ratio keys mismatch at {path}")
+        return
+    exact_integer(value["numerator"], f"{path}.numerator", errors)
+    exact_integer(value["denominator"], f"{path}.denominator", errors)
+
+
+def exact_integer_histogram(value: Any, path: str, errors: list[str]) -> None:
+    if not exact_type(value, dict, path, errors):
+        return
+    for key, count in value.items():
+        exact_string(key, f"{path}.key", errors)
+        exact_integer(count, f"{path}[{key!r}]", errors)
+
+
+def exact_digest(value: Any, path: str, errors: list[str]) -> None:
+    if not exact_string(value, path, errors):
+        return
+    if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+        errors.append(f"invalid lowercase SHA-256 digest at {path}")
 
 
 def forbidden_material(value: Any, path: str = "row") -> list[str]:
@@ -264,6 +374,13 @@ def independent_rejection_reasons(
     return reasons, q
 
 
+def ordered_independent_rejection_reasons(
+    p: int, a: int, b: int, bits_value: int, duplicate: bool
+) -> tuple[list[str], int | None]:
+    reasons, q = independent_rejection_reasons(p, a, b, bits_value)
+    return (["duplicate_candidate"] if duplicate else []) + reasons, q
+
+
 def independent_curve_record(
     curve: Curve, group: Sequence[Point], bits_value: int, seed: int
 ) -> dict[str, Any]:
@@ -318,7 +435,7 @@ def verify_curve_provenance(info: dict[str, Any]) -> Curve:
                 "rejection_digest": digest([]),
             }
         )
-        if info != expected:
+        if not exact_json_equal(info, expected):
             raise AssertionError("frozen curve provenance mismatch")
         return curve
 
@@ -336,14 +453,13 @@ def verify_curve_provenance(info: dict[str, Any]) -> Curve:
         a = hash_mod("sgcp-002-curve-a", [bits_value, seed, draw, p], p)
         b = hash_mod("sgcp-002-curve-b", [bits_value, seed, draw, p], p)
         key = (p, a, b)
-        if key in seen:
-            rejections.append(
-                {"draw": draw, "p": p, "a": a, "b": b, "reasons": ["duplicate_candidate"]}
-            )
-            continue
-        seen.add(key)
-        reasons, rejection_q = independent_rejection_reasons(p, a, b, bits_value)
-        if reasons == ["singular"]:
+        duplicate = key in seen
+        if not duplicate:
+            seen.add(key)
+        reasons, rejection_q = ordered_independent_rejection_reasons(
+            p, a, b, bits_value, duplicate
+        )
+        if rejection_q is None:
             rejections.append(
                 {"draw": draw, "p": p, "a": a, "b": b, "reasons": reasons}
             )
@@ -373,7 +489,7 @@ def verify_curve_provenance(info: dict[str, Any]) -> Curve:
                 "rejection_digest": digest(rejections),
             }
         )
-        if draw != info["draw"] or info != expected:
+        if draw != info["draw"] or not exact_json_equal(info, expected):
             raise AssertionError("generated curve transcript mismatch")
         return curve
     raise AssertionError("declared accepted draw is not independently accepted")
@@ -489,14 +605,14 @@ def verify_factor_base(curve: Curve, group: Sequence[Point], row: dict[str, Any]
     roots = sorted(fibers)
     required = B // 2
     if family == "least_x_interval":
-        if record["parameters"] != {}:
+        if not exact_json_equal(record["parameters"], {}):
             raise AssertionError("least-x parameters are not empty")
         expected = roots[:required]
         poles: list[int] = []
     elif family == "mobius_interval":
         require_keys(record["parameters"], {"map"}, "Mobius parameters")
         expected_map = derive_mobius(row["curve"], B, family, 0)
-        if record["parameters"]["map"] != expected_map:
+        if not exact_json_equal(record["parameters"]["map"], expected_map):
             raise AssertionError("Mobius derivation transcript mismatch")
         ranking, poles = map_ranking(roots, curve.p, expected_map)
         expected = ranking[:required]
@@ -505,7 +621,7 @@ def verify_factor_base(curve: Curve, group: Sequence[Point], row: dict[str, Any]
             record["parameters"], {"maps", "alternating_positions"}, "two-map parameters"
         )
         expected_maps = [derive_mobius(row["curve"], B, family, index) for index in range(2)]
-        if record["parameters"]["maps"] != expected_maps:
+        if not exact_json_equal(record["parameters"]["maps"], expected_maps):
             raise AssertionError("two-map derivation transcript mismatch")
         rankings: list[list[int]] = []
         pole_set: set[int] = set()
@@ -529,11 +645,13 @@ def verify_factor_base(curve: Curve, group: Sequence[Point], row: dict[str, Any]
                     break
             if not changed:
                 raise AssertionError("independent two-map selection stalled")
-        if positions != record["parameters"]["alternating_positions"]:
+        if not exact_json_equal(
+            positions, record["parameters"]["alternating_positions"]
+        ):
             raise AssertionError("two-map positions mismatch")
         poles = sorted(pole_set)
     elif family == "hash_x_null":
-        if record["parameters"] != {"replicate": replicate}:
+        if not exact_json_equal(record["parameters"], {"replicate": replicate}):
             raise AssertionError("hash-null parameter mismatch")
         curve_info = row["curve"]
         token = [curve_info[key] for key in ("p", "a", "b", "q", "seed")]
@@ -555,16 +673,22 @@ def verify_factor_base(curve: Curve, group: Sequence[Point], row: dict[str, Any]
         poles = []
     else:
         raise ValueError(f"unknown family {family!r}")
-    if sorted(expected) != record["selected_roots"]:
+    if not exact_json_equal(sorted(expected), record["selected_roots"]):
         raise AssertionError("predicate selected-root mismatch")
-    if poles != record["excluded_poles"]:
+    if not exact_json_equal(poles, record["excluded_poles"]):
         raise AssertionError("predicate pole audit mismatch")
-    if polynomial(sorted(expected), curve.p) != record["root_polynomial_coefficients_ascending_mod_p"]:
+    if not exact_json_equal(
+        polynomial(sorted(expected), curve.p),
+        record["root_polynomial_coefficients_ascending_mod_p"],
+    ):
         raise AssertionError("root polynomial mismatch")
     factors = sorted(
         (point for root in expected for point in fibers[root]), key=point_order
     )
-    if ["O" if point is None else [point[0], point[1]] for point in factors] != record["points"]:
+    if not exact_json_equal(
+        ["O" if point is None else [point[0], point[1]] for point in factors],
+        record["points"],
+    ):
         raise AssertionError("factor point list mismatch")
     if len(factors) != B or any(curve.negate(point) not in factors for point in factors):
         raise AssertionError("factor-base cardinality or sign mismatch")
@@ -1488,7 +1612,7 @@ def verify_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
     }
 
 
-def v3_row_schema_errors(row: Any) -> list[str]:
+def v4_row_schema_errors(row: Any) -> list[str]:
     errors: list[str] = []
     try:
         require_keys(
@@ -1510,14 +1634,92 @@ def v3_row_schema_errors(row: Any) -> list[str]:
             "density row",
         )
         require_keys(
+            row["curve"],
+            {
+                "bits",
+                "seed",
+                "p",
+                "a",
+                "b",
+                "q",
+                "trace",
+                "j",
+                "generator",
+                "draw",
+                "rejected_draws",
+                "rejection_count",
+                "rejection_digest",
+            },
+            "curve record",
+        )
+        for index, rejection in enumerate(row["curve"]["rejected_draws"]):
+            expected_rejection_keys = {"draw", "p", "a", "b", "reasons"}
+            if isinstance(rejection, dict) and "q" in rejection:
+                expected_rejection_keys.add("q")
+            require_keys(
+                rejection,
+                expected_rejection_keys,
+                f"curve rejection[{index}]",
+            )
+        require_keys(
             row["public_model"],
             {
                 "factor_base",
+                "ordering_contract",
                 "representative_compiler",
                 "constrained_budget_caps",
                 "density_frontier",
             },
             "public model",
+        )
+        factor = row["public_model"]["factor_base"]
+        require_keys(
+            factor,
+            {
+                "family",
+                "null_replicate",
+                "B",
+                "admissible_root_count",
+                "selected_roots",
+                "selected_root_count",
+                "excluded_poles",
+                "parameters",
+                "root_polynomial_coefficients_ascending_mod_p",
+                "points",
+                "negation_symmetric",
+                "selection_sha256",
+            },
+            "factor-base record",
+        )
+        family = row["family"]
+        parameters = factor["parameters"]
+        if family == "least_x_interval":
+            require_keys(parameters, set(), "least-x parameters")
+        elif family == "mobius_interval":
+            require_keys(parameters, {"map"}, "Mobius parameters")
+            require_keys(
+                parameters["map"],
+                {"u", "v", "w", "determinant", "nonce"},
+                "Mobius map",
+            )
+        elif family == "two_mobius_union":
+            require_keys(
+                parameters,
+                {"maps", "alternating_positions"},
+                "two-map parameters",
+            )
+            for index, map_record in enumerate(parameters["maps"]):
+                require_keys(
+                    map_record,
+                    {"u", "v", "w", "determinant", "nonce"},
+                    f"two-map parameters[{index}]",
+                )
+        elif family == NULL_FAMILY:
+            require_keys(parameters, {"replicate"}, "hash-null parameters")
+        require_keys(
+            row["public_model"]["ordering_contract"],
+            set(ORDERING_CONTRACT),
+            "ordering contract",
         )
         require_keys(
             row["public_model"]["representative_compiler"],
@@ -1777,8 +1979,405 @@ def v3_row_schema_errors(row: Any) -> list[str]:
     return errors
 
 
+def v4_row_type_errors(row: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    for name in ("protocol_version", "B"):
+        exact_integer(row[name], f"row.{name}", errors)
+    exact_string(row["family"], "row.family", errors)
+    if row["null_replicate"] is not None:
+        exact_integer(row["null_replicate"], "row.null_replicate", errors)
+    exact_boolean(row["valid"], "row.valid", errors)
+    exact_float(row["wall_time_seconds"], "row.wall_time_seconds", errors)
+    exact_digest(row["row_sha256"], "row.row_sha256", errors)
+
+    curve = row["curve"]
+    if exact_type(curve, dict, "row.curve", errors):
+        for name in ("bits", "seed", "p", "a", "b", "q", "trace", "j"):
+            if name in curve:
+                exact_integer(curve[name], f"row.curve.{name}", errors)
+        if "generator" in curve:
+            exact_point_record(curve["generator"], "row.curve.generator", errors)
+        if curve.get("draw") is not None:
+            exact_integer(curve["draw"], "row.curve.draw", errors)
+        for name in ("rejection_count",):
+            if name in curve:
+                exact_integer(curve[name], f"row.curve.{name}", errors)
+        if "rejection_digest" in curve:
+            exact_digest(curve["rejection_digest"], "row.curve.rejection_digest", errors)
+        rejected_draws = curve.get("rejected_draws")
+        if exact_type(rejected_draws, list, "row.curve.rejected_draws", errors):
+            for index, rejection in enumerate(rejected_draws):
+                path = f"row.curve.rejected_draws[{index}]"
+                if not exact_type(rejection, dict, path, errors):
+                    continue
+                for name in ("draw", "p", "a", "b"):
+                    if name in rejection:
+                        exact_integer(rejection[name], f"{path}.{name}", errors)
+                if "q" in rejection:
+                    exact_integer(rejection["q"], f"{path}.q", errors)
+                if "reasons" in rejection:
+                    exact_string_list(rejection["reasons"], f"{path}.reasons", errors)
+
+    public_model = row["public_model"]
+    factor = public_model["factor_base"]
+    for name in ("family",):
+        exact_string(factor[name], f"row.public_model.factor_base.{name}", errors)
+    if factor["null_replicate"] is not None:
+        exact_integer(
+            factor["null_replicate"],
+            "row.public_model.factor_base.null_replicate",
+            errors,
+        )
+    for name in ("B", "admissible_root_count", "selected_root_count"):
+        exact_integer(factor[name], f"row.public_model.factor_base.{name}", errors)
+    for name in ("selected_roots", "excluded_poles", "root_polynomial_coefficients_ascending_mod_p"):
+        exact_integer_list(factor[name], f"row.public_model.factor_base.{name}", errors)
+    if exact_type(factor["points"], list, "row.public_model.factor_base.points", errors):
+        for index, point in enumerate(factor["points"]):
+            exact_point_record(
+                point, f"row.public_model.factor_base.points[{index}]", errors
+            )
+    exact_boolean(
+        factor["negation_symmetric"],
+        "row.public_model.factor_base.negation_symmetric",
+        errors,
+    )
+    exact_digest(
+        factor["selection_sha256"],
+        "row.public_model.factor_base.selection_sha256",
+        errors,
+    )
+    parameters = factor["parameters"]
+    if exact_type(parameters, dict, "row.public_model.factor_base.parameters", errors):
+        maps: list[tuple[str, Any]] = []
+        if "map" in parameters:
+            maps.append(("map", parameters["map"]))
+        if "maps" in parameters:
+            if exact_type(
+                parameters["maps"],
+                list,
+                "row.public_model.factor_base.parameters.maps",
+                errors,
+            ):
+                maps.extend(
+                    (f"maps[{index}]", value)
+                    for index, value in enumerate(parameters["maps"])
+                )
+        for suffix, map_record in maps:
+            path = f"row.public_model.factor_base.parameters.{suffix}"
+            if not exact_type(map_record, dict, path, errors):
+                continue
+            for name in ("u", "v", "w", "determinant", "nonce"):
+                if name in map_record:
+                    exact_integer(map_record[name], f"{path}.{name}", errors)
+        if "alternating_positions" in parameters:
+            exact_integer_list(
+                parameters["alternating_positions"],
+                "row.public_model.factor_base.parameters.alternating_positions",
+                errors,
+            )
+        if "replicate" in parameters:
+            exact_integer(
+                parameters["replicate"],
+                "row.public_model.factor_base.parameters.replicate",
+                errors,
+            )
+
+    ordering = public_model["ordering_contract"]
+    if exact_type(ordering, dict, "row.public_model.ordering_contract", errors):
+        for name in ORDERING_CONTRACT:
+            exact_string(
+                ordering[name], f"row.public_model.ordering_contract.{name}", errors
+            )
+
+    compiler = public_model["representative_compiler"]
+    exact_string(compiler["id"], "row.public_model.representative_compiler.id", errors)
+    exact_boolean(
+        compiler["identity_output_excluded"],
+        "row.public_model.representative_compiler.identity_output_excluded",
+        errors,
+    )
+    exact_integer(
+        compiler["representative_count"],
+        "row.public_model.representative_compiler.representative_count",
+        errors,
+    )
+    if exact_type(
+        compiler["representatives"],
+        list,
+        "row.public_model.representative_compiler.representatives",
+        errors,
+    ):
+        for index, representative in enumerate(compiler["representatives"]):
+            path = f"row.public_model.representative_compiler.representatives[{index}]"
+            exact_point_record(representative["point"], f"{path}.point", errors)
+            exact_formal(representative["formal"], f"{path}.formal", errors)
+    exact_digest(
+        compiler["representatives_sha256"],
+        "row.public_model.representative_compiler.representatives_sha256",
+        errors,
+    )
+    exact_integer_list(
+        public_model["constrained_budget_caps"],
+        "row.public_model.constrained_budget_caps",
+        errors,
+    )
+
+    axiom_boolean_names = (
+        "identity",
+        "commutativity",
+        "associativity",
+        "compatibility_coordinates",
+        "injective_evaluation",
+        "unique_prime_multiset_factorization",
+        "acyclic_by_formal_degree",
+        "source_recovery",
+        "source_recovery_via_public_table",
+        "direct_final_edge_excluded",
+        "direct_final_edge_absent_by_construction",
+    )
+    public_caps = public_model["density_frontier"]
+    if exact_type(public_caps, list, "row.public_model.density_frontier", errors):
+        for cap_index, public in enumerate(public_caps):
+            path = f"row.public_model.density_frontier[{cap_index}]"
+            for name in ("constrained_cap", "formal_family_count", "constrained_count", "public_edge_count"):
+                exact_integer(public[name], f"{path}.{name}", errors)
+            if exact_type(public["selected_maxima"], list, f"{path}.selected_maxima", errors):
+                for index, formal in enumerate(public["selected_maxima"]):
+                    exact_formal(formal, f"{path}.selected_maxima[{index}]", errors)
+            exact_integer_histogram(
+                public["formal_degree_histogram"],
+                f"{path}.formal_degree_histogram",
+                errors,
+            )
+            axioms = public["axioms"]
+            for name in axiom_boolean_names:
+                exact_boolean(axioms[name], f"{path}.axioms.{name}", errors)
+            exact_string(
+                axioms["associativity_method"],
+                f"{path}.axioms.associativity_method",
+                errors,
+            )
+            exact_integer(
+                axioms["forbidden_final_edge_count"],
+                f"{path}.axioms.forbidden_final_edge_count",
+                errors,
+            )
+            exact_ratio_record(public["delta"], f"{path}.delta", errors)
+            for edge_index, edge in enumerate(public["public_edges"]):
+                for name in ("left", "right", "output"):
+                    exact_string(
+                        edge[name], f"{path}.public_edges[{edge_index}].{name}", errors
+                    )
+            exact_digest(
+                public["public_edges_sha256"],
+                f"{path}.public_edges_sha256",
+                errors,
+            )
+            for source_index, source in enumerate(public["source_table"]):
+                exact_string(
+                    source["label"],
+                    f"{path}.source_table[{source_index}].label",
+                    errors,
+                )
+                exact_formal(
+                    source["formal"],
+                    f"{path}.source_table[{source_index}].formal",
+                    errors,
+                )
+            exact_digest(
+                public["source_table_sha256"],
+                f"{path}.source_table_sha256",
+                errors,
+            )
+
+    private_audit = row["private_audit"]
+    graph = private_audit["graph"]
+    for name in (
+        "candidate_count",
+        "eligible_candidate_count",
+        "individually_rejected_count",
+        "conflict_count",
+        "vertices",
+        "edges",
+        "component_count",
+        "degree_min",
+        "degree_max",
+        "degeneracy",
+    ):
+        exact_integer(graph[name], f"row.private_audit.graph.{name}", errors)
+    exact_integer_list(graph["components"], "row.private_audit.graph.components", errors)
+    exact_integer_histogram(
+        graph["degree_histogram"], "row.private_audit.graph.degree_histogram", errors
+    )
+    exact_integer_list(
+        private_audit["eligible_universe_indices"],
+        "row.private_audit.eligible_universe_indices",
+        errors,
+    )
+    for index, rejected in enumerate(private_audit["individually_rejected"]):
+        path = f"row.private_audit.individually_rejected[{index}]"
+        exact_integer(rejected["universe_index"], f"{path}.universe_index", errors)
+        exact_formal(rejected["formal"], f"{path}.formal", errors)
+        exact_point_record(rejected["point"], f"{path}.point", errors)
+        collision = rejected["first_collision"]
+        exact_formal(collision["left"], f"{path}.first_collision.left", errors)
+        exact_formal(collision["right"], f"{path}.first_collision.right", errors)
+        exact_point_record(collision["point"], f"{path}.first_collision.point", errors)
+    for index, conflict in enumerate(private_audit["conflicts"]):
+        path = f"row.private_audit.conflicts[{index}]"
+        for name in ("left", "right", "left_universe_index", "right_universe_index"):
+            exact_integer(conflict[name], f"{path}.{name}", errors)
+        collision = conflict["first_collision"]
+        exact_formal(collision["left"], f"{path}.first_collision.left", errors)
+        exact_formal(collision["right"], f"{path}.first_collision.right", errors)
+        exact_point_record(collision["point"], f"{path}.first_collision.point", errors)
+
+    private_caps = private_audit["density_frontier"]
+    if exact_type(private_caps, list, "row.private_audit.density_frontier", errors):
+        for cap_index, private in enumerate(private_caps):
+            path = f"row.private_audit.density_frontier[{cap_index}]"
+            exact_integer(private["constrained_cap"], f"{path}.constrained_cap", errors)
+            exact_float(private["wall_time_seconds"], f"{path}.wall_time_seconds", errors)
+            optimizer = private["optimizer"]
+            for name in ("objective_mode", "selected_mask_hex", "frontier_sha256", "termination_reason", "bound_method"):
+                exact_string(optimizer[name], f"{path}.optimizer.{name}", errors)
+            exact_integer(optimizer["max_constrained"], f"{path}.optimizer.max_constrained", errors)
+            exact_string_list(
+                optimizer["objective_order"], f"{path}.optimizer.objective_order", errors
+            )
+            exact_integer_list(
+                optimizer["selected_indices"], f"{path}.optimizer.selected_indices", errors
+            )
+            for name in (
+                "retained_support_lower_bound",
+                "retained_support_upper_bound",
+                "absolute_gap",
+                "selected_count",
+                "constrained_count",
+                "public_edge_count",
+                "explored_nodes",
+                "remaining_frontier_nodes",
+                "incumbent_updates",
+                "bound_calls",
+                "node_cap",
+            ):
+                exact_integer(optimizer[name], f"{path}.optimizer.{name}", errors)
+            for name in ("primary_exact", "full_objective_exact"):
+                exact_boolean(optimizer[name], f"{path}.optimizer.{name}", errors)
+            if exact_type(optimizer["witness_list"], list, f"{path}.optimizer.witness_list", errors):
+                for index, formal in enumerate(optimizer["witness_list"]):
+                    exact_formal(formal, f"{path}.optimizer.witness_list[{index}]", errors)
+            if exact_type(optimizer["frontier_states"], list, f"{path}.optimizer.frontier_states", errors):
+                for state_index, state in enumerate(optimizer["frontier_states"]):
+                    state_path = f"{path}.optimizer.frontier_states[{state_index}]"
+                    for name in ("selected_mask_hex", "available_mask_hex", "selected_support_mask_hex"):
+                        exact_string(state[name], f"{state_path}.{name}", errors)
+                    for name in ("support_upper_bound", "selected_count_upper_bound"):
+                        exact_integer(state[name], f"{state_path}.{name}", errors)
+            exact_digest(optimizer["frontier_sha256"], f"{path}.optimizer.frontier_sha256", errors)
+
+            retention = private["retention"]
+            for name in (
+                "balanced_raw_final_support",
+                "eight_fold_support",
+                "retained_final_support",
+                "balanced_raw_maximum_multiplicity",
+                "retained_maximum_multiplicity",
+            ):
+                exact_integer(retention[name], f"{path}.retention.{name}", errors)
+            for name in (
+                "retained_to_balanced_raw",
+                "retained_to_eight_fold",
+                "absolute_group_coverage",
+            ):
+                exact_ratio_record(retention[name], f"{path}.retention.{name}", errors)
+            for name, value in private["structural_work"].items():
+                exact_integer(value, f"{path}.structural_work.{name}", errors)
+
+    for degree, expansion in private_audit["expansion"].items():
+        path = f"row.private_audit.expansion[{degree}]"
+        for name in (
+            "support",
+            "formal_multiset_witness_count",
+            "formal_multiset_collision_energy",
+            "formal_multiset_maximum_multiplicity",
+            "ordered_tuple_witness_count",
+            "ordered_tuple_additive_energy",
+            "ordered_tuple_maximum_multiplicity",
+        ):
+            exact_integer(expansion[name], f"{path}.{name}", errors)
+        exact_integer_histogram(
+            expansion["formal_multiset_multiplicity_histogram"],
+            f"{path}.formal_multiset_multiplicity_histogram",
+            errors,
+        )
+        exact_integer_histogram(
+            expansion["ordered_tuple_multiplicity_histogram"],
+            f"{path}.ordered_tuple_multiplicity_histogram",
+            errors,
+        )
+
+    structural = row["structural_work"]
+    exact_string(structural["scope"], "row.structural_work.scope", errors)
+    for name, value in structural.items():
+        if name != "scope":
+            exact_integer(value, f"row.structural_work.{name}", errors)
+
+    accounting = row["accounting"]
+    exact_string(accounting["scope"], "row.accounting.scope", errors)
+    for name in (
+        "public_model_json_bytes",
+        "private_audit_json_bytes",
+        "row_payload_without_accounting_or_digest_json_bytes",
+    ):
+        exact_integer(accounting[name], f"row.accounting.{name}", errors)
+    if exact_type(
+        accounting["nested_per_cap_json_bytes"],
+        list,
+        "row.accounting.nested_per_cap_json_bytes",
+        errors,
+    ):
+        for index, receipt in enumerate(accounting["nested_per_cap_json_bytes"]):
+            for name, value in receipt.items():
+                exact_integer(
+                    value,
+                    f"row.accounting.nested_per_cap_json_bytes[{index}].{name}",
+                    errors,
+                )
+    return errors
+
+
+def require_independent_exhausted_gate_cell(optimizer: dict[str, Any]) -> None:
+    integer_fields = (
+        "retained_support_lower_bound",
+        "retained_support_upper_bound",
+        "absolute_gap",
+        "remaining_frontier_nodes",
+    )
+    if any(type(optimizer.get(name)) is not int for name in integer_fields):
+        raise AssertionError("family gate optimizer exactness fields are not integers")
+    if type(optimizer.get("frontier_states")) is not list:
+        raise AssertionError("family gate optimizer frontier is not a list")
+    if not (
+        optimizer.get("primary_exact") is True
+        and optimizer.get("full_objective_exact") is True
+        and optimizer["retained_support_lower_bound"]
+        == optimizer["retained_support_upper_bound"]
+        and optimizer["absolute_gap"] == 0
+        and optimizer["remaining_frontier_nodes"] == 0
+        and optimizer["frontier_states"] == []
+        and optimizer.get("frontier_sha256") == digest([])
+        and optimizer.get("termination_reason") == "full_objective_proved"
+    ):
+        raise AssertionError("family gate received a nonexhausted optimizer cell")
+
+
 def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any]:
-    errors = v3_row_schema_errors(row)
+    errors = v4_row_schema_errors(row)
+    if errors:
+        return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
+    errors.extend(v4_row_type_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     supplied_digest = row.get("row_sha256")
@@ -1790,6 +2389,10 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
         errors.append("density row protocol version mismatch")
     if row.get("valid") is not True:
         errors.append("density row does not claim local validity")
+    if not exact_json_equal(
+        row["public_model"]["ordering_contract"], ORDERING_CONTRACT
+    ):
+        errors.append("ordering contract mismatch")
 
     info = row["curve"]
     try:
@@ -1826,18 +2429,23 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
         "conflict_count": conflict_count,
         **independent_graph_metrics(conflicts),
     }
-    if graph != expected_graph:
+    if not exact_json_equal(graph, expected_graph):
         errors.append("graph metric mismatch")
-    if row["private_audit"]["eligible_universe_indices"] != eligible_universe_indices:
+    if not exact_json_equal(
+        row["private_audit"]["eligible_universe_indices"],
+        eligible_universe_indices,
+    ):
         errors.append("eligible universe-index list mismatch")
-    if row["private_audit"]["individually_rejected"] != rejected:
+    if not exact_json_equal(row["private_audit"]["individually_rejected"], rejected):
         errors.append("individual rejection transcript mismatch")
-    if row["private_audit"]["conflicts"] != conflict_records:
+    if not exact_json_equal(row["private_audit"]["conflicts"], conflict_records):
         errors.append("conflict transcript mismatch")
-    if row["public_model"]["representative_compiler"] != representative_compiler:
+    if not exact_json_equal(
+        row["public_model"]["representative_compiler"], representative_compiler
+    ):
         errors.append("representative compiler mismatch")
     expansion = expansion_metrics(curve, factors)
-    if expansion != row["private_audit"]["expansion"]:
+    if not exact_json_equal(expansion, row["private_audit"]["expansion"]):
         errors.append("additive expansion mismatch")
     balanced_raw = support_counter(curve, raw_a4)
 
@@ -1852,7 +2460,7 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
     private_frontier = row["private_audit"]["density_frontier"]
     caps = row["public_model"]["constrained_budget_caps"]
     expected_caps = sorted({max(1, q // 4), max(1, q // 2), max(1, 3 * q // 4), q})
-    if caps != expected_caps:
+    if not exact_json_equal(caps, expected_caps):
         errors.append("constrained-budget cap schedule mismatch")
     if len(public_frontier) != len(private_frontier) or len(caps) != len(public_frontier):
         errors.append("density frontier length mismatch")
@@ -1869,7 +2477,7 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
     row_payload = dict(row)
     row_payload.pop("row_sha256")
     row_payload.pop("accounting")
-    if accounting != {
+    expected_accounting = {
         "scope": "nested canonical-JSON byte measures; fields are nonadditive",
         "public_model_json_bytes": len(stable_bytes(row["public_model"])),
         "private_audit_json_bytes": len(stable_bytes(row["private_audit"])),
@@ -1877,7 +2485,8 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
             stable_bytes(row_payload)
         ),
         "nested_per_cap_json_bytes": expected_cap_accounting,
-    }:
+    }
+    if not exact_json_equal(accounting, expected_accounting):
         errors.append("cost-accounting byte receipt mismatch")
     expected_structural_work = {
         "scope": "deterministic combinatorial cells; not CPU instructions",
@@ -1898,7 +2507,7 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
         "pair_output_cells": len(eligible) * (len(eligible) + 1) // 2,
         "balanced_final_pair_cells": len(raw_a4) * (len(raw_a4) + 1) // 2,
     }
-    if row["structural_work"] != expected_structural_work:
+    if not exact_json_equal(row["structural_work"], expected_structural_work):
         errors.append("row structural-work receipt mismatch")
     cap_wall_times = [private.get("wall_time_seconds") for private in private_frontier]
     row_wall_time = row.get("wall_time_seconds")
@@ -1936,39 +2545,40 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
             "max_constrained"
         ) != cap:
             cap_errors.append("optimizer density objective/cap mismatch")
-        if optimizer.get("objective_order") != [
-            "retained_support:max",
-            "constrained_count:min",
-            "public_edges:min",
-            "retained_maxima:max",
-            "witness_list:lex_min",
-        ]:
+        if not exact_json_equal(
+            optimizer.get("objective_order"),
+            [
+                "retained_support:max",
+                "constrained_count:min",
+                "public_edges:min",
+                "retained_maxima:max",
+                "witness_list:lex_min",
+            ],
+        ):
             cap_errors.append("optimizer objective-order mismatch")
         if optimizer.get("bound_method") != (
             "conflict-clique-cover cardinality plus global pair-output union"
         ):
             cap_errors.append("optimizer bound-method mismatch")
-        if not (
-            optimizer.get("primary_exact") is True
-            and optimizer.get("full_objective_exact") is True
-            and optimizer.get("absolute_gap") == 0
-            and optimizer.get("remaining_frontier_nodes") == 0
-            and optimizer.get("frontier_states") == []
-            and optimizer.get("termination_reason") == "full_objective_proved"
-        ):
-            cap_errors.append("V3 requires an exhausted exact optimizer cell")
-        if optimizer.get("selected_indices") != selected_indices:
+        try:
+            require_independent_exhausted_gate_cell(optimizer)
+        except AssertionError as error:
+            cap_errors.append(f"V4 requires an exhausted exact optimizer cell: {error}")
+        if not exact_json_equal(optimizer.get("selected_indices"), selected_indices):
             cap_errors.append("optimizer selected-index mismatch")
         if optimizer.get("selected_mask_hex") != hex(selected_mask):
             cap_errors.append("optimizer selected-mask mismatch")
-        if (
-            optimizer.get("constrained_count"),
-            optimizer.get("public_edge_count"),
-            optimizer.get("witness_list"),
-        ) != (
-            public["constrained_count"],
-            public["public_edge_count"],
-            public["selected_maxima"],
+        if not exact_json_equal(
+            {
+                "constrained_count": optimizer.get("constrained_count"),
+                "public_edge_count": optimizer.get("public_edge_count"),
+                "witness_list": optimizer.get("witness_list"),
+            },
+            {
+                "constrained_count": public["constrained_count"],
+                "public_edge_count": public["public_edge_count"],
+                "witness_list": public["selected_maxima"],
+            },
         ):
             cap_errors.append("optimizer/public model objective-field mismatch")
         cap_errors.extend(
@@ -2019,7 +2629,7 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
             "termination_reason",
         ]
         for key in replay_keys:
-            if replay[key] != optimizer.get(key):
+            if not exact_json_equal(replay[key], optimizer.get(key)):
                 cap_errors.append(f"deterministic search replay mismatch: {key}")
 
         (
@@ -2041,26 +2651,33 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
         ):
             cap_errors.append("retained model count mismatch")
         expected_histogram = Counter(len(formal) for formal in ideal(row["B"], selected_formals))
-        if public["formal_degree_histogram"] != {
-            str(degree): expected_histogram[degree] for degree in sorted(expected_histogram)
-        }:
+        if not exact_json_equal(
+            public["formal_degree_histogram"],
+            {
+                str(degree): expected_histogram[degree]
+                for degree in sorted(expected_histogram)
+            },
+        ):
             cap_errors.append("formal degree histogram mismatch")
         for key, value in axioms.items():
             if public["axioms"].get(key) != value:
                 cap_errors.append(f"axiom mismatch: {key}")
-        if public_edges != public["public_edges"] or digest(public_edges) != public[
-            "public_edges_sha256"
-        ]:
+        if not exact_json_equal(public_edges, public["public_edges"]) or digest(
+            public_edges
+        ) != public["public_edges_sha256"]:
             cap_errors.append("public edge table/digest mismatch")
-        if source_table != public["source_table"] or digest(source_table) != public[
-            "source_table_sha256"
-        ]:
+        if not exact_json_equal(source_table, public["source_table"]) or digest(
+            source_table
+        ) != public["source_table_sha256"]:
             cap_errors.append("public source table/digest mismatch")
         delta_divisor = math.gcd(constrained, q)
-        if public["delta"] != {
-            "numerator": constrained // delta_divisor,
-            "denominator": q // delta_divisor,
-        }:
+        if not exact_json_equal(
+            public["delta"],
+            {
+                "numerator": constrained // delta_divisor,
+                "denominator": q // delta_divisor,
+            },
+        ):
             cap_errors.append("attained density ratio mismatch")
 
         selected_points = [eligible[candidate]["point"] for candidate in selected_indices]
@@ -2103,10 +2720,13 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
                 "denominator": q // group_divisor,
             },
         )
-        if expected_ratios != (
-            retention["retained_to_balanced_raw"],
-            retention["retained_to_eight_fold"],
-            retention["absolute_group_coverage"],
+        if not exact_json_equal(
+            list(expected_ratios),
+            [
+                retention["retained_to_balanced_raw"],
+                retention["retained_to_eight_fold"],
+                retention["absolute_group_coverage"],
+            ],
         ):
             cap_errors.append("retention ratio mismatch")
 
@@ -2121,7 +2741,7 @@ def verify_density_row(row: dict[str, Any], maximum_nodes: int) -> dict[str, Any
             "public_edges": edge_count,
             "source_table_entries": len(source_table),
         }
-        if private["structural_work"] != expected_cap_work:
+        if not exact_json_equal(private["structural_work"], expected_cap_work):
             cap_errors.append("cap structural-work receipt mismatch")
 
         optimum, primary_nodes, complete = independent_density_primary_optimum(
@@ -2200,13 +2820,7 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     index: dict[tuple[int, int, int, str, int | None], dict[str, Any]] = {}
     for row in rows:
         for cell in row["private_audit"]["density_frontier"]:
-            optimizer = cell["optimizer"]
-            if not (
-                optimizer["primary_exact"] is True
-                and optimizer["full_objective_exact"] is True
-                and optimizer["absolute_gap"] == 0
-            ):
-                raise AssertionError("family gate received an unresolved optimizer cell")
+            require_independent_exhausted_gate_cell(cell["optimizer"])
         key = (
             row["curve"]["bits"],
             row["curve"]["seed"],
@@ -2305,10 +2919,10 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
             }
         )
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v3",
+        "criterion_version": "sgcp-embed-002-family-gate-v4",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
-        "unresolved_policy": "any nonexact primary or secondary cell invalidates the matrix before gate evaluation",
+        "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
         "cap_selection_policy": "one fixed family and one fixed cap fraction must pass across strata",
         "status": "PASS" if winners else "FAIL",
         "passing_family_cap_pairs": winners,
@@ -2326,6 +2940,7 @@ def expected_canonical_parameters() -> dict[str, Any]:
         "null_replicates": CANONICAL_NULL_REPLICATES,
         "node_cap_per_cap": CANONICAL_NODE_CAP,
         "representative_compiler": REPRESENTATIVE_COMPILER,
+        "ordering_contract_sha256": digest(ORDERING_CONTRACT),
         "constrained_budget_rule": "floor(q/4),floor(q/2),floor(3q/4),q",
     }
 
@@ -2369,9 +2984,7 @@ def expected_row_keys() -> list[tuple[int, int, int, str, int | None]]:
     return result
 
 
-def verify_v3_document_value(
-    document: dict[str, Any], maximum_nodes: int
-) -> tuple[list[str], list[dict[str, Any]]]:
+def v4_document_schema_errors(document: Any) -> list[str]:
     errors: list[str] = []
     try:
         require_keys(
@@ -2390,27 +3003,188 @@ def verify_v3_document_value(
                 "family_gate",
                 "document_sha256",
             },
-            "V3 document",
+            "V4 document",
         )
-    except AssertionError as error:
-        return [f"closed document schema: {error}"], []
+        require_keys(
+            document["summary"],
+            {
+                "row_count",
+                "valid_rows",
+                "unique_curve_records",
+                "cap_cell_count",
+                "primary_exact_cap_cells",
+                "full_objective_exact_cap_cells",
+                "maximum_primary_gap",
+            },
+            "V4 document summary",
+        )
+    except (AssertionError, KeyError, TypeError) as error:
+        errors.append(f"closed document schema: {error}")
+    errors.extend(forbidden_material(document, "document"))
+    return errors
+
+
+def v4_document_type_errors(document: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    for name in ("schema", "experiment_id", "scope", "interpretation"):
+        exact_string(document[name], f"document.{name}", errors)
+    exact_integer(document["protocol_version"], "document.protocol_version", errors)
+    exact_boolean(document["canonical"], "document.canonical", errors)
+    exact_string_list(document["claim_status"], "document.claim_status", errors)
+    exact_type(document["parameters"], dict, "document.parameters", errors)
+    if exact_type(document["rows"], list, "document.rows", errors):
+        for index, row in enumerate(document["rows"]):
+            exact_type(row, dict, f"document.rows[{index}]", errors)
+    exact_type(document["family_gate"], dict, "document.family_gate", errors)
+    exact_digest(document["document_sha256"], "document.document_sha256", errors)
+    if exact_type(document["summary"], dict, "document.summary", errors):
+        for name, value in document["summary"].items():
+            exact_integer(value, f"document.summary.{name}", errors)
+    return errors
+
+
+def canonical_matrix_errors(rows: Any) -> list[str]:
+    errors: list[str] = []
+    if type(rows) is not list:
+        return ["canonical rows are not a list"]
+    observed_keys: list[tuple[Any, Any, Any, Any, Any]] = []
+    curve_records: dict[tuple[int, int], dict[str, Any]] = {}
+    accepted_curves: dict[tuple[int, int], tuple[int, int, int, int]] = {}
+    for index, row in enumerate(rows):
+        path = f"canonical row[{index}]"
+        if type(row) is not dict:
+            errors.append(f"{path} is not an object")
+            continue
+        curve = row.get("curve")
+        if type(curve) is not dict:
+            errors.append(f"{path} curve is not an object")
+            continue
+        key_values = (
+            curve.get("bits"),
+            curve.get("seed"),
+            row.get("B"),
+            row.get("family"),
+            row.get("null_replicate"),
+        )
+        observed_keys.append(key_values)
+        if any(type(value) is not int for value in key_values[:3]):
+            errors.append(f"{path} grid integers have noninteger types")
+        if type(key_values[3]) is not str:
+            errors.append(f"{path} family is not a string")
+        if key_values[4] is not None and type(key_values[4]) is not int:
+            errors.append(f"{path} null replicate has a noninteger type")
+
+        bits_value, seed = key_values[:2]
+        q = curve.get("q")
+        curve_tuple = tuple(curve.get(name) for name in ("p", "a", "b", "q"))
+        if type(bits_value) is int and type(seed) is int:
+            seed_key = (bits_value, seed)
+            if seed_key in curve_records and not exact_json_equal(
+                curve_records[seed_key], curve
+            ):
+                errors.append(f"inconsistent curve record for {seed_key!r}")
+            else:
+                curve_records.setdefault(seed_key, curve)
+            if all(type(value) is int for value in curve_tuple):
+                accepted_curves.setdefault(seed_key, curve_tuple)
+                if accepted_curves[seed_key] != curve_tuple:
+                    errors.append(f"inconsistent accepted curve for {seed_key!r}")
+            else:
+                errors.append(f"{path} accepted-curve tuple has noninteger types")
+
+        if type(q) is not int or q < 2:
+            errors.append(f"{path} group order is not a valid integer")
+            continue
+        expected_caps = sorted(
+            {max(1, q // 4), max(1, q // 2), max(1, 3 * q // 4), q}
+        )
+        public_model = row.get("public_model")
+        private_audit = row.get("private_audit")
+        if type(public_model) is not dict or type(private_audit) is not dict:
+            errors.append(f"{path} public/private envelope is malformed")
+            continue
+        if not exact_json_equal(
+            public_model.get("constrained_budget_caps"), expected_caps
+        ):
+            errors.append(f"{path} constrained-cap schedule mismatch")
+        public_frontier = public_model.get("density_frontier")
+        private_frontier = private_audit.get("density_frontier")
+        if type(public_frontier) is not list or type(private_frontier) is not list:
+            errors.append(f"{path} cap frontier is not a list")
+            continue
+        public_caps = [
+            cell.get("constrained_cap") if type(cell) is dict else None
+            for cell in public_frontier
+        ]
+        private_caps = [
+            cell.get("constrained_cap") if type(cell) is dict else None
+            for cell in private_frontier
+        ]
+        if not exact_json_equal(public_caps, expected_caps) or not exact_json_equal(
+            private_caps, expected_caps
+        ):
+            errors.append(f"{path} cap-cell association mismatch")
+        for cap_index, cell in enumerate(private_frontier):
+            if type(cell) is not dict or type(cell.get("optimizer")) is not dict:
+                errors.append(f"{path} private cap[{cap_index}] is malformed")
+                continue
+            optimizer = cell["optimizer"]
+            if (
+                type(optimizer.get("node_cap")) is not int
+                or optimizer["node_cap"] != CANONICAL_NODE_CAP
+            ):
+                errors.append(f"{path} canonical node-cap mismatch")
+            try:
+                require_independent_exhausted_gate_cell(optimizer)
+            except AssertionError as error:
+                errors.append(f"{path} cap[{cap_index}] exactness: {error}")
+
+    if observed_keys != expected_row_keys():
+        errors.append("canonical row grid/order mismatch")
+    owners: dict[tuple[int, int, int, int], tuple[int, int]] = {}
+    for seed_key, curve_tuple in accepted_curves.items():
+        if curve_tuple in owners and owners[curve_tuple] != seed_key:
+            errors.append("cross-seed duplicate accepted curve")
+            break
+        owners[curve_tuple] = seed_key
+    return errors
+
+
+def verify_v4_document_value(
+    document: dict[str, Any], maximum_nodes: int
+) -> tuple[list[str], list[dict[str, Any]]]:
+    errors = v4_document_schema_errors(document)
+    if errors:
+        return errors, []
+    errors.extend(v4_document_type_errors(document))
+    if errors:
+        return errors, []
+
     supplied = document["document_sha256"]
     payload = dict(document)
     payload.pop("document_sha256")
     if supplied != digest(payload):
         errors.append("document digest mismatch")
-    if (
-        document["schema"] != "sgcp-embed-002-density-frontier-candidate-v3"
-        or document["experiment_id"] != EXPERIMENT_ID
-        or document["protocol_version"] != PROTOCOL_VERSION
-        or document["claim_status"] != CLAIM_STATUS
+    if not exact_json_equal(
+        {
+            "schema": document["schema"],
+            "experiment_id": document["experiment_id"],
+            "protocol_version": document["protocol_version"],
+            "claim_status": document["claim_status"],
+        },
+        {
+            "schema": "sgcp-embed-002-density-frontier-candidate-v4",
+            "experiment_id": EXPERIMENT_ID,
+            "protocol_version": PROTOCOL_VERSION,
+            "claim_status": CLAIM_STATUS,
+        },
     ):
         errors.append("document protocol identity mismatch")
 
     scope = document["scope"]
     rows = document["rows"]
-    if not isinstance(rows, list):
-        return [*errors, "document rows is not a list"], []
+    expected_gate: dict[str, Any] | None = None
+    matrix_errors: list[str] = []
     if scope == "frozen_fixture":
         node_cap = document["parameters"].get("node_cap_per_cap")
         expected_parameters = {
@@ -2420,26 +3194,37 @@ def verify_v3_document_value(
             "null_replicate": None,
             "node_cap_per_cap": node_cap,
             "representative_compiler": REPRESENTATIVE_COMPILER,
+            "ordering_contract_sha256": digest(ORDERING_CONTRACT),
         }
         if (
-            document["canonical"] is not False
+            type(node_cap) is not int
+            or document["canonical"] is not False
             or document["interpretation"]
             != "frozen-fixture implementation evidence only"
-            or document["parameters"] != expected_parameters
+            or not exact_json_equal(document["parameters"], expected_parameters)
             or len(rows) != 1
         ):
             errors.append("frozen document envelope mismatch")
-        elif not (
-            rows[0].get("curve", {}).get("draw") is None
-            and rows[0].get("B") == 4
-            and rows[0].get("family") == "least_x_interval"
-            and rows[0].get("null_replicate") is None
-            and all(
-                cap.get("optimizer", {}).get("node_cap") == node_cap
-                for cap in rows[0].get("private_audit", {}).get("density_frontier", [])
-            )
-        ):
-            errors.append("frozen row association mismatch")
+        else:
+            try:
+                associated = (
+                    rows[0].get("curve", {}).get("draw") is None
+                    and type(rows[0].get("B")) is int
+                    and rows[0]["B"] == 4
+                    and rows[0].get("family") == "least_x_interval"
+                    and rows[0].get("null_replicate") is None
+                    and all(
+                        type(cap.get("optimizer", {}).get("node_cap")) is int
+                        and cap["optimizer"]["node_cap"] == node_cap
+                        for cap in rows[0]
+                        .get("private_audit", {})
+                        .get("density_frontier", [])
+                    )
+                )
+            except (AttributeError, KeyError, TypeError):
+                associated = False
+            if not associated:
+                errors.append("frozen row association mismatch")
         expected_gate = {
             "status": "NOT_APPLICABLE",
             "reason": "frozen fixture is not a family matrix",
@@ -2449,52 +3234,36 @@ def verify_v3_document_value(
             document["canonical"] is not True
             or document["interpretation"]
             != "canonical candidate; coordinator interpretation still required"
-            or document["parameters"] != expected_canonical_parameters()
+            or not exact_json_equal(
+                document["parameters"], expected_canonical_parameters()
+            )
         ):
             errors.append("canonical document envelope mismatch")
-        observed_keys = [
-            (
-                row.get("curve", {}).get("bits"),
-                row.get("curve", {}).get("seed"),
-                row.get("B"),
-                row.get("family"),
-                row.get("null_replicate"),
-            )
-            for row in rows
-        ]
-        if observed_keys != expected_row_keys():
-            errors.append("canonical row grid/order mismatch")
-        curve_by_seed: dict[tuple[int, int], tuple[int, int, int, int]] = {}
-        for row in rows:
-            curve_info = row.get("curve", {})
-            key = (curve_info.get("bits"), curve_info.get("seed"))
-            value = tuple(curve_info.get(name) for name in ("p", "a", "b", "q"))
-            if key in curve_by_seed and curve_by_seed[key] != value:
-                errors.append(f"inconsistent curve record for {key!r}")
-            curve_by_seed[key] = value
-        if len(set(curve_by_seed.values())) != len(curve_by_seed):
-            errors.append("cross-seed duplicate accepted curve")
-        if any(
-            cap.get("optimizer", {}).get("node_cap") != CANONICAL_NODE_CAP
-            for row in rows
-            for cap in row.get("private_audit", {}).get("density_frontier", [])
-        ):
-            errors.append("canonical node-cap mismatch")
+        matrix_errors = canonical_matrix_errors(rows)
+        errors.extend(matrix_errors)
+    else:
+        errors.append("unknown document scope")
+
+    row_reports = [verify_density_row(row, maximum_nodes) for row in rows]
+    if any(not report["valid"] for report in row_reports):
+        errors.append("one or more V4 row verifications failed")
+    try:
+        expected_summary = independent_document_summary(rows)
+    except (AttributeError, KeyError, TypeError):
+        errors.append("document summary reconstruction failed")
+    else:
+        if not exact_json_equal(document["summary"], expected_summary):
+            errors.append("document summary mismatch")
+    if scope == "canonical" and not matrix_errors and all(
+        report["valid"] for report in row_reports
+    ):
         try:
             expected_gate = independent_family_gate(rows)
         except Exception as error:
             errors.append(f"family gate reconstruction: {error}")
-            expected_gate = None
-    else:
-        errors.append("unknown document scope")
-        expected_gate = None
-
-    row_reports = [verify_density_row(row, maximum_nodes) for row in rows]
-    if any(not report["valid"] for report in row_reports):
-        errors.append("one or more V3 row verifications failed")
-    if document["summary"] != independent_document_summary(rows):
-        errors.append("document summary mismatch")
-    if expected_gate is not None and document["family_gate"] != expected_gate:
+    if expected_gate is not None and not exact_json_equal(
+        document["family_gate"], expected_gate
+    ):
         errors.append("family gate mismatch")
     return errors, row_reports
 
@@ -2502,8 +3271,8 @@ def verify_v3_document_value(
 def verify_document(path: Path, maximum_nodes: int) -> dict[str, Any]:
     document = strict_load(path)
     supplied = document.get("document_sha256")
-    if document.get("schema") == "sgcp-embed-002-density-frontier-candidate-v3":
-        errors, row_reports = verify_v3_document_value(document, maximum_nodes)
+    if document.get("schema") == "sgcp-embed-002-density-frontier-candidate-v4":
+        errors, row_reports = verify_v4_document_value(document, maximum_nodes)
         claim_boundary = (
             "frozen-fixture implementation verification only"
             if document.get("scope") == "frozen_fixture"
@@ -2540,15 +3309,15 @@ def verify_document(path: Path, maximum_nodes: int) -> dict[str, Any]:
         "rows": row_reports,
         "independent_checks": [
             "strict JSON and document/row digests",
-            "closed V3 row/document schemas and forbidden scalar-material keys",
+            "closed V4 row/document schemas with exact JSON scalar types and forbidden scalar-material keys",
             "independent curve draw and rejection transcript derivation",
             "predicate roots, hash-derived Mobius maps, poles, hash-null ranking, signs, and root polynomial",
-            "complete canonical row grid, cross-seed curve uniqueness, and exact four-null gate",
-            "frozen degree-two representative compiler and public source table",
+            "complete canonical row grid, cap schedules, cross-seed curve uniqueness, and exact four-null gate",
+            "frozen ordering contract, degree-two representative compiler, and public source table",
             "balanced candidate universe, individual eligibility, and pair-conflict graph",
             "selected graph independence, formal closure, public edges, axioms, density, and retention",
             "degree-1/2/4/8 support under formal-multiset and ordered-tuple source measures",
-            "deterministic optimizer replay plus independent exhaustive primary proof",
+            "authenticated full-objective exhaustion, deterministic optimizer replay, and independent exhaustive primary proof",
             "reconstructed structural-work and nested serialized-byte receipts",
         ],
         "claim_boundary": claim_boundary,

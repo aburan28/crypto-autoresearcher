@@ -1,4 +1,4 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 3
+# Experiment Contract: EXP-SGCP-EMBED-002, version 4
 
 ## Claim status
 
@@ -65,7 +65,7 @@ serialized bytes are charged inside the public model and each nested cap
 receipt.
 
 The legacy `source_recovery` boolean records sorted formal normalization only.
-Version 3 interprets source recovery through
+Version 4 interprets source recovery through
 `source_recovery_via_public_table`; it does not treat normalization as an
 inversion algorithm.
 
@@ -97,6 +97,7 @@ Every canonical cap cell must satisfy all of the following:
 - lower bound equals upper bound;
 - `absolute_gap=0`;
 - no remaining or serialized live frontier;
+- the frontier digest equals the SHA-256 digest of the empty JSON list;
 - termination is `full_objective_proved`;
 - deterministic independent replay matches every objective and search field;
 - a separately written depth-first primary proof finishes and matches the
@@ -118,7 +119,11 @@ matrix. Gap-bearing cells remain useful only as abstract optimizer controls.
 
 The sampler is deterministic and generated, not statistically random. It must
 record every draw and every applicable rejection reason. Duplicate draws are
-retained explicitly. The verifier independently rederives the prime list,
+retained explicitly and still record all mathematical reasons. Reason order is
+`duplicate_candidate` first when applicable, followed by `singular`, or by
+`wrong_q_bit_length`, `nonprime_group_order`, `trace_zero`,
+`anomalous_trace_one`, `j_zero`, and `j_1728` in that order. The verifier
+independently rederives the prime list,
 hash-derived `(p,a,b)`, complete rejection transcript, accepted curve,
 invariants, generator, and digest. The eight accepted `(p,a,b,q)` records must
 be distinct across bit-seed pairs.
@@ -142,6 +147,30 @@ Coordinate rows require `null_replicate=null`. Hash-null rows require one exact
 integer replicate in the frozen range. The verifier rederives every map,
 nonce, determinant, ranking, pole list, alternating position, hash value,
 selected root, root polynomial, point, sign pair, and selection digest.
+
+## Canonical ordering and exact JSON types
+
+All factor points are reduced affine coordinates sorted by `(x,y)`. Their
+formal indices are zero-based, and every formal tuple is nondecreasing. When
+formal degrees are mixed, shorter tuples precede longer tuples and integer
+tuple lexicographic order breaks ties. EC points are ordered as identity first,
+then affine `(x,y)`. Public point labels are exactly `O` for identity and
+unsigned decimal `x:y` for affine points, without leading-zero variants.
+
+Least-x ranks by integer `x`. A Mobius predicate ranks by `(score,x)` after
+excluding poles. The two-map predicate alternates map 0 then map 1, preserving
+each map order while skipping selected duplicates. Hash-null ranks by
+`(64-character lowercase SHA-256 hex digest,x)`. The representative compiler
+chooses the lexicographically least nondecreasing formal tuple for each
+nonidentity EC output. These conventions are emitted as a public ordering
+contract with digest
+`8114bd7d1822578e3d1453126968964da213775c6f12f86c764413f737212359`.
+
+V4 key sets and value types are closed throughout rows and documents. JSON
+Boolean, integer, float, string, list, object, and null roles are exact. In
+particular, `false` is not integer zero, `-0.0` is not integer zero, and an
+equal-valued float is not an integer receipt. Refreshed byte and document
+digests do not excuse a type mismatch.
 
 ## Canonical matrix
 
@@ -208,7 +237,7 @@ factor-base multisets. Both denominators appear beside retention ratios.
 
 ## Accounting boundary
 
-Version 3 removes producer operation-total claims. It emits only independently
+Version 4 retains the V3 accounting boundary and emits only independently
 reconstructible combinatorial cells, including multiset evaluations,
 representative and parent-pair counts, graph checks, pair-output cells,
 optimizer nodes, bound calls, selected maxima, public edges, source-table
@@ -238,16 +267,23 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
 4. Force and verify a nonzero optimizer gap at node cap zero.
 5. Independently recount all four expansion degrees and both energy measures.
 6. Independently rederive generated curve and predicate provenance.
-7. Exercise singular, trace-zero, anomalous, `j=0`, `j=1728`, and duplicate
-   draw records.
-8. Reject illegal replicate bindings and mutations to Mobius nonce, objective
-   order, representative table, source table, exactness, structural work, and
-   bytes after refreshing enclosing digests.
+7. Exercise singular, trace-zero, anomalous, `j=0`, `j=1728`, duplicate, and
+   multi-reason draw records, including duplicate-plus-mathematical reasons.
+8. Reject illegal replicate bindings and mutations to Mobius nonce, ordering
+   contract, objective order, representative table, source table, exactness,
+   structural work, and bytes after refreshing enclosing digests.
 9. Reject scalar-material additions and extra nested transcript fields under
    the closed schema.
-10. Verify one frozen V3 document and reject an empty canonical document.
-11. Exact-match producer and independent family gates on a synthetic complete
-    168-row matrix; both must reject missing or unresolved cells.
+10. Reject Boolean/integer/float aliases in optimizer, graph, axiom, ratio,
+    mask, node-cap, wall-time, byte-receipt, summary, and document fields.
+11. Verify one frozen V4 document and reject an empty canonical document.
+12. Reject missing, extra, duplicate, reordered, wrong-cap, wrong-node-cap,
+    inconsistent-curve, and cross-seed-duplicate canonical matrices.
+13. Exact-match producer and independent family gates on a synthetic complete
+    168-row matrix; both must reject every independently mutated exactness,
+    bound, gap, frontier, digest, and termination field.
+14. Compare the complete five-field density objective and lexical witness tie
+    against a third exhaustive oracle on every independent frozen B=4 subset.
 
 ## Positive criterion
 
@@ -265,6 +301,11 @@ weakens or rejects this exact predicate-plus-compiler hypothesis. If every
 family has full-cap median retention below `1/10` in at least three strata,
 record the narrower `COLLAPSE` negative.
 
+An axiom failure, provenance mismatch, optimizer disagreement, mismatched
+control, malformed type, scalar-material leak, resource exhaustion, or
+incomplete matrix invalidates the evidence and yields `INCONCLUSIVE`. Those
+events do not falsify the mathematical hypothesis.
+
 Neither result closes coordinate-specific SGGM embeddings in general. The next
 positive question would be whether another representative compiler, formal
 quotient, model transformation, or source-recoverable non-tree operation
@@ -272,7 +313,7 @@ changes the measured collision geometry.
 
 ## Budgets and stopping
 
-Version 1 consumed 17 of 18 historical development curve rows. Version 3
+Version 1 consumed 17 of 18 historical development curve rows. Version 4
 authorizes no additional curve-family row. Unit, abstract graph,
 generated-curve provenance, factor-base, and frozen p=19 row/document controls
 are allowed.
@@ -286,7 +327,7 @@ total_cpu_hours = 0
 maximum_memory_gb = 0
 ```
 
-Fresh independent theory, accounting, and red-team GO on one committed V3
+Fresh independent theory, accounting, and red-team GO on one committed V4
 snapshot is necessary but not sufficient to launch. A separate hash-complete
 execution plan and coordinator approval must follow before any budget change.
 
@@ -301,4 +342,4 @@ are finite stress probes, not an `n^(1/5)` schedule.
 
 No canonical reproduction command exists while `maximum_runs` is zero. The
 current producer refuses both development family rows and canonical execution;
-only unit and frozen-fixture functions are authorized for V3 preflight.
+only unit and frozen-fixture functions are authorized for V4 preflight.

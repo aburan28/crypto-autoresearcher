@@ -8,8 +8,9 @@ without creating a curve-family row or launch plan.
 
 ### Status
 
-`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, `NOVELTY-UNVERIFIED`, and V3
-`REVISE`; development curve rows and canonical runs remain zero.
+`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, `NOVELTY-UNVERIFIED`; the no-run
+V4 repair is implemented and awaits independent review. Development curve rows
+and canonical runs remain zero.
 
 ### Assumptions
 
@@ -29,15 +30,18 @@ without creating a curve-family row or launch plan.
 
 - V3 accounting received scoped GO: cap-local caches, reconstructed structural
   cells, and nonadditive nested bytes are honestly bounded.
-- Theory and red team issued REVISE despite extensive exact-objective controls.
-- A frozen row with integer `absolute_gap=0` changed to Boolean `false` still
-  verified after receipts were refreshed.
-- Duplicate candidates record only `duplicate_candidate` although the contract
-  requires all applicable reasons.
-- Factor-point index order, label encoding, and hash tie order are implemented
-  but not frozen in prose.
-- Gate helpers and committed canonical-envelope mutation controls are narrower
-  than the document verifier.
+- V4 records every duplicate and mathematical rejection reason in a frozen
+  order and independently reconstructs the transcript.
+- Exact row/document type validation rejects Boolean/integer/float aliases
+  after refreshed hashes and byte receipts.
+- A public ordering contract freezes factor indices, labels, formal and point
+  order, predicate ties, and representative selection.
+- Gate helpers enforce the complete exhausted-cell vector and authenticated
+  empty frontier.
+- Producer and verifier reject all registered canonical-envelope mutations.
+- A third exhaustive oracle matches the full objective on every frozen B=4
+  independent subset and all four caps.
+- Focused V4 controls pass; no family row was created.
 
 ### Failure modes
 
@@ -51,9 +55,8 @@ without creating a curve-family row or launch plan.
 
 ### Next concrete action
 
-Implement and mutation-test the no-run V4 repair, commit one new snapshot, and
-request fresh read-only theory and red-team review while retaining
-`maximum_runs=0`.
+Commit one exact V4 snapshot and request fresh read-only theory, accounting,
+and red-team review while retaining `maximum_runs=0`.
 
 ### Artifact paths
 
@@ -71,6 +74,10 @@ request fresh read-only theory and red-team review while retaining
 - `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v3.md`
 - `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v3.md`
 - `experiments/EXP-SGCP-EMBED-002/decision-v3.json`
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v4.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v4.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v4.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v4.md`
 - `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
