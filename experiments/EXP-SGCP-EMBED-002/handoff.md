@@ -1,15 +1,15 @@
-## Handoff: SGCP V3 independent preflight review
+## Handoff: SGCP V4 no-run repair
 
 ### Claim or task
 
-Audit whether the committed no-run V3 snapshot closes the provenance, exact
-matrix, family-gate, representative-compiler, source-interface, and accounting
-holes that forced the V2 `REVISE` decision.
+Repair the exact-type, duplicate-provenance, ordering-convention, outcome,
+exhausted-cell, and canonical-mutation holes found by independent V3 review
+without creating a curve-family row or launch plan.
 
 ### Status
 
 `HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, `NOVELTY-UNVERIFIED`, and V3
-`review_required`; development curve rows and canonical runs remain zero.
+`REVISE`; development curve rows and canonical runs remain zero.
 
 ### Assumptions
 
@@ -27,30 +27,33 @@ holes that forced the V2 `REVISE` decision.
 
 ### Evidence so far
 
-- V2's finite density objective and corrected energy definitions survived
-  independent review, but V2 accepted provenance, schema, scalar, objective,
-  exactness, and empty-document mutations.
-- V3 independently derives curve and predicate transcripts, freezes the exact
-  168-row/672-cell matrix and six-pair gate, closes schemas, and recursively
-  rejects scalar-material keys.
-- V3 emits and verifies the representative table and public source table.
-- V3 removes operation-total and peak-memory claims, resets cap-local caches,
-  and labels JSON bytes as nested and nonadditive.
-- The focused V3 unit/frozen suite passes without creating a curve-family row.
+- V3 accounting received scoped GO: cap-local caches, reconstructed structural
+  cells, and nonadditive nested bytes are honestly bounded.
+- Theory and red team issued REVISE despite extensive exact-objective controls.
+- A frozen row with integer `absolute_gap=0` changed to Boolean `false` still
+  verified after receipts were refreshed.
+- Duplicate candidates record only `duplicate_candidate` although the contract
+  requires all applicable reasons.
+- Factor-point index order, label encoding, and hash tie order are implemented
+  but not frozen in prose.
+- Gate helpers and committed canonical-envelope mutation controls are narrower
+  than the document verifier.
 
 ### Failure modes
 
-- Producer replay and verifier replay may still share a search-model error;
-  the separate depth-first proof must be evaluated for independence.
+- Python Boolean/integer and integer/float equality can admit self-consistent
+  type-confusion mutations unless every serialized field is type-checked.
+- Producer and verifier can share an incomplete provenance convention.
+- Secondary exactness still relies on a structurally similar replay.
 - Exact closure of every B=8 cap may exceed future budgets.
-- A complete family effect may be entirely compiler-specific.
-- Observational wall time is not external cost evidence.
-- The protocol still has no relation-generation, rank, descent, or attack path.
+- A complete family effect may be entirely compiler-specific and still has no
+  relation-generation, rank, descent, or attack path.
 
 ### Next concrete action
 
-Run three fresh read-only reviews on one committed V3 snapshot and issue
-separate `GO` or `REVISE` decisions for theory, accounting, and red-team scope.
+Implement and mutation-test the no-run V4 repair, commit one new snapshot, and
+request fresh read-only theory and red-team review while retaining
+`maximum_runs=0`.
 
 ### Artifact paths
 
@@ -64,6 +67,10 @@ separate `GO` or `REVISE` decisions for theory, accounting, and red-team scope.
 - `experiments/EXP-SGCP-EMBED-002/revision-response-v3.md`
 - `experiments/EXP-SGCP-EMBED-002/development-test-log-v3.md`
 - `experiments/EXP-SGCP-EMBED-002/source-self-review-v3.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v3.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v3.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v3.md`
+- `experiments/EXP-SGCP-EMBED-002/decision-v3.json`
 - `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
