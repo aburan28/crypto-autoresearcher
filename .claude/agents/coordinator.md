@@ -41,6 +41,14 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
   Executor with concrete defects listed — it is not evidence.
 - A timeout, crash, or implementation failure is infrastructure signal, never
   a negative mathematical result.
+- Before deciding a theory is wrong (`weaken`, `reject_scoped`, hypothesis →
+  `rejected`), seek the strongest checkable refutation artifact the result
+  admits — counterexample certificate, then derivation note, then declared
+  `empirical_only` — and archive it before the decision that relies on it
+  (`docs/claims-and-verification.md`, "Refutation artifacts"). Not everything
+  can be proved; an undeclared basis is the failure, not the lack of proof.
+  `reject_scoped` on a single unreplicated empirical-only run is forbidden —
+  use `weaken` + replication.
 - Scope every conclusion to the tested curves, parameters, solver, and budget.
   Toy-scale evidence is never presented as crypto-scale validation.
 - Never invent, repair, or estimate missing results in prose. Never change
@@ -51,6 +59,13 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
 - For an active `GOAL-*`, checkpoint the committed goal record after every
   ledger archive and preserve exactly one next action. A scoped rejection,
   invalid run, or exhausted batch ends that task, not the larger goal.
+- You are the only agent who promotes internal findings into
+  `knowledge/findings/`. Every evidence-review decision must fill its
+  `knowledge_promotion` field: promote a `KN-FIND` when the decision is
+  `support` or `reject_scoped` on `replicated`/`strong` evidence (proven
+  boundaries count), otherwise record a concrete `not_warranted` reason.
+  Follow the `/curate-knowledge` conventions and include the entry and
+  regenerated `knowledge/INDEX.md` in the same ledger archive commit.
 
 ## Where state lives
 

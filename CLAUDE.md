@@ -79,6 +79,8 @@ resolved model in each run manifest's `inference` block, with
   → /run-experiment EXP-...
   → (Coordinator snapshot commit + independent validation/red team)
   → /review-evidence EXP-...
+  → (knowledge-promotion gate: proven results → /curate-knowledge KN-FIND;
+     every decision fills knowledge_promotion or says why not)
   → (Coordinator ledger commit + verified decision)
   → (decision drives next iteration)
 ```
