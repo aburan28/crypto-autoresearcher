@@ -39,13 +39,13 @@ ID_PATTERNS = {
 }
 RUN_ID = re.compile(r"^RUN-[A-Za-z0-9._-]+$")
 
-LEDGER_DIRS = {
-    "questions": "research_question",
-    "proposals": "idea",
-    "hypotheses": "hypothesis",
-    "evidence": "evidence",
-    "decisions": "coordinator_decision",
-    "handoffs": "handoff",
+# Ledger record types are detected by their single top-level key, so records
+# validate whether they live flat in ledger/ (e.g. ledger/H-DREG-001.yaml) or in
+# a typed subdirectory (e.g. ledger/hypotheses/H-SEMAEV-001.yaml). Both layouts
+# are in use in this repo.
+LEDGER_TYPES = {
+    "research_question", "idea", "hypothesis", "evidence",
+    "coordinator_decision", "handoff",
 }
 
 REQUIRED = {
@@ -243,10 +243,29 @@ def check_knowledge_index(ctx: Ctx):
                           "knowledge/INDEX.md is stale")
 
 
+def detect_ledger_type(path: str, ctx: Ctx) -> str | None:
+    """Identify a ledger record by its single known top-level key.
+
+    Returns None for YAML that is not one of the validated ledger record types
+    (e.g. research_goal, archive receipts, helper data), so those files are
+    skipped rather than misreported.
+    """
+    doc = load_yaml(path, ctx)
+    if not isinstance(doc, dict):
+        return None
+    present = [k for k in doc.keys() if k in LEDGER_TYPES]
+    if len(present) == 1:
+        return present[0]
+    return None
+
+
 def main() -> int:
     ctx = Ctx()
-    for sub, rec_type in LEDGER_DIRS.items():
-        for path in sorted(glob.glob(os.path.join(REPO, "ledger", sub, "*.yaml"))):
+    ledger_root = os.path.join(REPO, "ledger")
+    for path in sorted(glob.glob(os.path.join(ledger_root, "**", "*.yaml"),
+                                 recursive=True)):
+        rec_type = detect_ledger_type(path, ctx)
+        if rec_type is not None:
             check_ledger_record(path, rec_type, ctx)
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*",
                                               "specification.yaml"))):
