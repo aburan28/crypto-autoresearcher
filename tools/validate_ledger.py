@@ -14,10 +14,19 @@ Mechanically enforces the invariants that AGENTS.md and docs/ state in prose:
 
 Exit code 0 if clean, 1 if any error. Empty ledger validates clean.
 
-Usage: python3 tools/validate_ledger.py
+Legacy records that predate this validator are grandfathered via
+tools/validate_ledger_baseline.txt: known error lines listed there are
+reported as suppressed instead of failing the build, so new violations
+still block while immutable historical run records stay untouched.
+Entries may only ever be removed from the baseline (as records are
+repaired or superseded), never added — regenerating it to absorb a new
+violation defeats the check.
+
+Usage: python3 tools/validate_ledger.py [--no-baseline] [--update-baseline]
 """
 from __future__ import annotations
 
+import argparse
 import glob
 import os
 import re
@@ -27,6 +36,7 @@ import sys
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
 
 ID_PATTERNS = {
     "research_question": re.compile(r"^RQ-[A-Z]+-\d{3}$"),
@@ -74,6 +84,9 @@ class Ctx:
         self.run_params: dict[str, dict] = {}   # run id -> inputs.parameters
 
     def err(self, path: str, msg: str):
+        # First line only: PyYAML messages span lines and embed absolute
+        # paths, which would break exact-line baseline matching across hosts.
+        msg = str(msg).splitlines()[0].strip()
         self.errors.append(f"{os.path.relpath(path, REPO)}: {msg}")
 
     def register(self, rec_id: str, path: str, body: dict):
@@ -239,11 +252,45 @@ def check_knowledge_index(ctx: Ctx):
          "--check"],
         capture_output=True, text=True)
     if rc.returncode != 0:
-        ctx.errors.append((rc.stderr or rc.stdout).strip() or
-                          "knowledge/INDEX.md is stale")
+        msg = (rc.stderr or rc.stdout).strip() or "knowledge/INDEX.md is stale"
+        ctx.errors.append(msg.splitlines()[0].strip())
+
+
+BASELINE_HEADER = """\
+# Grandfathered validation errors — legacy records that predate the
+# validator. Each line matches one error exactly as validate_ledger.py
+# reports it. Lines may only ever be REMOVED (as records are repaired or
+# superseded); never add a line to absorb a new violation. Prune stale
+# lines with: python3 tools/validate_ledger.py --update-baseline
+"""
+
+
+def load_baseline(path: str) -> set[str]:
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as fh:
+        return {ln.rstrip("\n") for ln in fh
+                if ln.strip() and not ln.lstrip().startswith("#")}
+
+
+def write_baseline(entries: set[str]) -> None:
+    with open(BASELINE_PATH, "w", encoding="utf-8") as fh:
+        fh.write(BASELINE_HEADER)
+        for e in sorted(entries):
+            fh.write(e + "\n")
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="Validate the research ledger, experiments, and runs.")
+    ap.add_argument("--no-baseline", action="store_true",
+                    help="fail on every error, including grandfathered ones")
+    ap.add_argument("--update-baseline", action="store_true",
+                    help="prune baseline entries that no longer occur "
+                         "(bootstraps the full set only if no baseline "
+                         "file exists; never grows an existing one)")
+    args = ap.parse_args()
+
     ctx = Ctx()
     for sub, rec_type in LEDGER_DIRS.items():
         for path in sorted(glob.glob(os.path.join(REPO, "ledger", sub, "*.yaml"))):
@@ -257,12 +304,34 @@ def main() -> int:
     check_cross_refs(ctx)
     check_knowledge_index(ctx)
 
-    if ctx.errors:
-        print(f"FAIL: {len(ctx.errors)} validation error(s):\n", file=sys.stderr)
-        for e in ctx.errors:
+    current = set(ctx.errors)
+    if args.update_baseline:
+        # Prune-only: an existing baseline can shrink but never grow, so a
+        # new violation cannot be laundered into the grandfathered set.
+        old = load_baseline(BASELINE_PATH)
+        entries = (old & current) if os.path.exists(BASELINE_PATH) else current
+        write_baseline(entries)
+        print(f"wrote {len(entries)} baseline entrie(s) to "
+              f"{os.path.relpath(BASELINE_PATH, REPO)}")
+        return 0
+
+    baseline = set() if args.no_baseline else load_baseline(BASELINE_PATH)
+    new = [e for e in ctx.errors if e not in baseline]
+    suppressed = len(ctx.errors) - len(new)
+    stale = baseline - current
+    if suppressed:
+        print(f"note: {suppressed} grandfathered legacy error(s) suppressed "
+              f"by {os.path.relpath(BASELINE_PATH, REPO)}")
+    if stale:
+        print(f"note: {len(stale)} baseline entrie(s) no longer occur; prune "
+              f"with --update-baseline")
+
+    if new:
+        print(f"FAIL: {len(new)} new validation error(s):\n", file=sys.stderr)
+        for e in new:
             print(f"  - {e}", file=sys.stderr)
         return 1
-    print(f"OK: validated {len(ctx.ids)} records, ledger is consistent")
+    print(f"OK: validated {len(ctx.ids)} records, no new violations")
     return 0
 
 
