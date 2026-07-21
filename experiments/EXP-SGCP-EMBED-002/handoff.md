@@ -79,6 +79,76 @@ decisions.
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
 
+## Handoff: SGCP V11 completed-work and input-boundary repair
+
+### Claim or task
+
+Validate and independently review the no-run V11 repair of the exact V10
+deterministic-counter and pre-parse amplification findings without creating a
+generated density row, canonical matrix, runner, launch plan, or run.
+
+### Status
+
+`OBSERVATION` for implementation preflight only. The research claim remains
+`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
+Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
+
+### Assumptions
+
+- Completed provenance/predicate expectations are derived only after every row
+  passes semantic curve and factor-base reconstruction.
+- Transient canonical controls construct public curve and factor-base
+  transcripts only; they do not construct density rows or execute optimizers.
+- The one-buffer and lexical input controls do not replace external CPU,
+  wall-time, peak-RSS, parser-object, allocator, disk, I/O, or bandwidth limits.
+- The standalone complete five-field oracle remains frozen-B4 only.
+
+### Evidence so far
+
+- Producer and verifier emit V11; V1-V10 schemas reject without row verification.
+- Exact canonical transcript expectations are 480 registered prime candidates,
+  112 draws, 336 curve hashes, 218 registered-curve point enumerations, and
+  4,218 predicate hashes. Frozen expectations are zero.
+- A one-unit undercharge and overcharge in every one of those dimensions is
+  rejected while completed work remains true. Predicate interruption preserves
+  its partial charge and marks work incomplete.
+- Input snapshotting uses one exact-size bytearray with direct bounded reads,
+  incremental hashing, stable identity/length checks, lexical bounds before
+  object construction, strict ASCII decoding, and buffer clearing before the
+  standard parser.
+- Exact-ceiling, first-over-ceiling, one-buffer identity, same-byte hash/parse,
+  buffer-clearing, lexical token/depth/string/scalar, whitespace, and non-ASCII
+  controls pass.
+- The focused 65-test suite passes. No generated density row, matrix, runner,
+  launch plan, or run has been created.
+
+### Failure modes
+
+- The 256 MiB source ceiling is not a peak-RSS guarantee; parser objects and
+  allocator retention still require external hard limits and measurement.
+- Canonical B6/B8 feasibility, output size, cache occupancy, CPU, wall time,
+  RSS, and memory bandwidth remain unmeasured.
+- B6/B8 secondary objective fields lack a standalone complete five-field oracle.
+- No relation yield, rank, linear algebra, descent, preprocessing crossover,
+  rho improvement, exponent, or ECDLP result is established.
+
+### Next concrete action
+
+Validate records, ledger, focused and repository suites; freeze exact V11
+hashes; commit one snapshot; then obtain fresh read-only theory, accounting,
+and red-team decisions. Do not design a launch plan before three explicit
+`GO` decisions.
+
+### Artifact paths
+
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v11.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v11.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v11.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v11.md`
+- `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
+- `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
+- `tests/test_sgcp_embed_family.py`
+
 ## Handoff: SGCP V10 independent closeout
 
 ### Claim or task
