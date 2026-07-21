@@ -1,3 +1,14 @@
+> **⚠ SUPERSEDED by `FINDING_v2.md` (kept for provenance, not overwritten).**
+> This v1 is correct on the family, the semi-regular series, the linear d_reg law,
+> and the n=9/D6 = d_reg-degeneracy mechanism (claims 1–4, independently validated).
+> Its **claim 5** (`d_reg(sem) > d_reg(null)`) was argued from a raw subset-column
+> corank — a method the independent RED-TEAM.md correctly refuted (H-DREG-001
+> pre-labels it an artifact). The conclusion was **re-established honestly** in v2 by
+> the corrected graded-Hilbert-function instrument and by an independent q→s
+> solution-count adjudication (s=1; see `ADJUDICATION_solcount.txt`). Its **claim 6**
+> ("no sub-rho signal") is re-supported in v2 via a first-fall completeness census,
+> not by assuming sem ≥ semi-regular. Read `FINDING_v2.md`.
+
 # Finding — the boolean Semaev t=3 degree of regularity grows **linearly**, and the n=9 "D6 null break" is a d_reg degeneracy, not an instrument defect
 
 Thread: SIG asymptotics + DREG audit. Feeds **H-DREG-001** (degree axis) and
