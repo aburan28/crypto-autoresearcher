@@ -139,7 +139,7 @@ EXPECTED_REJECTED_IDS = {
     "ECDLP-IDEA-181",
     *(f"ECDLP-IDEA-{i:03d}" for i in range(182, 194)),
     "ECDLP-IDEA-194",
-    *(f"ECDLP-IDEA-{i:03d}" for i in range(196, 302)),
+    *(f"ECDLP-IDEA-{i:03d}" for i in range(196, 411)),
 }
 EXPECTED_DEFERRED_IDS = {
     "ECDLP-IDEA-049",
@@ -175,8 +175,8 @@ EXPECTED_COHORT_SIZES = {
     "20260717-b": 3,
     "20260718-b": 3,
 }
-NEW_COHORT_IDS = {f"ECDLP-IDEA-{i:03d}" for i in range(61, 302)}
-EXPECTED_RETIRED_CONTRACT_COUNT = 68
+NEW_COHORT_IDS = {f"ECDLP-IDEA-{i:03d}" for i in range(61, 411)}
+EXPECTED_RETIRED_CONTRACT_COUNT = 97
 EXPECTED_NEW_RETIRED_CONTRACT_IDS = {
     "ECDLP-IDEA-063",
     "ECDLP-IDEA-066",
@@ -236,6 +236,35 @@ EXPECTED_NEW_RETIRED_CONTRACT_IDS = {
     "ECDLP-IDEA-290",
     "ECDLP-IDEA-296",
     "ECDLP-IDEA-300",
+    "ECDLP-IDEA-304",
+    "ECDLP-IDEA-309",
+    "ECDLP-IDEA-313",
+    "ECDLP-IDEA-320",
+    "ECDLP-IDEA-322",
+    "ECDLP-IDEA-323",
+    "ECDLP-IDEA-324",
+    "ECDLP-IDEA-326",
+    "ECDLP-IDEA-327",
+    "ECDLP-IDEA-333",
+    "ECDLP-IDEA-338",
+    "ECDLP-IDEA-341",
+    "ECDLP-IDEA-349",
+    "ECDLP-IDEA-350",
+    "ECDLP-IDEA-354",
+    "ECDLP-IDEA-360",
+    "ECDLP-IDEA-362",
+    "ECDLP-IDEA-367",
+    "ECDLP-IDEA-373",
+    "ECDLP-IDEA-374",
+    "ECDLP-IDEA-378",
+    "ECDLP-IDEA-379",
+    "ECDLP-IDEA-386",
+    "ECDLP-IDEA-388",
+    "ECDLP-IDEA-391",
+    "ECDLP-IDEA-398",
+    "ECDLP-IDEA-399",
+    "ECDLP-IDEA-400",
+    "ECDLP-IDEA-410",
 }
 EXPECTED_CURRENT_RETIRED_FORMULAS = {
     "ECDLP-IDEA-134": (
@@ -1109,11 +1138,11 @@ def main() -> int:
         errors.append("missing ideas/deferred/README.md")
     complete_ids = seen_ids | rejected_ids | deferred_ids
     expected_complete_ids = {
-        *(f"ECDLP-IDEA-{i:03d}" for i in range(1, 302))
+        *(f"ECDLP-IDEA-{i:03d}" for i in range(1, 411))
     }
     if complete_ids != expected_complete_ids:
         errors.append(
-            "complete active/rejected/deferred ID coverage is not exactly 001..301"
+            "complete active/rejected/deferred ID coverage is not exactly 001..410"
         )
 
     retired_contracts = sorted(
@@ -1201,6 +1230,35 @@ def main() -> int:
             "ECDLP-IDEA-290",
             "ECDLP-IDEA-296",
             "ECDLP-IDEA-300",
+            "ECDLP-IDEA-304",
+            "ECDLP-IDEA-309",
+            "ECDLP-IDEA-313",
+            "ECDLP-IDEA-320",
+            "ECDLP-IDEA-322",
+            "ECDLP-IDEA-323",
+            "ECDLP-IDEA-324",
+            "ECDLP-IDEA-326",
+            "ECDLP-IDEA-327",
+            "ECDLP-IDEA-333",
+            "ECDLP-IDEA-338",
+            "ECDLP-IDEA-341",
+            "ECDLP-IDEA-349",
+            "ECDLP-IDEA-350",
+            "ECDLP-IDEA-354",
+            "ECDLP-IDEA-360",
+            "ECDLP-IDEA-362",
+            "ECDLP-IDEA-367",
+            "ECDLP-IDEA-373",
+            "ECDLP-IDEA-374",
+            "ECDLP-IDEA-378",
+            "ECDLP-IDEA-379",
+            "ECDLP-IDEA-386",
+            "ECDLP-IDEA-388",
+            "ECDLP-IDEA-391",
+            "ECDLP-IDEA-398",
+            "ECDLP-IDEA-399",
+            "ECDLP-IDEA-400",
+            "ECDLP-IDEA-410",
         }:
             if prospective_gate not in text:
                 errors.append(
