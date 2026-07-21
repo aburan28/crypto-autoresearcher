@@ -392,6 +392,49 @@ proposed/unapproved, 27 deferred, and 257 rejected records across exact IDs
 and no correctness, relation, representation, theorem receipt, validator result, or
 toy scalar is a breakthrough.
 
+The pre-ID `20260720-c` mechanism screen is recorded in
+[DEDUP-20260720T121629-0700.md](reviews/DEDUP-20260720T121629-0700.md), with independent
+working-tree content review in
+[REDTEAM-20260720T122506-0700.md](reviews/REDTEAM-20260720T122506-0700.md). Twelve
+complete records screen Hopcroft DFA minimization, splay trees, Cartesian-tree RMQ,
+treaps, B-trees, R-trees, Fibonacci heaps, Boyer–Moore search, Gale–Shapley deferred
+acceptance, Stoer–Wagner min-cut, PageRank, and Rauch–Tung–Striebel smoothing. The
+native operations are distinct, but every elliptic transplant consumes a supplied
+source-bearing automaton, key set, array, record set, spatial object set, graph,
+preference list, text, or state model, or loses exact occurrence provenance. None
+constructs P1553 R4's endpoint-derived subset-stable exact Query2P1/common-factor
+decision with charged replay, logs, and blind descent. No canonical ID was allocated;
+the exact `001`–`410` coverage, 17 active, 27 deferred, 366 rejected, nine active
+contracts, 97 retired canonical contracts, and 17-row active registry remain
+unchanged. Relative conservative G03, representation-changing G06, and high-risk G12
+snapshots are retired `.yaml.txt` records with zero budgets and empty write scopes.
+The prospective cohort artifact root is absent and nothing ran. The independent PASS
+is scoped to the untracked working-tree snapshot at HEAD `8e8d0f1`; it is not a
+Coordinator-committed archival review. No correctness, relation, index, cut, score,
+trajectory, validator pass, or toy scalar is a breakthrough.
+
+The pre-ID `20260720-d` mechanism screen is recorded in
+[DEDUP-20260720T151603-0700.md](reviews/DEDUP-20260720T151603-0700.md), with independent
+working-tree review in
+[REDTEAM-20260720T153805-0700.md](reviews/REDTEAM-20260720T153805-0700.md). Twelve
+complete records screen PATRICIA path compression, Fenwick prefix accumulation,
+Dinitz blocking flow, Johnson reweighting, A-star, Tutte/Lovasz randomized matching,
+Metropolis-Hastings, simulated annealing, Gibbs sampling, expectation-maximization,
+DBSCAN, and Lloyd quantization. The native operations are distinct, but every elliptic
+transplant consumes supplied source keys, arrays, compatibility graphs, heuristics,
+densities, energies, conditional supports, likelihoods, catalogues, or vectors; or
+loses exact occurrence provenance. None constructs P1553 R4's endpoint-derived
+subset-stable exact source return with charged relation collection, rank, factor logs,
+and scalar-blind descent. No canonical ID was allocated; exact `001`-`410` coverage,
+17 active, 27 deferred, 366 rejected, nine active contracts, 97 retired canonical
+contracts, and the 17-row active registry remain unchanged. Relative conservative
+H02, representation-changing H04, and high-risk H06 snapshots are retired `.yaml.txt`
+records with zero budgets and empty write scopes. Independent review upheld all
+twelve semantic dispositions but returned REVISE because the exact reviewed package
+has no preceding Coordinator snapshot commit; it is content-valid working-tree
+negative evidence, not a durable claim transition. No artifact root, run, P1554,
+lower bound, scalar recovery, or breakthrough was created.
+
 ## Required interpretation boundary
 
 - A verifier pass establishes only implementation correctness for the tested artifact.
