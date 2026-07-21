@@ -262,3 +262,65 @@ def measure_yield(inst: ECDLPInstance, factor_base_xs: list[int],
     """Fraction of on-curve targets that decompose over the base. See counts variant."""
     found, made, cert = measure_yield_counts(inst, factor_base_xs, num_targets, seed)
     return (found / made if made else 0.0), found, cert
+
+
+def measure_yield_m3_counts(inst: ECDLPInstance, factor_base_xs: list[int],
+                            num_targets: int, seed: int = 0
+                            ) -> tuple[int, int, dict | None]:
+    """m=3 decomposition yield by exact point arithmetic (certifiable).
+
+    A target R decomposes if some triple of factor-base points (with sign
+    choices) sums to R. Returns (found, made, one_certificate). Certifiable:
+    the certificate's three summands sum to the target on the curve.
+    """
+    E = inst.curve()
+    p = E.p
+    pts = [E.lift_x(x) for x in factor_base_xs]
+    pts = [q for q in pts if q is not None]
+    signed = [(q, E.negate(q)) for q in pts]
+    found = 0
+    made = 0
+    example = None
+    j = 0
+    while made < num_targets and j < 60 * num_targets + 5000:
+        x = _seed_int(inst.seed, f"y3t{seed}.{j}") % p
+        j += 1
+        R = E.lift_x(x)
+        if R is None:
+            continue
+        made += 1
+        hit = _decomp3(E, signed, R)
+        if hit is not None:
+            found += 1
+            if example is None:
+                example = {"kind": "decomposition",
+                           "statement": {"target": list(R),
+                                         "summands": [list(s) for s in hit],
+                                         "curve": {"p": p, "a": E.a, "b": E.b}}}
+    return found, made, example
+
+
+def _decomp3(E: EllipticCurve, signed, R):
+    """Search triples (with signs) of factor-base points summing to R. Cheap via
+    a 2-sum table: precompute all A+B, then look for R - C in it."""
+    # Two-sum table: map point -> (A_index-pair) is heavy; instead precompute
+    # the set of all signed pair-sums with witnesses.
+    pair = {}
+    m = len(signed)
+    for i in range(m):
+        for si in signed[i]:
+            for j in range(i, m):
+                for sj in signed[j]:
+                    s = E.add(si, sj)
+                    key = None if s is None else s
+                    pair.setdefault(key, (si, sj))
+    for k in range(m):
+        for sk in signed[k]:
+            need = E.add(R, E.negate(sk))     # want A+B = R - C
+            if need in pair:
+                a, b = pair[need]
+                return (a, b, sk)
+            if need is None and None in pair:
+                a, b = pair[None]
+                return (a, b, sk)
+    return None
