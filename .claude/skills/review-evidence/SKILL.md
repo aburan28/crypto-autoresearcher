@@ -26,11 +26,20 @@ review, and synthesis.
      `verified: true` certificate (`docs/claims-and-verification.md`); a
      failed or missing certificate on a claimed success invalidates that run
      rather than counting as evidence;
+   - before any adverse call (`weaken`, `reject_scoped`), seek the strongest
+     checkable refutation artifact the result admits — counterexample
+     certificate, then derivation note, then empirical-only — per the
+     "Refutation artifacts" section of `docs/claims-and-verification.md`.
+     Archive the artifact with the analysis (it rides the snapshot/ledger
+     commit) and set `proof_status`/`proof_refs` accordingly. Not every
+     result can be proved: `empirical_only` is legitimate but must be
+     declared, and an unreplicated empirical-only refutation takes `weaken`
+     + replication, not `reject_scoped`;
    - create the `evidence` record in `ledger/evidence/EV-<AREA>-<NNN>.yaml`
      with direction, strength (per the hierarchy in
      `docs/evidence-and-reproducibility.md`), `claim_tier` (never exceeding
-     what the runs' parameters allow), `certificate_refs`, boundaries, and
-     unresolved confounds;
+     what the runs' parameters allow), `certificate_refs`,
+     `proof_status`/`proof_refs`, boundaries, and unresolved confounds;
    - record the `coordinator_decision` in `ledger/decisions/` choosing one
      transition: replicate | expand | refine | support | weaken |
      reject_scoped | inconclusive | pause, with rationale, evidence refs,
@@ -65,7 +74,11 @@ review, and synthesis.
 - Claims must be scoped to the tested curves, bit sizes, solver, parameters,
   and budget. Toy-scale results never become crypto-scale claims.
 - Surprising or high-impact results get `replicate`, not `support`, on first
-  observation.
+  observation. Symmetrically, rejecting a theory deserves the same
+  skepticism as confirming one: `reject_scoped` requires a checkable
+  refutation artifact (counterexample certificate or derivation note) or
+  replicated empirical evidence — never a single unreplicated
+  empirical-only run.
 - A working-tree-only evidence or decision record is incomplete, even when its
   content appears valid.
 - A decision record with an unfilled `knowledge_promotion` field is

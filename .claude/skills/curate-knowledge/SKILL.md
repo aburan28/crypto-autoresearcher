@@ -22,7 +22,10 @@ of the review lifecycle. Invoke it whenever:
   `KN-FIND` entry (or record `not_warranted` in the decision's
   `knowledge_promotion` field — see `templates/research-records.md`).
   Proven negatives are findings too: a replicated scoped rejection is a
-  boundary future ideation must not re-cross.
+  boundary future ideation must not re-cross. The entry copies the
+  evidence record's `proof_status` and `proof_refs` (counterexample
+  certificate, derivation note, or a declared `empirical_only`) so the
+  finding's basis travels with it.
 - **An unknown crystallizes.** An `inconclusive`/`pause` decision, a
   red-team report, or a failed approach that leaves a precisely statable
   question → `KN-OPEN`, citing the records that raised it.

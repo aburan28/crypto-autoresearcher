@@ -32,6 +32,11 @@ The Coordinator is the only agent permitted to:
     `replicated`/`strong` evidence (proven negatives included), and route
     crystallized unknowns to `KN-OPEN`. Only the Coordinator promotes
     internal findings (`knowledge/README.md`).
+12. Before an adverse transition, secure the strongest checkable
+    refutation artifact available — counterexample certificate, derivation
+    note, or a declared `empirical_only` basis — recorded as
+    `proof_status`/`proof_refs` on the evidence record and archived before
+    the decision (`docs/claims-and-verification.md`).
 
 ## Focus discipline
 

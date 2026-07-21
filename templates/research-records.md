@@ -122,6 +122,12 @@ evidence:
   strength: anecdotal | preliminary | replicated | strong | inconclusive | contradictory
   claim_tier: toy | medium | crypto      # ceiling on what this record may assert
   certificate_refs: []                   # run certificates backing any claimed solve/relation
+  proof_status: certificate | derivation | empirical_only | not_applicable
+                                         # strongest checkable basis for the stated
+                                         # direction (docs/claims-and-verification.md,
+                                         # "Refutation artifacts")
+  proof_refs: []                         # counterexample certificates / derivation-note
+                                         # paths backing proof_status
   observations: []
   inference: null
   boundaries: []
