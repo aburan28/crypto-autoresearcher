@@ -79,6 +79,61 @@ decisions.
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
 
+## Handoff: SGCP V10 independent closeout
+
+### Claim or task
+
+Close exact-commit review of
+`3af44e847392c4c7e258ef60d0bf3e5dc01daa43` and identify the narrowest no-run
+successor before any launch-plan design.
+
+### Status
+
+`NEGATIVE RESULT` for V10 plan-design readiness. Theory and accounting issued
+scoped `GO`; red team issued `REVISE`. Unanimous authorization was not obtained,
+so launch-plan design and execution remain `NO-GO` and `maximum_runs=0`.
+
+### Assumptions
+
+- Review evidence applies only to exact committed V10 blobs.
+- Frozen B4 remains the only standalone complete five-field oracle.
+- Structural reservations are not CPU, RSS, parser/allocator, disk, I/O,
+  cache-traffic, or memory-bandwidth models.
+
+### Evidence so far
+
+- All nine V10 test-log hashes match the exact commit.
+- Theory found no claim-boundary or proof-language defect.
+- Accounting found no defect in the V10 graph/expansion and producer-surface
+  repairs while retaining external-resource caveats.
+- Red team found five deterministic provenance/predicate counters are still
+  checked only against generous reservations on completed canonical paths.
+- Red team also found the 256 MiB block-list, join, decode, and standard-parser
+  path can amplify memory before generic JSON structural limits apply.
+- No generated V10 density row, matrix, runner, plan, or run was created.
+
+### Failure modes
+
+- Suppressed or modestly overcharged curve/predicate work can remain false-valid.
+- Near-limit input can consume multiple copies before structural rejection.
+- B6/B8 feasibility and every external resource class remain unmeasured.
+- No relation yield, rank, linear algebra, descent, preprocessing crossover,
+  rho improvement, exponent, or ECDLP result is established.
+
+### Next concrete action
+
+Implement exact completed equality for registered prime candidates, curve draws,
+curve hashes, curve point enumerations, and predicate hashes; add suppression
+and overcharge controls; tighten pre-parse containment; then validate, commit,
+and request fresh three-way review with `maximum_runs=0`.
+
+### Artifact paths
+
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v10.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v10.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v10.md`
+- `experiments/EXP-SGCP-EMBED-002/decision-v10.json`
+
 ## Handoff: SGCP V10 producer-surface repair
 
 ### Claim or task
