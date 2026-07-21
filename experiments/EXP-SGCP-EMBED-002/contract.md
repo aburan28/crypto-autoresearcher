@@ -1,4 +1,4 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 9
+# Experiment Contract: EXP-SGCP-EMBED-002, version 10
 
 ## Claim status
 
@@ -65,7 +65,7 @@ serialized bytes are charged inside the public model and each nested cap
 receipt.
 
 The legacy `source_recovery` boolean records sorted formal normalization only.
-Version 9 interprets source recovery through
+Version 10 interprets source recovery through
 `source_recovery_via_public_table`; it does not treat normalization as an
 inversion algorithm.
 
@@ -170,14 +170,14 @@ nonidentity EC output. These conventions are emitted as a public ordering
 contract with digest
 `8114bd7d1822578e3d1453126968964da213775c6f12f86c764413f737212359`.
 
-V9 key sets and value types are closed throughout rows, documents, summaries,
+V10 key sets and value types are closed throughout rows, documents, summaries,
 family gates, nested integrity/accounting receipts, and verification reports. JSON
 Boolean, integer, float, string, list, object, and null roles are exact. In
 particular, `false` is not integer zero, `-0.0` is not integer zero, and an
 equal-valued float is not an integer receipt. Refreshed byte and document
 digests do not excuse a type mismatch.
 
-The V9 verifier accepts only the V9 document schema. V1-V8 schemas are
+The V10 verifier accepts only the V10 document schema. V1-V9 schemas are
 explicitly rejected without row verification. Each receipt contains an ordered
 phase ledger from actual control flow. Aggregate row/cap phases carry expected,
 completed, and failed unit counts and become independent checks only after all
@@ -185,9 +185,9 @@ registered units pass.
 
 Path-based `verify_document` is the sole evidence-bearing API. Public direct
 legacy-row and density-row verification entry points return invalid before any
-curve, graph, replay, or proof helper. Public producer `generated_curve` calls
-raise, and `build_density_row` admits only the exact frozen p=19 B4 control
-before factor-base work. The verifier opens the final path component with
+curve, graph, replay, or proof helper. Public producer `generated_curve` and
+`build_legacy_row` calls raise, and `build_density_row` admits only the exact
+frozen p=19 B4 control before factor-base work. The verifier opens the final path component with
 no-follow and nonblocking flags, requires a regular file, rejects an initial
 `st_size` above 256 MiB
 before reading, and hashes and parses the same immutable byte snapshot. Parent
@@ -204,7 +204,7 @@ associations, the source-owned frozen 100,000-node replay cap, the source-owned
 canonical 2,000,000-node replay cap, and an exact primary-proof budget in
 `0..5,000,000` are admitted.
 
-Before generic JSON traversal, V9 applies source-sized bounds to document and
+Before generic JSON traversal, V10 applies source-sized bounds to document and
 row roots, registered parameters, the nested family gate, Mobius maps,
 alternating positions, rejection reasons, root polynomials, formal witnesses,
 edge/source tables, exact-empty frontiers, and per-cap byte receipts. Before
@@ -213,7 +213,7 @@ document digests; nested byte accounting; protocol, scope, and grid
 association; the frozen static transcript; cap schedule; objective; masks;
 source-owned node caps; and the reconstructed document summary/family gate. No
 canonical curve derivation or reservation-dependent semantics occurs before
-this authentication. V9 then reserves separate worst-case totals for
+this authentication. V10 then reserves separate worst-case totals for
 registered prime candidates, curve draws and hashes, predicate hashes, frozen,
 semantic, and primary point enumerations, expansion cells, graph candidate
 evaluations, eligible conflict checks, eligible pair-output cells, replay nodes,
@@ -227,12 +227,14 @@ the trusted reservation, globally charged work already spent inside the
 failing cap, the failed unit count, and `actual_work_complete=false`. Replay
 and primary nodes are charged as explored and cache entries as inserted;
 graph and expansion work is charged inside each executed loop, and
-retained-model cells are charged as evaluated. Every completed path must
-exactly report the registered curve-cache lookups/misses and the frozen,
-semantic, and primary point enumerations implied by its authenticated row/cap
-grid. Complete actual work must also be dominated by the source-owned
+retained-model cells are charged as evaluated. Every completed row must exactly
+report its reconstructed candidate evaluations, eligible-pair conflict checks,
+eligible-squared pair-output cells, and degree 1, 2, 4, and 8 multiset expansion
+cells. Every completed path must also exactly report the registered curve-cache
+lookups/misses and the frozen, semantic, and primary point enumerations implied
+by its authenticated row/cap grid. Complete actual work must also be dominated by the source-owned
 reservation or the report is invalid. An otherwise successful report must also
-match the exact V9 phase sequence with every unit phase complete and passed.
+match the exact V10 phase sequence with every unit phase complete and passed.
 Ordinary authenticated semantic
 mismatches may stop early with complete counters for the work actually
 executed. The
@@ -310,7 +312,7 @@ factor-base multisets. Both denominators appear beside retention ratios.
 
 ## Accounting boundary
 
-Version 9 retains the V3 accounting boundary and emits only independently
+Version 10 retains the V3 accounting boundary and emits only independently
 reconstructible combinatorial cells, including multiset evaluations,
 representative and parent-pair counts, graph checks, pair-output cells,
 optimizer nodes, bound calls, source-enforced optimizer and full-model cache
@@ -327,7 +329,7 @@ Producer row and cap wall times are observational and checked only for finite,
 nonnegative nesting. The producer makes no peak-memory claim. Any future
 canonical execution must obtain generator and verifier wall time, peak RSS,
 serialized output size, and memory traffic from the trusted external runner.
-Verifier work must be reported as a separate role cost. V9 path receipts record actual
+Verifier work must be reported as a separate role cost. V10 path receipts record actual
 registered-curve cache behavior, prime candidates, curve and predicate hashes,
 point enumerations, expansion cells, graph candidate evaluations, eligible
 conflict checks, eligible pair-output cells, replay and proof nodes, both
@@ -357,7 +359,7 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
    the closed schema.
 10. Reject Boolean/integer/float aliases in optimizer, graph, axiom, ratio,
     mask, node-cap, wall-time, byte-receipt, summary, and document fields.
-11. Verify one frozen V9 document and reject an empty canonical document.
+11. Verify one frozen V10 document and reject an empty canonical document.
 12. Reject missing, extra, duplicate, reordered, wrong-cap, wrong-node-cap,
     inconsistent-curve, and cross-seed-duplicate canonical matrices.
 13. Exact-match producer and independent family gates on a synthetic complete
@@ -372,8 +374,8 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     out-of-range selected formals, duplicate selected formals, negative caps,
     malformed JSON, nonobject roots, duplicate keys, and out-of-range verifier
     budgets.
-16. Relabel a valid V9 body with every V1-V8 schema and require explicit legacy
-    rejection with zero row checks and no V9 mathematical check claims.
+16. Relabel a valid V10 body with every V1-V9 schema and require explicit legacy
+    rejection with zero row checks and no V10 mathematical check claims.
 17. Replace the input path after its snapshot is read and require the receipt
     hash and parsed document to remain bound to the original bytes. Reject
     directories and symlinks before JSON parsing.
@@ -409,9 +411,9 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     stratum; freeze the verifier source digest at module load and prove report
     construction does not reopen the source path.
 28. Disable both public direct-verification APIs before curve, graph, replay, or
-    proof work; reject public generated-curve construction and every non-frozen
-    public density-row association before factor-base work; require path-based
-    verification for evidence.
+    proof work; reject public generated-curve and legacy-row construction and
+    every non-frozen public density-row association before factor-base work;
+    require path-based verification for evidence.
 29. Reject one-over map, alternating-position, reason, polynomial, formal,
     edge/source-table, frontier, byte-receipt, parameter, summary, and nested
     family-gate containers before generic traversal or mathematical work.
@@ -429,6 +431,10 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     final phase-closure invalidation.
 35. Supply an over-report-ceiling caller path with an invalid verifier budget
     and require a bounded invalid receipt rather than an exception.
+36. Suppress each graph-candidate, eligible-conflict, eligible-pair-output, and
+    expansion charge on an otherwise completed row, then overcharge one
+    candidate evaluation; require exact-delta mismatch invalidation while
+    preserving `actual_work_complete=true`.
 
 ## Positive criterion
 
@@ -458,7 +464,7 @@ changes the measured collision geometry.
 
 ## Budgets and stopping
 
-Version 1 consumed 17 of 18 historical development curve rows. Version 9
+Version 1 consumed 17 of 18 historical development curve rows. Version 10
 authorizes no additional curve-family row. Unit, abstract graph,
 generated-curve provenance, generated factor-base, and frozen p=19
 row/document controls are allowed. A generated density row is not allowed.
@@ -472,7 +478,7 @@ total_cpu_hours = 0
 maximum_memory_gb = 0
 ```
 
-Fresh independent theory, accounting, and red-team GO on one committed V9
+Fresh independent theory, accounting, and red-team GO on one committed V10
 snapshot is necessary but not sufficient to launch. A separate hash-complete
 execution plan and coordinator approval must follow before any budget change.
 
@@ -488,4 +494,4 @@ are finite stress probes, not an `n^(1/5)` schedule.
 No canonical reproduction command exists while `maximum_runs` is zero. The
 current producer refuses both development family rows and canonical execution;
 only unit, generated-factor-base, and frozen-fixture functions are authorized
-for V9 preflight.
+for V10 preflight.

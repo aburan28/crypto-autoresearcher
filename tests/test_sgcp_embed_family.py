@@ -648,7 +648,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     (curve.p, curve.a, curve.b),
                 )
 
-    def test_v9_public_generated_construction_is_gated_before_row_math(self) -> None:
+    def test_v10_public_generated_construction_is_gated_before_row_math(self) -> None:
         producer_globals = MODULE["build_density_row"].__globals__
         original_generated_control = producer_globals["_generated_curve_for_controls"]
         original_factor_base = producer_globals["factor_base"]
@@ -672,6 +672,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             non_frozen_association = copy.deepcopy(record)
             non_frozen_association["draw"] = 0
             producer_globals["factor_base"] = forbidden_factor_base
+            before_ops = vars(ops).copy()
             cases = (
                 (points, non_frozen_association, 100000),
                 (points[:-1] + [points[-2]], record, 100000),
@@ -693,9 +694,68 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                             node_cap,
                             ops,
                         )
+            for candidate_record in (record, non_frozen_association):
+                with self.subTest(legacy_record=candidate_record):
+                    with self.assertRaisesRegex(
+                        PermissionError, "legacy-row construction"
+                    ):
+                        MODULE["build_legacy_row"](
+                            curve,
+                            points,
+                            candidate_record,
+                            4,
+                            "least_x_interval",
+                            None,
+                            100000,
+                            ops,
+                        )
+            original_all = producer_globals.get("all")
+
+            def forbidden_point_scan(*_args, **_kwargs):
+                calls.append("point_scan")
+                raise AssertionError("length rejection must precede point scanning")
+
+            producer_globals["all"] = forbidden_point_scan
+            try:
+                with self.assertRaisesRegex(PermissionError, "density-row construction"):
+                    MODULE["build_density_row"](
+                        curve,
+                        [*points, None],
+                        record,
+                        4,
+                        "least_x_interval",
+                        None,
+                        100000,
+                        ops,
+                    )
+            finally:
+                if original_all is None:
+                    producer_globals.pop("all", None)
+                else:
+                    producer_globals["all"] = original_all
+            self.assertEqual(vars(ops), before_ops)
         finally:
             producer_globals["_generated_curve_for_controls"] = original_generated_control
             producer_globals["factor_base"] = original_factor_base
+        self.assertEqual(calls, [])
+
+    def test_frozen_legacy_control_rejects_noncanonical_B_before_curve_work(self) -> None:
+        helper_globals = MODULE["_build_frozen_legacy_control_row"].__globals__
+        original_frozen_curve = helper_globals["frozen_curve"]
+        calls = []
+
+        def forbidden_frozen_curve(*_args, **_kwargs):
+            calls.append("frozen_curve")
+            raise AssertionError("B validation must precede frozen-curve work")
+
+        helper_globals["frozen_curve"] = forbidden_frozen_curve
+        try:
+            for B in (False, 3, 10):
+                with self.subTest(B=B):
+                    with self.assertRaisesRegex(ValueError, "B must be one of"):
+                        MODULE["_build_frozen_legacy_control_row"](B)
+        finally:
+            helper_globals["frozen_curve"] = original_frozen_curve
         self.assertEqual(calls, [])
 
     def test_curve_rejection_transcript_records_duplicates_and_complete_reasons(
@@ -924,20 +984,9 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             6: (68, 8, 4, 7, 4, 17, 20),
             8: (124, 14, 53, 7, 4, 14, 21),
         }
-        ops = MODULE["OperationCounts"]()
-        curve, points, record = MODULE["frozen_curve"](ops)
         for B, values in expected.items():
             with self.subTest(B=B):
-                row = MODULE["build_legacy_row"](
-                    curve,
-                    points,
-                    record,
-                    B,
-                    "least_x_interval",
-                    None,
-                    200000,
-                    ops,
-                )
+                row = MODULE["_build_frozen_legacy_control_row"](B)
                 graph = row["private_audit"]["graph"]
                 optimizer = row["private_audit"]["optimizer"]
                 self.assertEqual(
@@ -981,19 +1030,8 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             _, collisions = MODULE["evaluate_family"](curve, factors, family)
             self.assertEqual(graph_feasible, not collisions)
 
-    def test_v9_legacy_direct_row_api_is_disabled_before_math(self) -> None:
-        ops = MODULE["OperationCounts"]()
-        curve, points, record = MODULE["frozen_curve"](ops)
-        row = MODULE["build_legacy_row"](
-            curve,
-            points,
-            record,
-            4,
-            "least_x_interval",
-            None,
-            100000,
-            ops,
-        )
+    def test_v10_legacy_direct_row_api_is_disabled_before_math(self) -> None:
+        row = MODULE["_build_frozen_legacy_control_row"](4)
         bad_digest = copy.deepcopy(row)
         bad_digest["row_sha256"] = "0" * 64
         huge_prime = copy.deepcopy(row)
@@ -1441,7 +1479,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
         self.assertFalse(report["valid"])
         self.assertTrue(
-            any("more keys than the V9 source schema" in error for error in report["errors"])
+            any("more keys than the V10 source schema" in error for error in report["errors"])
         )
 
         nested = copy.deepcopy(self.frozen_density_row)
@@ -1453,7 +1491,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertTrue(
             any(
-                "individual rejection[0] has more keys than the V9 source schema"
+                "individual rejection[0] has more keys than the V10 source schema"
                 in error
                 for error in report["errors"]
             )
@@ -1518,7 +1556,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             )
         )
 
-    def test_v9_exact_types_reject_json_equality_aliases(self) -> None:
+    def test_v10_exact_types_reject_json_equality_aliases(self) -> None:
         mutations = (
             (
                 "zero_to_false",
@@ -1605,7 +1643,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             report["errors"],
         )
 
-    def test_v9_type_checker_rejects_every_frozen_scalar_type_substitution(self) -> None:
+    def test_v10_type_checker_rejects_every_frozen_scalar_type_substitution(self) -> None:
         scalar_paths = []
 
         def visit(value, path=()):
@@ -1639,12 +1677,12 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             else:
                 continue
             target[path[-1]] = replacement
-            errors = VERIFIER["v9_row_type_errors"](mutated)
+            errors = VERIFIER["v10_row_type_errors"](mutated)
             self.assertTrue(errors, path)
             checked += 1
         self.assertGreater(checked, 1000)
 
-    def test_v9_preflight_returns_invalid_receipts_for_red_team_crash_cases(self) -> None:
+    def test_v10_preflight_returns_invalid_receipts_for_red_team_crash_cases(self) -> None:
         mutations = []
 
         truncated_caps = copy.deepcopy(self.frozen_density_row)
@@ -1707,7 +1745,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                 document["rows"] = [mutated]
                 resign_document(document)
                 document_errors, document_reports = VERIFIER[
-                    "_verify_v9_document_value_for_tests"
+                    "_verify_v10_document_value_for_tests"
                 ](document, 100000)
                 self.assertTrue(document_errors)
                 self.assertEqual(document_reports, [])
@@ -1716,7 +1754,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     document_errors,
                 )
 
-    def test_v9_verifier_entrypoints_are_total_with_explicit_ceilings(self) -> None:
+    def test_v10_verifier_entrypoints_are_total_with_explicit_ceilings(self) -> None:
         missing_scope = VERIFIER["_verify_density_row_for_tests"](
             self.frozen_density_row, 100000
         )
@@ -1774,7 +1812,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     "frozen_fixture",
                     MODULE["frozen_parameters"](100000),
                 )
-                errors, reports = VERIFIER["_verify_v9_document_value_for_tests"](
+                errors, reports = VERIFIER["_verify_v10_document_value_for_tests"](
                     document, maximum_nodes
                 )
                 self.assertTrue(errors)
@@ -1802,7 +1840,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             self.assertFalse(report["valid"])
             self.assertTrue(any("duplicate key" in error for error in report["errors"]))
 
-    def test_v9_overlong_reflected_path_returns_bounded_invalid_report(self) -> None:
+    def test_v10_overlong_reflected_path_returns_bounded_invalid_report(self) -> None:
         path = Path("x" * (VERIFIER["MAXIMUM_VERIFICATION_REPORT_BYTES"] + 1))
         report = VERIFIER["verify_document"](path, False)
         self.assertFalse(report["valid"])
@@ -1812,7 +1850,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             VERIFIER["MAXIMUM_VERIFICATION_REPORT_BYTES"],
         )
 
-    def test_v9_snapshot_hash_and_parse_are_bound_to_the_same_bytes(self) -> None:
+    def test_v10_snapshot_hash_and_parse_are_bound_to_the_same_bytes(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -1846,7 +1884,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             )
             self.assertEqual(report["input_document_sha256"], document["document_sha256"])
 
-    def test_v9_source_hash_is_diagnostic_and_not_reopened_for_reporting(self) -> None:
+    def test_v10_source_hash_is_diagnostic_and_not_reopened_for_reporting(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -1875,7 +1913,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertIn("not executed-code attestation", report["verifier_source_hash_scope"])
         self.assertIn("parent path components", report["input_symlink_policy"])
 
-    def test_v9_diagnostics_are_count_and_byte_bounded(self) -> None:
+    def test_v10_diagnostics_are_count_and_byte_bounded(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -1906,7 +1944,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
         self.assertNotIn(b"secret_", report_bytes)
 
-    def test_v9_reflected_document_digest_is_sanitized_before_reporting(self) -> None:
+    def test_v10_reflected_document_digest_is_sanitized_before_reporting(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -1925,7 +1963,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
         self.assertNotIn(b"secret", VERIFIER["stable_bytes"](report))
 
-    def test_v9_serialized_report_ceiling_covers_integrity_fields(self) -> None:
+    def test_v10_serialized_report_ceiling_covers_integrity_fields(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -1954,7 +1992,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
         self.assertEqual(supplied_size, len(VERIFIER["stable_bytes"](pre_integrity_payload)))
 
-    def test_v9_source_collection_bounds_precede_generic_traversal(self) -> None:
+    def test_v10_source_collection_bounds_precede_generic_traversal(self) -> None:
         baseline = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2020,7 +2058,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         mutations.append(
             (
                 nested_dictionary,
-                "factor-base record has more keys than the V9 source schema",
+                "factor-base record has more keys than the V10 source schema",
             )
         )
 
@@ -2029,7 +2067,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         invalid_B["rows"][0]["private_audit"]["expansion"] = {
             "nested": [[0] * 1000]
         }
-        mutations.append((invalid_B, "row.B is outside the V9 source range"))
+        mutations.append((invalid_B, "row.B is outside the V10 source range"))
 
         canonical_gate = copy.deepcopy(baseline)
         canonical_gate["scope"] = "canonical"
@@ -2057,7 +2095,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         verifier_globals = VERIFIER["verify_document"].__globals__
         originals = {
             name: verifier_globals[name]
-            for name in ("bounded_json_errors", "_verify_v9_document_value_unchecked")
+            for name in ("bounded_json_errors", "_verify_v10_document_value_unchecked")
         }
         calls = []
 
@@ -2090,7 +2128,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             verifier_globals.update(originals)
         self.assertEqual(calls, [])
 
-    def test_v9_rejects_nonregular_and_symlink_inputs_before_parsing(self) -> None:
+    def test_v10_rejects_nonregular_and_symlink_inputs_before_parsing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             regular = root / "regular.json"
@@ -2145,7 +2183,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             )
             self.assertEqual(raw, b"{}")
 
-    def test_v9_registered_preflight_blocks_huge_bits_and_row_amplification(self) -> None:
+    def test_v10_registered_preflight_blocks_huge_bits_and_row_amplification(self) -> None:
         mutated = copy.deepcopy(self.frozen_density_row)
         mutated["curve"]["bits"] = 40
         refresh_density_accounting(mutated)
@@ -2180,7 +2218,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
         document["rows"] = [mutated]
         resign_document(document)
-        document_globals = VERIFIER["_verify_v9_document_value_for_tests"].__globals__
+        document_globals = VERIFIER["_verify_v10_document_value_for_tests"].__globals__
         original_row_verifier = document_globals["_verify_density_row_unchecked"]
         row_calls = 0
 
@@ -2191,12 +2229,12 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
 
         document_globals["_verify_density_row_unchecked"] = forbidden_row_verifier
         try:
-            errors, reports = VERIFIER["_verify_v9_document_value_for_tests"](document, 100000)
+            errors, reports = VERIFIER["_verify_v10_document_value_for_tests"](document, 100000)
             amplified = copy.deepcopy(document)
             amplified["rows"] = [copy.deepcopy(mutated) for _ in range(12)]
             resign_document(amplified)
             amplified_errors, amplified_reports = VERIFIER[
-                "_verify_v9_document_value_for_tests"
+                "_verify_v10_document_value_for_tests"
             ](amplified, 100000)
         finally:
             document_globals["_verify_density_row_unchecked"] = original_row_verifier
@@ -2206,7 +2244,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertEqual(amplified_reports, [])
         self.assertEqual(row_calls, 0)
 
-    def test_v9_static_optimizer_admission_precedes_curve_and_solver_work(self) -> None:
+    def test_v10_static_optimizer_admission_precedes_curve_and_solver_work(self) -> None:
         mutations = []
 
         wrong_objective = copy.deepcopy(self.frozen_density_row)
@@ -2292,7 +2330,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             verifier_globals.update(originals)
         self.assertEqual(calls, [])
 
-    def test_v9_claims_and_nested_integrity_precede_reservation_and_math(self) -> None:
+    def test_v10_claims_and_nested_integrity_precede_reservation_and_math(self) -> None:
         baseline = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2357,7 +2395,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             verifier_globals.update(originals)
         self.assertEqual(calls, [])
 
-    def test_v9_replay_budget_and_actual_phase_receipts_fail_closed(self) -> None:
+    def test_v10_replay_budget_and_actual_phase_receipts_fail_closed(self) -> None:
         over_budget = copy.deepcopy(self.frozen_density_row)
         for cell in over_budget["private_audit"]["density_frontier"]:
             cell["optimizer"]["node_cap"] = 100001
@@ -2390,7 +2428,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             "frozen_fixture",
             MODULE["frozen_parameters"](100000),
         )
-        document_globals = VERIFIER["_verify_v9_document_value_for_tests"].__globals__
+        document_globals = VERIFIER["_verify_v10_document_value_for_tests"].__globals__
         original_total_replay = document_globals["MAXIMUM_TOTAL_REPLAY_NODES"]
         original_row_verifier = document_globals["_verify_density_row_unchecked"]
         aggregate_row_calls = 0
@@ -2404,7 +2442,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         document_globals["_verify_density_row_unchecked"] = forbidden_aggregate_row
         try:
             aggregate_errors, aggregate_reports = VERIFIER[
-                "_verify_v9_document_value_for_tests"
+                "_verify_v10_document_value_for_tests"
             ](document, 100000)
         finally:
             document_globals["MAXIMUM_TOTAL_REPLAY_NODES"] = original_total_replay
@@ -2570,7 +2608,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                 [{"name": "verifier_budget_preflight", "status": "failed"}],
             )
 
-    def test_v9_phase_receipts_match_executed_control_flow(self) -> None:
+    def test_v10_phase_receipts_match_executed_control_flow(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2684,7 +2722,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                 )
             )
 
-    def test_v9_success_requires_complete_unit_phase_receipts(self) -> None:
+    def test_v10_success_requires_complete_unit_phase_receipts(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2740,7 +2778,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             report["errors"],
         )
 
-    def test_v9_second_cap_exceptions_preserve_partial_work_and_reservation(self) -> None:
+    def test_v10_second_cap_exceptions_preserve_partial_work_and_reservation(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2800,7 +2838,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                         report["errors"],
                     )
 
-    def test_v9_mid_function_failures_preserve_failing_cap_work(self) -> None:
+    def test_v10_mid_function_failures_preserve_failing_cap_work(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2865,7 +2903,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                         report["errors"],
                     )
 
-    def test_v9_graph_and_expansion_failures_preserve_partial_work(self) -> None:
+    def test_v10_graph_and_expansion_failures_preserve_partial_work(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2927,7 +2965,86 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                         report["errors"],
                     )
 
-    def test_v9_point_enumeration_calls_are_charged_before_failure(self) -> None:
+    def test_v10_completed_graph_and_expansion_work_rejects_undercharge(self) -> None:
+        document = MODULE["build_document"](
+            [self.frozen_density_row],
+            "frozen_fixture",
+            MODULE["frozen_parameters"](100000),
+        )
+        expected = {
+            "graph_candidate_evaluations": 31,
+            "graph_eligible_conflict_checks": 66,
+            "graph_eligible_pair_output_cells": 144,
+            "expansion_cells": 214,
+        }
+        verifier_globals = VERIFIER["verify_document"].__globals__
+        original_charge = verifier_globals["charge_actual_work"]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "graph-undercharge.json"
+            path.write_bytes(VERIFIER["stable_bytes"](document))
+            for counter_name, expected_count in expected.items():
+                with self.subTest(counter_name=counter_name):
+
+                    def suppress_counter(name, amount=1):
+                        if name != counter_name:
+                            original_charge(name, amount)
+
+                    verifier_globals["charge_actual_work"] = suppress_counter
+                    try:
+                        report = VERIFIER["verify_document"](path, 100000)
+                    finally:
+                        verifier_globals["charge_actual_work"] = original_charge
+
+                    self.assertFalse(report["valid"])
+                    self.assertTrue(report["actual_work"]["actual_work_complete"])
+                    self.assertEqual(report["actual_work"][counter_name], 0)
+                    self.assertFalse(report["rows"][0]["valid"])
+                    self.assertIn(
+                        "row[0]: completed graph/expansion actual-work mismatch: "
+                        f"{counter_name}=0 != expected={expected_count}",
+                        report["errors"],
+                    )
+                    phase = next(
+                        value
+                        for value in report["phases"]
+                        if value["name"]
+                        == "curve_factor_graph_and_expansion_reconstruction"
+                    )
+                    self.assertEqual(
+                        phase,
+                        {
+                            "name": "curve_factor_graph_and_expansion_reconstruction",
+                            "status": "failed",
+                            "expected_units": 1,
+                            "completed_units": 1,
+                            "failed_units": 1,
+                        },
+                    )
+
+            injected = False
+
+            def overcharge_first_candidate(name, amount=1):
+                nonlocal injected
+                original_charge(name, amount)
+                if name == "graph_candidate_evaluations" and not injected:
+                    original_charge(name)
+                    injected = True
+
+            verifier_globals["charge_actual_work"] = overcharge_first_candidate
+            try:
+                report = VERIFIER["verify_document"](path, 100000)
+            finally:
+                verifier_globals["charge_actual_work"] = original_charge
+            self.assertFalse(report["valid"])
+            self.assertTrue(report["actual_work"]["actual_work_complete"])
+            self.assertEqual(report["actual_work"]["graph_candidate_evaluations"], 32)
+            self.assertIn(
+                "row[0]: completed graph/expansion actual-work mismatch: "
+                "graph_candidate_evaluations=32 != expected=31",
+                report["errors"],
+            )
+
+    def test_v10_point_enumeration_calls_are_charged_before_failure(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3018,7 +3135,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                         report["errors"],
                     )
 
-    def test_v9_actual_work_overage_invalidates_an_otherwise_valid_document(self) -> None:
+    def test_v10_actual_work_overage_invalidates_an_otherwise_valid_document(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3055,7 +3172,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             {"name": "actual_work_reservation_dominance", "status": "failed"},
         )
 
-    def test_v9_completed_work_rejects_exact_enumeration_undercharge(self) -> None:
+    def test_v10_completed_work_rejects_exact_enumeration_undercharge(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3098,7 +3215,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             {"name": "actual_work_reservation_dominance", "status": "failed"},
         )
 
-    def test_v9_ordering_contract_is_independently_frozen(self) -> None:
+    def test_v10_ordering_contract_is_independently_frozen(self) -> None:
         mutated = copy.deepcopy(self.frozen_density_row)
         mutated["public_model"]["ordering_contract"]["point_labels"] = (
             "affine labels may contain leading zeroes"
@@ -3118,7 +3235,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             "frozen_fixture",
             MODULE["frozen_parameters"](100000),
         )
-        errors, reports = VERIFIER["_verify_v9_document_value_for_tests"](document, 100000)
+        errors, reports = VERIFIER["_verify_v10_document_value_for_tests"](document, 100000)
         self.assertEqual(errors, [])
         self.assertTrue(reports[0]["valid"])
 
@@ -3138,11 +3255,11 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             }
         )
         resign_document(empty)
-        errors, _ = VERIFIER["_verify_v9_document_value_for_tests"](empty, 100000)
+        errors, _ = VERIFIER["_verify_v10_document_value_for_tests"](empty, 100000)
         self.assertTrue(errors)
         self.assertIn("canonical document must contain exactly 168 rows", errors)
 
-    def test_v9_document_exact_types_are_closed(self) -> None:
+    def test_v10_document_exact_types_are_closed(self) -> None:
         baseline = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3163,12 +3280,12 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     target = target[component]
                 target[path[-1]] = replacement
                 resign_document(document)
-                errors, _ = VERIFIER["_verify_v9_document_value_for_tests"](
+                errors, _ = VERIFIER["_verify_v10_document_value_for_tests"](
                     document, 100000
                 )
                 self.assertTrue(errors)
 
-    def test_document_router_uses_v9_strict_path_and_rejects_every_legacy_schema(
+    def test_document_router_uses_v10_strict_path_and_rejects_every_legacy_schema(
         self,
     ) -> None:
         document = MODULE["build_document"](

@@ -79,6 +79,78 @@ decisions.
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
 
+## Handoff: SGCP V10 producer-surface repair
+
+### Claim or task
+
+Validate and independently review the no-run V10 repair of the exact V9
+producer-governance and successful-counter findings without creating a
+generated density row, canonical matrix, runner, launch plan, or run.
+
+### Status
+
+`OBSERVATION` for implementation preflight only. The research claim remains
+`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
+Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
+
+### Assumptions
+
+- Path-based `verify_document` is the sole evidence-bearing verifier API.
+- The private predecessor-row helper exists only for inherited frozen controls.
+- Primary support is independently proved per cap; secondary objective fields
+  are deterministic replay confirmations outside the standalone frozen-B4
+  complete oracle.
+- Structural reservations and actual counters are not wall-time, RSS,
+  allocator, parser, disk, I/O, cache-traffic, or memory-bandwidth measurements.
+
+### Evidence so far
+
+- V10 rejects V1-V9 schemas without row verification.
+- Public `generated_curve` and `build_legacy_row` reject before private or
+  factor-base work. Public `build_density_row` admits only exact frozen B4.
+- A completed row equality-checks all four graph/expansion deltas against
+  independently reconstructed dimensions.
+- Suppressing any one completed charge invalidates the row while retaining
+  `actual_work_complete=true`; injected exceptions retain exact partial counts
+  and set it false.
+- The stopping rule now distinguishes independent primary proof, deterministic
+  complete secondary replay, and standalone frozen-B4 five-field agreement.
+- The focused 60-test suite passes. No generated density row, matrix, runner,
+  launch plan, or run has been created.
+- All 12 scoped records validate and the regenerated repository index matches
+  `ledger.json` exactly. The repository suite passes 203 of 204 tests; its sole
+  failure is the preserved SGCP-EMBED-001 immutable test-run directory guard.
+
+### Failure modes
+
+- Canonical B6/B8 runtime, output size, cache occupancy, CPU, wall time, RSS,
+  and memory bandwidth remain unmeasured.
+- B6/B8 secondary objective fields lack a standalone complete five-field
+  oracle.
+- Most completed replay, proof, cache, and retained-model counts remain
+  reservation-dominated rather than independently equality-derived.
+- Executed-commit and external-resource attestation still require a future
+  separately reviewed immutable runner.
+- No relation yield, rank, linear algebra, descent, preprocessing crossover,
+  rho improvement, exponent, or ECDLP result is established.
+
+### Next concrete action
+
+Validate records, ledger, focused and repository suites; freeze exact V10
+hashes; commit one snapshot; then obtain fresh read-only theory, accounting,
+and red-team decisions. Do not design a launch plan before three explicit
+`GO` decisions.
+
+### Artifact paths
+
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v10.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v10.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v10.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v10.md`
+- `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
+- `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
+- `tests/test_sgcp_embed_family.py`
+
 ## Handoff: SGCP V9 independent closeout
 
 ### Claim or task
