@@ -163,3 +163,19 @@ def test_powered_yield_counts_and_ci():
     _, lo_big, hi_big = katz_log_ci(400, 1000, 300, 1000)
     _, lo_small, hi_small = katz_log_ci(4, 10, 3, 10)
     assert (hi_big - lo_big) < (hi_small - lo_small)
+
+
+def test_index_calculus_recovers_verifiable_k():
+    from harness import indexcalc
+    # pick a toy instance with an adequately large prime subgroup
+    inst = None
+    for s in range(1, 40):
+        c = generate_instance(seed=s, field_bits=14)
+        if c.n >= 200:
+            inst = c
+            break
+    assert inst is not None
+    res = indexcalc.solve(inst, factor_base_size=16)
+    assert res.solved
+    assert inst.curve().mul(res.k, inst.P) == inst.Q      # independent verification
+    assert res.group_operations > 0
