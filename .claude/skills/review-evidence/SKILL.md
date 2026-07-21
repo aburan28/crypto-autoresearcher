@@ -36,9 +36,20 @@ review, and synthesis.
      reject_scoped | inconclusive | pause, with rationale, evidence refs,
      limitations, and explicit next actions;
    - update the hypothesis record's status accordingly.
-3. If the decision warrants promoting a durable finding into the knowledge
-   corpus, add it via the `/curate-knowledge` conventions (type
-   `internal_finding`, citing the EV/DEC IDs).
+3. Run the knowledge-promotion gate. Every review answers the promotion
+   question explicitly in the decision record's `knowledge_promotion` field
+   (schema in `templates/research-records.md`):
+   - Promotion is REQUIRED when the decision is `support` or `reject_scoped`
+     and the evidence strength is `replicated` or `strong`: create a
+     `knowledge/findings/KN-FIND-NNN.md` entry via the `/curate-knowledge`
+     conventions, citing the EV-/DEC-/EXP- IDs. A proven scoped negative
+     (`reject_scoped`) is a durable boundary and is promoted like a positive.
+   - Promotion is CONSIDERED when an `inconclusive` or `pause` decision
+     exposes a precisely statable unknown (→ `KN-OPEN`), or when an
+     instrument/method has now been validated across experiments (→
+     `KN-TECH`).
+   - If nothing is promoted, record why in `knowledge_promotion.
+     not_warranted` — one concrete line, not "n/a".
 4. The Coordinator runs an isolated ledger archive task after every required
    review. It commits the review reports, analysis, evidence record, decision
    record, and any hypothesis or knowledge update by exact path. The official
@@ -57,3 +68,6 @@ review, and synthesis.
   observation.
 - A working-tree-only evidence or decision record is incomplete, even when its
   content appears valid.
+- A decision record with an unfilled `knowledge_promotion` field is
+  incomplete: proven results that never reach `knowledge/findings/` are lost
+  to future ideation and novelty checks.

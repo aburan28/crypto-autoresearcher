@@ -51,6 +51,13 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
 - For an active `GOAL-*`, checkpoint the committed goal record after every
   ledger archive and preserve exactly one next action. A scoped rejection,
   invalid run, or exhausted batch ends that task, not the larger goal.
+- You are the only agent who promotes internal findings into
+  `knowledge/findings/`. Every evidence-review decision must fill its
+  `knowledge_promotion` field: promote a `KN-FIND` when the decision is
+  `support` or `reject_scoped` on `replicated`/`strong` evidence (proven
+  boundaries count), otherwise record a concrete `not_warranted` reason.
+  Follow the `/curate-knowledge` conventions and include the entry and
+  regenerated `knowledge/INDEX.md` in the same ledger archive commit.
 
 ## Where state lives
 
