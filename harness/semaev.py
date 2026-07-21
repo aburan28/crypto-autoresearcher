@@ -227,13 +227,14 @@ def factor_base_ap(inst: ECDLPInstance, size: int, step: int = 3,
     return xs
 
 
-def measure_yield(inst: ECDLPInstance, factor_base_xs: list[int],
-                  num_targets: int, seed: int = 0) -> tuple[float, int, dict | None]:
-    """Fraction of `num_targets` random on-curve targets that decompose over the base.
+def measure_yield_counts(inst: ECDLPInstance, factor_base_xs: list[int],
+                         num_targets: int, seed: int = 0) -> tuple[int, int, dict | None]:
+    """Exact (found, made, one_certificate) over up to num_targets on-curve targets.
 
-    Returns (yield, decompositions_found, one_certificate_or_None). Targets are
-    deterministic in (inst.seed, seed). Every counted decomposition is verified
-    by an exact point-sum check, and one is returned as a certificate.
+    `made` is the number of distinct on-curve targets actually tested (<= the
+    requested count). Every counted decomposition is verified by an exact
+    point-sum check and one is returned as a certificate. Targets are
+    deterministic in (inst.seed, seed).
     """
     E = inst.curve()
     a, b, p = E.a, E.b, E.p
@@ -241,7 +242,7 @@ def measure_yield(inst: ECDLPInstance, factor_base_xs: list[int],
     example_cert = None
     made = 0
     j = 0
-    while made < num_targets and j < 50 * num_targets + 5000:
+    while made < num_targets and j < 60 * num_targets + 5000:
         x = _seed_int(inst.seed, f"yt{seed}.{j}") % p
         j += 1
         R = E.lift_x(x)
@@ -253,5 +254,11 @@ def measure_yield(inst: ECDLPInstance, factor_base_xs: list[int],
             found += 1
             if example_cert is None:
                 example_cert = cert
-    y = found / made if made else 0.0
-    return y, found, example_cert
+    return found, made, example_cert
+
+
+def measure_yield(inst: ECDLPInstance, factor_base_xs: list[int],
+                  num_targets: int, seed: int = 0) -> tuple[float, int, dict | None]:
+    """Fraction of on-curve targets that decompose over the base. See counts variant."""
+    found, made, cert = measure_yield_counts(inst, factor_base_xs, num_targets, seed)
+    return (found / made if made else 0.0), found, cert

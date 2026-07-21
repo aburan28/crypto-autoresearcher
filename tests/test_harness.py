@@ -144,3 +144,22 @@ def test_yield_measurement_and_structured_bases():
     assert 0.0 <= y <= 1.0 and found >= 0
     if cert:
         assert semaev.verify_decomposition_certificate(cert)
+
+
+def test_powered_yield_counts_and_ci():
+    from harness import semaev
+    from harness.run_yield_powered import katz_log_ci
+    inst = generate_instance(seed=1, field_bits=12)
+    rb = semaev.factor_base_random(inst, 20)
+    f, n, cert = semaev.measure_yield_counts(inst, rb, 500)
+    assert 0 <= f <= n <= 500 and n > 0
+    if cert:
+        assert semaev.verify_decomposition_certificate(cert)
+    # Katz CI: undefined on a zero count; ordered and bracketing otherwise
+    assert katz_log_ci(0, 10, 5, 10) == (None, None, None)
+    r, lo, hi = katz_log_ci(40, 100, 30, 100)
+    assert lo < r < hi
+    # larger counts -> tighter interval than tiny counts at the same ratio
+    _, lo_big, hi_big = katz_log_ci(400, 1000, 300, 1000)
+    _, lo_small, hi_small = katz_log_ci(4, 10, 3, 10)
+    assert (hi_big - lo_big) < (hi_small - lo_small)
