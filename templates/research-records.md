@@ -122,6 +122,12 @@ evidence:
   strength: anecdotal | preliminary | replicated | strong | inconclusive | contradictory
   claim_tier: toy | medium | crypto      # ceiling on what this record may assert
   certificate_refs: []                   # run certificates backing any claimed solve/relation
+  proof_status: certificate | derivation | empirical_only | not_applicable
+                                         # strongest checkable basis for the stated
+                                         # direction (docs/claims-and-verification.md,
+                                         # "Refutation artifacts")
+  proof_refs: []                         # counterexample certificates / derivation-note
+                                         # paths backing proof_status
   observations: []
   inference: null
   boundaries: []
@@ -235,9 +241,20 @@ coordinator_decision:
   evidence_refs: []
   limitations: []
   next_actions: []
+  knowledge_promotion:          # required on every evidence-review decision
+    promoted: []                # KN-* IDs created from this decision, or empty
+    not_warranted: null         # if promoted is empty: why (e.g. strength below
+                                # replicated, already covered by KN-*, no durable claim)
   decided_by: coordinator
   decided_at: null
 ```
+
+`knowledge_promotion` makes corpus curation a checked step, not an
+afterthought: a `support` or `reject_scoped` decision backed by evidence of
+strength `replicated` or `strong` MUST either promote a finding
+(`knowledge/findings/KN-FIND-NNN.md`, see `/curate-knowledge`) or state in
+`not_warranted` why no durable entry results. Other decisions fill the field
+too — usually `not_warranted` with a one-line reason.
 
 ## Agent handoff
 

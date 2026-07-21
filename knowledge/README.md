@@ -48,6 +48,10 @@ source:            # literature/techniques
   citation: full citation
   url: null
 internal_refs: []  # findings: EV-/DEC-/EXP- IDs
+proof_status: certificate | derivation | empirical_only | not_applicable
+                   # findings: strongest checkable basis, copied from the
+                   # evidence record (docs/claims-and-verification.md)
+proof_refs: []     # findings: certificate / derivation-note paths
 added: YYYY-MM-DD
 superseded_by: null
 ---
@@ -55,6 +59,25 @@ superseded_by: null
 Body: summary, key claims (verified vs. reported), relevance to the
 program, and limits of applicability.
 ```
+
+## When entries get created
+
+Curation is a lifecycle obligation, not an ad-hoc activity. The binding
+trigger points (details in `/curate-knowledge` and
+`docs/task-lifecycle.md` step 9):
+
+- Every evidence-review decision fills a `knowledge_promotion` field
+  (`templates/research-records.md`). `support`/`reject_scoped` on
+  `replicated`/`strong` evidence ⇒ a `KN-FIND` entry is required; anything
+  else records why not. Proven scoped negatives are promoted like
+  positives.
+- Inconclusive outcomes that leave a precisely statable question become
+  `KN-OPEN` entries; methods validated across experiments become
+  `KN-TECH`; papers read during ideation/review become `KN-LIT`.
+
+The standing test: a fresh agent reading only `knowledge/` and the ledger
+should be able to rediscover everything this program has proven. A claim
+that lives only in an experiment directory is not yet knowledge.
 
 ## Rules
 
@@ -65,3 +88,7 @@ program, and limits of applicability.
   `/curate-knowledge` skill); never hand-maintain facts there.
 - Confidence honesty: an abstract you skimmed is `reported`, not
   `established`.
+- Proof honesty: a finding's `proof_status` never exceeds its evidence
+  record's. `derivation` means a checkable written argument, not a
+  machine-verified proof; `empirical_only` findings say so in the body and
+  stay scoped to their tested instances.
