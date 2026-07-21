@@ -48,6 +48,10 @@ source:            # literature/techniques
   citation: full citation
   url: null
 internal_refs: []  # findings: EV-/DEC-/EXP- IDs
+proof_status: certificate | derivation | empirical_only | not_applicable
+                   # findings: strongest checkable basis, copied from the
+                   # evidence record (docs/claims-and-verification.md)
+proof_refs: []     # findings: certificate / derivation-note paths
 added: YYYY-MM-DD
 superseded_by: null
 ---
@@ -84,3 +88,7 @@ that lives only in an experiment directory is not yet knowledge.
   `/curate-knowledge` skill); never hand-maintain facts there.
 - Confidence honesty: an abstract you skimmed is `reported`, not
   `established`.
+- Proof honesty: a finding's `proof_status` never exceeds its evidence
+  record's. `derivation` means a checkable written argument, not a
+  machine-verified proof; `empirical_only` findings say so in the body and
+  stay scoped to their tested instances.

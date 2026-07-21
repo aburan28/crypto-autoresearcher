@@ -87,6 +87,44 @@ The tier a run contributes to is derived mechanically from its parameters:
 A synthesis spanning several experiments takes the **minimum** tier of its
 supporting evidence unless a dedicated scaling analysis justifies otherwise.
 
+## Refutation artifacts: proof before rejection
+
+Certificates cover claimed *successes*. The symmetric discipline covers
+deciding a theory is **wrong**: before an adverse transition (`weaken`,
+`reject_scoped`, hypothesis → `rejected`), the Coordinator seeks the
+strongest **checkable refutation artifact** the result admits, in this
+order:
+
+1. **Counterexample certificate** — an explicit instance on which the
+   theory's prediction fails, packaged so independent code re-checks it
+   (same independence rule as success certificates). Strongest.
+2. **Derivation note** — a written, self-contained argument (algebraic
+   identity, counting bound, reduction) showing *why* the mechanism fails,
+   checkable by an independent reader step by step. Archived as a
+   markdown/artifact file with the experiment's analysis and cited by
+   path. This is a checkable argument, not a machine-verified proof —
+   label it `derivation`, never "proved".
+3. **Empirical-only** — replicated observations contradict the prediction
+   but no instance or argument isolates the failure. Weakest; the
+   rejection stays exactly as scoped as the tested instances.
+
+The achieved level is recorded in the evidence record's `proof_status`
+(`certificate | derivation | empirical_only | not_applicable`) with the
+artifacts listed in `proof_refs`. Rules:
+
+- Not everything can or need be proved: `empirical_only` is legitimate —
+  but it must be *declared*, and an empirical-only refutation on a single
+  unreplicated run takes `weaken` + replication, not `reject_scoped`.
+  Rejecting a theory deserves the same skepticism as confirming one.
+- The artifact is produced and archived (snapshot commit) **before** the
+  decision record that relies on it, and the promoted `KN-FIND` carries
+  the same `proof_status`/`proof_refs` — a finding never claims a stronger
+  basis than its evidence record.
+- This does not relax the ceiling above: a derivation about the tested
+  construction is not a universal impossibility claim, and any genuine
+  theorem-level claim still routes to an external proof assistant or
+  human referee.
+
 ## Where this is enforced
 
 - **Executor / run wrapper** (`harness/runner.py`): emits and independently
