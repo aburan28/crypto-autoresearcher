@@ -127,3 +127,20 @@ def test_run_wrapper_invalidates_bad_certificate(tmp_path):
         open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
     assert manifest["status"] == "completed_invalid"
     assert manifest["result"]["valid"] is False
+
+
+def test_yield_measurement_and_structured_bases():
+    from harness import semaev
+    inst = generate_instance(seed=1, field_bits=12)
+    rb = semaev.factor_base_random(inst, 20)
+    ib = semaev.factor_base_interval(inst, 20)
+    ab = semaev.factor_base_ap(inst, 20, step=3)
+    assert len(rb) == 20 and len(ib) == 20 and len(ab) == 20
+    E = inst.curve()
+    assert all(E.lift_x(x) is not None for x in rb + ib + ab)
+    # interval base is consecutive on-curve x-coordinates
+    assert ib == sorted(ib)
+    y, found, cert = semaev.measure_yield(inst, rb, 100)
+    assert 0.0 <= y <= 1.0 and found >= 0
+    if cert:
+        assert semaev.verify_decomposition_certificate(cert)

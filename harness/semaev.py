@@ -180,3 +180,78 @@ def verify_decomposition_certificate(cert: dict) -> bool:
             return False
         acc = E.add(acc, pt)
     return acc == target
+
+
+# --- Independent yield replication (EXP-SEMAEV-002) ---------------------------
+# A clean-room, m=2 (S_3) counterpart to the campaign's m=3 factor-base yield
+# study (H-FB-001 / EXP-FB-001). "Yield" = fraction of random target points that
+# decompose as a sum of two factor-base points. Uses direct enumeration over the
+# small factor base (no sympy), so it is fast and every positive is certifiable.
+
+def _oncurve_xs_from(E: EllipticCurve, candidate_xs) -> list[int]:
+    out = []
+    for x in candidate_xs:
+        if E.lift_x(x % E.p) is not None and (x % E.p) not in out:
+            out.append(x % E.p)
+    return out
+
+
+def factor_base_random(inst: ECDLPInstance, size: int, seed: int = 0) -> list[int]:
+    """Random on-curve x-coordinates (the null / control base)."""
+    return build_factor_base(inst, size, seed)
+
+
+def factor_base_interval(inst: ECDLPInstance, size: int, start: int = 0) -> list[int]:
+    """Structured: the first `size` consecutive on-curve x-coordinates from `start`."""
+    E = inst.curve()
+    xs: list[int] = []
+    x = start
+    while len(xs) < size and x < start + 200 * size + 2000:
+        if E.lift_x(x % E.p) is not None:
+            xs.append(x % E.p)
+        x += 1
+    return xs
+
+
+def factor_base_ap(inst: ECDLPInstance, size: int, step: int = 3,
+                   start: int = 1) -> list[int]:
+    """Structured: on-curve x-coordinates drawn from an arithmetic progression."""
+    E = inst.curve()
+    xs: list[int] = []
+    k = 0
+    while len(xs) < size and k < 200 * size + 2000:
+        x = (start + k * step) % E.p
+        if E.lift_x(x) is not None and x not in xs:
+            xs.append(x)
+        k += 1
+    return xs
+
+
+def measure_yield(inst: ECDLPInstance, factor_base_xs: list[int],
+                  num_targets: int, seed: int = 0) -> tuple[float, int, dict | None]:
+    """Fraction of `num_targets` random on-curve targets that decompose over the base.
+
+    Returns (yield, decompositions_found, one_certificate_or_None). Targets are
+    deterministic in (inst.seed, seed). Every counted decomposition is verified
+    by an exact point-sum check, and one is returned as a certificate.
+    """
+    E = inst.curve()
+    a, b, p = E.a, E.b, E.p
+    found = 0
+    example_cert = None
+    made = 0
+    j = 0
+    while made < num_targets and j < 50 * num_targets + 5000:
+        x = _seed_int(inst.seed, f"yt{seed}.{j}") % p
+        j += 1
+        R = E.lift_x(x)
+        if R is None:
+            continue
+        made += 1
+        ok, _summands, cert = _find_decomposition(E, factor_base_xs, R, a, b, p)
+        if ok:
+            found += 1
+            if example_cert is None:
+                example_cert = cert
+    y = found / made if made else 0.0
+    return y, found, example_cert
