@@ -75,6 +75,9 @@ Report:
 - goal ID and active/paused/completed status;
 - completed task IDs and verified commit IDs;
 - evidence and decision IDs, with claim boundaries;
+- knowledge entries promoted this batch (KN-* IDs), or each decision's
+  recorded `not_warranted` reason — a batch that proved something but
+  promoted nothing must say why;
 - the exact next action and why it reduces the remaining uncertainty.
 
 Never call a passing validator, a snapshot commit, or a toy result a

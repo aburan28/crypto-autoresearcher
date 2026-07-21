@@ -12,6 +12,31 @@ description: >-
 Maintain the corpus under `knowledge/`. Read `knowledge/README.md` first —
 it defines the record format, ID scheme, and provenance classes.
 
+## Promotion triggers
+
+This skill is not only for ad-hoc ingestion — it is the required back half
+of the review lifecycle. Invoke it whenever:
+
+- **A result is proven.** Every `/review-evidence` decision of `support` or
+  `reject_scoped` backed by `replicated`/`strong` evidence must promote a
+  `KN-FIND` entry (or record `not_warranted` in the decision's
+  `knowledge_promotion` field — see `templates/research-records.md`).
+  Proven negatives are findings too: a replicated scoped rejection is a
+  boundary future ideation must not re-cross.
+- **An unknown crystallizes.** An `inconclusive`/`pause` decision, a
+  red-team report, or a failed approach that leaves a precisely statable
+  question → `KN-OPEN`, citing the records that raised it.
+- **A method matures.** An instrument, solver configuration, or analysis
+  technique validated across two or more experiments → `KN-TECH`, with its
+  applicability conditions and known limits.
+- **A source is read.** A paper/preprint consulted during ideation or
+  review that is not yet in `knowledge/literature/` → `KN-LIT`.
+
+The test at the end of any review or goal batch: could a fresh agent,
+reading only `knowledge/` and the ledger, rediscover what this program has
+proven so far? If a proven claim lives only in an experiment directory,
+promote it.
+
 ## Steps
 
 1. Classify the entry:

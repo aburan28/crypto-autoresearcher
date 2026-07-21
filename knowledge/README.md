@@ -56,6 +56,25 @@ Body: summary, key claims (verified vs. reported), relevance to the
 program, and limits of applicability.
 ```
 
+## When entries get created
+
+Curation is a lifecycle obligation, not an ad-hoc activity. The binding
+trigger points (details in `/curate-knowledge` and
+`docs/task-lifecycle.md` step 9):
+
+- Every evidence-review decision fills a `knowledge_promotion` field
+  (`templates/research-records.md`). `support`/`reject_scoped` on
+  `replicated`/`strong` evidence ⇒ a `KN-FIND` entry is required; anything
+  else records why not. Proven scoped negatives are promoted like
+  positives.
+- Inconclusive outcomes that leave a precisely statable question become
+  `KN-OPEN` entries; methods validated across experiments become
+  `KN-TECH`; papers read during ideation/review become `KN-LIT`.
+
+The standing test: a fresh agent reading only `knowledge/` and the ledger
+should be able to rediscover everything this program has proven. A claim
+that lives only in an experiment directory is not yet knowledge.
+
 ## Rules
 
 - IDs are immutable and never reused.

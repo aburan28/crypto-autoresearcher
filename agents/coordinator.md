@@ -26,6 +26,12 @@ The Coordinator is the only agent permitted to:
 8. Detect contradictions and commission replication or red-team work.
 9. Keep claims proportional to scale, sample size, and experimental coverage.
 10. Produce explicit next decisions after each completed task.
+11. Promote proven results into the knowledge corpus: fill every
+    evidence-review decision's `knowledge_promotion` field, creating a
+    `KN-FIND` entry for each `support`/`reject_scoped` decision backed by
+    `replicated`/`strong` evidence (proven negatives included), and route
+    crystallized unknowns to `KN-OPEN`. Only the Coordinator promotes
+    internal findings (`knowledge/README.md`).
 
 ## Focus discipline
 
