@@ -88,3 +88,27 @@ proved stepping-stones and a genuine new reframing (fine-grained complexity /
 3SUM-Indexing) that pinpoints the single crux and gives both a breakthrough
 target and a no-go target. It converts the campaign's scattered negatives into a
 directed program with a clear finish line.
+
+## 7. The collinearity bridge (sharpens the crux; unifies with incidence geometry)
+Classical fact (chord-tangent law): for E: y^2=x^3+ax+b, three points sum to the
+identity O IFF they are collinear in P^2. Consequences:
+- **Relation collection = General Position Testing (GPT).** The zero-sum triples
+  of the factor base {P_i+P_j+P_k=O} are exactly its collinear triples. Deciding
+  whether a point set contains a collinear triple is GPT, which is
+  *unconditionally* 3SUM-hard (Gajentaan-Overmars 1995). So the m=3 relation
+  search is a 3SUM-hard geometric problem in the classical (real-RAM / linear
+  decision tree) model — a cleaner, stronger hook than 3SUM-Indexing for the
+  "generic" hardness side.
+- **Why the incidence approach could not convert.** Szemeredi-Trotter / chord-
+  richness (the campaign's INC/INCB, supported_scoped) COUNT rich lines/curves,
+  but GPT-hardness says counting incidences does not yield a subquadratic
+  collinear-triple *oracle*. This explains, structurally, why INCB found a real
+  richness excess yet no speedup: incidence counts are not a decomposition oracle.
+- **Exact crux, geometric form.** A sub-rho m=3 algorithm needs a collinear-triple
+  oracle on E(F_p)-points that beats the GPT/3SUM barrier by exploiting the extra
+  algebraic structure of the cubic (the summation polynomial S_4 is the algebraic
+  encoding of "4 points, one being -R, in the collinearity/divisor relation").
+  Higher m corresponds to points lying on higher-degree plane curves (n points sum
+  to O iff cut out by a degree-n/3 curve, by Riemann-Roch) -- i.e. m-decomposition
+  is an incidence problem between V and low-degree plane curves. The whole open
+  question is whether this algebraic-incidence structure beats generic k-SUM.
