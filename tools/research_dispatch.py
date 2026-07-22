@@ -627,12 +627,44 @@ def select(
             "archive_tasks_run_in_isolation": all(
                 not is_archive(task) or len(selected) == 1 for task in selected
             ),
-            "all_artifact_paths_are_exact_and_scoped": True,
-            "archive_artifact_coverage_complete": True,
-            "completed_archive_commits_verified": True,
-            "coordinator_only_promotes_research_status": True,
-            "terminal_noncompleted_tasks_do_not_unblock_successors": True,
-            "claim_relevant_tasks_have_independent_review": True,
+            "all_artifact_paths_are_exact_and_scoped": all(
+                paths_within_scopes(task["artifact_paths"], task["write_scope"])
+                for task in queue["tasks"]
+            ),
+            "archive_artifact_coverage_complete": {
+                source_id
+                for task in queue["tasks"]
+                if is_archive(task)
+                for source_id in task["archive"]["source_task_ids"]
+            } == {
+                task["id"] for task in queue["tasks"] if not is_archive(task)
+            },
+            "completed_archive_commits_verified": all(
+                task["state"] != "completed"
+                or (task["archive"]["commit_sha"] is not None
+                    and bool(task["archive"]["path_sha256"]))
+                for task in queue["tasks"]
+                if is_archive(task)
+            ),
+            "archive_tasks_are_coordinator_owned": all(
+                task["role"] == "coordinator"
+                for task in queue["tasks"]
+                if is_archive(task)
+            ),
+            "terminal_noncompleted_tasks_do_not_unblock_successors": all(
+                all(by_id[dependency]["state"] == "completed"
+                    for dependency in task["depends_on"])
+                for task in selected
+            ),
+            "claim_relevant_tasks_have_independent_review": all(
+                any(
+                    task["id"] in successor["depends_on"]
+                    and successor["role"] in INDEPENDENT_REVIEW_ROLES
+                    for successor in queue["tasks"]
+                )
+                for task in queue["tasks"]
+                if task["review_required"]
+            ),
         },
     }
     plan["plan_sha256"] = digest(plan)
