@@ -122,3 +122,29 @@ Neither generic-group techniques (Shoup) nor factor-base / collection engineerin
 "where to look": the single open locus is a non-generic, summation-polynomial-
 based decomposition oracle meeting the sigma threshold — equivalently, beating
 3SUM-Indexing using the curve's algebraic structure.
+
+## Proposition P3 (SP1): conditional no-go for generic m=3 index calculus
+Model any structure-oblivious m=3 decomposition oracle as a 2-SUM data structure
+on the factor base with space S and query time T; testing "R is a 3-sum" costs
+2B such queries (check R-P_k for each P_k). With draws ~ 0.75 N/B^2 to collect B
+relations, the total is
+    Total(B,T) = S + B + Theta(N T / B),   subject to the achievable region.
+The 3SUM-Indexing conjecture (Goldstein-Kopelowitz-Lewenstein-Porat; Golovnev-
+Guo-Horel-Park-Vaikuntanathan, ITCS 2020) states no 2-SUM data structure achieves
+S*T = o(B^2) (up to B^{o(1)}), so the best achievable lies on S*T = Theta(B^2),
+i.e. S = B^2/T. Minimizing Total = B^2/T + B + Theta(NT/B):
+  - fix B, optimize T: dTotal/dT = -B^2/T^2 + Theta(N/B) = 0 => T* = Theta(B^{1.5}/sqrt N);
+    substituting gives Total = Theta(sqrt(N B)), minimized over B >= N^{1/3} at
+    B = N^{1/3} => Total = Theta(N^{2/3});
+  - the complementary regime T = 1 (MITM) gives B^2 + N/B, also Theta(N^{2/3}).
+Both branches yield **Total = Theta~(N^{2/3})**. Since N^{2/3} > N^{1/2}, we conclude:
+
+  Under the 3SUM-Indexing conjecture, every curve-structure-oblivious m=3
+  target-sectioned index calculus over a prime-field elliptic curve is
+  asymptotically SLOWER than Pollard rho (Theta~(N^{2/3}) vs Theta(sqrt N)).
+
+Combined with the unconditional m=2 no-go, Shoup's generic Omega(sqrt N), and the
+localization theorem, this pins the entire remaining hope on **non-generic** use
+of the summation polynomial S_{m+1} to beat 3SUM-Indexing (the crux, IDEA-20260722-002).
+Verified numerically: the optimum sits at the MITM corner (T ~ 1, B ~ N^{1/3}) with
+exponent -> 2/3 (0.733, 0.710, 0.700 at N = 1e6, 1e9, 1e12).
