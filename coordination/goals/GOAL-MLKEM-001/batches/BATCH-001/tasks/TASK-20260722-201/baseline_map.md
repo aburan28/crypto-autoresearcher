@@ -353,3 +353,7 @@ All were accessed 2026-07-22.
 * **[S29]** Luo, *Module Lattice Security (Part IV): Probabilistic Polynomial
   Quantum Attack on Module-LWE over 2-Power Cyclotomics*.
   <https://arxiv.org/abs/2605.17412>
+
+## Archival provenance
+
+This producer artifact is bound to snapshot task `TASK-20260722-202`.
