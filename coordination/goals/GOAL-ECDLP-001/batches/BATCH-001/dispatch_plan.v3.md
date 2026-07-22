@@ -6,12 +6,11 @@ Dispatch two immutable, non-originating independent review successors using the 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260722-001` | reviewer | queued | 100 | TASK-20260721-007, TASK-20260721-009 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-001/reviews/TASK-20260722-001/review_report.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-001/reviews/TASK-20260722-001/adversarial_notes.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-001/reviews/TASK-20260722-001 |
-| `TASK-20260722-002` | reviewer | queued | 95 | TASK-20260721-008, TASK-20260721-009 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-001/reviews/TASK-20260722-002/review_report.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-001/reviews/TASK-20260722-002/adversarial_notes.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-001/reviews/TASK-20260722-002 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260722-003`: dependency_not_completed:TASK-20260722-001:queued, dependency_not_completed:TASK-20260722-002:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Dispatch two immutable, non-originating independent review successors using the 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `8e32f8122e33fcb6fec489bca455561a66695ba8104eb0d85a80b47d7414061a`
+Plan SHA-256: `05201f0a0b32dca541b55c5bc37604971b3693b07c96eea520ffc572fb50c603`
