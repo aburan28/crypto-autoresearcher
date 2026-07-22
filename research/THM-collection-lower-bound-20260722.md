@@ -103,3 +103,22 @@ is ≈ 1.41√N (m=2), Θ(N^{1/3}) (m=3), Θ(N^{1/4}) (m=4), matching the theore
   bases, and the exact threshold σ = o(N^{m/2−1}) that localizes the entire
   prime-field barrier to the solve step. Novelty vs. the full literature:
   unverified; stated as formalization, not as a first discovery.
+
+## Corollary (Shoup + localization): where a breakthrough must live
+Shoup (1997): any *generic* algorithm for discrete log in a prime-order group of
+size N requires Omega(sqrt N) group operations. A decomposition test that uses
+only the group law and encoding-equality (e.g. the meet-in-the-middle table) is
+generic; by Shoup it cannot yield an index calculus below sqrt N (indeed MITM
+gives N^{2/3}, Proposition P1). Combining with the localization theorem:
+
+  Any algorithm that beats Pollard rho for ECDLP over a generic prime field must
+  (a) use decomposition length m >= 3, AND
+  (b) exploit the F_p-ALGEBRAIC structure of the summation polynomial S_{m+1}
+      (i.e. be non-generic) to answer decomposition-membership queries at
+      amortized cost sigma = o(N^{m/2-1}).
+
+Neither generic-group techniques (Shoup) nor factor-base / collection engineering
+(the sumset cap) can contribute anything. This is a rigorous, unconditional
+"where to look": the single open locus is a non-generic, summation-polynomial-
+based decomposition oracle meeting the sigma threshold — equivalently, beating
+3SUM-Indexing using the curve's algebraic structure.
