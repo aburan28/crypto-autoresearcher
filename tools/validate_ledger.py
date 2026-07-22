@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import hashlib
 import os
 import re
 import subprocess
@@ -37,6 +38,9 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
+LEGACY_LEDGER_INVENTORY = os.path.join(
+    REPO, "tools", "legacy_ledger_inventory.yaml"
+)
 
 ID_PATTERNS = {
     "research_question": re.compile(r"^RQ-[A-Z]+-\d{3}$"),
@@ -65,8 +69,9 @@ REQUIRED = {
     "experiment": ["id", "hypothesis_id", "version", "status", "metrics",
                    "budget", "success_criterion"],
     "evidence": ["id", "hypothesis_id", "run_ids", "direction", "strength",
-                 "claim_tier"],
-    "coordinator_decision": ["id", "decision", "target_ids", "decided_by"],
+                 "claim_tier", "proof_status", "proof_refs"],
+    "coordinator_decision": ["id", "decision", "target_ids",
+                             "knowledge_promotion", "decided_by"],
     "handoff": ["id", "from", "to", "objective", "budget"],
 }
 
@@ -74,28 +79,52 @@ RUN_REQUIRED_TOP = ["id", "experiment_id", "status", "code", "environment",
                     "inputs", "timing", "result"]
 
 TIER_ORDER = {"toy": 0, "medium": 1, "crypto": 2}
+PROOF_STATUSES = {"certificate", "derivation", "empirical_only",
+                  "not_applicable"}
+KNOWLEDGE_TYPES = {
+    "literature": ("literature", "KN-LIT-"),
+    "technique": ("techniques", "KN-TECH-"),
+    "internal_finding": ("findings", "KN-FIND-"),
+    "open_problem": ("open-problems", "KN-OPEN-"),
+}
+
+# These canonical records were committed before proof/promotion fields became
+# mandatory. They remain immutable and are reported as schema debt; every new
+# canonical record must use the current schema.
+PRE_V2_CANONICAL_IDS = {"EV-SEMAEV-001", "DEC-20260719-001"}
 
 
 class Ctx:
-    def __init__(self):
+    def __init__(self, legacy_paths: set[str]):
         self.errors: list[str] = []
+        self.legacy_warnings: list[str] = []
         self.ids: dict[str, str] = {}          # id -> source path
         self.records: dict[str, dict] = {}      # id -> record body
+        self.record_types: dict[str, str] = {}
         self.run_params: dict[str, dict] = {}   # run id -> inputs.parameters
+        self.knowledge: dict[str, str] = {}
+        self.legacy_paths = legacy_paths
+        self.legacy_aliases: set[str] = set()
 
-    def err(self, path: str, msg: str):
+    def err(self, path: str, msg: str, *, force: bool = False):
         # First line only: PyYAML messages span lines and embed absolute
         # paths, which would break exact-line baseline matching across hosts.
         msg = str(msg).splitlines()[0].strip()
-        self.errors.append(f"{os.path.relpath(path, REPO)}: {msg}")
+        rendered = f"{os.path.relpath(path, REPO)}: {msg}"
+        if not force and os.path.abspath(path) in self.legacy_paths:
+            self.legacy_warnings.append(rendered)
+        else:
+            self.errors.append(rendered)
 
-    def register(self, rec_id: str, path: str, body: dict):
+    def register(self, rec_id: str, path: str, body: dict, rec_type: str):
         if rec_id in self.ids:
             self.err(path, f"duplicate ID {rec_id} (also in "
-                           f"{os.path.relpath(self.ids[rec_id], REPO)})")
+                           f"{os.path.relpath(self.ids[rec_id], REPO)})",
+                     force=True)
         else:
             self.ids[rec_id] = path
             self.records[rec_id] = body
+            self.record_types[rec_id] = rec_type
 
 
 def load_yaml(path: str, ctx: Ctx):
@@ -126,10 +155,34 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
     stem = os.path.splitext(os.path.basename(path))[0]
     if stem != str(rec_id):
         ctx.err(path, f"filename stem '{stem}' != id '{rec_id}'")
-    for field in REQUIRED[rec_type]:
+        if os.path.abspath(path) in ctx.legacy_paths:
+            ctx.legacy_aliases.add(stem)
+    required = REQUIRED[rec_type]
+    if str(rec_id) in PRE_V2_CANONICAL_IDS:
+        required = [field for field in required
+                    if field not in {"proof_status", "proof_refs",
+                                     "knowledge_promotion"}]
+    for field in required:
         if body.get(field) in (None, ""):
             ctx.err(path, f"missing required field '{field}'")
-    ctx.register(str(rec_id), path, body)
+    if rec_type == "evidence" and "proof_status" in body:
+        if body["proof_status"] not in PROOF_STATUSES:
+            ctx.err(path, "proof_status must be certificate|derivation|"
+                          "empirical_only|not_applicable")
+        if not isinstance(body.get("proof_refs"), list):
+            ctx.err(path, "proof_refs must be a list")
+    if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
+        promotion = body["knowledge_promotion"]
+        if not isinstance(promotion, dict):
+            ctx.err(path, "knowledge_promotion must be a mapping")
+        else:
+            promoted = promotion.get("promoted")
+            if not isinstance(promoted, list):
+                ctx.err(path, "knowledge_promotion.promoted must be a list")
+            if promoted == [] and not promotion.get("not_warranted"):
+                ctx.err(path, "empty knowledge_promotion.promoted requires "
+                              "a nonempty not_warranted reason")
+    ctx.register(str(rec_id), path, body, rec_type)
 
 
 def check_experiment(path: str, ctx: Ctx):
@@ -153,7 +206,7 @@ def check_experiment(path: str, ctx: Ctx):
                       "approved_by"):
             if body.get(field) in (None, ""):
                 ctx.err(path, f"approved experiment has null '{field}'")
-    ctx.register(str(rec_id), path, body)
+    ctx.register(str(rec_id), path, body, "experiment")
 
 
 def check_run(path: str, ctx: Ctx):
@@ -195,7 +248,7 @@ def check_run(path: str, ctx: Ctx):
                       "discrete_log|decomposition|none")
     if rec_id:
         ctx.run_params[str(rec_id)] = (body.get("inputs") or {}).get("parameters") or {}
-        ctx.register(str(rec_id), path, body)
+        ctx.register(str(rec_id), path, body, "run")
 
 
 def tier_of_run(params: dict) -> int | None:
@@ -212,19 +265,20 @@ def tier_of_run(params: dict) -> int | None:
 
 def check_cross_refs(ctx: Ctx):
     for rec_id, body in list(ctx.records.items()):
-        if rec_id.startswith("H-"):
+        rec_type = ctx.record_types[rec_id]
+        if rec_type == "hypothesis":
             q = body.get("question_id")
-            if q and q not in ctx.ids:
+            if q and q not in ctx.ids and q not in ctx.legacy_aliases:
                 ctx.err(ctx.ids[rec_id], f"hypothesis references unknown "
                                          f"question '{q}'")
-        elif rec_id.startswith("EXP-"):
+        elif rec_type == "experiment":
             h = body.get("hypothesis_id")
-            if h and h not in ctx.ids:
+            if h and h not in ctx.ids and h not in ctx.legacy_aliases:
                 ctx.err(ctx.ids[rec_id], f"experiment references unknown "
                                          f"hypothesis '{h}'")
-        elif rec_id.startswith("EV-"):
+        elif rec_type == "evidence":
             h = body.get("hypothesis_id")
-            if h and h not in ctx.ids:
+            if h and h not in ctx.ids and h not in ctx.legacy_aliases:
                 ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                          f"hypothesis '{h}'")
             for run_id in body.get("run_ids") or []:
@@ -244,6 +298,106 @@ def check_cross_refs(ctx: Ctx):
                 ctx.err(ctx.ids[rec_id], f"claim_tier '{body.get('claim_tier')}'"
                                          f" exceeds what its runs' parameters "
                                          f"allow")
+        elif rec_type == "coordinator_decision":
+            for target_id in body.get("target_ids") or []:
+                if (str(target_id).startswith(("RQ-", "H-", "EXP-", "EV-"))
+                        and target_id not in ctx.ids
+                        and target_id not in ctx.legacy_aliases):
+                    ctx.err(ctx.ids[rec_id], f"decision references unknown "
+                                             f"target '{target_id}'")
+
+
+def load_legacy_inventory() -> dict[str, str]:
+    doc = load_yaml(LEGACY_LEDGER_INVENTORY, Ctx(set()))
+    if not isinstance(doc, dict) or doc.get("schema") != "legacy-ledger-inventory-v1":
+        raise ValueError("invalid legacy ledger inventory schema")
+    records = doc.get("records")
+    if not isinstance(records, dict):
+        raise ValueError("legacy ledger inventory records must be a mapping")
+    return {str(path): str(digest) for path, digest in records.items()}
+
+
+def check_legacy_ledger(ctx: Ctx, inventory: dict[str, str]) -> None:
+    patterns = {
+        "RQ-*.yaml": "research_question",
+        "H-*.yaml": "hypothesis",
+        "EV-*.yaml": "evidence",
+        "DEC-*.yaml": "coordinator_decision",
+    }
+    observed: set[str] = set()
+    for pattern, rec_type in patterns.items():
+        for path in sorted(glob.glob(os.path.join(REPO, "ledger", pattern))):
+            relative = os.path.relpath(path, REPO)
+            observed.add(relative)
+            expected = inventory.get(relative)
+            if expected is None:
+                ctx.err(path, "new root-level ledger record is forbidden; "
+                              "use the canonical ledger subdirectory",
+                        force=True)
+            else:
+                actual = hashlib.sha256(open(path, "rb").read()).hexdigest()
+                if actual != expected:
+                    ctx.err(path, "frozen legacy ledger record hash changed; "
+                                  "supersede it in a canonical subdirectory",
+                            force=True)
+            check_ledger_record(path, rec_type, ctx)
+    for missing in sorted(set(inventory) - observed):
+        ctx.err(os.path.join(REPO, missing),
+                "frozen legacy ledger record is missing", force=True)
+
+
+def check_knowledge_entries(ctx: Ctx) -> None:
+    for entry_type, (directory, prefix) in KNOWLEDGE_TYPES.items():
+        pattern = os.path.join(REPO, "knowledge", directory, "*.md")
+        for path in sorted(glob.glob(pattern)):
+            text = open(path, encoding="utf-8").read()
+            if not text.startswith("---"):
+                ctx.err(path, "knowledge entry is missing YAML frontmatter")
+                continue
+            try:
+                frontmatter = yaml.safe_load(text.split("---", 2)[1]) or {}
+            except yaml.YAMLError as error:
+                ctx.err(path, f"invalid knowledge frontmatter: {error}")
+                continue
+            rec_id = frontmatter.get("id")
+            stem = os.path.splitext(os.path.basename(path))[0]
+            if not isinstance(rec_id, str) or not rec_id.startswith(prefix):
+                ctx.err(path, f"knowledge id must start with {prefix}")
+                continue
+            if stem != rec_id:
+                ctx.err(path, f"filename stem '{stem}' != id '{rec_id}'")
+            if frontmatter.get("type") != entry_type:
+                ctx.err(path, f"knowledge type must be '{entry_type}'")
+            for field in ("title", "tags", "confidence", "added"):
+                if frontmatter.get(field) in (None, "", []):
+                    ctx.err(path, f"knowledge entry missing '{field}'")
+            if rec_id in ctx.knowledge:
+                ctx.err(path, f"duplicate knowledge ID {rec_id}")
+            ctx.knowledge[rec_id] = path
+            if entry_type == "internal_finding":
+                refs = frontmatter.get("internal_refs")
+                if not isinstance(refs, list) or not refs:
+                    ctx.err(path, "internal finding requires internal_refs")
+                else:
+                    for ref in refs:
+                        if ref not in ctx.ids:
+                            ctx.err(path, f"internal finding references unknown "
+                                          f"record '{ref}'")
+                if frontmatter.get("proof_status") not in PROOF_STATUSES:
+                    ctx.err(path, "internal finding requires valid proof_status")
+                if not isinstance(frontmatter.get("proof_refs"), list):
+                    ctx.err(path, "internal finding proof_refs must be a list")
+
+    for rec_id, body in ctx.records.items():
+        if ctx.record_types[rec_id] != "coordinator_decision":
+            continue
+        promotion = body.get("knowledge_promotion")
+        if not isinstance(promotion, dict):
+            continue
+        for knowledge_id in promotion.get("promoted") or []:
+            if knowledge_id not in ctx.knowledge:
+                ctx.err(ctx.ids[rec_id], "knowledge_promotion references "
+                                         f"unknown entry '{knowledge_id}'")
 
 
 def check_knowledge_index(ctx: Ctx):
@@ -291,7 +445,16 @@ def main() -> int:
                          "file exists; never grows an existing one)")
     args = ap.parse_args()
 
-    ctx = Ctx()
+    try:
+        legacy_inventory = load_legacy_inventory()
+    except (OSError, ValueError) as error:
+        print(f"FAIL: cannot load legacy ledger inventory: {error}",
+              file=sys.stderr)
+        return 1
+    legacy_paths = {os.path.abspath(os.path.join(REPO, path))
+                    for path in legacy_inventory}
+    ctx = Ctx(legacy_paths)
+    check_legacy_ledger(ctx, legacy_inventory)
     for sub, rec_type in LEDGER_DIRS.items():
         for path in sorted(glob.glob(os.path.join(REPO, "ledger", sub, "*.yaml"))):
             check_ledger_record(path, rec_type, ctx)
@@ -302,6 +465,7 @@ def main() -> int:
                                               "*", "manifest.yaml"))):
         check_run(path, ctx)
     check_cross_refs(ctx)
+    check_knowledge_entries(ctx)
     check_knowledge_index(ctx)
 
     current = set(ctx.errors)
@@ -322,6 +486,10 @@ def main() -> int:
     if suppressed:
         print(f"note: {suppressed} grandfathered legacy error(s) suppressed "
               f"by {os.path.relpath(BASELINE_PATH, REPO)}")
+    if ctx.legacy_warnings:
+        print(f"note: {len(legacy_inventory)} frozen root-level ledger records "
+              f"were indexed; {len(ctx.legacy_warnings)} legacy schema issue(s) "
+              "remain read-only")
     if stale:
         print(f"note: {len(stale)} baseline entrie(s) no longer occur; prune "
               f"with --update-baseline")
