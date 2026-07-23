@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-41 entries.
+96 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -32,12 +32,54 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-023 | Improving the Complexity of Index Calculus Algorithms in Elliptic Curves over Binary Fields | literature | reported | web | fppr index-calculus binary-field groebner first-fall-degree multi-homogeneous subexponential ecdlp complexity |
 | KN-LIT-024 | On the First Fall Degree of Summation Polynomials | literature | reported | web | kousidis-wiemers first-fall-degree summation-polynomial groebner weil-descent binary-field ecdlp complexity |
 | KN-LIT-025 | Algebraic Approaches for the Elliptic Curve Discrete Logarithm Problem over Prime Fields | literature | reported | web | petit-kosters-messeng index-calculus prime-field point-decomposition groebner ecdlp frontier |
+| KN-LIT-026 | An Algorithm for Finding the Basis Elements of the Residue Class Ring of a Zero-Dimensional Polynomial Ideal (Buchberger's thesis) | literature | established | web | groebner-basis buchberger s-polynomial elimination polynomial-system solving foundational |
+| KN-LIT-027 | A new efficient algorithm for computing Grobner bases (F4) | literature | established | web | groebner-basis f4 faugere macaulay-matrix sparse-linear-algebra solving point-decomposition |
+| KN-LIT-028 | A new efficient algorithm for computing Grobner bases without reduction to zero (F5) | literature | reported | web | groebner-basis f5 faugere signature-based regular-sequence solving point-decomposition |
+| KN-LIT-029 | On the complexity of Grobner basis computation of semi-regular overdetermined algebraic equations | literature | reported | web | degree-of-regularity semi-regular groebner-complexity solving-degree hilbert-series point-decomposition ecdlp |
+| KN-LIT-030 | Linear Representations of Finite Groups | literature | established | web | representation-theory maschke wedderburn isotypic group-algebra idempotents symmetry equivariant |
+| KN-LIT-031 | Grobner bases of ideals invariant under a commutative group - the non-modular case | literature | reported | web | groebner-basis symmetry invariant character-grading equivariant block-decomposition solving |
+| KN-LIT-032 | Tensor-Train Decomposition | literature | reported | web | tensor-train tensor-network low-rank bond-rank truncation contraction semaev |
+| KN-LIT-033 | Simulating Quantum Computation by Contracting Tensor Networks | literature | reported | web | tensor-network contraction treewidth complexity counting semaev |
+| KN-LIT-034 | Fast counting with tensor networks | literature | reported | web | tensor-network counting csp sharp-sat treewidth contraction solution-counting |
+| KN-LIT-035 | The diamond lemma for ring theory | literature | established | web | noncommutative diamond-lemma rewriting confluence normal-form groebner path-algebra |
+| KN-LIT-036 | An introduction to commutative and noncommutative Grobner bases | literature | established | web | noncommutative groebner free-algebra word-problem path-algebra quiver semi-decidable |
+| KN-LIT-037 | Small Solutions to Polynomial Equations, and Low Exponent RSA Vulnerabilities | literature | established | web | coppersmith small-roots lattice lll howgrave-graham windowed summation-polynomial |
+| KN-LIT-038 | A Sum-Product Estimate in Finite Fields, and Applications | literature | reported | web | sum-product additive-combinatorics finite-field incidence equidistribution quasirandom |
+| KN-LIT-039 | Chebotarev and his Density Theorem | literature | established | web | chebotarev density frobenius monodromy galois equidistribution summation-cover |
+| KN-LIT-040 | Hamiltonian Systems and Transformation in Hilbert Space | literature | established | web | koopman transfer-operator spectral unitary ergodic walk dlog-channel |
+| KN-LIT-041 | Faster Point Multiplication on Elliptic Curves with Efficient Endomorphisms (GLV) | literature | established | web | glv gls endomorphism scalar-multiplication equivalence-class rho-speedup baseline |
+| KN-LIT-042 | Faster Attacks on Elliptic Curve Cryptosystems | literature | established | web | pollard-rho negation automorphism equivalence-class rho-speedup baseline ecdlp |
+| KN-LIT-043 | Hardness of Computing the Most Significant Bits of Secret Keys in Diffie-Hellman and Related Schemes (Hidden Number Problem) | literature | established | web | hidden-number-problem hnp lattice cvp diffie-hellman bit-security ecdlp-adjacent cryptanalysis |
+| KN-LIT-044 | The Insecurity of (EC)DSA with Partially Known Nonces (Nguyen-Shparlinski) | literature | reported | web | ecdsa dsa nonce-leakage hidden-number-problem hnp lattice key-recovery ecdlp-adjacent cryptanalysis |
+| KN-LIT-045 | Lattice Attacks on Digital Signature Schemes | literature | reported | web | dsa ecdsa nonce-leakage lattice hidden-number-problem key-recovery ecdlp-adjacent cryptanalysis |
+| KN-LIT-046 | Factoring polynomials with rational coefficients (the LLL algorithm) | literature | established | web | lattice-reduction lll svp coppersmith cryptanalysis foundational |
+| KN-LIT-047 | Lattice basis reduction - Improved practical algorithms and solving subset sum problems (BKZ) | literature | established | web | lattice-reduction bkz enumeration korkine-zolotarev block-size security-estimate cryptanalysis |
+| KN-LIT-048 | New directions in nearest neighbor searching with applications to lattice sieving (BDGL) | literature | reported | web | lattice-sieving svp nearest-neighbor locality-sensitive-filtering cost-model security-estimate |
+| KN-LIT-049 | Generating Hard Instances of Lattice Problems (the SIS problem) | literature | established | web | sis short-integer-solution worst-case-average-case lattice post-quantum foundational adjacent |
+| KN-LIT-050 | On Lattices, Learning with Errors, Random Linear Codes, and Cryptography (the LWE problem) | literature | established | web | lwe learning-with-errors worst-case-average-case quantum-reduction lattice post-quantum foundational adjacent |
+| KN-LIT-051 | A Decade of Lattice Cryptography | literature | reported | web | survey lattice lwe sis ring-lwe post-quantum reference adjacent |
+| KN-LIT-052 | NTRU - A Ring-Based Public Key Cryptosystem | literature | established | web | ntru ring-lattice public-key encryption short-vectors post-quantum adjacent |
+| KN-LIT-053 | On Ideal Lattices and Learning with Errors over Rings (Ring-LWE) | literature | established | web | ring-lwe ideal-lattice learning-with-errors quantum-reduction structured-lattice post-quantum adjacent |
+| KN-LIT-054 | Worst-case to average-case reductions for module lattices (Module-LWE/SIS) | literature | reported | web | module-lwe module-sis module-lattice worst-case-average-case structured-lattice kyber dilithium post-quantum adjacent |
+| KN-LIT-055 | CRYSTALS-Kyber - A CCA-Secure Module-Lattice-Based KEM (ML-KEM / FIPS 203) | literature | reported | web | kyber ml-kem module-lwe kem nist fips-203 post-quantum standard adjacent |
+| KN-LIT-056 | CRYSTALS-Dilithium - A Lattice-Based Digital Signature Scheme (ML-DSA / FIPS 204) | literature | reported | web | dilithium ml-dsa module-lwe module-sis fiat-shamir-with-aborts signature nist fips-204 post-quantum standard adjacent |
+| KN-LIT-057 | Falcon - Fast-Fourier Lattice-based Compact Signatures over NTRU (FN-DSA / FIPS 206 draft) | literature | reported | web | falcon fn-dsa ntru-lattice gpv hash-and-sign signature nist fips-206 post-quantum adjacent |
+| KN-LIT-058 | Trapdoors for Hard Lattices and New Cryptographic Constructions (GPV) | literature | reported | web | gpv lattice-trapdoor preimage-sampleable hash-and-sign signature ibe post-quantum adjacent |
+| KN-LIT-059 | Fiat-Shamir with Aborts - Applications to Lattice and Factoring-Based Signatures | literature | reported | web | fiat-shamir-with-aborts rejection-sampling lattice-signature dilithium post-quantum adjacent |
+| KN-LIT-060 | Fully Homomorphic Encryption Using Ideal Lattices | literature | reported | web | fhe fully-homomorphic-encryption ideal-lattice bootstrapping post-quantum adjacent |
+| KN-LIT-061 | On the concrete hardness of Learning with Errors (the LWE estimator) | literature | reported | web | lwe-estimator concrete-hardness bit-security bkz-cost-model parameter-selection post-quantum adjacent |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
 | KN-OPEN-004 | Does support-aware (BKK / mixed-volume) elimination undercut dense resultants for prime-field Semaev systems, and at what m does Newton saturation set in? | open_problem | reported | open | bkk mixed-volume newton-polytope semaev sparse-elimination prime-field groebner open |
 | KN-OPEN-005 | Is a non-generic ECDLP representation (jets, elliptic nets, incidence reporting) generic-group-model simulable, or can it supply k-dependent relations below the birthday bound? | open_problem | reported | open | generic-group-model birthday jets elliptic-nets incidence representation prime-field ecdlp open |
 | KN-OPEN-006 | Can designed (arithmetic-progression) relation supports give a low-displacement-rank matrix whose structured solve beats generic sparse linear algebra, net of the relation-probability penalty? | open_problem | reported | open | displacement-rank structured-linear-algebra wiedemann arithmetic-progression relation-matrix prime-field index-calculus open |
+| KN-OPEN-007 | Do the bond tensors of the recursive Semaev resultant tree admit low-rank factorizations over F_p, with the recall-0.99 bond rank growing with exponent < 1 in the per-variable degree? | open_problem | reported | open | tensor-network tensor-train bond-rank semaev resultant border-rank finite-field open |
+| KN-OPEN-008 | Does a noncommutative path-algebra (quiver) word search find target-reaching ECDLP relations that the commutative subset-sum quotient misses, at lower cost or sub-birthday exponent? | open_problem | reported | open | noncommutative path-algebra quiver word-relations commutator-collapse birthday ecdlp open |
+| KN-OPEN-009 | Is the geometric monodromy of the m-th Semaev summation cover the full symmetric/wreath group for generic ordinary curves, or is there an exceptional locus with smaller monodromy giving deviant relation rates? | open_problem | reported | open | monodromy galois chebotarev semaev-cover relation-rate imprimitive exceptional-curves open |
+| KN-OPEN-010 | Can the leading spectrum of a coarse-grained transfer operator of the translation-by-P walk localize k into an interval shrinkable below sqrt(n) total cost, or does character orthogonality force localization O(1)? | open_problem | reported | open | transfer-operator koopman spectral translation-walk character-orthogonality birthday ecdlp open |
+| KN-OPEN-011 | Do lattice-reduction / Hidden-Number-Problem techniques give any advantage for the plain ECDLP (no nonce leakage), or are they confined to the partial-information / side-channel model? | open_problem | reported | open | lattice hidden-number-problem ecdlp lattice-reduction leakage-model boundary open |
+| KN-OPEN-012 | Do ideal/module lattices admit structure-exploiting (index-calculus-like) attacks beyond generic BKZ, and does the ECDLP program's structure-exploitation experience transfer? | open_problem | reported | open | ideal-lattice module-lattice ring-lwe structure-attack index-calculus cross-domain post-quantum open |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
 | KN-TECH-002 | Semaev summation polynomials | technique | established |  | semaev summation-polynomial point-decomposition index-calculus |
 | KN-TECH-003 | Point-decomposition index calculus for ECDLP | technique | established |  | index-calculus point-decomposition factor-base relations ecdlp |
@@ -48,3 +90,16 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-008 | Sparse and structured linear algebra over finite fields | technique | established |  | sparse-linear-algebra wiedemann block-wiedemann structured-gaussian-elimination displacement-rank index-calculus complexity |
 | KN-TECH-009 | Elliptic nets and elliptic divisibility sequences (EDS) | technique | reported |  | elliptic-nets elliptic-divisibility-sequence eds somos recurrence division-polynomial representation ecdlp |
 | KN-TECH-010 | Finite-field incidence bounds (Szemeredi-Trotter type) | technique | reported |  | incidence-geometry szemeredi-trotter finite-field point-line rich-lines sum-product relation-harvesting ecdlp |
+| KN-TECH-011 | Grobner bases and solving-degree complexity (Buchberger / F4 / F5) | technique | established |  | groebner-basis buchberger f4 f5 degree-of-regularity first-fall-degree solving point-decomposition ecdlp |
+| KN-TECH-012 | Isotypic (equivariant) decomposition of symmetric relation systems | technique | reported |  | representation-theory isotypic group-algebra idempotents symmetry equivariant block-decomposition semaev ecdlp |
+| KN-TECH-013 | Tensor-network / tensor-train contraction for counting and solving | technique | reported |  | tensor-network tensor-train contraction treewidth bond-rank counting semaev ecdlp |
+| KN-TECH-014 | Noncommutative Grobner bases and path algebras of quivers | technique | reported |  | noncommutative groebner path-algebra quiver diamond-lemma word-problem semi-decidable ecdlp |
+| KN-TECH-015 | Coppersmith small-root lattice methods | technique | established |  | coppersmith small-roots lattice lll howgrave-graham windowed summation-polynomial ecdlp |
+| KN-TECH-016 | Sum-product and additive-combinatorics bounds over F_p | technique | reported |  | sum-product additive-combinatorics finite-field equidistribution quasirandom incidence ecdlp |
+| KN-TECH-017 | Transfer operators and Koopman spectral methods | technique | reported |  | transfer-operator koopman spectral markov mixing walk dlog-channel ecdlp |
+| KN-TECH-018 | Endomorphism and automorphism speedups for the rho baseline (GLV/GLS, negation) | technique | established |  | endomorphism automorphism negation glv gls equivalence-class rho-speedup baseline ecdlp |
+| KN-TECH-019 | Hidden Number Problem and lattice attacks on (EC)DSA nonces | technique | established |  | hidden-number-problem hnp ecdsa dsa nonce-leakage lattice cvp key-recovery ecdlp-adjacent |
+| KN-TECH-020 | Lattice basis reduction (LLL / BKZ) and SVP/CVP algorithms | technique | established |  | lattice-reduction lll bkz svp cvp enumeration sieving root-hermite-factor cryptanalysis |
+| KN-TECH-021 | Lattice hard problems (SVP/CVP/SIS/LWE) and worst-case-to-average-case reductions | technique | established |  | svp cvp sis lwe worst-case-average-case smoothing-parameter np-hardness post-quantum adjacent |
+| KN-TECH-022 | Structured-lattice problems (ideal/module) and the NIST PQC lattice schemes | technique | reported |  | ring-lwe module-lwe ntru kyber dilithium falcon nist post-quantum structured-lattice adjacent |
+| KN-TECH-023 | Lattice trapdoors, signature paradigms, and concrete-hardness estimation | technique | reported |  | lattice-trapdoor gpv fiat-shamir-with-aborts lwe-estimator bkz-cost-model signature post-quantum adjacent |
