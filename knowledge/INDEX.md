@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-41 entries.
+43 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -32,6 +32,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-023 | Improving the Complexity of Index Calculus Algorithms in Elliptic Curves over Binary Fields | literature | reported | web | fppr index-calculus binary-field groebner first-fall-degree multi-homogeneous subexponential ecdlp complexity |
 | KN-LIT-024 | On the First Fall Degree of Summation Polynomials | literature | reported | web | kousidis-wiemers first-fall-degree summation-polynomial groebner weil-descent binary-field ecdlp complexity |
 | KN-LIT-025 | Algebraic Approaches for the Elliptic Curve Discrete Logarithm Problem over Prime Fields | literature | reported | web | petit-kosters-messeng index-calculus prime-field point-decomposition groebner ecdlp frontier |
+| KN-LIT-026 | Thorns in Polynomial Convolution | literature | reported | full_text | ml-kem polynomial-convolution decryption-failure correlation large-deviations canonical-embedding failure-oracle |
+| KN-LIT-027 | On Reduction Probability Models in Lattice Sieving | literature | reported | full_text | ml-kem lattice-sieving reduction-probability sphere-model ball-model cost-estimation memory |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
