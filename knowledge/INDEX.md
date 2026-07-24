@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-126 entries.
+127 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -133,3 +133,4 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-027 | CSIDH commutative class-group action and the quantum hidden-shift attack | technique | established |  | csidh class-group-action commutative hidden-shift kuperberg quantum volcano isogeny adjacent |
 | KN-TECH-028 | Endomorphism rings, the Deuring correspondence, KLPT and SQIsign | technique | reported |  | deuring endomorphism-ring quaternion maximal-order klpt sqisign signature isogeny adjacent |
 | KN-TECH-029 | Supersingular isogeny-problem algorithms (classical and quantum path-finding) | technique | reported |  | isogeny-problem path-finding meet-in-the-middle claw-finding quantum delfs-galbraith cost-model isogeny adjacent |
+| KN-TECH-030 | Outcome-precedence design for differential-conformance protocols requires a baseline-invisible positive control | technique | reported |  | experiment-design differential-testing conformance-testing outcome-classification positive-control generator-adequacy falsifiability methodology ml-kem defensive |
