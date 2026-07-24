@@ -6,11 +6,10 @@ Execute and independently challenge the frozen EXP-MLKEM-002 direct comparison-p
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-227` | coordinator | queued | 95 | TASK-20260724-226 | coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/archives/TASK-20260724-227/snapshot-receipt.json | coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/archives/TASK-20260724-227 |
+| `TASK-20260724-228` | executor | queued | 90 | TASK-20260724-227 | experiments/EXP-MLKEM-002/execution-report.yaml | experiments/EXP-MLKEM-002 |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-228`: dependency_not_completed:TASK-20260724-227:queued
 - `TASK-20260724-229`: dependency_not_completed:TASK-20260724-228:queued
 - `TASK-20260724-230`: dependency_not_completed:TASK-20260724-228:queued, dependency_not_completed:TASK-20260724-229:queued
 - `TASK-20260724-231`: dependency_not_completed:TASK-20260724-228:queued, dependency_not_completed:TASK-20260724-229:queued
@@ -29,4 +28,4 @@ Execute and independently challenge the frozen EXP-MLKEM-002 direct comparison-p
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `4d9dca2ad048bc7ed0ec90517c245d6767b921abfe577f7d2a23a56df82195cd`
+Plan SHA-256: `fc6f241d64331ee6fa0ed61ed3ba757ececcfd59d442e18eeaffd56a4e6792b7`
