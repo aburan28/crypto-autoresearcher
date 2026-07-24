@@ -1,29 +1,30 @@
-## Handoff: SGCP V16 exact-commit review closeout
+## Handoff: SGCP V17 no-run raw-path grammar repair
 
 ### Claim or task
 
-Preserve the exact-commit V16 reviews and repair their raw-path grammar,
-finite-control, current-state binding, and governance-manifest findings without
+Obtain fresh exact-commit reviews of the validated V17 finite raw-path grammar,
+current-state controls, and non-self-referential review-surface binding without
 creating a generated curve-family density row, canonical matrix, runner,
 launch plan, or run.
 
 ### Status
 
-`NEGATIVE RESULT` for V16 launch-plan readiness. The research claim remains
-`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
-Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
+`OBSERVATION` for the validated V17 no-run implementation; exact-commit review
+is pending. The research claim remains `HYPOTHESIS`, `TOY-EVIDENCE`,
+`MODEL-BOUND`, and `NOVELTY-UNVERIFIED`. Launch-plan design and execution remain
+`NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Assumptions
 
-- The V16 reviews are static inspections of exact commit
-  `d8ea562f1890ef07fd48b2bfeef41289599575e9`, tree
-  `5e015c30df3aaae68aa9d6d830fea8c6221280c1`; they did not rerun historical
-  tests, validators, producer, verifier, runner, or experiment.
-- Output-path semantics are host-language and POSIX sensitive. On the
-  controlled runtime, exactly two leading separators form a distinct `//`
-  anchor, while ordinary dot components and internal repeated separators
-  normalize as aliases and three or more leading separators collapse to `/`.
-- V16 receipt attribution and reconciliation retain their controlled-workspace,
+- V16 theory and accounting issued scoped `GO`, but red team issued `REVISE`;
+  exact coordinator decision `DEC-SGCP-EMBED-002-016` controls.
+- Output-path semantics are host-language and POSIX sensitive. V17's finite
+  grammar is limited to the controlled POSIX runtime.
+- A preconstructed `Path` cannot preserve terminal `/` or terminal `/.`;
+  exact-string controls classify those forms before `Path` construction.
+- Three-or-more leading separators collapse to the ordinary root anchor on the
+  controlled runtime. Controls cover three, four, and seven.
+- Receipt attribution and reconciliation retain their controlled-workspace,
   ordinary synchronous exception, unkeyed receipt, and sequential snapshot
   boundaries.
 - Exactly three transient noncanonical legacy semantic rows at B=4,6,8 remain
@@ -34,48 +35,44 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Evidence so far
 
-- Theory and accounting issued scoped `GO`, but red team issued `REVISE`;
-  `decision-v16.json` keeps launch-plan design and execution unauthorized.
-- All nine committed V16 artifact hashes match exact Git bytes, and independent
-  arithmetic reproduces `480/112/336/218/4218`.
-- No containment escape, accounting defect, mathematical change, budget
-  widening, generated curve-family density-row route, or official run route
-  was found.
-- V16 rejects the distinct POSIX `//` anchor and explicit parent traversal
-  before absolute normalization in public path admission, the standalone
-  receipt parser, and the private descriptor walker.
-- The enumerated absolute, dot, internal-double, exact-three-leading, combined
-  raw-alias, exact-double, parent, root, and outside controls hold, including
-  accepted production and standalone attribution through the listed aliases.
-- Production writer, status, and private descriptor traversal independently
-  reject a symlinked parent.
-- Producer and verifier emit V16; V1-V15 schemas reject before semantic row
+- Producer and verifier emit V17; V1-V16 schemas reject before semantic row
   verification. Contract, specification, ledger, producer, and verifier agree
-  on version 16.
-- The exact completed operation vector remains `480/112/336/218/4218`.
-- The focused, record/index, and repository-wide unittest-discover receipts are
-  frozen in `development-test-log-v16.md`; the broad result excludes the 27
-  module-level pytest-style functions.
-- V16 overclaims its finite table as covering every path spelling. It does not
-  classify terminal separators, terminal dot components, relative paths,
-  custom `os.PathLike` objects, four-or-more leading separators, empty strings,
-  null bytes, or byte-valued path-like inputs.
-- Converting a raw string to `Path` erases terminal separators before admission,
-  while relative admission depends on an unstated process working directory.
-- The nine-file digest table is correct for its listed files but is not a
-  complete governance, evidence, runner, schema, or approval-gate manifest.
-- No generated V16 curve-family density row, canonical matrix, runner, launch
+  on version 17.
+- Exact `str`, `pathlib.Path`, custom exact-string `os.PathLike`, internal dot
+  and repeated-separator aliases, and three/four/seven-leading representatives
+  are admitted subject to normalized containment.
+- Bytes, byte-valued path-like objects, string subclasses, unsupported/null
+  objects, empty strings, NUL-bearing strings, relative strings, terminal `/`,
+  terminal `/.`, explicit `..`, exact leading `//`, root, and outside paths
+  reject before publication.
+- The focused table exercises each class through output admission,
+  receipt-path, status, standalone status, writer, and direct descriptor
+  traversal, and checks that rejected candidate destinations are not created.
+- Publication through the combined raw alias is attributed through every
+  admitted spelling by production and standalone status.
+- `review-surface-manifest-v17.json` inventories 179 path names with SHA-256
+  `bc8034d20ac3d092270d749b6cb363df4f8f4531bccc0dd9a6616120f51de952`.
+  It contains no predicted commit/tree and delegates byte binding to the exact
+  Git tree independently verified by each reviewer.
+- The manifest covers the constitution, roadmap/build metadata, ledgers,
+  schemas, harness core/runner, repository tests, inherited SGCP controls, and
+  the complete static V17 experiment record tree before review outputs.
+- The exact completed operation vector remains `480/112/336/218/4218`; no
+  curve, predicate, compiler, optimizer, gate, threshold, reservation formula,
+  or budget changed.
+- No generated V17 curve-family density row, canonical matrix, runner, launch
   plan, or run exists. Historical V1 development artifacts remain historical.
+- Focused, validator/index, and repository unittest-discover receipts are
+  recorded in `development-test-log-v17.md`.
 
 ### Failure modes
 
-- Treating a finite path table as exhaustive over raw POSIX and `os.PathLike`
-  spellings.
-- Treating `Path` normalization as preserving terminal-separator semantics.
-- Allowing relative admission to depend on an unstated process working
-  directory.
-- Treating nine source hashes as a complete governance or launch manifest.
-- Treating unittest discovery as every test framework in the repository.
+- Treating the finite grammar as a portability theorem outside the controlled
+  POSIX runtime.
+- Treating path-name hashing as byte attestation; only the exact Git tree binds
+  bytes.
+- Treating a matching unkeyed receipt as authentication against hostile
+  same-user mutation.
 - A failed pre-receipt publication can leave an unaccepted, non-reusable orphan
   or malformed receipt.
 - `BaseException` or process interruption can prevent a success return after a
@@ -88,32 +85,23 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Next concrete action
 
-Implement one no-run V17 defining a finite raw path grammar before
-normalization, extending the path and current-state controls, and adding a
-non-self-referential review-surface manifest rooted in exact Git objects.
-Preserve every mathematical byte and `maximum_runs=0`, then obtain fresh
-exact-commit review.
+Obtain fresh independent read-only theory, accounting, and red-team reviews of
+the exact Git commit and tree containing this handoff. Even three scoped `GO`
+decisions could authorize only a separate hash-complete launch-plan design, not
+execution.
 
 ### Artifact paths
 
-- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v15.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v15.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v15.md`
-- `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v15.json`
-- `experiments/EXP-SGCP-EMBED-002/decision-v15.json`
-- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v16.json`
-- `experiments/EXP-SGCP-EMBED-002/revision-response-v16.md`
-- `experiments/EXP-SGCP-EMBED-002/development-test-log-v16.md`
-- `experiments/EXP-SGCP-EMBED-002/source-self-review-v16.md`
 - `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v16.md`
 - `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v16.md`
 - `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v16.md`
 - `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v16.json`
 - `experiments/EXP-SGCP-EMBED-002/decision-v16.json`
-- `experiments/EXP-SGCP-EMBED-002/development-test-log-v15.md`
-- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v15.json`
-- `experiments/EXP-SGCP-EMBED-002/revision-response-v15.md`
-- `experiments/EXP-SGCP-EMBED-002/source-self-review-v15.md`
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v17.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v17.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v17.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v17.md`
+- `experiments/EXP-SGCP-EMBED-002/review-surface-manifest-v17.json`
 - `experiments/EXP-SGCP-EMBED-002/hypothesis.json`
 - `experiments/EXP-SGCP-EMBED-002/specification.json`
 - `experiments/EXP-SGCP-EMBED-002/contract.md`
