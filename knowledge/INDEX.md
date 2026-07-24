@@ -3,10 +3,12 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-125 entries.
+127 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
+| KN-FIND-001 | Decomposition-yield conservation — factor-base geometry cannot change mean yield, only redistribute it | internal_finding | established |  | index-calculus factor-base decomposition-yield coverage point-decomposition conservation ecdlp toy-scale |
+| KN-FIND-002 | Rare-event density gates are settled exactly by fibering over solutions — and exactness does not protect against formalisation error | internal_finding | established |  | methodology lifting xedni function-field elliptic-surface rare-event exact-enumeration experiment-design ecdlp toy-scale |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
