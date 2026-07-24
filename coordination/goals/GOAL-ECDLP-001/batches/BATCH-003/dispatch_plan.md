@@ -6,13 +6,11 @@ Design and independently review one frozen toy validation protocol under certifi
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-301` | idea-generator | queued | 100 | - | coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260724-301/toy_validation_protocol.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260724-301/fixture_schedule_verifier_bindings.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260724-301 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-302`: dependency_not_completed:TASK-20260724-301:queued
-- `TASK-20260724-303`: dependency_not_completed:TASK-20260724-301:queued, dependency_not_completed:TASK-20260724-302:queued
-- `TASK-20260724-304`: dependency_not_completed:TASK-20260724-303:queued
+None.
 
 ## Dispatch Gates
 
@@ -27,4 +25,4 @@ Design and independently review one frozen toy validation protocol under certifi
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b7ffec910aab06f789ee7fb3f1677648d77d282edc9f7251e9ba5e0613481d99`
+Plan SHA-256: `236615a701c8f73310be9adee45e966c227cdc67802bec1449af6e0c34b1be89`
