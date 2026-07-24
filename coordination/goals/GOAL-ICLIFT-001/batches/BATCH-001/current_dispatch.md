@@ -6,12 +6,11 @@ Close the two remaining open measurement routes on the index-calculus and liftin
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-227` | coordinator | queued | 95 | TASK-20260724-226 | coordination/goals/GOAL-ICLIFT-001/batches/BATCH-001/archives/TASK-20260724-227/snapshot-receipt.json | coordination/goals/GOAL-ICLIFT-001/batches/BATCH-001/archives/TASK-20260724-227 |
+| `TASK-20260724-228` | executor | queued | 90 | TASK-20260724-227 | experiments/EXP-FB3-001/analysis.md, experiments/EXP-FB3-001/conservation.md, experiments/EXP-FB3-001/execution-report.yaml | experiments/EXP-FB3-001/implementation, experiments/EXP-FB3-001/runs, experiments/EXP-FB3-001/analysis.md, experiments/EXP-FB3-001/conservation.md, experiments/EXP-FB3-001/execution-report.yaml |
+| `TASK-20260724-229` | executor | queued | 90 | TASK-20260724-227 | experiments/EXP-XEDN-002/analysis.md, experiments/EXP-XEDN-002/derivation.md, experiments/EXP-XEDN-002/execution-report.yaml | experiments/EXP-XEDN-002/implementation, experiments/EXP-XEDN-002/runs, experiments/EXP-XEDN-002/analysis.md, experiments/EXP-XEDN-002/derivation.md, experiments/EXP-XEDN-002/execution-report.yaml |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-228`: dependency_not_completed:TASK-20260724-227:queued
-- `TASK-20260724-229`: dependency_not_completed:TASK-20260724-227:queued
 - `TASK-20260724-230`: dependency_not_completed:TASK-20260724-228:queued
 - `TASK-20260724-231`: dependency_not_completed:TASK-20260724-229:queued
 - `TASK-20260724-232`: dependency_not_completed:TASK-20260724-228:queued, dependency_not_completed:TASK-20260724-230:queued
@@ -33,4 +32,4 @@ Close the two remaining open measurement routes on the index-calculus and liftin
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `15e1970a38c579ba8af8bde9e089c0680ca03fad002b108ccf3f73f57cb68a89`
+Plan SHA-256: `ac01da89006de764cd6f246bad2782a6baa83f1d4945ea6e1460068bd4c5d740`
