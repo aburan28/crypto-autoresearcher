@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import contextvars
 import hashlib
 import itertools
 import json
@@ -30,8 +31,8 @@ MODULE = runpy.run_path(str(SOURCE))
 VERIFIER_SOURCE = SOURCE.with_name("verify_sgcp_embed_family.py")
 VERIFIER = runpy.run_path(str(VERIFIER_SOURCE))
 _RAW_VERIFY_DENSITY_ROW_FOR_TESTS = VERIFIER["_verify_density_row_for_tests"]
-_RAW_VERIFY_V12_DOCUMENT_FOR_TESTS = VERIFIER[
-    "_verify_v12_document_value_for_tests"
+_RAW_VERIFY_V13_DOCUMENT_FOR_TESTS = VERIFIER[
+    "_verify_v13_document_value_for_tests"
 ]
 
 
@@ -39,13 +40,15 @@ _RAW_VERIFY_V12_DOCUMENT_FOR_TESTS = VERIFIER[
 def verifier_path_test_context():
     verifier_globals = _RAW_VERIFY_DENSITY_ROW_FOR_TESTS.__globals__
     state = verifier_globals["_VerificationState"](
-        path_permit=verifier_globals["_PATH_VERIFICATION_PERMIT"]
+        path_permit=verifier_globals["_PATH_VERIFICATION_PERMIT"],
+        owner_thread_id=threading.get_ident(),
     )
     active_state = verifier_globals["_ACTIVE_VERIFICATION_STATE"]
     token = active_state.set(state)
     try:
         yield state
     finally:
+        state.closed = True
         active_state.reset(token)
 
 
@@ -58,12 +61,12 @@ def verify_density_row_for_test(
         return _RAW_VERIFY_DENSITY_ROW_FOR_TESTS(row, maximum_nodes, scope)
 
 
-def verify_v12_document_for_test(
+def verify_v13_document_for_test(
     document: object,
     maximum_nodes: object,
 ) -> tuple[list[str], list[dict[str, object]]]:
     with verifier_path_test_context():
-        return _RAW_VERIFY_V12_DOCUMENT_FOR_TESTS(document, maximum_nodes)
+        return _RAW_VERIFY_V13_DOCUMENT_FOR_TESTS(document, maximum_nodes)
 
 
 def exhaustive_graph(
@@ -732,7 +735,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                         (curve.p, curve.a, curve.b),
                     )
 
-    def test_v12_public_generated_construction_is_gated_before_row_math(self) -> None:
+    def test_v13_public_generated_construction_is_gated_before_row_math(self) -> None:
         producer_globals = MODULE["build_density_row"].__globals__
         original_generated_control = producer_globals["_generated_curve_for_controls"]
         original_factor_base = producer_globals["factor_base"]
@@ -1096,8 +1099,8 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     )
                 )
 
-    def test_v12_discloses_exact_transient_legacy_control_scope(self) -> None:
-        amendment_path = SOURCE.parents[1] / "protocol-amendment-v12.json"
+    def test_v13_discloses_exact_transient_legacy_control_scope(self) -> None:
+        amendment_path = SOURCE.parents[1] / "protocol-amendment-v13.json"
         amendment = json.loads(amendment_path.read_text(encoding="ascii"))[
             "protocol_amendment"
         ]
@@ -1142,7 +1145,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             _, collisions = MODULE["evaluate_family"](curve, factors, family)
             self.assertEqual(graph_feasible, not collisions)
 
-    def test_v12_legacy_direct_row_api_is_disabled_before_math(self) -> None:
+    def test_v13_legacy_direct_row_api_is_disabled_before_math(self) -> None:
         row = copy.deepcopy(self.transient_legacy_control_rows[4])
         bad_digest = copy.deepcopy(row)
         bad_digest["row_sha256"] = "0" * 64
@@ -1591,7 +1594,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
         self.assertFalse(report["valid"])
         self.assertTrue(
-            any("more keys than the V12 source schema" in error for error in report["errors"])
+            any("more keys than the V13 source schema" in error for error in report["errors"])
         )
 
         nested = copy.deepcopy(self.frozen_density_row)
@@ -1603,7 +1606,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertTrue(
             any(
-                "individual rejection[0] has more keys than the V12 source schema"
+                "individual rejection[0] has more keys than the V13 source schema"
                 in error
                 for error in report["errors"]
             )
@@ -1668,7 +1671,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             )
         )
 
-    def test_v12_exact_types_reject_json_equality_aliases(self) -> None:
+    def test_v13_exact_types_reject_json_equality_aliases(self) -> None:
         mutations = (
             (
                 "zero_to_false",
@@ -1755,7 +1758,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             report["errors"],
         )
 
-    def test_v12_type_checker_rejects_every_frozen_scalar_type_substitution(self) -> None:
+    def test_v13_type_checker_rejects_every_frozen_scalar_type_substitution(self) -> None:
         scalar_paths = []
 
         def visit(value, path=()):
@@ -1789,12 +1792,12 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             else:
                 continue
             target[path[-1]] = replacement
-            errors = VERIFIER["v12_row_type_errors"](mutated)
+            errors = VERIFIER["v13_row_type_errors"](mutated)
             self.assertTrue(errors, path)
             checked += 1
         self.assertGreater(checked, 1000)
 
-    def test_v12_preflight_returns_invalid_receipts_for_red_team_crash_cases(self) -> None:
+    def test_v13_preflight_returns_invalid_receipts_for_red_team_crash_cases(self) -> None:
         mutations = []
 
         truncated_caps = copy.deepcopy(self.frozen_density_row)
@@ -1856,7 +1859,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                 )
                 document["rows"] = [mutated]
                 resign_document(document)
-                document_errors, document_reports = verify_v12_document_for_test(
+                document_errors, document_reports = verify_v13_document_for_test(
                     document, 100000
                 )
                 self.assertTrue(document_errors)
@@ -1866,7 +1869,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     document_errors,
                 )
 
-    def test_v12_verifier_entrypoints_are_total_with_explicit_ceilings(self) -> None:
+    def test_v13_verifier_entrypoints_are_total_with_explicit_ceilings(self) -> None:
         missing_scope = verify_density_row_for_test(
             self.frozen_density_row, 100000
         )
@@ -1924,7 +1927,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     "frozen_fixture",
                     MODULE["frozen_parameters"](100000),
                 )
-                errors, reports = verify_v12_document_for_test(
+                errors, reports = verify_v13_document_for_test(
                     document, maximum_nodes
                 )
                 self.assertTrue(errors)
@@ -1952,7 +1955,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             self.assertFalse(report["valid"])
             self.assertTrue(any("duplicate key" in error for error in report["errors"]))
 
-    def test_v12_overlong_reflected_path_returns_bounded_invalid_report(self) -> None:
+    def test_v13_overlong_reflected_path_returns_bounded_invalid_report(self) -> None:
         path = Path("x" * (VERIFIER["MAXIMUM_VERIFICATION_REPORT_BYTES"] + 1))
         report = VERIFIER["verify_document"](path, False)
         self.assertFalse(report["valid"])
@@ -1962,7 +1965,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             VERIFIER["MAXIMUM_VERIFICATION_REPORT_BYTES"],
         )
 
-    def test_v12_snapshot_hash_and_parse_are_bound_to_the_same_bytes(self) -> None:
+    def test_v13_snapshot_hash_and_parse_are_bound_to_the_same_bytes(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -1996,7 +1999,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             )
             self.assertEqual(report["input_document_sha256"], document["document_sha256"])
 
-    def test_v12_source_hash_is_diagnostic_and_not_reopened_for_reporting(self) -> None:
+    def test_v13_source_hash_is_diagnostic_and_not_reopened_for_reporting(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2025,7 +2028,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertIn("not executed-code attestation", report["verifier_source_hash_scope"])
         self.assertIn("parent path components", report["input_symlink_policy"])
 
-    def test_v12_diagnostics_are_count_and_byte_bounded(self) -> None:
+    def test_v13_diagnostics_are_count_and_byte_bounded(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2056,7 +2059,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
         self.assertNotIn(b"secret_", report_bytes)
 
-    def test_v12_reflected_document_digest_is_sanitized_before_reporting(self) -> None:
+    def test_v13_reflected_document_digest_is_sanitized_before_reporting(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2075,7 +2078,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
         self.assertNotIn(b"secret", VERIFIER["stable_bytes"](report))
 
-    def test_v12_serialized_report_ceiling_covers_integrity_fields(self) -> None:
+    def test_v13_serialized_report_ceiling_covers_integrity_fields(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2104,7 +2107,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
         self.assertEqual(supplied_size, len(VERIFIER["stable_bytes"](pre_integrity_payload)))
 
-    def test_v12_source_collection_bounds_precede_generic_traversal(self) -> None:
+    def test_v13_source_collection_bounds_precede_generic_traversal(self) -> None:
         baseline = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2170,7 +2173,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         mutations.append(
             (
                 nested_dictionary,
-                "factor-base record has more keys than the V12 source schema",
+                "factor-base record has more keys than the V13 source schema",
             )
         )
 
@@ -2179,7 +2182,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         invalid_B["rows"][0]["private_audit"]["expansion"] = {
             "nested": [[0] * 1000]
         }
-        mutations.append((invalid_B, "row.B is outside the V12 source range"))
+        mutations.append((invalid_B, "row.B is outside the V13 source range"))
 
         canonical_gate = copy.deepcopy(baseline)
         canonical_gate["scope"] = "canonical"
@@ -2207,7 +2210,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         verifier_globals = VERIFIER["verify_document"].__globals__
         originals = {
             name: verifier_globals[name]
-            for name in ("bounded_json_errors", "_verify_v12_document_value_unchecked")
+            for name in ("bounded_json_errors", "_verify_v13_document_value_unchecked")
         }
         calls = []
 
@@ -2240,7 +2243,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             verifier_globals.update(originals)
         self.assertEqual(calls, [])
 
-    def test_v12_rejects_nonregular_and_symlink_inputs_before_parsing(self) -> None:
+    def test_v13_rejects_nonregular_and_symlink_inputs_before_parsing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             regular = root / "regular.json"
@@ -2295,7 +2298,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             )
             self.assertEqual(raw, b"{}")
 
-    def test_v12_snapshot_uses_one_exact_buffer_at_the_size_boundary(self) -> None:
+    def test_v13_snapshot_uses_one_exact_buffer_at_the_size_boundary(self) -> None:
         snapshot_globals = VERIFIER["read_input_snapshot"].__globals__
         original_limit = snapshot_globals["MAXIMUM_INPUT_BYTES"]
         original_readv = snapshot_globals["os"].readv
@@ -2333,7 +2336,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertEqual(read_calls, calls_after_exact)
         self.assertEqual(set(backing_ids), {id(raw)})
 
-    def test_v12_snapshot_buffer_is_cleared_before_json_object_construction(self) -> None:
+    def test_v13_snapshot_buffer_is_cleared_before_json_object_construction(self) -> None:
         raw = bytearray(b'{"value":1}')
         strict_globals = VERIFIER["strict_json_load"].__globals__
         original_loads = strict_globals["json"].loads
@@ -2353,7 +2356,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertEqual(observed, [(str, 0)])
         self.assertEqual(raw, bytearray())
 
-    def test_v12_lexical_preflight_rejects_amplification_before_json_load(self) -> None:
+    def test_v13_lexical_preflight_rejects_amplification_before_json_load(self) -> None:
         strict_globals = VERIFIER["strict_json_load"].__globals__
         original_loads = strict_globals["json"].loads
         original_limits = {
@@ -2402,7 +2405,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             strict_globals["json"].loads = original_loads
         self.assertEqual(load_calls, 0)
 
-    def test_v12_registered_preflight_blocks_huge_bits_and_row_amplification(self) -> None:
+    def test_v13_registered_preflight_blocks_huge_bits_and_row_amplification(self) -> None:
         mutated = copy.deepcopy(self.frozen_density_row)
         mutated["curve"]["bits"] = 40
         refresh_density_accounting(mutated)
@@ -2437,7 +2440,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         )
         document["rows"] = [mutated]
         resign_document(document)
-        document_globals = _RAW_VERIFY_V12_DOCUMENT_FOR_TESTS.__globals__
+        document_globals = _RAW_VERIFY_V13_DOCUMENT_FOR_TESTS.__globals__
         original_row_verifier = document_globals["_verify_density_row_unchecked"]
         row_calls = 0
 
@@ -2448,11 +2451,11 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
 
         document_globals["_verify_density_row_unchecked"] = forbidden_row_verifier
         try:
-            errors, reports = verify_v12_document_for_test(document, 100000)
+            errors, reports = verify_v13_document_for_test(document, 100000)
             amplified = copy.deepcopy(document)
             amplified["rows"] = [copy.deepcopy(mutated) for _ in range(12)]
             resign_document(amplified)
-            amplified_errors, amplified_reports = verify_v12_document_for_test(
+            amplified_errors, amplified_reports = verify_v13_document_for_test(
                 amplified, 100000
             )
         finally:
@@ -2463,7 +2466,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         self.assertEqual(amplified_reports, [])
         self.assertEqual(row_calls, 0)
 
-    def test_v12_static_optimizer_admission_precedes_curve_and_solver_work(self) -> None:
+    def test_v13_static_optimizer_admission_precedes_curve_and_solver_work(self) -> None:
         mutations = []
 
         wrong_objective = copy.deepcopy(self.frozen_density_row)
@@ -2549,7 +2552,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             verifier_globals.update(originals)
         self.assertEqual(calls, [])
 
-    def test_v12_claims_and_nested_integrity_precede_reservation_and_math(self) -> None:
+    def test_v13_claims_and_nested_integrity_precede_reservation_and_math(self) -> None:
         baseline = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2614,7 +2617,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             verifier_globals.update(originals)
         self.assertEqual(calls, [])
 
-    def test_v12_replay_budget_and_actual_phase_receipts_fail_closed(self) -> None:
+    def test_v13_replay_budget_and_actual_phase_receipts_fail_closed(self) -> None:
         over_budget = copy.deepcopy(self.frozen_density_row)
         for cell in over_budget["private_audit"]["density_frontier"]:
             cell["optimizer"]["node_cap"] = 100001
@@ -2647,7 +2650,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             "frozen_fixture",
             MODULE["frozen_parameters"](100000),
         )
-        document_globals = _RAW_VERIFY_V12_DOCUMENT_FOR_TESTS.__globals__
+        document_globals = _RAW_VERIFY_V13_DOCUMENT_FOR_TESTS.__globals__
         original_total_replay = document_globals["MAXIMUM_TOTAL_REPLAY_NODES"]
         original_row_verifier = document_globals["_verify_density_row_unchecked"]
         aggregate_row_calls = 0
@@ -2660,7 +2663,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         document_globals["MAXIMUM_TOTAL_REPLAY_NODES"] = 399999
         document_globals["_verify_density_row_unchecked"] = forbidden_aggregate_row
         try:
-            aggregate_errors, aggregate_reports = verify_v12_document_for_test(
+            aggregate_errors, aggregate_reports = verify_v13_document_for_test(
                 document, 100000
             )
         finally:
@@ -2827,7 +2830,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                 [{"name": "verifier_budget_preflight", "status": "failed"}],
             )
 
-    def test_v12_phase_receipts_match_executed_control_flow(self) -> None:
+    def test_v13_phase_receipts_match_executed_control_flow(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -2945,7 +2948,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                 )
             )
 
-    def test_v12_success_requires_complete_unit_phase_receipts(self) -> None:
+    def test_v13_success_requires_complete_unit_phase_receipts(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3001,7 +3004,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             report["errors"],
         )
 
-    def test_v12_second_cap_exceptions_preserve_partial_work_and_reservation(self) -> None:
+    def test_v13_second_cap_exceptions_preserve_partial_work_and_reservation(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3061,7 +3064,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                         report["errors"],
                     )
 
-    def test_v12_mid_function_failures_preserve_failing_cap_work(self) -> None:
+    def test_v13_mid_function_failures_preserve_failing_cap_work(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3126,7 +3129,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                         report["errors"],
                     )
 
-    def test_v12_graph_and_expansion_failures_preserve_partial_work(self) -> None:
+    def test_v13_graph_and_expansion_failures_preserve_partial_work(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3188,7 +3191,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                         report["errors"],
                     )
 
-    def test_v12_completed_graph_and_expansion_work_rejects_undercharge(self) -> None:
+    def test_v13_completed_graph_and_expansion_work_rejects_undercharge(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3267,7 +3270,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                 report["errors"],
             )
 
-    def test_v12_completed_provenance_and_predicate_counts_are_exact(self) -> None:
+    def test_v13_completed_provenance_and_predicate_counts_are_exact(self) -> None:
         rows = canonical_factor_base_transcript_rows()
         expected = VERIFIER[
             "completed_provenance_and_predicate_work_expectations"
@@ -3346,7 +3349,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                         ],
                     )
 
-    def test_v12_predicate_exception_preserves_partial_work_as_incomplete(self) -> None:
+    def test_v13_predicate_exception_preserves_partial_work_as_incomplete(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3382,7 +3385,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             )
         )
 
-    def test_v12_point_enumeration_calls_are_charged_before_failure(self) -> None:
+    def test_v13_point_enumeration_calls_are_charged_before_failure(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3473,7 +3476,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                         report["errors"],
                     )
 
-    def test_v12_actual_work_overage_invalidates_an_otherwise_valid_document(self) -> None:
+    def test_v13_actual_work_overage_invalidates_an_otherwise_valid_document(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3510,7 +3513,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             {"name": "actual_work_reservation_dominance", "status": "failed"},
         )
 
-    def test_v12_completed_work_rejects_exact_enumeration_undercharge(self) -> None:
+    def test_v13_completed_work_rejects_exact_enumeration_undercharge(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3553,7 +3556,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             {"name": "actual_work_reservation_dominance", "status": "failed"},
         )
 
-    def test_v12_ordering_contract_is_independently_frozen(self) -> None:
+    def test_v13_ordering_contract_is_independently_frozen(self) -> None:
         mutated = copy.deepcopy(self.frozen_density_row)
         mutated["public_model"]["ordering_contract"]["point_labels"] = (
             "affine labels may contain leading zeroes"
@@ -3573,7 +3576,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             "frozen_fixture",
             MODULE["frozen_parameters"](100000),
         )
-        errors, reports = verify_v12_document_for_test(document, 100000)
+        errors, reports = verify_v13_document_for_test(document, 100000)
         self.assertEqual(errors, [])
         self.assertTrue(reports[0]["valid"])
 
@@ -3593,11 +3596,11 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             }
         )
         resign_document(empty)
-        errors, _ = verify_v12_document_for_test(empty, 100000)
+        errors, _ = verify_v13_document_for_test(empty, 100000)
         self.assertTrue(errors)
         self.assertIn("canonical document must contain exactly 168 rows", errors)
 
-    def test_v12_document_exact_types_are_closed(self) -> None:
+    def test_v13_document_exact_types_are_closed(self) -> None:
         baseline = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
@@ -3618,12 +3621,12 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     target = target[component]
                 target[path[-1]] = replacement
                 resign_document(document)
-                errors, _ = verify_v12_document_for_test(
+                errors, _ = verify_v13_document_for_test(
                     document, 100000
                 )
                 self.assertTrue(errors)
 
-    def test_document_router_uses_v12_strict_path_and_rejects_every_legacy_schema(
+    def test_document_router_uses_v13_strict_path_and_rejects_every_legacy_schema(
         self,
     ) -> None:
         document = MODULE["build_document"](
@@ -4025,7 +4028,7 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             )
         )
 
-    def test_v12_internal_semantic_entrypoints_require_path_permit(self) -> None:
+    def test_v13_internal_semantic_entrypoints_require_path_permit(self) -> None:
         probes = {
             "registered curve": lambda: VERIFIER["registered_curve_bundle"](5, 101),
             "legacy row": lambda: VERIFIER["_verify_legacy_row_unchecked"]({}, 1),
@@ -4035,22 +4038,25 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             "density test wrapper": lambda: VERIFIER[
                 "_verify_density_row_for_tests"
             ]({}, 1, "frozen_fixture"),
-            "document": lambda: VERIFIER["_verify_v12_document_value_unchecked"](
+            "document": lambda: VERIFIER["_verify_v13_document_value_unchecked"](
                 {}, 1
             ),
             "document test wrapper": lambda: VERIFIER[
-                "_verify_v12_document_value_for_tests"
+                "_verify_v13_document_value_for_tests"
             ]({}, 1),
             "path worker": lambda: VERIFIER[
                 "_verify_document_with_active_path_state"
             ](Path("does-not-matter.json"), 1),
+            "path worker body": lambda: VERIFIER[
+                "_verify_document_with_active_path_state_body"
+            ](Path("does-not-matter.json"), 1, object()),
         }
         for name, probe in probes.items():
             with self.subTest(name=name):
-                with self.assertRaisesRegex(PermissionError, "path-only V12 permit"):
+                with self.assertRaisesRegex(PermissionError, "path-only V13 permit"):
                     probe()
 
-    def test_v12_actual_work_charge_is_exact_positive_integer(self) -> None:
+    def test_v13_actual_work_charge_is_exact_positive_integer(self) -> None:
         verifier_globals = VERIFIER["charge_actual_work"].__globals__
         with verifier_path_test_context() as state:
             for amount in (False, True, 0, -1, 1.0, "1", None):
@@ -4066,14 +4072,14 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             verifier_globals["charge_actual_work"]("replay_nodes", 1)
             self.assertEqual(state.actual_work["replay_nodes"], 1)
 
-    def test_v12_concurrent_verification_receipts_are_invocation_local(self) -> None:
+    def test_v13_concurrent_verification_receipts_are_invocation_local(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
             MODULE["frozen_parameters"](100000),
         )
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "frozen-v12.json"
+            path = Path(directory) / "frozen-v13.json"
             path.write_bytes(MODULE["stable_json"](document))
             baseline = VERIFIER["verify_document"](path, 100000)
             self.assertTrue(baseline["valid"], baseline["errors"])
@@ -4110,14 +4116,14 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             verifier_globals["_ACTIVE_VERIFICATION_STATE"].get()
         )
 
-    def test_v12_nested_verification_restores_outer_receipt(self) -> None:
+    def test_v13_nested_verification_restores_outer_receipt(self) -> None:
         document = MODULE["build_document"](
             [self.frozen_density_row],
             "frozen_fixture",
             MODULE["frozen_parameters"](100000),
         )
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "frozen-v12.json"
+            path = Path(directory) / "frozen-v13.json"
             path.write_bytes(MODULE["stable_json"](document))
             baseline = VERIFIER["verify_document"](path, 100000)
             verifier_globals = VERIFIER["verify_factor_base"].__globals__
@@ -4149,26 +4155,133 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             verifier_globals["_ACTIVE_VERIFICATION_STATE"].get()
         )
 
-    def test_v12_output_publication_is_descriptor_bound_and_no_overwrite(
-        self,
-    ) -> None:
+    def test_v13_exception_closes_inner_state_and_restores_outer_context(self) -> None:
+        verifier_globals = VERIFIER["verify_document"].__globals__
+        active_state = verifier_globals["_ACTIVE_VERIFICATION_STATE"]
+        outer_state = verifier_globals["_VerificationState"](
+            path_permit=verifier_globals["_PATH_VERIFICATION_PERMIT"],
+            owner_thread_id=threading.get_ident(),
+        )
+        original_worker = verifier_globals["_verify_document_with_active_path_state"]
+        observed_inner_states = []
+
+        def failing_worker(*_args, **_kwargs):
+            observed_inner_states.append(active_state.get())
+            raise RuntimeError("injected public-worker failure")
+
+        outer_token = active_state.set(outer_state)
+        verifier_globals["_verify_document_with_active_path_state"] = failing_worker
+        try:
+            with self.assertRaisesRegex(RuntimeError, "public-worker failure"):
+                VERIFIER["verify_document"](Path("unused.json"), 1)
+            self.assertIs(active_state.get(), outer_state)
+        finally:
+            verifier_globals["_verify_document_with_active_path_state"] = (
+                original_worker
+            )
+            outer_state.closed = True
+            active_state.reset(outer_token)
+
+        self.assertEqual(len(observed_inner_states), 1)
+        self.assertIsNot(observed_inner_states[0], outer_state)
+        self.assertTrue(observed_inner_states[0].closed)
+        self.assertIsNone(active_state.get())
+
+    def test_v13_reentry_and_inherited_contexts_fail_closed(self) -> None:
+        document = MODULE["build_document"](
+            [self.frozen_density_row],
+            "frozen_fixture",
+            MODULE["frozen_parameters"](100000),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "frozen-v13-reentry.json"
+            path.write_bytes(MODULE["stable_json"](document))
+            baseline = VERIFIER["verify_document"](path, 100000)
+            verifier_globals = VERIFIER["verify_factor_base"].__globals__
+            original_factor_base = verifier_globals["verify_factor_base"]
+            callback_errors = []
+            copied_contexts = []
+            callback_started = False
+
+            def verify_factor_base_with_adversarial_reentry(*args, **kwargs):
+                nonlocal callback_started
+                if not callback_started:
+                    callback_started = True
+                    try:
+                        VERIFIER["_verify_document_with_active_path_state"](
+                            path, 100000
+                        )
+                    except Exception as error:
+                        callback_errors.append(error)
+                    copied = contextvars.copy_context()
+                    copied_contexts.append(copied)
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(
+                            copied.run,
+                            VERIFIER["registered_curve_bundle"],
+                            5,
+                            101,
+                        )
+                        try:
+                            future.result(timeout=10)
+                        except Exception as error:
+                            callback_errors.append(error)
+                return original_factor_base(*args, **kwargs)
+
+            verifier_globals["verify_factor_base"] = (
+                verify_factor_base_with_adversarial_reentry
+            )
+            try:
+                outer = VERIFIER["verify_document"](path, 100000)
+            finally:
+                verifier_globals["verify_factor_base"] = original_factor_base
+
+        self.assertTrue(callback_started)
+        self.assertEqual(outer, baseline)
+        self.assertEqual(len(callback_errors), 2)
+        self.assertIsInstance(callback_errors[0], RuntimeError)
+        self.assertIn("re-entrant path verification", str(callback_errors[0]))
+        self.assertIsInstance(callback_errors[1], PermissionError)
+        self.assertIn("another thread", str(callback_errors[1]))
+        with self.assertRaisesRegex(PermissionError, "state is closed"):
+            copied_contexts[0].run(
+                VERIFIER["registered_curve_bundle"],
+                5,
+                101,
+            )
+        self.assertIsNone(
+            verifier_globals["_ACTIVE_VERIFICATION_STATE"].get()
+        )
+
+    def test_v13_output_receipt_is_descriptor_bound_and_no_overwrite(self) -> None:
         development_root = Path(VERIFIER["DEVELOPMENT_ROOT"])
         directory = Path(
-            tempfile.mkdtemp(prefix="v12-output-", dir=development_root)
+            tempfile.mkdtemp(prefix="v13-output-", dir=development_root)
         )
         try:
             successful = VERIFIER["output_path"](directory / "successful.json")
-            VERIFIER["write_json_exclusive"](successful, {"valid": True})
+            publication = VERIFIER["write_json_exclusive"](
+                successful, {"valid": True}
+            )
+            receipt = VERIFIER["publication_receipt_path"](successful)
+            self.assertTrue(publication["accepted"])
+            self.assertEqual(publication["status"], "accepted")
+            self.assertEqual(
+                VERIFIER["publication_status"](successful)["status"],
+                "accepted",
+            )
             self.assertEqual(
                 successful.read_bytes(),
                 VERIFIER["stable_bytes"]({"valid": True}) + b"\n",
             )
+            successful_receipt = receipt.read_bytes()
             with self.assertRaises(FileExistsError):
                 VERIFIER["write_json_exclusive"](successful, {"valid": False})
             self.assertEqual(
                 successful.read_bytes(),
                 VERIFIER["stable_bytes"]({"valid": True}) + b"\n",
             )
+            self.assertEqual(receipt.read_bytes(), successful_receipt)
 
             raced = VERIFIER["output_path"](directory / "raced.json")
             writer_globals = VERIFIER["write_json_exclusive"].__globals__
@@ -4185,6 +4298,10 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             finally:
                 writer_globals["_publish_no_replace"] = original_publish
             self.assertEqual(raced.read_bytes(), b"racer-owned\n")
+            self.assertEqual(
+                VERIFIER["publication_status"](raced)["status"],
+                "unaccepted_orphan",
+            )
             self.assertEqual(
                 list(directory.glob(".*.unpublished")),
                 [],
@@ -4226,6 +4343,10 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             self.assertEqual(write_calls, 2)
             interrupted_bytes = interrupted.read_bytes()
             self.assertEqual(len(interrupted_bytes), 7)
+            self.assertEqual(
+                VERIFIER["publication_status"](interrupted)["status"],
+                "unaccepted_orphan",
+            )
             with self.assertRaises(FileExistsError):
                 VERIFIER["write_json_exclusive"](
                     interrupted, {"valid": False}
@@ -4234,6 +4355,56 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             self.assertEqual(
                 list(directory.glob(".*.unpublished")),
                 [],
+            )
+
+            interrupted_receipt = VERIFIER["output_path"](
+                directory / "interrupted-receipt.json"
+            )
+            publish_calls = 0
+            write_calls = 0
+
+            def receipt_fallback_publish(*args, **kwargs):
+                nonlocal publish_calls
+                publish_calls += 1
+                if publish_calls == 2:
+                    raise OSError(
+                        writer_globals["errno"].ENOTSUP,
+                        "forced receipt fallback",
+                    )
+                parent_fd, temporary_name, destination_name = args
+                writer_globals["os"].rename(
+                    temporary_name,
+                    destination_name,
+                    src_dir_fd=parent_fd,
+                    dst_dir_fd=parent_fd,
+                )
+                return "injected_no_replace_rename", False
+
+            def partial_receipt_write(fd, payload):
+                nonlocal write_calls
+                write_calls += 1
+                if write_calls < 3:
+                    return original_write_all(fd, payload)
+                writer_globals["os"].write(fd, payload[:9])
+                raise OSError("injected interrupted receipt write")
+
+            writer_globals["_publish_no_replace"] = receipt_fallback_publish
+            writer_globals["_write_all"] = partial_receipt_write
+            try:
+                with self.assertRaisesRegex(
+                    OSError, "interrupted receipt write"
+                ):
+                    VERIFIER["write_json_exclusive"](
+                        interrupted_receipt, {"valid": True}
+                    )
+            finally:
+                writer_globals["_publish_no_replace"] = original_publish
+                writer_globals["_write_all"] = original_write_all
+            self.assertEqual(publish_calls, 2)
+            self.assertEqual(write_calls, 3)
+            self.assertEqual(
+                VERIFIER["publication_status"](interrupted_receipt)["status"],
+                "unaccepted_invalid_receipt",
             )
 
             real_parent = directory / "real-parent"
@@ -4246,6 +4417,122 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 VERIFIER["write_json_exclusive"](blocked, {"valid": True})
             self.assertFalse((real_parent / "must-not-publish.json").exists())
+
+            successful.write_bytes(b"tampered\n")
+            self.assertEqual(
+                VERIFIER["publication_status"](successful)["status"],
+                "unaccepted_receipt_mismatch",
+            )
+        finally:
+            shutil.rmtree(directory)
+
+    def test_v13_post_commit_fsync_failure_returns_accepted_with_warning(
+        self,
+    ) -> None:
+        development_root = Path(VERIFIER["DEVELOPMENT_ROOT"])
+        directory = Path(
+            tempfile.mkdtemp(prefix="v13-fsync-", dir=development_root)
+        )
+        try:
+            destination = VERIFIER["output_path"](directory / "fsync.json")
+            writer_globals = VERIFIER["write_json_exclusive"].__globals__
+            original_fsync = writer_globals["os"].fsync
+
+            def failing_directory_fsync(descriptor):
+                observed = writer_globals["os"].fstat(descriptor)
+                if writer_globals["stat"].S_ISDIR(observed.st_mode):
+                    raise OSError(writer_globals["errno"].EIO, "injected directory fsync")
+                return original_fsync(descriptor)
+
+            writer_globals["os"].fsync = failing_directory_fsync
+            try:
+                publication = VERIFIER["write_json_exclusive"](
+                    destination, {"valid": True}
+                )
+            finally:
+                writer_globals["os"].fsync = original_fsync
+
+            self.assertTrue(publication["accepted"])
+            self.assertEqual(publication["status"], "accepted")
+            self.assertEqual(
+                [warning["stage"] for warning in publication["warnings"]],
+                ["published_parent_fsync", "published_parent_fsync"],
+            )
+            self.assertTrue(
+                VERIFIER["publication_status"](destination)["accepted"]
+            )
+        finally:
+            shutil.rmtree(directory)
+
+    def test_v13_hard_link_cleanup_failure_is_accepted_and_reported(self) -> None:
+        development_root = Path(VERIFIER["DEVELOPMENT_ROOT"])
+        directory = Path(
+            tempfile.mkdtemp(prefix="v13-link-cleanup-", dir=development_root)
+        )
+        try:
+            destination = VERIFIER["output_path"](directory / "linked.json")
+            writer_globals = VERIFIER["write_json_exclusive"].__globals__
+            original_publish = writer_globals["_publish_no_replace"]
+            original_unlink = writer_globals["os"].unlink
+            cleanup_failed = False
+
+            def hard_link_publish(parent_fd, temporary_name, destination_name):
+                source_fd = writer_globals["os"].open(
+                    temporary_name,
+                    writer_globals["os"].O_RDONLY,
+                    dir_fd=parent_fd,
+                )
+                destination_fd = writer_globals["os"].open(
+                    destination_name,
+                    writer_globals["os"].O_WRONLY
+                    | writer_globals["os"].O_CREAT
+                    | writer_globals["os"].O_EXCL,
+                    0o644,
+                    dir_fd=parent_fd,
+                )
+                try:
+                    size = writer_globals["os"].fstat(source_fd).st_size
+                    payload = writer_globals["os"].read(source_fd, size)
+                    writer_globals["_write_all"](destination_fd, payload)
+                    writer_globals["os"].fsync(destination_fd)
+                finally:
+                    writer_globals["os"].close(source_fd)
+                    writer_globals["os"].close(destination_fd)
+                return "hard_link", True
+
+            def fail_first_temporary_cleanup(path, *args, **kwargs):
+                nonlocal cleanup_failed
+                if not cleanup_failed and str(path).endswith(".unpublished"):
+                    cleanup_failed = True
+                    raise OSError(
+                        writer_globals["errno"].EIO,
+                        "injected temporary unlink failure",
+                    )
+                return original_unlink(path, *args, **kwargs)
+
+            writer_globals["_publish_no_replace"] = hard_link_publish
+            writer_globals["os"].unlink = fail_first_temporary_cleanup
+            try:
+                publication = VERIFIER["write_json_exclusive"](
+                    destination, {"valid": True}
+                )
+            finally:
+                writer_globals["_publish_no_replace"] = original_publish
+                writer_globals["os"].unlink = original_unlink
+
+            self.assertTrue(cleanup_failed)
+            self.assertTrue(publication["accepted"])
+            self.assertIn(
+                "hard_link_temporary_cleanup",
+                [warning["stage"] for warning in publication["warnings"]],
+            )
+            self.assertTrue(
+                VERIFIER["publication_status"](destination)["accepted"]
+            )
+            self.assertGreaterEqual(
+                len(list(directory.glob(".*.unpublished"))),
+                1,
+            )
         finally:
             shutil.rmtree(directory)
 

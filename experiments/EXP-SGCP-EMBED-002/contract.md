@@ -1,4 +1,4 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 12
+# Experiment Contract: EXP-SGCP-EMBED-002, version 13
 
 ## Claim status
 
@@ -65,7 +65,7 @@ serialized bytes are charged inside the public model and each nested cap
 receipt.
 
 The legacy `source_recovery` boolean records sorted formal normalization only.
-Version 12 interprets source recovery through
+Version 13 interprets source recovery through
 `source_recovery_via_public_table`; it does not treat normalization as an
 inversion algorithm.
 
@@ -170,14 +170,14 @@ nonidentity EC output. These conventions are emitted as a public ordering
 contract with digest
 `8114bd7d1822578e3d1453126968964da213775c6f12f86c764413f737212359`.
 
-V12 key sets and value types are closed throughout rows, documents, summaries,
+V13 key sets and value types are closed throughout rows, documents, summaries,
 family gates, nested integrity/accounting receipts, and verification reports. JSON
 Boolean, integer, float, string, list, object, and null roles are exact. In
 particular, `false` is not integer zero, `-0.0` is not integer zero, and an
 equal-valued float is not an integer receipt. Refreshed byte and document
 digests do not excuse a type mismatch.
 
-The V12 verifier accepts only the V12 document schema. V1-V11 schemas are
+The V13 verifier accepts only the V13 document schema. V1-V12 schemas are
 explicitly rejected without row verification. Each receipt contains an ordered
 phase ledger from actual control flow. Aggregate row/cap phases carry expected,
 completed, and failed unit counts and become independent checks only after all
@@ -191,8 +191,12 @@ wrappers cannot create that permit. Repository tests deliberately inject the
 internal sentinel through test-file introspection, are non-evidence, and create
 no exported permit factory. Every public path call creates fresh actual-work,
 reservation, and registered-curve-cache state and restores any outer state on
-return. This isolates concurrent and nested public calls, but it is not a
-hostile same-process Python sandbox. Public producer `generated_curve` and
+return. Each state is bound to its creating thread, marked closed before the
+prior context is restored, and protected against direct path-worker re-entry by
+an invocation-local worker token. This isolates successive, concurrent, nested,
+exceptional, copied-context cross-thread, and stale copied-context public-call
+behavior. It is not a hostile same-process Python sandbox, and same-thread
+internal monkeypatching or introspection remains out of scope. Public producer `generated_curve` and
 `build_legacy_row` calls raise, and `build_density_row` admits only the exact
 frozen p=19 B4 control before factor-base work.
 
@@ -219,16 +223,29 @@ canonical 2,000,000-node replay cap, and an exact primary-proof budget in
 `0..5,000,000` are admitted.
 
 Verification output must be lexically below the development root. The writer
-walks parent directories from that root through no-follow descriptors, writes
-and fsyncs an unpredictable exclusive temporary inode, and publishes without
-overwrite by descriptor-relative exclusive rename or same-directory hard link
-where supported. On exFAT, which supports neither primitive, it opens the final
-destination with `O_EXCL` and writes through that descriptor. A successful
-return plus the complete report hash is required for acceptance. If that direct
-write is interrupted, the partial destination remains permanently unaccepted
-and cannot be overwritten or reused.
+walks parent directories from that root through no-follow descriptors. It
+publishes both the data and an adjacent completion receipt without overwrite by
+descriptor-relative exclusive rename or same-directory hard link where
+supported. A forced unsupported-filesystem control exercises a descriptor-
+relative `O_EXCL` direct-write fallback; V13 makes no unpreserved claim about
+which primitives a real filesystem supports.
 
-Before generic JSON traversal, V12 applies source-sized bounds to document and
+The data path alone is never accepted evidence. Its completion receipt binds
+the exact destination name, payload byte count, payload SHA-256, experiment,
+protocol, and its own canonical digest. A failure before that complete receipt
+appears may leave a permanent orphaned data path or malformed partial receipt;
+both are unaccepted and cannot be overwritten or reused. Once a complete
+receipt reaches its content commit point, subsequent temporary cleanup, fsync,
+stat, or close failures are returned as structured warnings and cannot convert
+the call into a contradictory failure return. Later acceptance is determined
+by descriptor-bound receipt parsing and an exact payload size/hash match. A
+logical content commit is not proof that every durability syscall succeeded;
+any future runner must preserve the returned warning vector and use an
+immutable external artifact store. The unkeyed receipt is a completion and
+integrity record inside the controlled workspace, not authentication against a
+hostile same-user filesystem actor.
+
+Before generic JSON traversal, V13 applies source-sized bounds to document and
 row roots, registered parameters, the nested family gate, Mobius maps,
 alternating positions, rejection reasons, root polynomials, formal witnesses,
 edge/source tables, exact-empty frontiers, and per-cap byte receipts. Before
@@ -237,7 +254,7 @@ document digests; nested byte accounting; protocol, scope, and grid
 association; the frozen static transcript; cap schedule; objective; masks;
 source-owned node caps; and the reconstructed document summary/family gate. No
 canonical curve derivation or reservation-dependent semantics occurs before
-this authentication. V12 then reserves separate worst-case totals for
+this authentication. V13 then reserves separate worst-case totals for
 registered prime candidates, curve draws and hashes, predicate hashes, frozen,
 semantic, and primary point enumerations, expansion cells, graph candidate
 evaluations, eligible conflict checks, eligible pair-output cells, replay nodes,
@@ -268,7 +285,7 @@ overcharge is invalid while the completed-work flag remains true. Interrupted
 predicate reconstruction preserves partial work and sets
 `actual_work_complete=false`, so completed equality is not claimed. Complete
 actual work must also be dominated by the source-owned reservation or the
-report is invalid. An otherwise successful report must match the exact V12
+report is invalid. An otherwise successful report must match the exact V13
 phase sequence, including completed provenance/predicate equality, with every
 unit phase complete and passed. Ordinary authenticated semantic mismatches may
 stop early with counters for the work actually executed. The
@@ -346,7 +363,7 @@ factor-base multisets. Both denominators appear beside retention ratios.
 
 ## Accounting boundary
 
-Version 12 retains the V3 accounting boundary and emits only independently
+Version 13 retains the V3 accounting boundary and emits only independently
 reconstructible combinatorial cells, including multiset evaluations,
 representative and parent-pair counts, graph checks, pair-output cells,
 optimizer nodes, bound calls, source-enforced optimizer and full-model cache
@@ -363,7 +380,7 @@ Producer row and cap wall times are observational and checked only for finite,
 nonnegative nesting. The producer makes no peak-memory claim. Any future
 canonical execution must obtain generator and verifier wall time, peak RSS,
 serialized output size, and memory traffic from the trusted external runner.
-Verifier work must be reported as a separate role cost. V12 path receipts
+Verifier work must be reported as a separate role cost. V13 path receipts
 record actual registered-curve cache behavior, prime candidates, curve and
 predicate hashes, point enumerations, expansion cells, graph candidate
 evaluations, eligible conflict checks, eligible pair-output cells, replay and
@@ -395,7 +412,7 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
    the closed schema.
 10. Reject Boolean/integer/float aliases in optimizer, graph, axiom, ratio,
     mask, node-cap, wall-time, byte-receipt, summary, and document fields.
-11. Verify one frozen V12 document and reject an empty canonical document.
+11. Verify one frozen V13 document and reject an empty canonical document.
 12. Reject missing, extra, duplicate, reordered, wrong-cap, wrong-node-cap,
     inconsistent-curve, and cross-seed-duplicate canonical matrices.
 13. Exact-match producer and independent family gates on a synthetic complete
@@ -410,8 +427,8 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     out-of-range selected formals, duplicate selected formals, negative caps,
     malformed JSON, nonobject roots, duplicate keys, and out-of-range verifier
     budgets.
-16. Relabel a valid V12 body with every V1-V11 schema and require explicit legacy
-    rejection with zero row checks and no V12 mathematical check claims.
+16. Relabel a valid V13 body with every V1-V12 schema and require explicit legacy
+    rejection with zero row checks and no V13 mathematical check claims.
 17. Replace the input path after its snapshot is read and require the receipt
     hash and parsed document to remain bound to the original bytes. Reject
     directories and symlinks before JSON parsing.
@@ -485,18 +502,31 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     require exact mismatch while completed work remains true; inject a predicate
     interruption and require its partial charge with completed work false.
 39. Call every internal legacy-row, density-row, document-value, test-wrapper,
-    registered-curve, and path-worker semantic entry point without an active
-    path permit and require rejection before mathematical work.
+    registered-curve, path-worker, and path-worker-body semantic entry point
+    without the active permit/token and require rejection before mathematical
+    work.
 40. Pass Boolean, zero, negative, float, string, and null work-charge amounts;
     require exact-type rejection and no counter mutation.
 41. Overlap two frozen path verifications at the first graph-candidate charge
     and nest one complete verification inside another factor-base
     reconstruction. Require each receipt to equal the serial baseline and no
     active state after return.
-42. Preserve a preexisting and a race-created output destination byte-for-byte,
-    reject output parent symlinks, and remove unpublished temporary inodes.
-43. Force an exFAT direct-write interruption, retain the partial destination as
-    unaccepted, and prove a second publication cannot overwrite it.
+42. Inject an escaping public-worker exception and require the inner state to
+    be closed and the exact outer context restored. During an authenticated
+    callback, reject direct path-worker re-entry, copied-context use from
+    another thread, and later same-thread use of the copied closed state.
+43. Publish one data/receipt pair, independently validate the canonical
+    receipt and exact payload binding, preserve both on a retry, preserve a
+    race-created data destination without creating a receipt, reject an output
+    parent symlink, and reject a later payload/receipt mismatch.
+44. Force unsupported-publication direct writes and interrupt first the data
+    write and then the completion-receipt write. Classify the first as an
+    unaccepted orphan and the second as an unaccepted invalid receipt; prove
+    neither terminal path can be overwritten.
+45. After complete destination publication, inject directory-fsync failure and
+    hard-link-success temporary-cleanup failure. Require a normal accepted
+    return with structured warnings, a matching independently validated
+    receipt, and no contradictory exception after the receipt commit point.
 
 ## Positive criterion
 
@@ -526,7 +556,7 @@ changes the measured collision geometry.
 
 ## Budgets and stopping
 
-Version 1 consumed 17 of 18 historical development curve rows. Version 12
+Version 1 consumed 17 of 18 historical development curve rows. Version 13
 authorizes no additional curve-family row. Unit, abstract graph,
 generated-curve provenance, generated factor-base, one frozen p=19 B4
 density-row/document control, and exactly three transient noncanonical frozen
@@ -542,7 +572,7 @@ total_cpu_hours = 0
 maximum_memory_gb = 0
 ```
 
-Fresh independent theory, accounting, and red-team GO on one committed V12
+Fresh independent theory, accounting, and red-team GO on one committed V13
 snapshot is necessary but not sufficient to launch. A separate hash-complete
 execution plan and coordinator approval must follow before any budget change.
 
@@ -559,4 +589,4 @@ No canonical reproduction command exists while `maximum_runs` is zero. The
 current producer refuses both development family rows and canonical execution;
 only unit, generated-factor-base, one frozen-fixture B4 density control, and
 the disclosed transient B4/B6/B8 legacy semantic controls are authorized for
-V12 preflight.
+V13 preflight.

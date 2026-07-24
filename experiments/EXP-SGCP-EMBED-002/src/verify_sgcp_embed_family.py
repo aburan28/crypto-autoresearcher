@@ -18,6 +18,7 @@ import math
 import os
 import secrets
 import stat
+import threading
 from collections import Counter, defaultdict
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -38,11 +39,14 @@ LEGACY_SCHEMAS = {
     "sgcp-embed-002-density-frontier-candidate-v9",
     "sgcp-embed-002-density-frontier-candidate-v10",
     "sgcp-embed-002-density-frontier-candidate-v11",
+    "sgcp-embed-002-density-frontier-candidate-v12",
 }
-CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v12"
-VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v12"
+CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v13"
+VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v13"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
-PROTOCOL_VERSION = 12
+PROTOCOL_VERSION = 13
+PUBLICATION_RECEIPT_SCHEMA = "sgcp-embed-002-publication-receipt-v13"
+PUBLICATION_RESULT_SCHEMA = "sgcp-embed-002-publication-result-v13"
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -79,6 +83,7 @@ MAXIMUM_DIAGNOSTIC_COUNT = 256
 MAXIMUM_DIAGNOSTIC_BYTES = 65_536
 MAXIMUM_DIAGNOSTIC_ITEM_BYTES = 2_048
 MAXIMUM_VERIFICATION_REPORT_BYTES = 8_388_608
+MAXIMUM_PUBLICATION_RECEIPT_BYTES = 16_384
 MAXIMUM_REFLECTED_PATH_BYTES = 4_096
 MAXIMUM_PRIMARY_NODES = 5_000_000
 MAXIMUM_REPLAY_NODES_PER_CAP = CANONICAL_NODE_CAP
@@ -221,7 +226,7 @@ class BoundedErrors(list[str]):
         if self.truncated:
             return
         self.truncated = True
-        marker = "diagnostics truncated at V12 source ceiling"
+        marker = "diagnostics truncated at V13 source ceiling"
         marker_bytes = len(marker.encode("ascii"))
         if (
             len(self) < MAXIMUM_DIAGNOSTIC_COUNT
@@ -499,16 +504,20 @@ def empty_actual_work() -> dict[str, int | bool]:
 @dataclass
 class _VerificationState:
     path_permit: object
+    owner_thread_id: int
     actual_work: dict[str, int | bool] = field(default_factory=empty_actual_work)
     resource_receipt: dict[str, int] | None = None
     registered_curve_cache: dict[
         tuple[int, int], tuple[Any, tuple[Any, ...], dict[str, Any]]
     ] = field(default_factory=dict)
+    path_worker_active: bool = False
+    path_worker_token: object | None = None
+    closed: bool = False
 
 
 _PATH_VERIFICATION_PERMIT = object()
 _ACTIVE_VERIFICATION_STATE: ContextVar[_VerificationState | None] = ContextVar(
-    "sgcp_v12_active_verification_state",
+    "sgcp_v13_active_verification_state",
     default=None,
 )
 CAP_SEARCH_COUNTERS = (
@@ -529,8 +538,12 @@ def _require_path_verification_state() -> _VerificationState:
     state = _active_verification_state()
     if state is None or state.path_permit is not _PATH_VERIFICATION_PERMIT:
         raise PermissionError(
-            "semantic verification requires the active path-only V12 permit"
+            "semantic verification requires the active path-only V13 permit"
         )
+    if state.closed:
+        raise PermissionError("semantic verification state is closed")
+    if state.owner_thread_id != threading.get_ident():
+        raise PermissionError("semantic verification state belongs to another thread")
     return state
 
 
@@ -538,6 +551,7 @@ def reset_actual_work() -> dict[str, int | bool]:
     state = _active_verification_state()
     if state is None:
         return empty_actual_work()
+    state = _require_path_verification_state()
     state.actual_work = empty_actual_work()
     state.resource_receipt = None
     return state.actual_work
@@ -549,6 +563,7 @@ def charge_actual_work(name: str, amount: int = 1) -> None:
     state = _active_verification_state()
     if state is None:
         return
+    state = _require_path_verification_state()
     current = state.actual_work.get(name)
     if type(current) is not int:
         raise AssertionError(f"actual-work counter {name!r} is not integral")
@@ -558,11 +573,14 @@ def charge_actual_work(name: str, amount: int = 1) -> None:
 def mark_actual_work_incomplete() -> None:
     state = _active_verification_state()
     if state is not None:
+        state = _require_path_verification_state()
         state.actual_work["actual_work_complete"] = False
 
 
 def actual_work_snapshot(names: Sequence[str]) -> dict[str, int]:
     state = _active_verification_state()
+    if state is not None:
+        state = _require_path_verification_state()
     source = state.actual_work if state is not None else empty_actual_work()
     return {
         name: source[name]
@@ -2271,7 +2289,7 @@ def _verify_legacy_row_unchecked(
 def verify_row(row: Any, maximum_nodes: Any) -> dict[str, Any]:
     errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
     errors.append(
-        "legacy direct-row API is disabled in V12; use path-based verify_document"
+        "legacy direct-row API is disabled in V13; use path-based verify_document"
     )
     return {"valid": False, "errors": errors, "primary_nodes": 0}
 
@@ -2334,17 +2352,17 @@ def _closed_dict(
         errors.append(f"{label_name} is not an object")
         return None
     if len(value) > len(expected_keys):
-        errors.append(f"{label_name} has more keys than the V12 source schema")
+        errors.append(f"{label_name} has more keys than the V13 source schema")
         return None
     if len(value) != len(expected_keys) or any(
         key not in expected_keys for key in value
     ):
-        errors.append(f"{label_name} keys do not match the V12 source schema")
+        errors.append(f"{label_name} keys do not match the V13 source schema")
         return None
     return value
 
 
-def v12_row_collection_bound_errors(row: Any) -> list[str]:
+def v13_row_collection_bound_errors(row: Any) -> list[str]:
     """Reject oversized nested containers before deep row traversal."""
     errors = BoundedErrors()
     if type(row) is not dict:
@@ -2364,10 +2382,10 @@ def v12_row_collection_bound_errors(row: Any) -> list[str]:
         "row_sha256",
     }
     if len(row) > len(row_keys):
-        errors.append("density row has more keys than the V12 source schema")
+        errors.append("density row has more keys than the V13 source schema")
         return errors
     if len(row) != len(row_keys) or any(key not in row_keys for key in row):
-        errors.append("density row keys do not match the V12 source schema")
+        errors.append("density row keys do not match the V13 source schema")
         return errors
     for name, expected in (
         ("protocol_version", int),
@@ -2391,11 +2409,11 @@ def v12_row_collection_bound_errors(row: Any) -> list[str]:
         return errors
     B = row.get("B")
     if type(B) is not int or not 4 <= B <= MAXIMUM_ROW_FACTOR_BASE_SIZE or B % 2:
-        errors.append("row.B is outside the V12 source range")
+        errors.append("row.B is outside the V13 source range")
         return errors
     family = row["family"]
     if family not in {*COORDINATE_FAMILIES, NULL_FAMILY}:
-        errors.append("row.family is outside the V12 source vocabulary")
+        errors.append("row.family is outside the V13 source vocabulary")
         return errors
     candidate_bound = math.comb(B + 3, 4)
     representative_bound = math.comb(B + 1, 2)
@@ -3048,7 +3066,7 @@ def v12_row_collection_bound_errors(row: Any) -> list[str]:
     return errors
 
 
-def v12_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
+def v13_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
     """Bound every gate-owned container before the generic shape walk."""
     errors = BoundedErrors()
     if scope == "frozen_fixture":
@@ -3059,7 +3077,7 @@ def v12_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
                     errors.append(f"frozen family gate.{name} is not a string")
         return errors
     if scope != "canonical":
-        errors.append("document scope is outside the V12 source vocabulary")
+        errors.append("document scope is outside the V13 source vocabulary")
         return errors
 
     gate_keys = {
@@ -3213,7 +3231,7 @@ def v12_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
     return errors
 
 
-def v12_document_collection_bound_errors(document: Any) -> list[str]:
+def v13_document_collection_bound_errors(document: Any) -> list[str]:
     """Apply source-sized document bounds before generic JSON traversal."""
     errors = BoundedErrors()
     if type(document) is not dict:
@@ -3233,12 +3251,12 @@ def v12_document_collection_bound_errors(document: Any) -> list[str]:
         "document_sha256",
     }
     if len(document) > len(document_keys):
-        errors.append("document has more keys than the V12 source schema")
+        errors.append("document has more keys than the V13 source schema")
         return errors
     if len(document) != len(document_keys) or any(
         key not in document_keys for key in document
     ):
-        errors.append("document keys do not match the V12 source schema")
+        errors.append("document keys do not match the V13 source schema")
         return errors
     for name, expected in (
         ("schema", str),
@@ -3269,7 +3287,7 @@ def v12_document_collection_bound_errors(document: Any) -> list[str]:
         errors.append("document claim status contains a non-string scalar")
     scope = document["scope"]
     if scope not in {"frozen_fixture", "canonical"}:
-        errors.append("document scope is outside the V12 source vocabulary")
+        errors.append("document scope is outside the V13 source vocabulary")
         return errors
 
     parameters = document["parameters"]
@@ -3392,15 +3410,15 @@ def v12_document_collection_bound_errors(document: Any) -> list[str]:
         )
     for index, row in enumerate(bounded_rows or []):
         errors.extend(
-            f"row[{index}]: {error}" for error in v12_row_collection_bound_errors(row)
+            f"row[{index}]: {error}" for error in v13_row_collection_bound_errors(row)
         )
         if errors.truncated:
             break
-    errors.extend(v12_family_gate_collection_bound_errors(document["family_gate"], scope))
+    errors.extend(v13_family_gate_collection_bound_errors(document["family_gate"], scope))
     return errors
 
 
-def v12_row_schema_errors(row: Any) -> list[str]:
+def v13_row_schema_errors(row: Any) -> list[str]:
     errors = BoundedErrors()
     try:
         require_keys(
@@ -3770,7 +3788,7 @@ def v12_row_schema_errors(row: Any) -> list[str]:
     return errors
 
 
-def v12_row_type_errors(row: dict[str, Any]) -> list[str]:
+def v13_row_type_errors(row: dict[str, Any]) -> list[str]:
     errors = BoundedErrors()
     for name in ("protocol_version", "B"):
         exact_integer(row[name], f"row.{name}", errors)
@@ -4462,10 +4480,10 @@ def _verify_density_row_unchecked(
     phases: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     _require_path_verification_state()
-    errors = BoundedErrors(v12_row_schema_errors(row))
+    errors = BoundedErrors(v13_row_schema_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
-    errors.extend(v12_row_type_errors(row))
+    errors.extend(v13_row_type_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     supplied_digest = row.get("row_sha256")
@@ -4789,7 +4807,7 @@ def _verify_density_row_unchecked(
         try:
             require_independent_exhausted_gate_cell(optimizer)
         except AssertionError as error:
-            cap_errors.append(f"V12 requires an exhausted exact optimizer cell: {error}")
+            cap_errors.append(f"V13 requires an exhausted exact optimizer cell: {error}")
         if not exact_json_equal(optimizer.get("selected_indices"), selected_indices):
             cap_errors.append("optimizer selected-index mismatch")
         if optimizer.get("selected_mask_hex") != hex(selected_mask):
@@ -5187,7 +5205,7 @@ def _verify_density_row_for_tests(
 ) -> dict[str, Any]:
     state = _require_path_verification_state()
     reset_actual_work()
-    errors = BoundedErrors(v12_row_collection_bound_errors(row))
+    errors = BoundedErrors(v13_row_collection_bound_errors(row))
     if not errors:
         errors.extend(bounded_json_errors(row, "row"))
     errors.extend(maximum_nodes_errors(maximum_nodes))
@@ -5294,7 +5312,7 @@ def verify_density_row(
 ) -> dict[str, Any]:
     errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
     errors.append(
-        "direct density-row API is non-evidence and disabled in V12; use "
+        "direct density-row API is non-evidence and disabled in V13; use "
         "path-based verify_document"
     )
     return {
@@ -5456,7 +5474,7 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     else:
         negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v12",
+        "criterion_version": "sgcp-embed-002-family-gate-v13",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
@@ -5523,7 +5541,7 @@ def expected_row_keys() -> list[tuple[int, int, int, str, int | None]]:
     return result
 
 
-def v12_family_gate_schema_errors(gate: Any, scope: Any) -> list[str]:
+def v13_family_gate_schema_errors(gate: Any, scope: Any) -> list[str]:
     errors = BoundedErrors()
     if type(gate) is not dict:
         return ["family gate is not an object"]
@@ -5690,7 +5708,7 @@ def v12_family_gate_schema_errors(gate: Any, scope: Any) -> list[str]:
     return errors
 
 
-def v12_document_schema_errors(document: Any) -> list[str]:
+def v13_document_schema_errors(document: Any) -> list[str]:
     errors = BoundedErrors()
     try:
         require_keys(
@@ -5709,7 +5727,7 @@ def v12_document_schema_errors(document: Any) -> list[str]:
                 "family_gate",
                 "document_sha256",
             },
-            "V12 document",
+            "V13 document",
         )
         require_keys(
             document["summary"],
@@ -5722,13 +5740,13 @@ def v12_document_schema_errors(document: Any) -> list[str]:
                 "full_objective_exact_cap_cells",
                 "maximum_primary_gap",
             },
-            "V12 document summary",
+            "V13 document summary",
         )
     except (AssertionError, KeyError, TypeError) as error:
         errors.append(f"closed document schema: {error}")
     if type(document) is dict:
         errors.extend(
-            v12_family_gate_schema_errors(
+            v13_family_gate_schema_errors(
                 document.get("family_gate"), document.get("scope")
             )
         )
@@ -5736,7 +5754,7 @@ def v12_document_schema_errors(document: Any) -> list[str]:
     return errors
 
 
-def v12_document_type_errors(document: dict[str, Any]) -> list[str]:
+def v13_document_type_errors(document: dict[str, Any]) -> list[str]:
     errors = BoundedErrors()
     for name in ("schema", "experiment_id", "scope", "interpretation"):
         exact_string(document[name], f"document.{name}", errors)
@@ -5824,7 +5842,7 @@ def record_phase_unit(
         phase["status"] = "incomplete"
 
 
-def v12_nested_digest_and_accounting_errors(row: dict[str, Any]) -> list[str]:
+def v13_nested_digest_and_accounting_errors(row: dict[str, Any]) -> list[str]:
     """Check bounded internal integrity receipts before elliptic-curve work."""
     errors = BoundedErrors()
     curve = row["curve"]
@@ -5886,13 +5904,13 @@ def static_row_errors(
     expected_node_cap: int | None,
 ) -> list[str]:
     prefix = f"row[{row_index}]"
-    collection_errors = v12_row_collection_bound_errors(row)
+    collection_errors = v13_row_collection_bound_errors(row)
     if collection_errors:
         return [f"{prefix}: {error}" for error in collection_errors]
-    errors = BoundedErrors(f"{prefix}: {error}" for error in v12_row_schema_errors(row))
+    errors = BoundedErrors(f"{prefix}: {error}" for error in v13_row_schema_errors(row))
     if errors or type(row) is not dict:
         return errors or [f"{prefix}: row is not an object"]
-    type_errors = v12_row_type_errors(row)
+    type_errors = v13_row_type_errors(row)
     if type_errors:
         return [f"{prefix}: {error}" for error in type_errors]
     envelope_errors = BoundedErrors()
@@ -5911,7 +5929,7 @@ def static_row_errors(
         envelope_errors.append("ordering contract mismatch")
     if envelope_errors:
         return [f"{prefix}: {error}" for error in envelope_errors]
-    integrity_errors = v12_nested_digest_and_accounting_errors(row)
+    integrity_errors = v13_nested_digest_and_accounting_errors(row)
     if integrity_errors:
         return [f"{prefix}: {error}" for error in integrity_errors]
     envelope_errors.extend(density_row_envelope_errors(row, maximum_nodes))
@@ -6076,7 +6094,7 @@ def actual_work_reservation_errors(
         "registered_curve_cache_entries"
     }
     if set(actual_work) != expected_actual_keys:
-        errors.append("actual-work receipt keys do not match the V12 source schema")
+        errors.append("actual-work receipt keys do not match the V13 source schema")
         return errors
     if type(actual_work["actual_work_complete"]) is not bool:
         errors.append("actual-work completeness flag is not Boolean")
@@ -6310,7 +6328,7 @@ def canonical_matrix_errors(rows: Any) -> list[str]:
     return errors
 
 
-def _verify_v12_document_value_unchecked(
+def _verify_v13_document_value_unchecked(
     document: dict[str, Any],
     maximum_nodes: int,
     phases: list[dict[str, Any]] | None = None,
@@ -6318,12 +6336,12 @@ def _verify_v12_document_value_unchecked(
     state = _require_path_verification_state()
     state.registered_curve_cache.clear()
     reset_actual_work()
-    errors = BoundedErrors(v12_document_schema_errors(document))
+    errors = BoundedErrors(v13_document_schema_errors(document))
     append_phase(phases, "closed_document_schema", "failed" if errors else "passed")
     if errors:
         return errors, [], None
 
-    type_errors = v12_document_type_errors(document)
+    type_errors = v13_document_type_errors(document)
     errors.extend(type_errors)
     append_phase(phases, "exact_document_types", "failed" if type_errors else "passed")
     if errors:
@@ -6523,7 +6541,7 @@ def _verify_v12_document_value_unchecked(
             }
         row_reports.append(report)
         if not report.get("valid"):
-            semantic_errors.append(f"V12 row[{index}] verification failed")
+            semantic_errors.append(f"V13 row[{index}] verification failed")
             semantic_errors.extend(
                 f"row[{index}]: {error}"
                 for error in report.get("errors", [])
@@ -6551,27 +6569,27 @@ def _verify_v12_document_value_unchecked(
     return errors, row_reports, envelope
 
 
-def _verify_v12_document_value_for_tests(
+def _verify_v13_document_value_for_tests(
     document: Any, maximum_nodes: Any
 ) -> tuple[list[str], list[dict[str, Any]]]:
     _require_path_verification_state()
     reset_actual_work()
-    errors = BoundedErrors(v12_document_collection_bound_errors(document))
+    errors = BoundedErrors(v13_document_collection_bound_errors(document))
     if not errors:
         errors.extend(bounded_json_errors(document, "document"))
     errors.extend(maximum_nodes_errors(maximum_nodes))
     if errors:
         return errors, []
     if type(document) is not dict:
-        return ["V12 document is not an object"], []
+        return ["V13 document is not an object"], []
     try:
-        errors, rows, _ = _verify_v12_document_value_unchecked(
+        errors, rows, _ = _verify_v13_document_value_unchecked(
             document, maximum_nodes
         )
         return errors, rows
     except Exception as error:
         return [
-            f"V12 document verifier failure: {type(error).__name__}: {error}"
+            f"V13 document verifier failure: {type(error).__name__}: {error}"
         ], []
 
 
@@ -6666,7 +6684,7 @@ def successful_phase_closure_errors(phases: Sequence[dict[str, Any]]) -> list[st
     errors = BoundedErrors()
     observed = tuple(phase.get("name") for phase in phases)
     if observed != SUCCESSFUL_PHASE_SEQUENCE:
-        errors.append("successful phase sequence does not match the V12 source contract")
+        errors.append("successful phase sequence does not match the V13 source contract")
         return errors
     for phase in phases:
         if phase.get("status") != "passed":
@@ -6730,7 +6748,7 @@ def verification_report(
     diagnostic_truncated = bool(
         getattr(errors, "truncated", False)
         or final_errors.truncated
-        or "diagnostics truncated at V12 source ceiling" in final_errors
+        or "diagnostics truncated at V13 source ceiling" in final_errors
     )
     sanitized_rows = without_nested_diagnostic_lists(list(row_reports))
     report = {
@@ -6779,7 +6797,7 @@ def verification_report(
     if serialized_size > MAXIMUM_VERIFICATION_REPORT_BYTES:
         fallback_errors = BoundedErrors(final_errors)
         fallback_errors.append(
-            "verification report exceeded the V12 serialized-size ceiling; "
+            "verification report exceeded the V13 serialized-size ceiling; "
             "row details omitted"
         )
         report["valid"] = False
@@ -6803,7 +6821,7 @@ def verification_report(
     if serialized_size > MAXIMUM_VERIFICATION_REPORT_BYTES:
         emergency_errors = BoundedErrors(
             [
-                "verification report exceeded the V12 serialized-size ceiling; "
+                "verification report exceeded the V13 serialized-size ceiling; "
                 "all optional details omitted"
             ]
         )
@@ -6833,10 +6851,15 @@ def verification_report(
     return report
 
 
-def _verify_document_with_active_path_state(
-    path: Path, maximum_nodes: Any
+def _verify_document_with_active_path_state_body(
+    path: Path, maximum_nodes: Any, worker_token: object
 ) -> dict[str, Any]:
     state = _require_path_verification_state()
+    if (
+        not state.path_worker_active
+        or state.path_worker_token is not worker_token
+    ):
+        raise PermissionError("semantic verification requires the active V13 worker token")
     state.registered_curve_cache.clear()
     reset_actual_work()
     phases: list[dict[str, Any]] = []
@@ -6891,7 +6914,7 @@ def _verify_document_with_active_path_state(
         )
     append_phase(phases, "strict_json_parse", "passed")
 
-    collection_errors = v12_document_collection_bound_errors(document)
+    collection_errors = v13_document_collection_bound_errors(document)
     errors.extend(collection_errors)
     append_phase(
         phases,
@@ -6955,7 +6978,7 @@ def _verify_document_with_active_path_state(
         append_phase(phases, "exact_schema_routing", "passed")
         try:
             errors, row_reports, resource_receipt = (
-                _verify_v12_document_value_unchecked(
+                _verify_v13_document_value_unchecked(
                     document, maximum_nodes, phases
                 )
             )
@@ -6964,14 +6987,14 @@ def _verify_document_with_active_path_state(
             resource_receipt = state.resource_receipt
             errors = BoundedErrors(
                 [
-                    f"V12 document verifier failure: "
+                    f"V13 document verifier failure: "
                     f"{type(error).__name__}: {error}"
                 ]
             )
             row_reports = []
             append_phase(phases, "verifier_exception_boundary", "failed")
         claim_boundary = (
-            "invalid V12 document; no mathematical interpretation"
+            "invalid V13 document; no mathematical interpretation"
             if errors
             else (
                 "frozen-fixture implementation verification only"
@@ -6983,7 +7006,7 @@ def _verify_document_with_active_path_state(
         append_phase(phases, "exact_schema_routing", "passed")
         append_phase(phases, "unsupported_legacy_rejection", "passed")
         errors = [
-            f"unsupported legacy document schema {schema!r}; V12 performs no legacy row verification"
+            f"unsupported legacy document schema {schema!r}; V13 performs no legacy row verification"
         ]
         row_reports = []
         claim_boundary = "unsupported legacy input; no mathematical checks executed"
@@ -7004,12 +7027,34 @@ def _verify_document_with_active_path_state(
     )
 
 
+def _verify_document_with_active_path_state(
+    path: Path, maximum_nodes: Any
+) -> dict[str, Any]:
+    state = _require_path_verification_state()
+    if state.path_worker_active:
+        raise RuntimeError("re-entrant path verification worker is disabled")
+    worker_token = object()
+    state.path_worker_active = True
+    state.path_worker_token = worker_token
+    try:
+        return _verify_document_with_active_path_state_body(
+            path, maximum_nodes, worker_token
+        )
+    finally:
+        state.path_worker_token = None
+        state.path_worker_active = False
+
+
 def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
-    state = _VerificationState(path_permit=_PATH_VERIFICATION_PERMIT)
+    state = _VerificationState(
+        path_permit=_PATH_VERIFICATION_PERMIT,
+        owner_thread_id=threading.get_ident(),
+    )
     token = _ACTIVE_VERIFICATION_STATE.set(state)
     try:
         return _verify_document_with_active_path_state(path, maximum_nodes)
     finally:
+        state.closed = True
         _ACTIVE_VERIFICATION_STATE.reset(token)
 
 
@@ -7027,7 +7072,7 @@ def output_path(path: Path) -> Path:
     return absolute
 
 
-def _open_output_parent(path: Path) -> tuple[int, str]:
+def _open_output_parent(path: Path, *, create_missing: bool = True) -> tuple[int, str]:
     root = DEVELOPMENT_ROOT.resolve(strict=True)
     relative = path.relative_to(root)
     parts = relative.parts
@@ -7048,6 +7093,8 @@ def _open_output_parent(path: Path) -> tuple[int, str]:
             try:
                 next_fd = os.open(component, directory_flags, dir_fd=current_fd)
             except FileNotFoundError:
+                if not create_missing:
+                    raise
                 try:
                     os.mkdir(component, mode=0o755, dir_fd=current_fd)
                 except FileExistsError:
@@ -7074,7 +7121,7 @@ def _publish_no_replace(
     parent_fd: int,
     temporary_name: str,
     destination_name: str,
-) -> None:
+) -> tuple[str, bool]:
     libc = ctypes.CDLL(None, use_errno=True)
     renameatx = getattr(libc, "renameatx_np", None)
     if renameatx is not None:
@@ -7100,7 +7147,7 @@ def _publish_no_replace(
                 os.strerror(error_number),
                 destination_name,
             )
-        return
+        return "renameatx_np_rename_excl", False
 
     os.link(
         temporary_name,
@@ -7109,14 +7156,14 @@ def _publish_no_replace(
         dst_dir_fd=parent_fd,
         follow_symlinks=False,
     )
-    os.unlink(temporary_name, dir_fd=parent_fd)
+    return "hard_link", True
 
 
 def _write_destination_exclusive(
     parent_fd: int,
     destination_name: str,
     payload: bytes,
-) -> None:
+) -> dict[str, Any]:
     file_flags = (
         os.O_WRONLY
         | os.O_CREAT
@@ -7130,21 +7177,63 @@ def _write_destination_exclusive(
         0o644,
         dir_fd=parent_fd,
     )
+    warnings: list[dict[str, Any]] = []
     try:
         _write_all(destination_fd, payload)
-        os.fsync(destination_fd)
-        observed = os.fstat(destination_fd)
-        if not stat.S_ISREG(observed.st_mode) or observed.st_size != len(payload):
-            raise OSError("verification output destination inode is incomplete")
-    finally:
-        os.close(destination_fd)
+    except Exception:
+        try:
+            os.close(destination_fd)
+        except OSError:
+            pass
+        raise
+
+    for stage, action in (
+        ("direct_destination_file_fsync", lambda: os.fsync(destination_fd)),
+        (
+            "direct_destination_fstat",
+            lambda: _confirm_regular_size(destination_fd, len(payload)),
+        ),
+        ("direct_destination_close", lambda: os.close(destination_fd)),
+    ):
+        try:
+            action()
+        except Exception as error:
+            warnings.append(_publication_warning(stage, error))
+    return {
+        "method": "descriptor_relative_o_excl",
+        "warnings": warnings,
+    }
 
 
-def write_json_exclusive(path: Path, value: Any) -> None:
-    parent_fd, destination_name = _open_output_parent(path)
+def _confirm_regular_size(descriptor: int, expected_size: int) -> None:
+    observed = os.fstat(descriptor)
+    if not stat.S_ISREG(observed.st_mode) or observed.st_size != expected_size:
+        raise OSError("published inode does not have the expected regular-file size")
+
+
+def _publication_warning(stage: str, error: Exception) -> dict[str, Any]:
+    error_number = getattr(error, "errno", None)
+    return {
+        "stage": stage,
+        "error_type": type(error).__name__,
+        "errno": error_number if type(error_number) is int else None,
+        "message": str(error)[:512],
+    }
+
+
+def _temporary_output_name(destination_name: str) -> str:
+    destination_digest = hashlib.sha256(os.fsencode(destination_name)).hexdigest()
+    return f".{destination_digest}.{secrets.token_hex(16)}.unpublished"
+
+
+def _write_payload_no_replace(
+    parent_fd: int,
+    destination_name: str,
+    payload: bytes,
+) -> dict[str, Any]:
     temporary_name: str | None = None
     temporary_fd: int | None = None
-    published = False
+    warnings: list[dict[str, Any]] = []
     try:
         file_flags = (
             os.O_WRONLY
@@ -7154,9 +7243,7 @@ def write_json_exclusive(path: Path, value: Any) -> None:
             | getattr(os, "O_CLOEXEC", 0)
         )
         for _ in range(32):
-            candidate = (
-                f".{destination_name}.{secrets.token_hex(16)}.unpublished"
-            )
+            candidate = _temporary_output_name(destination_name)
             try:
                 temporary_fd = os.open(
                     candidate,
@@ -7171,7 +7258,6 @@ def write_json_exclusive(path: Path, value: Any) -> None:
         if temporary_fd is None or temporary_name is None:
             raise FileExistsError("could not allocate an exclusive temporary output")
 
-        payload = stable_bytes(value) + b"\n"
         _write_all(temporary_fd, payload)
         os.fsync(temporary_fd)
         observed = os.fstat(temporary_fd)
@@ -7181,7 +7267,7 @@ def write_json_exclusive(path: Path, value: Any) -> None:
         temporary_fd = None
 
         try:
-            _publish_no_replace(
+            method, cleanup_required = _publish_no_replace(
                 parent_fd,
                 temporary_name,
                 destination_name,
@@ -7195,27 +7281,307 @@ def write_json_exclusive(path: Path, value: Any) -> None:
                 raise
             os.unlink(temporary_name, dir_fd=parent_fd)
             temporary_name = None
-            _write_destination_exclusive(
+            direct = _write_destination_exclusive(
                 parent_fd,
                 destination_name,
                 payload,
             )
-        published = True
-        temporary_name = None
-        os.fsync(parent_fd)
+            method = direct["method"]
+            warnings.extend(direct["warnings"])
+        else:
+            if cleanup_required:
+                try:
+                    os.unlink(temporary_name, dir_fd=parent_fd)
+                except Exception as error:
+                    warnings.append(
+                        _publication_warning("hard_link_temporary_cleanup", error)
+                    )
+                else:
+                    temporary_name = None
+            else:
+                temporary_name = None
+
+        try:
+            os.fsync(parent_fd)
+        except Exception as error:
+            warnings.append(_publication_warning("published_parent_fsync", error))
+        return {
+            "method": method,
+            "warnings": warnings,
+            "payload_bytes": len(payload),
+            "payload_sha256": hashlib.sha256(payload).hexdigest(),
+        }
     except Exception:
         if temporary_fd is not None:
-            os.close(temporary_fd)
+            try:
+                os.close(temporary_fd)
+            except OSError:
+                pass
         if temporary_name is not None:
             try:
                 os.unlink(temporary_name, dir_fd=parent_fd)
-            except FileNotFoundError:
+            except OSError:
                 pass
-        if published:
-            os.fsync(parent_fd)
         raise
+
+
+def _publication_receipt_name(destination_name: str) -> str:
+    destination_digest = hashlib.sha256(os.fsencode(destination_name)).hexdigest()
+    return f".{destination_digest}.publication-receipt.json"
+
+
+def publication_receipt_path(path: Path) -> Path:
+    admitted = output_path(path)
+    return admitted.with_name(_publication_receipt_name(admitted.name))
+
+
+def _read_regular_at(parent_fd: int, name: str, maximum_bytes: int) -> bytes:
+    flags = (
+        os.O_RDONLY
+        | os.O_NONBLOCK
+        | os.O_NOFOLLOW
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    descriptor = os.open(name, flags, dir_fd=parent_fd)
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError(f"{name!r} is not a regular file")
+        if before.st_size > maximum_bytes:
+            raise ValueError(f"{name!r} exceeds its byte ceiling")
+        blocks: list[bytes] = []
+        remaining = before.st_size
+        while remaining:
+            block = os.read(descriptor, min(remaining, 1024 * 1024))
+            if not block:
+                break
+            blocks.append(block)
+            remaining -= len(block)
+        after = os.fstat(descriptor)
+        identity = lambda value: (
+            value.st_dev,
+            value.st_ino,
+            value.st_size,
+            value.st_mtime_ns,
+            value.st_ctime_ns,
+        )
+        raw = b"".join(blocks)
+        if (
+            remaining
+            or len(raw) != before.st_size
+            or identity(before) != identity(after)
+        ):
+            raise ValueError(f"{name!r} changed during its descriptor snapshot")
+        return raw
     finally:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+
+
+def _publication_receipt(
+    destination_name: str,
+    payload: bytes,
+) -> dict[str, Any]:
+    receipt = {
+        "schema": PUBLICATION_RECEIPT_SCHEMA,
+        "experiment_id": EXPERIMENT_ID,
+        "protocol_version": PROTOCOL_VERSION,
+        "destination_name": destination_name,
+        "payload_bytes": len(payload),
+        "payload_sha256": hashlib.sha256(payload).hexdigest(),
+    }
+    receipt["receipt_sha256"] = digest(receipt)
+    return receipt
+
+
+def publication_status(path: Path) -> dict[str, Any]:
+    admitted = output_path(path)
+    try:
+        parent_fd, destination_name = _open_output_parent(
+            admitted, create_missing=False
+        )
+    except FileNotFoundError:
+        return {"accepted": False, "status": "absent"}
+    except Exception as error:
+        return {
+            "accepted": False,
+            "status": "unaccepted_path",
+            "reason": f"{type(error).__name__}: {error}",
+        }
+    receipt_name = _publication_receipt_name(destination_name)
+    try:
+        try:
+            receipt_raw = _read_regular_at(
+                parent_fd, receipt_name, MAXIMUM_PUBLICATION_RECEIPT_BYTES
+            )
+        except FileNotFoundError:
+            try:
+                _read_regular_at(
+                    parent_fd, destination_name, MAXIMUM_VERIFICATION_REPORT_BYTES
+                )
+            except FileNotFoundError:
+                return {"accepted": False, "status": "absent"}
+            except Exception as error:
+                return {
+                    "accepted": False,
+                    "status": "unaccepted_orphan",
+                    "reason": f"{type(error).__name__}: {error}",
+                }
+            return {"accepted": False, "status": "unaccepted_orphan"}
+        except Exception as error:
+            return {
+                "accepted": False,
+                "status": "unaccepted_invalid_receipt",
+                "reason": f"{type(error).__name__}: {error}",
+            }
+
+        if not receipt_raw.endswith(b"\n"):
+            return {
+                "accepted": False,
+                "status": "unaccepted_invalid_receipt",
+                "reason": "receipt is not newline terminated",
+            }
+        try:
+            receipt = strict_json_load(
+                bytearray(receipt_raw[:-1]),
+                admitted.with_name(receipt_name),
+            )
+        except Exception as error:
+            return {
+                "accepted": False,
+                "status": "unaccepted_invalid_receipt",
+                "reason": f"{type(error).__name__}: {error}",
+            }
+        required_keys = {
+            "schema",
+            "experiment_id",
+            "protocol_version",
+            "destination_name",
+            "payload_bytes",
+            "payload_sha256",
+            "receipt_sha256",
+        }
+        if type(receipt) is not dict or set(receipt) != required_keys:
+            return {
+                "accepted": False,
+                "status": "unaccepted_invalid_receipt",
+                "reason": "receipt keys are not exact",
+            }
+        if (
+            receipt.get("schema") != PUBLICATION_RECEIPT_SCHEMA
+            or receipt.get("experiment_id") != EXPERIMENT_ID
+            or type(receipt.get("protocol_version")) is not int
+            or receipt.get("protocol_version") != PROTOCOL_VERSION
+            or type(receipt.get("destination_name")) is not str
+            or receipt.get("destination_name") != destination_name
+            or type(receipt.get("payload_bytes")) is not int
+            or receipt["payload_bytes"] < 0
+            or type(receipt.get("payload_sha256")) is not str
+            or type(receipt.get("receipt_sha256")) is not str
+        ):
+            return {
+                "accepted": False,
+                "status": "unaccepted_invalid_receipt",
+                "reason": "receipt field values or types are invalid",
+            }
+        receipt_payload = dict(receipt)
+        supplied_receipt_digest = receipt_payload.pop("receipt_sha256")
+        if (
+            len(receipt["payload_sha256"]) != 64
+            or len(supplied_receipt_digest) != 64
+            or digest(receipt_payload) != supplied_receipt_digest
+            or stable_bytes(receipt) + b"\n" != receipt_raw
+        ):
+            return {
+                "accepted": False,
+                "status": "unaccepted_invalid_receipt",
+                "reason": "receipt encoding or digest is invalid",
+            }
+        try:
+            payload = _read_regular_at(
+                parent_fd, destination_name, MAXIMUM_VERIFICATION_REPORT_BYTES
+            )
+        except Exception as error:
+            return {
+                "accepted": False,
+                "status": "unaccepted_receipt_mismatch",
+                "reason": f"{type(error).__name__}: {error}",
+            }
+        if (
+            len(payload) != receipt["payload_bytes"]
+            or hashlib.sha256(payload).hexdigest() != receipt["payload_sha256"]
+        ):
+            return {
+                "accepted": False,
+                "status": "unaccepted_receipt_mismatch",
+                "reason": "payload bytes do not match the completion receipt",
+            }
+        return {
+            "accepted": True,
+            "status": "accepted",
+            "receipt_name": receipt_name,
+            "payload_bytes": receipt["payload_bytes"],
+            "payload_sha256": receipt["payload_sha256"],
+            "receipt_sha256": supplied_receipt_digest,
+        }
+    finally:
+        try:
+            os.close(parent_fd)
+        except OSError:
+            pass
+
+
+def write_json_exclusive(path: Path, value: Any) -> dict[str, Any]:
+    payload = stable_bytes(value) + b"\n"
+    if len(payload) > MAXIMUM_VERIFICATION_REPORT_BYTES:
+        raise ValueError("verification output exceeds its publication byte ceiling")
+    parent_fd, destination_name = _open_output_parent(path)
+    accepted = False
+    warnings: list[dict[str, Any]] = []
+    try:
+        data_result = _write_payload_no_replace(
+            parent_fd,
+            destination_name,
+            payload,
+        )
+        warnings.extend(data_result["warnings"])
+        receipt_name = _publication_receipt_name(destination_name)
+        receipt = _publication_receipt(destination_name, payload)
+        receipt_result = _write_payload_no_replace(
+            parent_fd,
+            receipt_name,
+            stable_bytes(receipt) + b"\n",
+        )
+        warnings.extend(receipt_result["warnings"])
+        accepted = True
+    except Exception:
+        try:
+            os.close(parent_fd)
+        except OSError:
+            pass
+        raise
+
+    try:
         os.close(parent_fd)
+    except OSError as error:
+        warnings.append(_publication_warning("output_parent_close", error))
+    if not accepted:
+        raise AssertionError("publication receipt did not reach its commit point")
+
+    return {
+        "schema": PUBLICATION_RESULT_SCHEMA,
+        "accepted": True,
+        "status": "accepted",
+        "destination_name": destination_name,
+        "receipt_name": receipt_name,
+        "payload_bytes": len(payload),
+        "payload_sha256": hashlib.sha256(payload).hexdigest(),
+        "data_method": data_result["method"],
+        "receipt_method": receipt_result["method"],
+        "warnings": warnings,
+    }
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -7229,7 +7595,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     report = verify_document(args.input, args.maximum_primary_nodes)
-    write_json_exclusive(output_path(args.output), report)
+    publication = write_json_exclusive(output_path(args.output), report)
     print(
         json.dumps(
             {
@@ -7238,10 +7604,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "valid_row_count": report["valid_row_count"],
                 "total_replay_nodes": report["total_replay_nodes"],
                 "total_primary_nodes": report["total_primary_nodes"],
+                "publication": publication,
             },
             sort_keys=True,
         )
     )
+    if not publication["accepted"]:
+        return 2
     return 0 if report["valid"] else 1
 
 
