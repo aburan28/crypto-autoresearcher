@@ -1,29 +1,26 @@
-## Handoff: SGCP V14 attempt-bound publication repair
+## Handoff: SGCP V14 exact-commit review closeout
 
 ### Claim or task
 
-Validate and independently review the no-run V14 repair of the exact V13
-publication-attribution, path-containment, direct-write, control-independence,
-and provenance findings without creating a generated curve-family density row,
-canonical matrix, runner, launch plan, or run.
+Preserve the exact-commit V14 reviews and repair their path-claim,
+current-state, and durable-inventory findings without creating a generated
+curve-family density row, canonical matrix, runner, launch plan, or run.
 
 ### Status
 
-`OBSERVATION` for implementation preflight only. The research claim remains
+`NEGATIVE RESULT` for V14 launch-plan readiness. The research claim remains
 `HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
 Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Assumptions
 
-- Receipt identifiers are random 256-bit values. Collision resistance and the
-  integrity boundary assume the standard behavior of `secrets`; this is not a
-  uniqueness theorem or hostile same-process sandbox.
-- Exact-attempt reconciliation covers ordinary synchronous `Exception`
-  subclasses under available memory. `BaseException`, process death, power
-  loss, memory exhaustion, and hostile monkeypatching are outside the claim.
-- The forced `ENOTSUP` controls exercise fallback state transitions. Actual
-  `os.link` behavior is controlled on a test-only hard-link-capable temporary
-  root, not asserted for the mounted development filesystem.
+- The V14 reviews are static inspections of exact committed bytes and do not
+  independently reproduce historical runtime claims.
+- Receipt identifiers assume standard `secrets.token_hex(32)` behavior in a
+  controlled workspace without hostile same-process or same-user mutation.
+- Exact-attempt reconciliation covers the documented ordinary synchronous
+  exception boundary. `BaseException`, process death, power loss, memory
+  exhaustion, and hostile monkeypatching remain outside the claim.
 - The receipt is unkeyed and sequentially validated; it is not authentication
   against a hostile same-user actor and its data/receipt snapshots are not
   pair-atomic.
@@ -35,27 +32,23 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Evidence so far
 
-- Exact-commit V13 theory and accounting reviews issued scoped GO, but red team
-  issued `REVISE`; `decision-v13.json` keeps launch-plan design unauthorized.
+- Exact-commit V14 theory issued scoped `GO`, but accounting and red team issued
+  `REVISE`; `decision-v14.json` keeps launch-plan design unauthorized.
+- All nine committed artifact hashes match, and two independent derivations
+  reproduce `480/112/336/218/4218`.
 - Producer and verifier emit V14; V1-V13 schemas reject before semantic row
   verification.
-- Both destination names are preflighted. A stale receipt blocks identical
-  payload retry before replacement data is created.
-- The V14 receipt binds its random publication identifier, destination basename,
-  development-relative path, payload bytes and hash, protocol, experiment, and
-  canonical self-digest.
-- Ordinary post-receipt exceptions through rename, actual hard link, and forced
-  direct publication return accepted only after exact-attempt terminal
-  validation, with a reconciliation warning.
-- Concurrent same-destination calls produce one accepted identifier and one
-  no-overwrite failure; both production and standalone checks attribute only
-  the winning pair.
-- Public writer, receipt-path, and status entries normalize internally, while
-  the descriptor walker rejects dot components independently.
-- A short direct receipt write is detected by the final inode-size check and
-  remains unaccepted under both validators.
-- The hard-link controls call the real `os.link`; the standalone receipt parser
-  shares no production status implementation.
+- The V13 high- and medium-severity publication findings are materially
+  repaired: attempt-bound receipts, stale-name preflight, winning-writer
+  attribution, terminal validation, actual hard-link controls, and fail-closed
+  direct-size handling are present.
+- Path containment is sound, but `Path` normalization erases raw `.` and empty
+  components before the claimed checks can reject them. The new path control
+  covers parent traversal only.
+- The primary V14 handoff and active ledger row still describe validation,
+  hash freezing, and commit work that this exact snapshot has already completed.
+- The durable-artifact ledger omits four committed V7 records that remain
+  required by the specification.
 - The V12 provenance correction remains a separate immutable record.
 - The exact curve grid, predicates, compiler, objective, caps, gates, operation
   vector, and claim boundary are unchanged.
@@ -64,10 +57,10 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Failure modes
 
+- Raw path spelling is not preserved across `Path` normalization. This is an
+  exact-claim and control-coverage defect, not a demonstrated containment escape.
 - A failed pre-receipt publication can leave an unaccepted, non-reusable orphan
   or malformed receipt.
-- A successful reconciliation does not reveal which primitive committed when
-  the helper raised before returning its method.
 - `BaseException` or process interruption can still prevent a success return
   after a matching receipt is visible; V14 explicitly makes no contrary claim.
 - External immutable execution, hard resource limits, and executed-code
@@ -79,9 +72,9 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Next concrete action
 
-Finish V14 documentation and ledgers, run focused, record, generated-index, and
-repository-wide validation, freeze exact hashes, commit one snapshot, and
-obtain fresh read-only theory, accounting, and red-team decisions. Keep
+Implement one no-run V15 that corrects the raw-path claim and control coverage,
+records the current committed-review state, and restores the four omitted V7
+durable-artifact entries. Preserve every mathematical parameter and keep
 `maximum_runs=0`.
 
 ### Artifact paths
@@ -103,6 +96,11 @@ obtain fresh read-only theory, accounting, and red-team decisions. Keep
 - `experiments/EXP-SGCP-EMBED-002/revision-response-v14.md`
 - `experiments/EXP-SGCP-EMBED-002/development-test-log-v14.md`
 - `experiments/EXP-SGCP-EMBED-002/source-self-review-v14.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v14.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v14.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v14.md`
+- `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v14.json`
+- `experiments/EXP-SGCP-EMBED-002/decision-v14.json`
 - `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
