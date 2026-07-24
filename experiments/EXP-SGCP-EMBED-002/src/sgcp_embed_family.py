@@ -3,7 +3,7 @@
 
 The builder uses affine coordinates and EC addition only. It deliberately has
 no scalar-multiplication routine and constructs no discrete-log table.
-Canonical execution remains disabled by the version-11 experiment contract.
+Canonical execution remains disabled by the version-12 experiment contract.
 """
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ import heapq
 import itertools
 import json
 import math
-import os
 import sys
 import time
 from collections import Counter, defaultdict
@@ -23,10 +22,10 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
 
-SCHEMA = "sgcp-embed-002-density-frontier-candidate-v11"
+SCHEMA = "sgcp-embed-002-density-frontier-candidate-v12"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
 CLAIM_STATUS = ["HYPOTHESIS", "TOY-EVIDENCE", "MODEL-BOUND", "NOVELTY-UNVERIFIED"]
-PROTOCOL_VERSION = 11
+PROTOCOL_VERSION = 12
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -54,9 +53,6 @@ CANONICAL_FACTOR_BASE_SIZES = (4, 6, 8)
 CANONICAL_NULL_REPLICATES = 4
 CANONICAL_NODE_CAP = 2_000_000
 FROZEN_NODE_CAP = 100_000
-SCRIPT_PATH = Path(__file__).resolve()
-EXPERIMENT_ROOT = SCRIPT_PATH.parents[1]
-DEVELOPMENT_ROOT = EXPERIMENT_ROOT / "development"
 FROZEN_FIXTURE = {
     "bits": 5,
     "p": 19,
@@ -409,7 +405,7 @@ def generated_curve(
     bits: int, seed: int, ops: OperationCounts | None = None
 ) -> tuple[Curve, list[Point], dict[str, Any]]:
     raise PermissionError(
-        "version-11 public generated-curve construction is disabled; "
+        "version-12 public generated-curve construction is disabled; "
         "private factor-base controls do not authorize density rows"
     )
 
@@ -1323,7 +1319,7 @@ def build_legacy_row(
     ops: OperationCounts,
 ) -> dict[str, Any]:
     raise PermissionError(
-        "version-11 public legacy-row construction is disabled; "
+        "version-12 public legacy-row construction is disabled; "
         "private controls do not authorize evidence rows"
     )
 
@@ -1505,7 +1501,7 @@ def build_density_row(
     )
     if not frozen_association:
         raise PermissionError(
-            "version-11 generated density-row construction is disabled; "
+            "version-12 generated density-row construction is disabled; "
             "only the frozen p=19 B=4 control is admitted"
         )
     started = time.perf_counter()
@@ -1716,28 +1712,6 @@ def build_density_row(
     return row
 
 
-def write_json_atomic(path: Path, value: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    if temporary.exists():
-        raise FileExistsError(temporary)
-    with temporary.open("xb") as handle:
-        handle.write(stable_json(value) + b"\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(temporary, path)
-
-
-def ensure_development_output(path: Path) -> Path:
-    resolved = path.resolve()
-    root = DEVELOPMENT_ROOT.resolve()
-    if root not in resolved.parents:
-        raise ValueError(f"development output must be below {root}")
-    if resolved.exists():
-        raise FileExistsError(resolved)
-    return resolved
-
-
 def fraction_json(value: Fraction) -> dict[str, int]:
     return {"numerator": value.numerator, "denominator": value.denominator}
 
@@ -1921,7 +1895,7 @@ def evaluate_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     else:
         negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v11",
+        "criterion_version": "sgcp-embed-002-family-gate-v12",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
@@ -2124,7 +2098,7 @@ def build_frozen_control_document(node_cap: int = FROZEN_NODE_CAP) -> dict[str, 
 
 def build_development_document(args: argparse.Namespace) -> dict[str, Any]:
     raise PermissionError(
-        "version-11 development curve-row budget is zero; use the frozen control only"
+        "version-12 development curve-row budget is zero; use the frozen control only"
     )
 
 
@@ -2153,7 +2127,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "canonical execution is disabled: specification status is review_required and maximum_runs is zero"
         )
     raise PermissionError(
-        "version-11 development curve-row budget is zero; run unit and frozen-fixture controls only"
+        "version-12 development curve-row budget is zero; run unit and frozen-fixture controls only"
     )
 
 

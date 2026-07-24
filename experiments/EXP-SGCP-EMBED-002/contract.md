@@ -1,4 +1,4 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 11
+# Experiment Contract: EXP-SGCP-EMBED-002, version 12
 
 ## Claim status
 
@@ -65,7 +65,7 @@ serialized bytes are charged inside the public model and each nested cap
 receipt.
 
 The legacy `source_recovery` boolean records sorted formal normalization only.
-Version 11 interprets source recovery through
+Version 12 interprets source recovery through
 `source_recovery_via_public_table`; it does not treat normalization as an
 inversion algorithm.
 
@@ -170,14 +170,14 @@ nonidentity EC output. These conventions are emitted as a public ordering
 contract with digest
 `8114bd7d1822578e3d1453126968964da213775c6f12f86c764413f737212359`.
 
-V11 key sets and value types are closed throughout rows, documents, summaries,
+V12 key sets and value types are closed throughout rows, documents, summaries,
 family gates, nested integrity/accounting receipts, and verification reports. JSON
 Boolean, integer, float, string, list, object, and null roles are exact. In
 particular, `false` is not integer zero, `-0.0` is not integer zero, and an
 equal-valued float is not an integer receipt. Refreshed byte and document
 digests do not excuse a type mismatch.
 
-The V11 verifier accepts only the V11 document schema. V1-V10 schemas are
+The V12 verifier accepts only the V12 document schema. V1-V11 schemas are
 explicitly rejected without row verification. Each receipt contains an ordered
 phase ledger from actual control flow. Aggregate row/cap phases carry expected,
 completed, and failed unit counts and become independent checks only after all
@@ -185,32 +185,50 @@ registered units pass.
 
 Path-based `verify_document` is the sole evidence-bearing API. Public direct
 legacy-row and density-row verification entry points return invalid before any
-curve, graph, replay, or proof helper. Public producer `generated_curve` and
+curve, graph, replay, or proof helper. Internal row/document semantic helpers
+also require the active process-local path permit; production-module test
+wrappers cannot create that permit. Repository tests deliberately inject the
+internal sentinel through test-file introspection, are non-evidence, and create
+no exported permit factory. Every public path call creates fresh actual-work,
+reservation, and registered-curve-cache state and restores any outer state on
+return. This isolates concurrent and nested public calls, but it is not a
+hostile same-process Python sandbox. Public producer `generated_curve` and
 `build_legacy_row` calls raise, and `build_density_row` admits only the exact
-frozen p=19 B4 control before factor-base work. The verifier opens the final
-path component with no-follow and nonblocking flags, requires a regular file,
-and rejects an initial `st_size` above 256 MiB before allocation or reading. It
-fills one exact-size bytearray directly, incrementally hashes those bytes, and
-requires stable file identity plus an exact completed length. Before JSON object
-construction, an ASCII lexical preflight rejects insignificant whitespace,
-more than 2,000,000 scalar/container/string tokens, nesting above depth 64, raw
-string tokens above 8 MiB, and scalar tokens above 1,024 bytes. The same buffer
-is then strictly ASCII-decoded and cleared before standard JSON parsing with
-duplicate-key and nonfinite-number rejection. Parent path components may
-traverse symlinks; the receipt states this policy. The parsed object graph is
-limited to 2,000,000 nodes, depth 64, and 8 MiB per string or key. Diagnostics
-are normalized to the top level and limited to 256 items, 65,536 ASCII bytes
-total, and 2,048 bytes per item. Reflected document digests are either exact
-lowercase SHA-256 values or null. Reflected input-path metadata is limited to
-4,096 ASCII bytes or replaced by a bounded omission marker. The complete
-serialized verification report,
+frozen p=19 B4 control before factor-base work.
+
+The verifier opens the final input path component with no-follow and nonblocking
+flags, requires a regular file, and rejects an initial `st_size` above 256 MiB
+before allocation or reading. It fills one exact-size bytearray directly,
+incrementally hashes those bytes, and requires stable file identity plus an
+exact completed length. Before JSON object construction, an ASCII lexical
+preflight rejects insignificant whitespace, more than 2,000,000
+scalar/container/string tokens, nesting above depth 64, raw string tokens above
+8 MiB, and scalar tokens above 1,024 bytes. The same buffer is then strictly
+ASCII-decoded and cleared before standard JSON parsing with duplicate-key and
+nonfinite-number rejection. Parent input path components may traverse symlinks;
+the receipt states this policy. The parsed object graph is limited to 2,000,000
+nodes, depth 64, and 8 MiB per string or key. Diagnostics are normalized to the
+top level and limited to 256 items, 65,536 ASCII bytes total, and 2,048 bytes per
+item. Reflected document digests are either exact lowercase SHA-256 values or
+null. Reflected input-path metadata is limited to 4,096 ASCII bytes or replaced
+by a bounded omission marker. The complete serialized verification report,
 including its size receipt and hash, is limited to 8 MiB. Only B in
 `{4,6,8}`, the exact frozen association or eight canonical `(bits,seed)`
 associations, the source-owned frozen 100,000-node replay cap, the source-owned
 canonical 2,000,000-node replay cap, and an exact primary-proof budget in
 `0..5,000,000` are admitted.
 
-Before generic JSON traversal, V11 applies source-sized bounds to document and
+Verification output must be lexically below the development root. The writer
+walks parent directories from that root through no-follow descriptors, writes
+and fsyncs an unpredictable exclusive temporary inode, and publishes without
+overwrite by descriptor-relative exclusive rename or same-directory hard link
+where supported. On exFAT, which supports neither primitive, it opens the final
+destination with `O_EXCL` and writes through that descriptor. A successful
+return plus the complete report hash is required for acceptance. If that direct
+write is interrupted, the partial destination remains permanently unaccepted
+and cannot be overwritten or reused.
+
+Before generic JSON traversal, V12 applies source-sized bounds to document and
 row roots, registered parameters, the nested family gate, Mobius maps,
 alternating positions, rejection reasons, root polynomials, formal witnesses,
 edge/source tables, exact-empty frontiers, and per-cap byte receipts. Before
@@ -219,7 +237,7 @@ document digests; nested byte accounting; protocol, scope, and grid
 association; the frozen static transcript; cap schedule; objective; masks;
 source-owned node caps; and the reconstructed document summary/family gate. No
 canonical curve derivation or reservation-dependent semantics occurs before
-this authentication. V11 then reserves separate worst-case totals for
+this authentication. V12 then reserves separate worst-case totals for
 registered prime candidates, curve draws and hashes, predicate hashes, frozen,
 semantic, and primary point enumerations, expansion cells, graph candidate
 evaluations, eligible conflict checks, eligible pair-output cells, replay nodes,
@@ -227,9 +245,11 @@ independent primary nodes, both replay caches, both primary caches,
 retained-model calls, and retained-model cells. Any over-limit reservation is
 invalid and `INCONCLUSIVE`.
 
-Rows are verified sequentially and stop at the first invalid row. Replay,
+Rows are verified sequentially and stop at the first invalid row. Every raw
+work charge must be an exact positive integer; Boolean, zero, negative, float,
+and other amounts fail before counter mutation. Replay,
 retained-model, and primary-proof exceptions preserve earlier cap receipts,
-the trusted reservation, globally charged work already spent inside the
+the trusted reservation, invocation-locally charged work already spent inside the
 failing cap, the failed unit count, and `actual_work_complete=false`. Replay
 and primary nodes are charged as explored and cache entries as inserted;
 graph and expansion work is charged inside each executed loop, and
@@ -248,7 +268,7 @@ overcharge is invalid while the completed-work flag remains true. Interrupted
 predicate reconstruction preserves partial work and sets
 `actual_work_complete=false`, so completed equality is not claimed. Complete
 actual work must also be dominated by the source-owned reservation or the
-report is invalid. An otherwise successful report must match the exact V11
+report is invalid. An otherwise successful report must match the exact V12
 phase sequence, including completed provenance/predicate equality, with every
 unit phase complete and passed. Ordinary authenticated semantic mismatches may
 stop early with counters for the work actually executed. The
@@ -326,7 +346,7 @@ factor-base multisets. Both denominators appear beside retention ratios.
 
 ## Accounting boundary
 
-Version 11 retains the V3 accounting boundary and emits only independently
+Version 12 retains the V3 accounting boundary and emits only independently
 reconstructible combinatorial cells, including multiset evaluations,
 representative and parent-pair counts, graph checks, pair-output cells,
 optimizer nodes, bound calls, source-enforced optimizer and full-model cache
@@ -343,7 +363,7 @@ Producer row and cap wall times are observational and checked only for finite,
 nonnegative nesting. The producer makes no peak-memory claim. Any future
 canonical execution must obtain generator and verifier wall time, peak RSS,
 serialized output size, and memory traffic from the trusted external runner.
-Verifier work must be reported as a separate role cost. V11 path receipts
+Verifier work must be reported as a separate role cost. V12 path receipts
 record actual registered-curve cache behavior, prime candidates, curve and
 predicate hashes, point enumerations, expansion cells, graph candidate
 evaluations, eligible conflict checks, eligible pair-output cells, replay and
@@ -375,7 +395,7 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
    the closed schema.
 10. Reject Boolean/integer/float aliases in optimizer, graph, axiom, ratio,
     mask, node-cap, wall-time, byte-receipt, summary, and document fields.
-11. Verify one frozen V11 document and reject an empty canonical document.
+11. Verify one frozen V12 document and reject an empty canonical document.
 12. Reject missing, extra, duplicate, reordered, wrong-cap, wrong-node-cap,
     inconsistent-curve, and cross-seed-duplicate canonical matrices.
 13. Exact-match producer and independent family gates on a synthetic complete
@@ -390,8 +410,8 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     out-of-range selected formals, duplicate selected formals, negative caps,
     malformed JSON, nonobject roots, duplicate keys, and out-of-range verifier
     budgets.
-16. Relabel a valid V11 body with every V1-V10 schema and require explicit legacy
-    rejection with zero row checks and no V11 mathematical check claims.
+16. Relabel a valid V12 body with every V1-V11 schema and require explicit legacy
+    rejection with zero row checks and no V12 mathematical check claims.
 17. Replace the input path after its snapshot is read and require the receipt
     hash and parsed document to remain bound to the original bytes. Reject
     directories and symlinks before JSON parsing.
@@ -409,7 +429,10 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     including every recursive degree-two parent pair, directly with the
     verifier reconstruction.
 22. Keep generated controls at curve-provenance and factor-base scope only;
-    construct no generated density row.
+    construct no generated curve-family density row. Separately construct
+    exactly three transient noncanonical frozen legacy semantic rows at
+    B=4,6,8, record their digests, and distinguish them from the sole frozen-B4
+    density-row/document control.
 23. Reject FIFOs without blocking, reject an initially oversized sparse file
     before the first read, reject a final-component symlink, and confirm the
     disclosed parent-component symlink behavior.
@@ -461,6 +484,19 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     `480/112/336/218/4218`. Undercharge and overcharge each dimension by one and
     require exact mismatch while completed work remains true; inject a predicate
     interruption and require its partial charge with completed work false.
+39. Call every internal legacy-row, density-row, document-value, test-wrapper,
+    registered-curve, and path-worker semantic entry point without an active
+    path permit and require rejection before mathematical work.
+40. Pass Boolean, zero, negative, float, string, and null work-charge amounts;
+    require exact-type rejection and no counter mutation.
+41. Overlap two frozen path verifications at the first graph-candidate charge
+    and nest one complete verification inside another factor-base
+    reconstruction. Require each receipt to equal the serial baseline and no
+    active state after return.
+42. Preserve a preexisting and a race-created output destination byte-for-byte,
+    reject output parent symlinks, and remove unpublished temporary inodes.
+43. Force an exFAT direct-write interruption, retain the partial destination as
+    unaccepted, and prove a second publication cannot overwrite it.
 
 ## Positive criterion
 
@@ -490,10 +526,12 @@ changes the measured collision geometry.
 
 ## Budgets and stopping
 
-Version 1 consumed 17 of 18 historical development curve rows. Version 11
+Version 1 consumed 17 of 18 historical development curve rows. Version 12
 authorizes no additional curve-family row. Unit, abstract graph,
-generated-curve provenance, generated factor-base, and frozen p=19
-row/document controls are allowed. A generated density row is not allowed.
+generated-curve provenance, generated factor-base, one frozen p=19 B4
+density-row/document control, and exactly three transient noncanonical frozen
+legacy semantic rows at B=4,6,8 are allowed. A generated curve-family density
+row is not allowed.
 
 Canonical budget remains:
 
@@ -504,7 +542,7 @@ total_cpu_hours = 0
 maximum_memory_gb = 0
 ```
 
-Fresh independent theory, accounting, and red-team GO on one committed V11
+Fresh independent theory, accounting, and red-team GO on one committed V12
 snapshot is necessary but not sufficient to launch. A separate hash-complete
 execution plan and coordinator approval must follow before any budget change.
 
@@ -519,5 +557,6 @@ are finite stress probes, not an `n^(1/5)` schedule.
 
 No canonical reproduction command exists while `maximum_runs` is zero. The
 current producer refuses both development family rows and canonical execution;
-only unit, generated-factor-base, and frozen-fixture functions are authorized
-for V11 preflight.
+only unit, generated-factor-base, one frozen-fixture B4 density control, and
+the disclosed transient B4/B6/B8 legacy semantic controls are authorized for
+V12 preflight.

@@ -1,3 +1,87 @@
+## Handoff: SGCP V12 invocation and publication repair
+
+### Claim or task
+
+Validate and independently review the no-run V12 repair of the exact V11
+invocation-state, legacy-control scope, output-publication, internal-entry, and
+work-charge findings without creating a generated curve-family density row,
+canonical matrix, runner, launch plan, or run.
+
+### Status
+
+`OBSERVATION` for implementation preflight only. The research claim remains
+`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
+Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
+
+### Assumptions
+
+- Context-local state protects ordinary concurrent and nested public calls, not
+  hostile same-process Python introspection.
+- Repository tests inject the internal path sentinel deliberately and remain
+  non-evidence; the production module exports no permit factory.
+- The exFAT `O_EXCL` fallback prevents overwrite but can leave an interrupted
+  destination visible and permanently unaccepted.
+- Exactly three transient noncanonical legacy semantic rows at B=4,6,8 are
+  predecessor controls. The separate frozen-B4 document is the sole density-row
+  control.
+- Relation yield, rank, linear algebra, descent, preprocessing crossover, rho,
+  exponent, and ECDLP claims remain outside this experiment.
+
+### Evidence so far
+
+- Producer and verifier emit V12; V1-V11 schemas reject without row verification.
+- Actual work, the resource reservation, and the registered-curve cache reside
+  in a fresh `_VerificationState` for every public path call.
+- Two synchronized concurrent verifications and one nested verification each
+  reproduce the serial frozen receipt exactly and restore the prior context.
+- Internal semantic entry points reject without the active identity-checked
+  path permit. Public direct row APIs remain disabled.
+- Work charges accept exact positive integers only; weak-type and nonpositive
+  controls leave counters unchanged.
+- Descriptor-walked output preserves preexisting and race-created destinations,
+  rejects parent symlinks, and removes unpublished temporary inodes.
+- The actual exFAT volume rejects hard-link and exclusive-rename publication;
+  the `O_EXCL` fallback succeeds, and an injected interrupted final write
+  remains unaccepted and cannot be overwritten.
+- Three transient legacy rows at B=4,6,8 have a separate in-test digest receipt.
+  No generated curve-family density row, canonical matrix, runner, plan, or run
+  exists.
+- The focused 71-test suite passes.
+- All 14 scoped records validate and the generated repository index matches
+  `ledger.json`.
+- The repository suite passes 214 of 215 tests. The sole failure is the
+  preserved pre-existing SGCP-EMBED-001 immutable-run directory guard, not a
+  V12 assertion.
+
+### Failure modes
+
+- External immutable execution, hard resource limits, and executed-code
+  attestation remain future runner obligations.
+- Interrupted exFAT direct output is fail-closed but not atomically invisible.
+- Canonical B6/B8 feasibility, output size, CPU, wall time, RSS, cache occupancy,
+  and memory traffic remain unmeasured.
+- The structurally distinct complete semantic oracle remains frozen-B4 only.
+- No current artifact supports an attack or asymptotic claim.
+
+### Next concrete action
+
+Validate records, generated ledger, focused and repository suites; freeze exact
+V12 hashes; commit one snapshot; obtain fresh read-only theory, accounting, and
+red-team decisions. Keep `maximum_runs=0`.
+
+### Artifact paths
+
+- `experiments/EXP-SGCP-EMBED-002/hypothesis.json`
+- `experiments/EXP-SGCP-EMBED-002/specification.json`
+- `experiments/EXP-SGCP-EMBED-002/contract.md`
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v12.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v12.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v12.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v12.md`
+- `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
+- `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
+- `tests/test_sgcp_embed_family.py`
+
 ## Handoff: SGCP V7 no-run verifier repair
 
 ### Claim or task

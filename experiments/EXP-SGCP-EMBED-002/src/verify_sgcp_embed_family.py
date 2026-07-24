@@ -8,14 +8,19 @@ coverage optimum from the emitted coordinates.
 from __future__ import annotations
 
 import argparse
+import ctypes
+import errno
 import hashlib
 import heapq
 import itertools
 import json
 import math
 import os
+import secrets
 import stat
 from collections import Counter, defaultdict
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
@@ -32,11 +37,12 @@ LEGACY_SCHEMAS = {
     "sgcp-embed-002-density-frontier-candidate-v8",
     "sgcp-embed-002-density-frontier-candidate-v9",
     "sgcp-embed-002-density-frontier-candidate-v10",
+    "sgcp-embed-002-density-frontier-candidate-v11",
 }
-CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v11"
-VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v11"
+CURRENT_SCHEMA = "sgcp-embed-002-density-frontier-candidate-v12"
+VERIFICATION_SCHEMA = "sgcp-embed-002-development-verification-v12"
 EXPERIMENT_ID = "EXP-SGCP-EMBED-002"
-PROTOCOL_VERSION = 11
+PROTOCOL_VERSION = 12
 REPRESENTATIVE_COMPILER = (
     "lexicographically_least_formal_per_nonidentity_2F_output_v2"
 )
@@ -215,7 +221,7 @@ class BoundedErrors(list[str]):
         if self.truncated:
             return
         self.truncated = True
-        marker = "diagnostics truncated at V11 source ceiling"
+        marker = "diagnostics truncated at V12 source ceiling"
         marker_bytes = len(marker.encode("ascii"))
         if (
             len(self) < MAXIMUM_DIAGNOSTIC_COUNT
@@ -490,8 +496,21 @@ def empty_actual_work() -> dict[str, int | bool]:
     }
 
 
-_ACTIVE_ACTUAL_WORK: dict[str, int | bool] | None = None
-_ACTIVE_RESOURCE_RECEIPT: dict[str, int] | None = None
+@dataclass
+class _VerificationState:
+    path_permit: object
+    actual_work: dict[str, int | bool] = field(default_factory=empty_actual_work)
+    resource_receipt: dict[str, int] | None = None
+    registered_curve_cache: dict[
+        tuple[int, int], tuple[Any, tuple[Any, ...], dict[str, Any]]
+    ] = field(default_factory=dict)
+
+
+_PATH_VERIFICATION_PERMIT = object()
+_ACTIVE_VERIFICATION_STATE: ContextVar[_VerificationState | None] = ContextVar(
+    "sgcp_v12_active_verification_state",
+    default=None,
+)
 CAP_SEARCH_COUNTERS = (
     "replay_nodes",
     "replay_metric_cache_entries",
@@ -502,29 +521,49 @@ CAP_SEARCH_COUNTERS = (
 )
 
 
+def _active_verification_state() -> _VerificationState | None:
+    return _ACTIVE_VERIFICATION_STATE.get()
+
+
+def _require_path_verification_state() -> _VerificationState:
+    state = _active_verification_state()
+    if state is None or state.path_permit is not _PATH_VERIFICATION_PERMIT:
+        raise PermissionError(
+            "semantic verification requires the active path-only V12 permit"
+        )
+    return state
+
+
 def reset_actual_work() -> dict[str, int | bool]:
-    global _ACTIVE_ACTUAL_WORK, _ACTIVE_RESOURCE_RECEIPT
-    _ACTIVE_ACTUAL_WORK = empty_actual_work()
-    _ACTIVE_RESOURCE_RECEIPT = None
-    return _ACTIVE_ACTUAL_WORK
+    state = _active_verification_state()
+    if state is None:
+        return empty_actual_work()
+    state.actual_work = empty_actual_work()
+    state.resource_receipt = None
+    return state.actual_work
 
 
 def charge_actual_work(name: str, amount: int = 1) -> None:
-    if _ACTIVE_ACTUAL_WORK is None:
+    if type(amount) is not int or amount <= 0:
+        raise TypeError("actual-work charge must be an exact positive integer")
+    state = _active_verification_state()
+    if state is None:
         return
-    current = _ACTIVE_ACTUAL_WORK.get(name)
+    current = state.actual_work.get(name)
     if type(current) is not int:
         raise AssertionError(f"actual-work counter {name!r} is not integral")
-    _ACTIVE_ACTUAL_WORK[name] = current + amount
+    state.actual_work[name] = current + amount
 
 
 def mark_actual_work_incomplete() -> None:
-    if _ACTIVE_ACTUAL_WORK is not None:
-        _ACTIVE_ACTUAL_WORK["actual_work_complete"] = False
+    state = _active_verification_state()
+    if state is not None:
+        state.actual_work["actual_work_complete"] = False
 
 
 def actual_work_snapshot(names: Sequence[str]) -> dict[str, int]:
-    source = _ACTIVE_ACTUAL_WORK or empty_actual_work()
+    state = _active_verification_state()
+    source = state.actual_work if state is not None else empty_actual_work()
     return {
         name: source[name]
         for name in names
@@ -928,21 +967,18 @@ def independent_curve_record(
     }
 
 
-_REGISTERED_CURVE_CACHE: dict[
-    tuple[int, int], tuple[Curve, tuple[Point, ...], dict[str, Any]]
-] = {}
-
-
 def registered_curve_bundle(
     bits_value: int, seed: int
 ) -> tuple[Curve, tuple[Point, ...], dict[str, Any]]:
     """Derive one preregistered curve without following an input draw count."""
+    state = _require_path_verification_state()
+    cache = state.registered_curve_cache
     key = (bits_value, seed)
     if bits_value not in CANONICAL_BITS or seed not in CANONICAL_SEEDS:
         raise AssertionError("curve bits/seed are outside the registered grid")
-    if key in _REGISTERED_CURVE_CACHE:
+    if key in cache:
         charge_actual_work("registered_curve_cache_hits")
-        return _REGISTERED_CURVE_CACHE[key]
+        return cache[key]
     charge_actual_work("registered_curve_cache_misses")
 
     prime_candidate_count = (1 << bits_value) - (1 << (bits_value - 1))
@@ -998,8 +1034,8 @@ def registered_curve_bundle(
                 "rejection_digest": digest(rejections),
             }
         )
-        _REGISTERED_CURVE_CACHE[key] = (curve, group, record)
-        return _REGISTERED_CURVE_CACHE[key]
+        cache[key] = (curve, group, record)
+        return cache[key]
     raise AssertionError("registered curve derivation exhausted its fixed draw ceiling")
 
 
@@ -2098,6 +2134,7 @@ def retained_model(
 def _verify_legacy_row_unchecked(
     row: dict[str, Any], maximum_nodes: int
 ) -> dict[str, Any]:
+    _require_path_verification_state()
     errors: list[str] = []
     supplied_digest = row.get("row_sha256")
     payload = dict(row)
@@ -2234,7 +2271,7 @@ def _verify_legacy_row_unchecked(
 def verify_row(row: Any, maximum_nodes: Any) -> dict[str, Any]:
     errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
     errors.append(
-        "legacy direct-row API is disabled in V11; use path-based verify_document"
+        "legacy direct-row API is disabled in V12; use path-based verify_document"
     )
     return {"valid": False, "errors": errors, "primary_nodes": 0}
 
@@ -2297,17 +2334,17 @@ def _closed_dict(
         errors.append(f"{label_name} is not an object")
         return None
     if len(value) > len(expected_keys):
-        errors.append(f"{label_name} has more keys than the V11 source schema")
+        errors.append(f"{label_name} has more keys than the V12 source schema")
         return None
     if len(value) != len(expected_keys) or any(
         key not in expected_keys for key in value
     ):
-        errors.append(f"{label_name} keys do not match the V11 source schema")
+        errors.append(f"{label_name} keys do not match the V12 source schema")
         return None
     return value
 
 
-def v11_row_collection_bound_errors(row: Any) -> list[str]:
+def v12_row_collection_bound_errors(row: Any) -> list[str]:
     """Reject oversized nested containers before deep row traversal."""
     errors = BoundedErrors()
     if type(row) is not dict:
@@ -2327,10 +2364,10 @@ def v11_row_collection_bound_errors(row: Any) -> list[str]:
         "row_sha256",
     }
     if len(row) > len(row_keys):
-        errors.append("density row has more keys than the V11 source schema")
+        errors.append("density row has more keys than the V12 source schema")
         return errors
     if len(row) != len(row_keys) or any(key not in row_keys for key in row):
-        errors.append("density row keys do not match the V11 source schema")
+        errors.append("density row keys do not match the V12 source schema")
         return errors
     for name, expected in (
         ("protocol_version", int),
@@ -2354,11 +2391,11 @@ def v11_row_collection_bound_errors(row: Any) -> list[str]:
         return errors
     B = row.get("B")
     if type(B) is not int or not 4 <= B <= MAXIMUM_ROW_FACTOR_BASE_SIZE or B % 2:
-        errors.append("row.B is outside the V11 source range")
+        errors.append("row.B is outside the V12 source range")
         return errors
     family = row["family"]
     if family not in {*COORDINATE_FAMILIES, NULL_FAMILY}:
-        errors.append("row.family is outside the V11 source vocabulary")
+        errors.append("row.family is outside the V12 source vocabulary")
         return errors
     candidate_bound = math.comb(B + 3, 4)
     representative_bound = math.comb(B + 1, 2)
@@ -3011,7 +3048,7 @@ def v11_row_collection_bound_errors(row: Any) -> list[str]:
     return errors
 
 
-def v11_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
+def v12_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
     """Bound every gate-owned container before the generic shape walk."""
     errors = BoundedErrors()
     if scope == "frozen_fixture":
@@ -3022,7 +3059,7 @@ def v11_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
                     errors.append(f"frozen family gate.{name} is not a string")
         return errors
     if scope != "canonical":
-        errors.append("document scope is outside the V11 source vocabulary")
+        errors.append("document scope is outside the V12 source vocabulary")
         return errors
 
     gate_keys = {
@@ -3176,7 +3213,7 @@ def v11_family_gate_collection_bound_errors(gate: Any, scope: Any) -> list[str]:
     return errors
 
 
-def v11_document_collection_bound_errors(document: Any) -> list[str]:
+def v12_document_collection_bound_errors(document: Any) -> list[str]:
     """Apply source-sized document bounds before generic JSON traversal."""
     errors = BoundedErrors()
     if type(document) is not dict:
@@ -3196,12 +3233,12 @@ def v11_document_collection_bound_errors(document: Any) -> list[str]:
         "document_sha256",
     }
     if len(document) > len(document_keys):
-        errors.append("document has more keys than the V11 source schema")
+        errors.append("document has more keys than the V12 source schema")
         return errors
     if len(document) != len(document_keys) or any(
         key not in document_keys for key in document
     ):
-        errors.append("document keys do not match the V11 source schema")
+        errors.append("document keys do not match the V12 source schema")
         return errors
     for name, expected in (
         ("schema", str),
@@ -3232,7 +3269,7 @@ def v11_document_collection_bound_errors(document: Any) -> list[str]:
         errors.append("document claim status contains a non-string scalar")
     scope = document["scope"]
     if scope not in {"frozen_fixture", "canonical"}:
-        errors.append("document scope is outside the V11 source vocabulary")
+        errors.append("document scope is outside the V12 source vocabulary")
         return errors
 
     parameters = document["parameters"]
@@ -3355,15 +3392,15 @@ def v11_document_collection_bound_errors(document: Any) -> list[str]:
         )
     for index, row in enumerate(bounded_rows or []):
         errors.extend(
-            f"row[{index}]: {error}" for error in v11_row_collection_bound_errors(row)
+            f"row[{index}]: {error}" for error in v12_row_collection_bound_errors(row)
         )
         if errors.truncated:
             break
-    errors.extend(v11_family_gate_collection_bound_errors(document["family_gate"], scope))
+    errors.extend(v12_family_gate_collection_bound_errors(document["family_gate"], scope))
     return errors
 
 
-def v11_row_schema_errors(row: Any) -> list[str]:
+def v12_row_schema_errors(row: Any) -> list[str]:
     errors = BoundedErrors()
     try:
         require_keys(
@@ -3733,7 +3770,7 @@ def v11_row_schema_errors(row: Any) -> list[str]:
     return errors
 
 
-def v11_row_type_errors(row: dict[str, Any]) -> list[str]:
+def v12_row_type_errors(row: dict[str, Any]) -> list[str]:
     errors = BoundedErrors()
     for name in ("protocol_version", "B"):
         exact_integer(row[name], f"row.{name}", errors)
@@ -4424,10 +4461,11 @@ def _verify_density_row_unchecked(
     expected_node_cap: int | None,
     phases: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    errors = BoundedErrors(v11_row_schema_errors(row))
+    _require_path_verification_state()
+    errors = BoundedErrors(v12_row_schema_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
-    errors.extend(v11_row_type_errors(row))
+    errors.extend(v12_row_type_errors(row))
     if errors:
         return {"valid": False, "errors": errors, "primary_nodes": 0, "cap_reports": []}
     supplied_digest = row.get("row_sha256")
@@ -4751,7 +4789,7 @@ def _verify_density_row_unchecked(
         try:
             require_independent_exhausted_gate_cell(optimizer)
         except AssertionError as error:
-            cap_errors.append(f"V11 requires an exhausted exact optimizer cell: {error}")
+            cap_errors.append(f"V12 requires an exhausted exact optimizer cell: {error}")
         if not exact_json_equal(optimizer.get("selected_indices"), selected_indices):
             cap_errors.append("optimizer selected-index mismatch")
         if optimizer.get("selected_mask_hex") != hex(selected_mask):
@@ -5147,9 +5185,9 @@ def _verify_density_row_for_tests(
     maximum_nodes: Any,
     scope: str | None = None,
 ) -> dict[str, Any]:
-    global _ACTIVE_RESOURCE_RECEIPT
+    state = _require_path_verification_state()
     reset_actual_work()
-    errors = BoundedErrors(v11_row_collection_bound_errors(row))
+    errors = BoundedErrors(v12_row_collection_bound_errors(row))
     if not errors:
         errors.extend(bounded_json_errors(row, "row"))
     errors.extend(maximum_nodes_errors(maximum_nodes))
@@ -5174,7 +5212,7 @@ def _verify_density_row_for_tests(
             "actual_work": actual_work_receipt([]),
         }
     try:
-        _REGISTERED_CURVE_CACHE.clear()
+        state.registered_curve_cache.clear()
         expected_node_cap = (
             FROZEN_NODE_CAP if scope == "frozen_fixture" else CANONICAL_NODE_CAP
         )
@@ -5193,7 +5231,7 @@ def _verify_density_row_for_tests(
         resource_receipt, resource_errors = resource_envelope(
             [row], maximum_nodes, scope
         )
-        _ACTIVE_RESOURCE_RECEIPT = resource_receipt
+        state.resource_receipt = resource_receipt
         if resource_errors:
             return {
                 "valid": False,
@@ -5244,7 +5282,7 @@ def _verify_density_row_for_tests(
             ],
             "primary_nodes": 0,
             "cap_reports": [],
-            "resource_reservation": _ACTIVE_RESOURCE_RECEIPT,
+            "resource_reservation": state.resource_receipt,
             "actual_work": actual_work_receipt([]),
         }
 
@@ -5256,7 +5294,7 @@ def verify_density_row(
 ) -> dict[str, Any]:
     errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
     errors.append(
-        "direct density-row API is non-evidence and disabled in V11; use "
+        "direct density-row API is non-evidence and disabled in V12; use "
         "path-based verify_document"
     )
     return {
@@ -5418,7 +5456,7 @@ def independent_family_gate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     else:
         negative_outcome = "WEAKEN_OR_REJECT"
     return {
-        "criterion_version": "sgcp-embed-002-family-gate-v11",
+        "criterion_version": "sgcp-embed-002-family-gate-v12",
         "null_median": "exact arithmetic mean of the middle two of four precommitted null supports",
         "null_duplicate_policy": "retain duplicate precommitted null selections without resampling",
         "unresolved_policy": "every cell must have equal integer bounds, zero integer gap, exact primary and full objectives, and an empty authenticated frontier",
@@ -5485,7 +5523,7 @@ def expected_row_keys() -> list[tuple[int, int, int, str, int | None]]:
     return result
 
 
-def v11_family_gate_schema_errors(gate: Any, scope: Any) -> list[str]:
+def v12_family_gate_schema_errors(gate: Any, scope: Any) -> list[str]:
     errors = BoundedErrors()
     if type(gate) is not dict:
         return ["family gate is not an object"]
@@ -5652,7 +5690,7 @@ def v11_family_gate_schema_errors(gate: Any, scope: Any) -> list[str]:
     return errors
 
 
-def v11_document_schema_errors(document: Any) -> list[str]:
+def v12_document_schema_errors(document: Any) -> list[str]:
     errors = BoundedErrors()
     try:
         require_keys(
@@ -5671,7 +5709,7 @@ def v11_document_schema_errors(document: Any) -> list[str]:
                 "family_gate",
                 "document_sha256",
             },
-            "V11 document",
+            "V12 document",
         )
         require_keys(
             document["summary"],
@@ -5684,13 +5722,13 @@ def v11_document_schema_errors(document: Any) -> list[str]:
                 "full_objective_exact_cap_cells",
                 "maximum_primary_gap",
             },
-            "V11 document summary",
+            "V12 document summary",
         )
     except (AssertionError, KeyError, TypeError) as error:
         errors.append(f"closed document schema: {error}")
     if type(document) is dict:
         errors.extend(
-            v11_family_gate_schema_errors(
+            v12_family_gate_schema_errors(
                 document.get("family_gate"), document.get("scope")
             )
         )
@@ -5698,7 +5736,7 @@ def v11_document_schema_errors(document: Any) -> list[str]:
     return errors
 
 
-def v11_document_type_errors(document: dict[str, Any]) -> list[str]:
+def v12_document_type_errors(document: dict[str, Any]) -> list[str]:
     errors = BoundedErrors()
     for name in ("schema", "experiment_id", "scope", "interpretation"):
         exact_string(document[name], f"document.{name}", errors)
@@ -5786,7 +5824,7 @@ def record_phase_unit(
         phase["status"] = "incomplete"
 
 
-def v11_nested_digest_and_accounting_errors(row: dict[str, Any]) -> list[str]:
+def v12_nested_digest_and_accounting_errors(row: dict[str, Any]) -> list[str]:
     """Check bounded internal integrity receipts before elliptic-curve work."""
     errors = BoundedErrors()
     curve = row["curve"]
@@ -5848,13 +5886,13 @@ def static_row_errors(
     expected_node_cap: int | None,
 ) -> list[str]:
     prefix = f"row[{row_index}]"
-    collection_errors = v11_row_collection_bound_errors(row)
+    collection_errors = v12_row_collection_bound_errors(row)
     if collection_errors:
         return [f"{prefix}: {error}" for error in collection_errors]
-    errors = BoundedErrors(f"{prefix}: {error}" for error in v11_row_schema_errors(row))
+    errors = BoundedErrors(f"{prefix}: {error}" for error in v12_row_schema_errors(row))
     if errors or type(row) is not dict:
         return errors or [f"{prefix}: row is not an object"]
-    type_errors = v11_row_type_errors(row)
+    type_errors = v12_row_type_errors(row)
     if type_errors:
         return [f"{prefix}: {error}" for error in type_errors]
     envelope_errors = BoundedErrors()
@@ -5873,7 +5911,7 @@ def static_row_errors(
         envelope_errors.append("ordering contract mismatch")
     if envelope_errors:
         return [f"{prefix}: {error}" for error in envelope_errors]
-    integrity_errors = v11_nested_digest_and_accounting_errors(row)
+    integrity_errors = v12_nested_digest_and_accounting_errors(row)
     if integrity_errors:
         return [f"{prefix}: {error}" for error in integrity_errors]
     envelope_errors.extend(density_row_envelope_errors(row, maximum_nodes))
@@ -6038,7 +6076,7 @@ def actual_work_reservation_errors(
         "registered_curve_cache_entries"
     }
     if set(actual_work) != expected_actual_keys:
-        errors.append("actual-work receipt keys do not match the V11 source schema")
+        errors.append("actual-work receipt keys do not match the V12 source schema")
         return errors
     if type(actual_work["actual_work_complete"]) is not bool:
         errors.append("actual-work completeness flag is not Boolean")
@@ -6272,20 +6310,20 @@ def canonical_matrix_errors(rows: Any) -> list[str]:
     return errors
 
 
-def _verify_v11_document_value_unchecked(
+def _verify_v12_document_value_unchecked(
     document: dict[str, Any],
     maximum_nodes: int,
     phases: list[dict[str, Any]] | None = None,
 ) -> tuple[list[str], list[dict[str, Any]], dict[str, int] | None]:
-    global _ACTIVE_RESOURCE_RECEIPT
-    _REGISTERED_CURVE_CACHE.clear()
+    state = _require_path_verification_state()
+    state.registered_curve_cache.clear()
     reset_actual_work()
-    errors = BoundedErrors(v11_document_schema_errors(document))
+    errors = BoundedErrors(v12_document_schema_errors(document))
     append_phase(phases, "closed_document_schema", "failed" if errors else "passed")
     if errors:
         return errors, [], None
 
-    type_errors = v11_document_type_errors(document)
+    type_errors = v12_document_type_errors(document)
     errors.extend(type_errors)
     append_phase(phases, "exact_document_types", "failed" if type_errors else "passed")
     if errors:
@@ -6434,7 +6472,7 @@ def _verify_v11_document_value_unchecked(
         return errors, [], None
 
     envelope, budget_errors = resource_envelope(rows, maximum_nodes, scope)
-    _ACTIVE_RESOURCE_RECEIPT = envelope
+    state.resource_receipt = envelope
     errors.extend(budget_errors)
     append_phase(
         phases,
@@ -6485,7 +6523,7 @@ def _verify_v11_document_value_unchecked(
             }
         row_reports.append(report)
         if not report.get("valid"):
-            semantic_errors.append(f"V11 row[{index}] verification failed")
+            semantic_errors.append(f"V12 row[{index}] verification failed")
             semantic_errors.extend(
                 f"row[{index}]: {error}"
                 for error in report.get("errors", [])
@@ -6513,26 +6551,27 @@ def _verify_v11_document_value_unchecked(
     return errors, row_reports, envelope
 
 
-def _verify_v11_document_value_for_tests(
+def _verify_v12_document_value_for_tests(
     document: Any, maximum_nodes: Any
 ) -> tuple[list[str], list[dict[str, Any]]]:
+    _require_path_verification_state()
     reset_actual_work()
-    errors = BoundedErrors(v11_document_collection_bound_errors(document))
+    errors = BoundedErrors(v12_document_collection_bound_errors(document))
     if not errors:
         errors.extend(bounded_json_errors(document, "document"))
     errors.extend(maximum_nodes_errors(maximum_nodes))
     if errors:
         return errors, []
     if type(document) is not dict:
-        return ["V11 document is not an object"], []
+        return ["V12 document is not an object"], []
     try:
-        errors, rows, _ = _verify_v11_document_value_unchecked(
+        errors, rows, _ = _verify_v12_document_value_unchecked(
             document, maximum_nodes
         )
         return errors, rows
     except Exception as error:
         return [
-            f"V11 document verifier failure: {type(error).__name__}: {error}"
+            f"V12 document verifier failure: {type(error).__name__}: {error}"
         ], []
 
 
@@ -6545,8 +6584,13 @@ def actual_work_receipt(
         for cap in row.get("cap_reports", [])
         if type(cap) is dict
     ]
-    actual_work = dict(_ACTIVE_ACTUAL_WORK or empty_actual_work())
-    actual_work["registered_curve_cache_entries"] = len(_REGISTERED_CURVE_CACHE)
+    state = _active_verification_state()
+    actual_work = dict(
+        state.actual_work if state is not None else empty_actual_work()
+    )
+    actual_work["registered_curve_cache_entries"] = (
+        len(state.registered_curve_cache) if state is not None else 0
+    )
     actual_work["actual_work_complete"] = bool(
         actual_work.get("actual_work_complete") is True
         and all(
@@ -6622,7 +6666,7 @@ def successful_phase_closure_errors(phases: Sequence[dict[str, Any]]) -> list[st
     errors = BoundedErrors()
     observed = tuple(phase.get("name") for phase in phases)
     if observed != SUCCESSFUL_PHASE_SEQUENCE:
-        errors.append("successful phase sequence does not match the V11 source contract")
+        errors.append("successful phase sequence does not match the V12 source contract")
         return errors
     for phase in phases:
         if phase.get("status") != "passed":
@@ -6686,7 +6730,7 @@ def verification_report(
     diagnostic_truncated = bool(
         getattr(errors, "truncated", False)
         or final_errors.truncated
-        or "diagnostics truncated at V11 source ceiling" in final_errors
+        or "diagnostics truncated at V12 source ceiling" in final_errors
     )
     sanitized_rows = without_nested_diagnostic_lists(list(row_reports))
     report = {
@@ -6735,7 +6779,7 @@ def verification_report(
     if serialized_size > MAXIMUM_VERIFICATION_REPORT_BYTES:
         fallback_errors = BoundedErrors(final_errors)
         fallback_errors.append(
-            "verification report exceeded the V11 serialized-size ceiling; "
+            "verification report exceeded the V12 serialized-size ceiling; "
             "row details omitted"
         )
         report["valid"] = False
@@ -6759,7 +6803,7 @@ def verification_report(
     if serialized_size > MAXIMUM_VERIFICATION_REPORT_BYTES:
         emergency_errors = BoundedErrors(
             [
-                "verification report exceeded the V11 serialized-size ceiling; "
+                "verification report exceeded the V12 serialized-size ceiling; "
                 "all optional details omitted"
             ]
         )
@@ -6789,8 +6833,11 @@ def verification_report(
     return report
 
 
-def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
-    _REGISTERED_CURVE_CACHE.clear()
+def _verify_document_with_active_path_state(
+    path: Path, maximum_nodes: Any
+) -> dict[str, Any]:
+    state = _require_path_verification_state()
+    state.registered_curve_cache.clear()
     reset_actual_work()
     phases: list[dict[str, Any]] = []
     errors = BoundedErrors(maximum_nodes_errors(maximum_nodes))
@@ -6844,7 +6891,7 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         )
     append_phase(phases, "strict_json_parse", "passed")
 
-    collection_errors = v11_document_collection_bound_errors(document)
+    collection_errors = v12_document_collection_bound_errors(document)
     errors.extend(collection_errors)
     append_phase(
         phases,
@@ -6908,23 +6955,23 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         append_phase(phases, "exact_schema_routing", "passed")
         try:
             errors, row_reports, resource_receipt = (
-                _verify_v11_document_value_unchecked(
+                _verify_v12_document_value_unchecked(
                     document, maximum_nodes, phases
                 )
             )
         except Exception as error:
             mark_actual_work_incomplete()
-            resource_receipt = _ACTIVE_RESOURCE_RECEIPT
+            resource_receipt = state.resource_receipt
             errors = BoundedErrors(
                 [
-                    f"V11 document verifier failure: "
+                    f"V12 document verifier failure: "
                     f"{type(error).__name__}: {error}"
                 ]
             )
             row_reports = []
             append_phase(phases, "verifier_exception_boundary", "failed")
         claim_boundary = (
-            "invalid V11 document; no mathematical interpretation"
+            "invalid V12 document; no mathematical interpretation"
             if errors
             else (
                 "frozen-fixture implementation verification only"
@@ -6936,7 +6983,7 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
         append_phase(phases, "exact_schema_routing", "passed")
         append_phase(phases, "unsupported_legacy_rejection", "passed")
         errors = [
-            f"unsupported legacy document schema {schema!r}; V11 performs no legacy row verification"
+            f"unsupported legacy document schema {schema!r}; V12 performs no legacy row verification"
         ]
         row_reports = []
         claim_boundary = "unsupported legacy input; no mathematical checks executed"
@@ -6957,23 +7004,218 @@ def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
     )
 
 
+def verify_document(path: Path, maximum_nodes: Any) -> dict[str, Any]:
+    state = _VerificationState(path_permit=_PATH_VERIFICATION_PERMIT)
+    token = _ACTIVE_VERIFICATION_STATE.set(state)
+    try:
+        return _verify_document_with_active_path_state(path, maximum_nodes)
+    finally:
+        _ACTIVE_VERIFICATION_STATE.reset(token)
+
+
 def output_path(path: Path) -> Path:
-    resolved = path.resolve()
-    if DEVELOPMENT_ROOT.resolve() not in resolved.parents:
+    root = DEVELOPMENT_ROOT.resolve(strict=True)
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    try:
+        relative = absolute.relative_to(root)
+    except ValueError as error:
+        raise ValueError(
+            "verification output must be below the development directory"
+        ) from error
+    if not relative.parts or relative.name in {"", ".", ".."}:
         raise ValueError("verification output must be below the development directory")
-    if resolved.exists():
-        raise FileExistsError(resolved)
-    return resolved
+    return absolute
 
 
-def write_atomic(path: Path, value: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    with temporary.open("xb") as handle:
-        handle.write(stable_bytes(value) + b"\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(temporary, path)
+def _open_output_parent(path: Path) -> tuple[int, str]:
+    root = DEVELOPMENT_ROOT.resolve(strict=True)
+    relative = path.relative_to(root)
+    parts = relative.parts
+    if not parts:
+        raise ValueError("verification output requires a file name")
+    required_flags = ("O_DIRECTORY", "O_NOFOLLOW")
+    if any(not hasattr(os, name) for name in required_flags):
+        raise OSError("descriptor-bound output requires O_DIRECTORY and O_NOFOLLOW")
+    directory_flags = (
+        os.O_RDONLY
+        | os.O_DIRECTORY
+        | os.O_NOFOLLOW
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    current_fd = os.open(root, directory_flags)
+    try:
+        for component in parts[:-1]:
+            try:
+                next_fd = os.open(component, directory_flags, dir_fd=current_fd)
+            except FileNotFoundError:
+                try:
+                    os.mkdir(component, mode=0o755, dir_fd=current_fd)
+                except FileExistsError:
+                    pass
+                next_fd = os.open(component, directory_flags, dir_fd=current_fd)
+            os.close(current_fd)
+            current_fd = next_fd
+        return current_fd, parts[-1]
+    except Exception:
+        os.close(current_fd)
+        raise
+
+
+def _write_all(fd: int, payload: bytes) -> None:
+    offset = 0
+    while offset < len(payload):
+        written = os.write(fd, payload[offset:])
+        if written <= 0:
+            raise OSError("verification output write made no progress")
+        offset += written
+
+
+def _publish_no_replace(
+    parent_fd: int,
+    temporary_name: str,
+    destination_name: str,
+) -> None:
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameatx = getattr(libc, "renameatx_np", None)
+    if renameatx is not None:
+        renameatx.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        renameatx.restype = ctypes.c_int
+        result = renameatx(
+            parent_fd,
+            os.fsencode(temporary_name),
+            parent_fd,
+            os.fsencode(destination_name),
+            0x00000004,
+        )
+        if result != 0:
+            error_number = ctypes.get_errno()
+            raise OSError(
+                error_number,
+                os.strerror(error_number),
+                destination_name,
+            )
+        return
+
+    os.link(
+        temporary_name,
+        destination_name,
+        src_dir_fd=parent_fd,
+        dst_dir_fd=parent_fd,
+        follow_symlinks=False,
+    )
+    os.unlink(temporary_name, dir_fd=parent_fd)
+
+
+def _write_destination_exclusive(
+    parent_fd: int,
+    destination_name: str,
+    payload: bytes,
+) -> None:
+    file_flags = (
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_EXCL
+        | os.O_NOFOLLOW
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    destination_fd = os.open(
+        destination_name,
+        file_flags,
+        0o644,
+        dir_fd=parent_fd,
+    )
+    try:
+        _write_all(destination_fd, payload)
+        os.fsync(destination_fd)
+        observed = os.fstat(destination_fd)
+        if not stat.S_ISREG(observed.st_mode) or observed.st_size != len(payload):
+            raise OSError("verification output destination inode is incomplete")
+    finally:
+        os.close(destination_fd)
+
+
+def write_json_exclusive(path: Path, value: Any) -> None:
+    parent_fd, destination_name = _open_output_parent(path)
+    temporary_name: str | None = None
+    temporary_fd: int | None = None
+    published = False
+    try:
+        file_flags = (
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0)
+        )
+        for _ in range(32):
+            candidate = (
+                f".{destination_name}.{secrets.token_hex(16)}.unpublished"
+            )
+            try:
+                temporary_fd = os.open(
+                    candidate,
+                    file_flags,
+                    0o644,
+                    dir_fd=parent_fd,
+                )
+            except FileExistsError:
+                continue
+            temporary_name = candidate
+            break
+        if temporary_fd is None or temporary_name is None:
+            raise FileExistsError("could not allocate an exclusive temporary output")
+
+        payload = stable_bytes(value) + b"\n"
+        _write_all(temporary_fd, payload)
+        os.fsync(temporary_fd)
+        observed = os.fstat(temporary_fd)
+        if not stat.S_ISREG(observed.st_mode) or observed.st_size != len(payload):
+            raise OSError("verification output temporary inode is incomplete")
+        os.close(temporary_fd)
+        temporary_fd = None
+
+        try:
+            _publish_no_replace(
+                parent_fd,
+                temporary_name,
+                destination_name,
+            )
+        except OSError as error:
+            unsupported = {
+                errno.ENOTSUP,
+                getattr(errno, "EOPNOTSUPP", errno.ENOTSUP),
+            }
+            if error.errno not in unsupported:
+                raise
+            os.unlink(temporary_name, dir_fd=parent_fd)
+            temporary_name = None
+            _write_destination_exclusive(
+                parent_fd,
+                destination_name,
+                payload,
+            )
+        published = True
+        temporary_name = None
+        os.fsync(parent_fd)
+    except Exception:
+        if temporary_fd is not None:
+            os.close(temporary_fd)
+        if temporary_name is not None:
+            try:
+                os.unlink(temporary_name, dir_fd=parent_fd)
+            except FileNotFoundError:
+                pass
+        if published:
+            os.fsync(parent_fd)
+        raise
+    finally:
+        os.close(parent_fd)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -6987,7 +7229,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     report = verify_document(args.input, args.maximum_primary_nodes)
-    write_atomic(output_path(args.output), report)
+    write_json_exclusive(output_path(args.output), report)
     print(
         json.dumps(
             {
