@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-96 entries.
+123 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -68,6 +68,24 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-059 | Fiat-Shamir with Aborts - Applications to Lattice and Factoring-Based Signatures | literature | reported | web | fiat-shamir-with-aborts rejection-sampling lattice-signature dilithium post-quantum adjacent |
 | KN-LIT-060 | Fully Homomorphic Encryption Using Ideal Lattices | literature | reported | web | fhe fully-homomorphic-encryption ideal-lattice bootstrapping post-quantum adjacent |
 | KN-LIT-061 | On the concrete hardness of Learning with Errors (the LWE estimator) | literature | reported | web | lwe-estimator concrete-hardness bit-security bkz-cost-model parameter-selection post-quantum adjacent |
+| KN-LIT-062 | Towards quantum-resistant cryptosystems from supersingular elliptic curve isogenies (SIDH) | literature | established | web | sidh supersingular isogeny key-exchange torsion-points post-quantum foundational adjacent |
+| KN-LIT-063 | Cryptographic Hash Functions from Expander Graphs (CGL) | literature | established | web | cgl supersingular isogeny-graph ramanujan-expander hash path-finding post-quantum adjacent |
+| KN-LIT-064 | SIKE - Supersingular Isogeny Key Encapsulation (NIST PQC submission, broken 2022) | literature | reported | web | sike sidh kem nist cryptanalysis broken isogeny post-quantum adjacent |
+| KN-LIT-065 | An efficient key recovery attack on SIDH | literature | reported | web | sidh sike cryptanalysis torsion-points kani abelian-surface key-recovery isogeny post-quantum adjacent |
+| KN-LIT-066 | A Direct Key Recovery Attack on SIDH (arbitrary starting curve) | literature | reported | web | sidh cryptanalysis torsion-points arbitrary-starting-curve key-recovery isogeny post-quantum adjacent |
+| KN-LIT-067 | Breaking SIDH in Polynomial Time | literature | reported | web | sidh cryptanalysis higher-dimensional-isogeny abelian-variety polynomial-time key-recovery isogeny post-quantum adjacent |
+| KN-LIT-068 | The number of curves of genus two with elliptic differentials (Kani's theorem) | literature | established | web | kani genus-two abelian-surface reducibility glue-and-split isogeny sidh-attack adjacent |
+| KN-LIT-069 | CSIDH - An Efficient Post-Quantum Commutative Group Action | literature | established | web | csidh class-group-action commutative supersingular prime-field key-exchange hidden-shift post-quantum adjacent |
+| KN-LIT-070 | Hard Homogeneous Spaces / Public-Key Cryptosystem Based on Isogenies (Couveignes; Rostovtsev-Stolbunov) | literature | established | web | hard-homogeneous-space group-action ordinary-curve isogeny class-group key-exchange csidh-precursor adjacent |
+| KN-LIT-071 | Constructing elliptic curve isogenies in quantum subexponential time (Childs-Jao-Soukharev) | literature | reported | web | quantum hidden-shift kuperberg class-group-action csidh isogeny cryptanalysis post-quantum adjacent |
+| KN-LIT-072 | SQIsign - Compact Post-Quantum Signatures from Quaternions and Isogenies | literature | reported | web | sqisign signature deuring endomorphism-ring quaternion fiat-shamir isogeny post-quantum adjacent |
+| KN-LIT-073 | On the quaternion ell-isogeny path problem (KLPT) | literature | reported | web | klpt quaternion maximal-order deuring endomorphism-ring isogeny-path sqisign adjacent |
+| KN-LIT-074 | The supersingular isogeny path and endomorphism ring problems are equivalent | literature | reported | web | endomorphism-ring isogeny-path equivalence deuring hardness-foundation grh isogeny adjacent |
+| KN-LIT-075 | Die Typen der Multiplikatorenringe elliptischer Funktionenkorper (the Deuring correspondence) | literature | established | web | deuring endomorphism-ring quaternion maximal-order supersingular complex-multiplication foundational adjacent |
+| KN-LIT-076 | On the Security of Supersingular Isogeny Cryptosystems (GPST adaptive attack) | literature | reported | web | gpst sidh adaptive-attack static-key torsion-points endomorphism-ring cryptanalysis isogeny adjacent |
+| KN-LIT-077 | Faster Algorithms for Isogeny Problems Using Torsion Point Images | literature | reported | web | torsion-points sidh overstretched unbalanced cryptanalysis isogeny break-precursor adjacent |
+| KN-LIT-078 | Computing isogenies between supersingular elliptic curves over F_p (Delfs-Galbraith) | literature | reported | web | supersingular isogeny-problem path-finding meet-in-the-middle classical-baseline cryptanalysis isogeny adjacent |
+| KN-LIT-079 | A Quantum Algorithm for Computing Isogenies between Supersingular Elliptic Curves | literature | reported | web | quantum supersingular isogeny-problem claw-finding quantum-baseline cryptanalysis isogeny post-quantum adjacent |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
@@ -80,6 +98,9 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-010 | Can the leading spectrum of a coarse-grained transfer operator of the translation-by-P walk localize k into an interval shrinkable below sqrt(n) total cost, or does character orthogonality force localization O(1)? | open_problem | reported | open | transfer-operator koopman spectral translation-walk character-orthogonality birthday ecdlp open |
 | KN-OPEN-011 | Do lattice-reduction / Hidden-Number-Problem techniques give any advantage for the plain ECDLP (no nonce leakage), or are they confined to the partial-information / side-channel model? | open_problem | reported | open | lattice hidden-number-problem ecdlp lattice-reduction leakage-model boundary open |
 | KN-OPEN-012 | Do ideal/module lattices admit structure-exploiting (index-calculus-like) attacks beyond generic BKZ, and does the ECDLP program's structure-exploitation experience transfer? | open_problem | reported | open | ideal-lattice module-lattice ring-lwe structure-attack index-calculus cross-domain post-quantum open |
+| KN-OPEN-013 | How hard is the supersingular endomorphism-ring / isogeny-path problem, and is it a sound post-quantum foundation after the SIDH break? | open_problem | reported | open | endomorphism-ring isogeny-path supersingular hardness-foundation sqisign cgl post-quantum open adjacent |
+| KN-OPEN-014 | What is the concrete quantum security of CSIDH, and how large must parameters be given the Kuperberg-sieve cost? | open_problem | reported | open | csidh quantum-security kuperberg hidden-shift parameter-sizing class-group-action post-quantum open adjacent |
+| KN-OPEN-015 | What does the SIDH break teach - when does publishing auxiliary structure (torsion images) collapse an isogeny/DL assumption, and which schemes are safe? | open_problem | reported | open | sidh-break auxiliary-information torsion-points synthesis lesson isogeny cross-domain open adjacent |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
 | KN-TECH-002 | Semaev summation polynomials | technique | established |  | semaev summation-polynomial point-decomposition index-calculus |
 | KN-TECH-003 | Point-decomposition index calculus for ECDLP | technique | established |  | index-calculus point-decomposition factor-base relations ecdlp |
@@ -103,3 +124,9 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-021 | Lattice hard problems (SVP/CVP/SIS/LWE) and worst-case-to-average-case reductions | technique | established |  | svp cvp sis lwe worst-case-average-case smoothing-parameter np-hardness post-quantum adjacent |
 | KN-TECH-022 | Structured-lattice problems (ideal/module) and the NIST PQC lattice schemes | technique | reported |  | ring-lwe module-lwe ntru kyber dilithium falcon nist post-quantum structured-lattice adjacent |
 | KN-TECH-023 | Lattice trapdoors, signature paradigms, and concrete-hardness estimation | technique | reported |  | lattice-trapdoor gpv fiat-shamir-with-aborts lwe-estimator bkz-cost-model signature post-quantum adjacent |
+| KN-TECH-024 | Supersingular isogeny graphs and the CGL hash | technique | established |  | supersingular isogeny-graph ramanujan-expander cgl hash path-finding isogeny adjacent |
+| KN-TECH-025 | SIDH/SIKE key exchange and the torsion-point-image structure | technique | established |  | sidh sike key-exchange torsion-points auxiliary-information isogeny broken adjacent |
+| KN-TECH-026 | Higher-dimensional (Kani) embedding attacks - glue-and-split | technique | reported |  | kani glue-and-split abelian-variety higher-dimensional-isogeny sidh-attack torsion-points cryptanalysis adjacent |
+| KN-TECH-027 | CSIDH commutative class-group action and the quantum hidden-shift attack | technique | established |  | csidh class-group-action commutative hidden-shift kuperberg quantum volcano isogeny adjacent |
+| KN-TECH-028 | Endomorphism rings, the Deuring correspondence, KLPT and SQIsign | technique | reported |  | deuring endomorphism-ring quaternion maximal-order klpt sqisign signature isogeny adjacent |
+| KN-TECH-029 | Supersingular isogeny-problem algorithms (classical and quantum path-finding) | technique | reported |  | isogeny-problem path-finding meet-in-the-middle claw-finding quantum delfs-galbraith cost-model isogeny adjacent |
