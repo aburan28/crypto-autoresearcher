@@ -1,0 +1,451 @@
+experiment:
+  id: EXP-MLKEM-001
+  hypothesis_id: H-MLKEM-001
+  goal_id: GOAL-MLKEM-001
+  version: 1
+  title: Frozen bounded Thorns scale, LDP, and exact small-n FIPS marginal audit
+  status: approved
+  frozen: true
+  objective: >-
+    Determine, without rare-event estimation, whether ePrint 2026/1022 exposes
+    an exact ML-KEM one-coordinate issue or only a paper-scale artifact and
+    joint-dependence effect. Repair and check the Gaussian LDP lower bound,
+    freeze exact FIPS modulo-q output semantics, run exact small-n CBD controls,
+    and compare their marginals and union-bound slack with a faithful port of
+    the pinned pq-crystals estimator.
+
+  source_lock:
+    thorns:
+      eprint_id: '2026/1022'
+      revision: '20260719:093516'
+      revision_date: '2026-07-19'
+      extracted_text_sha256: fcd895e7e19e1ea7dcf2eb38527aa2f62b2d26d450c3ac4eeca6b9a48c13e655
+      note: The hash is complete extracted text, not a binary-PDF hash.
+    fips_203:
+      publication_date: '2024-08-13'
+      doi: 10.6028/NIST.FIPS.203
+      normative_algorithms: [3, 4, 8, 13, 14, 15]
+    estimator:
+      repository: https://github.com/pq-crystals/security-estimates
+      commit: 75c26949a902ca297b181375bfb7cfaf22cce784
+      files: [Kyber_failure.py, proba_util.py, Kyber.py]
+      port_rule: >-
+        Preserve the pinned control flow, support truncation, strict-tail
+        convention, and Python-3 round-to-even behavior in the faithful port.
+        Implement normative FIPS ties-up arithmetic as a separate comparison
+        mode; never silently substitute one for the other.
+
+  inputs:
+    arithmetic:
+      q: 3329
+      canonical_mod_q_representatives: '[0,3328]'
+      centered_mod_q_representatives: '[-1664,1664]'
+      centered_lift: 'ctr_q(x)=r if r=x mod q is <=1664, else r-q'
+      ring_multiplication: >-
+        (a*b)_ell=sum_{i=0}^ell a_i*b_{ell-i}
+        -sum_{i=ell+1}^{n-1} a_i*b_{n+ell-i}.
+      cbd_law: >-
+        P[CBD_eta=x]=binom(2*eta,eta+x)/2^(2*eta) for
+        x in [-eta,eta], represented by exact integer weights.
+    fips_rounding:
+      nearest_integer_rule: ties toward positive infinity
+      compress: >-
+        Compress_d(x)=round((2^d/q)*x) mod 2^d for canonical x in [0,q-1].
+      decompress: >-
+        Decompress_d(y)=round((q/2^d)*y) for y in [0,2^d-1].
+      compression_error: >-
+        Q_d(x)=ctr_q(Decompress_d(Compress_d(x))-x).
+      message_representative: 'mu_b=Decompress_1(b), so mu_0=0 and mu_1=1665.'
+      output_bit: 'b_hat=Compress_1(r) for canonical r in [0,q-1].'
+      exact_failure_event: >-
+        F_ell={Compress_1(((mu_b+nu)_ell) mod q) != b}.
+      tie_dimensions: [1, 4, 5, 10, 11, 12]
+    gaussian_scale:
+      sigma_values: [1, 2, 10]
+      dimensionless_tail_points: ['1/4', '1/2', '1', '2', '4', '8']
+      product_radial_density: '4*r*K_0(2*r/sigma^2)/sigma^4'
+      displayed_surrogate_density: 'r*exp(-r^2/(4*sigma^2))/(2*sigma^2)'
+      equal_second_moment_surrogate: '2*r*exp(-r^2/sigma^4)/sigma^4'
+      required_exact_moments:
+        product: sigma^4
+        displayed_surrogate: '4*sigma^2'
+        equal_moment_surrogate: sigma^4
+    ldp_repair:
+      original_set: 'Q_R=product_j{|z_j-R*u_j|<=epsilon}'
+      repaired_set: 'Qtilde_R=product_j{|z_j-(R+C)*u_j|<=epsilon}'
+      required_constant: 'C>sqrt(d)*epsilon for d complex coordinates'
+      target_rate: 'I(u)=c*(||u||_1-1)'
+      symbolic_scope: general_fixed_d
+      finite_sanity_dimensions: [2, 8]
+    parameter_families:
+      ML-KEM-512: {eta1: 3, eta2: 2, du: 10, dv: 4}
+      ML-KEM-768: {eta1: 2, eta2: 2, du: 10, dv: 4}
+      ML-KEM-1024: {eta1: 2, eta2: 2, du: 11, dv: 5}
+    exact_controls:
+      no_compression_coordinate:
+        dimensions: [2, 4, 8]
+        module_ranks: [2, 3, 4]
+        families: [ML-KEM-512, ML-KEM-768, ML-KEM-1024]
+        law: 'nu_nc=sum_{j=1}^k(e_j*y_j-s_j*e1_j)+e2'
+        thresholds: every_integer_from_zero_through_exact_support_maximum
+      no_compression_joint:
+        n: 2
+        k: 1
+        eta1: 2
+        eta2: 2
+        messages: [0, 1]
+        thresholds: every_integer_from_zero_through_exact_support_maximum
+        purpose: Exact two-coordinate joint law and union-bound slack.
+      compressed_scalar:
+        n: 1
+        k: 1
+        q: 3329
+        families: [ML-KEM-512, ML-KEM-768, ML-KEM-1024]
+        messages: [0, 1]
+        A_law: uniform_on_Z_q
+        random_variables:
+          s_e_y: independent_CBD_eta1
+          e1_e2: independent_CBD_eta2
+        equations:
+          t: 'A*s+e mod q'
+          u0: 'A*y+e1 mod q'
+          v0: 't*y+e2+mu_b mod q'
+          u_hat: 'Decompress_du(Compress_du(u0))'
+          v_hat: 'Decompress_dv(Compress_dv(v0))'
+          output: 'w=v_hat-s*u_hat mod q'
+          decoded_bit: 'Compress_1(w)'
+          ring_identity_check: >-
+            ctr_q(w-mu_b) must equal ctr_q(e*y+e2+c_v-s*e1-s*c_u)
+            modulo q, with any integer-lift difference recorded as an explicit
+            multiple of q.
+        estimator_adaptation:
+          n: 1
+          m: 1
+          rqk: 4096
+          rqc: '2^du'
+          rq2: '2^dv'
+          ks: eta1
+          ke: eta1
+          ke_ct: eta2
+        purpose: >-
+          Exact scalar shared-variable/compression discriminator. This is not
+          a standardized ring instance and has no multi-coordinate claim.
+
+  controls:
+    - id: CTRL-SCALE-NORMALIZATION
+      method: >-
+        Prove or high-precision-check each density integral equals one and
+        derive its second moment; compare displayed and equal-moment tails only
+        at the frozen dimensionless points.
+      pass_condition: >-
+        Integrals equal one, moments equal the required formulas, and all
+        numerical checks have absolute error at most 1e-12 against the symbolic result.
+    - id: CTRL-LDP-SHIFT
+      method: >-
+        Prove norm containment, eventual directional containment in an
+        arbitrary open neighborhood of u, applicability after approximation by
+        nonzero-coordinate directions, and an O(1) change in the l1 exponent.
+      pass_condition: The speed-R rate remains I(u)=c*(||u||_1-1).
+    - id: CTRL-FIPS-ROUNDING
+      method: >-
+        Exhaustively tabulate Compress_d and Decompress_d on their full finite
+        domains for every frozen d using exact integer quotients/remainders.
+        Compare ties-up, Python round-to-even, and centered/canonical lifts.
+      pass_condition: >-
+        Every difference has an explicit input, tie classification, and
+        resulting compression-error delta; normative and pinned modes are never mixed.
+    - id: CTRL-NO-COMPRESSION-DP
+      method: Exact rational generating-function convolution of CBD product laws.
+      pass_condition: >-
+        Mass is exactly one, symmetry holds, and every one-coordinate law is
+        exactly equal to the same-semantics faithful-estimator law.
+    - id: CTRL-DIRECT-ENUMERATION
+      method: >-
+        Weighted direct enumeration for the n=2 no-compression joint instance
+        and independent variable elimination for each n=1 compressed instance.
+      pass_condition: >-
+        Exact masses, marginals, and threshold tables equal the independently
+        structured dynamic-program outputs bit-for-bit.
+    - id: CTRL-UNION-BOUND
+      method: >-
+        For every n=2 threshold compute p, exact P(any), n*p,
+        1-(1-p)^n, absolute slack n*p-P(any), and relative slack when n*p>0.
+      pass_condition: '0<=P(any)<=min(1,n*p) exactly at every threshold.'
+    - id: CTRL-PORT-FIDELITY
+      method: >-
+        Run unmodified pinned functions and the port on identical toy
+        parameter objects and compare complete support/probability tables
+        before any normative-FIPS changes.
+      pass_condition: >-
+        Keys are identical and probabilities agree bit-for-bit where the same
+        floating operations are retained, or within 1e-15 absolute error when
+        serialization changes evaluation order.
+    - id: CTRL-DELIBERATELY-WRONG-INDEPENDENCE
+      method: Compare exact P(any) with 1-(1-p)^n.
+      pass_condition: >-
+        The formula is labeled a negative control and is never substituted for
+        the estimator's n*p union bound.
+
+  independent_variables:
+    - Gaussian scale convention: displayed versus equal-second-moment.
+    - LDP lower-bound center: R*u versus (R+C)*u.
+    - Arithmetic semantics: FIPS ties-up versus pinned Python round-to-even.
+    - Representative: canonical modulo-q versus centered lift with explicit wrap multiple.
+    - Compression mode: absent versus exact scalar FIPS compression.
+    - Dimension: n in [1, 2, 4, 8], with n=1 restricted to scalar compression.
+    - Parameter family: ML-KEM-512, ML-KEM-768, or ML-KEM-1024 eta/du/dv tuple.
+    - Threshold: every exact support threshold for CBD controls.
+    - Exact engine: direct/variable-elimination versus generating-function dynamic program.
+
+  metrics:
+    primary:
+      - id: scale_moment_ratio
+        definition: displayed_surrogate_second_moment/product_second_moment
+        decision_use: Detect paper-scale artifact.
+      - id: ldp_rate_preserved
+        definition: Boolean conjunction of all shifted-set proof obligations.
+        decision_use: Accept or reject the proposed local proof repair.
+      - id: marginal_total_variation
+        definition: 'TV(P,Q)=1/2*sum_x|P(x)-Q(x)| using exact rational masses.'
+        decision_use: Detect an exact one-coordinate discrepancy.
+      - id: maximum_tail_probability_delta
+        definition: >-
+          Maximum over frozen thresholds of the absolute difference between
+          exact and estimator one-coordinate survival probabilities.
+        decision_use: Locate any marginal difference without targeting a FIPS rare-event exponent.
+      - id: union_bound_slack
+        definition: 'n*p_exact-P_exact(any), exact and nonnegative.'
+        decision_use: Measure joint-dependence effect separately from marginal error.
+      - id: semantic_mismatch_count
+        definition: >-
+          Number of full-domain inputs where FIPS and pinned rounding,
+          representative, or strict-tail semantics differ.
+        decision_use: Classify implementation mismatch.
+    secondary:
+      - density_integral_error
+      - radial_tail_values_at_frozen_dimensionless_points
+      - equal_scale_tail_sign_changes
+      - exact_probability_mass_error
+      - marginal_symmetry_error
+      - direct_engine_vs_DP_maximum_difference
+      - independence_formula_error
+      - wrap_multiple_histogram
+      - per_family_and_message_failure_indicator_probability
+      - support_minimum_and_maximum
+      - peak_memory_gb
+      - wall_clock_seconds_by_stage
+
+  replication:
+    seeds: []
+    seed_policy: No randomized sampling is authorized; all inputs are exhaustively enumerated or symbolically evaluated.
+    independent_instances: 2
+    exact_engines:
+      - weighted direct enumeration or variable elimination
+      - generating-function dynamic programming
+    planned_runs:
+      - id: RUN-MLKEM-001
+        purpose: Gaussian normalization, equal-scale tails, and LDP repair.
+      - id: RUN-MLKEM-002
+        purpose: Exact dynamic-program CBD marginals, joint law, and FIPS rounding tables.
+      - id: RUN-MLKEM-003
+        purpose: Independently structured direct/variable-elimination replication.
+      - id: RUN-MLKEM-004
+        purpose: Faithful pinned-port reproduction and classified comparisons.
+    expected_run_count: 4
+    agreement_gate: >-
+      Exact engines must agree exactly. Floating presentation values must round
+      from the agreed exact result and may not decide equality.
+
+  outcome_classification:
+    precedence:
+      - invalid_control_or_port
+      - implementation_mismatch
+      - exact_marginal_discrepancy
+      - joint_dependence_only
+      - paper_scale_artifact
+    paper_scale_artifact: >-
+      The source formulas normalize but have second moments sigma^4 and
+      4*sigma^2, and replacing the displayed surrogate by the equal-moment law
+      changes at least one frozen tail ordering or crossing statement.
+    joint_dependence_only: >-
+      Every aligned one-coordinate TV distance is exactly zero, exact P(any)
+      differs from the independence negative control at a nontrivial threshold,
+      and P(any)<=n*p holds everywhere.
+    exact_marginal_discrepancy: >-
+      After identical normative FIPS ties, representatives, threshold
+      conventions, and exact-engine replication, TV is strictly positive for
+      at least one compressed scalar family/message instance.
+    implementation_mismatch: >-
+      A difference vanishes after aligning semantics and is fully localized to
+      Python ties, centered/canonical representation, strict-tail convention,
+      or port behavior. Report the exact counterexample inputs and do not call
+      it a Thorns effect.
+    invalid_control_or_port: >-
+      Any mandatory normalization, mass, exact-engine agreement, source-port,
+      identity, or union-bound invariant fails.
+
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_wall_clock_seconds: 4200
+    total_cpu_hours: 1.75
+    maximum_memory_gb: 2
+    maximum_runs: 4
+    maximum_processes: 2
+    deployed_system_queries: 0
+    rare_event_samples: 0
+    stages:
+      - id: source_and_port_freeze
+        purpose: Verify pinned source revision and build the faithful, unchanged-semantics port.
+        wall_clock_seconds: 600
+        cpu_hours: 0.10
+        maximum_memory_gb: 1
+        parallel_shards: 1
+        dominant_operation: Source comparison and finite support-table reproduction.
+        stop_rule: Stop and invalidate if the pinned source cannot be verified or the port fidelity control fails.
+      - id: symbolic_scale_ldp_and_fips_semantics
+        purpose: Complete scale integrals, shifted-set proof, modulo-q derivation, ties, and wraps.
+        wall_clock_seconds: 900
+        cpu_hours: 0.25
+        maximum_memory_gb: 1
+        parallel_shards: 1
+        dominant_operation: Symbolic derivation and exhaustive finite rounding tables.
+        stop_rule: Stop and invalidate if any normative semantic choice remains ambiguous.
+      - id: exact_small_n_controls
+        purpose: Compute DP and direct exact CBD laws and joint threshold tables.
+        wall_clock_seconds: 1800
+        cpu_hours: 1.00
+        maximum_memory_gb: 2
+        parallel_shards: 2
+        dominant_operation: Exact weighted enumeration and variable elimination.
+        stop_rule: Stop at the budget cap; preserve partial artifacts as infrastructure signal, not evidence.
+      - id: replication_comparison_and_packaging
+        purpose: Cross-check engines, classify outcomes, and emit immutable run artifacts.
+        wall_clock_seconds: 900
+        cpu_hours: 0.40
+        maximum_memory_gb: 2
+        parallel_shards: 1
+        dominant_operation: Exact table comparison and schema-complete packaging.
+        stop_rule: Stop without interpretation if expected runs or required artifacts are incomplete.
+
+  stopping_rules:
+    - Stop immediately if source commit or source-file identity cannot be verified.
+    - Stop and mark invalid if the faithful port fails its same-semantics reproduction gate.
+    - Stop and mark invalid if either exact engine loses mass, violates an identity, or disagrees with the other engine.
+    - Stop after the four planned runs; no exploratory fifth run is authorized.
+    - Stop before n=256, Monte Carlo, importance sampling, or any attempt to observe a listed FIPS failure probability.
+    - Stop at 4200 total wall-clock seconds, 1.75 CPU-hours, or 2 GB resident memory.
+    - >-
+      If an aligned exact marginal discrepancy survives, report its smallest
+      counterexample and stop; a new protocol amendment or successor experiment
+      is required before any broader finite-n work.
+    - >-
+      If only scale and joint-dependence effects survive, report that bounded
+      outcome and stop; do not infer a FIPS-rate revision.
+
+  invalidation_rules:
+    - Any run lacks its exact command, commit/dirty state, environment, dependency versions, timestamps, resource use, stdout, stderr, raw result, summary, or inference metadata.
+    - Expected run count is not exactly four or a planned run has no terminal status.
+    - A randomized seed or approximate Monte Carlo result is introduced.
+    - Exact probability mass differs from one or exact engines disagree.
+    - Floating-point equality is used where exact rational equality is required.
+    - FIPS ties-up and Python round-to-even semantics are mixed without an explicit mode label.
+    - Centered and canonical representatives are mixed or an integer lift omits its q-multiple wrap.
+    - The port changes the pinned strict-tail, cleanup, convolution, or rounding behavior before fidelity is established.
+    - The exact any-coordinate event exceeds its exact union bound.
+    - A threshold, outcome category, or success criterion is changed after observing results without a versioned protocol amendment.
+    - A timeout, crash, dependency failure, or resource exhaustion is interpreted as negative mathematical evidence.
+
+  success_criterion: >-
+    The protocol succeeds as an audit if all four runs and all mandatory
+    controls are valid, the LDP repair receives a complete derivation, every
+    semantic difference is enumerated, and the outcome is uniquely classified.
+    H-MLKEM-001 is supported within this toy boundary only if all aligned
+    no-compression marginal TV distances are exactly zero, every union bound
+    holds, and no aligned compressed scalar marginal discrepancy survives.
+    Paper-scale artifact and joint-dependence-only findings are compatible with
+    that scoped support.
+  falsification_criterion: >-
+    H-MLKEM-001's no-marginal-gap prediction is falsified within the tested toy
+    boundary if a strictly positive compressed scalar marginal TV distance
+    survives normative semantic alignment, exact identity checks, faithful-port
+    reproduction, and agreement of both exact engines. Failure of the LDP
+    shifted-set proof also falsifies that repair claim. A port/control failure
+    is invalid, and a Python/FIPS tie or representative difference is an
+    implementation-mismatch outcome, not mathematical falsification.
+
+  required_artifacts:
+    - experiments/EXP-MLKEM-001/source-lock.yaml
+    - experiments/EXP-MLKEM-001/implementation/fips_semantics.py
+    - experiments/EXP-MLKEM-001/implementation/exact_dp.py
+    - experiments/EXP-MLKEM-001/implementation/direct_enumerator.py
+    - experiments/EXP-MLKEM-001/implementation/pinned_estimator_port.py
+    - experiments/EXP-MLKEM-001/implementation/test_controls.py
+    - experiments/EXP-MLKEM-001/analysis/ldp_lower_bound_repair.md
+    - experiments/EXP-MLKEM-001/analysis/fips_output_coordinate_derivation.md
+    - experiments/EXP-MLKEM-001/analysis/term_dependency_graph.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/manifest.yaml
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/command.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/environment.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/raw.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/summary.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/stdout.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/stderr.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/manifest.yaml
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/command.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/environment.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/raw.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/summary.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/stdout.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/stderr.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/manifest.yaml
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/command.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/environment.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/raw.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/summary.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/stdout.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/stderr.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/manifest.yaml
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/command.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/environment.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/raw.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/summary.json
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/stdout.txt
+    - experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/stderr.txt
+    - experiments/EXP-MLKEM-001/execution-report.yaml
+
+  completion_gate:
+    - Exactly four schema-complete terminal run manifests exist.
+    - Source and port fidelity checks pass before normative comparisons are interpreted.
+    - Raw and summary exact tables agree, with no missing family, message, dimension, or threshold.
+    - Both exact engines agree and all mass, symmetry, identity, and union-bound controls pass.
+    - Every observed difference is assigned exactly one predeclared outcome class.
+    - The report explicitly states that n=256 and the listed FIPS rare-event probabilities were not tested.
+    - Peak resources and aggregate stage totals remain within the frozen budget.
+    - No deployed-system interaction, oracle construction, key recovery, or attack claim appears.
+
+  scope_exclusions:
+    - n=256 execution or validation
+    - estimation of 2^-138.8, 2^-164.8, or 2^-174.8 events
+    - Monte Carlo or importance sampling
+    - deployed ML-KEM implementations, networks, devices, keys, or ciphertext endpoints
+    - failure-oracle construction, side channels, fault injection, or key recovery
+    - changes to FIPS 203 parameters or normative claims
+    - the ePrint 2026/1465 R07 radial rewrite
+
+  assigned_to: executor
+  approval:
+    protocol_class_confirmed_by_user: true
+    selection_decision: DEC-20260723-005
+    evidence_ref: EV-MLKEM-003
+    approved_by: coordinator
+    approved_at: '2026-07-24'
+    execution_authorized: true
+    authorization_note: >-
+      Protocol approved under DEC-20260723-005. Execution authorized by
+      Executor handoff TASK-20260724-221 after protocol snapshot
+      TASK-20260724-220. Runtime inference uses Cursor Grok 4.5 with
+      fallback_used true versus research-sol-max.
+    executor_handoff: TASK-20260724-221
+    protocol_snapshot: TASK-20260724-220
+  approved_by: coordinator
+  status_note: approved_and_execution_authorized
