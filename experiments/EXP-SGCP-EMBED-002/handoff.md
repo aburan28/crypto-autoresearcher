@@ -1,68 +1,66 @@
-## Handoff: SGCP V14 exact-commit review closeout
+## Handoff: SGCP V15 exact-claim and inventory repair
 
 ### Claim or task
 
-Preserve the exact-commit V14 reviews and repair their path-claim,
+Validate and independently review the no-run V15 repair of the V14 path-claim,
 current-state, and durable-inventory findings without creating a generated
 curve-family density row, canonical matrix, runner, launch plan, or run.
 
 ### Status
 
-`NEGATIVE RESULT` for V14 launch-plan readiness. The research claim remains
-`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
-Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
+`OBSERVATION` for V15 implementation preflight. V14 launch-plan readiness
+remains a scoped `NEGATIVE RESULT`; the research claim remains `HYPOTHESIS`,
+`TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`. Launch-plan design and
+execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Assumptions
 
-- The V14 reviews are static inspections of exact committed bytes and do not
-  independently reproduce historical runtime claims.
-- Receipt identifiers assume standard `secrets.token_hex(32)` behavior in a
-  controlled workspace without hostile same-process or same-user mutation.
-- Exact-attempt reconciliation covers the documented ordinary synchronous
-  exception boundary. `BaseException`, process death, power loss, memory
-  exhaustion, and hostile monkeypatching remain outside the claim.
-- The receipt is unkeyed and sequentially validated; it is not authentication
-  against a hostile same-user actor and its data/receipt snapshots are not
-  pair-atomic.
-- Exactly three transient noncanonical legacy semantic rows at B=4,6,8 are
-  predecessor controls. The separate frozen-B4 document is the sole density-row
-  control.
+- The V14 reviews are static inspections of exact commit
+  `371790de7418aee8b1f56b7fa872f91bbec43899`; they do not independently
+  reproduce historical runtime claims.
+- In-root `.` and repeated-separator spellings are intended normalized aliases,
+  not distinct destinations or rejected raw spellings.
+- Explicit `..` components are rejected before normalization, and normalized
+  containment below the development root remains mandatory.
+- V14 receipt attribution and reconciliation retain their controlled-workspace,
+  ordinary synchronous exception, unkeyed receipt, and sequential snapshot
+  boundaries.
+- Exactly three transient noncanonical legacy semantic rows at B=4,6,8 remain
+  predecessor controls. The separate frozen-B4 document remains the sole
+  density-row control.
 - Relation yield, rank, linear algebra, descent, preprocessing crossover, rho,
   exponent, and ECDLP claims remain outside this experiment.
 
 ### Evidence so far
 
-- Exact-commit V14 theory issued scoped `GO`, but accounting and red team issued
+- Exact-commit V14 theory issued scoped `GO`; accounting and red team issued
   `REVISE`; `decision-v14.json` keeps launch-plan design unauthorized.
-- All nine committed artifact hashes match, and two independent derivations
-  reproduce `480/112/336/218/4218`.
-- Producer and verifier emit V14; V1-V13 schemas reject before semantic row
+- The V14 reviews found no mathematical, containment, accounting, or
+  zero-budget defect. They found an overbroad raw-path claim, stale
+  current-state wording, and four omitted V7 inventory entries.
+- V15 producer and verifier emit V15; V1-V14 schemas reject before semantic row
   verification.
-- The V13 high- and medium-severity publication findings are materially
-  repaired: attempt-bound receipts, stale-name preflight, winning-writer
-  attribution, terminal validation, actual hard-link controls, and fail-closed
-  direct-size handling are present.
-- Path containment is sound, but `Path` normalization erases raw `.` and empty
-  components before the claimed checks can reject them. The new path control
-  covers parent traversal only.
-- The primary V14 handoff and active ledger row still describe validation,
-  hash freezing, and commit work that this exact snapshot has already completed.
-- The durable-artifact ledger omits four committed V7 records that remain
-  required by the specification.
-- The V12 provenance correction remains a separate immutable record.
+- Public output APIs reject explicit parent traversal, normalize in-root dot and
+  repeated-separator aliases, and bind one normalized root-relative destination.
+- The existing path control now publishes through a raw normalized alias and
+  compares production and standalone attribution; the separate `..` control
+  still requires no outside artifact.
+- The handoff and active ledger identify the committed V14 review outcome and
+  V15 implementation state.
+- The four V7 records and the complete V14 implementation/review/decision set
+  are present in the durable inventory.
 - The exact curve grid, predicates, compiler, objective, caps, gates, operation
-  vector, and claim boundary are unchanged.
-- No generated V14 curve-family density row, canonical matrix, runner, plan, or
+  vector `480/112/336/218/4218`, and publication protocol are unchanged.
+- No generated V15 curve-family density row, canonical matrix, runner, plan, or
   run exists. Historical V1 development artifacts remain historical.
 
 ### Failure modes
 
-- Raw path spelling is not preserved across `Path` normalization. This is an
-  exact-claim and control-coverage defect, not a demonstrated containment escape.
+- Raw path spelling is intentionally not preserved after normalization.
 - A failed pre-receipt publication can leave an unaccepted, non-reusable orphan
   or malformed receipt.
-- `BaseException` or process interruption can still prevent a success return
-  after a matching receipt is visible; V14 explicitly makes no contrary claim.
+- `BaseException` or process interruption can prevent a success return after a
+  matching receipt becomes visible.
 - External immutable execution, hard resource limits, and executed-code
   attestation remain future runner obligations.
 - Canonical B6/B8 feasibility, output size, CPU, wall time, RSS, cache occupancy,
@@ -72,26 +70,15 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Next concrete action
 
-Implement one no-run V15 that corrects the raw-path claim and control coverage,
-records the current committed-review state, and restores the four omitted V7
-durable-artifact entries. Preserve every mathematical parameter and keep
-`maximum_runs=0`.
+Complete focused, record/index, and repository-wide validation; freeze the nine
+artifact hashes; commit one exact V15 snapshot; then obtain fresh independent
+read-only theory, accounting, and red-team reviews. Keep `maximum_runs=0`.
 
 ### Artifact paths
 
 - `experiments/EXP-SGCP-EMBED-002/hypothesis.json`
 - `experiments/EXP-SGCP-EMBED-002/specification.json`
 - `experiments/EXP-SGCP-EMBED-002/contract.md`
-- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v13.json`
-- `experiments/EXP-SGCP-EMBED-002/revision-response-v13.md`
-- `experiments/EXP-SGCP-EMBED-002/development-test-log-v13.md`
-- `experiments/EXP-SGCP-EMBED-002/source-self-review-v13.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v13.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v13.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v13.md`
-- `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v13.json`
-- `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v12-correction-v1.json`
-- `experiments/EXP-SGCP-EMBED-002/decision-v13.json`
 - `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v14.json`
 - `experiments/EXP-SGCP-EMBED-002/revision-response-v14.md`
 - `experiments/EXP-SGCP-EMBED-002/development-test-log-v14.md`
@@ -101,6 +88,10 @@ durable-artifact entries. Preserve every mathematical parameter and keep
 - `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v14.md`
 - `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v14.json`
 - `experiments/EXP-SGCP-EMBED-002/decision-v14.json`
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v15.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v15.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v15.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v15.md`
 - `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
