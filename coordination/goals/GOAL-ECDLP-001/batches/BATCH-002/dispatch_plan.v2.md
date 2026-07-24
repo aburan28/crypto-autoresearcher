@@ -6,13 +6,11 @@ Execute the immutable authorized-fallback successor for one bounded frontier-B c
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260722-012` | idea-generator | queued | 100 | - | coordination/goals/GOAL-ECDLP-001/batches/BATCH-002/tasks/TASK-20260722-012/certificate_contract.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-002/tasks/TASK-20260722-012/derivation_and_no_go.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-002/tasks/TASK-20260722-012 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260722-013`: dependency_not_completed:TASK-20260722-012:queued
-- `TASK-20260722-014`: dependency_not_completed:TASK-20260722-012:queued, dependency_not_completed:TASK-20260722-013:queued
-- `TASK-20260722-015`: dependency_not_completed:TASK-20260722-014:queued
+None.
 
 ## Dispatch Gates
 
@@ -23,8 +21,8 @@ Execute the immutable authorized-fallback successor for one bounded frontier-B c
 - `all_artifact_paths_are_exact_and_scoped`: passed
 - `archive_artifact_coverage_complete`: passed
 - `completed_archive_commits_verified`: passed
-- `coordinator_only_promotes_research_status`: passed
+- `archive_tasks_are_coordinator_owned`: passed
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e722bc5a0528cb8a956dba67f6ccaab2b92d08e4817f1c8da3f23cdd7bbfe069`
+Plan SHA-256: `3025d99707823cfb104a963c8f2feb45dbaf43a8b85410da2e81a31760540ba0`
