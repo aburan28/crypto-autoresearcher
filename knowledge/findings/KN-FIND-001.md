@@ -1,9 +1,17 @@
 ---
 id: KN-FIND-001
-type: finding
+type: internal_finding
 title: Byte-complete differential probing of the ML-KEM comparison primitive discriminates incomplete re-encryption comparisons at fix boundaries
 tags: [ml-kem, fips-203, implicit-rejection, re-encryption-comparison, conformance-testing, differential-testing, wolfssl, avx2, neon, defensive, post-quantum]
 confidence: reported
+internal_refs: [EV-MLKEM-005, DEC-20260724-007, H-MLKEM-002, EXP-MLKEM-002]
+proof_status: empirical_only
+proof_refs:
+  - experiments/EXP-MLKEM-002/execution-report.yaml
+  - experiments/EXP-MLKEM-002/analysis/premise_verdicts.yaml
+  - experiments/EXP-MLKEM-002/analysis/coverage_maps.json
+  - coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-230/validation_report.yaml
+  - coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-231/red_team_report.yaml
 evidence_refs: [EV-MLKEM-005]
 decision_ref: DEC-20260724-007
 experiment_refs: [EXP-MLKEM-002]
