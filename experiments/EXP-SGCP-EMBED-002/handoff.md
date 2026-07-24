@@ -1,27 +1,27 @@
-## Handoff: SGCP V15 exact-commit review closeout
+## Handoff: SGCP V16 no-run path-policy repair
 
 ### Claim or task
 
-Preserve the exact-commit V15 reviews and repair their POSIX-anchor,
-current-state, contract-title, suite-scope, and accepted-alias control findings
-without creating a generated curve-family density row, canonical matrix,
-runner, launch plan, or run.
+Submit the validated V16 no-run repair for fresh exact-commit theory,
+accounting, and red-team review without creating a generated curve-family
+density row, canonical matrix, runner, launch plan, or run.
 
 ### Status
 
-`NEGATIVE RESULT` for V15 launch-plan readiness. The research claim remains
-`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
-Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
+`OBSERVATION` for V16 implementation readiness; exact-commit review remains
+pending. The research claim remains `HYPOTHESIS`, `TOY-EVIDENCE`,
+`MODEL-BOUND`, and `NOVELTY-UNVERIFIED`. Launch-plan design and execution remain
+`NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Assumptions
 
-- The V15 reviews are static inspections of exact commit
-  `8adba3ad4ddf7055cc098831dff2a33e1e469810`; they did not rerun historical
-  tests, validators, producer, verifier, runner, or experiment.
-- Output-path semantics are host-language and POSIX sensitive: exactly two
-  leading separators form a distinct `//` anchor in Python, unlike internal
-  repeated separators.
-- V15 receipt attribution and reconciliation retain their controlled-workspace,
+- The unanimous V15 `REVISE` reviews apply only to exact commit
+  `8adba3ad4ddf7055cc098831dff2a33e1e469810`.
+- Output-path semantics are host-language and POSIX sensitive. On the
+  controlled runtime, exactly two leading separators form a distinct `//`
+  anchor, while ordinary dot components and internal repeated separators
+  normalize as aliases and three or more leading separators collapse to `/`.
+- V16 receipt attribution and reconciliation retain their controlled-workspace,
   ordinary synchronous exception, unkeyed receipt, and sequential snapshot
   boundaries.
 - Exactly three transient noncanonical legacy semantic rows at B=4,6,8 remain
@@ -32,37 +32,30 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Evidence so far
 
-- Theory, accounting, and red team all issued `REVISE`;
+- Theory, accounting, and red team all issued V15 `REVISE`;
   `decision-v15.json` keeps launch-plan design unauthorized.
-- All nine committed artifact hashes match exact Git bytes, and independent
-  arithmetic reproduces `480/112/336/218/4218`.
-- Producer and verifier emit V15; V1-V14 schemas reject before semantic row
-  verification.
-- No containment escape, mathematical change, accounting defect, budget
-  widening, generated-row route, or run route was found.
-- Ordinary `.`, internal repeated separators, absolute in-root paths, explicit
-  `..`, root rejection, outside-root rejection, symlink-parent no-follow
-  traversal, no-overwrite publication, and receipt attribution are structurally
-  sound under the documented boundaries.
-- Exactly two leading POSIX separators remain a distinct `//` anchor and are
-  rejected by normalized containment. The blanket repeated-separator alias
-  wording and internal-only control therefore overstate coverage.
-- Post-publication production and standalone attribution are checked through
-  the normalized path, not directly through the raw alias.
-- The active V15 handoff, ledger, revision-response next action, and test-log
-  next action still describe already completed validation and commit work as
-  pending.
-- The contract title still says version 14.
-- The recorded 225-test command is repository-wide `unittest discover`, not
-  collection of 27 additional module-level pytest-style tests.
-- The four V7 records and complete V14/V15 implementation inventory are present.
-- No generated V15 curve-family density row, canonical matrix, runner, plan, or
-  run exists. Historical V1 development artifacts remain historical.
+- V16 rejects the distinct POSIX `//` anchor and explicit parent traversal
+  before absolute normalization in public path admission, the standalone
+  receipt parser, and the private descriptor walker.
+- One table-driven control covers every admitted and rejected lexical spelling,
+  publishes through a combined raw alias, and checks accepted production and
+  standalone attribution through every admitted spelling.
+- Production writer, status, and private descriptor traversal independently
+  reject a symlinked parent.
+- Producer and verifier emit V16; V1-V15 schemas reject before semantic row
+  verification. Contract, specification, ledger, producer, and verifier agree
+  on version 16.
+- The exact completed operation vector remains `480/112/336/218/4218`.
+- The focused, record/index, and repository-wide unittest-discover validation
+  receipts are frozen in `development-test-log-v16.md`. The broad result does
+  not claim collection of the 27 module-level pytest-style functions.
+- No generated V16 curve-family density row, canonical matrix, runner, launch
+  plan, or run exists. Historical V1 development artifacts remain historical.
 
 ### Failure modes
 
-- Treating the leading `//` POSIX anchor as an ordinary repeated separator.
-- Treating precommit handoff language as exact committed-current-state evidence.
+- Generalizing this host-specific path policy to another runtime without a new
+  control.
 - Treating unittest discovery as every test framework in the repository.
 - A failed pre-receipt publication can leave an unaccepted, non-reusable orphan
   or malformed receipt.
@@ -76,10 +69,9 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Next concrete action
 
-Implement one no-run V16 distinguishing internal repeated separators from the
-leading `//` anchor, adding a complete path-policy and post-publication raw-alias
-control, correcting the contract title and current-state records, and narrowing
-the test-suite label. Preserve every mathematical byte and `maximum_runs=0`.
+Obtain fresh read-only theory, accounting, and red-team reviews of the exact
+commit containing this handoff. Even three scoped `GO` decisions may authorize
+only a separate hash-complete launch-plan design, never execution.
 
 ### Artifact paths
 
@@ -88,6 +80,10 @@ the test-suite label. Preserve every mathematical byte and `maximum_runs=0`.
 - `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v15.md`
 - `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v15.json`
 - `experiments/EXP-SGCP-EMBED-002/decision-v15.json`
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v16.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v16.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v16.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v16.md`
 - `experiments/EXP-SGCP-EMBED-002/development-test-log-v15.md`
 - `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v15.json`
 - `experiments/EXP-SGCP-EMBED-002/revision-response-v15.md`

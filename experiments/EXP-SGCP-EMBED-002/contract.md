@@ -1,4 +1,4 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 14
+# Experiment Contract: EXP-SGCP-EMBED-002, version 16
 
 ## Claim status
 
@@ -65,7 +65,7 @@ serialized bytes are charged inside the public model and each nested cap
 receipt.
 
 The legacy `source_recovery` boolean records sorted formal normalization only.
-Version 15 interprets source recovery through
+Version 16 interprets source recovery through
 `source_recovery_via_public_table`; it does not treat normalization as an
 inversion algorithm.
 
@@ -170,7 +170,7 @@ nonidentity EC output. These conventions are emitted as a public ordering
 contract with digest
 `8114bd7d1822578e3d1453126968964da213775c6f12f86c764413f737212359`.
 
-V15 key sets and value types are closed throughout rows, documents, summaries,
+V16 key sets and value types are closed throughout rows, documents, summaries,
 family gates, nested integrity/accounting receipts, verification reports,
 publication receipts, and publication results. JSON Boolean, integer, float,
 string, list, object, and null roles are exact. In particular, `false` is not
@@ -178,7 +178,7 @@ integer zero, `-0.0` is not integer zero, and an equal-valued float is not an
 integer receipt. Refreshed byte and document digests do not excuse a type
 mismatch.
 
-The V15 verifier accepts only the V15 document schema. V1-V14 schemas are
+The V16 verifier accepts only the V16 document schema. V1-V15 schemas are
 explicitly rejected without row verification. Each receipt contains an ordered
 phase ledger from actual control flow. Aggregate row/cap phases carry expected,
 completed, and failed unit counts and become independent checks only after all
@@ -224,19 +224,21 @@ canonical 2,000,000-node replay cap, and an exact primary-proof budget in
 `0..5,000,000` are admitted.
 
 Every public writer, receipt-path, and status entry rejects an explicit `..`
-parent-traversal component before normalization, normalizes equivalent `.`
-components and repeated separators, and admits only a nonroot destination below
-the development root. Equivalent in-root spellings therefore name one
+parent-traversal component and the distinct POSIX `//` anchor before absolute
+normalization. Ordinary `.` components and internal repeated separators are
+normalized aliases; on this POSIX runtime, three or more leading separators
+also collapse to the ordinary `/` anchor. Admission then requires a nonroot
+destination below the development root. Equivalent admitted spellings name one
 destination; raw spelling preservation is not claimed. The descriptor walker
-repeats the `..` rejection and opens every normalized root-relative parent
-no-follow from the development root. Before writing, both the destination and
-deterministic adjacent receipt name must be absent. Data and receipt publication
-remain no-overwrite: descriptor-relative exclusive rename or same-directory
-hard link where supported, with a forced-`ENOTSUP` descriptor-relative
-`O_EXCL` fallback. The real hard-link branch is controlled on a test-only
-hard-link-capable temporary root because the mounted development root may not
-support links; this is branch evidence, not a filesystem-support or durability
-claim.
+independently repeats the anchor, parent-traversal, root, and containment checks
+and opens every normalized root-relative parent no-follow from the development
+root. Before writing, both the destination and deterministic adjacent receipt
+name must be absent. Data and receipt publication remain no-overwrite:
+descriptor-relative exclusive rename or same-directory hard link where
+supported, with a forced-`ENOTSUP` descriptor-relative `O_EXCL` fallback. The
+real hard-link branch is controlled on a test-only hard-link-capable temporary
+root because the mounted development root may not support links; this is branch
+evidence, not a filesystem-support or durability claim.
 
 The data path alone is never accepted evidence. A completion receipt binds a
 random 256-bit publication identifier, exact destination basename,
@@ -265,7 +267,7 @@ their sequential data/receipt snapshots are not pair-atomic. A logical content
 commit is not proof that every durability syscall succeeded; a future runner
 must preserve warnings and use an immutable external artifact store.
 
-Before generic JSON traversal, V15 applies source-sized bounds to document and
+Before generic JSON traversal, V16 applies source-sized bounds to document and
 row roots, registered parameters, the nested family gate, Mobius maps,
 alternating positions, rejection reasons, root polynomials, formal witnesses,
 edge/source tables, exact-empty frontiers, and per-cap byte receipts. Before
@@ -274,7 +276,7 @@ document digests; nested byte accounting; protocol, scope, and grid
 association; the frozen static transcript; cap schedule; objective; masks;
 source-owned node caps; and the reconstructed document summary/family gate. No
 canonical curve derivation or reservation-dependent semantics occurs before
-this authentication. V15 then reserves separate worst-case totals for
+this authentication. V16 then reserves separate worst-case totals for
 registered prime candidates, curve draws and hashes, predicate hashes, frozen,
 semantic, and primary point enumerations, expansion cells, graph candidate
 evaluations, eligible conflict checks, eligible pair-output cells, replay nodes,
@@ -305,7 +307,7 @@ overcharge is invalid while the completed-work flag remains true. Interrupted
 predicate reconstruction preserves partial work and sets
 `actual_work_complete=false`, so completed equality is not claimed. Complete
 actual work must also be dominated by the source-owned reservation or the
-report is invalid. An otherwise successful report must match the exact V15
+report is invalid. An otherwise successful report must match the exact V16
 phase sequence, including completed provenance/predicate equality, with every
 unit phase complete and passed. Ordinary authenticated semantic mismatches may
 stop early with counters for the work actually executed. The
@@ -383,7 +385,7 @@ factor-base multisets. Both denominators appear beside retention ratios.
 
 ## Accounting boundary
 
-Version 15 retains the V3 accounting boundary and emits only independently
+Version 16 retains the V3 accounting boundary and emits only independently
 reconstructible combinatorial cells, including multiset evaluations,
 representative and parent-pair counts, graph checks, pair-output cells,
 optimizer nodes, bound calls, source-enforced optimizer and full-model cache
@@ -400,7 +402,7 @@ Producer row and cap wall times are observational and checked only for finite,
 nonnegative nesting. The producer makes no peak-memory claim. Any future
 canonical execution must obtain generator and verifier wall time, peak RSS,
 serialized output size, and memory traffic from the trusted external runner.
-Verifier work must be reported as a separate role cost. V15 path receipts
+Verifier work must be reported as a separate role cost. V16 path receipts
 record actual registered-curve cache behavior, prime candidates, curve and
 predicate hashes, point enumerations, expansion cells, graph candidate
 evaluations, eligible conflict checks, eligible pair-output cells, replay and
@@ -432,7 +434,7 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
    the closed schema.
 10. Reject Boolean/integer/float aliases in optimizer, graph, axiom, ratio,
     mask, node-cap, wall-time, byte-receipt, summary, and document fields.
-11. Verify one frozen V15 document and reject an empty canonical document.
+11. Verify one frozen V16 document and reject an empty canonical document.
 12. Reject missing, extra, duplicate, reordered, wrong-cap, wrong-node-cap,
     inconsistent-curve, and cross-seed-duplicate canonical matrices.
 13. Exact-match producer and independent family gates on a synthetic complete
@@ -447,8 +449,8 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     out-of-range selected formals, duplicate selected formals, negative caps,
     malformed JSON, nonobject roots, duplicate keys, and out-of-range verifier
     budgets.
-16. Relabel a valid V15 body with every V1-V14 schema and require explicit legacy
-    rejection with zero row checks and no V15 mathematical check claims.
+16. Relabel a valid V16 body with every V1-V15 schema and require explicit legacy
+    rejection with zero row checks and no V16 mathematical check claims.
 17. Replace the input path after its snapshot is read and require the receipt
     hash and parsed document to remain bound to the original bytes. Reject
     directories and symlinks before JSON parsing.
@@ -558,12 +560,16 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
 49. Make a direct receipt write return after writing one byte too few. Require
     the observed inode-size mismatch to fail closed and both validators to
     classify the terminal pair as unaccepted.
-50. Pass raw in-root spellings containing `.` and repeated separators to the
-    public writer, receipt-path, and status functions. Require normalization to
-    one destination, an accepted pair, and identical production and standalone
-    attribution. Separately pass lexical `..` parent traversal to the public
-    writer, status function, and private descriptor walker; require rejection
-    and no outside-root artifact.
+50. Apply a table-driven lexical path policy across the public writer,
+    receipt-path, status, standalone status, and private descriptor walker.
+    Require ordinary `.`, internal repeated separators, absolute in-root paths,
+    and three-leading separator spellings to normalize as registered; require
+    exactly two leading POSIX separators, explicit `..`, the development root
+    itself, and ordinary outside paths to reject. Publish through the raw
+    internal alias and require post-publication production and standalone
+    attribution through that same raw spelling. Separately require production
+    writer/status and descriptor traversal to reject a symlinked parent; the
+    standalone parser remains outside the filesystem-race claim.
 51. Re-sign a receipt with a different valid random identifier and confirm
     ordinary unkeyed status accepts it while exact-attempt reconciliation
     rejects it. Re-sign a wrong relative path and weak Boolean byte count and
@@ -597,7 +603,7 @@ changes the measured collision geometry.
 
 ## Budgets and stopping
 
-Version 1 consumed 17 of 18 historical development curve rows. Version 15
+Version 1 consumed 17 of 18 historical development curve rows. Version 16
 authorizes no additional curve-family row. Unit, abstract graph,
 generated-curve provenance, generated factor-base, one frozen p=19 B4
 density-row/document control, and exactly three transient noncanonical frozen
@@ -613,7 +619,7 @@ total_cpu_hours = 0
 maximum_memory_gb = 0
 ```
 
-Fresh independent theory, accounting, and red-team GO on one committed V15
+Fresh independent theory, accounting, and red-team GO on one committed V16
 snapshot is necessary but not sufficient to launch. A separate hash-complete
 execution plan and coordinator approval must follow before any budget change.
 
@@ -630,4 +636,4 @@ No canonical reproduction command exists while `maximum_runs` is zero. The
 current producer refuses both development family rows and canonical execution;
 only unit, generated-factor-base, one frozen-fixture B4 density control, and
 the disclosed transient B4/B6/B8 legacy semantic controls are authorized for
-V15 preflight.
+V16 preflight.
