@@ -6,13 +6,11 @@ Execute and independently validate the frozen EXP-MLKEM-001 Thorns exact-FIPS ma
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-221` | executor | queued | 90 | TASK-20260724-220 | experiments/EXP-MLKEM-001/source-lock.yaml, experiments/EXP-MLKEM-001/implementation/fips_semantics.py, experiments/EXP-MLKEM-001/implementation/exact_dp.py, experiments/EXP-MLKEM-001/implementation/direct_enumerator.py, experiments/EXP-MLKEM-001/implementation/pinned_estimator_port.py, experiments/EXP-MLKEM-001/implementation/test_controls.py, experiments/EXP-MLKEM-001/analysis/ldp_lower_bound_repair.md, experiments/EXP-MLKEM-001/analysis/fips_output_coordinate_derivation.md, experiments/EXP-MLKEM-001/analysis/term_dependency_graph.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/manifest.yaml, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/command.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/environment.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/raw.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/summary.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/stdout.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-001/stderr.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/manifest.yaml, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/command.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/environment.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/raw.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/summary.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/stdout.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-002/stderr.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/manifest.yaml, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/command.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/environment.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/raw.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/summary.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/stdout.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-003/stderr.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/manifest.yaml, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/command.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/environment.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/raw.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/summary.json, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/stdout.txt, experiments/EXP-MLKEM-001/runs/RUN-MLKEM-004/stderr.txt, experiments/EXP-MLKEM-001/execution-report.yaml | experiments/EXP-MLKEM-001 |
+| `TASK-20260724-223` | validator | queued | 70 | TASK-20260724-221, TASK-20260724-222 | coordination/goals/GOAL-MLKEM-001/batches/BATCH-004/tasks/TASK-20260724-223/validation_report.yaml, coordination/goals/GOAL-MLKEM-001/batches/BATCH-004/tasks/TASK-20260724-223/validation_notes.md | coordination/goals/GOAL-MLKEM-001/batches/BATCH-004/tasks/TASK-20260724-223 |
+| `TASK-20260724-224` | reviewer | queued | 70 | TASK-20260724-221, TASK-20260724-222 | coordination/goals/GOAL-MLKEM-001/batches/BATCH-004/tasks/TASK-20260724-224/review_report.yaml, coordination/goals/GOAL-MLKEM-001/batches/BATCH-004/tasks/TASK-20260724-224/technical_review.md | coordination/goals/GOAL-MLKEM-001/batches/BATCH-004/tasks/TASK-20260724-224 |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-222`: dependency_not_completed:TASK-20260724-221:queued
-- `TASK-20260724-223`: dependency_not_completed:TASK-20260724-221:queued, dependency_not_completed:TASK-20260724-222:queued
-- `TASK-20260724-224`: dependency_not_completed:TASK-20260724-221:queued, dependency_not_completed:TASK-20260724-222:queued
 - `TASK-20260724-225`: dependency_not_completed:TASK-20260724-223:queued, dependency_not_completed:TASK-20260724-224:queued
 
 ## Dispatch Gates
@@ -28,4 +26,4 @@ Execute and independently validate the frozen EXP-MLKEM-001 Thorns exact-FIPS ma
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `eea526bb38873c01259d198da3dcffee3e801e07050710744cddd096c785e5ab`
+Plan SHA-256: `2c61c3342b53982f06f2ce06da465cd4d35ad6b3a16a57fa086992fe8c4f738c`
