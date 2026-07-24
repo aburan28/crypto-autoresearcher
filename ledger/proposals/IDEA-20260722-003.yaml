@@ -1,0 +1,66 @@
+idea:
+  id: IDEA-20260722-003
+  title: End-to-end soft-oracle leakage budget
+  class: measurement
+  claim: >-
+    For at least one protected Cortex-M4 ML-KEM implementation, a held-out
+    soft-information model that charges profiling and repeated executions
+    will predict median traces-to-key-recovery within a factor of two across
+    three noise or masking configurations, while a hard oracle-accuracy-only
+    model will miss by more than a factor of two on at least one configuration.
+  mechanism: >-
+    Hard accuracy discards score confidence, correlation, burst errors, and
+    profiling cost. Calibrated likelihoods combined with current soft-PC and
+    adaptive-LDPC backends should map physical leakage to end-to-end trace risk
+    more faithfully, unless model mismatch or nonstationarity dominates.
+  novelty_status: adaptation
+  assumptions:
+    - A laboratory-only protected ML-KEM implementation and traces are available.
+    - The published attack backends can consume calibrated likelihoods.
+    - Training keys, attack keys, and devices can be held out.
+  predictions:
+    - metric: soft_model_trace_prediction_multiplicative_error
+      direction: lower
+      minimum_effect: at_most_2
+    - metric: hard_accuracy_trace_prediction_multiplicative_error
+      direction: higher
+      minimum_effect: greater_than_2_for_at_least_one_configuration
+    - metric: total_cost_including_profiling_and_retries
+      direction: different
+      minimum_effect: changes_the_ranking_of_at_least_one_pair
+  minimal_test:
+    design: >-
+      Use three predeclared leakage configurations on one Cortex-M4
+      implementation. Train on disjoint keys, freeze calibration and attack
+      parameters, then predict and measure the median trace count on held-out
+      keys. Compare hard accuracy, soft likelihoods, and a burst-aware model.
+    controls:
+      - Shuffled labels.
+      - IID synthetic bit-flip oracle at matched marginal accuracy.
+      - Time-ordered replay preserving burst errors.
+      - Same-key versus held-out-key calibration.
+    required_metrics:
+      - calibration_error
+      - mutual_information_per_execution
+      - oracle_queries
+      - physical_traces
+      - profiling_traces
+      - retries
+      - wall_clock
+      - key_recovery_success_interval
+    competing_explanations:
+      - id: soft_information_is_predictive
+        meaning: Held-out trace counts fall within the factor-two interval.
+      - id: nonstationary_or_correlated_leakage_dominates
+        meaning: IID soft scores fail but burst-aware replay predicts recovery.
+      - id: attack_backend_mismatch
+        meaning: No calibrated model predicts held-out recovery.
+  falsification_conditions:
+    - Soft prediction misses by more than twofold in two or more configurations.
+    - Hard accuracy is equally predictive for all configurations.
+    - Results depend on training and attacking the same keys or device traces.
+  interpretation_limits:
+    - Passing validates only the tested device, code, protections, and budgets.
+    - It is a defensive evaluation metric, not evidence of passive MLWE weakness.
+    - It does not establish a universal leakage threshold.
+  source_artifact: coordination/goals/GOAL-MLKEM-001/batches/BATCH-002/tasks/TASK-20260722-208/oracle_surface_report.yaml

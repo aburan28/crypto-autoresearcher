@@ -41,6 +41,9 @@ BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
 LEGACY_LEDGER_INVENTORY = os.path.join(
     REPO, "tools", "legacy_ledger_inventory.yaml"
 )
+LEGACY_RUN_INVENTORY = os.path.join(
+    REPO, "tools", "legacy_run_inventory.yaml"
+)
 
 ID_PATTERNS = {
     "research_question": re.compile(r"^RQ-[A-Z]+-\d{3}$"),
@@ -95,7 +98,11 @@ PRE_V2_CANONICAL_IDS = {"EV-SEMAEV-001", "DEC-20260719-001"}
 
 
 class Ctx:
-    def __init__(self, legacy_paths: set[str]):
+    def __init__(
+        self,
+        legacy_paths: set[str],
+        legacy_id_remaps: dict[str, str] | None = None,
+    ):
         self.errors: list[str] = []
         self.legacy_warnings: list[str] = []
         self.ids: dict[str, str] = {}          # id -> source path
@@ -104,6 +111,7 @@ class Ctx:
         self.run_params: dict[str, dict] = {}   # run id -> inputs.parameters
         self.knowledge: dict[str, str] = {}
         self.legacy_paths = legacy_paths
+        self.legacy_id_remaps = legacy_id_remaps or {}
         self.legacy_aliases: set[str] = set()
 
     def err(self, path: str, msg: str, *, force: bool = False):
@@ -182,6 +190,13 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
             if promoted == [] and not promotion.get("not_warranted"):
                 ctx.err(path, "empty knowledge_promotion.promoted requires "
                               "a nonempty not_warranted reason")
+    remapped_to = ctx.legacy_id_remaps.get(os.path.abspath(path))
+    if remapped_to:
+        ctx.legacy_warnings.append(
+            f"{os.path.relpath(path, REPO)}: historical ID {rec_id} is "
+            f"remapped to {remapped_to}; frozen source is not registered"
+        )
+        return
     ctx.register(str(rec_id), path, body, rec_type)
 
 
@@ -317,7 +332,43 @@ def load_legacy_inventory() -> dict[str, str]:
     return {str(path): str(digest) for path, digest in records.items()}
 
 
-def check_legacy_ledger(ctx: Ctx, inventory: dict[str, str]) -> None:
+def load_legacy_id_remaps() -> dict[str, str]:
+    doc = yaml.safe_load(open(LEGACY_LEDGER_INVENTORY, encoding="utf-8"))
+    remaps = doc.get("remapped_ids", {}) if isinstance(doc, dict) else {}
+    if not isinstance(remaps, dict):
+        raise ValueError("legacy ledger inventory remapped_ids must be a mapping")
+    return {str(path): str(rec_id) for path, rec_id in remaps.items()}
+
+
+def load_legacy_run_inventory() -> dict[str, str]:
+    doc = yaml.safe_load(open(LEGACY_RUN_INVENTORY, encoding="utf-8"))
+    if not isinstance(doc, dict) or doc.get("schema") != "legacy-run-inventory-v1":
+        raise ValueError("invalid legacy run inventory schema")
+    records = doc.get("records")
+    if not isinstance(records, dict):
+        raise ValueError("legacy run inventory records must be a mapping")
+    return {str(path): str(digest) for path, digest in records.items()}
+
+
+def check_legacy_run_inventory(ctx: Ctx, inventory: dict[str, str]) -> None:
+    for relative, expected in sorted(inventory.items()):
+        path = os.path.join(REPO, relative)
+        if not os.path.isfile(path):
+            ctx.err(path, "frozen legacy run manifest is missing", force=True)
+            continue
+        actual = hashlib.sha256(open(path, "rb").read()).hexdigest()
+        if actual != expected:
+            ctx.err(
+                path,
+                "frozen legacy run manifest hash changed; supersede it instead",
+                force=True,
+            )
+
+
+def check_legacy_ledger(
+    ctx: Ctx,
+    inventory: dict[str, str],
+) -> None:
     patterns = {
         "RQ-*.yaml": "research_question",
         "H-*.yaml": "hypothesis",
@@ -329,6 +380,9 @@ def check_legacy_ledger(ctx: Ctx, inventory: dict[str, str]) -> None:
         for path in sorted(glob.glob(os.path.join(REPO, "ledger", pattern))):
             relative = os.path.relpath(path, REPO)
             observed.add(relative)
+            # Even a malformed frozen record provides a stable historical
+            # filename alias for later correction/supersession records.
+            ctx.legacy_aliases.add(os.path.splitext(os.path.basename(path))[0])
             expected = inventory.get(relative)
             if expected is None:
                 ctx.err(path, "new root-level ledger record is forbidden; "
@@ -344,6 +398,16 @@ def check_legacy_ledger(ctx: Ctx, inventory: dict[str, str]) -> None:
     for missing in sorted(set(inventory) - observed):
         ctx.err(os.path.join(REPO, missing),
                 "frozen legacy ledger record is missing", force=True)
+
+
+def check_legacy_id_remaps(ctx: Ctx) -> None:
+    for source, target_id in sorted(ctx.legacy_id_remaps.items()):
+        if target_id not in ctx.ids:
+            ctx.err(
+                source,
+                f"legacy remap target '{target_id}' is not a canonical record",
+                force=True,
+            )
 
 
 def check_knowledge_entries(ctx: Ctx) -> None:
@@ -447,13 +511,19 @@ def main() -> int:
 
     try:
         legacy_inventory = load_legacy_inventory()
+        legacy_id_remaps = load_legacy_id_remaps()
+        legacy_run_inventory = load_legacy_run_inventory()
     except (OSError, ValueError) as error:
-        print(f"FAIL: cannot load legacy ledger inventory: {error}",
+        print(f"FAIL: cannot load legacy inventory: {error}",
               file=sys.stderr)
         return 1
     legacy_paths = {os.path.abspath(os.path.join(REPO, path))
-                    for path in legacy_inventory}
-    ctx = Ctx(legacy_paths)
+                    for path in (*legacy_inventory, *legacy_run_inventory)}
+    absolute_remaps = {
+        os.path.abspath(os.path.join(REPO, path)): target
+        for path, target in legacy_id_remaps.items()
+    }
+    ctx = Ctx(legacy_paths, absolute_remaps)
     check_legacy_ledger(ctx, legacy_inventory)
     for sub, rec_type in LEDGER_DIRS.items():
         for path in sorted(glob.glob(os.path.join(REPO, "ledger", sub, "*.yaml"))):
@@ -461,9 +531,11 @@ def main() -> int:
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*",
                                               "specification.yaml"))):
         check_experiment(path, ctx)
+    check_legacy_run_inventory(ctx, legacy_run_inventory)
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
                                               "*", "manifest.yaml"))):
         check_run(path, ctx)
+    check_legacy_id_remaps(ctx)
     check_cross_refs(ctx)
     check_knowledge_entries(ctx)
     check_knowledge_index(ctx)
@@ -488,8 +560,9 @@ def main() -> int:
               f"by {os.path.relpath(BASELINE_PATH, REPO)}")
     if ctx.legacy_warnings:
         print(f"note: {len(legacy_inventory)} frozen root-level ledger records "
-              f"were indexed; {len(ctx.legacy_warnings)} legacy schema issue(s) "
-              "remain read-only")
+              f"were indexed; {len(legacy_run_inventory)} legacy run "
+              f"manifest(s) were indexed; {len(ctx.legacy_warnings)} legacy "
+              "schema issue(s) remain read-only")
     if stale:
         print(f"note: {len(stale)} baseline entrie(s) no longer occur; prune "
               f"with --update-baseline")
