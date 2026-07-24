@@ -1,29 +1,32 @@
-## Handoff: SGCP V13 exact-commit review closeout
+## Handoff: SGCP V14 attempt-bound publication repair
 
 ### Claim or task
 
-Preserve the exact-commit V13 reviews and repair their publication-attribution,
-path-containment, direct-write, coverage, and provenance findings without
-creating a generated curve-family density row, canonical matrix, runner, launch
-plan, or run.
+Validate and independently review the no-run V14 repair of the exact V13
+publication-attribution, path-containment, direct-write, control-independence,
+and provenance findings without creating a generated curve-family density row,
+canonical matrix, runner, launch plan, or run.
 
 ### Status
 
-`NEGATIVE RESULT` for V13 launch-plan readiness. The research claim remains
+`OBSERVATION` for implementation preflight only. The research claim remains
 `HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
 Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Assumptions
 
-- The V13 reviews are static inspections of exact committed bytes and do not
-  independently reproduce historical runtime claims.
-- Context-local state protects ordinary synchronous public calls inside the
-  stated non-hostile-Python boundary; the V13 red team found no ordinary state
-  reuse bypass.
-- The forced `ENOTSUP` controls exercise fallback state transitions and are not
-  evidence about a real filesystem's primitive support.
-- A V13 data path alone is intended to be unaccepted, but the red team found
-  terminal states where writer return and later receipt acceptance disagree.
+- Receipt identifiers are random 256-bit values. Collision resistance and the
+  integrity boundary assume the standard behavior of `secrets`; this is not a
+  uniqueness theorem or hostile same-process sandbox.
+- Exact-attempt reconciliation covers ordinary synchronous `Exception`
+  subclasses under available memory. `BaseException`, process death, power
+  loss, memory exhaustion, and hostile monkeypatching are outside the claim.
+- The forced `ENOTSUP` controls exercise fallback state transitions. Actual
+  `os.link` behavior is controlled on a test-only hard-link-capable temporary
+  root, not asserted for the mounted development filesystem.
+- The receipt is unkeyed and sequentially validated; it is not authentication
+  against a hostile same-user actor and its data/receipt snapshots are not
+  pair-atomic.
 - Exactly three transient noncanonical legacy semantic rows at B=4,6,8 are
   predecessor controls. The separate frozen-B4 document is the sole density-row
   control.
@@ -34,36 +37,39 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 - Exact-commit V13 theory and accounting reviews issued scoped GO, but red team
   issued `REVISE`; `decision-v13.json` keeps launch-plan design unauthorized.
-- All nine committed artifact hashes match, and independent arithmetic
-  reproduces `480/112/336/218/4218`.
-- Producer and verifier emit V13; V1-V12 schemas reject before semantic row
+- Producer and verifier emit V14; V1-V13 schemas reject before semantic row
   verification.
-- The red team confirmed the exact curve grid, predicates, compiler, objective,
-  caps, gates, and claim boundary are unchanged from V12.
-- A receipt-commit syscall can succeed before an exception escapes, so a failed
-  call can leave a pair later classified as accepted.
-- A stale receipt can validate a retried identical payload because V13 receipts
-  contain no unique publication-attempt identifier.
-- A direct public writer call can walk a lexical `..` component outside the
-  development root.
-- The direct `O_EXCL` branch can warn on a definite inode type/size mismatch and
-  still return accepted.
-- The hard-link-success cleanup control does not exercise `os.link`, and the
-  claimed independent receipt check reuses production `publication_status`.
-- A separate immutable correction records the actual V12 red-team review
-  filename without modifying the original provenance record.
-- No generated V13 curve-family density row, canonical matrix, runner, plan, or
+- Both destination names are preflighted. A stale receipt blocks identical
+  payload retry before replacement data is created.
+- The V14 receipt binds its random publication identifier, destination basename,
+  development-relative path, payload bytes and hash, protocol, experiment, and
+  canonical self-digest.
+- Ordinary post-receipt exceptions through rename, actual hard link, and forced
+  direct publication return accepted only after exact-attempt terminal
+  validation, with a reconciliation warning.
+- Concurrent same-destination calls produce one accepted identifier and one
+  no-overwrite failure; both production and standalone checks attribute only
+  the winning pair.
+- Public writer, receipt-path, and status entries normalize internally, while
+  the descriptor walker rejects dot components independently.
+- A short direct receipt write is detected by the final inode-size check and
+  remains unaccepted under both validators.
+- The hard-link controls call the real `os.link`; the standalone receipt parser
+  shares no production status implementation.
+- The V12 provenance correction remains a separate immutable record.
+- The exact curve grid, predicates, compiler, objective, caps, gates, operation
+  vector, and claim boundary are unchanged.
+- No generated V14 curve-family density row, canonical matrix, runner, plan, or
   run exists. Historical V1 development artifacts remain historical.
 
 ### Failure modes
 
-- V13 publication acceptance is not attempt-attributed and is not safe for
-  launch-plan design.
-- Absolute guarantees across asynchronous exceptions are not defensible; a
-  successor must reconcile the observed terminal pair to the exact attempt and
-  scope its guarantees.
-- The unkeyed receipt is not authentication against a hostile same-user actor,
-  and sequential snapshots are not pair-atomic.
+- A failed pre-receipt publication can leave an unaccepted, non-reusable orphan
+  or malformed receipt.
+- A successful reconciliation does not reveal which primitive committed when
+  the helper raised before returning its method.
+- `BaseException` or process interruption can still prevent a success return
+  after a matching receipt is visible; V14 explicitly makes no contrary claim.
 - External immutable execution, hard resource limits, and executed-code
   attestation remain future runner obligations.
 - Canonical B6/B8 feasibility, output size, CPU, wall time, RSS, cache occupancy,
@@ -73,11 +79,10 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Next concrete action
 
-Implement one no-run V14 that binds receipts to unique attempts, reconciles
-receipt-publication exceptions against the exact expected pair, enforces
-normalized containment in every public entry point, fails closed on observed
-inode mismatch, exercises the actual hard-link branch, and adds a standalone
-receipt validator. Keep `maximum_runs=0`.
+Finish V14 documentation and ledgers, run focused, record, generated-index, and
+repository-wide validation, freeze exact hashes, commit one snapshot, and
+obtain fresh read-only theory, accounting, and red-team decisions. Keep
+`maximum_runs=0`.
 
 ### Artifact paths
 
@@ -94,6 +99,10 @@ receipt validator. Keep `maximum_runs=0`.
 - `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v13.json`
 - `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v12-correction-v1.json`
 - `experiments/EXP-SGCP-EMBED-002/decision-v13.json`
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v14.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v14.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v14.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v14.md`
 - `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
