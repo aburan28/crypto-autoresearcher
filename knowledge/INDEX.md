@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-125 entries.
+151 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -88,6 +88,24 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-079 | A Quantum Algorithm for Computing Isogenies between Supersingular Elliptic Curves | literature | reported | web | quantum supersingular isogeny-problem claw-finding quantum-baseline cryptanalysis isogeny post-quantum adjacent |
 | KN-LIT-080 | Thorns in Polynomial Convolution | literature | reported | full_text | ml-kem polynomial-convolution decryption-failure correlation large-deviations canonical-embedding failure-oracle |
 | KN-LIT-081 | On Reduction Probability Models in Lattice Sieving | literature | reported | full_text | ml-kem lattice-sieving reduction-probability sphere-model ball-model cost-estimation memory |
+| KN-LIT-082 | An improved algorithm for computing logarithms over GF(p) and its cryptographic significance | literature | established | read | pohlig-hellman group-order smooth-order subgroup crt generic discrete-logarithm baseline ecdlp hygiene |
+| KN-LIT-083 | Class number, a theory of factorization, and genera | literature | established | web | baby-step-giant-step bsgs shanks meet-in-the-middle deterministic generic discrete-logarithm baseline memory ecdlp |
+| KN-LIT-084 | Reducing elliptic curve logarithms to logarithms in a finite field | literature | established | web | mov pairing weil-pairing embedding-degree supersingular transfer subexponential special-curves ecdlp hygiene |
+| KN-LIT-085 | A remark concerning m-divisibility and the discrete logarithm in the divisor class group of curves | literature | established | web | frey-ruck tate-pairing embedding-degree transfer divisor-class-group jacobian higher-genus special-curves ecdlp hygiene |
+| KN-LIT-086 | The Improbability That an Elliptic Curve Has Subexponential Discrete Log Problem under the Menezes-Okamoto-Vanstone Algorithm | literature | reported | web | mov embedding-degree genericity random-curve probability transfer hasse-interval prime-field ecdlp baseline |
+| KN-LIT-087 | Evaluation of discrete logarithms in a group of p-torsion points of an elliptic curve in characteristic p | literature | established | web | anomalous trace-one p-torsion additive-transfer polynomial-time special-curves prime-field ecdlp hygiene |
+| KN-LIT-088 | Fermat quotients and the polynomial time discrete log algorithm for anomalous elliptic curves | literature | reported | web | anomalous trace-one fermat-quotient p-adic additive-transfer polynomial-time special-curves prime-field ecdlp hygiene |
+| KN-LIT-089 | The Discrete Logarithm Problem on Elliptic Curves of Trace One | literature | established | web | anomalous trace-one smart-attack additive-transfer linear-time special-curves prime-field parameter-validation ecdlp hygiene |
+| KN-LIT-090 | The GHS Attack in odd Characteristic | literature | reported | web | ghs weil-descent odd-characteristic kummer-theory conorm-norm cover-attack extension-field prime-field applicability ecdlp |
+| KN-LIT-091 | A Key Recovery Attack on Discrete Log-based Schemes Using a Prime Order Subgroup | literature | established | web | small-subgroup lim-lee key-recovery oracle-attack crt parameter-validation static-key protocol ecdlp-adjacent hygiene |
+| KN-LIT-092 | Differential Fault Attacks on Elliptic Curve Cryptosystems | literature | established | web | invalid-curve fault-attack point-validation pseudo-addition register-fault smooth-order crt parameter-validation ecdlp-adjacent hygiene |
+| KN-LIT-093 | Curve25519 - new Diffie-Hellman speed records | literature | established | read | curve25519 twist-security cofactor montgomery-curve point-validation parameter-selection prime-field safe-curves ecdlp hygiene |
+| KN-LIT-094 | The Full Cost of Cryptanalytic Attacks | literature | established | read | full-cost cost-model memory communication wiring bsgs pollard-rho parallel-collision-search baseline asymptotics ecdlp |
+| KN-LIT-095 | Solving a 112-bit Prime Elliptic Curve Discrete Logarithm Problem on Game Consoles using Sloppy Reduction | literature | reported | read | record-computation prime-field secp112r1 pollard-rho distinguished-points cell-processor playstation-3 baseline calibration ecdlp |
+| KN-LIT-096 | Breaking ECC2K-130 | literature | reported | read | certicom-challenge ecc2k-130 record-computation binary-field koblitz-curve pollard-rho distinguished-points automorphism fpga gpu asic baseline calibration ecdlp |
+| KN-LIT-097 | Faster elliptic-curve discrete logarithms on FPGAs | literature | reported | read | record-computation binary-field sect113r2 negation-map fruitless-cycles pollard-rho distinguished-points fpga cost-model baseline calibration ecdlp |
+| KN-LIT-098 | Polynomial-Time Algorithms for Prime Factorization and Discrete Logarithms on a Quantum Computer | literature | established | read | shor quantum period-finding quantum-fourier-transform discrete-logarithm factoring polynomial-time post-quantum ecdlp baseline |
+| KN-LIT-099 | Quantum Resource Estimates for Computing Elliptic Curve Discrete Logarithms | literature | reported | read | quantum shor resource-estimate toffoli qubits reversible-arithmetic nist-curves prime-field post-quantum cost-model ecdlp |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
@@ -132,3 +150,11 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-027 | CSIDH commutative class-group action and the quantum hidden-shift attack | technique | established |  | csidh class-group-action commutative hidden-shift kuperberg quantum volcano isogeny adjacent |
 | KN-TECH-028 | Endomorphism rings, the Deuring correspondence, KLPT and SQIsign | technique | reported |  | deuring endomorphism-ring quaternion maximal-order klpt sqisign signature isogeny adjacent |
 | KN-TECH-029 | Supersingular isogeny-problem algorithms (classical and quantum path-finding) | technique | reported |  | isogeny-problem path-finding meet-in-the-middle claw-finding quantum delfs-galbraith cost-model isogeny adjacent |
+| KN-TECH-030 | Pohlig-Hellman reduction and prime-order-subgroup hygiene | technique | established |  | pohlig-hellman group-order smooth-order subgroup crt generic baseline instance-validity ecdlp hygiene |
+| KN-TECH-031 | Baby-step giant-step and the deterministic generic baseline | technique | established |  | baby-step-giant-step bsgs shanks meet-in-the-middle deterministic interval-search kangaroo memory generic baseline ecdlp |
+| KN-TECH-032 | Pairing transfers (MOV / Frey-Ruck) and the embedding degree | technique | established |  | mov frey-ruck pairing weil-pairing tate-pairing embedding-degree transfer supersingular special-curves genericity ecdlp hygiene |
+| KN-TECH-033 | Anomalous (trace-one) curves and the additive transfer | technique | established |  | anomalous trace-one smart-attack satoh-araki semaev additive-transfer p-adic formal-group fermat-quotient linear-time special-curves representation ecdlp hygiene |
+| KN-TECH-034 | Curve and point validation - invalid-curve, small-subgroup, twist, and cofactor checks | technique | established |  | point-validation invalid-curve small-subgroup twist-security cofactor parameter-validation instance-validity fault-attack leakage-model harness ecdlp-adjacent hygiene |
+| KN-TECH-035 | Full-cost accounting - charging memory, wiring, and communication | technique | established |  | full-cost cost-model memory communication wiring area-time bsgs pollard-rho parallel-collision-search index-calculus baseline asymptotics ecdlp |
+| KN-TECH-036 | Public ECDLP record computations as baseline calibration | technique | reported |  | record-computation calibration certicom-challenge secp112r1 sect113r2 ecc2k-130 prime-field binary-field pollard-rho distinguished-points baseline cost-model ecdlp |
+| KN-TECH-037 | Quantum ECDLP resource estimation (Shor circuits for elliptic curves) | technique | reported |  | quantum shor resource-estimate toffoli qubits reversible-arithmetic nist-curves prime-field post-quantum cost-model model-boundary ecdlp |

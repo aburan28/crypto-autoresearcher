@@ -40,6 +40,10 @@ That test currently fails, and it fails by construction rather than by
 oversight: the promotion step exists in policy, has a skill, has a decision
 field, and has never once produced an entry.
 
+The table below records the state at the time of the audit. One row has since
+changed: the topic gaps in §1.6 were filled by 26 new entries, taking the
+corpus to 151 — see the closure record in §6.
+
 | Layer | State |
 | --- | --- |
 | Knowledge corpus breadth | 125 entries, index in exact sync with disk |
@@ -159,6 +163,12 @@ central to the program's main line of attack, and they are precisely the ones
 where "when does this stop working" is the question that matters.
 
 ### 1.6 Topic coverage gaps
+
+> **Status: addressed 2026-07-24.** The gaps identified in this section have
+> since been filled by 26 new entries (`KN-LIT-082` … `KN-LIT-099`,
+> `KN-TECH-030` … `KN-TECH-037`), built from verified primary sources. See
+> §6 for the closure record and for what remains open. The table below is
+> preserved as the original finding.
 
 The corpus is deep on the index-calculus research frontier and on adjacent
 post-quantum material (roughly 40 entries tagged `adjacent`), and correspondingly
@@ -435,11 +445,76 @@ knows.
 ### P2 — depth and coverage
 
 9. **Deepen the baseline entries.** `KN-TECH-001` (rho), `KN-LIT-008`, `KN-LIT-011`, and `KN-LIT-012` are the measuring stick for every advantage claim and are among the thinnest files in the corpus. They need concrete constants, parameter regimes, and crossover conditions.
-10. **Add the missing classical-ECDLP entries**: Pohlig–Hellman and small-subgroup/invalid-curve/twist hygiene; MOV and Frey–Rück; anomalous curves (Smart, Satoh–Araki); a dedicated BSGS technique entry; concrete rho record computations (Certicom, ECC2K-130, and the current public records); Shor resource estimates for ECDLP.
+10. ~~**Add the missing classical-ECDLP entries**: Pohlig–Hellman and small-subgroup/invalid-curve/twist hygiene; MOV and Frey–Rück; anomalous curves (Smart, Satoh–Araki); a dedicated BSGS technique entry; concrete rho record computations (Certicom, ECC2K-130, and the current public records); Shor resource estimates for ECDLP.~~ **Done 2026-07-24** — see §6.
 11. **Add verified/reported separation to the 29 technique entries** and limits sections to the ten open problems and three techniques that lack them.
 12. **Document `templates/research-records.md`'s missing IDEA schema** and the undocumented fields on hypotheses, corrections, and legacy evidence.
 13. **Add READMEs** for `coordination/`, `focus/`, `inputs/`, `src/`, `tools/`, and `tests/`, and update the root `README.md` map, its stale "next milestones" block, and `CLAUDE.md`'s subagent count. Mark `plan.md` as historical.
 14. **Annotate the validator baseline**: what error classes the 1,138 suppressed entries cover and the conditions under which an entry may be removed.
+
+## 6. Closure record — topic coverage (2026-07-24)
+
+The topic gaps in §1.6 were filled the same day the assessment was written.
+Twenty-six entries were added, taking the corpus from 125 to 151. Every
+citation was checked against a primary index before the entry was written;
+where the actual paper PDF was retrieved and its claims read, the entry
+carries `citation_verified: read` rather than `web`.
+
+### Literature added
+
+| Gap from §1.6 | Entries |
+| --- | --- |
+| Pohlig–Hellman / small-subgroup / invalid-curve / twist | `KN-LIT-082` (Pohlig–Hellman 1978), `KN-LIT-091` (Lim–Lee small subgroup), `KN-LIT-092` (Biehl–Meyer–Müller invalid curve), `KN-LIT-093` (Bernstein, Curve25519 / twist security) |
+| MOV / Frey–Rück pairing attacks | `KN-LIT-084` (MOV 1993), `KN-LIT-085` (Frey–Rück 1994), `KN-LIT-086` (Balasubramanian–Koblitz, genericity of large embedding degree) |
+| Anomalous curves | `KN-LIT-087` (Semaev), `KN-LIT-088` (Satoh–Araki), `KN-LIT-089` (Smart) |
+| Baby-step giant-step | `KN-LIT-083` (Shanks 1971) |
+| Concrete rho record computations | `KN-LIT-095` (112-bit prime field, secp112r1), `KN-LIT-096` (Breaking ECC2K-130), `KN-LIT-097` (117.35-bit binary, the current public record) |
+| Quantum ECDLP / Shor resource estimates | `KN-LIT-098` (Shor 1997), `KN-LIT-099` (Roetteler–Naehrig–Svore–Lauter concrete circuit counts) |
+| Prime-field Weil-descent criteria | `KN-LIT-090` (Diem, GHS in odd characteristic) |
+| Memory / communication cost models | `KN-LIT-094` (Wiener, *The Full Cost of Cryptanalytic Attacks*) |
+
+### Techniques added
+
+`KN-TECH-030` Pohlig–Hellman reduction and subgroup hygiene · `KN-TECH-031`
+BSGS and the deterministic baseline · `KN-TECH-032` pairing transfers and the
+embedding degree · `KN-TECH-033` anomalous curves and the additive transfer ·
+`KN-TECH-034` curve and point validation · `KN-TECH-035` full-cost accounting ·
+`KN-TECH-036` public record computations as baseline calibration ·
+`KN-TECH-037` quantum resource estimation.
+
+### Two findings that change how baseline claims should be read
+
+The material was gathered to fill gaps, but two facts from it bear directly on
+`GOAL-CRYPTO-001` and belong in the assessment rather than only in the corpus:
+
+1. **The largest publicly completed ECDLP is 117.35 bits** (binary field, 2016,
+   ~2^60 iterations, up to 576 FPGAs over six months). The largest prime-field
+   solve — the class this program targets — is **112 bits**, from 2009. A
+   256-bit curve needs roughly 2^128 iterations, a gap of about 2^68. No
+   mechanism can be validated end-to-end at cryptographic size, which is
+   independent confirmation that the goal's "advantage over a matched
+   baseline" framing is the only workable one.
+2. **Memory is not free, and the exponent proves it.** Wiener shows BSGS costs
+   n^{1/2} processor steps but n^{2/3+o(1)} in full cost, and states explicitly
+   that it is wrong to conclude Shanks's method and rho have the same full
+   cost. Any index-calculus-style route that buys a lower step count with a
+   factor base and relation matrix must be charged this way, or an apparent
+   advantage may be an accounting artifact.
+
+### Deliberate schema choices, and what remains open
+
+- The new entries use `citation_verified: read` for retrieved-and-read sources,
+  which is the vocabulary `knowledge/SEEDING.md` defines. The two pre-existing
+  full-text entries (`KN-LIT-080`, `KN-LIT-081`) use `full_text` for the same
+  meaning. This inconsistency is now visible in `INDEX.md` and should be
+  resolved when §5 item 2 (README/SEEDING reconciliation) is done.
+- The 29 technique entries flagged in §1.5 for lacking a verified-versus-reported
+  split are unchanged, but the eight new technique entries each carry an
+  explicit `## Verified vs reported` section, setting the pattern for
+  retrofitting the others.
+- Items **not** addressed: the `KN-FIND` promotion gap (§1.1), which requires
+  Coordinator authority over evidence records rather than literature curation;
+  the depth of the existing baseline entries (§5 item 9), which requires
+  superseding entries rather than adding them; and everything in §2, §3 and §4.
 
 ## What this assessment does not establish
 
