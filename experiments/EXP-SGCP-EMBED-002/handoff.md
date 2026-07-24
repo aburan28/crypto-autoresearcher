@@ -1,28 +1,27 @@
-## Handoff: SGCP V15 exact-claim and inventory repair
+## Handoff: SGCP V15 exact-commit review closeout
 
 ### Claim or task
 
-Validate and independently review the no-run V15 repair of the V14 path-claim,
-current-state, and durable-inventory findings without creating a generated
-curve-family density row, canonical matrix, runner, launch plan, or run.
+Preserve the exact-commit V15 reviews and repair their POSIX-anchor,
+current-state, contract-title, suite-scope, and accepted-alias control findings
+without creating a generated curve-family density row, canonical matrix,
+runner, launch plan, or run.
 
 ### Status
 
-`OBSERVATION` for V15 implementation preflight. V14 launch-plan readiness
-remains a scoped `NEGATIVE RESULT`; the research claim remains `HYPOTHESIS`,
-`TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`. Launch-plan design and
-execution remain `NO-GO`; `maximum_runs=0` is unchanged.
+`NEGATIVE RESULT` for V15 launch-plan readiness. The research claim remains
+`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
+Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Assumptions
 
-- The V14 reviews are static inspections of exact commit
-  `371790de7418aee8b1f56b7fa872f91bbec43899`; they do not independently
-  reproduce historical runtime claims.
-- In-root `.` and repeated-separator spellings are intended normalized aliases,
-  not distinct destinations or rejected raw spellings.
-- Explicit `..` components are rejected before normalization, and normalized
-  containment below the development root remains mandatory.
-- V14 receipt attribution and reconciliation retain their controlled-workspace,
+- The V15 reviews are static inspections of exact commit
+  `8adba3ad4ddf7055cc098831dff2a33e1e469810`; they did not rerun historical
+  tests, validators, producer, verifier, runner, or experiment.
+- Output-path semantics are host-language and POSIX sensitive: exactly two
+  leading separators form a distinct `//` anchor in Python, unlike internal
+  repeated separators.
+- V15 receipt attribution and reconciliation retain their controlled-workspace,
   ordinary synchronous exception, unkeyed receipt, and sequential snapshot
   boundaries.
 - Exactly three transient noncanonical legacy semantic rows at B=4,6,8 remain
@@ -33,30 +32,38 @@ execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Evidence so far
 
-- Exact-commit V14 theory issued scoped `GO`; accounting and red team issued
-  `REVISE`; `decision-v14.json` keeps launch-plan design unauthorized.
-- The V14 reviews found no mathematical, containment, accounting, or
-  zero-budget defect. They found an overbroad raw-path claim, stale
-  current-state wording, and four omitted V7 inventory entries.
-- V15 producer and verifier emit V15; V1-V14 schemas reject before semantic row
+- Theory, accounting, and red team all issued `REVISE`;
+  `decision-v15.json` keeps launch-plan design unauthorized.
+- All nine committed artifact hashes match exact Git bytes, and independent
+  arithmetic reproduces `480/112/336/218/4218`.
+- Producer and verifier emit V15; V1-V14 schemas reject before semantic row
   verification.
-- Public output APIs reject explicit parent traversal, normalize in-root dot and
-  repeated-separator aliases, and bind one normalized root-relative destination.
-- The existing path control now publishes through a raw normalized alias and
-  compares production and standalone attribution; the separate `..` control
-  still requires no outside artifact.
-- The handoff and active ledger identify the committed V14 review outcome and
-  V15 implementation state.
-- The four V7 records and the complete V14 implementation/review/decision set
-  are present in the durable inventory.
-- The exact curve grid, predicates, compiler, objective, caps, gates, operation
-  vector `480/112/336/218/4218`, and publication protocol are unchanged.
+- No containment escape, mathematical change, accounting defect, budget
+  widening, generated-row route, or run route was found.
+- Ordinary `.`, internal repeated separators, absolute in-root paths, explicit
+  `..`, root rejection, outside-root rejection, symlink-parent no-follow
+  traversal, no-overwrite publication, and receipt attribution are structurally
+  sound under the documented boundaries.
+- Exactly two leading POSIX separators remain a distinct `//` anchor and are
+  rejected by normalized containment. The blanket repeated-separator alias
+  wording and internal-only control therefore overstate coverage.
+- Post-publication production and standalone attribution are checked through
+  the normalized path, not directly through the raw alias.
+- The active V15 handoff, ledger, revision-response next action, and test-log
+  next action still describe already completed validation and commit work as
+  pending.
+- The contract title still says version 14.
+- The recorded 225-test command is repository-wide `unittest discover`, not
+  collection of 27 additional module-level pytest-style tests.
+- The four V7 records and complete V14/V15 implementation inventory are present.
 - No generated V15 curve-family density row, canonical matrix, runner, plan, or
   run exists. Historical V1 development artifacts remain historical.
 
 ### Failure modes
 
-- Raw path spelling is intentionally not preserved after normalization.
+- Treating the leading `//` POSIX anchor as an ordinary repeated separator.
+- Treating precommit handoff language as exact committed-current-state evidence.
+- Treating unittest discovery as every test framework in the repository.
 - A failed pre-receipt publication can leave an unaccepted, non-reusable orphan
   or malformed receipt.
 - `BaseException` or process interruption can prevent a success return after a
@@ -65,33 +72,29 @@ execution remain `NO-GO`; `maximum_runs=0` is unchanged.
   attestation remain future runner obligations.
 - Canonical B6/B8 feasibility, output size, CPU, wall time, RSS, cache occupancy,
   and memory traffic remain unmeasured.
-- The structurally distinct complete semantic oracle remains frozen-B4 only.
 - No current artifact supports an attack or asymptotic claim.
 
 ### Next concrete action
 
-Complete focused, record/index, and repository-wide validation; freeze the nine
-artifact hashes; commit one exact V15 snapshot; then obtain fresh independent
-read-only theory, accounting, and red-team reviews. Keep `maximum_runs=0`.
+Implement one no-run V16 distinguishing internal repeated separators from the
+leading `//` anchor, adding a complete path-policy and post-publication raw-alias
+control, correcting the contract title and current-state records, and narrowing
+the test-suite label. Preserve every mathematical byte and `maximum_runs=0`.
 
 ### Artifact paths
 
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v15.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v15.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v15.md`
+- `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v15.json`
+- `experiments/EXP-SGCP-EMBED-002/decision-v15.json`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v15.md`
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v15.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v15.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v15.md`
 - `experiments/EXP-SGCP-EMBED-002/hypothesis.json`
 - `experiments/EXP-SGCP-EMBED-002/specification.json`
 - `experiments/EXP-SGCP-EMBED-002/contract.md`
-- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v14.json`
-- `experiments/EXP-SGCP-EMBED-002/revision-response-v14.md`
-- `experiments/EXP-SGCP-EMBED-002/development-test-log-v14.md`
-- `experiments/EXP-SGCP-EMBED-002/source-self-review-v14.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v14.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v14.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v14.md`
-- `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v14.json`
-- `experiments/EXP-SGCP-EMBED-002/decision-v14.json`
-- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v15.json`
-- `experiments/EXP-SGCP-EMBED-002/revision-response-v15.md`
-- `experiments/EXP-SGCP-EMBED-002/development-test-log-v15.md`
-- `experiments/EXP-SGCP-EMBED-002/source-self-review-v15.md`
 - `experiments/EXP-SGCP-EMBED-002/src/sgcp_embed_family.py`
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
