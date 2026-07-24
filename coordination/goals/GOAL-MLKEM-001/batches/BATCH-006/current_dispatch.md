@@ -6,12 +6,11 @@ Harden the EXP-MLKEM-002 conformance gate against its five surviving red-team ob
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-237` | validator | queued | 70 | TASK-20260724-235, TASK-20260724-236 | coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/tasks/TASK-20260724-237/validation_report.yaml, coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/tasks/TASK-20260724-237/validation_notes.md | coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/tasks/TASK-20260724-237 |
-| `TASK-20260724-238` | red-team | queued | 70 | TASK-20260724-235, TASK-20260724-236 | coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/tasks/TASK-20260724-238/red_team_report.yaml, coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/tasks/TASK-20260724-238/falsification_review.md | coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/tasks/TASK-20260724-238 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-239`: dependency_not_completed:TASK-20260724-237:queued, dependency_not_completed:TASK-20260724-238:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Harden the EXP-MLKEM-002 conformance gate against its five surviving red-team ob
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `5eba3212445e37b396eea465995974422e9a34f66b725e461ee5323bdd9ad791`
+Plan SHA-256: `7692f3805a0add65a9f74f11be353db65eac98ffb8b4d7675e52d734491a9c92`
