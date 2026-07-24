@@ -1,0 +1,55 @@
+# Batch 127 digest
+
+## Overview
+- Chunk contains 45 files, not the expected 50; heavily dominated by early-2000s Crypto/Eurocrypt-era papers (IBE, MPC, hash/MAC design, cryptanalysis) with a later ECDLP cluster (Semaev, ECC2K-130 GPU, GHS Weil descent, quasi-subfield polynomials, 113-bit Koblitz FPGA record).
+- Notable papers: Boneh–Boyen IBE without random oracles, Cramer–Shoup universal hash proofs, Horwitz–Lynn HIBE, Black–Rogaway PMAC, Gentry–Szydlo NTRU signature cryptanalysis, Bernstein et al. ECC2K-130 on GPUs.
+- 10 extracts are font-encoding garbage with no recoverable text (hybrid, linear-des, lncs, multicollisions, opsmtfinal, revised-Katz-Ostrovsky, rsaagg, sign, sv, vde); titles inferable only from filenames in a few cases.
+- Non-research items: kent.pdf (PKI position essay), main.pdf and preface.pdf (Crypto 2000/2001 proceedings front matter), resume.pdf (Christophe Petit's CV), quasi-subfield...pdf (repository cover page only).
+- ww_2014_368.pdf is an exact duplicate of ww2.pdf. oopsla-21.pdf is a PL/program-analysis paper (OOPSLA), an outlier in this crypto corpus.
+
+## Papers
+- **hash.pdf** — Performance Analysis and Parallel Implementation of Dedicated Hash Functions (Junko Nakajima, Mitsuru Matsui). Benchmarks and MMX-parallel optimizations of MD5, RIPEMD, SHA-1/256/512, Whirlpool on Pentium III; first detailed measurements for SHA-256/512 and Whirlpool.
+- **hibe.pdf** — Toward Hierarchical Identity-Based Encryption (Jeremy Horwitz, Ben Lynn). Introduces HIBE with security definitions and a two-level construction with collusion resistance and CCA security in the random-oracle model.
+- **hybrid.pdf** — (?) Extract is font-encoding garbage; title/content unrecoverable from text (filename suggests a hybrid encryption paper).
+- **kent.pdf** — Rethinking PKI: What's Trust Got to do with It? (Stephen Kent). Position essay arguing PKI literature misuses "trust"; CAs need not be TTPs and context determines meaningful authentication services.
+- **linear-des.pdf** — (?) Garbled font-encoding extract; filename suggests linear cryptanalysis of DES, but content is unrecoverable.
+- **lncs.pdf** — (?) Garbled font-encoding extract; content unrecoverable (generic LNCS filename).
+- **lw.pdf** — On the Bounded Sum-of-digits Discrete Logarithm Problem in Finite Fields (Qi Cheng). Gives random-polynomial-time algorithms for DLP with bounded digit sums in Kummer extensions via Reed–Solomon list decoding; fixed-parameter tractability results.
+- **main.pdf** — Not a research paper: Crypto 2000 proceedings front matter (preface, program committee, table of contents).
+- **multicollisions.pdf** — (?) Garbled font-encoding extract; filename suggests Joux's multicollisions in iterated hash functions, but text is unrecoverable.
+- **new-algorithm-for-the-discrete-logarithm-problem-on-elliptic-2omnvr4wcr.pdf** — New algorithm for the discrete logarithm problem on elliptic curves (Igor Semaev). Solves summation-polynomial systems under a first-fall-degree assumption, claiming heuristic 2^~1.69√(n ln n) binary-curve ECDLP complexity beating Pollard rho.
+- **nim30_camera_ready.pdf** — Dining Cryptographers Revisited (Philippe Golle, Ari Juels). New DC-net constructions achieving non-interactivity plus high-probability cheater detection and identification at linear cost per player.
+- **nsssign_short3.pdf** — Cryptanalysis of the Revised NTRU Signature Scheme (Craig Gentry, Mike Szydlo). Three-stage attack recovering the private key of Revised NSS from a handful of signatures; implications discussed for NTRUSign.
+- **ob.pdf** — Positive Results and Techniques for Obfuscation (Benjamin Lynn, Manoj Prabhakaran, Amit Sahai). First positive obfuscation results: provable obfuscations of complex access-control functionalities in the random oracle model via composition techniques.
+- **oopsla-21.pdf** — Program Analysis via Efficient Symbolic Abstraction (Peisen Yao, Qingkai Shi, Heqing Huang, Charles Zhang). Non-crypto PL paper: scalable symbolic abstraction algorithms for bit-vector formulas applied to memory-corruption analysis and fuzzing.
+- **opsmtfinal.pdf** — (?) Garbled font-encoding extract; content unrecoverable.
+- **p4.pdf** — Secure Computation of the kth-Ranked Element (Gagan Aggarwal, Nina Mishra, Benny Pinkas). Sublinear two- and multi-party protocols for privately computing the kth-ranked element (e.g., median) of combined datasets.
+- **paper (10).pdf** — Non-Interactive Timestamping in the Bounded Storage Model (Tal Moran, Ronen Shaltiel, Amnon Ta-Shma). First task achievable in the bounded-storage model but impossible in the standard setting, with explicit constructions.
+- **paper (11).pdf** — Efficient Tree-Based Revocation in Groups of Low-State Devices (Michael Goodrich, Jonathan Sun, Roberto Tamassia). Broadcast encryption with revocation for devices storing O(log n) keys, supporting arbitrary subtrees of unbalanced trees.
+- **paper.pdf** — Incremental Multiset Hash Functions and Their Application to Memory Integrity Checking (Clarke, Devadas, van Dijk, Gassend, Suh). Introduces incremental multiset hashing and applies it to offline memory integrity checking against active adversaries.
+- **parkyeonglim.pdf** — Speeding up point multiplication on hyperelliptic curves with efficiently-computable endomorphisms (Park, Jeong, Lim). Extends Gallant–Lambert–Vanstone to hyperelliptic curves, up to ~55–59% speedup for 160-bit genus-2/3 point multiplication.
+- **pm-eurocrypt04-lncs.pdf** — Efficient Private Matching and Set Intersection (Michael Freedman, Kobbi Nissim, Benny Pinkas). Private set-intersection protocols using homomorphic encryption and balanced hashing with linear communication, semi-honest and malicious variants.
+- **pmac.pdf** — A Block-Cipher Mode of Operation for Parallelizable Message Authentication (John Black, Phillip Rogaway). Defines PMAC, a fully parallelizable, provably secure MAC mode with serial speed near CBC-MAC.
+- **preface.pdf** — Not a research paper: Crypto 2001 proceedings preface (submission stats, invited talks, acknowledgments).
+- **prng.pdf** — A Practice-Oriented Treatment of Pseudorandom Number Generators (Anand Desai, Alejandro Hevia, Yiqun Lisa Yin). Security framework for practical PRNGs; analyzes ANSI X9.17 and FIPS 186 generators with improvements.
+- **procvers.pdf** — BDD-based Cryptanalysis of Keystream Generators (Matthias Krause). FBDD attack on LFSR-based keystream generators yielding improved effective-key-length bounds for self-shrinking generator, A5/1, and Bluetooth E0.
+- **projective.pdf** — Projective Coordinates Leak (David Naccache, Nigel Smart, Jacques Stern). Shows exposing the projective Z-coordinate of an elliptic-curve scalar multiplication leaks information about the secret scalar.
+- **pubkeystego.pdf** — Public-Key Steganography (Luis von Ahn, Nicholas Hopper). First provably secure public-key steganography and steganographic key-exchange protocols under standard assumptions.
+- **qbc.pdf** — Unconditional Byzantine Agreement and Multi-Party Computation Secure Against Dishonest Minorities from Scratch (Fitzi, Gisin, Maurer, von Rotz). Conditional broadcast/MPC beating the t<n/3 bound, achieving t<n/2 after detecting a cheat-free time slot.
+- **qbind.pdf** — On Deniability in Quantum Key Exchange (Donald Beaver). Shows QKE lacks deniability despite "perfect security" claims, explains why Mayers' no-go arguments don't transfer, and proposes a candidate deniable protocol.
+- **quasi-subfield-polynomials-and-the-elliptic-curve-discrete-1y3tfmt5hf.pdf** — Quasi-subfield polynomials and the elliptic curve discrete logarithm problem (Huang, Kosters, Petit, Yeo, Yun). Extract is a Birmingham repository cover page only; bibliographic record of a Journal of Mathematical Cryptology 2020 ECDLP paper.
+- **recheck_2012_002.pdf** — ECC2K-130 on NVIDIA GPUs (Bernstein, Chen, Cheng, Lange, Niederhagen, Schwabe, Yang). Optimizes the Certicom ECC2K-130 ECDLP attack for GPUs despite poor binary-field support, achieving 63M+ iterations/sec.
+- **resume.pdf** — Not a research paper: academic CV of Christophe Petit (UCL/UCLouvain cryptographer; mentions binary ECDLP and hash-function research).
+- **revised-Katz-Ostrovsky.pdf** — (?) Garbled font-encoding extract; filename suggests the Katz–Ostrovsky password-authenticated key exchange paper, but text is unrecoverable.
+- **rsaagg.pdf** — (?) Garbled font-encoding extract; content unrecoverable.
+- **shortC_crypt12.pdf** — How to Compress Rabin Ciphertexts and Signatures (and More) (Craig Gentry). Compresses Rabin ciphertexts/signatures to ~2/3 log N bits with tight factoring reduction; improves partial-domain-hash signature bounds.
+- **shoup.pdf** — Universal Hash Proofs and a Paradigm for Adaptive Chosen Ciphertext Secure Public-Key Encryption (Ronald Cramer, Victor Shoup). Framework yielding practical standard-model CCA-secure encryption from DCR and quadratic residuosity assumptions.
+- **sibewro2.pdf** — Secure Identity Based Encryption Without Random Oracles (Dan Boneh, Xavier Boyen). Fully secure IBE from the decision bilinear Diffie–Hellman assumption, resolving Boneh–Franklin's open problem.
+- **sign.pdf** — (?) Garbled font-encoding extract; content unrecoverable (generic "sign" filename).
+- **smart.pdf** — Extending the GHS Weil Descent Attack (S. D. Galbraith, F. Hess, N. P. Smart). Uses isogenies to extend the GHS Weil-descent attack to more curves over composite-degree binary fields, weakening many F2^155 curves.
+- **sv.pdf** — (?) Garbled font-encoding extract; content unrecoverable.
+- **szydlo-loglog.pdf** — Merkle Tree Traversal in Log Space and Time (Michael Szydlo). Merkle tree traversal in O(log²N) time and space with matching optimality proof, improving space×time cost.
+- **ts-f5a.pdf** — Traceable Signatures (Aggelos Kiayias, Yiannis Tsiounis, Moti Yung). Group-signature extension allowing distributed tracing of one misbehaving party's signatures without opening others, with proofs.
+- **vde.pdf** — (?) Garbled hex-glyph extract; content unrecoverable.
+- **ww2.pdf** — Solving the Discrete Logarithm of a 113-bit Koblitz Curve with an FPGA Cluster (Erich Wenger, Paul Wolfger). Fully pipelined Pollard-rho FPGA design; 18-core Virtex-6 cluster computed a 113-bit Koblitz curve DLP in ~24 days.
+- **ww_2014_368.pdf** — Solving the Discrete Logarithm of a 113-bit Koblitz Curve with an FPGA Cluster (Erich Wenger, Paul Wolfger). Same abstract and text as ww2.pdf (duplicate of ww2.pdf).

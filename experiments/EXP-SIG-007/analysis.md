@@ -73,28 +73,52 @@ handoff's own fallback.
 
 ## S3 (rank M5) checkpoint state + resume
 
-- Seed 1: **48,000 / 778,394 columns (6.17%), rank_acc = 48,000** (every
-  chunk so far k = 4,000 — no saturation onset yet at 6%), work 332.9 s,
-  12 units, peak RSS ≤ 4.44 GB. State:
-  `experiments/EXP-SIG-007/work/n21_s1/rank5/` (state.json + 12 carries,
-  all sha256-verified). Resume (repeatable, ~4-min invocations):
+**Update, turn 3 (resume t–y):** seed 1 advanced 128,000 → **159,000 /
+778,394 columns (20.43%)**, rank_acc = 157,726, cumulative work 1,790 s
+(+500 s this turn), 38 units, peak RSS ≤ 7.98 GB. Turn-3 runs: t (harness
+kill after 1 checkpointed unit, 128–132k preserved; failed_infrastructure,
+rule 5), u (132–138k), v (138–144k), w (144–149k), x (149–154k), y
+(154–159k). Per-chunk k full (6,000/5,000) except a 4,868 dip on y —
+rank/cols = 99.2% at 20%.
+
+**Resume-overhead finding (recorded, drives the plan):** the per-invocation
+resume cost is dominated by sage's m4ri pickle format (PNG-encoded GF(2)
+matrices): measured adjacency unpickle 0.2 s, carrier sha256 8.3 s, carrier
+unpickle **141.6 s at 33 blocks and growing ~4.3 s/block**. At ~250–280 s
+load the harness cap would strangle the resume (projected near rank
+~230–250k). Mitigation adopted this turn: `max-units 1` with chunk
+5,000–6,000 (one full chunk per invocation, no mid-unit kills). Wall
+efficiency is now ~32% work/wall; at ~500–600 s work per turn the tail is
+**~23–27 turns**. A one-time carrier-codec engineering turn (raw-bit
+store + fast reconstruction, or fewer/larger checkpoints) could lift this
+to ~70–80% (~7 turns) — flagged to the Coordinator as an option; not
+undertaken mid-measurement to preserve instrument stability.
+
+- State: `experiments/EXP-SIG-007/work/n21_s1/rank5/` (state.json + 32
+  carries, all sha256-verified). Resume (repeatable, ~4-min invocations):
 
   ```
   sage experiments/EXP-SIG-007/SIG7_run.sage --mode rank5 --n 21 --seed 1 \
-       --work experiments/EXP-SIG-007/work/n21_s1 --budget 170 \
-       --chunk-force 4000 --out <RUN>/raw.json
+       --work experiments/EXP-SIG-007/work/n21_s1 --budget 250 \
+       --max-units 1 --chunk-force 5000 --out <RUN>/raw.json
   ```
+
+  (Cadence since turn 3: `max-units 1` + chunk 5,000–6,000 — one full
+  chunk per invocation; resume load is ~140–180 s and grows with rank.)
 
 - Seed 2: rank not started; S1 adjacency checkpointed
   (`work/n21_s2/s1_adjacency.pkl`), resume-ready with the same command on
   `--work .../n21_s2`.
-- Measured cost model (this instrument, this machine): ~22–35 s work per
-  4,000-col unit, reduce phase growing ~linearly in rank_acc (11.7→14.5 s
-  at rank 40–48k). Extrapolated full-cell work ≈ 1.0–1.6×10⁴ s (~3–5 h)
-  per seed — cheaper than the DREG EV-DREG-001 extrapolation (2.5–3.2×10⁴ s)
-  but same order; **not finishable in this task's budget**.
+- Measured cost model (this instrument, this machine): 1,790 s work for
+  159,000 cols; marginal ~17 s/1,000 cols growing ~linearly with rank.
+  Extrapolated full-cell work ≈ 1.4–1.6×10⁴ s (~4.3 h) per seed; at
+  ~500–600 s work per task turn (load-bound), **~23–27 more turns** to
+  completion of seed 1 (~7 turns if the carrier-codec optimization is
+  approved and lands).
 - Once rank completes per seed: `extra_5 = (279,048 − rank) − 10,373`;
   `residual_5 = extra_5 − 1,407`; `deficit_5 = 268,674 − rank`.
+- Two-partition control (different chunk size) is REQUIRED before any rank
+  claim (spec C9b-style; budgeted for the completing turn).
 
 ## Deviations
 
@@ -121,10 +145,9 @@ handoff's own fallback.
    across the two seeds (778,394 both).
 2. rankK5 at n=21 is 10,373 of a 10,374-member family — near-saturated,
    matching the pattern at smaller sizes (2,093/2,094 at n=12).
-3. Every staircase chunk so far has found k = 4,000/4,000 new pivots — no
-   saturation shoulder through 6% of columns (the n=12 sem cell saturated
-   only in its final chunks; the n=15 null plateaued at sr_pred by 57% of
-   columns).
+3. No saturation shoulder through 16% of columns (rank_acc/cols = 99.1%;
+   the n=12 sem cell saturated only in its final chunks; the n=15 null
+   plateaued at sr_pred by 57% of columns).
 4. Both closure components A3_5 and A4_5 keep growing at n=21 with
    *increasing* increments (+150/+186/+222 and +261/+321/+381) — whatever
    residual_5 turns out to be, the lower-degree closure does not shrink at

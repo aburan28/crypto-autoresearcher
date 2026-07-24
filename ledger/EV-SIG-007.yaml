@@ -13,6 +13,21 @@ evidence:
     - RUN-EXP-SIG-007-h   # rank5 seed 1 cols 0..20000
     - RUN-EXP-SIG-007-i   # rank5 seed 1 cols 20000..36000
     - RUN-EXP-SIG-007-j   # rank5 seed 1 cols 36000..48000 (6.17%)
+    - RUN-EXP-SIG-007-k   # rank5 resume: cols 48000..60000
+    - RUN-EXP-SIG-007-l   # rank5: cols 60000..72000
+    - RUN-EXP-SIG-007-m   # rank5: cols 72000..84000
+    - RUN-EXP-SIG-007-n   # failed_infrastructure (harness kill; 2 units 84000..92000 checkpointed in shared state)
+    - RUN-EXP-SIG-007-o   # rank5: cols 92000..100000
+    - RUN-EXP-SIG-007-p   # rank5: cols 100000..108000
+    - RUN-EXP-SIG-007-q   # rank5: cols 108000..116000
+    - RUN-EXP-SIG-007-r   # rank5: cols 116000..124000
+    - RUN-EXP-SIG-007-s   # rank5: cols 124000..128000 (16.44%)
+    - RUN-EXP-SIG-007-t   # failed_infrastructure (harness kill after 1 checkpointed unit 128000..132000)
+    - RUN-EXP-SIG-007-u   # rank5: cols 132000..138000 (cadence: max-units 1, chunk 6000)
+    - RUN-EXP-SIG-007-v   # rank5: cols 138000..144000
+    - RUN-EXP-SIG-007-w   # rank5: cols 144000..149000 (chunk 5000)
+    - RUN-EXP-SIG-007-x   # rank5: cols 149000..154000
+    - RUN-EXP-SIG-007-y   # rank5: cols 154000..159000 (20.43%)
   type: empirical
   direction: neutral          # the decisive quantities are censored; no direction on H-SIG-001
   strength: partial
@@ -20,8 +35,9 @@ evidence:
   validity_status: >-
     partial: controls and n=21 S0-S2 stages completed_valid (PRELIMINARY —
     null D5 arm censored); deficit_5 and residual_5 at n=21 NOT measured
-    (S3 rank in_progress_checkpointed at 48,000/778,394 columns with
-    verified resume; AGENTS rule 5 — censoring is NOT evidence)
+    (S3 rank in_progress_checkpointed at 159,000/778,394 columns = 20.43%,
+    rank_acc=157,726, work 1,790 s, with verified resume; AGENTS rule 5 —
+    censoring is NOT evidence)
   observations:
     - "INSTRUMENT: memory-safe staged driver (SIG7_run.sage) over the
        bit-identical pinned instrument (sha256-verified). S0 D3/D4 +
@@ -50,18 +66,28 @@ evidence:
        cost (recorded below), so no null validation at D5."
     - "CENSORED (infrastructure, AGENTS rule 5 — NOT evidence): D5
        deficit_5 and residual_5 at n=21 are UNMEASURED. rank(M5) is
-       hours-scale: measured this task 332.9 s work for the first
-       48,000/778,394 columns (6.17%, rank_acc=48,000, every chunk
-       k=4,000/4,000 — no saturation onset yet); honest extrapolation
-       ~1.0-1.6e4 s work (~3-5 h) per seed (DREG EV-DREG-001 model:
-       2.5-3.2e4 s). The 3,300 s / 12-invocation budget delivered a
-       verified checkpoint, not a completion. Resume command:
+       hours-scale: measured 1,790 s work for 159,000/778,394 columns
+       (20.43%, rank_acc=157,726; per-chunk k full 6,000/5,000 with a
+       4,868 dip — rank_acc/cols=99.2%). Turn-2 resume (RUNs k-s) added
+       +80,000 cols / +957 s work; turn-3 (RUNs t-y) added +31,000 cols /
+       +500 s work with one harness kill after a checkpointed unit.
+       RESUME-OVERHEAD FINDING: per-invocation resume is dominated by
+       sage's PNG-encoded m4ri pickle decode (measured: adjacency 0.2 s,
+       carrier sha256 8.3 s, carrier unpickle 141.6 s at 33 blocks,
+       ~4.3 s/block growth) — the cadence is now max-units 1 + chunk
+       5,000-6,000, wall efficiency ~32%, and the load would strangle the
+       300 s harness cap near rank ~230-250k. Extrapolated full-cell work
+       ~1.4-1.6e4 s (~4.3 h) per seed: ~23-27 more turns at current
+       cadence, ~7 if a one-time carrier-codec optimization (raw-bit
+       store + fast reconstruct) is approved. Resume command:
        sage experiments/EXP-SIG-007/SIG7_run.sage --mode rank5 --n 21
-       --seed 1 --work experiments/EXP-SIG-007/work/n21_s1 --budget 170
-       --chunk-force 4000 --out <RUN>/raw.json  (seed 2: same on
-       work/n21_s2, adjacency checkpointed, rank not started).
+       --seed 1 --work experiments/EXP-SIG-007/work/n21_s1 --budget 250
+       --max-units 1 --chunk-force 5000 --out <RUN>/raw.json  (seed 2:
+       same on work/n21_s2, adjacency checkpointed, rank not started).
        Completion formulas: extra_5 = (279,048 - rank) - 10,373;
-       residual_5 = extra_5 - 1,407; deficit_5 = 268,674 - rank."
+       residual_5 = extra_5 - 1,407; deficit_5 = 268,674 - rank.
+       The two-partition control (different chunk size) is required
+       before any rank claim (budgeted for the completing turn)."
     - "NULL D5 ARM CENSORED (a priori, cost): the null D5 control
        (extra=0, rank==sr_pred at n=21) needs the same hours-scale rank;
        recorded per the handoff fallback; all n=21 D5-stage sem numbers
@@ -81,9 +107,12 @@ evidence:
        fixed before measurement); D2 RUN-g killed at the 300 s harness cap
        inside the first 24,000-col adaptive chunk (orphan carrier
        discarded; rank5 restarted with --chunk-force 4000; rule 5);
-       D3 per-invocation work capped ~170-235 s by the harness (stricter
-       than the mission's 600 s); D4 null D5 censored (above).
-       Invocations used: 12 of 12."
+       D3 per-invocation work capped ~110-235 s by the harness (stricter
+       than the mission's 600 s); D4 null D5 censored (above); D5 RUN-n and
+       RUN-t harness-killed as carrier load grew (completed units
+       checkpointed into the shared state; cadence restructured to
+       max-units 1 + chunk 5000-6000; rule 5). Invocations: 12 (turn 1)
+       + 9 (turn 2) + 6 (turn 3)."
   inference: >-
     Numbers only (status decision belongs to the Coordinator). The n=21
     residual_5 / D5-deficit question — whether the n=18 drop (1158 -> 974)
