@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-123 entries.
+125 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -86,6 +86,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-077 | Faster Algorithms for Isogeny Problems Using Torsion Point Images | literature | reported | web | torsion-points sidh overstretched unbalanced cryptanalysis isogeny break-precursor adjacent |
 | KN-LIT-078 | Computing isogenies between supersingular elliptic curves over F_p (Delfs-Galbraith) | literature | reported | web | supersingular isogeny-problem path-finding meet-in-the-middle classical-baseline cryptanalysis isogeny adjacent |
 | KN-LIT-079 | A Quantum Algorithm for Computing Isogenies between Supersingular Elliptic Curves | literature | reported | web | quantum supersingular isogeny-problem claw-finding quantum-baseline cryptanalysis isogeny post-quantum adjacent |
+| KN-LIT-080 | Thorns in Polynomial Convolution | literature | reported | full_text | ml-kem polynomial-convolution decryption-failure correlation large-deviations canonical-embedding failure-oracle |
+| KN-LIT-081 | On Reduction Probability Models in Lattice Sieving | literature | reported | full_text | ml-kem lattice-sieving reduction-probability sphere-model ball-model cost-estimation memory |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
