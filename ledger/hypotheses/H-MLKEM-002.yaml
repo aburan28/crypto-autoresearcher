@@ -1,0 +1,130 @@
+hypothesis:
+  id: H-MLKEM-002
+  question_id: RQ-MLKEM-001
+  title: Direct comparison-primitive conformance detects ML-KEM re-encryption comparison omissions
+  statement: >-
+    For the ML-KEM implicit-rejection comparison in wolfSSL, a byte-complete
+    differential conformance suite applied directly to the comparison primitive
+    on exact pre-fix and post-fix commits discriminates an incomplete
+    re-encryption comparison from a conforming one. On a build whose comparison
+    provably ignores part of its input, at least one single-byte ciphertext
+    mutation is reported equal by the optimized primitive and unequal by the
+    scalar primitive; on the post-fix build, no ciphertext byte index produces a
+    scalar-versus-optimized disagreement for any tested FIPS 203 parameter set.
+    Whether the two records named in the BATCH-002 oracle-surface report
+    (CVE-2026-10097 for x64 AVX2 ML-KEM-1024 and CVE-2026-6330 for ARM64 NEON)
+    actually correspond to such code at the named versions is itself a tested
+    premise, not an assumption.
+  mechanism: >-
+    FIPS 203 Algorithm 18 returns the genuine shared secret only when the
+    re-encrypted ciphertext equals the received ciphertext in every byte. An
+    optimized comparison that reads fewer bytes than the ciphertext length is
+    functionally silent on valid known-answer tests, because valid ciphertexts
+    agree everywhere including the compared prefix. The omission becomes a
+    deterministic observable exactly when a mutation lands in the uncompared
+    region: the primitive returns equal, Algorithm 18 takes the accept branch,
+    and the caller receives the genuine shared secret for a ciphertext it never
+    produced. Testing the primitive directly, rather than only end to end,
+    removes dependence on dispatch heuristics, caller behavior, and on any
+    exploitation path, and yields a per-byte-index coverage map whose silent set
+    is either empty or an explicit list of indices.
+  assumptions:
+    - Laboratory-only builds from public wolfSSL source are used; no deployed system, network peer, or third-party key is involved.
+    - The scalar C backend of the same commit is a usable differential reference once it reproduces valid encapsulate/decapsulate agreement and cross-backend equality on unmutated ciphertexts.
+    - The optimized backend actually selected at run time can be attested from the build configuration and from symbols or instrumentation, not merely assumed from configure flags.
+    - Deterministic key generation and encapsulation are available so that every comparison input is reproducible from a recorded seed.
+    - A single-byte mutation of a valid ciphertext is, with overwhelming probability, not a valid re-encryption of the recovered message; agreement of the compared region is therefore attributable to omitted bytes, and any observed equality is checked against the honest re-encryption bytes rather than inferred.
+  predictions:
+    - metric: premise_verified
+      direction: different
+      minimum_effect: 'Boolean per CVE: the named pre-fix commit either does or does not contain a comparison reading fewer bytes than the ciphertext length; the verdict is read from source and from the measured coverage map, and disagreement between the two is itself reportable.'
+    - metric: prefix_backend_silent_byte_count
+      direction: higher
+      minimum_effect: 'At least 1 silent index on a build verified to contain an incomplete comparison; expected 32 for the 1568-byte ML-KEM-1024 AVX2 case if the 1536-byte report is accurate.'
+    - metric: postfix_backend_silent_byte_count
+      direction: lower
+      minimum_effect: 'Exactly 0 for every tested backend, parameter set, and byte index.'
+    - metric: byte_index_coverage_fraction
+      direction: higher
+      minimum_effect: '1.0 of ciphertext byte indices exercised for every tested parameter set and backend.'
+    - metric: integration_oracle_observed
+      direction: different
+      minimum_effect: 'On any build with a nonempty silent set, mutating a silent byte yields the genuine shared secret from Algorithm 18 rather than the implicit-rejection value; on post-fix builds this must never occur.'
+  test_boundary:
+    instances:
+      - wolfSSL at tag v5.9.1-stable, commit fb2d72b70f4f823efa7dddf9e427700864adf513
+      - wolfSSL at tag v5.9.2-stable, commit a82476d144290bf6a786607a16c224acff63d882
+      - x86-64 scalar C backend and x86-64 AVX2 backend on the execution host
+      - aarch64 NEON backend only if a cross-toolchain and user-mode emulator are available; otherwise recorded as infrastructure_unavailable
+    parameters:
+      parameter_sets: [ML-KEM-512, ML-KEM-768, ML-KEM-1024]
+      ciphertext_lengths: {ML-KEM-512: 768, ML-KEM-768: 1088, ML-KEM-1024: 1568}
+      shared_secret_length: 32
+      mutation_model: single_byte_xor_with_0x01_and_0xff_at_every_index
+      keys_per_parameter_set: 2
+      seed_policy: fixed_recorded_seeds_for_deterministic_keygen_and_encapsulation
+    implementation: >-
+      A C harness compiled against each checked-out wolfSSL tree that (a) calls
+      the ML-KEM ciphertext comparison used by decapsulation directly for each
+      backend, and (b) calls the public decapsulation API for the integration
+      check. Backend selection is forced by build configuration and attested at
+      run time. No wolfSSL source file is modified except by adding a separate
+      harness translation unit; any unavoidable visibility shim is recorded
+      verbatim in the run artifacts.
+    budget:
+      wall_clock_seconds: 5400
+      cpu_hours: 2.0
+      maximum_memory_gb: 4
+      maximum_runs: 4
+  falsification_conditions:
+    - >-
+      A build is verified from source to contain a comparison reading fewer
+      bytes than the ciphertext length, yet the byte-complete differential suite
+      reports an empty silent set. This falsifies the detection claim and
+      indicts the generator, not the library.
+    - >-
+      A post-fix backend produces at least one scalar-versus-optimized
+      disagreement, or an integration accept on a mutated ciphertext. This
+      falsifies the zero-disagreement prediction for the patched release.
+    - >-
+      Full byte-index coverage cannot be exercised for a backend that the suite
+      claims to cover, or the backend actually executed cannot be attested.
+    - >-
+      The scalar reference disagrees with an independent FIPS 203 conformance
+      check on unmutated ciphertexts, invalidating the differential reference.
+  distinguishable_outcomes:
+    premise_unverified: >-
+      The named pre-fix commits do not contain the incomplete comparison the
+      BATCH-002 oracle-surface report attributes to them. The defensive suite is
+      still exercised, but the two CVE positive controls are withdrawn as
+      controls and the report's ORS-025 and ORS-026 entries require correction.
+    suite_is_discriminating: >-
+      Every verified vulnerable build yields a nonempty silent set with a
+      matching integration accept, and every post-fix backend yields zero
+      disagreements at complete byte coverage.
+    positive_control_undetected: >-
+      A verified vulnerable build is not flagged. Mutation coverage is not
+      security-relevant and the suite must be repaired before any conformance
+      claim is made from it.
+    residual_patched_disagreement: >-
+      Vulnerable controls are detected but a post-fix backend also disagrees
+      with scalar at some index. The finding is scoped to that exact commit,
+      backend, and index list, and is reported without an exploitation path.
+    invalid_harness_or_dispatch: >-
+      A build fails, a backend cannot be forced or attested, the scalar
+      reference fails its conformance check, or the harness cannot reach the
+      comparison primitive. This is an infrastructure outcome and is never
+      negative evidence about any implementation.
+  interpretation_limits:
+    - This tests deterministic functional comparison completeness only; it establishes nothing about timing, power, EM, cache, microarchitectural, or fault behavior.
+    - Detection or non-detection is scoped to the two exact commits, the built backends, and the tested parameter sets; it approves no release and no other library.
+    - An accept on a mutated ciphertext in the laboratory harness is a conformance failure observation, not a demonstrated key-recovery attack; no oracle exploitation or key recovery is performed or estimated.
+    - Nothing here bears on the hardness of MLWE or on passive ML-KEM security.
+    - Absence of a silent byte in a build is not proof that its comparison is correct under all inputs, only that no single-byte mutation at any index was mishandled.
+    - A build, toolchain, or emulator failure is an infrastructure outcome, not a mathematical or security result.
+  selected_by: DEC-20260724-006
+  prior_selection: DEC-20260722-007
+  proposal_ref: IDEA-20260722-002
+  evidence_basis: [EV-MLKEM-002]
+  status: specified
+  proposed_by: idea-generator
