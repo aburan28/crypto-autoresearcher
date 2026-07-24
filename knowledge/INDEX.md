@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-151 entries.
+190 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -106,6 +106,30 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-097 | Faster elliptic-curve discrete logarithms on FPGAs | literature | reported | read | record-computation binary-field sect113r2 negation-map fruitless-cycles pollard-rho distinguished-points fpga cost-model baseline calibration ecdlp |
 | KN-LIT-098 | Polynomial-Time Algorithms for Prime Factorization and Discrete Logarithms on a Quantum Computer | literature | established | read | shor quantum period-finding quantum-fourier-transform discrete-logarithm factoring polynomial-time post-quantum ecdlp baseline |
 | KN-LIT-099 | Quantum Resource Estimates for Computing Elliptic Curve Discrete Logarithms | literature | reported | read | quantum shor resource-estimate toffoli qubits reversible-arithmetic nist-curves prime-field post-quantum cost-model ecdlp |
+| KN-LIT-100 | Lattice Reduction by Random Sampling and Birthday Methods | literature | reported | read | gsa geometric-series-assumption random-sampling birthday lattice-reduction bkz basis-profile heuristic lattice baseline |
+| KN-LIT-101 | BKZ 2.0: Better Lattice Security Estimates | literature | reported | read | bkz bkz-2.0 simulator block-size pruning lattice-reduction security-estimate enumeration heuristic lattice baseline |
+| KN-LIT-102 | Lattice Enumeration Using Extreme Pruning | literature | reported | read | enumeration extreme-pruning pruning svp cvp lattice-reduction bkz speedup lattice baseline |
+| KN-LIT-103 | Sieve algorithms for the shortest vector problem are practical | literature | reported | read | sieving aks svp exact-svp heuristic memory implementation lattice baseline |
+| KN-LIT-104 | Faster exponential time algorithms for the shortest vector problem | literature | reported | read | sieving gausssieve listsieve svp exact-svp kissing-number memory space-complexity lattice baseline |
+| KN-LIT-105 | Shortest Vector from Lattice Sieving: a Few Dimensions for Free | literature | reported | read | sieving dimensions-for-free svp lsh tuple-sieve enumeration-crossover speedup lattice |
+| KN-LIT-106 | The General Sieve Kernel and New Records in Lattice Reduction | literature | reported | read | g6k sieving lattice-reduction svp-challenge lwe-challenge records implementation bkz enumeration-crossover lattice calibration |
+| KN-LIT-107 | Post-quantum key exchange - a new hope | literature | reported | read | newhope core-svp cost-model primal-attack dual-attack usvp ring-lwe bkz block-size parameter-selection quantum-sieve lattice baseline |
+| KN-LIT-108 | Revisiting the Expected Cost of Solving uSVP and Applications to LWE | literature | reported | read | usvp primal-attack embedding lwe bkz success-condition security-estimate experiments lattice |
+| KN-LIT-109 | Faster Dual Lattice Attacks for Solving LWE with Applications to CRYSTALS | literature | reported | web | dual-attack fft distinguisher lwe kyber dilithium bkw security-estimate contested lattice |
+| KN-LIT-110 | Report on the Security of LWE: Improved Dual Lattice Attack | literature | reported | read | dual-attack fft distinguisher lwe lwr kyber saber dilithium gate-count ram-model sieving-cost nist contested lattice calibration |
+| KN-LIT-111 | Does the Dual-Sieve Attack on Learning with Errors even Work? | literature | reported | read | dual-attack dual-sieve heuristics falsification lwe bdd fft waterfall-floor contested negative-result lattice |
+| KN-LIT-112 | A subfield lattice attack on overstretched NTRU assumptions: Cryptanalysis of some FHE and Graded Encoding Schemes | literature | reported | read | ntru overstretched-ntru subfield-attack norm fhe multilinear-maps ideal-lattice structure lattice |
+| KN-LIT-113 | Revisiting Lattice Attacks on Overstretched NTRU Parameters | literature | reported | web | ntru overstretched-ntru dense-sublattice bkz subfield-attack fatigue structure lattice |
+| KN-LIT-114 | NTRU Fatigue: How Stretched is Overstretched? | literature | reported | read | ntru overstretched-ntru fatigue-point dense-sublattice dsd bkz concrete-security instance-validity structure lattice |
+| KN-LIT-115 | Recovering Short Generators of Principal Ideals in Cyclotomic Rings | literature | reported | read | ideal-lattice principal-ideal short-generator log-unit-lattice cyclotomic ideal-svp approximation-factor quantum structure lattice |
+| KN-LIT-116 | Short Stickelberger Class Relations and application to Ideal-SVP | literature | reported | read | ideal-svp stickelberger class-group cyclotomic quantum approximation-factor ring-lwe structure hardness-gap lattice |
+| KN-LIT-117 | Efficient quantum algorithms for computing class groups and solving the principal ideal problem in arbitrary degree number fields | literature | reported | read | quantum principal-ideal-problem class-group s-units hidden-subgroup number-field ideal-lattice structure lattice |
+| KN-LIT-118 | LWE with Side Information: Attacks and Concrete Security Estimation | literature | reported | read | hints side-information side-channel primal-attack lattice-reduction decryption-failure ntru frodo security-estimate toolkit lattice |
+| KN-LIT-119 | On the impact of decryption failures on the security of LWE/LWR based schemes | literature | reported | read | decryption-failure failure-boosting failure-oracle cca lwe lwr ring-lwe module-lwe kem multi-target oracle-queries lattice |
+| KN-LIT-120 | Explicit hard instances of the shortest vector problem | literature | reported | read | svp-challenge darmstadt lattice-challenge benchmark ajtai worst-case records calibration lattice |
+| KN-LIT-121 | Creating Cryptographic Challenges Using Multi-Party Computation: The LWE Challenge | literature | reported | read | lwe-challenge darmstadt mpc benchmark records practical-hardness calibration verifiability lattice |
+| KN-LIT-122 | Estimating quantum speedups for lattice sieves | literature | reported | read | quantum sieving near-neighbour-search circuits cost-model gate-count grover resource-estimate post-quantum lattice calibration |
+| KN-LIT-123 | Lattice Attacks on NTRU and LWE: A History of Refinements | literature | reported | read | survey lattice-reduction bkz heuristics ntru lwe security-estimate methodology history lattice |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
@@ -121,6 +145,9 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-013 | How hard is the supersingular endomorphism-ring / isogeny-path problem, and is it a sound post-quantum foundation after the SIDH break? | open_problem | reported | open | endomorphism-ring isogeny-path supersingular hardness-foundation sqisign cgl post-quantum open adjacent |
 | KN-OPEN-014 | What is the concrete quantum security of CSIDH, and how large must parameters be given the Kuperberg-sieve cost? | open_problem | reported | open | csidh quantum-security kuperberg hidden-shift parameter-sizing class-group-action post-quantum open adjacent |
 | KN-OPEN-015 | What does the SIDH break teach - when does publishing auxiliary structure (torsion images) collapse an isogeny/DL assumption, and which schemes are safe? | open_problem | reported | open | sidh-break auxiliary-information torsion-points synthesis lesson isogeny cross-domain open adjacent |
+| KN-OPEN-016 | Does the improved dual attack on LWE actually beat the primal attack, once its heuristics are repaired? | open_problem | reported | open | dual-attack dual-sieve fft heuristics lwe kyber contested concrete-security falsification open lattice |
+| KN-OPEN-017 | Where does the enumeration/sieving crossover move once sieving memory is fully charged? | open_problem | reported | open | full-cost memory sieving enumeration crossover cost-model kissing-number wiener concrete-security open lattice cross-domain |
+| KN-OPEN-018 | Does lattice machinery bear on the plain ECDLP at all, outside the leakage model? | open_problem | reported | open | cross-domain lattice ecdlp hnp coppersmith index-calculus descent leakage genericity open |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
 | KN-TECH-002 | Semaev summation polynomials | technique | established |  | semaev summation-polynomial point-decomposition index-calculus |
 | KN-TECH-003 | Point-decomposition index calculus for ECDLP | technique | established |  | index-calculus point-decomposition factor-base relations ecdlp |
@@ -158,3 +185,15 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-035 | Full-cost accounting - charging memory, wiring, and communication | technique | established |  | full-cost cost-model memory communication wiring area-time bsgs pollard-rho parallel-collision-search index-calculus baseline asymptotics ecdlp |
 | KN-TECH-036 | Public ECDLP record computations as baseline calibration | technique | reported |  | record-computation calibration certicom-challenge secp112r1 sect113r2 ecc2k-130 prime-field binary-field pollard-rho distinguished-points baseline cost-model ecdlp |
 | KN-TECH-037 | Quantum ECDLP resource estimation (Shor circuits for elliptic curves) | technique | reported |  | quantum shor resource-estimate toffoli qubits reversible-arithmetic nist-curves prime-field post-quantum cost-model model-boundary ecdlp |
+| KN-TECH-038 | The primal (uSVP) attack on LWE | technique | reported |  | primal-attack usvp embedding kannan lwe bkz block-size gsa success-condition security-estimate lattice |
+| KN-TECH-039 | The dual attack on LWE and the dual-sieve dispute | technique | reported |  | dual-attack dual-sieve distinguisher fft lwe bdd heuristics contested security-estimate falsification lattice |
+| KN-TECH-040 | Core-SVP costing and the lattice cost-model zoo | technique | reported |  | core-svp cost-model convention gate-count ram-model security-estimate bkz sieving parameter-selection calibration lattice |
+| KN-TECH-041 | Basis profiles, the Geometric Series Assumption, and BKZ simulation | technique | reported |  | gsa geometric-series-assumption bkz simulator basis-profile gram-schmidt heuristic block-size security-estimate lattice |
+| KN-TECH-042 | Lattice enumeration, pruning, and the crossover with sieving | technique | reported |  | enumeration extreme-pruning pruning svp sieving crossover memory superexponential bkz lattice baseline |
+| KN-TECH-043 | The lattice sieving family and modern sieve kernels | technique | reported |  | sieving aks gausssieve listsieve bdgl lsh g6k dimensions-for-free kissing-number svp records lattice baseline |
+| KN-TECH-044 | Charging memory in lattice attacks - full cost applied to sieving | technique | reported |  | full-cost memory sieving cost-model kissing-number enumeration crossover ram-model area-time cross-domain lattice ecdlp |
+| KN-TECH-045 | Overstretched NTRU and the fatigue point as an instance-validity check | technique | reported |  | ntru overstretched-ntru fatigue-point dense-sublattice instance-validity hygiene parameter-regime bkz structure lattice |
+| KN-TECH-046 | Structured-lattice attacks and the approximation-factor ceiling | technique | reported |  | ideal-svp principal-ideal stickelberger class-group cyclotomic quantum approximation-factor ring-lwe module-lwe structure hardness-gap lattice |
+| KN-TECH-047 | Integrating hints - lattice attacks with side information | technique | reported |  | hints side-information side-channel primal-attack sparsification projection decryption-failure security-loss leakage-budget cross-domain lattice |
+| KN-TECH-048 | Decryption-failure attacks and failure boosting | technique | reported |  | decryption-failure failure-boosting failure-oracle cca kem lwe lwr ring-lwe module-lwe ml-kem query-budget multi-target lattice |
+| KN-TECH-049 | Calibrating lattice claims against public challenge records | technique | reported |  | records calibration svp-challenge lwe-challenge darmstadt benchmark verifiability extrapolation g6k lattice |
