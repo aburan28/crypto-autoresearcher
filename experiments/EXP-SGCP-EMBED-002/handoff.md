@@ -1,23 +1,29 @@
-## Handoff: SGCP V18 no-run CLI and Git-entry repair
+## Handoff: SGCP V18 exact-commit review closeout
 
 ### Claim or task
 
-Obtain fresh exact-commit review of the validated V18 repair to CLI output
-ingress, callback-effect boundaries, historical-evidence qualification, and the
-mode/type/path-bound normative review surface. Do not create a generated V18
-curve-family density row, canonical matrix, runner, launch plan, or canonical
-run.
+Preserve the three exact-commit V18 reviews and prepare one separate,
+hash-complete, non-executing launch-plan design for fresh review. Do not create
+a generated V18 curve-family density row, canonical matrix, execution runner,
+or canonical run.
 
 ### Status
 
-`OBSERVATION` for V18 implementation preflight only. The research claim remains
+`OBSERVATION` for V18 implementation and plan-design readiness only. Theory,
+accounting, and red team issued scoped `GO`; coordinator decision
+`DEC-SGCP-EMBED-002-018` authorizes only separate launch-plan design. The
+research claim remains
 `HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
-Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
+Execution remains `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Assumptions
 
 - V17 theory and accounting issued scoped `GO`, but red team issued `REVISE`;
-  exact coordinator decision `DEC-SGCP-EMBED-002-017` controls.
+  exact coordinator decision `DEC-SGCP-EMBED-002-017` controlled that prior
+  outcome.
+- V18 theory, accounting, and red team independently issued scoped `GO` on
+  exact commit `c02d31eb67e4e24f0866ba0a045e72dbe74a3844` and tree
+  `ec44de9a448e6b81a32b4f2f54764b17f3a859ae`.
 - CLI values are Python-decoded strings. Raw argv bytes and shell/OS/Python
   decoding before `argparse` remain external.
 - Output-path semantics are host-language and POSIX sensitive. V18's finite
@@ -63,6 +69,17 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 - Its receipt hashes sorted `mode NUL type NUL raw-path NUL` records and contains
   no predicted commit or tree. The independently reviewed exact Git tree binds
   blob bytes.
+- All three reviewers independently reproduced the 200-entry receipt
+  `bbff5e614b7b813f21fc7aa6e9ab2590155aed4f37e9359838193449e0bcb227`
+  and all ten source/protocol hashes.
+- Theory found no blocker and issued `GO for separate launch-plan design only`.
+- Accounting independently reproduced `480/112/336/218/4218`, identified
+  canonical ceilings up to approximately `2.34e14` retained-model cells, and
+  issued accounting `GO`.
+- Red team found no blocker and issued `GO for separate launch-plan design
+  only`, while requiring canonical ASCII role paths, Git-native selector
+  falsification, explicit validator scope, and external resource containment in
+  any plan.
 - Current authority is zero generated V18 curve-family density rows, zero
   canonical runs, and `maximum_runs=0`. Historical authority is separately
   disclosed as 17 V1 development rows and one development run manifest.
@@ -76,6 +93,13 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 - Confusing decoded CLI strings with raw argv-byte preservation.
 - Attributing arbitrary caller callback effects to verifier-created effects.
+- Treating the historical focused manifest control as a Git-native mode/type
+  proof; exact-tree review supplies that proof.
+- Treating the 20-record generic-validator receipt as validation of every
+  custom or historical JSON artifact.
+- Allowing noncanonical control-bearing or non-ASCII output spellings in a
+  future plan.
+- Treating source-level gates as hostile-process isolation.
 - Treating a metadata receipt as blob-byte attestation; only the exact Git tree
   binds contents.
 - Treating zero V18/canonical artifacts as zero historical development
@@ -96,10 +120,13 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Next concrete action
 
-Obtain fresh independent read-only theory, accounting, and red-team reviews of
-the exact Git commit and tree containing the validated V18 repair. Three scoped
-`GO` decisions could authorize only separate hash-complete launch-plan design,
-not execution.
+Prepare one separate hash-complete, non-executing launch-plan design rooted in
+commit `c02d31eb67e4e24f0866ba0a045e72dbe74a3844` and tree
+`ec44de9a448e6b81a32b4f2f54764b17f3a859ae`. Bind canonical ASCII role
+arguments, immutable protocol hashes, exact external resource limits,
+Git-native selector falsification, dedicated custom-JSON validation, and
+failure-to-`INCONCLUSIVE` semantics. Commit and review that design before any
+status, budget, row, or run change.
 
 ### Artifact paths
 
@@ -118,6 +145,11 @@ not execution.
 - `experiments/EXP-SGCP-EMBED-002/development-test-log-v18.md`
 - `experiments/EXP-SGCP-EMBED-002/source-self-review-v18.md`
 - `experiments/EXP-SGCP-EMBED-002/review-surface-manifest-v18.json`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v18.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v18.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v18.md`
+- `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v18.json`
+- `experiments/EXP-SGCP-EMBED-002/decision-v18.json`
 - `experiments/EXP-SGCP-EMBED-002/hypothesis.json`
 - `experiments/EXP-SGCP-EMBED-002/specification.json`
 - `experiments/EXP-SGCP-EMBED-002/contract.md`
