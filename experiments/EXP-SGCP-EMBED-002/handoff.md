@@ -149,6 +149,68 @@ and red-team decisions. Do not design a launch plan before three explicit
 - `experiments/EXP-SGCP-EMBED-002/src/verify_sgcp_embed_family.py`
 - `tests/test_sgcp_embed_family.py`
 
+## Handoff: SGCP V11 independent closeout
+
+### Claim or task
+
+Close exact-commit review of
+`f8e4606d7aa86fac9d79872be63e9a22e3854d52` and define the narrowest no-run
+successor before any launch-plan design.
+
+### Status
+
+`NEGATIVE RESULT` for V11 plan-design readiness. Theory and accounting issued
+scoped `GO`; red team issued `REVISE`. Unanimous authorization was not obtained,
+so launch-plan design and execution remain `NO-GO` and `maximum_runs=0`.
+
+### Assumptions
+
+- Review evidence applies only to exact committed V11 blobs.
+- Separate reviewer contexts shared one model's weights; this limitation is
+  recorded in `independent-review-provenance-v11.json`.
+- Structural counters are not CPU, RSS, parser/allocator, disk, I/O,
+  cache-traffic, or memory-bandwidth models.
+
+### Evidence so far
+
+- All nine V11 test-log hashes match the reviewed commit.
+- All reviewers independently reproduced the completed-work vector
+  `480/112/336/218/4218`.
+- Theory found one nonblocking wording defect concerning historical V1
+  artifacts but no mathematical or claim-boundary blocker.
+- Accounting found no defect in completed equality, reservation dominance,
+  partial-work semantics, phase closure, or the bounded lexical byte path.
+- Red team found process-global verifier state, undisclosed transient frozen
+  B6/B8 legacy-row controls, race-prone output publication, callable unchecked
+  helpers, and a permissive raw charging boundary.
+- No generated V11 curve-family density row, canonical matrix, runner, launch
+  plan, or run was created or authorized.
+
+### Failure modes
+
+- Concurrent or re-entrant verification can corrupt process-global receipts.
+- A future runner could call internal helpers outside the path-only evidence
+  boundary or overwrite a destination during publication.
+- Scope language can hide transient legacy-row construction even when no
+  canonical evidence row exists.
+- No relation yield, rank, linear algebra, descent, preprocessing crossover,
+  rho improvement, exponent, or ECDLP result is established.
+
+### Next concrete action
+
+Implement one no-run V12 with invocation-local verifier state, exact charge
+types, hard-gated internal helpers, no-overwrite descriptor-bound output, and
+explicit B4/B6/B8 legacy-control disclosure; then validate, commit, and request
+fresh exact-commit review.
+
+### Artifact paths
+
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v11.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v11.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-v11.md`
+- `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v11.json`
+- `experiments/EXP-SGCP-EMBED-002/decision-v11.json`
+
 ## Handoff: SGCP V10 independent closeout
 
 ### Claim or task
