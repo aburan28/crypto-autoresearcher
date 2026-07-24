@@ -1,0 +1,102 @@
+design_report:
+  task_id: TASK-20260724-233
+  status: completed
+  hypothesis_id: H-MLKEM-003
+  experiment_id: EXP-MLKEM-003
+  selection_decision: DEC-20260724-007
+  evidence_ref: EV-MLKEM-005
+  proposal_ref: IDEA-20260722-002
+  knowledge_ref: KN-FIND-001
+  summary: >-
+    Specified H-MLKEM-003 and froze approved EXP-MLKEM-003: a laboratory-only
+    hardened conformance gate that answers the five objections which survived
+    independent red team in BATCH-005, then applies the hardened gate to wolfSSL
+    pre-fix, wolfSSL post-fix, and at least one additional independent open-source
+    ML-KEM implementation to decide whether the incomplete re-encryption
+    comparison class is isolated to the audited routines or systemic across
+    optimized backends.
+  objection_to_protocol_map:
+    - objection: OBJ-001
+      statement: Primitive-level silence was reported without establishing that it implies acceptance at the public API.
+      protocol_element: >-
+        A decapsulation-boundary probe is mandatory for every backend receiving a
+        conformance verdict, primitive and API verdicts are tabulated separately,
+        and CTRL-MESSAGE-STABILITY annotates each accept with whether the mutated
+        ciphertext still decrypts to the honest message.
+    - objection: OBJ-002
+      statement: The post-fix null was scoped to a single-byte generator and could not exclude multi-byte or alignment-sensitive omissions.
+      protocol_element: >-
+        Generator classes G2 multi-byte, G3 alignment and lane boundary, and G4
+        malformed length are added, and G5 replays every class across four keys per
+        parameter set. The class_marginal_information metric records what the added
+        classes found that G1 did not.
+    - objection: OBJ-003
+      statement: Direct-symbol probing did not attest that the measured routine is the one the live decapsulation path selects.
+      protocol_element: >-
+        CTRL-BACKEND-ATTESTATION forbids issuing a verdict on primitive-only
+        evidence, and the invalidation rules make a primitive-only verdict an
+        invalidating condition rather than a caveat.
+    - objection: OBJ-004
+      statement: Exact ciphertext and shared-secret inputs were not archived, so an outside party could not replay the differential.
+      protocol_element: >-
+        Seeds plus ciphertext and shared-secret SHA-256 are archived for every key,
+        and the first key per parameter set is archived as raw bytes under
+        experiments/EXP-MLKEM-003/vectors/.
+    - objection: OBJ-005
+      statement: The conformance anchor used was the weakest form accepted by the protocol.
+      protocol_element: >-
+        CTRL-STRONG-ANCHOR requires a named strong anchor if retrievable, records
+        the exact retrieval attempts when it is not, and forces the anchor grade
+        into every table that depends on it.
+  design_choices:
+    - >-
+      The decisive question left by EV-MLKEM-005 is not whether the gate works —
+      that is now established within its laboratory boundary — but whether the null
+      it produced on patched code generalizes. A second independent implementation
+      is therefore the load-bearing addition; the widened generator exists to make
+      that comparison meaningful rather than to re-audit wolfSSL.
+    - >-
+      The second implementation is chosen by a frozen preference order (liboqs,
+      PQClean, BoringSSL, pq-crystals reference) rather than named outright,
+      because build reachability inside the stage budget cannot be known before
+      the run. The selection and every rejection must be justified in writing, so
+      the red team can contest representativeness against a recorded rationale
+      rather than against a convenient silence.
+    - >-
+      Malformed-length inputs get their own table and are structurally barred from
+      the silent sets. Length handling and comparison completeness are different
+      properties, and conflating them would manufacture a finding.
+    - >-
+      Accepts at the decapsulation boundary are expected to be strictly rarer than
+      primitive-level silent indices, because a mutation that changes the decrypted
+      message legitimately produces rejection. This is written into the hypothesis
+      assumptions so the run cannot later present the gap as an anomaly.
+    - >-
+      systemic_incomplete_comparison outranks the isolation outcome in the
+      precedence order and carries an immediate stop-and-escalate rule. If a
+      previously unknown conformance defect appears in a live implementation, the
+      correct action is to stop measuring and hand it to a human, not to
+      characterize it further.
+  feasibility_checks_by_coordinator:
+    - check: EXP-MLKEM-002 harness structure is reusable
+      method: Inspection of the committed implementation directory at 28608fb
+      result: 'build_matrix.sh, comparison_probe.c, mutation_grid.py, and run_experiment.py provide the structure the hardened gate extends.'
+    - check: wolfSSL pre-fix and post-fix commits are already resolved and verified
+      method: EV-MLKEM-005 source-lock and premise verdicts
+      result: 'v5.9.1-stable and v5.9.2-stable peeled commits are recorded and the AVX2 omission at indices 1536..1567 is an established positive control.'
+    - check: campaign budget admits one more four-run experiment
+      method: Goal campaign_budget against batches consumed
+      result: 'BATCH-006 is the sixth and final batch of the declared six-batch budget; no seventh batch is authorized without a new goal record.'
+  scope_guards:
+    - No key recovery, oracle construction, query chaining, or attack-cost estimation.
+    - No deployed system, network peer, or third-party key; network use is limited to source retrieval and package installation.
+    - No timing, power, EM, cache, microarchitectural, or fault measurement.
+    - No external vulnerability claim, disclosure, or third-party contact; a finding outside the known defect escalates to the coordinator and stops.
+    - Nothing in this experiment bears on MLWE hardness or passive ML-KEM security.
+  artifact_paths:
+    - ledger/hypotheses/H-MLKEM-003.yaml
+    - experiments/EXP-MLKEM-003/specification.yaml
+  inference:
+    requested_policy: coordinator-ultra-code
+    resolved_model: cursor-grok-4.5-high
+    fallback_used: true
