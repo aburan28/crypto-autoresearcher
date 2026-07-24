@@ -1,5 +1,5 @@
 ---
-id: KN-LIT-026
+id: KN-LIT-080
 type: literature
 title: Thorns in Polynomial Convolution
 authors: [Dongshu Cai, Yijian Liu, Jiabo Wang, Xianhui Lu]
@@ -15,6 +15,9 @@ citation_verified: full_text
 added: 2026-07-23
 superseded_by: null
 ---
+
+> **ID remapping (2026-07-24):** originally filed as `KN-LIT-026` on the ML-KEM branch; renumbered to `KN-LIT-080` to resolve an add/add collision with `main`'s Gröbner knowledge corpus. Historical archive commits retain the old path. See `ledger/corrections/CORR-20260724-001.yaml`.
+
 
 ## Contribution
 

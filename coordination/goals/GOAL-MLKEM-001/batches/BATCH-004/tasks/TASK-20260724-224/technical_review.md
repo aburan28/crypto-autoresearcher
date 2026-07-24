@@ -89,7 +89,7 @@ oversold as one.
 
 **Paper-scale artifact:** confirmed. Ratios are exactly `4/sigma^2`
 (`4`, `1`, `0.04` at `sigma ∈ {1,2,10}`). Equal-moment surrogate changes frozen
-tail order at `sigma ∈ {1,10}`. No FIPS inference follows (`KN-LIT-026` already
+tail order at `sigma ∈ {1,10}`. No FIPS inference follows (`KN-LIT-080` already
 flagged this).
 
 **Joint dependence / union slack:** confirmed. At `n=2,k=1,eta1=eta2=2`,
@@ -137,7 +137,7 @@ Hard exclusions held:
 - no deploy, oracle, or key-recovery surface
 
 Nothing in the package authorizes revising FIPS 203 rates. Thorns
-(`KN-LIT-026` / ePrint 2026/1022) remains a correlation-modeling lead with a
+(`KN-LIT-080` / ePrint 2026/1022) remains a correlation-modeling lead with a
 confirmed printed scale artifact and a locally repairable LDP gap; it does not
 become an exact ML-KEM marginal theorem via these toys.
 
