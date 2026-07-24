@@ -46,8 +46,8 @@ corpus to 151 — see the closure record in §6.
 
 | Layer | State |
 | --- | --- |
-| Knowledge corpus breadth | 125 entries, index in exact sync with disk |
-| Knowledge corpus depth | Uniformly shallow: median 230 body words, max 330 |
+| Knowledge corpus breadth | 125 entries at assessment time, index in exact sync with disk (190 after the §6 and §7 closures) |
+| Knowledge corpus depth | Uniformly shallow: median 230 body words, max 330 (pre-closure entries unchanged) |
 | Internal findings | **0 entries** (`findings/` holds only `.gitkeep`) |
 | Evidence → knowledge promotion | 11 `replicated` evidence records, 0 `KN-FIND` promotions |
 | Ledger cross-references | 7 dangling IDs; 5 decision IDs duplicated across two layouts |
@@ -169,6 +169,11 @@ where "when does this stop working" is the question that matters.
 > `KN-TECH-030` … `KN-TECH-037`), built from verified primary sources. See
 > §6 for the closure record and for what remains open. The table below is
 > preserved as the original finding.
+>
+> This section audits coverage against the program's **ECDLP** work only. A
+> second audit of the **lattice** half of the corpus, run after the focus was
+> set on lattices and elliptic curves, found a wider gap of the same kind — see
+> §7.
 
 The corpus is deep on the index-calculus research frontier and on adjacent
 post-quantum material (roughly 40 entries tagged `adjacent`), and correspondingly
@@ -515,6 +520,112 @@ The material was gathered to fill gaps, but two facts from it bear directly on
   Coordinator authority over evidence records rather than literature curation;
   the depth of the existing baseline entries (§5 item 9), which requires
   superseding entries rather than adding them; and everything in §2, §3 and §4.
+
+## 7. Closure record — lattice cryptanalysis (2026-07-24)
+
+§1.6 audited topic coverage against the program's ECDLP work. A second audit,
+run after the program's focus was set on **lattices and elliptic curves**,
+applied the same test to the lattice half of the corpus and found a gap of the
+same class but wider.
+
+### What the lattice audit found
+
+Before this closure the corpus held 23 lattice-related entries (`KN-LIT-046`
+to `-061`, `-080`, `-081`; `KN-TECH-020` to `-023`; `KN-OPEN-012`) totalling
+5,838 words. They form a **post-quantum foundations and standards map** —
+LLL/BKZ, LWE/SIS, Ring- and Module-LWE, the NIST schemes, a pointer to the LWE
+estimator — plus two deeply reviewed 2026 ML-KEM-adjacent papers. They are not
+an attack corpus. Thirteen specific attack topics were checked; **none had a
+dedicated mechanistic entry and eight had no mention at all**:
+
+| Topic | State before |
+| --- | --- |
+| Primal / uSVP attack (Kannan embedding) | Named in two entries, never described |
+| Dual attack, and the 2023 dual-sieve dispute | "Dual attack" as a label only; no Ducas–Pulles, no MATZOV |
+| Core-SVP methodology, `2^0.292β` / `2^0.265β` | `0.292n` present as a sieving exponent; no Core-SVP, no `0.265`, no NewHope |
+| BKZ simulation, Geometric Series Assumption | BKZ 2.0 cited; GSA absent by name and unexplained |
+| Enumeration: Kannan, extreme pruning | Pruning mentioned via a citation; no dedicated coverage |
+| Sieving beyond BDGL (Nguyen–Vidick, GaussSieve, G6K) | Absent |
+| Overstretched NTRU / fatigue point | One generic phrase in `KN-OPEN-012` |
+| Ideal-SVP attacks (CDPR, CDW, Biasse–Song) | One generic phrase in `KN-OPEN-012` |
+| LWE with hints / side information | Absent |
+| Decryption-failure attacks | Modelling only (`KN-LIT-080`); no attack methodology |
+| Lattice challenges and records | Absent |
+| Sieving memory under full-cost accounting | Absent — `KN-TECH-035` and `KN-LIT-094` are ECDLP-only |
+| ECDLP ↔ lattice links beyond `KN-OPEN-012` | Passing bridges only |
+
+The asymmetry mattered: the program had a full-cost discipline on the curve
+side and quoted lattice costs as if memory were free.
+
+### What was added
+
+Thirty-nine entries, taking the corpus from 151 to 190. Citations were verified
+against IACR ePrint, publisher DOIs, DBLP and CryptoDB before writing; two
+ePrint numbers suggested by search were wrong and were corrected by direct
+lookup. `citation_verified: read` marks entries whose source was actually
+retrieved and read; `web` marks bibliographic-only verification, used for four
+entries.
+
+- **Attack algorithms and cost models** — `KN-LIT-100` (Schnorr, the GSA),
+  `KN-LIT-101` (BKZ 2.0), `KN-LIT-102` (extreme pruning), `KN-LIT-103`
+  (Nguyen–Vidick), `KN-LIT-104` (List/Gauss Sieve), `KN-LIT-105` (dimensions for
+  free), `KN-LIT-106` (G6K and the records), `KN-LIT-107` (NewHope / core-SVP),
+  `KN-LIT-108` (uSVP success condition), `KN-LIT-122` (quantum sieve circuits),
+  `KN-LIT-123` (Albrecht–Ducas survey).
+- **The dual-attack dispute** — `KN-LIT-109` (Guo–Johansson), `KN-LIT-110`
+  (MATZOV), `KN-LIT-111` (Ducas–Pulles).
+- **Structure** — `KN-LIT-112` (subfield attack), `KN-LIT-113` (Kirchner–Fouque),
+  `KN-LIT-114` (NTRU fatigue), `KN-LIT-115` (CDPR), `KN-LIT-116` (Stickelberger),
+  `KN-LIT-117` (Biasse–Song).
+- **Leakage and failures** — `KN-LIT-118` (LWE with side information),
+  `KN-LIT-119` (decryption failures).
+- **Calibration** — `KN-LIT-120` (Darmstadt lattice challenge), `KN-LIT-121`
+  (LWE challenge).
+- **Techniques** — `KN-TECH-038` primal attack · `-039` dual attack and the
+  dispute · `-040` core-SVP and the cost-model zoo · `-041` basis profiles, GSA
+  and BKZ simulation · `-042` enumeration, pruning and the sieving crossover ·
+  `-043` the sieving family · `-044` charging memory in lattice attacks ·
+  `-045` NTRU fatigue as an instance-validity check · `-046` structured-lattice
+  attacks and the approximation-factor ceiling · `-047` integrating hints ·
+  `-048` decryption-failure attacks · `-049` calibrating against public records.
+- **Open problems** — `KN-OPEN-016` (is the dual attack's advantage real?),
+  `KN-OPEN-017` (where does the enumeration/sieving crossover move under full
+  cost?), `KN-OPEN-018` (does lattice machinery bear on the plain ECDLP at
+  all?).
+
+### Three things this material establishes about the program's own methods
+
+1. **The cost model is part of the claim.** MATZOV's headline result — three
+   NIST finalists below their required security levels, Kyber by 4 to 14 bits —
+   is driven substantially by *re-costing an existing sieve*, not by a new
+   attack. Core-SVP itself charges one SVP oracle call and no memory. Two
+   "lattice attack costs" can differ by tens of bits with no algorithmic
+   disagreement whatsoever.
+2. **The dual-attack episode is the program's failure mode, executed in
+   public.** A claimed advantage over a baseline, resting on an unexamined
+   heuristic, independently reproduced by a second group, then falsified at the
+   level of the heuristic rather than the code (`KN-LIT-111`). It also shows why
+   independent replication of a *claim* is not independent validation of its
+   *assumptions*.
+3. **A memory-accounting inconsistency was live in this corpus.** Sieving needs
+   at least `2^0.2075n` memory by a proven kissing-number bound; enumeration
+   uses polynomial space; the measured crossover at dimension 70 is a step-count
+   comparison. The program charges memory on the ECDLP side and had not on the
+   lattice side. `KN-TECH-044` states the discipline and `KN-OPEN-017` states
+   the unanswered quantitative question, which is self-contained and needs no
+   new mathematics.
+
+### What remains open after this closure
+
+- **`KN-FIND` is still empty** (§1.1). Unchanged and still the highest-severity
+  gap; it needs Coordinator authority over evidence records, not curation.
+- **Baseline depth** (§5 item 9) is unchanged and now applies on both sides: the
+  lattice foundations entries (`KN-LIT-051`, `-059`, `-060` at ~200 words) are as
+  thin as the ECDLP baseline entries, and deepening them requires superseding
+  entries rather than new ones.
+- **The `read` / `full_text` vocabulary split** (`KN-LIT-080`, `-081`) is
+  unresolved and now spans 50 entries.
+- Nothing in §2, §3 or §4 is addressed.
 
 ## What this assessment does not establish
 
