@@ -6,13 +6,11 @@ Execute and independently challenge the frozen EXP-MLKEM-002 direct comparison-p
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-228` | executor | queued | 90 | TASK-20260724-227 | experiments/EXP-MLKEM-002/execution-report.yaml | experiments/EXP-MLKEM-002 |
+| `TASK-20260724-230` | validator | queued | 70 | TASK-20260724-228, TASK-20260724-229 | coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-230/validation_report.yaml, coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-230/validation_notes.md | coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-230 |
+| `TASK-20260724-231` | red-team | queued | 70 | TASK-20260724-228, TASK-20260724-229 | coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-231/red_team_report.yaml, coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-231/falsification_review.md | coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-231 |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-229`: dependency_not_completed:TASK-20260724-228:queued
-- `TASK-20260724-230`: dependency_not_completed:TASK-20260724-228:queued, dependency_not_completed:TASK-20260724-229:queued
-- `TASK-20260724-231`: dependency_not_completed:TASK-20260724-228:queued, dependency_not_completed:TASK-20260724-229:queued
 - `TASK-20260724-232`: dependency_not_completed:TASK-20260724-230:queued, dependency_not_completed:TASK-20260724-231:queued
 
 ## Dispatch Gates
@@ -28,4 +26,4 @@ Execute and independently challenge the frozen EXP-MLKEM-002 direct comparison-p
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `fc6f241d64331ee6fa0ed61ed3ba757ececcfd59d442e18eeaffd56a4e6792b7`
+Plan SHA-256: `ac0b10c08a2c09d8ecce2fa515d88e9a1e2f42f9939208afdbfb0402dceed513`
