@@ -87,3 +87,37 @@ box-saturation/MV theorem (publishable), and the chord-richness ceiling via char
   the canonical-reduction instrument (continuity verified on all 41 cells). Queued falsifiable
   checks: n = 24 residual == 17; residual_D birth law at D = 6.
 - DEC-20260718-001..020 issued this session; every decision cites EV/RUN artifacts per rule 10.
+
+## Addendum 2 — next-batch wave, decided 2026-07-22 (DEC-20260722-001..006)
+
+This wave converted three toy-certified barrier results into PROVED THEOREMS and sharpened the
+one supported structural finding:
+
+- **Jet barrier is theorem** (THM_JETBARRIER1, T4): all order-r jet queries are simulable from
+  zeroth-order public data with zero overhead; Shoup's Ω(√ℓ) lifts to the jet-augmented model.
+  A1-class channels closed in-model BY PROOF. H-JETB-001 → supported.
+- **Noncommutative direction closed by proof** (THM_COMMUTATOR_KERNEL1): kernel = normal closure
+  of commutators + dihedral torsion + subset-sum lattice; theorem quantitatively reproduces the
+  measured strict inclusion. Prime-field NC-correspondence closed.
+- **Chord ceiling is theorem in the uniform-x model** (THM_INCBARRIER1): no ≥4-rich lines, exact
+  T₃ law, phase diagram; the "c₃ deficit" was a heuristic artifact (1+3/B overstatement), not a
+  signal. Group-AP excess exists but trivializes via rank defect. H-INCB-001 → supported.
+- **MV law proved at m ≤ 5, certified at m = 6** (THM_BKKMV1 + EXP-BKKMV-002): box-saturation
+  theorem proved; MV_m = (m−1)!·2^((m−1)(m−2)) = box Bézout; MV₆ = 125,829,120 exact on 6/6.
+  All-m law reduced to one named lemma. H-BKKMV-001 → supported; B2-class barrier theorem-backed.
+- **TTN rank law certified at m = 6** (EXP-TTN-002): χ(6) = 45 = C(10,2) exactly; new universal
+  S_4 X-coefficient syzygy found (child bond 68). Slope trend toward asymptotic 2 continues —
+  the attack rejection stands hardened.
+- **SIG cascade sharpened AND bounded** (EXP-SIG-005): D4 residual law 2n/3+1 confirmed at n = 24
+  (six-point linear series); but the D5-born component is NON-MONOTONE in n (drop at n = 18,
+  replicated), and the D=6 axis is INVALID (support-matched null provably miscalibrated at D6).
+  The cascade is confirmed through D = 5; its exploitability outlook is weaker than the first
+  monotone picture. SIG and DREG deficit instruments now cross-validated bit-exactly.
+
+Program state: 26 decisions on record. The mechanism-hunt side of the generic prime-field
+program is now closed by a combination of scoped experiments and proved barriers across jets,
+nets, polytopes, incidences, spectra, tensor networks, noncommutative algebra, isotypic splits,
+and UQ-hardened index calculus. The live frontier is exactly: (i) the DREG deficit n-asymptotics
+(n = 21 cell, concurrent session), (ii) the SIG cascade's degree axis (needs a re-derived D6
+null baseline) and its n = 21 residual_5 point, (iii) two named theory lemmas (interior-fiber
+non-cancellation; cross-character cancellation at α ≤ 1/2).
