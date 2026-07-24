@@ -1,23 +1,22 @@
-## Handoff: SGCP V17 no-run raw-path grammar repair
+## Handoff: SGCP V17 exact-commit review closeout
 
 ### Claim or task
 
-Obtain fresh exact-commit reviews of the validated V17 finite raw-path grammar,
-current-state controls, and non-self-referential review-surface binding without
-creating a generated curve-family density row, canonical matrix, runner,
-launch plan, or run.
+Preserve the exact-commit V17 reviews and repair their CLI raw-spelling,
+normative review-surface, historical-evidence qualification, callback-effect,
+and Git inventory findings without creating a V18 generated curve-family
+density row, canonical matrix, runner, launch plan, or canonical run.
 
 ### Status
 
-`OBSERVATION` for the validated V17 no-run implementation; exact-commit review
-is pending. The research claim remains `HYPOTHESIS`, `TOY-EVIDENCE`,
-`MODEL-BOUND`, and `NOVELTY-UNVERIFIED`. Launch-plan design and execution remain
-`NO-GO`; `maximum_runs=0` is unchanged.
+`NEGATIVE RESULT` for V17 launch-plan readiness only. The research claim remains
+`HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
+Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Assumptions
 
-- V16 theory and accounting issued scoped `GO`, but red team issued `REVISE`;
-  exact coordinator decision `DEC-SGCP-EMBED-002-016` controls.
+- V17 theory and accounting issued scoped `GO`, but red team issued `REVISE`;
+  exact coordinator decision `DEC-SGCP-EMBED-002-017` controls.
 - Output-path semantics are host-language and POSIX sensitive. V17's finite
   grammar is limited to the controlled POSIX runtime.
 - A preconstructed `Path` cannot preserve terminal `/` or terminal `/.`;
@@ -38,35 +37,58 @@ is pending. The research claim remains `HYPOTHESIS`, `TOY-EVIDENCE`,
 - Producer and verifier emit V17; V1-V16 schemas reject before semantic row
   verification. Contract, specification, ledger, producer, and verifier agree
   on version 17.
-- Exact `str`, `pathlib.Path`, custom exact-string `os.PathLike`, internal dot
-  and repeated-separator aliases, and three/four/seven-leading representatives
-  are admitted subject to normalized containment.
-- Bytes, byte-valued path-like objects, string subclasses, unsupported/null
-  objects, empty strings, NUL-bearing strings, relative strings, terminal `/`,
-  terminal `/.`, explicit `..`, exact leading `//`, root, and outside paths
-  reject before publication.
+- Direct Python entries admit exact `str`, `pathlib.Path`, custom exact-string
+  `os.PathLike`, internal dot and repeated-separator aliases, and
+  three/four/seven-leading representatives subject to normalized containment.
+- Direct Python entries reject bytes, byte-valued path-like objects, string
+  subclasses, unsupported/null objects, empty strings, NUL-bearing strings,
+  relative strings, terminal `/`, terminal `/.`, explicit `..`, exact leading
+  `//`, root, and outside paths before verifier-created publication.
 - The focused table exercises each class through output admission,
   receipt-path, status, standalone status, writer, and direct descriptor
   traversal, and checks that rejected candidate destinations are not created.
 - Publication through the combined raw alias is attributed through every
   admitted spelling by production and standalone status.
-- `review-surface-manifest-v17.json` inventories 179 path names with SHA-256
+- All three reviews reproduce the ten V17 artifact hashes. Theory and accounting
+  issue scoped `GO`; red team issues `REVISE`.
+- `review-surface-manifest-v17.json` reproducibly inventories 179 path names
+  with SHA-256
   `bc8034d20ac3d092270d749b6cb363df4f8f4531bccc0dd9a6616120f51de952`.
   It contains no predicted commit/tree and delegates byte binding to the exact
   Git tree independently verified by each reviewer.
-- The manifest covers the constitution, roadmap/build metadata, ledgers,
-  schemas, harness core/runner, repository tests, inherited SGCP controls, and
-  the complete static V17 experiment record tree before review outputs.
+- The verifier CLI coerces `--output` through `pathlib.Path` before admission,
+  erasing terminal `/` and `/.`; the direct grammar is therefore not an
+  every-ingress theorem.
+- The manifest omits normative coordinator/executor, lifecycle, evidence, and
+  shared record-definition files despite claiming complete governance and
+  approval coverage.
+- The manifest excludes four immutable historical development artifacts while
+  using unqualified zero-row/run wording. The valid current statement is zero
+  V17 generated curve-family density rows and zero canonical runs; seventeen
+  historical V1 rows and one historical development manifest remain.
+- Caller-controlled `__fspath__` can perform arbitrary same-process effects
+  before admission; verifier-created-no-destination claims must start after
+  `os.fspath` returns.
+- The path selector and newline receipt do not yet pin Git path-byte, mode/type,
+  or control-character semantics.
 - The exact completed operation vector remains `480/112/336/218/4218`; no
   curve, predicate, compiler, optimizer, gate, threshold, reservation formula,
   or budget changed.
 - No generated V17 curve-family density row, canonical matrix, runner, launch
-  plan, or run exists. Historical V1 development artifacts remain historical.
+  plan, or canonical run exists. Historical V1 development artifacts remain
+  immutable noncanonical evidence.
 - Focused, validator/index, and repository unittest-discover receipts are
   recorded in `development-test-log-v17.md`.
 
 ### Failure modes
 
+- Allowing a CLI parser to erase rejected raw syntax before admission.
+- Treating a selected 179-path subset as the complete normative review surface.
+- Treating zero V17/canonical artifacts as zero historical development
+  artifacts.
+- Claiming control over arbitrary caller code executed by `__fspath__`.
+- Hashing newline-joined path names without pinned Git entry mode/type and
+  control-character rules.
 - Treating the finite grammar as a portability theorem outside the controlled
   POSIX runtime.
 - Treating path-name hashing as byte attestation; only the exact Git tree binds
@@ -85,10 +107,11 @@ is pending. The research claim remains `HYPOTHESIS`, `TOY-EVIDENCE`,
 
 ### Next concrete action
 
-Obtain fresh independent read-only theory, accounting, and red-team reviews of
-the exact Git commit and tree containing this handoff. Even three scoped `GO`
-decisions could authorize only a separate hash-complete launch-plan design, not
-execution.
+Implement one no-run V18 preserving raw CLI strings through admission,
+expanding and mode/type-binding the normative review surface, qualifying
+historical versus V18/canonical artifacts, and scoping `__fspath__` effects.
+Retain every mathematical byte and `maximum_runs=0`, then obtain fresh
+exact-commit review.
 
 ### Artifact paths
 
@@ -102,6 +125,11 @@ execution.
 - `experiments/EXP-SGCP-EMBED-002/development-test-log-v17.md`
 - `experiments/EXP-SGCP-EMBED-002/source-self-review-v17.md`
 - `experiments/EXP-SGCP-EMBED-002/review-surface-manifest-v17.json`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v17.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v17.md`
+- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v17.md`
+- `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v17.json`
+- `experiments/EXP-SGCP-EMBED-002/decision-v17.json`
 - `experiments/EXP-SGCP-EMBED-002/hypothesis.json`
 - `experiments/EXP-SGCP-EMBED-002/specification.json`
 - `experiments/EXP-SGCP-EMBED-002/contract.md`
