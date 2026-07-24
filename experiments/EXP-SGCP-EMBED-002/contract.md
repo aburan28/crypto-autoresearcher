@@ -1,10 +1,12 @@
-# Experiment Contract: EXP-SGCP-EMBED-002, version 17
+# Experiment Contract: EXP-SGCP-EMBED-002, version 18
 
 ## Claim status
 
 `HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
 The experiment is `review_required`; curve-family and canonical execution are
-locked at zero new rows and zero runs.
+locked at zero generated V18 curve-family density rows and zero canonical runs.
+Seventeen historical V1 development rows and one historical development run
+manifest remain immutable non-V18 evidence.
 
 ## Hypothesis
 
@@ -65,7 +67,7 @@ serialized bytes are charged inside the public model and each nested cap
 receipt.
 
 The legacy `source_recovery` boolean records sorted formal normalization only.
-Version 17 interprets source recovery through
+Version 18 interprets source recovery through
 `source_recovery_via_public_table`; it does not treat normalization as an
 inversion algorithm.
 
@@ -170,7 +172,7 @@ nonidentity EC output. These conventions are emitted as a public ordering
 contract with digest
 `8114bd7d1822578e3d1453126968964da213775c6f12f86c764413f737212359`.
 
-V17 key sets and value types are closed throughout rows, documents, summaries,
+V18 key sets and value types are closed throughout rows, documents, summaries,
 family gates, nested integrity/accounting receipts, verification reports,
 publication receipts, and publication results. JSON Boolean, integer, float,
 string, list, object, and null roles are exact. In particular, `false` is not
@@ -178,7 +180,7 @@ integer zero, `-0.0` is not integer zero, and an equal-valued float is not an
 integer receipt. Refreshed byte and document digests do not excuse a type
 mismatch.
 
-The V17 verifier accepts only the V17 document schema. V1-V16 schemas are
+The V18 verifier accepts only the V18 document schema. V1-V17 schemas are
 explicitly rejected without row verification. Each receipt contains an ordered
 phase ledger from actual control flow. Aggregate row/cap phases carry expected,
 completed, and failed unit counts and become independent checks only after all
@@ -223,7 +225,7 @@ associations, the source-owned frozen 100,000-node replay cap, the source-owned
 canonical 2,000,000-node replay cap, and an exact primary-proof budget in
 `0..5,000,000` are admitted.
 
-The finite V17 output-path input domain is an exact `str`, a `pathlib.Path`, or
+The finite V18 output-path input domain is an exact `str`, a `pathlib.Path`, or
 an `os.PathLike` whose `__fspath__` result is an exact `str`. Byte strings,
 byte-valued path-like objects, string subclasses, null/unsupported objects,
 empty strings, embedded NUL bytes, relative strings, terminal `/`, terminal
@@ -231,6 +233,21 @@ empty strings, embedded NUL bytes, relative strings, terminal `/`, terminal
 before `Path` construction or absolute normalization. A `Path` object cannot
 preserve a terminal separator or terminal `/.` erased by its own constructor,
 so those raw classes are controlled with exact strings.
+
+The verifier and producer CLI parsers retain `--output` as the exact
+Python-decoded `str`; they do not construct `Path` first. Verifier `main`
+preflights that string before input verification and passes the same string to
+the writer. This preserves terminal `/` and terminal `/.` for rejection. It
+does not preserve or classify raw argv bytes before Python, shell, or OS
+decoding.
+
+Calling `os.fspath` may execute arbitrary caller-provided `__fspath__` code
+before the returned object can be classified. Side effects created by that
+caller callback are outside the verifier-created no-destination guarantee. The
+guarantee begins after `os.fspath` returns and applies to inert rejected inputs
+and verifier-created filesystem effects. Controls demonstrate both a
+string-valued callback with a caller side effect and a byte-valued callback
+that creates its own candidate before rejection.
 
 Ordinary internal `.` components and internal runs of separators are normalized
 aliases. On the controlled POSIX runtime, any run of three or more leading
@@ -276,7 +293,7 @@ their sequential data/receipt snapshots are not pair-atomic. A logical content
 commit is not proof that every durability syscall succeeded; a future runner
 must preserve warnings and use an immutable external artifact store.
 
-Before generic JSON traversal, V17 applies source-sized bounds to document and
+Before generic JSON traversal, V18 applies source-sized bounds to document and
 row roots, registered parameters, the nested family gate, Mobius maps,
 alternating positions, rejection reasons, root polynomials, formal witnesses,
 edge/source tables, exact-empty frontiers, and per-cap byte receipts. Before
@@ -285,7 +302,7 @@ document digests; nested byte accounting; protocol, scope, and grid
 association; the frozen static transcript; cap schedule; objective; masks;
 source-owned node caps; and the reconstructed document summary/family gate. No
 canonical curve derivation or reservation-dependent semantics occurs before
-this authentication. V17 then reserves separate worst-case totals for
+this authentication. V18 then reserves separate worst-case totals for
 registered prime candidates, curve draws and hashes, predicate hashes, frozen,
 semantic, and primary point enumerations, expansion cells, graph candidate
 evaluations, eligible conflict checks, eligible pair-output cells, replay nodes,
@@ -316,7 +333,7 @@ overcharge is invalid while the completed-work flag remains true. Interrupted
 predicate reconstruction preserves partial work and sets
 `actual_work_complete=false`, so completed equality is not claimed. Complete
 actual work must also be dominated by the source-owned reservation or the
-report is invalid. An otherwise successful report must match the exact V17
+report is invalid. An otherwise successful report must match the exact V18
 phase sequence, including completed provenance/predicate equality, with every
 unit phase complete and passed. Ordinary authenticated semantic mismatches may
 stop early with counters for the work actually executed. The
@@ -394,7 +411,7 @@ factor-base multisets. Both denominators appear beside retention ratios.
 
 ## Accounting boundary
 
-Version 17 retains the V3 accounting boundary and emits only independently
+Version 18 retains the V3 accounting boundary and emits only independently
 reconstructible combinatorial cells, including multiset evaluations,
 representative and parent-pair counts, graph checks, pair-output cells,
 optimizer nodes, bound calls, source-enforced optimizer and full-model cache
@@ -411,7 +428,7 @@ Producer row and cap wall times are observational and checked only for finite,
 nonnegative nesting. The producer makes no peak-memory claim. Any future
 canonical execution must obtain generator and verifier wall time, peak RSS,
 serialized output size, and memory traffic from the trusted external runner.
-Verifier work must be reported as a separate role cost. V17 path receipts
+Verifier work must be reported as a separate role cost. V18 path receipts
 record actual registered-curve cache behavior, prime candidates, curve and
 predicate hashes, point enumerations, expansion cells, graph candidate
 evaluations, eligible conflict checks, eligible pair-output cells, replay and
@@ -443,7 +460,7 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
    the closed schema.
 10. Reject Boolean/integer/float aliases in optimizer, graph, axiom, ratio,
     mask, node-cap, wall-time, byte-receipt, summary, and document fields.
-11. Verify one frozen V17 document and reject an empty canonical document.
+11. Verify one frozen V18 document and reject an empty canonical document.
 12. Reject missing, extra, duplicate, reordered, wrong-cap, wrong-node-cap,
     inconsistent-curve, and cross-seed-duplicate canonical matrices.
 13. Exact-match producer and independent family gates on a synthetic complete
@@ -458,8 +475,8 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     out-of-range selected formals, duplicate selected formals, negative caps,
     malformed JSON, nonobject roots, duplicate keys, and out-of-range verifier
     budgets.
-16. Relabel a valid V17 body with every V1-V16 schema and require explicit legacy
-    rejection with zero row checks and no V17 mathematical check claims.
+16. Relabel a valid V18 body with every V1-V17 schema and require explicit legacy
+    rejection with zero row checks and no V18 mathematical check claims.
 17. Replace the input path after its snapshot is read and require the receipt
     hash and parsed document to remain bound to the original bytes. Reject
     directories and symlinks before JSON parsing.
@@ -477,7 +494,7 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
     including every recursive degree-two parent pair, directly with the
     verifier reconstruction.
 22. Keep generated controls at curve-provenance and factor-base scope only;
-    construct no generated curve-family density row. Separately construct
+    construct no generated V18 curve-family density row. Separately construct
     exactly three transient noncanonical frozen legacy semantic rows at
     B=4,6,8, record their digests, and distinguish them from the sole frozen-B4
     density-row/document control.
@@ -569,24 +586,36 @@ This protocol cannot support a fixed-curve preprocessing crossover claim.
 49. Make a direct receipt write return after writing one byte too few. Require
     the observed inode-size mismatch to fail closed and both validators to
     classify the terminal pair as unaccepted.
-50. Apply the finite raw-path grammar across the public writer, receipt-path,
-    status, standalone status, and private descriptor walker. Admit exact
+50. Apply the finite raw-path grammar across verifier and producer CLI parsing,
+    verifier preflight ordering, the public writer, receipt-path, status,
+    standalone status, and private descriptor walker. Require terminal `/` and
+    terminal `/.` to survive CLI parsing and verifier `main` to reject them
+    before input verification or writing. Admit exact
     absolute strings, `pathlib.Path`, custom exact-string `os.PathLike`, internal
     dot and repeated-separator aliases, and representatives with three, four,
     and seven leading separators. Reject exact leading `//`, explicit `..`,
     relative in-root and escaping strings, terminal `/`, terminal `/.`, the
     development root, ordinary outside paths, empty and NUL-bearing strings,
     direct bytes, byte-valued path-like objects, string subclasses, and null
-    objects before normalization. Require every rejected class to create no
-    destination. Publish through the combined raw alias and require production
-    and standalone attribution through every admitted spelling. Separately
+    objects before normalization. Require every inert rejected class to create
+    no verifier destination. Separately exercise side-effecting string-valued
+    and byte-valued `__fspath__` callbacks to delimit caller-created effects
+    before return-value validation. Publish through the combined raw alias and
+    require production and standalone attribution through every admitted
+    spelling. Separately
     require production writer/status and descriptor traversal to reject a
     symlinked parent; the standalone parser remains outside the
     filesystem-race claim.
-51. Recompute the non-self-referential review-surface path inventory from its
-    finite rules. Require exact path count and path-name digest, all paths
-    present, no predicted commit or tree, exact-commit/tree reviewer checks,
-    and zero generated-row/run, launch-plan, or execution authority.
+51. Recompute the non-self-referential review-surface entry inventory from
+    exact paths, exact flat-directory selectors, the static experiment rule,
+    and four exact historical-development paths. Reject control-bearing or
+    non-ASCII selected paths, require regular nonexecutable `100644 blob`
+    entries, and hash sorted NUL-delimited mode/type/path records. Require the
+    exact entry count and digest, all entries present, no predicted commit or
+    tree, exact-commit/tree reviewer checks, zero generated V18 curve-family
+    density rows, zero canonical runs, explicit preservation of 17 historical
+    V1 development rows and one historical development run manifest, and zero
+    launch-plan or execution authority.
 52. Re-sign a receipt with a different valid random identifier and confirm
     ordinary unkeyed status accepts it while exact-attempt reconciliation
     rejects it. Re-sign a wrong relative path and weak Boolean byte count and
@@ -620,8 +649,11 @@ changes the measured collision geometry.
 
 ## Budgets and stopping
 
-Version 1 consumed 17 of 18 historical development curve rows. Version 17
-authorizes no additional curve-family row. Unit, abstract graph,
+Version 1 consumed 17 of 18 historical development curve rows and left one
+historical development run manifest. Version 18 preserves those exact
+historical artifacts, creates zero generated V18 curve-family density rows and
+zero canonical runs, and authorizes no additional curve-family row. Unit,
+abstract graph,
 generated-curve provenance, generated factor-base, one frozen p=19 B4
 density-row/document control, and exactly three transient noncanonical frozen
 legacy semantic rows at B=4,6,8 are allowed. A generated curve-family density
@@ -636,17 +668,19 @@ total_cpu_hours = 0
 maximum_memory_gb = 0
 ```
 
-Fresh independent theory, accounting, and red-team GO on one committed V17
+Fresh independent theory, accounting, and red-team GO on one committed V18
 snapshot is necessary but not sufficient to launch. A separate hash-complete
 execution plan and coordinator approval must follow before any budget change.
 
-`review-surface-manifest-v17.json` binds review scope without predicting or
-self-hashing a commit. Its finite path rules and path-name digest cover the
-static SGCP record tree, the constitution, ledgers, harness schemas and core,
-repository tests, and inherited SGCP controls. The exact reviewed Git commit
-and tree bind the bytes. Each reviewer must independently verify HEAD, parent,
-tree, detached cleanliness, inventory presence, and zero generated-row/run
-authority.
+`review-surface-manifest-v18.json` binds review scope without predicting or
+self-hashing a commit. Its finite entry rules and NUL-delimited
+mode/type/path digest cover the static SGCP record tree, four exact historical
+development artifacts, the constitution, normative repository documents,
+ledgers, harness schemas and core, repository tests, and inherited SGCP
+controls. The exact reviewed Git commit and tree bind the bytes. Each reviewer
+must independently verify HEAD, parent, tree, detached cleanliness, inventory
+presence, zero generated V18 curve-family density rows, zero canonical runs,
+and the disclosed historical V1 evidence.
 
 ## Claim boundary
 
@@ -661,4 +695,4 @@ No canonical reproduction command exists while `maximum_runs` is zero. The
 current producer refuses both development family rows and canonical execution;
 only unit, generated-factor-base, one frozen-fixture B4 density control, and
 the disclosed transient B4/B6/B8 legacy semantic controls are authorized for
-V17 preflight.
+V18 preflight.

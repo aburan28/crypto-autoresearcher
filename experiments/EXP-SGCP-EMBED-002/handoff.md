@@ -1,15 +1,16 @@
-## Handoff: SGCP V17 exact-commit review closeout
+## Handoff: SGCP V18 no-run CLI and Git-entry repair
 
 ### Claim or task
 
-Preserve the exact-commit V17 reviews and repair their CLI raw-spelling,
-normative review-surface, historical-evidence qualification, callback-effect,
-and Git inventory findings without creating a V18 generated curve-family
-density row, canonical matrix, runner, launch plan, or canonical run.
+Obtain fresh exact-commit review of the validated V18 repair to CLI output
+ingress, callback-effect boundaries, historical-evidence qualification, and the
+mode/type/path-bound normative review surface. Do not create a generated V18
+curve-family density row, canonical matrix, runner, launch plan, or canonical
+run.
 
 ### Status
 
-`NEGATIVE RESULT` for V17 launch-plan readiness only. The research claim remains
+`OBSERVATION` for V18 implementation preflight only. The research claim remains
 `HYPOTHESIS`, `TOY-EVIDENCE`, `MODEL-BOUND`, and `NOVELTY-UNVERIFIED`.
 Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
@@ -17,10 +18,12 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 - V17 theory and accounting issued scoped `GO`, but red team issued `REVISE`;
   exact coordinator decision `DEC-SGCP-EMBED-002-017` controls.
-- Output-path semantics are host-language and POSIX sensitive. V17's finite
+- CLI values are Python-decoded strings. Raw argv bytes and shell/OS/Python
+  decoding before `argparse` remain external.
+- Output-path semantics are host-language and POSIX sensitive. V18's finite
   grammar is limited to the controlled POSIX runtime.
-- A preconstructed `Path` cannot preserve terminal `/` or terminal `/.`;
-  exact-string controls classify those forms before `Path` construction.
+- Arbitrary caller `__fspath__` code can act before return-value validation.
+  Caller-created effects are outside verifier-created-no-destination claims.
 - Three-or-more leading separators collapse to the ordinary root anchor on the
   controlled runtime. Controls cover three, four, and seven.
 - Receipt attribution and reconciliation retain their controlled-workspace,
@@ -29,70 +32,56 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 - Exactly three transient noncanonical legacy semantic rows at B=4,6,8 remain
   predecessor controls. The separate frozen-B4 document remains the sole
   density-row control.
+- Seventeen historical V1 development rows and one historical development run
+  manifest remain immutable non-V18 evidence.
 - Relation yield, rank, linear algebra, descent, preprocessing crossover, rho,
   exponent, and ECDLP claims remain outside this experiment.
 
 ### Evidence so far
 
-- Producer and verifier emit V17; V1-V16 schemas reject before semantic row
+- Producer and verifier emit V18; V1-V17 schemas reject before semantic row
   verification. Contract, specification, ledger, producer, and verifier agree
-  on version 17.
-- Direct Python entries admit exact `str`, `pathlib.Path`, custom exact-string
-  `os.PathLike`, internal dot and repeated-separator aliases, and
-  three/four/seven-leading representatives subject to normalized containment.
-- Direct Python entries reject bytes, byte-valued path-like objects, string
-  subclasses, unsupported/null objects, empty strings, NUL-bearing strings,
-  relative strings, terminal `/`, terminal `/.`, explicit `..`, exact leading
-  `//`, root, and outside paths before verifier-created publication.
-- The focused table exercises each class through output admission,
-  receipt-path, status, standalone status, writer, and direct descriptor
-  traversal, and checks that rejected candidate destinations are not created.
-- Publication through the combined raw alias is attributed through every
-  admitted spelling by production and standalone status.
-- All three reviews reproduce the ten V17 artifact hashes. Theory and accounting
-  issue scoped `GO`; red team issues `REVISE`.
-- `review-surface-manifest-v17.json` reproducibly inventories 179 path names
-  with SHA-256
-  `bc8034d20ac3d092270d749b6cb363df4f8f4531bccc0dd9a6616120f51de952`.
-  It contains no predicted commit/tree and delegates byte binding to the exact
-  Git tree independently verified by each reviewer.
-- The verifier CLI coerces `--output` through `pathlib.Path` before admission,
-  erasing terminal `/` and `/.`; the direct grammar is therefore not an
-  every-ingress theorem.
-- The manifest omits normative coordinator/executor, lifecycle, evidence, and
-  shared record-definition files despite claiming complete governance and
-  approval coverage.
-- The manifest excludes four immutable historical development artifacts while
-  using unqualified zero-row/run wording. The valid current statement is zero
-  V17 generated curve-family density rows and zero canonical runs; seventeen
-  historical V1 rows and one historical development manifest remain.
-- Caller-controlled `__fspath__` can perform arbitrary same-process effects
-  before admission; verifier-created-no-destination claims must start after
-  `os.fspath` returns.
-- The path selector and newline receipt do not yet pin Git path-byte, mode/type,
-  or control-character semantics.
+  on version 18.
+- Verifier and producer CLI parsers retain exact decoded `--output` strings.
+  Terminal `/` and terminal `/.` survive parsing.
+- Verifier `main` preflights output before input verification. Invalid terminal
+  forms call neither verifier nor writer and create no parent.
+- One admitted dot/repeated-separator alias reaches the writer as the same
+  decoded string.
+- Direct Python entries retain the finite V17 exact-type/path grammar and
+  normalized containment behavior.
+- One string-valued `__fspath__` callback creates a caller marker before valid
+  admission; one byte-valued callback creates its own candidate before
+  exact-type rejection. These controls delimit, rather than suppress,
+  arbitrary caller effects.
+- `review-surface-manifest-v18.json` includes the constitution, README, roadmap,
+  metadata, ledgers, all three role contracts, lifecycle/evidence documents,
+  shared record definitions, schemas, harness core, tests, inherited controls,
+  complete static SGCP records, and four exact historical development files.
+- The manifest rejects selected non-ASCII/control-bearing paths and requires
+  regular nonexecutable `100644 blob` entries.
+- Its receipt hashes sorted `mode NUL type NUL raw-path NUL` records and contains
+  no predicted commit or tree. The independently reviewed exact Git tree binds
+  blob bytes.
+- Current authority is zero generated V18 curve-family density rows, zero
+  canonical runs, and `maximum_runs=0`. Historical authority is separately
+  disclosed as 17 V1 development rows and one development run manifest.
 - The exact completed operation vector remains `480/112/336/218/4218`; no
   curve, predicate, compiler, optimizer, gate, threshold, reservation formula,
   or budget changed.
-- No generated V17 curve-family density row, canonical matrix, runner, launch
-  plan, or canonical run exists. Historical V1 development artifacts remain
-  immutable noncanonical evidence.
 - Focused, validator/index, and repository unittest-discover receipts are
-  recorded in `development-test-log-v17.md`.
+  recorded in `development-test-log-v18.md`.
 
 ### Failure modes
 
-- Allowing a CLI parser to erase rejected raw syntax before admission.
-- Treating a selected 179-path subset as the complete normative review surface.
-- Treating zero V17/canonical artifacts as zero historical development
-  artifacts.
-- Claiming control over arbitrary caller code executed by `__fspath__`.
-- Hashing newline-joined path names without pinned Git entry mode/type and
-  control-character rules.
+- Confusing decoded CLI strings with raw argv-byte preservation.
+- Attributing arbitrary caller callback effects to verifier-created effects.
+- Treating a metadata receipt as blob-byte attestation; only the exact Git tree
+  binds contents.
+- Treating zero V18/canonical artifacts as zero historical development
+  evidence.
 - Treating the finite grammar as a portability theorem outside the controlled
   POSIX runtime.
-- Treating path-name hashing as byte attestation; only the exact Git tree binds
-  bytes.
 - Treating a matching unkeyed receipt as authentication against hostile
   same-user mutation.
 - A failed pre-receipt publication can leave an unaccepted, non-reusable orphan
@@ -107,19 +96,13 @@ Launch-plan design and execution remain `NO-GO`; `maximum_runs=0` is unchanged.
 
 ### Next concrete action
 
-Implement one no-run V18 preserving raw CLI strings through admission,
-expanding and mode/type-binding the normative review surface, qualifying
-historical versus V18/canonical artifacts, and scoping `__fspath__` effects.
-Retain every mathematical byte and `maximum_runs=0`, then obtain fresh
-exact-commit review.
+Obtain fresh independent read-only theory, accounting, and red-team reviews of
+the exact Git commit and tree containing the validated V18 repair. Three scoped
+`GO` decisions could authorize only separate hash-complete launch-plan design,
+not execution.
 
 ### Artifact paths
 
-- `experiments/EXP-SGCP-EMBED-002/pre-run-theory-review-v16.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-accounting-review-v16.md`
-- `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v16.md`
-- `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v16.json`
-- `experiments/EXP-SGCP-EMBED-002/decision-v16.json`
 - `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v17.json`
 - `experiments/EXP-SGCP-EMBED-002/revision-response-v17.md`
 - `experiments/EXP-SGCP-EMBED-002/development-test-log-v17.md`
@@ -130,6 +113,11 @@ exact-commit review.
 - `experiments/EXP-SGCP-EMBED-002/pre-run-red-team-review-v17.md`
 - `experiments/EXP-SGCP-EMBED-002/independent-review-provenance-v17.json`
 - `experiments/EXP-SGCP-EMBED-002/decision-v17.json`
+- `experiments/EXP-SGCP-EMBED-002/protocol-amendment-v18.json`
+- `experiments/EXP-SGCP-EMBED-002/revision-response-v18.md`
+- `experiments/EXP-SGCP-EMBED-002/development-test-log-v18.md`
+- `experiments/EXP-SGCP-EMBED-002/source-self-review-v18.md`
+- `experiments/EXP-SGCP-EMBED-002/review-surface-manifest-v18.json`
 - `experiments/EXP-SGCP-EMBED-002/hypothesis.json`
 - `experiments/EXP-SGCP-EMBED-002/specification.json`
 - `experiments/EXP-SGCP-EMBED-002/contract.md`
