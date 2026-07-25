@@ -6,12 +6,11 @@ Repair the EXP-MLKEM-003 hardened gate with a baseline-invisible synthetic contr
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-921` | validator | queued | 70 | TASK-20260724-919, TASK-20260724-920 | coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-921/validation_report.yaml, coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-921/validation_notes.md | coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-921 |
-| `TASK-20260724-922` | red-team | queued | 70 | TASK-20260724-919, TASK-20260724-920 | coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-922/red_team_report.yaml, coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-922/falsification_review.md | coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-922 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-923`: dependency_not_completed:TASK-20260724-921:queued, dependency_not_completed:TASK-20260724-922:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Repair the EXP-MLKEM-003 hardened gate with a baseline-invisible synthetic contr
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `8382032d6cf02b1fe44e738e3f573280f3172efef5aa6ed75211d1759a45c09e`
+Plan SHA-256: `01014222c920d0f3b419aa6f5d7fb14b83ef2adca94c0a4bd4bf6b6ddf5bbfac`
