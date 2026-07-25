@@ -6,13 +6,11 @@ Map surviving supersingular-isogeny attack baselines after the SIDH break, propo
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-501` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-001/tasks/TASK-20260725-501/baseline_map.md, coordination/goals/GOAL-SSI-001/batches/BATCH-001/tasks/TASK-20260725-501/candidate_report.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-001/tasks/TASK-20260725-501 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-502`: dependency_not_completed:TASK-20260725-501:queued
-- `TASK-20260725-503`: dependency_not_completed:TASK-20260725-501:queued, dependency_not_completed:TASK-20260725-502:queued
-- `TASK-20260725-504`: dependency_not_completed:TASK-20260725-503:queued
+None.
 
 ## Dispatch Gates
 
@@ -27,4 +25,4 @@ Map surviving supersingular-isogeny attack baselines after the SIDH break, propo
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b59f8a4a65b407d2c796a0756f305d81c18caf7ccce01b64cd523ffec5cc76a2`
+Plan SHA-256: `177f3bbc6c04dcd93005b5643bcb14718cd7172dd010545d8ea2dee6731b803a`
