@@ -6,12 +6,10 @@ Design one frozen toy validation protocol under certificate contract 1.0.0-revie
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-685` | idea-generator | queued | 100 | - | coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260725-685/toy_validation_protocol.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260725-685/protocol_design_note.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260725-685 |
+| `TASK-20260725-687` | red-team | queued | 80 | TASK-20260725-685, TASK-20260725-686 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260725-687/red_team_report.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260725-687/falsification_review.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260725-687 |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-686`: dependency_not_completed:TASK-20260725-685:queued
-- `TASK-20260725-687`: dependency_not_completed:TASK-20260725-685:queued, dependency_not_completed:TASK-20260725-686:queued
 - `TASK-20260725-688`: dependency_not_completed:TASK-20260725-687:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ Design one frozen toy validation protocol under certificate contract 1.0.0-revie
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `6bf1c3a9709a62f66184b1d4014b3ba5773f0d4479bf6fa19f139ac1380196fd`
+Plan SHA-256: `fb72d66512ce93c9deae68fc04d281cb1d40595827624ccd04fdfd462b1d4ceb`
