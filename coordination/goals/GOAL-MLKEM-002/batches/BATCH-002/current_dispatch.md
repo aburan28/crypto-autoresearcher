@@ -6,7 +6,7 @@ Specify and run EXP-MLKEM-005: library-facing adequacy probe plus preflight-or-w
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-926` | executor | queued | 90 | TASK-20260724-925 | experiments/EXP-MLKEM-005/execution-report.yaml | experiments/EXP-MLKEM-005 |
+| `TASK-20260724-926` | executor | running | 90 | TASK-20260724-925 | experiments/EXP-MLKEM-005/execution-report.yaml | experiments/EXP-MLKEM-005 |
 
 ## Deferred or Blocked
 
@@ -28,4 +28,4 @@ Specify and run EXP-MLKEM-005: library-facing adequacy probe plus preflight-or-w
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `cb77370e9ffc0e5ece147b90ea47f70823cb9fff2b53592e1e273d8dcefb4b4c`
+Plan SHA-256: `caf79800373a7559c3d62593a00d1a4534c516a8d726996a22c764f1bc306d6e`
