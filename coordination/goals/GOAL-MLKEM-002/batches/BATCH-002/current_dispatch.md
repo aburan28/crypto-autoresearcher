@@ -6,12 +6,10 @@ Specify and run EXP-MLKEM-005: library-facing adequacy probe plus preflight-or-w
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-924` | coordinator | queued | 100 | - | ledger/hypotheses/H-MLKEM-005.yaml, experiments/EXP-MLKEM-005/specification.yaml, coordination/goals/GOAL-MLKEM-002/batches/BATCH-002/tasks/TASK-20260724-924/design_report.yaml | ledger/hypotheses/H-MLKEM-005.yaml, experiments/EXP-MLKEM-005/specification.yaml, coordination/goals/GOAL-MLKEM-002/batches/BATCH-002/tasks/TASK-20260724-924 |
+| `TASK-20260724-926` | executor | queued | 90 | TASK-20260724-925 | experiments/EXP-MLKEM-005/execution-report.yaml | experiments/EXP-MLKEM-005 |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-925`: task_marked_blocked
-- `TASK-20260724-926`: task_marked_blocked
 - `TASK-20260724-927`: task_marked_blocked
 - `TASK-20260724-928`: task_marked_blocked
 - `TASK-20260724-929`: task_marked_blocked
@@ -30,4 +28,4 @@ Specify and run EXP-MLKEM-005: library-facing adequacy probe plus preflight-or-w
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `8c937a017b7d5cffb6b0eb7c64549827e4a831dee0c1466a65ab8e17c8456f7c`
+Plan SHA-256: `cb77370e9ffc0e5ece147b90ea47f70823cb9fff2b53592e1e273d8dcefb4b4c`
