@@ -6,12 +6,11 @@ Specify and run EXP-MLKEM-005: library-facing adequacy probe plus preflight-or-w
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-928` | validator | running | 80 | TASK-20260724-926, TASK-20260724-927 | coordination/goals/GOAL-MLKEM-002/batches/BATCH-002/tasks/TASK-20260724-928/validation_report.yaml, coordination/goals/GOAL-MLKEM-002/batches/BATCH-002/tasks/TASK-20260724-928/validation_notes.md | coordination/goals/GOAL-MLKEM-002/batches/BATCH-002/tasks/TASK-20260724-928 |
-| `TASK-20260724-929` | red-team | running | 80 | TASK-20260724-926, TASK-20260724-927 | coordination/goals/GOAL-MLKEM-002/batches/BATCH-002/tasks/TASK-20260724-929/red_team_report.yaml, coordination/goals/GOAL-MLKEM-002/batches/BATCH-002/tasks/TASK-20260724-929/falsification_review.md | coordination/goals/GOAL-MLKEM-002/batches/BATCH-002/tasks/TASK-20260724-929 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-930`: task_marked_blocked
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Specify and run EXP-MLKEM-005: library-facing adequacy probe plus preflight-or-w
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `21ae610fe320e3a612ece9876fa925aa77b11ac6f260e5377d2cf927b749e13f`
+Plan SHA-256: `5e7684f2b1a6434212155c4289673186cf0f89a7a666543fb78ad0fa590adf5b`
