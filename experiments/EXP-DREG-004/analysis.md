@@ -257,3 +257,18 @@ Pacing deviations (infrastructure only): D7 — first recovery invocation used
 chunk 12,000 (single unit under budget 130); D8 — max-units reduced 2 → 1 from
 col 48,000 as 2-unit walls hit 277.6 s of the 280 s tool cap under EXP-SIG-007
 contention (real/user ratio up to 1.7, RSS to 6.4 GB).
+
+## 13. Turn 4 (2026-07-25, 05:43-06:28Z): 116,000 / 778,394 (14.90 %)
+
++44,000 columns this turn (72,000 -> 116,000), rank_acc 114,858, 28 carries
+(2 pickle + 26 RAWCARR1), all sha256-verified and git-blob mirrored per
+invocation. Two 280 s tool-timeout kills at rank ~103k under residual load
+(8k-chunk walls exceeded the cap); state consistent at both kills (AGENTS
+rule 5). D9: chunk reduced 8,000 -> 6,000 for wall margin.
+
+**Rank cross-validation:** rank_acc matches the pre-incident lineage EXACTLY
+at cols 88,000 / 96,000 / 104,000 / 116,000 (87,615 / 95,299 / 103,068 /
+114,858) — the rebuilt staircase is pointwise identical to the destroyed one
+wherever the column grid aligns. Dependent density oscillating 96.0-99.5 %
+through this region (pre-incident: 96.1-100 %), still far above the n=18
+late-column deficit zone (~0.1 %). No rank claim: cell incomplete.
