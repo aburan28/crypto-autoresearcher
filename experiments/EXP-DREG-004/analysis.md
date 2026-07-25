@@ -229,3 +229,31 @@ Infra note: one invocation (CONT-3) was killed by the 295 s tool timeout after
 completing and checkpointing 2 of 3 units — infrastructure event only (AGENTS
 rule 5); state on disk was consistent at the last save boundary and the next
 invocation resumed cleanly.
+
+---
+
+## 12. INC-20260725-EXFAT-02 and second rebuild (2026-07-25 turn 3)
+
+Second payload destruction (see `INCIDENT-20260725-EXFAT-02.md`): after a
+machine reboot (~01:38Z), the worktree was swept at ~04:20Z — all RAWCARR1
+carries and state.json of the 124,000-col checkpoint deleted; the 2 legacy
+pickle carries, the adjacency cache, and `.git` survived (same signature as
+INC-01). Recovery: state reconstructed from the committed 52,000-col snapshot
+truncated to the 2 sha256-verified survivors; resume identity checks passed.
+**Countermeasure in force:** every invocation now mirrors new carry payloads
+into the git object store (`mirror-log.json`), which survived both incidents.
+
+Rebuild-2 progress at end of turn 3: **72,000 / 778,394 columns (9.25 %)**,
+rank_acc = 71,993, 18 carries (2 pickle + 16 RAWCARR1) all sha256-verified and
+git-mirrored. No rank claim: cell incomplete.
+
+Dependent-density telemetry (watch item): first sub-full pivot unit of this
+rebuild at cols 64,000–72,000 with k/c = 99.91 % (k = 7,993) — onset of the
+dependent region, consistent with the pre-incident lineage (first dip 98.6 %
+at cols 78,000–88,000; block boundaries differ, trend matches). All units
+before it were full-pivot, matching the plateau expectation.
+
+Pacing deviations (infrastructure only): D7 — first recovery invocation used
+chunk 12,000 (single unit under budget 130); D8 — max-units reduced 2 → 1 from
+col 48,000 as 2-unit walls hit 277.6 s of the 280 s tool cap under EXP-SIG-007
+contention (real/user ratio up to 1.7, RSS to 6.4 GB).
