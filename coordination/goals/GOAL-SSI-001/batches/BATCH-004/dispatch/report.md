@@ -6,11 +6,11 @@ Revised IDEA-20260725-002 derivation: tightened public-input model (CGL/path-fin
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-515` | red-team | queued | 80 | TASK-20260725-513, TASK-20260725-514 | coordination/goals/GOAL-SSI-001/batches/BATCH-004/tasks/TASK-20260725-515/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-004/tasks/TASK-20260725-515/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-004/tasks/TASK-20260725-515 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-516`: dependency_not_completed:TASK-20260725-515:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Revised IDEA-20260725-002 derivation: tightened public-input model (CGL/path-fin
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `490d9bd904cf1877355c876e89fe09d639d383924ce107cdc5bfe69996895000`
+Plan SHA-256: `c3eb9a2b146c6c7cc51a9893a8173d00cd020edc701415bc4ba610e7cab7bc00`
