@@ -3,13 +3,14 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-24 entries.
+26 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
 | KN-FIND-3SUM-NOGO-001 | Conditional (3SUM-Indexing) no-go for generic m=3 prime-field EC index calculus | internal_finding | reported |  | prime-field index-calculus 3sum-indexing fine-grained lower-bound no-go m3 |
 | KN-FIND-ALLM-CLOSURE-001 | All-m closure -- no decomposition length beats rho via MITM; and the m=3 vs m>=4 free-oracle dichotomy | internal_finding | established |  | prime-field index-calculus all-m mitm 3sum-indexing closure dichotomy scope-correction |
 | KN-FIND-COLLECTION-LB-001 | Unconditional collection-phase lower bound + barrier-localization for prime-field EC index calculus | internal_finding | established |  | prime-field index-calculus lower-bound sumset no-go barrier-localization pollard-rho theorem |
+| KN-FIND-FIATNAOR-CALIB-001 | The best known 3SUM-Indexing structure lands exactly ON the rho boundary, never below it | internal_finding | established |  | prime-field index-calculus 3sum-indexing fiat-naor calibration barrier tightness |
 | KN-FIND-INTERNAL-REL-001 | The internal-relation index-calculus variant also never beats rho, for every m | internal_finding | established |  | prime-field index-calculus internal-relations all-m closure barrier |
 | KN-FIND-S4-ORACLE-001 | The natural S_4 algebraic decomposition oracle gives no speedup over generic MITM (m=3, prime field) | internal_finding | reported |  | prime-field index-calculus summation-polynomial s4 3sum oracle m3 no-speedup |
 | KN-FIND-SP4-EQUIV-001 | SP4 resolved -- sub-rho m=3 prime-field index calculus is EQUIVALENT to breaking 3SUM-Indexing; the binding resource is space, not solve time | internal_finding | established |  | prime-field index-calculus 3sum-indexing equivalence space-lower-bound m3 crux sp4 |
@@ -24,6 +25,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-008 | Monte Carlo methods for index computation (mod p) | literature | established | web | pollard-rho baseline generic discrete-logarithm complexity |
 | KN-LIT-009 | New algorithm for the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus prime-field ecdlp complexity |
 | KN-LIT-010 | Solving the elliptic curve discrete logarithm problem using Semaev polynomials, Weil descent and Groebner basis methods - an experimental study | literature | reported | web | experimental semaev weil-descent groebner first-fall-degree binary-field ecdlp methodology |
+| KN-LIT-011 | Data Structures Meet Cryptography - 3SUM with Preprocessing | literature | reported | web | 3sum 3sum-indexing fine-grained data-structures preprocessing lower-bound collinear cryptography |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
