@@ -6,13 +6,13 @@ Draft KN-FIND promotion package for replicated prime-field ECDLP evidence and pa
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-601` | idea-generator | queued | 100 | - | coordination/goals/GOAL-FIND-001/batches/BATCH-001/tasks/TASK-20260725-601/promotion_map.yaml, coordination/goals/GOAL-FIND-001/batches/BATCH-001/tasks/TASK-20260725-601/draft_findings.md | coordination/goals/GOAL-FIND-001/batches/BATCH-001/tasks/TASK-20260725-601 |
+| `TASK-20260725-681` | idea-generator | queued | 100 | - | coordination/goals/GOAL-FIND-001/batches/BATCH-001/tasks/TASK-20260725-681/promotion_map.yaml, coordination/goals/GOAL-FIND-001/batches/BATCH-001/tasks/TASK-20260725-681/draft_findings.md | coordination/goals/GOAL-FIND-001/batches/BATCH-001/tasks/TASK-20260725-681 |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-602`: dependency_not_completed:TASK-20260725-601:queued
-- `TASK-20260725-603`: dependency_not_completed:TASK-20260725-601:queued, dependency_not_completed:TASK-20260725-602:queued
-- `TASK-20260725-604`: dependency_not_completed:TASK-20260725-603:queued
+- `TASK-20260725-682`: dependency_not_completed:TASK-20260725-681:queued
+- `TASK-20260725-683`: dependency_not_completed:TASK-20260725-681:queued, dependency_not_completed:TASK-20260725-682:queued
+- `TASK-20260725-684`: dependency_not_completed:TASK-20260725-683:queued
 
 ## Dispatch Gates
 
@@ -27,4 +27,4 @@ Draft KN-FIND promotion package for replicated prime-field ECDLP evidence and pa
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `1a0c59c962c4616888a639738f8648199336670e4d7d3af43262e6689ecb314a`
+Plan SHA-256: `53fd5b532d42d48f6e1fe02cdfe9b83c8bfa98a811fabb7e2abc4ccb88f2faab`

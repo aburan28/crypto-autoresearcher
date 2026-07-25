@@ -6,13 +6,13 @@ Freeze CTRL-B support-restricted null rank protocol (review-only) before any new
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-621` | idea-generator | queued | 100 | - | coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-621/ctrl_b_protocol.yaml, coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-621/protocol_design_note.md | coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-621 |
+| `TASK-20260725-689` | idea-generator | queued | 100 | - | coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-689/ctrl_b_protocol.yaml, coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-689/protocol_design_note.md | coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-689 |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-622`: dependency_not_completed:TASK-20260725-621:queued
-- `TASK-20260725-623`: dependency_not_completed:TASK-20260725-621:queued, dependency_not_completed:TASK-20260725-622:queued
-- `TASK-20260725-624`: dependency_not_completed:TASK-20260725-623:queued
+- `TASK-20260725-690`: dependency_not_completed:TASK-20260725-689:queued
+- `TASK-20260725-691`: dependency_not_completed:TASK-20260725-689:queued, dependency_not_completed:TASK-20260725-690:queued
+- `TASK-20260725-692`: dependency_not_completed:TASK-20260725-691:queued
 
 ## Dispatch Gates
 
@@ -27,4 +27,4 @@ Freeze CTRL-B support-restricted null rank protocol (review-only) before any new
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `832f8f196c127f87dcc9e5b26e39bcd2bbeaea6da3eaffd86ba303fb3b57cd69`
+Plan SHA-256: `64d33208edc77e0f07cfaa3a9c0594fb30532a97e80518e1a35426c7c08fd893`
