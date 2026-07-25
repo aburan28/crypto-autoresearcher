@@ -30,4 +30,4 @@ Specify and run EXP-MLKEM-005: library-facing adequacy probe plus preflight-or-w
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `1df936acc71b6deebc289bc6613892d778cd64bb5a9e5046155f97f11e2483db`
+Plan SHA-256: `8c937a017b7d5cffb6b0eb7c64549827e4a831dee0c1466a65ab8e17c8456f7c`
