@@ -11,7 +11,7 @@ Specify and run EXP-MLKEM-005: library-facing adequacy probe plus preflight-or-w
 
 ## Deferred or Blocked
 
-- `TASK-20260724-930`: dependency_not_completed:TASK-20260724-928:running, dependency_not_completed:TASK-20260724-929:running
+- `TASK-20260724-930`: task_marked_blocked
 
 ## Dispatch Gates
 
@@ -26,4 +26,4 @@ Specify and run EXP-MLKEM-005: library-facing adequacy probe plus preflight-or-w
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `d4f70aac9bab6ebbf3d73bb9bd39eb3b2d333257e75b1cbc1a7b79ffb683a324`
+Plan SHA-256: `21ae610fe320e3a612ece9876fa925aa77b11ac6f260e5377d2cf927b749e13f`
