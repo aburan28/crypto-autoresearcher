@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-190 entries.
+202 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -130,6 +130,16 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-121 | Creating Cryptographic Challenges Using Multi-Party Computation: The LWE Challenge | literature | reported | read | lwe-challenge darmstadt mpc benchmark records practical-hardness calibration verifiability lattice |
 | KN-LIT-122 | Estimating quantum speedups for lattice sieves | literature | reported | read | quantum sieving near-neighbour-search circuits cost-model gate-count grover resource-estimate post-quantum lattice calibration |
 | KN-LIT-123 | Lattice Attacks on NTRU and LWE: A History of Refinements | literature | reported | read | survey lattice-reduction bkz heuristics ntru lwe security-estimate methodology history lattice |
+| KN-LIT-124 | On the Cost of Computing Isogenies Between Supersingular Elliptic Curves | literature | reported | web | supersingular isogeny sidh cssi meet-in-the-middle golden-collision van-oorschot-wiener collision-search memory full-cost cost-model classical-baseline post-quantum adjacent |
+| KN-LIT-125 | Improved Classical Cryptanalysis of SIKE in Practice | literature | reported | web | supersingular isogeny sike sidh cssi golden-collision van-oorschot-wiener collision-search memory full-cost cost-model implementation calibration classical-baseline post-quantum adjacent |
+| KN-LIT-126 | Quantum Cryptanalysis in the RAM Model: Claw-Finding Attacks on SIKE | literature | reported | web | quantum supersingular isogeny sike sidh claw-finding ram-model cost-model gate-count depth-width memory full-cost resource-estimate security-estimate post-quantum adjacent |
+| KN-LIT-127 | He Gives C-Sieves on the CSIDH | literature | reported | web | quantum csidh class-group-action hidden-shift kuperberg collimation-sieve quantum-memory cost-model security-estimate simulation post-quantum adjacent |
+| KN-LIT-128 | Quantum Security Analysis of CSIDH | literature | reported | web | quantum csidh class-group-action hidden-shift kuperberg childs-jao-soukharev parameter-selection security-estimate cost-model post-quantum adjacent |
+| KN-LIT-129 | The SQALE of CSIDH: Sublinear Velu Quantum-resistant isogeny Action with Low Exponents | literature | reported | web | csidh class-group-action quantum collimation-sieve parameter-selection security-estimate implementation constant-time velu resource-constrained post-quantum adjacent |
+| KN-LIT-130 | Orientations and the Supersingular Endomorphism Ring Problem | literature | reported | web | supersingular endomorphism-ring orientation oriented-curve class-group-action isogeny-path reduction equivalence grh hardness-foundation post-quantum adjacent |
+| KN-LIT-131 | The Supersingular Endomorphism Ring and One Endomorphism Problems are Equivalent | literature | reported | web | supersingular endomorphism-ring one-endomorphism reduction equivalence hardness-foundation sqisign isogeny-path post-quantum adjacent |
+| KN-LIT-132 | Improved algorithms for finding fixed-degree isogenies between supersingular elliptic curves | literature | reported | web | supersingular isogeny fixed-degree endomorphism-ring meet-in-the-middle memory-free low-memory quantum cost-model path-finding post-quantum adjacent |
+| KN-LIT-133 | SQIsignHD: New Dimensions in Cryptography | literature | reported | web | sqisign sqisignhd signature higher-dimensional-isogeny kani endomorphism-ring deuring supersingular isogeny constructive post-quantum adjacent |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
@@ -197,3 +207,5 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-047 | Integrating hints - lattice attacks with side information | technique | reported |  | hints side-information side-channel primal-attack sparsification projection decryption-failure security-loss leakage-budget cross-domain lattice |
 | KN-TECH-048 | Decryption-failure attacks and failure boosting | technique | reported |  | decryption-failure failure-boosting failure-oracle cca kem lwe lwr ring-lwe module-lwe ml-kem query-budget multi-target lattice |
 | KN-TECH-049 | Calibrating lattice claims against public challenge records | technique | reported |  | records calibration svp-challenge lwe-challenge darmstadt benchmark verifiability extrapolation g6k lattice |
+| KN-TECH-050 | Memory-charged cost models for supersingular isogeny path-finding | technique | reported |  | supersingular isogeny path-finding meet-in-the-middle golden-collision van-oorschot-wiener low-memory memory full-cost cost-model delfs-galbraith regime classical-baseline quantum cross-domain post-quantum adjacent |
+| KN-TECH-051 | Quantum cost models for the CSIDH class-group action, and the resource-constraint dispute | technique | reported |  | csidh class-group-action quantum hidden-shift kuperberg collimation-sieve quantum-memory resource-constrained cost-model parameter-selection security-estimate contested post-quantum adjacent |
