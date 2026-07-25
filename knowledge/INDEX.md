@@ -3,11 +3,12 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-22 entries.
+23 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
 | KN-FIND-3SUM-NOGO-001 | Conditional (3SUM-Indexing) no-go for generic m=3 prime-field EC index calculus | internal_finding | reported |  | prime-field index-calculus 3sum-indexing fine-grained lower-bound no-go m3 |
+| KN-FIND-ALLM-CLOSURE-001 | All-m closure -- no decomposition length beats rho via MITM; and the m=3 vs m>=4 free-oracle dichotomy | internal_finding | established |  | prime-field index-calculus all-m mitm 3sum-indexing closure dichotomy scope-correction |
 | KN-FIND-COLLECTION-LB-001 | Unconditional collection-phase lower bound + barrier-localization for prime-field EC index calculus | internal_finding | established |  | prime-field index-calculus lower-bound sumset no-go barrier-localization pollard-rho theorem |
 | KN-FIND-S4-ORACLE-001 | The natural S_4 algebraic decomposition oracle gives no speedup over generic MITM (m=3, prime field) | internal_finding | reported |  | prime-field index-calculus summation-polynomial s4 3sum oracle m3 no-speedup |
 | KN-FIND-SP4-EQUIV-001 | SP4 resolved -- sub-rho m=3 prime-field index calculus is EQUIVALENT to breaking 3SUM-Indexing; the binding resource is space, not solve time | internal_finding | established |  | prime-field index-calculus 3sum-indexing equivalence space-lower-bound m3 crux sp4 |

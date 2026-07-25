@@ -185,3 +185,42 @@ Consequently, *any* line of work that only accelerates the decomposition test
 elimination -- i.e. driving sigma or T down) provably **cannot** beat rho at m=3.
 The only escape is subquadratic *preprocessing space*. This redirects the search:
 the quantity to attack is S, not T.
+
+## Theorem 10 (all-m closure): no decomposition length escapes
+Let a = ceil(m/2). The meet-in-the-middle family (tabulate all a-sums: space
+B^a; query enumerates the complementary floor(m/2)-sums: T = B^{m-a}) gives,
+using draws = Theta(N/B^{m-1}) and a+(m-a)=m,
+        Total(B) = B^a + Theta(N / B^{a-1}),  minimized at B ~ N^{1/(2a-1)},
+        Total = Theta( N^{a/(2a-1)} ).
+Since a/(2a-1) > 1/2 for every finite a (equivalently 2a > 2a-1), we get:
+
+  **For EVERY decomposition length m >= 3, the meet-in-the-middle family is
+  strictly worse than Pollard rho**, with exponents 2/3 (m=3,4), 3/5 (m=5,6),
+  4/7 (m=7,8), ... converging to 1/2 from ABOVE as m -> infinity but never
+  reaching it. (Verified numerically at N = 10^18.)
+
+This closes the "maybe a larger m escapes" hatch unconditionally: increasing m
+buys a better exponent but never crosses sqrt(N), and larger m is independently
+limited (S_8 is the largest computed summation polynomial).
+
+### Theorem 11 (the free-oracle dichotomy -- and a scope correction)
+With the SAME space S = B^a but a hypothetical **free** query (T = 1),
+Total = B^a + N/B^{m-1}, and the behaviour SPLITS:
+  - **m = 3:** optimum is exactly 2 sqrt(N) -- a free oracle gives NO gain.
+    The binding resource is SPACE (this is Corollary 9).
+  - **m >= 4:** a free oracle DOES beat rho: N^{0.416} (m=4), N^{0.445} (m=5),
+    N^{0.391} (m=6). Here the binding resource is the QUERY cost T at fixed
+    space, not the space.
+**Scope correction.** Corollary 9's conclusion ("speeding up the decomposition
+test cannot beat rho") is therefore **specific to m = 3** and must not be read
+as universal: at m >= 4 the query/solve cost is exactly the binding variable, so
+solve-acceleration work (Groebner, degree of regularity, elimination) is aimed
+at the right variable there -- it simply has to reach the k-SUM-Indexing
+frontier. Concretely at m = 4: with S = B^2 and B ~ N^{1/4} one needs
+T = o(B) -- i.e. a 2-sum structure on the pair-set (size M = B^2) with space M
+and query o(M^{1/2}), exactly the (S,T) = (M^{2-eps}, M^{1-delta}) regime the
+3SUM-Indexing conjecture forbids.
+
+**Unified conclusion.** At every m >= 3, beating Pollard rho is equivalent to
+violating the k-SUM-Indexing frontier for curve-point sets -- at m = 3 on the
+space side, at m >= 4 on the query side. The barrier is uniform in m.
