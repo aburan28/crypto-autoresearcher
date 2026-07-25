@@ -224,3 +224,35 @@ and query o(M^{1/2}), exactly the (S,T) = (M^{2-eps}, M^{1-delta}) regime the
 **Unified conclusion.** At every m >= 3, beating Pollard rho is equivalent to
 violating the k-SUM-Indexing frontier for curve-point sets -- at m = 3 on the
 space side, at m >= 4 on the query side. The barrier is uniform in m.
+
+## Theorem 12 (the internal-relation variant also fails, for every m)
+The analysis above assumed the *target-sectioned* scheme (draw random
+g = aP+bQ, test decomposition). Classical index calculus instead harvests
+relations **among factor-base elements themselves**: find ~B zero-sum m-subsets
+P_{i_1}+...+P_{i_m} = O inside F, with no random draws at all. This variant is
+not covered by Theorems 2-11, so we close it separately.
+
+The expected number of zero-sum m-subsets of F is C(B,m)/N ~ B^m/(m! N).
+Requiring at least B of them forces
+        B >~ (m! N)^{1/(m-1)}.
+Finding them costs at least the meet-in-the-middle search on F, i.e. >= B^a with
+a = ceil(m/2) (and at least B for the linear algebra). Hence
+        Total >= B^a = Omega( N^{a/(m-1)} ),  a = ceil(m/2).
+Since 2*ceil(m/2) >= m > m-1, we have a/(m-1) > 1/2 for every m, so:
+
+  **The internal-relation variant is strictly worse than Pollard rho for every
+  decomposition length m**, with exponents 1 (m=3), 2/3 (m=4), 3/5 (m=6),
+  4/7 (m=8), 5/9 (m=10), ... again approaching 1/2 from ABOVE without reaching
+  it. (Verified numerically at N = 10^18 with exact constants; e.g. m=3 needs
+  B ~ N^{0.52}, already past rho before any search begins.)
+
+Note the parity oscillation (odd m is worse than the neighbouring even m),
+because ceil(m/2) jumps while the relation-density exponent 1/(m-1) falls
+smoothly.
+
+**Coverage statement.** Together, Theorems 2, 10, 11 and 12 cover both principal
+index-calculus architectures (target-sectioned and internal-relation), every
+decomposition length m, every factor base (Lemma 1), generic-group methods
+(Cor. 3), the naive algebraic oracle and the standard algorithmic toolkit
+(Prop. 7). In all cases the cost is >= sqrt(N) unless the k-SUM-Indexing
+frontier for curve-point sets is violated.
