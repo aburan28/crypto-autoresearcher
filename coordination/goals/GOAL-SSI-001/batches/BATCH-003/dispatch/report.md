@@ -6,11 +6,10 @@ Novelty-screen one typed cryptanalytic mechanism against a surviving supersingul
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-509` | idea-generator | running | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-509/mechanism_screen.md, coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-509/candidate_report.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-509 |
+| `TASK-20260725-511` | red-team | queued | 80 | TASK-20260725-509, TASK-20260725-510 | coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-511/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-511/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-511 |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-511`: dependency_not_completed:TASK-20260725-509:running
 - `TASK-20260725-512`: dependency_not_completed:TASK-20260725-511:queued
 
 ## Dispatch Gates
@@ -26,4 +25,4 @@ Novelty-screen one typed cryptanalytic mechanism against a surviving supersingul
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e46b76673d47f63696051aeef64d05edd4904f327d9f1ce4b4a48af13f81e362`
+Plan SHA-256: `f14577f75ac961a3731424fc7de6603926e4bcb227aab6dd776e93878f7ce7c1`
