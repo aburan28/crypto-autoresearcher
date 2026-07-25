@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-190 entries.
+191 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -197,3 +197,4 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-047 | Integrating hints - lattice attacks with side information | technique | reported |  | hints side-information side-channel primal-attack sparsification projection decryption-failure security-loss leakage-budget cross-domain lattice |
 | KN-TECH-048 | Decryption-failure attacks and failure boosting | technique | reported |  | decryption-failure failure-boosting failure-oracle cca kem lwe lwr ring-lwe module-lwe ml-kem query-budget multi-target lattice |
 | KN-TECH-049 | Calibrating lattice claims against public challenge records | technique | reported |  | records calibration svp-challenge lwe-challenge darmstadt benchmark verifiability extrapolation g6k lattice |
+| KN-TECH-050 | Matched classical baselines for supersingular path-finding under full cost | technique | reported |  | isogeny-problem path-finding full-cost mitm delfs-galbraith claw-finding pcs baseline cost-model supersingular isogeny |
