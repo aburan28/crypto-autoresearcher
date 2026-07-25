@@ -6,12 +6,11 @@ Novelty-screen one typed cryptanalytic mechanism against a surviving supersingul
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-509` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-509/mechanism_screen.md, coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-509/candidate_report.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-509 |
+| `TASK-20260725-509` | idea-generator | running | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-509/mechanism_screen.md, coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-509/candidate_report.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-003/tasks/TASK-20260725-509 |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-510`: dependency_not_completed:TASK-20260725-509:queued
-- `TASK-20260725-511`: dependency_not_completed:TASK-20260725-509:queued, dependency_not_completed:TASK-20260725-510:queued
+- `TASK-20260725-511`: dependency_not_completed:TASK-20260725-509:running
 - `TASK-20260725-512`: dependency_not_completed:TASK-20260725-511:queued
 
 ## Dispatch Gates
@@ -27,4 +26,4 @@ Novelty-screen one typed cryptanalytic mechanism against a surviving supersingul
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `3f89be11f7281e909e60a6ad9125aa7bfc59c450a01ed5a2fe508c562b0406e6`
+Plan SHA-256: `e46b76673d47f63696051aeef64d05edd4904f327d9f1ce4b4a48af13f81e362`
