@@ -587,3 +587,107 @@ knows. Items 1–3 are prerequisites for everything else.
     and document it if so, and define what the ceiling means for
     literature/derivation evidence with no runs — which is now the program's
     dominant evidence mode, covering 18 of 48 records.
+
+---
+
+## 10. Closure record — the three P0 topic gaps (2026-07-25)
+
+Items 5, 6 and 8 of §9 were addressed the same day this review was written.
+Twenty-two entries were added, taking the corpus from 190 to 212. Nothing in
+§§1–5 or §7 is addressed: the promotion debt, the `proof_status` deadlock, and
+the claim-tier fail-open all stand exactly as described.
+
+### A constraint that changes what verification is achievable
+
+This session's egress policy **blocks every direct outbound fetch**. IACR
+ePrint, Springer, arXiv, DBLP, DOI resolution, Semantic Scholar and even
+author-hosted PDFs all returned HTTP 403; only web search was available.
+
+Under `knowledge/SEEDING.md`'s vocabulary that caps honest verification at
+`citation_verified: web` — bibliographic details corroborated against
+primary-index *listings surfaced by search* — and makes `read` unreachable. All
+22 entries are therefore `web`, and each one's `## Not verified here` section
+records specifically what could not be obtained rather than leaving the reader to
+assume.
+
+Two consequences worth stating plainly:
+
+- **§9 item 9 cannot be executed in this environment at all.** Upgrading the
+  ECDLP spine from `web` to `read` requires fetching papers. It needs either a
+  session with wider egress or a human with library access.
+- **No entry in this batch asserts a complexity constant, security level, or
+  cost figure**, because none could be read from a primary source. Where a
+  number arrived through a search summary it is either omitted or explicitly
+  flagged as unconfirmed — see `KN-LIT-132`, where a quantum complexity range
+  returned by search was internally inconsistent and was deliberately not
+  recorded, and `KN-TECH-053`, where the BooleanSolve exponents are marked as
+  quoted-but-unconfirmed.
+
+The verification method also justified itself immediately: the author list this
+review would have written from memory for `KN-LIT-124` was wrong on two of five
+names. Nothing was entered from recall.
+
+### Batch 1 — supersingular isogeny cost models (§6.1)
+
+Ten literature entries and two techniques, targeting the live `GOAL-SSI-001`
+BATCH-002 derivation gate: `KN-LIT-124` (Adj et al., vOW versus MITM for CSSI),
+`KN-LIT-125` (Costello et al., the optimised vOW implementation), `KN-LIT-126`
+(Jaques–Schanck, RAM-model quantum claw-finding), `KN-LIT-127` (Peikert,
+collimation sieve on CSIDH), `KN-LIT-128` (Bonnetain–Schrottenloher, CSIDH
+quantum analysis), `KN-LIT-129` (SQALE, resource-constrained re-costing),
+`KN-LIT-130` (Wesolowski, orientations), `KN-LIT-131` (Page–Wesolowski, 2024),
+`KN-LIT-132` (Benčina et al., fixed-degree isogenies, 2024), `KN-LIT-133`
+(SQIsignHD, 2024); plus `KN-TECH-050` (memory-charged path-finding cost models)
+and `KN-TECH-051` (CSIDH quantum cost and the resource-constraint dispute).
+
+**The decision-relevant finding for BATCH-002**: `EV-SSI-001` records that the
+low-memory isogeny-graph collision-search analogue is "underspecified relative to
+the group setting," and `DEC-20260725-002` makes defining or falsifying it the
+gate's main technical content. It is **not** undefined in the literature — it is
+van Oorschot–Wiener golden collision search, applied to CSSI in `KN-LIT-124` and
+implemented in `KN-LIT-125`, with a 2024 memory-free competitor in `KN-LIT-132`.
+The gate should start from that work rather than construct the analogue from
+scratch.
+
+Three entries are dated 2024, the corpus's first, against the 24-month blackout
+in §6.6. `KN-LIT-130` is the corpus's first orientation entry, filling a line
+`RQ-SSI-001` declares in scope and that had zero coverage.
+
+### Batch 2 — extrapolation and inference methodology (§6.2)
+
+`KN-LIT-134` (Efron, the bootstrap), `KN-LIT-135` (Clauset–Shalizi–Newman,
+power-law distributions), `KN-LIT-136` (Benjamini–Hochberg, false discovery
+rate), `KN-LIT-137` (Hoffmann et al., recorded explicitly as a cross-domain
+cautionary case), and `KN-TECH-052`, which states the discipline the program
+needs.
+
+`KN-TECH-052` carries the distinction that does the work: **a confidence interval
+is not an extrapolation interval.** `FINDING-PF-IC-001`'s exponent CI
+`[1.86, 2.29]` says the exponent is tightly determined at `p ≤ 2^16` and that the
+gap to rho's 0.5 far exceeds sampling noise *there*; it carries no information
+about crypto scale, because nothing in the resampling saw that range. The finding
+itself scopes this correctly — the entry exists to keep it scoped as the result
+propagates.
+
+### Batch 3 — MQ and Boolean polynomial-system solving (§6.3)
+
+`KN-LIT-138` (XL), `KN-LIT-139` (Joux–Vitse crossbred), `KN-LIT-140`
+(BooleanSolve), `KN-LIT-141` (Fukuoka MQ Challenge), and `KN-TECH-053`.
+
+`KN-TECH-053` records the category error the entries exist to prevent: an MQ
+solver's exponent is stated in Boolean variables, an index-calculus exponent in
+the group order, and `EXP-ICI-001`'s 0.863 is the latter. It also bounds the
+result's reach — a faster per-decomposition solve does not touch
+`FINDING-PF-IC-001`'s structural argument that the total is dominated by
+`|F|`-size linear algebra rather than by the solve.
+
+### What remains open
+
+Unchanged from §9: everything in P0 items 1–4 (the promotion debt, which needs
+Coordinator authority rather than curation), P1 items 9–12, and all of P2 and
+item 17. Of the topic gaps, §6.4's thin live threads (SIG syzygies, JET/JETB,
+ISO, IMON/MONO, TRA) and §6.5's absences (verification literature, quantum
+post-2017 including Regev-2023, last fall degree, higher-genus, the current
+record landscape, cost-model economics) are untouched, as is the 2024–2025
+refresh for the lattice and ECDLP areas — batch 1 refreshed only the isogeny
+side.
