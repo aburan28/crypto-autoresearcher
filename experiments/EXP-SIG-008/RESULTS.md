@@ -67,3 +67,26 @@ Interpretation (per Coordinator): null baseline INVALID at this cell, so report 
 deficit vs sr_pred (156,520) and delta vs measured null rank 149,410. Early indication:
 the sem already trails in the deg<=5 region — a sem rank BELOW 149,410 would mean the
 sem's D6 defect exceeds the generic null's at n=12.
+
+## GATE 2 — FINAL (valid, turn 4)
+sem D6 rank6 = 138,570 (block-m4ri staircase completed: runs t,u,v,w,x,z,aa,ab,ac,ad
++ verdict emission ae; total staircase work 1,088 s; per-unit pivot yields:
+16,387, 15,328, 15,149, 15,159, 14,726, 14,256 per 18k cols; 11,806, 11,095, 11,052,
+10,272 per 15k; 3,340 of the final 6,033).
+  deficit_6  = 156,520 - 138,570 = 17,950
+  kernel_6   = 183,312 - 138,570 = 44,742
+  extra_6    = 44,742 - 26,760     = 17,982   (rankK6_sem = 26,760)
+  residual_6 = 17,982 - 15,260     = 2,722    (A5 = 15,260; A3_6 = 1,515; A4_6 = 3,559)
+Sanity: kernel 44,742 >= rank(K6 u F345) 42,020 (residual >= 0) PASS;
+extra - deficit = 32 == rankK6 shortfall vs nrows - sr_pred PASS.
+COMPARISON (requested): sem deficit 17,950 vs measured null deficit 7,110 (null rank
+149,410) — the sem's D6 defect EXCEEDS the generic null's by 10,840, as predicted from
+its non-saturated prefix. The sem-minus-null rank delta: 138,570 vs 149,410.
+Interpretation boundary: the null baseline is INVALID at this cell, so residual_6 = 2,722
+is NOT admissible as cascade evidence; reported against BOTH baselines (sr_pred 156,520
+and null rank 149,410). Rule-8 record: residual_6 = 2,722 at n=12 vs 2,615 at n=9
+(EV-SIG-006) — within 4%.
+Infra notes: post-reboot /tmp loss (mirror rebuilt), partial-interrupted carry removed,
+state.json reconstructed from surviving carries + run logs (rank identity 91,005
+verified), repeated mid-turn agent wipes of untracked driver/receipts routed around via
+git restores; EXP-SIG-007 automation shared the machine (load ~9-10).
