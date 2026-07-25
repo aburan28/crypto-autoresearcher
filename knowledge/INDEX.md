@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-202 entries.
+207 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -140,6 +140,10 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-131 | The Supersingular Endomorphism Ring and One Endomorphism Problems are Equivalent | literature | reported | web | supersingular endomorphism-ring one-endomorphism reduction equivalence hardness-foundation sqisign isogeny-path post-quantum adjacent |
 | KN-LIT-132 | Improved algorithms for finding fixed-degree isogenies between supersingular elliptic curves | literature | reported | web | supersingular isogeny fixed-degree endomorphism-ring meet-in-the-middle memory-free low-memory quantum cost-model path-finding post-quantum adjacent |
 | KN-LIT-133 | SQIsignHD: New Dimensions in Cryptography | literature | reported | web | sqisign sqisignhd signature higher-dimensional-isogeny kani endomorphism-ring deuring supersingular isogeny constructive post-quantum adjacent |
+| KN-LIT-134 | Bootstrap Methods: Another Look at the Jackknife | literature | established | web | bootstrap resampling confidence-interval sampling-distribution jackknife statistics methodology uncertainty-quantification extrapolation cross-domain |
+| KN-LIT-135 | Power-Law Distributions in Empirical Data | literature | reported | web | power-law scaling-exponent maximum-likelihood goodness-of-fit likelihood-ratio model-selection log-log-fit statistics methodology extrapolation cross-domain |
+| KN-LIT-136 | Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing | literature | established | web | multiple-comparison false-discovery-rate familywise-error-rate hypothesis-test screening statistics methodology experimental-design cross-domain |
+| KN-LIT-137 | Training Compute-Optimal Large Language Models | literature | reported | web | scaling-law extrapolation power-law empirical-fit model-selection experimental-design methodology cautionary-case cross-domain adjacent |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
@@ -209,3 +213,4 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-049 | Calibrating lattice claims against public challenge records | technique | reported |  | records calibration svp-challenge lwe-challenge darmstadt benchmark verifiability extrapolation g6k lattice |
 | KN-TECH-050 | Memory-charged cost models for supersingular isogeny path-finding | technique | reported |  | supersingular isogeny path-finding meet-in-the-middle golden-collision van-oorschot-wiener low-memory memory full-cost cost-model delfs-galbraith regime classical-baseline quantum cross-domain post-quantum adjacent |
 | KN-TECH-051 | Quantum cost models for the CSIDH class-group action, and the resource-constraint dispute | technique | reported |  | csidh class-group-action quantum hidden-shift kuperberg collimation-sieve quantum-memory resource-constrained cost-model parameter-selection security-estimate contested post-quantum adjacent |
+| KN-TECH-052 | Fitting and extrapolating cost exponents from bounded experiments | technique | reported |  | scaling-exponent extrapolation power-law bootstrap confidence-interval model-selection multiple-comparison experimental-design claim-tier methodology statistics calibration cross-domain |
