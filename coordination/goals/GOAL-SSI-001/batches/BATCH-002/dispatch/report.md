@@ -6,11 +6,11 @@ Scoped baseline derivation for revised IDEA-20260725-001: F_p2 vs F_p regime spl
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-507` | red-team | queued | 80 | TASK-20260725-505, TASK-20260725-506 | coordination/goals/GOAL-SSI-001/batches/BATCH-002/tasks/TASK-20260725-507/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-002/tasks/TASK-20260725-507/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-002/tasks/TASK-20260725-507 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-508`: dependency_not_completed:TASK-20260725-507:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Scoped baseline derivation for revised IDEA-20260725-001: F_p2 vs F_p regime spl
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `07434787758ee946c1bf0f2431846e2ca39769219f5a08a6a164945fd02b84e0`
+Plan SHA-256: `112508aff4b0f08abade83eb306f56b197cb74bc11ffd8fac82f1435aad95f90`
