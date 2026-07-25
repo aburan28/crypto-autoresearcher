@@ -35,6 +35,23 @@ review, and synthesis.
      result can be proved: `empirical_only` is legitimate but must be
      declared, and an unreplicated empirical-only refutation takes `weaken`
      + replication, not `reject_scoped`;
+   - when the claim matches the exemplar profile in
+     `docs/target-result-profile.md` (exponent-first, conditional on stated
+     heuristics, with scale-matched experimental validation and concrete-cost
+     accounting; canonical instance:
+     `inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`), answer the
+     exemplar-claim checklist before any `support` or `expand` decision:
+     every heuristic is explicit, numbered, and given a random-model
+     justification (rigorous bound + classical distribution theorem); the
+     justification is argued to transfer to the structured object at hand;
+     validation evidence is at the claimed scale, not toy scale; o(1)/polylog
+     overheads and memory costs are reported and do not silently erase the
+     headline exponent at standardized sizes; total expected cost is
+     per-attempt cost × inverse success probability; corollaries via cited
+     reductions are validly instantiated; and the affected-vs-safe scope is
+     not inflated. A heuristic-conditional result keeps `claim_tier` capped
+     at conditional, with the heuristic and its validation experiment IDs
+     named in the evidence record;
    - create the `evidence` record in `ledger/evidence/EV-<AREA>-<NNN>.yaml`
      with direction, strength (per the hierarchy in
      `docs/evidence-and-reproducibility.md`), `claim_tier` (never exceeding
@@ -72,7 +89,13 @@ review, and synthesis.
 
 - Only the coordinator subagent changes hypothesis status.
 - Claims must be scoped to the tested curves, bit sizes, solver, parameters,
-  and budget. Toy-scale results never become crypto-scale claims.
+  and budget. Toy-scale results never become crypto-scale claims; this
+  applies symmetrically to heuristic-validation experiments, whose sample
+  scale must match the scale of the claim they support.
+- Conditional results stay conditional. A `support` or `expand` decision on a
+  heuristic-dependent claim names the heuristic and its validation evidence
+  (experiment IDs) in the decision record; an unvalidated or toy-scale-only
+  heuristic caps evidence strength below `strong` and blocks `support`.
 - Surprising or high-impact results get `replicate`, not `support`, on first
   observation. Symmetrically, rejecting a theory deserves the same
   skepticism as confirming one: `reject_scoped` requires a checkable

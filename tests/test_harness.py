@@ -127,3 +127,44 @@ def test_run_wrapper_invalidates_bad_certificate(tmp_path):
         open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
     assert manifest["status"] == "completed_invalid"
     assert manifest["result"]["valid"] is False
+
+
+def test_run_wrapper_omits_optional_metadata_by_default(tmp_path):
+    # backward compatibility: no exemplar metadata -> keys absent entirely
+    rr = RunResult(
+        run_suffix="optmeta-absent", curve_id="TOY", seed=1,
+        parameters={"field_bits": 8}, metrics={},
+        certificate={"kind": "none"})
+    run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0,
+                       out_root=str(tmp_path))
+    import yaml
+    manifest = yaml.safe_load(
+        open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
+    assert "heuristic_validation" not in manifest
+    assert "cost_model" not in manifest
+
+
+def test_run_wrapper_records_optional_exemplar_metadata(tmp_path):
+    hv = {"heuristic_id": "H1",
+          "statement_ref": "inputs/P13-WESOLOWSKI-2026/paper_fulltext.md#heuristic-1",
+          "prediction": "largest-prime-factor CDF matches rho(u)",
+          "theoretical_distribution": "dickman_de_bruijn rho(u)",
+          "sample_size": 1000,
+          "scale_relevance": "toy-scale: shape check only, not crypto-scale evidence"}
+    cm = {"operation_unit": "group_operation",
+          "assumptions": ["optimistic: constant-time group operation"],
+          "notes": "matched generic baseline"}
+    rr = RunResult(
+        run_suffix="optmeta-present", curve_id="TOY", seed=1,
+        parameters={"field_bits": 8}, metrics={},
+        certificate={"kind": "none"},
+        heuristic_validation=hv, cost_model=cm)
+    run_id = write_run("EXP-SEMAEV-001", "SEMAEV", rr, status="completed_valid",
+                       command="pytest", started=1.0, finished=2.0,
+                       out_root=str(tmp_path))
+    import yaml
+    manifest = yaml.safe_load(
+        open(os.path.join(tmp_path, "runs", run_id, "manifest.yaml")))["run"]
+    assert manifest["heuristic_validation"] == hv
+    assert manifest["cost_model"] == cm

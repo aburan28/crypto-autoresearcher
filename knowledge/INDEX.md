@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-127 entries.
+129 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -89,6 +89,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-079 | A Quantum Algorithm for Computing Isogenies between Supersingular Elliptic Curves | literature | reported | web | quantum supersingular isogeny-problem claw-finding quantum-baseline cryptanalysis isogeny post-quantum adjacent |
 | KN-LIT-080 | Thorns in Polynomial Convolution | literature | reported | full_text | ml-kem polynomial-convolution decryption-failure correlation large-deviations canonical-embedding failure-oracle |
 | KN-LIT-081 | On Reduction Probability Models in Lattice Sieving | literature | reported | full_text | ml-kem lattice-sieving reduction-probability sphere-model ball-model cost-estimation memory |
+| KN-LIT-082 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | literature | reported | full_text | supersingular isogeny-problem oneend endomorphism-ring smoothness heuristic dickman-de-bruijn meet-in-the-middle claw-finding rerandomization deuring exponent-improvement exemplar isogeny adjacent |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
@@ -134,3 +135,4 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-028 | Endomorphism rings, the Deuring correspondence, KLPT and SQIsign | technique | reported |  | deuring endomorphism-ring quaternion maximal-order klpt sqisign signature isogeny adjacent |
 | KN-TECH-029 | Supersingular isogeny-problem algorithms (classical and quantum path-finding) | technique | reported |  | isogeny-problem path-finding meet-in-the-middle claw-finding quantum delfs-galbraith cost-model isogeny adjacent |
 | KN-TECH-030 | Outcome-precedence design for differential-conformance protocols requires a baseline-invisible positive control | technique | reported |  | experiment-design differential-testing conformance-testing outcome-classification positive-control generator-adequacy falsifiability methodology ml-kem defensive |
+| KN-TECH-031 | Conditional exponent improvement via structural bound + smoothness/distribution heuristic + meet-in-the-middle + re-randomization | technique | reported |  | exemplar exponent-improvement smoothness heuristic dickman-de-bruijn meet-in-the-middle claw-finding rerandomization mixing-time conditional-theorem methodology isogeny adjacent |
