@@ -27,4 +27,4 @@ Draft KN-FIND promotion package for replicated prime-field ECDLP evidence and pa
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `53fd5b532d42d48f6e1fe02cdfe9b83c8bfa98a811fabb7e2abc4ccb88f2faab`
+Plan SHA-256: `9cdd47e9826467dbc66516af9c691db95be80f8910853f8019e287410316233b`
