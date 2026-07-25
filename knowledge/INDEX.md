@@ -3,11 +3,10 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-127 entries.
+125 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
-| KN-FIND-001 | Byte-complete differential probing of the ML-KEM comparison primitive discriminates incomplete re-encryption comparisons at fix boundaries | internal_finding | reported |  | ml-kem fips-203 implicit-rejection re-encryption-comparison conformance-testing differential-testing wolfssl avx2 neon defensive post-quantum |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
@@ -133,4 +132,3 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-027 | CSIDH commutative class-group action and the quantum hidden-shift attack | technique | established |  | csidh class-group-action commutative hidden-shift kuperberg quantum volcano isogeny adjacent |
 | KN-TECH-028 | Endomorphism rings, the Deuring correspondence, KLPT and SQIsign | technique | reported |  | deuring endomorphism-ring quaternion maximal-order klpt sqisign signature isogeny adjacent |
 | KN-TECH-029 | Supersingular isogeny-problem algorithms (classical and quantum path-finding) | technique | reported |  | isogeny-problem path-finding meet-in-the-middle claw-finding quantum delfs-galbraith cost-model isogeny adjacent |
-| KN-TECH-030 | Outcome-precedence design for differential-conformance protocols requires a baseline-invisible positive control | technique | reported |  | experiment-design differential-testing conformance-testing outcome-classification positive-control generator-adequacy falsifiability methodology ml-kem defensive |
