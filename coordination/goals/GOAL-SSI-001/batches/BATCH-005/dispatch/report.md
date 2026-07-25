@@ -6,12 +6,10 @@ BATCH-005 typed novelty screen: SQIsign transcript/auxiliary leakage under KN-OP
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-517` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-005/tasks/TASK-20260725-517/mechanism_screen.md, coordination/goals/GOAL-SSI-001/batches/BATCH-005/tasks/TASK-20260725-517/candidate_report.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-005/tasks/TASK-20260725-517 |
+| `TASK-20260725-519` | red-team | queued | 80 | TASK-20260725-517, TASK-20260725-518 | coordination/goals/GOAL-SSI-001/batches/BATCH-005/tasks/TASK-20260725-519/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-005/tasks/TASK-20260725-519/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-005/tasks/TASK-20260725-519 |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-518`: dependency_not_completed:TASK-20260725-517:queued
-- `TASK-20260725-519`: dependency_not_completed:TASK-20260725-517:queued, dependency_not_completed:TASK-20260725-518:queued
 - `TASK-20260725-520`: dependency_not_completed:TASK-20260725-519:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-005 typed novelty screen: SQIsign transcript/auxiliary leakage under KN-OP
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `0e3b8cd619bb4675fc293f6d974d0908d325cfde9f6b4ceefe254de9ba5ff48a`
+Plan SHA-256: `c29fd15615b1d0acf1851bc089519a30ec5513e4acf7186ccfd541e5f210b425`
