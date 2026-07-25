@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elliptic Curves &amp; Isogenies — Interactive Playground</title>
+<style>
+  :root {
+    --paper: #F7F7F3;
+    --panel: #FFFFFF;
+    --ink: #232A31;
+    --muted: #5C6B77;
+    --line: #D9DED8;
+    --grid: rgba(46, 90, 128, 0.10);
+    --accent: #2E5A80;
+    --accent-soft: rgba(46, 90, 128, 0.14);
+    --accent2: #BF4F36;
+    --gold: #B98A2E;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14181D; --panel: #1B2129; --ink: #E5E9ED; --muted: #93A1AD;
+      --line: #2A323B; --grid: rgba(122, 163, 198, 0.13);
+      --accent: #7AA3C6; --accent-soft: rgba(122, 163, 198, 0.16);
+      --accent2: #D97A5F; --gold: #D0A857;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #F7F7F3; --panel: #FFFFFF; --ink: #232A31; --muted: #5C6B77;
+    --line: #D9DED8; --grid: rgba(46, 90, 128, 0.10);
+    --accent: #2E5A80; --accent-soft: rgba(46, 90, 128, 0.14);
+    --accent2: #BF4F36; --gold: #B98A2E;
+  }
+  :root[data-theme="dark"] {
+    --paper: #14181D; --panel: #1B2129; --ink: #E5E9ED; --muted: #93A1AD;
+    --line: #2A323B; --grid: rgba(122, 163, 198, 0.13);
+    --accent: #7AA3C6; --accent-soft: rgba(122, 163, 198, 0.16);
+    --accent2: #D97A5F; --gold: #D0A857;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  }
+  header {
+    max-width: 1100px; margin: 0 auto; padding: 28px 20px 0;
+  }
+  header h1 {
+    font-family: var(--serif); font-weight: 600; font-size: 1.7rem;
+    margin: 0 0 2px; letter-spacing: 0.01em; text-wrap: balance;
+  }
+  header h1 em { color: var(--accent); font-style: italic; }
+  header p.sub { margin: 0; color: var(--muted); max-width: 62ch; }
+  header p.sub code { font-family: var(--mono); font-size: 0.85em; }
+
+  nav.tabs {
+    max-width: 1100px; margin: 18px auto 0; padding: 0 20px;
+    display: flex; gap: 4px; border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+  }
+  nav.tabs button {
+    appearance: none; background: none; border: none; cursor: pointer;
+    font: 600 0.95rem var(--sans); color: var(--muted);
+    padding: 10px 14px 12px; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; white-space: nowrap;
+  }
+  nav.tabs button[aria-selected="true"] {
+    color: var(--accent); border-bottom-color: var(--accent);
+  }
+  nav.tabs button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px;
+  }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  section[role="tabpanel"] { display: none; }
+  section[role="tabpanel"].active {
+    display: grid; gap: 16px; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    align-items: start;
+  }
+  @media (max-width: 800px) {
+    section[role="tabpanel"].active { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 14px;
+  }
+  .card h2 {
+    font-family: var(--serif); font-size: 1.05rem; font-weight: 600;
+    margin: 0 0 8px;
+  }
+  .card p.hint { color: var(--muted); font-size: 0.88rem; margin: 8px 0 0; }
+  .card p.hint a { color: var(--accent); }
+
+  canvas { display: block; width: 100%; height: auto; border-radius: 4px; }
+  canvas.clickable { cursor: crosshair; }
+
+  .controls { display: flex; flex-direction: column; gap: 12px; }
+  .controls .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .controls label { font-size: 0.88rem; color: var(--muted); min-width: 3.2em; }
+  .controls label b { color: var(--ink); font-family: var(--serif); font-style: italic; font-size: 1.05em; }
+  .controls input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 120px; }
+  .controls input[type="number"], .controls select {
+    font: 500 0.9rem var(--mono); color: var(--ink); background: var(--paper);
+    border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; width: 5.2em;
+  }
+  .controls select { width: auto; }
+  .controls .val { font: 600 0.9rem var(--mono); color: var(--accent); min-width: 2.4em; text-align: right; }
+  button.action {
+    appearance: none; cursor: pointer; font: 600 0.88rem var(--sans);
+    color: var(--accent); background: var(--accent-soft);
+    border: 1px solid transparent; border-radius: 5px; padding: 7px 14px;
+  }
+  button.action:hover { border-color: var(--accent); }
+  button.action:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .readout {
+    font-family: var(--mono); font-size: 0.86rem; line-height: 1.7;
+    font-variant-numeric: tabular-nums;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 5px;
+    padding: 10px 12px; white-space: pre-wrap; overflow-x: auto; min-height: 3em;
+  }
+  .readout .r { color: var(--accent2); }
+  .readout .a { color: var(--accent); }
+  .readout .g { color: var(--gold); }
+  .warn {
+    color: var(--accent2); font-size: 0.86rem; font-weight: 600;
+    margin-top: 8px; display: none;
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px;
+    font-size: 0.8rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  footer {
+    max-width: 1100px; margin: 8px auto 40px; padding: 0 20px;
+    color: var(--muted); font-size: 0.84rem;
+  }
+  footer code { font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Elliptic curves &amp; isogenies — <em>an interactive playground</em></h1>
+  <p class="sub">Companion to the course in <code>course/modules</code>. Everything
+  here is computed live in your browser; the isogeny graphs are the ones
+  <code>lab06_ss_graph.py</code> builds and verifies.</p>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Playground sections">
+  <button role="tab" id="tab-mod" aria-selected="true" aria-controls="panel-mod">Modular ℤ/n</button>
+  <button role="tab" id="tab-real" aria-selected="false" aria-controls="panel-real">Curve over ℝ</button>
+  <button role="tab" id="tab-fp" aria-selected="false" aria-controls="panel-fp">Curve over 𝔽<sub>p</sub></button>
+  <button role="tab" id="tab-graph" aria-selected="false" aria-controls="panel-graph">Isogeny graph</button>
+</nav>
+
+<main>
+
+<!-- ================= Modular arithmetic ================= -->
+<section id="panel-mod" role="tabpanel" aria-labelledby="tab-mod" class="active">
+  <div class="card">
+    <h2>Orbit of g under multiplication mod n</h2>
+    <canvas id="cv-orbit" aria-label="Cycle diagram of powers of g modulo n"></canvas>
+    <h2 style="margin-top:14px">Multiplication table of ℤ/nℤ</h2>
+    <canvas id="cv-table" aria-label="Multiplication table heatmap modulo n"></canvas>
+    <p class="hint">Hover the table: cell (row i, column j) shows i·j mod n.
+    Prime n → every row is a permutation (a field). Composite n → flat
+    stripes of repeated values and zero divisors. Modules 01–04.</p>
+  </div>
+  <div class="card">
+    <h2>Controls</h2>
+    <div class="controls">
+      <div class="row"><label for="mod-n"><b>n</b></label>
+        <input type="range" id="mod-n" min="2" max="97" value="13">
+        <span class="val" id="mod-n-val">13</span></div>
+      <div class="row"><label for="mod-g"><b>g</b></label>
+        <input type="range" id="mod-g" min="1" max="12" value="2">
+        <span class="val" id="mod-g-val">2</span></div>
+    </div>
+    <div class="readout" id="mod-readout" aria-live="polite"></div>
+    <p class="hint">Try n = 13, g = 2 (a primitive root: the orbit sweeps all
+    12 units) versus n = 12, g = 5 (order 2), versus g not coprime to n.</p>
+  </div>
+</section>
+
+<!-- ================= Curve over R ================= -->
+<section id="panel-real" role="tabpanel" aria-labelledby="tab-real">
+  <div class="card">
+    <h2>y² = x³ + a·x + b over ℝ — the chord-and-tangent law</h2>
+    <canvas id="cv-real" class="clickable" aria-label="Real elliptic curve plot; click to select points"></canvas>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--accent2)"></span>P, Q (your clicks)</span>
+      <span><span class="dot" style="border:2px solid var(--accent2)"></span>−R (third intersection)</span>
+      <span><span class="dot" style="background:var(--accent)"></span>R = P + Q (reflected)</span>
+    </div>
+    <p class="warn" id="real-warn">Δ = 0: singular “curve” — the group law breaks here (module 06 §1).</p>
+  </div>
+  <div class="card">
+    <h2>Controls</h2>
+    <div class="controls">
+      <div class="row"><label for="real-a"><b>a</b></label>
+        <input type="range" id="real-a" min="-5" max="5" step="0.1" value="-2">
+        <span class="val" id="real-a-val">−2.0</span></div>
+      <div class="row"><label for="real-b"><b>b</b></label>
+        <input type="range" id="real-b" min="-5" max="5" step="0.1" value="1">
+        <span class="val" id="real-b-val">1.0</span></div>
+      <div class="row"><button class="action" id="real-clear">Clear points</button></div>
+    </div>
+    <div class="readout" id="real-readout" aria-live="polite"></div>
+    <p class="hint">Click the curve twice: the chord meets it a third time;
+    reflect to get P + Q. Click the same point twice for the tangent
+    (doubling). Slide b down until the curve pinches — that node is why
+    Δ ≠ 0 is part of the definition. Module 06.</p>
+  </div>
+</section>
+
+<!-- ================= Curve over Fp ================= -->
+<section id="panel-fp" role="tabpanel" aria-labelledby="tab-fp">
+  <div class="card">
+    <h2>E(𝔽<sub>p</sub>): the same law on a finite grid</h2>
+    <canvas id="cv-fp" class="clickable" aria-label="Points of an elliptic curve over a prime field; click to select and add"></canvas>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--accent2)"></span>P</span>
+      <span><span class="dot" style="border:2px solid var(--accent2)"></span>Q</span>
+      <span><span class="dot" style="background:var(--accent)"></span>P + Q</span>
+      <span><span class="dot" style="background:var(--gold)"></span>multiples of P (walk)</span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Controls</h2>
+    <div class="controls">
+      <div class="row"><label for="fp-p"><b>p</b></label>
+        <select id="fp-p">
+          <option>11</option><option>13</option><option>17</option>
+          <option>23</option><option>31</option><option>41</option>
+          <option selected>61</option><option>97</option>
+        </select>
+        <label for="fp-a"><b>a</b></label><input type="number" id="fp-a" value="1">
+        <label for="fp-b"><b>b</b></label><input type="number" id="fp-b" value="1">
+      </div>
+      <div class="row">
+        <button class="action" id="fp-walk">Walk multiples of P</button>
+        <button class="action" id="fp-clear">Clear</button>
+      </div>
+    </div>
+    <div class="readout" id="fp-readout" aria-live="polite"></div>
+    <p class="hint">Click two points to add them — the readout shows the λ
+    computation. “Walk” traces P, 2P, 3P, … until O: the point's order, and
+    the whole reason double-and-add (module 07) is one-way-looking.</p>
+  </div>
+</section>
+
+<!-- ================= Isogeny graph ================= -->
+<section id="panel-graph" role="tabpanel" aria-labelledby="tab-graph">
+  <div class="card">
+    <h2>The supersingular 2-isogeny graph over 𝔽<sub>p²</sub></h2>
+    <canvas id="cv-graph" class="clickable" aria-label="Supersingular isogeny graph; click a vertex to inspect it"></canvas>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--accent)"></span>j ∈ 𝔽<sub>p²</sub></span>
+      <span><span class="dot" style="background:var(--accent);outline:2px solid var(--accent);outline-offset:2px"></span>j ∈ 𝔽<sub>p</sub> (on the mirror axis)</span>
+      <span><span class="dot" style="background:var(--gold)"></span>j = 0 / j = 1728</span>
+      <span><span class="dot" style="background:var(--accent2)"></span>random walk</span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Controls</h2>
+    <div class="controls">
+      <div class="row"><label for="graph-p"><b>p</b></label>
+        <select id="graph-p"></select>
+        <button class="action" id="graph-walk">Random walk ×20</button>
+      </div>
+    </div>
+    <div class="readout" id="graph-readout" aria-live="polite"></div>
+    <p class="hint">Every vertex is a supersingular j-invariant (⌊p/12⌋+ε of
+    them, all in 𝔽<sub>p²</sub>); every vertex has three 2-isogenies. Conjugate
+    j-invariants are drawn mirrored across the horizontal axis — Frobenius is
+    a graph symmetry, and the 𝔽<sub>p</sub>-rational vertices sit on the
+    mirror. Click a vertex; watch a walk mix. Modules 08–11.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Data and verification: <code>course/labs/lab06_ss_graph.py</code> (vertex
+  counts match the Eichler–Deuring mass formula; every edge is a root of the
+  modular polynomial Φ₂). Course text: <code>course/modules/</code>.
+</footer>
+
+<script>
+window.SS_GRAPHS = [];
+window.SS_GRAPHS = [{"p":83,"nonresidue":82,"count":8,"nodes":[{"id":0,"label":"68","a":68,"b":0,"special":1728},{"id":1,"label":"67","a":67,"b":0,"special":null},{"id":2,"label":"38+66*i","a":38,"b":66,"special":null},{"id":3,"label":"38+17*i","a":38,"b":17,"special":null},{"id":4,"label":"17","a":17,"b":0,"special":null},{"id":5,"label":"50","a":50,"b":0,"special":null},{"id":6,"label":"0","a":0,"b":0,"special":0},{"id":7,"label":"28","a":28,"b":0,"special":null}],"edges":[[0,1],[0,1],[0,0],[1,0],[1,2],[1,3],[2,3],[2,1],[2,4],[3,2],[3,1],[3,4],[4,3],[4,5],[4,2],[5,6],[5,4],[5,7],[6,5],[6,5],[6,5],[7,5],[7,7],[7,7]]},{"p":431,"nonresidue":430,"count":37,"nodes":[{"id":0,"label":"4","a":4,"b":0,"special":1728},{"id":1,"label":"19","a":19,"b":0,"special":null},{"id":2,"label":"234","a":234,"b":0,"special":null},{"id":3,"label":"241","a":241,"b":0,"special":null},{"id":4,"label":"189","a":189,"b":0,"special":null},{"id":5,"label":"242","a":242,"b":0,"special":null},{"id":6,"label":"118+222*i","a":118,"b":222,"special":null},{"id":7,"label":"118+209*i","a":118,"b":209,"special":null},{"id":8,"label":"150","a":150,"b":0,"special":null},{"id":9,"label":"67","a":67,"b":0,"special":null},{"id":10,"label":"65+350*i","a":65,"b":350,"special":null},{"id":11,"label":"315+132*i","a":315,"b":132,"special":null},{"id":12,"label":"65+81*i","a":65,"b":81,"special":null},{"id":13,"label":"315+299*i","a":315,"b":299,"special":null},{"id":14,"label":"143","a":143,"b":0,"special":null},{"id":15,"label":"304+67*i","a":304,"b":67,"special":null},{"id":16,"label":"304+364*i","a":304,"b":364,"special":null},{"id":17,"label":"141+389*i","a":141,"b":389,"special":null},{"id":18,"label":"190+344*i","a":190,"b":344,"special":null},{"id":19,"label":"381","a":381,"b":0,"special":null},{"id":20,"label":"426+306*i","a":426,"b":306,"special":null},{"id":21,"label":"141+42*i","a":141,"b":42,"special":null},{"id":22,"label":"190+87*i","a":190,"b":87,"special":null},{"id":23,"label":"426+125*i","a":426,"b":125,"special":null},{"id":24,"label":"125","a":125,"b":0,"special":null},{"id":25,"label":"422","a":422,"b":0,"special":null},{"id":26,"label":"319","a":319,"b":0,"special":null},{"id":27,"label":"419","a":419,"b":0,"special":null},{"id":28,"label":"107","a":107,"b":0,"special":null},{"id":29,"label":"358","a":358,"b":0,"special":null},{"id":30,"label":"379+106*i","a":379,"b":106,"special":null},{"id":31,"label":"379+325*i","a":379,"b":325,"special":null},{"id":32,"label":"0","a":0,"b":0,"special":0},{"id":33,"label":"102","a":102,"b":0,"special":null},{"id":34,"label":"356","a":356,"b":0,"special":null},{"id":35,"label":"61","a":61,"b":0,"special":null},{"id":36,"label":"316","a":316,"b":0,"special":null}],"edges":[[0,1],[0,0],[0,1],[1,2],[1,3],[1,0],[2,4],[2,5],[2,1],[3,6],[3,1],[3,7],[4,8],[4,8],[4,2],[5,2],[5,9],[5,5],[6,10],[6,3],[6,11],[7,3],[7,12],[7,13],[8,4],[8,4],[8,14],[9,15],[9,16],[9,5],[10,17],[10,18],[10,6],[11,6],[11,19],[11,20],[12,21],[12,22],[12,7],[13,19],[13,7],[13,23],[14,8],[14,24],[14,25],[15,26],[15,22],[15,9],[16,18],[16,26],[16,9],[17,27],[17,10],[17,20],[18,28],[18,16],[18,10],[19,13],[19,29],[19,11],[20,11],[20,17],[20,30],[21,12],[21,27],[21,23],[22,15],[22,28],[22,12],[23,31],[23,21],[23,13],[24,14],[24,32],[24,33],[25,27],[25,34],[25,14],[26,16],[26,33],[26,15],[27,21],[27,25],[27,17],[28,18],[28,22],[28,35],[29,19],[29,35],[29,33],[30,31],[30,20],[30,36],[31,23],[31,30],[31,36],[32,24],[32,24],[32,24],[33,26],[33,24],[33,29],[34,36],[34,35],[34,25],[35,29],[35,34],[35,28],[36,30],[36,31],[36,34]]},{"p":1013,"nonresidue":2,"count":85,"nodes":[{"id":0,"label":"0","a":0,"b":0,"special":0},{"id":1,"label":"311","a":311,"b":0,"special":null},{"id":2,"label":"796+192*u","a":796,"b":192,"special":null},{"id":3,"label":"796+821*u","a":796,"b":821,"special":null},{"id":4,"label":"199+608*u","a":199,"b":608,"special":null},{"id":5,"label":"442+113*u","a":442,"b":113,"special":null},{"id":6,"label":"442+900*u","a":442,"b":900,"special":null},{"id":7,"label":"199+405*u","a":199,"b":405,"special":null},{"id":8,"label":"632+254*u","a":632,"b":254,"special":null},{"id":9,"label":"134+349*u","a":134,"b":349,"special":null},{"id":10,"label":"627+464*u","a":627,"b":464,"special":null},{"id":11,"label":"332+989*u","a":332,"b":989,"special":null},{"id":12,"label":"627+549*u","a":627,"b":549,"special":null},{"id":13,"label":"332+24*u","a":332,"b":24,"special":null},{"id":14,"label":"632+759*u","a":632,"b":759,"special":null},{"id":15,"label":"134+664*u","a":134,"b":664,"special":null},{"id":16,"label":"979+279*u","a":979,"b":279,"special":null},{"id":17,"label":"86+971*u","a":86,"b":971,"special":null},{"id":18,"label":"206+509*u","a":206,"b":509,"special":null},{"id":19,"label":"901+589*u","a":901,"b":589,"special":null},{"id":20,"label":"743+68*u","a":743,"b":68,"special":null},{"id":21,"label":"910+647*u","a":910,"b":647,"special":null},{"id":22,"label":"433+392*u","a":433,"b":392,"special":null},{"id":23,"label":"743+945*u","a":743,"b":945,"special":null},{"id":24,"label":"910+366*u","a":910,"b":366,"special":null},{"id":25,"label":"433+621*u","a":433,"b":621,"special":null},{"id":26,"label":"979+734*u","a":979,"b":734,"special":null},{"id":27,"label":"86+42*u","a":86,"b":42,"special":null},{"id":28,"label":"901+424*u","a":901,"b":424,"special":null},{"id":29,"label":"206+504*u","a":206,"b":504,"special":null},{"id":30,"label":"977+879*u","a":977,"b":879,"special":null},{"id":31,"label":"102+333*u","a":102,"b":333,"special":null},{"id":32,"label":"624+661*u","a":624,"b":661,"special":null},{"id":33,"label":"141+668*u","a":141,"b":668,"special":null},{"id":34,"label":"117","a":117,"b":0,"special":null},{"id":35,"label":"489","a":489,"b":0,"special":null},{"id":36,"label":"747+820*u","a":747,"b":820,"special":null},{"id":37,"label":"104+413*u","a":104,"b":413,"special":null},{"id":38,"label":"909","a":909,"b":0,"special":null},{"id":39,"label":"656+231*u","a":656,"b":231,"special":null},{"id":40,"label":"936","a":936,"b":0,"special":null},{"id":41,"label":"104+600*u","a":104,"b":600,"special":null},{"id":42,"label":"656+782*u","a":656,"b":782,"special":null},{"id":43,"label":"102+680*u","a":102,"b":680,"special":null},{"id":44,"label":"977+134*u","a":977,"b":134,"special":null},{"id":45,"label":"624+352*u","a":624,"b":352,"special":null},{"id":46,"label":"141+345*u","a":141,"b":345,"special":null},{"id":47,"label":"747+193*u","a":747,"b":193,"special":null},{"id":48,"label":"591","a":591,"b":0,"special":null},{"id":49,"label":"995+83*u","a":995,"b":83,"special":null},{"id":50,"label":"913+256*u","a":913,"b":256,"special":null},{"id":51,"label":"268+360*u","a":268,"b":360,"special":null},{"id":52,"label":"703","a":703,"b":0,"special":null},{"id":53,"label":"168","a":168,"b":0,"special":null},{"id":54,"label":"276","a":276,"b":0,"special":null},{"id":55,"label":"711+394*u","a":711,"b":394,"special":null},{"id":56,"label":"454+898*u","a":454,"b":898,"special":null},{"id":57,"label":"336+610*u","a":336,"b":610,"special":null},{"id":58,"label":"534+481*u","a":534,"b":481,"special":null},{"id":59,"label":"25","a":25,"b":0,"special":null},{"id":60,"label":"534+532*u","a":534,"b":532,"special":null},{"id":61,"label":"336+403*u","a":336,"b":403,"special":null},{"id":62,"label":"454+115*u","a":454,"b":115,"special":null},{"id":63,"label":"913+757*u","a":913,"b":757,"special":null},{"id":64,"label":"995+930*u","a":995,"b":930,"special":null},{"id":65,"label":"268+653*u","a":268,"b":653,"special":null},{"id":66,"label":"711+619*u","a":711,"b":619,"special":null},{"id":67,"label":"677","a":677,"b":0,"special":null},{"id":68,"label":"430+386*u","a":430,"b":386,"special":null},{"id":69,"label":"555+717*u","a":555,"b":717,"special":null},{"id":70,"label":"958+389*u","a":958,"b":389,"special":null},{"id":71,"label":"475+650*u","a":475,"b":650,"special":null},{"id":72,"label":"881","a":881,"b":0,"special":null},{"id":73,"label":"958+624*u","a":958,"b":624,"special":null},{"id":74,"label":"111+562*u","a":111,"b":562,"special":null},{"id":75,"label":"111+451*u","a":111,"b":451,"special":null},{"id":76,"label":"238+817*u","a":238,"b":817,"special":null},{"id":77,"label":"670+842*u","a":670,"b":842,"special":null},{"id":78,"label":"475+363*u","a":475,"b":363,"special":null},{"id":79,"label":"238+196*u","a":238,"b":196,"special":null},{"id":80,"label":"670+171*u","a":670,"b":171,"special":null},{"id":81,"label":"430+627*u","a":430,"b":627,"special":null},{"id":82,"label":"555+296*u","a":555,"b":296,"special":null},{"id":83,"label":"289+919*u","a":289,"b":919,"special":null},{"id":84,"label":"289+94*u","a":289,"b":94,"special":null}],"edges":[[0,1],[0,1],[0,1],[1,2],[1,3],[1,0],[2,1],[2,4],[2,5],[3,6],[3,1],[3,7],[4,8],[4,9],[4,2],[5,10],[5,11],[5,2],[6,3],[6,12],[6,13],[7,14],[7,15],[7,3],[8,4],[8,16],[8,17],[9,4],[9,18],[9,19],[10,5],[10,20],[10,21],[11,13],[11,5],[11,22],[12,23],[12,6],[12,24],[13,25],[13,11],[13,6],[14,26],[14,27],[14,7],[15,28],[15,29],[15,7],[16,30],[16,31],[16,8],[17,8],[17,32],[17,33],[18,34],[18,9],[18,35],[19,36],[19,28],[19,9],[20,37],[20,38],[20,10],[21,24],[21,10],[21,39],[22,40],[22,11],[22,31],[23,12],[23,41],[23,38],[24,42],[24,12],[24,21],[25,40],[25,43],[25,13],[26,43],[26,44],[26,14],[27,45],[27,14],[27,46],[28,15],[28,19],[28,47],[29,34],[29,15],[29,35],[30,16],[30,48],[30,49],[31,50],[31,22],[31,16],[32,51],[32,17],[32,49],[33,17],[33,52],[33,42],[34,29],[34,53],[34,18],[35,29],[35,18],[35,54],[36,55],[36,56],[36,19],[37,20],[37,57],[37,58],[38,20],[38,23],[38,38],[39,21],[39,46],[39,56],[40,25],[40,59],[40,22],[41,23],[41,60],[41,61],[42,24],[42,62],[42,33],[43,26],[43,63],[43,25],[44,48],[44,64],[44,26],[45,27],[45,65],[45,64],[46,27],[46,39],[46,52],[47,28],[47,62],[47,66],[48,67],[48,30],[48,44],[49,30],[49,32],[49,66],[50,68],[50,31],[50,69],[51,70],[51,71],[51,32],[52,33],[52,46],[52,72],[53,34],[53,70],[53,73],[54,74],[54,75],[54,35],[55,64],[55,36],[55,57],[56,39],[56,76],[56,36],[57,37],[57,55],[57,77],[58,37],[58,78],[58,76],[59,73],[59,40],[59,70],[60,41],[60,71],[60,79],[61,66],[61,80],[61,41],[62,79],[62,42],[62,47],[63,43],[63,81],[63,82],[64,44],[64,45],[64,55],[65,78],[65,45],[65,73],[66,61],[66,49],[66,47],[67,67],[67,67],[67,48],[68,77],[68,81],[68,50],[69,82],[69,83],[69,50],[70,53],[70,51],[70,59],[71,51],[71,60],[71,83],[72,52],[72,77],[72,80],[73,53],[73,59],[73,65],[74,54],[74,75],[74,79],[75,74],[75,54],[75,76],[76,58],[76,75],[76,56],[77,72],[77,57],[77,68],[78,65],[78,84],[78,58],[79,60],[79,74],[79,62],[80,72],[80,81],[80,61],[81,63],[81,68],[81,80],[82,63],[82,69],[82,84],[83,84],[83,69],[83,71],[84,83],[84,78],[84,82]]}];
+</script>
+<script>
+"use strict";
+/* ---------- shared utilities ---------- */
+const $ = s => document.querySelector(s);
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function tokens() {
+  const cs = getComputedStyle(document.documentElement);
+  const get = n => cs.getPropertyValue(n).trim();
+  return { paper: get("--paper"), panel: get("--panel"), ink: get("--ink"),
+    muted: get("--muted"), line: get("--line"), grid: get("--grid"),
+    accent: get("--accent"), accent2: get("--accent2"), gold: get("--gold"),
+    mono: get("--mono"), serif: get("--serif") };
+}
+
+function fitCanvas(cv, aspect) {
+  const w = Math.max(320, cv.clientWidth ||
+    (cv.parentElement ? cv.parentElement.clientWidth - 28 : 0));
+  const h = Math.round(w * aspect);
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  cv.style.height = h + "px";
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h };
+}
+
+function graphPaper(ctx, w, h, step, T) {
+  ctx.fillStyle = T.panel; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = T.grid; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = step; x < w; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+  for (let y = step; y < h; y += step) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+  ctx.stroke();
+}
+
+function gcd(a, b) { while (b) { [a, b] = [b, a % b]; } return Math.abs(a); }
+function mod(a, n) { return ((a % n) + n) % n; }
+function modpow(a, e, n) { let r = 1; a = mod(a, n);
+  while (e > 0) { if (e & 1) r = r * a % n; a = a * a % n; e >>= 1; } return r; }
+function modinv(a, n) { // extended Euclid
+  let [old_r, r, old_x, x] = [mod(a, n), n, 1, 0];
+  while (r) { const q = Math.floor(old_r / r);
+    [old_r, r] = [r, old_r - q * r]; [old_x, x] = [x, old_x - q * x]; }
+  return old_r === 1 ? mod(old_x, n) : null; }
+
+/* ---------- tabs ---------- */
+const tabIds = ["mod", "real", "fp", "graph"];
+const renderers = {};
+for (const id of tabIds) {
+  $("#tab-" + id).addEventListener("click", () => {
+    for (const other of tabIds) {
+      $("#tab-" + other).setAttribute("aria-selected", other === id);
+      $("#panel-" + other).classList.toggle("active", other === id);
+    }
+    renderers[id] && renderers[id]();
+  });
+}
+window.addEventListener("resize", () => {
+  const active = tabIds.find(id => $("#panel-" + id).classList.contains("active"));
+  renderers[active] && renderers[active]();
+});
+// re-render on theme flips
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderAll());
+new MutationObserver(() => renderAll()).observe(document.documentElement,
+  { attributes: true, attributeFilter: ["data-theme"] });
+function renderAll() {
+  const active = tabIds.find(id => $("#panel-" + id).classList.contains("active"));
+  renderers[active] && renderers[active]();
+}
+
+/* ================= Tab 1: modular ================= */
+(function () {
+  const nEl = $("#mod-n"), gEl = $("#mod-g");
+  let hover = null;
+
+  function phi(n) { let r = 0;
+    for (let k = 1; k <= n; k++) if (gcd(k, n) === 1) r++; return r; }
+
+  function orderOf(g, n) { // multiplicative order, or null if not a unit
+    if (gcd(g, n) !== 1) return null;
+    let x = g % n, k = 1;
+    while (x !== 1) { x = x * g % n; k++; }
+    return k;
+  }
+
+  function render() {
+    const n = +nEl.value, T = tokens();
+    gEl.max = Math.max(1, n - 1);
+    if (+gEl.value >= n) gEl.value = 1;
+    const g = +gEl.value;
+    $("#mod-n-val").textContent = n; $("#mod-g-val").textContent = g;
+
+    // --- orbit circle ---
+    const { ctx, w, h } = fitCanvas($("#cv-orbit"), 0.52);
+    graphPaper(ctx, w, h, 22, T);
+    const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 26;
+    const pos = k => [cx + R * Math.cos(2 * Math.PI * k / n - Math.PI / 2),
+                      cy + R * Math.sin(2 * Math.PI * k / n - Math.PI / 2)];
+    // orbit chords
+    const unit = gcd(g, n) === 1;
+    const orbit = [];
+    let x = 1 % n;
+    if (unit) { do { orbit.push(x); x = x * g % n; } while (x !== 1 % n && orbit.length <= n); }
+    else { x = g; const seen = new Set();
+      while (!seen.has(x)) { seen.add(x); orbit.push(x); x = x * g % n; } }
+    ctx.strokeStyle = T.accent; ctx.lineWidth = 1.6; ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    for (let i = 0; i + 1 < orbit.length; i++) {
+      const [x1, y1] = pos(orbit[i]), [x2, y2] = pos(orbit[i + 1]);
+      ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    }
+    if (unit && orbit.length > 1) { // close the cycle
+      const [x1, y1] = pos(orbit[orbit.length - 1]), [x2, y2] = pos(orbit[0]);
+      ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    }
+    ctx.stroke(); ctx.globalAlpha = 1;
+    // residue dots
+    const inOrbit = new Set(orbit);
+    ctx.font = "11px " + T.mono; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (let k = 0; k < n; k++) {
+      const [px, py] = pos(k);
+      ctx.beginPath(); ctx.arc(px, py, k === 1 ? 6 : 4.5, 0, 7);
+      ctx.fillStyle = k === 1 ? T.accent2 : inOrbit.has(k) ? T.accent : T.line;
+      ctx.fill();
+      if (n <= 40) {
+        const lx = cx + (R + 15) * Math.cos(2 * Math.PI * k / n - Math.PI / 2);
+        const ly = cy + (R + 15) * Math.sin(2 * Math.PI * k / n - Math.PI / 2);
+        ctx.fillStyle = T.muted; ctx.fillText(k, lx, ly);
+      }
+    }
+
+    // --- multiplication table ---
+    const t = fitCanvas($("#cv-table"), 0.62);
+    const ctx2 = t.ctx, m = 26, cell = (t.h - m - 6) / n;
+    ctx2.fillStyle = T.panel; ctx2.fillRect(0, 0, t.w, t.h);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const v = i * j % n;
+      ctx2.fillStyle = v === 0 ? T.line : T.accent;
+      ctx2.globalAlpha = v === 0 ? 0.55 : 0.12 + 0.85 * v / n;
+      ctx2.fillRect(m + j * cell, m + i * cell, Math.ceil(cell) - 0.5, Math.ceil(cell) - 0.5);
+    }
+    ctx2.globalAlpha = 1;
+    ctx2.font = "10px " + T.mono; ctx2.fillStyle = T.muted;
+    ctx2.textAlign = "center"; ctx2.textBaseline = "middle";
+    const lstep = Math.ceil(n / 16);
+    for (let k = 0; k < n; k += lstep) {
+      ctx2.fillText(k, m + k * cell + cell / 2, m - 10);
+      ctx2.fillText(k, m - 12, m + k * cell + cell / 2);
+    }
+    if (hover) {
+      const [i, j] = hover;
+      ctx2.strokeStyle = T.accent2; ctx2.lineWidth = 2;
+      ctx2.strokeRect(m + j * cell, m + i * cell, cell, cell);
+      ctx2.fillStyle = T.ink; ctx2.font = "600 12px " + T.mono;
+      ctx2.textAlign = "left";
+      ctx2.fillText(`${i} x ${j} = ${i * j % n} (mod ${n})`, m, t.h - 8);
+    }
+    $("#cv-table").onmousemove = e => {
+      const r = e.currentTarget.getBoundingClientRect();
+      const j = Math.floor((e.clientX - r.left - m) / cell);
+      const i = Math.floor((e.clientY - r.top - m) / cell);
+      hover = (i >= 0 && i < n && j >= 0 && j < n) ? [i, j] : null;
+      render();
+    };
+
+    // --- readout ---
+    const ord = orderOf(g, n);
+    const inv = modinv(g, n);
+    const ph = phi(n);
+    let out = `n = ${n}   phi(n) = ${ph}   gcd(g, n) = ${gcd(g, n)}\n`;
+    if (ord !== null) {
+      out += `g = ${g} is a unit; order(g) = <span class="a">${ord}</span>` +
+        (ord === ph ? `  <span class="g">-> generator of (Z/${n})*</span>` : "") + "\n";
+      out += `g^-1 = ${inv}   (check ${g} x ${inv} = ${g * inv % n} mod ${n})`;
+    } else {
+      out += `g = ${g} is <span class="r">not a unit</span> (gcd > 1): ` +
+        `its orbit never returns to 1 - a zero-divisor's dead end`;
+    }
+    $("#mod-readout").innerHTML = out;
+  }
+  nEl.addEventListener("input", render);
+  gEl.addEventListener("input", render);
+  renderers.mod = render;
+  render();
+})();
+
+/* ================= Tab 2: curve over R ================= */
+(function () {
+  const aEl = $("#real-a"), bEl = $("#real-b");
+  let P = null, Q = null, samples = [];
+
+  const XR = 4.6; // x in [-XR, XR]
+  function toPix(x, y, w, h) {
+    const yr = XR * h / w;
+    return [(x + XR) / (2 * XR) * w, h - (y + yr) / (2 * yr) * h];
+  }
+  function toMath(px, py, w, h) {
+    const yr = XR * h / w;
+    return [px / w * 2 * XR - XR, (h - py) / h * 2 * yr - yr];
+  }
+
+  function render() {
+    const a = +aEl.value, b = +bEl.value, T = tokens();
+    $("#real-a-val").textContent = a.toFixed(1).replace("-", "−");
+    $("#real-b-val").textContent = b.toFixed(1).replace("-", "−");
+    const { ctx, w, h } = fitCanvas($("#cv-real"), 0.62);
+    graphPaper(ctx, w, h, w / (2 * XR), T);
+    // axes
+    ctx.strokeStyle = T.line; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    let [ox, oy] = toPix(0, 0, w, h);
+    ctx.moveTo(0, oy); ctx.lineTo(w, oy); ctx.moveTo(ox, 0); ctx.lineTo(ox, h);
+    ctx.stroke();
+
+    // curve, sampled per pixel column
+    samples = [];
+    ctx.strokeStyle = T.accent; ctx.lineWidth = 2.2; ctx.lineJoin = "round";
+    for (const sign of [1, -1]) {
+      ctx.beginPath(); let pen = false;
+      for (let px = 0; px <= w; px += 1.5) {
+        const [x] = toMath(px, 0, w, h);
+        const f = x * x * x + a * x + b;
+        if (f >= 0) {
+          const y = sign * Math.sqrt(f);
+          const [qx, qy] = toPix(x, y, w, h);
+          if (qy < -50 || qy > h + 50) { pen = false; continue; }
+          samples.push([x, y, qx, qy]);
+          if (pen) ctx.lineTo(qx, qy); else { ctx.moveTo(qx, qy); pen = true; }
+        } else pen = false;
+      }
+      ctx.stroke();
+    }
+
+    const disc = -16 * (4 * a * a * a + 27 * b * b);
+    $("#real-warn").style.display = Math.abs(disc) < 1e-9 ? "block" : "none";
+
+    let out = `Delta = -16(4a^3 + 27b^2) = ${disc.toFixed(2)}\n`;
+    if (Math.abs(disc) > 1e-9)
+      out += `j = ${(1728 * 4 * a * a * a / (4 * a * a * a + 27 * b * b)).toFixed(2)}\n`;
+
+    // chord / tangent construction
+    if (P) drawPt(ctx, P, T.accent2, true, "P", w, h);
+    if (P && Q) {
+      const doubling = P === Q;
+      let lam;
+      if (doubling) lam = (3 * P[0] * P[0] + a) / (2 * P[1]);
+      else if (Math.abs(Q[0] - P[0]) < 1e-9) lam = null;
+      else lam = (Q[1] - P[1]) / (Q[0] - P[0]);
+      drawPt(ctx, Q, T.accent2, false, doubling ? "" : "Q", w, h);
+      if (lam === null) {
+        ctx.strokeStyle = T.accent2; ctx.lineWidth = 1.4;
+        ctx.setLineDash([6, 5]);
+        const [vx] = toPix(P[0], 0, w, h);
+        ctx.beginPath(); ctx.moveTo(vx, 0); ctx.lineTo(vx, h); ctx.stroke();
+        ctx.setLineDash([]);
+        out += `x_P = x_Q, y_P = -y_Q: vertical chord ->\n` +
+               `<span class="a">P + Q = O</span>, the point at infinity`;
+      } else {
+        const x3 = lam * lam - P[0] - Q[0];
+        const y3 = lam * (P[0] - x3) - P[1];
+        // chord line across the canvas
+        ctx.strokeStyle = T.accent2; ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        const yAt = x => P[1] + lam * (x - P[0]);
+        let [l1x, l1y] = toPix(-XR, yAt(-XR), w, h);
+        let [l2x, l2y] = toPix(XR, yAt(XR), w, h);
+        ctx.moveTo(l1x, l1y); ctx.lineTo(l2x, l2y); ctx.stroke();
+        // -R and reflection
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        let [rx, ry] = toPix(x3, -y3, w, h), [sx, sy] = toPix(x3, y3, w, h);
+        ctx.moveTo(rx, ry); ctx.lineTo(sx, sy); ctx.stroke(); ctx.setLineDash([]);
+        drawPt(ctx, [x3, -y3], T.accent2, false, "−R", w, h);
+        drawPt(ctx, [x3, y3], T.accent, true, doubling ? "2P" : "P+Q", w, h);
+        out += doubling
+          ? `tangent: lambda = (3x^2 + a)/2y = ${lam.toFixed(3)}\n`
+          : `chord: lambda = (y_Q - y_P)/(x_Q - x_P) = ${lam.toFixed(3)}\n`;
+        out += `x3 = lambda^2 - x_P - x_Q = ${x3.toFixed(3)}\n` +
+               `y3 = lambda(x_P - x3) - y_P = ${y3.toFixed(3)}\n` +
+               `<span class="a">${doubling ? "2P" : "P + Q"} = ` +
+               `(${x3.toFixed(2)}, ${y3.toFixed(2)})</span>`;
+      }
+    } else if (P) out += `P = (${P[0].toFixed(2)}, ${P[1].toFixed(2)}) - now click Q (or P again to double)`;
+    else out += `click the curve to choose P`;
+    $("#real-readout").innerHTML = out;
+  }
+
+  function drawPt(ctx, pt, color, filled, label, w, h) {
+    const [px, py] = toPix(pt[0], pt[1], w, h);
+    ctx.beginPath(); ctx.arc(px, py, 5.5, 0, 7);
+    if (filled) { ctx.fillStyle = color; ctx.fill(); }
+    else { ctx.lineWidth = 2.4; ctx.strokeStyle = color; ctx.stroke(); }
+    if (label) {
+      const T = tokens();
+      ctx.font = "600 13px " + T.serif; ctx.fillStyle = color;
+      ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.fillText(label, px + 8, py - 6);
+    }
+  }
+
+  $("#cv-real").addEventListener("click", e => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const px = e.clientX - r.left, py = e.clientY - r.top;
+    // snap to nearest curve sample (pixel distance)
+    let best = null, bd = 28 * 28;
+    for (const [x, y, qx, qy] of samples) {
+      const d = (qx - px) ** 2 + (qy - py) ** 2;
+      if (d < bd) { bd = d; best = [x, y, qx, qy]; }
+    }
+    if (!best) return;
+    if (!P || (P && Q)) { P = [best[0], best[1]]; Q = null; }
+    else {
+      Q = [best[0], best[1]];
+      // clicking (essentially) the same point again means: double it
+      if (Math.abs(Q[0] - P[0]) < 0.08 && Math.abs(Q[1] - P[1]) < 0.15) Q = P;
+    }
+    render();
+  });
+  $("#real-clear").addEventListener("click", () => { P = Q = null; render(); });
+  aEl.addEventListener("input", () => { P = Q = null; render(); });
+  bEl.addEventListener("input", () => { P = Q = null; render(); });
+  renderers.real = render;
+})();
+
+/* ================= Tab 3: curve over Fp ================= */
+(function () {
+  const pEl = $("#fp-p"), aEl = $("#fp-a"), bEl = $("#fp-b");
+  let P = null, Q = null, R = null, walk = [], points = [], walkTimer = null;
+
+  function curvePoints(p, a, b) {
+    const sq = new Map();
+    for (let y = 0; y < p; y++) {
+      const v = y * y % p;
+      if (!sq.has(v)) sq.set(v, []);
+      sq.get(v).push(y);
+    }
+    const pts = [];
+    for (let x = 0; x < p; x++) {
+      const rhs = (x * x % p * x + a * x + b) % p;
+      for (const y of sq.get(mod(rhs, p)) || []) pts.push([x, y]);
+    }
+    return pts;
+  }
+
+  function ecAdd(P1, P2, p, a) { // null = O
+    if (!P1) return P2; if (!P2) return P1;
+    const [x1, y1] = P1, [x2, y2] = P2;
+    let lam;
+    if (x1 === x2) {
+      if (mod(y1 + y2, p) === 0) return null;
+      lam = mod((3 * x1 * x1 + a) * modinv(2 * y1, p), p);
+    } else lam = mod((y2 - y1) * modinv(mod(x2 - x1, p), p), p);
+    const x3 = mod(lam * lam - x1 - x2, p);
+    return [x3, mod(lam * (x1 - x3) - y1, p)];
+  }
+
+  function layout(p, w, h) {
+    // square cells sized from the SHORTER canvas dimension, centred in x,
+    // so every residue 0..p-1 fits in both directions
+    const m = 34;
+    const cell = (Math.min(w, h) - 2 * m) / p;
+    return { m, cell, ox: (w - cell * (p - 1)) / 2 };
+  }
+  function toPix(pt, p, w, h) {
+    const { m, cell, ox } = layout(p, w, h);
+    return [ox + pt[0] * cell, h - m - pt[1] * cell];
+  }
+
+  function render() {
+    const p = +pEl.value, T = tokens();
+    const a = mod(+aEl.value || 0, p), b = mod(+bEl.value || 0, p);
+    const { ctx, w, h } = fitCanvas($("#cv-fp"), 0.8);
+    const { m, cell, ox } = layout(p, w, h);
+    graphPaper(ctx, w, h, cell * Math.max(1, Math.round(p / 24)), T);
+    ctx.font = "10px " + T.mono; ctx.fillStyle = T.muted;
+    ctx.textAlign = "center";
+    const lstep = Math.ceil(p / 12);
+    for (let k = 0; k < p; k += lstep) {
+      const [px] = toPix([k, 0], p, w, h);
+      ctx.fillText(k, px, h - m + 16);
+      const [, py] = toPix([0, k], p, w, h);
+      ctx.textAlign = "right"; ctx.fillText(k, ox - 10, py + 3); ctx.textAlign = "center";
+    }
+
+    const disc = mod(-16 * (4 * a * a * a % p + 27 * b * b % p), p);
+    let out = `E: y^2 = x^3 + ${a}x + ${b} over F_${p}\n`;
+    if (disc === 0) {
+      out += `<span class="r">Delta = 0 (mod p): singular - pick other a, b</span>`;
+      $("#fp-readout").innerHTML = out; points = []; return;
+    }
+    points = curvePoints(p, a, b);
+    const N = points.length + 1;
+    const hasse = 2 * Math.sqrt(p);
+    out += `#E = ${points.length} + O = <span class="a">${N}</span>` +
+      `   (Hasse: [${Math.ceil(p + 1 - hasse)}, ${Math.floor(p + 1 + hasse)}]` +
+      `, t = ${p + 1 - N})\n`;
+
+    for (const pt of points) {
+      const [px, py] = toPix(pt, p, w, h);
+      ctx.beginPath(); ctx.arc(px, py, Math.max(2.5, cell * 0.16), 0, 7);
+      ctx.fillStyle = T.accent; ctx.globalAlpha = 0.75; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    for (const [i, wpt] of walk.entries()) {
+      if (!wpt) continue;
+      const [px, py] = toPix(wpt, p, w, h);
+      ctx.beginPath(); ctx.arc(px, py, Math.max(3.5, cell * 0.2), 0, 7);
+      ctx.fillStyle = T.gold; ctx.fill();
+      ctx.font = "600 10px " + T.mono; ctx.fillStyle = T.ink;
+      ctx.fillText(i + 1, px, py - 8);
+    }
+    const mark = (pt, color, filled, lbl) => {
+      if (!pt) return;
+      const [px, py] = toPix(pt, p, w, h);
+      ctx.beginPath(); ctx.arc(px, py, Math.max(5, cell * 0.28), 0, 7);
+      if (filled) { ctx.fillStyle = color; ctx.fill(); }
+      else { ctx.strokeStyle = color; ctx.lineWidth = 2.6; ctx.stroke(); }
+      ctx.font = "600 13px " + T.serif; ctx.fillStyle = color;
+      ctx.textAlign = "left"; ctx.fillText(lbl, px + 8, py - 8);
+    };
+    mark(P, T.accent2, true, "P"); mark(Q, T.accent2, false, "Q");
+    mark(R, T.accent, true, "P+Q");
+    window.__fpPix = points.map(pt => toPix(pt, p, w, h)); // for tests
+
+    if (P && Q) {
+      const [x1, y1] = P, [x2, y2] = Q;
+      if (x1 === x2 && mod(y1 + y2, p) === 0) {
+        out += `x_P = x_Q, y_Q = -y_P: <span class="a">P + Q = O</span>\n`;
+      } else {
+        let lam, expl;
+        if (x1 === x2) { lam = mod((3 * x1 * x1 + a) * modinv(2 * y1, p), p);
+          expl = `tangent: lambda = (3x_P^2+a)/(2y_P)`; }
+        else { lam = mod((y2 - y1) * modinv(mod(x2 - x1, p), p), p);
+          expl = `chord: lambda = (y_Q-y_P)/(x_Q-x_P)`; }
+        out += `${expl} = <span class="a">${lam}</span>\n` +
+          `x3 = lambda^2 - x_P - x_Q = ${R[0]}   ` +
+          `y3 = lambda(x_P - x3) - y_P = ${R[1]}\n` +
+          `<span class="a">P + Q = (${R[0]}, ${R[1]})</span>\n`;
+      }
+    } else if (P) out += `P = (${P[0]}, ${P[1]}) - click Q (P again to double)\n`;
+    else out += `click a point of the curve\n`;
+    if (walk.length) {
+      out += `order of P: <span class="g">${walk.length + 1}</span>` +
+        ` (walked P..${walk.length}P, then ${walk.length + 1}P = O)`;
+    }
+    $("#fp-readout").innerHTML = out;
+  }
+
+  $("#cv-fp").addEventListener("click", e => {
+    const p = +pEl.value, r = e.currentTarget.getBoundingClientRect();
+    const w = e.currentTarget.clientWidth, h = e.currentTarget.clientHeight;
+    const cx = e.clientX - r.left, cy = e.clientY - r.top;
+    let best = null, bd = 20 * 20;
+    for (const pt of points) {
+      const [px, py] = toPix(pt, p, w, h);
+      const d = (px - cx) ** 2 + (py - cy) ** 2;
+      if (d < bd) { bd = d; best = pt; }
+    }
+    if (!best) return;
+    stopWalk();
+    const a = mod(+aEl.value || 0, p);
+    if (!P || (P && Q)) { P = best; Q = R = null; walk = []; }
+    else { Q = best; R = ecAdd(P, Q, p, a); }
+    render();
+  });
+
+  function stopWalk() { if (walkTimer) { clearInterval(walkTimer); walkTimer = null; } }
+
+  $("#fp-walk").addEventListener("click", () => {
+    if (!P) return;
+    stopWalk();
+    const p = +pEl.value, a = mod(+aEl.value || 0, p);
+    walk = []; Q = R = null;
+    let cur = P;
+    const steps = [P];      // walk[i] = (i+1)P; order = walk.length + 1
+    while (true) {
+      cur = ecAdd(cur, P, p, a);
+      if (!cur) break;
+      steps.push(cur);
+      if (steps.length > 2 * p + 3) break; // safety
+    }
+    if (REDUCED) { walk = steps; render(); return; }
+    let i = 0;
+    walkTimer = setInterval(() => {
+      walk.push(steps[i++]); render();
+      if (i >= steps.length) stopWalk();
+    }, 260);
+  });
+  $("#fp-clear").addEventListener("click", () => { stopWalk(); P = Q = R = null; walk = []; render(); });
+  for (const el of [pEl, aEl, bEl])
+    el.addEventListener("change", () => { stopWalk(); P = Q = R = null; walk = []; render(); });
+  renderers.fp = render;
+})();
+
+/* ================= Tab 4: isogeny graph ================= */
+(function () {
+  const sel = $("#graph-p");
+  const DATA = (window.SS_GRAPHS || []);
+  if (!DATA.length) {
+    $("#graph-readout").textContent =
+      "graph data missing - run: python3 lab06_ss_graph.py --export";
+    return;
+  }
+  for (const g of DATA) {
+    const o = document.createElement("option");
+    o.value = g.p; o.textContent = `${g.p}  (${g.count} vertices)`;
+    sel.appendChild(o);
+  }
+  sel.value = DATA[1] ? DATA[1].p : DATA[0].p;
+
+  let G = null, nodes = [], undirected = [], selected = null;
+  let walkPath = [], walkPos = null;
+
+  function mulberry32(a) { return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  function load() {
+    G = DATA.find(g => g.p == sel.value);
+    const rnd = mulberry32(G.p * 2654435761);
+    nodes = G.nodes.map(n => ({ ...n, x: rnd() - 0.5, y: rnd() - 0.5 }));
+    // conjugate pairing: same a, b <-> p - b
+    for (const n of nodes) {
+      n.conj = n.b === 0 ? n.id :
+        nodes.find(m => m.a === n.a && m.b === mod(G.p - n.b, G.p)).id;
+      if (n.b === 0) n.y = 0;
+      else if (n.b > G.p / 2) n.y = -Math.abs(n.y); else n.y = Math.abs(n.y);
+    }
+    // adjacency + undirected multi-edges
+    const seen = new Map();
+    for (const [i, k] of G.edges) {
+      const key = i <= k ? i + "-" + k : k + "-" + i;
+      seen.set(key, (seen.get(key) || 0) + 1);
+    }
+    undirected = [];
+    for (const [key, cnt] of seen) {
+      const [i, k] = key.split("-").map(Number);
+      // directed counts may differ near special vertices; draw max per pair
+      const mult = i === k ? cnt : Math.max(1, Math.round(cnt / 2));
+      undirected.push({ i, k, mult: i === k ? cnt : mult, raw: cnt });
+    }
+    selected = null; walkPath = []; walkPos = null;
+    runLayout();
+    render();
+    info();
+  }
+
+  function neighbours(id) {
+    const out = [];
+    for (const [i, k] of G.edges) if (i === id) out.push(k);
+    return out;
+  }
+
+  function mirror() {
+    // Frobenius symmetry: conjugate pairs reflect across the axis;
+    // F_p-rational vertices are drawn onto it
+    for (const n of nodes) {
+      if (n.conj === n.id) { n.y *= 0.85; continue; }
+      if (n.id < n.conj) {
+        const m = nodes[n.conj];
+        const ax = (n.x + m.x) / 2, ay = (n.y - m.y) / 2;
+        n.x = m.x = ax; n.y = ay; m.y = -ay;
+      }
+    }
+  }
+
+  function runLayout() {
+    // Fruchterman-Reingold in the unit box, displacement capped by a
+    // cooling temperature so the layout cannot explode
+    const n = nodes.length;
+    const k = 1.9 / Math.sqrt(n);
+    let temp = 0.3;
+    for (let it = 0; it < 500; it++) {
+      for (const v of nodes) { v.dx = 0; v.dy = 0; }
+      for (let i = 0; i < n; i++)
+        for (let j = i + 1; j < n; j++) {
+          const a = nodes[i], b = nodes[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const d = Math.hypot(dx, dy) + 1e-6;
+          const fr = k * k / d;
+          a.dx += fr * dx / d; a.dy += fr * dy / d;
+          b.dx -= fr * dx / d; b.dy -= fr * dy / d;
+        }
+      for (const { i, k: kk } of undirected) {
+        if (i === kk) continue;
+        const a = nodes[i], b = nodes[kk];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d = Math.hypot(dx, dy) + 1e-6;
+        const fa = d * d / k;
+        a.dx += fa * dx / d; a.dy += fa * dy / d;
+        b.dx -= fa * dx / d; b.dy -= fa * dy / d;
+      }
+      for (const v of nodes) {
+        v.dx -= 0.22 * v.x; v.dy -= 0.22 * v.y; // gentle gravity
+        const disp = Math.hypot(v.dx, v.dy) + 1e-9;
+        const step = Math.min(disp, temp);
+        v.x = Math.max(-1.6, Math.min(1.6, v.x + v.dx / disp * step));
+        v.y = Math.max(-1.2, Math.min(1.2, v.y + v.dy / disp * step));
+      }
+      mirror();
+      temp = Math.max(0.008, temp * 0.99);
+    }
+    // normalise to fill the drawing area (mirror symmetry is preserved)
+    const mx = Math.max(0.2, ...nodes.map(v => Math.abs(v.x)));
+    const my = Math.max(0.2, ...nodes.map(v => Math.abs(v.y)));
+    for (const v of nodes) { v.x /= mx; v.y /= my; }
+  }
+
+  function toPix(n, w, h) {
+    return [w / 2 + n.x * (w / 2 - 60), h / 2 + n.y * (h / 2 - 36)];
+  }
+
+  function render() {
+    const T = tokens();
+    const { ctx, w, h } = fitCanvas($("#cv-graph"), 0.72);
+    graphPaper(ctx, w, h, 24, T);
+    // mirror axis
+    ctx.strokeStyle = T.grid; ctx.lineWidth = 1.6; ctx.setLineDash([2, 6]);
+    ctx.beginPath(); ctx.moveTo(16, h / 2); ctx.lineTo(w - 16, h / 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = "11px " + T.mono; ctx.fillStyle = T.muted;
+    ctx.textAlign = "left";
+    ctx.fillText("F_p axis (Frobenius mirror)", 18, h / 2 - 7);
+
+    const walkEdges = new Set();
+    for (let i = 0; i + 1 < walkPath.length; i++) {
+      const a = walkPath[i], b = walkPath[i + 1];
+      walkEdges.add(a <= b ? a + "-" + b : b + "-" + a);
+    }
+    // edges
+    for (const { i, k, mult } of undirected) {
+      const A = nodes[i], B = nodes[k];
+      const [ax, ay] = toPix(A, w, h);
+      const onWalk = walkEdges.has(i <= k ? i + "-" + k : k + "-" + i);
+      ctx.strokeStyle = onWalk ? T.accent2 : T.accent;
+      ctx.globalAlpha = onWalk ? 0.95 :
+        selected == null ? 0.42 : (i === selected || k === selected ? 0.9 : 0.14);
+      ctx.lineWidth = onWalk ? 2.4 : 1.4;
+      if (i === k) { // loop
+        ctx.beginPath();
+        const ang = Math.atan2(ay - h / 2, ax - w / 2);
+        ctx.arc(ax + 14 * Math.cos(ang), ay + 14 * Math.sin(ang), 9, 0, 7);
+        ctx.stroke();
+        continue;
+      }
+      const [bx, by] = toPix(B, w, h);
+      for (let e = 0; e < mult; e++) {
+        const off = (e - (mult - 1) / 2) * 10;
+        const mx = (ax + bx) / 2, my = (ay + by) / 2;
+        const dx = by - ay, dy = ax - bx; // perpendicular
+        const d = Math.sqrt(dx * dx + dy * dy) + 1e-6;
+        ctx.beginPath(); ctx.moveTo(ax, ay);
+        ctx.quadraticCurveTo(mx + off * dx / d, my + off * dy / d, bx, by);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    // nodes
+    const selN = selected != null ? new Set(neighbours(selected)) : null;
+    for (const n of nodes) {
+      const [px, py] = toPix(n, w, h);
+      const rr = n.special !== null ? 8 : 6.2;
+      ctx.beginPath(); ctx.arc(px, py, rr, 0, 7);
+      ctx.fillStyle = n.special !== null ? T.gold : T.accent;
+      ctx.globalAlpha = selected == null || n.id === selected || selN.has(n.id) ? 1 : 0.3;
+      ctx.fill();
+      if (n.b === 0) { // F_p-rational: extra ring
+        ctx.beginPath(); ctx.arc(px, py, rr + 3.4, 0, 7);
+        ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 1.3; ctx.stroke();
+      }
+      if (n.id === selected) {
+        ctx.beginPath(); ctx.arc(px, py, rr + 6, 0, 7);
+        ctx.strokeStyle = T.accent2; ctx.lineWidth = 2.2; ctx.stroke();
+      }
+      if (G.count <= 40) {
+        ctx.font = "10px " + T.mono; ctx.fillStyle = T.muted;
+        ctx.textAlign = "center"; ctx.fillText(n.label, px, py - rr - 6);
+      }
+    }
+    ctx.globalAlpha = 1;
+    // walk token
+    if (walkPos) {
+      ctx.beginPath(); ctx.arc(walkPos[0], walkPos[1], 5, 0, 7);
+      ctx.fillStyle = T.accent2; ctx.fill();
+    }
+    window.__nodePix = nodes.map(n => toPix(n, w, h)); // for tests/debugging
+  }
+
+  function info() {
+    const eps = { 1: 0, 5: 1, 7: 1, 11: 2 }[G.p % 12];
+    const rational = G.nodes.filter(n => n.b === 0).length;
+    let out = `p = ${G.p}   vertices = floor(p/12) + ${eps} = <span class="a">${G.count}</span>\n` +
+      `3-regular (one 2-isogeny per order-2 subgroup of E[2])\n` +
+      `F_p-rational j's on the mirror: <span class="a">${rational}</span>\n`;
+    if (selected != null) {
+      const n = G.nodes[selected];
+      const nb = neighbours(selected).map(k => G.nodes[k].label);
+      out += `\nselected: j = <span class="r">${n.label}</span>` +
+        (n.special !== null ? `  <span class="g">(j = ${n.special})</span>` : "") + "\n" +
+        `neighbours: ${nb.join(", ")}\n` +
+        `Phi_2(j, y) = 0 has exactly these roots (lab 06 verified)`;
+    } else out += `\nclick a vertex to inspect it`;
+    if (walkPath.length)
+      out += `\n\nwalk: ${walkPath.length - 1} steps, ` +
+        `${new Set(walkPath).size} distinct vertices visited` +
+        `\n(expander: O(log p) steps already mix - module 10)`;
+    $("#graph-readout").innerHTML = out;
+  }
+
+  $("#cv-graph").addEventListener("click", e => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const w = e.currentTarget.clientWidth, h = e.currentTarget.clientHeight;
+    const cx = e.clientX - r.left, cy = e.clientY - r.top;
+    let best = null, bd = 18 * 18;
+    for (const n of nodes) {
+      const [px, py] = toPix(n, w, h);
+      const d = (px - cx) ** 2 + (py - cy) ** 2;
+      if (d < bd) { bd = d; best = n.id; }
+    }
+    selected = best; walkPath = []; walkPos = null;
+    render(); info();
+  });
+
+  $("#graph-walk").addEventListener("click", () => {
+    const rnd = Math.random;
+    let cur = selected != null ? selected : Math.floor(rnd() * nodes.length);
+    walkPath = [cur];
+    const steps = 20;
+    for (let s = 0; s < steps; s++) {
+      const nb = neighbours(cur);
+      cur = nb[Math.floor(rnd() * nb.length)];
+      walkPath.push(cur);
+    }
+    selected = null;
+    if (REDUCED) { walkPos = null; render(); info(); return; }
+    // animate token along the path
+    let seg = 0, t0 = null;
+    const SEG_MS = 240;
+    function stepAnim(ts) {
+      if (t0 === null) t0 = ts;
+      const u = Math.min(1, (ts - t0) / SEG_MS);
+      const w = $("#cv-graph").clientWidth, h = $("#cv-graph").clientHeight;
+      const A = nodes[walkPath[seg]], B = nodes[walkPath[seg + 1]];
+      const [ax, ay] = toPix(A, w, h), [bx, by] = toPix(B, w, h);
+      walkPos = [ax + (bx - ax) * u, ay + (by - ay) * u];
+      render();
+      if (u >= 1) { seg++; t0 = null; }
+      if (seg + 1 < walkPath.length) requestAnimationFrame(stepAnim);
+      else { walkPos = null; render(); info(); }
+    }
+    requestAnimationFrame(stepAnim);
+    info();
+  });
+
+  sel.addEventListener("change", load);
+  // lazy: build the graph the first time the tab is shown, so the physics
+  // loop never runs against a hidden zero-width canvas
+  renderers.graph = () => { if (!G) load(); else render(); };
+})();
+</script>
+</body>
+</html>
