@@ -6,12 +6,10 @@ Freeze CTRL-B support-restricted null rank protocol (review-only) before any new
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-689` | idea-generator | queued | 100 | - | coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-689/ctrl_b_protocol.yaml, coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-689/protocol_design_note.md | coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-689 |
+| `TASK-20260725-691` | red-team | queued | 80 | TASK-20260725-689, TASK-20260725-690 | coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-691/red_team_report.yaml, coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-691/falsification_review.md | coordination/goals/GOAL-DREG-001/batches/BATCH-003/tasks/TASK-20260725-691 |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-690`: dependency_not_completed:TASK-20260725-689:queued
-- `TASK-20260725-691`: dependency_not_completed:TASK-20260725-689:queued, dependency_not_completed:TASK-20260725-690:queued
 - `TASK-20260725-692`: dependency_not_completed:TASK-20260725-691:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ Freeze CTRL-B support-restricted null rank protocol (review-only) before any new
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `3afd9615d2e7976b4428a8aba1b8c5ff6e13cc379d1625d301162b3595d4ae4c`
+Plan SHA-256: `c138f2043bd323c48aafc0d0988d9b7461f4c860102c301f530284ca013799f0`
