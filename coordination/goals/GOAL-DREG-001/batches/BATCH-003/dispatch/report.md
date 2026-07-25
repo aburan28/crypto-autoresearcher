@@ -27,4 +27,4 @@ Freeze CTRL-B support-restricted null rank protocol (review-only) before any new
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `2d3496a9cb4f1bcf50c208b456ac45c8bfbf356ebbb0b2accf9d2e37c1a2e2ec`
+Plan SHA-256: `3afd9615d2e7976b4428a8aba1b8c5ff6e13cc379d1625d301162b3595d4ae4c`

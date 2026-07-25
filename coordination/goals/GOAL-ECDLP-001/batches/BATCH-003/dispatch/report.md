@@ -27,4 +27,4 @@ Design one frozen toy validation protocol under certificate contract 1.0.0-revie
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `ad17d4a62b069d01dcd418712dcfc926dafc17be7623e11099abd4332b95caa0`
+Plan SHA-256: `6bf1c3a9709a62f66184b1d4014b3ba5773f0d4479bf6fa19f139ac1380196fd`
