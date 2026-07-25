@@ -6,12 +6,10 @@ Revised IDEA-20260725-002 derivation: tightened public-input model (CGL/path-fin
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-513` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-004/tasks/TASK-20260725-513/derivation_note.md, coordination/goals/GOAL-SSI-001/batches/BATCH-004/tasks/TASK-20260725-513/regime_disposition.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-004/tasks/TASK-20260725-513 |
+| `TASK-20260725-515` | red-team | queued | 80 | TASK-20260725-513, TASK-20260725-514 | coordination/goals/GOAL-SSI-001/batches/BATCH-004/tasks/TASK-20260725-515/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-004/tasks/TASK-20260725-515/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-004/tasks/TASK-20260725-515 |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-514`: dependency_not_completed:TASK-20260725-513:queued
-- `TASK-20260725-515`: dependency_not_completed:TASK-20260725-513:queued, dependency_not_completed:TASK-20260725-514:queued
 - `TASK-20260725-516`: dependency_not_completed:TASK-20260725-515:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ Revised IDEA-20260725-002 derivation: tightened public-input model (CGL/path-fin
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b4d51d980ba4aecf47b1e5534c64eb66d07bc4985b65c8024b9d465fbd707448`
+Plan SHA-256: `490d9bd904cf1877355c876e89fe09d639d383924ce107cdc5bfe69996895000`
