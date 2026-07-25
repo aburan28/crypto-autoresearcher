@@ -6,13 +6,11 @@ SQI-FS-T0 sufficiency derivation for IDEA-20260725-003: Kani/Petit necessary-con
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-521` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-006/tasks/TASK-20260725-521/derivation_note.md, coordination/goals/GOAL-SSI-001/batches/BATCH-006/tasks/TASK-20260725-521/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-006/tasks/TASK-20260725-521 |
+| `TASK-20260725-524` | coordinator | queued | 70 | TASK-20260725-523 | ledger/evidence/EV-SSI-006.yaml, ledger/decisions/DEC-20260725-007.yaml, ledger/goals/GOAL-SSI-001.yaml, ledger/proposals/IDEA-20260725-003.yaml | ledger/evidence, ledger/decisions, ledger/goals, ledger/proposals, knowledge |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-522`: dependency_not_completed:TASK-20260725-521:queued
-- `TASK-20260725-523`: dependency_not_completed:TASK-20260725-521:queued, dependency_not_completed:TASK-20260725-522:queued
-- `TASK-20260725-524`: dependency_not_completed:TASK-20260725-523:queued
+None.
 
 ## Dispatch Gates
 
@@ -27,4 +25,4 @@ SQI-FS-T0 sufficiency derivation for IDEA-20260725-003: Kani/Petit necessary-con
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `fa7458fed5c1e7a01e4c823338e074ebbb2607e202780f5082369405fa6e0389`
+Plan SHA-256: `5dc0d0ed41351fffb51aade754e1a6ae4f56a23e2913fc079e450cb01370e539`
