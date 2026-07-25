@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-207 entries.
+212 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -144,6 +144,10 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-135 | Power-Law Distributions in Empirical Data | literature | reported | web | power-law scaling-exponent maximum-likelihood goodness-of-fit likelihood-ratio model-selection log-log-fit statistics methodology extrapolation cross-domain |
 | KN-LIT-136 | Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing | literature | established | web | multiple-comparison false-discovery-rate familywise-error-rate hypothesis-test screening statistics methodology experimental-design cross-domain |
 | KN-LIT-137 | Training Compute-Optimal Large Language Models | literature | reported | web | scaling-law extrapolation power-law empirical-fit model-selection experimental-design methodology cautionary-case cross-domain adjacent |
+| KN-LIT-138 | Efficient Algorithms for Solving Overdefined Systems of Multivariate Polynomial Equations | literature | established | web | mq multivariate-quadratic xl relinearization overdetermined polynomial-system groebner np-hard solving foundational index-calculus |
+| KN-LIT-139 | A crossbred algorithm for solving Boolean polynomial systems | literature | reported | web | mq multivariate-quadratic crossbred boolean-solving polynomial-system exhaustive-search hybrid macaulay solving records calibration index-calculus |
+| KN-LIT-140 | On the Complexity of Solving Quadratic Boolean Systems | literature | reported | web | mq multivariate-quadratic booleansolve boolean-solving polynomial-system exhaustive-search sparse-linear-algebra hybrid complexity las-vegas solving index-calculus |
+| KN-LIT-141 | MQ Challenge: Hardness Evaluation of Solving Multivariate Quadratic Problems | literature | reported | web | mq multivariate-quadratic challenge benchmark records calibration parameter-selection hardness-evaluation post-quantum verifiability solving |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
@@ -214,3 +218,4 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-050 | Memory-charged cost models for supersingular isogeny path-finding | technique | reported |  | supersingular isogeny path-finding meet-in-the-middle golden-collision van-oorschot-wiener low-memory memory full-cost cost-model delfs-galbraith regime classical-baseline quantum cross-domain post-quantum adjacent |
 | KN-TECH-051 | Quantum cost models for the CSIDH class-group action, and the resource-constraint dispute | technique | reported |  | csidh class-group-action quantum hidden-shift kuperberg collimation-sieve quantum-memory resource-constrained cost-model parameter-selection security-estimate contested post-quantum adjacent |
 | KN-TECH-052 | Fitting and extrapolating cost exponents from bounded experiments | technique | reported |  | scaling-exponent extrapolation power-law bootstrap confidence-interval model-selection multiple-comparison experimental-design claim-tier methodology statistics calibration cross-domain |
+| KN-TECH-053 | MQ and Boolean polynomial-system solving - XL, BooleanSolve, and the crossbred hybrid | technique | reported |  | mq multivariate-quadratic xl crossbred booleansolve boolean-solving polynomial-system exhaustive-search hybrid sparse-linear-algebra groebner crossover solving calibration index-calculus |
