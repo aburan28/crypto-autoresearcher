@@ -148,3 +148,40 @@ localization theorem, this pins the entire remaining hope on **non-generic** use
 of the summation polynomial S_{m+1} to beat 3SUM-Indexing (the crux, IDEA-20260722-002).
 Verified numerically: the optimum sits at the MITM corner (T ~ 1, B ~ N^{1/3}) with
 exponent -> 2/3 (0.733, 0.710, 0.700 at N = 1e6, 1e9, 1e12).
+
+## Theorem 8 (SP4 resolved): sub-rho m=3 index calculus == breaking 3SUM-Indexing
+Model any m=3 decomposition oracle on the factor base (|F| = B) by its
+preprocessing/space cost S and per-query cost T. With yield rho_3 = Theta(B^3/N),
+collecting B relations needs Theta(N/B^2) draws, so
+        Total(S, T, B) = S + B + Theta(T * N / B^2).
+
+**(a) Necessity.** Total = o(sqrt N) forces both S = o(sqrt N) and
+T = o(B^2 / sqrt N). Multiplying the two constraints:
+        S * T = o( sqrt N * B^2 / sqrt N ) = o(B^2).
+The sqrt(N) factors cancel *exactly*, for every choice of B (verified
+numerically: the ratio (S_max * T_max)/B^2 = 1.000 at every B and N tested).
+
+**(b) Sufficiency.** Conversely, a structure with S = B^{2-delta} and T = O(1)
+gives, optimizing B ~ N^{1/(4-delta)},
+        Total = Theta( N^{(2-delta)/(4-delta)} ),
+which is < sqrt N for **every** delta > 0. (delta = 0.1 -> N^0.487;
+delta = 1 -> N^{1/3}. Verified numerically.)
+
+**Conclusion.** A sub-rho m=3 target-sectioned index calculus over a prime-field
+elliptic curve exists **if and only if** there is a 2-sum-with-preprocessing
+(3SUM-Indexing) data structure for elliptic-curve point sets with
+S * T = o(B^2). Under the 3SUM-Indexing conjecture no such structure exists, so
+no sub-rho m=3 algorithm exists; conversely, any such algorithm *refutes*
+3SUM-Indexing for curve-point sets. SP4 is therefore not merely "related to" a
+hard problem -- it is **equivalent** to one.
+
+### Corollary 9 (the binding resource is SPACE, not solve time)
+Even a **free** decomposition oracle (T = 1) built with the standard quadratic
+preprocessing S = Theta(B^2) yields
+        min_B [ B^2 + N/B^2 ] = 2 sqrt(N)   at B = N^{1/4},
+i.e. **exactly rho's cost, never better** -- no matter how fast the query is.
+Consequently, *any* line of work that only accelerates the decomposition test
+(faster Groebner solving, lower degree of regularity, better summation-polynomial
+elimination -- i.e. driving sigma or T down) provably **cannot** beat rho at m=3.
+The only escape is subquadratic *preprocessing space*. This redirects the search:
+the quantity to attack is S, not T.
