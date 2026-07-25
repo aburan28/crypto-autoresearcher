@@ -168,3 +168,64 @@ plateau region).
 - `runs/RUN-DREG-004-MEASURE-N21-SEM-A-CONT-{1..16}/` — invocations 2–17
 - Each run dir: `command.txt`, `stdout.log`, `stderr.log`, `environment.json`,
   `manifest.yaml`, `prelaunch.json` (CONT runs)
+
+---
+
+## 10. Restart lineage (2026-07-25 rebuild turn)
+
+After INC-20260724-EXFAT-01 destroyed the carry payloads at 194,000 / 778,394
+columns (24.93 %), the cell was **rebuilt from column 0** in a new run series
+`RUN-DREG-004-REBUILD-A` (tag `rebuild_a`, fresh results dir; the ghost state
+dir of the destroyed series was not resumed). Pre-incident lineage is preserved
+in `STATE-RESCUE.json` (state.json sha256
+`436b7121ae2c0403236fe7694090c178c444621b5e03dadaf5e72ade3a1f497f`, internally
+consistent: sum(npiv) == rank_acc == 188,122).
+
+**Identity gate PASS** on the fresh init: ncols = 778,394, nrows = 279,048,
+sr_pred = 268,674, system_hash prefix `0da7ff6aa40007e8` — the frozen cell is
+bit-identical to the destroyed one, so the rebuild measures the same
+mathematical object.
+
+Rebuild progress at end of turn: **52,000 / 778,394 columns (6.68 %)**, rank_acc
+= 52,000 (full-rank plateau region, as expected this early), 7 units, 8 carry
+files (2 pickle + 6 RAWCARR1), all sha256-verified, secs_total = 227.0
+(instrument phase-seconds). No rank claim: cell incomplete.
+
+## 11. Codec gate (verdict: PASS) and the RAWCARR1 store
+
+The handoff gated the raw-bit carrier store on (a) bit-exactness vs pickle
+carries and (b) load wall < pickle at 40+ blocks, with instant reversion to
+pickle on failure. Gate script `codec_gate3.py`, data `codec_gate3.json`,
+codec `rawcarrier.pyx` → `rawcarrier_ext.so` (per-row memcpy against the m4ri
+`mzd_t` via `_entries`).
+
+Measured on this cell's real data and a worst-case synthetic (279,048 x 6,808):
+
+| payload              | pickle load | raw load | pickle dump | raw dump | bit-exact |
+|----------------------|------------:|---------:|------------:|---------:|:---------:|
+| real carry k=2,000   | 2.02 s      | 0.006 s  | 1.70 s      | 0.014 s  | yes |
+| synthetic k=6,808    | 7.76 s      | 0.027 s  | 16.64 s     | 0.038 s  | yes |
+
+Projected over the destroyed 45-file npiv distribution: raw load total
+**0.7 s** vs measured pickle load **198.6 s** (44 blocks, 4.51 s/block, turn-5
+probe) — margin 197.9 s per invocation. Gate (a) and (b) both PASS.
+
+Integration: `src/h012c_block_m4ri_rawbit.py` (sha256 in checkpoint-summary;
+derived from the hash-pinned `src/h012c_block_m4ri.py` 0eb38126…, which is
+untouched). Only `save_carry` / `load_carries` changed: RAWCARR1 files (8-byte
+magic, LE header length, JSON header {nr, k, P}, packed row-major bitmap),
+sha256-per-file verification kept, pickle read fallback for the two pre-gate
+carries; all mathematics identical. In-situ self-check passed: resume loaded
+pickle carries and wrote RAWCARR1 (CONT-1), next resume loaded RAWCARR1 and
+continued with nominal rank progression (CONT-2).
+
+Effect on pacing: per-invocation wall is now compute-bound (adjacency ~42 s +
+phases), so chunk 8,000 with 2 units/invocation fits the 300 s cap
+(CONT-4: 237 s, RSS 4.7 GB). Unit cost at rank r ~ 46 s + ~0.65 s/1,000 rank
+(reduce-dominated); ETA to full cell ~ 9–11 further turns at this cadence
+(~93 invocations), vs ~35–45 turns had the gate failed.
+
+Infra note: one invocation (CONT-3) was killed by the 295 s tool timeout after
+completing and checkpointing 2 of 3 units — infrastructure event only (AGENTS
+rule 5); state on disk was consistent at the last save boundary and the next
+invocation resumed cleanly.
