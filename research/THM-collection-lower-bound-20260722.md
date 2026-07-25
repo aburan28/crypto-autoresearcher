@@ -256,3 +256,37 @@ decomposition length m, every factor base (Lemma 1), generic-group methods
 (Cor. 3), the naive algebraic oracle and the standard algorithmic toolkit
 (Prop. 7). In all cases the cost is >= sqrt(N) unless the k-SUM-Indexing
 frontier for curve-point sets is violated.
+
+## Theorem 13 (the factor-base catch-22: choosing the instance does not help)
+A natural objection to applying 3SUM-Indexing hardness here: 3SUM-Indexing is a
+*worst-case* problem over adversarial sets, whereas an index-calculus designer
+**chooses** the factor base F. Could a cleverly chosen F make the decomposition
+query easy? No -- the freedom is self-defeating.
+
+Let D = |D_m(F)| be the sumset size. Two facts pull in opposite directions:
+  (i) **Yield** is D/N, so collecting B relations needs B*N/D draws: one wants D
+      as LARGE as possible.
+  (ii) **Testability**: a small, structured D can be stored outright (O(1)
+      queries), but Lemma 1 says D <= (2B)^m/m!, and any structure that makes D
+      easy to describe makes D *small*.
+The two are in direct conflict, and (i) dominates. Example (m=3, N = 10^12):
+  - F an arithmetic progression {P, 2P, ..., BP}: D_3 = {3P,...,3BP} has only
+    ~3B elements. The test is free (store 3B points, O(1) query) but the yield
+    collapses to 3B/N, forcing ~N/3 draws: **total ~ 3.3 x 10^11**, catastrophic.
+  - F unstructured: D_3 ~ 4B^3/3, MITM test (B^2 space, query B):
+    **total ~ 2 x 10^8** at the optimum.
+The unstructured base wins by three orders of magnitude, and it is precisely the
+case in which the membership test is a genuine k-SUM.
+
+**General bound.** Even granting an *ideal* structure that stores D_m explicitly
+and answers queries in O(1), the total is D + B + B*N/D >= 2 sqrt(B*N),
+and Lemma 1's cap D <= (2B)^m/m! forces D = sqrt(BN) to be attainable only when
+B >~ N^{1/(2m-1)}, whence
+        Total >~ N^{m/(2m-1)}   ( = 0.600, 0.571, 0.556, 0.545, ... > 1/2 ).
+Once again strictly worse than rho for every m, approaching 1/2 from above.
+
+**Conclusion.** The designer's freedom to pick F is neutralised: maximising yield
+forces the sumset to be as large and unstructured as Lemma 1 permits, which is
+exactly the regime where the decomposition query is a worst-case-like k-SUM.
+This closes the most natural objection to importing 3SUM-Indexing hardness into
+this setting, and explains *why* the worst-case hypothesis is the right tool here.
