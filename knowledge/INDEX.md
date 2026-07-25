@@ -3,10 +3,21 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-190 entries.
+201 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
+| KN-FIND-001 | Scoped finding from EV-BKK-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-002 | Scoped finding from EV-BKKMV-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-003 | Scoped finding from EV-BKKMV-002 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-004 | Scoped finding from EV-EQJ-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-005 | Scoped finding from EV-FB-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-006 | Scoped finding from EV-NCP-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-007 | Scoped finding from EV-REP-002 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-008 | Scoped finding from EV-SIG-002 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-009 | Scoped finding from EV-SIG-003 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-010 | Scoped finding from EV-SIG-004 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-011 | Scoped finding from EV-SIG-005 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
