@@ -52,6 +52,15 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
   ledger archive and preserve exactly one next action. A scoped rejection,
   invalid run, or exhausted batch ends that task, not the larger goal.
 
+- When a direction is exhausted, blocked, or closed by a barrier/no-go result,
+  do NOT stop at the barrier: run `/pursue-crux`. Localize the goal to the single
+  deciding quantity, enumerate sub-problems as `IDEA-*` records, name the crux, and
+  pursue it as a first-class target -- including when the crux turns out to be a
+  known problem in another field (import its upper AND lower bounds, calibrate
+  against them, and check whether the instance is one you control). A no-go is a
+  waypoint, not a terminus. Never relabel a reduction or negative result as
+  achieving the goal, and never fabricate a crux resolution.
+
 ## Where state lives
 
 - Research questions: `ledger/questions/`

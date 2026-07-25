@@ -42,6 +42,7 @@ The runtime adapter must record both the human-readable policy alias and the exa
 10. Every conclusion must cite the experiment IDs and artifacts that support it.
 11. An agent may request a stronger policy but may not silently alter its own model or reasoning level.
 12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-xhigh` review.
+13. A barrier, no-go, or negative result is a waypoint, not a terminus: localize the goal to its deciding quantity, name the crux sub-problem, and pursue it -- even when the crux is a known open problem in another field. Record the reduction chain (goal -> localization -> sub-problems -> crux -> status) so every link is auditable as proved or conjectured.
 
 ## Required handoff envelope
 

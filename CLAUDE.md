@@ -17,6 +17,8 @@ research work. This file wires that contract into Claude Code.
   - `/review-evidence` — validation, evidence strength, official decision
   - `/research-status` — read-only ledger overview
   - `/curate-knowledge` — maintain the knowledge corpus
+  - `/pursue-crux` — decompose a blocked goal, find the crux, pursue it even
+    when it is a known problem in another field
   - `/coordinate-research-goal` — launch and continuously coordinate a committed
     research goal across dispatch batches
 - **State**:
