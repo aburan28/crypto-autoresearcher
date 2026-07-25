@@ -6,13 +6,11 @@ Repair the EXP-MLKEM-003 hardened gate with a baseline-invisible synthetic contr
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-919` | executor | queued | 90 | TASK-20260724-918 | experiments/EXP-MLKEM-004/source-lock.yaml, experiments/EXP-MLKEM-004/implementation.md, experiments/EXP-MLKEM-004/implementation/build_matrix.sh, experiments/EXP-MLKEM-004/implementation/multiclass_generator.py, experiments/EXP-MLKEM-004/implementation/synthetic_control.py, experiments/EXP-MLKEM-004/implementation/conformance_probe.c, experiments/EXP-MLKEM-004/implementation/decap_boundary_probe.c, experiments/EXP-MLKEM-004/implementation/run_experiment.py, experiments/EXP-MLKEM-004/analysis/second_implementation_selection.md, experiments/EXP-MLKEM-004/analysis/class_coverage_report.json, experiments/EXP-MLKEM-004/analysis/malformed_length_table.json, experiments/EXP-MLKEM-004/analysis/synthetic_control_report.json, experiments/EXP-MLKEM-004/vectors/README.md, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-013/manifest.yaml, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-013/command.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-013/environment.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-013/raw.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-013/summary.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-013/stdout.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-013/stderr.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-014/manifest.yaml, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-014/command.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-014/environment.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-014/raw.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-014/summary.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-014/stdout.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-014/stderr.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-015/manifest.yaml, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-015/command.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-015/environment.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-015/raw.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-015/summary.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-015/stdout.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-015/stderr.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-016/manifest.yaml, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-016/command.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-016/environment.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-016/raw.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-016/summary.json, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-016/stdout.txt, experiments/EXP-MLKEM-004/runs/RUN-MLKEM-016/stderr.txt, experiments/EXP-MLKEM-004/execution-report.yaml | experiments/EXP-MLKEM-004 |
+| `TASK-20260724-921` | validator | queued | 70 | TASK-20260724-919, TASK-20260724-920 | coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-921/validation_report.yaml, coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-921/validation_notes.md | coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-921 |
+| `TASK-20260724-922` | red-team | queued | 70 | TASK-20260724-919, TASK-20260724-920 | coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-922/red_team_report.yaml, coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-922/falsification_review.md | coordination/goals/GOAL-MLKEM-002/batches/BATCH-001/tasks/TASK-20260724-922 |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-920`: dependency_not_completed:TASK-20260724-919:queued
-- `TASK-20260724-921`: dependency_not_completed:TASK-20260724-919:queued, dependency_not_completed:TASK-20260724-920:queued
-- `TASK-20260724-922`: dependency_not_completed:TASK-20260724-919:queued, dependency_not_completed:TASK-20260724-920:queued
 - `TASK-20260724-923`: dependency_not_completed:TASK-20260724-921:queued, dependency_not_completed:TASK-20260724-922:queued
 
 ## Dispatch Gates
@@ -28,4 +26,4 @@ Repair the EXP-MLKEM-003 hardened gate with a baseline-invisible synthetic contr
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9b0c4974d613c1daef65c971bb9a3505691c5c4fd5ee56a1391b83a4312a6d62`
+Plan SHA-256: `8382032d6cf02b1fe44e738e3f573280f3172efef5aa6ed75211d1759a45c09e`
