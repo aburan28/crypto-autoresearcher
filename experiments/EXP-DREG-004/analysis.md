@@ -328,3 +328,20 @@ minimum: 44.5 % at 190k-192k in the lineage). Direction is toward the n=18
 deficit zone, but at ~30 % density it remains ~300x above that zone's ~0.1 %.
 rank/cols: 235,394 at 266,000 cols — the deficit (if any) must form in the
 remaining 512,394 columns. No rank claim: cell incomplete.
+
+## 17. Turn 8 (2026-07-26, 18:59-19:44Z): 316,000 / 778,394 (40.60 %)
+
++50,000 columns (266,000 -> 316,000), rank_acc 255,033 = 94.92 % of sr_pred;
+65 carries (2 pickle + 63 RAWCARR1), all sha256-verified and git-blob
+mirrored. Ten clean invocations at chunk 5,000 (walls 188-222 s), zero kills.
+
+Dependent-density telemetry: k/c = 30.8 / 43.0 / 49.4 / **21.4 (new cell
+minimum)** / 25.5 / 25.5 / 40.9 / **86.1 (bounce)** / 43.6 / 26.6 %
+(266k-316k). The 30-42 % dips of turn 7 did NOT monotonically deepen into the
+deficit zone: the band oscillates with widening amplitude (this turn alone
+spans 21.4-86.1 %). The n=18 late-column zone (~0.1 %) is still ~200x below
+anything observed. Interpretation guard: with rank already 94.92 % of sr_pred
+at 40.60 % of columns, the remaining ~24,000 pivots to sr_pred can form over
+~462,000 columns at the observed mean density; a deficit (rank < sr_pred) of
+any size remains fully consistent with the telemetry, and so does exact
+semiregularity. No rank claim: cell incomplete.
