@@ -71,6 +71,16 @@ exact closed form in k = dim V. This upgrades "d_reg bounded, not growing" from 
   factoring cleanly for every n tested (n=12,15,18). Supports are coordinate-dependent
   (|Q|=8,7,7; |L|=4,4,1) but the count is robust — the signature of a graded Betti number
   (deterministic dimension, coordinate-dependent generators).
+- **SHARPENED (verified directly, `characterization/syzygy_degree3.py`): the mechanism is an
+  AFFINE DEGENERATION.** The subset-sum Q = Σ_{i∈S} q_i is itself affine (degree ≤ 1) — the
+  quadratic parts cancel identically — and the multiplier is its exact complement, L = 1 + Q.
+  So the syzygy is the Boolean identity **P·(1+P) = P + P² = 0** (char 2: squaring is additive
+  and z² = z) applied to a DERIVED affine form P. At n=18 the sum of 7 quadrics collapses to
+  the single variable z18. The Semaev-specific content is thus the degeneration itself — that
+  an F₂-subset-sum of the descended quadrics drops to affine — which the support-matched null
+  never admits (degree-3 kernel = 0 at n=12,15,18). This refines hypothesis 1 above: Frobenius
+  supplies the FORM of the relation, the degeneration supplies the CONTENT; only the latter is
+  Semaev-specific.
 
 ## Degree-4 syzygy characterization (computational, 2026-07-20)
 Isolated the extra (Semaev-specific) syzygies = real left-kernel(M4) modulo the generic space,
@@ -88,10 +98,14 @@ for the full systems n=12,15,18 (k=4,5,6):
   over-determined) the generic space is much larger than Frob+Koszul, so the isolation breaks
   — which is the same reason n=9/n=17 are deficient outliers.
 
-**Refined mechanism hypothesis:** defcum(4) = 8·dim(V) = **8 extra syzygies per V-direction**,
-strongly suggesting the extra syzygies are k α-orbits (size 8) under the field/α-multiplication
-action on V. NEXT: implement multiplication-by-α on the descended variable space and verify the
-8k extra syzygies decompose into k orbits of size 8. That would complete the derivation.
+**Refined mechanism hypothesis:** defcum(4) = 8·dim(V) = **8 extra syzygies per V-direction**.
+Two candidate explanations, in order of promise after the degree-3 result:
+1. **Count the degeneracies (favoured).** Degree 3 is now understood as an affine degeneration
+   of a subset-sum of descended quadrics. Conjecture: 8k likewise counts the F₂-subset-sums
+   c ∈ F₂^m with deg(Σ c_i f_i) < max deg — a degeneracy subspace fixed by the Weil-descent
+   coefficient structure. Directly computable by linear algebra; would turn 8k into a derived
+   count rather than a measured one.
+2. α-orbits (size 8) under field/α-multiplication — see the negative result below.
 
 ## α-orbit test (2026-07-20): NEGATIVE for the naive action
 Tested whether the extra syzygy space is invariant under the field α-multiplication realized as

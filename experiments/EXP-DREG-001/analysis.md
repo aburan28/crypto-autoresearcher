@@ -254,10 +254,28 @@ Measured properties, full systems n = 12, 15, 18:
   8/7/7 and |L support| = 4/4/1 at n = 12/15/18) while the *count* is exact and
   reproducible — the signature of a graded Betti number: deterministic dimension,
   coordinate-dependent generators.
+- **Sharper: the mechanism is an affine degeneration.** Verified directly
+  (`syzygy_degree3.py`): the subset-sum Q = Σ_{i∈S} q_i is itself **affine**
+  (degree ≤ 1) — the quadratic parts cancel identically — and the multiplier is
+  exactly its complement, L = 1 + Q, at every n tested. So the relation is the
+  Boolean identity
+  **P·(1 + P) = P + P² = 0** (char 2: squaring is additive and z² = z)
+  applied to the derived affine form P. Examples: P = z13+z14+z16+z18 (n=12),
+  P = z18 — a *single variable* — as the sum of 7 quadrics (n=18).
+  The Semaev-specific content is therefore **the degeneration itself**: that some
+  F₂-subset-sum of the Weil-descended quadrics collapses to an affine form. The
+  support-matched null admits no such collapse (degree-3 kernel dimension 0 at
+  n = 12, 15, 18), which is why its deficit is 0.
 
 **Hypotheses tested and REFUTED (recorded per rule 8):**
-1. *Frobenius self-relations as the source of 8k−1* — refuted: q² = q holds in every
-   Boolean ring including the null arm, whose deficit is 0.
+1. *Frobenius self-relations as the source of 8k−1* — refuted **as stated, then
+   partially rehabilitated in refined form.** Generator-level q² = q holds in every
+   Boolean ring including the null arm (deficit 0), so it cannot be the source; and
+   indeed those relations are exactly part of the generic space G subtracted above.
+   However the extracted degree-3 syzygy *is* a Boolean/Frobenius identity — applied
+   not to a generator but to a **derived affine form** produced by a Semaev-specific
+   cancellation (bullet 4). Frobenius supplies the *form* of the relation; the
+   degeneration supplies the *content*, and only the latter is Semaev-specific.
 2. *Variable separation* (quadrics from S₃(u₁,x₃,R_X) confined to {u₁,x₃}) —
    refuted by direct measurement: every generator touches all four variable classes
    {u₁,x₁,x₂,x₃}; the α-Weil descent fully couples coordinates.
@@ -271,10 +289,19 @@ Measured properties, full systems n = 12, 15, 18:
    incomplete: a correct field action must co-transform the Boolean variables
    (u₁ is a full-field variable), which is a Weil-restriction module calculation.
 
-**Open (theory-level, not measurement):** derive 8·dim(V) from the correct
-Weil-restriction / Frobenius symmetry of the descended ideal. The count "8 per
-V-direction" is exact and reproducible; its group-theoretic explanation is not
-established, and the simplest candidate action is ruled out above.
+**Open (theory-level, not measurement):** derive 8·dim(V). The count "8 per
+V-direction" is exact and reproducible; its explanation is not established.
+Two routes, in order of promise:
+1. **Count the degeneracies** (favoured, and concrete): the degree-3 mechanism is an
+   affine degeneration of a subset-sum of descended quadrics. The natural conjecture
+   is that the degree-4 count 8k likewise counts F₂-subset-sums of the descended
+   system that drop degree, i.e. the dimension of a degeneracy space determined by
+   the Weil-descent coefficient structure. This is directly computable —
+   characterise, by linear algebra, the subspace of coefficient vectors
+   c ∈ F₂^m with deg(Σ c_i f_i) < max deg — and would turn 8k into a derived count.
+2. Weil-restriction / Frobenius symmetry of the descended ideal (the α-orbit route).
+   The simplest candidate action is ruled out above; a correct action must
+   co-transform the Boolean variables.
 
 **Scope note.** The §11 isolation is valid only for full systems (n = 3k). At n = 9
 the system is over-determined (nb = 18) and the generic space is much larger than
