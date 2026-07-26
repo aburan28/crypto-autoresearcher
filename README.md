@@ -50,6 +50,9 @@ docs/dynamic-subagent-dispatch.md      Artifact-driven task dispatch and ownersh
 docs/knowledge-assessment-20260724.md  Audit of corpus, ledger, and artifact completeness
 templates/research-records.md          YAML templates for all shared records
 templates/subagent-task-queue.json     JSON template for bounded task dispatch
+orchestration/cli.py                   The `autoresearch` entry point (doctor, loop, status)
+pyproject.toml                         Editable install and console scripts
+Makefile                               Common local flows; token-spending ones marked
 tools/research_dispatch.py             Validates and renders the ready-task plan
 tools/check_runtime_bindings.py        Guards role definitions against runtime drift
 ledger/                                Canonical YAML research records
@@ -80,6 +83,34 @@ replicate | expand | refine | support | weaken | reject scoped | pause
 ## Fundamental rule
 
 Only the Coordinator may change the official status of a hypothesis. The Idea Generator proposes; the Executor measures; the Coordinator decides what the evidence justifies.
+
+## Running it locally
+
+```sh
+git clone <this repo> && cd crypto-autoresearcher
+make install          # editable install + all dependencies
+make doctor           # what is missing, before anything costs money
+```
+
+`doctor` checks the Python version, dependencies, configuration, credentials
+per backend, role-binding drift, and suite health, then prints the specific
+next command for whatever is blocking. Everything is offline and free.
+
+```sh
+export ZAI_API_KEY=...                    # or ANTHROPIC_API_KEY, ...
+export AUTORESEARCH_BACKEND=zai
+
+autoresearch doctor                       # now green
+autoresearch adapter doctor --probe       # are the configured model ids real?
+autoresearch loop --dry-run               # how many model calls a loop costs
+autoresearch loop --trials 5              # run it
+```
+
+`make help` lists the rest. Targets that spend tokens are marked as such.
+
+The single entry point wraps the three component CLIs, which remain available
+directly: `autoresearch adapter|agent|eval ...`, or `python3 -m
+orchestration.{adapter,agent,eval}`.
 
 ## Choosing an inference backend
 
