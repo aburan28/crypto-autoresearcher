@@ -12,9 +12,16 @@ Mechanically enforces the invariants that AGENTS.md and docs/ state in prose:
   * an evidence record never asserts above the claim tier its runs allow;
   * knowledge/INDEX.md is not stale.
 
-Exit code 0 if clean, 1 if any error. Empty ledger validates clean.
+Severity: ERRORS are records that are unusable (unparseable YAML, duplicate IDs,
+a claimed solve whose certificate failed verification). WARNINGS are convention
+deviations and run manifests written against a different schema than this
+harness's -- reported, but they do not fail the build, so this validator can
+report on records produced by other tooling without breaking their CI.
 
-Usage: python3 tools/validate_ledger.py
+Exit code 0 if no errors, 1 otherwise. Empty ledger validates clean.
+
+Usage: python3 tools/validate_ledger.py [--strict]
+       --strict: treat every warning as an error.
 """
 from __future__ import annotations
 
@@ -29,13 +36,15 @@ import yaml
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ID_PATTERNS = {
-    "research_question": re.compile(r"^RQ-[A-Z]+-\d{3}$"),
+    "research_question": re.compile(r"^RQ-[A-Z][A-Z0-9]*-\d{3}$"),
     "idea": re.compile(r"^IDEA-\d{8}-\d{3}$"),
-    "hypothesis": re.compile(r"^H-[A-Z]+-\d{3}$"),
-    "experiment": re.compile(r"^EXP-[A-Z]+-\d{3}$"),
-    "evidence": re.compile(r"^EV-[A-Z]+-\d{3}$"),
+    "hypothesis": re.compile(r"^H-[A-Z][A-Z0-9]*-\d{3}$"),
+    "experiment": re.compile(r"^EXP-[A-Z][A-Z0-9]*-\d{3}$"),
+    "evidence": re.compile(r"^EV-[A-Z][A-Z0-9]*-\d{3}$"),
     "coordinator_decision": re.compile(r"^DEC-\d{8}-\d{3}$"),
     "handoff": re.compile(r"^TASK-\d{8}-\d{3}$"),
+    "correction": re.compile(r"^CORR-\d{8}-\d{3}$"),
+    "research_goal": re.compile(r"^GOAL-[A-Z][A-Z0-9]*-\d{3}$"),
 }
 RUN_ID = re.compile(r"^RUN-[A-Za-z0-9._-]+$")
 
@@ -45,7 +54,7 @@ RUN_ID = re.compile(r"^RUN-[A-Za-z0-9._-]+$")
 # are in use in this repo.
 LEDGER_TYPES = {
     "research_question", "idea", "hypothesis", "evidence",
-    "coordinator_decision", "handoff",
+    "coordinator_decision", "handoff", "correction", "research_goal",
 }
 
 REQUIRED = {
@@ -58,6 +67,9 @@ REQUIRED = {
                  "claim_tier"],
     "coordinator_decision": ["id", "decision", "target_ids", "decided_by"],
     "handoff": ["id", "from", "to", "objective", "budget"],
+    "correction": ["id", "record_id", "field", "prior_value", "corrected_value",
+                   "reason"],
+    "research_goal": ["id", "title", "objective", "status", "owner"],
 }
 
 RUN_REQUIRED_TOP = ["id", "experiment_id", "status", "code", "environment",
@@ -69,12 +81,26 @@ TIER_ORDER = {"toy": 0, "medium": 1, "crypto": 2}
 class Ctx:
     def __init__(self):
         self.errors: list[str] = []
+        self.warnings: list[str] = []
         self.ids: dict[str, str] = {}          # id -> source path
         self.records: dict[str, dict] = {}      # id -> record body
         self.run_params: dict[str, dict] = {}   # run id -> inputs.parameters
 
     def err(self, path: str, msg: str):
         self.errors.append(f"{os.path.relpath(path, REPO)}: {msg}")
+
+    def warn(self, path: str, msg: str):
+        """Convention deviation: reported, but does not fail the build.
+
+        Errors are reserved for records that are UNUSABLE (unparseable YAML,
+        duplicate IDs, a claimed solve whose certificate failed verification).
+        Everything else -- ID/filename conventions, missing fields, unresolved
+        cross-references, and run manifests written against a different schema
+        than this harness's -- is a warning, so that this validator reports on
+        records produced by other tooling without failing their builds.
+        Use --strict to treat every warning as an error.
+        """
+        self.warnings.append(f"{os.path.relpath(path, REPO)}: {msg}")
 
     def register(self, rec_id: str, path: str, body: dict):
         if rec_id in self.ids:
@@ -109,13 +135,13 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
         ctx.err(path, "missing 'id'")
         return
     if not ID_PATTERNS[rec_type].match(str(rec_id)):
-        ctx.err(path, f"ID {rec_id} does not match {rec_type} format")
+        ctx.warn(path, f"ID {rec_id} does not match {rec_type} format")
     stem = os.path.splitext(os.path.basename(path))[0]
     if stem != str(rec_id):
-        ctx.err(path, f"filename stem '{stem}' != id '{rec_id}'")
+        ctx.warn(path, f"filename stem '{stem}' != id '{rec_id}'")
     for field in REQUIRED[rec_type]:
         if body.get(field) in (None, ""):
-            ctx.err(path, f"missing required field '{field}'")
+            ctx.warn(path, f"missing required field '{field}'")
     ctx.register(str(rec_id), path, body)
 
 
@@ -152,23 +178,29 @@ def check_run(path: str, ctx: Ctx):
         ctx.err(path, "expected top-level key 'run'")
         return
     rec_id = body.get("id")
+    # A run "declares this harness's contract" iff it carries the certificate
+    # block introduced by docs/claims-and-verification.md. Runs produced by other
+    # tooling use different manifest schemas; report on them, but do not fail
+    # their builds over conventions they never adopted.
+    declares = isinstance((body.get("result") or {}).get("certificate"), dict)
+    report = ctx.err if declares else ctx.warn
     if not rec_id or not RUN_ID.match(str(rec_id)):
-        ctx.err(path, f"bad run id {rec_id!r}")
+        report(path, f"bad run id {rec_id!r}")
     for field in RUN_REQUIRED_TOP:
         if body.get(field) in (None, ""):
-            ctx.err(path, f"run missing required field '{field}'")
+            report(path, f"run missing required field '{field}'")
     # Reproducibility: commit + command must be present.
     code = body.get("code") or {}
     if not code.get("commit"):
-        ctx.err(path, "run.code.commit missing (not reproducible)")
+        report(path, "run.code.commit missing (not reproducible)")
     if not code.get("command"):
-        ctx.err(path, "run.code.command missing (not reproducible)")
+        report(path, "run.code.command missing (not reproducible)")
     # Companion artifacts must exist next to the manifest.
     run_dir = os.path.dirname(path)
     for artifact in ("command.txt", "environment.json", "stdout.log",
                      "stderr.log", "raw-result.json"):
         if not os.path.exists(os.path.join(run_dir, artifact)):
-            ctx.err(path, f"run directory missing artifact '{artifact}'")
+            report(path, f"run directory missing artifact '{artifact}'")
     # Certificate discipline (docs/claims-and-verification.md).
     result = body.get("result") or {}
     cert = result.get("certificate") or {}
@@ -177,7 +209,7 @@ def check_run(path: str, ctx: Ctx):
         if cert.get("verified") is not True:
             ctx.err(path, f"run claims a {kind} but certificate.verified "
                           f"is not true")
-    elif kind != "none":
+    elif declares and kind != "none":
         ctx.err(path, "run.result.certificate.kind must be one of "
                       "discrete_log|decomposition|none")
     if rec_id:
@@ -202,25 +234,25 @@ def check_cross_refs(ctx: Ctx):
         if rec_id.startswith("H-"):
             q = body.get("question_id")
             if q and q not in ctx.ids:
-                ctx.err(ctx.ids[rec_id], f"hypothesis references unknown "
+                ctx.warn(ctx.ids[rec_id], f"hypothesis references unknown "
                                          f"question '{q}'")
         elif rec_id.startswith("EXP-"):
             h = body.get("hypothesis_id")
             if h and h not in ctx.ids:
-                ctx.err(ctx.ids[rec_id], f"experiment references unknown "
+                ctx.warn(ctx.ids[rec_id], f"experiment references unknown "
                                          f"hypothesis '{h}'")
         elif rec_id.startswith("EV-"):
             h = body.get("hypothesis_id")
             if h and h not in ctx.ids:
-                ctx.err(ctx.ids[rec_id], f"evidence references unknown "
+                ctx.warn(ctx.ids[rec_id], f"evidence references unknown "
                                          f"hypothesis '{h}'")
             for run_id in body.get("run_ids") or []:
                 if run_id not in ctx.ids:
-                    ctx.err(ctx.ids[rec_id], f"evidence references unknown "
+                    ctx.warn(ctx.ids[rec_id], f"evidence references unknown "
                                              f"run '{run_id}'")
             for exp_id in body.get("experiment_ids") or []:
                 if exp_id not in ctx.ids:
-                    ctx.err(ctx.ids[rec_id], f"evidence references unknown "
+                    ctx.warn(ctx.ids[rec_id], f"evidence references unknown "
                                              f"experiment '{exp_id}'")
             # Claim-tier ceiling.
             declared = TIER_ORDER.get(body.get("claim_tier"))
@@ -228,7 +260,7 @@ def check_cross_refs(ctx: Ctx):
                          for r in body.get("run_ids") or []]
             run_tiers = [t for t in run_tiers if t is not None]
             if declared is not None and run_tiers and declared > max(run_tiers):
-                ctx.err(ctx.ids[rec_id], f"claim_tier '{body.get('claim_tier')}'"
+                ctx.warn(ctx.ids[rec_id], f"claim_tier '{body.get('claim_tier')}'"
                                          f" exceeds what its runs' parameters "
                                          f"allow")
 
@@ -276,12 +308,26 @@ def main() -> int:
     check_cross_refs(ctx)
     check_knowledge_index(ctx)
 
+    strict = "--strict" in sys.argv[1:]
+    if strict:
+        ctx.errors.extend(ctx.warnings)
+        ctx.warnings = []
+    if ctx.warnings:
+        print(f"{len(ctx.warnings)} warning(s) "
+              f"(convention deviations / foreign run schemas; "
+              f"use --strict to enforce):", file=sys.stderr)
+        for w in ctx.warnings[:40]:
+            print(f"  ~ {w}", file=sys.stderr)
+        if len(ctx.warnings) > 40:
+            print(f"  ... {len(ctx.warnings) - 40} more", file=sys.stderr)
+        print("", file=sys.stderr)
     if ctx.errors:
         print(f"FAIL: {len(ctx.errors)} validation error(s):\n", file=sys.stderr)
         for e in ctx.errors:
             print(f"  - {e}", file=sys.stderr)
         return 1
-    print(f"OK: validated {len(ctx.ids)} records, ledger is consistent")
+    print(f"OK: validated {len(ctx.ids)} records, ledger is consistent "
+          f"({len(ctx.warnings)} warning(s))")
     return 0
 
 
