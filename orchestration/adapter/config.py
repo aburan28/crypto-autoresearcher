@@ -212,6 +212,8 @@ def validate(config: Config) -> None:
             raise ConfigError(
                 f"policy {pid} declares fallback_policy {fallback!r}, which is "
                 f"not a policy id")
+        if not isinstance(policy.get("degradable", True), bool):
+            raise ConfigError(f"policy {pid}: degradable must be true or false")
         for alias in policy.get("aliases") or []:
             if alias in policies:
                 raise ConfigError(

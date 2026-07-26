@@ -131,6 +131,41 @@ policies:
     independent_session_required: true
     fallback_policy: null
 
+  review-breakthrough:
+    aliases: []
+    summary: >-
+      The one decision class where being wrong is unrecoverable: a claimed
+      break, a closure result, or a contradiction between two independently
+      validated evidence records.
+    purpose:
+      - breakthrough_review
+      - closure_review
+      - contradiction_resolution
+    requires:
+      # A FLOOR of `max`, so a backend that cannot go this deep refuses the
+      # task outright. That refusal is the point: reviewing a claimed break on
+      # a model that cannot reach the top tier is worse than not reviewing it,
+      # because it produces a signed-off answer either way.
+      reasoning_effort: max
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 180000
+      min_output_tokens: 24000
+    reasoning_effort: max
+    may_change_official_state: false
+    independent_session_required: true
+    # No weaker policy may stand in for this one. Cross-backend fallback is
+    # still allowed, because moving to a backend that FULLY meets the `max`
+    # floor is not a weakening -- it is how you get the review you asked for.
+    fallback_policy: null
+    # But this tier can never be degraded, even with an approved amendment.
+    # Every other policy may accept a binding that misses a requirement once a
+    # coordinator signs for it; here there is nothing to sign for. A claimed
+    # break of a real curve is the one assertion this program could make that
+    # would matter outside it, and "reviewed on whatever was available" is not
+    # a review of it.
+    degradable: false
+
   executor-implementation:
     aliases: [executor-terra]
     summary: >-
@@ -190,14 +225,25 @@ role_defaults:
   red_team: review-adversarial
 
 routing_rules:
-  - id: critical-result-review
+  # Two tiers of review, because "is this receipt valid" and "did we break a
+  # real curve" were previously routed identically.
+  - id: unrecoverable-result-review
     when:
       any:
         - claimed_breakthrough: true
-        - proposed_state_transition: supported
-        - proposed_state_transition: rejected
         - proposed_state_transition: closed
         - contradicts_prior_evidence: true
+    require:
+      policy: review-breakthrough
+      independent_session: true
+      reviewer_must_not_be_originating_agent: true
+      fallback_allowed: false
+
+  - id: critical-result-review
+    when:
+      any:
+        - proposed_state_transition: supported
+        - proposed_state_transition: rejected
     require:
       policy: review-adversarial
       independent_session: true

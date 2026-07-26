@@ -457,3 +457,83 @@ def test_the_manifest_records_both_the_request_and_what_was_sent(cfg):
     block = adapter.inference_block(resolution)
     assert block["requested_reasoning_effort"] == "xhigh"
     assert block["reasoning_effort"] == "high"
+
+
+# --------------------------------------------------------------------------
+# the top tier: when `max` applies, and what it refuses
+# --------------------------------------------------------------------------
+def test_breakthrough_review_is_the_only_policy_at_max(cfg):
+    at_max = [p for p, spec in cfg.policy_table.items()
+              if resolver_module.policy_effort(spec) == "max"]
+    assert at_max == ["review-breakthrough"]
+
+
+def test_breakthrough_review_outranks_ordinary_review(cfg):
+    order = cfg.effort_order
+    ordinary = adapter.resolve(cfg, "review-adversarial", backend="anthropic",
+                               independent_session=True, env={})
+    top = adapter.resolve(cfg, "review-breakthrough", backend="anthropic",
+                          independent_session=True, env={})
+    assert order.index(top.reasoning_effort) > order.index(ordinary.reasoning_effort)
+
+
+def test_breakthrough_review_refuses_a_backend_that_cannot_reach_max(cfg):
+    with pytest.raises(resolver_module.ResolutionError, match="requires max"):
+        adapter.resolve(cfg, "review-breakthrough", backend="zai",
+                        independent_session=True, env={})
+
+
+def test_breakthrough_review_cannot_be_degraded_even_with_permission(cfg):
+    """Every other policy bends with a signed amendment. This one does not."""
+    with pytest.raises(resolver_module.GovernanceError, match="not degradable"):
+        adapter.resolve(cfg, "review-breakthrough", backend="zai",
+                        independent_session=True, degraded_allowed=True, env={})
+
+
+def test_breakthrough_review_may_still_move_to_a_backend_that_meets_it(cfg):
+    """Cross-backend fallback is not a weakening: it is how you get the review."""
+    resolution = adapter.resolve(cfg, "review-breakthrough", backend="zai",
+                                 independent_session=True, fallback_allowed=True,
+                                 env={})
+    assert resolution.reasoning_effort == "max"
+    assert resolution.degraded_requirements == []
+    assert resolution.fallback_used is True
+
+
+def test_breakthrough_review_still_requires_an_independent_session(cfg):
+    with pytest.raises(resolver_module.GovernanceError, match="independent session"):
+        adapter.resolve(cfg, "review-breakthrough", backend="anthropic", env={})
+
+
+def test_ordinary_review_remains_degradable_with_a_signed_amendment(cfg):
+    """The distinction only means something if the lower tier still bends."""
+    resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
+                                 independent_session=True, degraded_allowed=True,
+                                 env={})
+    assert resolution.degraded_requirements
+
+
+def test_max_effort_reaches_the_wire(cfg):
+    resolution = adapter.resolve(cfg, "review-breakthrough", backend="anthropic",
+                                 independent_session=True, env={})
+    _, _, body = adapter.build_request(
+        cfg, resolution, system=None, messages=[adapter.Message("user", "x")],
+        env={"ANTHROPIC_API_KEY": "k"})
+    ordinary = adapter.resolve(cfg, "review-adversarial", backend="anthropic",
+                               independent_session=True, env={})
+    _, _, ordinary_body = adapter.build_request(
+        cfg, ordinary, system=None, messages=[adapter.Message("user", "x")],
+        env={"ANTHROPIC_API_KEY": "k"})
+    assert (body["thinking"]["budget_tokens"]
+            > ordinary_body["thinking"]["budget_tokens"])
+
+
+def test_the_unrecoverable_routing_rule_names_the_top_tier(cfg):
+    rules = {rule["id"]: rule for rule in cfg.policies["routing_rules"]}
+    unrecoverable = rules["unrecoverable-result-review"]
+    assert unrecoverable["require"]["policy"] == "review-breakthrough"
+    assert unrecoverable["require"]["fallback_allowed"] is False
+    triggers = [k for clause in unrecoverable["when"]["any"] for k in clause]
+    assert "claimed_breakthrough" in triggers
+    # An ordinary supported/rejected transition stays on the cheaper tier.
+    assert rules["critical-result-review"]["require"]["policy"] == "review-adversarial"

@@ -29,6 +29,12 @@ Default policies (capability contracts, not products):
 - Executor: `executor-implementation`.
 - Reviewer, Validator, and Red Team: `review-adversarial`, which requires
   `xhigh` reasoning and an independent session.
+- Claimed breakthroughs, closure results, and contradictions between validated
+  evidence records: `review-breakthrough` at `max`. This is the only policy
+  that may never be degraded — no amendment or permission runs it on a backend
+  that cannot reach `max`. Ordinary reviews stay on `review-adversarial`;
+  paying the top tier for every validator pass would price review out of the
+  loop, which is how claims end up unreviewed.
 
 Policy ids are permanent. The pre-2.0 ids (`coordinator-ultra-code`,
 `coordinator-sol-max`, `research-sol-max`, `executor-terra`, `review-xhigh`)
@@ -75,7 +81,7 @@ tool surface.
 9. Agents must not fabricate commands, outputs, timings, statistics, citations, or successful runs.
 10. Every conclusion must cite the experiment IDs and artifacts that support it.
 11. An agent may request a stronger policy but may not silently alter its own model or reasoning level.
-12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-xhigh` review.
+12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-breakthrough` review at `max` effort. That review may not be degraded or run on a backend that cannot reach it.
 
 ## Required handoff envelope
 

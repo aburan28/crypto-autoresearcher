@@ -275,7 +275,10 @@ handoff:
     # already committed. See docs/inference-backends.md.
     policy: coordinator-orchestration-code | coordinator-orchestration |
             research-deep | executor-implementation | executor-mechanical |
-            review-adversarial
+            review-adversarial | review-breakthrough
+            # review-breakthrough only for a claimed break, a closure result,
+            # or a contradiction between validated evidence records. It cannot
+            # be degraded and refuses a backend that cannot reach `max`.
     reasoning_effort: null         # per-task calibration; null = the policy
                                    # default. Lower it for mechanical work;
                                    # a review policy may never go below its

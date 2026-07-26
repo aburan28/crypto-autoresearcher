@@ -75,6 +75,7 @@ model can do is not the same as the model not being able to do it.
 
 | policy | floor | requested | why |
 |---|---|---|---|
+| `review-breakthrough` | max | **max** | a claimed break, closure, or contradiction |
 | `review-adversarial` | xhigh | **xhigh** | the gate protecting every ledger claim |
 | `coordinator-orchestration-code` | high | **high** | state transitions, contradiction resolution |
 | `coordinator-orchestration` | high | **high** | prioritisation and synthesis |
@@ -91,6 +92,60 @@ This reaches the wire, not just the manifest. On the Anthropic protocol a
 binding maps effort to a thinking budget (`budget_by_effort`), and `low` maps to
 `0`, which disables extended thinking and lets `temperature: 0.0` through. On
 the OpenAI protocol the effort maps to `reasoning_effort`.
+
+### Choosing between the two coordinator policies
+
+Both run at `high`; the difference is scope, not depth.
+
+* **`coordinator-orchestration-code`** (was `coordinator-ultra-code`) — the
+  Coordinator's decision depends on repository state: writing a dispatch plan,
+  designing an experiment pipeline, specifying a protocol against real code,
+  resolving a contradiction that spans experiments and ledger records. Larger
+  context floor (180k) because it has to hold the code path and the records at
+  once. The `coordinator-code-path` routing rule selects it automatically when
+  a task touches code, repository orchestration, or pipeline design.
+* **`coordinator-orchestration`** (was `coordinator-sol-max`) — prioritisation,
+  synthesis, and decision records read from the ledger alone. 120k floor.
+
+If you are unsure, use the code policy: it is the declared fallback for the
+other, and the cost difference is context, not reasoning depth. The reverse
+substitution is not available, which is the right asymmetry — a task that
+turned out to need the code path should not quietly proceed without it.
+
+### When `max` applies
+
+`max` is reserved for one policy, `review-breakthrough`, and one situation:
+**a wrong answer is unrecoverable**. Concretely, the three triggers in the
+`unrecoverable-result-review` routing rule:
+
+* a **claimed breakthrough** — an assertion that something is broken;
+* a **closure** result — declaring a direction dead;
+* a **contradiction** between two independently validated evidence records.
+
+Everything else about a review — is this receipt valid, do the controls hold,
+does this evidence justify `supported` — stays on `review-adversarial` at
+`xhigh`. Those are recoverable: a wrong call gets caught by replication or the
+next review, and paying `max` for every validator pass would price review out
+of the loop entirely, which is the failure mode that actually ends with
+unreviewed claims.
+
+The distinction was previously absent: `critical-result-review` routed a
+claimed break of a real curve to the same policy as a routine receipt check.
+
+Two properties make this tier different from every other:
+
+* **It cannot be degraded.** `degradable: false` means no amendment, no
+  permission, and no `degraded_allowed` flag will run it on a binding that
+  misses the `max` floor. Every other policy bends when a coordinator signs for
+  it; here there is nothing to sign for. GLM's binding declares a `high`
+  ceiling, so a breakthrough review simply refuses to run there.
+* **Cross-backend fallback still works**, and is not a weakening — moving to a
+  backend that fully meets `max` is how you get the review you asked for. Only
+  substitution *downward* is blocked.
+
+If that feels heavy: it fires on a few decisions per campaign at most. If it
+fires often, the routing is wrong, not the tier — "breakthrough" that happens
+weekly is a miscalibrated claim threshold.
 
 A handoff can calibrate one task without changing the policy:
 

@@ -221,6 +221,11 @@ def resolve(config: Config, requested_policy: str, *,
                       rejected=rejected, env=env, override=reasoning_effort)
 
     # -- last resort: an explicitly permitted, recorded downgrade ----------
+    if degraded_allowed and not policy.get("degradable", True):
+        raise GovernanceError(
+            f"policy {canonical} is not degradable: it may not run on a binding "
+            f"that misses a stated requirement, whatever permission the handoff "
+            f"grants. Use a backend that meets it, or do not make the claim.")
     if degraded_allowed:
         binding = config.binding(target_backend, canonical)
         hard = _hard_blockers(binding)
