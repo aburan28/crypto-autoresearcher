@@ -6,13 +6,11 @@ Design one frozen, review-only toy validation protocol under certificate contrac
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260725-001` | idea-generator | queued | 100 | - | coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260725-001/toy_validation_protocol.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260725-001/protocol_design_rationale.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-003/tasks/TASK-20260725-001 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260725-002`: dependency_not_completed:TASK-20260725-001:queued
-- `TASK-20260725-003`: dependency_not_completed:TASK-20260725-001:queued, dependency_not_completed:TASK-20260725-002:queued
-- `TASK-20260725-004`: dependency_not_completed:TASK-20260725-003:queued
+None.
 
 ## Dispatch Gates
 
@@ -27,4 +25,4 @@ Design one frozen, review-only toy validation protocol under certificate contrac
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `fbf519fa75b17f6833ecd85e1cfc54f178808ff2666a331b25e0acc4ae2f5b31`
+Plan SHA-256: `adce32fd8f66586b5e6c4ea6accdfbe29920a6483df179dde3c5938e0f61363b`
