@@ -311,3 +311,20 @@ monotone collapse. rank_acc 214,527 = 79.8 % of sr_pred (268,674) at 29.55 %
 of columns. The deficit question remains open; the n=18 late-column deficit
 zone (k/c ~ 0.1 %) has not appeared. RSS peaked 11.3 GB at 8k chunk; backed
 to 6k (walls 214-219 s). No rank claim: cell incomplete.
+
+## 16. Turn 7 (2026-07-26, 16:17-17:02Z): 266,000 / 778,394 (34.17 %)
+
++36,000 columns (230,000 -> 266,000), rank_acc 235,394 = 87.61 % of sr_pred
+(268,674); 55 carries (2 pickle + 53 RAWCARR1), all sha256-verified and
+git-blob mirrored. One 280 s timeout kill on the opening 8k attempt (C-reverse
+contention; state consistent, rule 5); D11: chunk 6,000 -> 5,000 after a
+278.6 s wall (1.4 s from cap). Walls then eased 259 -> 191 s as the control
+fire wound down.
+
+Dependent-density telemetry (virgin territory): k/c = 63.6 / 56.3 / 70.1 /
+74.9 / 67.2 / **42.0 / 30.4** % (230k-266k). The oscillation persists, but
+the last two units are the deepest dips measured anywhere in this cell (prior
+minimum: 44.5 % at 190k-192k in the lineage). Direction is toward the n=18
+deficit zone, but at ~30 % density it remains ~300x above that zone's ~0.1 %.
+rank/cols: 235,394 at 266,000 cols — the deficit (if any) must form in the
+remaining 512,394 columns. No rank claim: cell incomplete.
