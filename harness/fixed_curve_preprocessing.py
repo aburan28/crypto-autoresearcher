@@ -26,6 +26,7 @@ DEFAULT_BITS = [8, 10, 12]
 DEFAULT_SEEDS = [1, 2]
 DEFAULT_FACTOR_BASE = 14
 DEFAULT_TARGETS_PER_CURVE = 3
+GROEBNER_TIMEOUT_S = 120
 
 
 def _derive_targets(inst, count: int) -> list[tuple[int, tuple[int, int]]]:
@@ -92,23 +93,24 @@ def _run_rho(inst, seed: int, bits: int, command: str, out_root: str | None):
 
 def _run_s3_decomposition(inst, bits: int, seed: int, target_k: int, target_pt, target_idx: int,
                           factor_base, factor_base_size: int, mode: str,
-                          precompute_seconds: float, command_suffix: str, out_root: str | None):
+                          precompute_seconds: float, command_suffix: str, out_root: str | None,
+                          exp_id: str = EXP_ID):
     log = io.StringIO()
     started = time.time()
+
+    rebuild_seconds = 0.0
+    if mode == "naive":
+        rebuild_start = time.perf_counter()
+        factor_base = semaev.build_factor_base(inst, factor_base_size, seed)
+        rebuild_seconds = time.perf_counter() - rebuild_start
+
     with redirect_stdout(log):
-        if mode == "fixed":
-            m = semaev.measure_s3_decomposition(
-                inst,
-                factor_base_size=factor_base_size,
-                target=target_pt,
-                factor_base=factor_base,
-            )
-        else:
-            m = semaev.measure_s3_decomposition(
-                inst,
-                factor_base_size=factor_base_size,
-                target=target_pt,
-            )
+        m = semaev.measure_s3_decomposition(
+            inst,
+            factor_base_size=factor_base_size,
+            target=target_pt,
+            factor_base=factor_base,
+        )
 
     finished = time.time()
     metrics = {
@@ -124,6 +126,7 @@ def _run_s3_decomposition(inst, bits: int, seed: int, target_k: int, target_pt, 
         "factor_base_size": m.factor_base_size,
         "decomposition_length": m.decomposition_length,
         "precompute_seconds": round(precompute_seconds, 6),
+        "rebuild_seconds": round(rebuild_seconds, 6),
     }
     rr = RunResult(
         run_suffix=f"{mode}-b{bits}-s{seed}-t{target_idx}",
@@ -139,7 +142,7 @@ def _run_s3_decomposition(inst, bits: int, seed: int, target_k: int, target_pt, 
              "factor_base": factor_base},
     )
     return write_run(
-        EXP_ID, EXP_AREA, rr, status="completed_valid", command=command_suffix,
+        exp_id, EXP_AREA, rr, status="completed_valid", command=command_suffix,
         started=started, finished=finished, out_root=out_root
     )
 
@@ -153,6 +156,7 @@ def main() -> int:
     ap.add_argument("--factor-base", type=int, default=DEFAULT_FACTOR_BASE)
     ap.add_argument("--targets-per-curve", type=int, default=DEFAULT_TARGETS_PER_CURVE)
     ap.add_argument("--out", default=None, help="output experiment root (default experiments/<EXP_ID>)")
+    ap.add_argument("--exp-id", default=EXP_ID, help="experiment ID for run manifests")
     args = ap.parse_args()
 
     bits_list = [int(b) for b in args.bits.split(",") if b]
@@ -190,7 +194,7 @@ def main() -> int:
             )
             written.append(
                 write_run(
-                    EXP_ID, EXP_AREA, pre_rr, status="completed_valid",
+                    args.exp_id, EXP_AREA, pre_rr, status="completed_valid",
                     command=f"{base_command} # precompute", started=pre_start,
                     finished=pre_start + precompute_seconds, out_root=args.out
                 )
@@ -223,6 +227,7 @@ def main() -> int:
                         precompute_seconds=precompute_seconds,
                         command_suffix=f"{base_command} # fixed target={target_idx}",
                         out_root=args.out,
+                        exp_id=args.exp_id,
                     )
                 )
                 # Fresh factor-base mode (recompute every target).
@@ -240,6 +245,7 @@ def main() -> int:
                         precompute_seconds=0.0,
                         command_suffix=f"{base_command} # naive target={target_idx}",
                         out_root=args.out,
+                        exp_id=args.exp_id,
                     )
                 )
     print(f"wrote {len(written)} run records:")
