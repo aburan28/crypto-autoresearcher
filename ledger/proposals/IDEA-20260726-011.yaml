@@ -1,0 +1,141 @@
+idea:
+  id: IDEA-20260726-011
+  title: Twist-blind Kummer walk — does the shared x-line carry cross-twist information about k?
+  class: measurement
+  claim: >-
+    E and its quadratic twist E' share the Kummer line P^1 = E/±1, and the
+    differential-addition law there depends only on the curve constants, so it is
+    identical for both. The x-coordinates of E and E' partition F_p (excluding
+    roots of the cubic), and #E + #E' = 2p + 2. One algebraic object therefore
+    carries two group structures of orders n and n' = p + 1 + t simultaneously,
+    which a bare cyclic group has no analogue of. This record tests whether a
+    walk defined purely on P^1 -- blind to which curve a point lies on -- yields
+    any information about k that a twist-pure walk does not. Prediction: no. A
+    twist-blind walk mixes over p + 1 ~ n + n' states, so its birthday bound is
+    sqrt(2p), worse by a factor sqrt(2), and cross-twist collisions carry zero
+    mutual information with k because the two group structures are independent.
+  mechanism: >-
+    The structure is real and non-generic; the question is whether it is
+    exploitable. x-only arithmetic computes x(P+Q) from x(P), x(Q), x(P-Q) using
+    only the curve constants, so a walk stepping in x can cross freely between
+    the curve and its twist without detecting the crossing. Two candidate
+    mechanisms are worth separating. (1) State-space: if the walk is genuinely
+    mixing over all p + 1 x-values, collisions are cheaper to find per unit work
+    but most are cross-twist and therefore uninformative -- the predicted net is
+    a sqrt(2) loss, not a gain. (2) CRT: a relation valid on P^1 would constrain
+    k mod n and something mod n' simultaneously; since n' is a different prime,
+    the mod-n' component is useless for the target, so no CRT gain is available.
+    The reason to measure rather than assert is that the mutual-information claim
+    for cross-twist collisions is stated, not proved, in this ledger, and the
+    x-only representation is heavily used elsewhere. NOTE ON DUPLICATION RISK:
+    this is the highest-dup-risk record of its cohort -- grep -ril Kummer returns
+    51 files in ideas/ against 1 in ledger/. A per-file anti-duplication pass
+    against the ideas/ corpus is a precondition for approving this record, and it
+    should be rejected as a duplicate if an equivalent mechanism is already
+    recorded there.
+  novelty_status: unverified
+  assumptions:
+    - >-
+      The differential-addition law used is genuinely twist-independent for the
+      chosen model, which must be verified for the specific model rather than
+      assumed from the Montgomery case.
+    - >-
+      Toy sizes where k is recoverable by brute force, so mutual information
+      between collisions and k is computed against ground truth rather than
+      estimated.
+    - >-
+      Both n and n' are known for each instance, so cross-twist collisions can
+      be labelled as such for the analysis while the walk itself stays blind.
+  predictions:
+    - metric: mutual_information_between_cross_twist_collisions_and_k
+      direction: different
+      minimum_effect: >-
+        Predicted zero within the estimator's resolution. Any reproducible
+        positive mutual information is the signal and requires independent review.
+    - metric: twist_blind_walk_collision_cost_vs_twist_pure
+      direction: higher
+      minimum_effect: >-
+        Useful-collision cost is ~sqrt(2) higher for the blind walk, since it
+        mixes over p + 1 rather than n states. A measured cost at or below the
+        twist-pure walk falsifies the state-space prediction.
+    - metric: fraction_of_collisions_that_are_cross_twist
+      direction: different
+      minimum_effect: >-
+        Approximately n'/(n + n') of collisions are cross-twist, matching the
+        state-space model. A materially different fraction means the walk is not
+        mixing as modelled and the cost comparison is invalid.
+  minimal_test:
+    design: >-
+      Toy scale, 16-24 bit p, 8-12 curve/twist pairs with both n and n' known.
+      (1) Implement a pseudorandom walk stepping purely in x via differential
+      addition, blind to twist membership. (2) Run to a fixed collision budget,
+      recording every collision with a post-hoc label for whether it is
+      same-twist or cross-twist. (3) For same-twist collisions, confirm the
+      standard relation recovers k. (4) For cross-twist collisions, estimate the
+      mutual information between the collision datum and the true k, using brute-
+      forced ground truth. (5) Compare useful-collision cost against a twist-pure
+      walk on identical instances.
+    controls:
+      - >-
+        Twist-pure walk: identical step function restricted to E, same instances
+        and seeds. This is the direct cost baseline.
+      - >-
+        Shuffled-target control: mutual information recomputed against a k' drawn
+        independently of the instance. Any apparent information that survives
+        shuffling is an estimator artifact, and this control is what makes a
+        near-zero measurement trustworthy.
+      - >-
+        Random-partition control: collisions labelled by a random partition of
+        F_p of the same proportions instead of the true twist partition. The
+        cross-twist information estimate must be statistically indistinguishable
+        from the true labelling under the null.
+      - >-
+        Matched rho and BSGS group-operation counts per instance.
+    required_metrics:
+      - mutual information for cross-twist collisions, with confidence interval
+      - the same statistic under shuffled-target and random-partition controls
+      - useful-collision cost, blind vs twist-pure, in group-operation equivalents
+      - observed vs modelled cross-twist collision fraction
+  falsification_conditions:
+    - >-
+      Reproducible nonzero mutual information between cross-twist collisions and
+      k, surviving both the shuffled-target and random-partition controls.
+    - >-
+      Twist-blind useful-collision cost at or below the twist-pure baseline,
+      contradicting the sqrt(2) state-space penalty.
+    - >-
+      Observed cross-twist collision fraction materially away from
+      n'/(n + n'), indicating the walk is not mixing over the modelled state
+      space and that the record's cost analysis does not apply.
+  confounders:
+    - >-
+      Mutual-information estimators are biased at small sample sizes and will
+      report a small positive value even under a true null; the shuffled-target
+      control is what calibrates this, and results without it are uninterpretable.
+    - >-
+      Walk design (step function, partition count, distinguished-point rule)
+      affects mixing; a poorly mixing walk could produce structure that is an
+      artifact of the walk rather than of the twist pair.
+    - >-
+      At toy sizes n and n' may share small factors or be atypically related,
+      creating spurious structure. Instances should be screened for both orders
+      prime.
+    - >-
+      The x-only map is 2-to-1, so sign handling introduces its own collision
+      structure that must not be confused with cross-twist collisions.
+  interpretation_limits:
+    - >-
+      Toy scale; a null bounds cross-twist information at the tested resolution
+      and does not prove exact zero.
+    - >-
+      A confirmed null closes the twist-blind x-only walk family at tested scope.
+      It says nothing about twist security in protocol settings, which is a
+      different question about invalid-curve inputs rather than about ECDLP.
+    - >-
+      Subject to the duplication gate stated in the mechanism field; if the
+      anti-duplication pass finds an equivalent recorded mechanism, this record
+      should be withdrawn rather than run.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: low
