@@ -289,3 +289,25 @@ Next aligned checks: 190k -> 186,574 and 194k -> 188,122 (rescued frontier).
 Infra: /tmp mirror-log wiped mid-turn (second /tmp loss); blobs were safe in
 .git and the log was rebuilt deterministically (hash-object without -w). No
 rank claim: cell incomplete.
+
+## 15. Turn 6 (2026-07-26, 07:28-08:13Z): 230,000 / 778,394 (29.55 %) — rescued frontier re-derived, virgin territory entered
+
++52,000 columns (178,000 -> 230,000), rank_acc 214,527; 48 carries (2 pickle +
+46 RAWCARR1), all sha256-verified and git-blob mirrored.
+
+**Frontier cross-check PASSED.** 190k -> 185,684 and 194k -> 188,122, both
+bit-exact vs the STATE-RESCUE lineage; the 4k frontier unit's k = 2,438 equals
+890 + 1,548 (the lineage's two sub-units) exactly. The rebuilt cell has now
+re-derived the ENTIRE pre-incident lineage: every aligned rank point from
+88,000 through the 194,000-col rescued frontier is identical. (Correction, new
+record per rule 4: turn-5's summary wrote the expectation "190k -> 186,574";
+186,574 is the lineage's 192k value. The true 190k value 185,684 is what the
+rebuild produced — the measurement was right, the expectation string was
+wrong.)
+
+**Virgin territory onset (past 194k):** dependent density k/c = 57.9 / 75.4 /
+94.8 / 66.1 / 69.9 % at 194k-230k — deep non-monotone oscillation, not a
+monotone collapse. rank_acc 214,527 = 79.8 % of sr_pred (268,674) at 29.55 %
+of columns. The deficit question remains open; the n=18 late-column deficit
+zone (k/c ~ 0.1 %) has not appeared. RSS peaked 11.3 GB at 8k chunk; backed
+to 6k (walls 214-219 s). No rank claim: cell incomplete.
