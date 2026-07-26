@@ -85,6 +85,11 @@ def load_config():
             break
         except Exception as e:
             log("config candidate %s ignored: %s" % (src, e))
+    # Blueprint runtime nests Automation.run runInput under a top-level
+    # "input" key in the injected env config; give it highest precedence.
+    if isinstance(cfg.get("input"), dict):
+        cfg.update({k: v for k, v in cfg["input"].items() if v is not None})
+        log("runInput merged: %s" % json.dumps(cfg["input"], sort_keys=True)[:300])
     return cfg
 
 def scan_carry_npiv(path):
