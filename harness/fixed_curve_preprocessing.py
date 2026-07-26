@@ -42,7 +42,8 @@ def _derive_targets(inst, count: int) -> list[tuple[int, tuple[int, int]]]:
     return targets
 
 
-def _run_rho(inst, seed: int, bits: int, command: str, out_root: str | None):
+def _run_rho(inst, seed: int, bits: int, command: str, out_root: str | None,
+             exp_id: str = EXP_ID):
     log = io.StringIO()
     started = time.time()
     with redirect_stdout(log):
@@ -86,7 +87,7 @@ def _run_rho(inst, seed: int, bits: int, command: str, out_root: str | None):
         raw={"n": inst.n, "recovered_k": res.k},
     )
     return write_run(
-        EXP_ID, EXP_AREA, rr, status=status, command=command,
+        exp_id, EXP_AREA, rr, status=status, command=command,
         started=started, finished=finished, out_root=out_root
     )
 
@@ -208,6 +209,7 @@ def main() -> int:
                     bits=bits,
                     command=f"{base_command} # rho-control",
                     out_root=args.out,
+                    exp_id=args.exp_id,
                 )
             )
 
