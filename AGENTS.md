@@ -100,7 +100,9 @@ handoff:
   archived_by: TASK-YYYYMMDD-NNN
   inference:
     policy: coordinator-orchestration-code | coordinator-orchestration |
-            research-deep | executor-implementation | review-adversarial
+            research-deep | executor-implementation | executor-mechanical |
+            review-adversarial | review-breakthrough
+    reasoning_effort: null          # per-task calibration; null = policy default
     fallback_allowed: false
     degraded_allowed: false
     independent_session_required: false

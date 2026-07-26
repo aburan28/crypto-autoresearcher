@@ -537,3 +537,11 @@ def test_the_unrecoverable_routing_rule_names_the_top_tier(cfg):
     assert "claimed_breakthrough" in triggers
     # An ordinary supported/rejected transition stays on the cheaper tier.
     assert rules["critical-result-review"]["require"]["policy"] == "review-adversarial"
+
+
+def test_contract_documents_go_stale_loudly(cfg):
+    """AGENTS.md and the record template must list every policy that exists."""
+    for name in ("AGENTS.md", "templates/research-records.md"):
+        text = (REPO / name).read_text(encoding="utf-8")
+        for policy in cfg.policy_table:
+            assert policy in text, f"{name} does not mention {policy}"
