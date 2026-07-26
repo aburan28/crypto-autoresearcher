@@ -90,3 +90,25 @@ def test_validator_runs_and_reports_both_channels():
     combined = r.stdout + r.stderr
     assert "warning(s)" in combined
     assert r.returncode in (0, 1)
+
+
+def test_authorized_removals_are_recorded_and_parse():
+    import yaml
+    p = os.path.join(REPO, "ledger", "authorized-removals.yaml")
+    doc = yaml.safe_load(open(p))
+    entries = doc["authorized_removals"]
+    assert entries, "authorization file must not be silently empty"
+    for e in entries:
+        # every exemption must be auditable: who, why, and where recoverable
+        for field in ("path_prefix", "authorized_by", "date", "reason",
+                      "recoverable_at"):
+            assert e.get(field), f"authorization missing {field}"
+
+
+def test_immutability_check_exempts_only_recorded_prefixes():
+    sys.path.insert(0, os.path.join(REPO, "tools"))
+    import check_run_immutability as C
+    allowed = C.authorized_prefixes()
+    assert any(a.startswith("experiments/EXP-SEMAEV-") for a in allowed)
+    # an unrelated run path is NOT exempt
+    assert not any("experiments/EXP-DREG-001/runs/".startswith(a) for a in allowed)

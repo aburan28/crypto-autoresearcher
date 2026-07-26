@@ -14,12 +14,38 @@ Defaults: BASE from $GITHUB_BASE_REF or origin/main; HEAD = HEAD.
 Exit 0 if no immutable path was mutated, 1 otherwise. If the base ref cannot
 be resolved (e.g. shallow clone without it), the check is skipped with a
 notice rather than failing the build.
+
+Deletion is an EXCEPTION to append-only immutability and is permitted only when
+recorded in ledger/authorized-removals.yaml (who authorized it, when, why, and
+where the content remains recoverable). Anything unlisted still fails, so an
+authorized removal is auditable rather than silently exempt.
 """
 from __future__ import annotations
 
 import os
 import subprocess
 import sys
+
+import yaml
+
+AUTHORIZED = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "ledger", "authorized-removals.yaml")
+
+
+def authorized_prefixes() -> list[str]:
+    """Path prefixes whose removal has been explicitly authorized and recorded.
+
+    Deletion of a run record is an exception to append-only immutability. It is
+    permitted only when listed in ledger/authorized-removals.yaml, so that the
+    exception is auditable (who authorized it, when, why, where recoverable)
+    rather than silently exempt. Anything unlisted still fails.
+    """
+    if not os.path.exists(AUTHORIZED):
+        return []
+    doc = yaml.safe_load(open(AUTHORIZED, encoding="utf-8")) or {}
+    return [e["path_prefix"] for e in (doc.get("authorized_removals") or [])
+            if e.get("path_prefix") and e.get("authorized_by") and e.get("reason")]
 
 RUN_PATH = os.path.join("experiments", "")  # prefix; refined below
 
@@ -50,10 +76,15 @@ def main() -> int:
         print(f"NOTICE: git diff failed ({diff.stderr.strip()}); skipping")
         return 0
 
-    violations = [
-        line for line in diff.stdout.splitlines()
-        if "/runs/" in line and line.startswith("experiments/")
-    ]
+    touched = [line for line in diff.stdout.splitlines()
+               if "/runs/" in line and line.startswith("experiments/")]
+    allowed = authorized_prefixes()
+    violations = [p for p in touched
+                  if not any(p.startswith(a) for a in allowed)]
+    exempted = len(touched) - len(violations)
+    if exempted:
+        print(f"NOTICE: {exempted} run artifact path(s) covered by recorded "
+              f"authorizations in ledger/authorized-removals.yaml")
     if violations:
         print("FAIL: immutable run artifacts were modified or deleted:\n",
               file=sys.stderr)
