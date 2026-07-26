@@ -95,14 +95,20 @@ carries its own scope limits, an informal structural derivation, and a table of
 four matched-control invariances (curve model, isogeny class, factor-base
 structure, explicit membership).
 
-It is a loose markdown file at `ledger/` root. It is not a typed ledger record,
-so `tools/validate_ledger.py` does not see it. It is not a `KN-FIND`. Nothing in
-`knowledge/` references it. The only files in the repository that cite it are
-nine archived rejected-idea documents under `focus/archive/`.
+It is a loose markdown file at `ledger/` root. It is not a `KN-FIND`.
+No `knowledge/` entry references it, and because it is not a typed ledger record
+`validate_ledger.py` cannot see it. It is *not*, however, uncited: 290 files
+reference it at the pre-batch commit — 213 under `ideas/`, 35 under
+`coordination/`, 25 under `focus/`, 9 under `experiments/`, and 7 other ledger
+records including a coordinator decision (`DEC-20260724-004`), a proposal
+(`IDEA-20260723-005`) and five handoffs.
 
-This is the single clearest instance of the gap: the program's headline finding
-is written, replicated, scoped, and invisible to every retrieval path an agent
-uses.
+So the accurate statement is narrower than "invisible": the program's headline
+finding is written, replicated, scoped, and **absent from the knowledge layer and
+from the validated ledger schema**, while circulating freely in the untyped
+directories. *(Corrected 2026-07-25: this section originally said the only citing
+files were nine archived rejected-idea documents. That came from reading a
+`grep -rl` output truncated by `head` — see §11.)*
 
 ### 3.2 `research/THM_*.md` — four theorem notes, ~106 KB, uncited
 
@@ -114,10 +120,13 @@ uses.
 | `research/THM_JETBARRIER1.md` | 30.0 KB | Jet barrier |
 
 `research/verification/` holds independent check scripts and result JSON for
-three of the four (`thm_bkkmv1_verify.sage`, `commutator_kernel1_check.py`,
-`thm_incbarrier1_check.sage`, with results files). So these are exactly the
-`proof_status: derivation` artifacts that `docs/claims-and-verification.md`
-describes, already produced and already machine-checked.
+**all four** (`thm_bkkmv1_verify.sage`, `commutator_kernel1_check.py`,
+`thm_incbarrier1_check.sage`, `thm_jetbarrier1_check.sage`, each with a
+machine-readable results file). So these are exactly the `proof_status:
+derivation` artifacts that `docs/claims-and-verification.md` describes, already
+produced and already machine-checked. *(Corrected 2026-07-25 from "three of the
+four" — same truncated-output error as §3.1. The correction strengthens §9 item
+2: all four theorem notes, not three, can carry a checkable basis.)*
 
 `grep -rl 'THM_' knowledge/` returns nothing.
 
@@ -143,9 +152,10 @@ rho baseline thread with its own literature note sits unmerged in `research/`.
 
 ### 3.5 `ideas/` and `focus/archive/` — 410 prior ideas, zero retrievable
 
-`ideas/` holds 860 files; **410 distinct `ECDLP-IDEA-*` IDs** exist across the
-repository, with archived cohorts under `focus/archive/` including explicit
-`rejected/` directories. `grep -rl 'ECDLP-IDEA' knowledge/ ledger/proposals/`
+`ideas/` holds 860 files; **410 distinct `ECDLP-IDEA-*` IDs appear as filenames
+under `ideas/`** (433 distinct IDs occur across the
+repository once in-file references are counted), with archived cohorts under
+`focus/archive/` including explicit `rejected/` directories. `grep -rl 'ECDLP-IDEA' knowledge/ ledger/proposals/`
 returns **0**. Four hundred prior ideas, many explicitly rejected with
 reasoning, are invisible to both the corpus and the current proposal ledger.
 
@@ -154,8 +164,12 @@ reasoning, are invisible to both the corpus and the current proposal ledger.
 `EV-BKK-001`, `EV-BKKMV-001`, `EV-BKKMV-002`, `EV-EQJ-001`, `EV-FB-001`,
 `EV-NCP-001`, `EV-REP-002`, `EV-SIG-002`, `EV-SIG-003`, `EV-SIG-004`,
 `EV-SIG-005` — unchanged from the 2026-07-24 assessment, still unpromoted.
-Fifteen decisions pair one of these with a promotion-triggering outcome
-(`supported`, `supported_scoped`, or `reject_scoped`).
+**Sixteen** decision files pair one of these with a promotion-triggering outcome
+(`supported`, `supported_scoped`, or `reject_scoped`), counted as: decision files
+whose `evidence_refs` name one of the eleven and whose `decision` is in that set.
+Collapsing the five root records that `tools/legacy_ledger_inventory.yaml` remaps
+to `DEC-20260724-007..011` gives 13 distinct decisions. *(Corrected 2026-07-25
+from "fifteen"; the counting rule was previously unstated.)*
 
 ---
 
@@ -181,7 +195,7 @@ program's **two proved theorems** — the BKKMV mixed-volume law and the
 commutator-collapse kernel. The strongest results in the repository are closed
 by a waiver whose text says promotion was not considered.
 
-**4.2 Twelve of the fifteen obligated decisions have no field at all.** They
+**4.2 Thirteen of the sixteen obligated decisions have no field at all.** They
 predate the field's introduction and were grandfathered. Overall, 36 of 65
 decision records lack `knowledge_promotion` entirely.
 
@@ -189,7 +203,7 @@ decision records lack `knowledge_promotion` entirely.
 and `knowledge/README.md` define three promotion triggers: `KN-FIND` (proven
 result), `KN-OPEN` (crystallized unknown), `KN-TECH` (matured method). The
 `knowledge_promotion` field is `{promoted, not_warranted}`, and every one of the
-30 compliant records reasons *only* about evidence strength for `KN-FIND`. The
+29 compliant records reasons *only* about evidence strength for `KN-FIND`. The
 open-problem and technique obligations are structurally undischargeable. Two
 concrete consequences:
 
@@ -211,7 +225,8 @@ requires `internal_refs` resolving to real records, a `proof_status` in
 list. `/curate-knowledge` says the finding copies `proof_status` from its
 evidence record. But **none of the 11 replicated evidence records has a
 `proof_status` field** — it is absent from all 28 root-level `EV-*.yaml`, and
-appears only on the newer subdirectory records, all of which are `preliminary`.
+appears only on the newer subdirectory records, none of which is `replicated`
+(two are `not_applicable`: `EV-ECDLP-002`, `EV-ECDLP-004`).
 
 So a compliant `KN-FIND` cannot be written by copying, and the ledger's own
 correction precedent (`CORR-20260724-001…003`) covers only merge/ID-collision
@@ -235,8 +250,18 @@ Measured across all 48 evidence records:
 | Both `claim_tier` present *and* `run_ids` non-empty | **4 / 48** |
 
 The CI check described as *"no evidence record's `claim_tier` exceeds what its
-runs' parameters allow"* is therefore live on four records: `EV-DREG-003`,
-`EV-SIG-005`, `EV-MLKEM-004`, `EV-SEMAEV-001`.
+runs' parameters allow"* is therefore evaluated on **one** record.
+
+Four records carry both a `claim_tier` and non-empty `run_ids` (`EV-DREG-003`,
+`EV-SIG-005`, `EV-MLKEM-004`, `EV-SEMAEV-001`), but that is necessary and not
+sufficient. `tier_of_run()` reads `field_bits` or `field_bit_size` from a run's
+parameters and returns `None` when neither is present, and the guard is
+`if declared is not None and run_tiers and ...`. Only the 12 `EXP-SEMAEV-001`
+manifests record a field size, so for three of those four records `run_tiers` is
+empty and the check is skipped by the same fail-open path this section is about.
+That leaves `EV-SEMAEV-001` — and it declares `claim_tier: toy`, the bottom of the
+ordering, so even the one live evaluation cannot fail. *(Corrected 2026-07-25 from
+"live on four records"; the correction strengthens the section's thesis.)*
 
 Three specific consequences:
 
@@ -335,7 +360,7 @@ quoted number.
 | --- | --- | --- |
 | **SIG** (5 experiments, largest family, `supported_scoped`) | active | `syzyg*` → 2 files, both incidental; `yokoyama` 0, `semi-normal` 0, `FGLM` 0, Castelnuovo–Mumford regularity 0 |
 | **JET / JETB** (2 RQ, 2 H, 2 experiments) | closed scoped | `dual number` 0, `tangent` 0, `formal group` 0 — zero KN-LIT/KN-TECH |
-| **ISO** | closed scoped | No ordinary-curve isogeny entry at all: `modular polynomial` 0, `elkies` 0, `isogeny volcano` 0. All 30 isogeny files are supersingular |
+| **ISO** | closed scoped | No ordinary-curve isogeny entry at all: `modular polynomial` 0, `elkies` 0, `isogeny volcano` 0. every isogeny-tagged file is supersingular |
 | **IMON / MONO** | orphaned | One entry (`KN-LIT-039`, Chebotarev) + `KN-OPEN-009`; `primitive group` 0, Lang–Weil 0 |
 | **TRA** | closed scoped | `KN-LIT-040` is Koopman **1931**; no interval/kangaroo baseline (`pollard lambda` 0) though TRA's premise is sub-√n interval localization |
 | **DREG** tooling | inconclusive | Concept well covered; `m4ri` 0, `msolve` 0 |
@@ -383,7 +408,8 @@ spine, is 78 `web` + 1 `false` and zero `read`.** The exact region a novelty
 check bites on is entirely abstract-level relay.
 
 **7.2 Thirty-five entries combine `confidence: established` with
-`citation_verified: web`.** `SEEDING.md` reserves `established` for claims you
+`citation_verified: web`** (measured pre-batch; the 2026-07-25 batch added three
+more and all three were downgraded to `reported` during review — see §11). `SEEDING.md` reserves `established` for claims you
 can reconstruct the argument for; asserting that from a paper never fetched
 collapses the two honesty axes in the direction the protocol exists to prevent.
 Among them are `KN-LIT-008` (rho), `KN-LIT-011` (generic lower bound), and
@@ -406,8 +432,8 @@ failure modes:
 
 - *Silent omission* — bare-versus-qualified pairs where a query on one misses
   entries tagged only with the other. The largest: **`adjacent` (43) versus
-  `ecdlp-adjacent` (7)**, splitting the 51 entries that declare themselves
-  adjacent to the mission. Also `descent`/`weil-descent`,
+  `ecdlp-adjacent` (7)**, splitting the 50 entries that declare themselves
+  adjacent to the mission (the two tag sets are disjoint). Also `descent`/`weil-descent`,
   `endomorphism`/`endomorphism-ring`, `wiedemann`/`block-wiedemann`,
   `heuristic`/`heuristics`, `groebner`/`groebner-basis`/`groebner-complexity`,
   and ~25 more pairs.
@@ -432,7 +458,7 @@ experiment directory and no ledger record; it appears only in
 
 **7.8 Novelty labels are asserted, not performed.** `/propose-ideas` requires a
 novelty check against `knowledge/` before any label stronger than `unverified`.
-Across the 10 proposals in `ledger/proposals/`, seven cite **zero** knowledge
+Across the 10 proposals in `ledger/proposals/`, **eight** cite **zero** knowledge
 entries — including both proposals labelled `novelty_status: known`
 (`IDEA-20260723-001`, `-002`), which is precisely the label that must point at
 the prior art making it known.
@@ -446,9 +472,9 @@ the prior art making it known.
 | IDEA-20260723-002 | **known** | **0** |
 | IDEA-20260723-003 | unverified | 0 |
 | IDEA-20260723-004 | unverified | 0 |
-| IDEA-20260723-005 | unverified | 2 |
-| IDEA-20260723-006 | speculative | 1 |
-| IDEA-20260725-001 | methodological | 1 |
+| IDEA-20260723-005 | unverified | 1 |
+| IDEA-20260723-006 | speculative | 0 |
+| IDEA-20260725-001 | methodological | 2 |
 
 With `findings/` empty, the internal half of that check is impossible anyway —
 an Idea Generator grepping `knowledge/` today would find the jet split, the
@@ -606,22 +632,26 @@ author-hosted PDFs all returned HTTP 403; only web search was available.
 Under `knowledge/SEEDING.md`'s vocabulary that caps honest verification at
 `citation_verified: web` — bibliographic details corroborated against
 primary-index *listings surfaced by search* — and makes `read` unreachable. All
-22 entries are therefore `web`, and each one's `## Not verified here` section
-records specifically what could not be obtained rather than leaving the reader to
-assume.
+**18 literature** entries are therefore `web`; the four `KN-TECH` entries carry no
+`citation_verified` field, since the corpus's technique schema does not have one,
+and instead disclose the same constraint in a `## Verified vs reported` section.
+Each literature entry's `## Not verified here` section records specifically what
+could not be obtained rather than leaving the reader to assume.
 
 Two consequences worth stating plainly:
 
 - **§9 item 9 cannot be executed in this environment at all.** Upgrading the
   ECDLP spine from `web` to `read` requires fetching papers. It needs either a
   session with wider egress or a human with library access.
-- **No entry in this batch asserts a complexity constant, security level, or
-  cost figure**, because none could be read from a primary source. Where a
-  number arrived through a search summary it is either omitted or explicitly
-  flagged as unconfirmed — see `KN-LIT-132`, where a quantum complexity range
-  returned by search was internally inconsistent and was deliberately not
-  recorded, and `KN-TECH-053`, where the BooleanSolve exponents are marked as
-  quoted-but-unconfirmed.
+- **Several entries do relay complexity figures, security levels and wall clocks
+  from search-returned abstracts** — `KN-LIT-129`, `-132`, `-133`, `-137`, `-139`,
+  `-140`, `-141` and `KN-TECH-053`'s `complexity:` field. Each is marked as
+  reported, none was confirmed against a primary source, and **no program cost
+  model may consume any of them.** Where a returned number looked internally
+  inconsistent it was quarantined rather than promoted: `KN-LIT-132` records the
+  epsilon ranges only inside its caveat section with a garbling warning.
+  *(Corrected 2026-07-25: this bullet originally claimed no entry asserted any
+  such figure, which its own next sentence contradicted.)*
 
 The verification method also justified itself immediately: the author list this
 review would have written from memory for `KN-LIT-124` was wrong on two of five
@@ -640,14 +670,17 @@ quantum analysis), `KN-LIT-129` (SQALE, resource-constrained re-costing),
 (SQIsignHD, 2024); plus `KN-TECH-050` (memory-charged path-finding cost models)
 and `KN-TECH-051` (CSIDH quantum cost and the resource-constraint dispute).
 
-**The decision-relevant finding for BATCH-002**: `EV-SSI-001` records that the
+**The decision-relevant lead for BATCH-002**: `EV-SSI-001` records that the
 low-memory isogeny-graph collision-search analogue is "underspecified relative to
 the group setting," and `DEC-20260725-002` makes defining or falsifying it the
-gate's main technical content. It is **not** undefined in the literature — it is
-van Oorschot–Wiener golden collision search, applied to CSSI in `KN-LIT-124` and
-implemented in `KN-LIT-125`, with a 2024 memory-free competitor in `KN-LIT-132`.
-The gate should start from that work rather than construct the analogue from
-scratch.
+gate's main technical content. The strongest candidate in the literature is van
+Oorschot–Wiener golden collision search, applied to CSSI in `KN-LIT-124`,
+implemented in `KN-LIT-125`, with a 2024 memory-free competitor in `KN-LIT-132`;
+the gate should start there rather than build from scratch. It is a **lead, not a
+closure**: that work addresses fixed-smooth-degree CSSI on SIDH parameters, not
+expander-graph walks for the surviving assumptions, and bridging the two is the
+BATCH-002 question. *(Corrected 2026-07-25: originally stated as a settled
+identification — see §11.)*
 
 Three entries are dated 2024, the corpus's first, against the 24-month blackout
 in §6.6. `KN-LIT-130` is the corpus's first orientation entry, filling a line
@@ -691,3 +724,103 @@ post-2017 including Regev-2023, last fall degree, higher-genus, the current
 record landscape, cost-model economics) are untouched, as is the 2024–2025
 refresh for the lattice and ECDLP areas — batch 1 refreshed only the isogeny
 side.
+
+---
+
+## 11. Independent review of this document and the 2026-07-25 batch
+
+The 22 entries in §10 and this document were authored in one session by one
+agent. `AGENTS.md` requires independent review of anything that could change a
+research claim, so both were put through a two-stage adversarial review: seven
+reviewers over independent dimensions (bibliographic re-verification in three
+batches, verification-honesty audit, repo-record accuracy, schema and tag
+hygiene, and re-measurement of every number in this document), then a skeptic
+pass per dimension instructed to **refute** each finding and to default to
+refuted when not solidly established.
+
+**Result: 35 findings confirmed, 17 refuted. Zero fabricated or wrong citations.**
+
+The bibliographic dimension — the one that exists to catch the cardinal failure
+of `AGENTS.md` rule 9 — came back clean across all 22 entries. Every paper
+exists with the stated title; every author list is correct and correctly ordered;
+every non-null DOI resolves to the paper claimed; every ePrint number resolves;
+the one fully-specified volume/page citation (`KN-LIT-130`) is exact. The
+search-only verification method held.
+
+### What was confirmed, and fixed
+
+Five findings were high severity. Three concerned entries:
+
+1. **`KN-LIT-138` misattributed relinearization** to Courtois-Klimov-Patarin-Shamir.
+   It is Kipnis-Shamir (CRYPTO '99). The paper's actual central claim — that many
+   relinearization equations are linearly dependent — was missing. Fixed, with the
+   Kipnis-Shamir citation recorded.
+2. **`KN-LIT-124` stated a scope-crossing inference as settled.** It claimed the
+   low-memory analogue "is not undefined in the literature — it is vOW golden
+   collision search," and instructed the live BATCH-002 gate accordingly. vOW is
+   applied there to fixed-smooth-degree CSSI on SIDH parameters, not to
+   expander-graph walks for the surviving assumptions; the bridge is exactly what
+   BATCH-002 must decide. Demoted to a lead in `KN-LIT-124`, `KN-TECH-050` and §10.
+3. **`KN-TECH-053` rested on a false dichotomy.** It argued the MQ family bears on
+   nothing in `KN-OPEN-001` because `FINDING-PF-IC-001`'s cost is "dominated by the
+   `|F|`-size linear algebra, not by the solve" — but in that finding the `|F|`-size
+   Macaulay linear algebra **is** the solve, and the finding's contrast is with the
+   solving *degree*. Rewritten around the argument that actually holds: the
+   `>= |F|^2` relation-count floor.
+
+Two concerned this document, and both came from the **same methodological error**:
+a `grep`/`ls` output truncated with `head` was read as complete. §3.1 reported
+that only nine files cite `FINDING-PF-IC-001` when 290 do (including seven other
+ledger records), and §3.2 reported check scripts for three of four theorem notes
+when all four have them. Both are corrected in place above. The lesson is narrow
+and worth stating: **do not truncate the output of a command whose result you
+intend to report as a count.**
+
+Also corrected: obligated-decision counts (15/12 → 16/13, with the counting rule
+now stated), the proposal citation table (three rows wrong; the corrected figure
+is eight of ten proposals citing zero entries, which strengthens §7.8), the
+`adjacent`/`ecdlp-adjacent` union (51 → 50), compliant decision records (30 → 29),
+the `ECDLP-IDEA` count's scope qualifier, two `proof_status` exceptions, and the
+§5 claim-tier measurement — which was **understated**: the ceiling check is live
+on one record, not four, because `tier_of_run()` returns `None` when a run
+manifest omits `field_bits`, and only the 12 `EXP-SEMAEV-001` manifests record
+one. That is a second fail-open mode, and §9 item 17 should require `field_bits`
+in the run schema, not only a `claim_tier` enum.
+
+Three entries had `confidence: established` on unread papers (`KN-LIT-134`,
+`-136`, `-138`) — the exact defect §7.2 of this document criticises in 35
+pre-existing entries. All three were downgraded to `reported`. Source hedges that
+had been dropped were restored: Joux-Vitse's "(and with a lot of luck)" on the
+Fukuoka wall clock, which `KN-LIT-139`, `KN-LIT-141` and `KN-TECH-053` had
+promoted to a calibration anchor and which is now marked an existence datum; and
+BooleanSolve's "under precise algebraic assumptions" on its `0.841`/`0.792`
+exponents. `KN-TECH-053` and `KN-LIT-139` also attributed the crossbred exponent
+`0.863` to `EXP-ICI-001` as a result; `0.863` is the prior estimate in the frozen
+specification, and the measured value in `EV-ICI-001` is **0.8914, CI90
+[0.8692, 0.9138]** — a CI that excludes the prior.
+
+### Corrected in place, not superseded
+
+`knowledge/README.md` says corrections supersede and substance is never silently
+rewritten. These were corrected in place instead, deliberately: the entries are
+one day old, sit on an unmerged branch, are bound to no archival task, and are
+cited by no ledger record, so nothing has relied on them. Superseding would mint
+new IDs for entries that never entered service and would leave the known-wrong
+text as the corpus's live answer. Each corrected entry carries a dated correction
+note in its own body saying what it previously said, so the change is not silent.
+**This is a judgement call and a reviewer may disagree**; if the convention is
+that any committed entry is immutable regardless of merge state, these should be
+reissued as `KN-LIT-142`+ with `superseded_by` set on the originals.
+
+### A contract gap this batch inherited
+
+Separately from the review: `AGENTS.md` line 116 requires that every knowledge
+item be assigned to exactly one archival task, and `/curate-knowledge` step 5
+requires a post-commit verifier receipt before an item is reported. These 22
+entries were committed directly, with no archival task. That follows the
+precedent of the 2026-07-24 seeding batches (`KN-LIT-082`, `-100`, `-120`,
+`KN-TECH-030` have zero bindings in `coordination/` or `ledger/`) rather than the
+lifecycle precedent (`KN-LIT-080`/`-081`, promoted via `DEC-20260723-005`, are
+bound in both). Roughly 87 knowledge items are now in this state, and nothing
+enforces it — `tools/research_dispatch.py` contains no knowledge handling at all.
+This belongs with §9 item 3 as another prose-only obligation with no mechanism.

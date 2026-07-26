@@ -4,7 +4,7 @@ type: technique
 title: MQ and Boolean polynomial-system solving - XL, BooleanSolve, and the crossbred hybrid
 tags: [mq, multivariate-quadratic, xl, crossbred, booleansolve, boolean-solving, polynomial-system, exhaustive-search, hybrid, sparse-linear-algebra, groebner, crossover, solving, calibration, index-calculus]
 confidence: reported
-complexity: over F_2 with m=n, BooleanSolve is reported at O(2^{0.841 n}) deterministic and O(2^{0.792 n}) Las Vegas against an exhaustive-search baseline of 4 log_2(n) 2^n; the crossbred algorithm is reported to outperform prior methods over a wide parameter range but its exponent is parameter-dependent
+complexity: over F_2 with m=n and under precise algebraic assumptions on the input system, BooleanSolve is reported at O(2^{0.841 n}) deterministic and O(2^{0.792 n}) Las Vegas against an exhaustive-search baseline of 4 log_2(n) 2^n; the crossbred algorithm is reported to outperform prior methods over a wide parameter range but its exponent is parameter-dependent
 applicability: any index-calculus cost model whose per-decomposition solve is done by an MQ/Boolean solver rather than a Groebner basis; required reading before quoting EXP-ICI-001's crossbred exponent
 source_refs: [KN-LIT-138, KN-LIT-139, KN-LIT-140, KN-LIT-141, KN-TECH-003, KN-TECH-004, KN-TECH-011, KN-TECH-008]
 added: 2026-07-25
@@ -34,7 +34,9 @@ The family, in order of appearance:
   remaining variables, with the split a tunable parameter. Reported to outperform
   prior methods across a wide parameter range, and demonstrated by solving the
   Fukuoka Type I MQ challenges (`KN-LIT-141`) — 148 quadratic equations in 74
-  variables in under a day.
+  variables in under a day. The source adds "(and with a lot of luck)" to that
+  wall clock, so it is an **existence datum, not an expected cost**, and must not
+  be used to bound a cost model.
 
 The unifying idea is a **trade between linear algebra and search**, with the
 achieved exponent a function of where the split is placed. This is the same
@@ -46,11 +48,14 @@ reported alongside the exponent.
 ## The conflation to avoid
 An MQ solver's complexity is stated in the **number of Boolean variables `n`** of
 the system being solved. An index-calculus total exponent is stated in the
-**group order**. `EXP-ICI-001` reports a crossbred *total IC* exponent of about
-0.863 and a MITM one of about 0.667, with the decision gate on whether a
-bootstrap CI lower bound falls below rho's 0.5. Those numbers are outputs of a
-relation-collection cost model that *uses* a solver; they are not the solver's
-own exponent, and quoting either as the other is a category error.
+**group order**. `EXP-ICI-001`'s frozen specification quotes ~0.863 (crossbred)
+and ~0.667 (MITM, `t = 6`) as the *prior* estimates it was designed to
+re-measure; the measured result in `EV-ICI-001` is a crossbred total exponent of
+**0.8914 with bootstrap 90% CI [0.8692, 0.9138]** on the extended ladder, with the
+legacy ladder reproducing the old 0.863 figure as 0.8644. Quote the measured
+value, not the prior. Either way these are outputs of a relation-collection cost
+model that *uses* a solver; they are not the solver's own exponent, and quoting
+one as the other is a category error.
 
 The check this entry enables: a measured per-solve cost implying behaviour better
 than the proved bounds of `KN-LIT-140` in a comparable regime is a reason to
@@ -65,11 +70,22 @@ F_2. So this family bounds what a solver can be expected to do; it does not
 predict what it will do on the program's systems, which is why the program
 measures rather than assumes.
 
-Nothing here bears on `KN-OPEN-001` (does index calculus beat rho over prime
-fields). A faster MQ solver lowers the per-decomposition cost and leaves the
-relation-count side of the cost model untouched; `FINDING-PF-IC-001`'s structural
-argument is that the total is dominated by the `|F|`-size linear algebra, not by
-the solve.
+This family bears on `KN-OPEN-001` (does index calculus beat rho over prime
+fields) only weakly, and **not** for the reason an earlier draft of this entry
+gave. In `FINDING-PF-IC-001` the `|F|`-size Macaulay linear algebra **is** the
+per-decomposition solve; the finding's contrast is between the solve cost and the
+*solving degree*, not between linear algebra and the solve. In that cost model the
+solve contributes `gamma/m` of a total exponent of 2.05, so it is the dominant
+term, and a solver improvement is not irrelevant to it.
+
+What actually limits the transfer is narrower and is argued in the preceding
+paragraph: the proved bounds are for quadratic systems over F_2 at `m = n`, while
+the program's main line is structured, often overdetermined, and over prime
+fields. Independently, `FINDING-PF-IC-001` argues a total `>= |F|^2 = ell^{2/m}`
+floor that holds regardless of how fast the per-decomposition solve becomes,
+because it comes from needing `~|F|` relations each costing `>= |F|`. That floor,
+not a claim about linear algebra versus solving, is what bounds the route
+independent of solver speed.
 
 ## Verified vs reported
 All four source entries are `citation_verified: web`, written under an egress
@@ -81,5 +97,15 @@ crossbred algorithm's construction and parameterisation were not obtained at all
 `KN-LIT-139` records what it claims, not how it works.
 
 The mapping onto `EXP-ICI-001` is read from that experiment's frozen
-specification in this repository, and the category-error warning is this
-program's own reasoning rather than a claim from any source.
+specification and from `EV-ICI-001` in this repository, and the category-error
+warning is this program's own reasoning rather than a claim from any source.
+
+**Corrections (2026-07-25, pre-merge, same session).** Three defects found by
+independent review and fixed above. (1) This entry attributed the crossbred
+exponent ~0.863 to `EXP-ICI-001` as a reported result; 0.863 is the prior estimate
+in the frozen specification, and the measured value in `EV-ICI-001` is 0.8914
+[0.8692, 0.9138] — a CI that excludes 0.863. (2) The `KN-OPEN-001` paragraph
+rested on a false dichotomy between "the `|F|`-size linear algebra" and "the
+solve"; in `FINDING-PF-IC-001` these are the same object, and the finding's
+contrast is with the solving *degree*. (3) The Fukuoka wall clock was presented as
+a calibration anchor without the source's "(and with a lot of luck)" qualifier.

@@ -83,5 +83,11 @@ assessment of which steps this program currently performs are **this program's
 own reasoning**, not claims imported from any of the four papers. The
 characterisation of steps 1-2 as "done" is based on reading `EXP-ICI-001`,
 `FINDING-PF-IC-001` and the frozen protocols, and has not been independently
-audited; steps 3-5 are not currently evidenced anywhere in the ledger, which is
-an observation about the record rather than a claim that they were not performed.
+audited. **Step 4 is also performed**: `FINDING-PF-IC-001`'s "Scope and honest
+limits" section states the tested range explicitly, as does `EV-ICI-001`'s
+boundaries block. The outstanding gaps are steps 3 and 5 — formal comparison
+against pre-declared alternative functional forms, and multiplicity/selection
+accounting — which are not currently evidenced anywhere in the ledger. That is an
+observation about the record rather than a claim that they were not performed.
+(An earlier version of this entry said steps 3-5 were unevidenced, contradicting
+its own step-4 discussion above.)

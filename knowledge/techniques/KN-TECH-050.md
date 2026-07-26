@@ -26,9 +26,11 @@ The candidate algorithms the corpus now carries:
   count, so it is the algorithm most exposed to memory charging.
 - **van Oorschot-Wiener golden collision search** (`KN-LIT-124`, `KN-LIT-125`).
   The low-memory alternative: distinguished points and parallel collision search
-  (`KN-LIT-012`) specialised to the isogeny problem. `KN-LIT-124` reports it as
-  the lower-cost choice for CSSI and recommends it replace MITM for assessing
-  SIDH's classical security; `KN-LIT-125` supplies the optimised implementation
+  (`KN-LIT-012`) specialised to the isogeny problem — as applied there, to
+  fixed-smooth-degree CSSI on SIDH parameters, which is **not** the same instance
+  as an expander-graph walk for the surviving assumptions (see `KN-LIT-124`).
+  `KN-LIT-124` reports it as the lower-cost choice for CSSI and recommends it
+  replace MITM for assessing SIDH's classical security; `KN-LIT-125` supplies the optimised implementation
   and the argument that measured behaviour, not the cost expression, is what
   security estimation needs.
 - **Delfs-Galbraith** (`KN-LIT-078`). Exploits the F_p-rational subgraph and

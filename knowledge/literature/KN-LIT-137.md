@@ -2,7 +2,7 @@
 id: KN-LIT-137
 type: literature
 title: Training Compute-Optimal Large Language Models
-authors: [Hoffmann Jordan, Borgeaud Sebastian]
+authors: [Hoffmann Jordan, Borgeaud Sebastian, et al.]
 year: 2022
 venue: 'Advances in Neural Information Processing Systems 35 (NeurIPS 2022); arXiv:2203.15556'
 identifiers:
@@ -65,10 +65,10 @@ heuristic rather than its code), which is the same lesson inside cryptanalysis.
 ## Not verified here
 Verification was by web search surfacing primary-index listings (arXiv 2203.15556,
 NeurIPS 2022 proceedings PDF, ACM DL record, Semantic Scholar); direct fetches
-returned HTTP 403 under this session's egress policy. **The author list is
-incomplete**: this paper has many authors and only the first two were confirmed,
-so the `authors` field is partial and must be completed before the entry is
-cited bibliographically. No DOI was confirmed.
+returned HTTP 403 under this session's egress policy. **The author list is deliberately truncated**: the paper has roughly twenty
+authors and only the first two were confirmed, so the field carries an explicit
+`et al.` marker rather than silently asserting a two-author paper. It must be
+completed before the entry is cited bibliographically. No DOI was confirmed.
 
 NOT verified here: the fitted coefficients, the three estimation approaches used,
 the evaluation results, and the precise nature of the disagreement with Kaplan et

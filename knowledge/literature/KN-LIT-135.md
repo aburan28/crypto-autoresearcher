@@ -7,8 +7,8 @@ year: 2009
 venue: 'SIAM Review, 51(4):661-703'
 identifiers:
   eprint: null
-  doi: null
-  url: https://aaronclauset.github.io/powerlaws/
+  doi: 10.1137/070710111
+  url: https://arxiv.org/abs/0706.1062
 tags: [power-law, scaling-exponent, maximum-likelihood, goodness-of-fit, likelihood-ratio, model-selection, log-log-fit, statistics, methodology, extrapolation, cross-domain]
 confidence: reported
 citation_verified: web
@@ -61,9 +61,9 @@ program:
 Verification was by web search surfacing primary-index listings (SIAM Review
 51(4):661-703, 2009, corroborated across several independent citation records,
 plus the authors' project page and a course-hosted PDF); direct fetches returned
-HTTP 403 under this session's egress policy. **The DOI was not confirmed and is
-recorded as null**; the URL given is the authors' project page rather than the
-publisher's.
+HTTP 403 under this session's egress policy. The DOI 10.1137/070710111 and arXiv identifier 0706.1062 were confirmed by a
+second search during review on 2026-07-25 and are now recorded (the entry as first
+written had `doi: null`).
 
 An important scope caveat, which is this program's reasoning and not a claim from
 the paper: this paper is about power-law **distributions** — the tail of a random

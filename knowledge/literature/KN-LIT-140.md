@@ -18,8 +18,9 @@ superseded_by: null
 
 ## Contribution
 Presents **BooleanSolve**, an algorithm for finding all common zeroes of `m`
-quadratic polynomials in `n` unknowns over F_2, and proves complexity bounds
-below exhaustive search. The method reduces the problem to a **combination of
+quadratic polynomials in `n` unknowns over F_2, and proves — under precise
+algebraic assumptions on the input system — complexity bounds below exhaustive
+search. The method reduces the problem to a **combination of
 exhaustive search and sparse linear algebra** — the same hybrid shape that the
 crossbred algorithm (`KN-LIT-139`) later exploits — and the paper is the standard
 reference for the proved asymptotics of this family.
@@ -27,15 +28,17 @@ reference for the proved asymptotics of this family.
 ## Key claims (as reported)
 - The prior best complexity bound was exhaustive search at `4 log_2(n) * 2^n`
   operations.
-- The **deterministic** variant of BooleanSolve is bounded by `O(2^{0.841 n})`
-  when `m = n`.
-- A **probabilistic Las Vegas** variant has expected complexity `O(2^{0.792 n})`.
+- Under **precise algebraic assumptions on the input system**, the
+  **deterministic** variant of BooleanSolve is bounded by `O(2^{0.841 n})` when
+  `m = n`. The conditionality is the source's own and is load-bearing.
+- Under the same assumptions, a **probabilistic Las Vegas** variant has expected
+  complexity `O(2^{0.792 n})`.
 - The cryptanalysis of several modern ciphers reduces to this problem.
 
 ## Relevance to this program
 Supplies the proved complexity backdrop against which the program's measured
 solver exponents should be read. `EXP-ICI-001` fits empirical cost exponents for
-a crossbred solver path; this entry gives the analytically established exponents
+a crossbred solver path; this entry gives the conditionally proved exponents
 for the closest well-analysed relative, so a measured cost that implies behaviour
 better than `2^{0.792 n}` in the same regime is a signal to re-examine the
 measurement rather than a discovery.

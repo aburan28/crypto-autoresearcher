@@ -35,18 +35,21 @@ to construct instances that are genuinely difficult rather than accidentally eas
   multivariate public-key cryptosystems.
 
 ## Relevance to this program
-The calibration anchor for the MQ solver family, completing the pattern the
+A public instance family for the MQ solver world, completing the pattern the
 corpus already applies to ECDLP (`KN-TECH-036`, public record computations) and
-to lattices (`KN-TECH-049`, the SVP and LWE challenges). Before this entry the
+to lattices (`KN-TECH-049`, the SVP and LWE challenges) — with the caveat below
+that the published solve *times* are weaker instruments than those record
+computations. Before this entry the
 program could compare its crossbred solver path only against its own
 measurements.
 
-The connection is direct and checkable: `KN-LIT-139` reports that Joux solved all
-the Fukuoka **Type I** challenges, including 148 quadratic equations in 74
-variables in under a day. That gives a publicly stated instance size and wall
-clock against which the program's own solver cost model can be sanity-checked —
-the same instrument `KN-TECH-049` describes, applied to the solver rather than to
-the cryptosystem.
+The connection is direct: `KN-LIT-139` reports that Joux solved all the Fukuoka
+**Type I** challenges, including 148 quadratic equations in 74 variables in under
+a day. Treat that as an **existence datum, not a cost anchor** — the source
+qualifies the wall clock with "(and with a lot of luck)", so it bounds what has
+been achieved once, not what a solver should be expected to cost. The challenge
+*instances* remain a legitimate calibration target in the sense of `KN-TECH-049`;
+the reported solve time does not.
 
 The paper's framing also reinforces a discipline the program states elsewhere:
 hardness is a function of a **parameter tuple**, not of one variable. An MQ

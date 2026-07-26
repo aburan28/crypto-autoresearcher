@@ -10,7 +10,7 @@ identifiers:
   doi: 10.1214/aos/1176344552
   url: https://projecteuclid.org/journals/annals-of-statistics/volume-7/issue-1/Bootstrap-Methods-Another-Look-at-the-Jackknife/10.1214/aos/1176344552.full
 tags: [bootstrap, resampling, confidence-interval, sampling-distribution, jackknife, statistics, methodology, uncertainty-quantification, extrapolation, cross-domain]
-confidence: established
+confidence: reported
 citation_verified: web
 added: 2026-07-25
 superseded_by: null
@@ -54,10 +54,10 @@ way for this program to overclaim.
 Verification was by web search surfacing primary-index listings (Project Euclid
 with DOI 10.1214/aos/1176344552, Annals of Statistics 7(1):1-26, plus Semantic
 Scholar and multiple course-hosted PDF copies); direct fetches returned HTTP 403
-under this session's egress policy. The paper is textbook-foundational and its
-existence and content are not in doubt, which is why `confidence: established` is
-recorded — but the paper itself was **not** read here, so the summary above
-reflects an abstract returned by search.
+under this session's egress policy. The paper itself was **not** read here, so the summary above reflects an abstract
+returned by search. `confidence` is therefore `reported`: `knowledge/README.md`
+states that an abstract you skimmed is `reported`, not `established`, regardless
+of how foundational the result is.
 
 NOT verified here: the paper's actual technical development, the conditions it
 states for the bootstrap's validity, and its worked examples. The applicability

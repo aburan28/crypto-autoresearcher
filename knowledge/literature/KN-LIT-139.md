@@ -31,14 +31,17 @@ across a wide range of relevant parameters.
   relevant parameters.
 - **Demonstrated in practice, not only asymptotically**: Joux solved all the
   Fukuoka Type I MQ challenges, including a system of **148 quadratic equations
-  in 74 variables in under a day**.
+  in 74 variables in under a day**. The abstract qualifies this as done "(and with
+  a lot of luck)" — the authors do not present the wall clock as a representative
+  expected cost.
 
 ## Relevance to this program
 This is the solver behind the ICI thread's headline number. `EXP-ICI-001`'s
-frozen specification compares a **crossbred** total index-calculus exponent of
-about 0.863 against a **MITM** exponent of about 0.667, with bootstrap 90%
-confidence intervals, and its decision gate is whether the best exponent's CI
-lower bound sits below rho's 0.5. Until this entry the corpus contained no
+frozen specification quotes ~0.863 (crossbred) and ~0.667 (MITM, `t = 6`) as the
+prior estimates to be re-measured, with bootstrap 90% confidence intervals and a
+decision gate on whether the best exponent's CI lower bound sits below rho's 0.5.
+The measured outcome in `EV-ICI-001` is a crossbred total exponent of **0.8914,
+CI90 [0.8692, 0.9138]** — the gate was not met. Until this entry the corpus contained no
 description of the crossbred algorithm at all, so the program's most quoted
 exponent rested on a solver with no recorded prior art — the "self-citation gap"
 of `docs/knowledge-review-20260725.md` §6.3.
@@ -46,13 +49,14 @@ of `docs/knowledge-review-20260725.md` §6.3.
 Two cautions that follow from having the entry:
 
 - **The exponents are not the same object.** Crossbred's own complexity is
-  expressed in the number of Boolean variables `n`; the ICI thread's 0.863 is a
+  expressed in the number of Boolean variables `n`; the ICI thread's 0.8914 is a
   *total index-calculus* exponent in the group order, obtained by using crossbred
   as the per-decomposition solver inside a relation-collection cost model. The two
   must not be conflated when either is cited.
-- **The Fukuoka result is a calibration anchor** in the sense of `KN-TECH-036`
-  and `KN-TECH-049`: a publicly checkable instance somebody actually solved,
-  against which a claimed solver cost can be sanity-checked.
+- **The Fukuoka result is an existence datum, not a calibration anchor.** It shows
+  an instance of that size was solved, but the source's own "(and with a lot of
+  luck)" qualifier means a single lucky run, which cannot bound an expected cost
+  the way the record computations of `KN-TECH-036` and `KN-TECH-049` do.
 
 ## Not verified here
 Verification was by web search surfacing primary-index listings (IACR ePrint

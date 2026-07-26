@@ -10,7 +10,7 @@ identifiers:
   doi: 10.1111/j.2517-6161.1995.tb02031.x
   url: https://academic.oup.com/jrsssb/article/57/1/289/7035855
 tags: [multiple-comparison, false-discovery-rate, familywise-error-rate, hypothesis-test, screening, statistics, methodology, experimental-design, cross-domain]
-confidence: established
+confidence: reported
 citation_verified: web
 added: 2026-07-25
 superseded_by: null
@@ -62,8 +62,8 @@ Verification was by web search surfacing primary-index listings (JRSS-B
 57(1):289-300, 1995, DOI 10.1111/j.2517-6161.1995.tb02031.x, corroborated across
 Oxford Academic, Wiley, and a Tel Aviv University record); direct fetches
 returned HTTP 403 under this session's egress policy. The abstract quoted above
-was returned by search. `confidence: established` reflects the result's textbook
-status, not a reading of the paper here.
+was returned by search, and the paper was not read here, so `confidence` is
+`reported` rather than `established` per `knowledge/README.md`.
 
 NOT verified here: the Benjamini-Hochberg procedure's exact statement, its
 independence and positive-dependence conditions, and its proofs. The application
