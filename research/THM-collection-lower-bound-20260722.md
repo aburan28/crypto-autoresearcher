@@ -290,3 +290,18 @@ forces the sumset to be as large and unstructured as Lemma 1 permits, which is
 exactly the regime where the decomposition query is a worst-case-like k-SUM.
 This closes the most natural objection to importing 3SUM-Indexing hardness into
 this setting, and explains *why* the worst-case hypothesis is the right tool here.
+
+## CORRECTION to Corollary 9's interpretation (CORR-20260722-001)
+Corollary 9's arithmetic is correct, but the inference drawn from it -- "the
+binding resource is space, not solve time" -- generalised a single corner of the
+(S,T) trade-off to the whole frontier and is **withdrawn**. Theorem 8's condition
+is S*T = o(B^2), which has two usable corners:
+- S = Theta(B^2) forces T = o(1): impossible (this is Corollary 9);
+- **S = Theta(B)** -- the regime of an algebraic/Groebner test, which stores only
+  the factor base and the polynomial system -- forces **T = o(B)**, which is NOT
+  impossible. With T = B^{1-eps} the total is Theta(N^{1/(2+eps)}) < sqrt(N) for
+  every eps > 0 (verified: N^0.473 at eps=0.2; N^0.418 at eps=0.5).
+Consequently the summation-polynomial / degree-of-regularity line (DREG, SIG) is
+**a valid route**, not a misdirected one, and its sharp target is:
+        a decomposition test running in o(B) time with O(B) space.
+The naive algebraic oracle is Theta(B^2), so the gap to close is B^2 -> o(B).

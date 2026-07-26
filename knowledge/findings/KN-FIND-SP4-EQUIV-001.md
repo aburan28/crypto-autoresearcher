@@ -6,7 +6,7 @@ tags: [prime-field, index-calculus, 3sum-indexing, equivalence, space-lower-boun
 confidence: established
 internal_refs: [research/THM-collection-lower-bound-20260722.md, research/PLAN-prime-field-ecdlp-program-20260722.md, IDEA-20260722-002, KN-FIND-3SUM-NOGO-001]
 added: 2026-07-22
-superseded_by: null
+superseded_by: KN-FIND-SP4-EQUIV-002  # interpretation corrected by CORR-20260722-001
 ---
 
 ## Result (proved both directions; numerically verified)

@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-26 entries.
+27 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -14,6 +14,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-INTERNAL-REL-001 | The internal-relation index-calculus variant also never beats rho, for every m | internal_finding | established |  | prime-field index-calculus internal-relations all-m closure barrier |
 | KN-FIND-S4-ORACLE-001 | The natural S_4 algebraic decomposition oracle gives no speedup over generic MITM (m=3, prime field) | internal_finding | reported |  | prime-field index-calculus summation-polynomial s4 3sum oracle m3 no-speedup |
 | KN-FIND-SP4-EQUIV-001 | SP4 resolved -- sub-rho m=3 prime-field index calculus is EQUIVALENT to breaking 3SUM-Indexing; the binding resource is space, not solve time | internal_finding | established |  | prime-field index-calculus 3sum-indexing equivalence space-lower-bound m3 crux sp4 |
+| KN-FIND-SP4-EQUIV-002 | Corrected reading of the (S,T) frontier -- a Theta(B)-space decomposition test with query o(B) beats rho (supersedes the 'space is binding' claim) | internal_finding | established |  | prime-field index-calculus 3sum-indexing space-time-tradeoff groebner dreg correction m3 |
 | KN-FIND-TOOLKIT-ROBUST-001 | The prime-field m=3 decomposition barrier is robust to the full standard algorithmic toolkit | internal_finding | reported |  | prime-field index-calculus 3sum oracle fft multipoint-evaluation no-speedup barrier m3 |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
