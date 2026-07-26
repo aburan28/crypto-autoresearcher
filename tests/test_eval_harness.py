@@ -437,3 +437,143 @@ def test_a_suite_is_refused_upfront_on_a_backend_that_cannot_serve_it(cfg):
     with pytest.raises(Exception) as excinfo:
         runner_module.run_suite(suite, config=cfg, backend="openai", trials=1)
     assert "unbound" in str(excinfo.value)
+
+
+# --------------------------------------------------------------------------
+# tuning over time: attribution, regression detection, held-out split
+# --------------------------------------------------------------------------
+from orchestration.eval import fingerprint as fingerprint_module  # noqa: E402
+
+
+def test_fingerprint_tracks_the_role_contracts_that_get_tuned():
+    """Editing agents/executor.md must change the fingerprint, or a tuning
+    round cannot be attributed to the thing that was tuned."""
+    fp = fingerprint_module.harness_fingerprint()
+    assert fp["inputs"]["agents/executor.md"]
+    assert fp["inputs"]["orchestration/roles.yaml"]
+    assert fp["git_commit"] != ""
+
+
+def test_changed_between_names_what_moved():
+    before = {"git_commit": "a" * 40,
+              "inputs": {"agents/executor.md": "sha256:1",
+                         "orchestration/roles.yaml": "sha256:9"}}
+    after = {"git_commit": "b" * 40,
+             "inputs": {"agents/executor.md": "sha256:2",
+                        "orchestration/roles.yaml": "sha256:9"}}
+    assert fingerprint_module.changed_between(before, after) == ["agents/executor.md"]
+
+
+def test_a_commit_with_no_tracked_change_is_still_reported():
+    before = {"git_commit": "a" * 40, "inputs": {"AGENTS.md": "sha256:1"}}
+    after = {"git_commit": "b" * 40, "inputs": {"AGENTS.md": "sha256:1"}}
+    assert "commit differs" in fingerprint_module.changed_between(before, after)[0]
+
+
+def _baseline_record(passes: int, trials: int, kind: str = "capability") -> dict:
+    interval = report_module.wilson(passes, trials)
+    return {"tasks": [{"task_id": "T", "kind": kind, "passes": passes,
+                       "trials": trials, "pass_rate": passes / trials,
+                       "interval": [interval.low, interval.high]}]}
+
+
+def _current(passes: int, trials: int, kind: str = "capability"):
+    return _summary("anthropic", passes=passes, trials=trials, kind=kind)
+
+
+def test_a_small_improvement_is_reported_as_noise_not_progress():
+    """The failure mode of any tuning loop: reading noise as a win."""
+    result = report_module.regression(_baseline_record(3, 5), _current(4, 5))
+    assert result["tasks"][0]["verdict"] == report_module.INDISTINGUISHABLE
+    assert result["by_kind"]["capability"]["required_trials"] > 5
+
+
+def test_a_real_improvement_is_reported_as_one():
+    result = report_module.regression(_baseline_record(10, 50), _current(48, 50))
+    assert result["tasks"][0]["verdict"] == report_module.IMPROVED
+
+
+def test_a_real_regression_is_reported_and_named():
+    result = report_module.regression(_baseline_record(48, 50), _current(10, 50))
+    assert result["tasks"][0]["verdict"] == report_module.REGRESSED
+    assert result["regressed"] == ["T"]
+
+
+def test_a_discipline_regression_blocks_keeping_the_change():
+    """A capability gain never pays for a discipline loss."""
+    result = report_module.regression(
+        _baseline_record(48, 50, kind="discipline"),
+        _current(10, 50, kind="discipline"))
+    assert result["safe_to_keep"] is False
+    assert result["discipline_regressed"] == ["T"]
+    assert "DO NOT KEEP" in report_module.render_regression(result)
+
+
+def test_a_capability_regression_alone_does_not_block():
+    result = report_module.regression(_baseline_record(48, 50), _current(10, 50))
+    assert result["safe_to_keep"] is True
+    assert "regressions: T" in report_module.render_regression(result)
+
+
+def test_a_new_task_is_not_scored_as_a_change():
+    result = report_module.regression({"tasks": []}, _current(5, 5))
+    assert result["tasks"][0]["verdict"] == "new"
+
+
+def test_regression_report_names_the_changed_inputs():
+    rendered = report_module.render_regression(
+        report_module.regression(_baseline_record(5, 5), _current(5, 5)),
+        changed_inputs=["agents/executor.md"])
+    assert "changed since baseline: agents/executor.md" in rendered
+
+    unchanged = report_module.render_regression(
+        report_module.regression(_baseline_record(5, 5), _current(5, 5)),
+        changed_inputs=[])
+    assert "any difference is noise" in unchanged
+
+
+def test_both_suites_hold_tasks_back_from_tuning():
+    for path in (CAPABILITY, DISCIPLINE):
+        suite = tasks_module.load_suite(path)
+        dev = suite.filter(splits=["dev"]).tasks
+        held = suite.filter(splits=["held_out"]).tasks
+        assert dev and held, f"{path.name} has no held-out tasks to validate tuning"
+
+
+def test_an_unknown_split_is_rejected(tmp_path):
+    document = yaml.safe_load(CAPABILITY.read_text())
+    document["suite"]["tasks"][0]["split"] = "test"
+    path = tmp_path / "suite.yaml"
+    path.write_text(yaml.safe_dump(document))
+    with pytest.raises(ValueError, match="unknown split"):
+        tasks_module.load_suite(path)
+
+
+def test_seed_offset_rotates_the_fixture_without_changing_the_task(tmp_path):
+    """A suite whose fixtures never move measures familiarity, not ability."""
+    task = _task(CAPABILITY, "EVAL-CAP-DLOG-12")
+    _, first = tasks_module.build_sandbox(task, tmp_path / "a", seed_offset=0)
+    _, second = tasks_module.build_sandbox(task, tmp_path / "b", seed_offset=1)
+    assert first["withheld_k"] != second["withheld_k"]
+    a = json.loads((tmp_path / "a/work/instance.json").read_text())
+    b = json.loads((tmp_path / "b/work/instance.json").read_text())
+    assert a != b
+    assert a["field_bits"] == b["field_bits"]      # same difficulty
+
+
+def test_results_record_the_fingerprint_for_attribution(cfg, tmp_path, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    suite = tasks_module.load_suite(CAPABILITY).filter(ids=["EVAL-CAP-CURVE-ORDER"])
+    opener = scripted([
+        tool_use("write_file", {"path": "work/order.json",
+                                "content": json.dumps({"order": 19})}),
+        text("19"),
+    ])
+    summary, trials = runner_module.run_suite(
+        suite, config=cfg, backend="anthropic", trials=1, opener=opener,
+        keep_sandbox=tmp_path / "s")
+    written = runner_module.write_results(summary, trials, tmp_path / "out",
+                                          suite_path=str(CAPABILITY), config=cfg)
+    record = json.loads(written["summary.json"].read_text())
+    assert record["fingerprint"]["inputs"]["agents/executor.md"]
+    assert record["fingerprint"]["digest"].startswith("sha256:")

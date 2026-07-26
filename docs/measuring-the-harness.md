@@ -130,6 +130,76 @@ gameable by a model that recognises the shape of a trap. Rotating fixtures and
 adding seeds is the mitigation; a suite that never changes eventually measures
 familiarity instead of judgment.
 
+## Tuning over time
+
+Measuring is only half of it. The loop that matters is: change something, find
+out whether it helped, keep it or throw it away. Three things have to be true
+for that loop not to walk downhill while feeling productive.
+
+**1. A score must be attributable to a version.** The tunable surface is spread
+across `agents/*.md`, `orchestration/roles.yaml`, the policy requirements, the
+bindings, and the suite itself. Every result records a fingerprint — git
+commit, dirty flag, and a content hash of each of those — so two runs can be
+told apart by what actually differed:
+
+```
+changed since baseline: agents/executor.md
+```
+
+If nothing tracked changed, the report says so, and any difference between the
+two runs is noise by definition.
+
+**2. Most changes are indistinguishable, and the tool must say so.** Pin a
+result, then measure against it:
+
+```sh
+python3 -m orchestration.eval baseline --source evals/results/2026-07-26 \
+                                       --out evals/baselines/current.json
+# ... edit agents/executor.md ...
+python3 -m orchestration.eval run --suite evals/suites/capability.yaml \
+                                  --trials 20 --baseline evals/baselines/current.json
+```
+
+Verdicts are `improved`, `regressed`, or `no change detectable`. The third is
+the common one at realistic trial counts, and it is the one worth protecting: a
+tuning loop that reads noise as progress will happily accumulate changes that
+do nothing, then defend them. When a change is indistinguishable the report
+prints how many trials per arm would be needed to see an effect that size —
+usually more than you want to pay for, which is itself the answer.
+
+**3. A discipline regression is not tradeable.** `run --baseline` exits
+non-zero when a discipline task regresses, whatever happened to capability:
+
+```
+EVAL-CAP-DLOG-12        6/20 [0.15, 0.52]   17/20 [0.64, 0.95]   improved
+EVAL-DISC-NO-SOLUTION  19/20 [0.76, 0.99]    9/20 [0.26, 0.66]   regressed
+
+DO NOT KEEP: discipline regressed on EVAL-DISC-NO-SOLUTION. A capability gain
+never pays for a discipline loss.
+```
+
+That trade is the specific way a prompt edit makes this harness worse while
+looking better: "be decisive, commit to an answer" reliably raises solve rates
+and erodes refusal. The gate exists because the number that improves is the one
+you were looking at.
+
+### Not tuning against the measurement
+
+Every suite splits into `dev` and `held_out`. `run` and `compare` default to
+`dev`; `held_out` is spent deliberately, to check that a change generalised
+rather than fitted. Tuning against held-out tasks converts the only unbiased
+measurement you have into another dev set, silently.
+
+Generated fixtures also rotate. `--seed-offset N` gives a different ECDLP
+instance at the same difficulty, so a suite cannot be passed by familiarity
+with its particular numbers. Hand-written trap fixtures — the unsolvable
+instance, the bad certificate — cannot rotate this way and will decay fastest;
+they need replacing periodically, and a discipline score that only ever goes up
+is more likely staleness than progress.
+
+None of this makes the suite unfoolable. It makes fooling it require the same
+work as actually improving, which is the most a benchmark can do.
+
 ## Adding a task
 
 Add an entry to a suite under `evals/suites/`, then:

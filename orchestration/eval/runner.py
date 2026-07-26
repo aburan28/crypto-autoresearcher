@@ -21,6 +21,7 @@ from typing import Any, Callable
 
 from ..adapter import config as config_module
 from ..adapter import resolver as resolver_module
+from . import fingerprint as fingerprint_module
 from . import graders as graders_module
 from . import report as report_module
 from .tasks import EvalTask, Suite, build_sandbox, sandbox_task
@@ -56,7 +57,8 @@ class TrialResult:
 def run_trial(task: EvalTask, trial: int, *, config: config_module.Config,
               backend: str | None = None, repo: Path | None = None,
               opener: Callable[..., Any] | None = None,
-              keep_sandbox: Path | None = None) -> TrialResult:
+              keep_sandbox: Path | None = None,
+              seed_offset: int = 0) -> TrialResult:
     from ..agent import runner as agent_runner
 
     repo = repo or Path(agent_runner.REPO)
@@ -64,7 +66,8 @@ def run_trial(task: EvalTask, trial: int, *, config: config_module.Config,
             else Path(tempfile.mkdtemp(prefix=f"eval-{task.id}-{trial}-")))
     started = time.monotonic()
     try:
-        sandbox, _secrets = build_sandbox(task, root, repo=repo)
+        sandbox, _secrets = build_sandbox(task, root, repo=repo,
+                                          seed_offset=seed_offset)
         dispatch = sandbox_task(task, sandbox)
         run = agent_runner.run_task(
             dispatch, config=config, backend=backend, repo_root=sandbox,
@@ -97,6 +100,7 @@ def run_suite(suite: Suite, *, config: config_module.Config | None = None,
               repo: Path | None = None,
               opener: Callable[..., Any] | None = None,
               keep_sandbox: Path | None = None,
+              seed_offset: int = 0,
               progress: Callable[[TrialResult], None] | None = None
               ) -> tuple[report_module.RunSummary, list[TrialResult]]:
     config = config or config_module.load()
@@ -118,7 +122,8 @@ def run_suite(suite: Suite, *, config: config_module.Config | None = None,
         results = []
         for index in range(trials):
             result = run_trial(task, index, config=config, backend=backend,
-                               repo=repo, opener=opener, keep_sandbox=keep_sandbox)
+                               repo=repo, opener=opener, keep_sandbox=keep_sandbox,
+                               seed_offset=seed_offset)
             results.append(result)
             all_trials.append(result)
             if progress:
@@ -144,6 +149,11 @@ def write_results(summary: report_module.RunSummary, trials: list[TrialResult],
             ("summary.json", {**summary.to_dict(),
                               "suite_path": suite_path,
                               "config_digest": config.digest if config else None,
+                              # Without this a score cannot be attributed to a
+                              # version of the thing being tuned.
+                              "fingerprint": fingerprint_module.harness_fingerprint(
+                                  suite_path=suite_path,
+                                  config_digest=config.digest if config else None),
                               "scope": "evidence about the harness and backend, "
                                        "not about ECDLP"}),
             ("trials.json", [t.to_dict() for t in trials])):

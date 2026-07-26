@@ -17,6 +17,7 @@ from pathlib import Path
 
 from ..adapter import config as config_module
 from ..adapter import resolver as resolver_module
+from . import fingerprint as fingerprint_module
 from . import report as report_module
 from . import runner as runner_module
 from .tasks import build_sandbox, load_suite
@@ -26,7 +27,9 @@ def _suite(args: argparse.Namespace):
     suite = load_suite(args.suite)
     kinds = args.kinds.split(",") if getattr(args, "kinds", None) else None
     ids = args.tasks.split(",") if getattr(args, "tasks", None) else None
-    filtered = suite.filter(kinds, ids)
+    splits = (None if getattr(args, "split", None) in (None, "all")
+              else [args.split])
+    filtered = suite.filter(kinds, ids, splits)
     if not filtered.tasks:
         raise SystemExit("no tasks selected")
     return filtered
@@ -91,8 +94,21 @@ def cmd_run(args: argparse.Namespace) -> int:
     summary, trials = runner_module.run_suite(
         suite, config=cfg, backend=args.backend, trials=args.trials,
         keep_sandbox=Path(args.keep_sandboxes) if args.keep_sandboxes else None,
+        seed_offset=args.seed_offset,
         progress=None if args.quiet else _progress)
     print(report_module.render(summary))
+
+    if args.baseline:
+        baseline = json.loads(Path(args.baseline).read_text(encoding="utf-8"))
+        current = fingerprint_module.harness_fingerprint(
+            suite_path=str(args.suite), config_digest=cfg.digest)
+        changed = fingerprint_module.changed_between(
+            baseline.get("fingerprint") or {}, current)
+        result = report_module.regression(baseline, summary)
+        print()
+        print(report_module.render_regression(result, changed_inputs=changed))
+        if not result["safe_to_keep"]:
+            return 1
     if args.out:
         for label, path in runner_module.write_results(
                 summary, trials, args.out, suite_path=str(args.suite),
@@ -100,6 +116,27 @@ def cmd_run(args: argparse.Namespace) -> int:
             print(f"# {label}: {path}", file=sys.stderr)
     passes, total, _ = summary.rate()
     return 0 if passes == total else 1
+
+
+def cmd_baseline(args: argparse.Namespace) -> int:
+    """Pin an existing result as the baseline future runs are measured against."""
+    source = Path(args.source) / "summary.json" if Path(args.source).is_dir() \
+        else Path(args.source)
+    record = json.loads(source.read_text(encoding="utf-8"))
+    target = Path(args.out)
+    if target.exists() and not args.replace:
+        raise SystemExit(
+            f"{target} already exists; pass --replace to move the baseline "
+            f"deliberately (a baseline that drifts silently measures nothing)")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    print(f"baseline: {target}")
+    print(f"  from    {source}")
+    print(f"  harness {fingerprint_module.describe(record.get('fingerprint') or {})}")
+    overall = record.get("overall") or {}
+    print(f"  overall {overall.get('passes')}/{overall.get('trials')} "
+          f"{overall.get('interval')}")
+    return 0
 
 
 def cmd_compare(args: argparse.Namespace) -> int:
@@ -114,6 +151,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
         print(f"\n=== {backend} ===", file=sys.stderr)
         summary, trials = runner_module.run_suite(
             suite, config=cfg, backend=backend, trials=args.trials,
+            seed_offset=args.seed_offset,
             progress=None if args.quiet else _progress)
         summaries.append((summary, trials))
         print(report_module.render(summary))
@@ -145,10 +183,13 @@ def build_parser() -> argparse.ArgumentParser:
                     "it refuses to overclaim.")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    def common(p: argparse.ArgumentParser) -> None:
+    def common(p: argparse.ArgumentParser, default_split: str = "all") -> None:
         p.add_argument("--suite", required=True)
         p.add_argument("--kinds", help="capability,protocol,discipline")
         p.add_argument("--tasks", help="comma-separated task ids")
+        p.add_argument("--split", choices=["dev", "held_out", "all"],
+                       default=default_split,
+                       help="tune against dev; spend held_out sparingly")
 
     p_list = sub.add_parser("list", help="show the tasks in a suite")
     common(p_list)
@@ -160,20 +201,31 @@ def build_parser() -> argparse.ArgumentParser:
     p_validate.set_defaults(func=cmd_validate)
 
     p_run = sub.add_parser("run", help="run the suite against one backend")
-    common(p_run)
+    common(p_run, default_split="dev")
     p_run.add_argument("--backend")
     p_run.add_argument("--trials", type=int, default=3,
                        help="repeats per task; one trial is an anecdote")
     p_run.add_argument("--out", help="directory for the immutable result record")
     p_run.add_argument("--keep-sandboxes", help="keep trial sandboxes here")
+    p_run.add_argument("--baseline", help="compare against a pinned baseline record")
+    p_run.add_argument("--seed-offset", type=int, default=0,
+                       help="rotate generated fixtures so a suite cannot be memorised")
     p_run.add_argument("--quiet", action="store_true")
     p_run.set_defaults(func=cmd_run)
 
+    p_baseline = sub.add_parser("baseline", help="pin a result as the baseline")
+    p_baseline.add_argument("--source", required=True,
+                            help="an evals/results/<name> directory or summary.json")
+    p_baseline.add_argument("--out", required=True)
+    p_baseline.add_argument("--replace", action="store_true")
+    p_baseline.set_defaults(func=cmd_baseline)
+
     p_compare = sub.add_parser("compare", help="run two backends and compare honestly")
-    common(p_compare)
+    common(p_compare, default_split="dev")
     p_compare.add_argument("--backends", required=True)
     p_compare.add_argument("--trials", type=int, default=5)
     p_compare.add_argument("--out")
+    p_compare.add_argument("--seed-offset", type=int, default=0)
     p_compare.add_argument("--quiet", action="store_true")
     p_compare.set_defaults(func=cmd_compare)
     return parser

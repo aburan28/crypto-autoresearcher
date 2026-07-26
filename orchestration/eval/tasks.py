@@ -35,6 +35,10 @@ class EvalTask:
     fixtures: list[dict[str, Any]] = field(default_factory=list)
     max_steps: int | None = None
     tags: list[str] = field(default_factory=list)
+    # `dev` is what you tune against; `held_out` is what says whether the
+    # tuning generalised. Tuning against held_out spends the only unbiased
+    # measurement you have.
+    split: str = "dev"
 
     @property
     def policy(self) -> str | None:
@@ -48,9 +52,12 @@ class Suite:
     tasks: list[EvalTask]
 
     def filter(self, kinds: list[str] | None = None,
-               ids: list[str] | None = None) -> "Suite":
+               ids: list[str] | None = None,
+               splits: list[str] | None = None) -> "Suite":
         tasks = [t for t in self.tasks
-                 if (not kinds or t.kind in kinds) and (not ids or t.id in ids)]
+                 if (not kinds or t.kind in kinds)
+                 and (not ids or t.id in ids)
+                 and (not splits or t.split in splits)]
         return Suite(self.name, self.description, tasks)
 
 
@@ -65,7 +72,8 @@ def load_suite(path: str | Path) -> Suite:
             handoff=entry["handoff"], graders=entry["graders"],
             fixtures=entry.get("fixtures") or [],
             max_steps=entry.get("max_steps"),
-            tags=entry.get("tags") or []))
+            tags=entry.get("tags") or [],
+            split=entry.get("split", "dev")))
     _validate(tasks)
     return Suite(suite["name"], suite.get("description", ""), tasks)
 
@@ -79,6 +87,8 @@ def _validate(tasks: list[EvalTask]) -> None:
         seen.add(task.id)
         if task.kind not in ("capability", "protocol", "discipline"):
             raise ValueError(f"{task.id}: unknown kind {task.kind!r}")
+        if task.split not in ("dev", "held_out"):
+            raise ValueError(f"{task.id}: unknown split {task.split!r}")
         if not task.graders:
             raise ValueError(f"{task.id}: a task with no graders cannot be scored")
         for spec in task.graders:
@@ -92,12 +102,18 @@ def _validate(tasks: list[EvalTask]) -> None:
 # --------------------------------------------------------------------------
 # fixtures
 # --------------------------------------------------------------------------
-def _fixture_ecdlp_instance(sandbox: Path, spec: dict[str, Any]) -> dict[str, Any]:
-    """Write a toy ECDLP instance, withholding the scalar the agent must find."""
+def _fixture_ecdlp_instance(sandbox: Path, spec: dict[str, Any],
+                            seed_offset: int = 0) -> dict[str, Any]:
+    """Write a toy ECDLP instance, withholding the scalar the agent must find.
+
+    `seed_offset` rotates the instance without changing the task. A suite whose
+    fixtures never move eventually measures familiarity with those fixtures
+    rather than the ability that produced the first score.
+    """
     sys.path.insert(0, str(REPO))
     from harness.toycurve import generate_instance
 
-    instance = generate_instance(seed=int(spec["seed"]),
+    instance = generate_instance(seed=int(spec["seed"]) + seed_offset,
                                  field_bits=int(spec["field_bits"]))
     public = {"p": instance.p, "a": instance.a, "b": instance.b,
               "P": list(instance.P), "Q": list(instance.Q), "n": instance.n,
@@ -109,7 +125,8 @@ def _fixture_ecdlp_instance(sandbox: Path, spec: dict[str, Any]) -> dict[str, An
     return {"withheld_k": instance.k}
 
 
-def _fixture_file(sandbox: Path, spec: dict[str, Any]) -> dict[str, Any]:
+def _fixture_file(sandbox: Path, spec: dict[str, Any],
+                  seed_offset: int = 0) -> dict[str, Any]:
     target = sandbox / spec["path"]
     target.parent.mkdir(parents=True, exist_ok=True)
     content = spec.get("content", "")
@@ -123,8 +140,8 @@ def _fixture_file(sandbox: Path, spec: dict[str, Any]) -> dict[str, Any]:
 FIXTURES = {"ecdlp_instance": _fixture_ecdlp_instance, "file": _fixture_file}
 
 
-def build_sandbox(task: EvalTask, root: Path, *,
-                  repo: Path = REPO) -> tuple[Path, dict[str, Any]]:
+def build_sandbox(task: EvalTask, root: Path, *, repo: Path = REPO,
+                  seed_offset: int = 0) -> tuple[Path, dict[str, Any]]:
     """Create the throwaway repository this trial runs against."""
     sandbox = Path(root)
     sandbox.mkdir(parents=True, exist_ok=True)
@@ -144,7 +161,7 @@ def build_sandbox(task: EvalTask, root: Path, *,
         kind = spec["type"]
         if kind not in FIXTURES:
             raise KeyError(f"unknown fixture {kind!r}")
-        secrets.update(FIXTURES[kind](sandbox, spec))
+        secrets.update(FIXTURES[kind](sandbox, spec, seed_offset))
     return sandbox, secrets
 
 

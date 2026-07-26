@@ -201,6 +201,111 @@ def compare(left: RunSummary, right: RunSummary,
     }
 
 
+IMPROVED = "improved"
+REGRESSED = "regressed"
+INDISTINGUISHABLE = "no change detectable"
+
+
+def regression(baseline: dict[str, Any], current: RunSummary) -> dict[str, Any]:
+    """Did a tuning change help, hurt, or land inside the noise?
+
+    The third answer is the common one and the one worth protecting. With a
+    handful of trials per task most changes are indistinguishable, and a
+    tuning loop that reads noise as progress will happily walk downhill for
+    weeks. `verdict` says so explicitly instead of reporting a delta and
+    letting the reader infer significance that is not there.
+    """
+    per_task: list[dict[str, Any]] = []
+    baseline_tasks = {t["task_id"]: t for t in baseline.get("tasks", [])}
+
+    for task in current.tasks:
+        before = baseline_tasks.get(task.task_id)
+        if before is None:
+            per_task.append({"task_id": task.task_id, "verdict": "new",
+                             "detail": "not present in the baseline"})
+            continue
+        before_ci = Interval(*before["interval"])
+        separated = not before_ci.overlaps(task.interval)
+        if not separated:
+            verdict = INDISTINGUISHABLE
+        elif task.pass_rate > before["pass_rate"]:
+            verdict = IMPROVED
+        else:
+            verdict = REGRESSED
+        per_task.append({
+            "task_id": task.task_id, "kind": task.kind, "verdict": verdict,
+            "before": f"{before['passes']}/{before['trials']} {before_ci}",
+            "after": f"{task.passes}/{task.trials} {task.interval}",
+            "delta": round(task.pass_rate - before["pass_rate"], 4),
+        })
+
+    kinds = {}
+    for kind in ("capability", "protocol", "discipline"):
+        passes, trials, interval = current.rate(kind)
+        if not trials:
+            continue
+        before_passes = sum(t["passes"] for t in baseline.get("tasks", [])
+                            if t.get("kind") == kind)
+        before_trials = sum(t["trials"] for t in baseline.get("tasks", [])
+                            if t.get("kind") == kind)
+        if not before_trials:
+            continue
+        before_ci = wilson(before_passes, before_trials)
+        separated = not before_ci.overlaps(interval)
+        rate_now, rate_then = passes / trials, before_passes / before_trials
+        kinds[kind] = {
+            "verdict": (INDISTINGUISHABLE if not separated else
+                        IMPROVED if rate_now > rate_then else REGRESSED),
+            "before": f"{before_passes}/{before_trials} {before_ci}",
+            "after": f"{passes}/{trials} {interval}",
+            "required_trials": required_trials(rate_then, rate_now),
+        }
+
+    regressed = [t for t in per_task if t["verdict"] == REGRESSED]
+    # A discipline regression is the one that must never be traded away for a
+    # capability gain, so it is called out on its own.
+    discipline_regressed = [t for t in regressed if t.get("kind") == "discipline"]
+    return {
+        "tasks": per_task,
+        "by_kind": kinds,
+        "regressed": [t["task_id"] for t in regressed],
+        "discipline_regressed": [t["task_id"] for t in discipline_regressed],
+        "safe_to_keep": not discipline_regressed,
+    }
+
+
+def render_regression(result: dict[str, Any], *,
+                      changed_inputs: list[str] | None = None) -> str:
+    lines = []
+    if changed_inputs is not None:
+        lines.append("changed since baseline: " +
+                     (", ".join(changed_inputs) if changed_inputs
+                      else "nothing tracked — same inputs, so any difference is noise"))
+        lines.append("")
+    header = f"{'task':<28}{'before':<22}{'after':<22}verdict"
+    lines += [header, "-" * len(header)]
+    for task in result["tasks"]:
+        lines.append(f"{task['task_id']:<28}{task.get('before', '-'):<22}"
+                     f"{task.get('after', '-'):<22}{task['verdict']}")
+    lines.append("")
+    for kind, summary in result["by_kind"].items():
+        note = ("" if summary["verdict"] != INDISTINGUISHABLE
+                or not summary["required_trials"]
+                else f"  (~{summary['required_trials']} trials/arm to detect)")
+        lines.append(f"{kind:<12}{summary['before']:<22}{summary['after']:<22}"
+                     f"{summary['verdict']}{note}")
+    lines.append("")
+    if result["discipline_regressed"]:
+        lines.append("DO NOT KEEP: discipline regressed on "
+                     f"{', '.join(result['discipline_regressed'])}. A capability "
+                     "gain never pays for a discipline loss.")
+    elif result["regressed"]:
+        lines.append(f"regressions: {', '.join(result['regressed'])}")
+    else:
+        lines.append("no regressions detected")
+    return "\n".join(lines)
+
+
 def _arm(side: dict[str, Any]) -> str:
     return (f"{side['backend']} {side['passes']}/{side['trials']} "
             f"{Interval(*side['interval'])}")
