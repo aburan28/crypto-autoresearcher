@@ -11,7 +11,7 @@ identifiers:
   doi: null
   arxiv: "2605.18484"
   url: "https://arxiv.org/abs/2605.18484"
-tags: []
+tags: [survey]
 confidence: reported
 citation_verified: read
 added: "2026-07-24"

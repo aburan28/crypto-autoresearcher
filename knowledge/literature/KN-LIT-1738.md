@@ -11,7 +11,7 @@ identifiers:
   doi: null
   arxiv: null
   url: "https://eprint.iacr.org/2026/999"
-tags: []
+tags: [survey]
 confidence: reported
 citation_verified: read
 added: "2026-07-24"

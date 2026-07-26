@@ -11,7 +11,7 @@ identifiers:
   doi: null
   arxiv: null
   url: "https://eprint.iacr.org/1997/004"
-tags: []
+tags: [provable-security]
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
