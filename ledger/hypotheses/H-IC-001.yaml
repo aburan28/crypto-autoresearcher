@@ -1,0 +1,155 @@
+hypothesis:
+  id: H-IC-001
+  question_id: RQ-ECDLP-002
+  statement: >-
+    At toy prime fields of 8-36 bits with factor base B=14 and m=2 (S_3
+    decomposition), the per-target descent cost T_desc in group-operation
+    equivalents is >= sqrt(N) at small bit sizes but crosses below sqrt(N)
+    at some threshold bit size, making the multi-target index-calculus
+    crossover K* finite. The crossover cost C_IC(K*)/K* lies on or above
+    the generic S*T^2 = Omega~(N) preprocessing frontier (KN-LIT-013,
+    KN-TECH-005), indicating no non-generic multi-target advantage at toy
+    scale.
+  mechanism: >-
+    In point-decomposition index calculus (KN-TECH-003), the factor-base
+    logarithm table is computed once from relation collection plus sparse
+    linear algebra and then reused for every target. The per-target cost
+    is only the descent (one S_{m+1} Groebner solve for Q+[t]P) plus
+    verification. For K targets on the same fixed curve, total IC cost is
+    C_IC(K) = S_rel + S_LA + K*(T_desc + T_verify), while matched Pollard
+    rho costs K*sqrt(N) (each target independently). The Groebner solve
+    time is dominated by the polynomial operation count (fixed by degree 14,
+    2 variables), which is independent of p; only coefficient arithmetic
+    grows with p, and at toy scale this is a small fraction of the total
+    (EV-FCP-002, EV-FCP-003: ~0.04-0.05s across 16-36 bits). Meanwhile
+    sqrt(N) grows exponentially with bit size. The calibration step
+    converts T_desc from wall-time to group-operation equivalents by
+    measuring rho's wall-time-per-group-operation at each bit size. Since
+    T_desc in wall-time is ~constant and the calibration factor
+    (group_ops_per_second) grows slowly with bit size, T_desc in group-ops
+    grows slowly while sqrt(N) grows exponentially; therefore T_desc/sqrt(N)
+    decreases with bit size, crossing below 1 at some threshold. When
+    T_desc < sqrt(N), K* = ceil((S_rel + S_LA) / (sqrt(N) - T_desc -
+    T_verify)) is finite. The relation-collection cost is estimated by the
+    generic heuristic S_rel ~ B * (N/B)^{m-1} * T_desc (the expected number
+    of decomposition attempts to collect B relations, times per-attempt
+    cost); for m=2 this gives S_rel ~ N * T_desc. The preprocessing frontier
+    product is S*T^2 = (S_rel + S_LA) * (T_desc + T_verify)^2 ~ N *
+    T_desc^3. At the crossover point T_desc ~ sqrt(N), this gives S*T^2 ~
+    N^{5/2} >> N, placing the crossover cost well above the generic
+    S*T^2 = N frontier. Thus even when K* is finite, the amortized cost
+    per target at K* is approximately sqrt(N) (by definition of K*), and
+    the preprocessing investment S_rel is so large that the S*T^2 product
+    exceeds the generic bound, indicating no non-generic multi-target
+    advantage at toy scale.
+  assumptions:
+    - >-
+      The per-target descent cost T_desc is measurable at toy scale as the
+      median Groebner solve time for S_{m+1} systems over the frozen factor
+      base, including all failed attempts, and is convertible to
+      group-operation equivalents via a calibration step that measures
+      rho's wall-time-per-group-operation at each bit size.
+    - >-
+      The calibration factor (group_ops_per_second) derived from Pollard
+      rho's wall_seconds and group_operations is a valid conversion between
+      wall-time and group-operation units at each bit size on the same
+      machine.
+    - >-
+      The factor-base log table is target-independent (no target-derived
+      material enters preprocessing), as required by the frontier-A
+      non-interference receipt concept.
+    - >-
+      At toy scale where no relations are found (B^2/N << 1 for bits >= 16),
+      the relation-collection cost S_rel can be estimated by the generic
+      heuristic S_rel ~ B * (N/B)^{m-1} * T_desc rather than measured
+      directly, because the decomposition probability per random point is
+      approximately (B/N)^{m-1}.
+    - >-
+      The generic preprocessing bound S*T^2 = Omega~(N) from Corrigan-Gibbs--
+      Kogan (KN-LIT-013, KN-TECH-005) applies to the fixed-curve, multi-target
+      setting and is the correct reference frontier.
+    - >-
+      Toy-scale measurements (8-36 bit primes) can distinguish the sign of
+      K* (finite vs infinite) but cannot settle the asymptotic regime; any
+      finite K* at toy scale is a scaling signal, not cryptographic evidence.
+  predictions:
+    - metric: t_desc_to_sqrt_n_ratio
+      direction: lower
+      minimum_effect: >-
+        T_desc / sqrt(N) in group-operation equivalents decreases
+        monotonically across bit sizes 8-36. At small bit sizes (8-12),
+        T_desc / sqrt(N) >= 1.0 (K* infinite); at larger bit sizes (>= 24),
+        T_desc / sqrt(N) < 1.0 (K* finite). The crossover threshold is
+        the smallest bit size at which T_desc < sqrt(N) for at least 2 of
+        3 seeds.
+    - metric: crossover_K_star
+      direction: different
+      minimum_effect: >-
+        K* is infinite at small bit sizes (T_desc >= sqrt(N)) and finite
+        at larger bit sizes (T_desc < sqrt(N)). A finite K* must be >= 2;
+        K* = 1 would mean IC beats rho for a single target, contradicting
+        KN-OPEN-001.
+    - metric: amortized_cost_vs_generic_frontier
+      direction: higher
+      minimum_effect: >-
+        At K = K* (when finite), the S*T^2 product (where S = S_rel +
+        S_LA, T = T_desc + T_verify, all in group-operation equivalents)
+        satisfies S*T^2 >= N, placing the crossover cost on or above the
+        generic S*T^2 = N frontier (no non-generic advantage). The competing
+        prediction is S*T^2 < N, indicating a non-generic signal requiring
+        independent review.
+  test_boundary:
+    instances:
+      - seeds 1, 2, 3
+      - bit sizes 8, 12, 16, 20, 24, 28, 32, 36
+      - 10 targets per (bits, seed) curve
+    parameters:
+      factor_base_size: 14
+      decomposition_arity: 2
+      targets_per_curve: 10
+      calibration_method: rho_wall_seconds_per_group_operation
+    implementation: >-
+      harness/semaev.py (measure_s3_decomposition for T_desc),
+      harness/rho.py (solve for calibration and baseline),
+      harness/toycurve.py (generate_instance, order_bsgs for >24 bits),
+      harness/runner.py (write_run with certificate verification)
+    budget:
+      wall_clock_seconds_per_run: 120
+      total_wall_clock_seconds: 3600
+  falsification_conditions:
+    - >-
+      T_desc >= sqrt(N) at ALL tested bit sizes (8-36) for all seeds, making
+      K* = infinity everywhere. This closes the multi-target IC route at toy
+      scale (tested primes, B=14, m=2, sympy Groebner).
+    - >-
+      K* = 1 for any tested instance, meaning IC beats rho for a single
+      target at toy scale, contradicting KN-OPEN-001 and requiring
+      investigation.
+    - >-
+      The measurement is inconclusive because T_desc has IQR exceeding its
+      median (too noisy to determine the sign of sqrt(N) - T_desc) at the
+      critical threshold bit sizes.
+  interpretation_limits:
+    - >-
+      Toy scale only (max 36 bits); K* at toy scale says nothing about
+      crypto-scale behavior. A finite K* at toy scale is a scaling signal,
+      not cryptographic evidence.
+    - >-
+      K* = infinity at toy scale closes only the tested scope (these primes,
+      B=14, m=2, sympy Groebner solver); it does not prove K* = infinity
+      asymptotically or for other parameterizations.
+    - >-
+      The S_rel estimate uses the generic heuristic S_rel ~ B * (N/B)^{m-1}
+      * T_desc because no relations are found at toy scale (B^2/N << 1 for
+      bits >= 16); the actual S_rel at larger B, higher m, or non-trivial
+      Groebner systems may differ.
+    - >-
+      The calibration from wall-time to group-ops is model-dependent and
+      implementation-bound (sympy Groebner, Python rho on macOS arm64); only
+      within-machine comparisons are valid. The calibration factor may be
+      noisy at small bit sizes where rho solves in very few group operations.
+    - >-
+      A non-generic signal (S*T^2 < N) requires independent review-xhigh
+      before any breakthrough claim, per AGENTS.md rule 12.
+  status: specified
+  proposed_by: coordinator

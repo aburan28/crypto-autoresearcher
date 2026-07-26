@@ -1,0 +1,276 @@
+experiment:
+  id: EXP-IC-001
+  hypothesis_id: H-IC-001
+  version: 1
+  title: >-
+    Multi-target index-calculus amortization crossover against the generic
+    preprocessing frontier at toy prime fields (8-36 bit)
+  status: review_required
+  objective: >-
+    Measure the per-target descent cost T_desc in group-operation equivalents
+    across toy prime fields of 8-36 bits, determine whether the multi-target
+    IC crossover K* is finite (T_desc < sqrt(N)) or infinite (T_desc >=
+    sqrt(N)), and compare the crossover cost to the generic S*T^2 = N
+    preprocessing frontier. This directly tests H-IC-001 by converting
+    Groebner wall-time to group-operation equivalents via a rho-based
+    calibration step, estimating S_rel from the generic decomposition-
+    probability heuristic, computing K*, and evaluating the S*T^2 product.
+    The prior experiments EXP-FCP-002 and EXP-FCP-003 established that
+    Groebner solve time is ~0.04-0.05s across 16-36 bits (polynomial
+    operation count is fixed by degree 14, 2 variables) while sqrt(N) grows
+    exponentially; this experiment tests whether that gap makes K* finite
+    and whether the crossover cost lies on or above the generic frontier.
+  inputs:
+    curve_generation: harness.toycurve.generate_instance(seed, field_bits)
+    bit_sizes: [8, 12, 16, 20, 24, 28, 32, 36]
+    seeds: [1, 2, 3]
+    factor_base_size: 14
+    decomposition_arity: 2
+    targets_per_curve: 10
+    target_derivation: >-
+      Deterministic from (seed, target_index) via _derive_targets: stride =
+      max(2, seed % max(2, n-3)), k = ((idx+1)*stride) % (n-1) + 1
+    calibration_source: >-
+      Pollard rho baseline run per (bits, seed): group_ops_per_second =
+      group_operations / wall_seconds, where both quantities are recorded in
+      the rho run manifest.
+  controls:
+    - >-
+      Matched Pollard-rho baseline: one rho solve per (bits, seed) on the
+      same curve, reporting group_operations and wall_seconds with a verified
+      discrete-log certificate. This run serves dual purpose: (1) the generic
+      sqrt(N) baseline for single-target cost, and (2) the calibration factor
+      (group_ops_per_second) that converts Groebner wall-time to group-
+      operation equivalents.
+    - >-
+      Target-independence control: verify that the factor-base log table
+      (factor_base x-coordinate list) is identical across all 10 targets
+      within each (bits, seed) by content-hash comparison of the factor_base
+      field in the raw-result.json of the precompute run.
+    - >-
+      Single-target rho control: confirm that IC single-target cost
+      (T_desc + T_verify) exceeds sqrt(N) at small bit sizes, consistent
+      with KN-OPEN-001 (IC does not beat rho for a single target).
+    - >-
+      Calibration reliability check: report the rho group_operations count
+      and wall_seconds for each (bits, seed). Flag calibration factors as
+      unreliable when rho group_operations < 100 (small bit sizes where
+      Python overhead dominates wall-time). For flagged instances, report
+      the calibration factor but note the uncertainty; the T_desc/sqrt(N)
+      comparison at those bit sizes is labeled preliminary.
+    - >-
+      Cross-experiment validation: compare the calibration factor and
+      Groebner solve times at 16-28 bits against EXP-FCP-002 data, and at
+      32-36 bits against EXP-FCP-003 data, to confirm consistency.
+  independent_variables:
+    - field_bits: [8, 12, 16, 20, 24, 28, 32, 36]
+  metrics:
+    primary:
+      - t_desc_to_sqrt_n_ratio: >-
+          T_desc_gops / sqrt(N), where T_desc_gops = median_groebner_seconds
+          * group_ops_per_second, and sqrt(N) = isqrt(n). This is the
+          decisive metric: ratio >= 1.0 means K* = infinity; ratio < 1.0
+          means K* is finite.
+      - crossover_K_star: >-
+          K* = ceil((S_rel + S_LA) / (sqrt(N) - T_desc_gops - T_verify))
+          when T_desc_gops + T_verify < sqrt(N); otherwise K* = infinity.
+          S_rel = B * (N/B)^{m-1} * T_desc_gops (generic heuristic,
+          m=2: S_rel = N * T_desc_gops). S_LA estimated as O(B^2) field
+          operations converted to group-ops (negligible at B=14).
+          T_verify = m = 2 group ops.
+      - st_product_vs_n: >-
+          S * T^2 where S = S_rel + S_LA and T = T_desc_gops + T_verify,
+          all in group-operation equivalents. Compared to N: if S*T^2 >= N,
+          the crossover cost lies on or above the generic frontier (no
+          non-generic advantage); if S*T^2 < N, it is a non-generic signal.
+    secondary:
+      - group_ops_per_second: >-
+          Calibration factor from the rho run: group_operations / wall_seconds.
+          Converts Groebner wall-time to group-operation equivalents.
+      - groebner_seconds_median: >-
+          Median Groebner solve time across 10 targets per (bits, seed).
+      - groebner_seconds_iqr: >-
+          Interquartile range of Groebner solve time across 10 targets.
+          If IQR > median, the T_desc measurement is too noisy.
+      - rho_group_operations: >-
+          Pollard-rho group-operation count (the sqrt(N) baseline).
+      - rho_wall_seconds: >-
+          Pollard-rho wall-time (used for calibration).
+      - sqrt_n: >-
+          Integer square root of the prime subgroup order n (isqrt(n)).
+      - s_rel_estimate: >-
+          Estimated relation-collection cost in group-ops: B * (N/B)^{m-1}
+          * T_desc_gops.
+      - s_la_estimate: >-
+          Estimated linear-algebra cost in group-ops: approximately B^2
+          divided by the number of field operations per group operation
+          (~12), or measured from a synthetic B x B matrix solve converted
+          via calibration. Negligible at B=14.
+      - t_verify: >-
+          Verification cost in group-ops: m = 2 (summing 2 factor-base
+          points and comparing to target).
+      - amortized_cost_at_k_star: >-
+          C_IC(K*)/K* = (S_rel + S_LA)/K* + T_desc_gops + T_verify.
+          By definition of K*, this equals approximately sqrt(N).
+      - decomposition_found: >-
+          Boolean per target (expected false for bits >= 16 since B^2/N <<
+          1; may be true at 8-12 bits).
+      - factor_base_hash: >-
+          SHA-256 of the factor_base x-coordinate list, for target-
+          independence verification.
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 3
+    targets_per_instance: 10
+  budget:
+    wall_clock_seconds_per_run: 120
+    total_cpu_hours: 2
+    maximum_memory_gb: 4
+    maximum_runs: 288
+  stopping_rules:
+    - >-
+      Per-run Groebner timeout: if groebner_seconds exceeds 120s for any
+      target, record the run as cancelled_by_budget and do not attempt
+      larger bit sizes for that seed.
+    - >-
+      Per-run rho timeout: if rho wall_seconds exceeds 300s for any (bits,
+      seed), record the run as cancelled_by_budget. The calibration factor
+      for that (bits, seed) is then unavailable; mark the T_desc/sqrt(N)
+      comparison as inconclusive for that instance.
+    - >-
+      Total experiment wall-clock: if cumulative wall time exceeds 3600s,
+      stop and record remaining planned runs as cancelled_by_budget.
+    - >-
+      If all 3 seeds at a given bit size timeout on rho, do not attempt the
+      next larger bit size.
+  invalidation_rules:
+    - any run with dirty: true is invalid (the manifest commit must pin the exact code)
+    - any run with a missing manifest, raw-result, stdout, or stderr file is invalid
+    - any decomposition claim with a failed certificate is completed_invalid
+    - >-
+      Calibration invalidation: if the rho run for a (bits, seed) fails to
+      solve (cancelled_by_budget), the calibration factor is unavailable and
+      all T_desc measurements for that (bits, seed) are labeled
+      uncalibrated. They are not invalid but cannot be converted to group-op
+      equivalents.
+    - >-
+      Noise invalidation: if T_desc IQR exceeds the T_desc median for a
+      given (bits, seed), the T_desc/sqrt(N) comparison for that instance is
+      labeled inconclusive.
+  success_criterion: >-
+    T_desc_gops < sqrt(N) at some bit size for at least 2 of 3 seeds (K*
+    finite), AND the S*T^2 product satisfies S*T^2 >= N at that bit size
+    (crossover cost on or above the generic preprocessing frontier). This
+    confirms H-IC-001: K* is finite at larger toy bit sizes, but the
+    crossover cost provides no non-generic multi-target advantage.
+  falsification_criterion: >-
+    T_desc_gops >= sqrt(N) at ALL tested bit sizes (8-36) for all seeds,
+    making K* = infinity everywhere. This closes the multi-target IC route
+    at toy scale (tested primes, B=14, m=2, sympy Groebner solver).
+  alternative_outcome: >-
+    T_desc_gops < sqrt(N) at some bit size (K* finite) AND S*T^2 < N at that
+    bit size. This is a non-generic signal that the amortized IC cost lies
+    below the generic preprocessing frontier. Per AGENTS.md rule 12, this
+    requires independent review-xhigh before any promotion. The experiment
+    alone does not establish a breakthrough; it flags a result for
+    independent scrutiny.
+  required_artifacts:
+    - specification.yaml (this file)
+    - analysis.md (Coordinator-written, after execution)
+    - runs/<RUN-ID>/manifest.yaml
+    - runs/<RUN-ID>/raw-result.json
+    - runs/<RUN-ID>/stdout.log
+    - runs/<RUN-ID>/stderr.log
+    - runs/<RUN-ID>/command.txt
+    - runs/<RUN-ID>/environment.json
+  assigned_to: executor
+  approved_by: null
+  prior_evidence:
+    - EV-FCP-002
+    - EV-FCP-003
+  prior_decision:
+    - DEC-20260726-003
+  analysis_methodology:
+    calibration: >-
+      For each (bits, seed), extract wall_seconds and group_operations from
+      the rho run manifest. Compute group_ops_per_second =
+      group_operations / wall_seconds. This is the calibration factor that
+      converts Groebner wall-time to group-operation equivalents.
+    t_desc_measurement: >-
+      For each (bits, seed), extract groebner_seconds from the 10 fixed-mode
+      decomposition runs. Compute median and IQR. Convert to group-ops:
+      T_desc_gops = median_groebner_seconds * group_ops_per_second.
+    sqrt_n: >-
+      sqrt(N) = isqrt(n), where n is the prime subgroup order from the
+      ECDLPInstance (recorded in the run manifest parameters as
+      prime_order_n).
+    t_verify: >-
+      T_verify = m = 2 group operations (verifying a 2-point decomposition
+      requires summing 2 factor-base points and comparing to the target).
+    s_rel_estimation: >-
+      S_rel = B * (N/B)^{m-1} * T_desc_gops. For m=2: S_rel = N *
+      T_desc_gops. This is the generic heuristic: the decomposition
+      probability per random point is approximately (B/N)^{m-1} = B/N for
+      m=2, so the expected number of attempts per relation is N/B, and B
+      relations require B * (N/B) = N attempts, each costing T_desc_gops.
+      At toy scale where no relations are found (B^2/N << 1), this estimate
+      replaces direct measurement.
+    s_la_estimation: >-
+      S_LA is the sparse linear algebra cost on a B x B matrix. At B=14,
+      Wiedemann's algorithm costs O(B^2) field operations. Converting to
+      group-op equivalents: each group operation involves ~10-15 field
+      operations (inversion, multiplication, addition), so S_LA ~ B^2 / 12
+      ~ 16 group ops. This is negligible relative to S_rel. The Executor
+      may alternatively measure S_LA by constructing and solving a synthetic
+      B x B sparse matrix over F_n, timing it, and converting via the
+      calibration factor.
+    k_star_computation: >-
+      If T_desc_gops + T_verify >= sqrt(N): K* = infinity (route closed at
+      this bit size). Otherwise: K* = ceil((S_rel + S_LA) / (sqrt(N) -
+      T_desc_gops - T_verify)).
+    st_frontier_comparison: >-
+      S = S_rel + S_LA (preprocessing cost in group-ops). T = T_desc_gops +
+      T_verify (online cost per target in group-ops). Compute S * T^2 and
+      compare to N. If S * T^2 >= N: the crossover cost lies on or above
+      the generic S*T^2 = N frontier (no non-generic advantage, supporting
+      H-IC-001). If S * T^2 < N: non-generic signal, triggering the
+      alternative_outcome review path.
+    crossover_cost: >-
+      When K* is finite, the amortized per-target cost at K* is
+      C_IC(K*)/K* = (S_rel + S_LA)/K* + T_desc_gops + T_verify. By
+      definition of K*, (S_rel + S_LA)/K* approximates sqrt(N) - T_desc_gops
+      - T_verify, so C_IC(K*)/K* approximates sqrt(N). Report this value
+      alongside the rho per-target cost (rho_group_operations) for
+      comparison.
+    reporting: >-
+      For each (bits, seed), report: group_ops_per_second,
+      groebner_seconds_median, groebner_seconds_iqr, T_desc_gops, sqrt(N),
+      T_desc_gops / sqrt(N), S_rel, S_LA, K*, S*T^2, S*T^2 / N,
+      amortized_cost_at_k_star, rho_group_operations. Aggregate across
+      seeds by reporting per-seed values and the median across seeds.
+      Flag any instance where rho_group_operations < 100 (unreliable
+      calibration) or where IQR > median (noisy T_desc).
+  command_template: >-
+    python -m harness.fixed_curve_preprocessing
+    --bits {bits} --seeds {seeds}
+    --factor-base 14 --targets-per-curve 10
+    --exp-id EXP-IC-001
+  implementation_note: >-
+    The existing harness.fixed_curve_preprocessing module produces both
+    fixed and naive decomposition runs. For EXP-IC-001, only the fixed-mode
+    runs and the rho baseline are needed for analysis. The Executor may
+    either (a) use the existing harness and ignore naive runs in analysis,
+    or (b) add a --fixed-only flag to skip naive runs, reducing the run
+    count from 528 to 288. The analysis methodology uses only fixed-mode
+    groebner_seconds and rho run timing. If option (a) is used, the
+    maximum_runs budget should be increased to 528.
+  expected_run_count: >-
+    Fixed-only (preferred): 8 bit_sizes * 3 seeds * (1 precompute + 1 rho +
+    10 fixed) = 288 runs. If using the unmodified harness (both modes):
+    8 bit_sizes * 3 seeds * (1 precompute + 1 rho + 10 fixed + 10 naive)
+    = 528 runs (naive runs ignored in analysis).
+  inference_receipt:
+    requested_policy: "coordinator-ultra-code"
+    resolved_model_id: "fireworks-ai/accounts/fireworks/models/glm-5p2"
+    fallback_used: true
+    authorization_ref: "DEC-20260726-003"
