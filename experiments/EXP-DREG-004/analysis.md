@@ -272,3 +272,20 @@ at cols 88,000 / 96,000 / 104,000 / 116,000 (87,615 / 95,299 / 103,068 /
 wherever the column grid aligns. Dependent density oscillating 96.0-99.5 %
 through this region (pre-incident: 96.1-100 %), still far above the n=18
 late-column deficit zone (~0.1 %). No rank claim: cell incomplete.
+
+## 14. Turn 5 (2026-07-26, 02:03-02:48Z): 178,000 / 778,394 (22.87 %)
+
++62,000 columns (116,000 -> 178,000), rank_acc 175,865; 39 carries
+(2 pickle + 37 RAWCARR1), all sha256-verified and git-blob mirrored. D10: a
+2,000-col alignment unit (116k-118k) locked the chunk grid onto the
+pre-incident lineage grid, enabling exact cross-checks at every subsequent
+unit: rank_acc matches the rescued lineage EXACTLY at 118k / 124k / 130k /
+136k / 142k (116,858 / 122,858 / 128,858 / 134,858 / 140,858). Combined with
+turn 4 (88k / 96k / 104k), every aligned point of the rebuilt staircase is
+bit-identical to the destroyed run. Dependent density: full-pivot through
+148k, then 96.9 / 99.2 / 96.4 / 90.9 % (154k-178k) — the collapse region
+opening on schedule vs lineage (73-82 % at 174k-183k, 44.5 % at 190k-192k).
+Next aligned checks: 190k -> 186,574 and 194k -> 188,122 (rescued frontier).
+Infra: /tmp mirror-log wiped mid-turn (second /tmp loss); blobs were safe in
+.git and the log was rebuilt deterministically (hash-object without -w). No
+rank claim: cell incomplete.
