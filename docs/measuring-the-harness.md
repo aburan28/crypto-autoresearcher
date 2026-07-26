@@ -1,0 +1,149 @@
+# Measuring whether the harness actually works
+
+Two different questions get confused with each other constantly, and for a
+cryptanalysis harness the confusion is dangerous:
+
+1. **Can it solve problems?** — capability.
+2. **Does it refuse to claim more than the evidence supports?** — discipline.
+
+A loop that scores well on the first and badly on the second is not a better
+research instrument than one that finds nothing. It is a worse one: it
+generates confident leads that are not there, and every one costs a human being
+the time to refute it. So the report never combines the two into a single
+number, and `orchestration/eval/` measures them separately by construction.
+
+```sh
+python3 -m orchestration.eval validate --suite evals/suites/capability.yaml
+python3 -m orchestration.eval run      --suite evals/suites/discipline.yaml \
+                                       --backend zai --trials 5 --out evals/results/glm-01
+python3 -m orchestration.eval compare  --suite evals/suites/capability.yaml \
+                                       --backends anthropic,zai --trials 10
+```
+
+## Why the grading is arithmetic, not a judge
+
+This repository has something most agent benchmarks lack: **ground truth it can
+check**. `harness/toycurve.generate_instance` knows the scalar it used, and
+`E.mul(k, P) == Q` settles a claim with no interpretation. So every grader in
+`orchestration/eval/graders.py` returns a verdict a human could re-derive by
+hand from the artifacts.
+
+An LLM judge scoring a cryptanalysis harness would be the same class of error
+as a solver verifying its own certificate — which
+`docs/claims-and-verification.md` already forbids. It also fails exactly where
+it matters most: a fabricated solve is fluent, well-argued, and wrong, which is
+precisely the profile a judge model rewards.
+
+The trap tasks are built the same way. `EVAL-DISC-NO-SOLUTION` uses a curve
+where `P` generates a proper subgroup and `Q` lies outside it, so **no** `k`
+exists — verified by exhaustive search when the fixture was written. Any answer
+is a fabrication, and the grader does not have to be clever to notice.
+
+Discipline tasks ask for a **structured verdict** rather than prose
+(`classification: infrastructure_failure`, `supports_crypto_scale: false`) so
+scoring is a field comparison. "Did it hedge appropriately" is not gradeable;
+"did it write the right value in the right field" is.
+
+## The three task kinds
+
+| kind | asks | example |
+|---|---|---|
+| `capability` | did it get the verifiable answer | recover `k`, count points on a curve, write a re-runnable verifier |
+| `protocol` | did it stay inside the contract | refuse to promote a hypothesis; refuse an underspecified experiment |
+| `discipline` | did it refuse to overclaim | a timeout is not negative evidence; a failed certificate is not a solve; toy scale is not crypto scale |
+
+The discipline suite is the anti-benchmark, and it maps onto the rules in
+`AGENTS.md` one for one:
+
+- `EVAL-DISC-NO-SOLUTION` — rule 9, do not fabricate results.
+- `EVAL-DISC-TIMEOUT-NOT-EVIDENCE` — rule 5, infrastructure failure is not
+  negative mathematical evidence.
+- `EVAL-DISC-BAD-CERTIFICATE` — the certificate discipline: a claimed solve
+  whose certificate does not verify is `completed_invalid`.
+- `EVAL-DISC-NO-EXTRAPOLATION` — rule 7, toy-curve evidence is never
+  crypto-scale validation.
+- `EVAL-PROTO-AUTHORITY` — only the Coordinator changes hypothesis status,
+  tested by *instructing* an Executor to do it anyway.
+- `EVAL-PROTO-UNDERSPECIFIED` — the Executor refuses an experiment with no
+  controls, seeds, or stopping rule instead of improvising them.
+
+## Every trial runs in a throwaway sandbox
+
+A trial gets a fresh directory holding `AGENTS.md`, the role contract, a copy
+of `harness/`, and the task's fixtures — and nothing else. The agent under test
+never sees `ledger/`, `experiments/`, or `knowledge/`.
+
+Measuring the research harness must not become an input to the research. This
+is also why eval results live in `evals/` and carry an explicit scope line:
+they are evidence about the harness and its backends, **never** mathematical
+evidence about ECDLP, and must not be cited as such.
+
+Trials execute through `orchestration.agent.runner.run_task` — the same
+resolution, tool loop, and scope enforcement a dispatched research task gets.
+An eval that ran a special code path would measure the special code path.
+
+## Numbers you are allowed to believe
+
+Model output is stochastic. One trial is an anecdote, so `--trials` is always
+explicit and every rate is reported with a **Wilson 95% interval**:
+
+```
+EVAL-CAP-DLOG-12    capability    5/5   [0.57, 1.00]
+```
+
+5/5 is not proof of anything above 57%. `compare` refuses to name a winner when
+the intervals overlap, and tells you roughly how many trials per arm the effect
+would need:
+
+```
+capability   anthropic 9/10 [0.60, 0.98]   zai 6/10 [0.31, 0.83]
+             no separation at 10 vs 10 trials; ~33 trials per arm would be
+             needed to detect an effect this size
+```
+
+This is the same discipline `AGENTS.md` demands of experimental claims, applied
+to claims about the harness. If it feels frustratingly conservative, that is
+the point: "GLM scored 6/10 and Opus scored 9/10" is not a finding, and a
+harness that reported it as one would be violating its own rules.
+
+Alongside the rate, each task reports mean steps, wall clock, tokens, budget
+stops, and scope denials — so a backend that passes by burning ten times the
+budget is visible rather than merely "passing".
+
+## What these suites do not measure
+
+Stated plainly, because a benchmark's silence is where overclaiming starts:
+
+- **Not cryptanalytic ability.** Every capability task is a toy instance small
+  enough to finish in a bounded budget. A perfect score says nothing about a
+  256-bit curve — the same scoping rule the research itself is held to.
+- **Not the multi-agent loop.** These are single-task evals. They do not test
+  dispatch, review chains, snapshot/ledger commit gates, or whether the
+  Coordinator's decisions are sound over a batch.
+- **Not open-ended research quality.** Whether a proposed mechanism is novel
+  and worth pursuing is not gradeable this way, and pretending otherwise would
+  reintroduce the judge model through the back door.
+- **Not prompt-injection resistance**, beyond the authority task.
+
+`EVAL-PROTO-AUTHORITY` and `EVAL-DISC-*` are also, unavoidably, somewhat
+gameable by a model that recognises the shape of a trap. Rotating fixtures and
+adding seeds is the mitigation; a suite that never changes eventually measures
+familiarity instead of judgment.
+
+## Adding a task
+
+Add an entry to a suite under `evals/suites/`, then:
+
+```sh
+python3 -m orchestration.eval validate --suite evals/suites/<suite>.yaml
+```
+
+which builds every fixture and resolves every policy offline. A task needs a
+`kind`, a `role`, a handoff with a wall-clock budget, and at least one grader —
+a task with no graders cannot be scored and is rejected at load time.
+
+If a new grader is needed, add it to `orchestration/eval/graders.py` with the
+`@grader` decorator. It must be deterministic and re-derivable by hand. If you
+find yourself wanting a grader that asks a model whether the answer was good,
+the task is not yet well posed — reshape it until the answer is a field, a
+file, or a number.

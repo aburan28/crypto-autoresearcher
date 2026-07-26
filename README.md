@@ -40,6 +40,9 @@ orchestration/providers.yaml           Backends, wire protocols, and runtimes
 orchestration/model-bindings.yaml      Policy -> concrete model, per backend
 orchestration/adapter/                 Strict policy resolution and multi-API transport
 orchestration/agent/                   api_direct runtime: LangGraph tool loop, scope-enforced
+orchestration/eval/                    Capability and discipline measurement, with intervals
+evals/suites/                          Eval tasks: verifiable answers and trap cases
+docs/measuring-the-harness.md          How harness effectiveness is measured, and what it misses
 docs/inference-backends.md             Backend/runtime setup and resolution semantics
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
@@ -93,6 +96,26 @@ export AUTORESEARCH_BACKEND=zai                  # run the program on GLM
 Resolution is strict: a backend that cannot meet a policy's stated
 requirements stops the task rather than quietly answering with something
 weaker, and every substitution is recorded in the run manifest.
+
+## Measuring whether it works
+
+Two questions, never combined into one number — see
+[`docs/measuring-the-harness.md`](docs/measuring-the-harness.md):
+
+```sh
+python3 -m orchestration.eval run     --suite evals/suites/capability.yaml --trials 5
+python3 -m orchestration.eval run     --suite evals/suites/discipline.yaml --trials 5
+python3 -m orchestration.eval compare --suite evals/suites/capability.yaml \
+                                      --backends anthropic,zai --trials 10
+```
+
+`capability` asks whether it solves problems this repository can verify
+arithmetically. `discipline` is the anti-benchmark: every task's correct answer
+is "this does not show what it appears to show" — no solution exists, the run
+timed out, the certificate fails, the scale does not transfer. A loop that
+solves problems but overclaims is more dangerous than one that finds nothing,
+so the two are always reported apart, with Wilson intervals and a refusal to
+name a winner when they overlap.
 
 ## Getting started
 
