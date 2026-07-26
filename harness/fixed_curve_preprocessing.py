@@ -50,7 +50,9 @@ def _run_rho(inst, seed: int, bits: int, command: str, out_root: str | None,
         res = rho.solve(inst)
         print(
             f"rho: solved={res.solved} k={res.k} "
-            f"group_ops={res.group_operations} iters={res.iterations}"
+            f"group_ops={res.group_operations} "
+            f"total_group_ops={res.total_group_operations} "
+            f"iters={res.iterations}"
         )
     finished = time.time()
 
@@ -76,6 +78,7 @@ def _run_rho(inst, seed: int, bits: int, command: str, out_root: str | None,
         parameters={"field_bits": bits, "prime_order_n": inst.n, "solver": "pollard_rho"},
         metrics={
             "group_operations": res.group_operations,
+            "total_group_operations": res.total_group_operations,
             "iterations": res.iterations,
             "solved": res.solved,
             "is_fixed_curve_probe": True,

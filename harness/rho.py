@@ -17,7 +17,8 @@ from .toycurve import ECDLPInstance, EllipticCurve, Point, _seed_int
 class RhoResult:
     solved: bool
     k: int | None
-    group_operations: int
+    group_operations: int          # walk-phase only (for backward compat)
+    total_group_operations: int    # all group ops: precompute + walk + verify
     iterations: int
     reason: str = ""
 
@@ -36,26 +37,50 @@ def solve(inst: ECDLPInstance, max_iterations: int | None = None,
         max_iterations = max(2000, 200 * int(n ** 0.5) + 200)
 
     ops = 0
+    total_ops = 0  # counts ALL group operations: precompute, walk, verify
+
+    def _count_mul(k_val: int, pt: Point) -> Point:
+        """Scalar mult that increments total_ops by ~2*bit_length(k)."""
+        nonlocal total_ops
+        if k_val < 0:
+            total_ops += 1  # negate
+            k_val = -k_val
+        result_pt = None
+        addend = pt
+        while k_val > 0:
+            if k_val & 1:
+                result_pt = E.add(result_pt, addend)
+                total_ops += 1
+            addend = E.add(addend, addend)
+            total_ops += 1
+            k_val >>= 1
+        return result_pt
 
     # Precompute the r branch steps (deterministic in the seed).
     steps = []
     for s in range(branches):
         c = _seed_int(inst.seed, f"rho_c{s}") % n
         d = _seed_int(inst.seed, f"rho_d{s}") % n
-        steps.append((E.add(E.mul(c, P), E.mul(d, Q)), c, d))
+        cP = _count_mul(c, P)
+        dQ = _count_mul(d, Q)
+        step_pt = E.add(cP, dQ)
+        total_ops += 1
+        steps.append((step_pt, c, d))
 
     def walk(R: Point, a: int, b: int) -> tuple[Point, int, int]:
-        nonlocal ops
+        nonlocal ops, total_ops
         s = (R[0] if R is not None else 0) % branches
         Ts, c, d = steps[s]
         ops += 1
+        total_ops += 1
         return E.add(R, Ts), (a + c) % n, (b + d) % n
 
     # A few deterministic restarts guard against a rare degenerate collision.
     for offset in range(0, 12):
         a0 = _seed_int(inst.seed, f"rho_a0_{offset}") % n
         b0 = (_seed_int(inst.seed, f"rho_b0_{offset}") % (n - 1)) + 1
-        T = E.add(E.mul(a0, P), E.mul(b0, Q))
+        T = E.add(_count_mul(a0, P), _count_mul(b0, Q))
+        total_ops += 1
         aT, bT = a0, b0
         H, aH, bH = T, aT, bT
         for it in range(1, max_iterations + 1):
@@ -66,9 +91,11 @@ def solve(inst: ECDLPInstance, max_iterations: int | None = None,
                 if db == 0:
                     break                              # degenerate; restart
                 k = (aH - aT) * pow(db, -1, n) % n
-                if E.mul(int(k), P) == Q:              # cheap self-check
-                    return RhoResult(True, int(k), ops, it)
+                # Verification: count the scalar mult
+                verify_pt = _count_mul(int(k), P)
+                if verify_pt == Q:
+                    return RhoResult(True, int(k), ops, total_ops, it)
                 break
-    return RhoResult(False, None, ops, max_iterations,
+    return RhoResult(False, None, ops, total_ops, max_iterations,
                      reason="no collision yielded an invertible relation "
                             "within the iteration budget")

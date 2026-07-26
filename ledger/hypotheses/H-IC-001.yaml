@@ -6,10 +6,9 @@ hypothesis:
     decomposition), the per-target descent cost T_desc in group-operation
     equivalents is >= sqrt(N) at small bit sizes but crosses below sqrt(N)
     at some threshold bit size, making the multi-target index-calculus
-    crossover K* finite. The crossover cost C_IC(K*)/K* lies on or above
-    the generic S*T^2 = Omega~(N) preprocessing frontier (KN-LIT-013,
-    KN-TECH-005), indicating no non-generic multi-target advantage at toy
-    scale.
+    crossover K* finite. The crossover is an implementation-bound observation
+    (sympy Groebner vs Python rho on the same machine), not a mathematical
+    invariant.
   mechanism: >-
     In point-decomposition index calculus (KN-TECH-003), the factor-base
     logarithm table is computed once from relation collection plus sparse
@@ -24,24 +23,23 @@ hypothesis:
     (EV-FCP-002, EV-FCP-003: ~0.04-0.05s across 16-36 bits). Meanwhile
     sqrt(N) grows exponentially with bit size. The calibration step
     converts T_desc from wall-time to group-operation equivalents by
-    measuring rho's wall-time-per-group-operation at each bit size. Since
-    T_desc in wall-time is ~constant and the calibration factor
-    (group_ops_per_second) grows slowly with bit size, T_desc in group-ops
-    grows slowly while sqrt(N) grows exponentially; therefore T_desc/sqrt(N)
+    measuring rho's total_group_operations / wall_seconds at each bit size
+    (counting ALL group ops: precompute, walk, verify). Since T_desc in
+    wall-time is ~constant and the calibration factor grows with bit size
+    (as rho's overhead becomes negligible), T_desc in group-ops grows
+    slowly while sqrt(N) grows exponentially; therefore T_desc/sqrt(N)
     decreases with bit size, crossing below 1 at some threshold. When
     T_desc < sqrt(N), K* = ceil((S_rel + S_LA) / (sqrt(N) - T_desc -
-    T_verify)) is finite. The relation-collection cost is estimated by the
-    generic heuristic S_rel ~ B * (N/B)^{m-1} * T_desc (the expected number
-    of decomposition attempts to collect B relations, times per-attempt
-    cost); for m=2 this gives S_rel ~ N * T_desc. The preprocessing frontier
-    product is S*T^2 = (S_rel + S_LA) * (T_desc + T_verify)^2 ~ N *
-    T_desc^3. At the crossover point T_desc ~ sqrt(N), this gives S*T^2 ~
-    N^{5/2} >> N, placing the crossover cost well above the generic
-    S*T^2 = N frontier. Thus even when K* is finite, the amortized cost
-    per target at K* is approximately sqrt(N) (by definition of K*), and
-    the preprocessing investment S_rel is so large that the S*T^2 product
-    exceeds the generic bound, indicating no non-generic multi-target
-    advantage at toy scale.
+    T_verify)) is finite. The relation-collection cost is estimated by
+    the corrected generic heuristic: for m=2, the decomposition probability
+    per random target is ~B^2/N (B^2 pairs, each with prob ~1/N), so
+    collecting B relations requires N/B random targets, each costing
+    T_desc: S_rel ~ (N/B) * T_desc_gops. NOTE: the S*T^2 frontier
+    comparison is dropped from the primary predictions because with
+    S_rel ~ (N/B)*T_desc, the condition S*T^2 >= N reduces to T_desc^3 >= B,
+    which is nearly always true and thus not a meaningful test. The
+    experiment focuses on K* finiteness (T_desc vs sqrt(N)), which is the
+    decisive discriminator.
   assumptions:
     - >-
       The per-target descent cost T_desc is measurable at toy scale as the
@@ -81,23 +79,16 @@ hypothesis:
         T_desc / sqrt(N) >= 1.0 (K* infinite); at larger bit sizes (>= 24),
         T_desc / sqrt(N) < 1.0 (K* finite). The crossover threshold is
         the smallest bit size at which T_desc < sqrt(N) for at least 2 of
-        3 seeds.
+        3 seeds. Uses total_group_operations / wall_seconds for calibration.
     - metric: crossover_K_star
       direction: different
       minimum_effect: >-
         K* is infinite at small bit sizes (T_desc >= sqrt(N)) and finite
         at larger bit sizes (T_desc < sqrt(N)). A finite K* must be >= 2;
         K* = 1 would mean IC beats rho for a single target, contradicting
-        KN-OPEN-001.
-    - metric: amortized_cost_vs_generic_frontier
-      direction: higher
-      minimum_effect: >-
-        At K = K* (when finite), the S*T^2 product (where S = S_rel +
-        S_LA, T = T_desc + T_verify, all in group-operation equivalents)
-        satisfies S*T^2 >= N, placing the crossover cost on or above the
-        generic S*T^2 = N frontier (no non-generic advantage). The competing
-        prediction is S*T^2 < N, indicating a non-generic signal requiring
-        independent review.
+        KN-OPEN-001. S_rel = (N/B) * T_desc_gops (corrected heuristic:
+        decomposition probability ~B^2/N for m=2, so N/B targets needed
+        for B relations).
   test_boundary:
     instances:
       - seeds 1, 2, 3
@@ -139,17 +130,23 @@ hypothesis:
       B=14, m=2, sympy Groebner solver); it does not prove K* = infinity
       asymptotically or for other parameterizations.
     - >-
-      The S_rel estimate uses the generic heuristic S_rel ~ B * (N/B)^{m-1}
-      * T_desc because no relations are found at toy scale (B^2/N << 1 for
-      bits >= 16); the actual S_rel at larger B, higher m, or non-trivial
-      Groebner systems may differ.
+      The S_rel estimate uses the corrected generic heuristic S_rel ~ (N/B)
+      * T_desc_gops (decomposition probability ~B^2/N for m=2). At toy
+      scale where no relations are found (B^2/N << 1 for bits >= 16), this
+      estimate replaces direct measurement. Where decompositions exist
+      (8-12 bits), S_rel should be measured directly.
     - >-
-      The calibration from wall-time to group-ops is model-dependent and
-      implementation-bound (sympy Groebner, Python rho on macOS arm64); only
-      within-machine comparisons are valid. The calibration factor may be
-      noisy at small bit sizes where rho solves in very few group operations.
+      The calibration from wall-time to group-ops is implementation-bound
+      (sympy Buchberger vs Python rho on macOS arm64). The T_desc/sqrt(N)
+      crossover depends on the relative implementation overheads of these
+      two algorithms, not on a mathematical invariant. A different Groebner
+      implementation (e.g., F4) or a different rho implementation could
+      shift or reverse the crossover. Only within-machine, within-
+      implementation comparisons are valid.
     - >-
-      A non-generic signal (S*T^2 < N) requires independent review-xhigh
-      before any breakthrough claim, per AGENTS.md rule 12.
+      T_desc is measured on trivial ideals (no decomposition found) at
+      bits >= 16. The cost for non-trivial Groebner systems (where a
+      decomposition exists) may be higher, potentially shifting the
+      crossover to a larger bit size.
   status: specified
   proposed_by: coordinator
