@@ -1,0 +1,179 @@
+idea:
+  id: IDEA-20260725-002   # placeholder: coordinator confirms/renumbers
+  title: >-
+    Decision-quantity reconciliation gate: bidirectional receipt-to-evidence
+    coverage with per-experiment declared falsification quantities
+  class: tooling
+  question_id: RQ-ECDLP-002
+  claim: >-
+    A read-only checker that (a) discovers run directories by the presence of
+    ANY receipt file (raw.json or command.txt) rather than only manifest.yaml,
+    and (b) resolves each experiment's declared falsification quantity from
+    completed receipts, will report on main at 989e1cca:
+    manifest_less_receipt_dirs >= 4, unreconciled_decision_quantities >= 1
+    (including EXP-SIG-008 gate 1), and a manually adjudicated false-positive
+    rate <= 20% across all experiments in experiments/, while completing in
+    <= 60 s -- whereas tools/validate_ledger.py on the same tree reports the
+    same tree clean of these gaps.
+  mechanism: >-
+    tools/validate_ledger.py discovers runs with
+    glob(experiments/*/runs/*/manifest.yaml) (lines 464-465) and its only
+    evidence-to-run check is the FORWARD direction: "evidence references unknown
+    run" for every run_id cited (line 284). There is no reverse edge. Two
+    consequences compose into a silent evidence gap:
+    (1) a run directory holding a completed receipt but no manifest.yaml is
+    invisible to every validator check; and
+    (2) citing such a run in an evidence record would RAISE a validator error,
+    so the incentive gradient points at omission.
+    Verified instances at 989e1cca (working tree):
+    experiments/EXP-SIG-008/runs/RUN-EXP-SIG-008-{l,m,n,o} and
+    experiments/EXP-SIG-007/runs/RUN-EXP-SIG-007-aa each contain
+    raw.json + command.txt + stdout.txt + stderr.txt and NO manifest.yaml and NO
+    environment.json (which AGENTS.md "Artifact policy" and
+    experiments/EXP-SIG-008/specification.yaml line 24 both require).
+    RUN-EXP-SIG-008-n/raw.json records status completed_valid, done: true,
+    cols_fraction: 1, rank: 149410, deficit: 7110, extra: 7110,
+    rank_eq_sr_pred: false -- exactly the quantity that
+    experiments/EXP-SIG-008/specification.yaml line 27 names as the gate-1
+    falsification criterion -- while ledger/EV-SIG-008.yaml line 50 records
+    gate 1 as "CENSORED AT CHECKPOINT" at 79.3%, and
+    experiments/EXP-SIG-008/summary.json lists runs a..k only. The checker
+    closes the edge by requiring, for each declared decision quantity that is
+    resolvable from a completed receipt, that the producing run id appear in
+    some evidence record's run_ids and that the evidence record not carry a
+    censored/pending marker for that gate.
+  why_not_renamed_known_approach: >-
+    General provenance/lineage completeness tooling is established prior art
+    (W3C PROV, MLflow/DVC, Workflow Run RO-Crate, and evidence-gated research
+    control planes), and this repo already has artifact-existence checks
+    (tools/validate_ledger.py lines 232-237) and hash immutability checks
+    (tools/check_run_immutability.py). This proposal is not "add provenance
+    tracking". It is the one uncovered edge those tools structurally cannot see:
+    receipt-keyed (not manifest-keyed) discovery, plus a binding from the
+    experiment's OWN declared falsification predicate to the evidence record's
+    gate verdict. The claim is quantitative and falsifiable against this exact
+    tree, not a general assertion that provenance is good.
+  novelty_status: adaptation
+  assumptions:
+    - "The runs RUN-EXP-SIG-008-{l,m,n,o} and RUN-EXP-SIG-007-aa are reachable
+       from HEAD at 989e1cca and not merely untracked working-tree files. The
+       ideation brief states they are committed; the checker must verify this
+       with `git cat-file` rather than assume it, and untracked receipts must be
+       reported in a SEPARATE bucket (uncommitted receipts are an artifact-policy
+       violation, not an evidence gap)."
+    - "Experiment specifications can carry a new optional `decision_quantities:`
+       block of (name, json_path, predicate, gate) tuples. Experiments without
+       one are reported as `undeclared`, which is a reported metric and NOT a
+       pass."
+    - "The idea generator's own partial count of manifest-less receipt
+       directories is 5, obtained by globbing only EXP-SIG-006/007/008; the
+       repo-wide count is unmeasured and the prediction threshold of 4 is set
+       below that partial count deliberately."
+    - "Adjudication of flags is done by an agent that did not write the tool."
+  predictions:
+    - metric: "manifest_less_receipt_dirs (run dirs with raw.json and no manifest.yaml, repo-wide, ._* filtered)"
+      direction: higher
+      minimum_effect: ">= 4 (idea generator observed 5 within EXP-SIG-006/007/008 alone)"
+    - metric: "unreconciled_decision_quantities at 989e1cca"
+      direction: higher
+      minimum_effect: ">= 1, and EXP-SIG-008 gate 1 must be among them"
+    - metric: "distinct experiments with >= 1 unreconciled decision quantity"
+      direction: different
+      minimum_effect: "1 supports E1 (one-off slip -> checklist remedy); >= 2 supports E2 (systemic validator blind spot -> blocking CI gate + discovery change)"
+    - metric: "false_positive_rate under independent manual adjudication"
+      direction: lower
+      minimum_effect: "<= 20% of all flags"
+    - metric: "exit code delta vs tools/validate_ledger.py on the identical tree"
+      direction: different
+      minimum_effect: "validate_ledger.py exits 0 on these gaps; the new checker must exit nonzero -- a 0/0 pair falsifies the blind-spot mechanism"
+    - metric: "wall_seconds for a full repo scan"
+      direction: lower
+      minimum_effect: "<= 60 s (above this it is not viable as a pre-commit/CI gate)"
+  minimal_test:
+    design: >-
+      1. Implement tools/reconcile_receipts.py, strictly READ-ONLY (no ledger
+      writes, no record edits), emitting machine-readable JSON with the six
+      metrics above plus a per-flag record (experiment, run, quantity, receipt
+      path, json_path, evidence record consulted, classification).
+      2. Run it at 989e1cca alongside tools/validate_ledger.py on the identical
+      tree and record both exit codes and both metric sets.
+      3. Back-test: an independent adjudicator classifies every flag (cap the
+      review at 30 flags; if more, sample uniformly at random with a recorded
+      seed) as true gap / false positive / undeclared.
+      4. SPECIFICITY CONTROL: run against a checkout of an earlier commit at
+      which EV-SIG-008 did not yet exist. Receipts predating any evidence record
+      for their experiment must be classified `pending_review`, not
+      `unreconciled`. Any `unreconciled` flag there is a specificity failure.
+      5. REPLAY CONTROL: on a scratch copy with
+      RUN-EXP-SIG-008-{l,m,n,o} removed, the checker must report EXP-SIG-008
+      gate 1 as clean (the censored verdict in EV-SIG-008 is then honest). If it
+      still flags, the tool measures something other than receipt coverage.
+      6. INCENTIVE CHECK: add RUN-EXP-SIG-008-n to a scratch copy of
+      EV-SIG-008.yaml's run_ids and confirm whether tools/validate_ledger.py
+      then emits "evidence references unknown run". A confirmed error here
+      establishes the omission incentive as a real mechanism rather than a
+      narrative.
+      Interpretation map fixed BEFORE execution: exactly 1 affected experiment
+      and <= 2 manifest-less dirs => E1, a one-off human slip, remedied by a
+      review checklist item; >= 2 affected experiments and >= 4 manifest-less
+      dirs => E2, a structural hole, remedied by changing run discovery and
+      making the gate blocking.
+    controls:
+      - "Baseline: tools/validate_ledger.py exit code and error list on the identical tree (establishes the blind spot quantitatively)."
+      - "Specificity control at an earlier commit (pre-EV-SIG-008)."
+      - "Replay control with the four EXP-SIG-008 receipts removed."
+      - "Incentive check: does citing an unmanifested run make validate_ledger.py fail?"
+      - "Independent adjudication by an agent that did not implement the tool."
+      - "Read-only enforcement: `git status --porcelain` must be unchanged after the scan."
+      - "AppleDouble filter: all globs must exclude '._*' (exFAT volume) or every count is inflated."
+      - "Git reachability check per receipt (`git cat-file -e`), separating committed gaps from untracked files."
+    required_metrics:
+      - manifest_less_receipt_dirs
+      - receipts_not_cited_by_any_evidence
+      - unreconciled_decision_quantities
+      - distinct_experiments_affected
+      - undeclared_decision_quantity_experiments
+      - false_positive_rate
+      - validate_ledger_exit_code
+      - reconcile_receipts_exit_code
+      - wall_seconds_full_scan
+      - untracked_receipt_dirs
+    budget: "<= 3 h implementation + review, <= 2 GB RAM, <= 60 s per scan. No Sage, no solver compute."
+  falsification_conditions:
+    - "unreconciled_decision_quantities = 0 at 989e1cca -> the claim is FALSE: either the tool is broken or the EV-SIG-008 gap is not machine-detectable from declared artifacts, and the approach as specified is rejected."
+    - "false_positive_rate > 20% under independent adjudication -> too noisy to gate on; the claim fails and any lower-noise variant needs a new proposal."
+    - "The specificity control emits any `unreconciled` flag for a receipt predating its experiment's first evidence record -> the tool cannot distinguish lag from omission; claim fails."
+    - "The replay control still flags EXP-SIG-008 gate 1 after the receipts are removed -> the tool is not measuring receipt coverage; claim fails."
+    - "manifest_less_receipt_dirs < 4 repo-wide -> the systemic (E2) half of the claim fails and only the one-off (E1) reading survives."
+    - "Full-repo scan exceeds 60 s -> the mechanised-gate claim fails on cost grounds even if every flag is correct."
+    - "The incentive check shows validate_ledger.py accepts an unmanifested run id -> the stated omission-incentive mechanism is wrong; the blind-spot claim is weakened to discovery-only."
+  confounders:
+    - "Legitimately superseded runs (redone under a new id) look identical to uncited receipts. Requires a declared `superseded_by`; without it they must be bucketed `undeclared`, not `gap`."
+    - "Checkpoint chains: RUN-EXP-SIG-008-f..n are units of ONE resumable computation. Only the terminal receipt (done: true, cols_fraction 1) carries a decision quantity. A predicate that flags every checkpoint will manufacture false positives."
+    - "File mtimes are unreliable on this exFAT volume; all time ordering must use git commit timestamps."
+    - "AppleDouble ._* files double every naive glob count."
+    - "Adjudicator bias if the tool author also adjudicates."
+    - "A halted run (RUN-EXP-SIG-008-o has halt.reason 'D5 closure anchor mismatch' and pass: false) is a CONTROL failure, not a decision quantity; conflating the two categories inflates unreconciled_decision_quantities."
+    - "Evidence records under ledger/ root (ECDLP stream) vs ledger/<subdir>/ (ML-KEM/coordination stream) are different streams; scanning both without separating them mixes populations."
+  interpretation_limits:
+    - "This measures evidence-integrity process, not mathematics. A clean gate does not make any SIG, DREG, BKKMV or TTN result correct."
+    - "It cannot detect a gap whose decision quantity is not declared in a specification; undeclared_decision_quantity_experiments bounds the tool's own coverage and MUST be reported next to every clean result."
+    - "It cannot judge whether a receipt is scientifically valid or whether a run was correctly executed -- that remains the Validator's and Red Team's job."
+    - "Flags are not verdicts: only the Coordinator may change any record status, and this tool writes nothing."
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  source_refs:
+    - tools/validate_ledger.py
+    - tools/check_run_immutability.py
+    - experiments/EXP-SIG-008/specification.yaml
+    - experiments/EXP-SIG-008/summary.json
+    - experiments/EXP-SIG-008/runs/RUN-EXP-SIG-008-n/raw.json
+    - experiments/EXP-SIG-008/runs/RUN-EXP-SIG-008-o/raw.json
+    - experiments/EXP-SIG-007/runs/RUN-EXP-SIG-007-aa/raw.json
+    - ledger/EV-SIG-008.yaml
+    - AGENTS.md
+    - docs/claims-and-verification.md
+  recorded_by: idea-generator
+  recorded_at: '2026-07-25'
