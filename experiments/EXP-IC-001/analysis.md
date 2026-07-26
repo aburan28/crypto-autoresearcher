@@ -72,6 +72,33 @@ would lower T_desc_gops, shifting the crossover to smaller bit sizes.
 ## Limitation
 - Toy scale only (max 36 bits); implementation-bound (sympy vs Python rho)
 - B=14, m=2 only; all Groebner solves return trivial ideals (no decompositions)
-- The Hasse-bound variation in N means some 36-bit instances have N too small
-  for sqrt(N) to exceed T_desc_gops; more seeds would help
+- The Hasse-bound variation in N means many 36-bit instances have N too small
+  for sqrt(N) to exceed T_desc_gops; the crossover depends on N, not bit size
 - The S_rel heuristic (N/B)*T_desc is not directly measured at bits >= 16
+
+## Extended 36-bit results (13 seeds)
+
+| seed | N | sqrt(N) | T_desc_gops | ratio | K* |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 49,817,941 | 7,058 | 32,654 | 4.63 | inf |
+| 2 | 33,766,959,953 | 183,757 | 32,021 | 0.17 | 509M |
+| 3 | 126,079 | 355 | 32,326 | 91.1 | inf |
+| 4 | 22,787 | 150 | 34,486 | 230 | inf |
+| 5 | 11,875,729,387 | 108,975 | 30,110 | 0.28 | 324M |
+| 6 | 255,413 | 505 | 32,443 | 64.2 | inf |
+| 7 | 248,533 | 498 | 33,781 | 67.8 | inf |
+| 8 | 459,841 | 678 | 34,374 | 50.7 | inf |
+| 9 | 7,027 | 83 | 33,249 | 401 | inf |
+| 10 | 3,480,617,339 | 58,996 | 35,014 | 0.59 | 363M |
+| 11 | 17,366,619,409 | 131,782 | 33,191 | 0.25 | 418M |
+| 12 | 1,459 | 38 | 35,617 | 937 | inf |
+| 13 | 23,371 | 152 | 34,209 | 225 | inf |
+
+**4/13 seeds have finite K*** — all with N > 3×10⁹ (sqrt(N) > 55K > T_desc ~32K).
+**0/9 seeds with N < 10⁸ have finite K*** — sqrt(N) < 10K << T_desc ~32K.
+
+The crossover depends on N (the subgroup order), not the field bit size. At
+36-bit, ~31% of random curves yield N large enough for K* finite. The success
+criterion (>= 2/3 seeds at any bit size) is not met because it was conditioned
+on bit size rather than on N. The conditional result is definitive: when
+sqrt(N) > T_desc_gops (~32K), K* is always finite (4/4).
