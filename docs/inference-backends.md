@@ -171,10 +171,65 @@ contract — a subagent that quietly gained shell access, or a review role route
 to a policy that does not require an independent session. CI runs it on every
 push.
 
-`api_direct` is this repository's own transport: single-turn completions with a
-resolution receipt, no tool loop. Use it for resolution checks, prompt-level
-experiments, and reviews that need no filesystem access. A role that must read
-or write repository artifacts runs under a runtime that has a tool loop.
+## The `api_direct` runtime
+
+`api_direct` is this repository's own runtime: a LangGraph tool loop over the
+adapter, so a role can execute against any configured backend without Claude
+Code or an OpenAI-protocol CLI.
+
+```sh
+# what the task is permitted to do — full resolution, no network
+python3 -m orchestration.agent plan --task ledger/handoffs/TASK-20260724-221.yaml
+
+# run it, on GLM, with a resumable checkpoint and an immutable record
+python3 -m orchestration.agent run \
+  --task ledger/handoffs/TASK-20260724-221.yaml \
+  --backend zai \
+  --checkpoint .agent-state/TASK-20260724-221.sqlite \
+  --out coordination/tasks/TASK-20260724-221/agent
+```
+
+It depends on `langgraph` and `langchain-core` from `requirements-agent.txt`.
+The adapter core does not: resolution, transport, and manifests stay
+standard-library, and importing `orchestration.agent` is the only thing that
+pulls LangGraph in. No vendor provider package is needed either — the chat
+model in `orchestration/adapter/langchain_model.py` wraps our own transport, so
+every backend in `providers.yaml` works through `langchain-core` alone and
+every request keeps going through one recorded HTTP path.
+
+**Scope is enforced, not requested.** Under a CLI runtime, "write only inside
+your `write_scope`" is an instruction an agent is asked to follow. Here the
+tools refuse: writes outside the declared scope, path traversal, absolute
+paths, and symlinks leaving the repository are denied, and each refusal is
+recorded in the tool journal rather than silently retried elsewhere. Existing
+files are never overwritten — artifacts are immutable, so a correction is a new
+path. `run_command` takes an argument list (never a shell string), accepts only
+allow-listed programs from `orchestration/roles.yaml`, and permits only
+read-only git subcommands: committing is a Coordinator archival task with a
+verified post-commit receipt, never a worker action.
+
+**A role this runtime cannot host is refused.** `api_direct` has no web
+capability, so `idea-generator` and `red-team` — whose contracts depend on the
+open literature — will not start here. Running them with a quietly reduced tool
+surface would produce a novelty screen that silently never searched anything.
+`tools/check_runtime_bindings.py --list` shows the full matrix.
+
+**A budget stop is not a result.** The loop checks the step and wall-clock
+budget before each model call and exits with `step_budget_exhausted` or
+`wall_clock_budget_exhausted` recorded in the receipt. Rule 5 of `AGENTS.md`
+applies to this runtime like any other: an exhausted budget is infrastructure
+signal, and a report that cannot distinguish it from a finished task is worse
+than no report.
+
+**Long runs resume.** With `--checkpoint`, state is persisted after every node,
+keyed by task id, so an interrupted run continues from the last completed tool
+call instead of restarting and repeating side effects.
+
+Each run writes `transcript.jsonl`, `tool-journal.json`, and
+`inference-receipt.json` into `--out`. The receipt carries the resolution, the
+stop reason, token usage, files written, every denied tool call, and any
+disagreement between the model that was resolved and the model the backend
+answered as.
 
 ## What every run must record
 

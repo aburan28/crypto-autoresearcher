@@ -48,10 +48,19 @@ require an independent `review-adversarial` session and a reviewer that did not
 originate the claim.
 
 Runtimes are interchangeable too. Claude Code, an OpenAI-protocol agent CLI,
-and this repository's own transport are three runtimes over the same role
-contracts; `orchestration/roles.yaml` holds each role's authority and tool
-surface in runtime-neutral terms, and `tools/check_runtime_bindings.py` fails
-the build when a runtime's agent definition drifts from it.
+and this repository's own `api_direct` runtime (`orchestration/agent/`) are
+three runtimes over the same role contracts; `orchestration/roles.yaml` holds
+each role's authority and tool surface in runtime-neutral terms, and
+`tools/check_runtime_bindings.py` fails the build when a runtime's agent
+definition drifts from it.
+
+Under `api_direct` the ownership rules below are enforced rather than
+requested: a write outside the task's declared `write_scope` is refused and the
+refusal is recorded, existing artifacts cannot be overwritten, only allow-listed
+commands and read-only git subcommands run, an exhausted step or wall-clock
+budget is reported as such and never as a result, and a role whose capabilities
+that runtime cannot provide is refused outright rather than run with a reduced
+tool surface.
 
 ## Core rules
 

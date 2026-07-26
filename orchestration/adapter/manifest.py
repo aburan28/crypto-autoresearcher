@@ -131,7 +131,7 @@ def receipt(resolution: Resolution, completion: Completion | None = None, *,
             "usage": completion.usage,
             "latency_seconds": completion.latency_seconds,
             "output_characters": len(completion.text),
-            "tool_calls": [call.get("name") for call in completion.tool_calls],
+            "tool_calls": [call.name for call in completion.tool_calls],
             "model_matches_resolution": (
                 completion.model == resolution.resolved_model_id
                 if completion.model else None),

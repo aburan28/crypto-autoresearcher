@@ -17,14 +17,16 @@ from .manifest import (block_from_env, deterministic_block, inference_block,
                        receipt, write_receipt)
 from .resolver import (Attempt, GovernanceError, Resolution, ResolutionError,
                       resolve, resolve_handoff)
-from .transport import (Completion, Message, Tool, TransportError, build_request,
-                        complete, list_models, parse_response, translate_tools)
+from .transport import (Completion, Message, Tool, ToolCall, ToolResult,
+                        TransportError, build_request, complete, list_models,
+                        parse_response, render_messages, translate_tools)
 
 __all__ = [
     "ADAPTER_VERSION", "Attempt", "Completion", "Config", "ConfigError",
     "GovernanceError", "Message", "Resolution", "ResolutionError", "Tool",
-    "TransportError", "block_from_env", "build_request", "complete",
+    "ToolCall", "ToolResult", "TransportError", "block_from_env",
+    "build_request", "complete",
     "deterministic_block", "inference_block", "list_models", "load",
-    "parse_response", "receipt", "resolve", "resolve_handoff",
+    "parse_response", "receipt", "render_messages", "resolve", "resolve_handoff",
     "translate_tools", "validate", "write_receipt",
 ]

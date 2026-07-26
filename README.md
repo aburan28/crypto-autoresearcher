@@ -39,6 +39,7 @@ orchestration/model-policies.yaml      What each role needs from a model (no ven
 orchestration/providers.yaml           Backends, wire protocols, and runtimes
 orchestration/model-bindings.yaml      Policy -> concrete model, per backend
 orchestration/adapter/                 Strict policy resolution and multi-API transport
+orchestration/agent/                   api_direct runtime: LangGraph tool loop, scope-enforced
 docs/inference-backends.md             Backend/runtime setup and resolution semantics
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
@@ -104,7 +105,16 @@ When working in Claude Code, the lifecycle is driven by skills — see
 
 The skills are one runtime's front end. Under another runtime, the same
 lifecycle is driven from the role contracts in `agents/` and the dispatch
-queue in `tools/research_dispatch.py`.
+queue in `tools/research_dispatch.py`. To execute a task without any agent CLI
+at all:
+
+```sh
+python3 -m orchestration.agent plan --task ledger/handoffs/TASK-....yaml
+python3 -m orchestration.agent run  --task ... --backend zai --out <task-dir>/agent
+```
+
+That runtime enforces the task's `write_scope` in the tools rather than asking
+the model to respect it, and needs `requirements-agent.txt`.
 
 Manual path:
 
@@ -117,10 +127,11 @@ Manual path:
 
 ## Status
 
-The harness now includes a schema-validated dispatch planner with Coordinator
-snapshot and ledger-commit gates. The next implementation milestones are an
-immutable run wrapper, a goal-batch launcher, and a pluggable agent adapter
-interface.
+The harness includes a schema-validated dispatch planner with Coordinator
+snapshot and ledger-commit gates, an immutable run wrapper, and the pluggable
+inference adapter: vendor-neutral policies, strict resolution, and three
+runtimes over one set of role contracts. The next milestone is a goal-batch
+launcher driving `orchestration.agent` across a whole dispatch batch.
 
 ## Focused autoresearch
 

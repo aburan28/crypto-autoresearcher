@@ -15,12 +15,26 @@ schema_version: "1.0"
 # for it. A runtime that cannot express a capability declares it unsupported;
 # a role needing that capability then cannot run on that runtime.
 capabilities:
-  read_files:    {claude_code: [Read],           codex_cli: [read]}
-  search_files:  {claude_code: [Grep, Glob],     codex_cli: [search]}
-  write_files:   {claude_code: [Write],          codex_cli: [write]}
-  edit_files:    {claude_code: [Edit],           codex_cli: [edit]}
-  run_commands:  {claude_code: [Bash],           codex_cli: [shell]}
+  read_files:    {claude_code: [Read],           codex_cli: [read],   api_direct: [read_file]}
+  search_files:  {claude_code: [Grep, Glob],     codex_cli: [search], api_direct: [list_files, search_files]}
+  write_files:   {claude_code: [Write],          codex_cli: [write],  api_direct: [write_file]}
+  edit_files:    {claude_code: [Edit],           codex_cli: [edit],   api_direct: [edit_file]}
+  run_commands:  {claude_code: [Bash],           codex_cli: [shell],  api_direct: [run_command]}
+  # api_direct has no web capability: it is a bounded repository runtime, so a
+  # role that needs the open web runs under a runtime that has it rather than
+  # silently doing without. `tools/check_runtime_bindings.py --list` shows
+  # which roles that excludes.
   web_search:    {claude_code: [WebSearch, WebFetch], codex_cli: [web]}
+
+# Execution limits for the api_direct runtime (orchestration/agent/). These are
+# defaults; a task's own budget narrows them and never widens them.
+api_direct:
+  max_steps: 40
+  command_timeout_seconds: 300
+  # `run_command` takes an argument list and never a shell string, so these are
+  # program names, not command lines. Only read-only git subcommands are
+  # accepted (see orchestration/agent/tools.py): a worker never commits.
+  command_allowlist: [python3, python, pytest, sage, git, ls, wc]
 
 roles:
   coordinator:

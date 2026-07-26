@@ -253,8 +253,8 @@ def test_response_parsing_is_uniform_across_protocols():
     for parsed in (anthropic, openai):
         assert parsed.text == "answer"
         assert parsed.usage == {"input_tokens": 10, "output_tokens": 3}
-        assert parsed.tool_calls[0]["name"] == "read_file"
-        assert parsed.tool_calls[0]["arguments"] == {"path": "a.md"}
+        assert parsed.tool_calls[0].name == "read_file"
+        assert parsed.tool_calls[0].arguments == {"path": "a.md"}
 
 
 # --------------------------------------------------------------------------

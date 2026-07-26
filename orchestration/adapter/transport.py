@@ -28,9 +28,35 @@ class TransportError(RuntimeError):
 
 
 @dataclass
-class Message:
-    role: str                 # "user" | "assistant"
+class ToolCall:
+    """A tool the model asked to run."""
+    id: str
+    name: str
+    arguments: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ToolResult:
+    """What running it produced. `is_error` is carried, never hidden."""
+    id: str
+    name: str
     content: str
+    is_error: bool = False
+
+
+@dataclass
+class Message:
+    """One turn, in wire-neutral form.
+
+    `role` is "user", "assistant", or "tool_results". The two protocols
+    disagree about where tool results live -- Anthropic puts them in a user
+    turn, OpenAI gives them their own role -- so the canonical form keeps them
+    separate and each renderer places them correctly.
+    """
+    role: str
+    content: str = ""
+    tool_calls: list[ToolCall] = field(default_factory=list)
+    tool_results: list[ToolResult] = field(default_factory=list)
 
 
 @dataclass
@@ -47,7 +73,7 @@ class Completion:
     model: str
     stop_reason: str | None
     usage: dict[str, int]
-    tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    tool_calls: list[ToolCall] = field(default_factory=list)
     latency_seconds: float = 0.0
     raw: dict[str, Any] = field(default_factory=dict)
 
@@ -61,6 +87,57 @@ def translate_tools(tools: list[Tool], wire: str) -> list[dict[str, Any]]:
                  "function": {"name": t.name, "description": t.description,
                               "parameters": t.input_schema}} for t in tools]
     raise TransportError(f"cannot translate tools for wire protocol {wire!r}")
+
+
+def render_messages(messages: list[Message], wire: str,
+                    system: str | None = None) -> list[dict[str, Any]]:
+    """Canonical turns -> one protocol's message list.
+
+    This is where a multi-turn tool conversation stops being portable by
+    accident and becomes portable on purpose: the same transcript replays
+    against either protocol, so a role's behaviour is not a property of the
+    vendor it happened to run on.
+    """
+    if wire == "anthropic_messages":
+        rendered: list[dict[str, Any]] = []
+        for message in messages:
+            if message.role == "tool_results":
+                rendered.append({"role": "user", "content": [
+                    {"type": "tool_result", "tool_use_id": r.id,
+                     "content": r.content, "is_error": r.is_error}
+                    for r in message.tool_results]})
+            elif message.tool_calls:
+                blocks: list[dict[str, Any]] = []
+                if message.content:
+                    blocks.append({"type": "text", "text": message.content})
+                blocks.extend({"type": "tool_use", "id": c.id, "name": c.name,
+                               "input": c.arguments} for c in message.tool_calls)
+                rendered.append({"role": message.role, "content": blocks})
+            else:
+                rendered.append({"role": message.role, "content": message.content})
+        return rendered
+
+    if wire == "openai_chat":
+        rendered = [{"role": "system", "content": system}] if system else []
+        for message in messages:
+            if message.role == "tool_results":
+                rendered.extend({"role": "tool", "tool_call_id": r.id,
+                                 "content": r.content}
+                                for r in message.tool_results)
+            elif message.tool_calls:
+                rendered.append({
+                    "role": message.role,
+                    "content": message.content or None,
+                    "tool_calls": [
+                        {"id": c.id, "type": "function",
+                         "function": {"name": c.name,
+                                      "arguments": json.dumps(c.arguments)}}
+                        for c in message.tool_calls]})
+            else:
+                rendered.append({"role": message.role, "content": message.content})
+        return rendered
+
+    raise TransportError(f"cannot render messages for wire protocol {wire!r}")
 
 
 def build_request(config, resolution: Resolution, *, system: str | None,
@@ -97,7 +174,7 @@ def build_request(config, resolution: Resolution, *, system: str | None,
         body: dict[str, Any] = {
             "model": resolution.resolved_model_id,
             "max_tokens": limit,
-            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "messages": render_messages(messages, resolution.wire),
         }
         if system:
             body["system"] = system
@@ -108,12 +185,10 @@ def build_request(config, resolution: Resolution, *, system: str | None,
             # Extended thinking pins temperature; only set it when off.
             body["temperature"] = temperature
     elif resolution.wire == "openai_chat":
-        wire_messages = ([{"role": "system", "content": system}] if system else [])
-        wire_messages += [{"role": m.role, "content": m.content} for m in messages]
         body = {
             "model": resolution.resolved_model_id,
             "max_tokens": limit,
-            "messages": wire_messages,
+            "messages": render_messages(messages, resolution.wire, system),
         }
         if temperature is not None:
             body["temperature"] = temperature
@@ -135,7 +210,8 @@ def parse_response(wire: str, payload: dict[str, Any]) -> Completion:
     if wire == "anthropic_messages":
         blocks = payload.get("content") or []
         text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
-        calls = [{"name": b.get("name"), "arguments": b.get("input"), "id": b.get("id")}
+        calls = [ToolCall(id=b.get("id", ""), name=b.get("name", ""),
+                          arguments=b.get("input") or {})
                  for b in blocks if b.get("type") == "tool_use"]
         usage = payload.get("usage") or {}
         return Completion(
@@ -155,9 +231,9 @@ def parse_response(wire: str, payload: dict[str, Any]) -> Completion:
                 try:
                     arguments = json.loads(arguments)
                 except json.JSONDecodeError:
-                    pass
-            calls.append({"name": function.get("name"), "arguments": arguments,
-                          "id": call.get("id")})
+                    arguments = {"__unparsed_arguments__": arguments}
+            calls.append(ToolCall(id=call.get("id", ""), name=function.get("name", ""),
+                                  arguments=arguments or {}))
         usage = payload.get("usage") or {}
         return Completion(
             text=message.get("content") or "", model=payload.get("model", ""),
