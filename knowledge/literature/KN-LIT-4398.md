@@ -1,0 +1,42 @@
+---
+id: KN-LIT-4398
+type: literature
+title: "Improved Delegation of Computation using Fully Homomorphic Encryption?"
+authors:
+  - "Kai-Min Chung"
+  - "Yael Kalai"
+  - "Salil Vadhan"
+year: null
+venue: "IACR Cryptology ePrint Archive"
+identifiers:
+  eprint: null
+  doi: null
+  arxiv: null
+  url: null
+tags: [fhe, pairing, provable-security]
+confidence: reported
+citation_verified: read
+added: "2026-07-24"
+superseded_by: null
+---
+
+## Contribution
+Following Gennaro, Gentry, and Parno (Cryptology ePrint Archive 2009/547), we use fully homomorphic encryption to design improved schemes for delegating computation. In such schemes, a delegator outsources the computation of a function F on many, dynamically chosen inputs xi to a worker in such a way that it is infeasible for the worker to make the delegator accept a result other than F (xi ).
+
+## Key claims (as reported)
+- The “online stage” of the Gennaro et al. scheme is very efficient: the parties exchange two messages, the delegator runs in time poly(log T ), and the worker runs in time poly(T ), where T is the time complexity of F .
+- However, the “offline stage” (which depends on the function F but not the inputs to be delegated) is inefficient: the delegator runs in time poly(T ) and generates a public key of length poly(T ) that needs to be accessed by the worker during the online stage.
+- Our first construction eliminates the large public key from the Gennaro et al. scheme.
+- The delegator still invests poly(T ) time in the offline stage, but does not need to communicate or publish anything.
+
+## Relevance to this program
+Relevant to pairing-based reductions and endomorphism speedups (MOV/Frey-Rück special cases, GLV/GLS) that bound which curve classes are safe baselines.
+
+## Not verified here
+Entry generated during the 2026-07-24 bulk seeding pass from the local PDF's first two pages. Title/authors/year/venue were parsed heuristically and may be incomplete or mis-segmented; claims are relayed from the paper's abstract without independent verification. Upgrade to a fully verified entry after a careful read.
+
+## Local copies
+- `downloads/62230477 (1).pdf`
+- `downloads/62230477 (2).pdf`
+- `downloads/62230477 (3).pdf`
+- `downloads/62230477.pdf`

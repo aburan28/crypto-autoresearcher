@@ -146,10 +146,49 @@ def assert_acyclic(graph: dict[str, list[str]]) -> None:
         visit(node)
 
 
+def validate_inference(handoff: dict[str, Any], role: str | None,
+                       location: str) -> None:
+    """Check the optional `inference` block against the policy contract.
+
+    A task may omit the block (many predate it), but a policy that IS named
+    must exist, and an independent-review role must not be routed to a policy
+    that permits changing official state. A typo here would otherwise surface
+    only when the task was already running.
+    """
+    inference = handoff.get("inference")
+    if inference is None:
+        return
+    if not isinstance(inference, dict):
+        raise DispatchError(f"{location}.inference must be an object")
+    policy_id = inference.get("policy")
+    if policy_id is None:
+        return
+    try:
+        from orchestration.adapter import load as load_inference_config
+    except Exception:                      # adapter unavailable: nothing to check
+        return
+    try:
+        config = load_inference_config()
+        canonical = config.canonical_policy(policy_id)
+    except Exception as exc:
+        raise DispatchError(f"{location}.inference.policy: {exc}") from None
+    policy = config.policy_table[canonical]
+    if role in INDEPENDENT_REVIEW_ROLES and not policy.get(
+            "independent_session_required"):
+        raise DispatchError(
+            f"{location}.inference.policy {policy_id!r} does not require an "
+            f"independent session, but role {role!r} is an independent reviewer")
+    if role not in (None, "coordinator") and policy.get("may_change_official_state"):
+        raise DispatchError(
+            f"{location}.inference.policy {policy_id!r} may change official "
+            f"state, which role {role!r} may not")
+
+
 def validate_handoff(task: dict[str, Any], location: str) -> None:
     handoff = task.get("handoff")
     if not isinstance(handoff, dict):
         raise DispatchError(f"{location}.handoff must be an object")
+    validate_inference(handoff, task.get("role"), f"{location}.handoff")
     for field in ("objective", "uncertainty_reduced"):
         require_text(handoff, field, f"{location}.handoff")
     for field in ("inputs", "constraints", "deliverables", "completion_gate"):

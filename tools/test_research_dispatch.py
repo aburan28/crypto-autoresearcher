@@ -512,5 +512,31 @@ class DispatchPlannerTests(unittest.TestCase):
         self.assertEqual(first["plan_sha256"], second["plan_sha256"])
 
 
+class InferencePolicyTests(unittest.TestCase):
+    """The optional `inference` block is checked against the policy contract."""
+
+    def check(self, policy: Any, role: str) -> None:
+        dispatch.validate_inference({"inference": {"policy": policy}}, role,
+                                    "queue.tasks[0].handoff")
+
+    def test_absent_block_is_accepted(self) -> None:
+        dispatch.validate_inference({}, "executor", "queue.tasks[0].handoff")
+
+    def test_legacy_alias_is_accepted(self) -> None:
+        self.check("review-xhigh", "validator")
+
+    def test_unknown_policy_is_rejected(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "unknown inference policy"):
+            self.check("research-sol-maxx", "idea-generator")
+
+    def test_reviewer_needs_an_independent_session_policy(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "independent session"):
+            self.check("research-deep", "validator")
+
+    def test_worker_may_not_take_a_state_changing_policy(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "may change official"):
+            self.check("coordinator-orchestration", "executor")
+
+
 if __name__ == "__main__":
     unittest.main()
