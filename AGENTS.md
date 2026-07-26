@@ -49,7 +49,7 @@ The canonical exemplar of the output this system exists to produce is
 Wesolowski's *supersingular isogeny problem in time and memory p^{1/3+o(1)}*
 (full text: `inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`; analysis:
 `docs/target-result-profile.md`, checklist C1–C18; technique abstract:
-`knowledge/techniques/KN-TECH-031.md`). All roles bias toward that pattern:
+`knowledge/techniques/KN-TECH-055.md`). All roles bias toward that pattern:
 
 - **Exponent-first ambition**: prefer mechanisms that move the asymptotic
   exponent of a central hard problem over logarithmic-cofactor polishing.

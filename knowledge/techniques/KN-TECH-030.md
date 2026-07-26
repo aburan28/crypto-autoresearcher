@@ -1,109 +1,55 @@
 ---
 id: KN-TECH-030
 type: technique
-title: Outcome-precedence design for differential-conformance protocols requires a baseline-invisible positive control
-tags: [experiment-design, differential-testing, conformance-testing, outcome-classification, positive-control, generator-adequacy, falsifiability, methodology, ml-kem, defensive]
-confidence: reported
-complexity: not applicable; this is a protocol-design constraint, not an algorithm
-applicability: >-
-  Any frozen experimental protocol that (a) ranks a "the added instrument
-  contributed nothing" outcome above the substantive conclusion it is trying to
-  reach, and (b) measures instrument adequacy by the marginal findings of the
-  added classes over a baseline class.
-source_refs: []
-internal_refs: [EV-MLKEM-006, DEC-20260724-008, EXP-MLKEM-003, H-MLKEM-003, EV-MLKEM-005]
-proof_status: empirical_only
-proof_refs:
-  - experiments/EXP-MLKEM-003/specification.yaml
-  - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-012/raw.json
-  - coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/tasks/TASK-20260724-237/validation_report.yaml
-  - coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/tasks/TASK-20260724-238/red_team_report.yaml
+title: Pohlig-Hellman reduction and prime-order-subgroup hygiene
+tags: [pohlig-hellman, group-order, smooth-order, subgroup, crt, generic, baseline, instance-validity, ecdlp, hygiene]
+confidence: established
+complexity: O(sum_i e_i * (log n + sqrt(p_i))) group operations for n = prod p_i^{e_i}; dominated by the largest prime factor
+applicability: any finite cyclic group whose order is known and factorable; always applicable, so it defines the effective problem size
+source_refs: [KN-LIT-082, KN-TECH-001, KN-TECH-005]
 added: 2026-07-24
 superseded_by: null
 ---
 
-## The constraint
+## Method
+Given #E(F_p) = n = prod p_i^{e_i}, project the instance into each subgroup of
+order p_i^{e_i}, solve there (by e_i successive solves in a group of order
+p_i, each a square-root problem), and recombine by the Chinese Remainder
+Theorem. The cost is dominated by sqrt(p_max) where p_max is the largest prime
+factor of n. Consequently the *only* quantity that determines ECDLP difficulty
+in the generic model is the size of the largest prime-order subgroup, not the
+size of the field or of the full group.
 
-A differential-conformance protocol that widens its generator — adding
-multi-byte, alignment, or length classes on top of a baseline single-byte class
-— usually wants two guarantees at once:
+## Why it is a precondition, not an attack
+Pohlig-Hellman is not a route to beating rho; it is the reduction that fixes
+what "the instance" is. Three obligations follow for this program:
 
-1. An honesty guarantee: if the widened classes discover nothing the baseline
-   did not, say so, and do not let the wider generator lend false weight to a
-   null result.
-2. A substantive conclusion: under the widened generator, the defect class is
-   absent outside the known instances.
+1. **Baseline arithmetic.** The rho cost 0.886*sqrt(n) (KN-TECH-006) must use
+   n = the prime subgroup order, not #E(F_p). On a curve with cofactor h, using
+   #E overstates the baseline by sqrt(h) -- a factor of ~2.8 at the common
+   cofactor 8, which is large enough to manufacture an apparent advantage.
+2. **Instance validity.** Any curve the harness generates for measurement must
+   have its group order factored and its largest prime factor recorded. A
+   speedup measured on a smooth-order curve is Pohlig-Hellman, not a mechanism.
+   This is cheap at toy scale and must not be skipped there, because accidental
+   smoothness is far more likely at 16-32 bits than at 256.
+3. **Claim scoping.** A result stated as "solved an n-bit ECDLP" is meaningless
+   without the prime subgroup order; evidence records should carry the factored
+   order, following the practice in the published records (KN-LIT-095 quotes
+   its prime n explicitly).
 
-The natural way to encode the first is an outcome class along the lines of
-`generator_hardening_insufficient`, defined as *the added classes produce no
-finding the baseline did not already produce, on any target including the
-positive control*, ranked ABOVE the substantive conclusion in the precedence
-list so it cannot be skipped.
+## Applicability limits
+The reduction needs the group order, which for a curve over F_p means running
+a point-counting algorithm (SEA) or using a standardized curve with published
+order. It gives no advantage when n is prime -- which is the designed case for
+every cryptographic curve, and the case this program targets. It says nothing
+about non-generic structure: an anomalous or small-embedding-degree curve of
+prime order is still broken (KN-TECH-032, KN-TECH-033) despite Pohlig-Hellman
+offering nothing there.
 
-That encoding is self-defeating unless the positive control contains a defect
-component that the baseline class cannot see.
-
-## Why
-
-Enumerate where a marginal finding could come from once the ranking is fixed:
-
-- On a **clean target**, a marginal finding from a widened class is a newly
-  discovered defect, which triggers the *systemic* outcome class — ranked even
-  higher. So it cannot deliver the substantive conclusion either.
-- On the **positive control**, a marginal finding requires the control to have a
-  component the baseline misses. If the baseline already recovers the control's
-  defect in full, the marginal set is necessarily empty.
-
-So if the positive control is fully baseline-visible, the marginal set is empty
-in *every* branch that does not find a new defect, the honesty class fires
-unconditionally, and the substantive conclusion becomes unreachable. The
-protocol can then only return "your instrument added nothing" or "you found
-something new" — never "you looked harder and it is clean."
-
-## Worked instance
-
-EXP-MLKEM-003 froze exactly this structure. Its inherited positive control was
-the wolfSSL v5.9.1 AVX2 ML-KEM-1024 comparison tail omission at ciphertext byte
-indices 1536..1567, which EV-MLKEM-005 had already established as fully
-detectable by the single-byte class. The widened classes G2 (multi-byte) and G3
-(alignment) rediscovered exactly that region and nothing else; the recorded
-`G2_minus_G1` and `G3_minus_G1` arrays are empty, and an independent validator
-recomputed both as empty from the raw per-index tables. G4 (malformed length)
-was barred by construction from contributing a comparison-omission finding.
-
-`generator_hardening_insufficient` therefore fired on the frozen text and
-displaced `isolated_to_audited_commits`, even though the measurements themselves
-showed no new silent index or equal-length decapsulation accept on any post-fix
-wolfSSL backend or on liboqs 0.12.0. The unreachability was determinable at
-design time from evidence already held. See DEC-20260724-008 for the
-adjudication and EV-MLKEM-006 for the observations.
-
-A secondary lesson from the same instance: the executor tried to escape the
-class by asserting that rediscovery constituted "added discriminating power."
-The specification's own metric definition — *findings attributable to the added
-classes that the baseline did not produce* — forbids that reading. When a
-frozen definition and a summary flag disagree, the definition governs.
-
-## What to do instead
-
-- **Plant a baseline-invisible component in the positive control.** Alongside the
-  known real defect, include a synthetic control exhibiting a defect that only a
-  widened class can reach — for example an omission that manifests only for
-  coordinated multi-byte differences, or only at a lane boundary. Then the
-  marginal set is non-empty exactly when the widening genuinely works, and both
-  outcome classes become reachable.
-- **Or decouple the two questions.** Judge instrument adequacy against a
-  dedicated adequacy control and judge the substantive conclusion against the
-  targets, instead of routing both through one precedence list.
-- **Either way, before freezing, simulate the precedence list against each
-  plausible world** and check that every outcome class is reachable in at least
-  one of them. An outcome class that no world can produce is a specification
-  defect, and it is cheap to find before execution and expensive after.
-
-## Limits
-
-This is a design constraint derived from one instance plus its own logic, not a
-measured empirical regularity. It concerns protocol reachability only and says
-nothing about ML-KEM, about any implementation's correctness, or about the
-merits of widened differential generators, which remain the right instinct for
-the blindness they were introduced to address.
+## Verified vs reported
+The reduction and its cost are textbook and proven in KN-LIT-082 (confidence:
+established). The specific numeric consequences stated above -- the sqrt(h)
+mis-charge, the toy-scale smoothness concern -- are this program's own
+reasoning applied to its baseline convention, not claims from the source, and
+have not been measured against the program's own runs.
