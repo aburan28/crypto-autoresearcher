@@ -15,7 +15,7 @@ identifiers:
   doi: null
   arxiv: "2605.21118"
   url: "https://arxiv.org/abs/2605.21118"
-tags: []
+tags: [symmetric]
 confidence: reported
 citation_verified: read
 added: "2026-07-24"

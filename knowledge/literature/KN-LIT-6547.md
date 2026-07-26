@@ -13,7 +13,7 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags: [provable-security]
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
