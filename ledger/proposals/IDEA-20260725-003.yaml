@@ -1,0 +1,153 @@
+idea:
+  id: IDEA-20260725-003   # placeholder: coordinator confirms/renumbers
+  title: >-
+    Anchor-drift control: is the A4_5 = 444 pinned anchor wrong, or is the
+    sems1 closure path defective?
+  class: control
+  question_id: RQ-ECDLP-002
+  claim: >-
+    The `pass: false` D5 closure-anchor mismatch recorded in
+    experiments/EXP-SIG-008/runs/RUN-EXP-SIG-008-o/raw.json (measured
+    A4_5 = 242 against expected 444, with A3_5 = 242 == expected and
+    rankK5 = 2,093 == expected, halt reason "D5 closure anchor mismatch --
+    method/instrument drift", instrument_sha256_matches_pinned: true) is caused
+    by a defect confined to the `sems1` code path -- specifically that A4_5 is
+    reported with the A3_5 value -- and NOT by a change in the underlying
+    quantity: an independent recomputation of A4_5 from its definition at
+    n = 12 seed 2 returns 444, and the recorded n = 9 seed 1 pair
+    (A3_5 = 128, A4_5 = 566, EV-SIG-006) reproduces unchanged.
+  mechanism: >-
+    Two of the three D5 closure anchors reproduce exactly in RUN-o
+    (rankK5 = 2,093, A3_5 = 242) and RUN-EXP-SIG-008-c independently reproduced
+    the full EV-SIG-003 D5 anchor set through the same experiment's instrument
+    (rank 28,097, sr_pred 29,418, deficit 1,321, extra 1,322, rankK5 2,093,
+    kernel 3,415, nrows 31,512, ncols 46,709). The single failing value equals
+    the immediately preceding reported value, which is the signature of an
+    assignment/aliasing defect in a newly exercised code path rather than of a
+    mathematical change; the instrument file hashes are recorded as matching
+    pinned, so file-level drift is excluded. The competing explanation is
+    genuine method drift: the closure engine's DEFINITION of A4_5 (the F4 image
+    modulo the A3 part) differs between the EV-SIG-003 measurement and the
+    sems1 implementation. These two explanations have opposite consequences, so
+    the control must decide between them before any A-chain number is reused:
+    E1 (code defect) -> every recorded A4/A5/residual value stands and the only
+    action is that EXP-SIG-008 gate 2 must not run until sems1 is repaired;
+    E2 (definition drift) -> the pinned anchor 444 asserted in
+    experiments/EXP-SIG-008/specification.yaml line 15 and carried through
+    EV-SIG-005/006/008 is wrong, which propagates into the D5 closure
+    decomposition and therefore into the residual series that
+    DEC-20260724-003 and DEC-20260724-005 treat as replicated.
+  why_not_renamed_known_approach: >-
+    This is not "rerun the experiment" and not a generic determinism check
+    (determinism was already recorded as PASS in EV-SIG-006 C4 and EV-SIG-008
+    RUN-c). It is a three-way cross-implementation contrast on ONE disputed
+    scalar, with an explicitly measured blast radius: the number of already
+    committed ledger records whose values would change under E2. No prior record
+    mentions the RUN-o halt at all -- it is cited by no evidence record, no
+    decision, no summary, and no analysis file in the repository.
+  novelty_status: adaptation
+  assumptions:
+    - "A4_5 has a written definition recoverable from the closure-engine
+       specification or code comments. If no definition exists independent of
+       either implementation, the third arm cannot be built and the test
+       degrades to a two-arm contrast that can detect disagreement but cannot
+       adjudicate which side is right -- that degraded outcome must be reported
+       as INCONCLUSIVE, not as E1."
+    - "experiments/EXP-SIG-008/work/ state on disk may be partially built from
+       the 2026-07-24 session; every arm must build fresh."
+    - "The rank6 path that produced RUN-EXP-SIG-008-n (rank 149,410) is a
+       different code path from sems1 and is not presumed affected -- that
+       independence is itself checked here, not assumed."
+  predictions:
+    - metric: "A4_5 at n = 12 seed 2 from an independent from-definition recomputation"
+      direction: higher
+      minimum_effect: "exactly 444 under E1; a return of 242 selects E2"
+    - metric: "A4_5 minus A3_5 at n = 12 seed 2, from-definition arm"
+      direction: higher
+      minimum_effect: "= 202 under E1; = 0 is the aliasing signature and confirms the sems1 defect diagnosis"
+    - metric: "A4_5 at n = 9 seed 1 through the sems1 path"
+      direction: different
+      minimum_effect: "566 under E1; if sems1 returns 128 (= A3_5 at n = 9) the aliasing defect is confirmed across two cells"
+    - metric: "residual_5 at n = 12 seed 2 recomputed under whichever A4_5 survives"
+      direction: different
+      minimum_effect: "any change >= 1 from the recorded value invalidates the pinned residual series treated as replicated in DEC-20260724-003"
+    - metric: "blast_radius = count of committed ledger records whose numeric content changes under the surviving explanation"
+      direction: higher
+      minimum_effect: "0 under E1; >= 3 under E2 (EV-SIG-003, EV-SIG-005 or -006, EV-SIG-008)"
+  minimal_test:
+    design: >-
+      Three-arm contrast on one cell (n = 12, seed 2, D = 5), all built fresh:
+      Arm 1 -- the pinned h013_f5_signatures.sage closure path as exercised by
+      EXP-SIG-006/007 (the path whose value 444 is pinned in
+      experiments/EXP-SIG-008/specification.yaml line 15);
+      Arm 2 -- the EXP-SIG-008 `sems1` path (the one that halted);
+      Arm 3 -- a short from-definition recomputation written for this control
+      only (dimensions of the F3/F4/F5 images and their intersections), reusing
+      neither arm's code.
+      Diff every intermediate: rankK5, A3_5, A4_5, A5, |F3|, |F4|, |F5|,
+      miss3, miss4, quotient sizes 1/32/1,322, residual_5. Repeat arms 2 and 3
+      at n = 9 seed 1 where EV-SIG-006 records A3_5 = 128, A4_5 = 566.
+      Interpretation map fixed BEFORE execution:
+      arms 1 and 3 agree on 444 and arm 2 returns 242 => E1, sems1 defect,
+      blast radius 0, EXP-SIG-008 gate 2 blocked until repair;
+      arms 2 and 3 agree on 242 => E2, the pinned anchor is wrong, an
+      evidence-integrity event requiring superseding records for every affected
+      ledger entry;
+      all three disagree => the disagreement is broader than A4_5 and the
+      diagnosis in this claim is falsified;
+      arm 2 returns 444 on a fresh build => the RUN-o halt is a
+      non-reproducible transient and must be recorded as unexplained rather
+      than repaired.
+    controls:
+      - "Fresh build of experiments/EXP-SIG-008/work/ for every arm (no reuse of on-disk cell state)."
+      - "Instrument sha256 recorded and compared to pinned for every arm (RUN-o already records instrument_sha256_matches_pinned: true, so file drift is excluded by construction and must stay excluded)."
+      - "Reproduce the EV-SIG-003 / RUN-EXP-SIG-008-c D5 anchor set (rank 28,097, sr_pred 29,418, deficit 1,321, extra 1,322, rankK5 2,093, kernel 3,415, nrows 31,512, ncols 46,709) in every arm before the disputed value is read."
+      - "n = 9 seed 1 cross-cell replication of the same three-arm contrast."
+      - "Arm attribution re-derived from the built system, not read from receipt args: RUN-o records args.arm = 'null' while kind = 'sems1', and its d35_anchors D4 row shows nrows 3,912, so the arm labelling in that receipt is ambiguous."
+      - "Determinism rebuild of arm 3."
+      - "Rank6-path independence check: re-derive rank6 for a small prefix (first 12,000 columns, recorded rank_acc 12,000 in the EXP-SIG-008 staircase) to confirm the rank6 path is untouched by whatever affects sems1."
+    required_metrics:
+      - A3_5
+      - A4_5
+      - A5
+      - rankK5
+      - F3_image_dim
+      - F4_image_dim
+      - F5_image_dim
+      - miss3
+      - miss4
+      - quotient_sizes
+      - residual_5
+      - blast_radius_record_count
+      - arm_agreement_matrix
+    budget: "<= 30 min wall clock, <= 4 GB RSS. RUN-EXP-SIG-008-o reached the halt in 13 s of Sage work, so each arm is seconds-scale; the cost is implementation of arm 3."
+  falsification_conditions:
+    - "The from-definition arm returns A4_5 = 242 at n = 12 AND does not return 566 at n = 9 seed 1 -> E1 is FALSIFIED, the pinned anchors are wrong, and this becomes an evidence-integrity event affecting >= 3 committed records."
+    - "A3_5 differs from 242 in ANY arm -> the disagreement is broader than A4_5 and the diagnosis stated in the claim is falsified."
+    - "Arm 2 returns 444 on a fresh build and the halt cannot be reproduced -> the code-defect claim is falsified; the RUN-o receipt must be recorded as an unexplained non-reproducible halt, not repaired."
+    - "No definition of A4_5 independent of both implementations can be recovered -> arm 3 cannot exist; the outcome is INCONCLUSIVE and must not be reported as E1."
+    - "The rank6 prefix independence check fails to reproduce rank_acc = 12,000 on the first 12,000 columns -> the rank6 path is implicated too, and the n = 12 D6 falsification value 7,110 itself becomes suspect; this claim's scoping assumption is falsified."
+  confounders:
+    - "Stale on-disk work state from the 2026-07-24 session can make any arm reproduce a cached value rather than recompute it."
+    - "Ambiguous arm labelling in RUN-o (args.arm = 'null', kind = 'sems1') means sem-vs-null attribution cannot be read off the receipt."
+    - "Sage 10.9 / Python 3.14.3 on macOS-15.6-arm64 is the only recorded environment; a different environment introduces a second variable."
+    - "The expected values themselves (rankK5 2,093, A3_5 242, A4_5 444) are hard-coded inside the sems1 assertion block, so arm 2 cannot serve as an independent witness for any of them."
+    - "Confirmation pressure: E1 is the convenient outcome (blast radius 0). The from-definition arm must be written before any arm is run, and by an agent that has not seen arm 2's output."
+  interpretation_limits:
+    - "claim_tier: toy. Instrument validation on the binary-field Weil-descent proxy at n = 9, 12; not a mathematical result about ECDLP and not crypto-scale."
+    - "A clean E1 outcome validates NO SIG conclusion; it only removes one specific integrity doubt about one scalar."
+    - "This control does not address whether the closure decomposition is the right decomposition -- only whether the two implementations compute the same thing."
+    - "Only the Coordinator may act on an E2 outcome; this proposal changes no record status."
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  source_refs:
+    - experiments/EXP-SIG-008/runs/RUN-EXP-SIG-008-o/raw.json
+    - experiments/EXP-SIG-008/runs/RUN-EXP-SIG-008-c/raw.json
+    - experiments/EXP-SIG-008/specification.yaml
+    - ledger/EV-SIG-008.yaml
+    - ledger/EV-SIG-006.yaml
+    - ledger/DEC-20260724-003.yaml
+  recorded_by: idea-generator
+  recorded_at: '2026-07-25'
