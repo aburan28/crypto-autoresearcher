@@ -154,6 +154,16 @@ archival task. A missing, dirty, malformed, or scope-expanding commit blocks
 downstream review or promotion; it is an evidence-integrity failure, not a
 mathematical result.
 
+A branch is kept current with its base by **merging** the base into it.
+Rebasing a branch that carries pushed run records is forbidden: it rewrites the
+commits those records were archived in, and a run receipt whose commit no
+longer exists is not reproducible. `tools/sync_open_branches.py` performs this
+merge periodically for open pull requests and validates the merged tree before
+pushing it. It never resolves a conflict: when a sync conflicts inside a ledger
+record, run artifact, or knowledge entry, the resolution is a new superseding
+record under a new id — the same rule as any other correction — and never an
+edit that picks one side.
+
 ## Research states
 
 Hypotheses move through:

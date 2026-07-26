@@ -1,10 +1,14 @@
-# Agentic Pull-Request Review
+# GitHub Automation
 
-Automated review of every pull request, tuned to this program's integrity
-rules rather than to generic code style. This document covers what is wired up,
-what an operator must still do to activate it, and — most importantly — the
-standing of a machine review inside a research program whose whole point is
-that claims carry authority only when they are earned.
+Three automations run against this repository: agentic review of every pull
+request, an interactive `@claude` agent, and a periodic branch sync that keeps
+open branches current with `main`. This document covers what is wired up, what
+an operator must still do to activate it, and — most importantly — the standing
+of machine output inside a research program whose whole point is that claims
+carry authority only when they are earned.
+
+The review is tuned to this program's integrity rules rather than to generic
+code style; the sync is deliberately incapable of resolving anything.
 
 ## Standing: advisory, never authoritative
 
@@ -32,6 +36,8 @@ uncited number slips through.
 | `REVIEW.md` | The review contract. Single source of truth for what gets flagged, at what severity, and what to leave alone. |
 | `.github/workflows/claude-pr-review.yml` | Reviews every non-draft PR on open, push, ready-for-review, and reopen. Read-only; posts inline findings and a summary. |
 | `.github/workflows/claude.yml` | Answers `@claude` in issues, PR comments, and reviews. May fix harness and tooling code; refuses to touch the research record. |
+| `.github/workflows/sync-main.yml` | Every six hours, merges `main` into open PR branches that are behind it. See [Periodic branch sync](#periodic-branch-sync). |
+| `tools/sync_open_branches.py` | The sync's decision logic, with the reasoning behind each rule. |
 
 `REVIEW.md` is deliberately not duplicated into the workflow prompt. The
 workflow is a bootstrap that tells the agent to read the contract, so the two
@@ -135,3 +141,54 @@ verification bar.
 Review-only guidance belongs in `REVIEW.md`; guidance that should shape every
 Claude Code session in this repository belongs in `CLAUDE.md`, whose newly
 introduced violations the reviewer already flags as nits.
+
+## Periodic branch sync
+
+`sync-main.yml` runs every six hours, and on demand via **Actions → sync-main →
+Run workflow** (which offers a dry run). For each open pull request whose branch
+is behind `main`, it merges `main` in and pushes the result.
+
+It needs no secret and no app — it runs on the default `GITHUB_TOKEN` — so
+unlike the review workflows it is live as soon as this branch merges.
+
+### What it will not do
+
+- **It never rebases.** A rebase rewrites every commit on the branch, including
+  the ones run records were archived in, and a run receipt whose commit no
+  longer exists is not reproducible (`AGENTS.md`, "Durable research commits").
+- **It never resolves a conflict.** Records are immutable and corrections
+  supersede rather than overwrite, so no machine may pick a side in a conflicted
+  ledger record, run artifact, or knowledge entry. It aborts the merge and
+  comments on the pull request with the conflicting paths. The resolution is a
+  new superseding record under a new id.
+- **It never pushes a tree it has not validated.** Two branches can each add a
+  record that git merges cleanly but that `validate_ledger.py` rejects together
+  — a duplicate id, a cross-reference to a record that moved. The merge is
+  discarded and reported instead of pushed.
+- **It never touches a fork** (`GITHUB_TOKEN` cannot push to one) or a pull
+  request labelled `no-auto-sync`.
+- **It never runs against a dirty working tree.** It switches branches and
+  resets between them, so running it locally on uncommitted work would destroy
+  that work. It refuses to start instead, and returns to the ref it began on.
+
+A conflict or a failed validation exits the job **green**. Both are normal
+outcomes that the pull request already carries; a schedule that goes red every
+six hours teaches everyone to ignore it. Only an infrastructure failure — `gh`
+unauthenticated, a branch that cannot be fetched — fails the job. Repeat reports
+are suppressed per pull request per tip of `main`, so a branch that stays
+conflicted is mentioned once each time `main` moves, not four times a day.
+
+### Why it validates locally instead of letting CI do it
+
+Pushes made with `GITHUB_TOKEN` do not trigger further workflow runs — GitHub's
+recursion guard. So a sync push does **not** re-run `validate.yml` or
+`claude-pr-review.yml` on the merged result. That keeps the review bill down (a
+sync pass across a dozen stale branches would otherwise trigger a dozen reviews
+of diffs nobody wrote), but it means nothing downstream would catch a sync that
+broke the ledger. Hence the pre-push validation in `sync_open_branches.py`: it
+is the only thing that ever sees the merged tree.
+
+The consequence to know about: after a sync, the checks displayed on the pull
+request are from the last human push, not from the merged state. Push a commit,
+or re-run the checks, if you need CI's verdict on the merged result before
+merging.

@@ -45,8 +45,9 @@ docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
 docs/dynamic-subagent-dispatch.md      Artifact-driven task dispatch and ownership rules
 docs/knowledge-assessment-20260724.md  Audit of corpus, ledger, and artifact completeness
-docs/github-agentic-review.md          Automated PR review: setup, standing, and tuning
+docs/github-automation.md              PR review, @claude agent, and periodic branch sync
 REVIEW.md                              Contract for automated pull-request review
+tools/sync_open_branches.py            Merges main into stale PR branches; never rebases
 templates/research-records.md          YAML templates for all shared records
 templates/subagent-task-queue.json     JSON template for bounded task dispatch
 tools/research_dispatch.py             Validates and renders the ready-task plan

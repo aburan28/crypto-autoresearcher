@@ -62,6 +62,15 @@ Code specifically.
   snapshot before review, then ledger commit before a state transition. Commit
   messages reference the task and record IDs; never rewrite history over
   pushed run records.
+- Keep a working branch current by **merging** `main` into it, never by
+  rebasing — a rebase rewrites every commit, including pushed run records.
+  `.github/workflows/sync-main.yml` does this every six hours for open pull
+  requests; a branch it reports as conflicted, or as failing post-merge
+  validation, is yours to resolve before further work lands on it. Re-run the
+  validators after any sync: two branches can each be valid and invalid
+  together (duplicate id, cross-reference to a record that moved). A conflict
+  inside an immutable record is resolved by superseding it under a new id,
+  never by editing it in place. See `docs/github-automation.md`.
 
 ## Model policy note
 
