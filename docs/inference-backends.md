@@ -34,6 +34,8 @@ or a regional deployment). Nothing else.
 | `anthropic` | Anthropic Messages | `https://api.anthropic.com` (`ANTHROPIC_BASE_URL`) | `ANTHROPIC_API_KEY` |
 | `zai` | OpenAI Chat | `https://api.z.ai/api/paas/v4` (`ZAI_BASE_URL`) | `ZAI_API_KEY` |
 | `zai-anthropic` | Anthropic Messages | `https://api.z.ai/api/anthropic` (`ZAI_ANTHROPIC_BASE_URL`) | `ZAI_API_KEY` |
+| `fireworks` | OpenAI Chat | `https://api.fireworks.ai/inference/v1` (`FIREWORKS_BASE_URL`) | `FIREWORKS_API_KEY` |
+| `fireworks-anthropic` | Anthropic Messages | `https://api.fireworks.ai/inference` (`FIREWORKS_ANTHROPIC_BASE_URL`) | `FIREWORKS_API_KEY` |
 | `openai` | OpenAI Chat | `https://api.openai.com/v1` (`OPENAI_BASE_URL`) | `OPENAI_API_KEY` |
 | `openrouter` | OpenAI Chat | `https://openrouter.ai/api/v1` (`OPENROUTER_BASE_URL`) | `OPENROUTER_API_KEY` |
 | `local` | OpenAI Chat | `http://localhost:8000/v1` (`LOCAL_LLM_BASE_URL`) | `LOCAL_LLM_API_KEY` (optional) |
@@ -42,7 +44,19 @@ or a regional deployment). Nothing else.
 one key. Pick by what is calling: `zai-anthropic` to point an Anthropic-protocol
 CLI at GLM, `zai` for everything else.
 
-`openai`, `openrouter`, and `local` ship **unbound** — a key alone is not enough,
+**Protocol compatibility is not model access.** Fireworks speaks both wire
+formats but serves *open-weight* models — GLM, Kimi, DeepSeek, Qwen, Llama.
+`fireworks-anthropic` lets an Anthropic-protocol CLI talk to those models; it
+does not provide Claude. The same distinction applies to `zai-anthropic`.
+
+Its Anthropic endpoint also authenticates with `X-Fireworks-Api-Key` rather
+than `x-api-key`, declared as a per-backend `auth:` override in
+`providers.yaml`. That is deliberate on their side and useful on ours: a real
+`ANTHROPIC_API_KEY` sitting in your environment cannot be sent to a
+non-Anthropic endpoint by accident.
+
+`fireworks`, `fireworks-anthropic`, `openai`, `openrouter`, and `local` ship
+**unbound** — a key alone is not enough,
 because `model: null` is set for every policy until you fill in identifiers.
 
 Set them up:

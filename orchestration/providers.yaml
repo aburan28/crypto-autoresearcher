@@ -73,6 +73,38 @@ backends:
       backend to point the `claude_code` runtime at: it lets an
       Anthropic-protocol CLI drive GLM without any Anthropic account.
 
+  fireworks:
+    display_name: Fireworks AI (open-weight models), OpenAI-compatible
+    wire: openai_chat
+    base_url: https://api.fireworks.ai/inference/v1
+    base_url_env: FIREWORKS_BASE_URL
+    api_key_env: FIREWORKS_API_KEY
+    supports_models_probe: true
+    notes: >-
+      Serves open-weight models (GLM, Kimi, DeepSeek, Qwen, Llama and similar) —
+      not Anthropic's or OpenAI's proprietary models. Model ids take the
+      canonical form `accounts/fireworks/models/<name>`; short slugs are also
+      accepted. Probe before binding: `adapter models --backend fireworks`.
+
+  fireworks-anthropic:
+    display_name: Fireworks AI via its Anthropic-compatible endpoint
+    wire: anthropic_messages
+    # Note the missing `/v1`: the wire protocol appends `/v1/messages`, so the
+    # composed endpoint is https://api.fireworks.ai/inference/v1/messages.
+    base_url: https://api.fireworks.ai/inference
+    base_url_env: FIREWORKS_ANTHROPIC_BASE_URL
+    api_key_env: FIREWORKS_API_KEY
+    # Fireworks authenticates this endpoint with its own header rather than
+    # `x-api-key`, so a real Anthropic key sitting in the environment cannot be
+    # picked up by mistake. This override is why `auth` is per-backend and not
+    # only per-wire-protocol.
+    auth: {style: header, header: X-Fireworks-Api-Key}
+    supports_models_probe: false
+    notes: >-
+      Same open-weight models as `fireworks`, spoken in the Anthropic wire
+      format — the backend to point an Anthropic-protocol CLI at. It does NOT
+      provide access to Claude models.
+
   openai:
     display_name: OpenAI Responses/Chat-compatible API
     wire: openai_chat
@@ -126,7 +158,7 @@ runtimes:
       api_key: ANTHROPIC_AUTH_TOKEN
       model: ANTHROPIC_MODEL
       small_model: ANTHROPIC_SMALL_FAST_MODEL
-    compatible_backends: [anthropic, zai-anthropic]
+    compatible_backends: [anthropic, zai-anthropic, fireworks-anthropic]
     notes: >-
       Subagent frontmatter accepts only the runtime's own model names, so
       per-role model selection here is process-level: launch one runtime per
@@ -141,7 +173,7 @@ runtimes:
       base_url: OPENAI_BASE_URL
       api_key: OPENAI_API_KEY
       model: OPENAI_MODEL
-    compatible_backends: [openai, zai, openrouter, local]
+    compatible_backends: [openai, zai, fireworks, openrouter, local]
 
   api_direct:
     display_name: This repository's own runtime (orchestration.agent, LangGraph)
@@ -149,7 +181,8 @@ runtimes:
     role_binding: agents/<role>.md
     tool_loop: langgraph
     env: {}
-    compatible_backends: [anthropic, zai, zai-anthropic, openai, openrouter, local]
+    compatible_backends: [anthropic, zai, zai-anthropic, fireworks,
+                          fireworks-anthropic, openai, openrouter, local]
     notes: >-
       Executes a role against any backend above, with the tool surface derived
       from orchestration/roles.yaml and the task's write_scope enforced by the

@@ -89,6 +89,25 @@ def translate_tools(tools: list[Tool], wire: str) -> list[dict[str, Any]]:
     raise TransportError(f"cannot translate tools for wire protocol {wire!r}")
 
 
+def auth_headers(protocol: dict[str, Any], backend: dict[str, Any],
+                 api_key: str) -> dict[str, str]:
+    """Auth headers for a backend, letting it override its protocol's default.
+
+    A wire protocol implies an auth scheme, but not always: a provider can
+    speak the Anthropic Messages format while authenticating with its own
+    header, so that a user's real Anthropic key sitting in the environment
+    cannot be picked up instead. Fireworks does exactly this. Keeping the
+    override in `providers.yaml` means such a provider stays a config entry
+    rather than a code change.
+    """
+    if not api_key:
+        return {}
+    auth = backend.get("auth") or protocol["auth"]
+    if auth["style"] == "bearer":
+        return {auth["header"]: f"Bearer {api_key}"}
+    return {auth["header"]: api_key}
+
+
 def render_messages(messages: list[Message], wire: str,
                     system: str | None = None) -> list[dict[str, Any]]:
     """Canonical turns -> one protocol's message list.
@@ -159,10 +178,7 @@ def build_request(config, resolution: Resolution, *, system: str | None,
 
     headers = {"content-type": "application/json"}
     headers.update({k: str(v) for k, v in (protocol.get("static_headers") or {}).items()})
-    auth = protocol["auth"]
-    if api_key:
-        headers[auth["header"]] = (
-            f"Bearer {api_key}" if auth["style"] == "bearer" else api_key)
+    headers.update(auth_headers(protocol, backend, api_key))
 
     request_cfg = dict(resolution.request)
     reasoning = request_cfg.pop("reasoning", None) or {}
@@ -327,10 +343,7 @@ def list_models(config, backend_name: str, *, env: dict[str, str] | None = None,
             f"backend {backend_name} needs credentials in "
             f"${backend['api_key_env']}, which is unset")
     headers = {k: str(v) for k, v in (protocol.get("static_headers") or {}).items()}
-    auth = protocol["auth"]
-    if api_key:
-        headers[auth["header"]] = (
-            f"Bearer {api_key}" if auth["style"] == "bearer" else api_key)
+    headers.update(auth_headers(protocol, backend, api_key))
 
     opener = opener or urllib.request.urlopen
     request = urllib.request.Request(url, headers=headers, method="GET")

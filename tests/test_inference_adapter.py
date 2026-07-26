@@ -545,3 +545,57 @@ def test_contract_documents_go_stale_loudly(cfg):
         text = (REPO / name).read_text(encoding="utf-8")
         for policy in cfg.policy_table:
             assert policy in text, f"{name} does not mention {policy}"
+
+
+# --------------------------------------------------------------------------
+# per-backend auth override
+# --------------------------------------------------------------------------
+def test_a_backend_may_override_its_protocol_auth_header(cfg):
+    """Fireworks speaks the Anthropic wire but authenticates with its own header.
+
+    Sending `x-api-key` there would risk a real Anthropic key being picked up
+    from the environment for a non-Anthropic endpoint.
+    """
+    protocol = cfg.wire_protocol("anthropic_messages")
+    override = transport_module.auth_headers(
+        protocol, cfg.backend("fireworks-anthropic"), "fw_secret")
+    assert override == {"X-Fireworks-Api-Key": "fw_secret"}
+
+    default = transport_module.auth_headers(
+        protocol, cfg.backend("anthropic"), "sk_secret")
+    assert default == {"x-api-key": "sk_secret"}
+    assert "x-api-key" not in override
+
+
+def test_the_override_reaches_the_request_headers(cfg, tmp_path):
+    bindings = yaml.safe_load(
+        (REPO / "orchestration/model-bindings.yaml").read_text())
+    bindings["bindings"]["fireworks-anthropic"]["research-deep"] = {
+        "model": "test-model", "provenance": "operator-supplied",
+        "capabilities": {"max_reasoning_effort": "high", "tool_use": True,
+                         "structured_output": True, "context_tokens": 200000,
+                         "max_output_tokens": 32000},
+        "request": {"max_tokens": 8000}}
+    path = tmp_path / "bindings.yaml"
+    path.write_text(yaml.safe_dump(bindings))
+    patched = adapter.load(bindings_path=path)
+
+    resolution = adapter.resolve(patched, "research-deep",
+                                 backend="fireworks-anthropic", env={})
+    url, headers, _ = adapter.build_request(
+        patched, resolution, system=None,
+        messages=[adapter.Message("user", "x")],
+        env={"FIREWORKS_API_KEY": "fw_secret"})
+    assert headers["X-Fireworks-Api-Key"] == "fw_secret"
+    assert "x-api-key" not in headers
+    assert headers["anthropic-version"]          # still the Anthropic protocol
+    # base_url omits /v1; the protocol appends /v1/messages.
+    assert url == "https://api.fireworks.ai/inference/v1/messages"
+
+
+def test_fireworks_ships_unbound_so_no_model_id_is_invented(cfg):
+    for backend in ("fireworks", "fireworks-anthropic"):
+        for policy in cfg.policy_table:
+            binding = cfg.binding(backend, policy)
+            assert binding["model"] is None, (
+                f"{backend}.{policy} names a model id that was never probed")
