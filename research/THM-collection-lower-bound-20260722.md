@@ -305,3 +305,22 @@ Consequently the summation-polynomial / degree-of-regularity line (DREG, SIG) is
 **a valid route**, not a misdirected one, and its sharp target is:
         a decomposition test running in o(B) time with O(B) space.
 The naive algebraic oracle is Theta(B^2), so the gap to close is B^2 -> o(B).
+
+### Calibration of the rehabilitated low-space route (tempering CORR-20260722-001)
+The correction re-opens the low-space corner (S = Theta(B), target T = o(B)),
+but that corner is presently the *worst-performing* of all known instantiations,
+because with no table every draw pays a full solve. At N = 10^16 (rho = 10^8):
+
+| route | S | T | best total |
+|---|---|---|---|
+| low-space algebraic, **current** | B | B^2 | N^{1.000} |
+| MITM | B^2 | B | N^{0.684} |
+| ideal storage of D_3 (batched) | B^3 | 1 | N^{0.618} |
+| low-space algebraic, **target** | B | B^{0.8} | N^{0.473} (beats rho) |
+
+So the rehabilitated route is valid *in principle* yet far from the frontier in
+practice: closing it requires improving the decomposition test from Theta(B^2) to
+o(B) -- an improvement by more than a factor of B. This is recorded so the
+correction does not breed over-optimism: DREG/SIG is the right variable to attack,
+but the required gain is large, and 3SUM-Indexing conjecturally forbids it for
+arbitrary sets (Theorem 13 blocks the structured-set escape).
