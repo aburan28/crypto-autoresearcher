@@ -39,7 +39,8 @@ def test_doctor_names_an_actionable_next_step_when_blocked(monkeypatch, capsys):
     assert code == 1
     assert "no backend is usable" in output
     assert "next:" in output
-    assert "export" in output
+    # Name the exact variable and where to put it, not just "credentials".
+    assert "ANTHROPIC_API_KEY" in output and ".env" in output
 
 
 def test_doctor_passes_once_a_backend_is_usable(monkeypatch, capsys):
@@ -157,3 +158,69 @@ def test_agent_extra_matches_the_requirements_file():
               for line in (REPO / "requirements-agent.txt").read_text().splitlines()
               if line.strip() and not line.startswith("#")}
     assert extra == pinned
+
+
+# --------------------------------------------------------------------------
+# credentials and endpoints
+# --------------------------------------------------------------------------
+def test_backends_lists_endpoints_and_key_variables(capsys):
+    code, output = run(["backends"], capsys)
+    assert code == 0
+    for backend, url, key in (
+            ("anthropic", "https://api.anthropic.com", "ANTHROPIC_API_KEY"),
+            ("zai", "https://api.z.ai/api/paas/v4", "ZAI_API_KEY"),
+            ("zai-anthropic", "https://api.z.ai/api/anthropic", "ZAI_API_KEY"),
+            ("local", "localhost", "LOCAL_LLM_API_KEY")):
+        assert backend in output and url in output and key in output
+    assert "AUTORESEARCH_BACKEND" in output
+    assert ".env.example" in output
+
+
+def test_backends_distinguishes_missing_key_from_missing_binding(capsys,
+                                                                 monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    _, output = run(["backends"], capsys)
+    assert "no credentials" in output          # anthropic: bound, no key
+    assert "unbound" in output                 # openai: key or not, no model ids
+
+
+def test_dotenv_is_loaded_without_overriding_the_shell(tmp_path, monkeypatch):
+    env = {"ALREADY_SET": "from-shell"}
+    (tmp_path / ".env").write_text(
+        '# comment\n'
+        'ALREADY_SET=from-file\n'
+        'ANTHROPIC_API_KEY="quoted-value"\n'
+        "ZAI_API_KEY='single'\n"
+        'export EXPORTED_FORM=yes\n'
+        'BLANK=\n'
+        'no_equals_line\n')
+    loaded = cli_module.load_dotenv(tmp_path / ".env", env)
+    assert env["ALREADY_SET"] == "from-shell"     # the shell always wins
+    assert env["ANTHROPIC_API_KEY"] == "quoted-value"
+    assert env["ZAI_API_KEY"] == "single"
+    assert env["EXPORTED_FORM"] == "yes"
+    assert "BLANK" not in env
+    assert set(loaded) == {"ANTHROPIC_API_KEY", "ZAI_API_KEY", "EXPORTED_FORM"}
+
+
+def test_a_missing_dotenv_is_not_an_error(tmp_path):
+    assert cli_module.load_dotenv(tmp_path / "absent", {}) == []
+
+
+def test_env_example_documents_every_backend_variable():
+    """A backend whose key variable is undocumented cannot be wired up."""
+    import yaml
+    example = (REPO / ".env.example").read_text(encoding="utf-8")
+    providers = yaml.safe_load(
+        (REPO / "orchestration/providers.yaml").read_text(encoding="utf-8"))
+    for name, backend in providers["backends"].items():
+        assert backend["api_key_env"] in example, f"{name} key var undocumented"
+        assert backend["base_url_env"] in example, f"{name} url var undocumented"
+        assert str(backend["base_url"]) in example, f"{name} url undocumented"
+
+
+def test_env_example_is_gitignored():
+    """The template is committed; the filled-in file must never be."""
+    ignored = (REPO / ".gitignore").read_text(encoding="utf-8").split()
+    assert ".env" in ignored
+    assert (REPO / ".env.example").is_file()

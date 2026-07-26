@@ -354,3 +354,106 @@ def test_harness_runs_record_an_inference_block():
     from harness.runner import _inference_block
     block = _inference_block()
     assert "requested_policy" in block and "fallback_used" in block
+
+
+# --------------------------------------------------------------------------
+# reasoning-effort calibration
+# --------------------------------------------------------------------------
+def test_effort_is_calibrated_per_role_not_uniformly_high(cfg):
+    """The Executor runs a frozen protocol; it should not think like a reviewer."""
+    effort = {}
+    for policy in ("coordinator-orchestration-code", "research-deep",
+                   "review-adversarial", "executor-implementation",
+                   "executor-mechanical"):
+        resolution = adapter.resolve(cfg, policy, backend="anthropic",
+                                     independent_session=True, env={})
+        effort[policy] = resolution.reasoning_effort
+    order = cfg.effort_order
+    assert order.index(effort["executor-mechanical"]) < order.index(
+        effort["executor-implementation"])
+    assert order.index(effort["executor-implementation"]) < order.index(
+        effort["coordinator-orchestration-code"])
+    assert order.index(effort["coordinator-orchestration-code"]) < order.index(
+        effort["review-adversarial"])
+
+
+def test_the_capability_floor_and_the_request_are_separate(cfg):
+    """Asking for less than the model can do is calibration, not a downgrade."""
+    resolution = adapter.resolve(cfg, "executor-implementation",
+                                 backend="anthropic", env={})
+    binding = cfg.binding("anthropic", "executor-implementation")
+    ceiling = binding["capabilities"]["max_reasoning_effort"]
+    order = cfg.effort_order
+    assert order.index(resolution.reasoning_effort) < order.index(ceiling)
+    assert resolution.degraded_requirements == []      # not a downgrade
+    assert resolution.fallback_used is False
+
+
+def test_a_handoff_may_calibrate_effort_for_one_task(cfg):
+    handoff = {"handoff": {
+        "id": "TASK-1", "from": "coordinator", "to": "executor",
+        "inference": {"policy": "executor-implementation",
+                      "reasoning_effort": "low"}}}
+    resolution = adapter.resolve_handoff(cfg, handoff, backend="anthropic", env={})
+    assert resolution.reasoning_effort == "low"
+    assert resolution.reasoning_effort_overridden is True
+    assert resolution.policy_reasoning_effort == "medium"
+    assert "overriding medium" in resolution.summary()
+
+
+def test_an_unknown_effort_override_is_refused(cfg):
+    with pytest.raises(resolver_module.ResolutionError, match="unknown reasoning effort"):
+        adapter.resolve(cfg, "executor-implementation", backend="anthropic",
+                        reasoning_effort="ludicrous", env={})
+
+
+def test_effort_is_capped_by_the_backend_and_says_so(cfg):
+    """Asking for more than the binding supports is recorded, never silent."""
+    resolution = adapter.resolve(cfg, "executor-implementation", backend="zai",
+                                 reasoning_effort="xhigh", env={})
+    assert resolution.requested_reasoning_effort == "xhigh"
+    assert resolution.reasoning_effort == "high"        # the zai ceiling
+    assert resolution.reasoning_effort_capped is True
+    assert "CAPPED" in resolution.summary()
+
+
+def test_calibration_reaches_the_anthropic_wire(cfg):
+    """A lower tier must change the request, not only the manifest."""
+    def thinking(policy: str) -> int:
+        resolution = adapter.resolve(cfg, policy, backend="anthropic",
+                                     independent_session=True, env={})
+        _, _, body = adapter.build_request(
+            cfg, resolution, system=None,
+            messages=[adapter.Message("user", "x")],
+            env={"ANTHROPIC_API_KEY": "k"})
+        return body.get("thinking", {}).get("budget_tokens", 0)
+
+    assert thinking("executor-mechanical") == 0          # thinking off entirely
+    assert 0 < thinking("executor-implementation") < thinking("review-adversarial")
+
+
+def test_thinking_off_lets_temperature_through(cfg):
+    """Extended thinking pins temperature; the mechanical tier wants it at 0."""
+    resolution = adapter.resolve(cfg, "executor-mechanical", backend="anthropic",
+                                 env={})
+    _, _, body = adapter.build_request(
+        cfg, resolution, system=None, messages=[adapter.Message("user", "x")],
+        env={"ANTHROPIC_API_KEY": "k"})
+    assert "thinking" not in body
+    assert body["temperature"] == 0.0
+
+
+def test_calibration_reaches_the_openai_wire(cfg):
+    resolution = adapter.resolve(cfg, "executor-mechanical", backend="zai", env={})
+    _, _, body = adapter.build_request(
+        cfg, resolution, system=None, messages=[adapter.Message("user", "x")],
+        env={"ZAI_API_KEY": "k"})
+    assert body["reasoning_effort"] == "low"
+
+
+def test_the_manifest_records_both_the_request_and_what_was_sent(cfg):
+    resolution = adapter.resolve(cfg, "executor-implementation", backend="zai",
+                                 reasoning_effort="xhigh", env={})
+    block = adapter.inference_block(resolution)
+    assert block["requested_reasoning_effort"] == "xhigh"
+    assert block["reasoning_effort"] == "high"

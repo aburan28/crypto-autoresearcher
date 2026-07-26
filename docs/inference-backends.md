@@ -23,6 +23,90 @@ those records are immutable.
 always described. It is standard library only: no vendor SDK is a dependency of
 this research program.
 
+## Credentials and endpoints
+
+Every backend needs two things: an **API key** in a named environment variable,
+and a **base URL** (which has a working default you only override for a gateway
+or a regional deployment). Nothing else.
+
+| backend | wire | base URL (override var) | API key var |
+|---|---|---|---|
+| `anthropic` | Anthropic Messages | `https://api.anthropic.com` (`ANTHROPIC_BASE_URL`) | `ANTHROPIC_API_KEY` |
+| `zai` | OpenAI Chat | `https://api.z.ai/api/paas/v4` (`ZAI_BASE_URL`) | `ZAI_API_KEY` |
+| `zai-anthropic` | Anthropic Messages | `https://api.z.ai/api/anthropic` (`ZAI_ANTHROPIC_BASE_URL`) | `ZAI_API_KEY` |
+| `openai` | OpenAI Chat | `https://api.openai.com/v1` (`OPENAI_BASE_URL`) | `OPENAI_API_KEY` |
+| `openrouter` | OpenAI Chat | `https://openrouter.ai/api/v1` (`OPENROUTER_BASE_URL`) | `OPENROUTER_API_KEY` |
+| `local` | OpenAI Chat | `http://localhost:8000/v1` (`LOCAL_LLM_BASE_URL`) | `LOCAL_LLM_API_KEY` (optional) |
+
+`zai` and `zai-anthropic` are the same GLM models behind two protocols and share
+one key. Pick by what is calling: `zai-anthropic` to point an Anthropic-protocol
+CLI at GLM, `zai` for everything else.
+
+`openai`, `openrouter`, and `local` ship **unbound** — a key alone is not enough,
+because `model: null` is set for every policy until you fill in identifiers.
+
+Set them up:
+
+```sh
+cp .env.example .env      # then fill in the one or two you use
+autoresearch backends     # endpoints, key vars, and what each can serve
+autoresearch doctor       # what is missing, and the exact next command
+```
+
+`.env` is gitignored and loaded automatically by `autoresearch`, never
+overriding a variable already exported in your shell. Plain environment
+variables work identically if you would rather not use a file.
+
+Never edit a base URL in `providers.yaml` for a deployment difference — set the
+override variable. The file is the shared contract; the variable is your machine.
+
+## Reasoning effort is calibrated per role
+
+Thinking is the dominant cost and latency term here, and it is not uniformly
+useful. Two separate fields keep that tunable:
+
+* `requires.reasoning_effort` — the **floor** a backend must support. Below it
+  is a downgrade, refused unless the handoff permits one.
+* `reasoning_effort` — what is actually **requested** per call. Defaults to the
+  floor.
+
+Conflating those makes calibration impossible, because asking for less than a
+model can do is not the same as the model not being able to do it.
+
+| policy | floor | requested | why |
+|---|---|---|---|
+| `review-adversarial` | xhigh | **xhigh** | the gate protecting every ledger claim |
+| `coordinator-orchestration-code` | high | **high** | state transitions, contradiction resolution |
+| `coordinator-orchestration` | high | **high** | prioritisation and synthesis |
+| `research-deep` | high | **high** | mechanism search; depth is the product |
+| `executor-implementation` | medium | **medium** | runs an already-frozen protocol |
+| `executor-mechanical` | low | **low** | re-run a command, collect artifacts |
+
+The Executor drop is the one that matters most in volume. It runs a protocol the
+Coordinator already specified and approved; extra thinking there re-derives a
+frozen design, which is both wasted budget and the route by which an Executor
+drifts into reinterpreting a specification it is supposed to follow exactly.
+
+This reaches the wire, not just the manifest. On the Anthropic protocol a
+binding maps effort to a thinking budget (`budget_by_effort`), and `low` maps to
+`0`, which disables extended thinking and lets `temperature: 0.0` through. On
+the OpenAI protocol the effort maps to `reasoning_effort`.
+
+A handoff can calibrate one task without changing the policy:
+
+```yaml
+inference:
+  policy: executor-implementation
+  reasoning_effort: low          # this task is mechanical
+```
+
+Two guards apply. Asking for more than the backend supports is **capped and
+recorded** (`reasoning_effort_capped`, visible in the summary as `CAPPED`), never
+silently granted. And a review policy may not be calibrated below its floor —
+`tools/research_dispatch.py` rejects the handoff. Review is where discipline
+lives, and buying budget by thinking less there is exactly the trade
+`evals/suites/discipline.yaml` exists to catch.
+
 ## Policy ids and the alias contract
 
 Policy ids are permanent. The pre-2.0 ids (`coordinator-ultra-code`,

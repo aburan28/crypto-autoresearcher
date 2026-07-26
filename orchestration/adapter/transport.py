@@ -178,11 +178,12 @@ def build_request(config, resolution: Resolution, *, system: str | None,
         }
         if system:
             body["system"] = system
-        if reasoning.get("mode") == "anthropic_thinking":
-            budget = min(int(reasoning.get("budget_tokens", 8000)), max(limit - 1024, 1024))
+        budget = _thinking_budget(reasoning, resolution.reasoning_effort, limit)
+        if budget:
             body["thinking"] = {"type": "enabled", "budget_tokens": budget}
         elif temperature is not None:
-            # Extended thinking pins temperature; only set it when off.
+            # Extended thinking pins temperature; only set it when off -- which
+            # is exactly the case for the calibrated-low tiers.
             body["temperature"] = temperature
     elif resolution.wire == "openai_chat":
         body = {
@@ -204,6 +205,24 @@ def build_request(config, resolution: Resolution, *, system: str | None,
         body["tools"] = translate_tools(tools, resolution.wire)
     body.update(request_cfg)  # any remaining provider-specific knobs
     return url, headers, body
+
+
+def _thinking_budget(reasoning: dict[str, Any], effort: str,
+                     max_tokens: int) -> int:
+    """Anthropic thinking budget for the effort this policy asked for.
+
+    A binding maps effort -> budget, so calibrating a role's effort actually
+    changes what is sent rather than only what is recorded. A budget of 0 (the
+    `low` tier) disables extended thinking entirely.
+    """
+    if reasoning.get("mode") != "anthropic_thinking":
+        return 0
+    by_effort = reasoning.get("budget_by_effort") or {}
+    budget = by_effort.get(effort, reasoning.get("budget_tokens", 0))
+    if not budget:
+        return 0
+    # The API requires budget < max_tokens, leaving room for the answer itself.
+    return min(int(budget), max(max_tokens - 1024, 1024))
 
 
 def parse_response(wire: str, payload: dict[str, Any]) -> Completion:

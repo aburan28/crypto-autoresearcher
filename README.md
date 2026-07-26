@@ -97,8 +97,8 @@ per backend, role-binding drift, and suite health, then prints the specific
 next command for whatever is blocking. Everything is offline and free.
 
 ```sh
-export ZAI_API_KEY=...                    # or ANTHROPIC_API_KEY, ...
-export AUTORESEARCH_BACKEND=zai
+cp .env.example .env                      # fill in one key; .env is gitignored
+autoresearch backends                     # endpoints, key variables, what is bound
 
 autoresearch doctor                       # now green
 autoresearch adapter doctor --probe       # are the configured model ids real?

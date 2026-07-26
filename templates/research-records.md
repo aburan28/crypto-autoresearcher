@@ -274,7 +274,12 @@ handoff:
     # Canonical policy ids; the pre-2.0 aliases still resolve for records
     # already committed. See docs/inference-backends.md.
     policy: coordinator-orchestration-code | coordinator-orchestration |
-            research-deep | executor-implementation | review-adversarial
+            research-deep | executor-implementation | executor-mechanical |
+            review-adversarial
+    reasoning_effort: null         # per-task calibration; null = the policy
+                                   # default. Lower it for mechanical work;
+                                   # a review policy may never go below its
+                                   # floor, and the dispatcher enforces that.
     fallback_allowed: false        # permit the declared fallback / another backend
     degraded_allowed: false        # permit a RECORDED downgrade; needs an
                                    # inference_amendment naming the gap

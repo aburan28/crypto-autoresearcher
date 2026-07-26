@@ -173,6 +173,24 @@ def validate_inference(handoff: dict[str, Any], role: str | None,
     except Exception as exc:
         raise DispatchError(f"{location}.inference.policy: {exc}") from None
     policy = config.policy_table[canonical]
+
+    effort = inference.get("reasoning_effort")
+    if effort is not None:
+        if effort not in config.effort_order:
+            raise DispatchError(
+                f"{location}.inference.reasoning_effort {effort!r} is not in the "
+                f"lattice {config.effort_order}")
+        # Calibrating a review down is the one trade this program never makes
+        # silently: it is the gate protecting every claim in the ledger.
+        floor = (policy.get("requires") or {}).get("reasoning_effort")
+        if (policy.get("independent_session_required")
+                and config.effort_order.index(effort)
+                < config.effort_order.index(floor)):
+            raise DispatchError(
+                f"{location}.inference.reasoning_effort {effort!r} is below the "
+                f"{floor!r} floor for review policy {policy_id!r}; a review may "
+                f"not be calibrated down to save budget")
+
     if role in INDEPENDENT_REVIEW_ROLES and not policy.get(
             "independent_session_required"):
         raise DispatchError(

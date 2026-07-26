@@ -27,6 +27,34 @@ BASELINES = REPO / "evals" / "baselines"
 RESULTS = REPO / "evals" / "results"
 
 
+def load_dotenv(path: Path | None = None, env: dict[str, str] | None = None) -> list[str]:
+    """Load `.env` if present. Never overrides what is already in the shell.
+
+    Wiring up credentials is the step people bounce off, and `.env` is the
+    lowest-friction way to do it locally. Parsing is deliberately dumb --
+    KEY=VALUE, `#` comments, optional surrounding quotes -- so there is no
+    interpolation surprise and no dependency.
+    """
+    import os
+    target = Path(path) if path else REPO / ".env"
+    env = os.environ if env is None else env
+    if not target.is_file():
+        return []
+    loaded = []
+    for line in target.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip().removeprefix("export ").strip(), value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if key and value and key not in env:
+            env[key] = value
+            loaded.append(key)
+    return loaded
+
+
 # --------------------------------------------------------------------------
 def _has(module: str) -> bool:
     try:
@@ -101,14 +129,16 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             1 for policy in cfg.policy_table
             if not resolver_module._binding_blockers(
                 cfg, policy, name, cfg.binding(name, policy)))
+        url = cfg.base_url(name)
         if not has_key:
             warn(f"{name}: ${key_env} unset  ({servable}/{len(cfg.policy_table)} "
-                 f"policies bound)", f"export {key_env}=... to use {name}")
+                 f"policies bound)  {url}",
+                 f"set {key_env} in .env (see .env.example) to use {name}")
         elif servable == 0:
             warn(f"{name}: credentials present but no policy is bound",
                  f"fill model ids for {name} in orchestration/model-bindings.yaml")
         else:
-            ok(f"{name}: ready ({servable}/{len(cfg.policy_table)} policies)")
+            ok(f"{name}: ready ({servable}/{len(cfg.policy_table)} policies)  {url}")
             usable.append(name)
     if not usable:
         fail("no backend is usable",
@@ -276,6 +306,43 @@ def cmd_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_backends(args: argparse.Namespace) -> int:
+    """Endpoints, credentials, and what each backend can actually serve."""
+    import os
+    from .adapter import resolver as resolver_module
+    cfg = config_module.load()
+    default = cfg.default_backend()
+
+    for name in sorted(cfg.backend_table):
+        backend = cfg.backend(name)
+        key_env = backend["api_key_env"]
+        key_set = bool(os.environ.get(key_env))
+        optional = bool(backend.get("api_key_optional"))
+        bound = [p for p in cfg.policy_table
+                 if not resolver_module._binding_blockers(
+                     cfg, p, name, cfg.binding(name, p))]
+        marker = " (default)" if name == default else ""
+        state = ("ready" if (key_set or optional) and bound else
+                 "no credentials" if not (key_set or optional) else
+                 "unbound — no model ids configured")
+        print(f"\n{name}{marker}    {state}")
+        print(f"  wire        {backend['wire']}")
+        print(f"  url         {cfg.base_url(name)}")
+        if backend.get("base_url_env"):
+            print(f"  url override ${backend['base_url_env']}")
+        print(f"  api key     ${key_env}"
+              f"{'  [set]' if key_set else '  [optional]' if optional else '  [NOT SET]'}")
+        print(f"  serves      {len(bound)}/{len(cfg.policy_table)} policies"
+              + (f": {', '.join(bound)}" if bound and args.verbose else ""))
+        if backend.get("notes") and args.verbose:
+            print(f"  notes       {' '.join(str(backend['notes']).split())}")
+
+    print(f"\nSelect one with AUTORESEARCH_BACKEND=<name>, or --backend on any "
+          f"command.\nCopy .env.example to .env to set keys and URLs; "
+          f"`autoresearch doctor` checks them.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="autoresearch",
@@ -288,6 +355,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_status = sub.add_parser("status", help="what is configured and recorded")
     p_status.set_defaults(func=cmd_status)
+
+    p_backends = sub.add_parser(
+        "backends", help="endpoints, API key variables, and what each can serve")
+    p_backends.add_argument("--verbose", "-v", action="store_true")
+    p_backends.set_defaults(func=cmd_backends)
 
     p_loop = sub.add_parser(
         "loop", help="run the eval suites and compare against pinned baselines")
@@ -316,7 +388,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    loaded = load_dotenv()
     args = build_parser().parse_args(argv)
+    if loaded and args.command in ("doctor", "backends", "status"):
+        print(f"loaded .env: {', '.join(loaded)}\n")
     try:
         return int(args.func(args))
     except config_module.ConfigError as exc:

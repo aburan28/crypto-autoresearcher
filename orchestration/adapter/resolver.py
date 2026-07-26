@@ -45,8 +45,8 @@ class Resolution:
     resolved_model_id: str
     model_provenance: str
     model_last_probed: str | None
-    requested_reasoning_effort: str
-    reasoning_effort: str
+    requested_reasoning_effort: str      # what was asked for (policy or override)
+    reasoning_effort: str                # what is actually sent
     fallback_used: bool
     fallback_reason: str | None
     degraded_requirements: list[str]
@@ -56,6 +56,9 @@ class Resolution:
     independent_session: bool
     base_url: str
     api_key_env: str
+    policy_reasoning_effort: str = ""       # the policy default, before override
+    reasoning_effort_overridden: bool = False
+    reasoning_effort_capped: bool = False   # the backend could not go that deep
     request: dict[str, Any] = field(default_factory=dict)
     adapter_version: str = ADAPTER_VERSION
     config_digest: str = ""
@@ -72,8 +75,13 @@ class Resolution:
         return data
 
     def summary(self) -> str:
+        effort = f"effort={self.reasoning_effort}"
+        if self.reasoning_effort_overridden:
+            effort += f", overriding {self.policy_reasoning_effort}"
+        if self.reasoning_effort_capped:
+            effort += f", CAPPED from {self.requested_reasoning_effort}"
         line = (f"{self.requested_policy} -> {self.backend}:"
-                f"{self.resolved_model_id} (effort={self.reasoning_effort})")
+                f"{self.resolved_model_id} ({effort})")
         if self.fallback_used:
             line += f"  FALLBACK: {self.fallback_reason}"
         if self.degraded_requirements:
@@ -120,18 +128,27 @@ def _shortfalls(config: Config, policy: dict[str, Any],
     return gaps
 
 
-def _applied_effort(config: Config, policy: dict[str, Any],
-                    binding: dict[str, Any]) -> str:
-    """The effort actually requested from the provider.
+def policy_effort(policy: dict[str, Any]) -> str:
+    """What this policy asks the model to spend, defaulting to its floor."""
+    requires = policy.get("requires") or {}
+    return policy.get("reasoning_effort") or requires.get("reasoning_effort")
 
-    Never above what the policy asks for, never above what the binding claims.
+
+def _applied_effort(config: Config, policy: dict[str, Any],
+                    binding: dict[str, Any], override: str | None = None) -> str:
+    """The effort actually sent to the provider.
+
+    Never above what was asked for, never above what the binding claims. The
+    request and the capability floor are separate: a policy may deliberately
+    ask for less thinking than the model can do (the Executor does), which is
+    calibration, not a downgrade.
     """
     order = config.effort_order
-    need = (policy.get("requires") or {}).get("reasoning_effort")
+    want = override or policy_effort(policy)
     ceiling = (binding.get("capabilities") or {}).get("max_reasoning_effort")
     if _effort_rank(order, ceiling) < 0:
-        return need
-    return min(need, ceiling, key=lambda e: _effort_rank(order, e))
+        return want
+    return min(want, ceiling, key=lambda e: _effort_rank(order, e))
 
 
 def resolve(config: Config, requested_policy: str, *,
@@ -141,6 +158,7 @@ def resolve(config: Config, requested_policy: str, *,
             independent_session: bool = False,
             originating_agent: str | None = None,
             assigned_agent: str | None = None,
+            reasoning_effort: str | None = None,
             env: dict[str, str] | None = None) -> Resolution:
     """Resolve a policy to a concrete model on a concrete backend.
 
@@ -149,10 +167,19 @@ def resolve(config: Config, requested_policy: str, *,
     `degraded_allowed` additionally permits a binding that misses a
     requirement; the gap is recorded in `degraded_requirements` and must be
     covered by a coordinator-approved inference amendment.
+
+    `reasoning_effort` overrides the policy default for this one task -- the
+    per-task calibration knob. It is bounded by the binding ceiling and always
+    recorded, so a task never runs at an effort its manifest does not state.
     """
     env = os.environ if env is None else env
     canonical = config.canonical_policy(requested_policy)
     policy = config.policy_table[canonical]
+
+    if reasoning_effort is not None and reasoning_effort not in config.effort_order:
+        raise ResolutionError(
+            f"unknown reasoning effort {reasoning_effort!r}; lattice is "
+            f"{config.effort_order}")
 
     # -- governance gates: independent of any backend ----------------------
     if policy.get("independent_session_required") and not independent_session:
@@ -191,7 +218,7 @@ def resolve(config: Config, requested_policy: str, *,
                       binding, fallback_used=index > 0,
                       fallback_reason=_fallback_reason(rejected) if index else None,
                       degraded=[], independent_session=independent_session,
-                      rejected=rejected, env=env)
+                      rejected=rejected, env=env, override=reasoning_effort)
 
     # -- last resort: an explicitly permitted, recorded downgrade ----------
     if degraded_allowed:
@@ -203,7 +230,7 @@ def resolve(config: Config, requested_policy: str, *,
                           target_backend, binding, fallback_used=True,
                           fallback_reason="degraded resolution explicitly permitted",
                           degraded=gaps, independent_session=independent_session,
-                          rejected=rejected, env=env)
+                          rejected=rejected, env=env, override=reasoning_effort)
 
     raise ResolutionError(
         f"cannot resolve policy {requested_policy!r} "
@@ -244,11 +271,12 @@ def _build(config: Config, requested: str, canonical: str, policy_id: str,
            backend_id: str, binding: dict[str, Any], *, fallback_used: bool,
            fallback_reason: str | None, degraded: list[str],
            independent_session: bool, rejected: list[Attempt],
-           env: dict[str, str]) -> Resolution:
+           env: dict[str, str], override: str | None = None) -> Resolution:
     policy = config.policy_table[policy_id]
     backend = config.backend(backend_id)
-    requested_effort = (config.policy_table[canonical].get("requires") or {}
-                        ).get("reasoning_effort")
+    canonical_policy = config.policy_table[canonical]
+    requested_effort = override or policy_effort(canonical_policy)
+    applied = _applied_effort(config, policy, binding, override)
     return Resolution(
         requested_policy=requested,
         policy=policy_id,
@@ -259,7 +287,10 @@ def _build(config: Config, requested: str, canonical: str, policy_id: str,
         model_provenance=binding.get("provenance", "operator-supplied"),
         model_last_probed=binding.get("last_probed"),
         requested_reasoning_effort=requested_effort,
-        reasoning_effort=_applied_effort(config, policy, binding),
+        reasoning_effort=applied,
+        policy_reasoning_effort=policy_effort(canonical_policy),
+        reasoning_effort_overridden=override is not None,
+        reasoning_effort_capped=(applied != requested_effort),
         fallback_used=fallback_used,
         fallback_reason=fallback_reason,
         degraded_requirements=degraded,
@@ -292,6 +323,8 @@ def resolve_handoff(config: Config, handoff: dict[str, Any], **overrides: Any
         "independent_session": bool(inference.get("independent_session_required")),
         "originating_agent": body.get("from"),
         "assigned_agent": body.get("to"),
+        # Per-task calibration, authored by the Coordinator in the handoff.
+        "reasoning_effort": inference.get("reasoning_effort"),
     }
     kwargs.update(overrides)
     return resolve(config, inference["policy"], **kwargs)

@@ -17,10 +17,25 @@ adapter:
   module: orchestration.adapter
   providers: orchestration/providers.yaml
   bindings: orchestration/model-bindings.yaml
-  # Reasoning-effort lattice used for every comparison below. A binding whose
-  # `max_reasoning_effort` sits lower than a policy's `requires.reasoning_effort`
-  # is a DOWNGRADE: refused unless the handoff set `fallback_allowed: true`.
+  # Reasoning-effort lattice used for every comparison below.
   reasoning_effort_order: [none, low, medium, high, xhigh, max]
+
+# Two different questions, kept apart because conflating them makes calibration
+# impossible:
+#
+#   requires.reasoning_effort  the FLOOR a backend must support. A binding whose
+#                              `max_reasoning_effort` sits below this is a
+#                              DOWNGRADE: refused unless the handoff set
+#                              `fallback_allowed` / `degraded_allowed`.
+#   reasoning_effort           what is actually REQUESTED per call. Defaults to
+#                              the floor when omitted.
+#
+# Thinking is the dominant cost and latency term in this program, and it is not
+# uniformly useful. Deciding whether evidence justifies a state transition is
+# reasoning-bound. Running a frozen protocol and collecting artifacts is
+# instruction- and tool-bound: extra thinking there buys re-derivation of a
+# specification that was already frozen. So effort is calibrated per role rather
+# than set high everywhere and forgotten.
 
 policies:
   coordinator-orchestration-code:
@@ -40,6 +55,9 @@ policies:
       structured_output: true
       min_context_tokens: 180000
       min_output_tokens: 16000
+    # Decides state transitions and resolves contradictions across the ledger.
+    # This is the reasoning-bound role; it is where depth is worth paying for.
+    reasoning_effort: high
     may_change_official_state: true
     independent_session_required: false
     fallback_policy: coordinator-orchestration
@@ -59,6 +77,7 @@ policies:
       structured_output: true
       min_context_tokens: 120000
       min_output_tokens: 16000
+    reasoning_effort: high
     may_change_official_state: true
     independent_session_required: false
     fallback_policy: null
@@ -80,6 +99,8 @@ policies:
       structured_output: true
       min_context_tokens: 120000
       min_output_tokens: 16000
+    # Mechanism search over a large literature spine. Depth is the product.
+    reasoning_effort: high
     may_change_official_state: false
     independent_session_required: false
     fallback_policy: null
@@ -101,6 +122,11 @@ policies:
       structured_output: true
       min_context_tokens: 180000
       min_output_tokens: 16000
+    # The gate protecting every claim in the ledger. Never calibrate this down
+    # to save tokens: a review that misses a bad certificate costs more than the
+    # thinking it saved, and `evals/suites/discipline.yaml` measures exactly
+    # that trade.
+    reasoning_effort: xhigh
     may_change_official_state: false
     independent_session_required: true
     fallback_policy: null
@@ -116,14 +142,43 @@ policies:
       - experiment_execution
       - artifact_collection
     requires:
-      reasoning_effort: high
+      # Floor, not the request: the Executor still needs a model competent
+      # enough to debug, so a `low`-only backend is rejected.
+      reasoning_effort: medium
       tool_use: true
       structured_output: true
       min_context_tokens: 120000
       min_output_tokens: 24000
+    # Executes a protocol that is already frozen and approved. The hard thinking
+    # happened when the Coordinator specified it; re-deriving the design here is
+    # not just wasted budget, it is how an Executor drifts into reinterpreting a
+    # specification it is supposed to follow exactly.
+    reasoning_effort: medium
     may_change_official_state: false
     independent_session_required: false
     fallback_policy: null
+
+  executor-mechanical:
+    aliases: []
+    summary: >-
+      Deterministic, fully specified work: re-run a frozen command, collect
+      artifacts, reformat a record, regenerate an index.
+    purpose:
+      - artifact_collection
+      - reproduction_runs
+      - record_formatting
+    requires:
+      reasoning_effort: low
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 60000
+      min_output_tokens: 16000
+    # There is no judgment left in these tasks. Effort spent here is spent
+    # inventing variation in work whose value is that it does not vary.
+    reasoning_effort: low
+    may_change_official_state: false
+    independent_session_required: false
+    fallback_policy: executor-implementation
 
 role_defaults:
   coordinator: coordinator-orchestration-code
