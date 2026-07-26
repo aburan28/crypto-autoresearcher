@@ -112,3 +112,35 @@ def test_immutability_check_exempts_only_recorded_prefixes():
     assert any(a.startswith("experiments/EXP-SEMAEV-") for a in allowed)
     # an unrelated run path is NOT exempt
     assert not any("experiments/EXP-DREG-001/runs/".startswith(a) for a in allowed)
+
+
+def test_reduction_chain_is_validated():
+    ctx = V.Ctx()
+    good = {"id": "CHAIN-X-001", "goal_statement": "g", "load_bearing_link": 2,
+            "links": [{"step": 1, "claim": "a", "status": "proved", "refs": ["r"]},
+                      {"step": 2, "claim": "b", "status": "open", "refs": ["r"]}]}
+    V.check_reduction_chain("/c.yaml", good, ctx)
+    assert not ctx.errors
+
+    # an unauditable link (no status) is an error, not a warning
+    ctx = V.Ctx()
+    V.check_reduction_chain("/c.yaml", {"links": [{"step": 1, "claim": "a"}],
+                                        "load_bearing_link": 1}, ctx)
+    assert any("status must be one of" in e for e in ctx.errors)
+
+    # load_bearing_link must name a real step
+    ctx = V.Ctx()
+    V.check_reduction_chain("/c.yaml", {"load_bearing_link": 9, "links": [
+        {"step": 1, "claim": "a", "status": "proved", "refs": ["r"]}]}, ctx)
+    assert any("load_bearing_link" in e for e in ctx.errors)
+
+
+def test_ecdlp_chain_record_is_present_and_clean():
+    import yaml
+    p = os.path.join(REPO, "ledger", "reduction-chains", "CHAIN-ECDLP-001.yaml")
+    body = yaml.safe_load(open(p))["reduction_chain"]
+    ctx = V.Ctx(); V.check_reduction_chain(p, body, ctx)
+    assert not ctx.errors
+    # the chain must honestly mark its load-bearing link
+    lb = [l for l in body["links"] if l["step"] == body["load_bearing_link"]][0]
+    assert lb["status"] == "open"

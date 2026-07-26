@@ -45,6 +45,7 @@ ID_PATTERNS = {
     "handoff": re.compile(r"^TASK-\d{8}-\d{3}$"),
     "correction": re.compile(r"^CORR-\d{8}-\d{3}$"),
     "research_goal": re.compile(r"^GOAL-[A-Z][A-Z0-9]*-\d{3}$"),
+    "reduction_chain": re.compile(r"^CHAIN-[A-Z][A-Z0-9]*-\d{3}$"),
 }
 RUN_ID = re.compile(r"^RUN-[A-Za-z0-9._-]+$")
 
@@ -55,6 +56,7 @@ RUN_ID = re.compile(r"^RUN-[A-Za-z0-9._-]+$")
 LEDGER_TYPES = {
     "research_question", "idea", "hypothesis", "evidence",
     "coordinator_decision", "handoff", "correction", "research_goal",
+    "reduction_chain",
 }
 
 REQUIRED = {
@@ -70,6 +72,7 @@ REQUIRED = {
     "correction": ["id", "record_id", "field", "prior_value", "corrected_value",
                    "reason"],
     "research_goal": ["id", "title", "objective", "status", "owner"],
+    "reduction_chain": ["id", "goal_statement", "links", "load_bearing_link"],
 }
 
 RUN_REQUIRED_TOP = ["id", "experiment_id", "status", "code", "environment",
@@ -142,7 +145,41 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
     for field in REQUIRED[rec_type]:
         if body.get(field) in (None, ""):
             ctx.warn(path, f"missing required field '{field}'")
+    if rec_type == "reduction_chain":
+        check_reduction_chain(path, body, ctx)
     ctx.register(str(rec_id), path, body)
+
+
+CHAIN_STATUSES = {"proved", "conditional", "open"}
+
+
+def check_reduction_chain(path: str, body: dict, ctx: Ctx):
+    """AGENTS.md rule 13: every link must be auditable as proved vs assumed.
+
+    A chain whose links carry no status, or whose load-bearing link is not a
+    real link, cannot be audited -- that defeats the record's purpose, so it is
+    an error rather than a convention warning.
+    """
+    links = body.get("links") or []
+    if not links:
+        ctx.err(path, "reduction_chain has no links")
+        return
+    steps = set()
+    for link in links:
+        if not isinstance(link, dict):
+            ctx.err(path, "each link must be a mapping")
+            continue
+        steps.add(link.get("step"))
+        if link.get("status") not in CHAIN_STATUSES:
+            ctx.err(path, f"link {link.get('step')}: status must be one of "
+                          f"{sorted(CHAIN_STATUSES)}, got {link.get('status')!r}")
+        if not link.get("claim"):
+            ctx.err(path, f"link {link.get('step')}: missing 'claim'")
+        if not link.get("refs"):
+            ctx.warn(path, f"link {link.get('step')}: no supporting refs")
+    lb = body.get("load_bearing_link")
+    if lb is not None and lb not in steps:
+        ctx.err(path, f"load_bearing_link {lb!r} is not one of the chain's steps")
 
 
 def check_experiment(path: str, ctx: Ctx):

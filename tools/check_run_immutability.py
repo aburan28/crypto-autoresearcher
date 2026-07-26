@@ -47,7 +47,6 @@ def authorized_prefixes() -> list[str]:
     return [e["path_prefix"] for e in (doc.get("authorized_removals") or [])
             if e.get("path_prefix") and e.get("authorized_by") and e.get("reason")]
 
-RUN_PATH = os.path.join("experiments", "")  # prefix; refined below
 
 
 def resolve(ref: str) -> str | None:
