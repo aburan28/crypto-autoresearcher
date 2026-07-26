@@ -1,0 +1,102 @@
+schema_version: "1.0"
+
+# One role definition, many runtimes.
+#
+# A role's authority and its tool surface are research-contract facts: the
+# Coordinator may change official state and may not run experiments, the
+# Executor is the reverse. Those facts belong here, once, in runtime-neutral
+# terms — not duplicated in each runtime's own agent format, where they drift.
+#
+# `tools/check_runtime_bindings.py` enforces that every runtime binding on disk
+# still matches this table, so adding a runtime is a table entry plus a
+# generated binding file, never a re-derivation of who may do what.
+
+# Runtime-neutral capability vocabulary, and the tool names each runtime uses
+# for it. A runtime that cannot express a capability declares it unsupported;
+# a role needing that capability then cannot run on that runtime.
+capabilities:
+  read_files:    {claude_code: [Read],           codex_cli: [read],   api_direct: [read_file]}
+  search_files:  {claude_code: [Grep, Glob],     codex_cli: [search], api_direct: [list_files, search_files]}
+  write_files:   {claude_code: [Write],          codex_cli: [write],  api_direct: [write_file]}
+  edit_files:    {claude_code: [Edit],           codex_cli: [edit],   api_direct: [edit_file]}
+  run_commands:  {claude_code: [Bash],           codex_cli: [shell],  api_direct: [run_command]}
+  # api_direct has no web capability: it is a bounded repository runtime, so a
+  # role that needs the open web runs under a runtime that has it rather than
+  # silently doing without. `tools/check_runtime_bindings.py --list` shows
+  # which roles that excludes.
+  web_search:    {claude_code: [WebSearch, WebFetch], codex_cli: [web]}
+
+# Execution limits for the api_direct runtime (orchestration/agent/). These are
+# defaults; a task's own budget narrows them and never widens them.
+api_direct:
+  max_steps: 40
+  command_timeout_seconds: 300
+  # `run_command` takes an argument list and never a shell string, so these are
+  # program names, not command lines. Only read-only git subcommands are
+  # accepted (see orchestration/agent/tools.py): a worker never commits.
+  command_allowlist: [python3, python, pytest, sage, git, ls, wc]
+
+roles:
+  coordinator:
+    contract: agents/coordinator.md
+    default_policy: coordinator-orchestration-code
+    authority:
+      may_change_official_state: true
+      may_approve_experiments: true
+      may_execute_experiments: false
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, edit_files]
+    runtime_bindings:
+      claude_code: .claude/agents/coordinator.md
+
+  idea-generator:
+    contract: agents/idea-generator.md
+    default_policy: research-deep
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, web_search]
+    runtime_bindings:
+      claude_code: .claude/agents/idea-generator.md
+
+  executor:
+    contract: agents/executor.md
+    default_policy: executor-implementation
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: true
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    runtime_bindings:
+      claude_code: .claude/agents/executor.md
+
+  validator:
+    contract: agents/validator.md
+    default_policy: review-adversarial
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    runtime_bindings:
+      claude_code: .claude/agents/validator.md
+
+  red-team:
+    contract: agents/red-team.md
+    default_policy: review-adversarial
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands, web_search]
+    runtime_bindings:
+      claude_code: .claude/agents/red-team.md
+
+# Roles whose `independent_of_producer` is true must resolve to a policy with
+# `independent_session_required: true`; the checker enforces this so a review
+# role can never be quietly routed through a non-independent session.

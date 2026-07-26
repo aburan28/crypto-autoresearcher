@@ -55,6 +55,31 @@ def environment() -> dict:
     }
 
 
+def _inference_block() -> dict:
+    """Record which inference backend, if any, was in this run's loop.
+
+    Harness runs are deterministic code, so the usual answer is "no model" --
+    which is exactly what makes their numbers backend-independent. When a run
+    IS driven by an agent, `AUTORESEARCH_POLICY` (and optionally
+    `AUTORESEARCH_BACKEND`) are set at launch and the adapter resolves the
+    exact model that answered. A missing or broken adapter is recorded, never
+    silently replaced with a plausible-looking block.
+    """
+    try:
+        from orchestration.adapter.manifest import block_from_env
+        return block_from_env()
+    except Exception as exc:                      # pragma: no cover - import guard
+        return {
+            "requested_policy": "executor-implementation",
+            "resolved_model_id": None,
+            "reasoning_effort": None,
+            "fallback_used": False,
+            "adapter_version": None,
+            "note": "deterministic harness execution — no model in the loop",
+            "adapter_error": f"{type(exc).__name__}: {exc}",
+        }
+
+
 def curve_id(p: int, a: int, b: int, field_bits: int) -> str:
     h = hashlib.sha256(f"{p}:{a}:{b}".encode()).hexdigest()[:8]
     return f"TOY-P{field_bits}-{h}"
@@ -132,13 +157,7 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
             "experiment_id": exp_id,
             "status": final_status,
             "code": {"commit": commit, "dirty": dirty, "command": command},
-            "inference": {
-                "requested_policy": "executor-terra",
-                "resolved_model_id": "none (deterministic harness execution)",
-                "reasoning_effort": None,
-                "fallback_used": False,
-                "adapter_version": None,
-            },
+            "inference": _inference_block(),
             "environment": environment(),
             "inputs": {
                 "curve_id": result.curve_id,

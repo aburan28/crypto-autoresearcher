@@ -74,12 +74,23 @@ run:
     commit: git-sha
     dirty: false
     command: exact command
-  inference:
-    requested_policy: null
+  inference:                       # written by orchestration/adapter/manifest.py
+    requested_policy: null         # exactly as the handoff wrote it
+    canonical_policy: null
+    backend: null                  # null = no model was in this run's loop
+    provider: null
     resolved_model_id: null
+    model_provenance: null         # runtime-verified | operator-supplied |
+                                   # unbound | not-applicable
+    model_verified: false          # probe-confirmed that the backend serves it
+    requested_reasoning_effort: null
     reasoning_effort: null
     fallback_used: false
+    fallback_reason: null
+    degraded_requirements: []      # requirements the resolved model does not meet
+    independent_session: false
     adapter_version: null
+    config_digest: null            # binds the run to exact policy/binding config
   environment:
     operating_system: null
     architecture: null
