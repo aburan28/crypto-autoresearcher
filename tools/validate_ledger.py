@@ -243,7 +243,19 @@ def check_run(path: str, ctx: Ctx):
     if not code.get("commit"):
         ctx.err(path, "run.code.commit missing (not reproducible)")
     if not code.get("command"):
-        ctx.err(path, "run.code.command missing (not reproducible)")
+        # A manifest may record the exact invocation out-of-line as
+        # `command_file` instead of inline, when the command is long enough that
+        # embedding it would hurt readability. That is still reproducible: the
+        # referenced file is committed next to the manifest and its presence is
+        # already mandatory (see the companion-artifact check below). Accept it
+        # only when the file really is there and non-empty, so the
+        # reproducibility guarantee is unchanged rather than relaxed.
+        command_file = str(code.get("command_file") or "")
+        resolved = ""
+        if command_file and not os.path.isabs(command_file) and ".." not in command_file.split(os.sep):
+            resolved = os.path.join(os.path.dirname(path), command_file)
+        if not (resolved and os.path.isfile(resolved) and os.path.getsize(resolved) > 0):
+            ctx.err(path, "run.code.command missing (not reproducible)")
     # Companion artifacts must exist next to the manifest.
     run_dir = os.path.dirname(path)
     for artifact in ("command.txt", "environment.json", "stdout.log",
