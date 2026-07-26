@@ -271,8 +271,13 @@ handoff:
   artifact_paths: []
   archived_by: TASK-YYYYMMDD-NNN
   inference:
-    policy: coordinator-ultra-code | research-sol-max | executor-terra | review-xhigh
-    fallback_allowed: false
+    # Canonical policy ids; the pre-2.0 aliases still resolve for records
+    # already committed. See docs/inference-backends.md.
+    policy: coordinator-orchestration-code | coordinator-orchestration |
+            research-deep | executor-implementation | review-adversarial
+    fallback_allowed: false        # permit the declared fallback / another backend
+    degraded_allowed: false        # permit a RECORDED downgrade; needs an
+                                   # inference_amendment naming the gap
     independent_session_required: false
   budget:
     wall_clock_seconds: null

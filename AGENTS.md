@@ -16,17 +16,42 @@ Only the Coordinator may change the official status of a hypothesis or research 
 
 ## Model policy
 
-Role permissions and model selection are separate concerns. Permissions come from the role contract; inference behavior comes from `orchestration/model-policies.yaml`.
+Role permissions and model selection are separate concerns, and neither names a
+vendor. Permissions come from the role contract; inference requirements come
+from `orchestration/model-policies.yaml`; the concrete model that serves a
+policy comes from `orchestration/model-bindings.yaml`, resolved by
+`orchestration/adapter/`. Full semantics: `docs/inference-backends.md`.
 
-Default policies:
+Default policies (capability contracts, not products):
 
-- Coordinator: `coordinator-ultra-code` — GPT-5.6 Sol Ultra Code.
-- Idea Generator and research tasks: `research-sol-max` — GPT-5.6 Sol Max.
-- Executor: `executor-terra` — GPT-5.6 Terra.
-- Reviewer, Validator, and Red Team: `review-xhigh` — GPT-5.6 Sol with
-  `xhigh` reasoning.
+- Coordinator: `coordinator-orchestration-code`.
+- Idea Generator and research tasks: `research-deep`.
+- Executor: `executor-implementation`.
+- Reviewer, Validator, and Red Team: `review-adversarial`, which requires
+  `xhigh` reasoning and an independent session.
 
-The runtime adapter must record both the human-readable policy alias and the exact resolved model identifier. It must never silently downgrade a requested policy. Critical findings require an independent review session using `review-xhigh` and a reviewer that did not originate the claim.
+Policy ids are permanent. The pre-2.0 ids (`coordinator-ultra-code`,
+`coordinator-sol-max`, `research-sol-max`, `executor-terra`, `review-xhigh`)
+are carried forever as aliases so already-committed handoffs keep resolving;
+write new handoffs with the canonical ids.
+
+The adapter records the requested policy and the exact resolved model
+identifier, and never silently downgrades a requested policy. A substitution
+requires `fallback_allowed` in the handoff and is recorded as `fallback_used`
+with its reason; accepting a model that misses a stated requirement
+additionally requires `degraded_allowed` and a Coordinator-approved
+`inference_amendment`, and every gap is recorded in `degraded_requirements`. A
+model identifier is unverified configuration until
+`python3 -m orchestration.adapter doctor --probe` confirms the backend serves
+it; `model_verified` carries that status into every manifest. Critical findings
+require an independent `review-adversarial` session and a reviewer that did not
+originate the claim.
+
+Runtimes are interchangeable too. Claude Code, an OpenAI-protocol agent CLI,
+and this repository's own transport are three runtimes over the same role
+contracts; `orchestration/roles.yaml` holds each role's authority and tool
+surface in runtime-neutral terms, and `tools/check_runtime_bindings.py` fails
+the build when a runtime's agent definition drifts from it.
 
 ## Core rules
 
@@ -59,8 +84,10 @@ handoff:
   artifact_paths: []
   archived_by: TASK-YYYYMMDD-NNN
   inference:
-    policy: coordinator-ultra-code | research-sol-max | executor-terra | review-xhigh
+    policy: coordinator-orchestration-code | coordinator-orchestration |
+            research-deep | executor-implementation | review-adversarial
     fallback_allowed: false
+    degraded_allowed: false
     independent_session_required: false
   budget:
     wall_clock_seconds: null
@@ -138,11 +165,12 @@ Each run must retain:
 - git commit and dirty-tree state
 - environment and dependency versions
 - input parameters and random seeds
-- requested model policy and resolved runtime model identifier
-- reasoning effort and whether fallback was used
+- requested model policy, backend, and resolved runtime model identifier
+- model provenance and whether that identifier has been probe-verified
+- reasoning effort, whether fallback was used, and any degraded requirements
 - stdout and stderr
 - raw machine-readable results
 - validity status and reason
 - timestamps and resource measurements
 
-See `docs/`, `templates/`, and `orchestration/model-policies.yaml` for the full semantics.
+See `docs/`, `templates/`, and `docs/inference-backends.md` for the full semantics.

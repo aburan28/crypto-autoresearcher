@@ -24,7 +24,7 @@ The project separates research into primary roles with separate authority:
 
 ```text
 AGENTS.md                              Global rules and inter-agent contract
-CLAUDE.md                              Claude Code harness wiring and conventions
+CLAUDE.md                              Claude Code runtime binding (one runtime of several)
 agents/coordinator.md                  Coordinator authority and decision semantics
 agents/idea-generator.md               Hypothesis-generation and novelty discipline
 agents/executor.md                     Execution, artifact, and failure semantics
@@ -34,6 +34,12 @@ agents/red-team.md                     Interpretation and cost-model falsificati
 .claude/skills/                        Lifecycle skills: /propose-ideas, /design-experiment,
                                        /run-experiment, /review-evidence, /research-status,
                                        /curate-knowledge, /coordinate-research-goal
+orchestration/roles.yaml               Role authority and tool surface, runtime-neutral
+orchestration/model-policies.yaml      What each role needs from a model (no vendors)
+orchestration/providers.yaml           Backends, wire protocols, and runtimes
+orchestration/model-bindings.yaml      Policy -> concrete model, per backend
+orchestration/adapter/                 Strict policy resolution and multi-API transport
+docs/inference-backends.md             Backend/runtime setup and resolution semantics
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
 docs/dynamic-subagent-dispatch.md      Artifact-driven task dispatch and ownership rules
@@ -41,6 +47,7 @@ docs/knowledge-assessment-20260724.md  Audit of corpus, ledger, and artifact com
 templates/research-records.md          YAML templates for all shared records
 templates/subagent-task-queue.json     JSON template for bounded task dispatch
 tools/research_dispatch.py             Validates and renders the ready-task plan
+tools/check_runtime_bindings.py        Guards role definitions against runtime drift
 ledger/                                Canonical YAML research records
 experiments/                           Frozen contracts and immutable run artifacts
 knowledge/                             Curated long-term knowledge corpus
@@ -70,6 +77,22 @@ replicate | expand | refine | support | weaken | reject scoped | pause
 
 Only the Coordinator may change the official status of a hypothesis. The Idea Generator proposes; the Executor measures; the Coordinator decides what the evidence justifies.
 
+## Choosing an inference backend
+
+Roles, policies, and evidence records name no vendor. Which model answers is a
+binding table plus one environment variable — see
+[`docs/inference-backends.md`](docs/inference-backends.md):
+
+```sh
+python3 -m orchestration.adapter matrix          # what each backend can serve
+python3 -m orchestration.adapter doctor --probe  # are the configured ids real?
+export AUTORESEARCH_BACKEND=zai                  # run the program on GLM
+```
+
+Resolution is strict: a backend that cannot meet a policy's stated
+requirements stops the task rather than quietly answering with something
+weaker, and every substitution is recorded in the run manifest.
+
 ## Getting started
 
 When working in Claude Code, the lifecycle is driven by skills — see
@@ -78,6 +101,10 @@ When working in Claude Code, the lifecycle is driven by skills — see
 ```text
 /research-status → /propose-ideas → /design-experiment → /run-experiment → /review-evidence
 ```
+
+The skills are one runtime's front end. Under another runtime, the same
+lifecycle is driven from the role contracts in `agents/` and the dispatch
+queue in `tools/research_dispatch.py`.
 
 Manual path:
 

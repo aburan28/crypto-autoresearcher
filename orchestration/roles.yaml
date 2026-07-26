@@ -1,0 +1,88 @@
+schema_version: "1.0"
+
+# One role definition, many runtimes.
+#
+# A role's authority and its tool surface are research-contract facts: the
+# Coordinator may change official state and may not run experiments, the
+# Executor is the reverse. Those facts belong here, once, in runtime-neutral
+# terms — not duplicated in each runtime's own agent format, where they drift.
+#
+# `tools/check_runtime_bindings.py` enforces that every runtime binding on disk
+# still matches this table, so adding a runtime is a table entry plus a
+# generated binding file, never a re-derivation of who may do what.
+
+# Runtime-neutral capability vocabulary, and the tool names each runtime uses
+# for it. A runtime that cannot express a capability declares it unsupported;
+# a role needing that capability then cannot run on that runtime.
+capabilities:
+  read_files:    {claude_code: [Read],           codex_cli: [read]}
+  search_files:  {claude_code: [Grep, Glob],     codex_cli: [search]}
+  write_files:   {claude_code: [Write],          codex_cli: [write]}
+  edit_files:    {claude_code: [Edit],           codex_cli: [edit]}
+  run_commands:  {claude_code: [Bash],           codex_cli: [shell]}
+  web_search:    {claude_code: [WebSearch, WebFetch], codex_cli: [web]}
+
+roles:
+  coordinator:
+    contract: agents/coordinator.md
+    default_policy: coordinator-orchestration-code
+    authority:
+      may_change_official_state: true
+      may_approve_experiments: true
+      may_execute_experiments: false
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, edit_files]
+    runtime_bindings:
+      claude_code: .claude/agents/coordinator.md
+
+  idea-generator:
+    contract: agents/idea-generator.md
+    default_policy: research-deep
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, web_search]
+    runtime_bindings:
+      claude_code: .claude/agents/idea-generator.md
+
+  executor:
+    contract: agents/executor.md
+    default_policy: executor-implementation
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: true
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    runtime_bindings:
+      claude_code: .claude/agents/executor.md
+
+  validator:
+    contract: agents/validator.md
+    default_policy: review-adversarial
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    runtime_bindings:
+      claude_code: .claude/agents/validator.md
+
+  red-team:
+    contract: agents/red-team.md
+    default_policy: review-adversarial
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands, web_search]
+    runtime_bindings:
+      claude_code: .claude/agents/red-team.md
+
+# Roles whose `independent_of_producer` is true must resolve to a policy with
+# `independent_session_required: true`; the checker enforces this so a review
+# role can never be quietly routed through a non-independent session.
