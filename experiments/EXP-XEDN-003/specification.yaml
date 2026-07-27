@@ -1,0 +1,177 @@
+experiment:
+  id: EXP-XEDN-003
+  hypothesis_id: H-XEDN-002
+  version: 1
+  title: >-
+    Shioda height Gram matrix and minimal Mordell-Weil relation-coefficient
+    census on free-x integral sections of the frozen EXP-XEDN-002 family
+  status: approved
+  objective: >-
+    Decide whether the binding obstruction of the function-field lifting
+    relation-source route, on the family already studied by EXP-XEDN-002, is the
+    coefficient size of Mordell-Weil relations among free-x integral sections
+    (the mechanism KN-LIT-021 / ECFG-P1543 name) rather than the uniform-measure
+    per-slot density alpha = 3 already measured. Boundedness of
+    max_|coeff| supports H-XEDN-002 and closes the route by that mechanism;
+    growth falsifies H-XEDN-002 and forces withdrawal of DEC-20260724-008.
+  inherits:
+    - experiments/EXP-XEDN-002/specification.yaml
+    - experiments/EXP-XEDN-001/xedni_sections.py
+    - experiments/EXP-XEDN-002/runs/RUN-XEDN-002-C/raw-result.json
+  inputs:
+    frozen_family: >-
+      Surfaces S_b : y^2 = x^3 + b(t) over F_p(t) with a(t) = 0 and b of degree
+      exactly 6. Free-x sections: deg x <= 2, deg y <= 3, y != 0, accepted by
+      the frozen is_square_poly predicate (nonzero square with squarefree root).
+    prior_surfaces: >-
+      Prefer the top_surfaces lists recorded under free_x_frozen_semantics in
+      RUN-XEDN-002-C at p = 7 and p = 13; re-enumerate free-x sections on those
+      surfaces. At p = 19 and p = 31, sample or exhaustively find section-rich
+      surfaces (target: >= 30 surfaces with >= 4 free-x slots per size, and every
+      surface with >= 9 free-x slots when any exist).
+    height_formula: >-
+      For integral sections on this family with squarefree b:
+      <P, P> = 2 and <P, Q> = 1 - (P.Q), where (P.Q) is the intersection
+      multiplicity of the section divisors (equivalently, the degree of
+      gcd(x_P - x_Q, y_P - y_Q) corrections under the standard Shioda recipe).
+      Operational computation used by the producer: the polarisation identity
+      <P,Q> = hat(P+Q) - hat(P) - hat(Q) with hat(R) = (1/2) * max(deg num x(R),
+      deg den x(R)) after reduction, which agrees with <P,P>=2 when the height
+      control holds. Control: deg(num x(nS)) = 2 n^2 for n = 1..12 on at least
+      one non-torsion section per size.
+  arms:
+    A_section_sets: >-
+      For each (p, surface) in the census, enumerate all free-x integral sections
+      under the frozen predicate and record their (x, y) coefficient tuples.
+      Report the distinct-slot count, the mu_3-orbit count when p = 1 mod 3, and
+      whether the surface has squarefree b (non-squarefree b is recorded as
+      fibre-degenerate and excluded from the Gram arm, not as a null result).
+    B_height_gram: >-
+      For each eligible surface, compute the Shioda height Gram matrix of the
+      observed free-x sections under the frozen height formula. Verify the
+      control deg(num x(nS)) = 2 n^2 on at least one section. Report the matrix,
+      its rank over Q, and its signature.
+    C_relation_lattice: >-
+      Extract a Z-basis of the integer kernel of the Gram matrix (exact linear
+      algebra over Q, cleared to Z). Report: the rank of the span; the corank
+      (number of independent relations); the infinity-norm of every basis
+      relation; the infinity-norm of the shortest nonzero relation
+      (max_|coeff| for that surface); and, for the shortest relation, the
+      specialised identity check at >= 20 random smooth fibres (left-hand side
+      equals O).
+    D_trend: >-
+      Aggregate max_|coeff|(p) across eligible surfaces at each p in
+      {7, 13, 19, 31}. Fit max_|coeff| vs log p; report the slope and a
+      bootstrap or exact-enumeration CI. State the gate verdict against
+      H-XEDN-002.
+  controls:
+    - >-
+      Height control: deg(num x(nS)) = 2 n^2 for n = 1..12 on at least one
+      non-torsion free-x section per size; failure invalidates arm B.
+    - >-
+      Predicate control: free-x enumeration at p = 7 on the RUN-XEDN-002-C
+      top_surfaces must recover the recorded slot counts for those surfaces.
+    - >-
+      mu_3 control (p = 1 mod 3): for each free-x section S, the orbit
+      {S, wS, w^2 S} sums to O under the group law over F_p(t); verified on
+      every eligible surface at p = 7, 13, 19, 31.
+    - >-
+      Specialisation control: every reported shortest relation specialises to O
+      at >= 20 random smooth fibres; any failure is an integrity finding.
+    - >-
+      Red-team probe reproduction: the p = 13 surface
+      b = [0, 0, 3, 12, 9, 7, 3] from TASK-20260724-235 must reproduce
+      shortest-relation coefficients in {-1, 0, +1} and rank at most 4 among its
+      15 free-x sections (or the disagreement must be reported as a finding).
+  independent_variables:
+    - p (field size)
+    - surface (section-rich member of the frozen family)
+  metrics:
+    primary:
+      - max_|coeff|(p) across eligible surfaces
+      - slope of max_|coeff| vs log p with uncertainty
+      - gate verdict against H-XEDN-002
+    secondary:
+      - span rank and corank per surface
+      - mu_3 orbit count vs distinct-slot count
+      - fraction of surfaces with squarefree b
+      - runtime and memory per arm
+  replication:
+    seeds: [20260724, 20260725]
+    independent_instances: ">=30 section-rich surfaces per size, or the full set of surfaces with >= 4 free-x slots when smaller"
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 1
+    maximum_memory_gb: 4
+    maximum_runs: 6
+  stopping_rules:
+    - Arms A-D run to completion at all four sizes regardless of intermediate outcome.
+    - >-
+      If height control fails on a size, that size is recorded invalid and does
+      not enter the trend fit; remaining sizes continue.
+  invalidation_rules:
+    - Height-control failure invalidates the affected size.
+    - Specialisation-control failure invalidates the affected relation.
+    - Crashes or memory-cap breaches are failed_infrastructure, not mathematical results.
+    - Editing EXP-XEDN-001 or EXP-XEDN-002 artifacts invalidates the package.
+  success_criterion: >-
+    max_|coeff|(p) stays in {1, 2, 3} at every tested p with a slope vs log p
+    whose uncertainty includes 0: H-XEDN-002 is supported within scope, and the
+    function-field relation-source route on this family is closed by the
+    coefficient-bound mechanism rather than by the p^-3 density.
+  falsification_criterion: >-
+    max_|coeff|(p) grows so that the slope vs log p excludes 0, or any eligible
+    surface has a verified shortest relation with infinity-norm >= 4: H-XEDN-002
+    is rejected and DEC-20260724-008's scoped closure must be withdrawn.
+  required_artifacts:
+    - runs/<run-id>/manifest.yaml
+    - runs/<run-id>/command.txt
+    - runs/<run-id>/environment.json
+    - runs/<run-id>/stdout.log
+    - runs/<run-id>/stderr.log
+    - runs/<run-id>/raw-result.json
+    - implementation files under experiments/EXP-XEDN-003/implementation/
+    - analysis.md
+    - execution-report.yaml
+  assigned_to: executor
+  approved_by: coordinator
+
+handoff:
+  id: TASK-20260724-239
+  from: coordinator
+  to: executor
+  objective: >-
+    Execute the frozen EXP-XEDN-003 relation-coefficient census and emit
+    immutable run records without changing any official status.
+  uncertainty_reduced: >-
+    Whether max_|coeff| of Mordell-Weil relations among free-x integral sections
+    is bounded or grows with p — the only cheap measurement that can force
+    withdrawal of DEC-20260724-008.
+  inputs:
+    - experiments/EXP-XEDN-003/specification.yaml
+    - experiments/EXP-XEDN-002/runs/RUN-XEDN-002-C/raw-result.json
+    - experiments/EXP-XEDN-001/xedni_sections.py
+    - ledger/hypotheses/H-XEDN-002.yaml
+    - coordination/goals/GOAL-ICLIFT-001/batches/BATCH-001/tasks/TASK-20260724-235/red_team_report.yaml
+  constraints:
+    - Observations only; change no hypothesis, experiment, or goal status.
+    - Do not modify EXP-XEDN-001 or EXP-XEDN-002.
+    - Toy scale only; no attack or crypto-scale claim.
+    - Stay inside write_scope experiments/EXP-XEDN-003.
+  deliverables:
+    - All required_artifacts under experiments/EXP-XEDN-003
+  artifact_paths: []
+  archived_by: TASK-20260724-240
+  inference:
+    policy: executor-terra
+    fallback_allowed: true
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 4
+    maximum_runs: 6
+  completion_gate:
+    - Arms A-D have terminal states at all four sizes, or each skipped size has an invalidation reason.
+    - Height, predicate, mu_3, specialisation, and red-team-probe controls have explicit verdicts.
+    - The gate verdict is stated against the frozen criteria with its claim boundary.
+  return_format: execution_report

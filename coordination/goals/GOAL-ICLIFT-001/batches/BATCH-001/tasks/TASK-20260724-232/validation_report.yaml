@@ -1,0 +1,720 @@
+validation_report:
+  id: VAL-20260724-001
+  task_id: TASK-20260724-232
+  role: validator
+  target_task_id: TASK-20260724-228
+  target_experiment_id: EXP-FB3-001
+  target_amendment_id: EXP-FB3-001-AMD-001
+  run_ids:
+    - RUN-FB3-001-N14
+    - RUN-FB3-001-N16
+    - RUN-FB3-001-N18
+    - RUN-FB3-001-CTRL
+    - RUN-FB3-001-FAMILY
+  snapshot_commit: 68e375f720123d4f46b1b5bc686920d77bf5ecf4
+  snapshot_parent: e18c9bc0b90e3031cfa28483fe5571c0fb548dfb
+  snapshot_receipt: coordination/goals/GOAL-ICLIFT-001/batches/BATCH-001/archives/TASK-20260724-230/snapshot-receipt.json
+  snapshot_commit_source: >-
+    The receipt file itself records commit_sha: null, because the receipt is
+    committed inside the commit it describes (receipt_self_hash_excluded: true).
+    The binding commit SHA is carried by the archive block of
+    coordination/goals/GOAL-ICLIFT-001/batches/BATCH-001/dispatch_queue.json for
+    TASK-20260724-230, and the Validator confirmed it independently from Git.
+  head_at_validation: ae5503dc288efe74f23a870c59d5870c5f779d72
+  overall_verdict: valid_with_findings
+  verdict: passed
+  verdict_meaning: >-
+    The EXP-FB3-001 run package is admissible evidence under its frozen
+    specification and approved amendment. Every required artifact exists, is
+    hash-bound to the Coordinator's snapshot commit, and conforms to the harness
+    run schema; the executed cell list conforms to the frozen protocol; the hard
+    conservation control and the independent recomputations agree exactly; the
+    package reproduces from its recorded commands. This verdict is about
+    evidence integrity only. It does not support any ECDLP claim, does not
+    demonstrate a speedup, and does not authorize any hypothesis-status
+    transition; those remain the Coordinator's, informed by the Reviewer and
+    Red Team.
+
+  checks:
+    - id: artifact_completeness
+      verdict: pass
+      evidence: >-
+        All five run directories contain exactly the six required artifacts
+        (manifest.yaml, command.txt, environment.json, stdout.log, stderr.log,
+        raw-result.json) and nothing else. Each manifest has a top-level `run`
+        key and non-empty id, experiment_id, status, code (with commit and
+        command), environment, inputs, timing and result; each
+        result.certificate.kind is `none`; inputs.parameters.field_bits is
+        14/16/18/18/18 (all <= 32, so the claim tier stays `toy`). command.txt
+        equals run.code.command in every run. The 5 SHA-256 values each manifest
+        records for its own companion artifacts all reproduce
+        (25 hashes, 0 mismatches). `python3 tools/validate_ledger.py` exits 1
+        with 154 errors; zero of those lines reference any
+        experiments/EXP-FB3-001/ path. Running the identical command against a
+        `git archive` extract of the merge-base 123fb746 produced a
+        byte-identical 154-line error set (diff empty), so all 154 are
+        pre-existing and none are attributable to this package.
+      notes: >-
+        The manifests use result.validity / result.validity_reason and put
+        peak_memory_mb inside `timing` rather than the docs/ template's
+        result.valid / result.invalid_reason and a separate `resources` block.
+        tools/validate_ledger.py does not require those names and the
+        information is present, so this is a schema-style variance, not a gap.
+
+    - id: snapshot_receipt_integrity
+      verdict: pass
+      evidence: >-
+        All 39 paths in the receipt's path_sha256 hash to the recorded value in
+        the working tree (0 mismatches) and, independently, the blob at
+        68e375f7:<path> hashes to the same value for all 39 (0 mismatches).
+        `git diff-tree` shows the commit changed exactly 40 paths, equal as a set
+        to the receipt's declared_paths; declared_paths minus the receipt file
+        itself equals the path_sha256 key set, consistent with
+        receipt_self_hash_excluded: true. `git merge-base --is-ancestor
+        68e375f7 HEAD` succeeds, the actual first parent is
+        e18c9bc0b90e3031cfa28483fe5571c0fb548dfb as recorded, and the commit
+        message names TASK-20260724-230, both record_ids and all five run ids.
+        `git status --porcelain` for the declared paths is empty, so the
+        reviewed working tree is the committed tree.
+        `python3 tools/research_dispatch.py .../dispatch_queue.json` exits 0
+        with gates completed_archive_commits_verified: true and
+        archive_artifact_coverage_complete: true.
+      notes: >-
+        specification.yaml and amendment-001.yaml are not in this receipt; they
+        were committed earlier (e111dd3 and 81d9e9f respectively) and
+        `git diff e18c9bc HEAD` over both files is empty, so the frozen contract
+        predates the runs and was not edited. 81d9e9f is an ancestor of the
+        run-time revision e18c9bc, which makes the amendment's pre-registration
+        (conservation identity, six geometry definitions, analytic arm)
+        verifiably prior to execution.
+
+    - id: protocol_conformance
+      verdict: pass
+      evidence: >-
+        All six pre-registered geometries are present at all three sizes with 16
+        cell records each (4 curves x replicate seeds [1,2,3,4]) = 288
+        pre-registered records, all terminal_state `measured`, 0 infeasible, 0
+        invalid. Matched size: I recomputed B as the exact integer ceiling of
+        (6N)^(1/3) for each of the 12 curves from the recorded N and obtained
+        47/47/47/46 at 2^14 and 74/74/74/74 and 117/117/117/117 at 2^16/2^18,
+        equal to every recorded B; typed cells' sub-base sizes sum to B in every
+        cell and every asymmetric ladder rung. Permutation null: 200 draws per
+        (curve, N, seed) in all 48 shared-null records and n_null = 200 in all
+        336 per-cell null_detail blocks per size run, above the frozen minimum
+        of 100; sharing is recorded explicitly (shared: true plus a shared_by
+        list naming every consuming label), and each typed pattern draws its own
+        200-draw same-typing null. Prior cells: `prior_H016_qr_base` and
+        `prior_H017_small_multiples` occupy family slots supplied from
+        inputs/h100_session/h016_base_yield.json via the CTRL port-fidelity
+        block, and neither appears in cells[] at any size, so neither was re-run
+        as a family cell; their exact recomputations appear only in the
+        separated exploratory section. Greedy separation: `greedy_select(n_order,
+        pool, train_bits, b)` takes only the training bitset; the held-out mask
+        is not an argument and is not in scope during selection, the candidate
+        pool is drawn from the cell seed independently of the target split, and
+        the held-out mask is touched only afterwards to evaluate. The frozen
+        invalidation rule is therefore enforced structurally, not by convention.
+      notes: >-
+        Holm family size is 8 at every size (6 geometries + 2 prior slots), and
+        `mixed_two_base__secondary_typing` is measured but excluded from the
+        family, as the amendment requires. Deviations D1-D6 in the execution
+        report are inside the frozen contract; two further deviations the
+        executor did not name are listed under protocol_deviations below.
+
+    - id: independent_recomputation
+      verdict: pass
+      evidence: >-
+        Seven full cells were recomputed from scratch without importing
+        fb3_core.py: a separate character-sum order routine (Euler criterion via
+        pow), a separate point-addition and dlog-table build, separate geometry
+        constructors written from the amendment prose, and counting by literal
+        pure-Python enumeration of multisets i <= j <= k (no numpy, no Burnside
+        identity, no FFT). Every one of n_targets, sum_counts, mean, coverage,
+        concentration and max_count agreed with the recorded values to the last
+        float bit. The hard control sum_r count(r) == C(B+2,3) held on each of
+        the three untyped recomputations and the exploratory one (18424 =
+        47*48*49/6), and the typed closed forms held on both mixed typings
+        (6900 = B2*C(B1+1,2) and 6624 = B1*C(B2+1,2)). Separately, all 812
+        recorded totals across the three size runs (cells, ladder rungs and
+        exploratory arms) were recomputed from B and the typing sizes by the
+        Validator: 0 mismatches. A big-integer Kronecker-substitution
+        convolution (exact, no floating point) reproduced the same count vector
+        on all 16339 targets. As a control on my own method, rebuilding the
+        curve with a different generator G' = 3G left every reported statistic
+        bit-identical, confirming that these statistics are generator-invariant
+        and that agreement is not an artifact of copying the executor's
+        generator choice.
+      notes: >-
+        Cells requiring the executor's exact numpy RNG stream (matched-random
+        nulls, greedy pool, asymmetric sub-base elements) were not
+        reconstructed independently; they were checked by exact reproduction
+        from the recorded command instead (see reproducibility).
+
+    - id: curve_validity
+      verdict: pass
+      evidence: >-
+        For 2^14 curve 1 (p=16381, a=4099, b=15559): my own character sum
+        #E = p + 1 + sum_x legendre(x^3+ax+b, p) gives 16339, equal to the
+        recorded N; sympy.isprime(16339) is true; the Hasse interval is
+        [16126.02, 16637.98] and contains it; my own double-and-add gives
+        N*G = O and (N-1)*G = -G; my independently built table has exactly
+        (N-1)/2 = 8169 canonical x-coordinates. Because N is prime, ord(G) = N
+        divides #E and #E <= p+1+2*sqrt(p) < 2N, so #E = N is forced. My
+        smallest-x canonical generator (1, 2554) coincides with the recorded G.
+        I additionally recomputed the group order of all four recorded H016/H017
+        curves independently: 8329, 14143, 128857, 113621, all matching the
+        record, all prime, all inside their Hasse intervals. The executor's own
+        curve block reports 12 of 12 generated curves with all_ok: true and a
+        cross-check list (order prime, Hasse, N*G = O by an independent path,
+        table closes at N, x/y pairing, bijective log table, 20 seeded
+        double-and-add spot checks).
+      notes: >-
+        I verified 1 of the 12 generated curves fully by hand plus all 4
+        recorded prior curves; the remaining 11 generated curves rest on the
+        executor's recorded verification block and on the exact reproduction of
+        the runs that build them.
+
+    - id: port_fidelity
+      verdict: pass
+      evidence: >-
+        Independently reproduced, not merely read. For all four recorded cells:
+        my character sum recovers the recorded orders exactly; the recorded
+        theory_mean_triples_per_target equals my C(B+2,3)/N to 0.0 absolute
+        difference in all four cells; the recorded qr_vs_random and sm_vs_random
+        ratios re-derive from the recorded base means to 0.0; each base's
+        recorded counts sum to its recorded total and to mean_per_target * 800;
+        the recorded perm_null.mean_band_95 equals my 2.5/97.5 percentiles of
+        the recorded null_means; and the recorded qr_emp_p_two_sided values
+        0.40/0.90/0.44/0.76 are exactly reproduced by
+        2*min(#{null>=obs}, #{null<=obs})/n, confirming the executor's
+        identification of the prior p-value convention. My own literal
+        enumeration of the H017 base {1..B} reproduces the executor's exact
+        stats bit-for-bit on all four cells (for example B=51, N=128857:
+        total 23426 = C(53,3), mean 0.181798428, coverage 0.001171842,
+        max_count 338). The comparison is reported in analysis.md Section 1,
+        before the family table in Section 3 and the verdict in Section 7. All
+        three acknowledged limitations are in the artifacts, not only in a
+        message: the QR walk's non-replayability is in analysis.md Section 1,
+        execution-report deviation D4, implementation.md D4 and the raw JSON
+        field bit_exact_replay_possible: false; the 2^14/2^17-only recording and
+        the 800-target sampled basis are in analysis.md Sections 3 and 8,
+        execution-report D3, `censoring`, and `boundaries`.
+      notes: >-
+        I re-ran RUN-FB3-001-CTRL from its recorded command; all four port-
+        fidelity cells returned 17/17 checks passing, and the raw result
+        differed from the record in only 4 leaves (peak RSS, two timestamps,
+        wall clock).
+
+    - id: numerical_safety
+      verdict: pass
+      evidence: >-
+        The rounding-safety argument is checked in the artifacts and is
+        stronger than the task framing suggests: the FFT is not the measurement
+        path. Every reported count comes from exact integer arithmetic
+        (`counts_untyped_m3` via numpy bincount on integer sums, and the integer
+        typed counters); `counts_untyped_m3_fft` is called only inside
+        `Auditor.cross_check`, so no published statistic can be affected by
+        rounding at all. The measured margin is nonetheless recorded per run:
+        max |x - round(x)| = 1.364e-12 / 5.457e-12 / 3.638e-12 at 2^14/2^16/2^18
+        and 5.457e-12 / 3.411e-13 in the two CTRL blocks; the campaign worst,
+        5.4569682106375694e-12, matches the execution report exactly and is
+        9.16e10 times below the 0.5 that a single count flip would require
+        (the code aborts above 0.25). Independent spot check at the adversarial
+        worst case (2^18, N=261643, the maximally concentrated base {1..117},
+        max_count 1741): my own FFT route reproduced my own exact enumeration on
+        all 261643 targets, with max deviation 3.638e-12, every Burnside
+        numerator divisible by 6, and a largest numerator of 10446 - so a flip
+        would need an error 1.37e11 times larger than observed.
+      notes: >-
+        implementation.md states the same conclusion and gives the timing reason
+        the integer route is primary (12 ms versus 25 ms per transform at 2^18).
+
+    - id: budget_and_honesty_compliance
+      verdict: pass
+      evidence: >-
+        Budget (handoff TASK-20260724-228: 7200 s, 6 GB, 12 runs): summing the
+        five manifests gives 175.41 s of run wall clock (1.990 + 2.081 + 6.629 +
+        24.600 + 140.110), matching the reported 175.4 s, with a peak
+        peak_memory_mb of 230.6 (RUN-FB3-001-N18), matching the reported 230.6 /
+        0.23 GB, over 5 runs. Including the executor's declared 242.7 s of
+        auxiliary probes and reproduction checks the total is 418.1 s, still
+        2.4% of the limit; the largest single run is 140 s against the frozen
+        specification's 1800 s per-run cap. Honesty: result.certificate.kind is
+        `none` in all five manifests with an explicit reason. A repository-wide
+        scan for speedup / attack / break / cryptanalytic-improvement language
+        inside experiments/EXP-FB3-001 returns only negations of such claims
+        ("no cost, speedup, or attack claim is derived"), present in the
+        amendment, implementation.md, conservation.md, analysis.md and all five
+        manifests. The "discrete logs known by construction, for measurement
+        only" caveat appears in analysis.md, conservation.md, implementation.md,
+        execution-report.yaml and every manifest's honesty_notes. The
+        yield-versus-solving-cost boundary is stated in analysis.md Sections
+        "What was not measured" and 8, conservation.md Section 4, the
+        execution-report boundaries, and every manifest. The claim tier `toy` and
+        its field-size basis are stated, and the negative-result phrasing from
+        docs/evidence-and-reproducibility.md is used verbatim. No artifact
+        asserts a status transition; analysis.md Section 7 and the execution
+        report both defer the transition to the Coordinator.
+      notes: >-
+        The greedy arm's honesty note - that the base is selected using the full
+        discrete-log table and is therefore unavailable to an attacker, making
+        its measurement an oracle-aided upper bound - is recorded in the raw
+        JSON, analysis.md and the execution report. That is the correct framing.
+
+    - id: reproducibility
+      verdict: pass
+      evidence: >-
+        I re-ran two recorded commands verbatim, redirecting output to /tmp so
+        no committed artifact was touched. (1) `python3 run_battery.py --bits 14
+        --out ... --null-draws 200`: a full recursive JSON leaf diff against
+        RUN-FB3-001-N14/raw-result.json shows exactly 20 differing leaves - 16
+        greedy `selection_seconds`, `peak_memory_mb`, and the three
+        timing fields - and 0 substantive differences. Every measured statistic,
+        including all 200 null draws per record, every curve block, and every
+        control counter, is identical. The recorded stdout.log differs from mine
+        in 8 lines: the start timestamp, one per-replicate elapsed-time line,
+        the output path, and the final wall/peak line. (2) `python3
+        run_controls.py --out ...`: 4 differing leaves, all timing/memory; all
+        four control blocks and all 4x17 port-fidelity checks pass identically.
+      notes: >-
+        The executor's phrasing "17 wall-clock fields per run" undercounts the
+        20 differing leaves I observe (it treats the timing block as one item and
+        omits peak_memory_mb). Every differing leaf is a wall-clock, timestamp or
+        peak-RSS field; no measurement differs. See finding F3 on what "at the
+        recorded revision" can mean here.
+
+    - id: self_consistency
+      verdict: pass
+      evidence: >-
+        93 published values were spot-checked against the raw JSON with 1
+        mismatch. Verified exactly: all 18 primary mean-yield ratios in
+        analysis.md Section 3 (6 geometries x 3 sizes); all 6 p_holm values at
+        all three sizes; all 6 family-wise (99.375%) CIs at 2^18; all 6 growth
+        slopes; the absolute-scale line (exact mean 1.1146/1.0755/1.0436 and
+        matched-random coverage 0.6734/0.6594/0.6480); all 18 coverage ratios in
+        Section 4; all 18 exploratory values in Section 6 and conservation.md
+        (mean, coverage and concentration ratios for qr_walk_H016 and
+        small_multiples_H017 at three sizes) plus the n = 12/16/16 record counts;
+        the control counts 67784 closed-form checks (22592+22596+22596), 46
+        brute-force cases, 148 assertions, 43 recounts per size run, 288
+        pre-registered measured records, 144 / 336 / 144 cells for consequences
+        (i)/(iii)/(iv), consequence (i) max deviation exactly 0.0; and the
+        resource figures 175.4 s / 230.6 MB / 5 runs. I also re-derived the
+        Holm-Bonferroni arithmetic from the raw per-cell p-values at all three
+        sizes: family size 8, my adjusted p-values equal the executor's to
+        within 1e-15, and my rejection sets match exactly (4 cells at 2^14
+        including prior H017, 3 at 2^16 and 2^18).
+      notes: >-
+        The single mismatch is a labelling inconsistency in conservation.md, not
+        a wrong measurement - see finding F1.
+
+  independent_recomputation:
+    # Primary cell, in the shape requested by the handoff. The full set of seven
+    # independently recomputed cells follows under `cells`.
+    cell: high_bit_interval, N=16339 (2^14), curve 1 (p=16381, a=4099, b=15559), replicate seed 1, B=47
+    method: >-
+      No executor code imported. I rebuilt the curve from (p, a, b) by my own
+      character-sum order computation, built my own dlog table by iterated
+      addition, derived the top-window geometry from the frozen definition, and
+      counted by literal pure-Python enumeration of all C(49,3) = 18424
+      multisets i <= j <= k, accumulating r = (l_i + l_j + l_k) mod N in a plain
+      dict. Cross-checked by an exact big-integer Kronecker-substitution cyclic
+      convolution (no floating point anywhere) and by rebuilding the same cell
+      from a different generator G' = 3G to confirm generator invariance.
+    executor_values: {n_targets: 16339, sum_counts: 18424, mean: 1.1276087887875634, coverage: 0.6801517840749128, concentration: 1.254666748271008, max_count: 7}
+    validator_values: {n_targets: 16339, sum_counts: 18424, mean: 1.1276087887875634, coverage: 0.6801517840749128, concentration: 1.254666748271008, max_count: 7}
+    cells:
+      - cell: high_bit_interval, N=16339 (2^14), curve 1 (p=16381, a=4099, b=15559), replicate seed 1, B=47
+        method: >-
+          Own character-sum order and dlog table, own top-window geometry, and
+          literal pure-Python enumeration of all C(49,3)=18424 multisets
+          i <= j <= k. Cross-checked by an exact big-integer (Kronecker
+          substitution) cyclic convolution and by rebuilding with a different
+          generator.
+        executor_values: {n_targets: 16339, sum_counts: 18424, mean: 1.1276087887875634, coverage: 0.6801517840749128, concentration: 1.254666748271008, max_count: 7}
+        validator_values: {n_targets: 16339, sum_counts: 18424, mean: 1.1276087887875634, coverage: 0.6801517840749128, concentration: 1.254666748271008, max_count: 7}
+        agreement: exact
+      - cell: small_height, N=16339 (2^14), curve 1, seed 1, B=47
+        method: >-
+          Own rational-reconstruction height by brute enumeration of coprime
+          (u, v) with max(|u|, v) <= H on the frozen schedule, cross-checked
+          against my own continued-fraction routine over all 16381 x; then
+          literal multiset enumeration.
+        executor_values: {sum_counts: 18424, mean: 1.1276087887875634, coverage: 0.6806414101230186, concentration: 1.2524634310545322, max_count: 8}
+        validator_values: {sum_counts: 18424, mean: 1.1276087887875634, coverage: 0.6806414101230186, concentration: 1.2524634310545322, max_count: 8}
+        agreement: exact
+      - cell: coset_union, N=16339 (2^14), curve 1, seed 1, B=47
+        method: >-
+          Own largest-divisor / primitive-root / coset enumeration (d=45, 3
+          cosets, g=2 - identical to the record) then literal multiset
+          enumeration.
+        executor_values: {sum_counts: 18424, mean: 1.1276087887875634, coverage: 0.6683395556643613, concentration: 1.3233368015178408, max_count: 9}
+        validator_values: {sum_counts: 18424, mean: 1.1276087887875634, coverage: 0.6683395556643613, concentration: 1.3233368015178408, max_count: 9}
+        agreement: exact
+      - cell: mixed_two_base (primary typing), N=16339 (2^14), curve 1, seed 1, B=47 = 24 + 23
+        method: >-
+          Own x-interval and small-multiples sub-bases, then literal enumeration
+          of one element from the small-multiples sub-base and a 2-multiset from
+          the x-interval sub-base.
+        executor_values: {sum_counts: 6900, mean: 0.42230246649121733, coverage: 0.33563865597649795, concentration: 0.196217638778383, max_count: 4}
+        validator_values: {sum_counts: 6900, mean: 0.42230246649121733, coverage: 0.33563865597649795, concentration: 0.196217638778383, max_count: 4}
+        agreement: exact
+      - cell: mixed_two_base__secondary_typing, N=16339 (2^14), curve 1, seed 1
+        method: literal enumeration of the reverse typing
+        executor_values: {sum_counts: 6624, mean: 0.40541036783156864, coverage: 0.06218250810943142, concentration: 3.1233245608666382, max_count: 20}
+        validator_values: {sum_counts: 6624, mean: 0.40541036783156864, coverage: 0.06218250810943142, concentration: 3.1233245608666382, max_count: 20}
+        agreement: exact
+      - cell: small_multiples_H017 (exploratory), N=16339 (2^14), curve 1, seed 1, B=47
+        method: >-
+          Own dedup-by-x of x(jG) confirming the base is the log-space segment
+          {1..47}, then literal multiset enumeration.
+        executor_values: {sum_counts: 18424, mean: 1.1276087887875634, coverage: 0.008507252585837566, concentration: 237.09602790868473, max_count: 288}
+        validator_values: {sum_counts: 18424, mean: 1.1276087887875634, coverage: 0.008507252585837566, concentration: 237.09602790868473, max_count: 288}
+        agreement: exact
+      - cell: small_multiples_H017 (exploratory), N=261643 (2^18), curve 1 (p=262253), seed 1, B=117
+        method: >-
+          Adversarial worst case for numerical safety - the maximally
+          concentrated base. Literal enumeration of all C(119,3)=273819
+          multisets, cross-checked against my own FFT route.
+        executor_values: {sum_counts: 273819, mean: 1.0465366931276587, coverage: 0.001333878605580887, concentration: 1334.7849703603765, max_count: 1741}
+        validator_values: {sum_counts: 273819, mean: 1.0465366931276587, coverage: 0.001333878605580887, concentration: 1334.7849703603765, max_count: 1741}
+        agreement: exact
+    hard_control_sum_of_counts:
+      untyped: >-
+        sum_r count(r) == binomial(B+2,3) verified on my own recomputations
+        (18424 = C(49,3) at B=47, 273819 = C(119,3) at B=117) and on all 812
+        recorded totals across the three size runs, recomputed by me from B and
+        the typing sizes: 0 mismatches.
+      typed: >-
+        sum_r count(r) == B1*B2*B3 verified on every asymmetric_sizing cell and
+        every ladder rung from the recorded sizes; the mixed (1,2) pattern's
+        closed form B1*C(B2+1,2) (and its transpose) verified on my own
+        recomputations, 6900 and 6624.
+    agreement: exact
+
+  protocol_deviations:
+    - id: D1
+      source: declared by the executor
+      description: permutation null raised from the frozen minimum of 100 draws to 200
+      severity: none
+      validator_assessment: >-
+        Inside the frozen contract, which specifies ">= 100". The executor's
+        stated reason is correct and checkable: at 100 draws the (r+1)/(n+1)
+        floor is 1/101 = 0.00990 and 8 x 0.00990 = 0.0792 > 0.05, so no cell
+        could have been Holm-rejected at all; at 200 the floor is 0.004975 and
+        8 x 0.004975 = 0.0398 < 0.05. I confirmed the observed raw p-values sit
+        exactly on that floor for the three rejected cells.
+    - id: D2
+      source: declared by the executor
+      description: closed-form total control applied with each cell's own typing closed form
+      severity: none
+      validator_assessment: >-
+        Necessary: B1*B2*B3 is undefined for the two-sub-base (1,2) pattern. The
+        (1,2) closed forms are themselves verified against brute force in CTRL
+        block A and independently by me.
+    - id: D3
+      source: declared by the executor
+      description: prior H016/H017 cells present only at 2^14, censored at 2^16 and 2^18 with the family slot retained
+      severity: minor
+      validator_assessment: >-
+        Inherited from the recorded data (2^14 and 2^17 only), not imposed.
+        Retaining the slots keeps the Holm family at 8, which is conservative,
+        and I confirmed the family size is 8 at every size with the censored
+        slots carrying p_raw: null. No prior statistic is extrapolated to an
+        unrecorded size.
+    - id: D4
+      source: declared by the executor
+      description: the H016 QR geometry is a same-family reconstruction, not a bit-exact replay
+      severity: minor
+      validator_assessment: >-
+        Correctly scoped: it appears only in the exploratory section and never as
+        a pre-registered cell, and the raw JSON records
+        bit_exact_replay_possible: false with the reason. The complementary fact
+        is verified: the H017 base IS exactly determined by the recorded
+        convention, and I reproduced it exactly on all four recorded cells.
+    - id: D5
+      source: declared by the executor
+      description: RUN-FB3-001-FAMILY is a derived run that performs no measurement
+      severity: none
+      validator_assessment: >-
+        Confirmed by reading run_family.py: it only loads the immutable size
+        runs and the controls run. Machine-generating the family table is better
+        practice than hand-copying, and I re-derived its Holm output
+        independently.
+    - id: D6
+      source: declared by the executor
+      description: operational pinning of prose quantities, recorded in FROZEN in every run
+      severity: minor
+      validator_assessment: >-
+        Unavoidable, and the pinnings are recorded inside every raw-result.json
+        and tabulated in implementation.md. The two that shape a reading (the
+        untyped same-total-size base as the family control for typed cells, and
+        random elements for the asymmetric sub-bases) are called out by the
+        executor and both alternative comparisons are also reported. One item
+        the executor did not list under D6 is recorded as finding F2 below.
+    - id: V1
+      source: found by the validator, not declared
+      description: >-
+        The matched-random control draws B distinct logs from [1, N), excluding
+        the identity, while the frozen amendment text and every run's
+        counting_convention.matched_random string say "[0, N)".
+      severity: minor
+      validator_assessment: >-
+        The implementation is the mathematically correct reading (a factor base
+        is a set of distinct NONZERO elements, as conservation.md Section 1
+        states) and fb3_core.distinct_logs documents [1, N) in its docstring, but
+        the frozen text and the machine-readable convention string are not
+        literally what was executed. The effect is bounded and cannot change any
+        conclusion: the conservation identity and the exact mean depend only on
+        |D| and N, and the chance that a [0, N) draw would have contained 0 is
+        B/N = 0.0029 at 2^14 and 0.00045 at 2^18, affecting only the null
+        coverage estimate at O(1/N). Structured bases never contain 0 either, so
+        the comparison is like-for-like. Recorded so the Coordinator can decide
+        whether the convention string should be corrected by a superseding
+        record.
+
+  findings:
+    - id: F1
+      severity: minor
+      kind: internal inconsistency between two committed artifacts
+      finding: >-
+        conservation.md Section 2(i) reports the "observed exact mean" series as
+        1.1276 -> 1.0755 -> 1.0436 at 2^14/2^16/2^18. The 2^16 and 2^18 values
+        are the 16-replicate means, but 1.1276 is the single curve-1 value at
+        2^14; the 2^14 replicate mean is 1.1146, which is what analysis.md
+        Section 3 publishes. Both numbers occur in the raw data, so nothing is
+        fabricated, but the same labelled quantity has two values across the two
+        artifacts.
+      impact: >-
+        None on any verdict. Consequence (i) is checked per cell, where the
+        maximum deviation of the exact mean from C(B+2,3)/N is exactly 0.0 over
+        144 untyped cells, and the 2^14 spread (1.0684 to 1.1336) is entirely
+        the ceiling in B = ceil((6N)^(1/3)) across four curves, which
+        conservation.md itself explains in the next sentence.
+      recommended_disposition: >-
+        Correct by a superseding record if the Coordinator cites the series;
+        do not edit conservation.md in place (AGENTS.md rule 4).
+    - id: F2
+      severity: minor
+      kind: undocumented statistical pinning
+      finding: >-
+        The per-cell family p-value fed to Holm is the MEAN over the 16
+        replicates of the two-sided permutation p-value. That choice appears only
+        as a comment in run_family.py ("declared before execution") and in the
+        reported min/max companions; it is not in the amendment, not in the
+        FROZEN block, and not among the D6 pinnings the executor lists.
+      impact: >-
+        Negligible here, and conservative in direction. Averaging p-values is not
+        a valid combining function in general, but under the null the mean of 16
+        independent uniforms concentrates near 0.5, so it makes rejection harder,
+        not easier. In this data the per-replicate p-values are degenerate
+        (exactly 1.0 for the three untyped cells, exactly the 1/201 floor for the
+        three rejected cells), so the mean equals each individual value and the
+        aggregation has no effect on the reported family. I re-derived the Holm
+        arithmetic from the raw p-values and reproduced the executor's adjusted
+        values and rejection sets exactly.
+      recommended_disposition: >-
+        Reviewer should note the aggregation rule explicitly in any evidence
+        record that cites Holm-adjusted significance.
+    - id: F3
+      severity: minor
+      kind: reproducibility-chain subtlety, disclosed but easy to over-read
+      finding: >-
+        Every manifest records code.commit = e18c9bc with dirty_tree: true, and
+        environment.json shows the dirty tree consisted of exactly four untracked
+        new directories (the two experiments' implementation/ and runs/ trees).
+        So the implementation did not exist at e18c9bc: you cannot check out
+        e18c9bc and re-run. analysis.md's control row "Reproduction from the
+        recorded command at the recorded revision" is therefore true only in the
+        sense of "run-time HEAD plus the untracked working tree".
+      impact: >-
+        None on integrity, and the executor discloses it in
+        execution-report.implementation_commit_note. The chain still closes:
+        no TRACKED file differed from e18c9bc, the untracked implementation
+        became durable at the snapshot commit 68e375f, and I verified that the
+        working-tree implementation files hash to the receipt values - so the
+        code I re-ran is byte-identical to the code that produced the records.
+        The reproducible revision to cite downstream is 68e375f, not e18c9bc.
+      recommended_disposition: >-
+        Any evidence record should cite 68e375f as the reproducible revision.
+    - id: F4
+      severity: none
+      kind: framing correction in the executor's favour
+      finding: >-
+        The task framing (and a reader of implementation.md item 3) could
+        conclude that the reported counts come from a rounded FFT. They do not:
+        counts_untyped_m3_fft is invoked only inside Auditor.cross_check, so
+        every published statistic is produced by exact integer arithmetic and no
+        rounding decision can enter a reported number. The FFT is an audit route
+        whose margin is measured, not the measurement path.
+      impact: strengthens the numerical-safety verdict
+      recommended_disposition: state it this way in the evidence record
+    - id: F5
+      severity: none
+      kind: accounting nit
+      finding: >-
+        implementation.md and the execution report say the reproduction differed
+        in "17 wall-clock fields per run"; a full leaf diff shows 20 differing
+        leaves (16 greedy selection_seconds, three timing fields, and
+        peak_memory_mb). All 20 are wall-clock, timestamp or peak-RSS fields.
+      impact: none; the substantive claim (0 measurement differences) is confirmed
+      recommended_disposition: no action
+    - id: F6
+      severity: none
+      kind: observation on my own control, recorded for completeness
+      finding: >-
+        While cross-checking the two height routines I found one x where my
+        continued-fraction implementation disagreed with brute enumeration:
+        x = 0, where h(0) = 1 legitimately (0 = 0/1) but my guard returned p.
+        The executor's height_cf handles x = 0 correctly, which is why its
+        control reports 0 disagreements over all 16381 values. The defect was
+        mine, not the executor's.
+      impact: none
+      recommended_disposition: no action
+
+  control_checks:
+    - control: closed-form total (hard conservation control)
+      frozen_source: amendment AMD-3 consequence, handoff completion gate
+      executor_result: 67784 checks, 0 failures across the three size runs
+      validator_result: >-
+        67784 confirmed as the sum of the recorded per-run counts
+        (22592/22596/22596); additionally 812 recorded totals recomputed from
+        closed forms by the validator with 0 mismatches, plus 7 cells recomputed
+        from first principles.
+      verdict: pass
+    - control: counter verification against literal brute force on full count vectors
+      executor_result: 46 cases, 148 assertions, 0 failures (CTRL block A)
+      validator_result: >-
+        counts confirmed from the raw JSON; re-run of RUN-FB3-001-CTRL returned
+        the same 46/148 pass; my own literal enumerator independently agrees with
+        the recorded cells.
+      verdict: pass
+    - control: matched-random permutation null, >= 100 draws per cell, sharing recorded
+      executor_result: >-
+        200 draws, 48 shared-null records per size, each flagged shared true
+      validator_result: confirmed for all 48 records and all 336 per-cell null blocks per size
+      verdict: pass
+    - control: matched size B = ceil((6N)^(1/3)) for every untyped cell and its null
+      validator_result: recomputed exactly for all 12 curves; every recorded B agrees
+      verdict: pass
+    - control: same-curve / same-target pairing across geometries
+      validator_result: >-
+        confirmed by code reading - all whole-group cells on a (curve, seed) use
+        the same target space and the same shared null set, and the greedy cell
+        is compared against the same null set restricted to its held-out mask, so
+        comparisons are paired rather than pooled.
+      verdict: pass
+    - control: greedy train / held-out separation (frozen invalidation rule)
+      validator_result: >-
+        enforced structurally - greedy_select receives only the training bitset,
+        the held-out mask is not in its scope, and the pool is target-independent.
+        CTRL block C additionally verifies the incremental sumsets against brute
+        force and that the first-step gain is maximal.
+      verdict: pass
+    - control: FFT rounding margin
+      executor_result: campaign worst 5.4569682106375694e-12 against a 0.25 abort threshold
+      validator_result: >-
+        reproduced from the raw JSON and independently measured at the
+        adversarial worst case (3.638e-12 at 2^18 with the most concentrated
+        base); no reported statistic depends on the FFT at all.
+      verdict: pass
+    - control: curve order and dlog table
+      executor_result: 12 of 12 generated curves all_ok
+      validator_result: 1 generated curve and all 4 recorded prior curves verified fully and independently
+      verdict: pass
+    - control: port fidelity against the recorded H016/H017 statistics
+      executor_result: 4 cells x 17 checks, 0 failures
+      validator_result: independently reproduced (orders, closed-form means, ratios, bands, p-value convention, exact H017 recomputation)
+      verdict: pass
+    - control: reproduction from the recorded command
+      executor_result: N14 (twice) and N18 bit-identical apart from wall-clock fields
+      validator_result: >-
+        N14 re-run: 20 differing leaves, all timing/memory, 0 measurement
+        differences. CTRL re-run: 4 differing leaves, all timing/memory. N18 not
+        re-run by the validator.
+      verdict: pass
+    - control: feasibility / terminal states
+      executor_result: 288 measured, 0 infeasible, 0 invalid in the pre-registered family; 4 of 48 exploratory qr_walk_H016 records infeasible
+      validator_result: confirmed from the raw JSON; the infeasibility is recorded, scoped to an exploratory arm, and not treated as a null result
+      verdict: pass
+
+  budget_used:
+    wall_clock_seconds: 95
+    peak_memory_mb: 88
+    runs: 2
+    runs_detail: >-
+      Two reproductions of recorded commands (RUN-FB3-001-N14 battery, 6.3 s;
+      RUN-FB3-001-CTRL controls, 1.7 s), both writing only into /tmp. The
+      remaining time is the Validator's own recomputation and audit scripts
+      (independent multiset enumeration 77 s, port-fidelity recomputation,
+      numerical-safety spot check, ledger validation at HEAD and at the
+      merge-base, dispatcher verification), which are not experiment runs.
+    limits: {wall_clock_seconds: 3600, memory_gb: 4, maximum_runs: 3}
+    within_budget: true
+
+  infrastructure_failures: []
+  infrastructure_note: >-
+    No crash, timeout, or memory problem occurred in any Validator check. Had one
+    occurred it would have been reported as failed_infrastructure for that check
+    and never as evidence about the mathematics (AGENTS.md rule 5).
+
+  limits_of_this_validation:
+    - >-
+      I did not re-run RUN-FB3-001-N16, RUN-FB3-001-N18 or RUN-FB3-001-FAMILY.
+      The N18 reproduction the executor reports is unverified by me; N14 and CTRL
+      are verified.
+    - >-
+      Of the 12 generated curves I fully and independently verified one (2^14
+      curve 1) plus all four recorded H016/H017 curves. The other 11 rest on the
+      executor's recorded verification block and on exact reproduction.
+    - >-
+      My independent recomputation covers 7 cells. Cells whose construction
+      depends on the numpy RNG stream (the 9600 matched-random null bases, the
+      greedy pools and selections, the asymmetric sub-base elements) were not
+      rebuilt by an independent method; they were checked by exact reproduction
+      of the recorded command and by the closed-form total control, which is a
+      weaker guarantee than a from-scratch recount.
+    - >-
+      I did not audit the bootstrap CIs or the growth-slope resampling beyond
+      confirming that the published values match the raw JSON and that the
+      reported zero-width CIs are consistent with degenerate (point-mass) inputs.
+    - >-
+      I verified that the analytic argument in conservation.md Section 1 is a
+      correct elementary proof and that its four consequences are labelled
+      CONFIRMED consistently with the data, but a derivation-level proof is not
+      machine-checked and I did not attempt to formalise it.
+    - >-
+      Whether the frozen success and falsification criteria are met, whether the
+      "alive direction" operationalisation in analysis.md Section 7 is the right
+      reading of the frozen text, and what the result means for H-FB3-001 and the
+      F3 family are all outside a Validator's remit. They belong to the
+      Reviewer, the Red Team and the Coordinator. In particular I take no
+      position on whether a primary metric that the pre-registered analytic arm
+      proves cannot show a matched-size geometry effect can support a scoped
+      KILL.
+    - >-
+      I validated only the Coordinator-committed snapshot 68e375f as it appears
+      at HEAD ae5503d. I made no commit, staged nothing, and wrote only the two
+      files in my assigned write scope.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ICLIFT-001/batches/BATCH-001/tasks/TASK-20260724-232/validation_report.yaml
+    - coordination/goals/GOAL-ICLIFT-001/batches/BATCH-001/tasks/TASK-20260724-232/validation_notes.md
+
+  inference:
+    requested_policy: review-xhigh
+    resolved_model: claude-opus-4.5
+    reasoning_effort: high
+    fallback_used: true
+    fallback_reason: >-
+      orchestration/model-policies.yaml routes reviews to a GPT-5.6 Sol xhigh
+      alias that this Claude-family harness cannot resolve (CLAUDE.md model
+      policy note).
+    independent_session: true
+    independence_statement: >-
+      The Validator did not produce, edit, or advise on any EXP-FB3-001 artifact
+      and read only the committed snapshot plus the frozen contract, the handoff,
+      the recorded H016/H017 input, and the archive receipt.
+
+  validated_by: validator
+  validated_at: '2026-07-24T20:15:00Z'

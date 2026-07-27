@@ -3,12 +3,24 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
+<<<<<<< HEAD
+128 entries.
+
+| ID | Title | Type | Confidence | Verified/Status | Tags |
+|---|---|---|---|---|---|
+| KN-FIND-001 | Decomposition-yield conservation — factor-base geometry cannot change mean yield, only redistribute it | internal_finding | established |  | index-calculus factor-base decomposition-yield coverage point-decomposition conservation ecdlp toy-scale |
+| KN-FIND-002 | Rare-event density gates are settled exactly by fibering over solutions — and exactness does not protect against formalisation error | internal_finding | established |  | methodology lifting xedni function-field elliptic-surface rare-event exact-enumeration experiment-design ecdlp toy-scale |
+| KN-FIND-003 | mu_3 supplies infinity-norm-1 MW relations on the frozen j=0 free-x family; polarisation Gram rank is not Shioda rank | internal_finding |  | established | lifting xedni function-field mu3 mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-004 | Non-isotrivial free-x sections still admit infinity-norm-1 MW relations; Gram can over-report coefficients without μ₃ | internal_finding | established |  | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-005 | Raised deg-a≤4 non-isotrivial free-x still admit inf-norm-1 MW relations; deg x≤3 empty on deg-b=6 | internal_finding | established |  | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
+=======
 7638 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
 | KN-FIND-001 | Byte-complete differential probing of the ML-KEM comparison primitive discriminates incomplete re-encryption comparisons at fix boundaries | internal_finding | reported |  | ml-kem fips-203 implicit-rejection re-encryption-comparison conformance-testing differential-testing wolfssl avx2 neon defensive post-quantum |
 | KN-FIND-002 | Jet and endomorphism ECDLP oracles are GGM-simulable with O(1) overhead, closing their candidate families at exponent 1/2; elliptic-net and incidence oracles are GGM-simulable with non-constant overhead, providing no sub-birthday advantage | finding | strong | established | ggm simulability jet endomorphism elliptic-net incidence ecdlp closure exponent-half generic-group-model |
+>>>>>>> origin/main
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
