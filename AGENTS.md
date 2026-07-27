@@ -16,17 +16,57 @@ Only the Coordinator may change the official status of a hypothesis or research 
 
 ## Model policy
 
-Role permissions and model selection are separate concerns. Permissions come from the role contract; inference behavior comes from `orchestration/model-policies.yaml`.
+Role permissions and model selection are separate concerns, and neither names a
+vendor. Permissions come from the role contract; inference requirements come
+from `orchestration/model-policies.yaml`; the concrete model that serves a
+policy comes from `orchestration/model-bindings.yaml`, resolved by
+`orchestration/adapter/`. Full semantics: `docs/inference-backends.md`.
 
-Default policies:
+Default policies (capability contracts, not products):
 
-- Coordinator: `coordinator-ultra-code` — GPT-5.6 Sol Ultra Code.
-- Idea Generator and research tasks: `research-sol-max` — GPT-5.6 Sol Max.
-- Executor: `executor-terra` — GPT-5.6 Terra.
-- Reviewer, Validator, and Red Team: `review-xhigh` — GPT-5.6 Sol with
-  `xhigh` reasoning.
+- Coordinator: `coordinator-orchestration-code`.
+- Idea Generator and research tasks: `research-deep`.
+- Executor: `executor-implementation`.
+- Reviewer, Validator, and Red Team: `review-adversarial`, which requires
+  `xhigh` reasoning and an independent session.
+- Claimed breakthroughs, closure results, and contradictions between validated
+  evidence records: `review-breakthrough` at `max`. This is the only policy
+  that may never be degraded — no amendment or permission runs it on a backend
+  that cannot reach `max`. Ordinary reviews stay on `review-adversarial`;
+  paying the top tier for every validator pass would price review out of the
+  loop, which is how claims end up unreviewed.
 
-The runtime adapter must record both the human-readable policy alias and the exact resolved model identifier. It must never silently downgrade a requested policy. Critical findings require an independent review session using `review-xhigh` and a reviewer that did not originate the claim.
+Policy ids are permanent. The pre-2.0 ids (`coordinator-ultra-code`,
+`coordinator-sol-max`, `research-sol-max`, `executor-terra`, `review-xhigh`)
+are carried forever as aliases so already-committed handoffs keep resolving;
+write new handoffs with the canonical ids.
+
+The adapter records the requested policy and the exact resolved model
+identifier, and never silently downgrades a requested policy. A substitution
+requires `fallback_allowed` in the handoff and is recorded as `fallback_used`
+with its reason; accepting a model that misses a stated requirement
+additionally requires `degraded_allowed` and a Coordinator-approved
+`inference_amendment`, and every gap is recorded in `degraded_requirements`. A
+model identifier is unverified configuration until
+`python3 -m orchestration.adapter doctor --probe` confirms the backend serves
+it; `model_verified` carries that status into every manifest. Critical findings
+require an independent `review-adversarial` session and a reviewer that did not
+originate the claim.
+
+Runtimes are interchangeable too. Claude Code, an OpenAI-protocol agent CLI,
+and this repository's own `api_direct` runtime (`orchestration/agent/`) are
+three runtimes over the same role contracts; `orchestration/roles.yaml` holds
+each role's authority and tool surface in runtime-neutral terms, and
+`tools/check_runtime_bindings.py` fails the build when a runtime's agent
+definition drifts from it.
+
+Under `api_direct` the ownership rules below are enforced rather than
+requested: a write outside the task's declared `write_scope` is refused and the
+refusal is recorded, existing artifacts cannot be overwritten, only allow-listed
+commands and read-only git subcommands run, an exhausted step or wall-clock
+budget is reported as such and never as a result, and a role whose capabilities
+that runtime cannot provide is refused outright rather than run with a reduced
+tool surface.
 
 ## Core rules
 
@@ -41,7 +81,7 @@ The runtime adapter must record both the human-readable policy alias and the exa
 9. Agents must not fabricate commands, outputs, timings, statistics, citations, or successful runs.
 10. Every conclusion must cite the experiment IDs and artifacts that support it.
 11. An agent may request a stronger policy but may not silently alter its own model or reasoning level.
-12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-xhigh` review.
+12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-breakthrough` review at `max` effort. That review may not be degraded or run on a backend that cannot reach it.
 
 ## Required handoff envelope
 
@@ -59,8 +99,12 @@ handoff:
   artifact_paths: []
   archived_by: TASK-YYYYMMDD-NNN
   inference:
-    policy: coordinator-ultra-code | research-sol-max | executor-terra | review-xhigh
+    policy: coordinator-orchestration-code | coordinator-orchestration |
+            research-deep | executor-implementation | executor-mechanical |
+            review-adversarial | review-breakthrough
+    reasoning_effort: null          # per-task calibration; null = policy default
     fallback_allowed: false
+    degraded_allowed: false
     independent_session_required: false
   budget:
     wall_clock_seconds: null
@@ -118,6 +162,16 @@ archival task. A missing, dirty, malformed, or scope-expanding commit blocks
 downstream review or promotion; it is an evidence-integrity failure, not a
 mathematical result.
 
+A branch is kept current with its base by **merging** the base into it.
+Rebasing a branch that carries pushed run records is forbidden: it rewrites the
+commits those records were archived in, and a run receipt whose commit no
+longer exists is not reproducible. `tools/sync_open_branches.py` performs this
+merge periodically for open pull requests and validates the merged tree before
+pushing it. It never resolves a conflict: when a sync conflicts inside a ledger
+record, run artifact, or knowledge entry, the resolution is a new superseding
+record under a new id — the same rule as any other correction — and never an
+edit that picks one side.
+
 ## Research states
 
 Hypotheses move through:
@@ -138,11 +192,12 @@ Each run must retain:
 - git commit and dirty-tree state
 - environment and dependency versions
 - input parameters and random seeds
-- requested model policy and resolved runtime model identifier
-- reasoning effort and whether fallback was used
+- requested model policy, backend, and resolved runtime model identifier
+- model provenance and whether that identifier has been probe-verified
+- reasoning effort, whether fallback was used, and any degraded requirements
 - stdout and stderr
 - raw machine-readable results
 - validity status and reason
 - timestamps and resource measurements
 
-See `docs/`, `templates/`, and `orchestration/model-policies.yaml` for the full semantics.
+See `docs/`, `templates/`, and `docs/inference-backends.md` for the full semantics.
