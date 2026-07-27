@@ -1,0 +1,356 @@
+experiment:
+  id: EXP-ENDO-001
+  hypothesis_id: H-ENDO-001
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  title: >-
+    Endomorphism-invariant factor base on GLV curves: displacement rank
+    versus random/AP baselines, relation-density penalty, and calibrated
+    structured-solve model cost, with a non-GLV generic-curve arm
+  status: approved
+  frozen: true
+  approved_by: coordinator
+  approved_at: '2026-07-27'
+  claim_tier: toy
+  heuristic_under_test: null
+  source_proposal: IDEA-20260726-002
+  objective: >-
+    Decide the two claims of H-ENDO-001 under a frozen protocol, as the
+    decisive replication and extension of EV-STR-002 (preliminary,
+    unreviewed, model-only, noisy penalty). C1 (structure): on j = 0 and
+    j = 1728 GLV curves at 16-24 bits, a phi-invariant factor base yields a
+    relation matrix commuting with the phi-shift permutation and having
+    displacement rank alpha <= r, separated from an in-run random baseline
+    at the generic maximum — the structure the additive AP design failed to
+    induce (EV-STR-001, KN-OPEN-006). C2 (net LA-stage advantage): the
+    phi-orbit relation-density penalty stays below B/alpha and the
+    calibrated structured-solve model cost beats Wiedemann's model cost by
+    at least 2x at the largest tested B. The non-GLV generic-curve arm
+    (negation-orbit factor base) separates universal involution structure
+    from GLV specialness; the phi-ablation control proves the structure
+    comes from phi and not from matrix dimensions or density. C1 and C2
+    are decided independently and the EV-STR-001 failure mode (structure
+    absent, or penalty swamping the saving) is an explicitly reachable
+    negative outcome.
+  inputs:
+    instances:
+      description: >-
+        9 toy prime-field curves at 16, 20, 24 bits: families {j = 0 with
+        p = 1 mod 3; j = 1728 with p = 1 mod 4; generic non-GLV (j not in
+        {0, 1728}, no known small-degree endomorphism beyond negation)} x
+        3 sizes, seeds {1, 2, 3} mapped one-to-one to sizes within each
+        family, via harness/toycurve.py generate_instance with GLV filters
+        as in harness/endomorphism_la.py. Frozen with SHA-256 in
+        RUN-ENDO-001.
+    factor_base_arms:
+      phi_invariant: >-
+        Union of complete phi-orbits, B = ceil(sqrt(N)); orbit-completeness
+        fraction recorded per instance (EV-STR-002 showed
+        instance-dependence; incomplete orbits are measured and counted,
+        never dropped).
+      random_baseline: >-
+        Same curve, same B, same matrix target density, non-phi-invariant
+        random factor base — the direct control whose displacement rank is
+        measured for comparison (expected alpha ~ min(R, B), per EV-STR-001).
+      ap_benchmark: >-
+        AP-constrained factor base on the 20-bit cells, D = {1..64},
+        following the EV-STR-001 protocol; expected to reproduce alpha ~
+        min(R, B) and a supply-side penalty, benchmarking this experiment's
+        measurement against the failed approach.
+      negation_orbit_generic: >-
+        On the generic-curve arm only: union of negation orbits (r = 2,
+        available on every curve), separating universal involution
+        structure from GLV phi specialness.
+    targets: >-
+      200 decomposition-test targets per arm per cell (R = a*P + b*Q,
+      seeded uniform, recorded) for hit-rate and penalty measurement;
+      harvesting pools for enumeration-assisted relation collection as in
+      EXP-MTIC-001.
+    decomposition_arity: m = 3 (S_4 systems, harness/semaev.py)
+    displacement_measurement:
+      generator_pair: (Z_phi, Z_phi^T), Z_phi the cyclic phi-shift on orbit blocks; rank of M - Z_phi*M*Z_phi^T
+      ablation: the same measurement with a random (non-phi) shift operator on the phi-invariant matrices
+      commutation_residual: "||M*Phi - Phi*M||_0 with pre-registered negation/sign bookkeeping"
+    solve_calibration: >-
+      Verified Wiedemann solves (solution checked against harvested
+      relations) with field-op counts on phi-invariant matrices at the
+      largest B per family, calibrating the 2*B^2*m model within [0.5, 2]
+      (HEUR-001).
+  controls:
+    - id: CTRL-RANDOM-BASELINE
+      method: >-
+        Random factor base, identical curve, B, dimensions, and density;
+        measure displacement rank and relation density in the same runs.
+      pass_condition: >-
+        Median alpha_rand / min(R, B) >= 0.5 across the 9 random-baseline
+        matrices (generic maximum, per EV-STR-001); a random baseline far
+        below the maximum means the displacement measurement is miscalibrated
+        and the alpha claims are void.
+    - id: CTRL-PHI-ABLATION
+      method: Displacement rank of the phi-invariant matrices measured with a random (non-phi) shift operator.
+      pass_condition: >-
+        Median ablated alpha / min(R, B) >= 0.5; the structure must vanish
+        under the wrong operator, confirming it comes from phi.
+    - id: CTRL-AP-BENCHMARK
+      method: AP factor base on 20-bit cells per the EV-STR-001 protocol.
+      pass_condition: >-
+        alpha_AP >= 0.5*min(R, B) with a supply-side penalty, qualitatively
+        reproducing EV-STR-001; failure to reproduce means this experiment's
+        harvesting or displacement pipeline diverges from the failed-run
+        reference and all comparisons are void.
+    - id: CTRL-NON-GLV-ARM
+      method: Negation-orbit and random factor bases on the 3 generic curves; displacement rank measured identically.
+      pass_condition: >-
+        The arm executes and reports alpha_neg and its random baseline; its
+        scientific prediction (alpha_neg <= 2) is a prediction, not a gate —
+        the gate is that the arm runs and is comparable.
+    - id: CTRL-WIEDEMANN-CALIBRATION
+      method: Verified Wiedemann solves on phi-invariant matrices with field-op counts.
+      pass_condition: Median measured/model ratio within [0.5, 2] at the largest B (HEUR-001).
+    - id: CTRL-MATCHED-RHO-BSGS
+      method: harness/rho.py per-target solves with verified certificates, and BSGS, on the same curves.
+      pass_condition: Measured (never quoted) for the fully-charged accounting.
+  independent_variables:
+    - "family: {j0, j1728, generic} x size {16, 20, 24} (9 instances)"
+    - "factor_base_arm: {phi_invariant, random_baseline, ap_benchmark, negation_orbit_generic}"
+    - "displacement_operator: {phi_shift, random_shift} (ablation)"
+    - "size: B grows as ceil(sqrt(N)) ~ {256, 1024, 4096}"
+  metrics:
+    primary:
+      - id: displacement_rank_alpha
+        definition: alpha per matrix per arm per operator, with matrix dimensions and density recorded; separation ratio alpha/min(R, B).
+      - id: commutation_residual
+        definition: "||M*Phi - Phi*M||_0 beyond the pre-registered sign bookkeeping, per phi-invariant matrix."
+      - id: relation_density_penalty
+        definition: (random hit rate)/(phi-invariant hit rate) per cell with >= 200 decomposition tests per arm; compared to B/alpha.
+      - id: structured_vs_wiedemann_model_ratio
+        definition: (alpha^2*B*ceil(log2 B)) / (2*B^2*m) per instance; Wiedemann side calibrated by CTRL-WIEDEMANN-CALIBRATION.
+      - id: fully_charged_total_vs_rho
+        definition: penalty-adjusted relation collection + LA + descent + verification per arm, against measured rho per-target cost.
+    secondary:
+      - orbit_completeness_fraction
+      - relation_supply_per_arm
+      - ap_penalty_reproduction (vs EV-STR-001 ranges)
+      - alpha_neg_generic_arm
+      - wiedemann_calibration_ratio
+      - hit_rate_cis (Wilson intervals per cell)
+      - wall_clock_artifacts
+  scale_relevance:
+    tier: toy
+    justification: >-
+      No transfer claim: 16-24-bit GLV toy curves with B <= ~4100 cannot
+      bound alpha or the penalty at crypto scale, and GLV specialness makes
+      even the qualitative claim family-scoped. A positive result upgrades
+      evidence strength for an LA-stage structural claim at toy tier only.
+    correspondence: null
+  replication:
+    seeds: [1, 2, 3]
+    seed_policy: >-
+      Deterministic: one seed per (family, size); instances, factor bases,
+      targets, and enumeration orders derived from frozen seeds; every run
+      manifest records the seeds actually used.
+    independent_instances: 9
+    planned_runs:
+      - id: RUN-ENDO-001
+        purpose: Instance generation and freeze (9 curves, GLV filters, seeds), SHA-256 of all frozen artifacts.
+      - id: RUN-ENDO-002
+        purpose: >-
+          Factor-base construction for all four arms; orbit-closure audit
+          (phi(F) = F exactly, orbit lengths, completeness fraction); AP
+          construction at 20-bit cells; freeze with SHA-256.
+      - id: RUN-ENDO-003
+        purpose: Relation collection on phi-invariant bases, j = 0 cells (enumeration-assisted, cap 5e7 evaluations / 1500 s per cell), hit rates and supply recorded.
+      - id: RUN-ENDO-004
+        purpose: Relation collection on phi-invariant bases, j = 1728 cells, and on negation-orbit bases, generic cells.
+      - id: RUN-ENDO-005
+        purpose: Relation collection on random-baseline bases, all cells (same enumeration budget per cell).
+      - id: RUN-ENDO-006
+        purpose: Relation collection on AP-benchmark bases, 20-bit cells (EV-STR-001 protocol).
+      - id: RUN-ENDO-007
+        purpose: >-
+          Displacement-rank measurement I: alpha of phi-invariant matrices
+          (j = 0, j = 1728) with the phi-shift generator pair; commutation
+          residuals with sign bookkeeping.
+      - id: RUN-ENDO-008
+        purpose: >-
+          Displacement-rank measurement II: random-baseline alpha,
+          phi-ablation alpha (random shift on phi-invariant matrices),
+          negation-orbit alpha on the generic arm, AP alpha at 20-bit cells.
+      - id: RUN-ENDO-009
+        purpose: >-
+          CTRL-WIEDEMANN-CALIBRATION: verified solves on phi-invariant
+          matrices at the largest B per family, field-op counts; structured-
+          solve model evaluation alpha^2*B*ceil(log2 B).
+      - id: RUN-ENDO-010
+        purpose: >-
+          Relation-density penalty computation: hit rates with Wilson
+          intervals (>= 200 tests per arm per cell), supply ratios, penalty
+          versus B/alpha threshold.
+      - id: RUN-ENDO-011
+        purpose: CTRL-MATCHED-RHO-BSGS baselines on the same curves; fully-charged totals per arm.
+      - id: RUN-ENDO-012
+        purpose: "Aggregation and analysis: per-instance alpha separation, penalty table, model ratios, two-claim decision matrix, analysis.md."
+    expected_run_count: 12
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_wall_clock_seconds: 10200
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 4
+    maximum_runs: 12
+    stages:
+      - id: freeze_and_factorbases
+        wall_clock_seconds: 900
+        stop_rule: >-
+          If a family-size cell cannot be generated (e.g., no p = 1 mod 3
+          prime-order curve found after 2 regenerations), record
+          failed_infrastructure for that cell and continue; do not
+          substitute ad-hoc parameters.
+      - id: relation_collection
+        wall_clock_seconds: 5400
+        stop_rule: >-
+          Per cell: stop at the relation target, at 5e7 tuple evaluations,
+          or at 1500 s cumulative; partial yields are recorded with censor
+          flags; cells below the displacement-measurement minimum
+          (square matrix of verified relations) are recorded as unmeasurable,
+          not smoothed.
+      - id: displacement_rank
+        wall_clock_seconds: 1200
+        stop_rule: If generator construction fails on any matrix, record failed_implementation for that matrix; never infer alpha.
+      - id: solves_and_penalty
+        wall_clock_seconds: 1500
+        stop_rule: If a Wiedemann calibration solve fails to converge in its cap, record resource_exhaustion; the model ratio is then reported uncalibrated and flagged.
+      - id: baselines_and_accounting
+        wall_clock_seconds: 1200
+        stop_rule: Stop without interpretation if any required artifact from an earlier stage is incomplete.
+  stopping_rules:
+    - Any crash or harness error: record failed_infrastructure; never evidence (AGENTS.md rule 5).
+    - Stop after the 12 planned runs; no exploratory additional runs.
+    - Stop any run at 1800 s wall clock or 4 GB resident memory, recording the honest terminal status.
+    - Stop the whole experiment at 10200 s total wall clock; remaining runs recorded cancelled_by_budget.
+    - A falsifying measurement (no separation, penalty >= B/alpha, residual > 0) does not stop the experiment; the full protocol completes so the negative result is fully charged and scoped.
+  invalidation_rules:
+    - Any run missing its manifest, exact command, environment, raw result, summary, stdout, or stderr is invalid.
+    - Any run with dirty: true is invalid.
+    - Frozen-artifact SHA-256 mismatch against RUN-ENDO-001/002 records invalidates dependent runs.
+    - A random-baseline, ablation, or AP control that fails its pass condition invalidates the alpha comparison (control incomparability), not the run's integrity; the discrepancy is recorded, never discarded (rule 8).
+    - Unverified relation or discrete-log certificates invalidate the runs that rely on them.
+    - Duplicated or missing seeds, or raw/summary disagreement, invalidates the affected run.
+  success_criterion: >-
+    All 12 runs reach terminal status with valid artifacts; all control
+    gates pass (random baseline at the generic maximum, phi-ablation
+    restores alpha ~ min(R, B), AP benchmark reproduces the EV-STR-001
+    failure qualitatively, Wiedemann calibration within [0.5, 2]); and both
+    claims are decided from the predefined metrics: C1 supported iff
+    alpha <= r with complete separation (alpha <= r < 0.5*min(R, B) <=
+    alpha_rand) on at least 4 of the 6 GLV instances and at least one
+    instance of each family, with zero unexplained commutation residuals;
+    C2 supported iff the median relation-density penalty is < B/alpha and
+    the calibrated model ratio is <= 0.5 at the largest tested B on at
+    least 4 of the 6 GLV instances; the fully-charged totals versus matched
+    rho are reported for every arm regardless of direction.
+  falsification_criterion: >-
+    Reachable by an actual run: C1 is falsified iff alpha/min(R, B) >= 0.5
+    at the largest B on at least half the GLV instances, or any commutation
+    residual exceeds the pre-registered sign bookkeeping, or the
+    generic-arm alpha_neg ~ min(R, B) on at least 2/3 of generic instances
+    (the equivariance-to-structure mechanism fails generically); C2 is
+    falsified iff the median penalty >= B/alpha (the EV-STR-001 swamp), or
+    the calibrated model ratio exceeds 0.5 at the largest B on at least
+    half the GLV instances. Mixed outcomes (C1 supported, C2 falsified, or
+    vice versa) are recorded as the EV-STR-001-mode diagnosis for this
+    route, not forced to a binary verdict.
+  required_artifacts:
+    - experiments/EXP-ENDO-001/specification.yaml
+    - experiments/EXP-ENDO-001/frozen-instances.yaml
+    - experiments/EXP-ENDO-001/analysis.md
+    - experiments/EXP-ENDO-001/execution-report.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-001/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-001/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-001/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-001/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-001/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-001/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-001/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-002/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-002/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-002/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-002/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-002/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-002/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-002/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-003/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-003/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-003/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-003/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-003/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-003/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-003/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-004/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-004/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-004/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-004/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-004/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-004/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-004/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-005/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-005/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-005/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-005/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-005/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-005/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-005/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-006/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-006/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-006/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-006/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-006/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-006/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-006/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-007/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-007/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-007/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-007/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-007/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-007/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-007/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-008/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-008/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-008/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-008/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-008/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-008/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-008/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-009/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-009/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-009/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-009/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-009/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-009/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-009/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-010/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-010/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-010/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-010/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-010/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-010/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-010/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-011/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-011/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-011/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-011/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-011/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-011/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-011/stderr.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-012/manifest.yaml
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-012/command.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-012/environment.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-012/raw.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-012/summary.json
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-012/stdout.txt
+    - experiments/EXP-ENDO-001/runs/RUN-ENDO-012/stderr.txt
+  assigned_to: executor
+  inference_receipt:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: null
+    fallback_used: false
+    authorization_ref: null
