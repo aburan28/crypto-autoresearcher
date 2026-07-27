@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7638 entries.
+7662 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7329,7 +7329,19 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7561 | “Ooh Aah... Just a Little Bit” : A small amount of side channel can go a long way | literature | reported | read | binary-field cryptanalysis curve-arithmetic ecdsa elliptic-curve implementation lattice prime-field provable-security rsa side-channel signature symmetric |
 | KN-LIT-7562 | “Provable” Security Against Differential and Linear Cryptanalysis | literature | reported | read | cryptanalysis dlp mov-fr provable-security survey symmetric |
 | KN-LIT-7563 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | literature | reported | full_text | supersingular isogeny-problem oneend endomorphism-ring smoothness heuristic dickman-de-bruijn meet-in-the-middle claw-finding rerandomization deuring exponent-improvement exemplar isogeny adjacent |
+| KN-LIT-7564 | A Public-Key Cryptosystem Based On Algebraic Coding Theory | literature | reported | web | code-based mceliece goppa syndrome-decoding pqc foundational trapdoor |
+| KN-LIT-7565 | Knapsack-type cryptosystems and algebraic coding theory | literature | reported | web | code-based niederreiter syndrome-decoding goppa pqc foundational trapdoor |
+| KN-LIT-7566 | The use of information sets in decoding cyclic codes | literature | reported | web | code-based information-set-decoding isd syndrome-decoding baseline foundational cryptanalysis |
+| KN-LIT-7567 | A method for finding codewords of small weight | literature | reported | web | code-based information-set-decoding isd birthday meet-in-the-middle cryptanalysis foundational |
+| KN-LIT-7568 | A New Algorithm for Finding Minimum-Weight Words in a Linear Code: Application to McEliece's Cryptosystem and to Narrow-Sense BCH Codes of Length 511 | literature | reported | web | code-based information-set-decoding isd mceliece cryptanalysis parameter-selection |
+| KN-LIT-7569 | On insecurity of cryptosystems based on generalized Reed-Solomon codes | literature | reported | web | code-based structural-attack key-recovery reed-solomon niederreiter cryptanalysis foundational |
 | KN-LIT-757 | EQUIDISTRIBUTION OF αpθ WITH A CHEBOTAREV CONDITION AND APPLICATIONS TO EXTREMAL PRIMES | literature | reported | read | elliptic-curve number-theory pairing |
+| KN-LIT-7570 | Finding the permutation between equivalent linear codes: the support splitting algorithm | literature | reported | web | code-based code-equivalence support-splitting structural-attack hull cryptanalysis |
+| KN-LIT-7571 | Decoding Linear Codes with High Error Rate and its Impact for LPN Security | literature | reported | web | code-based information-set-decoding isd nearest-neighbor lpn cryptanalysis exponent |
+| KN-LIT-7572 | More on average case vs approximation complexity | literature | reported | web | code-based syndrome-decoding provable-security complexity-theory lpn random-codes |
+| KN-LIT-7573 | Classic McEliece: conservative code-based cryptography (NIST round-4 specification) | literature | reported | web | code-based mceliece niederreiter goppa kem pqc specification parameter-selection |
+| KN-LIT-7574 | BIKE: Bit Flipping Key Encapsulation (round-4 submission specification) | literature | reported | web | code-based bike qc-mdpc kem decoding-failure bit-flipping pqc specification |
+| KN-LIT-7575 | Status Report on the Fourth Round of the NIST Post-Quantum Cryptography Standardization Process | literature | reported | web | code-based hqc bike mceliece pqc standardization parameter-selection survey |
 | KN-LIT-758 | EULER CHARACTERISTICS AND THEIR CONGRUENCES FOR MULTI-SIGNED SELMER GROUPS | literature | reported | read | elliptic-curve number-theory pairing provable-security supersingular |
 | KN-LIT-759 | Explicit description of isogeny and isomorphism classes of Drinfeld modules over finite field | literature | reported | read | abelian-variety elliptic-curve endomorphism finite-field isogeny number-theory pairing |
 | KN-LIT-760 | EXPLICIT TWO-COVER DESCENT FOR GENUS 2 CURVES | literature | reported | read | curve-arithmetic elliptic-curve hyperelliptic isogeny jacobian number-theory provable-security |
@@ -7590,6 +7602,11 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-016 | Does the improved dual attack on LWE actually beat the primal attack, once its heuristics are repaired? | open_problem | reported | open | dual-attack dual-sieve fft heuristics lwe kyber contested concrete-security falsification open lattice |
 | KN-OPEN-017 | Where does the enumeration/sieving crossover move once sieving memory is fully charged? | open_problem | reported | open | full-cost memory sieving enumeration crossover cost-model kissing-number wiener concrete-security open lattice cross-domain |
 | KN-OPEN-018 | Does lattice machinery bear on the plain ECDLP at all, outside the leakage model? | open_problem | reported | open | cross-domain lattice ecdlp hnp coppersmith index-calculus descent leakage genericity open |
+| KN-OPEN-019 | Is the information-set-decoding exponent stuck, and what would move it? | open_problem | reported | open | code-based information-set-decoding isd exponent syndrome-decoding target-result-profile lower-bound open |
+| KN-OPEN-020 | Does quasi-cyclic structure weaken syndrome decoding beyond the DOOM square-root discount? | open_problem | reported | open | code-based quasi-cyclic doom bike hqc syndrome-decoding structural-attack parameter-selection open |
+| KN-OPEN-021 | Can the high-rate Goppa distinguisher be turned into an attack at Classic McEliece parameters? | open_problem | reported | open | code-based goppa distinguisher structural-attack mceliece cfs filtration indistinguishability open |
+| KN-OPEN-022 | Can a QC-MDPC decoding failure rate at 2^-128 be established rather than extrapolated? | open_problem | reported | open | code-based bike qc-mdpc dfr decoding-failure ind-cca extrapolation error-floor weak-keys cost-model open |
+| KN-OPEN-023 | Does code-based machinery bear on this program's core problems, or is the relationship purely methodological? | open_problem | reported | open | cross-domain code-based ecdlp index-calculus syndrome-decoding isd methodology genericity open |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
 | KN-TECH-002 | Semaev summation polynomials | technique | established |  | semaev summation-polynomial point-decomposition index-calculus |
 | KN-TECH-003 | Point-decomposition index calculus for ECDLP | technique | established |  | index-calculus point-decomposition factor-base relations ecdlp |
@@ -7645,3 +7662,10 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-053 | MQ and Boolean polynomial-system solving - XL, BooleanSolve, and the crossbred hybrid | technique | reported |  | mq multivariate-quadratic xl crossbred booleansolve boolean-solving polynomial-system exhaustive-search hybrid sparse-linear-algebra groebner crossover solving calibration index-calculus |
 | KN-TECH-054 | Outcome-precedence design for differential-conformance protocols requires a baseline-invisible positive control | technique | reported |  | experiment-design differential-testing conformance-testing outcome-classification positive-control generator-adequacy falsifiability methodology ml-kem defensive |
 | KN-TECH-055 | Conditional exponent improvement via structural bound + smoothness/distribution heuristic + meet-in-the-middle + re-randomization | technique | reported |  | exemplar exponent-improvement smoothness heuristic dickman-de-bruijn meet-in-the-middle claw-finding rerandomization mixing-time conditional-theorem methodology isogeny adjacent |
+| KN-TECH-056 | Syndrome decoding and the code-based hardness baseline | technique | reported |  | code-based syndrome-decoding npc gilbert-varshamov lpn random-codes baseline hardness-assumption pqc |
+| KN-TECH-057 | Information set decoding (ISD) and the generic decoding exponent | technique | reported |  | code-based information-set-decoding isd syndrome-decoding baseline exponent meet-in-the-middle representation-technique memory quantum cryptanalysis |
+| KN-TECH-058 | McEliece and Niederreiter trapdoors - the binary Goppa instantiation | technique | reported |  | code-based mceliece niederreiter goppa kem trapdoor pqc key-size implementation constant-time |
+| KN-TECH-059 | Structural key-recovery attacks on algebraic code trapdoors | technique | reported |  | code-based structural-attack key-recovery distinguisher filtration code-equivalence support-splitting groebner reed-solomon goppa cryptanalysis |
+| KN-TECH-060 | QC-MDPC schemes and decoding-failure (reaction) attacks | technique | reported |  | code-based qc-mdpc bike hqc decoding-failure dfr reaction-attack weak-keys bit-flipping ind-cca extrapolation cryptanalysis |
+| KN-TECH-061 | Concrete security estimation and parameter selection for code-based schemes | technique | reported |  | code-based parameter-selection estimator cost-model memory doom quasi-cyclic calibration security-estimate isd |
+| KN-TECH-062 | Code-based signatures - why hash-and-sign is hard and what replaced it | technique | reported |  | code-based signature cfs wave mpc-in-the-head regular-syndrome-decoding fiat-shamir zk-proof pqc |
