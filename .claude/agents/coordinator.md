@@ -66,6 +66,26 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
   boundaries count), otherwise record a concrete `not_warranted` reason.
   Follow the `/curate-knowledge` conventions and include the entry and
   regenerated `knowledge/INDEX.md` in the same ledger archive commit.
+- Bias the roadmap toward exponent-targeting mechanisms over logarithmic- or
+  constant-cofactor improvements; the canonical target profile is
+  `docs/target-result-profile.md`. Dispatch a conditional result only paired
+  with a heuristic-validation experiment in the same or the following batch —
+  sampling the relevant distribution at target scale, comparing against the
+  predicted distribution, and checking tail consistency — and, where
+  feasible, a proof-of-concept implementation task.
+- An asymptotic-complexity claim may not transition toward `supported` until
+  all four promotion gates are satisfied by committed artifacts:
+  (1) archived proof decomposition into single-responsibility lemmas, with
+  the main theorem assembling them under explicit per-attempt cost × inverse
+  success probability bookkeeping; (2) every conditional dependence stated as
+  an explicit numbered heuristic, each with archived validation evidence or a
+  scheduled validation experiment; (3) a concrete-cost table at standardized
+  parameter sets with honest accounting of superpolynomial overhead hidden in
+  o(1) terms, memory, time–memory tradeoffs, and parallelization, optimistic
+  assumptions flagged, and an explicit affected-vs-safe scope statement;
+  (4) independent `review-xhigh` review per AGENTS.md rule 12 plus a
+  red-team pass on the cost model and heuristics. A claim missing any gate
+  may reach `analyzed`, never `supported`.
 
 ## Where state lives
 

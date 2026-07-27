@@ -125,6 +125,147 @@ artifacts listed in `proof_refs`. Rules:
   theorem-level claim still routes to an external proof assistant or
   human referee.
 
+## Heuristic-conditional claims
+
+The sections above govern empirical claims. The research this program tracks,
+however, also includes **theoretical claims that hold only conditional on
+unproven heuristics** — the canonical exemplar being Wesolowski's
+p^{1/3+o(1)} supersingular isogeny algorithm
+(`inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`; see also the target profile in
+`docs/target-result-profile.md`), whose main theorem holds *assuming
+Heuristic 1* on the smoothness of certain degrees. A conditional claim is not
+weak evidence that gets laundered into a theorem as experiments accumulate; it
+is a different kind of object, and the record system must never blur the
+distinction. This section governs the **record-keeping** of such claims; the
+claims' proofs themselves still route to an external proof assistant or human
+referee.
+
+### The two-record rule
+
+Every heuristic-conditional result MUST be represented as **two distinct
+records with distinct IDs**:
+
+1. **The conditional claim** — a derivation record whose statement begins
+   "Assuming Heuristic N, ..." and enumerates every heuristic it depends on,
+   by number.
+2. **The heuristic-support evidence** — one ordinary evidence record per
+   heuristic, fully subject to the claim-tier ceiling, certificate discipline,
+   and refutation-artifact rules of this document.
+
+Supporting evidence may raise or lower confidence in a heuristic, but it
+**never changes the claim's conditional status**. The only events that remove
+the "conditional on Heuristic N" qualifier are (a) an unconditional proof of
+the heuristic, routed externally, or (b) replacement of the claim by a
+stronger unconditional result. Experimental validation at any scale —
+including cryptographic scale — does not discharge a heuristic.
+
+### Heuristic records
+
+Each heuristic relied on anywhere in the program gets a numbered record
+(Heuristic 1, 2, ...; numbering is stable once assigned) containing:
+
+```yaml
+heuristic:
+  id: HEUR-NNN
+  formal_statement: |
+    Quantified statement with all variables, domains, and uniformity
+    conditions explicit — no prose approximations. Exemplar (Heuristic 1):
+    "for E/F_{p^2} uniformly random supersingular, the degree of the smallest
+    isogeny E -> E^{(p)} is B-smooth with probability at least u^{-u(1+o(1))},
+    u = log(p/2)/(3 log B), uniformly for (log p)^eps < u < (log p)^{1-eps}."
+  random_model_justification:
+    model: the uniformly random object the quantity is modeled by
+      (exemplar: a uniformly random integer of the same size)
+    rigorous_bound: the PROVEN bound fixing the quantity's size, with citation
+      (exemplar: Thm 1.5, deg <= (p/2)^{1/3}, Aubry-Oyono-Vincent)
+    distribution_theorem: the classical distribution law applied to the model,
+      with citation (exemplar: Canfield-Erdos-Pomerance,
+      Psi(X,B) = X*u^{-u(1+o(1))})
+  obstructions: []   # known reasons for doubt, failed proof attempts, biased cases
+  falsification_condition: |
+    A checkable statement whose verified truth kills the heuristic: an
+    explicit counterexample instance, or a persistent replicated deviation of
+    the empirical distribution from the model beyond stated error bars.
+  validation_plan:
+    sampling_method: how instances of the relevant distribution are generated
+      at scale (exemplar: Deuring-correspondence sampling of maximal orders,
+      reaching cryptographic p without computing isogenies directly)
+    statistics: the predicted distribution compared against
+      (exemplar: empirical CDF of the largest prime factor vs the
+      Dickman-de Bruijn function rho(u))
+    tail_checks: consistency checks on extreme samples
+      (exemplar: smoothest of 100,000 samples is 12589-smooth vs predicted
+      probability rho(u) ≈ 1/69232)
+    budget: {runs: null, wall_clock_seconds: null}
+```
+
+Rules:
+
+- **Justification is rigorous-plus-classical.** The justification must combine
+  (i) a *proven* bound fixing the size of the quantity with (ii) a *classical
+  theorem* giving the distribution for the random model — exactly the shape of
+  the exemplar's Heuristic 1. A heuristic justified only by "experiments look
+  good" is missing its load-bearing half; record the gap in `obstructions`.
+- **Obstructions are mandatory content.** `obstructions: []` means "none
+  known", not "none exist", and the record says so. Smoothness-style
+  heuristics are "ubiquitous in computational number theory, yet notoriously
+  difficult to prove" — that difficulty belongs in the record.
+- **Falsification before reliance.** A heuristic without a falsification
+  condition and an approved validation plan (experiment state `approved`) may
+  not be cited by any claim record.
+
+### Claim records for conditional results
+
+- The claim's ID, title, and every downstream citation carry the qualifier:
+  "Theorem (conditional on HEUR-NNN): ...". Corollaries obtained by rigorous
+  polynomial-time reductions inherit the *same* heuristic dependencies — no
+  more, no fewer (exemplar: OneEnd conditional on Heuristic 1 yields EndRing
+  and Isogeny conditional on Heuristic 1, via published reductions). If a
+  reduction is itself heuristic or GRH-conditional, that dependency is *added
+  to the list*, never hidden.
+- A conditional claim is recorded with `proof_status: derivation` (checkable
+  argument), never `certificate`, with `proof_refs` pointing to the proof
+  decomposition. The decomposition should be single-responsibility in the
+  exemplar's style: each lemma does exactly one job (table-size bound,
+  runtime, correctness under the heuristic's condition, success probability
+  under the heuristic), and the main theorem merely assembles them with
+  explicit bookkeeping of per-attempt cost × inverse success probability.
+- Synthesis statements, ledgers, and status views MUST render the conditional
+  qualifier wherever the headline appears. Dropping the qualifier — in any
+  summary, status line, or cross-reference — is treated as a claim-tier
+  violation: an assertion above what the record supports.
+- The evidence records supporting a heuristic obey the claim-tier ceiling
+  independently. Heuristic-validation runs on toy instances are `toy`-tier
+  evidence *for the heuristic's plausibility on that range*; AGENTS.md rule 7
+  applies in full — toy-scale validation must never be presented as
+  cryptographic-scale validation. The exemplar's bar for a `crypto`-tier
+  heuristic-support record is validation at cryptographically sized parameters
+  (p = 5·2^248−1 with 100,000 samples; p = 27·2^500−1 with 10,000 samples),
+  comparing the empirical CDF against the model prediction, including
+  tail-consistency checks on the smoothest observed samples.
+
+### Asymptotic-form honesty
+
+A claim about complexity MUST state the full asymptotic form, not the headline
+exponent:
+
+- the leading term **with what hides in the o(1) / polylog cofactors
+  characterized** — e.g. "p^{1/3+o(1)}, where the o(1) hides a
+  *superpolynomial* overhead, materially larger than the (log p)^{O(1)}
+  cofactor of the previous p^{1/2}·(log p)^{O(1)} methods";
+- **memory complexity stated beside time, always** — a time-only complexity
+  claim is incomplete (exemplar: memory ≈ p^{1/3+o(1)}, a serious obstacle at
+  cryptographic sizes);
+- time–memory tradeoffs and parallelization when the algorithm admits them
+  (exemplar: van Oorschot–Wiener interpolation to time
+  p^{1/2+o(1)}/(w^{1/2}·n) with memory w on n processors);
+- concrete-cost estimates at standardized parameter sets (e.g. NIST-I/III/V)
+  with optimistic assumptions explicitly flagged and labeled as rough bounds,
+  not predictions;
+- a scope statement separating what the result affects from what it does not
+  (exemplar: affected — CGL, the SQIsign family, GPS, PRISM, ⊗-MIKE; safe —
+  CSIDH and other group-action or torsion-based constructions).
+
 ## Where this is enforced
 
 - **Executor / run wrapper** (`harness/runner.py`): emits and independently
@@ -135,6 +276,11 @@ artifacts listed in `proof_refs`. Rules:
 - **CI** (`tools/validate_ledger.py`): checks that any run claiming a solve has
   a `verified: true` certificate, and that no evidence record's `claim_tier`
   exceeds what its runs' parameters allow.
+- **Heuristic and conditional-claim records** (`templates/research-records.md`):
+  the Coordinator enforces the two-record rule, the conditional qualifier, and
+  the full-asymptotic block during `/review-evidence` and synthesis; a claim
+  record citing a heuristic whose validation plan is not yet `approved` is
+  blocked from `analyzed` onward.
 
 ## What this does NOT provide
 
@@ -142,6 +288,10 @@ artifacts listed in `proof_refs`. Rules:
 - No certification that a *negative* result generalizes — a certificate proves
   a positive witness is real; absence of a witness within budget is only ever
   a scoped negative observation.
+- No discharge of heuristics by experiment. Even cryptographic-scale
+  validation of a heuristic leaves every claim depending on it conditional;
+  only an external unconditional proof removes the qualifier.
 - No formal (machine-checked) proof of theorems. If the program ever makes a
   theoretical claim, it must be routed to an external proof assistant or human
-  referee; this document covers empirical results only.
+  referee; this document governs empirical results directly and conditional
+  theoretical claims only at the level of record-keeping discipline.

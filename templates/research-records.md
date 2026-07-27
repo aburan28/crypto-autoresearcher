@@ -61,6 +61,41 @@ hypothesis:
   statement: null
   mechanism: null
   assumptions: []
+  rerandomization: null         # worst-to-average-case device, if any: the
+                                # re-randomizing walk, its mixing-time
+                                # justification (with citation), and how the
+                                # solution is pulled back to the input instance
+  asymptotic_claim:             # required when claiming a complexity improvement;
+                                # see docs/target-result-profile.md
+    problem: null               # central hard problem whose cost is improved
+    prior_best: null            # e.g. p^{1/2} * (log p)^{O(1)}
+    time_exponent: null         # claimed exponent in the security parameter
+    memory_exponent: null       # claimed memory exponent
+    hidden_cofactor: null       # overhead hiding in lower-order terms, e.g. a
+                                # superpolynomial o(1) term vs a (log p)^{O(1)}
+                                # cofactor
+    claim_kind: exponent_improvement | cofactor_improvement | constant_factor
+  heuristic_assumptions:        # numbered, formally stated; one entry per heuristic
+    - id: HEUR-NNN
+      formal_statement: null    # precise quantifiers and uniformity conditions
+      random_model_justification: null
+                                # why the quantity should behave like a uniform
+                                # random object of its size
+      supporting_results: []    # rigorous bound + classical distribution theorem
+                                # combined in the justification, with citations
+      validation_experiment_ids: []   # EXP-* ids testing this heuristic
+      falsification_condition: null   # observation that would refute the heuristic
+  structural_ingredients:       # external mathematics the mechanism converts
+                                # into an algorithm; never fabricate citations
+    - description: null
+      citation: null
+      role: null                # e.g. degree bound, distribution law, mixing time
+  reduction_chain:
+    core_problem: null          # problem the core result solves directly
+    corollaries:
+      - problem: null           # downstream problem reached immediately
+        reduction_ref: null     # published polynomial-time reduction cited
+        asymptotics_preserved: null
   predictions:
     - metric: null
       direction: higher | lower | different
@@ -75,6 +110,14 @@ hypothesis:
   status: proposed
   proposed_by: idea-generator
 ```
+
+The exemplar for these fields is the p^{1/3+o(1)} supersingular-isogeny
+record in `inputs/P13-WESOLOWSKI-2026/`; `docs/target-result-profile.md`
+describes the pattern they encode. A hypothesis with no complexity claim
+leaves `asymptotic_claim` null. Each `HEUR-NNN` is part of the hypothesis
+and is refuted only through its own `falsification_condition` — an
+infrastructure failure or timeout is never evidence against it (AGENTS.md
+rule 5).
 
 ## Experiment
 
@@ -92,6 +135,24 @@ experiment:
   metrics:
     primary: []
     secondary: []
+  heuristic_under_test: null    # HEUR-NNN id when this experiment validates an
+                                # assumed heuristic rather than the main claim
+  preregistered_prediction:     # fixed before execution; never tuned to the data
+    quantity: null              # what is predicted, e.g. a smoothness CDF
+    formula: null               # e.g. rho(u) ~ u^{-u(1+o(1))}, with u defined
+    source: null                # theorem the prediction derives from, cited
+  scale_relevance:
+    tier: toy | medium | crypto # ceiling on what runs at this scale may support;
+                                # must match the claim_tier of resulting evidence
+    justification: null         # why conclusions transfer across scale, or their
+                                # stated limit
+    correspondence: null        # sampling correspondence used to reach scale,
+                                # if any (e.g. Deuring correspondence): the
+                                # isometry claim and its citation; null means
+                                # direct sampling
+  tail_checks: []               # consistency checks beyond the bulk fit, e.g.
+                                # comparing the smoothest observed sample against
+                                # its predicted extreme-value probability
   replication:
     seeds: []
     independent_instances: 0
@@ -107,6 +168,41 @@ experiment:
   required_artifacts: []
   assigned_to: executor
   approved_by: null
+```
+
+## Concrete cost estimate
+
+A rough, explicitly flagged costing of an asymptotic claim at standardized
+parameter sets. One record per algorithm per hypothesis. These records
+describe concrete cost and scope only: they are not evidence for or against
+a heuristic, and optimistic numbers must never be presented as accurate
+predictions.
+
+```yaml
+concrete_cost:
+  id: COST-AREA-NNN
+  hypothesis_id: H-AREA-NNN
+  algorithm_ref: null           # construction being costed
+  cost_unit: null               # e.g. F_{p^2}-operations
+  bound_kind: lower_bound | upper_bound | heuristic_estimate
+  parameter_sets:
+    - name: null                # standardized set, e.g. SQIsign NIST-I
+      security_parameter: null  # e.g. log2(p) ~ 256
+      time_log2: null
+      memory_log2: null
+      prior_time_log2: null     # previous best method at the same set
+      prior_memory_log2: null
+  optimistic_assumptions: []    # every underestimating assumption, each flagged;
+                                # a cost table without this list is invalid
+  overestimating_factors: []    # e.g. a success-probability bound assumed tight
+  parallelism: null             # scaling law with processor count
+  time_memory_tradeoff: null    # interpolation between the high-memory and
+                                # low-memory endpoint algorithms, with citation
+                                # (e.g. van Oorschot-Wiener), incl. parallel form
+  affected_scope: []            # constructions whose parameters this pressures
+  safe_scope: []                # constructions out of range, with the reason
+  implementation_ref: null      # referenced proof-of-concept, if any
+  status: draft | reviewed | archived
 ```
 
 ## Evidence

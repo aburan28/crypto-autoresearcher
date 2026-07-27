@@ -43,6 +43,43 @@ The runtime adapter must record both the human-readable policy alias and the exa
 11. An agent may request a stronger policy but may not silently alter its own model or reasoning level.
 12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-xhigh` review.
 
+## Target result profile
+
+The canonical exemplar of the output this system exists to produce is
+Wesolowski's *supersingular isogeny problem in time and memory p^{1/3+o(1)}*
+(full text: `inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`; analysis:
+`docs/target-result-profile.md`, checklist C1–C18; technique abstract:
+`knowledge/techniques/KN-TECH-055.md`). All roles bias toward that pattern:
+
+- **Exponent-first ambition**: prefer mechanisms that move the asymptotic
+  exponent of a central hard problem over logarithmic-cofactor polishing.
+- **Explicit conditional rigor**: results may be conditional, but every
+  heuristic is numbered, formally stated, given a random-model justification
+  (rigorous bound + classical distribution theorem), and paired with a
+  falsification condition and a validation plan. A heuristic-conditional claim
+  is never presented as unconditional.
+- **Proof architecture**: results decompose into single-responsibility lemmas
+  (size bounds, runtime, correctness, success probability) with explicit
+  per-attempt-cost × inverse-success-probability bookkeeping.
+- **Structural ingredients**: hunt for external theorems, bounds, and
+  correspondences that convert a bottleneck step into a tractable one
+  (meet-in-the-middle splits, re-randomization with mixing-time justification,
+  reduction-network cascades into corollaries).
+- **Validation at scale**: every heuristic gets a pre-registered experimental
+  validation — distribution-level comparison against the theoretical
+  prediction, using correspondence tricks to reach cryptographically relevant
+  parameters where direct computation is infeasible.
+- **Cost and scope honesty**: every asymptotic claim carries memory beside
+  time, disclosure of what hides in o(1)/polylog cofactors, a concrete-cost
+  table at standardized parameter sets with optimistic assumptions flagged,
+  time–memory tradeoffs, and an explicit affected-vs-safe scope statement.
+
+Before any asymptotic-complexity claim transitions toward `supported`, the
+Coordinator verifies the promotion gates in `agents/coordinator.md`: archived
+proof decomposition, validated heuristics, concrete-cost table, and
+independent `review-xhigh` plus red-team pass. This profile biases direction
+and never lowers the evidence rules above.
+
 ## Required handoff envelope
 
 Every inter-agent task must include:

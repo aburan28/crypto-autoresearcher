@@ -46,6 +46,17 @@ research work. This file wires that contract into Claude Code.
    research artifacts. A theory, run package, review report, or ledger record
    is not official until the dispatcher's post-commit verifier accepts it.
 
+## Research direction
+
+Direction and taste are anchored by `docs/target-result-profile.md`, whose
+canonical exemplar is Wesolowski's p^{1/3+o(1)} supersingular-isogeny result
+(full text: `inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`): exponent-moving
+results on central hard problems, stated conditionally on explicit numbered
+heuristics, validated at cryptographic scale, and costed honestly. Idea
+Generator proposals and Coordinator prioritization decisions are evaluated
+against that profile; the profile is not a license to overclaim, so the
+evidence rules above apply unchanged.
+
 ## Conventions
 
 - IDs: `RQ-<AREA>-NNN`, `IDEA-YYYYMMDD-NNN`, `H-<AREA>-NNN`,
