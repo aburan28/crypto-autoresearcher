@@ -430,13 +430,13 @@ def main() -> int:
                 # Phi-invariant factor base — collect with phi-orbits for block-circulant structure
                 phi_rels, phi_hits, phi_attempts = _collect_relations(
                     inst, phi_fb, m, max(args.targets, B + 10),
-                    zeta3=z3, include_phi_orbits=True)
-                phi_alpha = _measure_displacement_rank(phi_rels, len(phi_fb), "phi", z3, p, n) if phi_rels else -1
+                    zeta3=zeta3, include_phi_orbits=True)
+                phi_alpha = _measure_displacement_rank(phi_rels, len(phi_fb), "phi", zeta3, p, n) if phi_rels else -1
 
                 # Random factor base — no phi-orbits
                 rand_rels, rand_hits, rand_attempts = _collect_relations(
                     inst, rand_fb, m, max(args.targets, B + 10))
-                rand_alpha = _measure_displacement_rank(rand_rels, len(rand_fb), "random", z3, p, n, seed=inst.seed) if rand_rels else -1
+                rand_alpha = _measure_displacement_rank(rand_rels, len(rand_fb), "random", zeta3, p, n, seed=inst.seed) if rand_rels else -1
 
                 # Check commutation M*Phi == Phi*M (simplified: check if phi-shift of a relation is also a relation)
                 commutation = True
