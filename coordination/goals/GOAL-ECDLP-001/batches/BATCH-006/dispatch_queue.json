@@ -171,12 +171,11 @@
       "id": "TASK-20260727-003",
       "title": "Snapshot archive: commit the EXP-IC-002 protocol and the reconciled BATCH-006 control plane",
       "role": "coordinator",
-      "state": "queued",
+      "state": "blocked",
       "priority": 100,
       "review_required": false,
       "depends_on": [
-        "TASK-20260727-001",
-        "TASK-20260727-002"
+        "TASK-20260727-001"
       ],
       "read_scope": [
         "experiments/EXP-IC-002/",
@@ -192,8 +191,7 @@
       "archive": {
         "kind": "snapshot",
         "source_task_ids": [
-          "TASK-20260727-001",
-          "TASK-20260727-002"
+          "TASK-20260727-001"
         ],
         "commit_sha": null,
         "parent_sha": null,
@@ -242,7 +240,8 @@
           "The post-commit verifier accepts reachability from HEAD, the expected parent, exactly the declared paths, the recorded hashes and the task and record IDs in the message."
         ],
         "return_format": "Coordinator snapshot archive receipt JSON."
-      }
+      },
+      "notes": "AMENDED 2026-07-27 by TASK-20260727-010. State moved queued -> blocked and the TASK-20260727-002 source claim moved to TASK-20260727-011. Reason, recorded rather than repaired: this task DID execute and produced commit 6e6fd28e5b6c3ae889053212dc8b13d44e5d2677 (parent 2bb6487ab759eab7a5174fce127166e0afffb452), which changed exactly the three source paths - but NOT its own snapshot_commit_receipt.json, which remains untracked in the worktree. Its declared artifact_paths therefore cannot be satisfied by that commit, and experiments/EXP-IC-002/specification.yaml is unchanged since it, so no later commit can 'change' the spec either. The claim cannot be discharged as declared and the task cannot be marked completed without fabricating a receipt the verifier would reject. It is blocked pending a Coordinator archive repair. The two mutable paths it also claimed - ledger/goals/GOAL-ECDLP-001.yaml and this queue - have been amended since 6e6fd28e, so their claim moves forward to TASK-20260727-011, which will commit their current content in one isolated snapshot. This is an evidence-integrity gap in the BATCH-006 provenance chain, not a mathematical result. See the integrity notes titled AMEND-2026-07-27-C (TASK-20260727-003 archive claim) and AMEND-2026-07-27-D (archive-receipt ordering defect)."
     },
     {
       "id": "TASK-20260727-004",
@@ -342,15 +341,18 @@
       "review_required": true,
       "depends_on": [
         "TASK-20260727-003",
-        "TASK-20260727-004"
+        "TASK-20260727-004",
+        "TASK-20260727-012"
       ],
       "read_scope": [
         "experiments/EXP-IC-002/specification.yaml",
+        "experiments/EXP-IC-002/amendments/",
         "experiments/EXP-IC-001/",
         "harness/",
         "docs/claims-and-verification.md",
         "docs/evidence-and-reproducibility.md",
-        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-004/"
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-004/",
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-012/"
       ],
       "write_scope": [
         "harness/ic_yield.py",
@@ -386,17 +388,19 @@
         "experiments/EXP-IC-002/runs/RUN-IC-002-CTRL-CALIB-001/environment.json"
       ],
       "handoff": {
-        "objective": "Implement harness/ic_yield.py exactly as EXP-IC-002 version 1 specifies and produce the four immutable run packages, recording observations only.",
+        "objective": "Implement harness/ic_yield.py exactly as EXP-IC-002 version 1 AS AMENDED by amendments/v1_to_v2.yaml specifies, and produce the four immutable run packages, recording observations only.",
         "uncertainty_reduced": "What the exact reachable set, the measured decomposition probability and the yield-charged crossover actually are on the 34 committed EXP-IC-001 instances.",
         "inputs": [
           "experiments/EXP-IC-002/specification.yaml at the TASK-20260727-003 commit",
-          "the PASS verdict from TASK-20260727-004",
+          "experiments/EXP-IC-002/amendments/v1_to_v2.yaml at the TASK-20260727-011 commit - the operative protocol is the specification AS AMENDED, and where the two disagree the amendment governs",
+          "the PASS verdict from TASK-20260727-012 on the amended contract (TASK-20260727-004 returned REVISE on version 1 and does not authorize execution)",
           "experiments/EXP-IC-001/runs/ (748 committed run records, read-only)",
           "harness/toycurve.py, harness/semaev.py, harness/runner.py"
         ],
         "constraints": [
-          "Start only if TASK-20260727-004 returned PASS. A REVISE or FAIL verdict blocks this task until a versioned protocol_amendment exists.",
-          "Follow the frozen protocol exactly. Any deviation requires a protocol_amendment record before the run, never after.",
+          "AMENDED 2026-07-27: TASK-20260727-004 returned REVISE, which blocked this task and required a versioned protocol_amendment. That amendment is experiments/EXP-IC-002/amendments/v1_to_v2.yaml (confirmatory_status exploratory_only). Start only if TASK-20260727-012 returned PASS on the AMENDED contract; a REVISE or FAIL from TASK-20260727-012 blocks this task again until a further versioned amendment exists.",
+          "Follow the amended protocol exactly: specification.yaml version 1 together with amendments/v1_to_v2.yaml, the amendment governing on any disagreement. Any further deviation requires a protocol_amendment record before the run, never after.",
+          "AMENDED 2026-07-27: SC1-SC4 are EXPLORATORY criteria under the amendment. Report their outcomes as observations; never report any of them as a satisfied confirmatory pre-registered criterion.",
           "Add only harness/ic_yield.py. Do not modify harness/semaev.py, toycurve.py, rho.py, fixed_curve_preprocessing.py or runner.py, and do not touch any experiments/EXP-IC-001 artifact.",
           "Read T_attempt, the factor base, the targets, the calibration factor, N and the rho baseline from the committed EXP-IC-001 run records; re-time nothing.",
           "Produce exactly four runs with the exact run IDs the specification lists; every run gets manifest.yaml, raw-result.json, stdout.log, stderr.log, command.txt and environment.json.",
@@ -404,7 +408,9 @@
           "Record observations only: tables, counts, control verdicts, certificates. Do not state whether DEC-20260726-005 survives and do not write analysis.md.",
           "A timeout, crash or missing dependency is an infrastructure outcome recorded as such; it is never evidence against the hypothesis.",
           "Record requested_policy executor-terra, the resolved model identifier and fallback_used in every manifest; never silently substitute a policy.",
-          "Stop and report if any invalidation rule fires, including a measured |S| above 420 or a CTRL-G disagreement with the committed EXP-IC-001 record."
+          "AMENDED 2026-07-27: stop and report if any invalidation rule fires, including a measured |S| above 392 (threshold tightened from 420 by amendment repair R5; 420 remains the loose derivation bound and is still reported). CTRL-G no longer halts on any disagreement: its expectation is the verified per-instance decomposition table (9, 9, 10, 1, 2, 2, 1 at bits/seed 8-1, 8-2, 8-3, 12-1, 12-2, 12-3, 16-3; 0 at the other 27 instances), and dispositions G-a/G-b/G-c/G-d in the amendment govern. Halt only under G-c (disagreement at more than 7 instances) or G-d (reuse-contract failure).",
+          "AMENDED 2026-07-27: add CTRL-E2 - the exhaustive discrete-log table and the S*T^2 = Theta~(N) frontier at S = T = N^(1/3) - computed in closed form per instance from committed numbers, folded into the primary arm, zero new runs. Report it as derivation, never as measurement, and state no inference from it. Compute the integer cube root of N exactly; the cross-check values in the amendment are not inputs.",
+          "AMENDED 2026-07-27: use the repaired metric definitions - p_dec_counting_bound = min(1, |S|/N) and t_desc_charged_lower_bound_gops = T_attempt_gops * max(1, N/|S|) - and report the uncapped and unfloored raw values plus the per-instance cap_bound and floor_bound booleans beside them."
         ],
         "deliverables": [
           "harness/ic_yield.py implementing the four arms",
@@ -708,7 +714,8 @@
       "depends_on": [
         "TASK-20260727-004",
         "TASK-20260727-007",
-        "TASK-20260727-008"
+        "TASK-20260727-008",
+        "TASK-20260727-012"
       ],
       "read_scope": [
         "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/",
@@ -737,7 +744,8 @@
         "source_task_ids": [
           "TASK-20260727-004",
           "TASK-20260727-007",
-          "TASK-20260727-008"
+          "TASK-20260727-008",
+          "TASK-20260727-012"
         ],
         "commit_sha": null,
         "parent_sha": null,
@@ -752,14 +760,17 @@
         ]
       },
       "handoff": {
-        "objective": "Commit the three independent BATCH-006 reviews, the Coordinator analysis, the scoped evidence record EV-IC-002, the decision DEC-20260727-001 and the BATCH-006 goal checkpoint as one isolated ledger archive, before any official transition.",
-        "uncertainty_reduced": "What the official, durable disposition of DEC-20260726-005 and H-IC-001 is after independent design review, validation and red team.",
+        "objective": "Commit the four independent BATCH-006 reviews, the Coordinator analysis, the scoped evidence record EV-IC-002, the decision DEC-20260727-001, the superseding corrections that the TASK-20260727-004 review made necessary, and the BATCH-006 goal checkpoint as one isolated ledger archive, before any official transition.",
+        "uncertainty_reduced": "What the official, durable disposition of DEC-20260726-005 and H-IC-001 is after independent design review, re-review of the amended contract, validation and red team.",
         "inputs": [
           "TASK-20260727-004 review_report.yaml and adversarial_notes.md",
+          "TASK-20260727-012 review_report.yaml and adversarial_notes.md (re-review of the amended contract)",
           "TASK-20260727-007 validation_report.yaml and integrity_checks.md",
           "TASK-20260727-008 red_team_report.yaml and objections.md",
+          "experiments/EXP-IC-002/amendments/v1_to_v2.yaml (confirmatory_status exploratory_only)",
           "the verified TASK-20260727-006 snapshot and the four run packages",
-          "templates/research-records.md schemas for evidence, decision and goal checkpoint"
+          "templates/research-records.md schemas for evidence, decision and goal checkpoint",
+          "ledger/corrections/CORR-20260724-001.yaml as the established form for a superseding correction record"
         ],
         "constraints": [
           "Run alone; stage only the declared paths plus the three sources' review artifacts.",
@@ -771,12 +782,17 @@
           "Do not edit ledger/goals/GOAL-ECDLP-001.yaml in this task: that path is owned by TASK-20260727-002 in this queue and the dispatcher permits exactly one owner per path. Write the batch checkpoint to goal_checkpoint.yaml in a form that can be appended verbatim to batch_checkpoints, and carry folding it into the living goal record as the single next action.",
           "Change H-IC-001's status only if the decision requires it, and only in this commit with the decision record that justifies it.",
           "Name TASK-20260727-009 and every record_id in the commit message and record full hashes after the commit.",
-          "State plainly if the evidence cannot discriminate between explanations: the decision is then inconclusive."
+          "State plainly if the evidence cannot discriminate between explanations: the decision is then inconclusive.",
+          "REQUIRED 2026-07-27 (carried here from TASK-20260727-010 and from RT-20260727-001 BO-1 and Q3/Q5): create a superseding correction record for the false zero-decomposition premise. The committed statement 'all Groebner solves on trivial ideals (no decompositions)' is FALSE as an absolute claim about the 748 EXP-IC-001 runs: 68 runs at 7 of the 34 instances decomposed with independently verified certificates (censused twice, by RT-20260727-001 and by the dispatching orchestrator). It is TRUE at field_bits >= 20, which covers every instance with N >= 1e9 and all four instances DEC-20260726-005 rests on. The false statement appears in ledger/evidence/EV-IC-001.yaml, ledger/decisions/DEC-20260726-005.yaml limitations and experiments/EXP-IC-001/analysis.md. Those records are immutable and committed: correct them by a NEW superseding record under ledger/corrections/, in the CORR-20260724-001 form, never by editing them in place. The same correction is due for experiments/EXP-IC-001/amendments/v2_to_v3.yaml confirmatory_status, which records 'preserved' for a criterion revised after the original was observed to fail; RT-20260727-001 Q5 adjudicates that as not defensible under docs/task-lifecycle.md section 5, and the defensible status is exploratory_only. Goal integrity note INT-BATCH006-003 carries the same false statement and is corrected in place in the living goal record, which is the one record that may be edited in place.",
+          "REQUIRED 2026-07-27: assign the superseding correction a new unused CORR-YYYYMMDD-NNN identifier (CORR-20260724-001 is the only existing one), and add its exact path to this task's artifact_paths and its ID to archive.record_ids by amendment BEFORE the commit. Do not reuse an identifier and do not commit an artifact this card does not declare.",
+          "REQUIRED 2026-07-27: EV-IC-002 and DEC-20260727-001 must state that EXP-IC-002 ran under a protocol amendment with confirmatory_status exploratory_only, so no SC1-SC4 outcome may be recorded as a satisfied confirmatory pre-registered criterion, and must record that falsifier F2 was declared unreachable at N >= 1e9 before execution.",
+          "REQUIRED 2026-07-27: this queue's own objective and batch_opening_decision rationale restate the same false premise. They are coordination history and are corrected by integrity note, not rewritten; cite the integrity note titled AMEND-2026-07-27-A rather than the objective text when quoting the batch premise."
         ],
         "deliverables": [
           "experiments/EXP-IC-002/analysis.md separating observation, comparison, inference and limitation",
           "ledger/evidence/EV-IC-002.yaml with claim_tier toy, proof_status and proof_refs",
           "ledger/decisions/DEC-20260727-001.yaml with rationale, evidence refs, limitations, next_actions and knowledge_promotion",
+          "a superseding correction record under ledger/corrections/ carrying the zero-decomposition premise correction and the EXP-IC-001 v2_to_v3 confirmatory_status correction, with its exact path added to artifact_paths by amendment before the commit",
           "goal_checkpoint.yaml, a complete BATCH-006 batch_checkpoints entry with a claim_boundary and exactly one next action",
           "ledger_commit_receipt.json"
         ],
@@ -799,13 +815,273 @@
           "maximum_runs": 1
         },
         "completion_gate": [
-          "All three review artifacts are committed and each records an independent non-originating session.",
+          "All four review artifact sets (TASK-20260727-004, -007, -008, -012) are committed and each records an independent non-originating session.",
           "The evidence record does not assert above claim_tier toy and its proof_status matches the strongest artifact actually archived.",
           "The decision names the exact tested scope and fills knowledge_promotion.",
+          "A superseding correction record for the zero-decomposition premise and the EXP-IC-001 v2_to_v3 confirmatory_status exists under ledger/corrections/, is declared in artifact_paths, and edits no immutable record in place.",
+          "The evidence and decision records state that EXP-IC-002 ran under an exploratory_only amendment and that F2 was declared unreachable at N >= 1e9 before execution.",
           "The goal checkpoint carries a claim_boundary and exactly one next action.",
           "The post-commit verifier accepts the archive; only then is the transition official."
         ],
         "return_format": "Coordinator ledger archive receipt JSON plus the immutable YAML records."
+      }
+    },
+    {
+      "id": "TASK-20260727-010",
+      "title": "Amend EXP-IC-002 to version 2: repair the five blocking objections from the TASK-20260727-004 REVISE verdict",
+      "role": "coordinator",
+      "state": "completed",
+      "priority": 100,
+      "review_required": true,
+      "depends_on": [
+        "TASK-20260727-004"
+      ],
+      "read_scope": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/",
+        "templates/",
+        "tools/research_dispatch.py",
+        "knowledge/literature/KN-LIT-013.md",
+        "knowledge/techniques/KN-TECH-005.md",
+        "experiments/EXP-IC-002/",
+        "experiments/EXP-IC-001/",
+        "ledger/",
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/"
+      ],
+      "write_scope": [
+        "experiments/EXP-IC-002/amendments/"
+      ],
+      "artifact_paths": [
+        "experiments/EXP-IC-002/amendments/v1_to_v2.yaml"
+      ],
+      "handoff": {
+        "objective": "Issue exactly one versioned protocol_amendment taking EXP-IC-002 from version 1 to version 2, with confirmatory_status exploratory_only, implementing the five blocking repairs RT-20260727-001 requires, so that the protocol can be re-reviewed and then executed without halting on a false premise.",
+        "uncertainty_reduced": "Whether the EXP-IC-002 contract can be made executable and interpretable at all, given that its motivating premise is false against its own committed inputs and that, executed as frozen, CTRL-G plus stopping rule 4 halt the primary arm at instance 1 of 34 and produce no result.",
+        "inputs": [
+          "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-004/review_report.yaml (RT-20260727-001, verdict REVISE)",
+          "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-004/adversarial_notes.md",
+          "experiments/EXP-IC-002/specification.yaml version 1 at commit 6e6fd28e",
+          "the twice-read decomposition census over the 748 experiments/EXP-IC-001/runs/*/raw-result.json files (RT-20260727-001 and the dispatching orchestrator, in agreement)",
+          "experiments/EXP-IC-001/analysis.md 36-bit table, and amendments/v1_to_v2.yaml and v2_to_v3.yaml",
+          "docs/task-lifecycle.md section 5 and its protocol_amendment schema",
+          "knowledge/literature/KN-LIT-013.md and knowledge/techniques/KN-TECH-005.md for the S*T^2 = Omega~(N) preprocessing frontier"
+        ],
+        "constraints": [
+          "Design only. Implement nothing, execute nothing, time nothing, commit nothing.",
+          "Preserve experiments/EXP-IC-002/specification.yaml version 1 byte-for-byte. Amendments supersede; they never overwrite.",
+          "confirmatory_status must be exploratory_only, not preserved: the revision follows an adverse review and rewrites CTRL-G's expectation and SC2's second clause from observations that already exist in this experiment's own committed input set. docs/task-lifecycle.md section 5 governs.",
+          "Implement the five blocking repairs and no more, plus zero-cost reporting repairs that only prevent a number being reported as something it is not. List every declined objection with its reason and its carrier.",
+          "Edit no experiments/EXP-IC-001/ artifact: those records are immutable and committed. Carry the EV-IC-001, DEC-20260726-005, analysis.md and v2_to_v3 corrections to TASK-20260727-009 as superseding-record requirements.",
+          "Change no hypothesis status. Create no evidence record and no decision record.",
+          "Fabricate no run, timing, hash or verdict. This session has no shell and no Git access: every commit identifier and path hash stays null.",
+          "Where two prior readings of a committed number disagree, record the disagreement and make the Executor recompute it exactly; do not adjudicate it in the design record."
+        ],
+        "deliverables": [
+          "experiments/EXP-IC-002/amendments/v1_to_v2.yaml, confirmatory_status exploratory_only, implementing repairs R1 through R5",
+          "the extended BATCH-006 dispatch queue with TASK-20260727-010, -011 and -012 and the TASK-20260727-005 execution gate rewired (written under the TASK-20260727-002 path ownership; see the integrity note titled AMEND-2026-07-27-F)",
+          "the authorized batch task-budget extension recorded in ledger/goals/GOAL-ECDLP-001.yaml with exactly one next_action (same path ownership)"
+        ],
+        "artifact_paths": [
+          "experiments/EXP-IC-002/amendments/v1_to_v2.yaml"
+        ],
+        "archived_by": "TASK-20260727-011",
+        "inference": {
+          "policy": "coordinator-ultra-code",
+          "fallback_allowed": true,
+          "independent_session_required": false,
+          "fallback_disclosure_required": true,
+          "equivalence_to_requested_policy_claimed": false,
+          "authorization_ref": "Explicit user direction on 2026-07-27: amend EXP-IC-002, re-review non-originating, then execute"
+        },
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 4,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "amendments/v1_to_v2.yaml exists with confirmatory_status exploratory_only and a stated justification citing docs/task-lifecycle.md section 5.",
+          "R1 replaces the false zero-decomposition premise with the verified per-instance table and rewrites CTRL-G and stopping rule 4 so a legitimate 8-16 bit decomposition does not halt the primary arm.",
+          "R2 records F2 as unreachable at N >= 1e9 with its reason and its one residual route, and gives the disposition that separates a genuine F2 from an instrumentation defect.",
+          "R3 caps p_dec_counting_bound at 1 and floors t_desc_charged_lower_bound at T_attempt, names the instances that can be affected, and states that the repair is adverse to SC4 without relaxing SC4's thresholds.",
+          "R4 adds CTRL-E2 with both multi-target baselines in closed form, zero runs, with its honest caveats and with no success or falsification criterion attached to it.",
+          "R5 sets the |S| invalidation threshold to 392, retains 420 as the loose bound, and records min(392, #E - 1) as the binding constraint.",
+          "specification.yaml version 1 is unchanged, no immutable record is edited, and no hypothesis status, evidence record or decision record is created or changed."
+        ],
+        "return_format": "One versioned protocol_amendment YAML plus a statement of every declined objection with its reason."
+      },
+      "notes": "Executed by the BATCH-006 Coordinator session on 2026-07-27 under explicit user direction. The artifact exists in the worktree and is not durable until TASK-20260727-011 commits it and the dispatcher verifies the receipt. This session had no shell and no Git access and ran no validator; the dispatch-queue validation status recorded by it is a hand simulation of tools/research_dispatch.py, not an execution of it."
+    },
+    {
+      "id": "TASK-20260727-011",
+      "title": "Snapshot archive: commit the EXP-IC-002 v1-to-v2 amendment and the amended BATCH-006 control plane",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 100,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260727-002",
+        "TASK-20260727-010"
+      ],
+      "read_scope": [
+        "experiments/EXP-IC-002/amendments/",
+        "ledger/goals/",
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/dispatch_queue.json",
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-004/"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/archives/TASK-20260727-011/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/archives/TASK-20260727-011/snapshot_commit_receipt.json"
+      ],
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": [
+          "TASK-20260727-002",
+          "TASK-20260727-010"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": [
+          "EXP-IC-002",
+          "H-IC-001",
+          "GOAL-ECDLP-001",
+          "BATCH-006"
+        ]
+      },
+      "handoff": {
+        "objective": "Commit exactly the EXP-IC-002 v1-to-v2 protocol amendment, the amended living goal record and the amended BATCH-006 dispatch queue as one isolated snapshot, so the non-originating re-reviewer receives a hash-bound amended contract.",
+        "uncertainty_reduced": "Whether the amended protocol and the amended control plane are durable and immutable before any independent re-review reads them, and before any execution is authorized.",
+        "inputs": [
+          "experiments/EXP-IC-002/amendments/v1_to_v2.yaml",
+          "ledger/goals/GOAL-ECDLP-001.yaml",
+          "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/dispatch_queue.json"
+        ],
+        "constraints": [
+          "Run alone; no other task may hold the index or HEAD.",
+          "Stage only the three declared source paths plus this receipt. Preserve every unrelated dirty file in the worktree untouched.",
+          "Do NOT stage the TASK-20260727-004 review reports. They are owned by TASK-20260727-004 and claimed by the TASK-20260727-009 ledger archive, because tools/research_dispatch.py requires every independent review of a claim-relevant producer to be archived by one ledger task. Staging them here would make both this archive and TASK-20260727-009 unverifiable.",
+          "Do NOT stage experiments/EXP-IC-002/specification.yaml. It is unchanged since commit 6e6fd28e and is claimed by TASK-20260727-003.",
+          "Name TASK-20260727-011 and every record_id in the commit message.",
+          "Record full 40-hex commit_sha and parent_sha and a SHA-256 for every committed path after the commit, never before.",
+          "Known and unresolved, inherited from TASK-20260727-003 and recorded rather than worked around: the receipt is itself a declared artifact_path, so the post-commit verifier expects the commit to contain it, while the receipt's own fields can only be written after the commit. Resolve it by amending the same commit to include the completed receipt, or report the gap; do not fabricate hashes and do not mark this task completed while the verifier would reject it.",
+          "Stop on any integrity failure and report it as an evidence-integrity failure, not a result."
+        ],
+        "deliverables": [
+          "snapshot_commit_receipt.json with commit, parent, the declared paths and a per-path SHA-256"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/archives/TASK-20260727-011/snapshot_commit_receipt.json"
+        ],
+        "archived_by": "TASK-20260727-011",
+        "inference": {
+          "policy": "coordinator-ultra-code",
+          "fallback_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 300,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "The post-commit verifier accepts reachability from HEAD, the expected parent, exactly the declared paths, the recorded hashes and the task and record IDs in the message."
+        ],
+        "return_format": "Coordinator snapshot archive receipt JSON."
+      }
+    },
+    {
+      "id": "TASK-20260727-012",
+      "title": "Independent re-review of the amended EXP-IC-002 contract (non-originating session, not the TASK-20260727-004 session)",
+      "role": "reviewer",
+      "state": "queued",
+      "priority": 100,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260727-010",
+        "TASK-20260727-011"
+      ],
+      "read_scope": [
+        "experiments/EXP-IC-002/",
+        "experiments/EXP-IC-001/",
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/",
+        "ledger/",
+        "knowledge/",
+        "AGENTS.md",
+        "docs/",
+        "templates/",
+        "harness/",
+        "tools/research_dispatch.py"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-012/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-012/review_report.yaml",
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-012/adversarial_notes.md"
+      ],
+      "handoff": {
+        "objective": "Decide whether experiments/EXP-IC-002/specification.yaml version 1 AS AMENDED by amendments/v1_to_v2.yaml may be executed: whether the five blocking repairs actually repair what they claim, whether the amendment introduces new defects, and whether the amended contract can still produce a result that legitimately bears on DEC-20260726-005.",
+        "uncertainty_reduced": "Whether execution of TASK-20260727-005 is authorized, or whether the amended contract still cannot decide anything it is dispatched to decide.",
+        "inputs": [
+          "the verified TASK-20260727-011 snapshot receipt",
+          "experiments/EXP-IC-002/amendments/v1_to_v2.yaml at that commit",
+          "experiments/EXP-IC-002/specification.yaml version 1 at commit 6e6fd28e (unchanged)",
+          "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-004/ (RT-20260727-001, verdict REVISE) - read as context, and note that it is not committed by TASK-20260727-011",
+          "experiments/EXP-IC-001/runs/ (748 committed run records, read-only)",
+          "harness/semaev.py::_find_decomposition and s3_eval, harness/toycurve.py",
+          "docs/task-lifecycle.md section 5, AGENTS.md, knowledge/literature/KN-LIT-013.md, knowledge/techniques/KN-TECH-005.md"
+        ],
+        "constraints": [
+          "Use a non-originating independent session. You must NOT have produced experiments/EXP-IC-002/specification.yaml, amendments/v1_to_v2.yaml, the BATCH-006 dispatch queue or the goal reconciliation, AND you must NOT be the session that produced the TASK-20260727-004 review reports. Attest to both.",
+          "Validate the TASK-20260727-011 snapshot receipt against Git before interpreting anything, and say so if the receipt is missing, dirty or unverifiable.",
+          "RE-DERIVE the decomposition census yourself from the committed experiments/EXP-IC-001/runs/*/raw-result.json files. Do not trust the table in the amendment and do not trust the TASK-20260727-004 report, which is uncommitted at this point. Report your own counts by metrics.mode, metrics.field_bits and certificate.kind, and report any disagreement with either prior reading.",
+          "Check repair R1: does the rewritten CTRL-G expectation plus dispositions G-a to G-d actually prevent a halt at the first 8-bit instance while still catching a systematic reuse-contract failure? Is the more-than-7-instance halt threshold defensible or arbitrary?",
+          "Check repair R2: is F2 genuinely unreachable at N >= 1e9, and is the s3_eval residual route correctly identified and correctly signed? Adjudicate whether declining CTRL-I (the filter-completeness control, declined item D1, cost near zero) is acceptable given that heuristic H3 is the sole support for the unreachability declaration. If you judge it unacceptable, say so as a blocking objection with that single named repair.",
+          "Check repair R3: are min(1, |S|/N) and T_attempt * max(1, N/|S|) the right repairs, is the list of instances that can be affected right, and does the floor's effect on the SC4 Spearman get honestly disclosed rather than compensated for by a threshold change?",
+          "Check repair R4: is CTRL-E2 correctly constructed, are both baselines legitimate for a fixed-curve K-target amortization claim, and is the honest caveat about the Corrigan-Gibbs and Kogan unbounded offline phase sufficient? Recompute the integer cube root of N at the four headline instances and adjudicate the recorded 3232 versus 3240 disagreement.",
+          "Check repair R5: is 4*C(14,2) + 2*14 = 392 the tight maximum, and is min(392, #E - 1) the correct second binding constraint at 8-bit?",
+          "Challenge confirmatory_status exploratory_only in both directions: is it too weak (should the amendment reset with a fresh pre-registered criterion set?) or is it theatre (does labelling it exploratory change anything downstream)?",
+          "Challenge the SC1 disposition rule added by the amendment: is it a legitimate pre-registered disposition, or a relaxation of a success criterion dressed as one?",
+          "State plainly whether the amended experiment still has any reachable falsifier at the four instances DEC-20260726-005 rests on, and whether it is worth four run arms given that CTRL-E2 settles the cryptanalytic content in closed form with zero runs.",
+          "Confirm the claim tier stays toy and that no asymptotic-complexity claim is smuggled in by the amendment.",
+          "Authorize no execution beyond a PASS verdict. Propose no new experiment. Change no status and edit no artifact under review.",
+          "Record requested_policy review-xhigh, the resolved model, whether fallback was used, and state explicitly that equivalence to review-xhigh is not claimed if it was."
+        ],
+        "deliverables": [
+          "review_report.yaml with a terminal verdict PASS, REVISE or FAIL and exactly one recommended action",
+          "adversarial_notes.md reconstructing the strongest case that the amended contract still cannot decide anything, and the strongest case that the amendment itself introduces a new defect"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-012/review_report.yaml",
+          "coordination/goals/GOAL-ECDLP-001/batches/BATCH-006/reviews/TASK-20260727-012/adversarial_notes.md"
+        ],
+        "archived_by": "TASK-20260727-009",
+        "inference": {
+          "policy": "review-xhigh",
+          "fallback_allowed": true,
+          "independent_session_required": true,
+          "reviewer_must_not_be_originating_agent": true,
+          "reviewer_must_not_be_the_task_004_session": true,
+          "fallback_disclosure_required": true,
+          "equivalence_to_requested_policy_claimed": false
+        },
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 4,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "Both reports bind the verified TASK-20260727-011 snapshot commit and the exact reviewed inputs.",
+          "The decomposition census is independently re-derived from the committed run records, with any disagreement against the amendment reported.",
+          "Each of the five repairs R1 to R5 receives an explicit verdict, and the declined items D1 to D7 are adjudicated.",
+          "The verdict is PASS, REVISE or FAIL with explicit non-breakthrough boundaries and exactly one recommended action.",
+          "The report states whether the amended experiment has a reachable falsifier at the four headline instances.",
+          "The session attests that it originated none of the reviewed artifacts and is not the TASK-20260727-004 session, and records its resolved model without claiming policy equivalence it cannot support."
+        ],
+        "return_format": "Independent YAML verdict plus a Markdown adversarial reconstruction."
       }
     }
   ],
@@ -889,6 +1165,37 @@
     "experiments/EXP-IC-001/amendments/v2_to_v3.yaml revises the success criterion after the original was observed to fail, and records confirmatory_status preserved. Under docs/task-lifecycle.md section 5 an outcome-driven revision cannot be evaluated against the original confirmatory criterion; exploratory_only or reset would be the defensible status. TASK-20260727-008 is tasked with adjudicating this; it is not settled here.",
     "Coordinator arithmetic observation, to be independently checked by TASK-20260727-004 and TASK-20260727-008 and settled by neither this queue nor its author: K* is finite exactly when sqrt(N) > T_desc_gops + T_verify with T_verify = 2 group operations, while the EXP-IC-001 v3 criterion conditions on instances with sqrt(N) > T_desc_gops. The criterion can then fail only inside a 2-group-operation window out of roughly 32,000, so the reported 4/4 may be an arithmetic consequence of the conditioning rather than a measurement. If confirmed, this compounds the zero-decomposition confound rather than replacing it.",
     "EV-IC-001, EV-STR-002 and EV-GGM-001 all carry run_ids: [] while citing 748, 22 and 9 runs respectively. AGENTS.md rule 10 requires every conclusion to cite the run artifacts supporting it; the run identifiers exist in experiments/*/runs/ but are not bound in the evidence records. EV-IC-002 must not repeat this: TASK-20260727-009 fills run_ids with the four exact EXP-IC-002 run identifiers.",
-    "The BATCH-004 archive receipts committed in this tree carry commit_sha null, parent_sha null and, for the ledger receipt, no path_sha256 at all. The BATCH-004 archive chain is therefore not verifiable from the repository either, which extends the BATCH-005 provenance gap one batch further back."
-  ]
+    "The BATCH-004 archive receipts committed in this tree carry commit_sha null, parent_sha null and, for the ledger receipt, no path_sha256 at all. The BATCH-004 archive chain is therefore not verifiable from the repository either, which extends the BATCH-005 provenance gap one batch further back.",
+    "AMEND-2026-07-27-A: THE BATCH PREMISE ABOVE IS FALSE AS WRITTEN. This queue's objective and batch_opening_decision.rationale item 1 assert that 'every Groebner solve in the 748 EXP-IC-001 runs ran on a trivial ideal and no decomposition ever occurred'. A census of all 748 experiments/EXP-IC-001/runs/*/raw-result.json files, read independently twice and in agreement (TASK-20260727-004 / RT-20260727-001, and the dispatching orchestrator), shows 68 runs with decomposition_found true, is_trivial_ideal false and an independently verified certificate of kind decomposition; certificate census {none: 646, decomposition: 68, discrete_log: 34}; 612 trivial ideals. By field_bits: 8-bit 56 of 60 runs decomposed, 12-bit 10 of 60, 16-bit 2 of 60, and 0 at 20, 24, 28, 32 and 36 bits (0 of 500 runs) and 0 across the 68 runs with no field_bits. Fixed-mode per instance: 9, 9, 10, 1, 2, 2, 1 at (bits, seed) = (8,1), (8,2), (8,3), (12,1), (12,2), (12,3), (16,3); 0 at the other 27 instances. The statement is TRUE at field_bits >= 20, which contains every instance with N >= 1e9 and all four instances DEC-20260726-005 rests on, so the confound survives across the entire decision-bearing regime; only the absolute framing is false. This queue's objective is coordination history and is corrected here, not rewritten. The same false statement in ledger/evidence/EV-IC-001.yaml, ledger/decisions/DEC-20260726-005.yaml and experiments/EXP-IC-001/analysis.md is immutable and is corrected by a superseding record at TASK-20260727-009; in ledger/goals/GOAL-ECDLP-001.yaml integrity note INT-BATCH006-003 it is corrected in place, that being the one record that may be edited in place.",
+    "AMEND-2026-07-27-B: TASK-20260727-004 returned REVISE, not PASS, with five blocking objections. The most serious is not an interpretation defect but an execution defect: with CTRL-G's expectation stated as '0 decompositions across all 748 runs' and stopping rule 4 requiring an immediate halt on any CTRL-G disagreement, the frozen version-1 protocol halts the primary arm at instance 1 of 34 and produces no primary result. experiments/EXP-IC-002/amendments/v1_to_v2.yaml (confirmatory_status exploratory_only) repairs all five. Execution of TASK-20260727-005 is now gated on a PASS from TASK-20260727-012 against the amended contract, not on TASK-20260727-004.",
+    "AMEND-2026-07-27-C: TASK-20260727-003 moved from queued to blocked and its TASK-20260727-002 source claim moved to TASK-20260727-011. The task did execute and produced commit 6e6fd28e5b6c3ae889053212dc8b13d44e5d2677 (parent 2bb6487ab759eab7a5174fce127166e0afffb452), changing exactly experiments/EXP-IC-002/specification.yaml, ledger/goals/GOAL-ECDLP-001.yaml and this queue - but not its own snapshot_commit_receipt.json, which remains untracked. It therefore cannot be marked completed: the verifier would find its declared receipt path missing from the commit. It also cannot be discharged by a later commit, because specification.yaml has not changed since. It is blocked pending a Coordinator archive repair. This is an evidence-integrity gap, not a mathematical result, and it is of the same family as the BATCH-004 and BATCH-005 gaps already recorded above.",
+    "AMEND-2026-07-27-D: STRUCTURAL DEFECT IN THE ARCHIVE CONTRACT, recorded and not worked around. Every archive task in this queue declares its own receipt in artifact_paths, so tools/research_dispatch.py's GitRepositoryVerifier expects the commit to contain the receipt, while the task's own constraints require the receipt's commit_sha, parent_sha and path_sha256 to be written only AFTER the commit. No single commit satisfies both without amending itself. This is why the TASK-20260727-003 receipt is untracked, and TASK-20260727-006, -009 and -011 inherit the same defect. Resolving it is a repository-level fix, not a research result, and no task in this batch may fabricate a hash to route around it.",
+    "AMEND-2026-07-27-E: TASK-20260727-011 does NOT commit the TASK-20260727-004 review reports, despite that being the natural reading of 'snapshot the reports before the next review'. tools/research_dispatch.py::_validate_review_chains requires every independent review of a claim-relevant producer to be assigned to exactly one LEDGER archive; TASK-20260727-004 is the review of TASK-20260727-001 and is therefore claimed by TASK-20260727-009. Re-assigning it to the TASK-20260727-011 snapshot fails validation ('claim-relevant producer TASK-20260727-001 requires a ledger archive after review'), and declaring its paths on TASK-20260727-011 fails the one-owner-per-artifact-path rule. Consequence, stated rather than hidden: TASK-20260727-012 re-reviews the amended contract while the TASK-20260727-004 reports are still uncommitted. It is mitigated by requiring TASK-20260727-012 to re-derive the decomposition census itself from the committed EXP-IC-001 run records rather than trusting either the amendment or the uncommitted report - which is stronger evidence than the report would have been.",
+    "AMEND-2026-07-27-F: ledger/goals/GOAL-ECDLP-001.yaml and this dispatch_queue.json are the two mutable records of this batch and are owned, for dispatcher purposes, by TASK-20260727-002, because the validator permits exactly one owner per exact path. The 2026-07-27 amendments to both were authored by the Coordinator session executing TASK-20260727-010; they are recorded under TASK-20260727-002's ownership and their archival claim now sits with TASK-20260727-011. No new task card claims either path. This follows the precedent already recorded above for TASK-20260727-009's separate goal_checkpoint.yaml.",
+    "AMEND-2026-07-27-G: BATCH-006 task budget extended from 12300 s across nine cards to 16200 s across twelve cards (TASK-20260727-010 1800 s, TASK-20260727-011 300 s, TASK-20260727-012 1800 s). Authorization: explicit user direction on 2026-07-27 to amend EXP-IC-002, re-review in a non-originating session, then execute. campaign_budget.maximum_batches = 6 is not breached: this remains BATCH-006 and no new batch is opened. campaign_budget.total_wall_clock_seconds = 28800 remains UNTRACKED - no batch checkpoint records consumed wall clock - so whether the extension fits the campaign budget is unevaluable from the ledger and is not claimed to be satisfied. Recorded in ledger/goals/GOAL-ECDLP-001.yaml as an authorized budget amendment.",
+    "AMEND-2026-07-27-H: the amendment declines three cheap controls RT-20260727-001 listed as required - CTRL-I (s3_eval filter completeness), CTRL-A2 (membership test at every N) and the |S| null-model comparison - with reasons recorded in amendments/v1_to_v2.yaml declined_objections D1, D2 and D4. D1 is the load-bearing decline: heuristic H3 (s3_eval completeness) is the sole support for the amendment's declaration that falsifier F2 is unreachable at N >= 1e9, and CTRL-I costs roughly 420 point additions on one 8-bit instance. TASK-20260727-012 is explicitly directed to adjudicate it and may return REVISE naming it as the single repair."
+  ],
+  "amendment_record": {
+    "id": "QUEUE-AMEND-20260727-001",
+    "amended_by_task": "TASK-20260727-010",
+    "amended_at": "2026-07-27",
+    "authorization": "Explicit user direction on 2026-07-27: amend EXP-IC-002 following the TASK-20260727-004 REVISE verdict, re-review in a non-originating session, then execute.",
+    "principle": "Append-only. No task card was deleted and no handoff was rewritten. Existing cards were edited only where a stale field would have instructed behaviour the amendment forbids, or where the dispatcher's own review-chain and archive-assignment rules forced a rewiring. Every such edit is listed here.",
+    "tasks_added": [
+      "TASK-20260727-010 (coordinator, review_required true): the EXP-IC-002 v1-to-v2 protocol amendment. Archived by TASK-20260727-011.",
+      "TASK-20260727-011 (coordinator, archive kind snapshot, runs alone): commits the amendment, the amended goal record and the amended queue.",
+      "TASK-20260727-012 (reviewer, independent, non-originating, and explicitly not the TASK-20260727-004 session): re-reviews the amended contract. Archived by TASK-20260727-009."
+    ],
+    "existing_cards_edited": [
+      "TASK-20260727-003: state queued -> blocked; TASK-20260727-002 removed from depends_on and archive.source_task_ids; notes added. Reason in integrity note AMEND-2026-07-27-C. Its handoff is untouched historical record of what was dispatched.",
+      "TASK-20260727-005: TASK-20260727-012 added to depends_on (directed); amendments/ and reviews/TASK-20260727-012/ added to read_scope; the stale 'Start only if TASK-20260727-004 returned PASS' gate replaced, since TASK-20260727-004 returned REVISE and the unedited gate would block execution permanently; the |S| > 420 and CTRL-G halt constraints replaced with the amended 392 threshold and the G-a to G-d dispositions; the amendment added to inputs.",
+      "TASK-20260727-009: TASK-20260727-012 added to depends_on and archive.source_task_ids, as tools/research_dispatch.py requires the ledger archive to claim and directly depend on every independent review; superseding-record requirements, deliverable and completion gates added for the false zero-decomposition premise and the EXP-IC-001 v2_to_v3 confirmatory_status."
+    ],
+    "not_edited_deliberately": [
+      "queue.objective and batch_opening_decision: they restate the false premise and are coordination history. Corrected by integrity note AMEND-2026-07-27-A, not rewritten.",
+      "TASK-20260727-001, -002, -004, -006, -007, -008 handoffs: unchanged.",
+      "max_concurrent stays 2."
+    ],
+    "validation_status": "Expected to pass tools/research_dispatch.py with exit 0. NOT EXECUTED by the amending session, which had no shell access; the claim is a hand simulation of validate_queue and select against the code at this commit, and the orchestrator must run the validator before dispatching."
+  }
 }
