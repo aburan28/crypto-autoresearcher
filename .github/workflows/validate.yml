@@ -32,12 +32,16 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.base_ref }}"
-            git worktree add /tmp/validate-base "$BASE_REF"
+            BASE_WORKTREE="/tmp/validate-base-ledger"
+            git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true
+            trap 'git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true' EXIT
+            git worktree add "$BASE_WORKTREE" "$BASE_REF"
             python3 tools/validate_ledger.py > /tmp/validate_head.out 2>&1 || true
             (
-              cd /tmp/validate-base
+              cd "$BASE_WORKTREE"
               python3 tools/validate_ledger.py > /tmp/validate_base.out 2>&1 || true
             )
+            # validate_ledger.py emits one error per bullet line prefixed by "  - ".
             grep '^  - ' /tmp/validate_head.out | sort -u > /tmp/validate_head.errs || true
             grep '^  - ' /tmp/validate_base.out | sort -u > /tmp/validate_base.errs || true
             comm -23 /tmp/validate_head.errs /tmp/validate_base.errs > /tmp/validate_new.errs || true
@@ -58,11 +62,16 @@ jobs:
       - name: Check knowledge index is current
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+            BASE_WORKTREE="/tmp/validate-base-knowledge"
+            git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true
+            trap 'git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true' EXIT
+            git worktree add "$BASE_WORKTREE" "$BASE_REF"
             HEAD_STATUS=0
             python3 tools/build_knowledge_index.py --check > /tmp/knowledge_head.out 2>&1 || HEAD_STATUS=$?
             BASE_STATUS=0
             (
-              cd /tmp/validate-base
+              cd "$BASE_WORKTREE"
               python3 tools/build_knowledge_index.py --check > /tmp/knowledge_base.out 2>&1
             ) || BASE_STATUS=$?
             if [ "$BASE_STATUS" -eq 0 ] && [ "$HEAD_STATUS" -ne 0 ]; then
