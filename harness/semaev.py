@@ -91,7 +91,8 @@ class DecompositionMeasurement:
 
 def measure_s3_decomposition(inst: ECDLPInstance, factor_base_size: int,
                              target: Point | None = None,
-                             seed: int = 0) -> DecompositionMeasurement:
+                             seed: int = 0,
+                             factor_base: list[int] | None = None) -> DecompositionMeasurement:
     """Measure the S_3 (length-2) decomposition test for a target point.
 
     Builds the ideal <S3(x1,x2,xR), fV(x1), fV(x2)> over F_p where fV forces
@@ -106,7 +107,12 @@ def measure_s3_decomposition(inst: ECDLPInstance, factor_base_size: int,
         raise ValueError("target point must be affine")
     xR = R[0]
 
-    V = build_factor_base(inst, factor_base_size, seed)
+    if factor_base is None:
+        V = build_factor_base(inst, factor_base_size, seed)
+    else:
+        V = list(factor_base)
+        if factor_base_size is None or factor_base_size <= 0:
+            factor_base_size = len(V)
     fV1 = sympy.prod([(x1 - v) for v in V])
     fV2 = sympy.prod([(x2 - v) for v in V])
     system = [s3_expr(a, b).subs(x3, xR), fV1, fV2]
