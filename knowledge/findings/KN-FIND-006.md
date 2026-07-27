@@ -1,15 +1,24 @@
 ---
 id: KN-FIND-006
-type: finding
+type: internal_finding
 title: >-
   The Semaev/Weil-descent Macaulay rank deficit is bounded structural syzygy
-  content equal to 8*dim(V), not growing content: the generic baseline is exactly
-  the classical trivial syzygies and the excess is a vanishing fraction
+  content equal to 8*dim(V); the generic degree-4 baseline is exactly the
+  classical trivial syzygies and the excess is a vanishing fraction
 tags: [semaev, weil-descent, groebner, degree-of-regularity, syzygy, betti, rank-deficit, semi-regular, binary-field, ecdlp, bounded, negative-result]
 confidence: reported
-status: established
-source_refs: [EXP-DREG-001, KN-OPEN-002, KN-TECH-002, KN-TECH-004, KN-LIT-005, KN-LIT-010]
-added: 2026-07-26
+internal_refs: [EV-DREG-001]
+proof_status: empirical_only
+proof_refs:
+  - experiments/EXP-DREG-001/analysis.md
+  - experiments/EXP-DREG-001/DREG_DEFICIT_CLOSED_FORM.md
+  - experiments/EXP-DREG-001/characterization/README.md
+  - experiments/EXP-DREG-001/characterization/deficit_by_degree.py
+  - experiments/EXP-DREG-001/characterization/syzygy_degree3.py
+  - experiments/EXP-DREG-001/characterization/syzygy_degree4.py
+  - experiments/EXP-DREG-001/characterization/alpha_action_test.py
+claim_tier: toy
+added: 2026-07-27
 superseded_by: null
 ---
 
@@ -41,8 +50,7 @@ extra non-Koszul syzygies):
 While the system grows ~5x (pred 29,418 -> 145,881), the deficit stays in a narrow
 band and its *relative* size decays 4.49% -> 1.37%. The extra syzygies are a
 vanishing fraction of the system, so they supply **no asymptotic leverage** against
-ECDLP. This is the same shape as the bounded-constant verdicts in
-[KN-FIND-007](KN-FIND-007.md) and [KN-FIND-008](KN-FIND-008.md).
+ECDLP.
 
 ## Scope and limitations
 
