@@ -1,0 +1,60 @@
+# Batch 063 digest
+
+## Overview
+- Dominated by early-2000s public-key cryptography papers (mostly LNCS-style, 13–19 pages): Diffie–Hellman hardness variants, pairings/ID-based schemes, signcryption, PKI certificate revocation, and mix-nets/voting.
+- A strong stream-cipher cryptanalysis cluster: algebraic attacks (summation generators, SOBER, fast algebraic attacks, S-boxes, E0/Bluetooth), correlation attacks, and Boolean function theory (bent, resilient, rotation-symmetric).
+- Elliptic-curve content is thin: only King's GF(2^n) point compression and Akishita–Takagi's isogeny countermeasure analysis against ZVP/Goubin side-channel attacks, plus one hardware DPA countermeasure paper (asynchronous circuits).
+- Thirteen files are Springer LNCS proceedings volumes whose extract is only the series cover page (no paper title); two have identifiable titles (LNCS 149 Cryptography 1982 workshop, LNCS 209 EUROCRYPT'84).
+- Four files (29470229, 29470246, 29470303, 30170094) are garbled/mojibake extracts that cannot be summarized.
+
+## Papers
+- **29470143.pdf** — New Security Results on Encrypted Key Exchange (Bresson, Chevassut, Pointcheval). First security proof for the AuthA password-based key exchange with hash-mask instantiation, in the random-oracle model under CDH.
+- **29470157.pdf** — New Results on the Hardness of Diffie-Hellman Bits (González Vasco, Näslund, Shparlinski). Extends Boneh–Venkatesan bit-security results, excluding any non-negligible prediction advantage for larger bit fractions of the DH secret.
+- **29470171.pdf** — Short Exponent Diffie-Hellman Problems (Koshiba, Kurosawa). Shows decisional short-exponent DH is as hard as DDH and short-exponent DL, enabling efficiency gains for ElGamal and Cramer–Shoup.
+- **29470185.pdf** — Efficient Signcryption with Key Privacy from Gap Diffie-Hellman Groups (Libert, Quisquater). Builds a signcryption scheme from BLS short signatures with strong unforgeability tightly tied to the Gap-DH assumption.
+- **29470199.pdf** — Algebraic Attacks over GF(2^k), Application to HFE Challenge 2 and Sflash-v2 (Courtois). Studies XL over extension fields, explaining extra-root failures, and applies algebraic attacks to HFE Challenge 2 and Sflash-v2.
+- **29470216.pdf** — Secret Exponent Attacks on RSA-type Schemes with Moduli N = p^r q (May). Coppersmith-based small-secret-exponent and partial-key-exposure attacks showing multi-power RSA moduli are more fragile than standard RSA.
+- **29470229.pdf** — Garbled extract: text is undecodable mojibake; title and content cannot be determined.
+- **29470246.pdf** — Garbled extract: text is undecodable mojibake; title and content cannot be determined.
+- **29470260.pdf** — Identity-Based Threshold Decryption (Baek, Zheng). Constructs the first ID-based threshold decryption scheme with CCA security in the random oracle model under BDH, plus a mediated IBE extension.
+- **29470275.pdf** — An Efficient Signature Scheme from Bilinear Pairings and Its Applications (Zhang, Safavi-Naini, Susilo). Pairing-based short signature using standard hash functions, more efficient than BLS, with ring-signature and delegation applications.
+- **29470289.pdf** — An RSA Family of Trap-door Permutations with a Common Domain and its Applications (Hayashi, Okamoto, Tanaka). Constructs common-domain RSA trapdoor permutation families useful for key-private encryption and ring signatures.
+- **29470303.pdf** — Garbled extract: text is undecodable mojibake; title and content cannot be determined.
+- **29470317.pdf** — Efficient, Verifiable Shuffle Decryption and Its Requirement of Unlinkability (Furukawa). Most-efficient combined proof of correct ElGamal shuffling and decryption, with a formal unlinkability definition for mix-nets/voting.
+- **29470331.pdf** — A point compression method for elliptic curves defined over GF(2^n) (King). New tools for binary fields yielding the most bandwidth-efficient point compression for curves y²+xy=x³+a₂x²+a₆ with Tr(a₂)=0.
+- **29470344.pdf** — On the Optimal Parameter Choice for Elliptic Curve Cryptosystems Using Isogeny (Akishita, Takagi). Analyzes Smart's isogeny countermeasure against the zero-value-point attack, showing some curves need higher-degree isogenies; compares secure scalar multiplication for SECG curves.
+- **29470358.pdf** — On the Security of Multiple Encryption (Zhang, Hanaoka, Shikata, Imai). Shows CCA-secure component ciphers need not compose into CCA-secure multiple encryption; defines ME-CCA models and secure constructions.
+- **29470372.pdf** — QuasiModo: Efficient Certificate Validation and Revocation (Elwailly, Gentry, Ramzan). Improves tree-based certificate revocation (NOVOMODO, Aiello–Lodha–Ostrovsky) via a QuasiModo tree with length-2 leaf chains.
+- **29470386.pdf** — A Distributed Online Certificate Status Protocol with a Single Public Key (Koga, Sakurai). Distributes OCSP across responders holding distinct key-insulated private keys while clients verify all responses with one fixed public key.
+- **29470399.pdf** — A First Approach to Provide Anonymity in Attribute Certificates (Benjumea, Lopez, Montenegro, Troya). Enhances X.509 attribute certificates with conditional anonymity using fair blind signatures.
+- **29470413.pdf** — A Nonuniform Algorithm for the Hidden Number Problem in Subgroups (Shparlinski, Winterhof). Extends the Boneh–Venkatesan hidden-number algorithm to subgroups of F_p^*, strengthening DH bit-security results.
+- **29470422.pdf** — Cryptographic Randomized Response Techniques (Ambainis, Jakobsson, Lipmaa). Unconditionally private polling protocols where cheating respondents cannot bias the tally, using classical and quantum techniques.
+- **29470436.pdf** — A Correct, Private and Efficient Mix Network (Peng, Boyd, Dawson, Viswanathan). Re-encryption mix-net with formally proven correctness and privacy, using a grouping function and a new batch verification technique.
+- **3-540-36178-2.pdf** — LNCS 2501 proceedings volume (589p). Extract is only the series cover page; no paper title visible.
+- **3-540-36288-6.pdf** — LNCS 2567 proceedings volume (378p). Extract is only the series cover page; no paper title visible.
+- **3-540-39466-4.pdf** — Cryptography: Proceedings of the Workshop on Cryptography, Burg Feuerstein 1982 (LNCS 149, ed. Beth). Early workshop proceedings volume; cover-page extract only.
+- **3-540-39757-4.pdf** — Advances in Cryptology — EUROCRYPT '84 (LNCS 209, eds. Beth, Cot, Ingemarsson). EUROCRYPT 1984 proceedings volume; cover-page extract only.
+- **3-540-44448-3.pdf** — LNCS 1976 proceedings volume (641p). Extract is only the series cover page; no paper title visible.
+- **3-540-44586-2.pdf** — LNCS 1992 proceedings volume (434p). Extract is only the series cover page; no paper title visible.
+- **3-540-44598-6.pdf** — LNCS 1880 proceedings volume (556p). Extract is only the series cover page; no paper title visible.
+- **3-540-44647-8.pdf** — LNCS 2139 proceedings volume (611p). Extract is only the series cover page; no paper title visible.
+- **3-540-45664-3.pdf** — LNCS 2274 proceedings volume (394p). Extract is only the series cover page; no paper title visible.
+- **3-540-45682-1.pdf** — LNCS 2248 proceedings volume (614p). Extract is only the series cover page; no paper title visible.
+- **3-540-45708-9.pdf** — LNCS 2442 proceedings volume (643p). Extract is only the series cover page; no paper title visible.
+- **3-540-49162-7.pdf** — LNCS 1560 proceedings volume (337p). Extract is only the series cover page; no paper title visible.
+- **3-540-49649-1.pdf** — LNCS 1514 proceedings volume (447p). Extract is only the series cover page; no paper title visible.
+- **30.pdf** — Path Swapping Method to Improve DPA Resistance of Quasi Delay Insensitive Asynchronous Circuits (Bouesse, Sicard, Renaudin). Randomly swaps symmetric data-paths in QDI circuits to average power signatures; validated with DPA simulations on a DES crypto-processor.
+- **30170001.pdf** — New Cryptographic Primitives Based on Multiword T-functions (Klimov, Shamir). Constructs invertible multiword T-functions with single cycles of arbitrary length, enabling stream ciphers faster than RC4.
+- **30170015.pdf** — Towards a Unifying View of Block Cipher Cryptanalysis (Wagner). Introduces commutative diagram cryptanalysis, a framework unifying linear, differential, truncated, impossible, higher-order, and interpolation attacks, plus two new attacks.
+- **30170032.pdf** — Algebraic Attacks on Summation Generators (Lee, Kim, Hong, Han, Moon). Derives low-degree algebraic equations (degree ≤ 2^⌈log₂ n⌉) for summation generators over n LFSRs, beating previous general bounds.
+- **30170047.pdf** — Algebraic Attacks on SOBER-t32 and SOBER-t16 without Stuttering (Cho, Pieprzyk). Linearization-based algebraic attacks on unstuttered SOBER-t32 (≈2^100 complexity) and SOBER-t16 (≈2^85), recovering LFSR initial states.
+- **30170064.pdf** — Improving Fast Algebraic Attacks (Armknecht). Proves correctness of Courtois' fast-algebraic-attack precomputation, gives a faster parallelisable algorithm, and speeds up the attack on Bluetooth's E0.
+- **30170083.pdf** — Resistance of S-boxes against Algebraic Attacks (Cheon, Lee). Develops tools to derive independent multivariate equations from algebraic S-boxes; Gold-exponent S-boxes are weakest, Kasami slightly better than inverse.
+- **30170094.pdf** — Garbled extract: text is slash-hex obfuscated/undecodable; title and content cannot be determined.
+- **30170108.pdf** — Improved Linear Consistency Attack on Irregular Clocked Keystream Generators (Molland). New attack on two-LFSR clock-controlled generators (shrinking, step-1/step-2, stop-and-go) with complexity only O(2^{l1}).
+- **30170126.pdf** — Correlation Attacks Using a New Class of Weak Feedback Polynomials (Englund, Hell, Johansson). Identifies weak LFSR feedback polynomials of grouped-low-degree form enabling efficient fast-correlation distinguishing attacks.
+- **30170142.pdf** — Minimum Distance between Bent and 1-resilient Boolean Functions (Maity, Maitra). Lower-bounds the bent-to-1-resilient distance (tight up to 10 variables) and constructs 1-resilient functions with best-known nonlinearity.
+- **30170160.pdf** — Results on Rotation Symmetric Bent and Correlation Immune Boolean Functions (Stănică, Maitra, Clark). Search data structures for rotation-symmetric bent/CI functions and nonexistence of homogeneous single-cycle rots bent functions of degree ≥ 3.
+- **30170177.pdf** — A Weakness of the Linear Part of Stream Cipher MUGI (Golić). Shows MUGI's linear buffer has intrinsic response of linear complexity 32 and period 48, enabling key-recovery and distinguishing attacks.
+- **30170192.pdf** — Vulnerability of Nonlinear Filter Generators Based on Linear Finite State Machines (Hong, Lee, Chee, Sarkar). Reduces LFSM-based nonlinear filter generators (incl. cellular-automaton designs) to LFSR-based ones vulnerable to Anderson information leakage.
+- **30170209.pdf** — VMPC One-Way Function and Stream Cipher (Zoltak). Proposes a permutation-composition one-way function (≈2^260 inversion effort) and an RC4-like software stream cipher removing known RC4 weaknesses.

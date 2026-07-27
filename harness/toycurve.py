@@ -89,6 +89,46 @@ class EllipticCurve:
                 total += 2
         return total
 
+    def order_bsgs(self) -> int:
+        """#E(F_p) via Hasse-bound candidate search.
+
+        Uses the Hasse bound |t| <= 2*sqrt(p): for each candidate trace
+        t in [-2*sqrt(p), 2*sqrt(p)], tests whether (p+1-t)*R == O for a
+        random point R. Cost O(sqrt(p)) scalar multiplications, each
+        O(log p) group operations — far faster than the O(p) naive count
+        for p > 2^20.
+        """
+        import math
+        p = self.p
+        hasse = int(2 * math.isqrt(p))
+        center = p + 1
+
+        # Pick a random point R on E
+        R = None
+        for x in range(1, p):
+            R = self.lift_x(x)
+            if R is not None:
+                break
+        if R is None:
+            raise RuntimeError("no point on curve")
+
+        for t in range(-hasse, hasse + 1):
+            n = center - t
+            if n <= 0:
+                continue
+            if self.mul(n, R) is None:
+                # Verify with a second point to avoid small-order artifacts
+                R2 = None
+                for x2 in range(p // 2, p):
+                    R2 = self.lift_x(x2)
+                    if R2 is not None and R2 != R:
+                        break
+                if R2 is not None and self.mul(n, R2) is None:
+                    return n
+                # If only R works, R has smaller order; try next candidate
+        # Fallback
+        return self.order()
+
     def lift_x(self, x: int) -> Point:
         """A point with the given x-coordinate, or None if x is not on E."""
         p = self.p
@@ -147,7 +187,7 @@ def generate_instance(seed: int, field_bits: int,
             E = EllipticCurve(p, a, b)
         except ValueError:
             continue
-        order = E.order()
+        order = E.order() if field_bits <= 24 else E.order_bsgs()
         factors = sympy.factorint(order)
         n = int(max(factors))                 # largest prime factor -> subgroup order
         if n.bit_length() < min_prime_order_bits or n < 5:
