@@ -18,7 +18,15 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install -e ".[dev]"
+
+      # Installed separately so the step above proves the core toolchain still
+      # works without the agent runtime's dependency tree.
+      - name: Install api_direct runtime dependencies
+        run: pip install -r requirements-agent.txt
+
+      - name: Check the local entry point is usable
+        run: python3 -m orchestration doctor || true
 
       - name: Validate ledger, experiments, and run records
         run: python3 tools/validate_ledger.py
@@ -28,6 +36,20 @@ jobs:
 
       - name: Check knowledge index is current
         run: python3 tools/build_knowledge_index.py --check
+
+      - name: Validate inference configuration (offline)
+        run: python3 -m orchestration.adapter doctor
+
+      - name: Check runtime role bindings have not drifted
+        run: python3 tools/check_runtime_bindings.py
+
+      # Offline: fixtures build and every task's policy resolves. Running the
+      # suites costs tokens, so CI checks they are well-formed, not that they pass.
+      - name: Validate evaluation suites
+        run: |
+          for suite in evals/suites/*.yaml; do
+            python3 -m orchestration.eval validate --suite "$suite"
+          done
 
       - name: Validate live research dispatch queue
         run: |
