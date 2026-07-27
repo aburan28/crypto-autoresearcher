@@ -1323,7 +1323,23 @@
     "INT-BATCH007-P: TASK-20260727-016 AND -017 ARE RECORDED AS `queued` WHILE THEIR ARTIFACTS EXIST. Both reviews have reported; their reports are in the worktree and are the inputs to TASK-20260727-019. Their card state was NOT changed by the amending session, which was scoped to append cards and rewire TASK-20260727-018 only. The orchestrator must mark both `completed` before regenerating the dispatch plan: while they read `queued` the planner will select them again once TASK-20260727-015 completes, which would re-dispatch two finished reviews and could overwrite the reports this batch depends on. This is queue bookkeeping, not a research finding.",
     "INT-BATCH007-Q: THE CONTRACT WAS FROZEN AFTER THE PROBE VALUES WERE KNOWN, AND THIS IS DISCLOSED. EXP-STR-003's success criterion was written by a session that had read TASK-20260727-017's reported arm values. The mitigation is structural, not rhetorical: the probe values are frozen in the contract as explicit predictions before execution, the criteria are defined only on measured values, and the falsifying outcome F1-F4 is written in with its consequences fixed in advance - if arm E does not beat arm A, or arm B separates from arm C, or the static bound fails, then OBS-1 is withdrawn or rescoped and DEC-20260727-002 may not rest on it. The outcome is genuinely reachable: nothing in this repository has yet demonstrated any of it, the producing driver did not exist at commit 6eb3779, and no third party has executed the probes. See specification.yaml integrity note SPEC-STR-003-B.",
     "INT-BATCH007-R: BATCH-007 IS NO LONGER A ZERO-COMPUTE BATCH. The batch was opened as an artifact-integrity batch with no execution, no new run and no compute cost; QUEUE-AMEND-20260727-002 adds an Executor task with a declared 5400 s budget and 20 run records. That change is authorized by explicit user direction on 2026-07-27 to archive the ablation as a proper run package before the ledger archive, is recorded as BUDGET-AMEND-20260727-003 in ledger/goals/GOAL-ECDLP-001.yaml, and raises the declared BATCH-007 task budget from 8700 s across six cards to 24300 s across twelve. campaign_budget.total_wall_clock_seconds = 28800 remains UNTRACKED and UNEVALUABLE (INT-BATCH006-005), so whether 24300 s fits the campaign budget cannot be determined from the ledger and is NOT claimed to be satisfied. Nothing about the batch's claim ceiling changes: EXP-STR-003 is capped at toy tier, tests an instrument rather than a mechanism, and cannot meet a completion criterion of GOAL-ECDLP-001.",
-    "INT-BATCH007-S: WHAT THE EXP-STR-003 RESULT CANNOT DO, FIXED IN ADVANCE. A confirming outcome establishes that the number harness/endomorphism_la.py reports as `phi_alpha` carries no information about whether the factor base is phi-invariant. It does NOT establish that H-STR-002's mechanism is false - phi is an automorphism, phi(R) is a genuine relation on a phi-invariant factor base, and the relation system really is C_3-equivariant, which no arm of this experiment touches. It does not close the endomorphism direction, does not settle any of the cost-model objections RT-CM-1 through RT-CM-6, and is not a cryptanalytic result, an attack improvement, a closure, an impossibility claim or a result above toy tier. No asymptotic exponent moves in either direction under any outcome of this batch."
+    "INT-BATCH007-S: WHAT THE EXP-STR-003 RESULT CANNOT DO, FIXED IN ADVANCE. A confirming outcome establishes that the number harness/endomorphism_la.py reports as `phi_alpha` carries no information about whether the factor base is phi-invariant. It does NOT establish that H-STR-002's mechanism is false - phi is an automorphism, phi(R) is a genuine relation on a phi-invariant factor base, and the relation system really is C_3-equivariant, which no arm of this experiment touches. It does not close the endomorphism direction, does not settle any of the cost-model objections RT-CM-1 through RT-CM-6, and is not a cryptanalytic result, an attack improvement, a closure, an impossibility claim or a result above toy tier. No asymptotic exponent moves in either direction under any outcome of this batch.",
+    {
+      "id": "INT-BATCH007-T",
+      "severity": "high",
+      "raised_by": "orchestrator",
+      "raised_at": "2026-07-27",
+      "title": "No archive task can be marked completed and pass verify_archive (harness defect)",
+      "detail": "Empirically established, not inferred. Marking TASK-20260727-015 completed and binding it to commit 624dd2c1 fails validation two ways: (1) tools/research_dispatch.py requires a completed archive's commit to change EXACTLY archive.artifact_paths union every source artifact_path; the archive's own snapshot_commit_receipt.json is in that set, but it records commit_sha/parent_sha/path_sha256 and so can only be written AFTER the commit \u2014 it can never be changed by the commit it describes; (2) a declared source artifact that is byte-identical to an earlier commit (census_report.yaml, committed at 6eb37799) cannot appear in a later diff either. Exact error: \"archive task TASK-20260727-015 commit must change exactly declared archive and source artifacts (missing [<receipt>, <census_report>])\". Consequence: every archive in this repository is left queued with commit_sha null \u2014 confirmed for BATCH-004 \u2014 so the dispatcher's post-commit verification path is unreachable in practice and archives are durable by commit only, not by verified receipt. The commits and receipts here are real and independently checkable by git; what is unavailable is the tool-level attestation. Generalizes AMEND-2026-07-27-D from a BATCH-006 observation to a proven repo-wide blocker. A fix requires either excluding the receipt from expected_paths, or a two-commit archive protocol, or allowing declared-but-unchanged paths \u2014 a harness change, out of scope for this batch.",
+      "affects": [
+        "TASK-20260727-015",
+        "TASK-20260727-020",
+        "TASK-20260727-022",
+        "TASK-20260727-018",
+        "all BATCH-004/005/006 archives"
+      ],
+      "state": "open_unrepaired"
+    }
   ],
   "amendment_records": [
     {
@@ -1419,6 +1435,20 @@
           ]
         }
       ],
+      "content_modified": false
+    },
+    {
+      "id": "QUEUE-AMEND-20260727-004",
+      "amended_at": "2026-07-27",
+      "amended_by": "orchestrator",
+      "reason": "Mark TASK-20260727-015 completed and bind its archive to commit 624dd2c1 with real parent and per-path SHA-256. It had run twice (6eb37799, then 624dd2c1 over the amended control plane) while still reading queued, so the planner kept re-selecting it. census_report.yaml is declared but byte-identical to its 6eb37799 commit, so the diff covers 2 of 3 declared paths with no scope expansion; the receipt records this explicitly.",
+      "content_modified": false
+    },
+    {
+      "id": "QUEUE-AMEND-20260727-005",
+      "amended_at": "2026-07-27",
+      "amended_by": "orchestrator",
+      "reason": "Revert TASK-20260727-015 to queued with null archive binding, restoring queue validity after INT-BATCH007-T proved the completed-archive path unreachable. The task DID run \u2014 commits 6eb37799 then 624dd2c1 over the amended control plane \u2014 and its receipt is written and accurate. Only the tool-level completed-state attestation is withheld. Do NOT re-run it: the control plane is already committed. Recorded rather than worked around.",
       "content_modified": false
     }
   ],
