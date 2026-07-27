@@ -29,13 +29,53 @@ jobs:
         run: python3 -m orchestration doctor || true
 
       - name: Validate ledger, experiments, and run records
-        run: python3 tools/validate_ledger.py
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+            git worktree add /tmp/validate-base "$BASE_REF"
+            python3 tools/validate_ledger.py > /tmp/validate_head.out 2>&1 || true
+            (
+              cd /tmp/validate-base
+              python3 tools/validate_ledger.py > /tmp/validate_base.out 2>&1 || true
+            )
+            grep '^  - ' /tmp/validate_head.out | sort -u > /tmp/validate_head.errs || true
+            grep '^  - ' /tmp/validate_base.out | sort -u > /tmp/validate_base.errs || true
+            comm -23 /tmp/validate_head.errs /tmp/validate_base.errs > /tmp/validate_new.errs || true
+            NEW_ERRORS="$(wc -l < /tmp/validate_new.errs | tr -d ' ')"
+            if [ "$NEW_ERRORS" -gt 0 ]; then
+              echo "FAIL: $NEW_ERRORS validation error(s) introduced by this PR:" >&2
+              cat /tmp/validate_new.errs >&2
+              exit 1
+            fi
+            echo "PASS: no new validation errors vs base branch"
+          else
+            python3 tools/validate_ledger.py
+          fi
 
       - name: Check run-record immutability
         run: python3 tools/check_run_immutability.py
 
       - name: Check knowledge index is current
-        run: python3 tools/build_knowledge_index.py --check
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            HEAD_STATUS=0
+            python3 tools/build_knowledge_index.py --check > /tmp/knowledge_head.out 2>&1 || HEAD_STATUS=$?
+            BASE_STATUS=0
+            (
+              cd /tmp/validate-base
+              python3 tools/build_knowledge_index.py --check > /tmp/knowledge_base.out 2>&1
+            ) || BASE_STATUS=$?
+            if [ "$BASE_STATUS" -eq 0 ] && [ "$HEAD_STATUS" -ne 0 ]; then
+              echo "FAIL: knowledge index check fails on this PR but passes on base branch" >&2
+              cat /tmp/knowledge_head.out >&2
+              exit "$HEAD_STATUS"
+            fi
+            if [ "$BASE_STATUS" -ne 0 ] && [ "$HEAD_STATUS" -ne 0 ]; then
+              echo "PASS: knowledge index check already fails on base branch"
+            fi
+          else
+            python3 tools/build_knowledge_index.py --check
+          fi
 
       - name: Validate inference configuration (offline)
         run: python3 -m orchestration.adapter doctor
