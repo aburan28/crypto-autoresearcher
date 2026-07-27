@@ -3,12 +3,15 @@
   "goal_id": "GOAL-ECDLP-001",
   "objective": "Convert IDEA-20260726-001 into a formal hypothesis H-IC-001 and frozen experiment contract EXP-IC-001 measuring T_desc vs sqrt(N) and the multi-target IC amortization crossover K*. Snapshot, independently review, and ledger-archive. Authorize no implementation until the protocol passes review.",
   "max_concurrent": 2,
+  "batch_closed": true,
+  "state_reconciliation_note": "Reconciled 2026-07-26 under DEC-20260726-007. This batch was archived (EV-ECDLP-006, DEC-20260726-004) while all four task cards still read state 'queued', which would have caused the dispatcher to re-select already-executed work. Worker tasks TASK-20260726-001 and TASK-20260726-003 are promoted to 'completed' on committed-record evidence. The two Coordinator archive tasks are set to 'blocked' rather than 'completed' because their post-commit receipts were never written back: the dispatcher requires a non-null archive.commit_sha and a path_sha256 entry for every archive and source artifact before an archive task may be marked 'completed', and those values cannot be recovered without computing Git object content hashes. TASK-20260726-007 in BATCH-006 is the scoped repair task that recovers, verifies, and binds them, then promotes both cards to 'completed'. 'blocked' asserts only that the cards are not dispatchable; it is not a claim that the commits failed. BATCH-004 is closed and superseded by BATCH-006 as the active queue.",
   "tasks": [
     {
       "id": "TASK-20260726-001",
       "title": "Design H-IC-001 hypothesis and EXP-IC-001 experiment contract from IDEA-20260726-001",
       "role": "coordinator",
-      "state": "queued",
+      "state": "completed",
+      "state_basis": "Producer terminal state 'completed' with terminal_verdict DESIGN_COMPLETE_REVIEW_REQUIRED is recorded in coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/archives/TASK-20260726-002/snapshot_commit_receipt.json (producer_terminal_state). Both declared artifacts exist and their SHA-256 values were independently re-verified against Git by TASK-20260726-003 (review_report.yaml, snapshot_validation, verdict PASS).",
       "priority": 100,
       "review_required": true,
       "depends_on": [],
@@ -92,7 +95,13 @@
       "id": "TASK-20260726-002",
       "title": "Archive the H-IC-001 + EXP-IC-001 snapshot before review",
       "role": "coordinator",
-      "state": "queued",
+      "state": "blocked",
+      "state_reconciliation": {
+        "actual_outcome": "snapshot_commit_made_and_independently_verified",
+        "basis": "coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/reviews/TASK-20260726-003/review_report.yaml, snapshot_validation: commit 6a4f0705d6bbd1e7b72aa77b79c1a024a20b4faf, parent 3bc446881ac9ab4d6ba13adddd35299351c8be6f, reachable_from_head true, changed exactly 3 paths, both source SHA-256 values matched git cat-file, verdict PASS.",
+        "why_not_completed": "archive.path_sha256 is missing the entry for this task's own artifact coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/archives/TASK-20260726-002/snapshot_commit_receipt.json. tools/research_dispatch.py requires path_sha256 to cover every archive and source artifact before state 'completed' is accepted, and that hash is not recorded in any committed record.",
+        "repair_task_id": "TASK-20260726-007"
+      },
       "priority": 100,
       "review_required": false,
       "depends_on": ["TASK-20260726-001"],
@@ -109,9 +118,13 @@
       "archive": {
         "kind": "snapshot",
         "source_task_ids": ["TASK-20260726-001"],
-        "commit_sha": null,
-        "parent_sha": null,
-        "path_sha256": {},
+        "commit_sha": "6a4f0705d6bbd1e7b72aa77b79c1a024a20b4faf",
+        "parent_sha": "3bc446881ac9ab4d6ba13adddd35299351c8be6f",
+        "path_sha256": {
+          "ledger/hypotheses/H-IC-001.yaml": "85763a8820d8cf3030817ab5a996178022d3af64f27ffcf40d903d6b3e1db4dc",
+          "experiments/EXP-IC-001/specification.yaml": "345a654fd416ff4bd105e0dcb53bdcebda021c0a0dd86a599b7f191cf399c7f3"
+        },
+        "path_sha256_incomplete": ["coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/archives/TASK-20260726-002/snapshot_commit_receipt.json"],
         "record_ids": ["GOAL-ECDLP-001", "BATCH-004", "IDEA-20260726-001", "H-IC-001", "EXP-IC-001"]
       },
       "handoff": {
@@ -140,7 +153,8 @@
       "id": "TASK-20260726-003",
       "title": "Independently review the H-IC-001 + EXP-IC-001 experiment design",
       "role": "reviewer",
-      "state": "queued",
+      "state": "completed",
+      "state_basis": "Both declared artifacts exist and are committed: review_report.yaml (REV-20260726-003, terminal_verdict REVISE, independence_attestation non_originating_session true) and adversarial_notes.md. EV-ECDLP-006 and DEC-20260726-004 cite this task as a completed independent review.",
       "priority": 100,
       "review_required": false,
       "depends_on": ["TASK-20260726-001", "TASK-20260726-002"],
@@ -206,7 +220,14 @@
       "id": "TASK-20260726-004",
       "title": "Archive BATCH-004 review, evidence, decision, and goal checkpoint",
       "role": "coordinator",
-      "state": "queued",
+      "state": "blocked",
+      "state_reconciliation": {
+        "actual_outcome": "ledger_commit_made_but_receipt_never_bound",
+        "basis": "All four declared artifacts exist and are committed: coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/archives/TASK-20260726-004/ledger_commit_receipt.json (review_verdict REVISE), ledger/evidence/EV-ECDLP-006.yaml, ledger/decisions/DEC-20260726-004.yaml, and the BATCH-004 checkpoint in ledger/goals/GOAL-ECDLP-001.yaml.",
+        "why_not_completed": "The committed receipt records commit_sha: null, parent_sha: null, and no path_sha256 bindings. No committed record in this repository preserves the ledger archive commit identity, its parent, or the SHA-256 of any committed path, so the dispatcher's post-commit verification cannot be reconstructed here. The calling session reports abbreviated commit 9a848838 as the goal-record commit that carried this archive; that value is unverified against any committed record and is recorded here only as the candidate for TASK-20260726-007 to resolve.",
+        "candidate_commit_sha_unverified": "9a848838",
+        "repair_task_id": "TASK-20260726-007"
+      },
       "priority": 100,
       "review_required": false,
       "depends_on": ["TASK-20260726-003"],
