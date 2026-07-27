@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-Design and independently review one frozen toy validation protocol under certificate contract 1.0.0-review; authorize no implementation or experiment. Final batch under the three-batch campaign budget.
+Design one frozen, review-only toy validation protocol under certificate contract 1.0.0-review that pins a public fixture, a sealed schedule template, an independent verifier artifact hash, and the group-operation type vocabulary; snapshot it, independently review it, and ledger-archive the verdict and goal checkpoint. Authorize no implementation or experiment.
 
 ## Ready Tasks
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `236615a701c8f73310be9adee45e966c227cdc67802bec1449af6e0c34b1be89`
+Plan SHA-256: `adce32fd8f66586b5e6c4ea6accdfbe29920a6483df179dde3c5938e0f61363b`

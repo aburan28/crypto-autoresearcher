@@ -1,0 +1,326 @@
+experiment:
+  id: EXP-GGM-001
+  hypothesis_id: H-GGM-001
+  version: 1
+  title: >-
+    Machine-checkable GGM simulability test for four augmented ECDLP oracles,
+    validated against four controls
+  status: review_required
+  objective: >-
+    Implement the simulability test as a Python module that, given an
+    augmented ECDLP oracle's input-output specification, decides whether the
+    oracle can be simulated by a generic-group algorithm using only the
+    standard group-operation oracle and equality tests with O(1) overhead per
+    query. Apply the test to four augmented oracles (jet, elliptic-net,
+    incidence, endomorphism) and validate test soundness against four
+    controls (pure-generic, discrete-log, public-curve, encoding). The
+    controls are the success gate: the test must correctly classify all four
+    controls before any augmented-oracle verdict is trusted. A SIMULABLE
+    verdict is a mathematical result valid at all scales (explicit O(1)
+    simulator closes the candidate at exponent 1/2 by KN-TECH-005); a NON-
+    SIMULABLE verdict produces a checkable witness (encoding pair with
+    divergent oracle answers) exhibited on toy curves. This experiment is
+    review-only design: the specification is frozen here, implementation and
+    execution are deferred to a separate Executor task after approval.
+  source_proposal: IDEA-20260726-004
+  claim_tier_basis: >-
+    This is a mathematical/methodological result, not an empirical
+    measurement. A SIMULABLE verdict is an explicit O(1) simulator
+    construction -- a mathematical argument valid at ALL scales (toy, medium,
+    crypto), closing the candidate at exponent 1/2 by theorem (KN-TECH-005).
+    A NON-SIMULABLE verdict produces a witness (encoding pair) whose logical
+    content is scale-independent; toy curves (8-16 bit) serve only to make
+    witnesses concrete and independently checkable, not to bound the
+    verdict's scope. The control validation (test soundness) is likewise
+    scale-independent: the test operates on oracle specifications, not on
+    curve instances. Therefore a SIMULABLE verdict from this experiment is
+    NOT limited to toy tier -- it is a derivation-level closure at exponent
+    1/2. The resulting evidence record's claim_tier should reflect this:
+    SIMULABLE verdicts are theoretical (proof_status: derivation), not toy-
+    scale empirical. Only the witness exhibition itself is toy-tier, and it
+    serves a checkability function, not a scaling claim.
+  inputs:
+    augmented_oracles:
+      - name: jet_oracle
+        specification: >-
+          Query type (P, Q) -> (P+Q, eps*(P+Q)) in F_p[eps]/eps^2. Returns
+          the zeroth-order sum and the first-order (dual-number / jet) part
+          of the addition law. The jet data encodes the derivative of the
+          group addition map.
+        expected_verdict: SIMULABLE
+        expected_basis: >-
+          Jet data is determined by the zeroth-order solution (the eps-block
+          is implied by the Zariski tangent space; KN-OPEN-005,
+          ECDLP-IDEA-004).
+      - name: elliptic_net_oracle
+        specification: >-
+          Query type (a, b) -> W(a, b), the elliptic-net (Somos) value at
+          index vector (a, b). Returns the net value satisfying the Somos
+          recurrence on the curve.
+        expected_verdict: SIMULABLE
+        expected_basis: >-
+          Somos identities are universal (hold for every k), so on a single
+          k-fiber they encode only the group law, not k (KN-OPEN-005,
+          KN-TECH-009, ECDLP-IDEA-006).
+      - name: incidence_oracle
+        specification: >-
+          Query type (R, factor_base) -> list of decompositions
+          R = P_{i_1} + ... + P_{i_m} with each P_{i_j} in the factor base.
+          Returns all chord/secant relations of arity m expressing R as a
+          sum of factor-base points.
+        expected_verdict: SIMULABLE
+        expected_basis: >-
+          Decompositions are computed via group operations (summing factor-
+          base points and comparing to R); the oracle reports structure
+          accessible to a generic algorithm (ECDLP-IDEA-001/012).
+      - name: endomorphism_oracle
+        specification: >-
+          Query type P -> phi(P), where phi is a curve endomorphism (e.g.,
+          GLV phi(x,y) = (zeta*x, y) for j=0 curves). Returns the image of
+          P under phi.
+        expected_verdict: SIMULABLE
+        expected_basis: >-
+          The endomorphism is public and computable from the curve parameters
+          (part of the generic model's public setup), hence simulable
+          (relevant to IDEA-20260726-002).
+    gg_model_variant: shoup_encoding
+    oracle_specification_format: >-
+      Each oracle is specified as a list of query types, each with: (1) input
+      format (tuple of group elements and/or public data), (2) output format,
+      (3) computational procedure (how the answer is derived from the
+      concrete group encoding). The test parses this specification and
+      attempts to construct a generic-group simulator for each query type.
+  controls:
+    - name: pure_generic
+      specification: >-
+        The standard group-operation oracle: query = (P, Q) -> P+Q. This is
+        the generic model's native oracle.
+      expected_verdict: SIMULABLE
+      expected_overhead: 1
+      role: >-
+        Negative false-positive control: the test must return SIMULABLE
+        (trivially simulable, C = 1). A NON-SIMULABLE verdict here is a
+        false positive and falsifies the test.
+    - name: discrete_log
+      specification: >-
+        Query = (P, Q) -> k such that Q = k*P. Returns the discrete
+        logarithm of Q with respect to base P.
+      expected_verdict: NON-SIMULABLE
+      expected_witness: >-
+        Any two encodings E_1, E_2 representing the same abstract group
+        element relationship but requiring different k; the DLP answer
+        depends on the discrete log, which is not computable from group
+        operations and equality tests alone.
+      role: >-
+        Positive correctness control: the test must return NON-SIMULABLE,
+        confirming it detects known non-generic information. A SIMULABLE
+        verdict here is unsoundness and falsifies the test.
+    - name: public_curve
+      specification: >-
+        Query = () -> (a, b, p, N), the curve parameters and group order.
+        Returns public data about the curve.
+      expected_verdict: SIMULABLE
+      expected_overhead: 0
+      role: >-
+        Negative false-positive control: the test must return SIMULABLE
+        (C = 0, public data is part of the generic model's setup, not group-
+        encoding data). A NON-SIMULABLE verdict here is a false positive.
+    - name: encoding
+      specification: >-
+        Query = P -> x-coordinate of P. Returns the concrete x-coordinate of
+        the group element's encoding.
+      expected_verdict: NON-SIMULABLE
+      expected_witness: >-
+        Two encodings E_1, E_2 that are generic-model-indistinguishable
+        (same abstract group element under different labelings) but have
+        different x-coordinates; the x-coordinate is concrete encoding data,
+        not reconstructable from generic group operations.
+      role: >-
+        Positive correctness control: the test must return NON-SIMULABLE,
+        confirming it catches encoding-dependent oracles. A SIMULABLE
+        verdict here is unsoundness.
+  independent_variables:
+    - oracle_under_test: >-
+        The oracle specification being classified. Eight subjects total:
+        four augmented (jet, elliptic-net, incidence, endomorphism) and four
+        controls (pure-generic, discrete-log, public-curve, encoding). The
+        test is deterministic per oracle; the variable is which oracle is
+        submitted.
+    - witness_verification_curve: >-
+        Toy prime-field curve (8-16 bit) on which NON-SIMULABLE witnesses
+        are exhibited and independently re-checked. Three seeds provide
+        independent witness-verification instances; this variable does not
+        affect the verdict, only the witness's concrete checkability.
+  metrics:
+    primary:
+      - simulability_verdict: >-
+          SIMULABLE or NON-SIMULABLE for each of the 8 subjects. The
+          decisive output of the test.
+      - control_classification_accuracy: >-
+          Fraction of the 4 controls correctly classified (target: 4/4 =
+          1.0). This is the success-gate metric: the test is sound only if
+          all 4 controls are correct.
+      - simulator_overhead_C: >-
+          For each SIMULABLE verdict, the number of group operations per
+          oracle query used by the constructed simulator. Must be bounded
+          by a constant independent of N (target C <= 10).
+      - witness_checkability: >-
+          For each NON-SIMULABLE verdict, a boolean: whether the encoding
+          pair (E_1, E_2) was independently re-verified as (a) generic-
+          model-indistinguishable and (b) yielding divergent oracle answers.
+          Target: true for all NON-SIMULABLE verdicts.
+    secondary:
+      - verdict_rationale: >-
+          The simulator construction (for SIMULABLE) or the witness and
+          failure analysis (for NON-SIMULABLE) for each subject, as a
+          machine-readable record.
+      - overhead_growth_test: >-
+          Whether simulator overhead C is stable across toy curve sizes
+          (8, 12, 16 bit). If C grows with N, the O(1) claim is false for
+          that oracle.
+      - witness_verification_per_curve: >-
+          Per-seed result of witness re-verification on toy curves: encoding
+          pair, divergent oracle answers, generic-indistinguishability check.
+      - oracle_specification_hash: >-
+          SHA-256 of each frozen oracle specification, for reproducibility
+          and to detect specification drift.
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 3
+    replication_note: >-
+      The simulability classification is deterministic given an oracle
+      specification and does not require stochastic replication. The three
+      seeds govern toy-curve generation for witness exhibition and
+      independent re-verification of NON-SIMULABLE verdicts. A witness that
+      checks on all 3 independent toy curves is robust; a witness that
+      fails on any curve is recorded as an anomaly.
+  budget:
+    wall_clock_seconds_per_run: 120
+    total_cpu_hours: 1
+    maximum_memory_gb: 4
+    maximum_runs: 3
+  stopping_rules:
+    - >-
+      If the test module crashes on any oracle specification (parse error,
+      simulator construction failure, or unhandled exception), record the
+      run as failed_infrastructure and do not interpret the crash as
+      evidence for or against the hypothesis (AGENTS.md rule 5).
+    - >-
+      If witness verification on toy curves exceeds 120s per run, record
+      partial results and mark unverified witnesses as inconclusive.
+    - >-
+      Total experiment wall-clock: if cumulative time exceeds 1800s, stop
+      and record remaining planned runs as cancelled_by_budget.
+  invalidation_rules:
+    - >-
+      Any run with a missing manifest, raw-result, stdout, or stderr file
+      is invalid (run-integrity failure, not a scientific result).
+    - >-
+      Any run with dirty: true in the manifest is invalid (the code revision
+      must be pinned).
+    - >-
+      If the oracle specification hash in a run's raw-result does not match
+      the frozen specification hash, the run is invalid (specification
+      drift).
+    - >-
+      Control misclassification is NOT an invalidation (run integrity is
+      fine); it is the falsification criterion (a scientific result that
+      falsifies the hypothesis).
+  success_criterion: >-
+    The test correctly classifies all four controls -- pure-generic =
+    SIMULABLE (C = 1), discrete-log = NON-SIMULABLE, public-curve =
+    SIMULABLE (C = 0), encoding = NON-SIMULABLE -- establishing test
+    soundness before any augmented-oracle verdict is interpreted. All four
+    augmented oracles also receive a definitive verdict with either an
+    explicit O(1) simulator (SIMULABLE) or a checkable witness (NON-
+    SIMULABLE).
+  falsification_criterion: >-
+    Any of the four controls is misclassified: the test returns SIMULABLE
+    for the discrete-log control (unsound -- fails to detect non-generic
+    information), or NON-SIMULABLE for the pure-generic or public-curve
+    control (false positive), or SIMULABLE for the encoding control
+    (unsound -- fails to catch encoding-dependent oracles). A single
+    control misclassification falsifies the test's soundness.
+  alternative_outcome: >-
+    All controls pass but the test cannot produce a checkable witness for a
+    NON-SIMULABLE augmented-oracle verdict. This does not falsify soundness
+    (controls pass) but leaves the NON-SIMULABLE claim unverifiable; the
+    result is inconclusive for that oracle and requires a refined witness
+    construction.
+  required_artifacts:
+    - experiments/EXP-GGM-001/specification.yaml
+    - experiments/EXP-GGM-001/simulability_test.py
+    - experiments/EXP-GGM-001/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-GGM-001/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-GGM-001/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-GGM-001/runs/<RUN-ID>/stderr.log
+    - experiments/EXP-GGM-001/runs/<RUN-ID>/command.txt
+    - experiments/EXP-GGM-001/runs/<RUN-ID>/environment.json
+    - experiments/EXP-GGM-001/analysis.md
+    - ledger/hypotheses/H-GGM-001.yaml
+  assigned_to: executor
+  approved_by: null
+  implementation_requirements:
+    module_interface: >-
+      The Python module shall expose a function classify_oracle(oracle_spec)
+      -> Verdict, where Verdict is one of: {verdict: SIMULABLE, simulator:
+      <construction>, overhead_C: <int>} or {verdict: NON_SIMULABLE, witness:
+      {E1: <encoding>, E2: <encoding>, O_answer_E1: <value>, O_answer_E2:
+      <value>}}. The module shall also expose verify_witness(witness, curve)
+      -> bool for independent witness re-checking on a concrete toy curve.
+    oracle_specification_schema: >-
+      Each oracle specification is a YAML/JSON object with: name, query_types
+      (list of {input_format, output_format, computational_procedure}),
+      public_data (list of public inputs like curve parameters), and
+      gg_model_variant. The computational_procedure is pseudocode or Python
+      describing how the oracle computes its answer from the concrete
+      encoding.
+    simulator_construction_method: >-
+      For each query type, the test attempts to express the oracle's answer
+      as a function of (a) group-operation results and (b) equality tests,
+      without reference to the concrete encoding. If the answer can be so
+      expressed with a bounded number of group operations (counted
+      statically from the construction), the query type is simulable. If the
+      answer provably depends on encoding-specific data (exhibited by the
+      witness pair), it is non-simulable.
+    witness_verification_method: >-
+      For each NON-SIMULABLE witness, generate two concrete toy-curve
+      encodings E_1, E_2 that are generic-model-indistinguishable (same
+      abstract group structure, different labelings) and confirm O(E_1) !=
+      O(E_2). Re-verify with independent code (not the test module's own
+      path) per docs/claims-and-verification.md certificate independence.
+  analysis_methodology:
+    control_gate: >-
+      The 4 controls are evaluated first. If any control is misclassified,
+      the test is unsound and no augmented-oracle verdict is reported as
+      valid. The control gate is binary: 4/4 correct or the test fails.
+    augmented_oracle_verdicts: >-
+      Only if the control gate passes (4/4), the 4 augmented-oracle verdicts
+      are reported. Each verdict includes the simulator construction (with
+      overhead C) or the witness (with verification results on 3 toy
+      curves).
+    overhead_growth_check: >-
+      For each SIMULABLE augmented oracle, verify that overhead C is stable
+      across toy curve sizes (8, 12, 16 bit). If C grows with N, reclassify
+      as effectively non-simulable and record the growth pattern.
+    witness_robustness: >-
+      For each NON-SIMULABLE augmented oracle, the witness must check on all
+      3 independent toy curves (seeds 1, 2, 3). A witness that fails on any
+      curve is an anomaly and is recorded, not silently discarded
+      (AGENTS.md rule 8).
+    scale_independence_note: >-
+      The analysis must explicitly state, for each SIMULABLE verdict, that
+      the result is a mathematical closure at exponent 1/2 valid at all
+      scales (per claim_tier_basis), not a toy-scale observation. The
+      analysis.md must not present a SIMULABLE verdict as toy-tier
+      evidence.
+  command_template: >-
+    python -m experiments.EXP-GGM-001.simulability_test
+    --oracles jet,elliptic_net,incidence,endomorphism
+    --controls pure_generic,discrete_log,public_curve,encoding
+    --seeds 1,2,3 --bits 8,12,16 --exp-id EXP-GGM-001
+  inference_receipt:
+    requested_policy: "coordinator-ultra-code"
+    resolved_model_id: "fireworks-ai/accounts/fireworks/models/glm-5p2"
+    fallback_used: true
+    authorization_ref: null

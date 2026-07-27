@@ -11,7 +11,7 @@ base = "runs"
 statedir = "runs/RUN-DREG-004-MEASURE-N21-SEM-A/work/h012c_measure_n21_sem_a_sem_n21_t0"
 st = json.load(open(statedir + "/state.json"))
 runs = ["RUN-DREG-004-MEASURE-N21-SEM-A"] + [
-    "RUN-DREG-004-MEASURE-N21-SEM-A-CONT-%d" % i for i in range(1, 17)]
+    "RUN-DREG-004-MEASURE-N21-SEM-A-CONT-%d" % i for i in range(1, 32)]
 
 final_state_sha = sha(statedir + "/state.json")
 carries = st["carries"]
@@ -37,8 +37,8 @@ print(json.dumps({k: summary[k] for k in (
     "secs_total", "done")}, indent=1))
 
 chunk_of = {0: 8000}
-for i in range(1, 17):
-    chunk_of[i] = 10000 if i <= 8 else (8000 if i <= 11 else 6000)
+for i in range(1, 32):
+    chunk_of[i] = (10000 if i <= 8 else (8000 if i <= 11 else (6000 if i <= 16 else (5000 if i == 17 else (4000 if i <= 23 else (3000 if i <= 28 else 2000))))))
 for i, r in enumerate(runs):
     rd = os.path.join(base, r)
     out = open(os.path.join(rd, "stdout.log")).read()
@@ -53,8 +53,8 @@ for i, r in enumerate(runs):
             "id": r,
             "experiment_id": "EXP-DREG-004",
             "status": "completed_valid_invocation",
-            "purpose": "n=21 sem D5 rank cell, checkpointed invocation %d of 17 (turn %s)"
-                       % (i + 1, "1" if i <= 8 else "2"),
+            "purpose": "n=21 sem D5 rank cell, checkpointed invocation %d of 31 (turn %s)"
+                       % (i + 1, "1" if i <= 8 else ("2" if i <= 16 else ("3" if i <= 23 else "4"))),
             "continues": (runs[i - 1] if i else None),
             "code": {
                 "commit": "30763cd2ad68c47446f102a2d44b96fc87142250",
