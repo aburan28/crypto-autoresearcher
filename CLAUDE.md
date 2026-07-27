@@ -45,6 +45,16 @@ research work. This file wires that contract into Claude Code.
 7. The Coordinator makes isolated snapshot and ledger commits for declared
    research artifacts. A theory, run package, review report, or ledger record
    is not official until the dispatcher's post-commit verifier accepts it.
+8. A `GOAL-*` record reaches `status: completed` only on a three-model closure
+   quorum: three `CONCUR` attestations in `completion_quorum.attestations`
+   whose `resolved_model_id` values are pairwise distinct, with any single
+   `DISSENT` blocking closure. Distinctness is on the resolved model, not the
+   requested policy alias — three aliases falling back to one model is not a
+   quorum. Under this harness that fallback is the common case (see the model
+   policy note below), so closing a goal here usually requires deliberately
+   routing three different backends. If you cannot, leave the goal `paused` and
+   say so; never record an attestation you did not obtain. Enforced by
+   `check_goals` in `tools/validate_ledger.py`.
 
 ## Research direction
 

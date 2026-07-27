@@ -82,6 +82,43 @@ tool surface.
 10. Every conclusion must cite the experiment IDs and artifacts that support it.
 11. An agent may request a stronger policy but may not silently alter its own model or reasoning level.
 12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-breakthrough` review at `max` effort. That review may not be degraded or run on a backend that cannot reach it.
+13. A persistent research goal may be marked `completed` only on the concurring judgement of **three independently-resolved models**. See "Goal closure quorum".
+
+## Goal closure quorum
+
+Closing out a goal is the strongest claim the program makes: it asserts that a
+declared completion criterion was actually met. One model's judgement is not
+enough for that, and neither is one model consulted three times.
+
+A `GOAL-*` record may move to `status: completed` only when its
+`completion_quorum.attestations` list carries at least **three** verdicts that
+are all `CONCUR` and whose `resolved_model_id` values are **pairwise distinct**.
+
+- Distinctness is on the **resolved** model, never the requested policy alias.
+  Three aliases that all fall back to one backend produce correlated judgements;
+  counting them three times is not independent agreement, and the validator
+  rejects it. This is the failure mode the rule exists to prevent.
+- Every attestation sets `independent_session: true`, names the role, records
+  `requested_policy` and `resolved_model_id`, and cites the exact record IDs it
+  reviewed.
+- A single `DISSENT` blocks closure. It is not outvoted; it stands until a new
+  Coordinator decision supersedes it on the merits.
+- Attestations may be gathered before the transition, but
+  `quorum_satisfied: true` on a goal that is not `completed` is an error: only a
+  Coordinator ledger archive performs the transition.
+- `paused`, `blocked`, and `closed_at_budget` assert no success and need no
+  quorum. Retiring a goal that *did* meet a criterion under one of those
+  statuses, to avoid the quorum, is a contract violation.
+
+Enforced by `check_goals` in `tools/validate_ledger.py`; failure modes pinned in
+`tools/test_goal_closure_quorum.py`. The rule is prospective — goals closed
+before it existed are listed in `PRE_QUORUM_GOAL_IDS` and that set must not
+grow.
+
+If three distinct models cannot be resolved, the goal does not close. Record the
+narrowest supported result and leave it `paused` with a concrete next action —
+an unattested closure is worse than an open goal, and a fabricated attestation
+is worse than both.
 
 ## Target result profile
 
