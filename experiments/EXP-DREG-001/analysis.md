@@ -51,10 +51,6 @@ relative to rank growth (deficit +40.8% then +7.4% while rank ×2.2); whether it
 grows super-linearly past n=18 is exactly the open question and is **not** answered
 here (no past-wall data).
 
-> *Addendum (§9–§11, later session):* the n=17 cells were subsequently measured and
-> the D=5 series was resolved **degree-by-degree**, which shows this cumulative-D=5
-> series is not the right cross-section to extrapolate — see §10.
-
 **d_ff (sem arm, ic_first_fall algorithm, monoset-native driver `DREG_dff.sage`,
 max_D=6):** n=12: d_ff(ti=0) = 3, d_ff(ti=1) = 2 (2 of 8 planned targets resolved;
 cell then censored, §4). Prior series had d_ff flat at 2 where resolved; ti=0
@@ -75,8 +71,8 @@ saturation profile.
 
 | Cell | State | Reason |
 |---|---|---|
-| n=17 sem full rank (C1 sem side) | not attempted *(as of the 2026-07-18 cutoff; SUPERSEDED — measured in the 2026-07-19/20 session, §9)* | estimated ~2,000–2,600 s work (10.1× work growth n=15→18 observed); exceeds 600 s kill rule and remaining budget |
-| n=17 null full rank (review correction C1) | not attempted *(as of the 2026-07-18 cutoff; SUPERSEDED — measured, §9: C1 discharged)* | same scale; the one number the review explicitly wants — top resume priority |
+| n=17 sem full rank (C1 sem side) | not attempted | estimated ~2,000–2,600 s work (10.1× work growth n=15→18 observed); exceeds 600 s kill rule and remaining budget |
+| n=17 null full rank (review correction C1) | not attempted | same scale; the one number the review explicitly wants — top resume priority |
 | n=21, n=24 sem/null | not attempted | extrapolated ~7–8 h (n=21) to days (n=24) per cell; ladder ceiling reported, not smoothed |
 | d_ff sem n=15,17,18,21,24 | not attempted | budget exhausted by anchors; driver also showed non-preemptible C-level echelon risk (below) |
 | d_ff null, all n | not attempted | semi-regular first-fall needs D≈5–6 echelons (31k×55k+ sparse at n=12) — infeasible in budget |
@@ -175,162 +171,3 @@ All under `experiments/EXP-DREG-001/`:
 - Each receipt: manifest.yaml, command.txt, environment.json, stdout.log,
   stderr.log, raw-result.json (where produced), work/ checkpoints with
   sha256-pinned carries. Per-file sha256 in each manifest.
-
----
-
-# Addendum — session 2026-07-19/20 (n=17/18 completion + syzygy characterization)
-
-**Cutoff:** 2026-07-20. Same instrument and protocol; §1–§8 above are unchanged except
-for two explicitly-marked supersessions (§3 addendum, §4 rows 1–2).
-
-## 9. Ladder completed — C1 discharged
-
-| Cell | pred | rank | deficit | Run | Status |
-|---|---|---|---|---|---|
-| n=17 sem | 126,922 | **125,099** | 1,823 | RUN-DREG-001-MEASURE-N17-SEM-A / -B | completed_valid (duplicate runs agree) |
-| n=17 null | 126,922 | **126,922** | **0** | RUN-DREG-001-MEASURE-N17-NULL-A, -B-CONT-1 | completed_valid (C1 discharged) |
-| n=18 null | 145,881 | **145,881** | **0** | RUN-DREG-001-VALIDATE-N18-NULL | completed_valid, 4,004 s wall |
-
-The n=18 null was run as a **matched control** for anchor 3, differing from
-RUN-DREG-001-VALIDATE-N18-A only in `--which null` (identical `--t 3 --targets 1
---d 5 --seed 2026 --chunk-force 24000`), with the expectation `deficit: 0`
-preregistered in its manifest before the result existed.
-
-**Null-arm result (now at every measured n):** deficit = 0 at n = 12, 15, 17, 18,
-all replicates. The support-matched null is semi-regular at every size measured, so
-the predictor carries no systematic bias and the sem-arm deficit is signal, not
-predictor error. Review correction C1's premise holds past n=15.
-
-## 10. Degree-resolved deficit (new measurement)
-
-The cumulative D=5 deficit conflates degrees. Resolving it (exact GF(2) rank of the
-degree-≤D Macaulay matrix, `peel_and_rank`, same construction and seed):
-
-| n | k=dim V | nb | D=3 | D=4 | D=5 | cumulative(D=5) |
-|---|---|---|---|---|---|---|
-| 9 | 3 | 18 | 0* | 23 | 577 | 600 |
-| 12 | 4 | 24 | 1 | 31 | 1,290 | 1,322 |
-| 15 | 5 | 30 | 1 | 39 | 1,822 | 1,862 |
-| 17 | 6 | 35 | 1 | 45 | 1,777 | 1,823 |
-| 18 | 6 | 36 | 1 | 47 | 1,951 | 1,999 |
-| 21 | 7 | 42 | 1 | 55 | — | — |
-
-\* n=9 carries only 8 quadrics (not 9), so no degree-3 relation forms.
-
-**Closed forms (exact, no fitted parameters):**
-- graded deficit at **D=3 = 1** for every full system (n ≥ 12);
-- graded deficit at **D=4 = 8k − 1**, exact for k = 3,4,5,6,7 (n = 9,12,15,18,21);
-- equivalently **cumulative deficit at D=4 = 8k = 8·dim(V)**.
-
-**Two artifacts in the §3 cumulative series are explained by this:**
-1. The n=15→17 *dip* (1,862 → 1,823) is not a smaller deficit: n=17 is a
-   structurally **deficient** system (nb = 2n+1 = 35 with only 34 equations, versus
-   nb = 2n = m for full n = 3k), and its D=4 deficit is correspondingly 45, two below
-   the full k=6 value of 47. n=17 and n=9 are the two deficient cells.
-2. The D=5 graded deficit is **not polynomial in k** (differences 713, 532, 129 over
-   k = 3→4→5→6). A fixed degree D=5 sits at a different depth relative to each
-   system's degree of regularity, so the cumulative-D=5 series mixes regimes. The
-   regime-consistent invariants live at low degree (D=3, D=4). **Consequence for
-   clause (ii) of §6: extrapolating the cumulative D=5 series across n is not a
-   sound test of super-linear growth**, independent of how many points are added.
-
-## 11. Syzygy characterization (mechanism — structure identified, derivation open)
-
-The deficit is by construction the excess of the true quotient dimension over the
-semi-regular (Bardet–Faugère–Salvy) prediction, i.e. the extra non-Koszul syzygies.
-Measured properties, full systems n = 12, 15, 18:
-
-- **Semaev-specific.** The support-matched null has deficit 0 at *every* degree
-  (D=3 and D=4 checked directly at n=12). A random system of identical shape, degree
-  distribution and support has none of this structure.
-- **Generic baseline is exactly the classical trivial syzygies.** The span of the
-  n_q Frobenius relations (q_i² = q_i) plus the C(n_q,2) quadric Koszul pairs has
-  rank exactly nrows − pred[4] (78 / 120 / 171 at k = 4/5/6) and lies in the kernel.
-  So the semi-regular prediction's "expected" syzygies are precisely these, and the
-  deficit is everything beyond them.
-- **The syzygies are product / shared-factor relations.** The single degree-3
-  syzygy was extracted and factors cleanly as **(Σ of a subset of quadrics)·(affine
-  form L) = 0** for every n tested. The supports are coordinate-dependent (|Q| =
-  8/7/7 and |L support| = 4/4/1 at n = 12/15/18) while the *count* is exact and
-  reproducible — the signature of a graded Betti number: deterministic dimension,
-  coordinate-dependent generators.
-- **Sharper: the mechanism is an affine degeneration.** Verified directly
-  (`syzygy_degree3.py`): the subset-sum Q = Σ_{i∈S} q_i is itself **affine**
-  (degree ≤ 1) — the quadratic parts cancel identically — and the multiplier is
-  exactly its complement, L = 1 + Q, at every n tested. So the relation is the
-  Boolean identity
-  **P·(1 + P) = P + P² = 0** (char 2: squaring is additive and z² = z)
-  applied to the derived affine form P. Examples: P = z13+z14+z16+z18 (n=12),
-  P = z18 — a *single variable* — as the sum of 7 quadrics (n=18).
-  The Semaev-specific content is therefore **the degeneration itself**: that some
-  F₂-subset-sum of the Weil-descended quadrics collapses to an affine form. The
-  support-matched null admits no such collapse (degree-3 kernel dimension 0 at
-  n = 12, 15, 18), which is why its deficit is 0.
-
-**Hypotheses tested and REFUTED (recorded per rule 8):**
-1. *Frobenius self-relations as the source of 8k−1* — refuted **as stated, then
-   partially rehabilitated in refined form.** Generator-level q² = q holds in every
-   Boolean ring including the null arm (deficit 0), so it cannot be the source; and
-   indeed those relations are exactly part of the generic space G subtracted above.
-   However the extracted degree-3 syzygy *is* a Boolean/Frobenius identity — applied
-   not to a generator but to a **derived affine form** produced by a Semaev-specific
-   cancellation (bullet 4). Frobenius supplies the *form* of the relation; the
-   degeneration supplies the *content*, and only the latter is Semaev-specific.
-2. *Variable separation* (quadrics from S₃(u₁,x₃,R_X) confined to {u₁,x₃}) —
-   refuted by direct measurement: every generator touches all four variable classes
-   {u₁,x₁,x₂,x₃}; the α-Weil descent fully couples coordinates.
-3. *Split 8k−1 = (5k−1) lifts-of-the-degree-3-relation + 3k new degree-4 seeds* —
-   holds at k=4 only; the lift/seed boundary is coordinate-dependent noise
-   (lifts 20/26/35, seeds 12/14/13 at k = 4/5/6). The invariant is the total, 8k.
-4. *α-orbit invariance under the naive action* — refuted: multiplication-by-α
-   realized as the companion matrix acting block-wise on descent components (with
-   monomial multipliers fixed) preserves neither the kernel (110/110 basis vectors
-   fail) nor even the universal generic space (78/78). The operator is therefore
-   incomplete: a correct field action must co-transform the Boolean variables
-   (u₁ is a full-field variable), which is a Weil-restriction module calculation.
-
-**Open (theory-level, not measurement):** derive 8·dim(V). The count "8 per
-V-direction" is exact and reproducible; its explanation is not established.
-Two routes, in order of promise:
-1. **Count the degeneracies** (favoured, and concrete): the degree-3 mechanism is an
-   affine degeneration of a subset-sum of descended quadrics. The natural conjecture
-   is that the degree-4 count 8k likewise counts F₂-subset-sums of the descended
-   system that drop degree, i.e. the dimension of a degeneracy space determined by
-   the Weil-descent coefficient structure. This is directly computable —
-   characterise, by linear algebra, the subspace of coefficient vectors
-   c ∈ F₂^m with deg(Σ c_i f_i) < max deg — and would turn 8k into a derived count.
-2. Weil-restriction / Frobenius symmetry of the descended ideal (the α-orbit route).
-   The simplest candidate action is ruled out above; a correct action must
-   co-transform the Boolean variables.
-
-**Scope note.** The §11 isolation is valid only for full systems (n = 3k). At n = 9
-the system is over-determined (nb = 18) and the generic space is much larger than
-Frobenius + Koszul, so the baseline subtraction does not apply there — the same
-structural reason n=9 and n=17 are the deficient cells of §10.
-
-## 12. Effect on §6 gate arithmetic (numbers, not a verdict)
-
-- Clause (ii) (deficit growth super-linear): the cumulative D=5 series now reads
-  1,322 / 1,862 / 1,823 / 1,999 at n = 12/15/17/18. Per §10 this cross-section mixes
-  regularity regimes and contains two structurally deficient cells, so it does not
-  support an extrapolation either way. At the degrees where the systems are
-  regime-comparable, the deficit is **exactly linear in dim(V)** (8k), measured over
-  k = 3..7 — i.e. linear, not super-linear, in the low-degree regime. Whether this
-  persists at D ≥ 5 past the wall is unmeasured.
-- Clauses (i), (iii) and the falsification clause: unchanged, still not evaluable
-  (no past-wall d_reg; d_ff cells still censored).
-- The hypothesis status decision remains the Coordinator's.
-
-## 13. Addendum artifact index
-
-- `runs/RUN-DREG-001-VALIDATE-N18-NULL/` — matched null control for anchor 3
-  (manifest with preregistered `expected`, raw-result.json, work/ checkpoints).
-- Characterization probes (analysis-side, not instrument changes; exact GF(2) linear
-  algebra over the archived construction): system invariants, degree-resolved
-  deficit, degree-3 syzygy extraction, degree-4 generic/extra isolation, α-action
-  test. Narrative writeup: `DREG_DEFICIT_CLOSED_FORM.md`.
-- All §9–§11 numbers derive from the construction in
-  `runs/RUN-DREG-001-VALIDATE-N12-A/code/` (`semaev_tree.py`, `h012_peel_rank.py`,
-  `macaulay_export.py`, `ic_first_fall_fast.py`) at seed 2026, t=3, ti=0 — the
-  per-run archived code snapshot, which is authoritative after the workspace `src/`
-  relocation of 2026-07-20.
