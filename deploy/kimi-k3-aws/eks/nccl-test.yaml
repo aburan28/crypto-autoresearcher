@@ -1,0 +1,71 @@
+# Fabric validation across 2 nodes before committing to a 1.5 TB model load.
+#
+#   kubectl apply -f nccl-test.yaml
+#   kubectl logs -f job/nccl-alltoall-test
+#
+# Runs the same all_to_all collective that dominates Kimi-K3's 896-expert MoE
+# critical path. Single-digit GB/s means NCCL fell back to TCP -- fix that before
+# deploying the model, not after.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nccl-alltoall-test
+spec:
+  completions: 2
+  parallelism: 2
+  completionMode: Indexed
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      subdomain: nccl-test
+      nodeSelector:
+        node-role: kimi-k3-gpu
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: nccl
+          image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/vllm-efa:kimi-k3
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              source /opt/scripts/nccl-efa-env.sh
+              if [ "${JOB_COMPLETION_INDEX}" != "0" ]; then
+                  echo "worker ${JOB_COMPLETION_INDEX}: awaiting launcher"
+                  sleep infinity
+              fi
+              # Wait for the peer pod's DNS to resolve before launching.
+              until getent hosts nccl-alltoall-test-1.nccl-test; do sleep 2; done
+              exec /opt/scripts/verify-efa.sh 2 8
+          env:
+            - name: JOB_COMPLETION_INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+          resources:
+            limits:
+              nvidia.com/gpu: 8
+              vpc.amazonaws.com/efa: 8
+            requests:
+              nvidia.com/gpu: 8
+              vpc.amazonaws.com/efa: 8
+          volumeMounts:
+            - { name: scripts, mountPath: /opt/scripts, readOnly: true }
+            - { name: dshm, mountPath: /dev/shm }
+      volumes:
+        - name: scripts
+          configMap: { name: kimi-k3-scripts, defaultMode: 0755 }
+        - name: dshm
+          emptyDir: { medium: Memory, sizeLimit: 16Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nccl-test
+spec:
+  clusterIP: None
+  selector:
+    job-name: nccl-alltoall-test

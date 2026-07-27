@@ -1,0 +1,192 @@
+# Kimi-K3 across 8 x p6-b200.48xlarge (64 x B200) using LeaderWorkerSet.
+#
+# Parallelism: data-parallel attention + expert parallelism, one vLLM engine per
+# GPU. DP=64 total, 8 local per node, TP=1. EP=64 gives 14 of 896 experts per GPU.
+# See ../README.md section 2 for why this beats tensor parallelism here.
+#
+# LeaderWorkerSet models "one model replica spanning 8 nodes": it gang-schedules the
+# group and restarts it as a unit, which is what you want -- a partial EP group
+# cannot serve.
+#
+# CONFIRM before applying (see ../README.md section 9):
+#   - image tag / minimum vLLM version carrying FlashKDA + SiTU MXFP4 MoE
+#   - --quantization value for K3's MXFP4 checkpoint
+#   - --tool-call-parser / --reasoning-parser names for K3 (kimi_k2 shown; K3 may differ)
+apiVersion: leaderworkerset.x-k8s.io/v1
+kind: LeaderWorkerSet
+metadata:
+  name: kimi-k3
+spec:
+  replicas: 1
+  leaderWorkerTemplate:
+    size: 8 # 1 leader + 7 workers = 8 nodes
+    restartPolicy: RecreateGroupOnPodRestart
+
+    leaderTemplate:
+      metadata:
+        labels:
+          app: kimi-k3
+          role: leader
+      spec:
+        nodeSelector:
+          node-role: kimi-k3-gpu
+        tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
+        containers:
+          - name: vllm-leader
+            image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/vllm-efa:kimi-k3
+            imagePullPolicy: Always
+            command: ["/bin/bash", "-lc"]
+            args:
+              - |
+                set -euo pipefail
+                source /opt/scripts/nccl-efa-env.sh
+
+                exec vllm serve /fsx/models/Kimi-K3 \
+                  --served-model-name kimi-k3 \
+                  --trust-remote-code \
+                  --quantization mxfp4 \
+                  --data-parallel-size 64 \
+                  --data-parallel-size-local 8 \
+                  --data-parallel-address "${LWS_LEADER_ADDRESS}" \
+                  --data-parallel-rpc-port 5555 \
+                  --tensor-parallel-size 1 \
+                  --enable-expert-parallel \
+                  --max-model-len 1000000 \
+                  --gpu-memory-utilization 0.85 \
+                  --tool-call-parser kimi_k2 \
+                  --reasoning-parser kimi_k2 \
+                  --host 0.0.0.0 --port 8000
+            env:
+              - name: LWS_LEADER_ADDRESS
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.annotations['leaderworkerset.sigs.k8s.io/leader-address']
+              - name: HF_HUB_OFFLINE
+                value: "1"
+            ports:
+              - containerPort: 8000
+                name: http
+            resources:
+              limits:
+                nvidia.com/gpu: 8
+                vpc.amazonaws.com/efa: 8 # CONFIRM count for p6-b200.48xlarge
+                memory: 1600Gi
+                hugepages-2Mi: 128Gi
+              requests:
+                nvidia.com/gpu: 8
+                vpc.amazonaws.com/efa: 8
+                memory: 1600Gi
+                hugepages-2Mi: 128Gi
+            volumeMounts:
+              - { name: models, mountPath: /fsx/models, readOnly: true }
+              - { name: scripts, mountPath: /opt/scripts, readOnly: true }
+              - { name: dshm, mountPath: /dev/shm }
+            # 1.5 TB of weights takes a while to load; do not let the kubelet kill
+            # the pod mid-load. Startup probe gates readiness instead.
+            startupProbe:
+              httpGet: { path: /health, port: 8000 }
+              failureThreshold: 240
+              periodSeconds: 15
+            readinessProbe:
+              httpGet: { path: /health, port: 8000 }
+              periodSeconds: 10
+        volumes:
+          - name: models
+            persistentVolumeClaim:
+              claimName: fsx-models
+          - name: scripts
+            configMap: { name: kimi-k3-scripts, defaultMode: 0755 }
+          - name: dshm
+            emptyDir: { medium: Memory, sizeLimit: 64Gi }
+
+    workerTemplate:
+      metadata:
+        labels:
+          app: kimi-k3
+          role: worker
+      spec:
+        nodeSelector:
+          node-role: kimi-k3-gpu
+        tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
+        containers:
+          - name: vllm-worker
+            image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/vllm-efa:kimi-k3
+            imagePullPolicy: Always
+            command: ["/bin/bash", "-lc"]
+            args:
+              - |
+                set -euo pipefail
+                source /opt/scripts/nccl-efa-env.sh
+
+                # LWS_WORKER_INDEX is 1..7 for workers; each node owns 8 DP ranks.
+                START_RANK=$(( LWS_WORKER_INDEX * 8 ))
+                echo "worker ${LWS_WORKER_INDEX}: DP ranks ${START_RANK}..$((START_RANK+7))"
+
+                exec vllm serve /fsx/models/Kimi-K3 \
+                  --served-model-name kimi-k3 \
+                  --trust-remote-code \
+                  --quantization mxfp4 \
+                  --headless \
+                  --data-parallel-size 64 \
+                  --data-parallel-size-local 8 \
+                  --data-parallel-start-rank "${START_RANK}" \
+                  --data-parallel-address "${LWS_LEADER_ADDRESS}" \
+                  --data-parallel-rpc-port 5555 \
+                  --tensor-parallel-size 1 \
+                  --enable-expert-parallel \
+                  --max-model-len 1000000 \
+                  --gpu-memory-utilization 0.85
+            env:
+              - name: LWS_LEADER_ADDRESS
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.annotations['leaderworkerset.sigs.k8s.io/leader-address']
+              - name: LWS_WORKER_INDEX
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['leaderworkerset.sigs.k8s.io/worker-index']
+              - name: HF_HUB_OFFLINE
+                value: "1"
+            resources:
+              limits:
+                nvidia.com/gpu: 8
+                vpc.amazonaws.com/efa: 8
+                memory: 1600Gi
+                hugepages-2Mi: 128Gi
+              requests:
+                nvidia.com/gpu: 8
+                vpc.amazonaws.com/efa: 8
+                memory: 1600Gi
+                hugepages-2Mi: 128Gi
+            volumeMounts:
+              - { name: models, mountPath: /fsx/models, readOnly: true }
+              - { name: scripts, mountPath: /opt/scripts, readOnly: true }
+              - { name: dshm, mountPath: /dev/shm }
+        volumes:
+          - name: models
+            persistentVolumeClaim:
+              claimName: fsx-models
+          - name: scripts
+            configMap: { name: kimi-k3-scripts, defaultMode: 0755 }
+          - name: dshm
+            emptyDir: { medium: Memory, sizeLimit: 64Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kimi-k3
+spec:
+  selector:
+    app: kimi-k3
+    role: leader
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+  type: ClusterIP

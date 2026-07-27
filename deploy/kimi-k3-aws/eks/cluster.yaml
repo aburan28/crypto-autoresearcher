@@ -1,0 +1,77 @@
+# EKS cluster for multi-node Kimi-K3 serving.
+#
+#   eksctl create cluster -f cluster.yaml
+#
+# Shape: 8 x p6-b200.48xlarge = 64 x B200 (180 GB) = 11.5 TB HBM.
+# EP=64 divides 896 experts evenly at 14 experts/GPU. See ../README.md section 1.
+#
+# CONFIRM: p6-b200 capacity is constrained -- check availability in your target AZ
+# and prefer a Capacity Block or ODCR over on-demand for anything sustained.
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: kimi-k3
+  region: us-east-1
+  version: "1.31"
+
+iam:
+  withOIDC: true
+
+# All GPU nodes must land in ONE AZ. Cross-AZ traffic does not use EFA and will
+# silently destroy MoE all-to-all performance.
+availabilityZones: ["us-east-1a", "us-east-1b"]
+
+managedNodeGroups:
+  - name: kimi-k3-gpu
+    instanceType: p6-b200.48xlarge
+    # Gang-scheduled: the deployment is useless with a partial expert-parallel group,
+    # so min == max and the group scales as a unit.
+    desiredCapacity: 8
+    minSize: 8
+    maxSize: 8
+    availabilityZones: ["us-east-1a"]
+    volumeSize: 500
+    privateNetworking: true
+
+    # Places all instances on the same spine for lowest inter-node latency.
+    placement:
+      groupName: kimi-k3-cluster-pg
+
+    efaEnabled: true
+
+    labels:
+      node-role: kimi-k3-gpu
+      nvidia.com/gpu: "true"
+
+    # Keeps non-GPU workloads off these very expensive nodes.
+    taints:
+      - key: nvidia.com/gpu
+        value: "true"
+        effect: NoSchedule
+
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+        ebs: true
+        fsx: true
+
+  # Small CPU group for the router, controllers, and observability.
+  - name: system
+    instanceType: m7i.2xlarge
+    desiredCapacity: 3
+    minSize: 3
+    maxSize: 6
+    privateNetworking: true
+
+addons:
+  - name: vpc-cni
+  - name: coredns
+  - name: kube-proxy
+  - name: aws-ebs-csi-driver
+  - name: aws-efa-k8s-device-plugin
+
+cloudWatch:
+  clusterLogging:
+    enableTypes: ["api", "audit", "controllerManager"]
