@@ -1,0 +1,122 @@
+hypothesis:
+  id: H-MLKEM-003
+  question_id: RQ-MLKEM-001
+  title: The incomplete ML-KEM re-encryption comparison class is isolated to the audited wolfSSL pre-fix commits under a hardened multi-class conformance gate
+  statement: >-
+    A conformance gate hardened against the five objections that survived
+    EXP-MLKEM-002 — a multi-class generator adding multi-byte, alignment and
+    lane-boundary, and malformed-length cases; more keys; a strong named
+    conformance anchor; and attestation at the Algorithm 18 decapsulation
+    boundary rather than only at the comparison primitive — still detects the
+    known-defective wolfSSL v5.9.1 backends, and finds no reproducible silent
+    ciphertext byte, and no accept of a mutated ciphertext, in the wolfSSL
+    post-fix backends or in at least one additional independent open-source
+    ML-KEM implementation. Equivalently: the incomplete-comparison class
+    observed at v5.9.1 is an isolated defect of those specific optimized
+    routines rather than a systemic property of optimized ML-KEM comparison
+    code.
+  mechanism: >-
+    Two distinct failure modes can hide behind a clean single-byte differential
+    sweep. The first is generator blindness: an omission that only manifests for
+    coordinated multi-byte differences, for differences confined to one SIMD
+    lane or block boundary, or for lengths other than the nominal ciphertext
+    length, is invisible to one-byte-at-a-time probing. The second is probe
+    placement: measuring a symbol directly says nothing about which routine the
+    real decapsulation path selects, so a null can be an artifact of dispatch.
+    Widening the generator over mutation cardinality, alignment, and length, and
+    moving the observation point to the public decapsulation API, closes both.
+    If the class were systemic — for example if hand-written vector comparison
+    tails were routinely mis-sized across projects — a second independent
+    implementation should exhibit some silent index under the same widened
+    generator. If it does not, the defect is specific to the audited routines.
+  assumptions:
+    - Laboratory-only builds from public source; no deployed system, network peer, or third-party key.
+    - The wolfSSL v5.9.1 AVX2 backend remains a valid known-defective positive control, as established by EV-MLKEM-005.
+    - A second open-source ML-KEM implementation can be built and its comparison and decapsulation paths reached offline or from a pinned public source.
+    - A strong conformance anchor (NIST ACVP ML-KEM encapDecap vectors, or an implementation's in-tree known-answer vectors) is retrievable; if not, the weaker self-consistency anchor is used and labeled as such.
+    - Mutations that change the decrypted message legitimately produce rejection at the API boundary, so API-level accept rates are expected to be lower than primitive-level silent-set cardinalities.
+  predictions:
+    - metric: hardened_gate_detects_known_defect
+      direction: higher
+      minimum_effect: 'The wolfSSL v5.9.1 AVX2 ML-KEM-1024 tail omission is detected by every generator class that can reach indices 1536..1567, at both the primitive and the decapsulation boundary.'
+    - metric: multi_class_generator_new_silent_indices_on_audited_postfix
+      direction: lower
+      minimum_effect: 'Exactly 0 reproducible silent indices beyond those already known, across all added generator classes.'
+    - metric: second_implementation_silent_indices
+      direction: lower
+      minimum_effect: 'Exactly 0 reproducible silent indices and 0 accepts of a mutated equal-length ciphertext.'
+    - metric: malformed_length_handling
+      direction: different
+      minimum_effect: 'Every malformed-length input is either rejected or refused, is recorded in its own table, and is never counted as a comparison omission.'
+    - metric: decapsulation_boundary_attestation
+      direction: higher
+      minimum_effect: 'Every backend for which a conformance verdict is issued has at least one Algorithm-18-level measurement, not only a direct-symbol measurement.'
+  test_boundary:
+    instances:
+      - wolfSSL v5.9.1-stable and v5.9.2-stable, scalar and x64 AVX2, and aarch64 NEON under emulation if available
+      - at least one additional independent open-source ML-KEM implementation, pinned by commit or release tag
+      - a deliberately truncated harness comparator retained as the generator-adequacy control
+    parameters:
+      parameter_sets: [ML-KEM-512, ML-KEM-768, ML-KEM-1024]
+      keys_per_parameter_set: 4
+      generator_classes:
+        G1_single_byte: xor 0x01 and xor 0xff at every index
+        G2_multi_byte: seeded k-byte coordinated flips for k in [2, 4, 8, 16] plus whole-block flips
+        G3_alignment: mutations at every 16, 32, and 64 byte boundary and at the last byte of each aligned block
+        G4_malformed_length: truncated and extended ciphertexts, recorded in a separate table
+        G5_key_dependence: every class replayed across all four keys
+      prohibited: any mutation program directed at recovering a secret
+    implementation: >-
+      Reuse the EXP-MLKEM-002 harness structure, extended with the multi-class
+      generator, the decapsulation-boundary probe, and a second-implementation
+      adapter. Library comparison logic, buffer lengths, and dispatch conditions
+      are never modified.
+    budget:
+      wall_clock_seconds: 5400
+      cpu_hours: 2.0
+      maximum_memory_gb: 4
+      maximum_runs: 4
+  falsification_conditions:
+    - >-
+      The hardened gate fails to detect the known wolfSSL v5.9.1 defect through
+      a generator class that reaches the omitted indices. This falsifies the
+      hardening and indicts the new generator.
+    - >-
+      A reproducible silent index or an accept of a mutated equal-length
+      ciphertext appears in a wolfSSL post-fix backend. This falsifies the
+      isolation claim for the audited fix.
+    - >-
+      A reproducible silent index or an accept appears in the second
+      implementation. This falsifies the isolation claim outright and makes the
+      class systemic; the result is escalated to the coordinator and nothing is
+      disclosed, exploited, or published by any agent.
+    - >-
+      A conformance verdict is issued for a backend with no measurement at the
+      decapsulation boundary.
+  distinguishable_outcomes:
+    isolated_to_audited_commits: >-
+      The known defect is detected, and no new reproducible silent index or
+      accept appears anywhere else under any generator class.
+    systemic_incomplete_comparison: >-
+      A second implementation, or a wolfSSL post-fix backend, shows a
+      reproducible silent index or accept. Report the exact target, commit,
+      backend, parameter set, generator class, and index list to the
+      coordinator; construct no exploitation path and disclose nothing.
+    generator_hardening_insufficient: >-
+      The added classes detect nothing the single-byte class did not, including
+      on the positive control, so the hardening adds no discriminating power and
+      the null remains as narrow as before.
+    invalid_harness_or_dispatch: >-
+      A build fails, a backend cannot be attested, the anchor fails, or the
+      decapsulation probe cannot be reached. Infrastructure outcome only.
+  interpretation_limits:
+    - Functional comparison completeness only; nothing about timing, power, EM, cache, microarchitectural, or fault behavior.
+    - Isolation is claimed only over the implementations, versions, backends, parameter sets, keys, and generator classes actually exercised.
+    - A null under a wider generator is still a null under a finite generator; it is not a correctness proof.
+    - Any newly observed conformance defect is an internal observation requiring human review and coordinated disclosure, never an agent-published vulnerability claim or exploit.
+    - Nothing here bears on MLWE hardness or passive ML-KEM security.
+  selected_by: DEC-20260724-018
+  proposal_ref: IDEA-20260722-002
+  evidence_basis: [EV-MLKEM-005]
+  status: specified
+  proposed_by: coordinator

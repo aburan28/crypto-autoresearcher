@@ -1,0 +1,384 @@
+schema: crypto.autoresearch.red_team_report.v1
+red_team_report:
+  id: RT-20260724-001
+  task_id: TASK-20260724-231
+  goal_id: GOAL-MLKEM-001
+  batch_id: BATCH-005
+  role: red-team
+  official_state_change: none
+  claim_under_review: >-
+    EXP-MLKEM-002 outcome_classification suite_is_discriminating: ORS-025/ORS-026
+    premises present at wolfSSL v5.9.1 and fixed in v5.9.2; pre-fix AVX2 silent
+    region 1536..1567 (32 bytes) and NEON silent counts 384/544/784; post-fix
+    backends zero silent bytes and zero scalar-versus-optimized disagreements at
+    full byte coverage; negative harness detected before library conclusions.
+
+  inference:
+    requested_policy: review-xhigh
+    resolved_model: cursor-grok-4.5-high
+    fallback_used: true
+    independent_session: true
+    adapter_note: >-
+      Per coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/inference-amendment-TASK-20260724-231.yaml;
+      review-xhigh cannot be resolved on this runtime; user-authorized Cursor Grok 4.5 fallback.
+
+  snapshot_verification:
+    status: verified_committed_snapshot
+    commit_sha: 28608fb8a48ffbb8291c82810f2867553d3fe6f1
+    parent_sha: e829ef7c26549dc3ee62796c89f16b1d1ac2500b
+    receipt_task_id: TASK-20260724-229
+    receipt_path: >-
+      coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/archives/TASK-20260724-229/snapshot-receipt.json
+    hash_check: >-
+      All 39 artifact_sha256 values in the snapshot receipt independently matched
+      git show 28608fb:<path>. Commit is reachable from HEAD. Receipt commit_sha
+      field is null by self-reference convention; Git subject/parent bind the archive.
+    note: >-
+      Build trees and binaries under /tmp were not archived (receipt note). Review
+      used /tmp/exp-mlkem-002/wolfssl-5.9.1 and wolfssl-5.9.2 clones plus public
+      NVD/advisory pages for independent source and CVE checks.
+
+  independent_source_inspection:
+    accessed_at: '2026-07-24'
+    wolfssl_clones:
+      prefix_path: /tmp/exp-mlkem-002/wolfssl-5.9.1
+      postfix_path: /tmp/exp-mlkem-002/wolfssl-5.9.2
+      prefix_peeled: 1d363f3adceba9d1478230ede476a37b0dcdef24
+      postfix_peeled: ac01707f552c611fbd135cc723b2682b3e7f80f2
+      prefix_tag: v5.9.1-stable
+      postfix_tag: v5.9.2-stable
+      asm_sha256_match_source_lock: true
+    sources:
+      - id: CVE-2026-10097
+        url: https://nvd.nist.gov/vuln/detail/CVE-2026-10097
+        observation: >-
+          NVD/CNA corroborates mlkem_cmp_avx2 comparing 1536 of 1568 bytes,
+          silent final block 1536-1567, affected wolfSSL 5.7.0--5.9.1, PR 10430,
+          and vendor-reported ~350-query/~98% PoC. Exploitation metrics are
+          advisory-reported, not independently re-executed here.
+      - id: CVE-2026-6330
+        url: https://nvd.nist.gov/vuln/detail/CVE-2026-6330
+        observation: >-
+          NVD/CNA corroborates ARM64 NEON "half of the input" comparison defect,
+          affected 5.7.4--5.9.1, fixed via PR 10192 / 5.9.2. No key-recovery
+          query count in the CVE record.
+      - id: WOLFSSL-ASM-AVX2
+        observation: >-
+          Independent read of wolfcrypt/src/wc_mlkem_asm.S: prefix mlkem_cmp_avx2
+          at lines 16588-16755 ends at vmovdqu 1504(%rdi) (covers 1536 bytes);
+          postfix at 15378-15548 adds vmovdqu 1536(%rdi)/vpxor/vpor for the final
+          32 bytes. File SHA-256 matches source-lock.yaml.
+      - id: WOLFSSL-ASM-NEON
+        observation: >-
+          Independent read of armv8-mlkem-asm.S: full-length ld4/ld2 loads; prefix
+          reduction uses ins v9.b[0], v8.b[1] (line ~8930); postfix uses
+          ext v9.16b, v8.16b, v8.16b, #8 (line ~8942). Only material functional
+          diff in the comparison body is that reduction instruction. SHA-256
+          matches source-lock.yaml.
+      - id: WOLFSSL-DISPATCH
+        observation: >-
+          wc_mlkem_poly.c mlkem_cmp dispatches to mlkem_cmp_neon under
+          aarch64+WOLFSSL_ARMASM else USE_INTEL_SPEEDUP+AVX2 CPUID else scalar.
+          wc_mlkem.c ~1566 calls mlkem_cmp(ct, cmp, ctSz) during decapsulation.
+
+  ors_025_026_correction_verdict:
+    requires_correction: false
+    severity_if_any: optional_wording_clarification_only
+    statement: >-
+      ORS-025 and ORS-026 are not fabrications. Presence, version ranges, PR
+      references, AVX2 1536/1568 byte omission, and NEON half-input defect are
+      independently corroborated by NVD/CNA text and by wolfSSL v5.9.1/v5.9.2
+      assembly. EXP-MLKEM-002's present verdicts stand. Optional clarification:
+      ORS-026's "half of its input" matches vendor/NVD language and the measured
+      silent cardinalities 384/544/784, but the mechanism is a defective horizontal
+      reduction (ins vs ext), not a half-length loop bound — already recorded in
+      premise_verdicts.yaml. Uncorroborated by this review (and already labelled
+      vendor/CNA in ORS-025): the ~350-query and ~98% key-recovery figures; this
+      experiment correctly did not re-test them and they do not affect the
+      suite_is_discriminating outcome class.
+    parts_corroborated:
+      - CVE identifiers CVE-2026-10097 and CVE-2026-6330 exist in NVD
+      - AVX2 1536-of-1568 / bytes 1536-1567
+      - NEON half-input class description and PR 10192 fix
+      - Affected version windows and fix in 5.9.2
+      - Function names mlkem_cmp_avx2 / mlkem_cmp_neon and instruction-level diffs
+    parts_uncorroborated:
+      - ORS-025 chosen_ciphertexts approximately_350 and reported_success approximately_98_percent (vendor/CNA only; no independent PoC inspected in this session)
+      - Any claim that ORS rows prove exploitability on a deployed remote system
+
+  outcome_classification_verdict:
+    suite_is_discriminating_should_stand: true
+    changes_outcome_class: false
+    statement: >-
+      Under the frozen EXP-MLKEM-002 outcome_classification definition
+      (specification.yaml outcome_classification.suite_is_discriminating), the
+      class stands: negative harness detected with exact half-buffer omitted
+      ranges; both CVE premises present with file/function/line evidence;
+      verified incomplete comparisons yielded nonempty reproducible primitive
+      silent sets matching source omissions (AVX2 32 indices 1536..1567; NEON
+      384/544/784 with the documented half-block/remainder pattern); post-fix
+      AVX2 and NEON showed zero silent bytes and zero scalar-versus-optimized
+      disagreements at coverage fraction 1.0. Surviving objections narrow
+      hypothesis wording, null-result strength, NEON API-boundary transfer,
+      reproducibility convenience, and generator completeness — they do not
+      replace the class with premise_unverified, positive_control_undetected,
+      residual_patched_disagreement, or invalid_harness_or_dispatch.
+
+  objections:
+    - id: OBJ-001
+      number: 1
+      classification: scope_narrowing
+      severity: medium
+      status: surviving
+      changes_outcome_class: false
+      target: >-
+        ledger/hypotheses/H-MLKEM-002.yaml predictions.integration_oracle_observed
+        and distinguishable_outcomes.suite_is_discriminating ("matching integration
+        accept"); experiments/EXP-MLKEM-002/execution-report.yaml
+        integration_observation (43/64) and anomalies[0];
+        runs/RUN-MLKEM-007/raw.json integrations
+      finding: >-
+        Primitive silent ≠ universal Algorithm-18 accept. Of 64 PREFIX-AVX2
+        ML-KEM-1024 silent index/seed pairs, 43 accepted and 21 rejected; by
+        index, 20 both-seed accepts, 9 both-seed rejects, 3 seed disagreements
+        (1539, 1544, 1564). This is predicted once mutations land in the final
+        32 bytes of compressed v: decryption may change m', re-encryption then
+        differs in compared bytes 0..1535, and FO rejects despite a silent
+        primitive compare. It does not undercut the primitive silent set or the
+        frozen experiment outcome class (which keys off source-matched silent
+        sets, not universal integration). It does falsify any reading of
+        H-MLKEM-002 that requires accept on every silent index/seed.
+      evidence_that_settles: >-
+        Already settled as mechanism-consistent by the recorded 43/64 table.
+        Optional: per false-accept pair, record whether Decapsulate's recovered
+        message equals the honest message (without key-recovery work beyond that
+        boolean).
+
+    - id: OBJ-002
+      number: 2
+      classification: scope_narrowing
+      severity: medium
+      status: surviving
+      changes_outcome_class: false
+      target: >-
+        experiments/EXP-MLKEM-002/execution-report.yaml outcome_selection_evidence
+        post-fix zero-disagreement bullet; H-MLKEM-002.yaml interpretation_limits
+        (already partially caveats this); specification.yaml mutation_grid
+      finding: >-
+        Post-fix "zero disagreements" is a null under one generator: single-byte
+        xor_0x01 and xor_0xff at every index, two deterministic keys, equal-length
+        buffers, functional equality only. Classes it does not prove absent:
+        multi-byte/coordinated mutations; length-dependent or malformed-length
+        paths (explicitly separated by CTRL-LENGTH-VERSUS-CONTENT);
+        alignment/SIMD-lane coupling beyond single-byte probes; rare key-dependent
+        defects outside the two seeds; defects shared by scalar and optimized
+        (differential is blind); timing-only or microarchitectural defects.
+        Over-reading zero disagreements as "the comparison is correct" would
+        exceed the artifact. The hypothesis already states the right limit; the
+        execution-report wording is accurate if kept generator-scoped.
+      evidence_that_settles: >-
+        No further run required for the current outcome class. Any stronger
+        "comparison correct" claim needs an explicit expanded generator protocol.
+
+    - id: OBJ-003
+      number: 3
+      classification: scope_narrowing
+      severity: medium
+      status: surviving
+      changes_outcome_class: false
+      target: >-
+        experiments/EXP-MLKEM-002/implementation/comparison_probe.c library_cmp
+        direct mlkem_cmp_avx2/mlkem_cmp_neon calls; implementation.md reach
+        mechanism; RUN-MLKEM-006/008 attestations; absence of NEON entries in
+        RUN-MLKEM-007 integrations
+      finding: >-
+        Primitive grids call optimized symbols directly via harness compile-time
+        macros, bypassing mlkem_cmp's AVX2 CPUID gate and (for measurement) the
+        exact Decapsulate call path. Attestation (equal/unequal self-test + nm/
+        objdump for AVX2; macros for NEON) shows the linked symbol behaves, not
+        that every normal-build Decapsulate invocation selected it. Mitigant:
+        PREFIX-AVX2 Algorithm-18 accepts on silent mutations prove the live
+        Decapsulate path ignored those bytes on this host. NEON had no
+        Algorithm-18 integration checks under qemu-aarch64, so NEON findings
+        remain primitive-level under emulation, not API-boundary attested on
+        native silicon.
+      evidence_that_settles: >-
+        One Decapsulate mutation grid (or PROBE_BACKEND_DISPATCH) on PREFIX/POSTFIX
+        NEON for a sample of silent indices; optional native aarch64 rerun.
+        Not required to keep suite_is_discriminating under the frozen primitive
+        definition.
+
+    - id: OBJ-004
+      number: 4
+      classification: scope_narrowing
+      severity: low
+      status: surviving
+      changes_outcome_class: false
+      target: >-
+        Missing experiments/EXP-MLKEM-002/vectors/ directory; contrast with
+        RUN-MLKEM-006/007 raw.json ct_sha256_seed* fields and hardcoded
+        SEED_MATERIAL in comparison_probe.c
+      finding: >-
+        Exact ciphertext byte strings are not archived under vectors/. An
+        independent party can regenerate from committed seeds and verify against
+        recorded SHA-256 digests, but cannot byte-diff without rebuilding
+        wolfSSL and re-running the probe. This is a reproducibility convenience
+        gap, not evidence the tables are fabricated (digests, silent sets, and
+        source diffs cohere).
+      evidence_that_settles: >-
+        Archive per-seed ciphertext and shared-secret digests already present;
+        optional: write vectors/*.bin matching those digests in a follow-up
+        archival task.
+
+    - id: OBJ-005
+      number: 5
+      classification: scope_narrowing
+      severity: low
+      status: surviving
+      changes_outcome_class: false
+      target: >-
+        experiments/EXP-MLKEM-002/execution-report.yaml conformance_anchor_used
+        deterministic_encap_decap_self_consistency / weakest_accepted;
+        specification.yaml conformance_anchor
+      finding: >-
+        The differential reference is the weakest accepted anchor (self-consistency
+        plus scalar cross-commit equality), not NIST ACVP or in-tree KATs as the
+        primary named anchor. This does not invent silent bytes, but it limits
+        how strongly scalar is certified as FIPS-faithful.
+      evidence_that_settles: >-
+        Re-run CTRL-VALID-KAT against NIST ACVP encapDecap vectors or wolfSSL
+        in-tree ML-KEM KATs and name that anchor.
+
+    - id: OBJ-006
+      number: 6
+      classification: defeated
+      severity: high_if_true
+      status: defeated
+      changes_outcome_class: false
+      target: >-
+        BATCH-002 ORS-025/ORS-026 as possibly invented premises;
+        experiments/EXP-MLKEM-002/analysis/premise_verdicts.yaml present verdicts
+      finding: >-
+        Attack line 1 (fabrication) fails. Public CVE records and independent
+        assembly inspection confirm both incompleteness claims at the named
+        tags. Measured silent sets match the source-level omissions
+        (AVX2 exact 32-byte tail; NEON half-block pattern with 384/544/784).
+      evidence_that_settles: Already settled by this review's source and NVD checks.
+
+    - id: OBJ-007
+      number: 7
+      classification: defeated
+      severity: high_if_true
+      status: defeated
+      changes_outcome_class: false
+      target: >-
+        CTRL-NEGATIVE-HARNESS / execution-report.yaml negative_harness;
+        comparison_probe.c harness_truncated_cmp
+      finding: >-
+        Deliberately truncated harness comparing only sz/2 was detected with
+        exact omitted ranges [384,768), [544,1088), [784,1568) and was reported
+        before library-build conclusions. Generator adequacy for this omission
+        class is established. Does not prove detection of every conceivable
+        comparison defect (see OBJ-002).
+      evidence_that_settles: Already settled by RUN-MLKEM-006 raw/summary artifacts.
+
+    - id: OBJ-008
+      number: 8
+      classification: defeated_as_outcome_flip
+      severity: medium
+      status: defeated
+      changes_outcome_class: false
+      target: >-
+        Scope-inflation hunt across execution-report.yaml and H-MLKEM-002.yaml
+      finding: >-
+        No sentence in the execution report claims key recovery, exploitation,
+        other libraries/versions/backends, deployed systems, timing/physical
+        channels, or MLWE/passive security. Scope_statement and hypothesis
+        interpretation_limits explicitly forbid those readings. Residual wording
+        risk: metric id integration_oracle_observed may be misread as an oracle
+        construction claim; the surrounding prose denies that reading.
+      evidence_that_settles: Reader discipline; optional rename of the metric id.
+
+  required_controls:
+    - id: CTRL-RT-INTEGRATION-SEMANTICS
+      purpose: Keep primitive silence distinct from FO accept
+      control: >-
+        Always report integration_accept as a separate table with seed×index
+        cells; never equate nonempty silent_byte_set with universal API accept.
+    - id: CTRL-RT-NULL-GENERATOR-SCOPE
+      purpose: Prevent over-reading post-fix zeros
+      control: >-
+        Quote the exact mutation grid whenever stating zero disagreements;
+        list defect classes outside that grid as untested.
+    - id: CTRL-RT-DISPATCH-ATTEST
+      purpose: Bind primitive findings to Decapsulate where claimed
+      control: >-
+        For any API-boundary claim, require Decapsulate-path accepts or a
+        dispatch-mode probe; direct-symbol grids remain primitive-only.
+    - id: CTRL-RT-VECTOR-DIGESTS
+      purpose: Cheap reproducibility without exploitation material
+      control: >-
+        Keep ct_sha256/ss_sha256 in raw.json (already present); optionally
+        archive ciphertext blobs under vectors/ in a later archival task.
+
+  counterexample_or_mutation:
+    id: MUT-RT-MSG-STABLE-SILENT
+    design: >-
+      For each PREFIX-AVX2 silent index, after Decapsulate of the mutated CT,
+      compare the FO-recomputed ciphertext's compared prefix (bytes 0..1535) to
+      the mutated CT, or compare whether the decrypted message equals the honest
+      encapsulation message. Expect accepts exactly when the compared prefix
+      matches (message-stable mutations); rejects when decryption flips.
+    expected_discrimination: Explains 43/64 without indicting the primitive map.
+    why_cheapest: Uses already-recorded indices; no key recovery or new CVE work.
+
+  baseline_comparison:
+    pollard_rho_and_bsgs: >-
+      Not applicable. This experiment is a laboratory conformance/differential
+      audit of comparison primitives, not an ECDLP or MLWE solve.
+    specialized_baseline: >-
+      Closest baselines are FIPS 203 Algorithm 18 complete comparison semantics
+      and the scalar mlkem_cmp_c reference at the same commits; prior BATCH-002
+      red-team MUT-COMPARE-ONEBIT is the experiment that was executed.
+    red_team_result: >-
+      Relative to that baseline, pre-fix AVX2/NEON incompleteness is confirmed
+      and post-fix differentials are empty under the declared generator.
+
+  narrowest_supported_statement: >-
+    On wolfSSL peeled commits 1d363f3 (v5.9.1-stable) and ac01707 (v5.9.2-stable),
+    a byte-complete single-byte xor differential suite applied directly to the
+    ML-KEM comparison primitives, with a detected harness-truncated negative
+    control, discriminated the source-verified AVX2 tail omission (exactly
+    indices 1536..1567 on ML-KEM-1024) and the source-verified NEON reduction
+    defect (silent cardinalities 384/544/784 under qemu-aarch64) from the
+    corresponding post-fix backends, which showed zero silent indices and zero
+    scalar-versus-optimized disagreements at full index coverage for the three
+    FIPS parameter sets and two seeds tested. Algorithm-18 integration on
+    pre-fix AVX2 silent indices accepted on 43/64 index/seed pairs (mechanism-
+    consistent, not universal). This establishes laboratory functional
+    discrimination for these builds and this generator only: not correctness
+    under all inputs, not native-ARM NEON API attestation, not exploitability,
+    not other libraries/versions, and not MLWE or passive ML-KEM security.
+    ORS-025/ORS-026 presence claims do not require correction.
+
+  scope_limits:
+    - No official hypothesis, experiment, evidence, or decision status change.
+    - Results restricted to the two exact commits and attested backends built.
+    - Primitive silence is not universal FO accept.
+    - Post-fix nulls are generator-scoped.
+    - NEON results are qemu-aarch64 functional measurements without integration.
+    - Vendor PoC query counts remain unreviewed empirically.
+    - Weakest conformance anchor only.
+    - Dirty_tree_at_execution true on the executor report; durable evidence is
+      the 28608fb snapshot hash set, not unarchived /tmp binaries.
+
+  next_concrete_action: >-
+    Coordinator may treat suite_is_discriminating as standing for EXP-MLKEM-002
+    while recording OBJ-001..005 as scope limits on H-MLKEM-002 support language.
+    Cheapest optional follow-up: annotate the 21 non-accepting AVX2 integration
+    cells with message-stability, and/or add a small NEON Decapsulate sample —
+    neither is required to keep the outcome class.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-231/red_team_report.yaml
+    - coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-231/falsification_review.md

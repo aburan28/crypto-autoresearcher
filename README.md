@@ -20,6 +20,19 @@ The project separates research into primary roles with separate authority:
 - scope conclusions to the tested curves, parameters, solver, and compute budget;
 - support iterative autonomous research without letting agents silently redefine success.
 
+## Research direction
+
+What counts as a target result is defined in
+[`docs/target-result-profile.md`](docs/target-result-profile.md). Its canonical
+exemplar is Wesolowski's p^{1/3+o(1)} result on the supersingular isogeny
+problem (full text in `inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`): move the
+asymptotic exponent of a central hard problem rather than polish logarithmic
+cofactors; state conditional theorems against explicit, numbered heuristics;
+validate those heuristics experimentally at cryptographic scale; and disclose
+concrete costs, memory requirements, and affected-vs-safe scope honestly. The
+orchestration machinery below exists to produce results of that shape — and to
+block claims that fall short of its honesty standards.
+
 ## Repository map
 
 ```text
@@ -46,11 +59,15 @@ docs/measuring-the-harness.md          How harness effectiveness is measured, an
 docs/inference-backends.md             Backend/runtime setup and resolution semantics
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
+docs/target-result-profile.md          Target result profile: exemplar-anchored direction criteria
 docs/dynamic-subagent-dispatch.md      Artifact-driven task dispatch and ownership rules
 docs/knowledge-assessment-20260724.md  Audit of corpus, ledger, and artifact completeness
+<<<<<<< HEAD
 docs/github-automation.md              PR review, @claude agent, and periodic branch sync
 REVIEW.md                              Contract for automated pull-request review
 tools/sync_open_branches.py            Merges main into stale PR branches; never rebases
+=======
+>>>>>>> origin/main
 templates/research-records.md          YAML templates for all shared records
 templates/subagent-task-queue.json     JSON template for bounded task dispatch
 orchestration/cli.py                   The `autoresearch` entry point (doctor, loop, status)
