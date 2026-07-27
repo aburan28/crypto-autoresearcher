@@ -12,6 +12,7 @@ research_goal:
   question_ids: []
   active_hypothesis_ids: []
   status: draft | active | paused | blocked | completed | cancelled
+                                 | closed_at_budget
   runtime:
     provider: codex | none
     goal_id: null
@@ -24,6 +25,23 @@ research_goal:
   latest_verified_commit: null
   completion_criteria: []
   pause_conditions: []
+  # Required to move status -> completed. Three CONCUR attestations with
+  # pairwise-distinct resolved_model_id. Omit entirely until closure is sought.
+  completion_quorum:
+    quorum_satisfied: false      # true only in the same archive that sets
+                                 # status: completed
+    attestations:
+      - role: reviewer | validator | red-team | coordinator
+        requested_policy: null   # policy alias asked for
+        resolved_model_id: null  # the model that ACTUALLY ran; distinctness is
+                                 # judged on this field, not the alias
+        reasoning_effort: null
+        fallback_used: null
+        independent_session: true
+        reviewed_record_ids: []  # exact EV-/DEC-/GOAL- ids this vote rests on
+        verdict: CONCUR | DISSENT
+        rationale: null
+        attested_at: null
   next_action: null
   owner: coordinator
   created_at: null
@@ -33,6 +51,13 @@ research_goal:
 The goal record is an operational anchor, not evidence. Create and commit it
 with its initial question and handoff before dispatch. Update it only through a
 Coordinator ledger archive commit.
+
+`completion_quorum` is the one gate on `status: completed` (AGENTS.md rule 13).
+Three attestations that resolve to the same model are not a quorum, however many
+distinct policy aliases they requested — the validator compares
+`resolved_model_id`. A single `DISSENT` blocks closure rather than being
+outvoted. Statuses that assert no success (`paused`, `blocked`,
+`closed_at_budget`) need no quorum.
 
 ## Research question
 
