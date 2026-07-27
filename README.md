@@ -62,12 +62,9 @@ docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility ru
 docs/target-result-profile.md          Target result profile: exemplar-anchored direction criteria
 docs/dynamic-subagent-dispatch.md      Artifact-driven task dispatch and ownership rules
 docs/knowledge-assessment-20260724.md  Audit of corpus, ledger, and artifact completeness
-<<<<<<< HEAD
 docs/github-automation.md              PR review, @claude agent, and periodic branch sync
 REVIEW.md                              Contract for automated pull-request review
 tools/sync_open_branches.py            Merges main into stale PR branches; never rebases
-=======
->>>>>>> origin/main
 templates/research-records.md          YAML templates for all shared records
 templates/subagent-task-queue.json     JSON template for bounded task dispatch
 orchestration/cli.py                   The `autoresearch` entry point (doctor, loop, status)
