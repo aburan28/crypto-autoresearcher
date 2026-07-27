@@ -367,8 +367,21 @@ handoff:
   artifact_paths: []
   archived_by: TASK-YYYYMMDD-NNN
   inference:
-    policy: coordinator-ultra-code | research-sol-max | executor-terra | review-xhigh
-    fallback_allowed: false
+    # Canonical policy ids; the pre-2.0 aliases still resolve for records
+    # already committed. See docs/inference-backends.md.
+    policy: coordinator-orchestration-code | coordinator-orchestration |
+            research-deep | executor-implementation | executor-mechanical |
+            review-adversarial | review-breakthrough
+            # review-breakthrough only for a claimed break, a closure result,
+            # or a contradiction between validated evidence records. It cannot
+            # be degraded and refuses a backend that cannot reach `max`.
+    reasoning_effort: null         # per-task calibration; null = the policy
+                                   # default. Lower it for mechanical work;
+                                   # a review policy may never go below its
+                                   # floor, and the dispatcher enforces that.
+    fallback_allowed: false        # permit the declared fallback / another backend
+    degraded_allowed: false        # permit a RECORDED downgrade; needs an
+                                   # inference_amendment naming the gap
     independent_session_required: false
   budget:
     wall_clock_seconds: null

@@ -2,55 +2,77 @@
 id: KN-FIND-006
 type: finding
 title: >-
-  Adversarial survey of the Pollard-rho frontier finds no live generic speedup:
-  0 live, 9 capped, 17 dead across six lenses — only constant-factor engineering
-  remains on the baseline
-tags: [pollard-rho, baseline, generic, distinguished-points, negation-map, survey, lower-bound, ecdlp, negative-result, external-corpus]
+  The Semaev/Weil-descent Macaulay rank deficit is bounded structural syzygy
+  content equal to 8*dim(V), not growing content: the generic baseline is exactly
+  the classical trivial syzygies and the excess is a vanishing fraction
+tags: [semaev, weil-descent, groebner, degree-of-regularity, syzygy, betti, rank-deficit, semi-regular, binary-field, ecdlp, bounded, negative-result]
 confidence: reported
 status: established
-source_refs: [KN-OPEN-001, KN-TECH-001, KN-TECH-006, KN-TECH-018, KN-TECH-005, KN-LIT-008, KN-LIT-012, KN-LIT-011]
+source_refs: [EXP-DREG-001, KN-OPEN-002, KN-TECH-002, KN-TECH-004, KN-LIT-005, KN-LIT-010]
 added: 2026-07-26
 superseded_by: null
 ---
 
 ## Finding
 
-A six-lens adversarial survey of proposed improvements to the Pollard-rho
-baseline classified every candidate as **LIVE = 0, capped = 9, dead = 17**.
+For Weil-descended Semaev systems over GF(2) (t=3, chained S_3, k = dim V), the
+degree-D Macaulay rank falls short of the Bardet–Faugère–Salvy semi-regular
+prediction by an amount that is **exactly closed-form at low degree and bounded**,
+not growing with system size.
 
-No generic speedup survives: every candidate either (a) is already absorbed by the
-known constant-factor toolkit — negation map, distinguished points, parallel
-collision search (KN-TECH-006, KN-TECH-018) — or (b) fails outright. What remains
-on the baseline is **constant-factor engineering and honest measurement**, not
-exponent improvement, which is exactly what the generic-group lower bound
-(KN-TECH-005, KN-LIT-011) predicts.
+Writing `deficit(D) = pred[D] - rank(D)` (the excess quotient dimension, i.e. the
+extra non-Koszul syzygies):
 
-This matters for KN-OPEN-001's accounting side: the denominator in
-"does index calculus beat rho?" is **not** going to move by an exponent, so any
-index-calculus claim must beat a baseline whose exponent is fixed at 1/2 and whose
-constants are already well optimized. The identified next measurements are
-joules-per-step and a negation-ON bitsliced implementation on ecc2k130 — i.e.
-cost-model refinement, not algorithmic advance.
+- **Support-matched null arm is exact**: deficit = 0 at n = 12, 15, 17, 18, every
+  replicate. Any sem-arm deficit is therefore real structure, not predictor bias.
+- **deficit(D=3) = 1** for every full system (n >= 12).
+- **deficit(D=4) = 8k - 1**, exact for k = 3,4,5,6,7 (n = 9,12,15,18,21).
+- **Cumulative deficit at D=4 = 8k = 8*dim(V)** for full systems.
+- The **generic degree-4 syzygies are exactly the classical trivial ones** —
+  n_q Frobenius (q_i^2 = q_i) plus C(n_q,2) Koszul pairs — verified by
+  rank(G) = nrows - pred[4] to the integer (78/120/171 at k=4/5/6). Everything
+  beyond that baseline is the deficit.
+- **Mechanism** (degree 3, exhibited): a subset-sum of descended quadrics
+  degenerates to an **affine** form P (the quadratic parts cancel), and the
+  multiplier is its exact complement, so the relation is the Boolean identity
+  `P*(1+P) = P + P^2 = 0`. The Semaev-specific content is the degeneration; the
+  support-matched null admits none (degree-3 kernel 0).
+
+While the system grows ~5x (pred 29,418 -> 145,881), the deficit stays in a narrow
+band and its *relative* size decays 4.49% -> 1.37%. The extra syzygies are a
+vanishing fraction of the system, so they supply **no asymptotic leverage** against
+ECDLP. This is the same shape as the bounded-constant verdicts in
+[KN-FIND-007](KN-FIND-007.md) and [KN-FIND-008](KN-FIND-008.md).
 
 ## Scope and limitations
 
-- **External-corpus provenance.** Produced in a separate workspace
-  (`/Volumes/Volume/research/POLLARD_RHO_FRONTIER.md`), *not* under this repo's
-  ledger or run-receipt discipline; not Coordinator-approved evidence here.
-- It is a **survey with adversarial screening**, not an execution campaign: the
-  dispositions are argued, cited classifications, and the "dead" verdicts close
-  only the exact stated mechanism boundaries.
-- "capped" means the candidate is real but bounded by a known constant-factor
-  ceiling; it does not mean the constant is worthless in practice (a 2x matters
-  for a record attempt, and is the correct baseline to benchmark against).
-- Related operational context: a detached 96-bit rho attempt in the external
-  corpus reached ~7.2% of expected work before being stopped, illustrating the
-  practical cost of the baseline at that size — that run produced no solve and is
-  not evidence about the algorithm's exponent.
+- Measured at D <= 5 and n <= 21 over **binary** fields (Weil descent of a
+  chained S_3 system), not prime fields. It bears on KN-OPEN-002 by analogy and
+  by shared machinery, but is not a prime-field measurement.
+- A **fixed-degree cross-section is the wrong instrument**: the cumulative D=5
+  series (1322/1862/1823/1999 at n=12/15/17/18) looks "bounded but non-monotonic"
+  only because D=5 sits at different depths relative to each system's regularity,
+  and because n=17 is a structurally deficient system (nb = 2n+1, 34 equations).
+  Degree-resolved measurement removes both artifacts. Do not extrapolate a
+  fixed-D deficit series.
+- The generic/extra isolation is valid only for **full** systems (exactly n
+  quadrics + n cubics in nb = 2n variables); n=9 and n=17 are deficient cells.
+- `8*dim(V)` is measured-exact over k = 3..7, **not derived**. Two mechanism
+  hypotheses were refuted: generator-level Frobenius as the source (those hold in
+  the null too), and alpha-orbit invariance under the naive companion-matrix
+  action (it fails even on the universal generic space, so the operator is
+  incomplete). A derivation needs the correct Weil-restriction/Frobenius symmetry,
+  or a direct count of the degeneracy subspace
+  `{c : deg(sum c_i f_i) < max deg}` — the favoured open route.
 
 ## Evidence
 
-- External: `/Volumes/Volume/research/POLLARD_RHO_FRONTIER.md` (six-lens survey,
-  26 classified candidates).
-- External operational: `/Volumes/Volume/research/ecdlp-cost-challenge/research/rho96/`
-  (checkpointed 96-bit attempt, stopped at ~7.2%, `solved 0`).
+- EXP-DREG-001 run records, including the matched null control
+  RUN-DREG-001-VALIDATE-N18-NULL (completed_valid, deficit 0) that closed the
+  validation ladder at n = 12/15/17/18.
+- `experiments/EXP-DREG-001/analysis.md` (sections 9-13) and
+  `experiments/EXP-DREG-001/DREG_DEFICIT_CLOSED_FORM.md`.
+- Reproducible probes: `experiments/EXP-DREG-001/characterization/`
+  (`deficit_by_degree.py`, `syzygy_degree3.py`, `syzygy_degree4.py`,
+  `alpha_action_test.py` — the last recording the refuted alpha-orbit action).
+  Exact GF(2) rank via the archived `peel_and_rank` engine.
