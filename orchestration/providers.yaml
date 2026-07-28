@@ -167,13 +167,45 @@ runtimes:
   codex_cli:
     display_name: OpenAI Codex CLI / any OpenAI-protocol agent CLI
     wire: openai_chat
-    role_binding: AGENTS.md + agents/<role>.md
+    role_binding: .codex/agents/<role>.toml
     tool_loop: builtin
     env:
       base_url: OPENAI_BASE_URL
       api_key: OPENAI_API_KEY
       model: OPENAI_MODEL
     compatible_backends: [openai, zai, fireworks, openrouter, local]
+    notes: >-
+      This runtime previously bound roles by convention — a session read
+      AGENTS.md and agents/<role>.md and was trusted to behave. Nothing checked
+      it, and a convention is not a binding. The role files are now generated
+      by `tools/generate_runtime_agents.py` and verified by
+      `tools/check_runtime_bindings.py`, and `.codex/config.toml` registers
+      them. AGENTS.md and the role contract are still required reading: the
+      generated file grants the tool surface and points at them.
+      Codex always exposes a shell, so a role whose contract excludes
+      `run_commands` is prompt-restrained here, not harness-restrained —
+      `check_runtime_bindings.py --list` prints these as OVER-GRANT.
+
+  opencode:
+    display_name: OpenCode (CLI, agents in .opencode/agent/)
+    wire: openai_chat
+    role_binding: .opencode/agent/<role>.md
+    tool_loop: builtin
+    env:
+      base_url: OPENAI_BASE_URL
+      api_key: OPENAI_API_KEY
+      model: OPENAI_MODEL
+    compatible_backends: [openai, zai, fireworks, openrouter, local]
+    notes: >-
+      Of the CLI runtimes this is the one with real per-role enforcement: its
+      `permission` block denies a tool outright rather than asking the model
+      not to use it, so the generated bindings withhold `bash` from the
+      Coordinator and the Idea Generator instead of merely instructing them.
+      Model routing is NOT taken from the env vars above the way the other
+      runtimes take it: OpenCode resolves providers through its own
+      `opencode.json` `provider:` block, so point that at the backend and
+      record the resolved model in the run manifest as usual. The env names
+      are listed for the OpenAI-compatible case only.
 
   api_direct:
     display_name: This repository's own runtime (orchestration.agent, LangGraph)

@@ -15,16 +15,44 @@ schema_version: "1.0"
 # for it. A runtime that cannot express a capability declares it unsupported;
 # a role needing that capability then cannot run on that runtime.
 capabilities:
-  read_files:    {claude_code: [Read],           codex_cli: [read],   api_direct: [read_file]}
-  search_files:  {claude_code: [Grep, Glob],     codex_cli: [search], api_direct: [list_files, search_files]}
-  write_files:   {claude_code: [Write],          codex_cli: [write],  api_direct: [write_file]}
-  edit_files:    {claude_code: [Edit],           codex_cli: [edit],   api_direct: [edit_file]}
-  run_commands:  {claude_code: [Bash],           codex_cli: [shell],  api_direct: [run_command]}
+  read_files:    {claude_code: [Read],           codex_cli: [read],   opencode: [read],              api_direct: [read_file]}
+  search_files:  {claude_code: [Grep, Glob],     codex_cli: [search], opencode: [grep, glob, list],  api_direct: [list_files, search_files]}
+  # OpenCode gates file creation and modification behind one `edit` permission,
+  # so write_files and edit_files map to the same key there. Comparison is by
+  # set, not by list, precisely so a runtime may coarsen the vocabulary without
+  # being misreported as a mismatch.
+  write_files:   {claude_code: [Write],          codex_cli: [write],  opencode: [edit],              api_direct: [write_file]}
+  edit_files:    {claude_code: [Edit],           codex_cli: [edit],   opencode: [edit],              api_direct: [edit_file]}
+  run_commands:  {claude_code: [Bash],           codex_cli: [shell],  opencode: [bash],              api_direct: [run_command]}
   # api_direct has no web capability: it is a bounded repository runtime, so a
   # role that needs the open web runs under a runtime that has it rather than
   # silently doing without. `tools/check_runtime_bindings.py --list` shows
   # which roles that excludes.
-  web_search:    {claude_code: [WebSearch, WebFetch], codex_cli: [web]}
+  web_search:    {claude_code: [WebSearch, WebFetch], codex_cli: [web], opencode: [webfetch, websearch]}
+
+# Capabilities a runtime grants unconditionally and cannot withhold from a
+# role, whatever the contract says.
+#
+# This is the inverse of an unsupported capability, and it is recorded rather
+# than assumed away. The Codex CLI always exposes a shell -- its `read-only`
+# sandbox restricts what a command may write, not whether commands may run --
+# so a role whose contract excludes `run_commands` is, on that runtime,
+# restrained by its prompt rather than by the harness. `--list` prints these
+# as OVER-GRANT so the gap is visible when choosing where to run a role.
+runtime_grants_always:
+  codex_cli: [run_commands]
+
+# Capabilities a runtime cannot separate: granting any member grants them all.
+#
+# Codex exposes a single write switch -- `sandbox_mode = "workspace-write"`
+# permits creating and modifying files alike -- and OpenCode puts the same pair
+# behind one `edit` permission. Neither can express "may create files, may not
+# modify them", which is the Idea Generator's contract. Recorded here for the
+# same reason as the grants above: the alternative is a checker that quietly
+# tolerates the difference, and then tolerates a real one.
+runtime_capability_coupling:
+  codex_cli: [[write_files, edit_files]]
+  opencode: [[write_files, edit_files]]
 
 # Execution limits for the api_direct runtime (orchestration/agent/). These are
 # defaults; a task's own budget narrows them and never widens them.
@@ -48,6 +76,8 @@ roles:
     capabilities: [read_files, search_files, write_files, edit_files]
     runtime_bindings:
       claude_code: .claude/agents/coordinator.md
+      codex_cli: .codex/agents/coordinator.toml
+      opencode: .opencode/agent/coordinator.md
 
   idea-generator:
     contract: agents/idea-generator.md
@@ -60,6 +90,8 @@ roles:
     capabilities: [read_files, search_files, write_files, web_search]
     runtime_bindings:
       claude_code: .claude/agents/idea-generator.md
+      codex_cli: .codex/agents/idea-generator.toml
+      opencode: .opencode/agent/idea-generator.md
 
   executor:
     contract: agents/executor.md
@@ -72,6 +104,8 @@ roles:
     capabilities: [read_files, search_files, write_files, edit_files, run_commands]
     runtime_bindings:
       claude_code: .claude/agents/executor.md
+      codex_cli: .codex/agents/executor.toml
+      opencode: .opencode/agent/executor.md
 
   validator:
     contract: agents/validator.md
@@ -84,6 +118,8 @@ roles:
     capabilities: [read_files, search_files, write_files, edit_files, run_commands]
     runtime_bindings:
       claude_code: .claude/agents/validator.md
+      codex_cli: .codex/agents/validator.toml
+      opencode: .opencode/agent/validator.md
 
   red-team:
     contract: agents/red-team.md
@@ -96,6 +132,8 @@ roles:
     capabilities: [read_files, search_files, write_files, edit_files, run_commands, web_search]
     runtime_bindings:
       claude_code: .claude/agents/red-team.md
+      codex_cli: .codex/agents/red-team.toml
+      opencode: .opencode/agent/red-team.md
 
 # Roles whose `independent_of_producer` is true must resolve to a policy with
 # `independent_session_required: true`; the checker enforces this so a review
