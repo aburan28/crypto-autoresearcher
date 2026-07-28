@@ -205,8 +205,12 @@ def cmd_loop(args: argparse.Namespace) -> int:
     from .eval import runner as runner_module
     from .eval.tasks import load_suite
 
+    # `._*` are macOS AppleDouble siblings, not suites. They are gitignored, so
+    # they never appear in review, but they sit next to every real suite on a
+    # Mac and the glob would hand their binary contents to the YAML loader.
     suites = ([Path(p) for p in args.suites.split(",")] if args.suites
-              else sorted(SUITES.glob("*.yaml")))
+              else sorted(p for p in SUITES.glob("*.yaml")
+                          if not p.name.startswith("._")))
     if not suites:
         raise SystemExit(f"no suites found in {SUITES}")
 
