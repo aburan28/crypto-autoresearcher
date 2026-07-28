@@ -45,6 +45,7 @@ check: check-harness check-ledger
 # What this toolchain owns. Green means your setup is good.
 check-harness:
 	$(PYTHON) -m orchestration.adapter doctor
+	$(PYTHON) tools/generate_runtime_agents.py --check
 	$(PYTHON) tools/check_runtime_bindings.py
 	@for suite in evals/suites/*.yaml; do \
 		$(PYTHON) -m orchestration.eval validate --suite $$suite || exit 1; \
