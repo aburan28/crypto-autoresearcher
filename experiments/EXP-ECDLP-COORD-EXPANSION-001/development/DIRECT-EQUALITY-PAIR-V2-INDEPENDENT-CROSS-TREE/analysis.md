@@ -7,9 +7,9 @@
 The simultaneous-zero residual semantics are stable across every tested
 permutation, all 14 five-leaf binary trees, both cut allocations, projective
 rescaling, repeated points, inverse pairs, doubling, and infinity outputs.
-This certifies the semantic leaf object on the frozen toy fixtures. It does
-not independently certify the V1 polynomial factors or construct a
-simultaneous-zero index.
+On the frozen canonical toy fixtures, this is a replicated abstract-affine
+observation. It does not independently certify the V1 polynomial factors or
+construct a simultaneous-zero index.
 
 ## Exact Run
 
@@ -25,7 +25,8 @@ simultaneous-zero index.
 - deterministic nonzero output and target rescaling;
 - standalone affine group law with no V1 RCB, polynomial, factor, rank, or
   verifier imports;
-- independently implemented exact replay: valid.
+- independently implemented arithmetic replay: valid;
+- strict envelope successor: valid, including eight rejection mutations.
 
 The producer ran in 24.05 seconds with 27,869,184 bytes peak RSS. The
 independent verifier ran in 27.07 seconds with 25,903,104 bytes peak RSS.
@@ -46,7 +47,7 @@ Across 12 rows:
 - incidental held-out ordered witnesses: 84;
 - infinity outputs: 36.
 
-The charged producer arithmetic was:
+The partial instrumented affine-group-law proxy counts were:
 
 | operation | count |
 |---|---:|
@@ -57,7 +58,8 @@ The charged producer arithmetic was:
 | identity returns | 2,780,318 |
 | inverse-pair returns | 1,760 |
 
-These are validation costs, not compiler costs.
+These are validation-path proxy counts, not complete executed-field,
+memory-traffic, compiler, or ECDLP costs.
 
 ## Independent Replay
 
@@ -69,7 +71,7 @@ The verifier has its own:
 - tuple enumeration;
 - witness and aggregate digest construction.
 
-For every row it reproduced:
+For every row supplied to it, the original verifier reproduced:
 
 - tuple and tree counts;
 - all mismatch counters;
@@ -77,9 +79,16 @@ For every row it reproduced:
 - infinity counts;
 - authenticated row and witness digests.
 
-The producer and verifier share only the immutable typed fixture and V1 target
-coordinates. The verifier checks the source and input hashes. It does not
-regenerate the V1 target-selection procedure.
+The original verifier did not enforce row completeness, aggregate totals,
+controls, operation fields, mutation counters, or tree digests. A strict
+successor now derives the expected 12-row sequence, checks that full envelope,
+and rejects dropped/duplicate-row, summary, control, operation, tree, mutation,
+and cross-cut-target changes.
+
+The producer and verifiers share the immutable typed fixture and V1 target
+coordinates. Planted provenance and cross-cut target equality were
+independently recounted. Held-out target-selection derivation is not
+regenerated.
 
 ## Strongest Valid Conclusion
 
@@ -87,11 +96,12 @@ regenerate the V1 target-selection procedure.
 > two affine targets per family, and every enumerated `A+4R` ordered tuple,
 > the abstract elliptic-curve sum and simultaneous-zero equality residual are
 > invariant under all distinct R permutations, all 14 five-leaf binary trees,
-> cut-2/cut-3 recombination, and nonzero projective rescaling.
+> cut-2/cut-3 recombination, and the sampled nonzero projective rescalings.
 
-This closes the semantic concern about whether the residual zero set depends
-on tuple order, parenthesization, or representative scaling on these
-fixtures.
+Two arithmetic implementations, an independent aggregate recount, and the
+strict envelope agree on this fixed-fixture statement. Arbitrary-scale
+invariance is an algebraic consequence of bilinearity, not an exhaustive
+empirical scale sweep.
 
 It does not close:
 
