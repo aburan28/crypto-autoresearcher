@@ -9,6 +9,7 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 - [ ] Can a coordinate-defined factor base preserve near-random exact `m`-fold support while compressing a recursive split compiler?
 - [ ] Can a fixed-curve coordinate relation compiler beat the generic preprocessing frontier after advice bytes, bandwidth, success probability, and all offline operations are charged?
 - [ ] Can exact witness-bearing membership in a coordinate-defined transverse `4R` layer be compiled with complete fixed-curve build, retained advice, and peak memory below `q^(1/2)`, plus total online specialization and witness lift `q^(1/5+o(1))`, while preserving quotient relation rank?
+- [ ] Do block products of the exact RCB locator along `P0+iD` share a constructible elliptic-net recurrence that locates a rare zero without materializing `B^3` or `B^4` suffix state?
 - [ ] Can exact witness-bearing membership in a coordinate-defined transverse `3R` layer be compiled below `q^(1/2)` advice/build while preserving `q^(1/4)` pair-scan work, constant coverage, and typed relation rows?
 - [ ] Can an outer-aware coordinate predicate or batched addition-law circuit eliminate the final-factor scan and beat the exact `D2+D3` preprocessing/query floor?
 - [ ] Does an uneliminated five-addition circuit over bounded public source roots admit a complete generalized-root algorithm with strict slack beyond the `B^5 approximately p` box-volume boundary?
