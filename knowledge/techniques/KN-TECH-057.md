@@ -89,6 +89,15 @@ of a prime-field ECDLP instance must, to survive, **exhibit the group, exhibit
 the involution, and show it is not the negation map.** For random ordinary
 `E/F_p` no such involution is known, and the screen returns *closed* by default.
 
+**Procedural requirement, learned the hard way on the first run.** Screen
+`ledger/evidence/` alongside `ledger/proposals/` and `ledger/hypotheses/`, always.
+The first run of this screen (`docs/screen-runs/SCREEN-20260728-involution.md`)
+read specifications only and reported two findings that the program had already
+recorded — one of them, in `EV-GGM-002`, diagnosed more sharply than the screen
+managed. Both were retracted the same day. A specification states what was
+intended; the evidence record states what was found and what was withdrawn, and a
+screen that skips it manufactures known defects as new ones.
+
 ## Forward guidance
 
 The class is not dead in general — only on this object. It remains live where a
