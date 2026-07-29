@@ -157,6 +157,32 @@ proof decomposition, validated heuristics, concrete-cost table, and
 independent `review-xhigh` plus red-team pass. This profile biases direction
 and never lowers the evidence rules above.
 
+## Inventor protocol
+
+The target profile above governs *what kind of result is worth having*.
+`docs/inventor-protocol.md` (adopted 2026-07-28; technique abstract:
+`knowledge/techniques/KN-TECH-056.md`) governs *how the search is run and how
+it is allowed to end*. It binds the Idea Generator, Validator, and Red Team,
+and adds nothing that relaxes the core rules. Four obligations:
+
+- **Premature closure is a failure mode symmetric with overclaiming.** No role
+  may decline to generate on the grounds that a target is exhaustively
+  studied. "This space is mined" is a hypothesis about the search.
+- **Closure standard.** A negative result claiming a lane is dead needs a
+  named obstruction, an argument, and forward guidance naming what remains
+  open. A count of screened-and-rejected mechanisms is a fatigue report and
+  its honest status is `unverified`. This applies to the program's own
+  standing saturation conclusions.
+- **Controls before belief.** Any reported signal is an artifact until the
+  identical measurement has been run against a null object of the same shape.
+  A quantity that fails to decay when the parameter meant to destroy it
+  increases is the canonical artifact tell. This extends rule 3 from
+  infrastructure failures to statistical ones.
+- **Pareto honesty in every deliverable.** Ideation and closure sessions carry
+  `dominated_by` (settable to `null` only after checking every row of the
+  frontier across time, memory, and data/queries) and a quantitative
+  `sota_delta`. An unchecked `null` is a fabrication under rule 5.
+
 ## Required handoff envelope
 
 Every inter-agent task must include:
