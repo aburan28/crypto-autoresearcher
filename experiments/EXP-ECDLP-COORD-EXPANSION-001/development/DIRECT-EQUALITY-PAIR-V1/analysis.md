@@ -2,9 +2,10 @@
 
 ## Status
 
-`RESTRICTED THEOREM`, `OBSERVATION`, `TOY-EVIDENCE`, `MODEL-BOUND`.
+`RESTRICTED THEOREM` for the algebraic core; `OBSERVATION`,
+`TOY-EVIDENCE`, `MODEL-BOUND`, `REVISE INTERPRETATION` for the sweep.
 
-The exact equality predicate has a gauge-invariant projective-pair
+The exact equality predicate has a gauge-invariant projective-class
 factorization of degree and component dimension one half those of the norm
 locator. It gives a cleaner simultaneous-zero problem, not a simultaneous-zero
 index or ECDLP improvement.
@@ -24,7 +25,8 @@ index or ECDLP improvement.
   mismatch;
 - wall time: 30.19 seconds;
 - peak RSS: 95,092,736 bytes;
-- same-code deterministic normalized rerun: exact.
+- hash-bound deterministic producer replay: exact, but not independent
+  semantic verification.
 
 ## Intrinsic Equality Pair
 
@@ -34,9 +36,10 @@ For final projective point `(X,Y,Z)` and target `(xq,yq,zq)`, define
 
 `e_y=zq Y-yq Z`.
 
-Both residuals vanish exactly when the projective points are equal. Under
-output rescaling by nonzero `lambda`, the pair scales by `lambda`, so its
-canonical projective class is unchanged.
+For valid nonzero curve outputs and the tested affine targets, both residuals
+vanish exactly at target equality. Under output rescaling by nonzero
+`lambda`, the raw residual vector scales by `lambda`; only its projective
+class and simultaneous-zero status are invariant.
 
 The old norm locator is recovered exactly as
 
@@ -53,44 +56,57 @@ degree in the prefix point is
 
 `d_k=2^(5-k)`.
 
-Modulo the smooth cubic, the factor dimensions are:
+Modulo the smooth cubic, the relevant ambient coordinate-ring dimensions are:
 
 | cut | remaining R points | residual degree | dimension per residual |
 |---:|---:|---:|---:|
 | 2 | 3 | 8 | 24 |
 | 3 | 2 | 4 | 12 |
 
-The target-independent suffix components are simply the coordinate
+The target-independent suffix components are the coordinate
 polynomials `X,Y,Z`. Target specialization forms the two residual vectors.
 
-Every factor product equals the exact numerical residual, and every squared
-pair reconstructs the prior norm locator.
+In the shared implementation, every factor product equals the numerical
+residual, and every squared pair reconstructs the prior norm locator.
 
 ## Gauge Invariance
 
-For every prefix and every ordered suffix tuple, the run groups all suffix
-permutations by their sorted tuple. Across 865,072 target-labeled classes:
+For every frozen prefix and ordered suffix tuple, the run groups permutations
+internal to that suffix by their sorted tuple. Across 865,072 target-labeled
+classes:
 
-- all exact outputs represent the same affine point;
 - every canonical residual pair is identical;
 - every affine representative has the same canonical residual pair;
 - simultaneous-zero status is identical.
 
-This repairs the active projective-gauge defect found in the raw block-product
-recurrence experiment. It does not prove invariance under every alternate
-addition tree, though projective point equality predicts it and should be a
-separate control.
+Canonical residual direction is not injective: a line through the target
+typically meets the cubic at other points. Therefore its equality does not
+certify output-point equality. The artifact does not directly compare affine
+outputs across permutations, prefix/cut reallocations, or alternate trees.
+
+A separate read-only audit found zero affine alternate-tree mismatches over
+555,804 five-tuples, 316 planted ordered witnesses, 84 incidental held-out
+witnesses, and 36 infinity outputs. These checks are supplemental and are not
+preserved or enforced by the official gate.
+
+The experiment repairs the raw final-output scaling confounder for the tested
+residual evaluations. It does not establish full semantic invariance across
+all `S4` permutations, cross-cut allocations, the 14 binary trees, leaf or
+intermediate rescaling, or target rescaling.
 
 ## Rank and State
 
-In every cell:
+In every sampled affine-target cell:
 
 - `U` reaches dimension 24 at cut 2 and 12 at cut 3;
 - `V_x` and `V_y` each reach 24/12;
-- concatenated suffix pairs reach rank 48/24.
+- horizontally concatenated suffix coefficient matrices have row rank 48/24.
 
 The pair halves each polynomial degree but retains two simultaneous
-constraints. The combined linear state matches the old norm dimensions.
+constraints. The stored specialized coefficient count and sampled
+concatenated flattening rank match the old norm dimensions. This is not an
+intrinsic lower bound, a count of independent equations, relation rank, or
+descent evidence.
 
 At cut 2:
 
@@ -100,29 +116,38 @@ At cut 2:
 | 3919 | 8 | 36,864 field elements | 24,576 |
 | 15583 | 10 | 72,000 field elements | 48,000 |
 
-The fixed state is `3*24*B^3=72B^3`, a 2.67-fold reduction from the
+The fixed logical coefficient payload is `3*24*B^3=72B^3`, a 2.67-fold reduction from the
 four-component norm compiler's `192B^3`. The specialized pair is
 `2*24*B^3=48B^3`, equal in size to the specialized norm vector.
 
 At cut 3, fixed and specialized state are `36B^2` and `24B^2`, while the
 prefix side remains `A B^2`.
 
-Thus the equality pair improves constants and removes an arbitrary projective
-section, but does not change the explicit `q^0.6` central side.
+These counts omit prefix/U storage, object overhead, simultaneous residency,
+validation arrays, traffic, polynomial compilation, rank elimination, and
+the exhaustive `Theta(A B^4)` replay. Thus the equality pair improves logical
+payload constants and removes final-output scale from its projective class,
+but does not change the explicit `Theta(B^3)` central side. The
+`q^0.6` restatement additionally assumes `B=Theta(q^0.2)`.
 
 ## Strongest Valid Conclusion
 
-> The frozen complete-addition equality predicate admits exact,
-> permutation-invariant projective-pair factors of dimensions 24 and 12 per
-> residual. Three target-independent coordinate components specialize to two
-> public residual vectors, and the simultaneous zero set equals target
-> equality.
+> For valid nonzero outputs in the frozen left-associated circuit and tested
+> affine targets, equality admits exact two-residual coefficient
+> factorizations in ambient degree-8/4 coordinate-ring pieces of dimensions
+> 24/12. Three fixed coordinate components specialize to two residual
+> vectors, whose simultaneous zero set equals target equality.
+
+Each ordered suffix has an exact factorization. Sampled canonical residual
+evaluations agree under permutations internal to the suffix of the frozen
+cut. Broader permutation/tree invariance is not certified.
 
 The explicit-state boundary remains:
 
-> Direct cut-2 advice or specialized pair materialization is
-> `Theta(B^3)=q^(0.6+o(1))`; cut 3 leaves `Theta(A B^2)` prefixes. No
-> simultaneous-zero reporting algorithm has been constructed.
+> Direct cut-2 logical coefficient materialization is `Theta(B^3)`; it is
+> `q^(0.6+o(1))` only under `B=Theta(q^0.2)`. Cut 3 leaves
+> `Theta(A B^2)` prefixes. No simultaneous-zero reporting algorithm has been
+> constructed.
 
 ## Next Concrete Action
 
@@ -139,5 +164,7 @@ sequence. It should test whether:
   divisors;
 - exact zero descent is possible without `B^3/B^4` leaf materialization.
 
-An alternate-addition-tree pair-invariance check and a separately implemented
-verifier should be included before interpreting any nonlinear compression.
+The next version must independently compare affine outputs, preserve planted
+witnesses, emit authenticated factor chunks, and cover full `S4`
+permutations, cross-cut allocations, all 14 binary trees, random rescaling,
+infinity, doubling, inverse pairs, repeated points, and target rescaling.
