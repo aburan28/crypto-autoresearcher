@@ -4,7 +4,7 @@ type: internal_finding
 title: Degeneracy of endomorphism-augmented ECDLP witness lattices is governed by short eigenvalue relations, not by the rank of End(E)
 tags: [endomorphism, witness-lattice, glv, relation-lattice, minkowski, vieta, complex-multiplication, scoped-negative, experiment-design, ecdlp]
 confidence: established
-internal_refs: [EV-ENDO-001, DEC-20260728-004, EXP-ENDO-001, H-ENDO-001, REF-20260728-002, VAL-20260728-001, RT-20260728-002]
+internal_refs: [EV-ENDO-001, DEC-20260728-005, EXP-ENDO-001, H-ENDO-001, REF-20260728-002, VAL-20260728-001, RT-20260728-002]
 proof_status: certificate
 proof_refs: [coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-012/instantiation.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-012/verification_report.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-013/scope_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/archives/TASK-20260728-009/refutation_claims_v2.yaml]
 added: 2026-07-28
@@ -90,7 +90,7 @@ instantiated on the same toy instance:
 
 The originating Coordinator record inferred a *genuine rank bound* from the
 `Z`-rank of `End(E)` and concluded that a repaired sweep would have only two
-points, `r = 1` and `r = 2`. **That reasoning is retracted** (`DEC-20260728-004`,
+points, `r = 1` and `r = 2`. **That reasoning is retracted** (`DEC-20260728-005`,
 R1): rank deficiency guarantees *some* relation, never a *short* one. The
 conclusion survives for a different reason — a rescued `r = 3` cell is a
 `Z`-linear reparametrisation of the `r ≤ 2` lattice and adds no endomorphism

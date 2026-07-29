@@ -3,12 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-<<<<<<< HEAD
-7658 entries.
-=======
-7682 entries.
->>>>>>> origin/main
-
+7683 entries.
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
 | KN-FIND-001 | Byte-complete differential probing of the ML-KEM comparison primitive discriminates incomplete re-encryption comparisons at fix boundaries | internal_finding | reported |  | ml-kem fips-203 implicit-rejection re-encryption-comparison conformance-testing differential-testing wolfssl avx2 neon defensive post-quantum |
@@ -7367,9 +7362,6 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-759 | Explicit description of isogeny and isomorphism classes of Drinfeld modules over finite field | literature | reported | read | abelian-variety elliptic-curve endomorphism finite-field isogeny number-theory pairing |
 | KN-LIT-7590 | Degenerating Discriminants | literature | reported | web | groebner-degeneration discriminant dual-variety conormal-variety whitney-stratification mixed-discriminant polynomial-system elimination algebraic-geometry proof-technique |
 | KN-LIT-7591 | Lower bounds for the CNOT-complexity of linear reversible operators | literature | reported | web | quantum circuit-complexity cnot-count lower-bound linear-reversible additive-complexity error-correcting-codes resource-estimation cost-model explicit-construction |
-<<<<<<< HEAD
-| KN-LIT-7592 | Linear Descent for Rank-2 and Rank-4 Module-LIP | literature | reported | full_text_supplied | module-lip hawk lattice-isomorphism linear-descent symmetric-square hodge-star exterior-square svp cm-field lenstra-silverberg bambury-nguyen pqc |
-=======
 | KN-LIT-7592 | HAWK-n Key Recovery Reduces to SVP in Dimension n/2 + 1 | literature | reported | web | hawk lattice-isomorphism-problem module-lip cyclotomic galois-automorphism key-recovery svp nist-pqc post-quantum signature llm-assisted-discovery gate-count cost-model |
 | KN-LIT-7593 | Cryptanalysis of 7-Round AES via the Algebraic Structure of its S-box | literature | reported | web | aes s-box mobius-bridge meet-in-the-middle demirci-selcuk differential-enumeration invariant fingerprint round-reduced llm-autonomous-discovery verification-methodology scaled-down-cipher cost-accounting |
 | KN-LIT-7594 | Discovering cryptographic weaknesses with Claude | literature | reported | web | llm-cryptanalysis autonomous-research agentic-harness hawk aes lea serpent salsa20 poseidon sha-1 cryptanalysisbench responsible-disclosure verification-bottleneck methodology program-level |
@@ -7377,8 +7369,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7596 | Advanced cryptography from lattice isomorphism — new constructions of IBE and FHE | literature | reported | web | lattice-isomorphism-problem lip ibe fhe gpv gsw assumption-load post-quantum adjacent |
 | KN-LIT-7597 | Decision trees, Frobenius traces, and Weierstrass coefficients of elliptic curves | literature | reported | web | elliptic-curve frobenius-trace weierstrass-coefficients isogeny-class conductor machine-learning decision-tree ml-to-theorem murmurations methodology |
 | KN-LIT-7598 | A lower bound for the distance between CM points on Shimura curves | literature | reported | web | cm-points shimura-curve quaternion-algebra endomorphism-ring discriminant diophantine-approximation liouville separation-bound adjacent |
-| KN-LIT-7599 | Engineered Complete Intersections: Algorithmic Aspects | literature | reported | web | sparse-polynomial-systems tropical-geometry mixed-subdivision bkk newton-polytope elimination eliminant a-discriminant homotopy-continuation solution-counting software groebner-alternative |
->>>>>>> origin/main
+| KN-LIT-7599 | Engineered Complete Intersections: Algorithmic Aspects | literature | reported | web | sparse-polynomial-systems tropical-geometry mixed-subdivision bkk newton-polytope elimination eliminant a-discriminant homotopy-continuation solution-counting software groebner-alternative || KN-LIT-7603 | Linear Descent for Rank-2 and Rank-4 Module-LIP | literature | reported | full_text_supplied | module-lip hawk lattice-isomorphism linear-descent symmetric-square hodge-star exterior-square svp cm-field lenstra-silverberg bambury-nguyen pqc |
 | KN-LIT-760 | EXPLICIT TWO-COVER DESCENT FOR GENUS 2 CURVES | literature | reported | read | curve-arithmetic elliptic-curve hyperelliptic isogeny jacobian number-theory provable-security |
 | KN-LIT-7600 | A Resource Estimation Model for the Hardware-Software Co-Design of Distributed Quantum Architectures | literature | reported | web | distributed-quantum-computing resource-estimation communication-qubits entanglement-distribution decoherence cost-model circuit-partitioning hidden-cost |
 | KN-LIT-7601 | Cryptanalytic Properties of Mealy Machines | literature | reported | web | geometric-approach mealy-machine s-function unified-framework linear differential integral boomerang differential-linear symmetric methodology adjacent |
