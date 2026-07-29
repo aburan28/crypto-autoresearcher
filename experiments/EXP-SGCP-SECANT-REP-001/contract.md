@@ -1,4 +1,4 @@
-# Experiment Contract: Fixed-Chart Slope Representative Compiler V3
+# Experiment Contract: Fixed-Chart Slope Representative Compiler V4
 
 ## Protocol status
 
@@ -104,7 +104,7 @@ Define the complete factor-base digest as
 
 ```text
 FB_DIGEST = SHA256(
-  ASCII("EXP-SGCP-SECANT-REP-001|FACTOR-BASE|v3") || 0x00 ||
+  ASCII("EXP-SGCP-SECANT-REP-001|FACTOR-BASE|v4") || 0x00 ||
   FBE(p) || FBE(a) || FBE(b) ||
   FBE(x_0) || FBE(y_0) || ... || FBE(x_(B-1)) || FBE(y_(B-1))
 ).
@@ -117,7 +117,7 @@ For control index `c in 0..30`, rank each witness with:
 
 ```text
 SHA256(
-  ASCII("EXP-SGCP-SECANT-REP-001|HASH-CONTROL|v3") || 0x00 ||
+  ASCII("EXP-SGCP-SECANT-REP-001|HASH-CONTROL|v4") || 0x00 ||
   U32BE(c) ||
   U32BE(width) ||
   FB_DIGEST ||
@@ -309,5 +309,6 @@ index calculus, an exponent improvement, or a Pollard-rho break.
 
 ## Next concrete action
 
-Obtain fresh independent theory and red-team review of v3 and complete the
-remaining citation-chain search before implementation design.
+Obtain fresh independent theory and red-team review of v4 before implementation
+design. The bounded citation search is complete; broader search gaps continue
+to block a novelty claim, not properly scoped design work.
