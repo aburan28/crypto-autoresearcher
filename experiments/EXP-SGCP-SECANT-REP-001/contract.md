@@ -1,4 +1,4 @@
-# Experiment Contract: Fixed-Chart Slope Representative Compiler V4
+# Experiment Contract: Fixed-Chart Slope Representative Compiler V5
 
 ## Protocol status
 
@@ -56,7 +56,7 @@ The inherited optimizer and generation reference is exact commit
 - verifier SHA-256
   `4310f6d5eeacace558a79670c944c55961f89f0c1db4aaee4d8b20d361501199`.
 
-V3 does not authorize reuse of those CLIs. A future implementation contract
+V5 does not authorize reuse of those CLIs. A future implementation contract
 must reproduce their curve/factor-base derivation byte for byte or freeze a
 complete replacement derivation and differential receipt. Until then, sampling
 and implementation remain unauthorized.
@@ -104,7 +104,7 @@ Define the complete factor-base digest as
 
 ```text
 FB_DIGEST = SHA256(
-  ASCII("EXP-SGCP-SECANT-REP-001|FACTOR-BASE|v4") || 0x00 ||
+  ASCII("EXP-SGCP-SECANT-REP-001|FACTOR-BASE|v5") || 0x00 ||
   FBE(p) || FBE(a) || FBE(b) ||
   FBE(x_0) || FBE(y_0) || ... || FBE(x_(B-1)) || FBE(y_(B-1))
 ).
@@ -117,7 +117,7 @@ For control index `c in 0..30`, rank each witness with:
 
 ```text
 SHA256(
-  ASCII("EXP-SGCP-SECANT-REP-001|HASH-CONTROL|v4") || 0x00 ||
+  ASCII("EXP-SGCP-SECANT-REP-001|HASH-CONTROL|v5") || 0x00 ||
   U32BE(c) ||
   U32BE(width) ||
   FB_DIGEST ||
@@ -309,6 +309,6 @@ index calculus, an exponent improvement, or a Pollard-rho break.
 
 ## Next concrete action
 
-Obtain fresh independent theory and red-team review of v4 before implementation
+Obtain fresh independent theory and red-team review of v5 before implementation
 design. The bounded citation search is complete; broader search gaps continue
 to block a novelty claim, not properly scoped design work.
