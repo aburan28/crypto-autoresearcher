@@ -428,6 +428,8 @@ def build_candidate_core(
                 operations,
             )
 
+    operations = _combine(operations, phase_operations)
+    phase_operations = _zero_ops()
     if raw.p <= 3:
         return _failure(
             CoreErrorCode.MODULUS_NOT_ODD_PRIME,
