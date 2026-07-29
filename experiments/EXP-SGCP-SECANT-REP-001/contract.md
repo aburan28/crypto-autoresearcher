@@ -1,4 +1,4 @@
-# Experiment Contract: Fixed-Chart Slope Representative Compiler V2
+# Experiment Contract: Fixed-Chart Slope Representative Compiler V3
 
 ## Protocol status
 
@@ -46,6 +46,21 @@ counter under the frozen seed derivation. Rejected factor-base draws are
 replaced by incrementing only that factor-base attempt counter. Every attempt,
 reason, and field/group operation is logged.
 
+The inherited optimizer and generation reference is exact commit
+`c02d31eb67e4e24f0866ba0a045e72dbe74a3844`:
+
+- `EXP-SGCP-EMBED-002/contract.md` SHA-256
+  `b93084cf19634533210fd0c48fd7ea2f84f9b718b9320f5d390b363f403df2fe`;
+- producer SHA-256
+  `f9dc78ca8ff3b8d41d1e99b62a5d82a09c180ef1953dbb7401171882209dcea8`;
+- verifier SHA-256
+  `4310f6d5eeacace558a79670c944c55961f89f0c1db4aaee4d8b20d361501199`.
+
+V3 does not authorize reuse of those CLIs. A future implementation contract
+must reproduce their curve/factor-base derivation byte for byte or freeze a
+complete replacement derivation and differential receipt. Until then, sampling
+and implementation remain unauthorized.
+
 ## Canonical source and witness encoding
 
 Each factor base is sorted by canonical affine point tuple `(x,y)` with field
@@ -85,13 +100,27 @@ pairs back to affine points must reproduce the unpermuted selected-pair set.
 
 ## Hash controls
 
+Define the complete factor-base digest as
+
+```text
+FB_DIGEST = SHA256(
+  ASCII("EXP-SGCP-SECANT-REP-001|FACTOR-BASE|v3") || 0x00 ||
+  FBE(p) || FBE(a) || FBE(b) ||
+  FBE(x_0) || FBE(y_0) || ... || FBE(x_(B-1)) || FBE(y_(B-1))
+).
+```
+
+The points use canonical source-label order and the same fixed `FBE` width
+defined below.
+
 For control index `c in 0..30`, rank each witness with:
 
 ```text
 SHA256(
-  ASCII("EXP-SGCP-SECANT-REP-001|HASH-CONTROL|v2") || 0x00 ||
+  ASCII("EXP-SGCP-SECANT-REP-001|HASH-CONTROL|v3") || 0x00 ||
   U32BE(c) ||
   U32BE(width) ||
+  FB_DIGEST ||
   FBE(p) || FBE(a) || FBE(b) ||
   FBE(x_R) || FBE(y_R) ||
   FBE(x_i) || FBE(y_i) ||
@@ -102,8 +131,8 @@ SHA256(
 Here `width=ceil(bit_length(p)/8)` and every `FBE` value is exactly `width`
 unsigned big-endian bytes. Endpoints are first sorted by canonical affine point
 tuple. The least `(digest,endpoint_1,endpoint_2)` wins. Digest ties are retained
-as a diagnostic and resolved by endpoint tuples. Curve, factor-base, and fiber
-identity are therefore bound through their complete canonical point content;
+as a diagnostic and resolved by endpoint tuples. Curve, complete factor-base,
+and fiber identity are therefore bound through canonical point content;
 source-label permutations cannot change a control table.
 
 Duplicate control tables and scores remain in the 31-control benchmark. Report
@@ -154,6 +183,8 @@ Branch order is fixed before implementation and cannot depend on compiler type.
 
 Each fixture/chart must have:
 
+- at least two eligible vertices for the candidate and every control at both
+  decision caps, so every registered conflict density has nonzero denominator;
 - at least eight nonsingleton fibers;
 - total choice entropy
   `sum_R log2(|W_R|)` at least eight bits, reported as the exact product
@@ -161,8 +192,27 @@ Each fixture/chart must have:
 - candidate/formal-lex Hamming distance at least
   `max(4,ceil(nonsingleton_count/5))`;
 - at least 16 distinct hash-control tables;
-- at least eight distinct complete control objective vectors across the two
-  decision caps.
+- at least eight distinct complete control objective vectors.
+
+Formal-lex selects the least canonical source-label pair `(i,j)` in every
+nonsingleton `W_R`. Hamming distance is the number of nonsingleton fibers where
+the candidate and formal-lex choose different unordered affine endpoint
+multisets.
+
+For one control, its complete objective vector is the canonical JSON array
+
+```text
+[
+  [R_half, constrained_half, public_edges_half, retained_d4_half, maxima_half],
+  [R_three_quarter, constrained_three_quarter,
+   public_edges_three_quarter, retained_d4_three_quarter,
+   maxima_three_quarter]
+]
+```
+
+using the exact five objective fields at `floor(q/2)` and `floor(3q/4)`.
+Distinct vectors mean distinct canonical JSON bytes; controls are not pooled by
+cap.
 
 Failure of any item is `SCOPED_NEGATIVE_VACUOUS`, not `INCONCLUSIVE`.
 
@@ -179,30 +229,44 @@ A fixture/chart passes a cap only when:
   than every control;
 - all semantic, embedding, witness, and optimizer checks pass.
 
-One fixture passes a cap only when all four charts pass that same cap. The
-experiment is `PASS_PROMOTE` only when one same cap fraction in `{1/2,3/4}`
-passes for at least two factor-base seeds on at least two curve seeds.
+For cap `c`, chart `u`, curve seed `s`, and factor-base seed `f`, write
+`SUP(c,u,s,f)` for strict support rank `1/32` and `CON(c,u,s,f)` for strict
+conflict-density rank `1/32`; define `BOTH=SUP and CON` on one cell.
 
-Complete valid outcomes are exhaustive:
+Define `REPL(X,c,U)` to mean that there exists a set of at least two curve seeds
+such that, for each selected curve, at least two factor-base seeds satisfy
+`X(c,u,s,f)` for every `u` in chart set `U`. Thus all quantifiers use the same
+cap and the required factor-base seeds may differ by curve.
 
-- `PASS_PROMOTE`: the full gate above passes.
-- `SCOPED_NEGATIVE_MECHANISM`: support rank passes the replication gate but
-  conflict-density rank does not.
-- `SCOPED_NEGATIVE_CHART`: chart `u=1` passes the replication gate but at least
-  one other chart does not.
-- `SCOPED_NEGATIVE_VACUOUS`: a nonvacuity gate fails.
-- `SCOPED_NEGATIVE_NO_SIGNAL`: the complete matrix is valid but none of the
-  preceding cases applies.
-- `INCONCLUSIVE`: optimizer/resource/infrastructure failure, malformed or
-  partial matrix, or independent-verifier disagreement.
+Apply this ordered decision tree exactly once:
+
+1. `INVALID`: a schema, arithmetic, semantic, embedding, accounting, or
+   independent-verification mismatch is confirmed. This is not evidence
+   against the mathematical hypothesis.
+2. `INCONCLUSIVE`: the matrix is partial or a resource, optimizer, process,
+   publication, or infrastructure failure prevents a complete valid result.
+3. `SCOPED_NEGATIVE_VACUOUS`: any registered nonvacuity gate fails.
+4. `PASS_PROMOTE`: for one `c` in `{1/2,3/4}`,
+   `REPL(BOTH,c,{1,-1,2,3})` holds.
+5. `SCOPED_NEGATIVE_CHART`: for one `c`, `REPL(BOTH,c,{1})` holds, but step 4
+   does not.
+6. `SCOPED_NEGATIVE_MECHANISM`: for one `c`,
+   `REPL(SUP,c,{1,-1,2,3})` holds but step 4 does not.
+7. `SCOPED_NEGATIVE_NO_SIGNAL`: the complete valid matrix reaches none of the
+   prior outcomes.
+
+Steps are precedence-ordered and select exactly one terminal outcome.
 
 ## Controls
 
 1. Regression control: replay the exact registered `EXP-SGCP-EMBED-001` fixture
    and its frozen objective receipt before new results.
-2. Synthetic optimizer positive control: a frozen abstract two-fiber conflict
-   graph with four representative tables, one uniquely optimal table, and an
-   exhaustive oracle must be solved exactly by producer and verifier.
+2. Synthetic representative positive control: a frozen abstract two-fiber
+   fixture assigns canonical slope labels so least-slope selection produces the
+   one uniquely optimal representative table. Candidate and 31 control tables,
+   complete expected objective vectors, and the exhaustive oracle distribution
+   must be frozen before source implementation. The producer must derive the
+   known-winning table through the candidate rule, not receive it as an input.
 3. Invariant negative control: all fibers singleton, so every compiler must
    produce byte-identical tables and objective vectors.
 4. Exhaustive tiny control: enumerate every representative table on one frozen
@@ -245,5 +309,5 @@ index calculus, an exponent improvement, or a Pollard-rho break.
 
 ## Next concrete action
 
-Obtain fresh independent theory and red-team review of v2 and complete the
+Obtain fresh independent theory and red-team review of v3 and complete the
 remaining citation-chain search before implementation design.
