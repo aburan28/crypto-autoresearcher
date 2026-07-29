@@ -99,6 +99,43 @@ class FactoredDividedPowerDagTests(unittest.TestCase):
             len(root.cycles[4]),
         )
 
+    def test_query_does_not_need_root_cycle(self) -> None:
+        points = [(3, 6), (80, 10), (80, 87)]
+        root = MODULE.build_tree(
+            points,
+            0,
+            len(points),
+            97,
+            2,
+            MODULE.BuildCounter(),
+        )
+        target = next(iter(root.cycles[4]))
+        root_without_cycle = MODULE.Node(
+            root.node_id,
+            root.start,
+            root.stop,
+            root.left,
+            root.right,
+            {},
+        )
+        route = MODULE.query(
+            root_without_cycle,
+            4,
+            target,
+            97,
+            2,
+            MODULE.QueryCounter(),
+            membership_prefilter=False,
+        )
+        self.assertIsNotNone(route)
+        assert route is not None
+        self.assertEqual(
+            MODULE.sum_points(
+                (points[index] for index in route), 97, 2
+            ),
+            target,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

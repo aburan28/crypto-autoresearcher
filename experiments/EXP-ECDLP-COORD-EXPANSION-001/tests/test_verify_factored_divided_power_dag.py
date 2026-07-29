@@ -121,6 +121,49 @@ class VerifyFactoredDividedPowerDagTests(unittest.TestCase):
             baselines["reduced_d2_mitm"]["records"],
         )
 
+    def test_rootless_descent_replays(self) -> None:
+        points = [(3, 6), (80, 10), (80, 87)]
+        root = MODULE.rebuild(
+            points,
+            0,
+            len(points),
+            97,
+            2,
+            MODULE.BuildCounts(),
+        )
+        target = next(iter(root.cycles[4]))
+        query_root = MODULE.VerifiedNode(
+            root.node_id,
+            root.start,
+            root.stop,
+            root.left,
+            root.right,
+            {},
+        )
+        route = MODULE.descend(
+            query_root,
+            4,
+            target,
+            97,
+            2,
+            MODULE.QueryCounts(),
+            membership_prefilter=False,
+        )
+        self.assertIsNotNone(route)
+        assert route is not None
+        self.assertTrue(
+            MODULE.route_valid(
+                route,
+                target,
+                4,
+                0,
+                len(points),
+                points,
+                97,
+                2,
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

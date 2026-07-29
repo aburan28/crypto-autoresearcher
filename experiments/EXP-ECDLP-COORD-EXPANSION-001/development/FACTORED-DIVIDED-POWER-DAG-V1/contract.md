@@ -56,13 +56,16 @@ To query `(node,k,Q)`:
 6. combine and replay the source indices.
 
 Cache only immutable node cycles; do not memoize target answers across the
-reported one-target query.
+reported one-target query. The root cycle is used only to authenticate the
+build and select deterministic test targets. It is removed from the online
+query object. Online membership starts from the two child subtrees without a
+root-support prefilter.
 
 ## Metrics
 
-- DAG nodes/edges and degree-specific support/route counts;
-- retained records, logical field elements, canonical JSON bytes, and peak
-  live cycle records;
+- full-build DAG nodes/edges and degree-specific support/route counts;
+- build-peak versus rootless retained-advice records, point fields, routes,
+  logical words, and canonical JSON bytes;
 - build pair attempts, curve operations, writes, and hash lookups;
 - root support/multiplicity/witness digests;
 - online split attempts, point scans, curve operations, lookups, recursion

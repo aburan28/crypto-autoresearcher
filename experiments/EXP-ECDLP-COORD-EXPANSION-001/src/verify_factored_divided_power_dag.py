@@ -372,12 +372,16 @@ def descend(
     p: int,
     a: int,
     counts: QueryCounts,
+    membership_prefilter: bool = True,
 ) -> tuple[int, ...] | None:
     counts.recursion_nodes += 1
-    counts.hash_lookups += 1
-    if target not in node.cycles[degree]:
-        return None
+    if membership_prefilter:
+        counts.hash_lookups += 1
+        if target not in node.cycles[degree]:
+            return None
     if node.left is None or node.right is None:
+        if not membership_prefilter:
+            return None
         return node.cycles[degree][target].route
     for left_degree in range(degree + 1):
         counts.split_attempts += 1
@@ -471,12 +475,28 @@ def recorded_queries(
     positives, negatives = select_queries(
         root.cycles[4], generator, q, p, a
     )
+    query_root = VerifiedNode(
+        root.node_id,
+        root.start,
+        root.stop,
+        root.left,
+        root.right,
+        {},
+    )
     positive_receipts = []
     negative_receipts = []
     worst_scans = 0
     for target in positives:
         counts = QueryCounts()
-        route = descend(root, 4, target, p, a, counts)
+        route = descend(
+            query_root,
+            4,
+            target,
+            p,
+            a,
+            counts,
+            membership_prefilter=False,
+        )
         replay = (
             None
             if route is None
@@ -496,7 +516,15 @@ def recorded_queries(
         )
     for target in negatives:
         counts = QueryCounts()
-        route = descend(root, 4, target, p, a, counts)
+        route = descend(
+            query_root,
+            4,
+            target,
+            p,
+            a,
+            counts,
+            membership_prefilter=False,
+        )
         worst_scans = max(worst_scans, counts.point_scans)
         negative_receipts.append(
             {
@@ -619,6 +647,7 @@ def verify_row(
     counts = BuildCounts()
     root = rebuild(points, 0, len(points), p, a, counts)
     nodes = flatten(root)
+    advice_nodes = nodes[1:]
     oracle = direct_cycle(points, p, a)
     positives, negatives, worst_scans = recorded_queries(
         root,
@@ -628,19 +657,37 @@ def verify_row(
         p,
         a,
     )
-    retained_records = sum(
+    build_peak_records = sum(
         len(cycle) for node in nodes for cycle in node.cycles.values()
     )
-    point_fields = sum(
+    build_peak_point_fields = sum(
         2
         for node in nodes
         for cycle in node.cycles.values()
         for image in cycle
         if image is not None
     )
-    route_indices = sum(
+    build_peak_route_indices = sum(
         len(record.route)
         for node in nodes
+        for cycle in node.cycles.values()
+        for record in cycle.values()
+    )
+    retained_records = sum(
+        len(cycle)
+        for node in advice_nodes
+        for cycle in node.cycles.values()
+    )
+    point_fields = sum(
+        2
+        for node in advice_nodes
+        for cycle in node.cycles.values()
+        for image in cycle
+        if image is not None
+    )
+    route_indices = sum(
+        len(record.route)
+        for node in advice_nodes
         for cycle in node.cycles.values()
         for record in cycle.values()
     )
@@ -658,7 +705,7 @@ def verify_row(
                 for degree, cycle in node.cycles.items()
             },
         }
-        for node in nodes
+        for node in advice_nodes
     ]
     baselines = reconstruct_baselines(
         root.cycles[4],
@@ -702,9 +749,25 @@ def verify_row(
         for image, record in cycle.items()
     ]
     all_support_queries = []
+    query_root = VerifiedNode(
+        root.node_id,
+        root.start,
+        root.stop,
+        root.left,
+        root.right,
+        {},
+    )
     for target in root.cycles[4]:
         query_counts = QueryCounts()
-        route = descend(root, 4, target, p, a, query_counts)
+        route = descend(
+            query_root,
+            4,
+            target,
+            p,
+            a,
+            query_counts,
+            membership_prefilter=False,
+        )
         all_support_queries.append(
             route is not None
             and route_valid(
@@ -742,6 +805,13 @@ def verify_row(
             and recorded["edge_count"] == 2 * (len(points) - 1)
             and recorded["nodes"] == expected_nodes
         ),
+        "online_advice_shape": (
+            recorded["online_advice_node_count"]
+            == len(advice_nodes)
+            and recorded["online_advice_edge_count"]
+            == max(0, 2 * (len(points) - 1) - 2)
+            and recorded["root_cycle_discarded_for_query"] is True
+        ),
         "all_stored_routes_valid": all(route_checks),
         "all_root_support_queries_valid": all(all_support_queries),
         "root_cycle": recorded["root_cycle"]
@@ -770,8 +840,22 @@ def verify_row(
             recorded["retained_canonical_json_bytes"]
             == canonical_json_bytes(retained_payload)
         ),
-        "peak_live_cycle_records": (
-            recorded["peak_live_cycle_records"] == retained_records
+        "build_peak_cycle_records": (
+            recorded["build_peak_cycle_records"] == build_peak_records
+        ),
+        "build_peak_point_field_elements": (
+            recorded["build_peak_point_field_elements"]
+            == build_peak_point_fields
+        ),
+        "build_peak_route_indices": (
+            recorded["build_peak_route_indices"]
+            == build_peak_route_indices
+        ),
+        "build_peak_logical_words": (
+            recorded["build_peak_logical_words"]
+            == build_peak_records
+            + build_peak_point_fields
+            + build_peak_route_indices
         ),
         "build_operations": recorded["build_operations"]
         == counts.payload(),
@@ -977,6 +1061,12 @@ def mutation_suite(
     retained = copy.deepcopy(raw)
     retained["rows"][0]["retained_records"] += 1
     candidates["retained_metric"] = retained
+    build_peak = copy.deepcopy(raw)
+    build_peak["rows"][0]["build_peak_cycle_records"] += 1
+    candidates["build_peak_metric"] = build_peak
+    root_prefilter = copy.deepcopy(raw)
+    root_prefilter["rows"][0]["root_cycle_discarded_for_query"] = False
+    candidates["root_prefilter_boundary"] = root_prefilter
     baseline = copy.deepcopy(raw)
     baseline["rows"][0]["same_function_baselines"][
         "exact_support_hash"

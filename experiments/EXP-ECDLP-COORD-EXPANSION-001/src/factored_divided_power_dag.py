@@ -383,12 +383,16 @@ def query(
     p: int,
     a: int,
     counter: QueryCounter,
+    membership_prefilter: bool = True,
 ) -> tuple[int, ...] | None:
     counter.recursion_nodes += 1
-    counter.hash_lookups += 1
-    if target not in node.cycles[degree]:
-        return None
+    if membership_prefilter:
+        counter.hash_lookups += 1
+        if target not in node.cycles[degree]:
+            return None
     if node.left is None or node.right is None:
+        if not membership_prefilter:
+            return None
         return node.cycles[degree][target].first_route
     for left_degree in range(degree + 1):
         counter.split_attempts += 1
@@ -586,24 +590,43 @@ def run_cell(
     build_counter = BuildCounter()
     root = build_tree(points, 0, len(points), p, a, build_counter)
     nodes = all_nodes(root)
+    advice_nodes = nodes[1:]
     root_cycle = root.cycles[4]
     oracle = direct_canonical(points, p, a)
     oracle_match = (
         coefficient_payload(root_cycle) == coefficient_payload(oracle)
     )
-    retained_records = sum(
+    build_peak_cycle_records = sum(
         len(cycle) for node in nodes for cycle in node.cycles.values()
     )
-    retained_point_field_elements = sum(
+    build_peak_point_field_elements = sum(
         2
         for node in nodes
         for cycle in node.cycles.values()
         for image in cycle
         if image is not None
     )
-    retained_route_indices = sum(
+    build_peak_route_indices = sum(
         len(record.first_route)
         for node in nodes
+        for cycle in node.cycles.values()
+        for record in cycle.values()
+    )
+    retained_records = sum(
+        len(cycle)
+        for node in advice_nodes
+        for cycle in node.cycles.values()
+    )
+    retained_point_field_elements = sum(
+        2
+        for node in advice_nodes
+        for cycle in node.cycles.values()
+        for image in cycle
+        if image is not None
+    )
+    retained_route_indices = sum(
+        len(record.first_route)
+        for node in advice_nodes
         for cycle in node.cycles.values()
         for record in cycle.values()
     )
@@ -616,9 +639,25 @@ def run_cell(
     )
     positive_receipts = []
     worst_scans = 0
+    query_root = Node(
+        node_id=root.node_id,
+        start=root.start,
+        stop=root.stop,
+        left=root.left,
+        right=root.right,
+        cycles={},
+    )
     for target in positives:
         counter = QueryCounter()
-        route = query(root, 4, target, p, a, counter)
+        route = query(
+            query_root,
+            4,
+            target,
+            p,
+            a,
+            counter,
+            membership_prefilter=False,
+        )
         replay = (
             None
             if route is None
@@ -641,7 +680,15 @@ def run_cell(
     negative_receipts = []
     for target in negatives:
         counter = QueryCounter()
-        route = query(root, 4, target, p, a, counter)
+        route = query(
+            query_root,
+            4,
+            target,
+            p,
+            a,
+            counter,
+            membership_prefilter=False,
+        )
         worst_scans = max(worst_scans, counter.point_scans)
         negative_receipts.append(
             {
@@ -665,7 +712,7 @@ def run_cell(
                 for degree, cycle in node.cycles.items()
             },
         }
-        for node in nodes
+        for node in advice_nodes
     ]
     baselines = same_function_baselines(
         root_cycle,
@@ -714,6 +761,11 @@ def run_cell(
         "nodes": [node_receipt(node) for node in nodes],
         "node_count": len(nodes),
         "edge_count": 2 * (len(points) - 1),
+        "online_advice_node_count": len(advice_nodes),
+        "online_advice_edge_count": max(
+            0, 2 * (len(points) - 1) - 2
+        ),
+        "root_cycle_discarded_for_query": True,
         "root_cycle": cycle_payload(root_cycle),
         "root_cycle_digest": digest(cycle_payload(root_cycle)),
         "root_coefficient_digest": digest(
@@ -734,7 +786,16 @@ def run_cell(
         "retained_canonical_json_bytes": canonical_json_bytes(
             retained_payload
         ),
-        "peak_live_cycle_records": retained_records,
+        "build_peak_cycle_records": build_peak_cycle_records,
+        "build_peak_point_field_elements": (
+            build_peak_point_field_elements
+        ),
+        "build_peak_route_indices": build_peak_route_indices,
+        "build_peak_logical_words": (
+            build_peak_cycle_records
+            + build_peak_point_field_elements
+            + build_peak_route_indices
+        ),
         "build_operations": build_counter.as_dict(),
         "positive_queries": positive_receipts,
         "negative_queries": negative_receipts,
