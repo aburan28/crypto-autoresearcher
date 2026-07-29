@@ -19,7 +19,7 @@ applicability: >-
 source_refs: [KN-LIT-094, KN-TECH-024, KN-TECH-029, KN-TECH-035]
 added: 2026-07-28
 superseded_by: null
-promoted_from: [EV-SSI-003, DEC-20260728-001]
+promoted_from: [EV-SSI-003, DEC-20260728-004]
 ---
 
 ## Method

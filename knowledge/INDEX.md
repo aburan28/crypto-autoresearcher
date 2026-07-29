@@ -3,24 +3,18 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-<<<<<<< HEAD
-128 entries.
-
-| ID | Title | Type | Confidence | Verified/Status | Tags |
-|---|---|---|---|---|---|
-| KN-FIND-001 | Decomposition-yield conservation — factor-base geometry cannot change mean yield, only redistribute it | internal_finding | established |  | index-calculus factor-base decomposition-yield coverage point-decomposition conservation ecdlp toy-scale |
-| KN-FIND-002 | Rare-event density gates are settled exactly by fibering over solutions — and exactness does not protect against formalisation error | internal_finding | established |  | methodology lifting xedni function-field elliptic-surface rare-event exact-enumeration experiment-design ecdlp toy-scale |
-| KN-FIND-003 | mu_3 supplies infinity-norm-1 MW relations on the frozen j=0 free-x family; polarisation Gram rank is not Shioda rank | internal_finding |  | established | lifting xedni function-field mu3 mordell-weil coefficient-bound methodology toy-scale |
-| KN-FIND-004 | Non-isotrivial free-x sections still admit infinity-norm-1 MW relations; Gram can over-report coefficients without μ₃ | internal_finding | established |  | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
-| KN-FIND-005 | Raised deg-a≤4 non-isotrivial free-x still admit inf-norm-1 MW relations; deg x≤3 empty on deg-b=6 | internal_finding | established |  | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
-=======
-7638 entries.
+7656 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
 | KN-FIND-001 | Byte-complete differential probing of the ML-KEM comparison primitive discriminates incomplete re-encryption comparisons at fix boundaries | internal_finding | reported |  | ml-kem fips-203 implicit-rejection re-encryption-comparison conformance-testing differential-testing wolfssl avx2 neon defensive post-quantum |
 | KN-FIND-002 | Jet and endomorphism ECDLP oracles are GGM-simulable with O(1) overhead, closing their candidate families at exponent 1/2; elliptic-net and incidence oracles are GGM-simulable with non-constant overhead, providing no sub-birthday advantage | finding | strong | established | ggm simulability jet endomorphism elliptic-net incidence ecdlp closure exponent-half generic-group-model |
->>>>>>> origin/main
+| KN-FIND-003 | mu_3 supplies infinity-norm-1 MW relations on the frozen j=0 free-x family; polarisation Gram rank is not Shioda rank | internal_finding |  | established | lifting xedni function-field mu3 mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-004 | Non-isotrivial free-x sections still admit infinity-norm-1 MW relations; Gram can over-report coefficients without μ₃ | internal_finding |  | established | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-005 | Raised deg-a≤4 non-isotrivial free-x still admit inf-norm-1 MW relations; deg x≤3 empty on deg-b=6 | internal_finding |  | established | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-006 | The Semaev/Weil-descent Macaulay rank deficit is bounded structural syzygy content equal to 8*dim(V); the generic degree-4 baseline is exactly the classical trivial syzygies and the excess is a vanishing fraction | internal_finding | reported |  | semaev weil-descent groebner degree-of-regularity syzygy betti rank-deficit semi-regular binary-field ecdlp bounded negative-result |
+| KN-FIND-007 | Decomposition-yield conservation — factor-base geometry cannot change mean yield, only redistribute it | internal_finding | established |  | index-calculus factor-base decomposition-yield coverage point-decomposition conservation ecdlp toy-scale |
+| KN-FIND-008 | Rare-event density gates are settled exactly by fibering over solutions — and exactness does not protect against formalisation error | internal_finding | established |  | methodology lifting xedni function-field elliptic-surface rare-event exact-enumeration experiment-design ecdlp toy-scale |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
@@ -7343,7 +7337,19 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7563 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | literature | reported | full_text | supersingular isogeny-problem oneend endomorphism-ring smoothness heuristic dickman-de-bruijn meet-in-the-middle claw-finding rerandomization deuring exponent-improvement exemplar isogeny adjacent |
 | KN-LIT-757 | EQUIDISTRIBUTION OF αpθ WITH A CHEBOTAREV CONDITION AND APPLICATIONS TO EXTREMAL PRIMES | literature | reported | read | elliptic-curve number-theory pairing |
 | KN-LIT-758 | EULER CHARACTERISTICS AND THEIR CONGRUENCES FOR MULTI-SIGNED SELMER GROUPS | literature | reported | read | elliptic-curve number-theory pairing provable-security supersingular |
+| KN-LIT-7580 | Complex-Multiplication Terminals for Supersingular Isogeny Path-Finding | literature | reported | web | isogeny supersingular isogeny-path-problem delfs-galbraith complex-multiplication hilbert-class-polynomial klpt endomorphism-ring precomputation time-memory cost-model post-quantum |
+| KN-LIT-7581 | Quantum Lazy Sampling and Path Recording for Any Group | literature | reported | web | generic-group-model oracle-simulation compressed-oracle lazy-sampling query-complexity lower-bound quantum pseudorandom-unitary foundations proof-technique |
+| KN-LIT-7582 | PRISM with a pinch of salt: Simple, Efficient and Strongly Unforgeable Signatures from Isogenies | literature | reported | web | isogeny supersingular endomorphism-ring signature hash-and-sign sqisign standard-model strong-unforgeability post-quantum parameter-selection |
+| KN-LIT-7583 | An analysis of a weakened version of PRISM | literature | reported | web | isogeny supersingular endomorphism-ring signature cryptanalysis primality-testing miller-rabin qrom assumption-failure parameter-selection post-quantum |
+| KN-LIT-7584 | Efficient Ternary Computation of Optimal Ate Pairing on BLS27 Curves | literature | reported | web | pairing elliptic-curve bls-curves embedding-degree number-field-sieve extnfs finite-field-dlp parameter-selection implementation cost-model |
+| KN-LIT-7585 | ZKPoSP: Post-Quantum Zero-Knowledge Proofs for Hierarchical Deterministic Wallets | literature | reported | web | shor ecdlp migration post-quantum zk-proof nizk hd-wallet bip32 ed25519 secp256k1 harvest-now-decrypt-later applied |
+| KN-LIT-7586 | The McEliece Cryptosystem After Nearly Five Decades: A Survey of Security, Cryptanalysis, and Future Directions | literature | reported | web | code-based mceliece goppa-codes information-set-decoding structural-attack survey post-quantum cryptanalysis parameter-selection methodology |
+| KN-LIT-7587 | The Polynomial-Time Low-Degree Conjecture is False | literature | reported | web | complexity lower-bound low-degree-method average-case-hardness hardness-evidence counterexample barrier methodology reed-muller distinguisher |
+| KN-LIT-7588 | CryptanalysisBench: Can LLMs do Cryptanalysis? | literature | reported | web | benchmark llm automated-cryptanalysis symmetric-crypto block-cipher hash-function aead nist-competition methodology evaluation harness |
+| KN-LIT-7589 | Lower bounds on the strength of the determinant | literature | reported | web | algebraic-complexity strength partition-rank birch-rank determinant lower-bound chow-ring intersection-theory polynomial-system proof-technique |
 | KN-LIT-759 | Explicit description of isogeny and isomorphism classes of Drinfeld modules over finite field | literature | reported | read | abelian-variety elliptic-curve endomorphism finite-field isogeny number-theory pairing |
+| KN-LIT-7590 | Degenerating Discriminants | literature | reported | web | groebner-degeneration discriminant dual-variety conormal-variety whitney-stratification mixed-discriminant polynomial-system elimination algebraic-geometry proof-technique |
+| KN-LIT-7591 | Lower bounds for the CNOT-complexity of linear reversible operators | literature | reported | web | quantum circuit-complexity cnot-count lower-bound linear-reversible additive-complexity error-correcting-codes resource-estimation cost-model explicit-construction |
 | KN-LIT-760 | EXPLICIT TWO-COVER DESCENT FOR GENUS 2 CURVES | literature | reported | read | curve-arithmetic elliptic-curve hyperelliptic isogeny jacobian number-theory provable-security |
 | KN-LIT-761 | EXPLICIT UNIFORM BOUNDS FOR BRAUER GROUPS OF SINGULAR K3 SURFACES | literature | reported | read | curve-arithmetic elliptic-curve isogeny lattice mov-fr number-theory pairing |
 | KN-LIT-762 | Far Field EM Side-Channel Attack on AES Using Deep Learning | literature | reported | read | cryptanalysis side-channel symmetric |

@@ -130,6 +130,65 @@ gameable by a model that recognises the shape of a trap. Rotating fixtures and
 adding seeds is the mitigation; a suite that never changes eventually measures
 familiarity instead of judgment.
 
+There is a deeper limit these mitigations do not touch: **these suites are
+written by the program they grade.** Every answer they check is one this
+repository already knows, which is what makes them arithmetic rather than
+judgment — and also what caps them. They can establish that an arm follows the
+protocol and does not fabricate. They cannot establish that it is any good at
+problems nobody has solved. For that you need a verifier written by someone
+else.
+
+## Optional: external scoring via Frontier-CS / Harbor
+
+[Frontier-CS](https://github.com/FrontierCS/Frontier-CS) is a benchmark of
+unsolved, open-ended, verifiable CS problems across three tracks — algorithmic
+(188), research (68), and a `2.0` agent-native track (20) whose tasks accept
+iterative `submit.sh` feedback mid-trial. Harbor is the agent-evaluation
+framework it ships adapters for. `orchestration/eval/harbor.py` lets an arm be
+scored against it, and folds the numbers into the same `TrialResult` →
+`summarise_task` → `RunSummary` path as the internal suites, so one comparison
+axis exists instead of two incompatible ones.
+
+```sh
+python3 -m orchestration.eval harbor-probe
+```
+
+```sh
+python3 -m orchestration.eval harbor-run --suite evals/harbor/frontier-cs.yaml --split dev --trials 1 --out evals/results/<name>
+```
+
+The first is offline, free, and installs nothing — it reports what is present.
+The second spends real tokens against real problems.
+
+**Scope, and it is not negotiable.** A Frontier-CS score is evidence about an
+`(agent, model)` arm. It is **not** mathematical evidence about ECDLP, it never
+promotes a hypothesis, and it never enters `ledger/`. A perfect score on an
+algorithmic problem says nothing about the discrete logarithm problem. Records
+land under `evals/` carrying the same explicit scope string as internal runs.
+
+Four properties worth knowing before trusting a number from it:
+
+- **Entirely optional.** It needs Python 3.11+, Docker 24+, and credentials.
+  When any of that is missing, `harbor-run` exits 3 and writes **no record**.
+  A missing benchmark and a failed benchmark are different facts, and recording
+  `0.0` for "not installed" would put a fabricated capability number into an
+  immutable record.
+- **Infrastructure outcomes are separated from capability outcomes.** Harbor
+  statuses like `AgentTimeoutError` are tagged with an `infrastructure` verdict
+  so they can be filtered out of a capability average rather than silently
+  depressing it — AGENTS.md rule 5 applied to the eval layer.
+- **Scores are rescaled.** Harbor reports 0–100; internal graders report 0–1.
+  The adapter divides by 100, because mixing the two silently would make every
+  comparison wrong by a factor of a hundred.
+- **The shipped suite's problem ids are placeholders**, pinned to the two
+  examples the Frontier-CS README documents verbatim. Run `frontier list <track>`
+  and replace them with ids you have confirmed exist before believing a result;
+  an id that does not resolve is a failed trial, not a zero score.
+
+`tests/test_harbor_eval.py` covers all of this offline with a faked `frontier`
+CLI — no Docker, no key, no network — so the behaviour is verified on the
+machines where the benchmark is absent, which is most of them.
+
 ## Tuning over time
 
 Measuring is only half of it. The loop that matters is: change something, find

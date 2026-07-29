@@ -176,6 +176,69 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_harbor_probe(args: argparse.Namespace) -> int:
+    """Offline. Says what is installed; never installs and never guesses."""
+    from . import harbor as harbor_module
+
+    detected = harbor_module.probe()
+    if args.json:
+        print(json.dumps(detected.to_dict(), indent=2))
+    else:
+        print(f"frontier: {detected.frontier or 'NOT FOUND'}")
+        print(f"harbor:   {detected.harbor or 'NOT FOUND'}")
+        print(f"docker:   {detected.docker or 'NOT FOUND'}")
+        for note in detected.notes:
+            print(f"note:     {note}")
+        if detected.available:
+            print("\nFrontier-CS/Harbor is runnable.")
+        else:
+            print(f"\nNOT runnable; missing: {', '.join(detected.missing)}")
+            print("Install per https://github.com/FrontierCS/Frontier-CS "
+                  "(Python 3.11+, Docker 24+, `uv sync`).")
+    # Absence is a fact to report, not a failure of this command.
+    return 0
+
+
+def cmd_harbor_run(args: argparse.Namespace) -> int:
+    from . import harbor as harbor_module
+
+    suite = harbor_module.load_suite(args.suite)
+    ids = args.tasks.split(",") if args.tasks else None
+    tracks = args.tracks.split(",") if args.tracks else None
+    splits = None if args.split == "all" else [args.split]
+    selected = suite.filter(ids=ids, tracks=tracks, splits=splits)
+    if not selected.tasks:
+        raise SystemExit("no tasks selected")
+
+    detected = harbor_module.probe()
+    if not detected.available:
+        # Refuse loudly rather than emit a record full of zeros. A missing
+        # benchmark and a failed benchmark are different facts.
+        print(f"error: Frontier-CS/Harbor unavailable; missing: "
+              f"{', '.join(detected.missing)}", file=sys.stderr)
+        print("No result record was written. Run `harbor-probe` for detail.",
+              file=sys.stderr)
+        return 3
+
+    def progress(result) -> None:
+        if not args.quiet:
+            mark = "pass" if result.passed else "FAIL"
+            print(f"  [{mark}] {result.task_id} trial {result.trial} "
+                  f"score={result.score:.3f} ({result.stop_reason})",
+                  file=sys.stderr)
+
+    summary, trials = harbor_module.run_suite(
+        selected, trials=args.trials, probe_result=detected, progress=progress)
+    print(report_module.render(summary))
+
+    if args.out:
+        written = runner_module.write_results(
+            summary, trials, args.out, suite_path=args.suite)
+        for name, path in written.items():
+            print(f"# {name}: {path}", file=sys.stderr)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m orchestration.eval",
@@ -228,6 +291,27 @@ def build_parser() -> argparse.ArgumentParser:
     p_compare.add_argument("--seed-offset", type=int, default=0)
     p_compare.add_argument("--quiet", action="store_true")
     p_compare.set_defaults(func=cmd_compare)
+
+    p_probe = sub.add_parser(
+        "harbor-probe",
+        help="report whether Frontier-CS/Harbor can run here (offline, no cost)")
+    p_probe.add_argument("--json", action="store_true")
+    p_probe.set_defaults(func=cmd_harbor_probe)
+
+    p_harbor = sub.add_parser(
+        "harbor-run",
+        help="run an external Frontier-CS suite through Harbor")
+    p_harbor.add_argument("--suite", required=True)
+    p_harbor.add_argument("--tasks", help="comma-separated task ids")
+    p_harbor.add_argument("--tracks", help="algorithmic,research,2.0")
+    p_harbor.add_argument("--split", choices=["dev", "held_out", "all"],
+                          default="dev")
+    p_harbor.add_argument("--trials", type=int, default=1,
+                          help="repeats per problem; Frontier-CS trials are "
+                               "expensive, so this defaults to 1 rather than 3")
+    p_harbor.add_argument("--out", help="directory for the immutable record")
+    p_harbor.add_argument("--quiet", action="store_true")
+    p_harbor.set_defaults(func=cmd_harbor_run)
     return parser
 
 
