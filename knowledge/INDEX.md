@@ -3,8 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7682 entries.
-
+7683 entries.
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
 | KN-FIND-001 | Byte-complete differential probing of the ML-KEM comparison primitive discriminates incomplete re-encryption comparisons at fix boundaries | internal_finding | reported |  | ml-kem fips-203 implicit-rejection re-encryption-comparison conformance-testing differential-testing wolfssl avx2 neon defensive post-quantum |
@@ -15,6 +14,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-006 | The Semaev/Weil-descent Macaulay rank deficit is bounded structural syzygy content equal to 8*dim(V); the generic degree-4 baseline is exactly the classical trivial syzygies and the excess is a vanishing fraction | internal_finding | reported |  | semaev weil-descent groebner degree-of-regularity syzygy betti rank-deficit semi-regular binary-field ecdlp bounded negative-result |
 | KN-FIND-007 | Decomposition-yield conservation — factor-base geometry cannot change mean yield, only redistribute it | internal_finding | established |  | index-calculus factor-base decomposition-yield coverage point-decomposition conservation ecdlp toy-scale |
 | KN-FIND-008 | Rare-event density gates are settled exactly by fibering over solutions — and exactness does not protect against formalisation error | internal_finding | established |  | methodology lifting xedni function-field elliptic-surface rare-event exact-enumeration experiment-design ecdlp toy-scale |
+| KN-FIND-009 | Degeneracy of endomorphism-augmented ECDLP witness lattices is governed by short eigenvalue relations, not by the rank of End(E) | internal_finding | established |  | endomorphism witness-lattice glv relation-lattice minkowski vieta complex-multiplication scoped-negative experiment-design ecdlp |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
@@ -7369,7 +7369,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7596 | Advanced cryptography from lattice isomorphism — new constructions of IBE and FHE | literature | reported | web | lattice-isomorphism-problem lip ibe fhe gpv gsw assumption-load post-quantum adjacent |
 | KN-LIT-7597 | Decision trees, Frobenius traces, and Weierstrass coefficients of elliptic curves | literature | reported | web | elliptic-curve frobenius-trace weierstrass-coefficients isogeny-class conductor machine-learning decision-tree ml-to-theorem murmurations methodology |
 | KN-LIT-7598 | A lower bound for the distance between CM points on Shimura curves | literature | reported | web | cm-points shimura-curve quaternion-algebra endomorphism-ring discriminant diophantine-approximation liouville separation-bound adjacent |
-| KN-LIT-7599 | Engineered Complete Intersections: Algorithmic Aspects | literature | reported | web | sparse-polynomial-systems tropical-geometry mixed-subdivision bkk newton-polytope elimination eliminant a-discriminant homotopy-continuation solution-counting software groebner-alternative |
+| KN-LIT-7599 | Engineered Complete Intersections: Algorithmic Aspects | literature | reported | web | sparse-polynomial-systems tropical-geometry mixed-subdivision bkk newton-polytope elimination eliminant a-discriminant homotopy-continuation solution-counting software groebner-alternative || KN-LIT-7603 | Linear Descent for Rank-2 and Rank-4 Module-LIP | literature | reported | full_text_supplied | module-lip hawk lattice-isomorphism linear-descent symmetric-square hodge-star exterior-square svp cm-field lenstra-silverberg bambury-nguyen pqc |
 | KN-LIT-760 | EXPLICIT TWO-COVER DESCENT FOR GENUS 2 CURVES | literature | reported | read | curve-arithmetic elliptic-curve hyperelliptic isogeny jacobian number-theory provable-security |
 | KN-LIT-7600 | A Resource Estimation Model for the Hardware-Software Co-Design of Distributed Quantum Architectures | literature | reported | web | distributed-quantum-computing resource-estimation communication-qubits entanglement-distribution decoherence cost-model circuit-partitioning hidden-cost |
 | KN-LIT-7601 | Cryptanalytic Properties of Mealy Machines | literature | reported | web | geometric-approach mealy-machine s-function unified-framework linear differential integral boomerang differential-linear symmetric methodology adjacent |

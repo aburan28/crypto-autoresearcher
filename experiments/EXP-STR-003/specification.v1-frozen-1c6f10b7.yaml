@@ -1,0 +1,923 @@
+experiment:
+  id: EXP-STR-003
+  hypothesis_id: H-STR-002
+  version: 1
+  status: approved
+  frozen: true
+  frozen_on: '2026-07-27'
+  title: >-
+    Four-arm instrument ablation of `phi_alpha`, the phi-displacement-rank
+    metric reported by harness/endomorphism_la.py, plus reproduction of the
+    committed main() IndexError at B mod 3 != 0
+  claim_tier: toy
+
+  # ===================================================================
+  # 0. WHAT THIS EXPERIMENT IS, AND WHAT IT CAN NEVER BE
+  # ===================================================================
+  instrument_not_mathematics: >-
+    THIS EXPERIMENT TESTS AN INSTRUMENT, NOT A MATHEMATICAL HYPOTHESIS. Its
+    object is the measurement procedure `phi_alpha` as implemented in
+    harness/endomorphism_la.py at commit 6eb3779987c6c0d3608193eff69df83c410f8cd1
+    - specifically whether the value that procedure reports is produced by the
+    row-insertion rule at lines 292-304 rather than by any property of the
+    phi-invariant factor base. It CANNOT, under any outcome, establish or
+    refute H-STR-002's mechanism. The mechanism is a one-line consequence of
+    phi being an automorphism: for a phi-invariant factor base F, phi(R) is a
+    genuine relation whenever R is, and the relation system really is
+    C_3-equivariant. No arm of this experiment touches that. A confirming
+    outcome shows that the NUMBER reported by the committed harness carries no
+    information about phi-invariance; it does not show that phi-invariance is
+    worthless, and it does not close the endomorphism direction. A falsifying
+    outcome shows the objection RT-OBJ-1 is wrong; it does not thereby support
+    H-STR-002 either, because this contract measures no cost, no wall time and
+    no end-to-end attack.
+  what_this_experiment_is_NOT:
+  - Not a cryptanalytic result, not an attack, not an attack improvement.
+  - Not a closure, not an impossibility claim, not a target-class result.
+  - Not a test of H-STR-002's mechanism, its cost model, or its predictions.
+  - Not evidence at any tier above toy, in either direction.
+  - >-
+    Not a re-execution of EXP-STR-002. EXP-STR-002's 13 run records are
+    immutable, committed and out of scope; no file under
+    experiments/EXP-STR-002/ may be read-modified, written or staged by any
+    task under this contract, and no run record produced here may reuse an
+    EXP-STR-002 run identifier.
+  - >-
+    Not a repair of harness/endomorphism_la.py. The committed harness is the
+    OBJECT of measurement. Modifying it - including "fixing" the IndexError at
+    line 451 - would destroy the measurement and requires a versioned protocol
+    amendment before any such change is executed.
+  claim_ceiling: >-
+    Every statement this experiment can license is confined to: four
+    deterministically generated j=0 (a=0, CM discriminant -3) prime-field toy
+    curves with p = 1 mod 3 at field_bits in {12, 16, 20}, prime subgroup order
+    n <= 158071 (about 17 bits), factor base B = ceil(isqrt(n)) <= 397,
+    decomposition arity m = 2 only, the committed Python/numpy/sympy stack named
+    in `inputs.environment_binding`, and the declared budget. Nothing here
+    extends to arity m = 3, to B > 397, to j != 0 curves, to generic curves, to
+    medium or cryptographic scale, or to index calculus in general.
+
+  # ===================================================================
+  # 1. INPUTS
+  # ===================================================================
+  inputs:
+    bound_commit: 6eb3779987c6c0d3608193eff69df83c410f8cd1
+    bound_commit_status: >-
+      Orchestrator-supplied and independently verified against Git by BOTH
+      BATCH-007 review sessions (TASK-20260727-016 receipt_verification, verdict
+      PASS; TASK-20260727-017 snapshot_validation, verdict ACCEPTED). The
+      session that froze this contract had no shell and verified nothing itself.
+    code_under_measurement:
+    - path: harness/endomorphism_la.py
+      role: the instrument. Read and called; never modified.
+    - path: harness/semaev.py
+      role: relation search (_find_decomposition, build_factor_base). Never modified.
+    - path: harness/toycurve.py
+      role: curve arithmetic and deterministic instance generation. Never modified.
+    - path: harness/runner.py
+      role: run-record writer (write_run). Never modified.
+    - path: harness/rho.py
+      role: reached only inside arm D, via the committed main(). Never modified.
+    committed_functions_the_driver_must_call:
+    - harness.endomorphism_la._generate_j0_instance(seed, field_bits)
+    - harness.endomorphism_la._find_zeta3(p)
+    - harness.endomorphism_la._build_phi_invariant_factor_base(inst, B, zeta3)
+    - harness.endomorphism_la._build_random_factor_base(inst, B)
+    - harness.endomorphism_la._collect_relations(inst, fb, m, num_targets, zeta3=, include_phi_orbits=)
+    - harness.endomorphism_la._measure_displacement_rank(rows, B, shift_type, zeta3, p, n, seed=)
+    - harness.runner.write_run / harness.runner.RunResult / harness.runner.curve_id
+    forbidden_entry_point: >-
+      harness.endomorphism_la.main(). It is FORBIDDEN as the producing path for
+      arms A, B, C and E, on two independent grounds. (i) TASK-20260727-017
+      RT-OBJ-3 reports it raises IndexError at endomorphism_la.py:451 whenever
+      B mod 3 != 0 with relations present, which is true of two of the four
+      instances in this contract. (ii) It measures only the as-committed arm A
+      and the as-committed arm C and cannot express arms B or E at all. Arm D,
+      and only arm D, invokes main() - as an out-of-process subprocess whose
+      exit status is the measured object.
+    instance_construction: >-
+      The driver constructs its own instances. For each (field_bits, seed) in
+      the table below it calls, in this exact order:
+      (1) inst = _generate_j0_instance(seed, field_bits);
+      (2) if inst is None the cell is recorded `instance_unavailable` and no run
+          is written for it (see stopping rule 4);
+      (3) p = inst.p; n = inst.n; a = inst.a; b = inst.b;
+      (4) zeta3 = _find_zeta3(p); if None the cell is `instance_unavailable`;
+      (5) B = math.ceil(math.isqrt(n)) - byte-identical to
+          harness/endomorphism_la.py:383;
+      (6) curve_id(p, a, b, field_bits) from harness/runner.py.
+      Every one of p, n, a, b, zeta3, B, inst.seed (the DERIVED seed, which is
+      requested_seed*100 + offset), and the requested seed is recorded in every
+      run record produced from that instance. No instance parameter may be
+      hardcoded, transcribed from a report, or supplied on the command line.
+    instances:
+    - label: I1
+      field_bits: 12
+      requested_seed: 1
+      expected_B_mod_3: 0
+      note: >-
+        The one instance for which a committed EXP-STR-002 run record exists
+        (RUN-STR-phi-b12-s1-m2, B=27). Arm A at I1 is therefore also a
+        cross-check against a committed record.
+    - label: I2
+      field_bits: 12
+      requested_seed: 2
+      expected_B_mod_3: nonzero
+      note: >-
+        The instance whose phi/rand run records are absent from every ref
+        (TASK-20260727-016 Part 1, AV3) and at which RT-OBJ-3 predicts the
+        committed main() crashes.
+    - label: I3
+      field_bits: 16
+      requested_seed: 3
+      expected_B_mod_3: 0
+      note: The larger of the two instances at which main() is predicted to complete.
+    - label: I4
+      field_bits: 20
+      requested_seed: 3
+      expected_B_mod_3: nonzero
+      note: >-
+        The largest instance in the contract and the second predicted crash
+        site; carries one of the two strongest headline rows of DEC-20260726-006.
+    expected_B_note: >-
+      The B values reported by TASK-20260727-017 for these four instances are 27,
+      55, 204 and 397. They are recorded in `pre_registered_predictions` as
+      PREDICTIONS to be reproduced, never as inputs. The driver computes B from
+      the generated instance and must record a mismatch as a finding rather than
+      overriding it.
+    decomposition_arity: 2
+    target_quota_per_arm: >-
+      num_targets = max(10, B + 10), byte-identical to the committed call at
+      harness/endomorphism_la.py:432 and :438. The collection loop's own bound
+      (num_targets * 5 candidate targets, line 269) is inherited unchanged.
+    shift_operators:
+      phi: >-
+        shift_type "phi" in _measure_displacement_rank: the positional
+        block-of-3 permutation Z built at lines 174-183, i.e.
+        sigma(3j+k) = 3j + ((k+1) mod 3) for 3j+k < 3*(B//3), and sigma(i) = i
+        for i >= 3*(B//3).
+      random: >-
+        shift_type "random" with seed = inst.seed: the seeded permutation built
+        at lines 185-193. This is the operator the committed main() uses for its
+        `rand_alpha` at line 439.
+    environment_binding:
+      python: must be recorded per run by harness/runner.py::environment()
+      dependencies_recorded: [sympy, pyyaml, numpy]
+      numpy_note: >-
+        numpy is imported inside _measure_displacement_rank (line 130) and is NOT
+        in harness/runner.py::environment()'s dependency dict. The driver must
+        therefore record numpy.__version__ explicitly in raw-result.json under
+        `environment_supplement`, or the artifact policy's dependency-version
+        requirement is not met for the primary metric's dependency.
+      source_hashes_required: >-
+        The driver must record the SHA-256 of harness/endomorphism_la.py,
+        harness/semaev.py, harness/toycurve.py, harness/runner.py and
+        harness/rho.py, computed at run time from the working tree, in every
+        raw-result.json under `code_hashes`. All 20 runs must agree; a
+        disagreement invalidates the set (invalidation rule 3).
+
+  # ===================================================================
+  # 2. ARMS  (the independent variable)
+  # ===================================================================
+  independent_variables:
+  - arm: [A, B, C, E, D]
+  - instance: [I1, I2, I3, I4]
+  held_fixed:
+  - decomposition arity m = 2
+  - target quota max(10, B + 10)
+  - the curve instance, its derived seed, and zeta3 within a column
+  - the committed harness sources, unmodified
+  arms:
+  - id: A
+    name: as-committed phi arm
+    factor_base: _build_phi_invariant_factor_base(inst, B, zeta3)
+    relations: _collect_relations(inst, fb, 2, max(10, B+10), zeta3=zeta3, include_phi_orbits=True)
+    declared_shift: phi
+    alpha_call: _measure_displacement_rank(rels, len(fb), "phi", zeta3, p, n)
+    what_it_reproduces: >-
+      Exactly the computation harness/endomorphism_la.py:431-434 performs, which
+      is the source of every `phi_alpha` in EXP-STR-002's records and in
+      experiments/EXP-STR-002/analysis.md lines 5-15.
+  - id: B
+    name: ablation - phi-invariant factor base WITHOUT the appended shifted rows
+    factor_base: >-
+      _build_phi_invariant_factor_base(inst, B, zeta3) - the identical list as
+      arm A, from the identical deterministic construction. The driver must
+      assert list equality with arm A's factor base and record the assertion.
+    relations: _collect_relations(inst, fb, 2, max(10, B+10), include_phi_orbits=False)
+    declared_shift: phi
+    alpha_call: _measure_displacement_rank(rels, len(fb), "phi", zeta3, p, n)
+    isolates: >-
+      One variable against arm A: whether the two phi-shifted copies appended at
+      lines 292-304 after every found relation are present. Factor base, shift
+      operator, arity, quota and instance are identical.
+    known_objection_recorded_in_advance: >-
+      Arm B is weaker than arm E and must never be reported instead of it. A real
+      attacker holding a phi-invariant factor base WOULD append those rows: they
+      are free relations, and discarding them is worse engineering. Arm B
+      therefore describes a method nobody would run, and taken alone it would
+      handicap the hypothesis. It is reported only beside arm E
+      (TASK-20260727-017 RT-CTRL-2 caveat, adversarial_notes.md 1.2 and 2.2).
+  - id: C
+    name: as-committed random baseline
+    factor_base: _build_random_factor_base(inst, B)
+    relations: _collect_relations(inst, fb, 2, max(10, B+10))
+    declared_shift: random (seed = inst.seed)
+    alpha_call: _measure_displacement_rank(rels, len(fb), "random", zeta3, p, n, seed=inst.seed)
+    what_it_reproduces: >-
+      Exactly harness/endomorphism_la.py:437-439, the source of every
+      `rand_alpha` in the committed records. Recorded so that the ablation is
+      compared against the SAME baseline the original claim was compared against.
+    two_variable_caveat_recorded_in_advance: >-
+      Arm C differs from arm A in TWO variables at once - factor base AND shift
+      operator - which is TASK-20260727-017 RT-H-3's objection to the original
+      design. This contract does not repair that by changing arm C, because arm
+      C must remain the as-committed baseline; it repairs it by measuring EVERY
+      arm under BOTH shift operators (secondary metric `alpha_alternate_shift`),
+      which supplies the one-variable comparison without disturbing the baseline.
+  - id: E
+    name: phi-free positive control on the null (the discriminating arm)
+    factor_base: >-
+      _build_random_factor_base(inst, B) - the identical list as arm C. The
+      driver must assert list equality with arm C's factor base and record it.
+    relations_base: >-
+      _collect_relations(inst, fb, 2, max(10, B+10)) - collected identically to
+      arm C. The driver must assert this row list equals arm C's row list and
+      record the assertion; a disagreement invalidates arm E (the construction
+      would then not be holding the collection fixed).
+    synthetic_closure: >-
+      Walk the base row list in order. For each row r, for shift in (1, 2), form
+      r_shift by r_shift[sigma^shift(i)] = r[i] for every i in [0, B), where
+      sigma is the SAME positional block-of-3 permutation used by shift_type
+      "phi" (inputs.shift_operators.phi). Append r_shift immediately after r if
+      sum(r_shift) > 0 AND r_shift is not already in the list - mirroring, term
+      for term, the filter and dedup at harness/endomorphism_la.py lines 303-304.
+    declared_shift: phi
+    alpha_call: _measure_displacement_rank(rels, B, "phi", zeta3, p, n)
+    why_this_is_the_decisive_arm: >-
+      It is a positive control on the NULL. The appended rows are index
+      permutations of incidence vectors over a factor base that is NOT
+      phi-invariant; they are not images of any relation under any map of the
+      curve, and they are mathematically worthless as relations. The arm
+      therefore possesses the free-rows bookkeeping while possessing ZERO
+      endomorphism content. If it scores as well as or better than arm A, the
+      metric cannot be measuring the endomorphism, and no additional arm-A data
+      can rescue it.
+    anticipated_rebuttal_recorded_in_advance: >-
+      "Arm E's rows are fake, so comparing them to real ones is a category
+      error." The rebuttal is recorded because it is the strongest available and
+      it must not be discovered after the result: arm E is not offered as a
+      competing method. `phi_alpha` claims to detect a property of the MATRIX
+      (near C_3-equivariance); arm E exhibits a matrix that scores better on the
+      metric while lacking the causal property (phi-invariance of F) the
+      hypothesis says produces it. That the rows are worthless is the point - a
+      metric that cannot distinguish worthless rows from genuine ones carries no
+      information about which it was given.
+  - id: D
+    name: reproduction of the committed end-to-end path
+    procedure: >-
+      For each instance, run the committed entry point as a SUBPROCESS from the
+      repository root:
+      `python3 -m harness.endomorphism_la --bits <bits> --seeds <seed>
+       --arity 2 --targets 10 --out <SCRATCH>/armD/<label>`
+      where <SCRATCH> is an absolute path OUTSIDE the repository. Capture exit
+      code, full stdout, full stderr, wall time, and - if the process failed -
+      the exception type, the file and line of the deepest frame, and the last
+      20 lines of the traceback.
+    measured_object: the terminating behaviour of the committed program.
+    hard_constraints:
+    - >-
+      --out MUST resolve outside the repository root. The driver must resolve it
+      to an absolute real path and assert `not path.startswith(repo_root)`
+      BEFORE launching, and abort the whole experiment if the assertion fails.
+      Rationale: main() writes run records named RUN-STR-rho-*, RUN-STR-phi-*
+      and RUN-STR-rand-*, which collide with EXP-STR-002's immutable identifier
+      space (TASK-20260727-017 RT-INT-3).
+    - >-
+      After each arm-D invocation the driver must assert that nothing under
+      experiments/ changed, and record the assertion result in the run record.
+    - >-
+      The child's run records under <SCRATCH> are NOT artifacts of this
+      experiment, are never copied into the repository, and are never cited.
+      Only the parent's observation of exit behaviour is recorded.
+    interpretation_guard: >-
+      A crash observed in arm D is a fact about the committed tool's executable
+      behaviour and about the reproducibility of experiments/EXP-STR-002/analysis.md
+      lines 5-15. Under AGENTS.md core rule 5 it is NEVER evidence against
+      H-STR-002 or against any mathematical statement. Conversely, a crash of THIS
+      experiment's own driver is infrastructure failure and is not a measurement
+      at all (see stopping rule 1).
+
+  # ===================================================================
+  # 3. CONTROLS
+  # ===================================================================
+  controls:
+  - id: CTRL-1
+    control: >-
+      Arm C, the as-committed random-factor-base baseline, measured under the
+      same shift operator the committed code uses for it. Anchors the ablation to
+      the exact comparison the original claim was made against.
+  - id: CTRL-2
+    control: >-
+      Arm B, the appended-rows ablation, holding factor base and shift operator
+      fixed against arm A. One-variable control on the insertion rule.
+  - id: CTRL-3
+    control: >-
+      Arm E, the phi-free positive control on the null. Holds the insertion
+      bookkeeping fixed and removes phi-invariance. This is the decisive control.
+  - id: CTRL-4
+    control: >-
+      Dual-shift measurement. Every arm's final relation list is measured under
+      BOTH the phi shift and the seeded random shift; the primary metric is the
+      value under the arm's declared shift, and the other is recorded as
+      `alpha_alternate_shift`. This supplies the one-variable factor-base
+      comparison (arm A vs arm C under a common shift) that the two-variable
+      design of the committed code cannot express, and it re-runs the
+      phi-ablation control declared but never implemented at
+      experiments/EXP-STR-002/specification.yaml lines 36-39.
+  - id: CTRL-5
+    control: >-
+      Static-bound control. `misaligned_row_count` is computed from the final row
+      list by definition, independently of any rank computation, and compared
+      against the measured alpha. The prediction alpha <= misaligned_row_count is
+      a falsifier (F3), not a fitted quantity.
+  - id: CTRL-6
+    control: >-
+      Arm D positive-and-negative control on the crash claim. Two instances have
+      B mod 3 == 0 (I1, I3) and must complete; two have B mod 3 != 0 (I2, I4) and
+      are predicted to raise IndexError. A design in which every instance crashed
+      would be uninformative; this one can fail in both directions.
+  - id: CTRL-7
+    control: >-
+      Provenance control. Every run records the git commit, the tracked-tree
+      dirty state, the SHA-256 of all five harness sources, and the numpy, sympy
+      and Python versions. The driver aborts if the tracked working tree is dirty
+      with respect to harness/.
+  - id: CTRL-8
+    control: >-
+      Cross-check against the one committed record that overlaps this contract.
+      Arm A at I1 must be compared cell by cell against
+      experiments/EXP-STR-002/runs/RUN-STR-phi-b12-s1-m2/raw-result.json
+      (B, n, phi_hits, phi_attempts, phi_alpha). Agreement is a provenance check
+      on the driver; DISAGREEMENT is a finding to report, not a defect to fix,
+      and the committed record is never edited.
+
+  # ===================================================================
+  # 4. METRICS
+  # ===================================================================
+  metrics:
+    primary:
+    - name: phi_alpha
+      per: (arm, instance)
+      definition: >-
+        The integer returned by the committed
+        harness.endomorphism_la._measure_displacement_rank on the arm's final
+        relation list, its factor-base size, and the arm's DECLARED shift
+        operator. The sentinel -1 of the committed main() is NOT used here: if
+        the arm collected zero relations the value is recorded as null with
+        `alpha_status: no_relations`, and the cell is excluded from the criteria
+        (stopping rule 4).
+      recorded_as: integer or null
+    - name: misaligned_row_count
+      per: (arm, instance)
+      definition: >-
+        Computed by the driver directly from the arm's final row list R, with
+        rows = len(R), cols = B, and sigma the positional block-of-3 permutation
+        of inputs.shift_operators.phi. Let shift_row(r) be the row with
+        shift_row(r)[sigma(j)] = r[j].
+        branch = "square" if rows >= cols else "rectangular", matching
+        harness/endomorphism_la.py lines 220-234.
+        If branch == "square", let M = R[:cols] and
+          misaligned_row_count = #{ i in [0, cols) : M[sigma(i)] != shift_row(M[i]) }.
+        If branch == "rectangular",
+          misaligned_row_count = #{ i in [0, rows) : shift_row(R[i]) != R[i] }.
+      why_it_is_primary: >-
+        It is the quantity TASK-20260727-017 RT-OBJ-1 asserts the metric is
+        actually a statistic of. In the square branch, row i of the displacement
+        matrix D[i][j] = M[i][j] - M[sigma(i)][sigma(j)] vanishes exactly when
+        M[sigma(i)] == shift_row(M[i]); the appends at lines 292-304 force that
+        identity except where the `shifted_row not in relations` dedup at line
+        303, the `sum(shifted_row) > 0` filter, or a truncated tail orbit broke
+        the alignment. The predicted relation is alpha <= misaligned_row_count,
+        with equality reported where it holds; equality is an observation, the
+        inequality is the falsifier F3.
+      recorded_as: integer
+    secondary:
+    - alpha_alternate_shift: alpha of the same row list under the OTHER shift operator (CTRL-4).
+    - branch: "square" | "rectangular" - which limb of lines 220-234 executed (RT-OBJ-4).
+    - rows_collected: rows found by decomposition, before any closure or append.
+    - rows_final: length of the row list actually handed to the rank measurement.
+    - appended_row_count: rows_final - rows_collected (arms A and E only; 0 for B and C).
+    - dedup_suppressed_count: >-
+        candidate shifted rows rejected by `sum > 0` or by the `not in` dedup
+        (arms A and E only). The direct instrumentation of the mechanism OBS-1 names.
+    - rank_M: rank of the final row list over Z/nZ, by the committed matrix_rank_mod semantics.
+    - rank_deficiency: B - rank_M. Recorded because RT-OBJ-5 observes that no
+        EXP-STR-002 run ever established the system was solvable at all.
+    - hits, attempts, hit_rate: as returned by _collect_relations.
+    - searches_per_relation_row: attempts / rows_final, null if rows_final == 0.
+    - B, n, p, zeta3, curve_id, requested_seed, derived_seed, B_mod_3.
+    - arm_D_exit_code, arm_D_terminated_by, arm_D_exception_type,
+      arm_D_exception_file, arm_D_exception_line, arm_D_wall_seconds (arm D only).
+    explicitly_not_measured:
+    - >-
+      No cost ratio, no structured_cost, no wiedemann_cost, no density_penalty
+      and no crossover claim. This contract measures an instrument; the cost
+      model is not under test here and RT-CM-1..RT-CM-6 remain open objections
+      that no arm of this experiment addresses.
+    - >-
+      No wall-time comparison between a structured solver and Wiedemann. No
+      structured solver exists in this repository.
+    - >-
+      No `commutation_holds`. TASK-20260727-017 RT-OBJ-2 shows it is True by
+      default (line 442) and True by construction otherwise, so it discriminates
+      nothing; reproducing it would add a column with no information. Recorded as
+      a deliberate exclusion rather than an oversight.
+
+  # ===================================================================
+  # 5. PRE-REGISTERED PREDICTIONS (NOT RESULTS)
+  # ===================================================================
+  pre_registered_predictions:
+    provenance: >-
+      Every number in this block comes from unarchived scratchpad probe scripts
+      run by the TASK-20260727-017 session
+      (obs1_probe.py and commutation_probe.py, held outside the repository).
+      They carry no manifest, no run id, no seed record and no environment block.
+      TASK-20260727-017 itself labels them "RED-TEAM PROBES, NOT RUN RECORDS ...
+      they must not be cited as evidence" (probe_status) and states that no probe
+      output may be promoted to evidence without re-execution and archival
+      (RT-INT-2). THIS CONTRACT TREATS THEM AS PREDICTIONS TO BE TESTED. They are
+      not inputs, not defaults, not fallbacks, and not results. No criterion in
+      section 7 is evaluated against them; every criterion is evaluated against
+      the values this experiment measures.
+    predicted_B: {I1: 27, I2: 55, I3: 204, I4: 397}
+    predicted_phi_alpha:
+      arm_A: {I1: 9, I2: 2, I3: 4, I4: 1}
+      arm_B: {I1: 27, I2: 52, I3: 197, I4: 386}
+      arm_C: {I1: 27, I2: 54, I3: 201, I4: 382}
+      arm_E: {I1: 0, I2: 1, I3: 0, I4: 1}
+    predicted_misaligned_row_count_arm_A: {I1: 9, I2: 5, I3: 4, I4: 1}
+    predicted_arm_D:
+      I1: completes without IndexError (B mod 3 == 0)
+      I2: IndexError at harness/endomorphism_la.py:451
+      I3: completes without IndexError (B mod 3 == 0)
+      I4: IndexError at harness/endomorphism_la.py:451
+    reporting_requirement: >-
+      results/ablation_summary.json must carry, for every predicted cell, the
+      measured value, the predicted value, and an `agrees` boolean. Disagreement
+      is REPORTED, never repaired, never averaged away and never used to adjust
+      any criterion. A disagreement in an individual cell does not by itself
+      change the verdict; the verdict is computed from the measured values alone
+      by the rules in section 7.
+
+  # ===================================================================
+  # 6. SEEDS, REPLICATION
+  # ===================================================================
+  seeds:
+    requested: [1, 2, 3]
+    assignment: I1 -> 1, I2 -> 2, I3 -> 3, I4 -> 3
+    derived: >-
+      harness.endomorphism_la._generate_j0_instance uses s = seed*100 + offset
+      with offset in [0, 50). The DERIVED seed s is what every downstream
+      construction consumes (factor bases, target selection, the random shift
+      permutation) and it must be recorded per run alongside the requested seed.
+    determinism: >-
+      There is no unseeded randomness anywhere in this contract. The driver must
+      not import or call `random`, `numpy.random`, `secrets`, or read any clock
+      or environment value into a computation. Every arm is a deterministic
+      function of (field_bits, requested_seed) and the committed harness sources.
+      A second execution at the same commit must reproduce every primary metric
+      exactly; anything else is a defect to report.
+  replication:
+    intra_run_determinism_check: >-
+      At instances I1 and I2 only (kept cheap by design), each of arms A, B, C
+      and E recomputes its declared-shift alpha a second time from the identical
+      row list and asserts equality. The result is recorded in that run's
+      raw-result.json as `determinism_check: pass | fail`. A failure invalidates
+      that run.
+    independent_replication: >-
+      Full independent replication is NOT performed by the Executor and is not
+      claimed by this contract. It is TASK-20260727-023: a non-originating
+      Validator session re-executes the committed driver from the committed
+      contract at the committed commit and compares every primary cell. Until
+      that report exists, this experiment's evidence strength ceiling is
+      `preliminary`, and no record may describe it as replicated.
+    independent_instances: 4
+    repeats_per_cell: 1
+    repeats_rationale: >-
+      Repeats are pointless where the computation is deterministic: a repeat
+      returns the same integer by construction. Replication value here comes from
+      independent RE-EXECUTION by a different session and from the four
+      independent instances, not from re-running the same seed.
+
+  # ===================================================================
+  # 7. CRITERIA
+  # ===================================================================
+  success_criterion: >-
+    OBS-1 / RT-OBJ-1 IS CONFIRMED - that is, the as-committed primary metric
+    `phi_alpha` is an artifact of the row-insertion rule at
+    harness/endomorphism_la.py lines 292-304 rather than a measurement of
+    phi-invariance - if and only if ALL THREE of the following hold, on the
+    values MEASURED BY THIS EXPERIMENT, at every one of the four instances at
+    which the arms concerned produced a defined alpha:
+    (S1) alpha(arm E) <= alpha(arm A);
+    (S2) alpha(arm B) > 0.5 * alpha(arm C) - i.e. with the appended rows removed
+         there is NO separation between the phi-invariant factor base and the
+         random baseline, where "separation" is defined for this contract as
+         alpha(arm B) <= 0.5 * alpha(arm C);
+    (S3) alpha(arm A) <= misaligned_row_count(arm A).
+    Reported beside them, and adjudicated separately because it is a claim about
+    tool behaviour rather than about the metric:
+    (S4) the committed harness/endomorphism_la.py::main() terminates with
+         IndexError at endomorphism_la.py:451 at both instances with B mod 3 != 0
+         (I2 and I4) AND terminates without IndexError at both instances with
+         B mod 3 == 0 (I1 and I3).
+    Meeting S1-S3 licenses exactly one statement, at toy tier, scoped by
+    `claim_ceiling`: the number the committed harness reports as `phi_alpha`
+    carries no information about whether the factor base is phi-invariant. It
+    licenses NO statement about H-STR-002's mechanism, no cost claim, and no
+    conclusion about index calculus.
+  falsification_criterion: >-
+    OBS-1 / RT-OBJ-1 IS WRONG, and the as-committed `phi_alpha` is NOT shown by
+    this experiment to be an artifact of construction, if ANY of the following
+    holds on the values MEASURED BY THIS EXPERIMENT:
+    (F1) alpha(arm E) > alpha(arm A) at any of the four instances - a
+         construction with zero endomorphism content scores WORSE than the
+         phi-invariant factor base, so the low alpha of arm A does not follow
+         from the insertion bookkeeping alone;
+    (F2) alpha(arm B) <= 0.5 * alpha(arm C) at any of the four instances - the
+         phi-invariant factor base separates from the random baseline with the
+         appended rows REMOVED, so the separation is not produced by the
+         insertion rule;
+    (F3) alpha(arm A) > misaligned_row_count(arm A) at any of the four instances
+         - the static bound the whole objection rests on is false as implemented.
+    Reported separately:
+    (F4) the committed main() does NOT raise IndexError at
+         endomorphism_la.py:451 at instance I2 or at instance I4 - which
+         falsifies RT-OBJ-3's claim that the committed end-to-end path cannot
+         have produced the B = 55 and B = 397 rows of
+         experiments/EXP-STR-002/analysis.md.
+    CONSEQUENCE, FIXED IN ADVANCE. If F1, F2 or F3 fires, then OBS-1 and
+    RT-OBJ-1 must be withdrawn or rescoped by a superseding record;
+    DEC-20260727-009 may not rest on them; and the Coordinator must treat the
+    as-committed metric as UNADJUDICATED rather than as refuted. If F4 fires,
+    RT-OBJ-3 must be withdrawn or rescoped and no record may state that the
+    producing driver is absent from the tree.
+    THIS OUTCOME IS GENUINELY AVAILABLE. Every value quoted in
+    `pre_registered_predictions` was produced by an unarchived scratchpad script,
+    in a different session, by a driver that is not in the repository and that no
+    third party has executed. Nothing in this repository yet demonstrates any of
+    it. The experiment exists precisely because that gap has to be closed by
+    measurement rather than by citation.
+  verdict_rule: >-
+    The Executor computes and records exactly one of four verdicts in
+    results/ablation_summary.json, and interprets none of them:
+    `obs1_confirmed`  - S1, S2 and S3 all hold on every evaluable instance;
+    `obs1_falsified`  - at least one of F1, F2, F3 fires;
+    `mixed`           - neither of the above is reachable because different
+                        instances point different ways after all four completed;
+    `incomplete`      - fewer than four instances produced defined alphas in the
+                        arms a criterion needs, or a stopping rule fired.
+    `mixed` and `incomplete` are NOT failures of the experiment and must not be
+    rewritten into either of the other two. Under `mixed` or `incomplete` the
+    Coordinator's decision on the instrument question is `inconclusive`, and
+    saying so plainly is the required outcome. The arm-D verdict (S4 / F4) is
+    recorded as a separate field `arm_D_verdict` and never folded into the
+    instrument verdict.
+
+  # ===================================================================
+  # 8. BUDGET AND STAGE ESTIMATES
+  # ===================================================================
+  budget:
+    wall_clock_seconds_per_run: 1200
+    total_wall_clock_seconds: 5400
+    maximum_memory_gb: 8
+    maximum_runs: 20
+    total_cpu_hours: 1.5
+    basis: >-
+      ESTIMATE, NOT A MEASUREMENT. Basis: the TASK-20260727-017 session reports
+      reproducing all nine rows of experiments/EXP-STR-002/analysis.md, plus arms
+      B, C and E and the RT-H-3 phi-ablation control, inside a declared 1800 s
+      task budget in a single session, and states "under fifteen minutes of
+      compute" for the work this contract re-executes. The stage table below adds
+      the dual-shift measurement, rank_M and the four arm-D subprocess
+      invocations, none of which that session performed in full, and then applies
+      headroom. If the real cost exceeds this envelope, that is a budget defect to
+      report under stopping rule 2 - never a result.
+  stage_resource_estimates:
+  - stage: S1
+    work: instance generation for the four instances (_generate_j0_instance, _find_zeta3)
+    estimate_seconds: 60-600
+    memory_gb: 1
+    dominant_cost: E.order()/order_bsgs plus sympy.factorint at field_bits 20
+  - stage: S2
+    work: factor-base construction, both types, four instances
+    estimate_seconds: 10-120
+    memory_gb: 1
+    dominant_cost: lift_x trials at B = 397
+  - stage: S3
+    work: relation collection for the 16 (arm, instance) cells of arms A, B, C, E
+    estimate_seconds: 300-2000
+    memory_gb: 2
+    dominant_cost: >-
+      arm B at I4. Without the appended rows the quota max(10, B+10) must be met
+      by found relations alone, so arm B performs roughly r = 3 times the searches
+      of arm A at the same instance - the same factor visible in
+      TASK-20260727-017's searches-per-row measurements. Arm E reuses arm C's
+      collection and adds no search cost.
+  - stage: S4
+    work: >-
+      measurement per cell - declared-shift alpha, alternate-shift alpha, rank_M,
+      misaligned_row_count, determinism recheck at I1 and I2
+    estimate_seconds: 200-1500
+    memory_gb: 4
+    dominant_cost: >-
+      three O(B^3) modular Gaussian eliminations per cell at B = 397, in pure
+      Python over numpy object arrays. This is the single term most likely to be
+      underestimated.
+  - stage: S5
+    work: four arm-D subprocess invocations of the committed main()
+    estimate_seconds: 300-1200
+    memory_gb: 2
+    dominant_cost: >-
+      the I3 invocation, which completes and therefore pays rho plus phi plus
+      random collection at B = 204; the I2 and I4 invocations abort at line 451
+      and pay only what precedes it.
+  - stage: S6
+    work: run-record writing (20 x 6 files), summary and index assembly
+    estimate_seconds: 5-60
+    memory_gb: 1
+    dominant_cost: none
+  stage_total_reconciliation: >-
+    Optimistic sum 875 s, pessimistic sum 5480 s against a declared cap of
+    5400 s. The pessimistic sum EXCEEDS the cap by 80 s, which is recorded rather
+    than hidden: if every stage lands at its pessimistic bound the total budget
+    stopping rule fires before the last arm-D invocation completes, and the
+    correct response is a recorded budget amendment, not a silent overrun.
+
+  # ===================================================================
+  # 9. STOPPING RULES
+  # ===================================================================
+  stopping_rules:
+  - id: SR-1
+    rule: >-
+      Per-run wall clock exceeds 1200 s. That run is terminated and recorded with
+      status `failed_infrastructure`, valid false, invalid_reason
+      "per_run_timeout", together with whatever stdout and stderr were captured.
+      It is NOT a measurement, NOT a zero, NOT a negative result about OBS-1 and
+      NOT evidence about H-STR-002 (AGENTS.md core rule 5). Execution continues
+      with the remaining runs.
+  - id: SR-2
+    rule: >-
+      Total wall clock exceeds 5400 s. Every run not yet started is recorded as
+      `cancelled_by_budget` with no metrics, and the verdict is `incomplete`
+      unless arms A, B, C and E already completed at all four instances.
+  - id: SR-3
+    rule: >-
+      Resident memory exceeds 8 GB. Same disposition as SR-1 for the run that
+      breached it.
+  - id: SR-4
+    rule: >-
+      An arm collects zero relations at an instance. That cell records
+      alpha null with `alpha_status: no_relations`; it is excluded from the
+      criteria and the exclusion is stated in the summary. If arm A has more than
+      one such cell among the four instances, the verdict is `incomplete`.
+  - id: SR-5
+    rule: >-
+      HALT THE WHOLE EXPERIMENT IMMEDIATELY, discard nothing, and report, if any
+      of the following is detected at any point: harness/ differs from HEAD;
+      any path under experiments/EXP-STR-002/ is modified; any file is written
+      outside experiments/EXP-STR-003/ and the declared out-of-repository scratch
+      directory; or the arm-D `--out` path resolves inside the repository. These
+      are evidence-integrity failures, not results.
+  - id: SR-6
+    rule: >-
+      A run identifier outside the 20 declared in `run_inventory` is about to be
+      written. Halt and report; do not write it. write_run already refuses to
+      overwrite an existing run directory and that refusal must be reported, never
+      worked around by renaming.
+
+  # ===================================================================
+  # 10. INVALIDATION RULES
+  # ===================================================================
+  invalidation_rules:
+  - id: IV-1
+    rule: any run whose manifest records code.dirty true is invalid.
+  - id: IV-2
+    rule: >-
+      any run missing manifest.yaml, command.txt, environment.json, stdout.log,
+      stderr.log or raw-result.json is invalid.
+  - id: IV-3
+    rule: >-
+      any run whose `code_hashes` block disagrees with the other runs' is
+      invalid, and the whole set is invalid pending Coordinator adjudication -
+      the arms would not have been measured against one code base.
+  - id: IV-4
+    rule: >-
+      any arm-D run whose recorded `--out` path lies inside the repository is
+      invalid, and so is the entire arm.
+  - id: IV-5
+    rule: >-
+      any arm-B or arm-E run whose recorded factor-base equality assertion
+      against its partner arm failed is invalid: the arm did not hold its
+      declared variable fixed.
+  - id: IV-6
+    rule: >-
+      any arm-E run whose base row list did not equal arm C's is invalid, for the
+      same reason.
+  - id: IV-7
+    rule: >-
+      any run at I1 or I2 whose `determinism_check` failed is invalid.
+  - id: IV-8
+    rule: >-
+      a total run count other than exactly 20, or any run identifier not in
+      `run_inventory`, makes the SET invalid pending Coordinator adjudication;
+      individual valid runs are preserved and not deleted.
+  - id: IV-9
+    rule: >-
+      disagreement between a run's raw-result.json and the corresponding cell of
+      results/ablation_summary.json invalidates the SUMMARY, not the run. The raw
+      record governs; the summary is regenerated from the raw records.
+  - id: IV-10
+    rule: >-
+      any metric produced by harness/endomorphism_la.py::main() being used for an
+      arm A, B, C or E cell invalidates that cell (forbidden entry point).
+
+  # ===================================================================
+  # 11. RUN INVENTORY AND REQUIRED ARTIFACTS
+  # ===================================================================
+  run_inventory:
+    naming: >-
+      run_suffix = "003-<ARM>-<label>" with ARM in {A,B,C,E,D} and label in
+      {b12s1, b12s2, b16s3, b20s3}, so harness/runner.py builds
+      run_id = "RUN-STR-003-<ARM>-<label>". These identifiers are disjoint from
+      EXP-STR-001's (RUN-STR-001-a) and from all 13 EXP-STR-002 identifiers,
+      which TASK-20260727-016 Part 1 query E enumerates exhaustively.
+    instance_labels: {I1: b12s1, I2: b12s2, I3: b16s3, I4: b20s3}
+    count: 20
+    ids:
+    - RUN-STR-003-A-b12s1
+    - RUN-STR-003-A-b12s2
+    - RUN-STR-003-A-b16s3
+    - RUN-STR-003-A-b20s3
+    - RUN-STR-003-B-b12s1
+    - RUN-STR-003-B-b12s2
+    - RUN-STR-003-B-b16s3
+    - RUN-STR-003-B-b20s3
+    - RUN-STR-003-C-b12s1
+    - RUN-STR-003-C-b12s2
+    - RUN-STR-003-C-b16s3
+    - RUN-STR-003-C-b20s3
+    - RUN-STR-003-E-b12s1
+    - RUN-STR-003-E-b12s2
+    - RUN-STR-003-E-b16s3
+    - RUN-STR-003-E-b20s3
+    - RUN-STR-003-D-b12s1
+    - RUN-STR-003-D-b12s2
+    - RUN-STR-003-D-b16s3
+    - RUN-STR-003-D-b20s3
+  required_artifacts:
+    contract:
+    - experiments/EXP-STR-003/specification.yaml
+    implementation:
+    - experiments/EXP-STR-003/driver/ablation_driver.py
+    per_run:
+    - experiments/EXP-STR-003/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-STR-003/runs/<RUN-ID>/command.txt
+    - experiments/EXP-STR-003/runs/<RUN-ID>/environment.json
+    - experiments/EXP-STR-003/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-STR-003/runs/<RUN-ID>/stderr.log
+    - experiments/EXP-STR-003/runs/<RUN-ID>/raw-result.json
+    summary:
+    - experiments/EXP-STR-003/results/ablation_summary.json
+    - experiments/EXP-STR-003/results/run_index.json
+    exact_path_binding: >-
+      All 123 exact repository-relative paths (20 runs x 6 files, the driver and
+      the two results files) are enumerated on task card TASK-20260727-021 in
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-007/dispatch_queue.json.
+      The snapshot archive TASK-20260727-022 commits exactly that set plus its own
+      receipt; anything extra, including a macOS AppleDouble `._` sidecar, fails
+      the post-commit verifier and blocks review. Nothing is analysed, interpreted
+      or promoted in any of these files: analysis belongs to the reviews and to
+      the ledger archive.
+  artifact_policy_mapping:
+    exact_command: manifest.run.code.command and command.txt (per run, written by write_run)
+    git_commit_and_dirty_state: manifest.run.code.commit / .dirty
+    environment_and_dependency_versions: >-
+      environment.json and manifest.run.environment, PLUS
+      raw-result.json.environment_supplement carrying numpy.__version__, which
+      harness/runner.py::environment() does not record and which the primary
+      metric depends on.
+    input_parameters_and_seeds: >-
+      manifest.run.inputs (curve_id, seed, parameters) and
+      raw-result.json.raw.instance, carrying requested_seed, derived_seed, p, n,
+      a, b, zeta3, B and B_mod_3.
+    requested_and_resolved_model_policy: >-
+      manifest.run.inference (written by write_run as requested_policy
+      executor-terra, resolved_model_id "none (deterministic harness execution)")
+      PLUS raw-result.json.inference_supplement carrying model_verified,
+      model_provenance, fallback_used and degraded_requirements - the three fields
+      TASK-20260727-016 records as absent from all 13 EXP-STR-002 manifests
+      (defect D7). The harness is not modified to add them; the supplement is
+      written by the driver.
+    reasoning_effort_and_fallback: raw-result.json.inference_supplement
+    stdout_and_stderr: stdout.log and stderr.log, which for every arm here carry
+      real captured output - never the empty strings recorded at
+      harness/endomorphism_la.py lines 485 and 499.
+    raw_machine_readable_results: raw-result.json
+    validity_status_and_reason: manifest.run.result.valid / .invalid_reason and manifest.run.status
+    timestamps_and_resources: >-
+      manifest.run.timing and manifest.run.resources, measured around EACH run
+      individually. Reusing one timing window across several run records - the
+      defect TASK-20260727-016 records as D6 for EXP-STR-002 - is forbidden.
+
+  # ===================================================================
+  # 12. PROVENANCE AND GOVERNANCE
+  # ===================================================================
+  assigned_to: executor
+  approved_by: coordinator
+  approved_on: '2026-07-27'
+  approval_ref: >-
+    TASK-20260727-019 in
+    coordination/goals/GOAL-ECDLP-001/batches/BATCH-007/dispatch_queue.json. No
+    ledger decision record is created by this approval: DEC-20260727-009 is
+    reserved for the TASK-20260727-018 evidence-review decision, and
+    EV-STR-003 and CORR-20260727-007 are reserved and unused.
+  prior_evidence:
+  - EV-STR-002
+  prior_decision:
+  - DEC-20260726-006
+  originating_reviews:
+  - coordination/goals/GOAL-ECDLP-001/batches/BATCH-007/reviews/TASK-20260727-016/validation_report.yaml
+  - coordination/goals/GOAL-ECDLP-001/batches/BATCH-007/reviews/TASK-20260727-017/red_team_report.yaml
+  - coordination/goals/GOAL-ECDLP-001/batches/BATCH-007/reviews/TASK-20260727-017/adversarial_notes.md
+  originating_review_status: >-
+    Both reports are working-tree artifacts at the time this contract was frozen.
+    They become durable only when the TASK-20260727-018 ledger archive commits
+    them and the dispatcher's post-commit verifier accepts the receipt.
+  command_template: >-
+    python3 experiments/EXP-STR-003/driver/ablation_driver.py
+    --exp-id EXP-STR-003
+    --instances 12:1,12:2,16:3,20:3
+    --arms A,B,C,E,D
+    --arity 2
+    --scratch <ABSOLUTE PATH OUTSIDE THE REPOSITORY>
+    (run from the repository root; the driver inserts the repository root on
+    sys.path to import harness.*, and records the resolved absolute scratch path
+    in every run record)
+  implementation_note: >-
+    The driver is NEW code written under this contract at
+    experiments/EXP-STR-003/driver/ablation_driver.py. It must: construct its own
+    instances from the committed helpers (inputs.instance_construction); call the
+    committed measurement functions rather than reimplementing them, so that arm
+    A reproduces the as-committed computation exactly; implement only the arm-E
+    synthetic closure and the misaligned_row_count itself, both fully specified in
+    sections 2 and 4; write every run through harness.runner.write_run; and never
+    import or call harness.endomorphism_la.main() in process. It must not modify
+    any file under harness/ or experiments/EXP-STR-002/, and it must not create
+    any ledger record.
+  inference_receipt:
+    requested_policy: coordinator-ultra-code
+    resolved_model_id: claude-opus-5
+    model_provenance: runtime-reported by the freezing session
+    model_verified: >-
+      UNVERIFIED. `python3 -m orchestration.adapter doctor --probe` was NOT run:
+      the freezing session had no shell. No policy-equivalence claim is made.
+    reasoning_effort: null
+    fallback_used: unknown_to_this_session
+    equivalence_to_requested_policy_claimed: false
+  integrity_notes:
+  - id: SPEC-STR-003-A
+    note: >-
+      The freezing session had NO shell and NO git access. It ran no git command,
+      no validator and no harness, and it verified no commit identifier. Every
+      commit_sha, parent_sha and path_sha256 associated with this contract is
+      null and must be filled only after the isolated archival commits.
+  - id: SPEC-STR-003-B
+    note: >-
+      This contract's success criterion was frozen AFTER an independent session
+      reported probe values for the same quantities. That is disclosed rather
+      than hidden, and it is why section 5 exists: the probe values are recorded
+      in advance as predictions, the criteria are defined on measured values
+      alone, and a genuinely reachable falsifying outcome (F1-F4) is written into
+      the contract with its consequences fixed in advance. No criterion may be
+      changed after any outcome is observed without a versioned protocol
+      amendment under experiments/EXP-STR-003/amendments/, per
+      docs/task-lifecycle.md section 5; an outcome-driven revision is exploratory
+      and cannot be evaluated against this confirmatory criterion.
+  - id: SPEC-STR-003-C
+    note: >-
+      EXP-STR-002 is not amended, not superseded and not re-executed by this
+      contract, and its status is untouched. H-STR-002's status is likewise
+      untouched and remains `supported` per DEC-20260726-006 until a
+      ledger-archived decision says otherwise. Freezing this contract changes no
+      research state.
+  - id: SPEC-STR-003-D
+    note: >-
+      RT-CTRL-5 of TASK-20260727-017 recommends AGAINST re-executing EXP-STR-002
+      at B up to 397 merely to obtain artifacts, on the ground that reproducing a
+      confounded metric buys archival hygiene and no epistemic progress. This
+      contract is deliberately NOT that: it does not re-execute EXP-STR-002, and
+      arms B and E - not arm A - carry its discriminating power. Arm A is included
+      only as the anchor the other arms are compared against, and arm D only to
+      settle a reproducibility fact about the committed tool.
