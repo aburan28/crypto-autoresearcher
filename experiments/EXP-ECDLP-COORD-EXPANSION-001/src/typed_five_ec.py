@@ -640,6 +640,7 @@ def collect_relations(
     probes = 0
     lookups = 0
     attempted_scalars = []
+    target_transcript = []
     for target_index, scalar in enumerate(nonzero_scalar_stream(q, seed)):
         if target_index == target_budget:
             break
@@ -650,6 +651,18 @@ def collect_relations(
         lookups += query["lookups"]
         for key, value in query["ops"].items():
             setattr(query_ops, key, getattr(query_ops, key) + value)
+        target_record = {
+            "scalar": scalar,
+            "target": point_json(target),
+            "hits": [
+                {
+                    "a_index": hit["a_index"],
+                    "r_witness": list(hit["r_witness"]),
+                }
+                for hit in query["hits"]
+            ],
+        }
+        target_transcript.append(target_record)
         if not query["success"]:
             continue
         successful_targets += 1
@@ -697,6 +710,10 @@ def collect_relations(
             "query_ops": asdict(query_ops),
             "incremental_linear_ops": asdict(basis.ops),
             "solve_linear_ops": asdict(solve_ops),
+            "attack_solution": solution,
+            "independent_equations": independent,
+            "target_transcript": target_transcript,
+            "target_transcript_digest": canonical_digest(target_transcript),
             "first_equation": independent[0],
         },
     }
@@ -724,6 +741,7 @@ def held_out_descent(
     verified = 0
     alternate_agreement = 0
     first = None
+    transcript = []
     attempted = 0
     for scalar in nonzero_scalar_stream(q, seed):
         if scalar in excluded_scalars:
@@ -744,7 +762,31 @@ def held_out_descent(
             setattr(d3_query_ops, key, getattr(d3_query_ops, key) + value)
         if query["success"] != alternate["success"]:
             raise AssertionError("D4 and R+D3 support disagree")
+        record = {
+            "scalar": scalar,
+            "target": point_json(target),
+            "materialized_d4": {
+                "success": query["success"],
+                "a_index": query["a_index"],
+                "r_witness": (
+                    list(query["r_witness"])
+                    if query["r_witness"] is not None
+                    else None
+                ),
+            },
+            "r_scan_plus_d3": {
+                "success": alternate["success"],
+                "a_index": alternate["a_index"],
+                "r_witness": (
+                    list(alternate["r_witness"])
+                    if alternate["r_witness"] is not None
+                    else None
+                ),
+            },
+            "recovered_scalar": None,
+        }
         if not query["success"]:
+            transcript.append(record)
             continue
         supported += 1
         coefficients = quotient_relation_coefficients(
@@ -764,6 +806,8 @@ def held_out_descent(
         )
         if alternate_recovered != scalar:
             raise AssertionError("R+D3 descent recovered wrong log")
+        record["recovered_scalar"] = recovered
+        transcript.append(record)
         alternate_agreement += 1
         if first is None:
             first = {
@@ -791,6 +835,8 @@ def held_out_descent(
             "query_ops": asdict(d3_query_ops),
         },
         "target_build_ops": asdict(target_ops),
+        "transcript": transcript,
+        "transcript_digest": canonical_digest(transcript),
         "first_verified_descent": first,
     }
 
@@ -926,6 +972,7 @@ def run_family(
     }
     result = {
         "family": family,
+        "run_seed": seed,
         "attack_eligible": factor_base["attack_eligible"],
         "factor_base": factor_base_public,
         "progression": progression,
