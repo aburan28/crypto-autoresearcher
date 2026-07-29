@@ -35,6 +35,14 @@ def digest(value: Any) -> str:
     ).hexdigest()
 
 
+def canonical_json_bytes(value: Any) -> int:
+    return len(
+        json.dumps(
+            value, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        ).encode("ascii")
+    )
+
+
 def rss_bytes() -> int:
     value = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return int(value if platform.system() == "Darwin" else value * 1024)
@@ -306,19 +314,48 @@ def coefficient_payload(cycle: Cycle) -> list[list[Any]]:
     ]
 
 
-def direct_canonical(
-    points: list[Point], p: int, a: int
+def direct_degree(
+    points: list[Point], degree: int, p: int, a: int
 ) -> Cycle:
     cycle: Cycle = {}
     counter = BuildCounter()
     for route in itertools.combinations_with_replacement(
-        range(len(points)), 4
+        range(len(points)), degree
     ):
         image = sum_points(
             (points[index] for index in route), p, a
         )
         insert(cycle, image, 1, route, counter)
     return cycle
+
+
+def direct_canonical(
+    points: list[Point], p: int, a: int
+) -> Cycle:
+    return direct_degree(points, 4, p, a)
+
+
+def reduced_cycle(cycle: Cycle) -> Cycle:
+    return {
+        image: CycleRecord(1, record.first_route)
+        for image, record in cycle.items()
+    }
+
+
+def cycle_state(cycle: Cycle) -> dict[str, int]:
+    point_fields = 2 * sum(image is not None for image in cycle)
+    route_indices = sum(
+        len(record.first_route) for record in cycle.values()
+    )
+    return {
+        "records": len(cycle),
+        "point_field_elements": point_fields,
+        "route_indices": route_indices,
+        "logical_words": len(cycle) + point_fields + route_indices,
+        "canonical_json_bytes": canonical_json_bytes(
+            cycle_payload(cycle)
+        ),
+    }
 
 
 @dataclass
@@ -414,6 +451,103 @@ def select_queries(
             negatives.append(candidate)
         scalar += 1
     return positives, negatives
+
+
+def d2_mitm_query(
+    cycle: Cycle,
+    target: Point,
+    p: int,
+    a: int,
+) -> tuple[tuple[int, ...] | None, int, int]:
+    scans = 0
+    lookups = 0
+    for left in sorted(cycle, key=point_key):
+        scans += 1
+        complement = subtract(target, left, p, a)
+        lookups += 1
+        if complement in cycle:
+            route = (
+                *cycle[left].first_route,
+                *cycle[complement].first_route,
+            )
+            return tuple(sorted(route)), scans, lookups
+    return None, scans, lookups
+
+
+def same_function_baselines(
+    root_cycle: Cycle,
+    points: list[Point],
+    positives: list[Point],
+    negatives: list[Point],
+    p: int,
+    a: int,
+) -> dict[str, Any]:
+    root_support = reduced_cycle(root_cycle)
+    d2_support = reduced_cycle(direct_degree(points, 2, p, a))
+    d2_receipts = []
+    worst_scans = 0
+    all_valid = True
+    for target, expected_hit in (
+        *((target, True) for target in positives),
+        *((target, False) for target in negatives),
+    ):
+        route, scans, lookups = d2_mitm_query(
+            d2_support, target, p, a
+        )
+        replay = (
+            None
+            if route is None
+            else sum_points(
+                (points[index] for index in route), p, a
+            )
+        )
+        valid = (
+            route is not None
+            and replay == target
+            if expected_hit
+            else route is None
+        )
+        all_valid = all_valid and valid
+        worst_scans = max(worst_scans, scans)
+        d2_receipts.append(
+            {
+                "target": point_json(target),
+                "expected_hit": expected_hit,
+                "route": None if route is None else list(route),
+                "replay": point_json(replay),
+                "point_scans": scans,
+                "hash_lookups": lookups,
+                "valid": valid,
+            }
+        )
+    root_state = cycle_state(root_support)
+    d2_state = cycle_state(d2_support)
+    return {
+        "exact_support_hash": {
+            **root_state,
+            "online_hash_lookups": 1,
+            "online_point_scans": 0,
+            "returns_source_route": True,
+        },
+        "exact_support_sorted": {
+            **root_state,
+            "online_comparison_upper_bound": math.ceil(
+                math.log2(max(1, len(root_support)))
+            ),
+            "returns_source_route": True,
+        },
+        "reduced_d2_mitm": {
+            **d2_state,
+            "worst_online_point_scans": worst_scans,
+            "queries": d2_receipts,
+            "all_queries_valid": all_valid,
+            "returns_source_route": True,
+        },
+        "boundary": (
+            "Same-function fixed-factor-base D4 membership and first-route "
+            "recovery. Logical words are typed values, not measured bytes."
+        ),
+    }
 
 
 def node_receipt(node: Node) -> dict[str, Any]:
@@ -523,6 +657,24 @@ def run_cell(
         if image is not None
     )
     expanded_oriented_field_elements = 2 * (finite_degree + 1)
+    retained_payload = [
+        {
+            "node_id": node.node_id,
+            "degrees": {
+                str(degree): cycle_payload(cycle)
+                for degree, cycle in node.cycles.items()
+            },
+        }
+        for node in nodes
+    ]
+    baselines = same_function_baselines(
+        root_cycle,
+        points,
+        positives,
+        negatives,
+        p,
+        a,
+    )
     sqrt_q = math.sqrt(q)
     signal_gate = (
         retained_records < expanded_oriented_field_elements
@@ -532,6 +684,25 @@ def run_cell(
         oracle_match
         and all(receipt["valid"] for receipt in positive_receipts)
         and all(receipt["valid"] for receipt in negative_receipts)
+        and baselines["reduced_d2_mitm"]["all_queries_valid"]
+    )
+    posthoc_same_function_gate = (
+        (
+            retained_records
+            + retained_point_field_elements
+            + retained_route_indices
+        )
+        < baselines["exact_support_hash"]["logical_words"]
+        and worst_scans
+        < baselines["exact_support_sorted"][
+            "online_comparison_upper_bound"
+        ]
+        and retained_records
+        < baselines["reduced_d2_mitm"]["records"]
+        and worst_scans
+        < baselines["reduced_d2_mitm"][
+            "worst_online_point_scans"
+        ]
     )
     return {
         "curve_id": curve["id"],
@@ -560,6 +731,10 @@ def run_cell(
             + retained_records
             + retained_route_indices
         ),
+        "retained_canonical_json_bytes": canonical_json_bytes(
+            retained_payload
+        ),
+        "peak_live_cycle_records": retained_records,
         "build_operations": build_counter.as_dict(),
         "positive_queries": positive_receipts,
         "negative_queries": negative_receipts,
@@ -571,6 +746,14 @@ def run_cell(
         "membership_tradeoff_diagnostic": (
             retained_records * worst_scans * worst_scans / q
         ),
+        "same_function_baselines": baselines,
+        "posthoc_same_function_gate": posthoc_same_function_gate,
+        "generic_numerical_references": {
+            "ceil_sqrt_q": math.ceil(sqrt_q),
+            "bsgs_baby_group_records": math.ceil(sqrt_q),
+            "rho_expected_group_work_scale": sqrt_q,
+            "commensurate_with_logical_words": False,
+        },
         "signal_gate": signal_gate,
         "valid": valid,
         "peak_rss_bytes_after_cell": rss_bytes(),
@@ -629,6 +812,15 @@ def run(
                 row["oracle_match"] for row in rows
             ),
             "signal_cells": sum(row["signal_gate"] for row in rows),
+            "posthoc_same_function_signal_cells": sum(
+                row["posthoc_same_function_gate"] for row in rows
+            ),
+            "all_d2_mitm_queries_valid": all(
+                row["same_function_baselines"]["reduced_d2_mitm"][
+                    "all_queries_valid"
+                ]
+                for row in rows
+            ),
             "all_positive_queries_valid": all(
                 all(query["valid"] for query in row["positive_queries"])
                 for row in rows

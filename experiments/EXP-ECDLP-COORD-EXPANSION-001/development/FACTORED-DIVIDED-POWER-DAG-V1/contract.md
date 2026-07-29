@@ -61,15 +61,16 @@ reported one-target query.
 ## Metrics
 
 - DAG nodes/edges and degree-specific support/route counts;
-- retained records, logical field elements, serialized bytes, and peak live
-  records;
+- retained records, logical field elements, canonical JSON bytes, and peak
+  live cycle records;
 - build pair attempts, curve operations, writes, and hash lookups;
 - root support/multiplicity/witness digests;
 - online split attempts, point scans, curve operations, lookups, recursion
   nodes, and witness replay;
 - positive/negative success;
-- explicit D4 support, expanded oriented-polynomial state, direct MITM, rho,
-  and BSGS numerical comparators;
+- exact support hash/sorted indexes and reduced-D2 MITM with source routes;
+- expanded oriented-polynomial state and separately typed rho/BSGS numerical
+  references that are not treated as commensurate storage;
 - `S*T^2/q` diagnostic using retained records `S` and worst online scans `T`,
   labeled as a membership-subproblem diagnostic only.
 
@@ -92,6 +93,10 @@ algorithmic signal additionally requires both:
 
 This gate applies only to canonical D4 membership on the fixed toy factor
 base.
+
+A post-hoc same-function diagnostic additionally asks whether the retained
+DAG jointly improves state and online work over the exact support indexes and
+reduced-D2 MITM. It is not the preregistered promotion gate.
 
 ## Falsification Criterion
 

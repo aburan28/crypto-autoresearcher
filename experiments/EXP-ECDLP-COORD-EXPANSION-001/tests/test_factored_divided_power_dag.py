@@ -70,6 +70,35 @@ class FactoredDividedPowerDagTests(unittest.TestCase):
             target,
         )
 
+    def test_reduced_d2_baseline_returns_source_route(self) -> None:
+        points = [(3, 6), (80, 10), (80, 87)]
+        root = MODULE.build_tree(
+            points,
+            0,
+            len(points),
+            97,
+            2,
+            MODULE.BuildCounter(),
+        )
+        positives = sorted(
+            root.cycles[4], key=MODULE.point_key
+        )[:4]
+        baselines = MODULE.same_function_baselines(
+            root.cycles[4],
+            points,
+            positives,
+            [],
+            97,
+            2,
+        )
+        self.assertTrue(
+            baselines["reduced_d2_mitm"]["all_queries_valid"]
+        )
+        self.assertEqual(
+            baselines["exact_support_hash"]["records"],
+            len(root.cycles[4]),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

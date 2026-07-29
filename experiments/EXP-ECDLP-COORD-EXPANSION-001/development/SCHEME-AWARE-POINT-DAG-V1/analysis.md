@@ -2,13 +2,14 @@
 
 ## Status
 
-`OBSERVATION`, `TOY-EVIDENCE`, `MODEL-BOUND`, scoped `NEGATIVE RESULT`.
+`RESTRICTED THEOREM`, `OBSERVATION`, `TOY-EVIDENCE`, `MODEL-BOUND`,
+scoped `NEGATIVE RESULT`.
 
 The oriented `F_(p^2)` characteristic-polynomial representation preserves
 all four requested cycle semantics, infinity multiplicities, membership, and
-first source witnesses. Its polynomial degree, serialized state, and product
-work track the explicit cycle degree. No compression or resultant mechanism
-was constructed.
+stored first source witnesses. Its polynomial degree tracks the finite
+explicit cycle degree exactly. No compressed representation, resultant, or
+query-to-source DAG descent was constructed.
 
 ## Exact Run
 
@@ -28,8 +29,10 @@ was constructed.
 - dropped-row, duplicate-row, summary, and row-validity mutations rejected.
 
 The verifier independently reconstructs every point cycle, multiplicity,
-first witness, oriented characteristic polynomial, and positive/negative
-query.
+first witness, oriented characteristic polynomial, and sampled
+positive/negative query. It does not certify the recorded product-tree
+accounting, baselines, resource telemetry, or claim-status fields; see
+`red-team-review.md`.
 
 ## Typed Semantics
 
@@ -44,11 +47,12 @@ For every cell:
 - reduced degree is the canonical point-support size;
 - finite `x+omega*y` encodings are injective;
 - infinity is split and counted separately;
-- every sampled positive root descends to source indices and replays;
+- every sampled positive root retrieves a stored source route and replays;
 - every sampled negative is a nonroot.
 
-The result confirms the red-team distinction: equal reduced support does not
-imply equal cycle coefficients.
+Support equality is definitional for these four constructions in an abelian
+group. The informative distinction is that equal support does not imply equal
+cycle coefficients.
 
 ## B=5 State
 
@@ -67,9 +71,9 @@ imply equal cycle coefficients.
 | scalar progression | ordered | 625 | 29 | 1,196 | 2,090 |
 
 Even the scalar control's reduced oriented polynomial needs 58 base-field
-elements, above the numerical `sqrt(q)` count. Coordinate-family reduced
-polynomials need 110–142, or 3.56–4.60 times `sqrt(q)`, before query,
-descent, relation, or linear-algebra state.
+elements. Coordinate-family reduced polynomials need 110–142. These are
+representation sizes, not rho storage costs; comparing them directly with
+the `sqrt(q)` rho work scale is dimensionally invalid.
 
 Naive balanced product work also follows degree. At `B=5`, ordered cycles use
 184,274–201,644 extension-field coefficient multiplications, versus
@@ -78,14 +82,18 @@ not lower bounds.
 
 ## Strongest Valid Conclusion
 
-> Explicit oriented characteristic polynomials are exact cycle encodings on
-> the fixed toy curve, but they do not compress multiplicity or reduced
-> coordinate-family support. Their final degree is the finite cycle degree,
-> and their observed live state already exceeds the numerical rho storage
-> count at `B=5`.
+> For each tested effective point cycle `C`, the affine encoding
+> `iota(x,y)=x+omega*y`, together with a separate infinity counter, reconstructs
+> the fully expanded monic polynomial
+> `Phi_C(T)=product_(P != O)(T-iota(P))^m_C(P)`. Its degree is exactly
+> `degree(C)-m_C(O)`, and its dense coefficient vector has `d_f+1`
+> `F_(p^2)` coefficients. Fully expanding this root product cannot compress
+> below its finite degree.
 
-This is a scoped negative for the explicit root-product P-DAG. It does not
-rule out:
+This is a scoped negative for the fully expanded univariate root product.
+The observed schoolbook product-tree work is implementation-specific. The
+result is not a retained witness DAG, total-memory lower bound, or normalized
+rho comparison. It does not rule out:
 
 - factored or straight-line resultants that avoid coefficient expansion;
 - quotient-algebra norms with reusable structure;
@@ -97,18 +105,20 @@ rule out:
 
 No normalized rho/BSGS runtime claim follows. The run lacks multi-seed
 fixed-q sweeps, complete memory traffic, blind target descent, relation rank,
-and linear algebra.
+and linear algebra. The exact same-function baselines are an explicit support
+dictionary, sorted support, and reduced-D2 MITM.
 
 ## Next Concrete Action
 
 Do not expand the explicit root polynomial to larger `q`. Implement a
-factored canonical divided-power P-DAG on the same `p=971`, `B<=5` cells:
+factored canonical divided-power tree on the same `p=971`, `B<=5` cells:
 
-1. retain factors and convolution nodes without materializing the final
-   coefficient vector;
+1. retain child cycles and source routes without using a direct root
+   support-to-route lookup during query;
 2. measure hash-cons reuse, node/edge count, live state, and target
    specialization;
 3. implement child extraction and exact source witness descent;
-4. compare against direct MITM, balanced BSGS, and same-advice BSGS;
-5. falsify the route if one-target build/query/descent or retained advice
-   still exceeds the normalized `sqrt(q)` frontier.
+4. compare against reduced-D2 MITM, a support dictionary, sorted support,
+   and separately reported BSGS/rho work;
+5. falsify the route if retained advice or one-target build/query/descent
+   loses to the same-function baselines.
