@@ -29,8 +29,10 @@ result, or an ECDLP exponent result.
 Every candidate was built and hashed before target generation and before the
 subgroup-log census. The online API received target points, factor-base
 points, and point-keyed `D2`/`D3` advice only. Independent point replay
-through depth five matched scalar support, `D2+D3` matched `D5`, all returned
-witnesses verified, and every factor-base digest was unchanged after audit.
+through depth five matched scalar support, `D2+D3` matched `D5`, runtime
+assertions checked every transient returned witness, the one retained witness
+per configuration was independently rechecked, and every factor-base digest
+was unchanged after audit.
 
 ## Curves
 
@@ -72,15 +74,22 @@ They do not pass because support-mass compression is absent, the effect varies
 or reverses across sizes, and scan-order spread can be material. These are
 diagnostics, not candidate algorithms.
 
-The smallest attainable empirical p-value with 62 coordinate-null rows is
-`1/63 = 0.0159`. Low p-values alone do not rescue a row that misses the
-preregistered effect-size conditions.
+The preserved raw field named `empirical_joint_dominance_p` is a pooled
+partial-order dominance score, not a calibrated p-value. Its minimum
+`1/63 = 0.0159` may occur when all null rows are merely incomparable with the
+candidate. It supplies no significance claim. The result instead follows
+directly from the preregistered effect-size miss: candidate `D2` ratios are
+`0.990-1.000`, not at most `0.8`.
 
 ## Baselines and limits
 
 The measured rho median group-operation counts were 159, 456, and 444.5.
 Their three-point fitted slope is dominated by toy variance and has no
 asymptotic interpretation.
+
+Audit structures and point-build costs are partially instrumented. Canonical
+scalar enumeration time, split-census wall time, and temporary peak
+allocations are not separately charged.
 
 Stage A does not implement a packed recursive point DAG, genuine batch
 inversion, relation collection, matrix rank, filtering, linear algebra, or

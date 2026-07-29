@@ -147,7 +147,8 @@ null medians:
 2. `D5_new` retention is at least `0.9`;
 3. `|D2|` ratio is at most `0.8`;
 4. `|D3|` ratio is at most `0.8`;
-5. one-sided empirical joint-dominance `p <= 0.05`;
+5. a preregistered scalar effect score lies in the lower 5 percent tail of
+   each coordinate null separately;
 6. sampled point-only witnesses verify;
 7. scan-order mean spread is at most `1.05`;
 8. factor-base hashes are unchanged after audit.
@@ -159,6 +160,12 @@ target-descent experiment. It does not establish an exponent improvement.
 
 If total `D5` retention passes while `D5_new` fails, classify the observation
 as an inverse-cancellation artifact.
+
+The V3 development artifact predates the scalar tail statistic. Its pooled
+partial-order dominance count is an uncalibrated score and must not be called
+a p-value. V3's scoped negative conclusion rests on the large `D2` effect-size
+failure, not that score. Any confirmatory run additionally requires
+family-wise correction across candidates, sign modes, occupancies, and charts.
 
 ## Falsification criterion
 

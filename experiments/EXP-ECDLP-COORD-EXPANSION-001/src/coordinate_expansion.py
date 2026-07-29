@@ -810,6 +810,22 @@ def attach_null_ratios(configurations: list[dict[str, Any]]) -> None:
         coordinate_nulls = (
             null_groups["random_x"] + null_groups["source_prf_x"]
         )
+
+        def normalized_effect_score(
+            candidate: dict[str, Any], null_family: str
+        ) -> float:
+            ratios = {
+                metric_name: getter(candidate)
+                / max(null_medians[null_family][metric_name], 1e-300)
+                for metric_name, getter in metrics.items()
+            }
+            return max(
+                ratios["d2"] / 0.8,
+                ratios["d3"] / 0.8,
+                0.9 / max(ratios["d5_nonidentity"], 1e-300),
+                0.9 / max(ratios["d5_new"], 1e-300),
+            )
+
         for record in group:
             observed = {
                 metric_name: getter(record)
@@ -837,9 +853,27 @@ def attach_null_ratios(configurations: list[dict[str, Any]]) -> None:
                 <= record["audit"]["phi_store_d3_scan_d2"]
                 for null in coordinate_nulls
             )
-            record["empirical_joint_dominance_p"] = (
+            record["uncalibrated_joint_dominance_score"] = (
                 1 + domination_count
             ) / (1 + len(coordinate_nulls))
+            null_tail_p = {}
+            for family in ("random_x", "source_prf_x"):
+                candidate_score = normalized_effect_score(record, family)
+                null_scores = [
+                    normalized_effect_score(null, family)
+                    for null in null_groups[family]
+                ]
+                null_tail_p[family] = (
+                    1
+                    + sum(
+                        null_score <= candidate_score
+                        for null_score in null_scores
+                    )
+                ) / (1 + len(null_scores))
+            record["development_null_tail_p"] = null_tail_p
+            record["development_conservative_null_tail_p"] = max(
+                null_tail_p.values()
+            )
             scan_means = [
                 value["probes_per_target_mean"]
                 for value in record["query"]["scan_orders"].values()
@@ -861,8 +895,10 @@ def attach_null_ratios(configurations: list[dict[str, Any]]) -> None:
                     and ratios["d3"] <= 0.8
                     for ratios in coordinate_ratios
                 )
-                and record["empirical_joint_dominance_p"] <= 0.05
-                and record["scan_order_mean_spread_ratio"] <= 1.05
+                and record[
+                    "development_conservative_null_tail_p"
+                ]
+                <= 0.05
                 and record["query"]["first_witness"] is not None
             )
             record["cancellation_artifact_flag"] = (

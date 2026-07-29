@@ -65,6 +65,19 @@ class CyclicParetoTests(unittest.TestCase):
         self.assertGreater(cell["unique_metric_tuples"], 0)
         self.assertGreater(len(cell["pareto_frontier"]), 0)
 
+    def test_weighted_median_matches_expanded_values(self) -> None:
+        counts = {(1, 2, 3, 4): 2, (5, 6, 7, 8): 1}
+        self.assertEqual(MODULE.weighted_median(counts, 0), 1)
+        self.assertEqual(MODULE.weighted_median(counts, 3), 4)
+
+    def test_scaling_normal_form_is_scale_invariant(self) -> None:
+        base = (1, 4, 7, 38)
+        scaled = tuple((3 * value) % 43 for value in base)
+        self.assertEqual(
+            MODULE.scaling_normal_form(base, 43),
+            MODULE.scaling_normal_form(scaled, 43),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

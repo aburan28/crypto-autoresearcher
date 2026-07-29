@@ -118,22 +118,50 @@ def pareto_frontier(
     return frontier
 
 
+def weighted_median(
+    metric_counts: dict[tuple[int, int, int, int], int], index: int
+) -> float:
+    counts: dict[int, int] = {}
+    for value, multiplicity in metric_counts.items():
+        counts[value[index]] = counts.get(value[index], 0) + multiplicity
+    total = sum(counts.values())
+
+    def order_statistic(position: int) -> int:
+        cumulative = 0
+        for value, multiplicity in sorted(counts.items()):
+            cumulative += multiplicity
+            if cumulative > position:
+                return value
+        raise AssertionError("weighted median position was not reached")
+
+    lower = order_statistic((total - 1) // 2)
+    upper = order_statistic(total // 2)
+    return (lower + upper) / 2
+
+
+def scaling_normal_form(base: tuple[int, ...], q: int) -> tuple[int, ...]:
+    return min(
+        tuple(sorted((multiplier * value) % q for value in base))
+        for multiplier in range(1, q)
+    )
+
+
 def analyze_cell(
     q: int, occupancy_lambda: float, symmetry: str
 ) -> dict[str, Any]:
     size = choose_size(q, occupancy_lambda, symmetry)
     started = time.perf_counter()
-    records = []
     metric_counts: dict[tuple[int, int, int, int], int] = {}
     examples: dict[tuple[int, int, int, int], tuple[int, ...]] = {}
+    sets_enumerated = 0
     for base in bases(q, size, symmetry):
         value = metrics(base, q)
-        records.append(value)
+        sets_enumerated += 1
         metric_counts[value] = metric_counts.get(value, 0) + 1
         examples.setdefault(value, base)
-    d2_median = statistics.median(record[0] for record in records)
-    d3_median = statistics.median(record[1] for record in records)
-    d5_new_median = statistics.median(record[3] for record in records)
+    d2_median = weighted_median(metric_counts, 0)
+    d3_median = weighted_median(metric_counts, 1)
+    d5_new_median = weighted_median(metric_counts, 3)
     d2_limit = 0.8 * d2_median
     d3_limit = 0.8 * d3_median
     d5_new_floor = 0.9 * d5_new_median
@@ -147,6 +175,16 @@ def analyze_cell(
     qualifying_count = sum(
         metric_counts[value] for value in qualifying_metrics
     )
+    qualifying_metric_set = set(qualifying_metrics)
+    scaling_orbits: dict[tuple[int, ...], int] = {}
+    if qualifying_count:
+        for base in bases(q, size, symmetry):
+            if metrics(base, q) not in qualifying_metric_set:
+                continue
+            normal_form = scaling_normal_form(base, q)
+            scaling_orbits[normal_form] = (
+                scaling_orbits.get(normal_form, 0) + 1
+            )
     frontier = pareto_frontier(
         {(value[0], value[1], value[3]) for value in metric_counts}
     )
@@ -186,17 +224,16 @@ def analyze_cell(
     return {
         "q": q,
         "symmetry": symmetry,
+        "occupancy_lambda_target": occupancy_lambda,
         "factor_base_size": size,
         "formal_depth_5_classes": formal_class_count(size, 5, symmetry),
         "formal_occupancy": formal_class_count(size, 5, symmetry) / q,
-        "sets_enumerated": len(records),
+        "sets_enumerated": sets_enumerated,
         "unique_metric_tuples": len(metric_counts),
         "medians": {
             "d2": d2_median,
             "d3": d3_median,
-            "d5_nonidentity": statistics.median(
-                record[2] for record in records
-            ),
+            "d5_nonidentity": weighted_median(metric_counts, 2),
             "d5_new": d5_new_median,
         },
         "joint_thresholds": {
@@ -205,7 +242,16 @@ def analyze_cell(
             "d5_new_minimum": d5_new_floor,
         },
         "qualifying_sets": qualifying_count,
-        "qualifying_fraction": qualifying_count / len(records),
+        "qualifying_fraction": qualifying_count / sets_enumerated,
+        "qualifying_scaling_orbits": [
+            {
+                "normal_form": list(normal_form),
+                "enumerated_members": multiplicity,
+            }
+            for normal_form, multiplicity in sorted(
+                scaling_orbits.items()
+            )
+        ],
         "minimum_d2_at_required_coverage": minimum_d2_at_coverage,
         "minimum_d3_at_required_coverage": minimum_d3_at_coverage,
         "maximum_d5_new_at_joint_compression": (
@@ -230,13 +276,12 @@ def analyze_cell(
     }
 
 
-def run(
-    primes: list[int], occupancy_lambda: float
-) -> dict[str, Any]:
+def run(primes: list[int], occupancy_lambdas: list[float]) -> dict[str, Any]:
     started = time.perf_counter()
     cells = [
         analyze_cell(q, occupancy_lambda, symmetry)
         for q in primes
+        for occupancy_lambda in occupancy_lambdas
         for symmetry in ("sign_canonical", "sign_complete")
     ]
     return {
@@ -249,7 +294,7 @@ def run(
         "source_sha256": sha256_file(SCRIPT_PATH),
         "config": {
             "primes": primes,
-            "occupancy_lambda": occupancy_lambda,
+            "occupancy_lambdas": occupancy_lambdas,
             "thresholds": {
                 "d2_ratio_maximum": 0.8,
                 "d3_ratio_maximum": 0.8,
@@ -258,7 +303,10 @@ def run(
         },
         "cells": cells,
         "cells_with_qualifying_sets": [
-            f"{cell['q']}|{cell['symmetry']}"
+            (
+                f"{cell['q']}|lambda={cell['occupancy_lambda_target']}|"
+                f"{cell['symmetry']}"
+            )
             for cell in cells
             if cell["qualifying_sets"]
         ],
@@ -280,11 +328,16 @@ def main() -> int:
     parser.add_argument(
         "--primes", nargs="+", type=int, default=[19, 31, 43, 59]
     )
-    parser.add_argument("--occupancy-lambda", type=float, default=0.5)
+    parser.add_argument(
+        "--occupancy-lambdas",
+        nargs="+",
+        type=float,
+        default=[0.2, 0.5, 1.5],
+    )
     args = parser.parse_args()
     print(
         json.dumps(
-            run(args.primes, args.occupancy_lambda),
+            run(args.primes, args.occupancy_lambdas),
             sort_keys=True,
             separators=(",", ":"),
         )
