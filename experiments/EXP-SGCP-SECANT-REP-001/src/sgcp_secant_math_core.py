@@ -458,19 +458,23 @@ def build_candidate_core(
             )
         divisor += 2
 
+    operations = _combine(operations, phase_operations)
+    phase_operations = _zero_ops()
     if raw.a < 0 or raw.a >= raw.p:
         return _failure(
             CoreErrorCode.NONCANONICAL_COEFFICIENT,
             (1,),
-            _combine(operations, phase_operations),
+            operations,
         )
     if raw.b < 0 or raw.b >= raw.p:
         return _failure(
             CoreErrorCode.NONCANONICAL_COEFFICIENT,
             (2,),
-            _combine(operations, phase_operations),
+            operations,
         )
 
+    operations = _combine(operations, phase_operations)
+    phase_operations = _zero_ops()
     a2, event = _square(raw.a, raw.p)
     phase_operations = _combine(phase_operations, event)
     a3, event = _multiply(a2, raw.a, raw.p)
