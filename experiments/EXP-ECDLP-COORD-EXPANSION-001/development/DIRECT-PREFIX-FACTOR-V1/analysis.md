@@ -2,12 +2,14 @@
 
 ## Status
 
-`RESTRICTED THEOREM`, `OBSERVATION`, `TOY-EVIDENCE`, `MODEL-BOUND`.
+`OBSERVATION`, `TOY-EVIDENCE`, `MODEL-BOUND`,
+`VALID ALGEBRAIC PROOF SKETCH`, `REVISE CERTIFICATION`.
 
-The exact 48- and 24-coordinate factors can be generated directly from the
-frozen complete-addition circuit without constructing its five-axis tensor.
-This is a factor compiler, not a zero-reporting algorithm or ECDLP
-improvement.
+For the fixed five-input, left-associated RCB polynomial circuit and canonical
+projective lifts, the locator admits coefficient factorizations of ambient
+dimensions at most 48 and 24. The current artifact computes and hashes those
+factors, then validates them by exhaustive enumeration. Its same-code replay
+does not independently certify the full theorem or complete accounting.
 
 ## Exact Run
 
@@ -19,10 +21,13 @@ improvement.
 - planted and held-out target per cell;
 - 12 family rows;
 - 2,223,216 exact factor/locator pair checks;
-- zero factor, component, locator, or zero-set mismatch;
+- zero factor, component, locator, or zero-set mismatch in the shared
+  implementation;
 - wall time: 57.78 seconds;
 - peak RSS: 59,703,296 bytes;
-- same-code deterministic normalized rerun: exact.
+- same-code deterministic normalized rerun: exact;
+- independent proof gate: false;
+- complete accounting gate: false.
 
 ## Coordinate-Ring Construction
 
@@ -50,8 +55,9 @@ The implementation symbolically executes the frozen RCB circuit with a
 generic prefix point, reduces every polynomial modulo the cubic, and emits
 coefficient vectors in these fixed bases.
 
-Every component in every cell is homogeneous of exactly the predicted
-degree.
+More precisely, the run computes and hashes the vectors but does not preserve
+reusable vector tables. Every component in every cell is homogeneous of the
+predicted degree.
 
 ## Four-Scalar Target Dependence
 
@@ -70,7 +76,9 @@ Consequently:
 - one target specializes each suffix vector with four scalar weights;
 - no target logarithm or factor-base logarithm is used.
 
-All component combinations reproduce the exact frozen-circuit locator.
+All component combinations reproduce the exact frozen-circuit locator inside
+the shared implementation. Arbitrarily rescaled projective targets and the
+target at infinity are algebraic boundaries, not empirical controls here.
 
 ## Observed Ranks
 
@@ -84,8 +92,10 @@ At cut 3:
 
 - prefix and suffix ranks are 24 in every cell and target.
 
-The larger cells therefore attain the full coordinate-ring dimensions.
-Low ambient rank is not hiding a smaller linear factor in this basis.
+The larger sampled matrices therefore attain the full coordinate-ring
+dimensions. These are sampled factor-matrix ranks, not intrinsic predicate
+rank, relation-matrix rank, or target-descent evidence. At `q=953`, cut-2
+`U` is row-capped at 35 and one cell has rank 34.
 
 These ranks are representation-specific to the frozen RCB projective gauge.
 The zero set is intrinsic, but nonzero values and factor geometry can change
@@ -93,8 +103,13 @@ under input permutation, parenthesization, or projective rescaling.
 
 ## Charged State
 
-The direct compiler avoids the `A B^4` five-axis tensor, but the cut-2 suffix
-state remains explicit:
+Advice construction avoids the `A B^4` five-axis tensor, but the validation
+harness enumerates every pair and temporarily retains flattened
+`factor_values` and `exact_values` arrays. The executed run therefore does
+full-surface validation even though the compiler formula does not require the
+tensor.
+
+If dense component tables are materialized, cut-2 suffix payload remains:
 
 | q | B | four-component cut-2 state | specialized cut-2 state |
 |---:|---:|---:|---:|
@@ -108,8 +123,10 @@ Symbolically these are:
 - target-specialized factors: `48 * B^3`;
 - specialization multiplications: `4 * 48 * B^3`.
 
-With `B approximately q^0.2`, each is `q^(0.6+o(1))`, above rho. The observed
-three-point slope is 0.745 because the frozen `B` schedule itself fits 0.248.
+With `B approximately q^0.2`, each has exponent `0.6`. Payload and
+specialization time are separate resource axes; under the stated promotion
+budget, this explicit implementation fails both. The observed three-point
+slope is descriptive only.
 
 Cut 3 has:
 
@@ -117,31 +134,48 @@ Cut 3 has:
 - specialized suffix factors `24 * B^2`;
 - prefix count `A B^2`.
 
-The suffix state is asymptotically `q^0.4`, but the explicit prefix side is
+The suffix payload is asymptotically `q^0.4`, but the explicit prefix side is
 `q^0.6`, and no sublinear zero-reporting index is provided.
+
+Missing accounting includes polynomial operation counts, specialization
+additions and reductions, advice reads/writes, memory traffic, prefix-vector
+storage, deep live bytes, and separate compiler versus exhaustive-validation
+time.
 
 ## Strongest Valid Conclusion
 
-For the frozen left-associated complete-addition circuit:
+The valid algebraic proof sketch for the frozen left-associated circuit is:
 
-> The central low-rank theorem is constructive. Exact cut-2 and cut-3
-> factors can be compiled directly in 48- and 24-dimensional cubic
-> coordinate-ring bases, with all target dependence carried by four public
-> scalar weights.
+> The locator admits coefficient factorizations of ambient dimensions at
+> most 48 and 24 at cuts 2 and 3, with target dependence carried by four
+> public scalar weights.
 
-The corresponding explicit-state negative is:
+The observed run supports that construction on the toy schedule, but the
+independent proof gate remains false.
 
-> Direct cut-2 factor advice and target specialization remain
-> `Theta(B^3)=q^(0.6+o(1))`; cut 3 moves that size to the prefix side. Rank
-> factorization alone does not cross rho.
+The corresponding explicit-implementation negative is:
+
+> If dense component tables are materialized, cut-2 payload and
+> specialization work remain `Theta(B^3)=q^(0.6+o(1))`; cut 3 moves the
+> explicit size to the prefix side. This does not rule out streamed,
+> structured, differently gauged, or alternate-tree compilers.
+
+Interpret the recorded `direct_factor_gate=true` only as a shared-code
+semantic observation. The durable gate split is:
+
+- semantic factor observation: true;
+- independent proof: false;
+- complete accounting: false;
+- algorithm promotion: false.
 
 ## Next Concrete Action
 
 There are now two linked successors:
 
-1. `GAUGE-INVARIANT-FACTOR-V2`: normalize or quotient projective scale and
-   test whether intrinsic factor images retain dimensions 48/24 under
-   permutations and alternate addition trees.
+1. `GAUGE-INVARIANT-FACTOR-V2`: independently verify affine sums and normal
+   forms; add planted-hit counts, infinity/doubling/inverse controls,
+   rescaled targets, permutations, alternate trees, mutations, and complete
+   compiler/validation/memory accounting.
 2. `RANK2-NET-NORM-CIRCUIT-V1`: represent each leaf by an intrinsic
    rank-two net or divisor and test whether the four-sum divisor admits a
    target-independent iterated norm/resultant circuit below `B^2.5` state.
