@@ -284,6 +284,14 @@ def run(primes: list[int], occupancy_lambdas: list[float]) -> dict[str, Any]:
         for occupancy_lambda in occupancy_lambdas
         for symmetry in ("sign_canonical", "sign_complete")
     ]
+    unique_populations: dict[tuple[int, str, int], int] = {}
+    for cell in cells:
+        key = (
+            cell["q"],
+            cell["symmetry"],
+            cell["factor_base_size"],
+        )
+        unique_populations.setdefault(key, cell["sets_enumerated"])
     return {
         "protocol": "EXP-ECDLP-COORD-EXPANSION-001-cyclic-pareto-v1",
         "claim_status": [
@@ -310,9 +318,11 @@ def run(primes: list[int], occupancy_lambdas: list[float]) -> dict[str, Any]:
             for cell in cells
             if cell["qualifying_sets"]
         ],
-        "total_sets_enumerated": sum(
+        "total_cell_enumerations": sum(
             cell["sets_enumerated"] for cell in cells
         ),
+        "total_unique_population_sets": sum(unique_populations.values()),
+        "unique_populations": len(unique_populations),
         "breakthrough_claim": False,
         "total_wall_seconds": time.perf_counter() - started,
         "boundary": (
