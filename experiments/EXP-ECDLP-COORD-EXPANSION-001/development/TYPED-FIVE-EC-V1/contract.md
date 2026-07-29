@@ -47,7 +47,8 @@ Before any subgroup scalar census is created, the program must:
 2. hash independent public points `P0,D`;
 3. construct and freeze `A`;
 4. compile point-keyed exact `3R` and `4R` witnesses;
-5. collect known-right-hand-side relation rows;
+5. collect known-right-hand-side relation rows, retaining every supported
+   `A` split found by one complete `A` scan per target;
 6. solve the gauge-quotiented relation system;
 7. execute held-out target descent.
 
@@ -75,7 +76,8 @@ expected nor claimed.
 
 - coordinate and progression build group/field operations;
 - exact `3R` and `4R` entries, transitions, bytes, and build operations;
-- relation targets attempted, successes, independent rows, and rank;
+- relation targets attempted, successful targets, candidate rows, independent
+  rows, and rank;
 - query additions, probes, lookups, and memory traffic proxy;
 - modular linear-algebra operations;
 - exact support probability;
@@ -135,4 +137,3 @@ python3 src/typed_five_ec.py \
   --occupancy-lambda 0.5 \
   --held-out-targets 64
 ```
-

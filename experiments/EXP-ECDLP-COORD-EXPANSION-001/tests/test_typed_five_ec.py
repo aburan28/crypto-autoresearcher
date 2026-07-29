@@ -71,6 +71,13 @@ class TypedFiveEcTests(unittest.TestCase):
             compiler["d4_internal"],
             target,
         )
+        all_d4 = MODULE.query_d4_all(
+            curve,
+            a_points,
+            r_points,
+            compiler["d4_internal"],
+            target,
+        )
         split = MODULE.query_r_plus_d3(
             curve,
             a_points,
@@ -79,6 +86,8 @@ class TypedFiveEcTests(unittest.TestCase):
             target,
         )
         self.assertTrue(d4["success"])
+        self.assertTrue(all_d4["success"])
+        self.assertGreaterEqual(len(all_d4["hits"]), 1)
         self.assertTrue(split["success"])
 
     def test_public_progression_is_distinct_and_disjoint(self) -> None:

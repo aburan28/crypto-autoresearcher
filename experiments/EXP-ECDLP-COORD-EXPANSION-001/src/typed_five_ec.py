@@ -403,6 +403,39 @@ def query_d4(
     }
 
 
+def query_d4_all(
+    curve: Any,
+    a_points: list[Point],
+    r_points: list[Point],
+    d4: dict[Point, tuple[int, ...]],
+    target: Point,
+) -> dict[str, Any]:
+    ops = Ops()
+    hits = []
+    for a_index, a_point in enumerate(a_points):
+        complement = curve.add(target, curve.neg(a_point), ops)
+        witness = d4.get(complement)
+        if witness is None:
+            continue
+        if not verify_typed_witness(
+            curve, a_points, r_points, a_index, witness, target
+        ):
+            raise AssertionError("materialized D4 witness mismatch")
+        hits.append(
+            {
+                "a_index": a_index,
+                "r_witness": witness,
+            }
+        )
+    return {
+        "success": bool(hits),
+        "hits": hits,
+        "a_probes": len(a_points),
+        "lookups": len(a_points),
+        "ops": asdict(ops),
+    }
+
+
 def query_r_plus_d3(
     curve: Any,
     a_points: list[Point],
@@ -599,7 +632,8 @@ def collect_relations(
     target_budget = min(q - 1, 64 * width)
     basis = IncrementalBasis(width, q)
     independent = []
-    success_count = 0
+    successful_targets = 0
+    candidate_rows = 0
     dependent_count = 0
     target_ops = Ops()
     query_ops = Ops()
@@ -610,7 +644,7 @@ def collect_relations(
         if target_index == target_budget:
             break
         target = curve.mul(scalar, generator, target_ops)
-        query = query_d4(curve, a_points, r_points, d4, target)
+        query = query_d4_all(curve, a_points, r_points, d4, target)
         attempted_scalars.append(scalar)
         probes += query["a_probes"]
         lookups += query["lookups"]
@@ -618,20 +652,22 @@ def collect_relations(
             setattr(query_ops, key, getattr(query_ops, key) + value)
         if not query["success"]:
             continue
-        success_count += 1
-        coefficients = quotient_relation_coefficients(
-            query["a_index"], query["r_witness"], len(r_points)
-        )
-        equation = {
-            "coefficients": coefficients,
-            "rhs": scalar,
-            "a_index": query["a_index"],
-            "r_witness": list(query["r_witness"]),
-        }
-        if basis.insert(coefficients, scalar):
-            independent.append(equation)
-        else:
-            dependent_count += 1
+        successful_targets += 1
+        for hit in query["hits"]:
+            candidate_rows += 1
+            coefficients = quotient_relation_coefficients(
+                hit["a_index"], hit["r_witness"], len(r_points)
+            )
+            equation = {
+                "coefficients": coefficients,
+                "rhs": scalar,
+                "a_index": hit["a_index"],
+                "r_witness": list(hit["r_witness"]),
+            }
+            if basis.insert(coefficients, scalar):
+                independent.append(equation)
+            else:
+                dependent_count += 1
         if basis.rank == width:
             break
     if basis.rank != width:
@@ -648,8 +684,9 @@ def collect_relations(
             "predicted_full_rank": len(r_points) + 1,
             "gauge_null_vector": [-4, 0] + [1] * len(r_points),
             "targets_attempted": len(attempted_scalars),
-            "successful_decompositions": success_count,
-            "dependent_successes": dependent_count,
+            "successful_targets": successful_targets,
+            "candidate_relation_rows": candidate_rows,
+            "dependent_candidate_rows": dependent_count,
             "independent_rows": len(independent),
             "quotient_rank": basis.rank,
             "target_budget": target_budget,
