@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7656 entries.
+7657 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7663,3 +7663,4 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-053 | MQ and Boolean polynomial-system solving - XL, BooleanSolve, and the crossbred hybrid | technique | reported |  | mq multivariate-quadratic xl crossbred booleansolve boolean-solving polynomial-system exhaustive-search hybrid sparse-linear-algebra groebner crossover solving calibration index-calculus |
 | KN-TECH-054 | Outcome-precedence design for differential-conformance protocols requires a baseline-invisible positive control | technique | reported |  | experiment-design differential-testing conformance-testing outcome-classification positive-control generator-adequacy falsifiability methodology ml-kem defensive |
 | KN-TECH-055 | Conditional exponent improvement via structural bound + smoothness/distribution heuristic + meet-in-the-middle + re-randomization | technique | reported |  | exemplar exponent-improvement smoothness heuristic dickman-de-bruijn meet-in-the-middle claw-finding rerandomization mixing-time conditional-theorem methodology isogeny adjacent |
+| KN-TECH-056 | Supersingular isogeny-problem baselines, corrected against archived primary text (supersedes KN-TECH-029's classical F_p^2 figure) | technique | reported |  | isogeny-problem path-finding endomorphism-ring meet-in-the-middle claw-finding cost-model corpus-currency supersession isogeny adjacent |
