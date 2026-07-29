@@ -2,11 +2,13 @@
 
 ## Status
 
-`NEGATIVE RESULT`, `OBSERVATION`, `TOY-EVIDENCE`, `MODEL-BOUND`.
+`NEGATIVE RESULT`, `OBSERVATION`, `TOY-EVIDENCE`, `MODEL-BOUND`,
+`REVISE INTERPRETATION`.
 
 No family passes the recurrence-signal gate. This is not an ECDLP
 impossibility result and does not rule out nonlinear elliptic-net,
-function-field, divisor, or implicit circuit representations.
+function-field, divisor, implicit circuit, or projective-gauge-invariant
+representations.
 
 ## Exact Run
 
@@ -20,7 +22,7 @@ function-field, divisor, or implicit circuit representations.
 - wall time: 21.15 seconds;
 - peak RSS: 45,154,304 bytes;
 - zero projective, affine-replay, locator, or planted-descent mismatch;
-- independent normalized rerun: exact.
+- same-code deterministic normalized rerun: exact.
 
 The sequence length is diagnostic. It is longer than the attack `A` source
 and must not be treated as free relation support.
@@ -35,8 +37,9 @@ Every root sequence has Berlekamp-Massey order exactly `L/2`:
 | 3919 | 8 | 64 | 32 | 32 | 32 |
 | 15583 | 10 | 80 | 40 | 40 | 40 |
 
-The values are identical across all four coordinate families. This is the
-generic finite-sample profile, not evidence of a short recurrence.
+The values are identical across all four coordinate families for the frozen
+raw RCB projective representation. This is the generic finite-sample profile,
+not evidence of a short recurrence.
 
 A recurrence trained on the first two-thirds of each planted progression
 root misses `13-14`, `22`, and `27` held-out terms at the three sizes. The
@@ -44,10 +47,10 @@ planted root annihilator fails on the held-out-target root in exactly
 `20`, `32`, and `40` positions. No target pair shares an exact connection
 polynomial.
 
-For every tested node sequence, the linear system for fixed raw Somos-4
+For every tested raw node sequence, the linear system for fixed raw Somos-4
 coefficients is inconsistent. Thus neither linear recurrence fitting nor a
-direct rank-one elliptic-divisibility/Somos-4 identity compresses these root
-products.
+direct rank-one elliptic-divisibility/Somos-4 identity compresses these
+frozen projective-gauge root products.
 
 The raw result's `violations` value is an inconsistency sentinel equal to the
 number of available equations when no exact fit exists. It is not the
@@ -56,8 +59,8 @@ equation fails under a best fit.”
 
 ## Level-by-Level Result
 
-The negative begins at the leaves. For every curve, family, target, and
-progression/random variant:
+The negative begins at the leaves in the frozen representation. For every
+curve, family, target, and progression/random variant:
 
 - median leaf BM order is `L/2`;
 - median BM order remains `L/2` at every dyadic level;
@@ -65,15 +68,15 @@ progression/random variant:
 - sibling exact-annihilator fraction is zero at every nontrivial level;
 - sibling cross-recurrence exact fraction is zero.
 
-A fixed tuple locator
+A fixed raw tuple locator
 
 `i -> h_Q(P0+iD,r1,r2,r3,r4)`
 
 therefore already looks random to the tested linear recurrence model.
-Multiplying leaves does not create a shared linear state.
+Multiplying raw leaves does not create a shared linear state.
 
 This is stronger than a root-only miss, but it remains finite-sample and
-model-bound.
+model-bound. It is not invariant under projective rescaling.
 
 ## Controls
 
@@ -81,30 +84,39 @@ For every field:
 
 - the planted order-four linear sequence is recovered at order four and
   predicts every held-out term;
-- the division-polynomial elliptic divisibility sequence has zero Ward
+- the functional division-polynomial elliptic divisibility sequence has zero Ward
   residual and an exact induced Somos-4 fit;
 - the deterministic random sequence has BM order `L/2` and no exact
   Somos-4 fit;
 - the product of six independently planted order-two sequences also has BM
   order `L/2`.
 
-The last control identifies the likely mechanism: pointwise products rapidly
-expand linear complexity even when each factor has compact linear state.
+The EDS control validates the fitter but is not matched to a translated,
+gauge-dependent rank-two net slice. The last control shows that pointwise
+products can rapidly expand linear complexity even when each factor has
+compact linear state.
 
 ## Exact Zero Semantics
 
-Canonical multisets preserve the ordered locator zero set because the
-complete group sum and locator are symmetric in the four `R` inputs. The
-root is zero at an index exactly when at least one canonical tuple is a
-witness.
+Canonical representatives preserve witness support because the affine group
+sum is symmetric in the four identical `R` slots and the norm locator is zero
+exactly on equality. They do not preserve raw nonzero locator values or
+ordered multiplicity.
 
 Every planted root has at least one zero. Balanced-tree descent reaches a
 zero leaf, and the recovered complete-addition point equals the target.
 Observed planted-root zero counts range from 2 to 8.
 
+An independent permutation probe on the first random-x cell found that all
+24 permutations of tuple `(0,1,2,3)` have one affine point sequence and one
+zero mask but 24 distinct raw locator-value sequences. The RCB projective
+scale is therefore an active representation confounder: nonzero rescaling
+multiplies the quadratic locator by a nonzero square while preserving every
+zero.
+
 ## Charged Cost
 
-Per target tree:
+Logical packed payload per reported target tree:
 
 | q | leaves | nodes | field elements | bytes | state / B^2.5 |
 |---:|---:|---:|---:|---:|---:|
@@ -118,6 +130,11 @@ Across the three points, the fitted slopes against `q` are approximately:
 - materialized tree state: `1.074`;
 - complete-addition construction calls: `1.081`.
 
+These byte counts are not peak resident memory. They omit Python objects,
+simultaneously live target state, memory traffic, and BM analysis workspace,
+and may alias carried nodes. The measured RSS is process-wide and does not
+validate the packed table.
+
 These slopes are toy diagnostics. Symbolically, canonical leaves are
 `Theta(B^4)`, and evaluating or storing length-`Theta(B)` sequences is
 `Theta(B^5)`. The explicit construction is therefore much worse than rho and
@@ -125,24 +142,31 @@ cannot be reclassified as preprocessing-free.
 
 ## Strongest Valid Conclusion
 
-Under the exact complete-addition locator, tested curves, factor bases,
-targets, sequence length `L=8B`, and the linear-recurrence plus direct
-Somos-4 models:
+Under the frozen left-associated RCB projective gauge, tested curves, factor
+bases, targets, sequence length `L=8B`, and the homogeneous-linear plus raw
+direct-Somos-4 models:
 
-> No short, shared, target-independent annihilator appears at any dyadic
-> block level. Explicit block-product construction and storage remain
-> `Theta(B^5)` diagnostics.
+> No order-at-most-`2B` annihilator exists for the raw root prefixes; tested
+> sibling minimal polynomials are distinct; and explicit block-product
+> construction remains a `Theta(B^5)` diagnostic.
 
-This rules out the preregistered linear block-zero compiler in this regime.
-It does not rule out elliptic nets themselves.
+This rules out the frozen raw-RCB-gauge homogeneous-linear/direct-Somos gate
+on these toy rows. It does not establish a zero-set-invariant recurrence
+negative and does not rule out elliptic nets themselves.
 
 ## What Remains Open
 
-Ward's elliptic-net structure is nonlinear. The matched positive control
+Ward's elliptic-net structure is nonlinear. The functional positive control
 shows that exact nonlinear recurrence can coexist with BM order `L/2`.
 Therefore the most useful successor is not a longer BM sweep by itself.
 
-The next experiment should represent each fixed locator as a divisor or
+The next experiment must first remove the projective confounder. It should
+compare raw, scale-stripped or intrinsic, randomly rescaled, permuted, and
+reparenthesized locator sequences at `L in {8B,16B,32B}` and solve a joint
+bounded-order annihilator system. The verifier must independently reconstruct
+the zero masks and recurrence claims.
+
+After that invariant preflight, represent each fixed locator as a divisor or
 rank-two elliptic-net slice and ask whether a block product can be composed
 by adding compact divisor data before specialization. A concrete formulation
 uses the rank-two net polynomial for `(D,T_t)`, where
