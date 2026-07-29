@@ -155,13 +155,20 @@ one object:
 > Given a fixed ordinary prime-order curve and a public coordinate-defined
 > set `R` of size about `q^(1/5)`, compile exact witness-bearing membership in
 > `4R` with complete fixed-curve build work below `q^(1/2-epsilon)`, retained
-> advice below the generic preprocessing frontier, and target specialization
-> no worse than `q^(1/5+o(1))`.
+> advice and peak memory below `q^(1/2)`, and total target specialization and
+> exact witness lift no worse than `q^(1/5+o(1))`.
+
+This compiler condition is necessary but not sufficient. With quotient-column
+exponent `c=1/5`, target-specialization exponent `t`, witness exponent `w`,
+support loss `u`, and rank-yield penalty `r`, relation collection must satisfy
+`c+u+r+max(t,w)<1/2`. At the intended `t=w=1/5`, this requires `u+r<1/10`.
+Sparse linear algebra and randomized arbitrary-target descent must each also
+remain strictly below exponent `1/2`.
 
 For online exponent `1/5`, generic fixed-generator preprocessing requires
-advice near `q^(3/5)` in its model. A coordinate compiler below square-root
-build is therefore not a generic-table optimization; it must use actual
-elliptic-coordinate or recursive-circuit structure.
+advice near `q^(3/5)` in its restricted model, with construction near
+`q^(4/5)`. This is a model-bound comparator, not a validation or exclusion of
+named elliptic-coordinate structure.
 
 ## Required Next Gates
 
@@ -184,13 +191,13 @@ elliptic-coordinate or recursive-circuit structure.
 typed `A+4R` relation collection, exact quotient rank, and held-out descent on
 three generated toy prime-order curves.
 
-`RESTRICTED THEOREM`: all fixed-weight typed rows have the stated
-one-dimensional gauge; quotienting it is exact for same-type relations and
-descent.
+`RESTRICTED THEOREM`: fixed `A+4R` weight guarantees the displayed gauge
+direction. Conditional on quotient rank `|R|+1`, it is the complete kernel,
+and every gauge-compatible target row is exactly evaluable. Complete kernel,
+support, and rank are empirical claims for these 15 toy transcripts.
 
 `NEGATIVE RESULT`: the explicit `4R` and `R+3R` compilers remain above the
 required charged boundary, and first-witness-only row selection can lose rank.
 
 The next experiment should attack compressed recursive `S4` membership, not
 retune the materialized table.
-
