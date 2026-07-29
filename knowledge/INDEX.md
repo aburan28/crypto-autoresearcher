@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7681 entries.
+7682 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7688,3 +7688,4 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-054 | Outcome-precedence design for differential-conformance protocols requires a baseline-invisible positive control | technique | reported |  | experiment-design differential-testing conformance-testing outcome-classification positive-control generator-adequacy falsifiability methodology ml-kem defensive |
 | KN-TECH-055 | Conditional exponent improvement via structural bound + smoothness/distribution heuristic + meet-in-the-middle + re-randomization | technique | reported |  | exemplar exponent-improvement smoothness heuristic dickman-de-bruijn meet-in-the-middle claw-finding rerandomization mixing-time conditional-theorem methodology isogeny adjacent |
 | KN-TECH-056 | Object-first invention protocol — tracked-object search with forbidden families, controlled nulls, mandatory closures, and Pareto-domination honesty | technique | reported |  | methodology research-protocol agentic-harness tracked-object negative-closure control-experiment pareto-domination sota-honesty deliverable-schema prior-art-triage saturation-discipline inventor |
+| KN-TECH-057 | Full-cost matched baselines for classical supersingular path-finding (Wiener 3D wiring model applied to MITM, Delfs-Galbraith, and van Oorschot-Wiener collision search on the isogeny graph) | technique | derivation_confirmed |  | isogeny-problem path-finding full-cost wiener-model mitm delfs-galbraith van-oorschot-wiener collision-search distinguished-points matched-baseline cost-model isogeny |
