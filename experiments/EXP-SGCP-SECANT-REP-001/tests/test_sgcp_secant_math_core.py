@@ -39,6 +39,7 @@ codes unreachable through accepted public inputs.
 
 from dataclasses import FrozenInstanceError
 from itertools import combinations
+from types import MappingProxyType
 import unittest
 
 from sgcp_secant_math_core import (
@@ -66,18 +67,63 @@ from sgcp_secant_math_core import (
 
 _PRIMES = (7, 11, 13, 17, 19, 23)
 
+_REMAINDER_COUNTS = MappingProxyType({
+    2: 0,
+    5: 1,
+    7: 1,
+    8: 1,
+    9: 2,
+    11: 2,
+    13: 2,
+    17: 2,
+    19: 2,
+    23: 2,
+})
+
+_RECIPROCALS = MappingProxyType({
+    7: (None, 1, 4, 5, 2, 3, 6),
+    11: (None, 1, 6, 4, 3, 9, 2, 8, 7, 5, 10),
+    13: (None, 1, 7, 9, 10, 8, 11, 2, 5, 3, 4, 6, 12),
+    17: (None, 1, 9, 6, 13, 7, 3, 5, 15, 2, 12, 14, 10, 4, 11, 8, 16),
+    19: (
+        None, 1, 10, 13, 5, 4, 16, 11, 12, 17,
+        2, 7, 8, 3, 15, 14, 6, 9, 18,
+    ),
+    23: (
+        None, 1, 12, 8, 6, 14, 4, 10, 3, 18, 7, 21,
+        2, 16, 5, 20, 13, 19, 9, 17, 15, 11, 22,
+    ),
+})
+
+
+def _remainder_count_for(modulus):
+    try:
+        return _REMAINDER_COUNTS[modulus]
+    except KeyError as error:
+        raise AssertionError(
+            "no hand-derived remainder count for control modulus"
+        ) from error
+
 
 def _modular_reciprocal(value, modulus):
-    """Extended-Euclid reference inversion, independent of V6's pow wrapper."""
-    old_r, r = value % modulus, modulus
-    old_s, s = 1, 0
-    while r:
-        quotient = old_r // r
-        old_r, r = r, old_r - quotient * r
-        old_s, s = s, old_s - quotient * s
-    if old_r != 1:
+    canonical = value % modulus
+    try:
+        table = _RECIPROCALS[modulus]
+    except KeyError as error:
+        raise AssertionError(
+            "no hand-derived reciprocal table for control modulus"
+        ) from error
+    if canonical == 0:
         raise ArithmeticError("reference denominator is not invertible")
-    return old_s % modulus
+    try:
+        reciprocal = table[canonical]
+    except IndexError as error:
+        raise AssertionError(
+            "control denominator is outside its reciprocal table"
+        ) from error
+    if reciprocal is None:
+        raise AssertionError("control reciprocal table has an empty entry")
+    return reciprocal
 
 
 def _is_nonsingular(p, a, b):
@@ -96,21 +142,6 @@ def _affine_points(p, a, b):
         for y in range(p)
         if _is_on_curve(p, a, b, (x, y))
     )
-
-
-def _trial_remainder_count(p):
-    if p <= 3:
-        return 0
-    count = 1
-    if p % 2 == 0:
-        return count
-    divisor = 3
-    while divisor * divisor <= p:
-        count += 1
-        if p % divisor == 0:
-            return count
-        divisor += 2
-    return count
 
 
 def _public_ops(
@@ -187,7 +218,7 @@ def _ops_values(ops):
 
 def _post_discriminant_prefix(p, membership_visits=0, sign_visits=0, reductions=0):
     return _public_ops(
-        integer_remainder_tests=_trial_remainder_count(p),
+        integer_remainder_tests=_remainder_count_for(p),
         field_reductions=reductions,
         field_additions=1 + 2 * membership_visits,
         field_subtractions=membership_visits,
@@ -320,7 +351,7 @@ def _reference_candidate(raw, source_points, raw_u):
 def _successful_ops(raw, expected, collision_checks):
     fiber_count = len(expected.fibers.fibers)
     return _public_ops(
-        integer_remainder_tests=_trial_remainder_count(raw.p),
+        integer_remainder_tests=_remainder_count_for(raw.p),
         field_reductions=1,
         field_additions=58,
         field_subtractions=156,
@@ -675,7 +706,7 @@ class TestSgcpSecantMathCore(unittest.TestCase):
                 1,
                 CoreErrorCode.NONCANONICAL_COEFFICIENT,
                 (1,),
-                _public_ops(integer_remainder_tests=_trial_remainder_count(raw.p)),
+                _public_ops(integer_remainder_tests=_remainder_count_for(raw.p)),
             ),
             (
                 "noncanonical_b",
@@ -684,7 +715,7 @@ class TestSgcpSecantMathCore(unittest.TestCase):
                 1,
                 CoreErrorCode.NONCANONICAL_COEFFICIENT,
                 (2,),
-                _public_ops(integer_remainder_tests=_trial_remainder_count(raw.p)),
+                _public_ops(integer_remainder_tests=_remainder_count_for(raw.p)),
             ),
             (
                 "singular",
@@ -887,6 +918,15 @@ class TestSgcpSecantMathCore(unittest.TestCase):
         raw, points, _, _ = _find_positive_control()
         torsion_raw, torsion_points, torsion_index = _two_torsion_control()
         sign_raw, sign_points, sign_index = _missing_sign_control()
+        both_bad_coordinates = _replace_point(
+            points, 2, AffinePoint(False, False)
+        )
+        earlier_bad_y = _replace_point(
+            points, 1, AffinePoint(points[1].x, False)
+        )
+        earlier_and_later_bad_points = _replace_point(
+            earlier_bad_y, 4, AffinePoint(False, points[4].y)
+        )
 
         cases = (
             (
@@ -896,6 +936,15 @@ class TestSgcpSecantMathCore(unittest.TestCase):
                 False,
                 CoreErrorCode.TYPE_MISMATCH,
                 (0,),
+                _public_ops(),
+            ),
+            (
+                "a_type_before_b_type",
+                CurveInput(raw.p, False, False),
+                None,
+                False,
+                CoreErrorCode.TYPE_MISMATCH,
+                (1,),
                 _public_ops(),
             ),
             (
@@ -914,7 +963,7 @@ class TestSgcpSecantMathCore(unittest.TestCase):
                 False,
                 CoreErrorCode.NONCANONICAL_COEFFICIENT,
                 (1,),
-                _public_ops(integer_remainder_tests=_trial_remainder_count(raw.p)),
+                _public_ops(integer_remainder_tests=_remainder_count_for(raw.p)),
             ),
             (
                 "singularity_before_factor_base",
@@ -929,6 +978,24 @@ class TestSgcpSecantMathCore(unittest.TestCase):
                     field_multiplications=3,
                     field_squarings=2,
                 ),
+            ),
+            (
+                "x_field_before_y_field_within_point",
+                raw,
+                both_bad_coordinates,
+                False,
+                CoreErrorCode.TYPE_MISMATCH,
+                (3, 2, 0),
+                _post_discriminant_prefix(raw.p),
+            ),
+            (
+                "point_index_before_later_coordinate_field",
+                raw,
+                earlier_and_later_bad_points,
+                False,
+                CoreErrorCode.TYPE_MISMATCH,
+                (3, 1, 1),
+                _post_discriminant_prefix(raw.p),
             ),
             (
                 "duplicate_before_order_membership_and_u",
