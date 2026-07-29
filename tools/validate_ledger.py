@@ -615,7 +615,17 @@ def check_knowledge_index(ctx: Ctx):
         capture_output=True, text=True)
     if rc.returncode != 0:
         msg = (rc.stderr or rc.stdout).strip() or "knowledge/INDEX.md is stale"
-        ctx.errors.append(msg.splitlines()[0].strip())
+        # Take the LAST line, not the first. When the index builder raises,
+        # the first line is "Traceback (most recent call last):" -- which is
+        # both uninformative and, worse, IDENTICAL for every possible cause.
+        # CI diffs error sets between head and base, so an unchanging string
+        # cancels out and the failure is invisible. That is how a builder
+        # crashing on committed conflict markers went unreported. The last
+        # line carries the actual exception.
+        lines = [ln.strip() for ln in msg.splitlines() if ln.strip()]
+        detail = lines[-1] if lines else "knowledge/INDEX.md is stale"
+        ctx.errors.append(f"knowledge/INDEX.md: build_knowledge_index.py "
+                          f"failed: {detail}")
 
 
 BASELINE_HEADER = """\
