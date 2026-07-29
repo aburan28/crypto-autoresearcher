@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7685 entries.
+7689 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7376,6 +7376,10 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7601 | Cryptanalytic Properties of Mealy Machines | literature | reported | web | geometric-approach mealy-machine s-function unified-framework linear differential integral boomerang differential-linear symmetric methodology adjacent |
 | KN-LIT-7602 | Classic Full Plaintext Recovery Attacks on Low Round Generalized Feistel Networks | literature | reported | web | generalized-feistel round-reduced plaintext-recovery black-box-round-function topology-vs-component structural-attack symmetric adjacent |
 | KN-LIT-7603 | Linear Descent for Rank-2 and Rank-4 Module-LIP | literature | reported | full_text_supplied | module-lip hawk lattice-isomorphism linear-descent symmetric-square hodge-star exterior-square svp cm-field lenstra-silverberg bambury-nguyen pqc |
+| KN-LIT-7604 | Notes on summation polynomials | literature | reported | web | summation-polynomial semaev weil-descent first-fall-degree degree-of-regularity groebner binary-field index-calculus ecdlp elliptic-curve dlp prior-art |
+| KN-LIT-7605 | On the last fall degree of Weil descent polynomial systems | literature | reported | web | weil-descent last-fall-degree summation-polynomial semaev groebner solving-degree binary-field index-calculus ecdlp dlp prior-art |
+| KN-LIT-7606 | The Structured Generic-Group Model | literature | reported | web | generic-group-model lower-bound simulability index-calculus discrete-logarithm dlp ecdlp elliptic-curve smooth-integers preprocessing prior-art |
+| KN-LIT-7607 | Last fall degree, HFE, and Weil descent attacks on ECDLP | literature | reported | web | last-fall-degree first-fall-degree weil-descent summation-polynomial semaev hfe groebner solving-degree index-calculus ecdlp elliptic-curve dlp binary-field prior-art |
 | KN-LIT-761 | EXPLICIT UNIFORM BOUNDS FOR BRAUER GROUPS OF SINGULAR K3 SURFACES | literature | reported | read | curve-arithmetic elliptic-curve isogeny lattice mov-fr number-theory pairing |
 | KN-LIT-762 | Far Field EM Side-Channel Attack on AES Using Deep Learning | literature | reported | read | cryptanalysis side-channel symmetric |
 | KN-LIT-763 | FAST COMPUTATION OF ELLIPTIC CURVE ISOGENIES IN CHARACTERISTIC TWO | literature | reported | read | binary-field elliptic-curve finite-field isogeny |

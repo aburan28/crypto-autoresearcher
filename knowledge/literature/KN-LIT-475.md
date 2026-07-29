@@ -16,7 +16,7 @@ tags: [dlp, ecdlp, elliptic-curve, factoring, finite-field, first-fall-degree, i
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-7607
 ---
 
 ## Contribution
