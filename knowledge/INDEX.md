@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7685 entries.
+7690 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7377,6 +7377,11 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7602 | Classic Full Plaintext Recovery Attacks on Low Round Generalized Feistel Networks | literature | reported | web | generalized-feistel round-reduced plaintext-recovery black-box-round-function topology-vs-component structural-attack symmetric adjacent |
 | KN-LIT-7603 | Linear Descent for Rank-2 and Rank-4 Module-LIP | literature | reported | full_text_supplied | module-lip hawk lattice-isomorphism linear-descent symmetric-square hodge-star exterior-square svp cm-field lenstra-silverberg bambury-nguyen pqc |
 | KN-LIT-761 | EXPLICIT UNIFORM BOUNDS FOR BRAUER GROUPS OF SINGULAR K3 SURFACES | literature | reported | read | curve-arithmetic elliptic-curve isogeny lattice mov-fr number-theory pairing |
+| KN-LIT-7612 | Security Analysis on UOV Families with Odd Characteristics: Using Symmetric Algebra | literature | reported | web | uov qr-uov multivariate xl-algorithm exterior-algebra symmetric-algebra key-recovery odd-characteristic polynomial-system nist-pqc algebraic-attack adjacent |
+| KN-LIT-7613 | Explicit height bounds on modular polynomials for the elliptic j-invariant, cube root of j, and Weber modular function f | literature | reported | web | modular-polynomial j-invariant weber-function height-bound explicit-constants isogeny-computation class-polynomial cost-model isogeny adjacent |
+| KN-LIT-7614 | Extremal Chowla sets and their linear analogues: A human-AI mathematical investigation using Co-Scientist | literature | reported | web | human-ai-collaboration co-scientist agentic-mathematics methodology extremal-invariant finite-groups field-extensions normal-basis research-protocol adjacent |
+| KN-LIT-7615 | Certified in Theory, Broken in Practice: Assumption Gaps in Cryptographic Model Certification | literature | reported | web | assumption-gap certification zero-knowledge-proof auditing benchmark-overfitting scope-of-claim security-definition methodology claim-tier adjacent |
+| KN-LIT-7616 | Can PCE solve the factorisation problem via optimisation? | literature | reported | web | pauli-correlation-encoding factorization binary-optimization qubit-compression quantum-annealing-style preliminary negative-result cost-model rsa adjacent |
 | KN-LIT-762 | Far Field EM Side-Channel Attack on AES Using Deep Learning | literature | reported | read | cryptanalysis side-channel symmetric |
 | KN-LIT-763 | FAST COMPUTATION OF ELLIPTIC CURVE ISOGENIES IN CHARACTERISTIC TWO | literature | reported | read | binary-field elliptic-curve finite-field isogeny |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny pairing sidh-csidh |
