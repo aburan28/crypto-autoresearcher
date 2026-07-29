@@ -44,14 +44,15 @@ planted root annihilator fails on the held-out-target root in exactly
 `20`, `32`, and `40` positions. No target pair shares an exact connection
 polynomial.
 
-All available Somos-4 equations fail:
+For every tested node sequence, the linear system for fixed raw Somos-4
+coefficients is inconsistent. Thus neither linear recurrence fitting nor a
+direct rank-one elliptic-divisibility/Somos-4 identity compresses these root
+products.
 
-- 36 of 36 at `L=40`;
-- 60 of 60 at `L=64`;
-- 76 of 76 at `L=80`.
-
-Thus neither linear recurrence fitting nor a direct rank-one
-elliptic-divisibility/Somos-4 identity compresses these root products.
+The raw result's `violations` value is an inconsistency sentinel equal to the
+number of available equations when no exact fit exists. It is not the
+minimum residual over all coefficient pairs and must not be read as “every
+equation fails under a best fit.”
 
 ## Level-by-Level Result
 
@@ -143,7 +144,10 @@ Therefore the most useful successor is not a longer BM sweep by itself.
 
 The next experiment should represent each fixed locator as a divisor or
 rank-two elliptic-net slice and ask whether a block product can be composed
-by adding compact divisor data before specialization. It must charge:
+by adding compact divisor data before specialization. A concrete formulation
+uses the rank-two net polynomial for `(D,T_t)`, where
+`T_t=P0+S_t-Q`, and forms a block norm over the coordinate algebra of the
+four-sum divisor. It must charge:
 
 - divisor degree growth under block multiplication;
 - target dependence of the divisor and normalization constants;
