@@ -235,10 +235,28 @@ def set_metrics(scalars: Iterable[int], q: int) -> dict[str, Any]:
 
 
 def random_scalar_set(
-    q: int, b_size: int, seed: int
+    q: int,
+    b_size: int,
+    seed: int,
+    census: list[Point],
+    by_point: dict[Point, int],
+    p: int,
 ) -> tuple[int, ...]:
     rng = random.Random(seed)
-    return tuple(sorted(rng.sample(range(1, q), b_size)))
+    scalars: set[int] = set()
+    attempts = 0
+    while len(scalars) < b_size:
+        attempts += 1
+        if attempts > 1000 * b_size:
+            raise RuntimeError("random-scalar control exhausted attempts")
+        scalar = rng.randrange(1, q)
+        sampled = census[scalar]
+        if sampled is None:
+            continue
+        x_coord, y_coord = sampled
+        canonical = (x_coord, min(y_coord, (-y_coord) % p))
+        scalars.add(by_point[canonical])
+    return tuple(sorted(scalars))
 
 
 def random_x_set(
@@ -251,7 +269,7 @@ def random_x_set(
     if p % 4 != 3:
         raise ValueError("registered random-x control expects p mod 4 = 3")
     rng = random.Random(seed)
-    selected: set[Point] = set()
+    selected_x: set[int] = set()
     scalars: set[int] = set()
     attempts = 0
     while len(scalars) < b_size:
@@ -259,16 +277,17 @@ def random_x_set(
         if attempts > 1000 * b_size:
             raise RuntimeError("random-x control exhausted attempts")
         x_coord = rng.randrange(p)
+        if x_coord in selected_x:
+            continue
         rhs = (x_coord**3 + a * x_coord + b) % p
         y_coord = pow(rhs, (p + 1) // 4, p)
         if y_coord * y_coord % p != rhs:
             continue
-        if rng.getrandbits(1):
-            y_coord = (-y_coord) % p
+        y_coord = min(y_coord, (-y_coord) % p)
         candidate = (x_coord, y_coord)
-        if candidate in selected or candidate not in by_point:
+        if candidate not in by_point:
             continue
-        selected.add(candidate)
+        selected_x.add(x_coord)
         scalars.add(by_point[candidate])
     return tuple(sorted(scalars))
 
@@ -492,7 +511,14 @@ def run(typed_path: Path, null_draws: int) -> dict[str, Any]:
                     draw,
                 )
                 scalars = (
-                    random_scalar_set(q, b_size, seed)
+                    random_scalar_set(
+                        q,
+                        b_size,
+                        seed,
+                        census,
+                        by_point,
+                        p,
+                    )
                     if null_kind == "random_scalar"
                     else random_x_set(
                         curve, b_size, seed, by_point

@@ -22,8 +22,10 @@ coordinate-computable attack primitive has been found.
 - full audited factor bases `B in {5,8,10}`;
 - candidates: x-interval, source-PRF-x, and rational-union;
 - fixture controls: random-x and scalar progression;
-- 31 deterministic random-scalar null draws per curve;
-- 31 deterministic random-x null draws per curve;
+- 31 deterministic random-scalar-fiber null draws per curve, reduced to the
+  same canonical y representative as the candidates;
+- 31 deterministic random-x null draws per curve with the same canonical y
+  policy;
 - ordered D2 and D4 representation semantics;
 - first two curve sizes for coordinate-predictor training;
 - largest curve held out before model fitting.

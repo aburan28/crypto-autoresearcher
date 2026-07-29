@@ -221,10 +221,28 @@ def independent_metrics(
     }
 
 
-def scalar_null(q: int, width: int, seed: int) -> tuple[int, ...]:
-    return tuple(
-        sorted(random.Random(seed).sample(range(1, q), width))
-    )
+def scalar_null(
+    q: int,
+    width: int,
+    seed: int,
+    sequence: list[Point],
+    inverse: dict[Point, int],
+    p: int,
+) -> tuple[int, ...]:
+    rng = random.Random(seed)
+    values: set[int] = set()
+    attempts = 0
+    while len(values) < width:
+        attempts += 1
+        if attempts > 1000 * width:
+            raise RuntimeError("scalar null exhausted")
+        sampled = sequence[rng.randrange(1, q)]
+        if sampled is None:
+            continue
+        x_coord, y_coord = sampled
+        canonical = (x_coord, min(y_coord, (-y_coord) % p))
+        values.add(inverse[canonical])
+    return tuple(sorted(values))
 
 
 def x_null(
@@ -237,7 +255,7 @@ def x_null(
     if p % 4 != 3:
         raise ValueError("unsupported null square-root branch")
     rng = random.Random(seed)
-    points: set[Point] = set()
+    seen_x: set[int] = set()
     values: set[int] = set()
     attempts = 0
     while len(values) < width:
@@ -245,16 +263,17 @@ def x_null(
         if attempts > width * 1000:
             raise RuntimeError("random-x verifier exhausted")
         x_coord = rng.randrange(p)
+        if x_coord in seen_x:
+            continue
         rhs = (x_coord**3 + a * x_coord + b) % p
         y_coord = pow(rhs, (p + 1) // 4, p)
         if y_coord * y_coord % p != rhs:
             continue
-        if rng.getrandbits(1):
-            y_coord = (-y_coord) % p
+        y_coord = min(y_coord, (-y_coord) % p)
         candidate = (x_coord, y_coord)
-        if candidate in points or candidate not in inverse:
+        if candidate not in inverse:
             continue
-        points.add(candidate)
+        seen_x.add(x_coord)
         values.add(inverse[candidate])
     return tuple(sorted(values))
 
@@ -470,7 +489,14 @@ def reconstruct(
                     draw,
                 )
                 values = (
-                    scalar_null(curve["q"], width, seed)
+                    scalar_null(
+                        curve["q"],
+                        width,
+                        seed,
+                        sequence,
+                        inverse,
+                        curve["p"],
+                    )
                     if null_kind == "random_scalar"
                     else x_null(curve, width, seed, inverse)
                 )
