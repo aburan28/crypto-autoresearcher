@@ -908,7 +908,9 @@ def measured_rho(
     }
 
 
-def summarize(instances: list[dict[str, Any]]) -> dict[str, Any]:
+def summarize(
+    instances: list[dict[str, Any]], interpretation_eligible: bool
+) -> dict[str, Any]:
     candidates = ("x_interval", "square_map", "rational_union")
     cell_counts: dict[str, dict[str, Any]] = {}
     scaling_points: dict[str, dict[str, list[tuple[int, float]]]] = {}
@@ -934,7 +936,13 @@ def summarize(instances: list[dict[str, Any]]) -> dict[str, Any]:
                 )
                 cell["bit_sizes"].add(instance["curve"]["bits"])
                 cell["seeds"].add(instance["seed"])
-            scaling_key = f"{record['label']}|{record['symmetry_mode']}"
+            scaling_label = (
+                record["family"]
+                if record["family"]
+                in ("random", "random_x", "source_prf_x")
+                else record["label"]
+            )
+            scaling_key = f"{scaling_label}|{record['symmetry_mode']}"
             scaling = scaling_points.setdefault(
                 scaling_key,
                 {
@@ -1004,7 +1012,11 @@ def summarize(instances: list[dict[str, Any]]) -> dict[str, Any]:
         "result_classification": (
             "STAGE_A_SIGNAL"
             if promoted
-            else "INCONCLUSIVE_NO_FROZEN_FAMILY_CROSSED_JOINT_GATE"
+            else (
+                "DEVELOPMENT_SCOPED_NEGATIVE_NO_FROZEN_FAMILY_CROSSED_STAGE_A_GATE"
+                if interpretation_eligible
+                else "INCONCLUSIVE_INSUFFICIENT_NULLS_OR_SCALES"
+            )
         ),
         "interpretation": (
             "A joint pass authorizes codec, relation-matrix, and descent "
@@ -1164,6 +1176,7 @@ def run_experiment(
                 }
             )
 
+    interpretation_eligible = null_draws >= 31 and len(bit_sizes) >= 3
     return {
         "protocol": "EXP-ECDLP-COORD-EXPANSION-001-development-v2",
         "claim_status": [
@@ -1204,16 +1217,14 @@ def run_experiment(
             "minimum_null_draws_for_confirmatory_interpretation": 63,
         },
         "instances": instances,
-        "summary": summarize(instances),
+        "summary": summarize(instances, interpretation_eligible),
         "total_wall_seconds": time.perf_counter() - started,
         "boundary": (
             "The compiler and online query are point-only. D4, D5, split "
             "hits, and subgroup logs are charged audit artifacts only. Rank, "
             "linear algebra, and individual descent remain unmeasured."
         ),
-        "interpretation_eligible": (
-            null_draws >= 31 and len(bit_sizes) >= 3
-        ),
+        "interpretation_eligible": interpretation_eligible,
     }
 
 
