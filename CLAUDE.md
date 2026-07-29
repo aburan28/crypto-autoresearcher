@@ -58,6 +58,14 @@ research work. This file wires that contract into Claude Code.
 
 ## Research direction
 
+Procedure for ideation and closure is anchored by `docs/inventor-protocol.md`
+(technique abstract: `knowledge/techniques/KN-TECH-056.md`): object-first
+generation, the lossy-projection test, null-object controls before belief, a
+real closure standard, and Pareto `dominated_by`/`sota_delta` honesty in every
+deliverable. It binds the idea-generator, validator, and red-team subagents.
+Premature closure — declining to search because a target looks saturated — is
+treated as a failure mode symmetric with overclaiming.
+
 Direction and taste are anchored by `docs/target-result-profile.md`, whose
 canonical exemplar is Wesolowski's p^{1/3+o(1)} supersingular-isogeny result
 (full text: `inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`): exponent-moving
