@@ -520,16 +520,16 @@ def build_candidate_core(
                 (3, point_index, 0),
                 operations,
             )
-        if type(point.y) is not int:
-            return _failure(
-                CoreErrorCode.TYPE_MISMATCH,
-                (3, point_index, 1),
-                operations,
-            )
         if point.x < 0 or point.x >= curve.p:
             return _failure(
                 CoreErrorCode.NONCANONICAL_POINT,
                 (point_index,),
+                operations,
+            )
+        if type(point.y) is not int:
+            return _failure(
+                CoreErrorCode.TYPE_MISMATCH,
+                (3, point_index, 1),
                 operations,
             )
         if point.y < 0 or point.y >= curve.p:

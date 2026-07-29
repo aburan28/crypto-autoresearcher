@@ -927,6 +927,27 @@ class TestSgcpSecantMathCore(unittest.TestCase):
         earlier_and_later_bad_points = _replace_point(
             earlier_bad_y, 4, AffinePoint(False, points[4].y)
         )
+        wrong_point_with_coordinate_payload = _replace_point(
+            points, 2, (-1, False)
+        )
+        bad_x_type_and_range = _replace_point(
+            points, 2, AffinePoint(-1.5, points[2].y)
+        )
+        bad_x_type_and_y_range = _replace_point(
+            points, 2, AffinePoint(False, raw.p)
+        )
+        bad_x_range_and_y_type = _replace_point(
+            points, 2, AffinePoint(-1, False)
+        )
+        bad_y_type_and_range = _replace_point(
+            points, 2, AffinePoint(points[2].x, raw.p + 0.5)
+        )
+        earlier_bad_y_range = _replace_point(
+            points, 1, AffinePoint(points[1].x, raw.p)
+        )
+        earlier_complete_and_later_bad_x = _replace_point(
+            earlier_bad_y_range, 4, AffinePoint(False, points[4].y)
+        )
 
         cases = (
             (
@@ -978,6 +999,60 @@ class TestSgcpSecantMathCore(unittest.TestCase):
                     field_multiplications=3,
                     field_squarings=2,
                 ),
+            ),
+            (
+                "point_type_before_coordinate_payload",
+                raw,
+                wrong_point_with_coordinate_payload,
+                False,
+                CoreErrorCode.TYPE_MISMATCH,
+                (3, 2),
+                _post_discriminant_prefix(raw.p),
+            ),
+            (
+                "x_type_before_x_range",
+                raw,
+                bad_x_type_and_range,
+                False,
+                CoreErrorCode.TYPE_MISMATCH,
+                (3, 2, 0),
+                _post_discriminant_prefix(raw.p),
+            ),
+            (
+                "x_type_before_y_range",
+                raw,
+                bad_x_type_and_y_range,
+                False,
+                CoreErrorCode.TYPE_MISMATCH,
+                (3, 2, 0),
+                _post_discriminant_prefix(raw.p),
+            ),
+            (
+                "x_range_before_y_type",
+                raw,
+                bad_x_range_and_y_type,
+                False,
+                CoreErrorCode.NONCANONICAL_POINT,
+                (2,),
+                _post_discriminant_prefix(raw.p),
+            ),
+            (
+                "y_type_before_y_range",
+                raw,
+                bad_y_type_and_range,
+                False,
+                CoreErrorCode.TYPE_MISMATCH,
+                (3, 2, 1),
+                _post_discriminant_prefix(raw.p),
+            ),
+            (
+                "earlier_point_y_range_before_later_point_x_type",
+                raw,
+                earlier_complete_and_later_bad_x,
+                False,
+                CoreErrorCode.NONCANONICAL_POINT,
+                (1,),
+                _post_discriminant_prefix(raw.p),
             ),
             (
                 "x_field_before_y_field_within_point",
