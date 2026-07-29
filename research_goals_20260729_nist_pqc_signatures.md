@@ -3,6 +3,8 @@
 **Date anchor:** 2026-07-29
 
 **Status:** Planning record. Nine `draft` goals, one per Round-3 candidate.
+Companion record: `research_goals_20260729_nist_pqc_selected.md`, covering the
+five selected (standardized) algorithms.
 Nothing here is evidence. Every per-scheme technical statement below is a
 **research target sourced from secondary reporting or from recollection of the
 literature, and is unverified by this program.** No experiment may be designed
