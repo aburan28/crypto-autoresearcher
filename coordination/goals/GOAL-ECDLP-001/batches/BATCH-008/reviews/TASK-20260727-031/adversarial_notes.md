@@ -35,7 +35,7 @@ survive.
 
 **SA-1 — identical form.** Both edit committed artifacts in place under their
 original ids and leave HEAD's text differing from the archived text with no
-in-file marker. `CORR-20260727-003` defect_b describes the defect as records
+in-file marker. `CORR-20260727-007` defect_b describes the defect as records
 standing "with no superseding record and no indication in either file that its
 text was replaced." That sentence is presently true of
 `experiments/EXP-STR-003/specification.yaml` at `a935f207`.
@@ -48,7 +48,7 @@ being small, and the Coordinator must not let it.*
 **SA-3 — the correction does not exist (SURVIVES; this is objection OBJ-1).**
 At the bound snapshot, `ledger/corrections/` contains CORR-001, CORR-002,
 CORR-003 and nothing about this edit. Structurally that is the post-`5de2db97`
-state exactly. The precedent is unflattering: `CORR-20260727-003` exists only
+state exactly. The precedent is unflattering: `CORR-20260727-007` exists only
 because an independent forensic validator (TASK-20260727-016, finding V-NEW-1,
 severity HIGH) found the rewrite in git history a day later. "A correction is
 coming" is what every uncorrected in-place edit looks like from the inside. And
@@ -227,7 +227,7 @@ independently at the bound snapshot rather than accepting the Executor's report:
 falsified. The pre-registration ordering that makes F1 evidential — criteria
 frozen at `92268c9e` *before* execution at `c79e3a8d`, runs attesting `92268c9e`
 with `dirty: false` — is a property of commit order that no later edit can touch.
-`DEC-20260727-002` quotes no HEAD blob and depends on no HEAD byte-identity.
+`DEC-20260727-009` quotes no HEAD blob and depends on no HEAD byte-identity.
 
 **What does not survive:** HEAD byte-identity with the attested freeze, and the
 property that the frozen contract had never been edited after freezing.
@@ -320,8 +320,8 @@ additions**:
 57d56  < experiments/EXP-IC-002/specification.yaml: invalid YAML: while scanning a block scalar
 60d58  < experiments/EXP-STR-003/specification.yaml: invalid YAML: while scanning a block scalar
 982d979 < ledger/evidence/EV-STR-003.yaml: evidence references unknown experiment 'EXP-STR-003'
-985,986d981 < ledger/decisions/DEC-20260727-001.yaml: decision references unknown target 'EXP-IC-002'
-             < ledger/decisions/DEC-20260727-002.yaml: decision references unknown target 'EXP-STR-003'
+985,986d981 < ledger/decisions/DEC-20260727-008.yaml: decision references unknown target 'EXP-IC-002'
+             < ledger/decisions/DEC-20260727-009.yaml: decision references unknown target 'EXP-STR-003'
 ```
 
 Additional checks I ran that the batch did not:

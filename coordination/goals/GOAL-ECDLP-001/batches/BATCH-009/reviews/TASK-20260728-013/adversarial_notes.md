@@ -228,7 +228,7 @@ Required by the card. I argue it honestly and then say what it is worth.
 
 3. **Settings this batch says nothing about.** The preprocessing/advice model
    (Corrigan-Gibbs–Kogan, `N^{1/3}` online with `N^{1/3}` target-independent
-   advice, already charged in `DEC-20260727-001`): the advice is built without
+   advice, already charged in `DEC-20260727-008`): the advice is built without
    any target, so a "cannot construct without `k`" barrier is silent there.
    Multi-target/batch DLP (Kuhn–Struik, about `√(MN)` for `M` targets):
    untouched. Interval and partial-information settings: the natural object is
@@ -312,7 +312,7 @@ unarchived scratchpad probes. The executed `EXP-STR-003` package returned:
 > four instances."
 
 with the pre-fixed consequence that `OBS-1` had to be withdrawn or rescoped and
-`DEC-20260727-002` could not rest on it. The campaign's base rate of executed
+`DEC-20260727-009` could not rest on it. The campaign's base rate of executed
 batches overturning a paper-level adjudication is **1 of 1**. That is `n = 1`
 and I do not over-read it — but it is direct evidence against "paper beats a run
 by construction" as a general posture, and the disposition argues that posture
@@ -507,7 +507,7 @@ something about itself whichever way the measurement goes.
 `R₃`, for the frozen J0 triple and for one alternative curve-backed triple
 `λ₃ = a + b·λ₂` — inside `TASK-20260728-012`'s `instantiation.json`, and use the
 result to restate `G7` and narrow the P2 clause to the frozen eigenvalue source
-before `DEC-20260728-001` is written. Seconds of integer arithmetic, already
+before `DEC-20260728-004` is written. Seconds of integer arithmetic, already
 inside that card's scope and budget.
 
 ---

@@ -1,0 +1,133 @@
+hypothesis:
+  id: H-MLKEM-004
+  question_id: RQ-MLKEM-002
+  title: >-
+    Under a repaired hardened gate with a baseline-invisible synthetic control,
+    the incomplete ML-KEM re-encryption comparison class remains isolated to the
+    audited wolfSSL pre-fix routines when probed against a mechanism-matched
+    second implementation
+  statement: >-
+    A conformance gate repaired against the EXP-MLKEM-003 design defect
+    (KN-TECH-054) — adding a synthetic positive control whose omission is
+    invisible to G1 and visible to at least one of G2 or G3, redefining
+    generator_hardening_insufficient to fire only when that synthetic control
+    is missed, retaining the known wolfSSL v5.9.1 AVX2 omission as a
+    G1-visible detection-retention control, and selecting the second
+    implementation for fixed-bound hand-written vector comparison tails —
+    detects both positive controls, and finds no reproducible silent ciphertext
+    byte and no accept of a mutated equal-length ciphertext in wolfSSL
+    post-fix backends or in the mechanism-matched second implementation.
+  mechanism: >-
+    Instrument adequacy and substantive isolation are different questions and
+    must be decided by different controls. A synthetic comparator that silently
+    accepts every single-byte difference inside a designated region R, but
+    rejects a designated multi-byte or alignment pattern in that region, makes
+    the widened generator's marginal contribution observable: G2_minus_G1 or
+    G3_minus_G1 is non-empty exactly when the instrument works. The known
+    wolfSSL defect remains the detection-retention control. The systemic
+    question is then asked of an implementation whose comparison routine uses
+    fixed-bound hand-written vector tails — the defect-mechanism neighborhood
+    of the audited omission — rather than of a length-parameterized verify that
+    structurally cannot exhibit that omission class.
+  assumptions:
+    - Laboratory-only builds from public source; no deployed system, network peer, or third-party key.
+    - The wolfSSL v5.9.1 AVX2 ML-KEM-1024 omission at indices 1536..1567 remains a valid G1-visible detection-retention control (EV-MLKEM-005).
+    - A synthetic harness comparator can be constructed that is silent under G1 and flagged under G2 or G3 on a designated region, without modifying any library.
+    - At least one open-source ML-KEM implementation with fixed-bound hand-written vector comparison tails can be built and probed, or infrastructure unavailability is recorded after exhausting the preference order.
+    - Mutations that change the decrypted message legitimately produce rejection at the API boundary.
+  predictions:
+    - metric: synthetic_control_marginal_detection
+      direction: higher
+      minimum_effect: >-
+        The synthetic baseline-invisible control is undetected by G1 and
+        detected by at least one of G2 or G3 at the primitive level, producing
+        a non-empty G2_minus_G1 or G3_minus_G1 attributable to that control.
+    - metric: known_defect_detection_retained
+      direction: higher
+      minimum_effect: >-
+        The wolfSSL v5.9.1 AVX2 omission at 1536..1567 remains detected by G1
+        and by every widened class that reaches those indices.
+    - metric: mechanism_matched_second_impl_silent_indices
+      direction: lower
+      minimum_effect: >-
+        Exactly 0 reproducible silent indices and 0 equal-length decapsulation
+        accepts on the mechanism-matched second implementation and on wolfSSL
+        post-fix backends.
+    - metric: outcome_class_reachability
+      direction: different
+      minimum_effect: >-
+        Both generator_hardening_insufficient and isolated_to_audited_commits
+        are reachable under the frozen precedence given the synthetic control;
+        rediscovery of the known defect must not count as marginal information.
+  test_boundary:
+    instances:
+      - wolfSSL v5.9.1-stable and v5.9.2-stable, scalar and x64 AVX2, and aarch64 NEON under emulation if available
+      - one synthetic harness comparator that is G1-silent and G2-or-G3-visible on a designated region
+      - at least one additional open-source ML-KEM implementation whose comparison routine uses fixed-bound hand-written vector tails, pinned by commit or tag
+    parameters:
+      parameter_sets: [ML-KEM-512, ML-KEM-768, ML-KEM-1024]
+      keys_per_parameter_set: 4
+      generator_classes:
+        G1_single_byte: xor 0x01 and xor 0xff at every ciphertext index
+        G2_multi_byte: seeded k-byte coordinated flips for k in [2, 4, 8, 16] plus whole-block flips
+        G3_alignment: mutations at every 16, 32, and 64 byte boundary and at the last byte of each aligned block
+        G4_malformed_length: truncated and extended ciphertexts, recorded in a separate table
+        G5_key_dependence: every class replayed across all four keys
+      prohibited: any mutation program directed at recovering a secret
+    implementation: >-
+      Extend the EXP-MLKEM-003 harness with the synthetic control, the repaired
+      outcome definitions, and a second-implementation adapter constrained by
+      the mechanism-match selection rule. Library comparison logic, buffer
+      lengths, and dispatch conditions are never modified.
+    budget:
+      wall_clock_seconds: 5400
+      cpu_hours: 2.0
+      maximum_memory_gb: 4
+      maximum_runs: 4
+  falsification_conditions:
+    - >-
+      The synthetic control is detected by G1, or is undetected by both G2 and
+      G3. Either case falsifies the instrument-adequacy repair.
+    - >-
+      The known wolfSSL v5.9.1 defect is no longer detected by a generator class
+      that reaches indices 1536..1567. This falsifies detection retention.
+    - >-
+      A reproducible silent index or equal-length decapsulation accept appears
+      in a wolfSSL post-fix backend or in the mechanism-matched second
+      implementation. This falsifies isolation and makes the class systemic;
+      escalate and stop.
+    - >-
+      A conformance verdict is issued for a backend with no decapsulation-
+      boundary measurement.
+    - >-
+      Rediscovery of the known defect is counted as class_marginal_information.
+  distinguishable_outcomes:
+    isolated_to_audited_commits: >-
+      Synthetic control is G1-silent and G2-or-G3-detected; known defect is
+      retained; no new reproducible silent index or accept appears elsewhere.
+    systemic_incomplete_comparison: >-
+      A second mechanism-matched implementation or a wolfSSL post-fix backend
+      shows a reproducible silent index or accept. Escalate; construct no
+      exploitation path.
+    generator_hardening_insufficient: >-
+      The synthetic baseline-invisible control is not detected by G2 or G3.
+      The instrument failed; isolation is not licensed.
+    second_impl_unavailable: >-
+      No mechanism-matched second implementation could be built within its stage
+      budget after exhausting the preference order. Infrastructure outcome for
+      the cross-implementation line only.
+    invalid_harness_or_dispatch: >-
+      A required build fails, a backend cannot be attested, the anchor fails, or
+      the decapsulation probe cannot be reached. Infrastructure only.
+  interpretation_limits:
+    - Functional comparison completeness only; nothing about timing, power, EM, cache, microarchitectural, or fault behavior.
+    - Isolation is claimed only over the implementations, versions, backends, parameter sets, keys, and generator classes actually exercised.
+    - A null under a finite generator is not a correctness proof.
+    - Length-parameterized verify routines may be measured as secondary references but do not satisfy the mechanism-matched second-implementation requirement.
+    - Any newly observed conformance defect requires human review and coordinated disclosure; never an agent-published vulnerability claim.
+    - Nothing here bears on MLWE hardness or passive ML-KEM security.
+  selected_by: coordinator
+  proposal_ref: IDEA-20260724-001
+  evidence_basis: [EV-MLKEM-005, EV-MLKEM-006, KN-TECH-054, KN-FIND-001]
+  status: specified
+  proposed_by: coordinator

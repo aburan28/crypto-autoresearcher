@@ -67,7 +67,7 @@ this experiment refutes that suspicion at every headline instance.
 
 **1.4 The red team's own decisive control turned on it.** F1 fired. The
 pre-registered consequence is binding: OBS-1/RT-OBJ-1 withdrawn or rescoped,
-`DEC-20260727-002` may not rest on them, metric **UNADJUDICATED**. The
+`DEC-20260727-009` may not rest on them, metric **UNADJUDICATED**. The
 prosecution's case collapsed on the prosecution's own test.
 
 **Where this case actually lands.** 1.1 and 1.2 are correct and were both
@@ -331,7 +331,7 @@ archived.
 **`weaken`.** H-STR-002 `supported` → `weakened`; DEC-20260726-006 marked
 superseded by a **new** decision; EV-STR-002 superseded by a **new** evidence
 record carrying the EXP-STR-003 run ids; plus a correction in the
-CORR-20260727-001/002 form for the `5de2db97` in-place rewrite. New records
+CORR-20260727-005/002 form for the `5de2db97` in-place rewrite. New records
 only. Nothing edited.
 
 - **`replicate` — unavailable.** TASK-20260727-023 does not exist in this tree.

@@ -41,6 +41,9 @@ BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
 LEGACY_LEDGER_INVENTORY = os.path.join(
     REPO, "tools", "legacy_ledger_inventory.yaml"
 )
+LEGACY_RUN_INVENTORY = os.path.join(
+    REPO, "tools", "legacy_run_inventory.yaml"
+)
 
 ID_PATTERNS = {
     "research_question": re.compile(r"^RQ-[A-Z]+-\d{3}$"),
@@ -95,7 +98,11 @@ PRE_V2_CANONICAL_IDS = {"EV-SEMAEV-001", "DEC-20260719-001"}
 
 
 class Ctx:
-    def __init__(self, legacy_paths: set[str]):
+    def __init__(
+        self,
+        legacy_paths: set[str],
+        legacy_id_remaps: dict[str, str] | None = None,
+    ):
         self.errors: list[str] = []
         self.legacy_warnings: list[str] = []
         self.ids: dict[str, str] = {}          # id -> source path
@@ -104,6 +111,7 @@ class Ctx:
         self.run_params: dict[str, dict] = {}   # run id -> inputs.parameters
         self.knowledge: dict[str, str] = {}
         self.legacy_paths = legacy_paths
+        self.legacy_id_remaps = legacy_id_remaps or {}
         self.legacy_aliases: set[str] = set()
 
     def err(self, path: str, msg: str, *, force: bool = False):
@@ -182,6 +190,13 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
             if promoted == [] and not promotion.get("not_warranted"):
                 ctx.err(path, "empty knowledge_promotion.promoted requires "
                               "a nonempty not_warranted reason")
+    remapped_to = ctx.legacy_id_remaps.get(os.path.abspath(path))
+    if remapped_to:
+        ctx.legacy_warnings.append(
+            f"{os.path.relpath(path, REPO)}: historical ID {rec_id} is "
+            f"remapped to {remapped_to}; frozen source is not registered"
+        )
+        return
     ctx.register(str(rec_id), path, body, rec_type)
 
 
@@ -317,7 +332,43 @@ def load_legacy_inventory() -> dict[str, str]:
     return {str(path): str(digest) for path, digest in records.items()}
 
 
-def check_legacy_ledger(ctx: Ctx, inventory: dict[str, str]) -> None:
+def load_legacy_id_remaps() -> dict[str, str]:
+    doc = yaml.safe_load(open(LEGACY_LEDGER_INVENTORY, encoding="utf-8"))
+    remaps = doc.get("remapped_ids", {}) if isinstance(doc, dict) else {}
+    if not isinstance(remaps, dict):
+        raise ValueError("legacy ledger inventory remapped_ids must be a mapping")
+    return {str(path): str(rec_id) for path, rec_id in remaps.items()}
+
+
+def load_legacy_run_inventory() -> dict[str, str]:
+    doc = yaml.safe_load(open(LEGACY_RUN_INVENTORY, encoding="utf-8"))
+    if not isinstance(doc, dict) or doc.get("schema") != "legacy-run-inventory-v1":
+        raise ValueError("invalid legacy run inventory schema")
+    records = doc.get("records")
+    if not isinstance(records, dict):
+        raise ValueError("legacy run inventory records must be a mapping")
+    return {str(path): str(digest) for path, digest in records.items()}
+
+
+def check_legacy_run_inventory(ctx: Ctx, inventory: dict[str, str]) -> None:
+    for relative, expected in sorted(inventory.items()):
+        path = os.path.join(REPO, relative)
+        if not os.path.isfile(path):
+            ctx.err(path, "frozen legacy run manifest is missing", force=True)
+            continue
+        actual = hashlib.sha256(open(path, "rb").read()).hexdigest()
+        if actual != expected:
+            ctx.err(
+                path,
+                "frozen legacy run manifest hash changed; supersede it instead",
+                force=True,
+            )
+
+
+def check_legacy_ledger(
+    ctx: Ctx,
+    inventory: dict[str, str],
+) -> None:
     patterns = {
         "RQ-*.yaml": "research_question",
         "H-*.yaml": "hypothesis",
@@ -329,6 +380,9 @@ def check_legacy_ledger(ctx: Ctx, inventory: dict[str, str]) -> None:
         for path in sorted(glob.glob(os.path.join(REPO, "ledger", pattern))):
             relative = os.path.relpath(path, REPO)
             observed.add(relative)
+            # Even a malformed frozen record provides a stable historical
+            # filename alias for later correction/supersession records.
+            ctx.legacy_aliases.add(os.path.splitext(os.path.basename(path))[0])
             expected = inventory.get(relative)
             if expected is None:
                 ctx.err(path, "new root-level ledger record is forbidden; "
@@ -344,6 +398,16 @@ def check_legacy_ledger(ctx: Ctx, inventory: dict[str, str]) -> None:
     for missing in sorted(set(inventory) - observed):
         ctx.err(os.path.join(REPO, missing),
                 "frozen legacy ledger record is missing", force=True)
+
+
+def check_legacy_id_remaps(ctx: Ctx) -> None:
+    for source, target_id in sorted(ctx.legacy_id_remaps.items()):
+        if target_id not in ctx.ids:
+            ctx.err(
+                source,
+                f"legacy remap target '{target_id}' is not a canonical record",
+                force=True,
+            )
 
 
 def check_knowledge_entries(ctx: Ctx) -> None:
@@ -400,6 +464,150 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                                          f"unknown entry '{knowledge_id}'")
 
 
+GOAL_ID = re.compile(r"^GOAL-[A-Z0-9]+-\d{3}$")
+# `closed_at_budget` is a terminal status in active use. It asserts that the
+# campaign budget ran out WITHOUT a completion criterion being met, so it makes
+# no success claim and needs no quorum. Using it to retire a goal that did meet
+# a criterion, in order to avoid the quorum, is a contract violation.
+GOAL_STATUSES = {"draft", "active", "paused", "blocked", "completed",
+                 "cancelled", "closed_at_budget"}
+GOAL_REQUIRED = ["id", "title", "objective", "question_ids", "status",
+                 "completion_criteria", "pause_conditions", "next_action",
+                 "owner"]
+
+# Goal records were not validated at all before this check existed, and these
+# three were marked `completed` before the closure quorum was a rule. The rule
+# is prospective: demanding retroactive attestations would either block CI
+# permanently or invite back-dated ones, and a fabricated attestation is worse
+# than an unattested closure. They are exempt from the quorum and required-field
+# checks only, still validated for id format and status, and reported as schema
+# debt. Do not add to this set: a new closure must earn its quorum.
+PRE_QUORUM_GOAL_IDS = {"GOAL-ICLIFT-001", "GOAL-XEDN-001", "GOAL-XEDN-002",
+                       "GOAL-P13-001"}
+
+# A goal may only be closed out on the concurring judgement of three
+# independently-resolved models. See AGENTS.md "Goal closure quorum".
+GOAL_CLOSURE_QUORUM = 3
+ATTESTATION_REQUIRED = ["role", "requested_policy", "resolved_model_id",
+                        "independent_session", "reviewed_record_ids",
+                        "verdict"]
+CONCUR = "CONCUR"
+DISSENT = "DISSENT"
+
+
+def check_goal_closure_quorum(path: str, goal: dict, ctx: Ctx):
+    """Enforce the three-model quorum on a goal marked `completed`.
+
+    A closed-out goal must carry `completion_quorum.attestations`: at least
+    three verdicts whose `resolved_model_id` values are pairwise distinct and
+    which all CONCUR. The distinctness is on the *resolved* model, not the
+    requested policy alias, because a policy that falls back to a shared model
+    yields correlated judgements and is not a quorum.
+    """
+    quorum = goal.get("completion_quorum")
+    if not isinstance(quorum, dict):
+        ctx.err(path, "goal status 'completed' requires a completion_quorum "
+                      f"block with {GOAL_CLOSURE_QUORUM} concurring "
+                      "attestations")
+        return
+
+    attestations = quorum.get("attestations")
+    if not isinstance(attestations, list) or not attestations:
+        ctx.err(path, "completion_quorum.attestations must be a non-empty list")
+        return
+
+    for i, att in enumerate(attestations):
+        if not isinstance(att, dict):
+            ctx.err(path, f"completion_quorum.attestations[{i}] must be a "
+                          "mapping")
+            return
+        for field in ATTESTATION_REQUIRED:
+            if att.get(field) in (None, "", []):
+                ctx.err(path, f"completion_quorum.attestations[{i}] missing "
+                              f"required field '{field}'")
+
+    verdicts = [str(a.get("verdict", "")).strip().upper() for a in attestations]
+    dissent = [i for i, v in enumerate(verdicts) if v == DISSENT]
+    if dissent:
+        ctx.err(path, "goal status 'completed' contradicts DISSENT in "
+                      f"completion_quorum.attestations{dissent}; a dissent "
+                      "blocks closure until superseded by a new decision")
+
+    concurring = [a for a, v in zip(attestations, verdicts) if v == CONCUR]
+    if len(concurring) < GOAL_CLOSURE_QUORUM:
+        ctx.err(path, f"goal closure needs {GOAL_CLOSURE_QUORUM} CONCUR "
+                      f"attestations, found {len(concurring)}")
+
+    models = [str(a.get("resolved_model_id", "")).strip()
+              for a in concurring if a.get("resolved_model_id")]
+    distinct = {m for m in models if m}
+    if len(distinct) < GOAL_CLOSURE_QUORUM:
+        ctx.err(path, "goal closure needs "
+                      f"{GOAL_CLOSURE_QUORUM} pairwise-distinct "
+                      f"resolved_model_id values among concurring "
+                      f"attestations, found {len(distinct)} "
+                      f"({sorted(distinct)})")
+
+    non_independent = [i for i, a in enumerate(attestations)
+                       if a.get("independent_session") is not True]
+    if non_independent:
+        ctx.err(path, "every closure attestation must set "
+                      "independent_session: true; not set at "
+                      f"attestations{non_independent}")
+
+    for i, att in enumerate(attestations):
+        refs = att.get("reviewed_record_ids")
+        if isinstance(refs, list) and refs:
+            unknown = [r for r in refs
+                       if r not in ctx.ids and not str(r).startswith("GOAL-")]
+            if unknown:
+                ctx.err(path, f"completion_quorum.attestations[{i}] cites "
+                              f"unknown record(s) {unknown}")
+
+
+def check_goals(ctx: Ctx):
+    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals",
+                                              "*.yaml"))):
+        doc = load_yaml(path, ctx)
+        if doc is None:
+            continue
+        goal = doc.get("research_goal") if isinstance(doc, dict) else None
+        if not isinstance(goal, dict):
+            ctx.err(path, "missing top-level 'research_goal' mapping")
+            continue
+
+        rec_id = goal.get("id")
+        if not rec_id or not GOAL_ID.match(str(rec_id)):
+            ctx.err(path, f"invalid goal id {rec_id!r}")
+        else:
+            expected = f"{rec_id}.yaml"
+            if os.path.basename(path) != expected:
+                ctx.err(path, f"filename must match id ({expected})")
+            ctx.register(str(rec_id), path, goal, "research_goal")
+
+        grandfathered = str(rec_id) in PRE_QUORUM_GOAL_IDS
+
+        if not grandfathered:
+            for field in GOAL_REQUIRED:
+                if goal.get(field) in (None, ""):
+                    ctx.err(path, f"missing required field '{field}'")
+
+        status = str(goal.get("status", "")).strip()
+        if status and status not in GOAL_STATUSES:
+            ctx.err(path, f"invalid status {status!r}")
+
+        if status == "completed" and not grandfathered:
+            check_goal_closure_quorum(path, goal, ctx)
+        elif isinstance(goal.get("completion_quorum"), dict):
+            # Attestations may be gathered before the transition; they simply
+            # must not be mistaken for a closure that has not happened.
+            quorum = goal["completion_quorum"]
+            if quorum.get("quorum_satisfied") is True and status != "completed":
+                ctx.err(path, "completion_quorum.quorum_satisfied is true but "
+                              f"status is {status!r}; only a Coordinator "
+                              "ledger archive may perform the transition")
+
+
 def check_knowledge_index(ctx: Ctx):
     rc = subprocess.run(
         [sys.executable, os.path.join(REPO, "tools", "build_knowledge_index.py"),
@@ -447,13 +655,19 @@ def main() -> int:
 
     try:
         legacy_inventory = load_legacy_inventory()
+        legacy_id_remaps = load_legacy_id_remaps()
+        legacy_run_inventory = load_legacy_run_inventory()
     except (OSError, ValueError) as error:
-        print(f"FAIL: cannot load legacy ledger inventory: {error}",
+        print(f"FAIL: cannot load legacy inventory: {error}",
               file=sys.stderr)
         return 1
     legacy_paths = {os.path.abspath(os.path.join(REPO, path))
-                    for path in legacy_inventory}
-    ctx = Ctx(legacy_paths)
+                    for path in (*legacy_inventory, *legacy_run_inventory)}
+    absolute_remaps = {
+        os.path.abspath(os.path.join(REPO, path)): target
+        for path, target in legacy_id_remaps.items()
+    }
+    ctx = Ctx(legacy_paths, absolute_remaps)
     check_legacy_ledger(ctx, legacy_inventory)
     for sub, rec_type in LEDGER_DIRS.items():
         for path in sorted(glob.glob(os.path.join(REPO, "ledger", sub, "*.yaml"))):
@@ -461,9 +675,12 @@ def main() -> int:
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*",
                                               "specification.yaml"))):
         check_experiment(path, ctx)
+    check_legacy_run_inventory(ctx, legacy_run_inventory)
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
                                               "*", "manifest.yaml"))):
         check_run(path, ctx)
+    check_legacy_id_remaps(ctx)
+    check_goals(ctx)
     check_cross_refs(ctx)
     check_knowledge_entries(ctx)
     check_knowledge_index(ctx)
@@ -488,8 +705,9 @@ def main() -> int:
               f"by {os.path.relpath(BASELINE_PATH, REPO)}")
     if ctx.legacy_warnings:
         print(f"note: {len(legacy_inventory)} frozen root-level ledger records "
-              f"were indexed; {len(ctx.legacy_warnings)} legacy schema issue(s) "
-              "remain read-only")
+              f"were indexed; {len(legacy_run_inventory)} legacy run "
+              f"manifest(s) were indexed; {len(ctx.legacy_warnings)} legacy "
+              "schema issue(s) remain read-only")
     if stale:
         print(f"note: {len(stale)} baseline entrie(s) no longer occur; prune "
               f"with --update-baseline")

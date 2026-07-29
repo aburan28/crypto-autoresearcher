@@ -114,7 +114,7 @@ hit repeatedly, from the other direction:
 
 - *"the SVP output must be recognizable"* ↔ `EXP-STR-002`'s `phi_alpha`, where
   the metric turned out to count row-insertion bookkeeping rather than
-  φ-invariance (see `DEC-20260727-002`, `EV-STR-003`).
+  φ-invariance (see `DEC-20260727-009`, `EV-STR-003`).
 - *"the recognized data must determine a transition, including integral module
   structure"* ↔ the repeated finding that a quantity can be measured exactly and
   still license nothing, e.g. `EV-IC-002`'s crossover, where `K* = ∞` against the

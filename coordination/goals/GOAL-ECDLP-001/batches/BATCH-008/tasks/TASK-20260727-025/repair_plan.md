@@ -24,8 +24,8 @@
 
 ```
 ledger/evidence/EV-STR-003.yaml: evidence references unknown experiment 'EXP-STR-003'
-ledger/decisions/DEC-20260727-002.yaml: decision references unknown target 'EXP-STR-003'
-ledger/decisions/DEC-20260727-001.yaml: decision references unknown target 'EXP-IC-002'
+ledger/decisions/DEC-20260727-009.yaml: decision references unknown target 'EXP-STR-003'
+ledger/decisions/DEC-20260727-008.yaml: decision references unknown target 'EXP-IC-002'
 ```
 
 ### 1.1 Root cause, verified by reading `tools/validate_ledger.py` in this session
@@ -79,7 +79,7 @@ opening a plain scalar, which YAML reads as the block-scalar indicator**.
 | Contract blob (HEAD) | `1c6f10b7ba4db293126504c19b4fe9c931b257f3` | **orchestrator-supplied, unverified** |
 | Blob identical at | `92268c9e72dd9d49de410f4a535e64af5aa5d9a9` (pre-execution freeze, TASK-20260727-020), `c79e3a8d6cb429c7a9c876b5e0272f46145ab919` (run-package snapshot, TASK-20260727-022), and HEAD | **orchestrator-supplied, unverified**; independently reported by TASK-20260727-023 and TASK-20260727-024 |
 | Committed runs | 20, each recording `code.commit: 92268c9e72dd9d49de410f4a535e64af5aa5d9a9`, `dirty: false` | **orchestrator-supplied, unverified**; reported by TASK-20260727-023 |
-| Downstream ledger | `EV-STR-003`, `DEC-20260727-002`, `CORR-20260727-003`, `H-STR-002` (`supported -> weakened`) | read in this session |
+| Downstream ledger | `EV-STR-003`, `DEC-20260727-009`, `CORR-20260727-007`, `H-STR-002` (`supported -> weakened`) | read in this session |
 
 ### 2.2 The exact line
 
@@ -130,7 +130,7 @@ What the repair **preserves**:
 - The pre-registration property that makes the ablation evidential — that the
   criteria F1-F4 and S1-S4 were frozen at `92268c9e` *before* `c79e3a8d`
   executed them — is a property of commit order, which the repair cannot alter.
-- Every number in `EV-STR-003`, `DEC-20260727-002` and `CORR-20260727-003`, and
+- Every number in `EV-STR-003`, `DEC-20260727-009` and `CORR-20260727-007`, and
   the `H-STR-002` `supported -> weakened` transition they carry.
 
 What the repair **does not preserve**:
@@ -143,7 +143,7 @@ What the repair **does not preserve**:
   It has been, once, on the record, for quoting only.
 
 **Rejected: reissue under a new EXP id.** It does not fix the reported defect,
-and saying otherwise would be false. `EV-STR-003.yaml` and `DEC-20260727-002.yaml`
+and saying otherwise would be false. `EV-STR-003.yaml` and `DEC-20260727-009.yaml`
 are immutable and name `EXP-STR-003`; a new id leaves both references
 unresolvable, so errors 1 and 2 persist verbatim. The unparseable file would also
 remain in the glob, so its own unbaselined `invalid YAML:` error persists. It
@@ -177,7 +177,7 @@ state: both blob hashes (before and after), the three commits at which the
 original blob is retrievable, the exact line changed, that the runs' attestation
 points at `92268c9e`'s blob and continues to resolve, and that no protocol field
 changed. This is deliberately the opposite of the `5de2db97` defect that
-`CORR-20260727-003` corrects: that was an in-place rewrite of archived *claims*
+`CORR-20260727-007` corrects: that was an in-place rewrite of archived *claims*
 with no superseding record; this is a quoting change declared in advance in a
 snapshot-committed plan, independently reviewed, and recorded in a superseding
 correction.
@@ -199,7 +199,7 @@ signal a protocol change and would itself alter a parsed field.
 | Path | `experiments/EXP-IC-002/specification.yaml` | read directly |
 | Contract blob (HEAD) | `8987eb01978ab82538b17e35358c389c23a9b7f1` | **orchestrator-supplied, unverified** |
 | Committed runs | **zero** — the experiment was reviewed `REVISE` twice (TASK-20260727-004, TASK-20260727-012) and **never executed** | consistent with the committed BATCH-006 checkpoint read in this session |
-| Downstream ledger | `DEC-20260727-001` names it as a target; `EV-IC-002` is a derivational re-analysis of the 748 committed **EXP-IC-001** runs and does not rest on any EXP-IC-002 execution | read in this session |
+| Downstream ledger | `DEC-20260727-008` names it as a target; `EV-IC-002` is a derivational re-analysis of the 748 committed **EXP-IC-001** runs and does not rest on any EXP-IC-002 execution | read in this session |
 
 ### 3.2 The exact line
 
@@ -233,7 +233,7 @@ one rule to both:
 - **No run binds to this blob.** There are zero runs, so there is no
   `code.commit` attestation whose byte-identity with HEAD anyone will ever check.
 - **No evidence record rests on its execution.** `EV-IC-002` is derived from
-  EXP-IC-001 run records; `DEC-20260727-001` weakened `H-IC-001` on that
+  EXP-IC-001 run records; `DEC-20260727-008` weakened `H-IC-001` on that
   derivation, explicitly noting the control experiment was never executed.
 - The versions that the two `REVISE` reviews actually read remain retrievable in
   Git history exactly as before, alongside `experiments/EXP-IC-002/amendments/v1_to_v2.yaml`.
@@ -348,7 +348,7 @@ No hypothesis status is changed by this plan or by the repair.
   candidate attack improvement and is not an independently validated novel
   technique.
 - Not a re-opening of `H-STR-002` or `H-IC-001`. Both remain `weakened`, per
-  `DEC-20260727-002` and `DEC-20260727-001` respectively.
+  `DEC-20260727-009` and `DEC-20260727-008` respectively.
 - Not a closure of anything, so **no closure quorum arises and none is claimed**.
   Recorded for the record: `AGENTS.md` in this tree has **no rule 13 and no
   closure-quorum clause** — that text is an `origin/main` skew — and every review

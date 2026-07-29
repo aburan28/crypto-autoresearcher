@@ -59,14 +59,69 @@ For every batch, run this sequence:
    evidence and route them to a repair, replication, or new positive search
    direction.
 
+## Promotion gates and dispatch bias
+
+Prioritize exponent-targeting mechanisms over logarithmic- or
+constant-cofactor improvements; the canonical target profile is
+`docs/target-result-profile.md`.
+
+When a batch dispatches a conditional result, include in the same or the
+following batch a heuristic-validation experiment — sampling the relevant
+distribution at target scale, comparing the empirical distribution against
+the prediction, and checking tail consistency — and, where feasible, a
+proof-of-concept implementation task.
+
+An asymptotic-complexity claim may not transition toward `supported` in a
+ledger archive until all four gates are satisfied by committed artifacts:
+
+1. archived proof decomposition into single-responsibility lemmas, with the
+   main theorem assembling them under explicit per-attempt cost × inverse
+   success probability bookkeeping;
+2. explicit numbered heuristics, each with archived validation evidence or a
+   scheduled validation experiment;
+3. a concrete-cost table at standardized parameter sets with honest
+   hidden-overhead (o(1) terms) and memory accounting, time–memory
+   tradeoffs, parallelization, flagged optimistic assumptions, and an
+   affected-vs-safe scope statement;
+4. independent `review-xhigh` review plus a red-team pass on the cost model
+   and heuristics.
+
+A claim missing any gate may advance through `analyzed`, but the batch report
+must name the missing gates instead of requesting promotion.
+
 ## Completion and pause
 
 Mark the persistent goal `completed` only when a committed Coordinator decision
-shows that a declared completion criterion was met. Mark it `paused` only when
-the user requests it or a committed decision records the stated scoped pause
-condition. A failed candidate, empty queue, timeout, or temporary lack of a
-promising idea does not complete the goal: record the narrowest result and add
-the next concrete action instead.
+shows that a declared completion criterion was met **and** the three-model
+closure quorum is satisfied. Mark it `paused` only when the user requests it or
+a committed decision records the stated scoped pause condition. A failed
+candidate, empty queue, timeout, or temporary lack of a promising idea does not
+complete the goal: record the narrowest result and add the next concrete action
+instead.
+
+### Closure quorum (AGENTS.md rule 13)
+
+Before any `status: completed` transition, collect **three** independent
+attestations into `completion_quorum.attestations`:
+
+1. Dispatch three review sessions on three **different** models. Distinctness is
+   judged on `resolved_model_id`, not the requested policy alias — if the
+   backend falls back and all three resolve to the same model, you do not have a
+   quorum and must say so rather than record one.
+2. Each session reads the committed evidence and decision records for itself,
+   sets `independent_session: true`, cites the exact record IDs it reviewed, and
+   returns `CONCUR` or `DISSENT` with a rationale.
+3. All three must `CONCUR`. A single `DISSENT` blocks closure and stands until a
+   new Coordinator decision supersedes it on the merits — do not outvote it, and
+   do not re-roll for a friendlier verdict.
+4. The ledger archive that sets `status: completed` also sets
+   `quorum_satisfied: true` and commits the attestations in the same commit.
+
+If three distinct models cannot be resolved, **do not close the goal**. Leave it
+`paused` with a concrete resume action and state plainly that closure was
+blocked on model availability, not on the research. `tools/validate_ledger.py`
+rejects a `completed` goal whose quorum is missing, short, correlated, or
+dissenting.
 
 ## Output after each batch
 
@@ -78,6 +133,8 @@ Report:
 - knowledge entries promoted this batch (KN-* IDs), or each decision's
   recorded `not_warranted` reason — a batch that proved something but
   promoted nothing must say why;
+- for any asymptotic-complexity claim advanced this batch, which of the four
+  promotion gates passed and which remain open;
 - the exact next action and why it reduces the remaining uncertainty.
 
 Never call a passing validator, a snapshot commit, or a toy result a
