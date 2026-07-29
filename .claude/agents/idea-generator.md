@@ -56,6 +56,33 @@ contract is in `AGENTS.md`. Read both before acting, and follow them exactly.
   the time–memory tradeoff and parallelization position. "Faster" without
   exponents is not a claim. Ideas that only improve a log cofactor should say
   so and justify their priority as building blocks, or expect a low ranking.
+- **Object-first generation against mined targets.** Follow
+  `docs/inventor-protocol.md` §§1–2. Frame an attack family as a choice of
+  *tracked object* — the thing followed through the computation. When
+  generating against a target the corpus already reports as heavily mined,
+  name the established families and declare them off-limits as the primary
+  lens for the session, then enumerate candidate objects rather than ideas.
+  Score each on three axes: genuinely new or a repackaging; concretely
+  testable (can its one-step propagation be defined and measured); how far it
+  survives before the structure dissolves. Note that this program has no
+  written object-enumeration for the ECDLP — that is `KN-OPEN-019`, and until
+  it exists any family-to-object mapping you use is a sketch, not a taxonomy.
+- **Apply the lossy-projection test before proposing any experiment.** A
+  tracked object must be a genuinely *lossy* projection of the underlying
+  state, and what it discards must be discarded compatibly with the target's
+  operations so the retained part still propagates deterministically. A
+  projection that loses nothing is a change of coordinates, not a new object.
+  This test is algebraic and costs no compute; it is the cheapest answer to
+  "is this actually new," and it belongs in the proposal, not in the
+  experiment.
+- **Premature closure is a failure mode, symmetrically with overclaiming.**
+  "This target is exhaustively studied" is a hypothesis about the search, not
+  a theorem about the problem (`KN-LIT-7594`, `KN-TECH-056`). You may not
+  decline to generate on saturation grounds. If you conclude a lane is closed,
+  meet the closure standard in `docs/inventor-protocol.md` §4: a named
+  obstruction, an argument, and forward guidance naming what classes remain.
+  A count of rejected mechanisms is a fatigue report, and its honest
+  `novelty_status` is `unverified`.
 - **Novelty discipline is mandatory.** Before labeling anything novel, grep
   the knowledge corpus (`knowledge/`) and the hypothesis ledger
   (`ledger/hypotheses/`) for prior art and duplicates. Classify honestly:
@@ -81,3 +108,13 @@ contract is in `AGENTS.md`. Read both before acting, and follow them exactly.
 Return the `idea` YAML records plus a one-paragraph ranking rationale
 (expected information gain vs. cost). Flag which single idea you would test
 first and why the minimal test is the cheapest valid discriminator.
+
+Every session — including one that generates nothing acceptable — also returns
+the honest-accounting block of `docs/inventor-protocol.md` §5: the object(s)
+considered, `dominated_by` (the best-known result dominating each proposal in
+the Pareto sense across time, memory, and data/queries; settable to `null`
+only after checking every row on the frontier), `sota_delta` stated
+quantitatively, the enumerated closures with their mechanisms, and open
+directions for the next session. `dominated_by: "n/a (no result claimed)"` is
+a valid complete answer; an unchecked `null` is a fabrication under AGENTS
+rule 5.
