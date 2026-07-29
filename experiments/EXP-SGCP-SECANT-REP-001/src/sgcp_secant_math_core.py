@@ -269,6 +269,54 @@ def _tick(
     )
 
 
+def _combine(left: CoreOps, right: CoreOps) -> CoreOps:
+    return CoreOps(
+        integer_remainder_tests=(
+            left.integer_remainder_tests + right.integer_remainder_tests
+        ),
+        field_reductions=left.field_reductions + right.field_reductions,
+        field_additions=left.field_additions + right.field_additions,
+        field_subtractions=left.field_subtractions + right.field_subtractions,
+        field_multiplications=(
+            left.field_multiplications + right.field_multiplications
+        ),
+        field_squarings=left.field_squarings + right.field_squarings,
+        field_negations=left.field_negations + right.field_negations,
+        field_inversions=left.field_inversions + right.field_inversions,
+        point_membership_checks=(
+            left.point_membership_checks + right.point_membership_checks
+        ),
+        chart_curve_transforms=(
+            left.chart_curve_transforms + right.chart_curve_transforms
+        ),
+        chart_point_transforms=(
+            left.chart_point_transforms + right.chart_point_transforms
+        ),
+        unordered_pairs_enumerated=(
+            left.unordered_pairs_enumerated
+            + right.unordered_pairs_enumerated
+        ),
+        ec_additions=left.ec_additions + right.ec_additions,
+        secant_branches=left.secant_branches + right.secant_branches,
+        tangent_branches=left.tangent_branches + right.tangent_branches,
+        vertical_pairs_excluded=(
+            left.vertical_pairs_excluded + right.vertical_pairs_excluded
+        ),
+        fiber_witnesses_inserted=(
+            left.fiber_witnesses_inserted
+            + right.fiber_witnesses_inserted
+        ),
+        sort_keys_emitted=left.sort_keys_emitted + right.sort_keys_emitted,
+        representative_keys_compared=(
+            left.representative_keys_compared
+            + right.representative_keys_compared
+        ),
+        slope_collision_checks=(
+            left.slope_collision_checks + right.slope_collision_checks
+        ),
+    )
+
+
 def _failure(
     code: CoreErrorCode,
     indices: tuple[int, ...],
@@ -284,8 +332,8 @@ def _failure(
     )
 
 
-def _reduce(value: int, p: int, operations: CoreOps) -> tuple[int, CoreOps]:
-    operations = _tick(operations, field_reductions=1)
+def _reduce(value: int, p: int) -> tuple[int, CoreOps]:
+    operations = _tick(_zero_ops(), field_reductions=1)
     return value % p, operations
 
 
@@ -293,9 +341,8 @@ def _add(
     left: int,
     right: int,
     p: int,
-    operations: CoreOps,
 ) -> tuple[int, CoreOps]:
-    operations = _tick(operations, field_additions=1)
+    operations = _tick(_zero_ops(), field_additions=1)
     return (left + right) % p, operations
 
 
@@ -303,9 +350,8 @@ def _subtract(
     left: int,
     right: int,
     p: int,
-    operations: CoreOps,
 ) -> tuple[int, CoreOps]:
-    operations = _tick(operations, field_subtractions=1)
+    operations = _tick(_zero_ops(), field_subtractions=1)
     return (left - right) % p, operations
 
 
@@ -313,52 +359,54 @@ def _multiply(
     left: int,
     right: int,
     p: int,
-    operations: CoreOps,
 ) -> tuple[int, CoreOps]:
-    operations = _tick(operations, field_multiplications=1)
+    operations = _tick(_zero_ops(), field_multiplications=1)
     return (left * right) % p, operations
 
 
 def _square(
     value: int,
     p: int,
-    operations: CoreOps,
 ) -> tuple[int, CoreOps]:
-    operations = _tick(operations, field_squarings=1)
+    operations = _tick(_zero_ops(), field_squarings=1)
     return (value * value) % p, operations
 
 
 def _negate(
     value: int,
     p: int,
-    operations: CoreOps,
 ) -> tuple[int, CoreOps]:
-    operations = _tick(operations, field_negations=1)
+    operations = _tick(_zero_ops(), field_negations=1)
     return (-value) % p, operations
 
 
 def _invert(
     value: int,
     p: int,
-    operations: CoreOps,
 ) -> tuple[int, CoreOps]:
-    operations = _tick(operations, field_inversions=1)
+    operations = _tick(_zero_ops(), field_inversions=1)
     return pow(value, -1, p), operations
 
 
 def _membership(
     curve: Curve,
     point: AffinePoint,
-    operations: CoreOps,
 ) -> tuple[bool, CoreOps]:
-    operations = _tick(operations, point_membership_checks=1)
-    y2, operations = _square(point.y, curve.p, operations)
-    x2, operations = _square(point.x, curve.p, operations)
-    x3, operations = _multiply(x2, point.x, curve.p, operations)
-    ax, operations = _multiply(curve.a, point.x, curve.p, operations)
-    rhs, operations = _add(x3, ax, curve.p, operations)
-    rhs, operations = _add(rhs, curve.b, curve.p, operations)
-    difference, operations = _subtract(y2, rhs, curve.p, operations)
+    operations = _tick(_zero_ops(), point_membership_checks=1)
+    y2, event = _square(point.y, curve.p)
+    operations = _combine(operations, event)
+    x2, event = _square(point.x, curve.p)
+    operations = _combine(operations, event)
+    x3, event = _multiply(x2, point.x, curve.p)
+    operations = _combine(operations, event)
+    ax, event = _multiply(curve.a, point.x, curve.p)
+    operations = _combine(operations, event)
+    rhs, event = _add(x3, ax, curve.p)
+    operations = _combine(operations, event)
+    rhs, event = _add(rhs, curve.b, curve.p)
+    operations = _combine(operations, event)
+    difference, event = _subtract(y2, rhs, curve.p)
+    operations = _combine(operations, event)
     return difference == 0, operations
 
 
@@ -368,6 +416,7 @@ def build_candidate_core(
     u: int,
 ) -> CoreResult[CandidateCore]:
     operations = _zero_ops()
+    phase_operations = _zero_ops()
 
     if type(raw) is not CurveInput:
         return _failure(CoreErrorCode.TYPE_MISMATCH, (), operations)
@@ -385,21 +434,27 @@ def build_candidate_core(
             (0,),
             operations,
         )
-    operations = _tick(operations, integer_remainder_tests=1)
+    phase_operations = _tick(
+        phase_operations,
+        integer_remainder_tests=1,
+    )
     if raw.p % 2 == 0:
         return _failure(
             CoreErrorCode.MODULUS_NOT_ODD_PRIME,
             (0,),
-            operations,
+            _combine(operations, phase_operations),
         )
     divisor = 3
     while divisor * divisor <= raw.p:
-        operations = _tick(operations, integer_remainder_tests=1)
+        phase_operations = _tick(
+            phase_operations,
+            integer_remainder_tests=1,
+        )
         if raw.p % divisor == 0:
             return _failure(
                 CoreErrorCode.MODULUS_NOT_ODD_PRIME,
                 (0,),
-                operations,
+                _combine(operations, phase_operations),
             )
         divisor += 2
 
@@ -407,28 +462,36 @@ def build_candidate_core(
         return _failure(
             CoreErrorCode.NONCANONICAL_COEFFICIENT,
             (1,),
-            operations,
+            _combine(operations, phase_operations),
         )
     if raw.b < 0 or raw.b >= raw.p:
         return _failure(
             CoreErrorCode.NONCANONICAL_COEFFICIENT,
             (2,),
-            operations,
+            _combine(operations, phase_operations),
         )
 
-    a2, operations = _square(raw.a, raw.p, operations)
-    a3, operations = _multiply(a2, raw.a, raw.p, operations)
-    term_a, operations = _multiply(4, a3, raw.p, operations)
-    b2, operations = _square(raw.b, raw.p, operations)
-    term_b, operations = _multiply(27, b2, raw.p, operations)
-    discriminant, operations = _add(term_a, term_b, raw.p, operations)
+    a2, event = _square(raw.a, raw.p)
+    phase_operations = _combine(phase_operations, event)
+    a3, event = _multiply(a2, raw.a, raw.p)
+    phase_operations = _combine(phase_operations, event)
+    term_a, event = _multiply(4, a3, raw.p)
+    phase_operations = _combine(phase_operations, event)
+    b2, event = _square(raw.b, raw.p)
+    phase_operations = _combine(phase_operations, event)
+    term_b, event = _multiply(27, b2, raw.p)
+    phase_operations = _combine(phase_operations, event)
+    discriminant, event = _add(term_a, term_b, raw.p)
+    phase_operations = _combine(phase_operations, event)
     if discriminant == 0:
         return _failure(
             CoreErrorCode.SINGULAR_CURVE,
             (1, 2),
-            operations,
+            _combine(operations, phase_operations),
         )
     curve = Curve(p=raw.p, a=raw.a, b=raw.b)
+    operations = _combine(operations, phase_operations)
+    phase_operations = _zero_ops()
 
     if type(points) is not tuple:
         return _failure(CoreErrorCode.TYPE_MISMATCH, (3,), operations)
@@ -486,22 +549,24 @@ def build_candidate_core(
                 operations,
             )
     for point_index, point in enumerate(points):
-        is_member, operations = _membership(curve, point, operations)
+        is_member, event = _membership(curve, point)
+        phase_operations = _combine(phase_operations, event)
         if not is_member:
             return _failure(
                 CoreErrorCode.POINT_NOT_ON_CURVE,
                 (point_index,),
-                operations,
+                _combine(operations, phase_operations),
             )
     for point_index, point in enumerate(points):
         if point.y == 0:
             return _failure(
                 CoreErrorCode.TWO_TORSION_POINT,
                 (point_index,),
-                operations,
+                _combine(operations, phase_operations),
             )
     for point_index, point in enumerate(points):
-        negative_y, operations = _negate(point.y, curve.p, operations)
+        negative_y, event = _negate(point.y, curve.p)
+        phase_operations = _combine(phase_operations, event)
         inverse_point = AffinePoint(x=point.x, y=negative_y)
         inverse_found = False
         for candidate in points:
@@ -512,210 +577,199 @@ def build_candidate_core(
             return _failure(
                 CoreErrorCode.FACTOR_BASE_NOT_SIGN_COMPLETE,
                 (point_index,),
-                operations,
+                _combine(operations, phase_operations),
             )
 
+    operations = _combine(operations, phase_operations)
+    phase_operations = _zero_ops()
     if type(u) is not int:
         return _failure(CoreErrorCode.TYPE_MISMATCH, (4,), operations)
-    u0, operations = _reduce(u, curve.p, operations)
+    u0, event = _reduce(u, curve.p)
+    phase_operations = _combine(phase_operations, event)
     if u0 == 0:
         return _failure(
             CoreErrorCode.ZERO_CHART_SCALAR,
             (4,),
-            operations,
+            _combine(operations, phase_operations),
         )
 
-    operations = _tick(operations, chart_curve_transforms=1)
-    u2, operations = _square(u0, curve.p, operations)
-    u3, operations = _multiply(u2, u0, curve.p, operations)
-    u4, operations = _square(u2, curve.p, operations)
-    u6, operations = _multiply(u4, u2, curve.p, operations)
-    chart_a, operations = _multiply(u4, curve.a, curve.p, operations)
-    chart_b, operations = _multiply(u6, curve.b, curve.p, operations)
+    phase_operations = _tick(
+        phase_operations,
+        chart_curve_transforms=1,
+    )
+    u2, event = _square(u0, curve.p)
+    phase_operations = _combine(phase_operations, event)
+    u3, event = _multiply(u2, u0, curve.p)
+    phase_operations = _combine(phase_operations, event)
+    u4, event = _square(u2, curve.p)
+    phase_operations = _combine(phase_operations, event)
+    u6, event = _multiply(u4, u2, curve.p)
+    phase_operations = _combine(phase_operations, event)
+    chart_a, event = _multiply(u4, curve.a, curve.p)
+    phase_operations = _combine(phase_operations, event)
+    chart_b, event = _multiply(u6, curve.b, curve.p)
+    phase_operations = _combine(phase_operations, event)
     chart_curve = Curve(p=curve.p, a=chart_a, b=chart_b)
 
     transformed_points = []
     for point in points:
-        operations = _tick(operations, chart_point_transforms=1)
-        chart_x, operations = _multiply(u2, point.x, curve.p, operations)
-        chart_y, operations = _multiply(u3, point.y, curve.p, operations)
+        phase_operations = _tick(
+            phase_operations,
+            chart_point_transforms=1,
+        )
+        chart_x, event = _multiply(u2, point.x, curve.p)
+        phase_operations = _combine(phase_operations, event)
+        chart_y, event = _multiply(u3, point.y, curve.p)
+        phase_operations = _combine(phase_operations, event)
         transformed_points.append(AffinePoint(x=chart_x, y=chart_y))
     transformed_points.sort()
-    operations = _tick(operations, sort_keys_emitted=6)
+    phase_operations = _tick(phase_operations, sort_keys_emitted=6)
     sorted_chart_points = tuple(transformed_points)
     fixture = ChartFixture(
         curve=chart_curve,
         u=u0,
         factor_base=FactorBase(points=sorted_chart_points),
     )
+    operations = _combine(operations, phase_operations)
+    phase_operations = _zero_ops()
 
-    fiber_map: dict[AffinePoint, list[Witness]] = {}
+    fiber_groups: list[tuple[AffinePoint, list[Witness]]] = []
     for i in range(6):
         for j in range(i, 6):
-            operations = _tick(
-                operations,
+            phase_operations = _tick(
+                phase_operations,
                 unordered_pairs_enumerated=1,
+            )
+            phase_operations = _tick(
+                phase_operations,
                 ec_additions=1,
             )
             left = sorted_chart_points[i]
             right = sorted_chart_points[j]
 
             if i == j:
-                operations = _tick(operations, tangent_branches=1)
-                x2, operations = _square(left.x, chart_curve.p, operations)
-                three_x2, operations = _multiply(
-                    3,
-                    x2,
-                    chart_curve.p,
-                    operations,
+                phase_operations = _tick(
+                    phase_operations,
+                    tangent_branches=1,
                 )
-                numerator, operations = _add(
-                    three_x2,
-                    chart_curve.a,
-                    chart_curve.p,
-                    operations,
+                x2, event = _square(left.x, chart_curve.p)
+                phase_operations = _combine(phase_operations, event)
+                three_x2, event = _multiply(3, x2, chart_curve.p)
+                phase_operations = _combine(phase_operations, event)
+                numerator, event = _add(
+                    three_x2, chart_curve.a, chart_curve.p
                 )
-                denominator, operations = _multiply(
-                    2,
-                    left.y,
-                    chart_curve.p,
-                    operations,
-                )
+                phase_operations = _combine(phase_operations, event)
+                denominator, event = _multiply(2, left.y, chart_curve.p)
+                phase_operations = _combine(phase_operations, event)
                 branch = AdditionBranch.TANGENT
             elif left.x == right.x:
-                vertical_sum, operations = _add(
-                    left.y,
-                    right.y,
-                    chart_curve.p,
-                    operations,
+                vertical_sum, event = _add(
+                    left.y, right.y, chart_curve.p
                 )
+                phase_operations = _combine(phase_operations, event)
                 if vertical_sum == 0:
-                    operations = _tick(
-                        operations,
+                    phase_operations = _tick(
+                        phase_operations,
                         vertical_pairs_excluded=1,
                     )
                     continue
                 return _failure(
                     CoreErrorCode.INTERNAL_INVARIANT_FAILURE,
                     (i, j),
-                    operations,
+                    _combine(operations, phase_operations),
                 )
             else:
-                operations = _tick(operations, secant_branches=1)
-                numerator, operations = _subtract(
-                    right.y,
-                    left.y,
-                    chart_curve.p,
-                    operations,
+                phase_operations = _tick(
+                    phase_operations,
+                    secant_branches=1,
                 )
-                denominator, operations = _subtract(
-                    right.x,
-                    left.x,
-                    chart_curve.p,
-                    operations,
+                numerator, event = _subtract(
+                    right.y, left.y, chart_curve.p
                 )
+                phase_operations = _combine(phase_operations, event)
+                denominator, event = _subtract(
+                    right.x, left.x, chart_curve.p
+                )
+                phase_operations = _combine(phase_operations, event)
                 branch = AdditionBranch.SECANT
 
             if denominator == 0:
                 return _failure(
                     CoreErrorCode.NONINVERTIBLE_DENOMINATOR,
                     (i, j),
-                    operations,
+                    _combine(operations, phase_operations),
                 )
-            denominator_inverse, operations = _invert(
-                denominator,
-                chart_curve.p,
-                operations,
+            denominator_inverse, event = _invert(
+                denominator, chart_curve.p
             )
-            slope, operations = _multiply(
+            phase_operations = _combine(phase_operations, event)
+            slope, event = _multiply(
                 numerator,
                 denominator_inverse,
                 chart_curve.p,
-                operations,
             )
-            slope2, operations = _square(
-                slope,
-                chart_curve.p,
-                operations,
+            phase_operations = _combine(phase_operations, event)
+            slope2, event = _square(slope, chart_curve.p)
+            phase_operations = _combine(phase_operations, event)
+            result_x, event = _subtract(
+                slope2, left.x, chart_curve.p
             )
-            result_x, operations = _subtract(
-                slope2,
-                left.x,
-                chart_curve.p,
-                operations,
+            phase_operations = _combine(phase_operations, event)
+            result_x, event = _subtract(
+                result_x, right.x, chart_curve.p
             )
-            result_x, operations = _subtract(
-                result_x,
-                right.x,
-                chart_curve.p,
-                operations,
+            phase_operations = _combine(phase_operations, event)
+            x_difference, event = _subtract(
+                left.x, result_x, chart_curve.p
             )
-            x_difference, operations = _subtract(
-                left.x,
-                result_x,
-                chart_curve.p,
-                operations,
+            phase_operations = _combine(phase_operations, event)
+            result_y, event = _multiply(
+                slope, x_difference, chart_curve.p
             )
-            result_y, operations = _multiply(
-                slope,
-                x_difference,
-                chart_curve.p,
-                operations,
+            phase_operations = _combine(phase_operations, event)
+            result_y, event = _subtract(
+                result_y, left.y, chart_curve.p
             )
-            result_y, operations = _subtract(
-                result_y,
-                left.y,
-                chart_curve.p,
-                operations,
-            )
+            phase_operations = _combine(phase_operations, event)
             result = AffinePoint(x=result_x, y=result_y)
 
-            slope_x_left, operations = _multiply(
-                slope,
-                left.x,
-                chart_curve.p,
-                operations,
+            slope_x_left, event = _multiply(
+                slope, left.x, chart_curve.p
             )
-            intercept_left, operations = _subtract(
-                left.y,
-                slope_x_left,
-                chart_curve.p,
-                operations,
+            phase_operations = _combine(phase_operations, event)
+            intercept_left, event = _subtract(
+                left.y, slope_x_left, chart_curve.p
             )
-            negative_result_y, operations = _negate(
-                result.y,
-                chart_curve.p,
-                operations,
+            phase_operations = _combine(phase_operations, event)
+            negative_result_y, event = _negate(
+                result.y, chart_curve.p
             )
-            slope_x_result, operations = _multiply(
-                slope,
-                result.x,
-                chart_curve.p,
-                operations,
+            phase_operations = _combine(phase_operations, event)
+            slope_x_result, event = _multiply(
+                slope, result.x, chart_curve.p
             )
-            intercept_right, operations = _subtract(
+            phase_operations = _combine(phase_operations, event)
+            intercept_right, event = _subtract(
                 negative_result_y,
                 slope_x_result,
                 chart_curve.p,
-                operations,
             )
+            phase_operations = _combine(phase_operations, event)
 
-            is_member, operations = _membership(
-                chart_curve,
-                result,
-                operations,
-            )
+            is_member, event = _membership(chart_curve, result)
+            phase_operations = _combine(phase_operations, event)
             if not is_member:
                 return _failure(
                     CoreErrorCode.INTERNAL_INVARIANT_FAILURE,
                     (i, j),
-                    operations,
+                    _combine(operations, phase_operations),
                 )
             if intercept_left != intercept_right:
                 return _failure(
                     CoreErrorCode.INTERCEPT_MISMATCH,
                     (i, j),
-                    operations,
+                    _combine(operations, phase_operations),
                 )
 
             addition = Addition(
@@ -728,7 +782,7 @@ def build_candidate_core(
                 return _failure(
                     CoreErrorCode.INTERNAL_INVARIANT_FAILURE,
                     (i, j),
-                    operations,
+                    _combine(operations, phase_operations),
                 )
             witness = Witness(
                 i=i,
@@ -737,28 +791,37 @@ def build_candidate_core(
                 slope=slope,
                 intercept=intercept_left,
             )
-            if result not in fiber_map:
-                fiber_map[result] = []
-            fiber_map[result].append(witness)
-            operations = _tick(
-                operations,
+            group_found = False
+            for group_result, group_witnesses in fiber_groups:
+                if group_result == result:
+                    group_witnesses.append(witness)
+                    group_found = True
+                    break
+            if not group_found:
+                fiber_groups.append((result, [witness]))
+            phase_operations = _tick(
+                phase_operations,
                 fiber_witnesses_inserted=1,
             )
 
-    ordered_results = sorted(fiber_map)
-    operations = _tick(
-        operations,
-        sort_keys_emitted=len(ordered_results),
+    operations = _combine(operations, phase_operations)
+    phase_operations = _zero_ops()
+    fiber_groups.sort()
+    phase_operations = _tick(
+        phase_operations,
+        sort_keys_emitted=len(fiber_groups),
     )
     fibers_list = []
-    for result in ordered_results:
+    for result, witnesses in fiber_groups:
         fibers_list.append(
             Fiber(
                 result=result,
-                witnesses=tuple(fiber_map[result]),
+                witnesses=tuple(witnesses),
             )
         )
     fibers = tuple(fibers_list)
+    operations = _combine(operations, phase_operations)
+    phase_operations = _zero_ops()
 
     representatives_list = []
     nonsingleton_fiber_count = 0
@@ -767,20 +830,14 @@ def build_candidate_core(
     slope_collision_pairs = 0
     for fiber in fibers:
         witness_count = len(fiber.witnesses)
-        if witness_count == 0:
-            return _failure(
-                CoreErrorCode.INTERNAL_INVARIANT_FAILURE,
-                (),
-                operations,
-            )
         if witness_count >= 2:
             nonsingleton_fiber_count += 1
         choice_product *= witness_count
 
         best = fiber.witnesses[0]
         for witness in fiber.witnesses[1:]:
-            operations = _tick(
-                operations,
+            phase_operations = _tick(
+                phase_operations,
                 representative_keys_compared=1,
             )
             if (
@@ -806,8 +863,8 @@ def build_candidate_core(
 
         for left_index in range(witness_count):
             for right_index in range(left_index + 1, witness_count):
-                operations = _tick(
-                    operations,
+                phase_operations = _tick(
+                    phase_operations,
                     slope_collision_checks=1,
                 )
                 if (
@@ -831,6 +888,7 @@ def build_candidate_core(
         ),
         diagnostics=diagnostics,
     )
+    operations = _combine(operations, phase_operations)
     return Success(value=value, operations=operations)
 
 
