@@ -1,4 +1,4 @@
-# Experiment Contract: Fixed-Chart Slope Representative Compiler V5
+# Experiment Contract: Fixed-Chart Slope Representative Compiler V6
 
 ## Protocol status
 
@@ -32,6 +32,9 @@ calibrated significance test.
 - Factor base: frozen sign-complete random-x set with `B=6`.
 - Curves: ordinary prime-order short-Weierstrass curves over `F_p`, with
   `p>3`, trace not in `{0,1}`, and `j` not in `{0,1728}`.
+- `q` is exactly the odd prime cardinality `#E(F_p)` of the generated curve.
+  It is not the field modulus, a subgroup estimate, or a constrained-label
+  count.
 - Caps: deduplicated increasing values
   `floor(q/4),floor(q/2),floor(3q/4),q`.
 - Candidate charts: `u in {1,-1,2,3}`, reduced modulo `p`; a draw is invalid if
@@ -56,7 +59,7 @@ The inherited optimizer and generation reference is exact commit
 - verifier SHA-256
   `4310f6d5eeacace558a79670c944c55961f89f0c1db4aaee4d8b20d361501199`.
 
-V5 does not authorize reuse of those CLIs. A future implementation contract
+V6 does not authorize reuse of those CLIs. A future implementation contract
 must reproduce their curve/factor-base derivation byte for byte or freeze a
 complete replacement derivation and differential receipt. Until then, sampling
 and implementation remain unauthorized.
@@ -104,7 +107,7 @@ Define the complete factor-base digest as
 
 ```text
 FB_DIGEST = SHA256(
-  ASCII("EXP-SGCP-SECANT-REP-001|FACTOR-BASE|v5") || 0x00 ||
+  ASCII("EXP-SGCP-SECANT-REP-001|FACTOR-BASE|v6") || 0x00 ||
   FBE(p) || FBE(a) || FBE(b) ||
   FBE(x_0) || FBE(y_0) || ... || FBE(x_(B-1)) || FBE(y_(B-1))
 ).
@@ -117,7 +120,7 @@ For control index `c in 0..30`, rank each witness with:
 
 ```text
 SHA256(
-  ASCII("EXP-SGCP-SECANT-REP-001|HASH-CONTROL|v5") || 0x00 ||
+  ASCII("EXP-SGCP-SECANT-REP-001|HASH-CONTROL|v6") || 0x00 ||
   U32BE(c) ||
   U32BE(width) ||
   FB_DIGEST ||
@@ -240,9 +243,9 @@ cap and the required factor-base seeds may differ by curve.
 
 Apply this ordered decision tree exactly once:
 
-1. `INVALID`: a schema, arithmetic, semantic, embedding, accounting, or
-   independent-verification mismatch is confirmed. This is not evidence
-   against the mathematical hypothesis.
+1. `INVALID`: malformed output or a schema, arithmetic, semantic, embedding,
+   accounting, or independent-verification mismatch is confirmed. This is not
+   evidence against the mathematical hypothesis.
 2. `INCONCLUSIVE`: the matrix is partial or a resource, optimizer, process,
    publication, or infrastructure failure prevents a complete valid result.
 3. `SCOPED_NEGATIVE_VACUOUS`: any registered nonvacuity gate fails.
@@ -272,8 +275,12 @@ Steps are precedence-ordered and select exactly one terminal outcome.
 4. Exhaustive tiny control: enumerate every representative table on one frozen
    multiplicity-rich toy fixture and reproduce the full exact score
    distribution.
-5. Coordinate controls: all four `u` charts above, with no best-chart
-   selection.
+5. Coordinate controls: all four preregistered `u` chart encodings above, with
+   no best-chart selection. For each chart, hash the canonical transformed
+   curve, sorted factor base, source labels, and complete `W_R` fibers. Report
+   distinct fixture digests and their multiplicities. In particular, do not
+   describe `u=-1` as an independent perturbation when its induced fixture
+   digest duplicates another chart.
 6. Source-label controls: reverse and hash-ranked permutations.
 
 The exact fixtures, bytes, digests, and expected control receipts must be frozen
@@ -309,6 +316,6 @@ index calculus, an exponent improvement, or a Pollard-rho break.
 
 ## Next concrete action
 
-Obtain fresh independent theory and red-team review of v5 before implementation
+Obtain fresh independent theory and red-team review of v6 before implementation
 design. The bounded citation search is complete; broader search gaps continue
 to block a novelty claim, not properly scoped design work.
