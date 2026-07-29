@@ -1,0 +1,171 @@
+breakthrough_benchmark:
+  id: BENCH-ECDLP-001
+  version: 1
+  title: >-
+    Prime-field ECDLP breakthrough benchmark - measured group operations against
+    a rho baseline on the same instances
+
+  supersedes_as_a_breakthrough_test:
+    - EVAL-CAP-DLOG-12
+    - EVAL-CAP-DLOG-16
+  supersession_note: >-
+    Those two remain valid CAPABILITY smoke tests and are not retired. They are
+    simply not breakthrough tests: they ask "did you recover k?", Pollard rho
+    answers in well under a millisecond, and passing them carries no information
+    about whether an approach beats rho. Both were solved during the authoring
+    of this file (k=9 and k=118, certificate-verified), which is precisely the
+    point - a test a microsecond of rho passes cannot detect a breakthrough.
+
+  # ------------------------------------------------------------------
+  # What was wrong with the old challenges, measured rather than asserted
+  # ------------------------------------------------------------------
+  defects_this_replaces:
+    - id: D1-DECORATIVE-SIZE
+      defect: >-
+        Difficulty did not track the advertised field size. generate_instance
+        takes the largest prime factor of #E as the subgroup order and does not
+        bound the cofactor.
+      measurement: >-
+        At 24 bits across five seeds, n ranged from 349 to 20161 with cofactors
+        from 724 to 31512, giving n/p ~ 0.000 and real work of only 2^4.2 to
+        2^7.2. A "24-bit challenge" was an 18-to-141 step problem.
+      fix: >-
+        max_cofactor bounds the cofactor at 8, matching Curve25519; NIST curves
+        use 1. Every instance records cofactor, n_over_p and work_bits, so a
+        degenerate instance is visible instead of silent. The same seed at 20
+        bits goes from n=487 (work 2^4.5) to n=1037401 (work 2^10.0).
+    - id: D2-NO-BASELINE
+      defect: A solve was scored pass/fail against nothing.
+      fix: >-
+        Every instance carries a rho baseline in COUNTED GROUP OPERATIONS,
+        measured on that same instance with the same counter. Not a theoretical
+        sqrt(n), and not wall-clock, which measures the machine and the language.
+    - id: D3-PASS-FAIL-CANNOT-SEE-AN-EXPONENT
+      defect: >-
+        At a single size a constant-factor win and an asymptotic win are
+        indistinguishable, and only the second is a breakthrough.
+      fix: A ladder, with the exponent fitted across it.
+    - id: D4-CRITERIA-THAT-CANNOT-FAIL
+      defect: >-
+        This program twice shipped a success criterion that was true by
+        construction - EXP-GGM-001's control gate compared two hardcoded
+        constants in the same file, and EXP-SUBRES-001's beta_ops was forced
+        below its threshold by a loop whose cost did not depend on the quantity
+        under test.
+      fix: >-
+        No threshold appears anywhere in harness/ecdlp_benchmark.py. Scoring is
+        a pure function of measured counts; the verdict is computed by the
+        caller from values the scoring module never sees.
+
+  # ------------------------------------------------------------------
+  # Calibration - the instrument was tested against known answers
+  # ------------------------------------------------------------------
+  calibration:
+    method: >-
+      The scorer was run against ladders whose true exponent is known, in both
+      directions. A benchmark never checked against a known negative AND a known
+      positive is an uncalibrated instrument.
+    known_negative_rho:
+      true_exponent: 0.5
+      five_rung_ladder_to_n_1.4e6:
+        raw_slope: 0.236
+        offset_corrected_slope: 0.732
+        verdict: >-
+          BOTH WRONG. The scorer therefore refuses to report an exponent from
+          this ladder rather than reporting a plausible-looking wrong one.
+    known_positive_synthetic:
+      pure_sqrt_ladder: {true_exponent: 0.5, recovered: 0.4985}
+      sub_sqrt_ladder:  {true_exponent: 0.33, recovered: 0.3232}
+    the_trap_this_exposed: >-
+      For any square-root algorithm with a setup constant,
+      ops/sqrt(n) = C/sqrt(n) + c, which FALLS as n grows. A falling ops/sqrt(n)
+      is therefore NOT evidence of sub-square-root behaviour - rho itself does
+      it. Scoring a falling ratio as a breakthrough would have passed rho as a
+      break of rho.
+
+  # ------------------------------------------------------------------
+  # The ladder
+  # ------------------------------------------------------------------
+  ladder:
+    max_cofactor: 8
+    replicates_per_size: 5
+    replication_rationale: >-
+      Rho is randomized and its cost is a random variable with large spread:
+      measured coefficient of variation 0.18 to 0.31 across sizes. A single run
+      per size is one sample of that variable, so an unreplicated challenger can
+      beat the baseline by luck alone. Report the mean and the spread.
+    sizes_field_bits: [16, 20, 24, 28, 32, 36]
+    seeds: [11, 12, 13, 14, 15]
+    generation_note: >-
+      Point counting dominates generation (~27 s at 24 bits), so the ladder is
+      generated once and committed as fixtures. Instances are never regenerated
+      inside a scored run.
+
+  # ------------------------------------------------------------------
+  # Submission requirements
+  # ------------------------------------------------------------------
+  submission:
+    must_provide:
+      - a recovered k per instance, with Q = kP re-derived independently by the grader
+      - counted group operations per instance, from an instrumented integer counter
+      - which of the seven cost stages are charged, and which are omitted
+      - the solver source, so the counter can be audited
+    counter_requirement: >-
+      Group operations must be a real instrumented integer over the field
+      arithmetic, matching how rho_baseline counts. Wall-clock is recorded as a
+      diagnostic and is NEVER fitted: it is a property of the machine, not of
+      the algorithm. A submission that cannot count operations reports null and
+      is scored INCOMPLETE, never given a proxy.
+    cost_stages_required:
+      [preprocessing, relation_collection, linear_algebra, target_descent,
+       verification, memory, multi_target]
+    incomplete_rule: >-
+      A stage never charged by any instance makes the cost incomparable, not
+      merely optimistic. Every failed candidate in this program's history
+      omitted exactly one stage.
+
+  # ------------------------------------------------------------------
+  # Criteria - applied by the caller, never visible to the scorer
+  # ------------------------------------------------------------------
+  criteria:
+    admissibility_gates:
+      - id: G1
+        gate: every reported solve carries a certificate the grader re-verifies
+      - id: G2
+        gate: cost_accounting_complete is true - no stage left uncharged
+      - id: G3
+        gate: >-
+          ladder_resolves_an_exponent is true. If the setup constant still
+          contributes >= 10% of ops/sqrt(n) at the largest instance, or the
+          ladder has fewer than 4 rungs, NO exponent claim is admissible from
+          the data, in either direction.
+    breakthrough_signal:
+      requires_all_of:
+        - G1, G2 and G3 all hold
+        - offset_corrected_slope is materially below 0.5 across the ladder
+        - ops/sqrt(n) continues to FALL at the top of the ladder rather than
+          converging to a positive constant
+        - speedup_vs_rho grows with n rather than staying flat
+      note: >-
+        A flat speedup is a constant-factor win. It may still be valuable, but
+        it is not a breakthrough and must not be reported as one.
+    negative_outcome: >-
+      An exponent statistically indistinguishable from 0.5, or a flat
+      speedup_vs_rho, is a NEGATIVE result on the tested scope. It is a real
+      result and should be recorded as one.
+
+  # ------------------------------------------------------------------
+  # Scope
+  # ------------------------------------------------------------------
+  scope_ceiling:
+    claim_tier: toy
+    max_field_bits: 36
+    statement: >-
+      Clearing this benchmark is NECESSARY for a breakthrough claim and nowhere
+      near SUFFICIENT. It is toy scale, it measures counted group operations
+      rather than end-to-end wall cost on real hardware, it uses one solver
+      family as baseline, and it is not independently reviewed. A genuine claim
+      needs cryptographic sizes, complete end-to-end accounting against tuned
+      rho and BSGS implementations, multi-target amortisation, and independent
+      review under AGENTS.md rule 12. No result from this file may be reported
+      above claim_tier toy.
