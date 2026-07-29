@@ -108,6 +108,7 @@ class VerifyFactoredDividedPowerDagTests(unittest.TestCase):
             points,
             positives,
             [],
+            positives,
             97,
             2,
         )
@@ -116,7 +117,7 @@ class VerifyFactoredDividedPowerDagTests(unittest.TestCase):
         )
         self.assertLessEqual(
             baselines["reduced_d2_mitm"][
-                "worst_online_point_scans"
+                "exhaustive_worst_online_point_scans"
             ],
             baselines["reduced_d2_mitm"]["records"],
         )

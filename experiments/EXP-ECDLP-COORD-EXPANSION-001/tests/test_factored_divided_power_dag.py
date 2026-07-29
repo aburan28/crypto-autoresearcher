@@ -88,6 +88,7 @@ class FactoredDividedPowerDagTests(unittest.TestCase):
             points,
             positives,
             [],
+            positives,
             97,
             2,
         )

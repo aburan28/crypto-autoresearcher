@@ -70,6 +70,13 @@ class CurveCounts:
             "inverse_returns": self.inverse_returns,
         }
 
+    def absorb(self, other: CurveCounts) -> None:
+        self.additions += other.additions
+        self.doublings += other.doublings
+        self.inversions += other.inversions
+        self.identity_returns += other.identity_returns
+        self.inverse_returns += other.inverse_returns
+
 
 def ec_add(
     left: Point,
@@ -108,10 +115,15 @@ def ec_add(
     return x3, (slope * (x1 - x3) - y1) % p
 
 
-def ec_sum(values: Iterable[Point], p: int, a: int) -> Point:
+def ec_sum(
+    values: Iterable[Point],
+    p: int,
+    a: int,
+    counts: CurveCounts | None = None,
+) -> Point:
     result: Point = None
     for value in values:
-        result = ec_add(result, value, p, a)
+        result = ec_add(result, value, p, a, counts)
     return result
 
 
@@ -130,6 +142,18 @@ def scalar_mul(value: Point, scalar: int, p: int, a: int) -> Point:
     return result
 
 
+def repeated_mul(
+    value: Point,
+    scalar: int,
+    p: int,
+    a: int,
+    counts: CurveCounts,
+) -> Point:
+    return ec_sum(
+        (value for _ in range(scalar)), p, a, counts
+    )
+
+
 @dataclass
 class Record:
     multiplicity: int
@@ -144,6 +168,8 @@ class BuildCounts:
     pair_attempts: int = 0
     hash_lookups: int = 0
     record_writes: int = 0
+    leaf_scalar_steps: int = 0
+    leaf_record_writes: int = 0
     curve: CurveCounts = field(default_factory=CurveCounts)
 
     def payload(self) -> dict[str, Any]:
@@ -151,6 +177,8 @@ class BuildCounts:
             "pair_attempts": self.pair_attempts,
             "hash_lookups": self.hash_lookups,
             "record_writes": self.record_writes,
+            "leaf_scalar_steps": self.leaf_scalar_steps,
+            "leaf_record_writes": self.leaf_record_writes,
             "curve": self.curve.payload(),
         }
 
@@ -181,10 +209,20 @@ def put(
     cycle[image].multiplicity += multiplicity
 
 
-def leaf(index: int, value: Point, p: int, a: int) -> VerifiedNode:
+def leaf(
+    index: int,
+    value: Point,
+    p: int,
+    a: int,
+    counts: BuildCounts,
+) -> VerifiedNode:
     cycles: dict[int, Cycle] = {}
     for degree in range(5):
-        image = scalar_mul(value, degree, p, a)
+        image = repeated_mul(
+            value, degree, p, a, counts.curve
+        )
+        counts.leaf_scalar_steps += degree
+        counts.leaf_record_writes += 1
         cycles[degree] = {
             image: Record(1, (index,) * degree)
         }
@@ -249,7 +287,7 @@ def rebuild(
     counts: BuildCounts,
 ) -> VerifiedNode:
     if stop - start == 1:
-        return leaf(start, points[start], p, a)
+        return leaf(start, points[start], p, a, counts)
     middle = (start + stop) // 2
     return merge(
         rebuild(points, start, middle, p, a, counts),
@@ -353,6 +391,9 @@ class QueryCounts:
     point_scans: int = 0
     hash_lookups: int = 0
     recursion_nodes: int = 0
+    sort_calls: int = 0
+    sort_items: int = 0
+    route_indices_copied: int = 0
     curve: CurveCounts = field(default_factory=CurveCounts)
 
     def payload(self) -> dict[str, Any]:
@@ -361,8 +402,21 @@ class QueryCounts:
             "point_scans": self.point_scans,
             "hash_lookups": self.hash_lookups,
             "recursion_nodes": self.recursion_nodes,
+            "sort_calls": self.sort_calls,
+            "sort_items": self.sort_items,
+            "route_indices_copied": self.route_indices_copied,
             "curve": self.curve.payload(),
         }
+
+    def absorb(self, other: QueryCounts) -> None:
+        self.split_attempts += other.split_attempts
+        self.point_scans += other.point_scans
+        self.hash_lookups += other.hash_lookups
+        self.recursion_nodes += other.recursion_nodes
+        self.sort_calls += other.sort_calls
+        self.sort_items += other.sort_items
+        self.route_indices_copied += other.route_indices_copied
+        self.curve.absorb(other.curve)
 
 
 def descend(
@@ -390,6 +444,8 @@ def descend(
         right_cycle = node.right.cycles[right_degree]
         scan_left = len(left_cycle) <= len(right_cycle)
         scan_cycle = left_cycle if scan_left else right_cycle
+        counts.sort_calls += 1
+        counts.sort_items += len(scan_cycle)
         for scanned in sorted(scan_cycle, key=point_key):
             counts.point_scans += 1
             complement = ec_add(
@@ -424,7 +480,9 @@ def descend(
                 counts,
             )
             if right_route is not None:
-                return (*left_route, *right_route)
+                route = (*left_route, *right_route)
+                counts.route_indices_copied += len(route)
+                return route
     return None
 
 
@@ -497,10 +555,16 @@ def recorded_queries(
             counts,
             membership_prefilter=False,
         )
+        replay_counts = CurveCounts()
         replay = (
             None
             if route is None
-            else ec_sum((points[index] for index in route), p, a)
+            else ec_sum(
+                (points[index] for index in route),
+                p,
+                a,
+                replay_counts,
+            )
         )
         worst_scans = max(worst_scans, counts.point_scans)
         positive_receipts.append(
@@ -512,6 +576,9 @@ def recorded_queries(
                 and tuple(sorted(route)) == route
                 and replay == target,
                 "operations": counts.payload(),
+                "witness_replay_operations": (
+                    replay_counts.payload()
+                ),
             }
         )
     for target in negatives:
@@ -560,13 +627,14 @@ def reconstruct_baselines(
     points: list[Point],
     positives: list[Point],
     negatives: list[Point],
+    all_targets: list[Point],
     p: int,
     a: int,
 ) -> dict[str, Any]:
     root_support = reduce_support(root_cycle)
     d2_support = reduce_support(direct_cycle(points, p, a, degree=2))
     receipts = []
-    worst_scans = 0
+    sample_worst_scans = 0
     all_valid = True
     cases = [
         *((target, True) for target in positives),
@@ -576,10 +644,16 @@ def reconstruct_baselines(
         route, scans, lookups = d2_lookup(
             d2_support, target, p, a
         )
+        replay_counts = CurveCounts()
         replay = (
             None
             if route is None
-            else ec_sum((points[index] for index in route), p, a)
+            else ec_sum(
+                (points[index] for index in route),
+                p,
+                a,
+                replay_counts,
+            )
         )
         valid = (
             route is not None and replay == target
@@ -587,7 +661,7 @@ def reconstruct_baselines(
             else route is None
         )
         all_valid = all_valid and valid
-        worst_scans = max(worst_scans, scans)
+        sample_worst_scans = max(sample_worst_scans, scans)
         receipts.append(
             {
                 "target": encode_point(target),
@@ -596,8 +670,55 @@ def reconstruct_baselines(
                 "replay": encode_point(replay),
                 "point_scans": scans,
                 "hash_lookups": lookups,
+                "witness_replay_operations": (
+                    replay_counts.payload()
+                ),
                 "valid": valid,
             }
+        )
+    exhaustive_worst_scans = 0
+    exhaustive_hits = 0
+    exhaustive_valid = True
+    exhaustive_scans = 0
+    exhaustive_lookups = 0
+    exhaustive_receipts = []
+    for target in all_targets:
+        route, scans, lookups = d2_lookup(
+            d2_support, target, p, a
+        )
+        expected_hit = target in root_support
+        replay_counts = CurveCounts()
+        replay = (
+            None
+            if route is None
+            else ec_sum(
+                (points[index] for index in route),
+                p,
+                a,
+                replay_counts,
+            )
+        )
+        valid = (
+            route is not None and replay == target
+            if expected_hit
+            else route is None
+        )
+        exhaustive_worst_scans = max(
+            exhaustive_worst_scans, scans
+        )
+        exhaustive_hits += int(route is not None)
+        exhaustive_valid = exhaustive_valid and valid
+        exhaustive_scans += scans
+        exhaustive_lookups += lookups
+        exhaustive_receipts.append(
+            [
+                encode_point(target),
+                None if route is None else list(route),
+                scans,
+                lookups,
+                replay_counts.payload(),
+                valid,
+            ]
         )
     root_state = cycle_state(root_support)
     return {
@@ -616,7 +737,18 @@ def reconstruct_baselines(
         },
         "reduced_d2_mitm": {
             **cycle_state(d2_support),
-            "worst_online_point_scans": worst_scans,
+            "sample_worst_online_point_scans": sample_worst_scans,
+            "exhaustive_worst_online_point_scans": (
+                exhaustive_worst_scans
+            ),
+            "exhaustive_targets": len(all_targets),
+            "exhaustive_hits": exhaustive_hits,
+            "exhaustive_total_point_scans": exhaustive_scans,
+            "exhaustive_total_hash_lookups": exhaustive_lookups,
+            "exhaustive_receipt_digest": digest(
+                exhaustive_receipts
+            ),
+            "all_exhaustive_queries_valid": exhaustive_valid,
             "queries": receipts,
             "all_queries_valid": all_valid,
             "returns_source_route": True,
@@ -624,6 +756,105 @@ def reconstruct_baselines(
         "boundary": (
             "Same-function fixed-factor-base D4 membership and first-route "
             "recovery. Logical words are typed values, not measured bytes."
+        ),
+    }
+
+
+def enumerate_subgroup(
+    generator: Point, q: int, p: int, a: int
+) -> list[Point]:
+    result: list[Point] = []
+    current: Point = None
+    for _ in range(q):
+        result.append(current)
+        current = ec_add(current, generator, p, a)
+    if current is not None or len(set(result)) != q:
+        raise ValueError("invalid subgroup enumeration")
+    return result
+
+
+def exhaustive_queries(
+    root: VerifiedNode,
+    root_cycle: Cycle,
+    points: list[Point],
+    targets: list[Point],
+    p: int,
+    a: int,
+) -> dict[str, Any]:
+    query_root = VerifiedNode(
+        root.node_id,
+        root.start,
+        root.stop,
+        root.left,
+        root.right,
+        {},
+    )
+    totals = QueryCounts()
+    replay_totals = CurveCounts()
+    worst_scans = 0
+    hits = 0
+    valid = True
+    receipts = []
+    for target in targets:
+        counts = QueryCounts()
+        route = descend(
+            query_root,
+            4,
+            target,
+            p,
+            a,
+            counts,
+            membership_prefilter=False,
+        )
+        replay_counts = CurveCounts()
+        replay = (
+            None
+            if route is None
+            else ec_sum(
+                (points[index] for index in route),
+                p,
+                a,
+                replay_counts,
+            )
+        )
+        expected_hit = target in root_cycle
+        query_valid = (
+            route is not None
+            and tuple(sorted(route)) == route
+            and replay == target
+            if expected_hit
+            else route is None
+        )
+        totals.absorb(counts)
+        replay_totals.absorb(replay_counts)
+        worst_scans = max(worst_scans, counts.point_scans)
+        hits += int(route is not None)
+        valid = valid and query_valid
+        receipts.append(
+            [
+                encode_point(target),
+                None if route is None else list(route),
+                encode_point(replay),
+                counts.payload(),
+                replay_counts.payload(),
+                query_valid,
+            ]
+        )
+    return {
+        "targets": len(targets),
+        "hits": hits,
+        "misses": len(targets) - hits,
+        "worst_online_point_scans": worst_scans,
+        "total_query_operations": totals.payload(),
+        "total_witness_replay_operations": replay_totals.payload(),
+        "target_order_digest": digest(
+            [encode_point(target) for target in targets]
+        ),
+        "receipt_digest": digest(receipts),
+        "all_queries_valid": valid,
+        "fixture_generation_boundary": (
+            "Subgroup target enumeration is diagnostic fixture work and is "
+            "not included in online query operations."
         ),
     }
 
@@ -656,6 +887,12 @@ def verify_row(
         q,
         p,
         a,
+    )
+    all_targets = enumerate_subgroup(
+        decode_point(curve["generator"]), q, p, a
+    )
+    exhaustive = exhaustive_queries(
+        root, root.cycles[4], points, all_targets, p, a
     )
     build_peak_records = sum(
         len(cycle) for node in nodes for cycle in node.cycles.values()
@@ -707,30 +944,47 @@ def verify_row(
         }
         for node in advice_nodes
     ]
+    build_payload = [
+        {
+            "node_id": node.node_id,
+            "degrees": {
+                str(degree): cycle_payload(cycle)
+                for degree, cycle in node.cycles.items()
+            },
+        }
+        for node in nodes
+    ]
     baselines = reconstruct_baselines(
         root.cycles[4],
         points,
         [decode_point(item["target"]) for item in positives],
         [decode_point(item["target"]) for item in negatives],
+        all_targets,
         p,
         a,
     )
     sqrt_q = math.sqrt(q)
-    diagnostic = retained_records * worst_scans**2 / q
-    signal = retained_records < expanded and worst_scans < sqrt_q
+    exhaustive_worst_scans = exhaustive[
+        "worst_online_point_scans"
+    ]
+    diagnostic = retained_records * exhaustive_worst_scans**2 / q
+    signal = (
+        retained_records < expanded
+        and exhaustive_worst_scans < sqrt_q
+    )
     logical_words = retained_records + point_fields + route_indices
     posthoc_same_function_gate = (
         logical_words
         < baselines["exact_support_hash"]["logical_words"]
-        and worst_scans
+        and exhaustive_worst_scans
         < baselines["exact_support_sorted"][
             "online_comparison_upper_bound"
         ]
         and retained_records
         < baselines["reduced_d2_mitm"]["records"]
-        and worst_scans
+        and exhaustive_worst_scans
         < baselines["reduced_d2_mitm"][
-            "worst_online_point_scans"
+            "exhaustive_worst_online_point_scans"
         ]
     )
     route_checks = [
@@ -840,6 +1094,10 @@ def verify_row(
             recorded["retained_canonical_json_bytes"]
             == canonical_json_bytes(retained_payload)
         ),
+        "build_peak_canonical_json_bytes": (
+            recorded["build_peak_canonical_json_bytes"]
+            == canonical_json_bytes(build_payload)
+        ),
         "build_peak_cycle_records": (
             recorded["build_peak_cycle_records"] == build_peak_records
         ),
@@ -861,8 +1119,16 @@ def verify_row(
         == counts.payload(),
         "positive_queries": recorded["positive_queries"] == positives,
         "negative_queries": recorded["negative_queries"] == negatives,
+        "sample_worst_online_point_scans": (
+            recorded["sample_worst_online_point_scans"]
+            == worst_scans
+        ),
+        "exhaustive_queries": (
+            recorded["exhaustive_queries"] == exhaustive
+        ),
         "worst_online_point_scans": (
-            recorded["worst_online_point_scans"] == worst_scans
+            recorded["worst_online_point_scans"]
+            == exhaustive_worst_scans
         ),
         "expanded_oriented_field_elements": (
             recorded["expanded_oriented_field_elements"] == expanded
@@ -953,8 +1219,13 @@ def envelope(
             and summary["all_d2_mitm_queries_valid"]
             == all(
                 row["same_function_baselines"]["reduced_d2_mitm"][
-                    "all_queries_valid"
+                    "all_exhaustive_queries_valid"
                 ]
+                for row in raw["rows"]
+            )
+            and summary["all_exhaustive_rootless_queries_valid"]
+            == all(
+                row["exhaustive_queries"]["all_queries_valid"]
                 for row in raw["rows"]
             )
             and summary["all_positive_queries_valid"]
@@ -1000,6 +1271,18 @@ def core_checks(
         == file_hash(PRODUCER_PATH),
         "input_hash": raw["source"]["typed_input_sha256"]
         == file_hash(typed_path),
+        "configured_input_path": (
+            Path(raw["config"]["typed_input"]).resolve()
+            == typed_path.resolve()
+        ),
+        "telemetry_nonnegative": (
+            raw["peak_rss_bytes"] >= 0
+            and raw["total_wall_seconds"] >= 0
+            and all(
+                row["peak_rss_bytes_after_cell"] >= 0
+                for row in raw["rows"]
+            )
+        ),
         **envelope(raw, typed),
         "all_rows_reconstructed": (
             len(row_receipts) == len(raw["rows"])
@@ -1075,6 +1358,16 @@ def mutation_suite(
     serialized = copy.deepcopy(raw)
     serialized["rows"][0]["retained_canonical_json_bytes"] += 1
     candidates["serialized_state"] = serialized
+    build_serialized = copy.deepcopy(raw)
+    build_serialized["rows"][0][
+        "build_peak_canonical_json_bytes"
+    ] += 1
+    candidates["build_serialized_state"] = build_serialized
+    exhaustive = copy.deepcopy(raw)
+    exhaustive["rows"][0]["exhaustive_queries"][
+        "receipt_digest"
+    ] = "0" * 64
+    candidates["exhaustive_query_digest"] = exhaustive
     generic = copy.deepcopy(raw)
     generic["rows"][0]["generic_numerical_references"][
         "commensurate_with_logical_words"
@@ -1083,6 +1376,15 @@ def mutation_suite(
     source = copy.deepcopy(raw)
     source["source"]["generator_sha256"] = "0" * 64
     candidates["source_hash"] = source
+    configured_path = copy.deepcopy(raw)
+    configured_path["config"]["typed_input"] = "/tmp/false-input.json"
+    candidates["configured_input_path"] = configured_path
+    telemetry = copy.deepcopy(raw)
+    telemetry["total_wall_seconds"] = -1
+    candidates["top_telemetry"] = telemetry
+    row_telemetry = copy.deepcopy(raw)
+    row_telemetry["rows"][0]["peak_rss_bytes_after_cell"] = -1
+    candidates["row_telemetry"] = row_telemetry
     promotion = copy.deepcopy(raw)
     promotion["summary"]["algorithm_promotion_gate"] = True
     candidates["promotion_gate"] = promotion

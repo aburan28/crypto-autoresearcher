@@ -61,21 +61,30 @@ build and select deterministic test targets. It is removed from the online
 query object. Online membership starts from the two child subtrees without a
 root-support prefilter.
 
+At the fixed toy `q`, exhaust every subgroup target and use the true maximum
+query work for all gates. The 16 positive and 16 negative receipts remain
+deterministic human-sized samples only.
+
 ## Metrics
 
 - full-build DAG nodes/edges and degree-specific support/route counts;
 - build-peak versus rootless retained-advice records, point fields, routes,
   logical words, and canonical JSON bytes;
-- build pair attempts, curve operations, writes, and hash lookups;
+- build pair attempts, leaf scalar steps, curve operations, writes, and hash
+  lookups;
 - root support/multiplicity/witness digests;
 - online split attempts, point scans, curve operations, lookups, recursion
-  nodes, and witness replay;
+  nodes, sort calls/items, route-index copies, and witness replay;
 - positive/negative success;
 - exact support hash/sorted indexes and reduced-D2 MITM with source routes;
 - expanded oriented-polynomial state and separately typed rho/BSGS numerical
   references that are not treated as commensurate storage;
 - `S*T^2/q` diagnostic using retained records `S` and worst online scans `T`,
   labeled as a membership-subproblem diagnostic only.
+
+Canonical JSON bytes are serialization diagnostics. Logical words exclude
+Python object and hash-table overhead and must not be presented as measured
+peak bytes.
 
 ## Controls
 
