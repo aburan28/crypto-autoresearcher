@@ -6,12 +6,10 @@ BATCH-011: FC0-R2 joint stopping-law and global-liveness control for IDEA-202607
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-009` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-009/stopping_liveness_control.md, coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-009/joint_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-009/eprint_fetch_attempt.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-009/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-009 |
+| `TASK-20260730-011` | red-team | queued | 80 | TASK-20260730-009, TASK-20260730-010 | coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-011/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-011/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-011 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-010`: dependency_not_completed:TASK-20260730-009:queued
-- `TASK-20260730-011`: dependency_not_completed:TASK-20260730-009:queued, dependency_not_completed:TASK-20260730-010:queued
 - `TASK-20260730-012`: dependency_not_completed:TASK-20260730-011:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-011: FC0-R2 joint stopping-law and global-liveness control for IDEA-202607
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b2dadd1fce85ecffa91ce1f610364364c5c925358d455e1506faaeb535637486`
+Plan SHA-256: `8ab959f10240b3cdb9377741de78394771c9ffa28e93baf60a288583f2b2573b`
