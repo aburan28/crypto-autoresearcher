@@ -162,7 +162,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         warn("skipped — needs the api_direct runtime")
     else:
         from .eval.tasks import load_suite
-        for path in sorted(SUITES.glob("*.yaml")):
+        for path in sorted(p for p in SUITES.glob("*.yaml") if not p.name.startswith("._")):
             try:
                 suite = load_suite(path)
                 dev = len(suite.filter(splits=["dev"]).tasks)

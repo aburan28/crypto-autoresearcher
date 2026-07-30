@@ -1,0 +1,234 @@
+hypothesis:
+  id: H-MLKEM-008
+  question_id: RQ-MLKEM-001
+  title: >-
+    End-to-end soft-oracle leakage budget predicts protected Cortex-M4
+    ML-KEM attack trace cost within a factor of two
+  statement: >-
+    For one laboratory protected ML-KEM implementation on a Cortex-M4
+    target, across three predeclared noise or masking configurations, a
+    held-out soft-information cost model — calibrated likelihoods trained
+    on disjoint profiling keys and frozen before any attack measurement,
+    consumed by frozen soft-decoding backends (soft plaintext-checking and
+    adaptive-LDPC classes), charging profiling traces, attack traces,
+    retries, and wall-clock — predicts the measured median
+    traces-to-key-recovery on held-out attack keys within a multiplicative
+    factor of 2 in every configuration, while a hard oracle-accuracy-only
+    model misses by more than a factor of 2 in at least one configuration;
+    and charging total cost including profiling and retries changes the
+    ranking of at least one (backend, configuration) pair relative to a
+    trace-count-only ranking. A soft-model miss greater than twofold in two
+    or more configurations, or hard accuracy equally predictive in all
+    configurations, falsifies the claim. If no protected-device trace
+    source is available, the hypothesis is untestable in this environment
+    and the outcome is infrastructure, not evidence.
+  mechanism: >-
+    Hard accuracy collapses each oracle response to a bit and discards
+    score confidence, inter-response correlation, burst errors, and
+    profiling cost. Calibrated per-response likelihoods preserve that
+    information, and current soft-decoding backends — soft
+    plaintext-checking (oracle_surface_report ORS-007, ePrint 2025/1496 as
+    recorded there) and adaptive-LDPC belief propagation
+    (oracle_surface_report ORS-004, ePrint 2026/070 as recorded there) —
+    consume likelihoods directly, so a soft model should map physical
+    leakage to end-to-end trace risk more faithfully than an
+    accuracy-only model. The competing explanations are explicit: if
+    nonstationary or correlated leakage dominates, IID soft scores fail
+    while a burst-aware time-ordered replay still predicts recovery; if the
+    backends are mismatched to calibrated inputs, no calibrated model
+    predicts held-out recovery.
+  assumptions:
+    - A laboratory-only protected ML-KEM implementation and physical power traces are available; this is gated by a stage-0 availability preflight and is not assumed to hold in this environment.
+    - No pinnable public ML-KEM-on-Cortex-M4 trace corpus exists in the local knowledge corpus (checked 2026-07-27); the fallback data path is none and the physical rig is required.
+    - The published soft-PC and adaptive-LDPC attack backends can consume calibrated likelihoods.
+    - Training keys, attack keys, and devices can be held out, and calibration is frozen before attack measurement.
+    - Key recovery occurs only as the frozen laboratory measurement procedure on keys created inside this experiment; no deployed system, third-party device, or externally provided key is touched.
+    - Acquisition noise, clock, and protection build options are pinned per configuration before measurement.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-001
+      formal_statement: >-
+        Within each frozen configuration, likelihoods calibrated on the
+        disjoint profiling keys transfer to held-out attack keys of the
+        same device over the measurement campaign: the held-out expected
+        calibration error stays within the frozen bound, and per-configuration
+        predicted median trace counts computed from calibration-period
+        likelihoods remain valid for attack-period acquisitions up to the
+        declared factor-2 decision band.
+      random_model_justification: >-
+        Conditioned on configuration and key class, leakage traces are
+        modeled as draws from a per-configuration leakage-and-noise law
+        whose parameters are estimated on profiling keys; with sufficient
+        profiling traces the estimator concentrates, so calibrated
+        likelihoods should transfer to fresh keys drawn from the same
+        generation process. Burst dependence and drift violate the IID
+        part of this model, which is exactly what the burst-preserving
+        replay control and the nonstationary competing-explanation class
+        are designed to detect rather than assume away.
+      supporting_results:
+        - >-
+          oracle_surface_report.yaml ORS-007 (ePrint 2025/1496 as recorded
+          there): soft posterior updates materially reduce noisy-PC attack
+          cost in simulation; the report's cheapest defensive gate is
+          precisely to replace synthetic likelihoods with held-out device
+          traces and test calibration before recovery.
+        - >-
+          oracle_surface_report.yaml ORS-004 (ePrint 2026/070 as recorded
+          there): adaptive-LDPC recovery at 1.35x the Shannon bound under a
+          memoryless 95-percent oracle, with the report warning that the
+          concrete Apple M1 experiment has burst errors and
+          platform-specific calibration — the stationarity gap HEUR-001
+          states.
+      validation_experiment_ids: [EXP-MLKEM-008]
+      falsification_condition: >-
+        Held-out calibration error exceeds the frozen bound in any
+        configuration, or burst-preserving time-ordered replay predicts
+        held-out recovery while IID soft scores fail, or shuffled-label
+        controls show spurious predictiveness.
+  structural_ingredients:
+    - description: >-
+        Soft plaintext-checking backend consuming calibrated likelihoods
+        for noisy PC oracles at standardized ML-KEM parameters.
+      citation: >-
+        ePrint 2025/1496 and its open-source solver, as recorded in
+        coordination/goals/GOAL-MLKEM-001/batches/BATCH-002/tasks/TASK-20260722-208/oracle_surface_report.yaml
+        (ORS-007).
+      role: soft_decoding_backend
+    - description: >-
+        Adaptive-LDPC decryption-failure backend; conditional query
+        complexity near the Shannon bound under a calibrated oracle.
+      citation: >-
+        ePrint 2026/070, as recorded in oracle_surface_report.yaml
+        (ORS-004).
+      role: soft_decoding_backend
+    - description: >-
+        Soft side-channel analysis posteriors for ML-KEM on embedded
+        targets (NTT-to-INTT domain adaptation SASCA), evidencing that
+        calibrated soft posteriors are obtainable from real ML-KEM
+        acquisitions.
+      citation: >-
+        Wang, ePrint 2026/981; knowledge record KN-LIT-1815 and
+        oracle_surface_report.yaml (ORS-019).
+      role: calibrated_posterior_source
+    - description: >-
+        Cost-accounting rules forbidding query-equals-trace and
+        accuracy-equals-IID-bit-error conversions; define the charged-cost
+        discipline the soft model must satisfy.
+      citation: >-
+        coordination/goals/GOAL-MLKEM-001/batches/BATCH-002/tasks/TASK-20260722-208/oracle_landscape.md,
+        cost accounting rules section.
+      role: cost_model
+  reduction_chain: null
+  predictions:
+    - metric: soft_model_trace_prediction_multiplicative_error
+      direction: lower
+      minimum_effect: >-
+        At most 2 in each of the three configurations, where the error is
+        max(predicted/measured, measured/predicted) on median
+        traces-to-key-recovery over held-out attack keys.
+    - metric: hard_accuracy_trace_prediction_multiplicative_error
+      direction: higher
+      minimum_effect: Greater than 2 in at least one of the three configurations.
+    - metric: total_cost_including_profiling_and_retries
+      direction: different
+      minimum_effect: >-
+        Charging profiling traces, retries, and wall-clock changes the
+        ranking of at least one (backend, configuration) pair relative to
+        the trace-count-only ranking.
+  test_boundary:
+    instances:
+      - >-
+        One laboratory protected ML-KEM implementation on a Cortex-M4
+        target, pinned by source lock at execution; no deployed system,
+        network peer, or third-party key.
+      - >-
+        Three predeclared leakage configurations under the frozen selection
+        rule: nominal protected build, a higher-noise acquisition variant
+        of the same build, and an alternate protection configuration if
+        the pinned implementation exposes one (otherwise a second noise
+        level of the same build).
+      - Per configuration: 8 disjoint profiling keys and 4 held-out attack keys, all generated inside the experiment.
+    parameters:
+      configurations: 3
+      profiling_keys_per_configuration: 8
+      attack_keys_per_configuration: 4
+      profiling_traces_cap_per_configuration: 20000
+      attack_traces_cap_per_key: 2000
+      decision_band_multiplicative: 2
+      backends: [soft_pc_class, adaptive_ldpc_class, burst_aware_replay_control, hard_accuracy_baseline]
+    implementation: >-
+      Laboratory acquisition chain plus calibration and prediction
+      pipeline under experiments/EXP-MLKEM-008/implementation/. No public
+      trace corpus is substituted: the local knowledge corpus contains no
+      pinnable ML-KEM-on-Cortex-M4 corpus (only AES corpora such as ASCAD/
+      ASCADv2/CHESCTF-2023), so the fallback data path is none and the
+      physical rig is mandatory.
+    budget:
+      wall_clock_seconds: 14400
+      cpu_hours: 8.0
+      maximum_memory_gb: 8
+      maximum_runs: 4
+  falsification_conditions:
+    - >-
+      The soft model misses the measured held-out median trace count by
+      more than a factor of 2 in two or more of the three configurations.
+    - >-
+      The hard oracle-accuracy-only model is within a factor of 2 in all
+      three configurations (equally predictive everywhere), so the
+      comparative soft-advantage claim fails.
+    - >-
+      Any reported predictiveness depends on training and attacking the
+      same keys or the same device traces; this also invalidates the run.
+    - >-
+      HEUR-001's falsification condition triggers: calibration does not
+      transfer to held-out attack keys, or burst/nonstationary dependence
+      rather than soft information carries the prediction.
+  distinguishable_outcomes:
+    soft_oracle_budget_predictive: >-
+      Controls pass; soft model within factor 2 in all three
+      configurations; hard baseline misses by more than 2 in at least one;
+      total-cost accounting changes at least one pairwise ranking.
+      Supports H-MLKEM-008 scoped to the tested device, code, protections,
+      and budgets.
+    soft_model_falsified: >-
+      The soft model misses by more than twofold in two or more
+      configurations under valid runs.
+    hard_model_equally_predictive: >-
+      The hard baseline is within factor 2 in all configurations; the
+      comparative claim fails even if the soft model is accurate.
+    nonstationary_or_correlated_dominates: >-
+      IID soft scores fail but burst-aware time-ordered replay predicts
+      held-out recovery; supports the competing explanation, not the
+      hypothesis as stated.
+    backend_mismatch: >-
+      No calibrated model predicts held-out recovery within factor 2 in
+      any configuration; the soft-decoding backends are mismatched to
+      calibrated inputs on this target.
+    invalid_acquisition_or_calibration: >-
+      Acquisition sanity, shuffled-label, or calibration-freeze controls
+      fail. Infrastructure/instrument outcome, not evidence about the
+      hypothesis.
+    trace_source_unavailable: >-
+      Stage-0 preflight cannot attest a protected-device trace source and
+      no pinnable public corpus exists (fallback: none). Terminates as
+      failed_infrastructure with zero evidence value; not evidence against
+      H-MLKEM-008 (AGENTS.md rule 5).
+  interpretation_limits:
+    - >-
+      Scope-fit note: RQ-MLKEM-001 targets algorithmic mechanisms for
+      cryptanalysis. This hypothesis is a side-channel defensive
+      measurement; it is admitted only under the question's
+      decryption-failure and side-information amplification method line
+      and, per the question's constraints, is labeled separately from core
+      algorithmic cryptanalysis. The mismatch with the question's
+      algorithmic focus is recorded here rather than resolved.
+    - Passing validates only the tested device, code, protections, configurations, and budgets.
+    - It is a defensive evaluation metric, not evidence of passive MLWE weakness, and establishes no universal leakage threshold.
+    - Results are never to be described as an exploit, an attack on deployed systems, or a vulnerability claim; laboratory scope only.
+    - Infrastructure unavailability (no rig, no pinnable corpus) carries zero evidence value for or against the hypothesis.
+  selected_by: coordinator
+  source_proposal: IDEA-20260722-003
+  evidence_basis: []
+  status: approved
+  proposed_by: coordinator

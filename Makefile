@@ -30,7 +30,8 @@ help:
 	@echo "  make baseline SUITE=capability FROM=evals/results/<stamp>/capability"
 
 install: hooks
-	$(PYTHON) -m pip install -e ".[agent,dev]"
+	TMPDIR=$$(mktemp -d /tmp/autoresearch-build.XXXXXX) \
+		$(PYTHON) -m pip install -e ".[agent,dev]"
 	@echo
 	@$(PYTHON) -m orchestration doctor || true
 
@@ -59,6 +60,7 @@ check-harness:
 	$(PYTHON) tools/generate_runtime_agents.py --check
 	$(PYTHON) tools/check_runtime_bindings.py
 	@for suite in evals/suites/*.yaml; do \
+		case "$$suite" in */._*) continue ;; esac; \
 		$(PYTHON) -m orchestration.eval validate --suite $$suite || exit 1; \
 	done
 	$(PYTHON) tools/research_dispatch.py coordination/dispatch_queue.json \
