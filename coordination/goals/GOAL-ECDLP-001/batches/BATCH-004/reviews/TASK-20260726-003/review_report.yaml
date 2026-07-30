@@ -1,0 +1,463 @@
+review_report:
+  id: REV-20260726-003
+  task_id: TASK-20260726-003
+  reviewed_task_id: TASK-20260726-001
+  reviewer_role: reviewer
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-004
+  target_ids:
+    - H-IC-001
+    - EXP-IC-001
+  date: "2026-07-26"
+
+  independence_attestation:
+    non_originating_session: true
+    did_not_produce_artifacts: true
+    statement: >-
+      This review session did not produce any TASK-20260726-001 artifacts
+      (H-IC-001, EXP-IC-001, or IDEA-20260726-001). The reviewer is a fresh,
+      independent session operating under the review-xhigh policy. No prior
+      involvement in the design, specification, or proposal generation exists.
+
+  runtime_receipt:
+    requested_policy: "review-xhigh"
+    resolved_model_id: "fireworks-ai/accounts/fireworks/models/glm-5p2"
+    reasoning_effort: "high"
+    fallback_used: true
+    adapter_runtime: "opencode"
+    equivalence_to_requested_policy_claimed: false
+
+  snapshot_validation:
+    commit_sha: "6a4f0705d6bbd1e7b72aa77b79c1a024a20b4faf"
+    parent_sha: "3bc446881ac9ab4d6ba13adddd35299351c8be6f"
+    reachable_from_head: true
+    is_head: true
+    changed_paths:
+      - coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/archives/TASK-20260726-002/snapshot_commit_receipt.json
+      - experiments/EXP-IC-001/specification.yaml
+      - ledger/hypotheses/H-IC-001.yaml
+    changed_path_count: 3
+    changed_path_count_matches: true
+    sha256_verification:
+      ledger/hypotheses/H-IC-001.yaml:
+        receipt_value: "85763a8820d8cf3030817ab5a996178022d3af64f27ffcf40d903d6b3e1db4dc"
+        git_cat_file_value: "85763a8820d8cf3030817ab5a996178022d3af64f27ffcf40d903d6b3e1db4dc"
+        match: true
+      experiments/EXP-IC-001/specification.yaml:
+        receipt_value: "345a654fd416ff4bd105e0dcb53bdcebda021c0a0dd86a599b7f191cf399c7f3"
+        git_cat_file_value: "345a654fd416ff4bd105e0dcb53bdcebda021c0a0dd86a599b7f191cf399c7f3"
+        match: true
+    working_tree_clean_for_committed_paths: true
+    verdict: PASS
+
+  hypothesis_quality:
+    id: H-IC-001
+    required_fields_present:
+      statement: true
+      mechanism: true
+      assumptions: true
+      predictions: true
+      test_boundary: true
+      falsification_conditions: true
+      interpretation_limits: true
+    predictions_decidable:
+      - metric: t_desc_to_sqrt_n_ratio
+        direction: lower
+        has_negative_outcome: true
+        negative_case: "Ratio does not decrease monotonically, or does not cross 1.0"
+      - metric: crossover_K_star
+        direction: different
+        has_negative_outcome: true
+        negative_case: "K* is infinite at all bit sizes (T_desc >= sqrt(N) everywhere)"
+      - metric: amortized_cost_vs_generic_frontier
+        direction: higher
+        has_negative_outcome: true
+        negative_case: "S*T^2 < N at the crossover point (non-generic signal)"
+        caveat: >-
+          The negative case (S*T^2 < N) is nearly impossible to observe given
+          the S_rel heuristic — see blocking objection BO-4. The prediction is
+          decidable in principle but the experiment as designed cannot
+          meaningfully reach the negative case.
+    falsification_conditions_decidable: true
+    status_correct_for_review: true
+    verdict: PASS_WITH_CAVEATS
+
+  experiment_design_completeness:
+    id: EXP-IC-001
+    required_fields_non_null:
+      inputs: true
+      controls: true
+      independent_variables: true
+      metrics: true
+      replication: true
+      budget: true
+      stopping_rules: true
+      invalidation_rules: true
+      success_criterion: true
+      falsification_criterion: true
+      required_artifacts: true
+    controls_count: 5
+    metrics_primary_count: 3
+    metrics_secondary_count: 11
+    stopping_rules_count: 4
+    invalidation_rules_count: 5
+    verdict: PASS
+
+  calibration_methodology_review:
+    description: >-
+      The key methodological innovation converts Groebner wall-time to
+      group-operation equivalents via a rho calibration factor
+      (group_ops_per_second = group_operations / wall_seconds).
+
+    objection_BO1_calibration_bias:
+      blocking: true
+      severity: high
+      summary: >-
+        The calibration factor group_ops_per_second is a mismatched ratio:
+        group_operations counts ONLY walk steps in rho.py (incremented once
+        per walk() call at line 51), while wall_seconds (measured in
+        _run_rho at lines 48-55 of fixed_curve_preprocessing.py) includes
+        the ENTIRE rho.solve() call: 32-branch precomputation (~32*2*log2(n)
+        uncounted group ops), up to 12 restart initializations (~2*log2(n)
+        uncounted group ops each), and the final verification E.mul(k,P)
+        (uncounted). This systematically underestimates the group-op rate.
+      numerical_evidence: >-
+        Uncounted precomputation overhead as fraction of total rho work:
+        97% at 8 bits, 93% at 12 bits, 81% at 16 bits, 56% at 20 bits,
+        28% at 24 bits, 10% at 28 bits, 3% at 32 bits, 1% at 36 bits.
+        The calibration factor is severely biased at bit sizes <= 20.
+      bias_direction: >-
+        Underestimates group_ops_per_second, which underestimates
+        T_desc_gops, biasing toward T_desc < sqrt(N) (K* finite, the
+        hypothesis's predicted direction). The bias is worst at small bit
+        sizes where the hypothesis predicts T_desc >= sqrt(N), so it
+        complicates rather than uniformly supports the hypothesis.
+      fix: >-
+        Either (a) count ALL group operations in rho.py including
+        precomputation and verification, or (b) measure wall_seconds for
+        the walk phase only, or (c) report total_group_ops / wall_seconds
+        as the calibration factor. Option (a) is preferred.
+
+    objection_BO2_apples_to_oranges:
+      blocking: true
+      severity: high
+      summary: >-
+        Converting Groebner wall-time (polynomial arithmetic: Buchberger
+        reduction, S-pair computation, GCD over F_p[x1,x2]) to group-
+        operation equivalents via rho wall-time (modular point arithmetic:
+        inversion, multiplication, addition on E(F_p)) assumes wall-time
+        is a fair common currency between fundamentally different
+        computational primitives. It is not. The result is implementation-
+        bound: sympy's Buchberger is orders of magnitude slower than an
+        optimized F4/F5 implementation, while Python's double-and-add is
+        also unoptimized. The ratio of these two implementation overheads
+        determines T_desc_gops, not any mathematical property.
+      mechanism_claim_issue: >-
+        The hypothesis mechanism claims "the Groebner solve time is
+        dominated by the polynomial operation count (fixed by degree 14,
+        2 variables), which is independent of p." This is a claim about
+        theoretical operation count, but the MEASURED wall-time (and thus
+        T_desc_gops) is implementation-bound. The prior evidence
+        (EV-FCP-002/003) supports ~constant wall-time at 16-36 bits with
+        sympy, but this is an implementation artifact, not a mathematical
+        invariant. A different Groebner implementation could give a
+        different (even opposite) result.
+      prior_evidence_caveat: >-
+        EV-FCP-002 and EV-FCP-003 both note: "No decompositions found at
+        any bit size; all Groebner solves return trivial ideals. Cost for
+        non-trivial systems may differ." The ~0.04-0.05s timing is for
+        the NO-SOLUTION case (Groebner basis = [1]). At 8-12 bits where
+        decompositions exist, the Groebner basis is non-trivial and the
+        cost may be higher. T_desc at small bit sizes (with solutions)
+        may not be comparable to T_desc at large bit sizes (without
+        solutions).
+
+    objection_BO3_calibration_factor_bit_size_dependence:
+      blocking: false
+      severity: medium
+      summary: >-
+        group_ops_per_second increases with bit size because rho's
+        uncounted overhead becomes negligible at larger bit sizes while
+        walk steps grow. The calibration factor thus grows by ~10,000x
+        across 8-36 bits (from ~10 ops/sec at 8-bit to ~100K ops/sec at
+        36-bit, estimated). This means T_desc_gops = groebner_seconds *
+        group_ops_per_second also grows with bit size, even if
+        groebner_seconds is constant. The hypothesis attributes the
+        T_desc/sqrt(N) decrease to "T_desc in group-ops grows slowly
+        while sqrt(N) grows exponentially," but the "slow" growth of
+        T_desc_gops is dominated by the calibration factor's growth,
+        not by any mathematical property of the Groebner computation.
+      fix: >-
+        Report the calibration factor at each bit size and analyze its
+        growth rate. If the calibration factor grows by factor F across
+        the tested range, report T_desc_gops / sqrt(N) alongside
+        groebner_seconds / (wall_seconds / group_operations) to
+        distinguish the calibration artifact from the mathematical signal.
+
+  s_rel_heuristic_review:
+    objection_BO4_heuristic_error_factor_B:
+      blocking: true
+      severity: high
+      summary: >-
+        The heuristic S_rel = B * (N/B)^{m-1} * T_desc_gops gives
+        S_rel = N * T_desc_gops for m=2. This assumes the decomposition
+        probability per random point is (B/N)^{m-1} = B/N. The actual
+        probability for m=2 is ~B^2/N (there are B^2 factor-base pairs,
+        each summing to a random point with probability ~1/N; S_3 is
+        degree 2 in x2 for fixed x1, giving ~2 solutions per x1, so the
+        probability is ~2B^2/N). The heuristic underestimates the
+        probability by factor ~B (=14), and thus OVERESTIMATES S_rel by
+        factor ~B. The correct S_rel is ~(N/B) * T_desc_gops, not
+        N * T_desc_gops.
+      numerical_evidence: >-
+        The ratio P_correct / P_heuristic = B^2/N / (B/N) = B = 14
+        at every bit size. The heuristic overestimates S_rel by 14x
+        uniformly.
+      bias_direction: >-
+        Overestimating S_rel inflates S*T^2 by factor B, biasing toward
+        S*T^2 >= N (the hypothesis's predicted direction: "no non-generic
+        advantage").
+      fix: >-
+        Use S_rel = (N / B^{m-1}) * T_desc_gops, which for m=2 gives
+        S_rel = (N/B) * T_desc_gops. Alternatively, measure S_rel
+        directly at 8-12 bit sizes where decompositions are found.
+
+    objection_BO5_tautological_success_criterion:
+      blocking: true
+      severity: critical
+      summary: >-
+        Given the heuristic S_rel = N * T_desc_gops, the S*T^2 product is
+        S*T^2 = (S_rel + S_LA) * (T_desc + T_verify)^2 ≈ N * T_desc^3
+        (since S_LA << S_rel and T_verify << T_desc). The success
+        condition S*T^2 >= N reduces to T_desc_gops^3 >= 1, i.e.,
+        T_desc_gops >= 1.0. This is almost always true for any non-
+        trivial Groebner computation. The S*T^2 >= N check is
+        tautological — it is guaranteed by the heuristic formula, not
+        determined by empirical data.
+      consequence: >-
+        The experiment's novel contribution — comparing the crossover
+        cost to the generic S*T^2 = N frontier — is vacuous. The
+        success criterion "T_desc < sqrt(N) AND S*T^2 >= N" is
+        equivalent to "1.0 <= T_desc_gops < sqrt(N)," which tests only
+        the K* finiteness, not the frontier comparison. The alternative
+        outcome (S*T^2 < N) requires T_desc_gops < 1.0, which is nearly
+        impossible for sympy Groebner. The experiment cannot meaningfully
+        reach the alternative outcome.
+      with_corrected_heuristic: >-
+        With the corrected S_rel = (N/B) * T_desc_gops, S*T^2 >= N
+        requires T_desc_gops >= B^{1/3} ≈ 2.41. Still almost always true.
+        The tautological nature persists even with the corrected formula.
+      fix: >-
+        Either (a) measure S_rel directly at 8-12 bits and extrapolate,
+        (b) drop the S*T^2 frontier comparison and test only K* finiteness,
+        or (c) add a sensitivity analysis computing S*T^2 under multiple
+        S_rel models (heuristic, corrected, measured) and report all. If
+        the S*T^2 comparison cannot be made empirical at toy scale, label
+        it as a heuristic calculation, not an experimental result.
+
+    objection_BO6_s_rel_never_measured:
+      blocking: true
+      severity: high
+      summary: >-
+        At toy scale (bits >= 16), no relations are found (B^2/N << 1),
+        so S_rel cannot be measured. The entire S (which is dominated by
+        S_rel) is estimated by the heuristic formula, not by data. The
+        S*T^2 comparison is therefore not an empirical result — it is a
+        consequence of the formula. The experiment claims to test whether
+        "the crossover cost lies on or above the generic frontier," but
+        the answer is determined by the heuristic, not by observation.
+      missed_opportunity: >-
+        At 8-12 bits, decompositions ARE found (B^2/N ≈ 0.77 at 8 bits,
+        0.05 at 12 bits). S_rel could be measured directly at these bit
+        sizes by running relation collection until B relations are
+        obtained. The spec does not include this measurement. Comparing
+        measured S_rel to the heuristic at 8-12 bits would validate or
+        falsify the heuristic's accuracy.
+      fix: >-
+        Add a direct S_rel measurement at 8-12 bits: run relation
+        collection until B+margin verified relations are obtained, count
+        the total attempts and total wall time. Compare measured S_rel
+        to the heuristic estimate at those bit sizes.
+
+  success_falsification_review:
+    success_criterion_decidable: true
+    success_criterion_has_negative_outcome: true
+    success_criterion_issue: >-
+      The success criterion has two conjuncts: (1) T_desc < sqrt(N) at
+      some bit size for >= 2/3 seeds, and (2) S*T^2 >= N at that bit
+      size. Conjunction (1) is genuinely testable. Conjunction (2) is
+      tautological (see BO-5). The criterion as a whole is decidable but
+      the second conjunct adds no discriminating power.
+    falsification_criterion_decidable: true
+    falsification_criterion_has_negative_outcome: true
+    falsification_criterion_issue: >-
+      The falsification criterion (T_desc >= sqrt(N) at ALL bit sizes)
+      is genuinely testable and meaningful. It tests the K* finiteness
+      question, which is the valid part of the experiment.
+    alternative_outcome_reachable: false
+    alternative_outcome_issue: >-
+      The alternative outcome (T_desc < sqrt(N) AND S*T^2 < N) requires
+      T_desc_gops < 1.0 (with the heuristic) or < 2.41 (corrected). Both
+      are nearly impossible for sympy Groebner, so the alternative
+      outcome is effectively unreachable. The experiment is biased toward
+      the "no non-generic advantage" conclusion by construction.
+
+  claim_boundary_review:
+    claim_tier_issue:
+      blocking: false
+      severity: low
+      summary: >-
+        The experiment tests bit sizes 8-36. Per docs/claims-and-
+        verification.md, the mechanical tier rule is: toy <= 32 bits,
+        medium = 33-96 bits. The 36-bit instances exceed the toy tier
+        ceiling. The hypothesis statement says "toy prime fields of
+        8-36 bits" and the interpretation_limits say "Toy scale only
+        (max 36 bits)," which is incorrect for the 36-bit instances.
+        The claim tier for evidence from this experiment should be
+        medium (or at minimum, the minimum of toy and medium = toy
+        for the <=32-bit subset and medium for the 36-bit subset).
+      note: >-
+        This is a pre-existing pattern: EV-FCP-003 also labels 36-bit
+        evidence as claim_tier: toy. The tier should be corrected but
+        this does not affect the experimental design's validity.
+    no_crypto_scale_claims: true
+    no_breakthrough_claims: true
+    no_universal_impossibility_claims: true
+    interpretation_limits_adequate: true
+    verdict: PASS_WITH_CAVEATS
+
+  blocking_objections:
+    - id: BO-1
+      title: Calibration factor is a mismatched ratio (walk steps / total time)
+      severity: high
+      fix: >-
+        Count all group operations in rho.py (precomputation + walk +
+        verification) or measure walk-phase wall time only.
+    - id: BO-2
+      title: Apples-to-oranges wall-time conversion between polynomial and group arithmetic
+      severity: high
+      fix: >-
+        Acknowledge the conversion is implementation-bound and report
+        absolute wall times alongside group-op equivalents. Add a
+        sensitivity analysis with a faster Groebner implementation if
+        feasible. Label the result as implementation-bound.
+    - id: BO-4
+      title: S_rel heuristic overestimates by factor B (decomposition probability is B^2/N, not B/N)
+      severity: high
+      fix: >-
+        Correct the heuristic to S_rel = (N/B^{m-1}) * T_desc_gops, or
+        measure S_rel directly at 8-12 bits.
+    - id: BO-5
+      title: S*T^2 >= N success criterion is tautological given the heuristic
+      severity: critical
+      fix: >-
+        Drop the S*T^2 comparison or make it empirical by measuring
+        S_rel directly. If kept as a heuristic calculation, label it
+        as such and do not present it as an experimental result.
+    - id: BO-6
+      title: S_rel is never measured at toy scale; the S*T^2 comparison is non-empirical
+      severity: high
+      fix: >-
+        Add direct S_rel measurement at 8-12 bits where decompositions
+        are found. Compare measured S_rel to the heuristic.
+
+  non_blocking_objections:
+    - id: NBO-1
+      title: Calibration factor grows ~10,000x across 8-36 bits, dominating T_desc_gops growth
+      severity: medium
+      fix: Report and analyze the calibration factor's growth rate.
+    - id: NBO-2
+      title: T_desc measured on trivial ideals (no solution) may not represent non-trivial cases
+      severity: medium
+      fix: >-
+        Report T_desc separately for decomposition_found=true and
+        decomposition_found=false instances at 8-12 bits.
+    - id: NBO-3
+      title: Claim tier should be medium (not toy) for 36-bit instances
+      severity: low
+      fix: Correct the claim tier in the hypothesis and evidence records.
+    - id: NBO-4
+      title: BSGS control from IDEA-20260726-001 is missing from EXP-IC-001
+      severity: low
+      fix: >-
+        Either add a BSGS control or justify its omission (rho is the
+        primary baseline; BSGS has same O(sqrt(N)) cost with O(sqrt(N))
+        memory).
+    - id: NBO-5
+      title: S_LA estimation uses unverified 12-field-ops-per-group-op conversion
+      severity: low
+      fix: >-
+        Report S_LA as negligible without the conversion, or verify the
+        conversion factor empirically.
+
+  valid_aspects:
+    - >-
+      The K* finiteness measurement (T_desc vs sqrt(N)) at large bit sizes
+      (28-36) is valid and meaningful despite calibration imperfections,
+      because the calibration bias is small (< 10%) at those sizes.
+    - >-
+      The hypothesis is falsifiable: the falsification criterion (T_desc >=
+      sqrt(N) at all bit sizes) is decidable and has a meaningful negative
+      case.
+    - >-
+      The experiment design is complete: all required fields are non-null
+      and well-specified.
+    - >-
+      The controls (rho baseline, target independence, calibration
+      reliability, cross-experiment validation) are appropriate.
+    - >-
+      The claim boundaries are conservative: no crypto-scale, breakthrough,
+      or universal impossibility claims.
+    - >-
+      The snapshot commit is valid: commit 6a4f0705 is reachable from HEAD,
+      has parent 3bc44688, changes exactly 3 paths, and SHA-256 values match.
+
+  terminal_verdict: REVISE
+
+  verdict_rationale: >-
+    The hypothesis (H-IC-001) is well-structured and falsifiable, and the
+    experiment design (EXP-IC-001) is complete with all required fields.
+    The snapshot commit is valid. However, five blocking objections
+    compromise the experiment's novel contribution (the S*T^2 frontier
+    comparison):
+
+    1. The calibration factor (group_ops_per_second) is a mismatched ratio
+       that systematically underestimates the group-op rate by up to 97%
+       at small bit sizes (BO-1).
+
+    2. The wall-time-to-group-ops conversion is an apples-to-oranges
+       comparison between polynomial arithmetic and group operations,
+       making the result implementation-bound (BO-2).
+
+    3. The S_rel heuristic overestimates S_rel by factor B=14 because it
+       uses decomposition probability B/N instead of the correct B^2/N
+       (BO-4).
+
+    4. The S*T^2 >= N success criterion is tautological: given the
+       heuristic S_rel = N * T_desc, it reduces to T_desc >= 1.0 group-op,
+       which is almost always true (BO-5).
+
+    5. S_rel is never measured at toy scale, making the S*T^2 comparison
+       a formula-driven result rather than an empirical observation (BO-6).
+
+    The K* finiteness measurement (T_desc vs sqrt(N)) is valid and worth
+    running, but the S*T^2 frontier comparison — the experiment's novel
+    contribution — is vacuous as designed. The issues are fixable: correct
+    the calibration, correct or measure S_rel, and either make the S*T^2
+    comparison empirical or drop it. The experiment should be revised
+    before execution.
+
+  recommended_next_action: >-
+    Return EXP-IC-001 to TASK-20260726-001 (or a successor design task)
+    for revision: (1) fix the rho calibration to count all group
+    operations or measure walk-phase time only, (2) correct the S_rel
+    heuristic to S_rel = (N/B^{m-1}) * T_desc_gops or add direct S_rel
+    measurement at 8-12 bits, (3) either make the S*T^2 frontier
+    comparison empirical by measuring S_rel or drop it and test only
+    K* finiteness, (4) correct the claim tier to medium for 36-bit
+    instances. The K* finiteness measurement at 28-36 bits is sound and
+    should be preserved in the revised design.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/reviews/TASK-20260726-003/review_report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/reviews/TASK-20260726-003/adversarial_notes.md

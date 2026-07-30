@@ -1,0 +1,108 @@
+experiment:
+  id: EXP-FCP-002
+  hypothesis_id: H-FCP-001
+  version: 1
+  title: >-
+    Fixed-curve preprocessing cost advantage at extended toy bit sizes
+    (16-28 bit) with K=5 target amortization
+  status: approved
+  objective: >-
+    Test whether fixed-curve factor-base preprocessing provides a measurable
+    amortized cost advantage over per-target naive rebuilding at toy prime
+    fields of 16-28 bits, with K=5 targets per curve and factor base B=14,
+    m=2 (S_3 decomposition). The prior experiment (EXP-FCP-001, EV-FCP-001)
+    found no advantage at 8-16 bits with K=3; this experiment extends the
+    range and increases K to improve amortization.
+  inputs:
+    curve_generation: harness.toycurve.generate_instance(seed, field_bits)
+    bit_sizes: [16, 20, 24, 28]
+    seeds: [1, 2, 3]
+    factor_base_size: 14
+    decomposition_arity: 2
+    targets_per_curve: 5
+    target_derivation: >-
+      Deterministic from (seed, target_index) via _derive_targets: stride =
+      max(2, seed % max(2, n-3)), k = ((idx+1)*stride) % (n-1) + 1
+  controls:
+    - >-
+      Matched fixed/naive pairs: identical curve_id, target points, and
+      factor-base parameters; only the factor-base reuse strategy differs.
+    - >-
+      Pollard-rho baseline: one rho solve per (bits, seed) on the same curve,
+      reporting group-operation count with a verified discrete-log certificate.
+    - >-
+      Bit-size 16 control: overlaps with EXP-FCP-001 for cross-experiment
+      comparability.
+  independent_variables:
+    - field_bits: [16, 20, 24, 28]
+    - mode: [fixed, naive]
+  metrics:
+    primary:
+      - amortized_cost_ratio: >-
+          (precompute_seconds + K * mean_groebner_fixed) /
+          (K * (mean_rebuild_naive + mean_groebner_naive))
+          where K = targets_per_curve = 5
+    secondary:
+      - precompute_seconds: factor-base construction time (one per curve)
+      - rebuild_seconds: factor-base rebuild time (per naive target)
+      - groebner_seconds: Groebner solve time per target
+      - precompute_to_groebner_ratio: precompute_seconds / mean_groebner_seconds
+      - decomposition_found: boolean per target
+      - groebner_basis_max_degree_proxy: implementation-bound degree proxy
+      - rho_group_operations: Pollard-rho baseline cost
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 3
+    targets_per_instance: 5
+  budget:
+    wall_clock_seconds_per_run: 120
+    total_cpu_hours: 2
+    maximum_memory_gb: 4
+    maximum_runs: 156
+  stopping_rules:
+    - >-
+      Per-run Groebner timeout: if groebner_seconds exceeds 120s for any
+      target, record the run as cancelled_by_budget and do not attempt
+      larger bit sizes for that seed.
+    - >-
+      Total experiment wall-clock: if cumulative wall time exceeds 3600s,
+      stop and record remaining planned runs as cancelled_by_budget.
+    - >-
+      If all 3 seeds at a given bit size timeout, do not attempt the next
+      larger bit size.
+  invalidation_rules:
+    - any run with dirty: true is invalid (the manifest commit must pin the exact code)
+    - any run with a missing manifest, raw-result, stdout, or stderr file is invalid
+    - any decomposition claim with a failed certificate is completed_invalid
+    - control comparability failure: if fixed and naive runs at the same (bits, seed, target_index) do not use identical curve_id and target points, the pair is invalid
+  success_criterion: >-
+    amortized_cost_ratio < 0.95 at any bit size >= 20 for at least 2 of 3
+    seeds. The 0.95 threshold ensures the advantage is at least 5% — above
+    the noise floor observed in EXP-FCP-001.
+  falsification_criterion: >-
+    amortized_cost_ratio >= 0.95 at ALL tested bit sizes for all seeds, AND
+    the precompute/groebner ratio does not increase with bit size. This
+    closes the fixed-curve preprocessing direction at toy scale (16-28 bits,
+    B=14, m=2, K=5).
+  required_artifacts:
+    - specification.yaml (this file)
+    - analysis.md (Coordinator-written, after execution)
+    - runs/<RUN-ID>/manifest.yaml
+    - runs/<RUN-ID>/raw-result.json
+    - runs/<RUN-ID>/stdout.log
+    - runs/<RUN-ID>/stderr.log
+    - runs/<RUN-ID>/command.txt
+    - runs/<RUN-ID>/environment.json
+  assigned_to: executor
+  approved_by: coordinator
+  prior_evidence:
+    - EV-FCP-001
+  prior_decision:
+    - DEC-20260726-001
+  command_template: >-
+    python -m harness.fixed_curve_preprocessing
+    --bits {bits} --seeds {seeds}
+    --factor-base 14 --targets-per-curve 5
+    --exp-id EXP-FCP-002
+  expected_run_count: >-
+    4 bit_sizes * 3 seeds * (1 precompute + 1 rho + 5 fixed + 5 naive) = 144 runs

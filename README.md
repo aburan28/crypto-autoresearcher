@@ -51,6 +51,7 @@ docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
 docs/target-result-profile.md          Target result profile: exemplar-anchored direction criteria
 docs/dynamic-subagent-dispatch.md      Artifact-driven task dispatch and ownership rules
+docs/knowledge-assessment-20260724.md  Audit of corpus, ledger, and artifact completeness
 templates/research-records.md          YAML templates for all shared records
 templates/subagent-task-queue.json     JSON template for bounded task dispatch
 tools/research_dispatch.py             Validates and renders the ready-task plan

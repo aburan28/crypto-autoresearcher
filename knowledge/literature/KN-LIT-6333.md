@@ -1,0 +1,38 @@
+---
+id: KN-LIT-6333
+type: literature
+title: "Round-Optimal Password-Based Authenticated Key Exchange"
+authors:
+  - "Jonathan Katz"
+  - "Vinod Vaikuntanathan"
+year: null
+venue: null
+identifiers:
+  eprint: null
+  doi: null
+  arxiv: null
+  url: null
+tags: [protocol, provable-security, quantum]
+confidence: reported
+citation_verified: read
+added: "2026-07-24"
+superseded_by: null
+---
+
+## Contribution
+No abstract was extractable from the first two pages of the local PDF; contribution recorded from the title only. See local copy for the full text.
+
+## Key claims (as reported)
+- Title-level claim: "Round-Optimal Password-Based Authenticated Key Exchange" (abstract not extracted).
+
+## Relevance to this program
+Recorded for completeness of the local cryptography library. Peripheral to the ECDLP index-calculus program; cite in novelty checks for the tagged areas only.
+
+## Not verified here
+Entry generated during the 2026-07-24 bulk seeding pass from the local PDF's first two pages. Title/authors/year/venue were parsed heuristically and may be incomplete or mis-segmented; claims are relayed from the paper's abstract without independent verification. Upgrade to a fully verified entry after a careful read.
+
+## Local copies
+- `downloads/65970288 (1).pdf`
+- `downloads/65970288 (2).pdf`
+- `downloads/65970288 (3).pdf`
+- `downloads/65970288.pdf`
