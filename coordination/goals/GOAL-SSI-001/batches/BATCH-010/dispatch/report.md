@@ -6,11 +6,11 @@ BATCH-010: hash-addressed Peikert 2019/725 source integrity for Eq(4.1)/8L + one
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-007` | red-team | queued | 80 | TASK-20260730-005, TASK-20260730-006 | coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-007/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-007/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-007 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-008`: dependency_not_completed:TASK-20260730-007:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-010: hash-addressed Peikert 2019/725 source integrity for Eq(4.1)/8L + one
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `418844b78a6fdf9093299a89f3b78f53b1a12173cc7fd816d7fc29b4cdd39534`
+Plan SHA-256: `8f8875843905ae3916710311e53da757f91a17c8642b8ac8b0edea48417d3288`
