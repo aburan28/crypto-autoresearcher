@@ -6,12 +6,10 @@ BATCH-008: revise CSIDH-COLLIMATION-FC0 against RT-20260729-003 O1-O5 and KN-TEC
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260729-005` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-008/tasks/TASK-20260729-005/fc0_revision_note.md, coordination/goals/GOAL-SSI-001/batches/BATCH-008/tasks/TASK-20260729-005/derivation_note.md, coordination/goals/GOAL-SSI-001/batches/BATCH-008/tasks/TASK-20260729-005/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-008/tasks/TASK-20260729-005 |
+| `TASK-20260729-007` | red-team | queued | 80 | TASK-20260729-005, TASK-20260729-006 | coordination/goals/GOAL-SSI-001/batches/BATCH-008/tasks/TASK-20260729-007/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-008/tasks/TASK-20260729-007/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-008/tasks/TASK-20260729-007 |
 
 ## Deferred or Blocked
 
-- `TASK-20260729-006`: dependency_not_completed:TASK-20260729-005:queued
-- `TASK-20260729-007`: dependency_not_completed:TASK-20260729-005:queued, dependency_not_completed:TASK-20260729-006:queued
 - `TASK-20260729-008`: dependency_not_completed:TASK-20260729-007:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-008: revise CSIDH-COLLIMATION-FC0 against RT-20260729-003 O1-O5 and KN-TEC
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `aeea63ee0273b3b9a9e9c5f583e1e3be414f86ae52e4c8cde4cbd70691bd6325`
+Plan SHA-256: `eb3cae511711fab8f98b29cc0da25729d60a0e74110d6c4765419fb930cf676a`
