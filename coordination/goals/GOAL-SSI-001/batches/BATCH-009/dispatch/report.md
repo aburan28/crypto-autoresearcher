@@ -6,12 +6,10 @@ BATCH-009: CSIDH-COLLIMATION-FC0-R2 stochastic invocation ledger + Equation (4.1
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-001` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-001/fc0_r2_revision_note.md, coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-001/stochastic_invocation_ledger.md, coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-001/primary_source_excerpts.md, coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-001/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-001 |
+| `TASK-20260730-003` | red-team | queued | 80 | TASK-20260730-001, TASK-20260730-002 | coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-003/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-003/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-003 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-002`: dependency_not_completed:TASK-20260730-001:queued
-- `TASK-20260730-003`: dependency_not_completed:TASK-20260730-001:queued, dependency_not_completed:TASK-20260730-002:queued
 - `TASK-20260730-004`: dependency_not_completed:TASK-20260730-003:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-009: CSIDH-COLLIMATION-FC0-R2 stochastic invocation ledger + Equation (4.1
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `2b5c6790c9f7473e537fddd5ce90141e759f06cae2fb7b209b3cbd85768e83d2`
+Plan SHA-256: `cdc35207bf9030d3e505b32f7d40c66950dbf10408706281be5817907d1e3b6c`
