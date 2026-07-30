@@ -6,12 +6,10 @@ BATCH-010: hash-addressed Peikert 2019/725 source integrity for Eq(4.1)/8L + one
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-005` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-005/source_manifest.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-005/peikert_2019_725_final.pdf, coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-005/extraction_transcript.md, coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-005/page_equation_mapping.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-005/reconciliation_worksheet.md, coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-005/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-005 |
+| `TASK-20260730-007` | red-team | queued | 80 | TASK-20260730-005, TASK-20260730-006 | coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-007/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-007/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-010/tasks/TASK-20260730-007 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-006`: dependency_not_completed:TASK-20260730-005:queued
-- `TASK-20260730-007`: dependency_not_completed:TASK-20260730-005:queued, dependency_not_completed:TASK-20260730-006:queued
 - `TASK-20260730-008`: dependency_not_completed:TASK-20260730-007:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-010: hash-addressed Peikert 2019/725 source integrity for Eq(4.1)/8L + one
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `01938ee8b8e410d3709d7963a5bca4008095e69faece777b2ae8a979f612295e`
+Plan SHA-256: `418844b78a6fdf9093299a89f3b78f53b1a12173cc7fd816d7fc29b4cdd39534`
