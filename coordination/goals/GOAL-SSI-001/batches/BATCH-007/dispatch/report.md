@@ -6,11 +6,11 @@ BATCH-007 pinned CSIDH quantum cost-convention novelty/derivation screen for KN-
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260729-003` | red-team | queued | 80 | TASK-20260729-001, TASK-20260729-002 | coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-003/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-003/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-003 |
+| `TASK-20260729-004` | coordinator | queued | 70 | TASK-20260729-003 | ledger/evidence/EV-SSI-007.yaml, ledger/decisions/DEC-20260729-004.yaml, ledger/goals/GOAL-SSI-001.yaml | ledger/evidence, ledger/decisions, ledger/goals, ledger/proposals, knowledge |
 
 ## Deferred or Blocked
 
-- `TASK-20260729-004`: dependency_not_completed:TASK-20260729-003:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-007 pinned CSIDH quantum cost-convention novelty/derivation screen for KN-
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `d0acdf31b10bc98c3470b0a15cac7ec12be35fbbbf72b70285b13123546ba34d`
+Plan SHA-256: `8ba223247541b96194032ea20f2e90e539c3798e324cf072e64de14534ce697f`
