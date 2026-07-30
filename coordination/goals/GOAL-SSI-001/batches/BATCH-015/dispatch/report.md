@@ -6,12 +6,10 @@ BATCH-015: preregister small-schedule panel + typed-tape transition-machine spec
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-027` | executor | queued | 90 | TASK-20260730-025, TASK-20260730-026 | coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-027/panel_audit_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-027/panel_audit_results.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-027/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-027/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-027 |
+| `TASK-20260730-029` | red-team | queued | 80 | TASK-20260730-027, TASK-20260730-028 | coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-029/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-029/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-029 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-028`: dependency_not_completed:TASK-20260730-027:queued
-- `TASK-20260730-029`: dependency_not_completed:TASK-20260730-027:queued, dependency_not_completed:TASK-20260730-028:queued
 - `TASK-20260730-030`: dependency_not_completed:TASK-20260730-029:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-015: preregister small-schedule panel + typed-tape transition-machine spec
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `722070e16bf0dd2a00f71771914af0e31922c00eb227f4f9d030b1c8a73b6cf9`
+Plan SHA-256: `cda841404c75ac10d0796d95a6d02bd7e79c0803325fb3cf48d98e89b368ac5a`
