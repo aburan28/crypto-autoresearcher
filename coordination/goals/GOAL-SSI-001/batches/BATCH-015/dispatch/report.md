@@ -6,11 +6,11 @@ BATCH-015: preregister small-schedule panel + typed-tape transition-machine spec
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-029` | red-team | queued | 80 | TASK-20260730-027, TASK-20260730-028 | coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-029/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-029/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-029 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-030`: dependency_not_completed:TASK-20260730-029:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-015: preregister small-schedule panel + typed-tape transition-machine spec
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `cda841404c75ac10d0796d95a6d02bd7e79c0803325fb3cf48d98e89b368ac5a`
+Plan SHA-256: `743a0f834da977f628954a30f4ebdd2f0b8754415b9a29d67e981e26ee521428`
