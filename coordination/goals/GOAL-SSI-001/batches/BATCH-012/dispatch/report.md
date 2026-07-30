@@ -6,11 +6,11 @@ BATCH-012: pin a concrete Peikert binary c-sieve simulator or reference-implemen
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-015` | red-team | queued | 80 | TASK-20260730-013, TASK-20260730-014 | coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-015/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-015/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-015 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-016`: dependency_not_completed:TASK-20260730-015:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-012: pin a concrete Peikert binary c-sieve simulator or reference-implemen
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `f7cfde82150353a5ea6fc4acb67e80788d1be7c07850c14c86dc3f03708fc13e`
+Plan SHA-256: `e24c7d45658975cb9a8cb2355ab36b0e5225deda0e0b5728fa9e41053b6ab4c5`
