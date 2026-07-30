@@ -93,9 +93,36 @@ Eight sentinels per family do not establish a 1% false-positive rate. The
 result is restricted to detecting the observed rare-bucket pathology and
 gross candidate-matched instability.
 
+## Calibration 003
+
+The exact registered development lockbox launched once from clean commit
+`fe7c1c7cc7f5f4eb27caf56e6d3288cd2733e1ed` and tree
+`0d215408bc6aa6423ac15b27f4eb1a933a9cd0df`.
+
+- execution profile: `registered_development`;
+- curves: nine generated 8-10-bit prime-order curves;
+- candidate cells: 27, retained only for code-path coverage;
+- exact eligibility boundary controls: all pass;
+- public-coordinate positive control: pass;
+- candidate-matched negative sentinels: 24/24 pass;
+- worst negative retained enrichment: `0.038099`;
+- minimum negative reference-tail rank: `0.023438`;
+- predictor calibration gate: pass;
+- producer screening signals: zero;
+- independent verifier: valid;
+- target rows independently reconstructed: 15,543;
+- semantic and integrity mutations: 19/19 rejected;
+- producer wall time/RSS: 133.12 seconds / 66,240,512 bytes;
+- verifier wall time/RSS: 803.51 seconds / 73,318,400 bytes.
+
+The full AP control bundle is false because three development null draws
+cannot resolve the inherited `<=0.01` AP rank thresholds. That is expected
+and outside the registered predictor-calibration gate. The packet authorizes
+post-freeze seed-lock creation only.
+
 ## Next Concrete Action
 
-Freeze the revised contract, producer, verifier, and tests in a clean commit.
-Then execute the exact registered development lockbox once. Do not create the
-post-freeze confirmatory seed lock unless that packet and its semantic
-mutation runs verify.
+Preserve the registered packet, derive the confirmatory seeds from frozen
+commit `fe7c1c7c` using the contract's domain-separated procedure, commit the
+seed lock without changing source or contract bytes, and launch the exact
+confirmatory command once from a clean tree.
