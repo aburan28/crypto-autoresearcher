@@ -26,10 +26,18 @@ step 2).
    research question, the context found above, how many ideas are wanted
    (default 3–5), and any user constraints. Remind it that every idea record
    must be schema-complete and novelty-checked against `knowledge/` before
-   any novelty label stronger than `unverified`.
+   any novelty label stronger than `unverified`. The handoff must also direct
+   it to the exemplar search heuristics in `agents/idea-generator.md` and the
+   target profile in `docs/target-result-profile.md`: exponent-first ambition,
+   hunting external structural ingredients, meet-in-the-middle decompositions,
+   distribution heuristics plus re-randomization, and reduction-network
+   cascades — and require the `heuristic_assumptions` and `target_complexity`
+   fields on every idea.
 4. Verify each returned idea against the schema in
    `agents/idea-generator.md`: claim, mechanism, predictions with metrics,
-   minimal test, controls, falsification conditions, cost. Send incomplete
+   minimal test, controls, falsification conditions, named heuristic
+   assumptions each with an experimental validation route, target time and
+   memory exponents versus the best known, and cost. Send incomplete
    ideas back to the subagent for completion — do not repair them yourself.
 5. Save each complete idea as `ledger/proposals/IDEA-YYYYMMDD-NNN.yaml`.
    The Coordinator then runs an isolated snapshot archive task that commits
@@ -45,3 +53,6 @@ step 2).
   anything here — that is `/design-experiment` under Coordinator authority.
 - Never overwrite an existing proposal file.
 - Do not let an uncommitted proposal become a candidate for `/design-experiment`.
+- Do not strip or soften `heuristic_assumptions` or `target_complexity` when
+  filing ideas: a conditional claim must stay conditional, with its validation
+  route and exponents intact.

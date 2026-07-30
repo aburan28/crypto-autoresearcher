@@ -31,6 +31,9 @@ validation.
      `agents/executor.md`;
    - run the pre-analysis validation checks (run count, schema, seeds,
      raw/summary agreement, control comparability, deviations);
+   - for heuristic-validation runs, compute the pre-registered comparison
+     metric exactly as specified — including tail checks and controls —
+     against the frozen prediction only;
    - return the `execution_report` YAML.
 3. The Coordinator runs an isolated snapshot archive task that stages and
    commits only the declared run package and execution report. Do not ask the
@@ -47,3 +50,17 @@ validation.
   run ID; it is never deleted or edited.
 - Infrastructure failures and timeouts are not negative evidence; report
   them as their own classes.
+- Predictions are frozen before runs. The pre-registered prediction or cost
+  model in an approved specification is read-only during execution. A
+  post-hoc adjustment is a new record via the amendment path and re-approval
+  — never an edit of the frozen prediction, and never a silent re-scoring of
+  completed runs against a new one.
+- Record, never discard. Protocol deviations, infrastructure failures, and
+  unexpected observations all go into the run manifest and the execution
+  report (`protocol_deviations`, `anomalies`, `observations`). An observation
+  that does not fit the prediction is still an observation.
+- The Executor records observations only. For heuristic-validation runs it
+  reports the frozen prediction reference, the comparison statistics, and
+  the tail-check outcomes — never a conclusion that the heuristic is
+  supported or refuted. That judgment belongs to `/review-evidence` under
+  Coordinator authority.

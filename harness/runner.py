@@ -74,6 +74,11 @@ class RunResult:
     stdout: str = ""
     stderr: str = ""
     raw: dict = field(default_factory=dict)
+    # Optional exemplar-aligned metadata (see harness/README.md). Recorded
+    # verbatim in the manifest when provided; the keys are omitted entirely
+    # otherwise, so existing runs and manifests are unaffected.
+    heuristic_validation: dict | None = None
+    cost_model: dict | None = None
 
 
 # Certificate verifiers, keyed by kind. Each is INDEPENDENT of any solver.
@@ -169,6 +174,13 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
             },
         }
     }
+
+    # Optional exemplar-aligned blocks: recorded verbatim, present only when
+    # the experiment supplied them (keys absent means "not this run class").
+    if result.heuristic_validation is not None:
+        manifest["run"]["heuristic_validation"] = dict(result.heuristic_validation)
+    if result.cost_model is not None:
+        manifest["run"]["cost_model"] = dict(result.cost_model)
 
     _write(run_dir, "manifest.yaml",
            yaml.safe_dump(manifest, sort_keys=False))
