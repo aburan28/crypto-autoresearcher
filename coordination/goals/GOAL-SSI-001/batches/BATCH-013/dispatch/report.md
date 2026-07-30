@@ -6,12 +6,10 @@ BATCH-013: bounded exact reachable-state analyzer for small sieve instances comp
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-017` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/analyzer_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/analyzer_results.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/recovery_spec.md, coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017 |
+| `TASK-20260730-019` | red-team | queued | 80 | TASK-20260730-017, TASK-20260730-018 | coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-019/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-019/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-019 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-018`: dependency_not_completed:TASK-20260730-017:queued
-- `TASK-20260730-019`: dependency_not_completed:TASK-20260730-017:queued, dependency_not_completed:TASK-20260730-018:queued
 - `TASK-20260730-020`: dependency_not_completed:TASK-20260730-019:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-013: bounded exact reachable-state analyzer for small sieve instances comp
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `6e5e7276d4968fbc2136ff9653a76a080363b74c6fbddadfd947e4c0314a66b9`
+Plan SHA-256: `13bdc74f9169188cefb339ca8ef1b4c7dbde8eb315d484abd790a681a8b73600`
