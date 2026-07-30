@@ -6,12 +6,10 @@ BATCH-015: preregister small-schedule panel + typed-tape transition-machine spec
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-025` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-025/schedule_panel.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-025/tape_machine_spec.md, coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-025/preregistration_manifest.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-025 |
+| `TASK-20260730-027` | executor | queued | 90 | TASK-20260730-025, TASK-20260730-026 | coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-027/panel_audit_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-027/panel_audit_results.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-027/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-027/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-015/tasks/TASK-20260730-027 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-026`: dependency_not_completed:TASK-20260730-025:queued
-- `TASK-20260730-027`: dependency_not_completed:TASK-20260730-025:queued, dependency_not_completed:TASK-20260730-026:queued
 - `TASK-20260730-028`: dependency_not_completed:TASK-20260730-027:queued
 - `TASK-20260730-029`: dependency_not_completed:TASK-20260730-027:queued, dependency_not_completed:TASK-20260730-028:queued
 - `TASK-20260730-030`: dependency_not_completed:TASK-20260730-029:queued
@@ -29,4 +27,4 @@ BATCH-015: preregister small-schedule panel + typed-tape transition-machine spec
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `6694a9a240fe7fcd54872ca61fdc89f80f5349c3c9de36ad7be3b0bf2180de8d`
+Plan SHA-256: `722070e16bf0dd2a00f71771914af0e31922c00eb227f4f9d030b1c8a73b6cf9`
