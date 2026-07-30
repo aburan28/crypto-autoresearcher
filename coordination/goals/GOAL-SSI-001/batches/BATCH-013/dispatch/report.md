@@ -6,11 +6,11 @@ BATCH-013: bounded exact reachable-state analyzer for small sieve instances comp
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-019` | red-team | queued | 80 | TASK-20260730-017, TASK-20260730-018 | coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-019/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-019/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-019 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-020`: dependency_not_completed:TASK-20260730-019:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-013: bounded exact reachable-state analyzer for small sieve instances comp
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `13bdc74f9169188cefb339ca8ef1b4c7dbde8eb315d484abd790a681a8b73600`
+Plan SHA-256: `88c3d1e9e4dc31b6cd11bae62348a10b65d0254a5e7850835b4d7f3e83733eb6`
