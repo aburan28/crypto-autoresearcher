@@ -6,11 +6,11 @@ BATCH-011: FC0-R2 joint stopping-law and global-liveness control for IDEA-202607
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-011` | red-team | queued | 80 | TASK-20260730-009, TASK-20260730-010 | coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-011/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-011/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-011/tasks/TASK-20260730-011 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-012`: dependency_not_completed:TASK-20260730-011:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-011: FC0-R2 joint stopping-law and global-liveness control for IDEA-202607
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `8ab959f10240b3cdb9377741de78394771c9ffa28e93baf60a288583f2b2573b`
+Plan SHA-256: `11d5025954337f416cd9a980af3876fb98b65af771ba919d07c4600f6884a800`
