@@ -6,11 +6,11 @@ BATCH-014: pin one actual small interval-schedule instance; extend analyzer with
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-023` | red-team | queued | 80 | TASK-20260730-021, TASK-20260730-022 | coordination/goals/GOAL-SSI-001/batches/BATCH-014/tasks/TASK-20260730-023/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-014/tasks/TASK-20260730-023/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-014/tasks/TASK-20260730-023 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-024`: dependency_not_completed:TASK-20260730-023:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-014: pin one actual small interval-schedule instance; extend analyzer with
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `438169322363fd6c5409050d565dfd7affc078d4f76f245409c703fc9a5a07b0`
+Plan SHA-256: `3cb5032121bb2feb63f44e8e2a5b9170966881b07f7ff261ea42c4d96ebdda2f`
