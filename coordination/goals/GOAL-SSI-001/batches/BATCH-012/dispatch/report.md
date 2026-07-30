@@ -6,12 +6,10 @@ BATCH-012: pin a concrete Peikert binary c-sieve simulator or reference-implemen
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-013` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-013/artifact_pin.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-013/process_extraction.md, coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-013/joint_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-013/mutation_audit.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-013/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-013 |
+| `TASK-20260730-015` | red-team | queued | 80 | TASK-20260730-013, TASK-20260730-014 | coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-015/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-015/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-015 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-014`: dependency_not_completed:TASK-20260730-013:queued
-- `TASK-20260730-015`: dependency_not_completed:TASK-20260730-013:queued, dependency_not_completed:TASK-20260730-014:queued
 - `TASK-20260730-016`: dependency_not_completed:TASK-20260730-015:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-012: pin a concrete Peikert binary c-sieve simulator or reference-implemen
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `6ee0afa50a01120d889be432b564211c62f9e998aab12bd1eb8b9fda83419be5`
+Plan SHA-256: `f7cfde82150353a5ea6fc4acb67e80788d1be7c07850c14c86dc3f03708fc13e`
