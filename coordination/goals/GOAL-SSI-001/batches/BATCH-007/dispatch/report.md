@@ -6,12 +6,10 @@ BATCH-007 pinned CSIDH quantum cost-convention novelty/derivation screen for KN-
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260729-001` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-001/mechanism_screen.md, coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-001/candidate_report.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-001 |
+| `TASK-20260729-003` | red-team | queued | 80 | TASK-20260729-001, TASK-20260729-002 | coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-003/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-003/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-003 |
 
 ## Deferred or Blocked
 
-- `TASK-20260729-002`: dependency_not_completed:TASK-20260729-001:queued
-- `TASK-20260729-003`: dependency_not_completed:TASK-20260729-001:queued, dependency_not_completed:TASK-20260729-002:queued
 - `TASK-20260729-004`: dependency_not_completed:TASK-20260729-003:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-007 pinned CSIDH quantum cost-convention novelty/derivation screen for KN-
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `13d5718d99d59cd676c0cbd601587cbefae202c9b4c478bdba5a360203f8ffa4`
+Plan SHA-256: `d0acdf31b10bc98c3470b0a15cac7ec12be35fbbbf72b70285b13123546ba34d`
