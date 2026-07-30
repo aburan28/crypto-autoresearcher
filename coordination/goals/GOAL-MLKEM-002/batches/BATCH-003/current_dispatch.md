@@ -6,12 +6,11 @@ BATCH-003 option (1): true library-path interposition of a defective comparator 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260724-935` | validator | queued | 80 | TASK-20260724-933, TASK-20260724-934 | coordination/goals/GOAL-MLKEM-002/batches/BATCH-003/tasks/TASK-20260724-935/validation_report.yaml, coordination/goals/GOAL-MLKEM-002/batches/BATCH-003/tasks/TASK-20260724-935/validation_notes.md | coordination/goals/GOAL-MLKEM-002/batches/BATCH-003/tasks/TASK-20260724-935 |
-| `TASK-20260724-936` | red-team | queued | 80 | TASK-20260724-933, TASK-20260724-934 | coordination/goals/GOAL-MLKEM-002/batches/BATCH-003/tasks/TASK-20260724-936/red_team_report.yaml, coordination/goals/GOAL-MLKEM-002/batches/BATCH-003/tasks/TASK-20260724-936/falsification_review.md | coordination/goals/GOAL-MLKEM-002/batches/BATCH-003/tasks/TASK-20260724-936 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260724-937`: dependency_not_completed:TASK-20260724-935:queued, dependency_not_completed:TASK-20260724-936:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-003 option (1): true library-path interposition of a defective comparator 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b39fbf9bd048d95f5087f0196db6aee59bbbb1dc9f72998da388954d902d6f2c`
+Plan SHA-256: `adce5f81dc683d7f63a5e71f4d5a516613f8405a9c26d5bca6234e12cf5c6ace`
