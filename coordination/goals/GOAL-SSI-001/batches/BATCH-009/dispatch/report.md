@@ -6,11 +6,11 @@ BATCH-009: CSIDH-COLLIMATION-FC0-R2 stochastic invocation ledger + Equation (4.1
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-003` | red-team | queued | 80 | TASK-20260730-001, TASK-20260730-002 | coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-003/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-003/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-009/tasks/TASK-20260730-003 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-004`: dependency_not_completed:TASK-20260730-003:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-009: CSIDH-COLLIMATION-FC0-R2 stochastic invocation ledger + Equation (4.1
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `cdc35207bf9030d3e505b32f7d40c66950dbf10408706281be5817907d1e3b6c`
+Plan SHA-256: `6cfcb31f0592922ed3d373a32f974282cb8fd6a419c73482d3e2c87fc8d69236`
