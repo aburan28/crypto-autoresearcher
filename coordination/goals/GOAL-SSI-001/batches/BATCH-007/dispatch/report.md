@@ -6,7 +6,7 @@ BATCH-007 pinned CSIDH quantum cost-convention novelty/derivation screen for KN-
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260729-004` | coordinator | queued | 70 | TASK-20260729-003 | ledger/evidence/EV-SSI-007.yaml, ledger/decisions/DEC-20260729-004.yaml, ledger/goals/GOAL-SSI-001.yaml | ledger/evidence, ledger/decisions, ledger/goals, ledger/proposals, knowledge |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `8ba223247541b96194032ea20f2e90e539c3798e324cf072e64de14534ce697f`
+Plan SHA-256: `d59f47ec3edd162c7f92576a62dcff651cc7c14175917c141c843ef3e2775423`
