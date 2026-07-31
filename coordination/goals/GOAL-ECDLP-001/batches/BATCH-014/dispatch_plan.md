@@ -6,18 +6,15 @@ BATCH-014 DISPATCHES DEFER-BATCH009-001's EXP-STR-004 REPLICATION AND NOTHING EL
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260729-040` | coordinator | queued | 100 | - | experiments/EXP-STR-004/specification.yaml, experiments/EXP-STR-004/derivation_note.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-014/tasks/TASK-20260729-040/feasibility_table.md | experiments/EXP-STR-004/specification.yaml, experiments/EXP-STR-004/derivation_note.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-014/tasks/TASK-20260729-040 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260729-041`: dependency_not_completed:TASK-20260729-040:queued
-- `TASK-20260729-042`: dependency_not_completed:TASK-20260729-040:queued, dependency_not_completed:TASK-20260729-041:queued
-- `TASK-20260729-043`: dependency_not_completed:TASK-20260729-042:queued
-- `TASK-20260729-044`: dependency_not_completed:TASK-20260729-042:queued, dependency_not_completed:TASK-20260729-043:queued
-- `TASK-20260729-045`: dependency_not_completed:TASK-20260729-044:queued
-- `TASK-20260729-046`: dependency_not_completed:TASK-20260729-045:queued
-- `TASK-20260729-047`: dependency_not_completed:TASK-20260729-045:queued
-- `TASK-20260729-048`: dependency_not_completed:TASK-20260729-046:queued, dependency_not_completed:TASK-20260729-047:queued
+- `TASK-20260729-044`: task_marked_blocked
+- `TASK-20260729-045`: task_marked_blocked
+- `TASK-20260729-046`: task_marked_blocked
+- `TASK-20260729-047`: task_marked_blocked
+- `TASK-20260729-048`: task_marked_blocked
 
 ## Dispatch Gates
 
@@ -32,4 +29,4 @@ BATCH-014 DISPATCHES DEFER-BATCH009-001's EXP-STR-004 REPLICATION AND NOTHING EL
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `17598f20671f082c76d76b48b82b82f83cd08c1f5c801312cc4d86b3cd7403e4`
+Plan SHA-256: `5f6bddab8ce1f1c30e15b1d73d367c7b3189862917f3bdf690218ed6c86481d8`

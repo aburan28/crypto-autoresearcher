@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7714 entries.
+7737 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7021,7 +7021,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7259 | Trapdoor Functions from the Computational Diffie-Hellman Assumption? | literature | reported | read | zk-proof |
 | KN-LIT-726 | A GROUP THEORETIC PERSPECTIVE ON ENTANGLEMENTS OF DIVISION FIELDS | literature | reported | read | elliptic-curve isogeny number-theory pairing |
 | KN-LIT-7260 | Trapdoor Hash Functions and Their Applications 1 2 | literature | reported | read | fhe hash lattice pairing provable-security quantum |
-| KN-LIT-7261 | Trapdooring with Isogenies | literature | reported | read | elliptic-curve isogeny |
+| KN-LIT-7261 | An Elliptic Curve Trapdoor System | literature | reported | true | ecdlp elliptic-curve isogeny weil-descent ghs trapdoor key-escrow binary-field teske |
 | KN-LIT-7262 | Trapdoors for Lattices: Simpler, Tighter, Faster, Smaller | literature | reported | read | hash lattice provable-security quantum signature |
 | KN-LIT-7263 | Treading the Impossible: A Tour of Set-Up Assumptions for Obtaining Universally | literature | reported | read | mpc provable-security survey zk-proof |
 | KN-LIT-7264 | TreePIR: Sublinear-Time and Polylog-Bandwidth Private Information Retrieval from DDH | literature | reported | read | complexity-theory lattice mov-fr |
@@ -7406,8 +7406,28 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7616 | Can PCE solve the factorisation problem via optimisation? | literature | reported | web | pauli-correlation-encoding factorization binary-optimization qubit-compression quantum-annealing-style preliminary negative-result cost-model rsa adjacent |
 | KN-LIT-7617 | Assessing the Impact of a Variant of MATZOV's Dual Attack on Kyber | literature | reported | read | dual-attack polar-code fft lwe kyber ml-kem matzov repaired-heuristics concrete-security contested lattice nist |
 | KN-LIT-7618 | CRYSTALS-Kyber: Algorithm Specifications And Supporting Documentation (Round 3) | literature | reported | read | kyber ml-kem nist specification module-lwe concrete-security primary-source lattice |
+| KN-LIT-7619 | FAEST reference implementation (faest-ref) | literature | reported | true | faest reference-implementation source-code digital-signatures aes vole-in-the-head meson c post-quantum primary-source |
 | KN-LIT-762 | Far Field EM Side-Channel Attack on AES Using Deep Learning | literature | reported | read | cryptanalysis side-channel symmetric |
+| KN-LIT-7620 | NIST IR 8610: Status Report on the Second Round of the Additional Digital Signature Schemes for the NIST Post-Quantum Cryptography Standardization Process | literature | reported | true | nist pqc additional-digital-signatures round-3 status-report standardization faest primary-source |
+| KN-LIT-7621 | The Arithmetic of Elliptic Curves (2nd ed.) | literature | established | web | elliptic-curve formal-group height neron-tate mordell-weil finite-field local-field textbook foundational number-theory |
+| KN-LIT-7622 | Heegner points and derivatives of L-series | literature | reported | web | heegner-point l-function height neron-tate modular-forms modular-curve bsd mordell-weil foundational number-theory |
+| KN-LIT-7623 | Formal complex multiplication in local fields | literature | reported | web | lubin-tate formal-group local-field complex-multiplication class-field-theory p-adic foundational number-theory |
+| KN-LIT-7624 | Endomorphisms of abelian varieties over finite fields | literature | reported | web | abelian-variety endomorphism tate-module isogeny finite-field honda-tate foundational number-theory algebraic-geometry |
+| KN-LIT-7625 | Isogeny classes of abelian varieties over finite fields | literature | reported | web | abelian-variety isogeny honda-tate weil-number finite-field frobenius foundational number-theory algebraic-geometry |
+| KN-LIT-7626 | Abelian varieties over finite fields | literature | reported | web | abelian-variety endomorphism isogeny honda-tate finite-field ordinary supersingular polarization foundational number-theory algebraic-geometry |
+| KN-LIT-7627 | Néron Models | literature | reported | web | neron-model abelian-variety jacobian picard-functor reduction scheme algebraic-geometry foundational number-theory |
+| KN-LIT-7628 | Abelian varieties | literature | reported | web | abelian-variety polarization dual-abelian-variety theta scheme algebraic-geometry foundational textbook |
+| KN-LIT-7629 | A First Course in Modular Forms | literature | reported | web | modular-forms modular-curve hecke eichler-shimura galois-representation moduli jacobian textbook foundational number-theory |
 | KN-LIT-763 | FAST COMPUTATION OF ELLIPTIC CURVE ISOGENIES IN CHARACTERISTIC TWO | literature | reported | read | binary-field elliptic-curve finite-field isogeny |
+| KN-LIT-7630 | Constructing Isogenies Between Elliptic Curves Over Finite Fields | literature | reported | true | isogeny ordinary-curves endomorphism-ring conductor ecdlp galbraith prime-field |
+| KN-LIT-7631 | Expander graphs based on GRH with an application to elliptic curve cryptography (redirect) | literature | reported | read | isogeny expander grh ecdlp ordinary-curves redirect |
+| KN-LIT-7632 | Mathematics of Isogeny Based Cryptography | literature | reported | true | isogeny survey supersingular ordinary ecdlp weak-curves mitm |
+| KN-LIT-7633 | Hidden Pairings and Trapdoor DDH Groups | literature | reported | false | trapdoor-ddh hidden-pairing elliptic-curve multivariate dent-galbraith |
+| KN-LIT-7634 | Trapdoor DDH Groups from Pairings and Isogenies | literature | reported | true | trapdoor-ddh pairing isogeny supersingular dent-galbraith |
+| KN-LIT-7635 | A Kilobit Hidden SNFS Discrete Logarithm Computation | literature | reported | true | snfs trapdoor discrete-log prime-field hidden-structure parameter-generation |
+| KN-LIT-7636 | Removable Weak Keys for Discrete Logarithm Based Cryptography | literature | reported | true | weak-keys discrete-log elliptic-curve cheon implicit-representation |
+| KN-LIT-7637 | FAEST: Algorithm Specifications (v2.0, latest published; no Round-3 specification exists as of 2026-07-31) | literature | reported | true | faest vole-in-the-head mpc-in-the-head digital-signatures aes post-quantum nist-pqc additional-signatures specification primary-source |
+| KN-LIT-7638 | Publicly Verifiable Zero-Knowledge and Post-Quantum Signatures From VOLE-in-the-Head | literature | reported | true | faest vole-in-the-head zero-knowledge fiat-shamir nizk mpc-in-the-head post-quantum-signatures aes crypto-2023 primary-source |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny pairing sidh-csidh |
 | KN-LIT-765 | Finding Elliptic Curves With Many Integral Points arXiv:2012.06233v1 [math.NT] 11 Dec 2020 Benjamin Jones | literature | reported | read | elliptic-curve |
 | KN-LIT-766 | Fine-Grained Cryptography: A New Frontier? | literature | reported | read | complexity-theory cryptanalysis hash protocol provable-security survey |
@@ -7721,3 +7741,6 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-056 | Object-first invention protocol — tracked-object search with forbidden families, controlled nulls, mandatory closures, and Pareto-domination honesty | technique | reported |  | methodology research-protocol agentic-harness tracked-object negative-closure control-experiment pareto-domination sota-honesty deliverable-schema prior-art-triage saturation-discipline inventor |
 | KN-TECH-057 | Full-cost matched baselines for classical supersingular path-finding (Wiener 3D wiring model applied to MITM, Delfs-Galbraith, and van Oorschot-Wiener collision search on the isogeny graph) | technique | derivation_confirmed |  | isogeny-problem path-finding full-cost wiener-model mitm delfs-galbraith van-oorschot-wiener collision-search distinguished-points matched-baseline cost-model isogeny |
 | KN-TECH-058 | Supersingular isogeny-problem baselines, corrected against archived primary text (supersedes KN-TECH-029's classical F_p^2 figure) | technique | reported |  | isogeny-problem path-finding endomorphism-ring meet-in-the-middle claw-finding cost-model corpus-currency supersession isogeny adjacent |
+| KN-TECH-059 | Formal groups of elliptic curves | technique | established |  | formal-group elliptic-curve p-adic anomalous logarithm lubin-tate local-field foundational number-theory |
+| KN-TECH-060 | Néron–Tate canonical heights on elliptic curves and abelian varieties | technique | established |  | height neron-tate mordell-weil heegner-point bsd xedni lattice foundational number-theory |
+| KN-TECH-061 | Honda–Tate classification of abelian varieties over finite fields | technique | established |  | honda-tate abelian-variety isogeny weil-number frobenius endomorphism finite-field foundational number-theory algebraic-geometry |

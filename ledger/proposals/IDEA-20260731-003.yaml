@@ -1,0 +1,312 @@
+idea:
+  id: IDEA-20260731-003
+  title: "The LeafCommit/bAVC collision term: is the AES-based commitment layer binding at the claimed level, and does the soundness reduction actually need it?"
+  class: measurement
+  claim: >-
+    For the AES-based leaf commitment (LeafCommit) and batch vector
+    commitment (bAVC) of FAEST v2.0 at the category-1 parameter sets, two
+    statements hold. (i) The best known collision attack cost on each equals
+    the generic birthday bound (2^{n/2} classical, ~2^{n/3} BHT quantum,
+    n = digest length): no structural shortcut exists in the AES-based hash
+    mode. (ii) The binding property the VOLEitH soundness reduction actually
+    requires of these commitments — identified by reconstructing the
+    soundness/extraction argument — is satisfied by the instantiation at the
+    2^lambda level, so the commitment-binding link of the soundness chain is
+    not the source of a forgery cheaper than the matched AES baseline. The
+    discriminating content is (ii): the reconstruction may show the chain
+    needs LESS than full collision resistance (e.g. only one-time binding of
+    a salted commitment, or extraction via the VOLE correlation itself),
+    which would make the collision term irrelevant to the chain — a scoped
+    barrier statement; or it may expose a needed property the instantiation
+    does not provably provide at 2^lambda — a proof gap that converts this
+    lane into a soundness finding feeding IDEA-20260731-002's forgery model.
+  mechanism: >-
+    Exact attack objects: the LeafCommit collision term and the bAVC
+    hash-collision term — the two named reduction links from commitment
+    binding to VOLEitH soundness. In VOLEitH the prover commits to the
+    extended witness (shares/masks of the AES key and intermediate states)
+    and opens selected positions in the response; the soundness/extraction
+    argument rewinds the prover on two accepting transcripts and extracts a
+    witness, which requires that the committed values cannot be changed
+    between transcripts — i.e. binding of the commitment. FAEST v2.0
+    instantiates these with AES-based hashing (LeafCommit = AES-based leaf
+    commitment; bAVC = batch AES vector commitment for the degree-3
+    constraint proof; both introduced in v2.0 per KN-LIT-7637). The
+    mechanism under test has two parts. (a) CRYPTOGRAPHIC: how many AES
+    calls per block does the mode make, what are the domain/range sizes and
+    the salting/domain-separation, and does the best known attack on the
+    resulting compression function reach the generic birthday bound 2^{n/2}
+    — or does the AES key-schedule reuse or the batch aggregation introduce
+    a shortcut (e.g. a cheaper collision, a fixed point, or an aggregation
+    collision in the bAVC tree). (b) REDUCTION-THEORETIC: which binding
+    property (collision resistance vs position binding vs one-time binding
+    vs statistical binding of a salted commitment) does the soundness proof
+    actually invoke at each step (commitment in the first message, openings
+    in the response, extraction in the rewinding), and does the deployed
+    digest/opening size deliver that property at 2^lambda under the matched
+    cost convention.
+  novelty_status: speculative
+  assumptions:
+    - >-
+      The exact LeafCommit and bAVC modes (AES-call counts, domain/range
+      sizes, salting, tree shape) are UNVERIFIED: the spec v2.0 PDF body
+      text was not extractable in the sources task (KN-LIT-7637 limit), and
+      the faest-ref source tree (bavc.c/h, aes.c/h, universal_hashing.c/h
+      per KN-LIT-7619) was not fetched locally. Pinning the modes from the
+      spec text and/or a pinned faest-ref commit is a hard dependency before
+      any experiment.
+    - >-
+      The reconstruction of the soundness reduction reads the eprint
+      2023/996 full text, which this program has NOT yet read (KN-LIT-7638
+      is abstract-level only). The property checklist is provisional until
+      that read.
+    - >-
+      This record isolates the commitment-binding link only. Hiding/
+      zero-knowledge is out of scope (signature forgery does not require
+      breaking ZK); the consistency-check and grinding links are the objects
+      of IDEA-20260731-019 and IDEA-20260731-002.
+  predictions:
+    - metric: collision_attack_cost_ratio_to_birthday_bound
+      direction: higher
+      minimum_effect: >-
+        At toy scale (reduced block size / reduced AES rounds, toy domain),
+        the measured cost of the best found collision on the commitment mode
+        divided by the generic birthday bound for that size is >= 1/2 at the
+        largest tested size — i.e., no shortcut found, within the tested
+        envelope. A ratio materially below 1 at a non-tiny toy size is the
+        structural-shortcut signal.
+    - metric: binding_property_required_by_reduction
+      direction: different
+      minimum_effect: >-
+        The reconstruction identifies exactly one binding property per
+        commitment use (collision resistance | position binding | one-time
+        binding | statistical binding), and the deployed parameter sizes
+        deliver it at 2^lambda under the matched convention — OR a gap is
+        found: a step whose required property the instantiation does not
+        provide at 2^lambda.
+    - metric: spec_collision_term_vs_best_known_attack
+      direction: higher
+      minimum_effect: >-
+        Once read, the spec's charged collision term for LeafCommit/bAVC is
+        <= the best known attack cost on the instantiation (the term is not
+        over-claimed). The falsification direction is a spec term larger
+        than the best known attack — an over-claimed bound.
+    - metric: digest_size_satisfies_2lambda
+      direction: higher
+      minimum_effect: >-
+        For every commitment use whose reduction-required property is
+        collision resistance on n-bit digests, n/2 >= lambda (classical) and
+        n/3 >= lambda (quantum BHT) at the category-1 lambda = 128. A
+        failure here is a parameter-level soundness finding.
+  minimal_test:
+    design: >-
+      Three components. (1) REDUCTION RECONSTRUCTION (derivation artifact):
+      from eprint 2023/996 full text and spec v2.0, trace the soundness/
+      extraction argument and record, per commitment use, the exact property
+      invoked (with the step: commitment in message 1, opening in the
+      response, extraction in rewinding); emit the property checklist. (2)
+      TOY COLLISION MEASUREMENT (run): instantiate the AES-based commitment
+      mode at reduced size (toy block size, reduced AES rounds — toy-tier,
+      labeled as such), run a genuine birthday collision search with
+      distinguished points, measure the cost in AES-equivalent evaluations
+      and the memory, compare against the generic bound for that size, and
+      repeat at a larger toy size to check 2^{n/2} growth. (3) PROPERTY-VS-
+      INSTANTIATION CHECK: given the checklist from (1), verify the deployed
+      parameter sizes (digest length, opening sizes, salting) deliver each
+      required property at 2^lambda under the matched convention.
+    controls:
+      - >-
+        Random-permutation null control (inventor-protocol §3): the identical
+        collision measurement against a mode of the same shape built on a
+        random permutation. The measured cost must sit at the generic bound;
+        if the AES-based mode shows the same "shortcut" as the random
+        control, the shortcut is an artifact of the harness, not the mode.
+      - >-
+        Scale control: doubling the toy digest length must double the
+        collision cost exponent (cost grows as 2^{n/2}). A cost that fails
+        to grow with n is the canonical artifact tell.
+      - >-
+        Baseline control: an independent generic Merkle-tree commitment at
+        the same toy sizes, to calibrate the harness's measured cost against
+        a known-good birthday implementation.
+    required_metrics:
+      - per-use property checklist from the reconstruction (derivation artifact)
+      - measured collision cost (AES-equivalents) and memory per toy size, per mode (AES-based vs random-permutation control)
+      - ratio of measured cost to generic bound per toy size
+      - digest/opening/salt sizes at the deployed parameter set (from the spec, once read)
+      - per-use check: required property delivered at 2^lambda (yes/no with sizes)
+  falsification_conditions:
+    - >-
+      A collision found on the AES-based commitment mode at a cost below the
+      generic birthday bound by a non-constant factor at the largest tested
+      toy size, and not reproduced by the random-permutation null control —
+      a structural-shortcut signal in the mode. Toy-tier only: requires
+      cryptanalysis at the deployed size (never extrapolation) before any
+      claim about FAEST.
+    - >-
+      The reconstruction finding a reduction step whose required binding
+      property the instantiation does not provide at 2^lambda — a proof-gap
+      finding, scoped to the exact step and property, which converts this
+      lane into a soundness concern feeding IDEA-20260731-002.
+    - >-
+      The spec's charged collision term (once read) exceeding the best known
+      attack cost on the instantiation — an over-claimed bound in the
+      scheme's own analysis.
+    - >-
+      The scale control failing (collision cost not growing with n): the
+      measurement is an artifact and the test is invalid.
+  confounders:
+    - >-
+      Unverified modes: the exact LeafCommit/bAVC constructions are not yet
+      pinned (spec PDF unread, faest-ref not fetched). Measuring a
+      reconstructed-by-memory mode instead of the deployed one measures the
+      wrong object; pinning the mode is a hard dependency.
+    - >-
+      Property conflation: collision resistance, position binding, one-time
+      binding, and statistical binding are different properties; a collision
+      on the hash mode may be irrelevant if the reduction needs only
+      one-time binding of a salted commitment. The checklist from the
+      reconstruction decides relevance — the measurement alone cannot.
+    - >-
+      Toy-size birthday search is memory-bound; memory must be charged in
+      the comparison (distinguished-point parameters), or the ratio to the
+      bound is meaningless.
+    - >-
+      Distinguishing "cheaper collision" from "cheaper preimage" or
+      "cheaper key recovery on the mode": each is a different attack class
+      with a different consequence for the soundness chain.
+  interpretation_limits:
+    - >-
+      Confirmation closes exactly the commitment-binding link of the
+      soundness chain, at exactly the tested toy sizes plus the
+      reconstruction-derived property check at the deployed sizes. It is a
+      scoped barrier statement for this link, not for the whole chain, and
+      not an attack.
+    - >-
+      A shortcut found at toy scale is toy-tier (AGENTS.md rule 7,
+      claim_tier_ceiling of RQ-FAEST-001); it requires crypto-scale
+      confirmation or a labeled derivation, never an extrapolation.
+    - >-
+      The reconstruction is a derivation artifact, not a proof: per
+      docs/claims-and-verification.md it is checkable but not "proved"
+      unless routed to an external referee.
+    - >-
+      This record creates no hypothesis, experiment, evidence, or decision
+      record; it is a proposal whose minimal test, if approved, would be
+      specified and executed under later tasks.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The AES-based hash mode used by LeafCommit/bAVC behaves as an ideal
+        compression function built on a random permutation: no structural
+        shortcut (fixed points, key-schedule reuse collisions, aggregation
+        collisions in the bAVC tree) reduces the collision cost below the
+        generic birthday bound 2^{n/2} classical / ~2^{n/3} quantum.
+      rigorous_support: >-
+        The ideal-model justification for hash modes from block ciphers
+        (e.g. Miyaguchi–Preneel-type constructions are indifferentiable from
+        a random oracle up to the birthday bound in the ideal-cipher model);
+        AES is the assumed PRP. The specific v2.0 mode is UNVERIFIED until
+        pinned.
+      validation_plan: >-
+        Toy collision measurement with the random-permutation null control
+        and the scale control (2^{n/2} growth); a deviation reproduced only
+        on the AES-based mode is the shortcut signal, then re-derived at
+        larger toy sizes.
+    - id: H2
+      statement: >-
+        The binding property the soundness reduction requires of each
+        commitment use is exactly one of {collision resistance, position
+        binding, one-time binding, statistical binding} and is identified by
+        the reconstruction; the instantiation's deployed sizes deliver it at
+        2^lambda under the matched convention.
+      rigorous_support: >-
+        The VOLEitH soundness structure (rewinding extraction over two
+        accepting transcripts) is the claimed basis (KN-LIT-7638 abstract);
+        the per-step property list is UNVERIFIED until the full text is
+        read.
+      validation_plan: >-
+        Reduction reconstruction from eprint 2023/996 full text; the
+        property checklist is then checked against the deployed parameter
+        sizes (component 3 of the minimal test).
+    - id: H3
+      statement: >-
+        The deployed digest length n and security level lambda satisfy
+        n/2 >= lambda (classical) and n/3 >= lambda (quantum BHT) for every
+        use whose required property is collision resistance.
+      rigorous_support: >-
+        Birthday bound 2^{n/2} classical and Brassard–Høyer–Tapp 2^{n/3}
+        quantum for collisions — standard, rigorous. The deployed n and
+        lambda are UNVERIFIED placeholders until the spec is read.
+      validation_plan: >-
+        Read spec v2.0 parameter tables; verify the inequality per use from
+        the checklist; a violation is a parameter-level finding.
+  matched_baseline:
+    parameter_set: >-
+      faest_128f / faest_128s (spec v2.0, category-1, AES-128). Deployed
+      digest lengths, opening sizes, salting, and the exact LeafCommit/bAVC
+      modes are UNVERIFIED placeholders (spec PDF body text not extractable
+      in the sources task, KN-LIT-7637 limit; faest-ref not fetched locally,
+      KN-LIT-7619 limit); pinned from spec v2.0 and a pinned faest-ref
+      commit before any experiment (RQ-FAEST-001 constraint).
+    convention: >-
+      Serial classical cost in AES-128-equivalent evaluations (one AES-128
+      encryption = 1 unit); hash calls converted at the deployed hash's
+      per-call AES count; memory in bits charged separately; data charged;
+      quantum baselines stated separately under a depth-limited (MAXDEPTH)
+      convention. Identical convention on both sides of every comparison
+      (KN-TECH-040).
+    aes_key_recovery: >-
+      Best known AES-128 key recovery (full 10-round, single-key, known
+      plaintext-ciphertext pair): 2^126.1 time, biclique attack
+      (Bogdanov–Khovratovich–Rechberger; KN-LIT-2701, archived, confidence
+      reported). Data ~2^88 chosen plaintexts, ~2^8 memory (UNVERIFIED
+      in-repo detail). Quantum: Grover ~2^64 sequential AES evaluations
+      (KN-LIT-679), depth-limited charged ~2^85.8 (UNVERIFIED in-repo),
+      NIST gate-count ~2^143 (UNVERIFIED in-repo). FAEST's one-wayness
+      assumption applies to the AES-based one-way function f(k) = AES_k(x)
+      for fixed public x (KN-LIT-7637); the biclique attack is the matched
+      classical baseline. EM variants (faest_em_*) use a 2n-bit-key Even-
+      Mansour OWF; their baseline is not established in-repo and is out of
+      primary scope here.
+    voleith_fs_soundness: >-
+      Best known attack on the VOLEitH/Fiat-Shamir layer: the generic
+      multi-round transcript forgery 2^{kappa} * eps_cc^{-tau} *
+      C_transcript (deployed values UNVERIFIED placeholders). This idea
+      attacks a named *term inside* the soundness chain — the commitment-
+      binding (LeafCommit/bAVC collision) term — whose contribution to the
+      chain is exactly what the reduction reconstruction quantifies; the
+      best known attack on the commitment layer itself is the generic
+      birthday collision 2^{n/2} on the deployed digest (n unverified). No
+      structural attack on the v2.0 LeafCommit/bAVC mode is published to
+      this program's knowledge (prior-art grep found no FAEST-specific
+      commitment attack record).
+  target_complexity:
+    time_exponent: >-
+      n/a — no exponent move claimed. The quantity under test is the
+      collision-cost exponent n/2 (classical) of the deployed digest against
+      the 2^lambda requirement, and the reduction's required-property
+      profile; the deliverable is the barrier/proof-gap statement for the
+      commitment-binding link, not an attack.
+    memory_exponent: >-
+      The collision search itself has the standard time–memory tradeoff:
+      ~2^{n/2} time at ~2^{n/2} memory (naive birthday), reducible to
+      2^{n/2}/w time at w memory with distinguished points. At toy scale
+      memory is trivial; the deployed-scale statement charges memory
+      explicitly.
+    best_known: >-
+      2^126.1 AES-128 key recovery (KN-LIT-2701); generic birthday 2^{n/2}
+      on the commitment hash (deployed n unverified).
+    hidden_overhead: >-
+      The AES-call count per compression step and the bAVC tree-shape
+      constants are the hidden terms in the collision cost; they are
+      disclosed per component once the mode is pinned from the spec/faest-ref.
+    tradeoff_note: >-
+      Collision search on the commitment mode has the van Oorschot–Wiener-
+      style time–memory tradeoff; parallelization divides wall time with
+      distinguished-point parameters named, matching the convention of the
+      AES baseline.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
