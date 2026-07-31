@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-025 REDIRECTED (DEC-20260731-024 / QUEUE-AMEND-20260731-012): cancel structure-null-r2 execution; admit independent pre-exec review of H-IT-001 / EXP-IT-001 already snapshot-archived at 303ae797; Coordinator APPROVED/NOT APPROVED. SG-ECDLP-001 residuals deferred (not lane death). Toy ceiling. No STR. No H-DS-001 support. No push.
+BATCH-025 REDIRECTED (DEC-20260731-024 / QUEUE-AMEND-20260731-012): cancel structure-null-r2 execution; admit independent pre-exec review of H-IT-001 / EXP-IT-001 already snapshot-archived at 303ae797; Coordinator APPROVED/NOT APPROVED at TASK-106. SG-ECDLP-001 residuals deferred (not lane death). Toy ceiling. No STR. No H-DS-001 support. No push.
 
 ## Ready Tasks
 
@@ -25,4 +25,4 @@ BATCH-025 REDIRECTED (DEC-20260731-024 / QUEUE-AMEND-20260731-012): cancel struc
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `978344c9a902f0e6c6481a01803c5d02836d6e46cbf18e24a57ea78da2939126`
+Plan SHA-256: `a182c0ecf23c990f65516061cead9b1c8b896ab183f18cbd3202f2aec9688c68`
