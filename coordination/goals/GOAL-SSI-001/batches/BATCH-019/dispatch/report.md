@@ -6,12 +6,10 @@ BATCH-019: bounded FC0 lifetime/Verify spike against CollimationSieve@6f9188e4 o
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-047` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-047/spike_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-047/host_gap_or_impl_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-047/lifetime_verify_attempt.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-047/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-047/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-047 |
+| `TASK-20260730-049` | red-team | queued | 80 | TASK-20260730-047, TASK-20260730-048 | coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-049/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-049/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-049 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-048`: dependency_not_completed:TASK-20260730-047:queued
-- `TASK-20260730-049`: dependency_not_completed:TASK-20260730-047:queued, dependency_not_completed:TASK-20260730-048:queued
 - `TASK-20260730-050`: dependency_not_completed:TASK-20260730-049:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-019: bounded FC0 lifetime/Verify spike against CollimationSieve@6f9188e4 o
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `f8528af731463b2340917fdc9673a44ea5f54768b2fc6a4f8fca8373eb9f4701`
+Plan SHA-256: `b8ed5ac05f7b6ec6f55c8242a09229a86c72b8fd390bda8640af18c66c9a8022`
