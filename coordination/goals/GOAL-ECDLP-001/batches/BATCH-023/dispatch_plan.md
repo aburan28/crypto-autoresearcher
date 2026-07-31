@@ -6,12 +6,12 @@ BATCH-023 residual plant-contrastive control under SG-ECDLP-001: author PA-DS-00
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-078` | validator | queued | 70 | TASK-20260731-076, TASK-20260731-077 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-078/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-078 |
-| `TASK-20260731-079` | red-team | queued | 70 | TASK-20260731-076, TASK-20260731-077 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-079/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-079 |
+| `TASK-20260731-078` | validator | running | 70 | TASK-20260731-076, TASK-20260731-077 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-078/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-078 |
+| `TASK-20260731-079` | red-team | running | 70 | TASK-20260731-076, TASK-20260731-077 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-079/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-079 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-080`: dependency_not_completed:TASK-20260731-078:queued, dependency_not_completed:TASK-20260731-079:queued
+- `TASK-20260731-080`: dependency_not_completed:TASK-20260731-078:running, dependency_not_completed:TASK-20260731-079:running
 
 ## Dispatch Gates
 
@@ -26,4 +26,4 @@ BATCH-023 residual plant-contrastive control under SG-ECDLP-001: author PA-DS-00
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b57d64d141d35f9aa1e7fb2152172f8aa2c92e646b41203c76457571ad0c605e`
+Plan SHA-256: `51fdee5180dac777f00615f8b0b7630fb7ae7975791b6224dc34226a1cb1049b`
