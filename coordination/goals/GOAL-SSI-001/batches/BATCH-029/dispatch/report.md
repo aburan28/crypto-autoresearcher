@@ -6,12 +6,10 @@ BATCH-029: construct a checkable symbolic Verify-relative success-exit and F_ver
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-087` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-087/verify_exit_obligation_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-087/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-087/verify_exit_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-087/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-087/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-087 |
+| `TASK-20260730-089` | red-team | queued | 80 | TASK-20260730-087, TASK-20260730-088 | coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-089/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-089/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-089 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-088`: dependency_not_completed:TASK-20260730-087:queued
-- `TASK-20260730-089`: dependency_not_completed:TASK-20260730-087:queued, dependency_not_completed:TASK-20260730-088:queued
 - `TASK-20260730-090`: dependency_not_completed:TASK-20260730-089:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-029: construct a checkable symbolic Verify-relative success-exit and F_ver
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a26978d9eda3cd99efb8fcd383c56985a8c9d82a1a5cdc4baaf359e2500a4e1f`
+Plan SHA-256: `45b57e9a7c5d5147c58f11c29145d2fe13fcacdc084e19094c3d5bc72501ed47`
