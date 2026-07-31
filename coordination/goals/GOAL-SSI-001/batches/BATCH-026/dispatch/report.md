@@ -6,12 +6,10 @@ BATCH-026: construct a checkable symbolic Q/S/P/C(+H) resource-vector ledger aga
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-075` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-075/qspc_resource_vector_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-075/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-075/resource_vector_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-075/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-075/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-075 |
+| `TASK-20260730-077` | red-team | queued | 80 | TASK-20260730-075, TASK-20260730-076 | coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-077/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-077/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-077 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-076`: dependency_not_completed:TASK-20260730-075:queued
-- `TASK-20260730-077`: dependency_not_completed:TASK-20260730-075:queued, dependency_not_completed:TASK-20260730-076:queued
 - `TASK-20260730-078`: dependency_not_completed:TASK-20260730-077:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-026: construct a checkable symbolic Q/S/P/C(+H) resource-vector ledger aga
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e205095387d4b0ed0577d6db7e8a04e465457f4d6fb7ca4be017660f435c432e`
+Plan SHA-256: `aba15e557c60f2dc596d65e367467b77a892d70112787a2ad6926dbb2f6eb93f`
