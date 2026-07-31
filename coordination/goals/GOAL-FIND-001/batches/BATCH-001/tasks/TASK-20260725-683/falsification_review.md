@@ -20,7 +20,7 @@ Inference: requested_policy=`review-xhigh`; resolved_model_id=`cursor-grok-4.5-h
 
 ## What fails as stated
 
-1. **KN-FIND-003 overclaim (N1).** “Persistent box saturation” at m=6 drops
+1. **KN-FIND-019 overclaim (N1).** “Persistent box saturation” at m=6 drops
    the DEC-20260722-003 finite-p hull caveat (interior monomial loss on 2/30
    sections; MV unchanged). Narrow to hull/MV language.
 
@@ -28,7 +28,7 @@ Inference: requested_policy=`review-xhigh`; resolved_model_id=`cursor-grok-4.5-h
    omits subgroup-base exclusion; SIG-005 draft omits an explicit toy /
    boolean-Semaev prefix in the scoped claim sentence.
 
-3. **KN-FIND-011 overgeneralization (N3).** Demonstrated fact is D=6 null C5
+3. **KN-FIND-027 overgeneralization (N3).** Demonstrated fact is D=6 null C5
    failure at n=9. “D≥6 null baseline invalid” overreaches; keep
    “cascade admissible only through D≤5” with that narrower cause.
 
@@ -49,7 +49,7 @@ despite receipt `pending_post_commit` metadata (N6).
 
 ## Required revision before archive
 
-- Rewrite KN-FIND-003 / KN-FIND-011 scoped claims (N1, N3).
+- Rewrite KN-FIND-019 / KN-FIND-027 scoped claims (N1, N3).
 - Fold EQJ/FB/SIG-005 bounds into scoped claims (N2).
 - Add THM_BKKMV1 / DEC-20260722-003 note on BKK–BKKMV rows without claiming
   the open all-m lemma (N4).

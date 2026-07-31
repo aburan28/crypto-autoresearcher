@@ -1,0 +1,186 @@
+hypothesis:
+  id: H-IC-001
+  question_id: RQ-ECDLP-002
+  statement: >-
+    At toy prime fields of 8-36 bits with factor base B=14 and m=2 (S_3
+    decomposition), the per-target descent cost T_desc in group-operation
+    equivalents is >= sqrt(N) at small bit sizes but crosses below sqrt(N)
+    at some threshold bit size, making the multi-target index-calculus
+    crossover K* finite. The crossover is an implementation-bound observation
+    (sympy Groebner vs Python rho on the same machine), not a mathematical
+    invariant.
+  mechanism: >-
+    In point-decomposition index calculus (KN-TECH-003), the factor-base
+    logarithm table is computed once from relation collection plus sparse
+    linear algebra and then reused for every target. The per-target cost
+    is only the descent (one S_{m+1} Groebner solve for Q+[t]P) plus
+    verification. For K targets on the same fixed curve, total IC cost is
+    C_IC(K) = S_rel + S_LA + K*(T_desc + T_verify), while matched Pollard
+    rho costs K*sqrt(N) (each target independently). The Groebner solve
+    time is dominated by the polynomial operation count (fixed by degree 14,
+    2 variables), which is independent of p; only coefficient arithmetic
+    grows with p, and at toy scale this is a small fraction of the total
+    (EV-FCP-002, EV-FCP-003: ~0.04-0.05s across 16-36 bits). Meanwhile
+    sqrt(N) grows exponentially with bit size. The calibration step
+    converts T_desc from wall-time to group-operation equivalents by
+    measuring rho's total_group_operations / wall_seconds at each bit size
+    (counting ALL group ops: precompute, walk, verify). Since T_desc in
+    wall-time is ~constant and the calibration factor grows with bit size
+    (as rho's overhead becomes negligible), T_desc in group-ops grows
+    slowly while sqrt(N) grows exponentially; therefore T_desc/sqrt(N)
+    decreases with bit size, crossing below 1 at some threshold. When
+    T_desc < sqrt(N), K* = ceil((S_rel + S_LA) / (sqrt(N) - T_desc -
+    T_verify)) is finite. The relation-collection cost is estimated by
+    the corrected generic heuristic: for m=2, the decomposition probability
+    per random target is ~B^2/N (B^2 pairs, each with prob ~1/N), so
+    collecting B relations requires N/B random targets, each costing
+    T_desc: S_rel ~ (N/B) * T_desc_gops. NOTE: the S*T^2 frontier
+    comparison is dropped from the primary predictions because with
+    S_rel ~ (N/B)*T_desc, the condition S*T^2 >= N reduces to T_desc^3 >= B,
+    which is nearly always true and thus not a meaningful test. The
+    experiment focuses on K* finiteness (T_desc vs sqrt(N)), which is the
+    decisive discriminator.
+  assumptions:
+    - >-
+      The per-target descent cost T_desc is measurable at toy scale as the
+      median Groebner solve time for S_{m+1} systems over the frozen factor
+      base, including all failed attempts, and is convertible to
+      group-operation equivalents via a calibration step that measures
+      rho's wall-time-per-group-operation at each bit size.
+    - >-
+      The calibration factor (group_ops_per_second) derived from Pollard
+      rho's wall_seconds and group_operations is a valid conversion between
+      wall-time and group-operation units at each bit size on the same
+      machine.
+    - >-
+      The factor-base log table is target-independent (no target-derived
+      material enters preprocessing), as required by the frontier-A
+      non-interference receipt concept.
+    - >-
+      At toy scale where no relations are found (B^2/N << 1 for bits >= 16),
+      the relation-collection cost S_rel can be estimated by the generic
+      heuristic S_rel ~ B * (N/B)^{m-1} * T_desc rather than measured
+      directly, because the decomposition probability per random point is
+      approximately (B/N)^{m-1}.
+    - >-
+      The generic preprocessing bound S*T^2 = Omega~(N) from Corrigan-Gibbs--
+      Kogan (KN-LIT-013, KN-TECH-005) applies to the fixed-curve, multi-target
+      setting and is the correct reference frontier.
+    - >-
+      Toy-scale measurements (8-36 bit primes) can distinguish the sign of
+      K* (finite vs infinite) but cannot settle the asymptotic regime; any
+      finite K* at toy scale is a scaling signal, not cryptographic evidence.
+  predictions:
+    - metric: t_desc_to_sqrt_n_ratio
+      direction: lower
+      minimum_effect: >-
+        T_desc / sqrt(N) in group-operation equivalents decreases
+        monotonically across bit sizes 8-36. Uses total_group_operations /
+        wall_seconds for calibration.
+    - metric: crossover_K_star_conditional_on_N
+      direction: different
+      minimum_effect: >-
+        K* is finite for >= 2/3 of tested instances where sqrt(N) >
+        T_desc_gops (i.e., where the birthday bound exceeds the descent
+        cost). K* is infinite for all instances where sqrt(N) <=
+        T_desc_gops. This is a conditional criterion: it does not require
+        a specific fraction of instances at any bit size, because the
+        Hasse bound makes N vary by orders of magnitude at a fixed bit
+        size. A finite K* must be >= 2; K* = 1 would mean IC beats rho
+        for a single target, contradicting KN-OPEN-001. S_rel = (N/B) *
+        T_desc_gops (corrected heuristic for m=2).
+  test_boundary:
+    instances:
+      - seeds 1, 2, 3
+      - bit sizes 8, 12, 16, 20, 24, 28, 32, 36
+      - 10 targets per (bits, seed) curve
+    parameters:
+      factor_base_size: 14
+      decomposition_arity: 2
+      targets_per_curve: 10
+      calibration_method: rho_wall_seconds_per_group_operation
+    implementation: >-
+      harness/semaev.py (measure_s3_decomposition for T_desc),
+      harness/rho.py (solve for calibration and baseline),
+      harness/toycurve.py (generate_instance, order_bsgs for >24 bits),
+      harness/runner.py (write_run with certificate verification)
+    budget:
+      wall_clock_seconds_per_run: 120
+      total_wall_clock_seconds: 3600
+  falsification_conditions:
+    - >-
+      K* = infinity for ALL tested instances where sqrt(N) > T_desc_gops
+      (i.e., even when the birthday bound exceeds the descent cost, the
+      crossover never occurs). This closes the multi-target IC route at toy
+      scale (tested primes, B=14, m=2, sympy Groebner).
+    - >-
+      K* = 1 for any tested instance, meaning IC beats rho for a single
+      target at toy scale, contradicting KN-OPEN-001 and requiring
+      investigation.
+    - >-
+      The measurement is inconclusive because T_desc has IQR exceeding its
+      median (too noisy to determine the sign of sqrt(N) - T_desc) at the
+      critical threshold.
+  interpretation_limits:
+    - >-
+      Toy scale only (max 36 bits); K* at toy scale says nothing about
+      crypto-scale behavior. A finite K* at toy scale is a scaling signal,
+      not cryptographic evidence.
+    - >-
+      K* = infinity at toy scale closes only the tested scope (these primes,
+      B=14, m=2, sympy Groebner solver); it does not prove K* = infinity
+      asymptotically or for other parameterizations.
+    - >-
+      The S_rel estimate uses the corrected generic heuristic S_rel ~ (N/B)
+      * T_desc_gops (decomposition probability ~B^2/N for m=2). At toy
+      scale where no relations are found (B^2/N << 1 for bits >= 16), this
+      estimate replaces direct measurement. Where decompositions exist
+      (8-12 bits), S_rel should be measured directly.
+    - >-
+      The calibration from wall-time to group-ops is implementation-bound
+      (sympy Buchberger vs Python rho on macOS arm64). The T_desc/sqrt(N)
+      crossover depends on the relative implementation overheads of these
+      two algorithms, not on a mathematical invariant. A different Groebner
+      implementation (e.g., F4) or a different rho implementation could
+      shift or reverse the crossover. Only within-machine, within-
+      implementation comparisons are valid.
+    - >-
+      T_desc is measured on trivial ideals (no decomposition found) at
+      bits >= 16. The cost for non-trivial Groebner systems (where a
+      decomposition exists) may be higher, potentially shifting the
+      crossover to a larger bit size.
+  status: weakened
+  status_history:
+    - status: supported
+      decision_id: DEC-20260726-005
+      decided_at: '2026-07-26'
+    - status: weakened
+      decision_id: DEC-20260727-008
+      decided_at: '2026-07-27'
+      evidence_id: EV-IC-002
+      reason: >-
+        The support verdict's basis fails on three independent grounds, none of
+        which required a new run. (1) Its stated ground - the v3 success
+        criterion "MET, 4/4" - is not a confirmatory result: the criterion was
+        revised after the v2 criterion had been observed to fail
+        (EXP-IC-001/analysis.md lines 51-54 record it inconclusive BEFORE
+        amendments/v2_to_v3.yaml), and it is near-tautological, failing only
+        inside a two-group-operation window against a T_desc_gops of about
+        32,000 (CORR-20260727-006). (2) The per-target cost compared against
+        sqrt(N) is the cost of one FAILED attempt: across all 500 committed runs
+        at field_bits >= 20 - every instance with N >= 1e9, including the four
+        the decision rests on - there are zero decompositions, while the same
+        operation is charged WITH yield inside S_rel = (N/B)*T_desc
+        (CORR-20260727-005). (3) The comparison was against single-target
+        baselines only: uncharged, S_rel/N = T_desc/B = 1908-4142 against the
+        exhaustive log table, and k_star_vs_frontier = infinity at all 34
+        instances against the S*T^2 = Theta~(N) frontier at S = T = N^(1/3).
+        NOT rejected: this hypothesis's own falsification condition ("K* =
+        infinity for ALL tested instances where sqrt(N) > T_desc_gops") is NOT
+        met on the committed numbers against the matched rho baseline the
+        experiment declared, and EXP-IC-002, which was designed to supply a
+        measured replacement accounting, was reviewed REVISE twice and never
+        executed. Scope of this transition: B = 14, m = 2, the 34 committed
+        EXP-IC-001 toy instances (8-36 bit primes, N <= 3.377e10), one solver
+        stack. No asymptotic exponent moves in either direction.
+  proposed_by: coordinator

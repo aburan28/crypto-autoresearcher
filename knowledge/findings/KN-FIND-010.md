@@ -1,40 +1,26 @@
 ---
 id: KN-FIND-010
+title: Joint deg-x≤3 / deg-b=10 non-isotrivial free-x still admit inf-norm-1 MW relations at p≤19; p=31 density-blocked
 type: internal_finding
-title: Scoped finding from EV-SIG-004
-tags:
-- ecdlp
-- prime-field
-- toy
-- internal-finding
-confidence: reported
-internal_refs:
-- EV-SIG-004
-- DEC-20260718-020
-- EXP-SIG-004
-- H-SIG-001
-proof_status: empirical_only
-proof_refs: []
-added: 2026-07-25
-superseded_by: null
+status: established
+tags: [lifting, xedni, function-field, non-isotrivial, mordell-weil, coefficient-bound, methodology, toy-scale]
+evidence: [EV-XEDN-005]
+decision: [DEC-20260730-001]
 ---
-## Scoped claim
-Canonical D4 residual 9/11/13/15 at n=12/15/18/21 (2n/3+1 on those sizes); EV-SIG-002 series is a lower bound; n=9 anomalous; count/rank only.
 
-## Provenance
-- Evidence: `EV-SIG-004` (strength: replicated)
-- Decision: `DEC-20260718-020` (supported_scoped)
-- Experiment: `EXP-SIG-004`
-- Hypothesis: `H-SIG-001`
+# KN-FIND-010
 
-## Limits
-Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen closed mechanism families outside the cited scope. Corrections supersede; do not overwrite EV/DEC. Count/rank only; no d_reg or solver-impact claim.
+On plant-discovered non-isotrivial surfaces `y²=x³+a(t)x+b(t)` with `a≠0`,
+`deg a≤2`, `deg b=10`, and non-constant `j`, free-x sections `deg x≤3`,
+`deg y≤5` admit group-law-verified Mordell–Weil relations with infinity-norm 1
+at `p∈{7,13,19}` (EXP-XEDN-006 / EV-XEDN-005). Slope of max_|coeff| vs log p
+is 0 on those measurable sizes. μ₃ orbits remain absent.
 
-## Key claims (verified here)
-- The Coordinator decision `DEC-20260718-020` closed the cited EV scope; this draft restates that scoped claim for knowledge promotion only.
+At `p=31`, the same plant-and-enumerate census found almost exclusively
+single-slot surfaces: 48 analyzed, 2 eligible, 0 verified short relations
+under budget. This is a free-x **relation-density** obstruction, not an
+observed coefficient blow-up. The joint degree-shape transfer of the
+coefficient-bound story therefore holds only for the measured sizes; it is
+not established at p=31.
 
-## Not claimed
-- Crypto-scale ECDLP advantage or impossibility
-- Any result beyond the EV's recorded test boundary
-
-
+Scope: toy only; not B2 / crypto-scale.

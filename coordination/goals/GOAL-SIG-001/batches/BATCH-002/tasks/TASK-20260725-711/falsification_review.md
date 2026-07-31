@@ -30,7 +30,7 @@ binding is the durable check. Working-tree-only producer edits were not used
 as evidence. Pinned `h013_sha256` matches
 `experiments/EXP-SIG-005/src/h013_f5_signatures.sage`.
 
-Prior REVISE context (read-only): `RT-20260725-633`, `EV-SIG-006`,
+Prior REVISE context (read-only): `RT-20260725-633`, `EV-SIG-009`,
 `DEC-20260725-014`.
 
 ## Attack
@@ -101,7 +101,7 @@ Do not treat this as measurement authorization or D≥6 cascade reopen.
 
 ## Next concrete action
 
-Ledger-archive this review (`TASK-20260725-712` / `EV-SIG-007` /
+Ledger-archive this review (`TASK-20260725-712` / `EV-SIG-010` /
 `DEC-20260725-028`). Optionally schedule a later calibration executor under a
 fresh write_scope only after separate Coordinator measurement authorization.
 Keep the D≥6 cascade closed until admitted `CALIB_PASS` run receipts exist.

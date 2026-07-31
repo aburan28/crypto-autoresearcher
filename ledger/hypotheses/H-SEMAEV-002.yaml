@@ -1,0 +1,114 @@
+hypothesis:
+  id: H-SEMAEV-002
+  question_id: RQ-CRYPTO-001
+  source_proposal: IDEA-20260723-006
+  question_assignment_rationale: >-
+    Assigned to RQ-CRYPTO-001, not RQ-ECDLP-001. RQ-ECDLP-001 governs
+    toy-scale S_3 Groebner cost measurement with a matched rho baseline
+    (H-SEMAEV-001, analyzed); its decision target is whether that
+    measurement justifies a medium-scale scaling study. This hypothesis
+    instead computationally checks the corner-coefficient
+    exceptional-target saturation theorem, whose decision relevance is the
+    GOAL-CRYPTO-001 mechanism gate: which support-aware Semaev routes
+    remain open against Pollard rho. The proposal declares question_id
+    RQ-CRYPTO-001, and the scoped negative gate it sharpens is already
+    recorded under RQ-CRYPTO-001 as EV-CRYPTO-009 / DEC-20260724-001.
+  statement: >-
+    For every tested m in {3, 4}, every tested small prime p >= 5, and
+    every tested nonsingular short-Weierstrass curve
+    E: y^2 = x^3 + A*x + B over F_p selected under the frozen rule (B a
+    quadratic residue and ord(P_0) >= 2m-1 for P_0 = (0, beta),
+    beta^2 = B), the target-sectioned Semaev polynomial
+    f_{m,t}(x_1,...,x_{m-1}) = S_m(x_1,...,x_{m-1}, t) has Newton polytope
+    equal to the full box [0, 2^(m-2)]^(m-1) for every target t in F_p
+    outside an exceptional set Exc_m(E), where
+    Exc_m(E) = { x([r]P_0) : 1 <= r <= m-1, [r]P_0 affine } has size
+    exactly m-1 under the selection rule (the induction's explicit O(m)
+    bound with constant 1), and every t inside Exc_m(E) loses at least one
+    box-corner coefficient. This is a computational base-case check of the
+    all-m corner-coefficient induction of IDEA-20260723-006, whose
+    normalization-locked derivation is recorded as a scoped negative
+    Newton/BKK gate (EV-CRYPTO-009, DEC-20260724-001); it claims no
+    cryptographic advantage.
+  mechanism: >-
+    Semaev's leading-coefficient identity LC_{x_i}(S_m) = S_{m-1}^2
+    (KN-LIT-001; the corner induction built on it is quoted in the
+    immutable TASK-20260723-801 newton_screen_report.yaml and
+    normalization-locked in the BATCH-009 proof packet behind
+    EV-CRYPTO-009) turns every box corner with at least one maximal
+    coordinate into the square of a lower-order corner; symmetry collapses
+    the 2^(m-1) box corners into m Hamming-weight classes c_{m,k}(t) with
+    c_{m,k} = c_{m-k,0}^(2^k), c_{m,m-2} = t^(D_m), c_{m,m-1} = 1. The
+    all-zero corner c_{m,0}(t) = S_m(0,...,0,t) vanishes exactly at the
+    x-coordinates of the affine signed sums of m-1 copies of P_0, i.e.
+    x([r]P_0) for the allowed parities. Since supp(f_{m,t}) lies in the box
+    by the per-variable degree bound D_m = 2^(m-2) (KN-TECH-002), the
+    Newton polytope is the full box iff all 2^(m-1) box-corner coefficients
+    are nonzero. The experiment computes the exact support and convex hull
+    of f_{m,t} for every t in F_p symbolically over F_p, classifies every
+    target as SATURATED (full box) or EXCEPTION (lost vertex), and checks
+    the exception set against the predicted multiples of P_0 computed by
+    independent group arithmetic. Full-box saturation implies mixed volume
+    equal to the multigraded box Bezout number (KN-TECH-007), the content
+    of the negative BKK gate.
+  assumptions:
+    - The canonical recursive Semaev circuit with its locked unit normalization is used (EV-CRYPTO-009 scope); all computation is exact over F_p, characteristic >= 5.
+    - Curves are nonsingular (4A^3+27B^2 nonzero mod p) and selected by the frozen deterministic search; B is a quadratic residue so P_0 = (0, beta) exists over F_p.
+    - Exact coefficient support, not numerical coefficient thresholding, defines the Newton polytope.
+    - S_m is computed directly over F_p (not by integer lift and reduction), so specialization-induced degree drops are genuine and recorded.
+  rerandomization: null
+  asymptotic_claim: null
+  predictions:
+    - metric: nonexceptional_full_box_fraction
+      direction: higher
+      minimum_effect: exactly 1 -- every target t outside Exc_m(E) has all 2^(m-1) box vertices present in supp(f_{m,t})
+    - metric: exceptional_set_cardinality
+      direction: lower
+      minimum_effect: "|Exc_m(E)| <= m-1 at every tested (m,p,E); exactly m-1 under the frozen selection rule (m=3: 2; m=4: 3)"
+    - metric: exceptional_set_identity
+      direction: different
+      minimum_effect: "observed Exc_m(E) equals {x([r]P_0): 1<=r<=m-1, affine} exactly: no unexplained exception and no missed predicted exception"
+    - metric: m3_calibration_identity_match
+      direction: different
+      minimum_effect: computed corner classes c_{3,0}, c_{3,1}, c_{3,2} equal A^2-4*B*t, t^2, 1 exactly on every tested m=3 curve
+    - metric: cross_method_classification_agreement
+      direction: higher
+      minimum_effect: 1.0 -- hull-based and corner-coefficient classifications agree on 100% of the re-derived sample (every decile target plus every exceptional target)
+  test_boundary:
+    instances:
+      - m in {3, 4}; primes p in {101, 103, 107, 211} for each m (4 primes per m, within the declared 3-5)
+      - one curve per (m,p) from the frozen deterministic search (increasing |A|,|B|; first nonsingular curve with B a quadratic residue and ord((0,beta)) >= 2m-1); curve, beta, and ord(P_0) recorded as artifacts
+      - exhaustive target enumeration: every t in F_p per (m,p,E) cell (8 cells)
+    parameters:
+      D_m: "2^(m-2) (m=3: 2; m=4: 4)"
+      exception_bound: "m-1 (the induction's explicit O(m) constant 1)"
+      cross_method_sample: every 10th target plus every exceptional target per cell
+      m3_expected_corners: "c_{3,0} = A^2-4*B*t, c_{3,1} = t^2, c_{3,2} = 1"
+    implementation: >-
+      New module under experiments/EXP-SEMAEV-002/ extending
+      harness/semaev.py (s3_expr, s4_expr) with exact F_p support
+      extraction, convex-hull vertex testing, and corner-coefficient
+      evaluation; predicted exception sets via harness/toycurve.py group
+      arithmetic. Two independent classification code paths: (1)
+      full-support convex hull, (2) direct leading-coefficient / corner
+      evaluation.
+    budget:
+      wall_clock_seconds_per_run: 1800
+      total_wall_clock_seconds: 6300
+      total_cpu_hours: 1.75
+  falsification_conditions:
+    - >-
+      One non-exceptional target loses a box vertex: Newt(f_{m,t}) !=
+      [0, 2^(m-2)]^(m-1) for some t outside {x([r]P_0): 1<=r<=m-1} at any
+      tested (m,p,E). This falsifies the full-box-outside-exceptions claim
+      in the tested scope.
+    - "The exceptional set exceeds the pre-registered bound: |Exc_m(E)| > m-1 at any tested (m,p,E)."
+    - An observed exception lies outside the predicted multiples, or a predicted affine multiple x([r]P_0), 1<=r<=m-1, is saturated: the corner-vanishing inclusion fails.
+    - The m=3 calibration identities fail on any tested curve: a derivation or normalization failure, recorded as such (not evidence that the literature identities changed).
+  interpretation_limits:
+    - Toy-tier computational check at m in {3,4} over small primes; it does not prove the all-m theorem and says nothing about m >= 5 or crypto scale (AGENTS.md rule 7). A positive result computationally replicates the induction's base cases and strengthens the scoped negative gate of EV-CRYPTO-009 toward replicated toy-tier; it is not an independent proof.
+    - Scope is the original target-sectioned canonical Semaev formulation only; unsectioned, coefficient-dependent lifted, Groebner, and non-Semaev routes are unaffected (AGENTS.md rule 6).
+    - No sub-rho algorithm is claimed; this is a negative-gate control. Consistent with EV-CRYPTO-009, exception-only uniform-mask bridges receive no sub-rho credit.
+    - A contradiction with EV-CRYPTO-009 (locked derivation) or with EV-BKK-001 (recorded m=3 saturation at p=101) is a contradiction between validated evidence records and must be escalated to review-breakthrough at max effort (AGENTS.md rule 12), never resolved inside this experiment.
+  status: approved
+  proposed_by: coordinator

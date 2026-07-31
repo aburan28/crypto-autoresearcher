@@ -1,42 +1,23 @@
 ---
 id: KN-FIND-011
+title: Full-enum densification recovers inf-norm-1 free-x MW relations at p=31 on joint deg-x≤3 / deg-b=10 family
 type: internal_finding
-title: Scoped finding from EV-SIG-005
-tags:
-- ecdlp
-- prime-field
-- toy
-- internal-finding
-confidence: reported
-internal_refs:
-- EV-SIG-005
-- DEC-20260720-001
-- EXP-SIG-005
-- H-SIG-001
-proof_status: empirical_only
-proof_refs: []
-added: 2026-07-25
-superseded_by: null
+status: established
+tags: [lifting, xedni, function-field, non-isotrivial, mordell-weil, coefficient-bound, methodology, toy-scale]
+evidence: [EV-XEDN-006]
+decision: [DEC-20260730-002]
 ---
-## Scoped claim
-Toy boolean Semaev t=3, n≤24: D4 law (2n/3+1) holds through n=24; D5-born residual non-monotone through n=18; D=6 null baseline invalid at tested n=9 (C5 fail) — cascade claims admissible only for D≤5.
 
-## Provenance
-- Evidence: `EV-SIG-005` (strength: replicated)
-- Decision: `DEC-20260720-001` (supported_scoped)
-- Experiment: `EXP-SIG-005`
-- Hypothesis: `H-SIG-001`
+# KN-FIND-011
 
-## Limits
-Toy-scale only (n≤24; cascade valid D≤5). Does not upgrade to medium/crypto claim tiers. Does not reopen closed mechanism families outside the cited scope. Corrections supersede; do not overwrite EV/DEC. Does not assert null invalidity for untested D>6 sizes.
+Under full free-x enumeration (`deg x≤3`) on plant-discovered non-isotrivial
+surfaces with `deg a≤2`, `deg b=10` at `p=31`, EXP-XEDN-007 recovered two
+group-law-verified Mordell–Weil relations with infinity-norm 1 (120 surfaces
+analyzed; 14 eligible). This overturns the EXP-XEDN-006 sampling-regime
+density block at p=31 without observing coefficient growth.
 
-## Key claims (verified here)
-- The Coordinator decision `DEC-20260720-001` closed the cited EV scope; this draft restates that scoped claim for knowledge promotion only.
-- N2 repair: toy / boolean-Semaev / n≤24 prefix is in the scoped claim sentence.
-- N3 repair: cause is D=6 null C5 failure at n=9; cascade admissible only for D≤5 — not blanket “D≥6 null baseline invalid”.
+Together with EXP-XEDN-006 at `p∈{7,13,19}`, the joint degree-shape window
+shows `max_|coeff|=1` on all tested sizes, with sparse but nonempty
+relations at p=31.
 
-## Not claimed
-- Crypto-scale ECDLP advantage or impossibility
-- Any result beyond the EV's recorded test boundary
-- Null-baseline invalidity for all D≥6 / untested sizes
-- D6 birth-law residual magnitudes (measurement retracted as invalid)
+Scope: toy only; not B2 / crypto-scale.

@@ -36,7 +36,7 @@ At n=9 seed 1 D=6 (`RUN-EXP-SIG-005-k` vs `RUN-h`):
 
 Null is semi-regular through D≤5 and breaks only at D6: unequal column supports,
 sr_pred matches neither arm, null extra/residual ≠ 0. Per DEC-20260720-001 /
-EV-SIG-005 / KN-FIND-011, cascade claims remain admissible only for D≤5 until
+EV-SIG-005 / KN-FIND-027, cascade claims remain admissible only for D≤5 until
 repair. Legacy D6 magnitudes are quarantined.
 
 ## What this protocol freezes

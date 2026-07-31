@@ -1,41 +1,28 @@
 ---
 id: KN-FIND-004
+title: Non-isotrivial free-x sections still admit infinity-norm-1 MW relations; Gram can over-report coefficients without μ₃
 type: internal_finding
-title: Scoped finding from EV-EQJ-001
-tags:
-- ecdlp
-- prime-field
-- toy
-- internal-finding
-confidence: reported
-internal_refs:
-- EV-EQJ-001
-- DEC-20260718-006
-- EXP-EQJ-001
-- H-EQJ-001
-proof_status: empirical_only
-proof_refs: []
-added: 2026-07-25
-superseded_by: null
+status: established
+tags: [lifting, xedni, function-field, non-isotrivial, mordell-weil, coefficient-bound, methodology, toy-scale]
+evidence: [EV-XEDN-003]
+decision: [DEC-20260725-001]
 ---
-## Scoped claim
-Toy p≤2^12, m=4 fibers: isotypic blocking yields no LA cost gain (full-rank survivors; 4× all-blocks cost); only orbit storage matching FHJRV symmetrization.
 
-## Provenance
-- Evidence: `EV-EQJ-001` (strength: replicated)
-- Decision: `DEC-20260718-006` (reject_scoped)
-- Experiment: `EXP-EQJ-001`
-- Hypothesis: `H-EQJ-001`
+# KN-FIND-004
 
-## Limits
-Toy-scale only (DEC-20260718-006: p≤2^12, m=4, 3 seeds). Does not upgrade to medium/crypto claim tiers. Does not reopen closed mechanism families outside the cited scope. Corrections supersede; do not overwrite EV/DEC.
+On non-isotrivial Weierstrass surfaces `y²=x³+a(t)x+b(t)` over `F_p(t)` with
+`a≠0`, `deg a≤2`, `deg b=6`, and non-constant `j`, free-x integral sections of
+shape `deg x≤2`, `deg y≤3` accepted by the frozen `is_square_poly` predicate
+still admit Mordell–Weil relations with infinity-norm 1 among the observed
+slots at `p∈{7,13,19,31}` (EXP-XEDN-004 / EV-XEDN-003). μ₃ orbits do not lie
+on these curves, so the bound is not the isotrivial automorphism saturation
+seen in KN-FIND-003.
 
-## Key claims (verified here)
-- The Coordinator decision `DEC-20260718-006` closed the cited EV scope; this draft restates that scoped claim for knowledge promotion only.
-- N2 repair: `p≤2^12` is in the scoped claim sentence (DEC-20260718-006 limitations).
+Separately, polarisation-Gram LLL can report large coefficients for true but
+non-shortest kernel vectors (archived example: Gram inf-norm 15 vs group-law
+inf-norm 1 on a `p=13` surface). Coefficient claims must rest on group-law
+verified short search (or an equivalent lattice of specialised embeddings),
+not on Gram LLL alone.
 
-## Not claimed
-- Crypto-scale ECDLP advantage or impossibility
-- Any result beyond the EV's recorded test boundary
-
-
+Scope: toy non-isotrivial degree window only; not a closure of candidate B2
+or crypto-scale ECDLP.

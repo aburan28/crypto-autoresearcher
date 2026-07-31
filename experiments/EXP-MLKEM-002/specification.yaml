@@ -1,0 +1,430 @@
+experiment:
+  id: EXP-MLKEM-002
+  hypothesis_id: H-MLKEM-002
+  goal_id: GOAL-MLKEM-001
+  version: 1
+  title: Frozen direct comparison-primitive conformance audit on exact pre-fix and post-fix wolfSSL ML-KEM commits
+  status: approved
+  frozen: true
+  objective: >-
+    Determine whether a byte-complete differential conformance suite applied
+    directly to the ML-KEM implicit-rejection comparison discriminates an
+    incomplete re-encryption comparison from a conforming one, using laboratory
+    builds of two exact wolfSSL commits. Verify first, from source and from a
+    measured per-byte coverage map, whether the incomplete comparison that the
+    BATCH-002 oracle-surface report attributes to CVE-2026-10097 and
+    CVE-2026-6330 is actually present at the named pre-fix versions. Produce a
+    per-index silent-byte map for every backend and parameter set, and a single
+    Algorithm-18 integration check per verified silent region.
+
+  source_lock:
+    wolfssl:
+      repository: https://github.com/wolfSSL/wolfssl
+      prefix_tag: v5.9.1-stable
+      prefix_commit_expected: fb2d72b70f4f823efa7dddf9e427700864adf513
+      postfix_tag: v5.9.2-stable
+      postfix_commit_expected: a82476d144290bf6a786607a16c224acff63d882
+      resolution_rule: >-
+        The executor resolves both tags at run time, records the observed commit
+        SHA, and records whether it equals the expected SHA above. A mismatch is
+        recorded and the observed SHA governs; it does not by itself invalidate
+        the run.
+      claimed_fix_references:
+        CVE-2026-10097: wolfSSL PR 10430, x64 AVX2 ML-KEM-1024 comparison reported to cover 1536 of 1568 bytes
+        CVE-2026-6330: wolfSSL PR 10192, ARM64 NEON comparison reported to cover half of its input
+      claim_provenance: >-
+        Both references enter this protocol from
+        coordination/goals/GOAL-MLKEM-001/batches/BATCH-002/tasks/TASK-20260722-208/oracle_surface_report.yaml
+        entries ORS-025 and ORS-026. They are treated as unverified premises to
+        be checked against source, not as established facts.
+    fips_203:
+      publication_date: '2024-08-13'
+      doi: 10.6028/NIST.FIPS.203
+      normative_algorithms: [17, 18]
+      comparison_rule: >-
+        Algorithm 18 recomputes the ciphertext and returns the genuine shared
+        secret only if the recomputed ciphertext equals the received ciphertext
+        in full; otherwise it returns J(z || c). Both branches return 32 bytes.
+    conformance_anchor:
+      requirement: >-
+        The scalar reference backend must pass an independent FIPS 203
+        conformance check before it is used as a differential reference.
+      accepted_anchors:
+        - wolfSSL's own ML-KEM known-answer vectors present in the checked-out tree
+        - NIST ACVP ML-KEM encapDecap vectors if retrievable at run time
+        - self-consistency of deterministic encapsulate/decapsulate over all tested keys plus cross-commit equality of the scalar backend at both tags
+      rule: >-
+        At least one anchor must pass and the anchor actually used must be named
+        in the run artifacts. Self-consistency alone is the weakest anchor and
+        must be labeled as such in the execution report.
+
+  inputs:
+    parameter_sets:
+      ML-KEM-512: {ciphertext_bytes: 768, encapsulation_key_bytes: 800, decapsulation_key_bytes: 1632}
+      ML-KEM-768: {ciphertext_bytes: 1088, encapsulation_key_bytes: 1184, decapsulation_key_bytes: 2400}
+      ML-KEM-1024: {ciphertext_bytes: 1568, encapsulation_key_bytes: 1568, decapsulation_key_bytes: 3168}
+    builds:
+      - id: BUILD-PREFIX-SCALAR
+        tag: v5.9.1-stable
+        backend: scalar_c
+        role: differential_reference_prefix
+      - id: BUILD-PREFIX-AVX2
+        tag: v5.9.1-stable
+        backend: x64_avx2
+        role: candidate_vulnerable_positive_control
+      - id: BUILD-POSTFIX-SCALAR
+        tag: v5.9.2-stable
+        backend: scalar_c
+        role: differential_reference_postfix
+      - id: BUILD-POSTFIX-AVX2
+        tag: v5.9.2-stable
+        backend: x64_avx2
+        role: patched_control
+      - id: BUILD-PREFIX-NEON
+        tag: v5.9.1-stable
+        backend: aarch64_neon
+        role: candidate_vulnerable_positive_control
+        conditional: requires_cross_toolchain_and_user_mode_emulator
+      - id: BUILD-POSTFIX-NEON
+        tag: v5.9.2-stable
+        backend: aarch64_neon
+        role: patched_control
+        conditional: requires_cross_toolchain_and_user_mode_emulator
+    keys_and_ciphertexts:
+      keys_per_parameter_set: 2
+      seed_policy: >-
+        Deterministic key generation and encapsulation from fixed recorded
+        seeds where the library exposes deterministic entry points; otherwise a
+        seeded deterministic RNG whose seed and mechanism are recorded, with the
+        resulting keys and ciphertexts hashed into the run artifacts so the
+        exact inputs are reconstructible.
+      forbidden: Any key, ciphertext, or secret obtained from a deployed system, network peer, or third party.
+    mutation_grid:
+      indices: every byte index from 0 through ciphertext_bytes-1
+      operations: [xor_0x01, xor_0xff]
+      total_mutations_per_key: '2 * ciphertext_bytes'
+      valid_control: the unmutated ciphertext, tested first for every key and backend
+    comparison_probe:
+      target: >-
+        The ciphertext equality comparison used by ML-KEM decapsulation in each
+        backend, reached either through an exported symbol, a harness
+        translation unit compiled into the same object set, or the narrowest
+        possible visibility shim.
+      required_record: >-
+        The exact function name, file, line range, and reach mechanism for every
+        backend and commit, plus the verbatim text of any shim.
+      prohibited: Modifying comparison logic, buffer lengths, or dispatch conditions in library source.
+
+  controls:
+    - id: CTRL-SOURCE-PREMISE
+      method: >-
+        Read the comparison implementations at both commits, record the number
+        of ciphertext bytes each one reads as a function of length, and diff the
+        pre-fix and post-fix versions of the same function.
+      pass_condition: >-
+        For each named CVE, an explicit verdict of present, absent, or
+        unlocatable is recorded with file, function, and line evidence. A
+        verdict of absent or unlocatable is a valid result that triggers the
+        premise_unverified outcome for that control, not an invalid run.
+    - id: CTRL-BACKEND-ATTESTATION
+      method: >-
+        Attest the backend actually executed by build configuration plus at
+        least one run-time signal, such as an exported build macro, a symbol
+        presence check on the linked object, or disassembly evidence of vector
+        instructions in the comparison routine.
+      pass_condition: Every reported measurement names an attested backend; unattested measurements are discarded.
+    - id: CTRL-VALID-KAT
+      method: >-
+        For every build and parameter set, decapsulate the unmutated ciphertext
+        and compare with the encapsulated shared secret; then run the named
+        conformance anchor.
+      pass_condition: All unmutated decapsulations recover the encapsulated secret and the named anchor passes.
+    - id: CTRL-SCALAR-CROSS-COMMIT
+      method: >-
+        Compare scalar-backend outputs at the pre-fix and post-fix commits for
+        every valid and mutated input.
+      pass_condition: >-
+        Scalar outputs agree across commits for every input, or every
+        disagreement is enumerated with its index and both outputs.
+    - id: CTRL-IMPLICIT-REJECTION-SHAPE
+      method: >-
+        Confirm that every rejected decapsulation still returns 32 bytes and
+        that the returned value differs from the genuine secret, and that
+        rejection values are stable across repeated calls with the same input.
+      pass_condition: No build returns a failure symbol, a short output, or a nondeterministic rejection value.
+    - id: CTRL-LENGTH-VERSUS-CONTENT
+      method: >-
+        Keep equal-length content mutations strictly separate from any
+        malformed-length input; malformed lengths are recorded in their own
+        table and never counted as comparison omissions.
+      pass_condition: No malformed-length result contributes to a silent-byte set.
+    - id: CTRL-NEGATIVE-HARNESS
+      method: >-
+        Run the mutation grid against a deliberately truncated comparison
+        wrapper in the harness itself, which compares only the first half of
+        the buffer, without modifying library source.
+      pass_condition: >-
+        The suite reports a silent set equal to the deliberately omitted index
+        range. This proves the generator can detect an omission independently of
+        whether any library build contains one.
+
+  independent_variables:
+    - wolfSSL commit: pre-fix tag versus post-fix tag.
+    - Backend: scalar C, x64 AVX2, and conditionally aarch64 NEON.
+    - Parameter set: ML-KEM-512, ML-KEM-768, ML-KEM-1024.
+    - Byte index: every index in the ciphertext.
+    - Mutation operation: xor 0x01 versus xor 0xff.
+    - Probe level: comparison primitive versus Algorithm 18 integration.
+
+  metrics:
+    primary:
+      - id: premise_verdict
+        definition: Per CVE, one of present, absent, or unlocatable, with source evidence.
+        decision_use: Decide whether either published record can serve as a positive control.
+      - id: silent_byte_set
+        definition: >-
+          Per build, backend, parameter set, and mutation operation, the set of
+          byte indices whose mutation the comparison primitive reports equal.
+        decision_use: Measure comparison completeness directly.
+      - id: silent_byte_count
+        definition: Cardinality of silent_byte_set.
+        decision_use: Compare against the reported 32-byte and half-buffer omissions.
+      - id: scalar_versus_optimized_disagreements
+        definition: Number of inputs where the optimized primitive and the scalar primitive of the same commit return different verdicts.
+        decision_use: Detect backend-specific omissions on patched releases.
+      - id: byte_index_coverage_fraction
+        definition: Exercised indices divided by ciphertext_bytes.
+        decision_use: Establish that a null result is a complete null result.
+      - id: integration_accept_on_mutation
+        definition: >-
+          Boolean per silent index tested end to end, true when Algorithm 18
+          returns the genuine shared secret for a mutated ciphertext.
+        decision_use: Confirm that a primitive-level omission reaches the API boundary.
+      - id: negative_harness_detected
+        definition: Boolean, true when the deliberately truncated wrapper is flagged with exactly its omitted range.
+        decision_use: Establish generator adequacy independently of library results.
+    secondary:
+      - resolved_commit_sha_matches_expected
+      - comparison_function_identity_per_backend
+      - reach_mechanism_per_backend
+      - build_configure_flags_and_compiler_version
+      - conformance_anchor_used
+      - rejection_value_stability
+      - malformed_length_table
+      - per_stage_wall_clock_seconds
+      - peak_memory_gb
+
+  replication:
+    seeds: [1, 2]
+    seed_policy: >-
+      Two recorded seeds per parameter set drive deterministic key generation
+      and encapsulation. No statistical sampling is authorized; the mutation
+      grid is exhaustive over byte indices.
+    independent_instances: 2
+    replication_rule: >-
+      Every silent-byte set must reproduce identically across both seeds and
+      both mutation operations. A set that does not reproduce is reported as
+      unstable and excluded from any conformance claim.
+    planned_runs:
+      - id: RUN-MLKEM-005
+        purpose: Clone, resolve tags, record source lock, and produce the CTRL-SOURCE-PREMISE verdicts and comparison-function inventory.
+      - id: RUN-MLKEM-006
+        purpose: Build x86-64 scalar and AVX2 backends at both commits, attest backends, and run the exhaustive primitive-level mutation grid plus the negative harness.
+      - id: RUN-MLKEM-007
+        purpose: Algorithm-18 integration check on every verified silent index, valid-KAT and implicit-rejection-shape controls, and scalar cross-commit comparison.
+      - id: RUN-MLKEM-008
+        purpose: aarch64 NEON cross-build and emulated execution of the same grid, or a terminal infrastructure_unavailable record with its exact blocking reason.
+    expected_run_count: 4
+    agreement_gate: >-
+      A silent index is reportable only if the primitive-level result, the
+      integration result where tested, and both seeds agree. Any disagreement is
+      reported as unstable and excluded.
+
+  outcome_classification:
+    precedence:
+      - invalid_harness_or_dispatch
+      - premise_unverified
+      - positive_control_undetected
+      - residual_patched_disagreement
+      - suite_is_discriminating
+    invalid_harness_or_dispatch: >-
+      A required build fails, a claimed backend cannot be attested, the scalar
+      reference fails CTRL-VALID-KAT, the comparison primitive cannot be
+      reached, or the negative harness is not detected. Infrastructure outcome
+      only; no conformance conclusion is drawn.
+    premise_unverified: >-
+      The pre-fix commits do not contain the incomplete comparison attributed to
+      them, or it cannot be located. The suite result stands on the negative
+      harness alone, ORS-025 and ORS-026 are flagged for correction, and no CVE
+      positive control is claimed.
+    positive_control_undetected: >-
+      A comparison verified from source to read fewer bytes than the ciphertext
+      length produces an empty measured silent set. The suite is inadequate and
+      must be repaired before use.
+    residual_patched_disagreement: >-
+      Vulnerable controls are detected and at least one post-fix backend also
+      disagrees with its scalar reference at some index. Report the exact
+      commit, backend, parameter set, and index list; make no exploitation claim
+      and construct no oracle.
+    suite_is_discriminating: >-
+      Every verified vulnerable build has a nonempty reproducible silent set
+      matching its source-level omission, every post-fix backend has zero
+      disagreements at full coverage, and the negative harness is detected.
+
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_wall_clock_seconds: 5400
+    total_cpu_hours: 2.0
+    maximum_memory_gb: 4
+    maximum_runs: 4
+    maximum_processes: 4
+    network_operations: git_clone_and_optional_package_install_only
+    deployed_system_queries: 0
+    stages:
+      - id: source_resolution_and_premise
+        purpose: Clone, checkout both tags, hash relevant files, and adjudicate the source-level premise.
+        wall_clock_seconds: 900
+        cpu_hours: 0.2
+        maximum_memory_gb: 2
+        stop_rule: Record an unlocatable verdict and continue to the negative harness rather than searching indefinitely.
+      - id: build_and_attest
+        purpose: Configure and build each backend and attest which code path executes.
+        wall_clock_seconds: 1800
+        cpu_hours: 0.8
+        maximum_memory_gb: 4
+        stop_rule: Record a build failure as an infrastructure result for that build and continue with the remaining builds.
+      - id: primitive_mutation_grid
+        purpose: Exhaustive per-index comparison probing plus the negative harness.
+        wall_clock_seconds: 1800
+        cpu_hours: 0.7
+        maximum_memory_gb: 2
+        stop_rule: Stop at the cap and preserve partial per-index tables as infrastructure signal, not as a null conformance result.
+      - id: integration_and_packaging
+        purpose: Algorithm-18 checks on silent indices, control tables, and schema-complete run artifacts.
+        wall_clock_seconds: 900
+        cpu_hours: 0.3
+        maximum_memory_gb: 2
+        stop_rule: Stop without interpretation if any required artifact is incomplete.
+
+  stopping_rules:
+    - Stop and record infrastructure outcome if neither wolfSSL tag can be fetched or checked out.
+    - Stop the CVE-control line and record premise_unverified if the claimed incomplete comparison is absent or unlocatable at the pre-fix commits; still complete the negative harness and the patched-backend coverage measurement.
+    - Stop and mark the affected measurement invalid if the executed backend cannot be attested.
+    - Stop after the four planned runs; no exploratory fifth run is authorized.
+    - Stop before any attempt to recover a key, construct an oracle, chain queries into secret recovery, or estimate an attack cost from an observed silent index.
+    - Stop before touching any system, network endpoint, or key not created inside this experiment directory.
+    - Stop at 5400 total wall-clock seconds, 2.0 CPU-hours, or 4 GB resident memory.
+    - If a post-fix disagreement appears, record the exact index list and stop; a new bounded protocol and a coordinator decision are required before any further work on it.
+
+  invalidation_rules:
+    - Any run lacks its exact command, commit and dirty state, environment, dependency versions, timestamps, resource use, stdout, stderr, raw result, summary, or inference metadata.
+    - Expected run count is not exactly four or a planned run has no terminal status.
+    - A reported measurement names no attested backend.
+    - Library comparison logic, buffer lengths, or dispatch conditions were modified.
+    - Malformed-length inputs are counted as comparison omissions.
+    - A silent index is reported without reproduction across both seeds and both mutation operations.
+    - The negative harness is not exercised, so generator adequacy is unestablished.
+    - Valid known-answer or self-consistency checks fail but mutation results are still interpreted.
+    - A build, clone, toolchain, or emulator failure is interpreted as evidence about implementation correctness.
+    - Any result is described as a key-recovery attack, an exploit, or a crypto-scale weakness.
+
+  success_criterion: >-
+    The protocol succeeds as an audit if all four runs reach terminal status,
+    the source-level premise receives an explicit evidenced verdict for both
+    named records, the negative harness is detected with exactly its omitted
+    range, byte-index coverage is complete for every attested backend and
+    parameter set, and the outcome is uniquely classified under the frozen
+    precedence. H-MLKEM-002 is supported within this laboratory boundary only if
+    every build verified to contain an incomplete comparison is detected with a
+    reproducible silent set, and every post-fix backend shows zero
+    scalar-versus-optimized disagreements at complete coverage.
+  falsification_criterion: >-
+    H-MLKEM-002 is falsified within this boundary if a source-verified
+    incomplete comparison yields an empty measured silent set, or if a post-fix
+    backend yields a reproducible disagreement or an integration accept on a
+    mutated ciphertext. A missing CVE premise is not falsification of the
+    detection mechanism; it is premise_unverified and requires correction of the
+    BATCH-002 oracle-surface entries. A build, toolchain, or emulator failure is
+    an infrastructure outcome and falsifies nothing.
+
+  required_artifacts:
+    - experiments/EXP-MLKEM-002/source-lock.yaml
+    - experiments/EXP-MLKEM-002/implementation/build_matrix.sh
+    - experiments/EXP-MLKEM-002/implementation/comparison_probe.c
+    - experiments/EXP-MLKEM-002/implementation/mutation_grid.py
+    - experiments/EXP-MLKEM-002/implementation/source_premise_audit.py
+    - experiments/EXP-MLKEM-002/implementation/run_experiment.py
+    - experiments/EXP-MLKEM-002/analysis/comparison_function_inventory.md
+    - experiments/EXP-MLKEM-002/analysis/premise_verdicts.yaml
+    - experiments/EXP-MLKEM-002/analysis/coverage_maps.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/manifest.yaml
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/command.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/environment.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/raw.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/stdout.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/stderr.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/manifest.yaml
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/command.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/environment.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/raw.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/stdout.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/stderr.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/manifest.yaml
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/command.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/environment.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/raw.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/stdout.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/stderr.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/manifest.yaml
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/command.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/environment.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/raw.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/stdout.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/stderr.txt
+    - experiments/EXP-MLKEM-002/implementation.md
+    - experiments/EXP-MLKEM-002/execution-report.yaml
+
+  completion_gate:
+    - Exactly four schema-complete terminal run manifests exist.
+    - Both named records receive an explicit present, absent, or unlocatable verdict with file, function, and line evidence.
+    - The negative harness result is reported before any library-build conclusion.
+    - Every reported measurement names an attested backend and a resolved commit SHA.
+    - Byte-index coverage is stated per backend and parameter set, with any gap enumerated.
+    - Every observed difference is assigned exactly one predeclared outcome class.
+    - The report states explicitly that no key recovery, oracle construction, exploitation path, or deployed-system interaction was performed.
+    - Peak resources and stage totals remain within the frozen budget.
+
+  scope_exclusions:
+    - key recovery, oracle construction, query-chaining, or attack-cost estimation from any observed silent index
+    - deployed systems, network peers, third-party keys, or any host outside this workspace
+    - timing, power, EM, cache, microarchitectural, or fault measurement
+    - modification of wolfSSL comparison logic, lengths, or dispatch
+    - claims about libraries, versions, backends, or parameter sets not built and attested here
+    - publication of a new vulnerability claim; a post-fix disagreement is reported internally and escalated to the coordinator only
+    - any statement about MLWE hardness or passive ML-KEM security
+
+  assigned_to: executor
+  approval:
+    protocol_class_confirmed_by_user: true
+    selection_decision: DEC-20260724-006
+    prior_repair_decision: DEC-20260722-007
+    evidence_ref: EV-MLKEM-002
+    approved_by: coordinator
+    approved_at: '2026-07-24'
+    execution_authorized: true
+    authorization_note: >-
+      Protocol approved under DEC-20260724-006 as the BATCH-005 defensive
+      mechanism screen, incorporating the DEC-20260722-007 repair requirement to
+      test comparison primitives directly on exact fix boundaries before any end
+      to end mutation claim. Execution authorized by Executor handoff
+      TASK-20260724-228 after protocol snapshot TASK-20260724-227. Runtime
+      inference uses Cursor Grok 4.5 with fallback_used true versus
+      executor-terra.
+    executor_handoff: TASK-20260724-228
+    protocol_snapshot: TASK-20260724-227
+  approved_by: coordinator
+  status_note: approved_and_execution_authorized

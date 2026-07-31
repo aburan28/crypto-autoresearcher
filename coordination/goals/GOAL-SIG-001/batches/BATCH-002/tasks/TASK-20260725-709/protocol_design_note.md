@@ -4,7 +4,7 @@
 
 Repair freeze of **SIG-D6-NULL-RECAL-v2**, superseding
 `TASK-20260725-631` / `SIG-D6-NULL-RECAL-v1` (snapshot `91d10c79cec0`) to
-discharge red-team `RT-20260725-633` (REVISE) per `EV-SIG-006` /
+discharge red-team `RT-20260725-633` (REVISE) per `EV-SIG-009` /
 `DEC-20260725-014`. Binding YAML: `d6_null_protocol.yaml`.
 
 ## Inference

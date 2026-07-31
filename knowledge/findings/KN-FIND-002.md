@@ -1,46 +1,69 @@
 ---
 id: KN-FIND-002
-type: internal_finding
-title: Scoped finding from EV-BKKMV-001
-tags:
-- ecdlp
-- prime-field
-- toy
-- internal-finding
-confidence: reported
-internal_refs:
-- EV-BKKMV-001
-- DEC-20260718-011
-- EXP-BKKMV-001
-- H-BKKMV-001
-- DEC-20260722-003
-proof_status: empirical_only
-proof_refs:
-- research/THM_BKKMV1.md
-- DEC-20260722-003
-added: 2026-07-25
+type: finding
+title: >-
+  Jet and endomorphism ECDLP oracles are GGM-simulable with O(1) overhead,
+  closing their candidate families at exponent 1/2; elliptic-net and incidence
+  oracles are GGM-simulable with non-constant overhead, providing no
+  sub-birthday advantage
+tags: [ggm, simulability, jet, endomorphism, elliptic-net, incidence, ecdlp, closure, exponent-half, generic-group-model]
+confidence: strong
+status: established
+source_refs: [EV-GGM-001, DEC-20260726-007, EXP-GGM-001, KN-TECH-005, KN-OPEN-005]
+added: 2026-07-26
 superseded_by: null
 ---
-## Scoped claim
-Toy panel m=3,4,5: MV_m=(m−1)!·2^((m−1)(m−2)) exact with MV/Bézout_box=1; growth law certified on that range only, not m≥6.
 
-## Provenance
-- Evidence: `EV-BKKMV-001` (strength: replicated)
-- Decision: `DEC-20260718-011` (supported_scoped)
-- Experiment: `EXP-BKKMV-001`
-- Hypothesis: `H-BKKMV-001`
-- Later theorem upgrade (not restated as this EV claim): `THM_BKKMV1` / `DEC-20260722-003` prove the m≤5 sectioned barrier; C1 all-m gap remains open.
+## Finding
 
-## Limits
-Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen closed mechanism families outside the cited scope. Corrections supersede; do not overwrite EV/DEC. Empirical EV claim is not itself the theorem; theorem covers m≤5 proved fragment only.
+A machine-checkable GGM simulability test (EXP-GGM-001) correctly classifies
+four augmented ECDLP oracles, validated against four controls (4/4 correct).
 
-## Key claims (verified here)
-- The Coordinator decision `DEC-20260718-011` closed the cited EV scope; this draft restates that scoped claim for knowledge promotion only.
-- Cross-note: `DEC-20260722-003` / `THM_BKKMV1` prove m≤5 sectioned box-saturation ⇒ MV law (N4); do not treat this draft as proving m≥6.
+### SIMULABLE with O(1) overhead (closed at exponent 1/2 by KN-TECH-005)
 
-## Not claimed
-- Crypto-scale ECDLP advantage or impossibility
-- Any result beyond the EV's recorded test boundary
-- All-m box-saturation theorem (C1 open)
+1. **Jet oracle** (C=1): the dual-number (eps) data from F_p[eps]/eps^2 is a
+   deterministic function of (P, Q, P+Q, curve_parameters). The derivative of
+   the addition map is a rational function of the coordinates, which are
+   determined by the group element + the public curve equation. The generic
+   simulator computes P+Q (1 group operation) and then evaluates the rational
+   function. **This closes all jet-based ECDLP candidates** (ECDLP-IDEA-004
+   and related) at exponent 1/2.
 
+2. **Endomorphism oracle** (C=0): the endomorphism phi (e.g.,
+   phi(x,y) = (zeta_3*x, y) for j=0 curves) is a public, deterministic map
+   from the curve parameters. No group operations needed. **This contextualizes
+   H-STR-002**: the block-circulant LA advantage (387x displacement rank
+   reduction at B=397) is non-generic — phi is available to the generic model,
+   and the structured LA advantage does not provide sub-birthday information.
 
+### SIMULABLE with non-constant overhead (NOT closed at 1/2)
+
+3. **Elliptic-net oracle** (O(log N)): the net value W(a,b) = a*P + b*Q is
+   computable via group operations, but requires O(log a + log b) = O(log N)
+   operations. The Somos identities are universal (hold for every k), so the
+   net encodes only the group law on a single k-fiber. Not closed at 1/2 by
+   the constant-overhead bound, but O(log N) << sqrt(N), so no sub-birthday
+   advantage.
+
+4. **Incidence oracle** (O(B^m)): decompositions are found by brute-force
+   summing m-subsets of the factor base, costing O(B^m) group operations. For
+   fixed B, m this is constant, but B grows with problem size. Not closed at 1/2
+   by the constant-overhead bound.
+
+## Scope and limitations
+
+- The classification uses the **structured GGM** (curve equation is public),
+  not the strictest Shoup GGM (opaque labels). Under the strictest GGM, jet
+  and endomorphism would be NON-SIMULABLE because they require coordinate
+  access.
+- The O(1) closures for jet and endomorphism are **scale-independent
+  mathematical results** (derivation-level), valid at toy, medium, and crypto
+  scales.
+- The test operates on oracle **specifications**, not implementations. Real
+  implementations may leak timing or side-channel information outside the GGM.
+
+## Evidence
+
+- EV-GGM-001 (theoretical, strong, derivation proof_status)
+- EXP-GGM-001: 9 runs, control gate 4/4, all 4 augmented oracles classified
+- DEC-20260726-007: decision = support

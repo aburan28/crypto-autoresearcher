@@ -1,0 +1,247 @@
+hypothesis:
+  id: H-FIB-001
+  question_id: RQ-ECDLP-001
+  source_proposal: IDEA-20260726-003
+  statement: >-
+    For toy prime-field curves at 16 and 20 bits with frozen factor base
+    B = ceil(sqrt(N)) and decomposition arity m = 3, a geometric invariant
+    of the Semaev fiber over a target x-coordinate x_R — the number n_R of
+    factor-base decompositions of R, equivalently the count of admissible
+    roots of the factor-base-elimination projection
+    g_R(x_1) = Res_{x_2}(Res_{x_3}(S_4(x_1,x_2,x_3;x_R), I_V(x_3)),
+    I_V(x_2)) with I_V the factor-base indicator polynomial — predicts
+    per-target decomposition cost (S_4 Groebner solve cost in
+    group-operation equivalents, failures and capped solves at full cap
+    cost) with Spearman rank correlation |rho_s| >= 0.4 across >= 200
+    targets per curve, while label-shuffled negative controls (fiber
+    invariants paired with random targets' costs) yield |rho_s| <= 0.2
+    inside the permutation-null band. The invariant is computable at
+    amortized cost at most 1/10 of the median decomposition cost (shared
+    enumeration table charged per target). If |rho_s| < 0.2 on all tested
+    curves, or the invariant is degenerate across targets, or its amortized
+    cost exceeds 1/2 of the decomposition cost, no usable target-selection
+    predictor exists at toy scale and the two-phase strategy (IC on
+    predicted-easy targets, rho on predicted-hard) offers no advantage.
+  mechanism: >-
+    In point-decomposition index calculus (KN-TECH-003) the per-target cost
+    is the cost of solving S_{m+1}(x_1,...,x_m; x_R) = 0 over the factor
+    base, and it varies across targets: targets with many decompositions
+    (large n_R) present the solver with many solutions and typically
+    terminate faster, while targets with none or few are hard or fail. The
+    fiber invariant n_R is computable from (x_R, curve, frozen factor base)
+    alone — never from the secret scalar — via a shared enumeration table
+    (enumerate C(B,3) tuple sums once per curve; each target's n_R is a
+    lookup), so the per-target predictor cost is the amortized table
+    construction, C(B,3)/N tuple evaluations per target, which is far
+    below a Groebner solve at these sizes. The correlation claim is
+    calibrated three ways: (i) a label-shuffled negative control fixes the
+    null of the Spearman metric; (ii) an exhaustive-truth control on 8-12
+    bit curves verifies n_R equals the exact decomposition count on 100%
+    of audit targets, validating the instrument; (iii) a quasirandom
+    distributional reference (HEUR-001) checks the n_R histogram against
+    Poisson(C(B,3)/N), the birthday-counting consequence of equidistributed
+    tuple sums — the generic-expectation regime of the summation cover's
+    monodromy (KN-OPEN-009) under Chebotarev equidistribution (KN-LIT-039).
+    A correlation matching prediction enables the gated secondary
+    evaluation: a two-phase strategy whose total cost is compared to
+    measured uniform IC and uniform rho on the same targets. If the fiber
+    invariant distribution matches the quasirandom reference yet cost does
+    not correlate with it, the invariant is a correct but useless
+    predictor — a falsifier.
+  assumptions:
+    - >-
+      The invariant n_R is a function of (x_R, curve parameters, frozen
+      factor base) only; no discrete-log information (the scalar a of
+      R = a*P + b*Q) is used in its computation, excluding the circularity
+      confound.
+    - >-
+      The decomposition cost (Groebner solve cost, group-operation
+      equivalents, capped solves at cap cost) varies across targets in a
+      way that can be correlated with n_R; if solve cost is dominated by
+      solver noise uncorrelated with solution count, the experiment returns
+      the null.
+    - >-
+      The shared enumeration table is charged honestly: its construction
+      (Theta(C(B,3)) tuple evaluations) is amortized per target and
+      included in the predictor-cost ratio and in any two-phase accounting,
+      so the predictor cannot hide preprocessing that exceeds rho.
+    - >-
+      200 targets per curve give the Spearman metric permutation-null 95%
+      half-width ~0.14, so the 0.4 effect threshold and the 0.2 null band
+      are separated by more than the null width; the 16-bit cells carry
+      exact n_R (decisive), the 20-bit cells carry sampled-table n_R with
+      confidence intervals (attenuation biases toward the null, never
+      toward the claim).
+    - >-
+      Toy-scale measurements can detect the correlation if it exists but
+      cannot prove its asymptotic strength; the predictor may break down
+      where fiber geometry becomes uniform.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-001
+      formal_statement: >-
+        For uniformly random targets R = a*P + b*Q with a, b uniform
+        independent mod N and R != O, the decomposition count n_R (number
+        of unordered m-subsets of the frozen factor base summing to R) is
+        distributed as Poisson(lambda) with lambda = C(B,m)/N, on 16-20 bit
+        toy curves with B = ceil(sqrt(N)) and m = 3; in particular the
+        dispersion index Var(n_R)/E(n_R) lies in [0.5, 2] and the histogram
+        passes a chi-squared goodness-of-fit against Poisson(lambda) at
+        p >= 0.01 (Bonferroni-adjusted across curves).
+      random_model_justification: >-
+        The C(B,m) factor-base tuple sums behave as a quasirandom multiset
+        of group elements: equidistribution of the summation cover's fibers
+        is the generic expectation — full symmetric/wreath monodromy for
+        generic ordinary curves (KN-OPEN-009) — and under that expectation
+        Frobenius cycle-type statistics equidistribute by Chebotarev
+        (KN-LIT-039), so each tuple sum hits a fixed target with
+        probability ~1/N and the count is a sum of many rare, weakly
+        dependent indicators, which is Poisson. The exhaustive-truth
+        control validates the n_R instrument exactly at 8-12 bits, so any
+        deviation is distributional, not instrumental.
+      supporting_results:
+        - >-
+          KN-LIT-039: Chebotarev density theorem — Frobenius conjugacy
+          classes equidistribute across conjugacy classes in proportion to
+          their size (established).
+        - >-
+          KN-OPEN-009: the m-th Semaev summation cover is expected to have
+          full symmetric/wreath monodromy for generic ordinary curves,
+          making the quasirandom relation rate the generic case (open; this
+          is the conditional step of the justification and is flagged as
+          such).
+        - >-
+          EV-STR-001 (internal): the same birthday-counting accounting
+          (hit rate within [0.5, 2]x of 1/n per tuple; supply-vs-C(B,m)
+          arithmetic) held on the program's prior toy enumeration.
+      validation_experiment_ids: [EXP-FIB-001]
+      falsification_condition: >-
+        The observed n_R histogram is degenerate (a single class) on any
+        curve, or deviates from Poisson(C(B,3)/N) at chi-squared p < 0.01
+        (Bonferroni-adjusted) with dispersion outside [0.5, 2] on at least
+        half the curves, or the exhaustive-truth control finds any mismatch
+        between measured and exact n_R at 8-12 bits.
+  structural_ingredients:
+    - description: >-
+        Semaev summation polynomials S_4 and the point-decomposition test;
+        relations and decompositions carry verifiable certificates.
+      citation: KN-TECH-003
+      role: supplies the decomposition systems whose per-target cost is measured
+    - description: >-
+        Chebotarev equidistribution for Frobenius cycle types, the
+        distributional justification for the quasirandom tuple-sum model.
+      citation: KN-LIT-039
+      role: distribution law behind HEUR-001's Poisson reference
+    - description: >-
+        Generic-expectation full monodromy of the summation cover (open);
+        bounds what the fiber-geometry route could ever yield — a full-
+        monodromy world gives only quasirandom rates.
+      citation: KN-OPEN-009
+      role: scopes the predictor's theoretical ceiling
+  predictions:
+    - metric: correlation_between_fiber_invariant_and_decomposition_cost
+      direction: different
+      minimum_effect: >-
+        Spearman |rho_s| >= 0.4 with permutation-null p < 0.01 on at least
+        3 of 4 curves (200 targets per curve; expected sign negative: more
+        decompositions, cheaper solve). The competing outcome is |rho_s| <
+        0.2 on all curves — no useful predictor. The band 0.2-0.4 is
+        pre-registered as inconclusive, never rounded up to support.
+    - metric: predictor_cost_vs_decomposition_cost
+      direction: lower
+      minimum_effect: >-
+        Amortized predictor cost (enumeration table charged per target plus
+        lookup) <= 1/10 of the median decomposition cost per curve. The
+        competing outcome is a ratio > 1/2 — the predictor is too expensive
+        to be useful (falsifier); the band 1/10-1/2 is inconclusive.
+    - metric: two_phase_total_cost_vs_uniform_baselines
+      direction: lower
+      minimum_effect: >-
+        GATED SECONDARY — evaluated only if both predictions above pass:
+        two-phase total cost (predictor + IC on predicted-easy + rho on
+        predicted-hard) at least 20% below measured uniform rho (K*sqrt(N))
+        and below measured uniform IC at K = 100 targets at 20 bits. A
+        saving below 10% means the predictor is not useful in practice
+        (falsifier of the strategy, not of the correlation).
+  test_boundary:
+    instances:
+      - >-
+        4 toy prime-field curves: 16-bit seeds {1, 2} and 20-bit seeds
+        {1, 2}, harness/toycurve.py generate_instance; 200 targets per
+        curve (R = a*P + b*Q, seeded uniform, scalars recorded but never
+        used by the predictor).
+      - >-
+        Truth-control curves at 8, 10, 12 bits (seed 1), 50 targets each,
+        for exact enumeration audit of n_R.
+    parameters:
+      factor_base_size: B = ceil(sqrt(N))
+      decomposition_arity: m = 3 (S_4 systems)
+      targets_per_curve: 200
+      permutation_null_replicates: 10000
+      enumeration_cap_20bit: 50000000 tuple evaluations per curve (sampled table, CIs recorded)
+      per_solve_cap_seconds: 20
+      smallest_resolved_event: >-
+        Pre-registered class-merging rule: n_R classes with expected count
+        < 10 under Poisson(lambda) are merged before computing rho_s; the
+        smallest retained class then has expected count >= 10 per curve —
+        at least 10x the minimum resolvable count of 1 (the stated
+        multiple).
+    implementation: >-
+      harness/toycurve.py, harness/semaev.py (s4_eval for enumeration,
+      Groebner measurement for cost; implementation-bound proxies per its
+      honesty note), harness/rho.py (uniform-rho control), harness/runner.py.
+      New glue confined to experiments/EXP-FIB-001/.
+    budget:
+      wall_clock_seconds_per_run: 1800
+      total_wall_clock_seconds: 9900
+      total_cpu_hours: 3.0
+      maximum_memory_gb: 4
+      maximum_runs: 8
+  falsification_conditions:
+    - >-
+      No predictor: |rho_s| < 0.2 on all tested curves — decomposition
+      difficulty is uniform across targets or uncorrelated with the fiber
+      invariant (includes the "correct but useless" case: the n_R
+      histogram matches the quasirandom Poisson reference yet cost does
+      not correlate).
+    - >-
+      Predictor too expensive: amortized predictor cost exceeds 1/2 of the
+      median decomposition cost, making the two-phase strategy more
+      expensive than uniform IC regardless of correlation.
+    - >-
+      Instrument failure: the exhaustive-truth control finds any
+      disagreement between measured n_R and exact enumeration at 8-12
+      bits, or the label-shuffled control yields |rho_s| > 0.2 (the
+      correlation metric itself is uncalibrated); both invalidate the
+      measurement and are recorded as such, not as evidence.
+    - >-
+      HEUR-001 refuted (degenerate or non-Poisson n_R distribution) with
+      |rho_s| < 0.2: the fiber geometry does not even provide the
+      quasirandom variation a predictor would need; recorded as a scoped
+      negative for the tested invariants and sizes.
+  interpretation_limits:
+    - >-
+      Toy scale only (16-20 bits; truth control at 8-12 bits). A
+      correlation at these sizes does not prove an asymptotic predictor;
+      fiber geometry may become uniform at larger sizes, and the 20-bit
+      cells use sampled tables whose attenuation biases toward the null.
+    - >-
+      A useful predictor is a measurement tool, not a breakthrough: it
+      could improve a two-phase strategy's constant factors but does not
+      change the fundamental IC cost per decomposition, and any strategy
+      claim stays within toy tier with fully charged preprocessing
+      (enumeration table included).
+    - >-
+      Groebner solve cost is implementation-bound (sympy Buchberger);
+      the correlation could partly reflect solver behavior rather than
+      mathematics. The label-shuffled and random-predictor controls bound
+      selection artifacts, and the truth control bounds instrument error,
+      but cross-solver generalization is not claimed.
+    - >-
+      A negative result closes only the tested fiber invariant (n_R and
+      its sampled variants), curve sizes, factor base, arity, and solver;
+      other invariants (Galois group, factorization pattern over F_{p^k})
+      or larger sizes are not covered (rule 6).
+  status: approved
+  proposed_by: coordinator

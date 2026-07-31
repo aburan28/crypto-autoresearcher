@@ -464,6 +464,157 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                                          f"unknown entry '{knowledge_id}'")
 
 
+GOAL_ID = re.compile(r"^GOAL-[A-Z0-9]+-\d{3}$")
+# `closed_at_budget` is a terminal status in active use. It asserts that the
+# campaign budget ran out WITHOUT a completion criterion being met, so it makes
+# no success claim and needs no quorum. Using it to retire a goal that did meet
+# a criterion, in order to avoid the quorum, is a contract violation.
+GOAL_STATUSES = {"draft", "active", "paused", "blocked", "completed",
+                 "cancelled", "closed_at_budget"}
+GOAL_REQUIRED = ["id", "title", "objective", "question_ids", "status",
+                 "completion_criteria", "pause_conditions", "next_action",
+                 "owner"]
+
+# Goal records were not validated at all before this check existed, and these
+# three were marked `completed` before the closure quorum was a rule. The rule
+# is prospective: demanding retroactive attestations would either block CI
+# permanently or invite back-dated ones, and a fabricated attestation is worse
+# than an unattested closure. They are exempt from the quorum and required-field
+# checks only, still validated for id format and status, and reported as schema
+# debt. Do not add to this set: a new closure must earn its quorum.
+PRE_QUORUM_GOAL_IDS = {"GOAL-ICLIFT-001", "GOAL-XEDN-001", "GOAL-XEDN-002",
+                       "GOAL-P13-001"}
+
+# A goal may only be closed out on the concurring judgement of three
+# independently-resolved models. See AGENTS.md "Goal closure quorum".
+GOAL_CLOSURE_QUORUM = 3
+ATTESTATION_REQUIRED = ["role", "requested_policy", "resolved_model_id",
+                        "independent_session", "reviewed_record_ids",
+                        "verdict"]
+CONCUR = "CONCUR"
+DISSENT = "DISSENT"
+
+
+def check_goal_closure_quorum(path: str, goal: dict, ctx: Ctx):
+    """Enforce the three-model quorum on a goal marked `completed`.
+
+    A closed-out goal must carry `completion_quorum.attestations`: at least
+    three verdicts whose `resolved_model_id` values are pairwise distinct and
+    which all CONCUR. The distinctness is on the *resolved* model, not the
+    requested policy alias, because a policy that falls back to a shared model
+    yields correlated judgements and is not a quorum.
+    """
+    quorum = goal.get("completion_quorum")
+    if not isinstance(quorum, dict):
+        ctx.err(path, "goal status 'completed' requires a completion_quorum "
+                      f"block with {GOAL_CLOSURE_QUORUM} concurring "
+                      "attestations")
+        return
+
+    attestations = quorum.get("attestations")
+    if not isinstance(attestations, list) or not attestations:
+        ctx.err(path, "completion_quorum.attestations must be a non-empty list")
+        return
+
+    for i, att in enumerate(attestations):
+        if not isinstance(att, dict):
+            ctx.err(path, f"completion_quorum.attestations[{i}] must be a "
+                          "mapping")
+            return
+        for field in ATTESTATION_REQUIRED:
+            if att.get(field) in (None, "", []):
+                ctx.err(path, f"completion_quorum.attestations[{i}] missing "
+                              f"required field '{field}'")
+
+    verdicts = [str(a.get("verdict", "")).strip().upper() for a in attestations]
+    dissent = [i for i, v in enumerate(verdicts) if v == DISSENT]
+    if dissent:
+        ctx.err(path, "goal status 'completed' contradicts DISSENT in "
+                      f"completion_quorum.attestations{dissent}; a dissent "
+                      "blocks closure until superseded by a new decision")
+
+    concurring = [a for a, v in zip(attestations, verdicts) if v == CONCUR]
+    if len(concurring) < GOAL_CLOSURE_QUORUM:
+        ctx.err(path, f"goal closure needs {GOAL_CLOSURE_QUORUM} CONCUR "
+                      f"attestations, found {len(concurring)}")
+
+    models = [str(a.get("resolved_model_id", "")).strip()
+              for a in concurring if a.get("resolved_model_id")]
+    distinct = {m for m in models if m}
+    if len(distinct) < GOAL_CLOSURE_QUORUM:
+        ctx.err(path, "goal closure needs "
+                      f"{GOAL_CLOSURE_QUORUM} pairwise-distinct "
+                      f"resolved_model_id values among concurring "
+                      f"attestations, found {len(distinct)} "
+                      f"({sorted(distinct)})")
+
+    non_independent = [i for i, a in enumerate(attestations)
+                       if a.get("independent_session") is not True]
+    if non_independent:
+        ctx.err(path, "every closure attestation must set "
+                      "independent_session: true; not set at "
+                      f"attestations{non_independent}")
+
+    for i, att in enumerate(attestations):
+        refs = att.get("reviewed_record_ids")
+        if isinstance(refs, list) and refs:
+            # Knowledge findings/literature live in ctx.knowledge (loaded
+            # before check_goals), not ctx.ids. GOAL-* keeps the prefix
+            # escape used when a goal id is mid-registration.
+            unknown = [
+                r for r in refs
+                if r not in ctx.ids
+                and r not in ctx.knowledge
+                and not str(r).startswith("GOAL-")
+            ]
+            if unknown:
+                ctx.err(path, f"completion_quorum.attestations[{i}] cites "
+                              f"unknown record(s) {unknown}")
+
+
+def check_goals(ctx: Ctx):
+    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals",
+                                              "*.yaml"))):
+        doc = load_yaml(path, ctx)
+        if doc is None:
+            continue
+        goal = doc.get("research_goal") if isinstance(doc, dict) else None
+        if not isinstance(goal, dict):
+            ctx.err(path, "missing top-level 'research_goal' mapping")
+            continue
+
+        rec_id = goal.get("id")
+        if not rec_id or not GOAL_ID.match(str(rec_id)):
+            ctx.err(path, f"invalid goal id {rec_id!r}")
+        else:
+            expected = f"{rec_id}.yaml"
+            if os.path.basename(path) != expected:
+                ctx.err(path, f"filename must match id ({expected})")
+            ctx.register(str(rec_id), path, goal, "research_goal")
+
+        grandfathered = str(rec_id) in PRE_QUORUM_GOAL_IDS
+
+        if not grandfathered:
+            for field in GOAL_REQUIRED:
+                if goal.get(field) in (None, ""):
+                    ctx.err(path, f"missing required field '{field}'")
+
+        status = str(goal.get("status", "")).strip()
+        if status and status not in GOAL_STATUSES:
+            ctx.err(path, f"invalid status {status!r}")
+
+        if status == "completed" and not grandfathered:
+            check_goal_closure_quorum(path, goal, ctx)
+        elif isinstance(goal.get("completion_quorum"), dict):
+            # Attestations may be gathered before the transition; they simply
+            # must not be mistaken for a closure that has not happened.
+            quorum = goal["completion_quorum"]
+            if quorum.get("quorum_satisfied") is True and status != "completed":
+                ctx.err(path, "completion_quorum.quorum_satisfied is true but "
+                              f"status is {status!r}; only a Coordinator "
+                              "ledger archive may perform the transition")
+
+
 def check_knowledge_index(ctx: Ctx):
     rc = subprocess.run(
         [sys.executable, os.path.join(REPO, "tools", "build_knowledge_index.py"),
@@ -471,7 +622,17 @@ def check_knowledge_index(ctx: Ctx):
         capture_output=True, text=True)
     if rc.returncode != 0:
         msg = (rc.stderr or rc.stdout).strip() or "knowledge/INDEX.md is stale"
-        ctx.errors.append(msg.splitlines()[0].strip())
+        # Take the LAST line, not the first. When the index builder raises,
+        # the first line is "Traceback (most recent call last):" -- which is
+        # both uninformative and, worse, IDENTICAL for every possible cause.
+        # CI diffs error sets between head and base, so an unchanging string
+        # cancels out and the failure is invisible. That is how a builder
+        # crashing on committed conflict markers went unreported. The last
+        # line carries the actual exception.
+        lines = [ln.strip() for ln in msg.splitlines() if ln.strip()]
+        detail = lines[-1] if lines else "knowledge/INDEX.md is stale"
+        ctx.errors.append(f"knowledge/INDEX.md: build_knowledge_index.py "
+                          f"failed: {detail}")
 
 
 BASELINE_HEADER = """\
@@ -536,8 +697,12 @@ def main() -> int:
                                               "*", "manifest.yaml"))):
         check_run(path, ctx)
     check_legacy_id_remaps(ctx)
-    check_cross_refs(ctx)
+    # Knowledge must be indexed before goal closure quorum checks so that
+    # reviewed_record_ids may cite KN-* entries (ctx.knowledge), not only
+    # ledger ids (ctx.ids).
     check_knowledge_entries(ctx)
+    check_goals(ctx)
+    check_cross_refs(ctx)
     check_knowledge_index(ctx)
 
     current = set(ctx.errors)

@@ -18,7 +18,10 @@ The Coordinator is the only agent permitted to:
 
 1. Maintain the research question, hypothesis, experiment, evidence, and decision ledgers.
 2. Decompose broad questions into falsifiable hypotheses.
-3. Rank work by expected information gain, cost, dependency risk, and scientific value.
+3. Rank work by expected information gain, cost, dependency risk, and
+   scientific value, biasing toward exponent-targeting mechanisms over
+   logarithmic- or constant-cofactor improvements
+   (`docs/target-result-profile.md`).
 4. Require controls, budgets, stopping rules, and artifacts before approval.
 5. Assign tasks using the handoff envelope in `AGENTS.md`.
 6. Review Executor artifacts for validity before interpreting results.
@@ -71,6 +74,69 @@ that stages the review reports and exact evidence, decision, hypothesis, and
 knowledge records. Verify the commit receipt against Git before making an
 official transition. Do not ask concurrent workers to commit into one shared
 worktree.
+
+## Branch and PR discipline
+
+Research state becomes durable only when it is committed, pushed, and
+reviewable. Every generation step — a new goal, idea, hypothesis, experiment,
+evidence record, decision, or knowledge entry — carries two git duties that
+the Coordinator must ensure are completed (executed by the control plane /
+session that drives this role; see `.claude/skills/launch-research-harness`
+and `.claude/skills/coordinate-research-goal`):
+
+1. **Merge `main` in before generating.** Before a new goal or batch is
+   created, merge `origin/main` into the working branch — merge, never rebase
+   (AGENTS.md forbids rewriting the commits run records were archived in).
+   A sync conflict inside an immutable record is never resolved by picking a
+   side: it is a new superseding record under a new id. Re-run
+   `tools/validate_ledger.py` on the merged tree before dispatching.
+2. **Open or update a PR against `main` after every archive.** Each time a
+   snapshot or ledger archive adds new `GOAL-*`, `RQ-*`, `IDEA-*`, `H-*`,
+   `EXP-*`, `EV-*`, `DEC-*`, `TASK-*`, or `KN-*` records, push the branch and
+   open (or refresh) a PR against `main` naming those records. A record that
+   exists only in a local commit is not generated for the program — it is
+   unpublished, and downstream review or promotion must not treat it as
+   durable evidence.
+
+## Target result profile and promotion gates
+
+The canonical exemplar of a high-value result for this program is documented
+in `docs/target-result-profile.md` (Wesolowski's time-and-memory
+p^{1/3+o(1)} attack on the supersingular isogeny problem). Two consequences
+follow.
+
+**Dispatch bias.** When prioritizing directions, prefer mechanisms that
+target the asymptotic exponent of a central hard problem over improvements
+confined to logarithmic or constant cofactors. Whenever a conditional result
+is dispatched, pair it in the same or the following batch with a
+heuristic-validation experiment — sampling the relevant distribution at the
+target scale, comparing the empirical distribution against the predicted one,
+and checking tail consistency — and, where feasible, a proof-of-concept
+implementation task.
+
+**Promotion gates.** Before any asymptotic-complexity claim may transition
+toward `supported`, all four gates must be satisfied by archived artifacts:
+
+1. **Proof decomposition.** An archived proof decomposed into
+   single-responsibility lemmas — each lemma does exactly one job (size
+   bounds, runtime, correctness, success probability) — with the main theorem
+   a pure assembly that keeps explicit bookkeeping of per-attempt cost times
+   inverse success probability.
+2. **Numbered heuristics with validation.** Every conditional dependence is
+   an explicit, numbered, formally stated heuristic, each backed by archived
+   validation evidence or a scheduled validation experiment. An unvalidated
+   heuristic caps the claim below `supported`.
+3. **Concrete-cost honesty.** A concrete-cost table at standardized parameter
+   sets that accounts for superpolynomial overhead hidden in o(1) terms,
+   memory requirements, time–memory tradeoffs, and parallelization, with
+   optimistic assumptions explicitly flagged, plus an explicit
+   affected-vs-safe scope statement for deployed systems.
+4. **Independent review.** An independent `review-xhigh` review per AGENTS.md
+   rule 12 plus a red-team pass on the cost model and the heuristics, by
+   agents that did not originate the claim.
+
+A claim missing any gate may advance through `running` and `analyzed`, but
+the Coordinator must not record it `supported`.
 
 ## Prohibitions
 

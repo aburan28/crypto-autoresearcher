@@ -1,0 +1,145 @@
+hypothesis:
+  id: H-MLKEM-005
+  question_id: RQ-MLKEM-002
+  title: >-
+    Under a library-facing adequacy probe and a preflighted or explicitly
+    widened second peer, the incomplete ML-KEM re-encryption comparison class
+    remains isolated to the audited wolfSSL pre-fix routines
+  statement: >-
+    A conformance gate that (1) replaces the EXP-MLKEM-004 harness-tautology
+    synthetic control with a library-facing interposed or independently injected
+    defective comparator object whose G1-silent and G2-or-G3-visible property is
+    observed through the library call path without generator special-casing of
+    len(diffs)==1, and (2) measures a second peer that is either a preflight-
+    pinned fixed-bound hand-written comparison target or an explicitly widened
+    optimized-compare peer under a recorded EV-MLKEM-007 empty-neighborhood
+    rationale — detects both positive controls, and finds no reproducible silent
+    ciphertext byte and no accept of a mutated equal-length ciphertext in
+    wolfSSL post-fix backends or in that pinned second peer.
+  mechanism: >-
+    Instrument adequacy must be a property of the library-facing compare path,
+    not of a harness comparator that returns equal for every single-byte
+    difference in R by construction (RT-20260724-003). External interposition
+    or injection of a defective comparator object keeps library source
+    unmodified while making G2/G3 marginal detection observable through the
+    same entry points used for substantive probes. Separately, EV-MLKEM-007
+    emptied the preferred public fixed-bound-tail neighborhood among BoringSSL,
+    PQClean, mlkem-native, and aws-lc; widening to the nearest reachable
+    optimized-compare neighborhood (vectorized or block-stepped CT verify,
+    including length-parameterized SIMD verify) asks isolation of a real peer
+    while forbidding paraphrase of a widened null as a strict fixed-bound-tail
+    isolation claim.
+  assumptions:
+    - Laboratory-only builds from public source; no deployed system, network peer, or third-party key.
+    - The wolfSSL v5.9.1 AVX2 ML-KEM-1024 omission at indices 1536..1567 remains a valid G1-visible detection-retention control (EV-MLKEM-005).
+    - A defective comparator object can be interposed or injected on the library compare path without modifying library source, and its presence can be attested.
+    - Either a fixed-bound hand-written comparison target is preflight-pinned, or the widened optimized-compare criterion admits at least one buildable peer (default: PQClean ml-kem-1024 avx2 verify), or second_impl_unavailable is recorded after exhausting the frozen preference order.
+    - Mutations that change the decrypted message legitimately produce rejection at the API boundary.
+  predictions:
+    - metric: library_facing_adequacy_marginal_detection
+      direction: higher
+      minimum_effect: >-
+        The library-facing adequacy control is undetected by G1 on region R and
+        detected by at least one of G2 or G3 through the library call path,
+        producing a non-empty G2_minus_G1 or G3_minus_G1 attributable to that
+        control without generator special-casing of len(diffs)==1.
+    - metric: known_defect_detection_retained
+      direction: higher
+      minimum_effect: >-
+        The wolfSSL v5.9.1 AVX2 omission at 1536..1567 remains detected by G1
+        and by every widened class that reaches those indices.
+    - metric: pinned_second_peer_silent_indices
+      direction: lower
+      minimum_effect: >-
+        Exactly 0 reproducible silent indices and 0 equal-length decapsulation
+        accepts on the pinned second peer and on wolfSSL post-fix backends.
+    - metric: outcome_class_reachability
+      direction: different
+      minimum_effect: >-
+        Both generator_hardening_insufficient and isolated_to_audited_commits
+        remain reachable under frozen precedence given the library-facing
+        control; rediscovery of the known defect must not count as marginal
+        information.
+  test_boundary:
+    instances:
+      - wolfSSL v5.9.1-stable and v5.9.2-stable, scalar and x64 AVX2, and aarch64 NEON under emulation if available
+      - one library-facing interposed or injected defective comparator object that is G1-silent and G2-or-G3-visible on a designated region
+      - one pinned second peer under the frozen selection rule (strict fixed-bound if preflight succeeds; otherwise widened optimized-compare peer with recorded rationale)
+    parameters:
+      parameter_sets: [ML-KEM-512, ML-KEM-768, ML-KEM-1024]
+      keys_per_parameter_set: 4
+      generator_classes:
+        G1_single_byte: xor 0x01 and xor 0xff at every ciphertext index
+        G2_multi_byte: seeded k-byte coordinated flips for k in [2, 4, 8, 16] plus whole-block flips
+        G3_alignment: mutations at every 16, 32, and 64 byte boundary and at the last byte of each aligned block
+        G4_malformed_length: truncated and extended ciphertexts, recorded in a separate table
+        G5_key_dependence: every class replayed across all four keys
+      prohibited: any mutation program directed at recovering a secret
+    implementation: >-
+      Extend the EXP-MLKEM-004 harness: replace harness-only synthetic control
+      with a library-facing interposed/injected defective comparator; apply
+      design-time preflight-or-widen second-peer rule; retain repaired
+      precedence. Library comparison logic, buffer lengths, and dispatch
+      conditions are never modified in-tree.
+    budget:
+      wall_clock_seconds: 5400
+      cpu_hours: 2.0
+      maximum_memory_gb: 4
+      maximum_runs: 4
+  falsification_conditions:
+    - >-
+      The library-facing adequacy control is detected by G1, or is undetected
+      by both G2 and G3 through the library call path. Either case falsifies
+      the instrument-adequacy repair.
+    - >-
+      Adequacy scoring special-cases len(diffs)==1 or otherwise hard-codes
+      acceptance of single-byte-in-R patterns instead of using compare-return /
+      decap-accept observations. This falsifies the library-facing repair.
+    - >-
+      The known wolfSSL v5.9.1 defect is no longer detected by a generator class
+      that reaches indices 1536..1567. This falsifies detection retention.
+    - >-
+      A reproducible silent index or equal-length decapsulation accept appears
+      in a wolfSSL post-fix backend or in the pinned second peer. This
+      falsifies isolation and makes the class systemic; escalate and stop.
+    - >-
+      A conformance verdict is issued for a backend with no decapsulation-
+      boundary measurement.
+    - >-
+      Rediscovery of the known defect is counted as class_marginal_information.
+    - >-
+      A null under the widened optimized-compare criterion is paraphrased as
+      isolation under the strict fixed-bound-tail mechanism class.
+  distinguishable_outcomes:
+    isolated_to_audited_commits: >-
+      Library-facing adequacy control is G1-silent and G2-or-G3-detected via
+      the library call path; known defect is retained; pinned second peer was
+      measured; no new reproducible silent index or accept appears elsewhere.
+      Claim strength is scoped to the selection criterion actually used
+      (strict_fixed_bound vs widened_optimized_compare).
+    systemic_incomplete_comparison: >-
+      A pinned second peer or a wolfSSL post-fix backend shows a reproducible
+      silent index or accept. Escalate; construct no exploitation path.
+    generator_hardening_insufficient: >-
+      The library-facing adequacy control is not detected by G2 or G3 through
+      the library call path. The instrument failed; isolation is not licensed.
+    second_impl_unavailable: >-
+      No pinned second peer could be built within its stage budget after
+      exhausting the frozen preference order under the active criterion.
+      Infrastructure outcome for the cross-implementation line only.
+    invalid_harness_or_dispatch: >-
+      A required build fails, a backend cannot be attested, interposition cannot
+      be attested on the compare path, the anchor fails, or the decapsulation
+      probe cannot be reached. Infrastructure only.
+  interpretation_limits:
+    - Functional comparison completeness only; nothing about timing, power, EM, cache, microarchitectural, or fault behavior.
+    - Isolation is claimed only over the implementations, versions, backends, parameter sets, keys, generator classes, and selection criterion actually exercised.
+    - A null under a finite generator is not a correctness proof.
+    - A widened_optimized_compare null does not license isolation under the strict fixed-bound-tail mechanism class of H-MLKEM-004.
+    - Any newly observed conformance defect requires human review and coordinated disclosure; never an agent-published vulnerability claim.
+    - Nothing here bears on MLWE hardness or passive ML-KEM security.
+  selected_by: coordinator
+  proposal_ref: IDEA-20260724-002
+  evidence_basis: [EV-MLKEM-005, EV-MLKEM-006, EV-MLKEM-007, KN-TECH-054, KN-FIND-001]
+  status: specified
+  proposed_by: coordinator

@@ -9,7 +9,7 @@ Inference: requested_policy=research-sol-max; resolved_model_id=cursor-grok-4.5-
 Theorem cross-note (N4, BKK/BKKMV rows): `proof_status` stays `empirical_only` for the EV-scoped claims below; `proof_refs` cite `research/THM_BKKMV1.md` and `DEC-20260722-003` for the m≤5 proved sectioned box-saturation / MV=box Bézout barrier. All-m law remains CONJECTURE C1 (open) per DEC-20260722-003 limitations.
 
 ---
-id: KN-FIND-001
+id: KN-FIND-017
 type: internal_finding
 title: Scoped finding from EV-BKK-001
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -47,7 +47,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-002
+id: KN-FIND-018
 type: internal_finding
 title: Scoped finding from EV-BKKMV-001
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -85,7 +85,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-003
+id: KN-FIND-019
 type: internal_finding
 title: Scoped finding from EV-BKKMV-002
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -124,7 +124,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-004
+id: KN-FIND-020
 type: internal_finding
 title: Scoped finding from EV-EQJ-001
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -160,7 +160,7 @@ Toy-scale only (DEC-20260718-006: p≤2^12, m=4, 3 seeds). Does not upgrade to m
 
 
 ---
-id: KN-FIND-005
+id: KN-FIND-021
 type: internal_finding
 title: Scoped finding from EV-FB-001
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -197,7 +197,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-006
+id: KN-FIND-022
 type: internal_finding
 title: Scoped finding from EV-NCP-001
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -232,7 +232,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-007
+id: KN-FIND-023
 type: internal_finding
 title: Scoped finding from EV-REP-002
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -267,7 +267,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-008
+id: KN-FIND-024
 type: internal_finding
 title: Scoped finding from EV-SIG-002
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -291,7 +291,7 @@ Toy boolean Semaev t=3, n=12..21, D≤4: non-rewritable D4 residual exists, null
 - Hypothesis: `H-SIG-001`
 
 ## Limits
-Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen closed mechanism families outside the cited scope. Corrections supersede; do not overwrite EV/DEC. Exact D4 counts superseded by EV-SIG-004 / KN-FIND-010.
+Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen closed mechanism families outside the cited scope. Corrections supersede; do not overwrite EV/DEC. Exact D4 counts superseded by EV-SIG-004 / KN-FIND-026.
 
 ## Key claims (verified here)
 - The Coordinator decision `DEC-20260718-017` closed the cited EV scope; this draft restates that scoped claim for knowledge promotion only.
@@ -299,11 +299,11 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 ## Not claimed
 - Crypto-scale ECDLP advantage or impossibility
 - Any result beyond the EV's recorded test boundary
-- Canonical exact D4 residual series (see KN-FIND-010)
+- Canonical exact D4 residual series (see KN-FIND-026)
 
 
 ---
-id: KN-FIND-009
+id: KN-FIND-025
 type: internal_finding
 title: Scoped finding from EV-SIG-003
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -338,7 +338,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-010
+id: KN-FIND-026
 type: internal_finding
 title: Scoped finding from EV-SIG-004
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -373,7 +373,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-011
+id: KN-FIND-027
 type: internal_finding
 title: Scoped finding from EV-SIG-005
 tags: [ecdlp, prime-field, toy, internal-finding]

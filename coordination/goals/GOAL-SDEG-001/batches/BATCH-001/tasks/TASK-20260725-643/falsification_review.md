@@ -56,7 +56,7 @@ Contract path/schema/version `1.0.0-review` match
 claim boundary, no-scalarization, stages, decomposition certificates, terminal
 vocabulary, schedule precommit, planted controls, probability gate, verifier
 hash, and zero-rank cost. ECDLP alignment correctly cites `DEC-20260725-025` /
-`EV-ECDLP-007` (toy protocol PASS) with activation residuals still open.
+`EV-ECDLP-012` (toy protocol PASS) with activation residuals still open.
 
 Deferred fixture bytes and the explicit absence of a sealable empty/pilot
 schedule are **hard-gated** (`PRECOMMIT_SCHEDULE_UNSEALED`, fixture

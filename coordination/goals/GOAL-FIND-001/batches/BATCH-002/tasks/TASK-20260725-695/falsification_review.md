@@ -17,10 +17,10 @@ Inference: requested_policy=`review-xhigh`; resolved_model_id=`cursor-grok-4.5-h
 
 | ID | Target | Status | Check |
 | --- | --- | --- | --- |
-| N1 | KN-FIND-003 | **closed** | Hull/MV wording + 2/30 interior losses + char-0/generic-t + C1 open matches `ledger/DEC-20260722-003` / `EV-BKKMV-002`. |
-| N2 | KN-FIND-004/005/011 | **closed** | `p≤2^12`, subgroup-base exclusion, and toy boolean-Semaev `n≤24` appear in scoped_claim sentences. |
-| N3 | KN-FIND-011 | **closed** | Null invalidity narrowed to D=6 @ n=9 (C5 fail); cascade only for D≤5. |
-| N4 | KN-FIND-001/002/003 | **closed** | `empirical_only` retained; `proof_refs` + theorem cross-note cite `THM_BKKMV1` / `DEC-20260722-003` for m≤5 proved barrier; C1 open. |
+| N1 | KN-FIND-019 | **closed** | Hull/MV wording + 2/30 interior losses + char-0/generic-t + C1 open matches `ledger/DEC-20260722-003` / `EV-BKKMV-002`. |
+| N2 | KN-FIND-020/005/011 | **closed** | `p≤2^12`, subgroup-base exclusion, and toy boolean-Semaev `n≤24` appear in scoped_claim sentences. |
+| N3 | KN-FIND-027 | **closed** | Null invalidity narrowed to D=6 @ n=9 (C5 fail); cascade only for D≤5. |
+| N4 | KN-FIND-017/002/003 | **closed** | `empirical_only` retained; `proof_refs` + theorem cross-note cite `THM_BKKMV1` / `DEC-20260722-003` for m≤5 proved barrier; C1 open. |
 
 ## What was tried and did not break the repair
 

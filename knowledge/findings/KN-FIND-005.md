@@ -1,42 +1,25 @@
 ---
 id: KN-FIND-005
+title: Raised deg-a≤4 non-isotrivial free-x still admit inf-norm-1 MW relations; deg x≤3 empty on deg-b=6
 type: internal_finding
-title: Scoped finding from EV-FB-001
-tags:
-- ecdlp
-- prime-field
-- toy
-- internal-finding
-confidence: reported
-internal_refs:
-- EV-FB-001
-- DEC-20260716-004
-- EXP-FB-001
-- H-FB-001
-proof_status: empirical_only
-proof_refs: []
-added: 2026-07-25
-superseded_by: null
+status: established
+tags: [lifting, xedni, function-field, non-isotrivial, mordell-weil, coefficient-bound, methodology, toy-scale]
+evidence: [EV-XEDN-004]
+decision: [DEC-20260725-002]
 ---
-## Scoped claim
-Toy p~2^14, m=3, d≤12 (subgroup base excluded): tested FB structures leave d_reg, yield, and solve-cost scaling invariant vs random FB.
 
-## Provenance
-- Evidence: `EV-FB-001` (strength: replicated)
-- Decision: `DEC-20260716-004` (reject_scoped)
-- Experiment: `EXP-FB-001`
-- Hypothesis: `H-FB-001`
+# KN-FIND-005
 
-## Limits
-Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen closed mechanism families outside the cited scope. Corrections supersede; do not overwrite EV/DEC. Subgroup base excluded per EV-FB-001 / DEC-20260716-004.
+On non-isotrivial surfaces `y²=x³+a(t)x+b(t)` with `a≠0`, `deg a≤4`, `deg b=6`,
+and non-constant `j`, free-x sections `deg x≤2`, `deg y≤3` still admit
+group-law-verified Mordell–Weil relations with infinity-norm 1 at
+`p∈{7,13,19,31}` (EXP-XEDN-005 / EV-XEDN-004), including a thickened p=31 cell
+of 10 eligible surfaces. μ₃ orbits remain absent.
 
-## Key claims (verified here)
-- The Coordinator decision `DEC-20260716-004` closed the cited EV scope; this draft restates that scoped claim for knowledge promotion only.
-- N2 repair: subgroup-base exclusion is in the scoped claim sentence (EV-FB-001 boundaries).
+Separately: raising free-x to `deg x≤3` while keeping `deg b=6` yields no
+polynomial sections, because `deg(x³+ax+b)=9` is odd and cannot be a square in
+`F_p[t]`. A genuine free-x degree raise requires a joint increase of `deg b`
+(so that `deg f` is even). The executable RT-XEDN-004 control executed here is
+therefore the deg-a window raise.
 
-## Not claimed
-- Crypto-scale ECDLP advantage or impossibility
-- Any result beyond the EV's recorded test boundary
-- Subgroup-base factor-base structures (excluded)
-
-
+Scope: toy only; not B2 / crypto-scale.

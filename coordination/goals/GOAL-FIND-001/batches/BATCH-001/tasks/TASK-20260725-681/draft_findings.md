@@ -5,7 +5,7 @@ Status: **drafts only** under write_scope. Not yet written to `knowledge/finding
 Inference: requested_policy=research-sol-max; resolved_model_id=cursor-grok-4.5-high-fast; fallback_used=true; authorization_ref=AMEND-PATH-001-001.
 
 ---
-id: KN-FIND-001
+id: KN-FIND-017
 type: internal_finding
 title: Scoped finding from EV-BKK-001
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -39,7 +39,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-002
+id: KN-FIND-018
 type: internal_finding
 title: Scoped finding from EV-BKKMV-001
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -73,7 +73,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-003
+id: KN-FIND-019
 type: internal_finding
 title: Scoped finding from EV-BKKMV-002
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -107,7 +107,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-004
+id: KN-FIND-020
 type: internal_finding
 title: Scoped finding from EV-EQJ-001
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -141,7 +141,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-005
+id: KN-FIND-021
 type: internal_finding
 title: Scoped finding from EV-FB-001
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -175,7 +175,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-006
+id: KN-FIND-022
 type: internal_finding
 title: Scoped finding from EV-NCP-001
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -209,7 +209,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-007
+id: KN-FIND-023
 type: internal_finding
 title: Scoped finding from EV-REP-002
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -243,7 +243,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-008
+id: KN-FIND-024
 type: internal_finding
 title: Scoped finding from EV-SIG-002
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -277,7 +277,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-009
+id: KN-FIND-025
 type: internal_finding
 title: Scoped finding from EV-SIG-003
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -311,7 +311,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-010
+id: KN-FIND-026
 type: internal_finding
 title: Scoped finding from EV-SIG-004
 tags: [ecdlp, prime-field, toy, internal-finding]
@@ -345,7 +345,7 @@ Toy-scale only. Does not upgrade to medium/crypto claim tiers. Does not reopen c
 
 
 ---
-id: KN-FIND-011
+id: KN-FIND-027
 type: internal_finding
 title: Scoped finding from EV-SIG-005
 tags: [ecdlp, prime-field, toy, internal-finding]

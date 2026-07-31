@@ -27,13 +27,13 @@ check. Working-tree-only producer edits were not used as evidence.
 Pinned instrument `h013_sha256` matches
 `experiments/EXP-SIG-005/src/h013_f5_signatures.sage` in the worktree.
 Prior ledger context (read-only): `EV-SIG-005`, `DEC-20260720-001`,
-`KN-FIND-011`, `GOAL-SIG-001.yaml`; RUN-k D6 numbers cross-checked.
+`KN-FIND-027`, `GOAL-SIG-001.yaml`; RUN-k D6 numbers cross-checked.
 
 ## Axes
 
 | Axis | Result | Notes |
 |---|---|---|
-| Legacy D6 baseline invalidation | **Not falsified** | `LEGACY-T11-D6-SHARED-SRPRED` + quarantine of RUN-h magnitudes matches EV/DEC/KN-FIND-011. |
+| Legacy D6 baseline invalidation | **Not falsified** | `LEGACY-T11-D6-SHARED-SRPRED` + quarantine of RUN-h magnitudes matches EV/DEC/KN-FIND-027. |
 | Unequal-*ncols* gate vs RUN-k | **Not falsified** | CG-NCOLS native clause cites 31180≠29332. |
 | Equal *support* completeness | **Falsified** | Definition requires identical sets; CG-NCOLS checks counts; support-hash optional; secondary is count-match. |
 | Auth / no illicit D≥6 reopen | **Not falsified** | `review_only_freeze`; dual Coordinator auth; CALIB_PASS ≠ cascade. |
