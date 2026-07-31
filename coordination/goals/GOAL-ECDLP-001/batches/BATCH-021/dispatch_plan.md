@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v2-ctrl-theater-repair (CTRL-RT025-PLANT-INDEPENDENT + RHO-CALIB + NULL-SPLIT-COMPOSITION); one RC-21 review cycle; Executor RUN-DS-001-ctrl-theater only if APPROVED; Val+RT; ledger EV-DS-004/DEC-20260731-015. Deferred: CI-IDENTITY, SPARSE-P-SUCCESS. Toy claim ceiling. No full 54-cell matrix. No v1. Do not alter H-IC-001/H-STR-002. Leave FAEST/XEDN alone.
+BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v2-ctrl-theater-repair (CTRL-RT025-PLANT-INDEPENDENT + RHO-CALIB + NULL-SPLIT-COMPOSITION); one RC-21 review cycle; Executor RUN-DS-001-ctrl-theater only if APPROVED; Val+RT; ledger EV-DS-005/DEC-20260731-015 (EV-DS-004 reserved for parse supersession of EV-DS-003 per CORR-20260731-002). Deferred: CI-IDENTITY, SPARSE-P-SUCCESS. Toy claim ceiling. No full 54-cell matrix. No v1. Do not alter H-IC-001/H-STR-002. Leave FAEST/XEDN alone.
 
 ## Ready Tasks
 
@@ -30,4 +30,4 @@ BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a93c4d5d657cfe58f40089a5353e9e8057f070bef8ceea9ff5c73045c752eafc`
+Plan SHA-256: `0cd0acf62f7e68cd7b2ada6d9064980a0541b8e4b2bedd4ad1823b594cc88d0f`
