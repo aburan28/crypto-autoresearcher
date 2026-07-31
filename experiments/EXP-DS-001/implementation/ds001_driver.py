@@ -1485,6 +1485,111 @@ def plant_closed_path_detect(cell: CellResult) -> dict:
     return out
 
 
+def plant_contrastive_f2_detect(cell: CellResult) -> dict:
+    """CTRL-PLANT-CONTRASTIVE-F2 detector.
+
+    Credit planted_bug_detected only if plant-OFF null_gate_f2_shape is false
+    AND plant-ON null_gate_f2_shape is true. Forbidden: F2-on-F2 credit,
+    echo-entailment, hardcoded true.
+    """
+    allowed = {"null_gate_f2_shape"}
+    injected = inject_plant_before_gate(cell)
+    out: dict[str, Any] = {
+        "control_id": "CTRL-PLANT-CONTRASTIVE-F2",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-plant-contrast",
+        "backend_id": BACKEND_ID,
+        "allowed_detection_path_enum": sorted(allowed),
+        "forbidden": [
+            "null_gate_echo_factor",
+            "echo_entailment_class",
+            "synth_R_synth_Rn_OR_path",
+            "hardcoded_planted_bug_detected_true",
+            "F2_on_F2_credit",
+            "launder_RUN-DS-001-ctrl-theater",
+        ],
+        "cell": {
+            "bits": cell.bits,
+            "B": cell.B,
+            "m": cell.m,
+            "seed": cell.seed,
+            "target_mode": cell.target_mode,
+        },
+        "primary_plant_off": not cell.plant_applied_to_primary,
+        "synthetic_shortcut_used": False,
+        "synth_R": None,
+        "synth_Rn": None,
+        "null_split_mode": "composing",
+    }
+    out.update({
+        k: injected[k]
+        for k in (
+            "injection_site",
+            "injection_method",
+            "primary_costs_plant_off",
+            "costs_as_read_by_gate",
+            "R_plant",
+            "R_null_plant",
+        )
+        if k in injected
+    })
+
+    if injected.get("status") != "injected":
+        out["status"] = "metrics_incomplete"
+        out["plant_off_null_gate_f2_shape"] = None
+        out["plant_on_null_gate_f2_shape"] = None
+        out["contrastive_discriminative"] = False
+        out["planted_bug_detected"] = False
+        out["detection_path"] = None
+        out["echo_entailment_check"] = False
+        out["note"] = "Plant inject skipped; primary costs incomplete"
+        return out
+
+    primary = injected["primary_costs_plant_off"]
+    R_off = primary.get("R")
+    R_null_off = primary.get("R_null")
+    if R_off is None or R_null_off is None:
+        out["status"] = "metrics_incomplete"
+        out["plant_off_null_gate_f2_shape"] = None
+        out["plant_on_null_gate_f2_shape"] = None
+        out["contrastive_discriminative"] = False
+        out["planted_bug_detected"] = False
+        out["detection_path"] = None
+        out["echo_entailment_check"] = False
+        out["note"] = "Primary plant-OFF R/R_null incomplete"
+        return out
+
+    plant_off_null_gate_f2_shape = bool(float(R_off) < 0.5 and float(R_null_off) < 0.9)
+    R_plant = float(injected["R_plant"])
+    R_null_plant = float(injected["R_null_plant"])
+    plant_on_null_gate_f2_shape = bool(R_plant < 0.5 and R_null_plant < 0.9)
+    contrastive_discriminative = bool(
+        (not plant_off_null_gate_f2_shape) and plant_on_null_gate_f2_shape
+    )
+    # Contrastive credit only — never F2-on-F2 (plant_off already true).
+    planted_bug_detected = bool(contrastive_discriminative)
+    detection_path = "null_gate_f2_shape" if planted_bug_detected else None
+    echo_entailment_check = False
+
+    out.update({
+        "status": "completed",
+        "plant_off_null_gate_f2_shape": plant_off_null_gate_f2_shape,
+        "plant_on_null_gate_f2_shape": plant_on_null_gate_f2_shape,
+        "contrastive_discriminative": contrastive_discriminative,
+        "null_gate_f2_shape": plant_on_null_gate_f2_shape,
+        "null_gate_echo_factor_used": False,
+        "detection_path": detection_path,
+        "planted_bug_detected": planted_bug_detected,
+        "echo_entailment_check": echo_entailment_check,
+        "costs_as_read_by_gate": injected["costs_as_read_by_gate"],
+        "note": (
+            "Plant /4 at harvest_reporting_path_before_null_gate; "
+            "planted_bug_detected true only if plant_off_null_gate_f2_shape==false "
+            "AND plant_on_null_gate_f2_shape==true. echo_entailment_check=false."
+        ),
+    })
+    return out
+
+
 def measure_rho_calib_audited(cell: CellResult, seed: int, bits: int) -> dict:
     """CTRL-RT056-RHO-CALIB-AUDITED: measured fail-able rho ratios + raw fields."""
     out: dict[str, Any] = {
@@ -1819,7 +1924,7 @@ def write_run_artifacts(
     if inputs_extra:
         inputs.update(inputs_extra)
     # resource_exhaustion is a valid terminal measurement status (honest stop).
-    valid_statuses = {"completed_valid", "resource_exhaustion"}
+    valid_statuses = {"completed_valid", "resource_exhaustion", "cancelled_by_budget"}
     manifest = {
         "schema": "crypto.autoresearch.run_manifest.v1",
         "run_id": run_id,
@@ -2677,6 +2782,381 @@ def mode_ctrl_theater_r2(args: argparse.Namespace) -> int:
     return 0 if status in ("completed_valid", "resource_exhaustion") else 1
 
 
+def mode_ctrl_plant_contrast(args: argparse.Namespace) -> int:
+    """PA-DS-001-v2-ctrl-plant-contrast / CTRL-PLANT-CONTRASTIVE-F2.
+
+    Ladder ≤6 cells (composing null-split). Credit planted_bug_detected only
+    under plant-OFF fail ∧ plant-ON pass. Observations only.
+    """
+    started = utc_now()
+    t0 = time.perf_counter()
+    cell_wall = float(args.cell_wall)
+    relations = int(args.relations)
+    run_id = "RUN-DS-001-ctrl-plant-contrast"
+    # Default known non-discriminative (EV-DS-006) + suggested middle_band ladder.
+    ladder = [
+        {"bits": 20, "B": 64, "m": 4, "seed": 101, "role": "default_known_non_discriminative"},
+        {"bits": 16, "B": 128, "m": 4, "seed": 102, "role": "suggested_ladder"},
+        {"bits": 16, "B": 128, "m": 4, "seed": 103, "role": "suggested_ladder"},
+        {"bits": 16, "B": 128, "m": 5, "seed": 101, "role": "suggested_ladder"},
+        {"bits": 16, "B": 128, "m": 5, "seed": 102, "role": "suggested_ladder"},
+        {"bits": 16, "B": 128, "m": 5, "seed": 103, "role": "suggested_ladder"},
+    ]
+    logs = [
+        f"CTRL plant-contrast RUN={run_id} ladder_cells={len(ladder)}",
+        f"cell_wall={cell_wall} relations_target={relations} smoothness_abort=false",
+        f"target_mode=planted_m_sum backend_id={BACKEND_ID}",
+        "null_split_mode=composing (required for contrast feasibility)",
+        "binding: TASK-075 APPROVED badafcdf; amend snapshot f41fd196; "
+        "PA-DS-001-v2-ctrl-plant-contrast / CTRL-PLANT-CONTRASTIVE-F2",
+        "R-1: primary plant OFF; /4 inject only before null_gate_f2_shape",
+        "credit: planted_bug_detected iff plant_off==false AND plant_on==true",
+    ]
+
+    search_record: list[dict] = []
+    selected_report: Optional[dict] = None
+    selected_cell: Optional[CellResult] = None
+    infrastructure_errors: list[str] = []
+    budget_remaining = float(getattr(args, "total_wall", 7200.0))
+
+    for idx, spec in enumerate(ladder):
+        if time.perf_counter() - t0 > budget_remaining:
+            logs.append(f"BUDGET: stopping before cell index={idx}")
+            break
+        bits, B, m, seed = spec["bits"], spec["B"], spec["m"], spec["seed"]
+        per_cell_wall = min(cell_wall, max(30.0, budget_remaining - (time.perf_counter() - t0)))
+        logs.append(
+            f"LADDER[{idx}] bits={bits} B={B} m={m} seed={seed} role={spec['role']} "
+            f"wall={per_cell_wall:.1f}"
+        )
+        try:
+            cell = execute_cell(
+                bits=bits,
+                B=B,
+                m=m,
+                seed=seed,
+                cell_wall_budget=per_cell_wall,
+                relations_target=relations,
+                do_planted=False,
+                smoothness_abort=False,
+                target_mode="planted_m_sum",
+                null_split_mode="composing",
+            )
+        except Exception as e:
+            msg = f"execute_cell failed bits={bits} B={B} m={m} seed={seed}: {e}"
+            logs.append(f"INFRA: {msg}")
+            infrastructure_errors.append(msg)
+            search_record.append({
+                "index": idx,
+                "bits": bits,
+                "B": B,
+                "m": m,
+                "seed": seed,
+                "role": spec["role"],
+                "status": "failed_infrastructure",
+                "error": str(e),
+            })
+            continue
+
+        report = plant_contrastive_f2_detect(cell)
+        entry = {
+            "index": idx,
+            "bits": bits,
+            "B": B,
+            "m": m,
+            "seed": seed,
+            "role": spec["role"],
+            "cell_status": cell.status,
+            "R": cell.R,
+            "R_null": cell.R_null,
+            "plant_off_null_gate_f2_shape": report.get("plant_off_null_gate_f2_shape"),
+            "plant_on_null_gate_f2_shape": report.get("plant_on_null_gate_f2_shape"),
+            "contrastive_discriminative": report.get("contrastive_discriminative"),
+            "planted_bug_detected": report.get("planted_bug_detected"),
+            "detection_path": report.get("detection_path"),
+            "echo_entailment_check": report.get("echo_entailment_check"),
+            "protocol_stop": cell.protocol_stop,
+            "r1_cell_label": cell.r1_cell_label,
+        }
+        search_record.append(entry)
+        logs.append(
+            f"  R={cell.R} R_null={cell.R_null} "
+            f"plant_off_f2={report.get('plant_off_null_gate_f2_shape')} "
+            f"plant_on_f2={report.get('plant_on_null_gate_f2_shape')} "
+            f"contrastive={report.get('contrastive_discriminative')} "
+            f"detected={report.get('planted_bug_detected')}"
+        )
+
+        if selected_report is None:
+            selected_report = report
+            selected_cell = cell
+        if report.get("contrastive_discriminative") is True:
+            selected_report = report
+            selected_cell = cell
+            selected_report["cell_or_ladder_search_record"] = search_record
+            logs.append(f"FIRST_DISCRIMINATIVE at ladder index={idx}")
+            break
+
+    if selected_report is None:
+        selected_report = {
+            "control_id": "CTRL-PLANT-CONTRASTIVE-F2",
+            "status": "failed_infrastructure" if infrastructure_errors else "no_cells",
+            "planted_bug_detected": False,
+            "contrastive_discriminative": False,
+            "plant_off_null_gate_f2_shape": None,
+            "plant_on_null_gate_f2_shape": None,
+            "detection_path": None,
+            "echo_entailment_check": False,
+            "injection_site": "harvest_reporting_path_before_null_gate",
+            "costs_as_read_by_gate": None,
+            "primary_costs_plant_off": None,
+            "cell_or_ladder_search_record": search_record,
+            "note": "No cell produced a usable plant-contrast report",
+        }
+    else:
+        selected_report["cell_or_ladder_search_record"] = search_record
+
+    contrastive = bool(selected_report.get("contrastive_discriminative"))
+    planted_detected = bool(selected_report.get("planted_bug_detected"))
+    # Honest contrastive_fail is a valid completed observation, not infra failure.
+    if infrastructure_errors and selected_cell is None:
+        status = "failed_infrastructure"
+    elif time.perf_counter() - t0 > budget_remaining and not contrastive and not search_record:
+        status = "cancelled_by_budget"
+    else:
+        status = "completed_valid"
+
+    if selected_cell is not None and selected_cell.plant_applied_to_primary:
+        status = "invalid_measurement"
+        logs.append("INVALID: plant leaked into primary R (R-1 violation)")
+    if selected_report.get("detection_path") not in (None, "null_gate_f2_shape"):
+        status = "invalid_measurement"
+        logs.append("INVALID: detection_path outside allowed enum {null_gate_f2_shape}")
+    if selected_report.get("echo_entailment_check") is True:
+        status = "invalid_measurement"
+        logs.append("INVALID: echo_entailment_check true")
+    if planted_detected and not contrastive:
+        status = "invalid_measurement"
+        logs.append("INVALID: planted_bug_detected without contrastive_discriminative")
+    if planted_detected and selected_report.get("plant_off_null_gate_f2_shape") is True:
+        status = "invalid_measurement"
+        logs.append("INVALID: F2-on-F2 credit (plant_off already F2_eligible)")
+
+    cert = {"kind": "none", "verified": True, "verifier": None}
+    if selected_cell is not None and selected_cell.rho and selected_cell.rho.get("solved"):
+        cert = {
+            "kind": "discrete_log",
+            "verified": bool(selected_cell.rho.get("certificate_verified")),
+            "verifier": (
+                "harness.toycurve.EllipticCurve.mul independent check in driver "
+                "+ verify_certificates.py"
+            ),
+            "k": selected_cell.rho.get("k"),
+        }
+        if not cert.get("verified"):
+            status = "invalid_measurement"
+
+    outcome_label = (
+        "discriminative_pass"
+        if contrastive and planted_detected
+        else "contrastive_fail"
+        if status == "completed_valid"
+        else status
+    )
+    logs.append(
+        f"OUTCOME={outcome_label} cells_tried={len(search_record)} "
+        f"contrastive_discriminative={contrastive} "
+        f"planted_bug_detected={planted_detected}"
+    )
+
+    raw = {
+        "mode": "ctrl-plant-contrast",
+        "run_id": run_id,
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-plant-contrast",
+        "control_ids": ["CTRL-PLANT-CONTRASTIVE-F2"],
+        "approval_binding": {
+            "approval_task": "TASK-20260731-075",
+            "approval_determination": "APPROVED",
+            "approval_archive_commit": "badafcdf80aaaa2d7fabb5824fd35afc4fbccb6b",
+            "amend_snapshot": "f41fd196e1cf0345c903b68d4326b311e5ea573b",
+            "reviewer_report": "RT-20260731-074",
+        },
+        "ladder_cells_declared": ladder,
+        "cells_tried": len(search_record),
+        "cell_or_ladder_search_record": search_record,
+        "selected_cell": asdict(selected_cell) if selected_cell is not None else None,
+        "plant_contrastive": selected_report,
+        "outcome_label": outcome_label,
+        "metrics": {
+            "cells_tried": len(search_record),
+            "contrastive_discriminative": contrastive,
+            "planted_bug_detected": planted_detected,
+            "plant_off_null_gate_f2_shape": selected_report.get(
+                "plant_off_null_gate_f2_shape"
+            ),
+            "plant_on_null_gate_f2_shape": selected_report.get(
+                "plant_on_null_gate_f2_shape"
+            ),
+            "detection_path": selected_report.get("detection_path"),
+            "echo_entailment_check": selected_report.get("echo_entailment_check"),
+            "injection_site": selected_report.get("injection_site"),
+            "R": selected_cell.R if selected_cell is not None else None,
+            "R_null": selected_cell.R_null if selected_cell is not None else None,
+            "backend_id": BACKEND_ID,
+            "target_mode": "planted_m_sum",
+            "null_split_mode": "composing",
+            "outcome_label": outcome_label,
+        },
+        "certificate": cert,
+        "infrastructure_errors": infrastructure_errors,
+        "cost_identities": {
+            "rho_gop_per_second": "rho_total_group_operations / rho_wall_seconds",
+            "cost_naive": "wall_seconds_naive * rho_gop_per_second / max(n_usable_relations_naive, 1)",
+            "cost_split": "wall_seconds_split * rho_gop_per_second / max(n_usable_relations_split, 1)",
+            "R": "cost_split / cost_naive",
+            "R_null": "cost_split_null / cost_naive_null",
+        },
+        "_stdout": "\n".join(logs),
+        "_stderr": "\n".join(infrastructure_errors),
+    }
+
+    finished = utc_now()
+    wall_seconds = time.perf_counter() - t0
+    cmd = (
+        f"python3 experiments/EXP-DS-001/implementation/ds001_driver.py "
+        f"--mode ctrl-plant-contrast --cell-wall {cell_wall} --relations {relations}"
+    )
+    out_run = Path(args.out_run)
+    write_run_artifacts(
+        run_id,
+        out_run,
+        cmd,
+        raw,
+        status,
+        started=started,
+        finished=finished,
+        wall_seconds=wall_seconds,
+        task_id="TASK-20260731-076",
+        batch_id="BATCH-023",
+        contract_extra={
+            "control_protocol_paths": [
+                "experiments/EXP-DS-001/controls/CTRL-PLANT-CONTRASTIVE-F2.yaml",
+            ],
+            "protocol_amendment_id": "PA-DS-001-v2-ctrl-plant-contrast",
+            "amendment_path": "experiments/EXP-DS-001/amendments/v2_ctrl_plant_contrast.yaml",
+            "approval_task": "TASK-20260731-075",
+            "approval_determination": "APPROVED",
+            "approval_archive_commit": "badafcdf80aaaa2d7fabb5824fd35afc4fbccb6b",
+            "amend_snapshot": "f41fd196e1cf0345c903b68d4326b311e5ea573b",
+            "parent_contract_sha256": (
+                "898304bfc9225062e68c5d7977d1490cad95957e856847676ef7ae1423a5636a"
+            ),
+        },
+        inputs_extra={
+            "ladder_cells": ladder,
+            "target_mode": "planted_m_sum",
+            "null_split_mode": "composing",
+            "smoothness_abort": False,
+            "relations_target": relations,
+            "cell_wall_seconds": cell_wall,
+            "plant_on_primary": False,
+            "claim_tier": "toy",
+        },
+    )
+
+    results_dir = Path(args.exp_root) / "results" / "ctrl_plant_contrast"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    (results_dir / "plant_contrastive_report.json").write_text(
+        json.dumps(selected_report, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+    summary = {
+        "experiment_id": "EXP-DS-001",
+        "run_id": run_id,
+        "task_id": "TASK-20260731-076",
+        "batch_id": "BATCH-023",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-plant-contrast",
+        "control_ids": ["CTRL-PLANT-CONTRASTIVE-F2"],
+        "approval_binding": raw["approval_binding"],
+        "claim_tier": "toy",
+        "confirmatory_status": "exploratory_control",
+        "status": status,
+        "outcome_label": outcome_label,
+        "backend_id": BACKEND_ID,
+        "target_mode": "planted_m_sum",
+        "null_split_mode": "composing",
+        "smoothness_abort": False,
+        "relations_target": relations,
+        "cell_wall_seconds": cell_wall,
+        "plant_applied_to_primary": False,
+        "cells_tried": len(search_record),
+        "cell_or_ladder_search_record": search_record,
+        "selected_cell": (
+            {
+                "bits": selected_cell.bits,
+                "B": selected_cell.B,
+                "m": selected_cell.m,
+                "seed": selected_cell.seed,
+                "R": selected_cell.R,
+                "R_null": selected_cell.R_null,
+                "protocol_stop": selected_cell.protocol_stop,
+                "r1_cell_label": selected_cell.r1_cell_label,
+            }
+            if selected_cell is not None
+            else None
+        ),
+        "R": selected_cell.R if selected_cell is not None else None,
+        "R_null": selected_cell.R_null if selected_cell is not None else None,
+        "plant_off_null_gate_f2_shape": selected_report.get(
+            "plant_off_null_gate_f2_shape"
+        ),
+        "plant_on_null_gate_f2_shape": selected_report.get(
+            "plant_on_null_gate_f2_shape"
+        ),
+        "contrastive_discriminative": contrastive,
+        "planted_bug_detected": planted_detected,
+        "detection_path": selected_report.get("detection_path"),
+        "echo_entailment_check": selected_report.get("echo_entailment_check"),
+        "injection_site": selected_report.get("injection_site"),
+        "does_not_supersede": (
+            "Does not overwrite EV-DS-002/003/004/006. "
+            "Does not reuse unauthorized RUN-DS-001-ctrl-theater."
+        ),
+        "does_not_modify_hypotheses": ["H-IC-001", "H-STR-002"],
+        "inference": inference_block(),
+        "git": git_state(),
+        "wall_seconds_run": wall_seconds,
+        "note": (
+            "Toy-tier plant-contrast control observations only. "
+            "No crypto-scale or asymptotic claim. No S1_met interpretation."
+        ),
+    }
+    (results_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+
+    print("\n".join(logs))
+    print(
+        "SUMMARY",
+        json.dumps(
+            {
+                "status": status,
+                "outcome_label": outcome_label,
+                "cells_tried": len(search_record),
+                "contrastive_discriminative": contrastive,
+                "planted_bug_detected": planted_detected,
+                "plant_off_null_gate_f2_shape": selected_report.get(
+                    "plant_off_null_gate_f2_shape"
+                ),
+                "plant_on_null_gate_f2_shape": selected_report.get(
+                    "plant_on_null_gate_f2_shape"
+                ),
+                "detection_path": selected_report.get("detection_path"),
+            }
+        ),
+    )
+    return 0 if status in ("completed_valid", "resource_exhaustion", "cancelled_by_budget") else 1
+
+
 def mode_finalize(args: argparse.Namespace) -> int:
     """Assemble results/*.json from the three run raw-results."""
     root = Path(args.exp_root)
@@ -2785,7 +3265,15 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="EXP-DS-001 v2 driver")
     ap.add_argument(
         "--mode",
-        choices=["impl", "measure", "heur", "finalize", "ctrl-unplanted", "ctrl-theater-r2"],
+        choices=[
+            "impl",
+            "measure",
+            "heur",
+            "finalize",
+            "ctrl-unplanted",
+            "ctrl-theater-r2",
+            "ctrl-plant-contrast",
+        ],
         required=True,
     )
     ap.add_argument("--out-run", default="")
@@ -2803,6 +3291,7 @@ def main() -> int:
             "heur": "RUN-DS-001-heur",
             "ctrl-unplanted": "RUN-DS-001-ctrl-unplanted",
             "ctrl-theater-r2": "RUN-DS-001-ctrl-theater-r2",
+            "ctrl-plant-contrast": "RUN-DS-001-ctrl-plant-contrast",
         }[args.mode])
     if args.mode == "impl":
         return mode_impl(args)
@@ -2819,6 +3308,12 @@ def main() -> int:
         if args.cell_wall == 90.0:
             args.cell_wall = 7200.0
         return mode_ctrl_theater_r2(args)
+    if args.mode == "ctrl-plant-contrast":
+        if args.cell_wall == 90.0:
+            args.cell_wall = 7200.0
+        if args.total_wall == 3600.0:
+            args.total_wall = 7200.0
+        return mode_ctrl_plant_contrast(args)
     return mode_finalize(args)
 
 

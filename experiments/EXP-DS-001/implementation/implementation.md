@@ -119,3 +119,38 @@
 - No edits to `specification.v2.yaml` or rejected BATCH-021 freeze blobs.
 - No H-IC-001 / H-STR-002 changes; no STR reopen; no commit (TASK-068 archives).
 - Toy claim ceiling; observations only; no S1_met.
+
+---
+
+# EXP-DS-001 v2.4-ctrl-plant-contrast (TASK-20260731-076)
+
+**Amendment:** `PA-DS-001-v2-ctrl-plant-contrast` (APPROVED at TASK-20260731-075, archive `badafcdf`, amend snapshot `f41fd196`)  
+**Control:** CTRL-PLANT-CONTRASTIVE-F2  
+**Run:** `RUN-DS-001-ctrl-plant-contrast`  
+**Parent contract:** `specification.v2.yaml` immutable (sha256 `898304bf…a5636a`)
+
+## Driver extensions
+
+1. `--mode ctrl-plant-contrast` — ladder ≤6 cells under `null_split_mode=composing`; writes `runs/RUN-DS-001-ctrl-plant-contrast/` + `results/ctrl_plant_contrast/`.
+2. `plant_contrastive_f2_detect` — live `/4` inject before gate; credit `planted_bug_detected` only if plant-OFF `null_gate_f2_shape` false AND plant-ON true; `detection_path` enum `{null_gate_f2_shape}`; `echo_entailment_check=false`.
+3. Default cell 20/64/4/101 recorded first (known non-discriminative / EV-DS-006); then suggested middle_band ladder. First discriminative cell wins; else honest `contrastive_fail`.
+4. Does not require rho_calib / null_split_hard_destroy theater-r2 controls.
+
+## Observed (no interpretation)
+
+- Cells tried: 2 (stop at first discriminative).
+- Default 20/64/4/101: plant_off F2 true → not credited (no F2-on-F2).
+- Selected 16/128/4/102: plant_off F2 false, plant_on F2 true → `contrastive_discriminative=true`; `planted_bug_detected=true`.
+- Run status: `completed_valid` / outcome_label `discriminative_pass`.
+
+## Protocol deviations
+
+1. Same membership-backend proxy as prior packages (exact point-sum + charged units; not sympy GB).
+2. Inference: requested `executor-implementation`, resolved `cursor-grok-4.5`, `fallback_used: true`, `model_verified: false`.
+3. Unauthorized `RUN-DS-001-ctrl-theater` / `results/ctrl_theater` ignored (not copied). Prior session `6b118753` stall was infrastructure; this run owns repair.
+
+## Out of scope (honored)
+
+- No edits to `specification.v2.yaml`, theater-r2 controls, or rejected BATCH-021 freeze blobs.
+- No H-IC-001 / H-STR-002 changes; no STR reopen; no commit (TASK-077 archives).
+- Toy claim ceiling; observations only; no S1_met / support interpretation.
