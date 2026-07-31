@@ -180,3 +180,34 @@
 
 - No edits to abandoned BATCH-024 stubs, `specification.v2.yaml`, H-IC-001, H-STR-002, or EXP-IT paths.
 - No commit (TASK-099 archives). Toy claim ceiling; observations only.
+
+---
+
+# EXP-DS-001 v2.7-ctrl-ci-identity (TASK-20260731-115)
+
+**Amendment:** `PA-DS-001-v2-ctrl-ci-identity` (APPROVED at TASK-20260731-114 / DEC-20260731-033, snapshot `405b8422`, package `07232da8`)  
+**Control:** CTRL-RT025-CI-IDENTITY  
+**Run:** `RUN-DS-001-ctrl-ci-identity`  
+**Parent contract:** `specification.v2.yaml` immutable (sha256 `898304bf…a5636a`)
+
+## Driver extensions
+
+1. `--mode ctrl-ci-identity` — primary cell 20/64/4/101 (+ optional secondary 16/128/4/102); writes `runs/RUN-DS-001-ctrl-ci-identity/` + `results/ctrl_ci_identity/`.
+2. `bootstrap_cost_identity_ci` — bootstrap CI on yield-charged `cost_identity_R = cost_split/cost_naive` resamples (not wall-ratio proxy).
+3. `evaluate_ci_identity` — records `R_point`, `ci_of_cost_identity_R`, `ci_contains_point_estimate`, `ci_identity_pass` / `ci_identity_fail`, `raw_costs_ref`, and legacy wall-proxy CI for pathology comparison.
+4. Honest `ci_identity_fail` is `completed_valid` (not infrastructure failure; not lane death).
+
+## Observed (no interpretation)
+
+- Primary 20/64/4/101 unplanted_uniform_random: `R_point≈0.0274`, cost-identity CI `[0.0272, 0.0279]`, `ci_identity_pass=true`.
+- Legacy wall-ratio proxy CI `[0.085, 0.311]` does not contain `R_point` (wrong-quantity pathology documented).
+- Optional secondary cell not run; primary-only within ≤2-cell cap.
+
+## Archive note
+
+- `ds001_driver.py` is git assume-unchanged (`H`). Coordinator archive TASK-116 should hash via `git hash-object experiments/EXP-DS-001/implementation/ds001_driver.py` → `b8732825324b62f3204a98d27c84e16bba1ed76c`.
+
+## Out of scope (honored)
+
+- No edits to `specification.v2.yaml`, H-IC-001, H-STR-002, EXP-IT, or theater WIP.
+- No commit (TASK-116 archives). Toy claim ceiling; observations only; no S1_met / support.

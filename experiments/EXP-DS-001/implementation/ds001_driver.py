@@ -968,6 +968,189 @@ class CellResult:
     success_count_split: int = 0
     empirical_success_probability_naive: Optional[float] = None
     empirical_success_probability_split: Optional[float] = None
+    samples_naive: list[float] = field(default_factory=list)
+    samples_split: list[float] = field(default_factory=list)
+
+
+def rho_gop_per_second_from_cell(cell: CellResult) -> float:
+    if not cell.rho:
+        return 1.0
+    rho_wall = max(cell.rho.get("wall_seconds", 0.0), 1e-9)
+    rho_gops = max(cell.rho.get("total_group_operations", 0), 1)
+    return rho_gops / rho_wall
+
+
+def bootstrap_cost_identity_ci(
+    samples_naive: list[float],
+    samples_split: list[float],
+    wall_naive: float,
+    wall_split: float,
+    n_usable_naive: int,
+    n_usable_split: int,
+    rho_gop_per_second: float,
+    rng: random.Random,
+    n_boot: int = 500,
+) -> tuple[list[float], list[float], list[float]]:
+    """Bootstrap CI on yield-charged cost_identity_R = cost_split/cost_naive.
+
+    Resamples per-relation walls and re-applies fixed arm overhead (e.g. claw
+    table build) so bootstrap replicates use the same aggregate cost formula as
+    the point estimate.
+    """
+    reps: list[float] = []
+    if (
+        not samples_naive
+        or not samples_split
+        or n_usable_naive <= 0
+        or n_usable_split <= 0
+    ):
+        return ([], [float("nan"), float("nan")], reps)
+    overhead_n = max(wall_naive - sum(samples_naive), 0.0)
+    overhead_s = max(wall_split - sum(samples_split), 0.0)
+    for _ in range(n_boot):
+        rs_n = [samples_naive[rng.randrange(len(samples_naive))] for _ in range(n_usable_naive)]
+        rs_s = [samples_split[rng.randrange(len(samples_split))] for _ in range(n_usable_split)]
+        wall_n = sum(rs_n) + overhead_n
+        wall_s = sum(rs_s) + overhead_s
+        cost_n = wall_n * rho_gop_per_second / n_usable_naive
+        cost_s = wall_s * rho_gop_per_second / n_usable_split
+        if cost_n > 0:
+            reps.append(cost_s / cost_n)
+    if not reps:
+        return ([], [float("nan"), float("nan")], reps)
+    # Percentile CI on the R replicates themselves (not a second bootstrap of means).
+    reps_sorted = sorted(reps)
+    n = len(reps_sorted)
+    lo = reps_sorted[int(0.025 * n)]
+    hi = reps_sorted[max(0, int(0.975 * n) - 1)]
+    return (reps, [lo, hi], reps)
+
+
+def bootstrap_wall_ratio_proxy_ci(
+    samples_naive: list[float],
+    samples_split: list[float],
+    rng: random.Random,
+    n_boot: int = 500,
+) -> tuple[list[float], list[float]]:
+    """Legacy wall-ratio proxy CI (ws/wn per resample) — non-identity quantity."""
+    reps: list[float] = []
+    if not samples_naive or not samples_split:
+        return ([float("nan"), float("nan")], reps)
+    for _ in range(min(100, len(samples_naive), len(samples_split))):
+        wn = samples_naive[rng.randrange(len(samples_naive))]
+        ws = samples_split[rng.randrange(len(samples_split))]
+        if wn > 0:
+            reps.append(ws / wn)
+    if not reps:
+        return ([float("nan"), float("nan")], reps)
+    lo, hi = bootstrap_ci(reps, rng)
+    return ([lo, hi], reps)
+
+
+def evaluate_ci_identity(
+    cell: CellResult,
+    seed: int,
+) -> dict:
+    """CTRL-RT025-CI-IDENTITY decidable pass/fail bits."""
+    rho_gps = rho_gop_per_second_from_cell(cell)
+    brng = random.Random(_seed_int(seed, "ci_identity_bootstrap"))
+    cost_id_ref = (
+        "experiments/EXP-DS-001/specification.v2.yaml#cost_identities.R "
+        "(cost_split/cost_naive; yield-charged via rho_gop_per_second)"
+    )
+    R_point = cell.R
+    _, identity_ci, identity_reps = bootstrap_cost_identity_ci(
+        cell.samples_naive,
+        cell.samples_split,
+        cell.wall_naive,
+        cell.wall_split,
+        cell.n_usable_naive,
+        cell.n_usable_split,
+        rho_gps,
+        brng,
+    )
+    proxy_ci, proxy_reps = bootstrap_wall_ratio_proxy_ci(
+        cell.samples_naive, cell.samples_split, brng
+    )
+    ci_low, ci_high = identity_ci
+    ci_contains = (
+        R_point is not None
+        and not math.isnan(ci_low)
+        and not math.isnan(ci_high)
+        and ci_low <= R_point <= ci_high
+    )
+    ci_of_cost_identity_R = bool(identity_reps)
+    ci_identity_pass = bool(
+        ci_of_cost_identity_R
+        and ci_contains
+        and R_point is not None
+    )
+    ci_identity_fail = not ci_identity_pass
+    proxy_contains = (
+        R_point is not None
+        and proxy_ci[0] <= R_point <= proxy_ci[1]
+        if proxy_ci and not math.isnan(proxy_ci[0])
+        else False
+    )
+    return {
+        "cell_record": {
+            "bits": cell.bits,
+            "B": cell.B,
+            "m": cell.m,
+            "seed": cell.seed,
+            "target_mode": cell.target_mode,
+            "status": cell.status,
+        },
+        "R_point": R_point,
+        "cost_identity_definition_ref": cost_id_ref,
+        "ci_quantity_label": "cost_identity_R",
+        "ci_low": ci_low,
+        "ci_high": ci_high,
+        "ci_method": (
+            "bootstrap_percentile_95_on_cost_identity_R_resamples"
+            "_with_fixed_non_sample_wall_overhead"
+        ),
+        "ci_of_cost_identity_R": ci_of_cost_identity_R,
+        "ci_contains_point_estimate": ci_contains,
+        "ci_identity_pass": ci_identity_pass,
+        "ci_identity_fail": ci_identity_fail,
+        "legacy_wall_ratio_proxy_ci": {
+            "ci_quantity_label": "wall_ratio_proxy",
+            "ci_low": proxy_ci[0],
+            "ci_high": proxy_ci[1],
+            "ci_contains_point_estimate": proxy_contains,
+            "ci_method": "bootstrap_percentile_95_on_ws_over_wn_resamples",
+            "note": (
+                "Non-identity quantity from execute_cell legacy path; "
+                "EV-DS-003 pathology when point outside this CI."
+            ),
+        },
+        "raw_costs": {
+            "cost_naive": cell.cost_naive,
+            "cost_split": cell.cost_split,
+            "cost_naive_null": cell.cost_naive_null,
+            "cost_split_null": cell.cost_split_null,
+            "wall_naive": cell.wall_naive,
+            "wall_split": cell.wall_split,
+            "wall_naive_null": cell.wall_naive_null,
+            "wall_split_null": cell.wall_split_null,
+            "n_usable_naive": cell.n_usable_naive,
+            "n_usable_split": cell.n_usable_split,
+            "n_usable_naive_null": cell.n_usable_naive_null,
+            "n_usable_split_null": cell.n_usable_split_null,
+            "rho_gop_per_second": rho_gps,
+            "wall_overhead_naive": (
+                float(cell.wall_naive) - sum(cell.samples_naive)
+                if cell.samples_naive else None
+            ),
+            "wall_overhead_split": (
+                float(cell.wall_split) - sum(cell.samples_split)
+                if cell.samples_split else None
+            ),
+        },
+        "n_bootstrap_replicates": len(identity_reps),
+        "n_proxy_replicates": len(proxy_reps),
+    }
 
 
 def execute_cell(
@@ -1113,6 +1296,8 @@ def execute_cell(
     cell.wall_split, cell.n_usable_split, peak_tab, samples_s, att_s, suc_s = harvest_real(
         "split", per_arm_budget
     )
+    cell.samples_naive = list(samples_n)
+    cell.samples_split = list(samples_s)
     cell.attempted_targets_naive = att_n
     cell.attempted_targets_split = att_s
     cell.success_count_naive = suc_n
@@ -3682,6 +3867,356 @@ def mode_ctrl_structure_null_r2(args: argparse.Namespace) -> int:
     return 0 if status in ("completed_valid", "resource_exhaustion", "cancelled_by_budget") else 1
 
 
+def mode_ctrl_ci_identity(args: argparse.Namespace) -> int:
+    """PA-DS-001-v2-ctrl-ci-identity / CTRL-RT025-CI-IDENTITY.
+
+    Measure cost_identity_R point estimate and bootstrap CI on the same
+    yield-charged quantity. Honest ci_identity_fail is completed_valid.
+    """
+    started = utc_now()
+    t0 = time.perf_counter()
+    cell_wall = float(args.cell_wall)
+    relations = int(args.relations)
+    run_id = "RUN-DS-001-ctrl-ci-identity"
+    primary = {"bits": 20, "B": 64, "m": 4, "seed": 101, "role": "primary"}
+    secondary = {"bits": 16, "B": 128, "m": 4, "seed": 102, "role": "secondary"}
+    cells_spec = [primary]
+    logs = [
+        f"CTRL-RT025-CI-IDENTITY RUN={run_id}",
+        f"cell_wall={cell_wall} relations_target={relations} smoothness_abort=false",
+        f"target_mode=unplanted_uniform_random backend_id={BACKEND_ID}",
+        "binding: TASK-115 APPROVED 405b8422 / DEC-20260731-033; package snapshot 07232da8; "
+        "PA-DS-001-v2-ctrl-ci-identity / CTRL-RT025-CI-IDENTITY",
+        "R-1: primary plant OFF; EV-DS-003 pathology cell 20/64/4/101",
+        "pass: ci_identity_pass IFF ci_of_cost_identity_R AND ci_contains_point_estimate",
+    ]
+
+    cell_records: list[dict] = []
+    infrastructure_errors: list[str] = []
+    budget_remaining = 7200.0
+    primary_cell: Optional[CellResult] = None
+
+    for idx, spec in enumerate(cells_spec):
+        if time.perf_counter() - t0 > budget_remaining:
+            logs.append(f"BUDGET: stopping before cell index={idx}")
+            break
+        bits, B, m, seed = spec["bits"], spec["B"], spec["m"], spec["seed"]
+        logs.append(
+            f"CELL[{idx}] bits={bits} B={B} m={m} seed={seed} role={spec['role']}"
+        )
+        try:
+            cell = execute_cell(
+                bits=bits,
+                B=B,
+                m=m,
+                seed=seed,
+                cell_wall_budget=cell_wall,
+                relations_target=relations,
+                do_planted=False,
+                smoothness_abort=False,
+                target_mode="unplanted_uniform_random",
+            )
+        except Exception as e:
+            msg = f"execute_cell failed bits={bits} B={B} m={m} seed={seed}: {e}"
+            logs.append(f"INFRA: {msg}")
+            infrastructure_errors.append(msg)
+            cell_records.append({
+                "role": spec["role"],
+                "cell_status": "failed_infrastructure",
+                "error": str(e),
+            })
+            continue
+
+        if spec["role"] == "primary":
+            primary_cell = cell
+        ci_eval = evaluate_ci_identity(cell, seed)
+        ci_eval["role"] = spec["role"]
+        ci_eval["cell_status"] = cell.status
+        ci_eval["R_null"] = cell.R_null
+        ci_eval["r1_cell_label"] = cell.r1_cell_label
+        ci_eval["protocol_stop"] = cell.protocol_stop
+        ci_eval["plant_applied_to_primary"] = cell.plant_applied_to_primary
+        cell_records.append(ci_eval)
+        logs.append(
+            f"  status={cell.status} R_point={cell.R} ci=[{ci_eval['ci_low']},{ci_eval['ci_high']}] "
+            f"ci_of_cost_identity_R={ci_eval['ci_of_cost_identity_R']} "
+            f"ci_contains={ci_eval['ci_contains_point_estimate']} "
+            f"ci_identity_pass={ci_eval['ci_identity_pass']} "
+            f"ci_identity_fail={ci_eval['ci_identity_fail']}"
+        )
+        logs.append(
+            f"  legacy_proxy_ci=[{ci_eval['legacy_wall_ratio_proxy_ci']['ci_low']},"
+            f"{ci_eval['legacy_wall_ratio_proxy_ci']['ci_high']}] "
+            f"proxy_contains={ci_eval['legacy_wall_ratio_proxy_ci']['ci_contains_point_estimate']}"
+        )
+
+    primary_eval = cell_records[0] if cell_records else None
+    if infrastructure_errors and primary_eval is None:
+        status = "failed_infrastructure"
+    elif primary_eval is None:
+        status = "failed_infrastructure"
+    elif primary_eval.get("cell_status") == "failed_infrastructure":
+        status = "failed_infrastructure"
+    else:
+        status = "completed_valid"
+
+    if primary_eval and primary_eval.get("cell_status") not in (
+        "completed_valid",
+        "resource_exhaustion",
+        "cancelled_by_budget",
+        "running",
+    ):
+        if primary_eval.get("cell_status") == "failed_infrastructure":
+            status = "failed_infrastructure"
+        else:
+            status = primary_eval.get("cell_status", status)
+
+    cert = {"kind": "none", "verified": True, "verifier": None}
+    if primary_cell is not None and primary_cell.rho and primary_cell.rho.get("solved"):
+        cert = {
+            "kind": "discrete_log",
+            "verified": bool(primary_cell.rho.get("certificate_verified")),
+            "verifier": (
+                "harness.toycurve.EllipticCurve.mul independent check in driver "
+                "+ verify_certificates.py"
+            ),
+            "k": primary_cell.rho.get("k"),
+        }
+        if not cert.get("verified"):
+            status = "invalid_measurement"
+    if primary_cell is not None and primary_cell.plant_applied_to_primary:
+        status = "invalid_measurement"
+        logs.append("INVALID: plant leaked into primary R (R-1 violation)")
+
+    ci_identity_pass = bool(primary_eval and primary_eval.get("ci_identity_pass"))
+    ci_identity_fail = bool(primary_eval and primary_eval.get("ci_identity_fail"))
+
+    raw = {
+        "mode": "ctrl-ci-identity",
+        "control_id": "CTRL-RT025-CI-IDENTITY",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-ci-identity",
+        "cell_records": cell_records,
+        "reported_cell": primary,
+        "metrics": {
+            "R_point": primary_eval.get("R_point") if primary_eval else None,
+            "ci_low": primary_eval.get("ci_low") if primary_eval else None,
+            "ci_high": primary_eval.get("ci_high") if primary_eval else None,
+            "ci_of_cost_identity_R": (
+                primary_eval.get("ci_of_cost_identity_R") if primary_eval else None
+            ),
+            "ci_contains_point_estimate": (
+                primary_eval.get("ci_contains_point_estimate") if primary_eval else None
+            ),
+            "ci_identity_pass": ci_identity_pass,
+            "ci_identity_fail": ci_identity_fail,
+            "ci_quantity_label": "cost_identity_R",
+            "cost_identity_definition_ref": (
+                primary_eval.get("cost_identity_definition_ref") if primary_eval else None
+            ),
+            "ci_method": (
+                primary_eval.get("ci_method") if primary_eval else None
+            ),
+            "backend_id": BACKEND_ID,
+            "target_mode": "unplanted_uniform_random",
+        },
+        "certificate": cert,
+        "cost_identities": {
+            "rho_gop_per_second": "rho_total_group_operations / rho_wall_seconds",
+            "cost_naive": "wall_seconds_naive * rho_gop_per_second / max(n_usable_relations_naive, 1)",
+            "cost_split": "wall_seconds_split * rho_gop_per_second / max(n_usable_relations_split, 1)",
+            "R": "cost_split / cost_naive",
+            "R_null": "cost_split_null / cost_naive_null",
+        },
+        "forbid_note": (
+            "Toy-tier CI-identity honesty control only. No S1_met / support / "
+            "asymptotic_promotion. Does not launder RUN-DS-001-ctrl-theater or EXP-IT WIP."
+        ),
+        "infrastructure_errors": infrastructure_errors,
+        "_stdout": "\n".join(logs),
+        "_stderr": "\n".join(infrastructure_errors),
+    }
+
+    finished = utc_now()
+    wall_seconds = time.perf_counter() - t0
+    cmd = (
+        f"python3 experiments/EXP-DS-001/implementation/ds001_driver.py "
+        f"--mode ctrl-ci-identity --cell-wall {cell_wall} --relations {relations}"
+    )
+    out_run = Path(args.out_run)
+    write_run_artifacts(
+        run_id,
+        out_run,
+        cmd,
+        raw,
+        status,
+        started=started,
+        finished=finished,
+        wall_seconds=wall_seconds,
+        task_id="TASK-20260731-115",
+        batch_id="BATCH-026",
+        contract_extra={
+            "control_protocol_path": (
+                "experiments/EXP-DS-001/controls/CTRL-RT025-CI-IDENTITY.yaml"
+            ),
+            "protocol_amendment_id": "PA-DS-001-v2-ctrl-ci-identity",
+            "amendment_path": (
+                "experiments/EXP-DS-001/amendments/v2_ctrl_ci_identity.yaml"
+            ),
+            "approval_task": "TASK-20260731-114",
+            "approval_determination": "APPROVED",
+            "approval_snapshot": "405b84226e5d42680b49730da8aa6296fb533172",
+            "package_snapshot": "07232da808339b424f1d7fc21c37fdea86a093b0",
+            "approval_decision": "DEC-20260731-033",
+            "decision": "DEC-20260731-033",
+            "claim_tier": "toy",
+            "parent_contract_sha256": (
+                "898304bfc9225062e68c5d7977d1490cad95957e856847676ef7ae1423a5636a"
+            ),
+        },
+        inputs_extra={
+            "cell": primary,
+            "secondary_cell": secondary,
+            "target_mode": "unplanted_uniform_random",
+            "smoothness_abort": False,
+            "relations_target": relations,
+            "cell_wall_seconds": cell_wall,
+            "plant_on_primary": False,
+        },
+    )
+
+    results_dir = Path(args.exp_root) / "results" / "ctrl_ci_identity"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    raw_costs_ref = (
+        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-ci-identity/raw-result.json"
+        "#cell_records[*].raw_costs"
+    )
+
+    ci_report = {
+        "control_id": "CTRL-RT025-CI-IDENTITY",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-ci-identity",
+        "run_id": run_id,
+        "task_id": "TASK-20260731-115",
+        "batch_id": "BATCH-026",
+        "approval_binding": {
+            "approval_task": "TASK-20260731-114",
+            "approval_determination": "APPROVED",
+            "approval_decision": "DEC-20260731-033",
+            "approval_snapshot": "405b84226e5d42680b49730da8aa6296fb533172",
+            "package_snapshot": "07232da808339b424f1d7fc21c37fdea86a093b0",
+        },
+        "backend_id": BACKEND_ID,
+        "raw_costs_ref": raw_costs_ref,
+        "cell_record": (
+            primary_eval.get("cell_record") if primary_eval else primary
+        ),
+        "reported_cell": primary,
+        "cell_records": cell_records,
+        "R_point": primary_eval.get("R_point") if primary_eval else None,
+        "cost_identity_definition_ref": (
+            primary_eval.get("cost_identity_definition_ref") if primary_eval else None
+        ),
+        "ci_quantity_label": "cost_identity_R",
+        "ci_low": primary_eval.get("ci_low") if primary_eval else None,
+        "ci_high": primary_eval.get("ci_high") if primary_eval else None,
+        "ci_method": primary_eval.get("ci_method") if primary_eval else None,
+        "ci_of_cost_identity_R": (
+            primary_eval.get("ci_of_cost_identity_R") if primary_eval else None
+        ),
+        "ci_contains_point_estimate": (
+            primary_eval.get("ci_contains_point_estimate") if primary_eval else None
+        ),
+        "ci_identity_pass": ci_identity_pass,
+        "ci_identity_fail": ci_identity_fail,
+        "legacy_wall_ratio_proxy_ci": (
+            primary_eval.get("legacy_wall_ratio_proxy_ci") if primary_eval else None
+        ),
+        "definitions": {
+            "cost_identity_R": "yield-charged R = cost_split/cost_naive per specification.v2 cost_identities",
+            "ci_of_cost_identity_R": (
+                "bootstrap CI computed on resamples of cost_identity_R, not wall-ratio proxy"
+            ),
+            "ci_contains_point_estimate": "R_point inside [ci_low, ci_high] closed interval",
+            "ci_identity_pass": (
+                "ci_of_cost_identity_R AND ci_contains_point_estimate AND required fields present"
+            ),
+            "ci_identity_fail": (
+                "honest negative when CI is non-identity proxy or point outside CI; "
+                "NOT infrastructure failure; NOT lane death"
+            ),
+        },
+        "forbid_note": raw["forbid_note"],
+        "status": status,
+        "note": (
+            "Honest ci_identity_fail is a completed observation when point R lies outside "
+            "cost-identity CI or CI is of a non-identity proxy — not infrastructure failure."
+        ),
+    }
+    (results_dir / "ci_identity_report.json").write_text(
+        json.dumps(ci_report, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+
+    summary = {
+        "control_id": "CTRL-RT025-CI-IDENTITY",
+        "run_id": run_id,
+        "task_id": "TASK-20260731-115",
+        "batch_id": "BATCH-026",
+        "status": status,
+        "outcome_label": (
+            "ci_identity_pass" if ci_identity_pass and status == "completed_valid"
+            else "ci_identity_fail" if status == "completed_valid"
+            else status
+        ),
+        "ci_identity_pass": ci_identity_pass,
+        "ci_identity_fail": ci_identity_fail,
+        "R_point": primary_eval.get("R_point") if primary_eval else None,
+        "ci_low": primary_eval.get("ci_low") if primary_eval else None,
+        "ci_high": primary_eval.get("ci_high") if primary_eval else None,
+        "ci_of_cost_identity_R": (
+            primary_eval.get("ci_of_cost_identity_R") if primary_eval else None
+        ),
+        "ci_contains_point_estimate": (
+            primary_eval.get("ci_contains_point_estimate") if primary_eval else None
+        ),
+        "cells_measured": len(cell_records),
+        "reported_cell": primary,
+        "claim_ceiling": "toy",
+        "does_not_modify_hypotheses": ["H-IC-001", "H-STR-002"],
+        "forbid": [
+            "S1_met",
+            "support",
+            "asymptotic_promotion",
+            "structure_gate_passed",
+            "launder_EXP_IT_001",
+        ],
+        "inference": inference_block(),
+        "git": git_state(),
+        "wall_seconds_run": wall_seconds,
+        "note": (
+            "Toy-tier CI-identity honesty control observations only. "
+            "No crypto-scale or asymptotic claim."
+        ),
+    }
+    (results_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+
+    print("\n".join(logs))
+    print(
+        "SUMMARY",
+        json.dumps(
+            {
+                "status": status,
+                "ci_identity_pass": ci_identity_pass,
+                "ci_identity_fail": ci_identity_fail,
+                "R_point": primary_eval.get("R_point") if primary_eval else None,
+                "ci_low": primary_eval.get("ci_low") if primary_eval else None,
+                "ci_high": primary_eval.get("ci_high") if primary_eval else None,
+            }
+        ),
+    )
+    return 0 if status in ("completed_valid", "resource_exhaustion", "cancelled_by_budget") else 1
+
+
 def mode_finalize(args: argparse.Namespace) -> int:
     """Assemble results/*.json from the three run raw-results."""
     root = Path(args.exp_root)
@@ -3799,6 +4334,7 @@ def main() -> int:
             "ctrl-theater-r2",
             "ctrl-plant-contrast",
             "ctrl-structure-null-r2",
+            "ctrl-ci-identity",
         ],
         required=True,
     )
@@ -3819,6 +4355,7 @@ def main() -> int:
             "ctrl-theater-r2": "RUN-DS-001-ctrl-theater-r2",
             "ctrl-plant-contrast": "RUN-DS-001-ctrl-plant-contrast",
             "ctrl-structure-null-r2": "RUN-DS-001-ctrl-structure-null-r2",
+            "ctrl-ci-identity": "RUN-DS-001-ctrl-ci-identity",
         }[args.mode])
     if args.mode == "impl":
         return mode_impl(args)
@@ -3847,6 +4384,10 @@ def main() -> int:
         if args.total_wall == 3600.0:
             args.total_wall = 7200.0
         return mode_ctrl_structure_null_r2(args)
+    if args.mode == "ctrl-ci-identity":
+        if args.cell_wall == 90.0:
+            args.cell_wall = 7200.0
+        return mode_ctrl_ci_identity(args)
     return mode_finalize(args)
 
 
