@@ -1,0 +1,54 @@
+# TASK-20260730-031 - exact commands, in execution order.
+# Working directory for every command below:
+#   /Volumes/SSD990/crypto-autoresearcher/.claude/worktrees/run-harness-boi-060771
+# No Sage. No subprocess inside the driver. No harness.runner.write_run.
+# No run identifier. No commit is made by this card.
+
+# --- 0. Pre-flight, recorded before the first probe artifact was written -----
+df -k .
+git rev-parse HEAD
+git status --porcelain | wc -l
+
+# --- 1. The probe itself (ONE execution of the two parts; maximum_runs = 1) ---
+PROBE_GIT_HEAD="$(git rev-parse HEAD)" \
+PROBE_GIT_DIRTY_COUNT="$(git status --porcelain | wc -l | tr -d ' ')" \
+python3 coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/probe/probe_driver.py \
+  > coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/probe/stdout.log \
+  2> coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/probe/stderr.log
+
+# PROBE_GIT_HEAD and PROBE_GIT_DIRTY_COUNT are provenance only. They are NOT
+# instance parameters. Every instance parameter (p, n, a, b, zeta3, curve_id,
+# derived seed) is COMPUTED by the committed generator inside the driver and
+# none is supplied on the command line or transcribed.
+
+# --- 2. Post-run hash pass -----------------------------------------------
+# Fills probe_manifest.json's artifact_sha256 for the seven other artifacts.
+# It must run after the driver exits, because stdout.log and stderr.log are
+# open file handles while the driver runs and a hash taken during the run
+# would not be the hash of the archived file. It computes hashes only; it
+# runs no harness code, creates no file, and measures nothing.
+python3 - <<'PY'
+import hashlib, json, pathlib
+d = pathlib.Path("coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/probe")
+m = json.loads((d / "probe_manifest.json").read_text())
+h = {}
+for name in ["probe_driver.py", "command.txt", "environment.json",
+             "stdout.log", "stderr.log", "structure_probe.json",
+             "supply_probe.json"]:
+    p = d / name
+    h[name] = hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
+h["probe_manifest.json"] = None
+m["artifact_sha256"] = h
+m["artifact_sha256_note"] = (
+    "sha256 of the seven other declared artifacts, computed after the driver "
+    "exited. probe_manifest.json's own entry is null because a document cannot "
+    "contain its own hash; TASK-20260730-032 records it in the snapshot receipt.")
+m["artifact_sizes_bytes"] = {
+    p.name: p.stat().st_size for p in sorted(d.iterdir()) if p.is_file()}
+m["probe_tree_bytes"] = sum(
+    p.stat().st_size for p in d.rglob("*") if p.is_file())
+(d / "probe_manifest.json").write_text(json.dumps(m, indent=2) + "\n")
+print(json.dumps({"artifact_sha256": h,
+                  "sizes": m["artifact_sizes_bytes"],
+                  "tree_bytes": m["probe_tree_bytes"]}, indent=2))
+PY
