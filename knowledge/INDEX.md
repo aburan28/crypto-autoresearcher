@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7694 entries.
+7699 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -16,6 +16,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-007 | Decomposition-yield conservation — factor-base geometry cannot change mean yield, only redistribute it | internal_finding | established |  | index-calculus factor-base decomposition-yield coverage point-decomposition conservation ecdlp toy-scale |
 | KN-FIND-008 | Rare-event density gates are settled exactly by fibering over solutions — and exactness does not protect against formalisation error | internal_finding | established |  | methodology lifting xedni function-field elliptic-surface rare-event exact-enumeration experiment-design ecdlp toy-scale |
 | KN-FIND-009 | Degeneracy of endomorphism-augmented ECDLP witness lattices is governed by short eigenvalue relations, not by the rank of End(E) | internal_finding | established |  | endomorphism witness-lattice glv relation-lattice minkowski vieta complex-multiplication scoped-negative experiment-design ecdlp |
+| KN-FIND-010 | Joint deg-x≤3 / deg-b=10 non-isotrivial free-x still admit inf-norm-1 MW relations at p≤19; p=31 density-blocked | internal_finding |  | established | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
@@ -7386,7 +7387,11 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7614 | Extremal Chowla sets and their linear analogues: A human-AI mathematical investigation using Co-Scientist | literature | reported | web | human-ai-collaboration co-scientist agentic-mathematics methodology extremal-invariant finite-groups field-extensions normal-basis research-protocol adjacent |
 | KN-LIT-7615 | Certified in Theory, Broken in Practice: Assumption Gaps in Cryptographic Model Certification | literature | reported | web | assumption-gap certification zero-knowledge-proof auditing benchmark-overfitting scope-of-claim security-definition methodology claim-tier adjacent |
 | KN-LIT-7616 | Can PCE solve the factorisation problem via optimisation? | literature | reported | web | pauli-correlation-encoding factorization binary-optimization qubit-compression quantum-annealing-style preliminary negative-result cost-model rsa adjacent |
+| KN-LIT-7617 | FAEST: Algorithm Specifications (v2.0, latest published; no Round-3 specification exists as of 2026-07-31) | literature | reported | true | faest vole-in-the-head mpc-in-the-head digital-signatures aes post-quantum nist-pqc additional-signatures specification primary-source |
+| KN-LIT-7618 | Publicly Verifiable Zero-Knowledge and Post-Quantum Signatures From VOLE-in-the-Head | literature | reported | true | faest vole-in-the-head zero-knowledge fiat-shamir nizk mpc-in-the-head post-quantum-signatures aes crypto-2023 primary-source |
+| KN-LIT-7619 | FAEST reference implementation (faest-ref) | literature | reported | true | faest reference-implementation source-code digital-signatures aes vole-in-the-head meson c post-quantum primary-source |
 | KN-LIT-762 | Far Field EM Side-Channel Attack on AES Using Deep Learning | literature | reported | read | cryptanalysis side-channel symmetric |
+| KN-LIT-7620 | NIST IR 8610: Status Report on the Second Round of the Additional Digital Signature Schemes for the NIST Post-Quantum Cryptography Standardization Process | literature | reported | true | nist pqc additional-digital-signatures round-3 status-report standardization faest primary-source |
 | KN-LIT-763 | FAST COMPUTATION OF ELLIPTIC CURVE ISOGENIES IN CHARACTERISTIC TWO | literature | reported | read | binary-field elliptic-curve finite-field isogeny |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny pairing sidh-csidh |
 | KN-LIT-765 | Finding Elliptic Curves With Many Integral Points arXiv:2012.06233v1 [math.NT] 11 Dec 2020 Benjamin Jones | literature | reported | read | elliptic-curve |
