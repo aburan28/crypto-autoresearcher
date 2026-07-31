@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7711 entries.
+7717 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -16,7 +16,6 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-007 | Decomposition-yield conservation — factor-base geometry cannot change mean yield, only redistribute it | internal_finding | established |  | index-calculus factor-base decomposition-yield coverage point-decomposition conservation ecdlp toy-scale |
 | KN-FIND-008 | Rare-event density gates are settled exactly by fibering over solutions — and exactness does not protect against formalisation error | internal_finding | established |  | methodology lifting xedni function-field elliptic-surface rare-event exact-enumeration experiment-design ecdlp toy-scale |
 | KN-FIND-009 | Degeneracy of endomorphism-augmented ECDLP witness lattices is governed by short eigenvalue relations, not by the rank of End(E) | internal_finding | established |  | endomorphism witness-lattice glv relation-lattice minkowski vieta complex-multiplication scoped-negative experiment-design ecdlp |
-| KN-FIND-010 | Joint deg-x≤3 / deg-b=10 non-isotrivial free-x still admit inf-norm-1 MW relations at p≤19; p=31 density-blocked | internal_finding |  | established | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
@@ -7004,7 +7003,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7259 | Trapdoor Functions from the Computational Diffie-Hellman Assumption? | literature | reported | read | zk-proof |
 | KN-LIT-726 | A GROUP THEORETIC PERSPECTIVE ON ENTANGLEMENTS OF DIVISION FIELDS | literature | reported | read | elliptic-curve isogeny number-theory pairing |
 | KN-LIT-7260 | Trapdoor Hash Functions and Their Applications 1 2 | literature | reported | read | fhe hash lattice pairing provable-security quantum |
-| KN-LIT-7261 | Trapdooring with Isogenies | literature | reported | read | elliptic-curve isogeny |
+| KN-LIT-7261 | An Elliptic Curve Trapdoor System | literature | reported | true | ecdlp elliptic-curve isogeny weil-descent ghs trapdoor key-escrow binary-field teske |
 | KN-LIT-7262 | Trapdoors for Lattices: Simpler, Tighter, Faster, Smaller | literature | reported | read | hash lattice provable-security quantum signature |
 | KN-LIT-7263 | Treading the Impossible: A Tour of Set-Up Assumptions for Obtaining Universally | literature | reported | read | mpc provable-security survey zk-proof |
 | KN-LIT-7264 | TreePIR: Sublinear-Time and Polylog-Bandwidth Private Information Retrieval from DDH | literature | reported | read | complexity-theory lattice mov-fr |
@@ -7402,6 +7401,13 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7628 | Abelian varieties | literature | reported | web | abelian-variety polarization dual-abelian-variety theta scheme algebraic-geometry foundational textbook |
 | KN-LIT-7629 | A First Course in Modular Forms | literature | reported | web | modular-forms modular-curve hecke eichler-shimura galois-representation moduli jacobian textbook foundational number-theory |
 | KN-LIT-763 | FAST COMPUTATION OF ELLIPTIC CURVE ISOGENIES IN CHARACTERISTIC TWO | literature | reported | read | binary-field elliptic-curve finite-field isogeny |
+| KN-LIT-7630 | Constructing Isogenies Between Elliptic Curves Over Finite Fields | literature | reported | true | isogeny ordinary-curves endomorphism-ring conductor ecdlp galbraith prime-field |
+| KN-LIT-7631 | Expander graphs based on GRH with an application to elliptic curve cryptography (redirect) | literature | reported | read | isogeny expander grh ecdlp ordinary-curves redirect |
+| KN-LIT-7632 | Mathematics of Isogeny Based Cryptography | literature | reported | true | isogeny survey supersingular ordinary ecdlp weak-curves mitm |
+| KN-LIT-7633 | Hidden Pairings and Trapdoor DDH Groups | literature | reported | false | trapdoor-ddh hidden-pairing elliptic-curve multivariate dent-galbraith |
+| KN-LIT-7634 | Trapdoor DDH Groups from Pairings and Isogenies | literature | reported | true | trapdoor-ddh pairing isogeny supersingular dent-galbraith |
+| KN-LIT-7635 | A Kilobit Hidden SNFS Discrete Logarithm Computation | literature | reported | true | snfs trapdoor discrete-log prime-field hidden-structure parameter-generation |
+| KN-LIT-7636 | Removable Weak Keys for Discrete Logarithm Based Cryptography | literature | reported | true | weak-keys discrete-log elliptic-curve cheon implicit-representation |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny pairing sidh-csidh |
 | KN-LIT-765 | Finding Elliptic Curves With Many Integral Points arXiv:2012.06233v1 [math.NT] 11 Dec 2020 Benjamin Jones | literature | reported | read | elliptic-curve |
 | KN-LIT-766 | Fine-Grained Cryptography: A New Frontier? | literature | reported | read | complexity-theory cryptanalysis hash protocol provable-security survey |
