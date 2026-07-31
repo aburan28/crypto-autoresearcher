@@ -1,117 +1,125 @@
 ---
 id: KN-TECH-063
 type: technique
-title: Differential cryptanalysis of hash functions and permutations - message modification, the rebound attack, and internal differentials
-tags: [hash-function, collision-attack, message-modification, rebound-attack, inbound-outbound, freedom-degrees, internal-differential, keccak, sponge, permutation, symmetric-cryptanalysis, symmetric, adjacent]
+title: Truncated, higher-order, and impossible differentials - relaxing, lifting, and inverting the differential predicate
+tags: [truncated-differential, higher-order-differential, impossible-differential, miss-in-the-middle, algebraic-degree, derivative, structural-distinguisher, block-cipher, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
-complexity: "unkeyed setting: the attacker controls the input, so freedom degrees are spent rather than data collected; rebound cost is the outbound probability once the inbound phase is satisfied at amortised cost ~1 per solution, against generic collision bound 2^{n/2} and preimage bound 2^n"
-applicability: compression functions, block-cipher-based hashes, and cryptographic permutations (AES-like and sponge); the correct frame whenever there is no secret key and the attacker chooses the input
-source_refs: [KN-TECH-059, KN-TECH-060, KN-TECH-061, KN-LIT-4287, KN-LIT-1053, KN-LIT-4399, KN-LIT-2529, KN-LIT-2958, KN-LIT-4387, KN-LIT-4909, KN-LIT-6396, KN-LIT-4537, KN-LIT-3425, KN-LIT-6311]
+complexity: "truncated: probability aggregated over a difference set, so a set of size 2^t gains up to a factor 2^t over a single difference; higher-order: 2^{d+1} chosen plaintexts distinguish a component of algebraic degree <= d; impossible: data set by the cost of eliminating wrong keys, not by any positive probability"
+applicability: word-oriented SPNs and Feistel networks (truncated), low-algebraic-degree round functions (higher-order), and any cipher whose middle rounds admit a contradiction between forward and backward propagation (impossible)
+source_refs: [KN-TECH-062, KN-LIT-4765, KN-LIT-2162, KN-LIT-4214, KN-LIT-4409, KN-LIT-1995, KN-LIT-3896, KN-LIT-2516, KN-LIT-4764, KN-LIT-5965, KN-TECH-074]
 added: 2026-07-31
 superseded_by: null
 ---
 
 ## Method
 
-Removing the key changes the economics of differential cryptanalysis completely,
-and the change runs in the attacker's favour.
+Three independent relaxations of the differential predicate of `KN-TECH-062`.
+They are grouped here because each changes *what is predicted*, not how the
+prediction is exploited.
 
-**What changes.** In the keyed setting the attacker *collects* pairs and pays
-`p^{-1}` data for a differential of probability `p` (`KN-TECH-059`). In the
-unkeyed setting the attacker *constructs* them: the input is fully controlled,
-the internal state is computable, and the averaging arguments that justified the
-Markov model are unavailable — there is one function, not a family. The
-resource being spent is **degrees of freedom** in the message or state, and the
-central accounting question is how many remain after the constraints imposed by
-the chosen differential path.
+### Truncated differentials (Knudsen, 1994)
 
-**Message modification (Wang et al., 2004–05).** Choose a differential path,
-then use the freedom in the message words to force the early, expensive
-conditions to hold deterministically, leaving only the later conditions to
-probability. This is what took MD5 and SHA-1 collisions from "the path has
-probability `2^{-x}`" to practical, and the same accounting drives the local
-collisions and disturbance vectors used against the SHA family
-(`KN-LIT-2958`, `KN-LIT-4387`, `KN-LIT-4909`).
+Predict only part of the difference — typically *which words are active* rather
+than their values. The predicate becomes a set membership, so probabilities
+aggregate: a truncated differential covering `2^t` output differences is up to
+`2^t` times likelier than any single one it contains. This is the natural
+granularity for byte- or nibble-oriented SPNs, where the linear layer acts on
+words and the activity pattern is what propagates deterministically.
 
-**The rebound attack (Mendel–Rechberger–Schläffer–Thomsen, 2009).** The standard
-tool against AES-like permutations. Split the path into three parts and attack
-the middle first:
+The structural distinguishers on AES-like designs live here: activity-pattern
+and multiset properties of 5-round AES (`KN-LIT-2162`), and the truncated
+boomerangs of `KN-TECH-064`. Truncated differentials also have a documented
+correspondence with multidimensional linear properties (`KN-LIT-4765`), which is
+one of the links catalogued in `KN-TECH-069`.
 
-- **Inbound phase.** Pick the truncated differential (`KN-TECH-060`) so that its
-  most expensive segment sits in the middle, then *solve* it directly using the
-  S-box DDT and the freedom in the state — producing many conforming pairs at
-  amortised cost close to one each, rather than paying that segment's
-  probability.
-- **Outbound phase.** Propagate each solution forward and backward
-  probabilistically; the attack cost is the outbound probability alone.
+### Higher-order differentials (Lai; Knudsen, 1994)
 
-Refinements extend the inbound phase (start-from-the-middle, super-S-box, and
-the improvements of `KN-LIT-4287`; the triangulation framing of `KN-LIT-1053`),
-and the technique is standard against AES-based hashing and its relatives
-(`KN-LIT-4399`, `KN-LIT-2529`). Rotational and second-order variants exist
-(`KN-LIT-6311`, `KN-LIT-6396`), and boomerang quartets transfer to the hash
-setting directly (`KN-TECH-061`, `KN-LIT-4167`).
+The `d`-th order derivative of a function of algebraic degree `d` is constant,
+and the `(d+1)`-st is zero. Concretely: if every output bit of `E_k` restricted
+to the relevant variables has degree at most `d`, then
 
-**Internal differentials.** For permutations with strong internal symmetry —
-Keccak's round structure is the archetype — the difference is taken between
-*parts of a single state* rather than between two states. This yields
-distinguishers and collisions with no second query, and combines with the
-quartet structure (`KN-LIT-4537`). Direct differential propagation analysis of
-Keccak (`KN-LIT-3425`) is the foundation these build on.
+  `⊕_{v ∈ V} E_k(x ⊕ v) = 0` for any affine subspace `V` of dimension `d+1`.
 
-**The bounds being beaten.** Generic collision cost is `2^{n/2}`, preimage cost
-`2^n`. A hash result must be stated against those, at the round count reached,
-and distinguishing the permutation is much weaker than breaking the hash built
-on it — a distinction that matters because sponge constructions expose the
-permutation directly.
+The distinguisher costs `2^{d+1}` chosen plaintexts and is **deterministic** —
+it is a structural identity, not a statistical bias, so no data is spent
+separating signal from noise. Everything downstream of it in this corpus is the
+same identity in different clothing: the integral/saturation property, the cube
+sum (`KN-TECH-073`), and the division property that predicts when the identity
+survives (`KN-TECH-074`).
+
+Its reach is set entirely by **algebraic degree growth**. Degree grows quickly
+in bit-oriented designs with high-degree S-boxes and slowly in designs chosen
+for low multiplicative complexity — which is why higher-order differentials are
+the dominant tool against arithmetization-oriented ciphers (`KN-TECH-075`) and
+against components with an exploitably low degree (`KN-LIT-4214` on Keccak and
+Luffa; `KN-LIT-4409` and `KN-LIT-1995` on MISTY1).
+
+### Impossible differentials (Knudsen; Biham–Biryukov–Shamir, 1998–99)
+
+Use a differential of probability **exactly zero**. The construction is
+**miss-in-the-middle**: propagate a difference forward from the plaintext with
+probability 1 for some rounds, propagate another backward from the ciphertext
+with probability 1, and exhibit a contradiction where they meet.
+
+The exploitation inverts the usual logic. Instead of a right key being
+*reinforced*, every key guess that produces the impossible pair is *eliminated*.
+So the data complexity is governed by how fast wrong keys are sieved out, and
+the analysis obligation is a counting argument over the remaining key space —
+not a signal-to-noise ratio. The canonical result is 31-round Skipjack; the
+technique is standard against Feistel and generalised-Feistel structures
+(`KN-LIT-2516`).
+
+Impossible-differential search is now automated (`KN-LIT-3896`), and structural
+provable-resistance arguments exist against it (`KN-LIT-5965`). It sits in a
+documented equivalence family with zero-correlation linear approximations and
+integral distinguishers (`KN-LIT-4764`), catalogued in `KN-TECH-069`.
 
 ## Program usage
 
-- **This is the branch that touches the PQC schemes the program tracks.** FIPS
-  203 and FIPS 204 build every hash, expansion and sampling operation on Keccak.
-  Differential and internal-differential analysis of round-reduced Keccak
-  (`KN-LIT-3425`, `KN-LIT-4537`) plus the cube line of `KN-TECH-070` are the
-  live analysis surface there. **The published results are round-reduced and no
-  entry in this corpus reports a break of full Keccak**; the standardised
-  primitives are not affected by anything recorded here.
-- **Freedom-degree accounting is the transferable idea.** The rebound attack's
-  real content is: *identify the expensive constraint, and pay for it with
-  structure instead of with samples.* That is the same move as choosing a
-  factor base to make relations cheap (`KN-TECH-003`), and the same trap —
-  `KN-FIND-007` established that factor-base geometry redistributes yield rather
-  than creating it. The corresponding question for a rebound-style claim is
-  whether the inbound phase genuinely amortises or has merely moved the cost
-  somewhere unmeasured.
-- **The keyless setting removes an excuse.** With no key averaging available,
-  claims here are directly checkable by computation, and published rebound
-  results are routinely verified on reduced versions. That is the standard this
-  program's own empirical claims are held to (`docs/claims-and-verification.md`).
+- **The higher-order route is the one that touches this program's own
+  machinery.** A higher-order differential is a statement about algebraic
+  degree, which makes it directly continuous with the Gröbner and MQ solving
+  entries (`KN-TECH-004`, `KN-TECH-011`, `KN-TECH-053`) and with the
+  degree-of-regularity discipline the program already applies to
+  summation-polynomial systems. The connection is real but must not be
+  overdrawn: degree growth in a cipher and the solving degree of a polynomial
+  system are different quantities and are not interchangeable.
+- **Impossible differentials are the cleanest available example of a
+  zero-probability control.** The program's inventor protocol (`KN-TECH-056`)
+  requires null-object controls before belief; the miss-in-the-middle
+  construction is a mature instance of proving a *negative* structural fact and
+  then exploiting it, and is worth reading as protocol precedent rather than as
+  an ECDLP tool.
+- **Truncated differentials are the reason activity patterns, not difference
+  values, are the right abstraction for word-oriented designs.** That choice of
+  abstraction is what makes automated search tractable (`KN-TECH-076`).
 
 ## Applicability limits
 
-- **A permutation distinguisher is not a hash break, and neither is a
-  compression-function attack in general.** The mode of operation determines
-  what transfers; sponge and Merkle–Damgård differ, and semi-free-start
-  collisions are weaker than collisions.
-- **Freedom degrees are finite.** Message modification and inbound solving both
-  run out; an attack that consumes more freedom than the state provides does not
-  exist, and the count belongs in the claim.
-- **Inbound solving is structure-specific.** The AES-like S-box-plus-MDS shape is
-  what makes the middle solvable; designs without it do not admit the same
-  amortisation.
-- **Round-reduced by default.** Every result cited here is on a reduced version
-  unless it explicitly says otherwise.
+- **Truncated differentials need word structure.** Against a design with no
+  word-aligned linear layer, the aggregation that makes them work has nothing to
+  aggregate over.
+- **Higher-order differentials need a *bound* on degree, not a guess.** The
+  distinguisher is deterministic only if the degree bound holds; an
+  underestimated degree yields a test that simply fails, and an overestimated
+  one wastes `2^{d+1}` data. Establishing the bound is the hard part, and is
+  exactly what `KN-TECH-074` exists to do.
+- **Impossible differentials prove nothing positive.** They eliminate keys.
+  Turning elimination into recovery requires the key-space counting argument to
+  actually close, and published attacks in this family have historically needed
+  correction when that counting was done loosely.
+- **All three are usually round-reduced.** The round count and the access model
+  belong in every citation, per `KN-TECH-062`.
 
 ## Verified vs reported
 
-Governed by `KN-TECH-059`'s sourcing note. The inbound/outbound decomposition,
-the freedom-degree accounting, the message-modification principle and the
-generic `2^{n/2}` / `2^n` bounds are standard published results, written from
-established knowledge and not re-derived here. Wang et al.'s MD5/SHA-1 work and
-the original Mendel–Rechberger–Schläffer–Thomsen rebound paper are named in
-prose; this corpus holds no `KN-LIT` entry for either and no identifier was
-minted. All cited `KN-LIT` records are title-level per the family note, and no
-complexity figure from any of them is quoted here. The statement that no entry
-in this corpus reports a break of full Keccak is an observation about **this
-corpus's contents** as read on 2026-07-31, not a claim about the literature at
-large. The comparison to `KN-FIND-007` is this program's own reasoning.
+Governed by the sourcing note in `KN-TECH-062`, which applies in full. The
+derivative identity, the `2^{d+1}` cost, the aggregation factor for truncated
+differentials and the miss-in-the-middle construction are standard published
+results written from established knowledge, not re-derived here. Knudsen's and
+Lai's foundational papers are named in prose because this corpus holds no
+`KN-LIT` entry for them; no identifier was minted. The MISTY1 figures implied by
+`KN-LIT-1995` and `KN-LIT-4527` are **title-level only** — this program has not
+read those papers, and the titles are the whole of what is archived. The
+placement of the higher-order/integral/cube/division-property chain as one
+identity in four presentations is this program's own framing.

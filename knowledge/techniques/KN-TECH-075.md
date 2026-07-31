@@ -1,103 +1,121 @@
 ---
 id: KN-TECH-075
 type: technique
-title: Correlation and fast correlation attacks - linear cryptanalysis of stream ciphers as decoding
-tags: [correlation-attack, fast-correlation-attack, siegenthaler, meier-staffelbach, lfsr, decoding, parity-check, ldpc, correlation-immunity, linear-cryptanalysis, stream-cipher, symmetric-cryptanalysis, symmetric, adjacent]
+title: Interpolation and Groebner-basis attacks on low-degree and arithmetization-oriented ciphers
+tags: [interpolation-attack, groebner-attack, arithmetization-oriented, mimc, poseidon, anemoi, griffin, marvellous, low-multiplicative-complexity, solving-degree, prime-field, zero-knowledge, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
-complexity: "basic correlation attack: exhaustive search over one LFSR's initial state, 2^L for length L, using keystream correlated to that LFSR's output with bias eps and about eps^{-2} keystream bits. Fast correlation attacks replace the exhaustive search with iterative decoding, trading keystream and precomputation against time"
-applicability: keystream generators built from LFSRs where the output function is correlated to a subset of the register outputs; the linear-family counterpart of the algebraic attacks in KN-TECH-069, and a design constraint that trades against algebraic immunity
-source_refs: [KN-TECH-064, KN-TECH-065, KN-TECH-069, KN-LIT-3794, KN-LIT-3795, KN-LIT-3792, KN-LIT-3793, KN-LIT-3176, KN-LIT-1518, KN-LIT-2018, KN-LIT-4747, KN-LIT-3809]
+complexity: "interpolation: about d+1 known plaintext-ciphertext pairs and Lagrange reconstruction for a cipher of polynomial degree d over the native field; Groebner route: cost is the solving degree of the round-by-round system, which is the quantity these attacks and these designs argue over"
+applicability: ciphers designed for low multiplicative complexity over a large field - ZK/MPC/FHE-oriented primitives - where the security argument is algebraic rather than trail-based; not applicable to bit-oriented wide-trail SPNs
+source_refs: [KN-TECH-004, KN-TECH-011, KN-TECH-053, KN-TECH-063, KN-TECH-071, KN-LIT-4921, KN-LIT-2451, KN-LIT-2396, KN-LIT-5695, KN-LIT-4246, KN-LIT-5110, KN-LIT-5472, KN-LIT-5676, KN-LIT-7202]
 added: 2026-07-31
 superseded_by: null
 ---
 
 ## Method
 
-**The divide-and-conquer observation** (Siegenthaler, 1985). Take a combiner
-generator: several LFSRs feeding a Boolean function `f`. If the keystream `z_t`
-is correlated to the output `a_t` of one register — `Pr[z_t = a_t] = 1/2 + ε` —
-then that register can be attacked **alone**. Guess its initial state, generate
-its output, and measure the correlation with the keystream; the correct guess
-shows `ε`, the others show noise. Cost `2^L` for register length `L` and about
-`ε^{-2}` keystream bits, instead of `2^{ΣL_i}` for the whole generator.
+### The design class, and why it changes the analysis
 
-The design response is **correlation immunity**: choose `f` so that its output
-is statistically independent of every small subset of inputs. Siegenthaler's
-trade-off says this cannot be had for free — correlation immunity of order `m`
-caps the algebraic degree of `f`, and a low degree is exactly what
-`KN-TECH-069`'s algebraic attacks want. **Resistance to the two families pulls
-in opposite directions**, and that tension is the central design problem for
-this class of cipher.
+Primitives built for zero-knowledge proofs, MPC and FHE are costed in **field
+multiplications**, not in gates. That pushes designers toward round functions
+that are algebraically simple over a large field `F_p` or `F_{2^n}` — a single
+power map `x → x^3` or `x → x^{1/α}`, few rounds, minimal linear layers. MiMC
+(`KN-LIT-4921`), the MARVELlous family (`KN-LIT-2396`), Griffin
+(`KN-LIT-4246`) and Anemoi (`KN-LIT-5110`) are representative.
 
-**Fast correlation attacks** (Meier–Staffelbach, 1988) drop the exhaustive
-search. Observe that the LFSR sequence is a codeword of a linear code determined
-by the feedback polynomial, and the keystream is that codeword seen through a
-binary symmetric channel of error rate `1/2 − ε`. Key recovery **is decoding**:
+The consequence for cryptanalysis is structural: **the wide-trail argument of
+`KN-TECH-070` is unavailable and largely irrelevant.** There are too few S-boxes
+for active-S-box counting to say anything, and statistical trails are not the
+threat. The security argument is about **algebraic degree and solving degree**,
+so the attacks are the algebraic ones.
 
-- find low-weight parity-check relations satisfied by the LFSR sequence, either
-  from multiples of the feedback polynomial or by search;
-- run iterative decoding — belief-propagation style, exactly as for LDPC codes —
-  to recover the initial state.
+### Interpolation attacks (Jakobsen–Knudsen, 1997)
 
-The result is a family of algorithms trading keystream length, precomputation
-and time against each other, with the classical treatments in `KN-LIT-3794` and
-`KN-LIT-3795`. Later refinements push the same idea further: extension-field and
-large-unit approximations (`KN-LIT-3793`), weak feedback-polynomial classes
-(`KN-LIT-3176`), and the near-collision and revisited variants that reach
-full-round Grain-family designs (`KN-LIT-3792`, `KN-LIT-3809`). Modern targets
-include SNOW-V/Vi (`KN-LIT-2018`) and Bluetooth's E0 (`KN-LIT-4747`); the
-survey-style treatment in `KN-LIT-1518` maps the family.
+If the cipher, as a function of the plaintext over its native field, is a
+polynomial of degree `d` with `d` small enough, an attacker reconstructs it by
+Lagrange interpolation from about `d+1` known pairs — obtaining a functionally
+equivalent decryption box with **no key recovery at all**. Variants push the
+interpolation through part of the cipher and solve for the remaining key
+material; optimised versions apply to designs like LowMC (`KN-LIT-5676`).
 
-**Why this is linear cryptanalysis.** The correlation being exploited is a
-linear approximation of the output function, its magnitude is a Walsh
-coefficient of `f`, and combining several such approximations is the capacity
-argument of `KN-TECH-065` in a different costume. The distinguishing feature is
-what happens *after* the bias is found: block-cipher linear cryptanalysis counts
-and ranks key guesses, stream-cipher correlation attacks decode.
+The design response is to force degree growth; the attack's reach is then set by
+how fast degree actually grows, which for a power map over `F_p` is far slower
+than intuition from bit-oriented ciphers suggests.
+
+### The Gröbner route
+
+The general form: introduce a variable per round state, write one low-degree
+equation per round, and solve the resulting system with a Gröbner basis
+computation (`KN-TECH-004`, `KN-TECH-011`) or an MQ-style solver
+(`KN-TECH-053`). The attack cost is the **solving degree** of that system — the
+same quantity, with the same estimation difficulties, that this program tracks
+for summation-polynomial systems.
+
+Results in this style include the algebraic attacks on STARK-friendly designs
+(`KN-LIT-2396`), the low-degree round-function attack reaching full MiMC
+(`KN-LIT-2451`), and the collection of techniques aimed specifically at
+integrity-oriented primitives in `KN-LIT-5695`. Higher-order differentials
+(`KN-TECH-063`) transfer to this setting with `F_p`-subspaces in place of
+`F_2`-subspaces, and the division property has a field-based analogue built for
+it (`KN-LIT-5472`).
+
+**The recurring pattern in this literature:** a design's security margin is
+argued from an *estimated* solving degree or an *assumed* degree-growth rate; a
+subsequent paper computes the actual system's behaviour and the margin moves —
+sometimes far. The unifying-view surveys (`KN-LIT-7202`) exist because this
+class keeps producing that pattern.
 
 ## Program usage
 
-- **The decoding reformulation is the transferable idea.** "Recovering the secret
-  is decoding a noisy codeword" converts a search problem into a problem with its
-  own mature algorithmic literature and its own thresholds. That is the same
-  species of move the program values in `KN-TECH-056` — find the object under
-  which the problem is already solved — and it is worth noting that the
-  asymmetric side of this corpus has a direct analogue: LWE is decoding with
-  errors (`KN-TECH-021`), and the primal/dual attacks (`KN-TECH-038`,
-  `KN-TECH-039`) are the lattice reading of the same statement.
-- **The Siegenthaler trade-off is a rare, provable "you cannot have both".** The
-  program's Pareto-honesty requirement (`KN-TECH-056`: `dominated_by` and
-  `sota_delta` in every deliverable) is about exactly this shape of constraint,
-  and this is a clean external example where the trade is a theorem rather than
-  an observation.
-- **Precomputation is a cost.** Fast correlation attacks move work into
-  parity-check search; under `KN-TECH-035` that is charged and reported, never
-  discounted.
+- **This is the closest external analogue to the program's own main-line
+  technical problem.** Point-decomposition index calculus reduces the ECDLP to
+  solving structured polynomial systems whose solving degree decides the
+  exponent (`KN-TECH-003`, `KN-TECH-004`); arithmetization-oriented
+  cryptanalysis reduces a cipher to structured polynomial systems whose solving
+  degree decides the attack. **The same solvers, the same estimation problem,
+  the same failure mode** — an assumed degree of regularity that the structured
+  system does not obey. The program's own `KN-FIND-006` (the Macaulay rank
+  deficit is bounded structural syzygy content) is a result of exactly the type
+  this literature needs and often lacks.
+- **It is therefore a source of transferable technique, not just of
+  literature.** Methods developed to bound solving degree for round-based
+  systems are candidates for adaptation to summation-polynomial systems, and the
+  reverse. Any such adaptation is a proposal to be tested under
+  `/design-experiment`, not an established transfer — the systems differ in
+  structure and field, and nothing here licenses assuming the behaviour carries.
+- **The margin-moves pattern is a warning about the program's own extrapolated
+  exponents.** `KN-TECH-052` governs fitting exponents from bounded runs; this
+  design class is the field's ongoing demonstration of what happens when such a
+  fit is treated as a security argument.
 
 ## Applicability limits
 
-- **A correlation must exist.** Against a correlation-immune output function of
-  sufficient order, the divide-and-conquer step has nothing to divide, and the
-  algebraic route of `KN-TECH-069` is the relevant one instead.
-- **Linear state update is assumed.** Designs with nonlinear update (Trivium,
-  Grain's NFSR) do not fit the plain model; the published attacks on them work
-  around this and their applicability is design-specific, not generic.
-- **Decoding thresholds are real.** Iterative decoding succeeds only when the
-  error rate is below a threshold set by the parity-check weight and density;
-  above it, more keystream does not rescue the attack.
-- **Keystream availability caps everything.** `ε^{-2}` bits under one key is
-  often the binding constraint in practice.
+- **Design-class specific.** Nothing here applies to AES, Keccak or any
+  bit-oriented wide-trail design; conversely, trail-counting says nothing useful
+  about these primitives.
+- **Solving degree is not the same as degree of regularity**, and structured
+  systems routinely violate the semi-regularity assumptions under which the
+  latter is computed. Estimates in this area carry that caveat by default.
+- **Field matters.** `F_p` and `F_{2^n}` behave differently for degree growth,
+  for interpolation cost and for division-property analogues; a result over one
+  does not transfer to the other.
+- **Claimed complexities in this class have historically moved.** Treat any
+  single reported solving-degree estimate as provisional unless it is backed by
+  a computation on the actual system at the actual parameters.
 
 ## Verified vs reported
 
-Governed by `KN-TECH-059`'s sourcing note. The divide-and-conquer principle,
-correlation immunity and its trade-off against algebraic degree, and the
-decoding reformulation with iterative parity-check decoding are standard
-published results, written from established knowledge and not re-derived or
-measured here. Siegenthaler's and Meier–Staffelbach's originating papers are
-named in prose; this corpus holds no `KN-LIT` entry for either and no identifier
-was minted. All cited `KN-LIT` records are **title-level** per the family note —
-that the Grain family, SNOW-V/Vi and E0 are targets is read from titles, and no
-complexity figure from any of them is quoted or verified. The parallel drawn to
-LWE-as-decoding and to the program's Pareto-honesty rule is this program's own
-reasoning.
+Governed by `KN-TECH-062`'s sourcing note. The interpolation-attack principle,
+the `d+1` reconstruction cost, the round-system Gröbner formulation and the
+reason wide-trail arguments do not apply to this design class are standard
+published knowledge, written from established knowledge and not re-derived here.
+Jakobsen–Knudsen's interpolation paper is named in prose; this corpus holds no
+entry for it and no identifier was minted. All cited `KN-LIT` records are
+**title-level**: that `KN-LIT-2451` reaches full MiMC is read from its title,
+and **no complexity figure from it or from any other record here is quoted or
+verified.** The statement that margins in this class have historically moved is
+this program's characterisation of the literature, corroborated in this corpus
+only by the presence of successive attack papers against the named designs — it
+is not a claim any single cited source makes. The parallel to the program's own
+index-calculus solving-degree problem, and the suggestion that techniques may
+transfer, are this program's own reasoning and are **untested hypotheses**, not
+results.

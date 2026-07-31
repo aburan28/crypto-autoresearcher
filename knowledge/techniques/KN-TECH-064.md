@@ -1,112 +1,105 @@
 ---
 id: KN-TECH-064
 type: technique
-title: Linear cryptanalysis - linear approximation tables, correlation and the piling-up lemma, Matsui's Algorithms 1 and 2
-tags: [linear-cryptanalysis, matsui, linear-approximation-table, walsh-transform, correlation, bias, piling-up-lemma, known-plaintext, wrong-key-randomisation, block-cipher, symmetric-cryptanalysis, symmetric, adjacent]
+title: Boomerang, rectangle and sandwich attacks, and the connectivity-table correction to the independence assumption
+tags: [boomerang, rectangle, amplified-boomerang, sandwich-attack, bct, boomerang-switch, related-key, adaptive-chosen-ciphertext, block-cipher, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
-complexity: "distinguisher data N ~ c^{-2} known plaintexts for correlation c = 2*eps (constant set by the target success probability); Algorithm 2 key recovery adds a factor 2^k for k guessed subkey bits in the partial-decryption step"
-applicability: iterated block ciphers under known-plaintext access (the weakest useful access model in the family); the root method of the linear family and the reference for KN-TECH-065 through KN-TECH-067
-source_refs: [KN-TECH-059, KN-LIT-2072, KN-LIT-4248, KN-LIT-2369, KN-LIT-3245, KN-LIT-7562, KN-TECH-065]
+complexity: "boomerang distinguisher probability p^2 q^2 under the independence assumption (adaptive chosen plaintext/ciphertext); rectangle probability 2^{-n} p-hat^2 q-hat^2 with p-hat = sqrt(sum_i p_i^2) (chosen plaintext); sandwich probability p^2 q^2 r with r the measured middle-layer probability, which is the quantity the connectivity tables compute"
+applicability: ciphers with a short high-probability differential on each of two halves but no good differential end to end; requires an adaptive chosen-ciphertext oracle in the basic form, a chosen-plaintext oracle in the rectangle form
+source_refs: [KN-TECH-062, KN-TECH-063, KN-LIT-2764, KN-LIT-5142, KN-LIT-5680, KN-LIT-1054, KN-LIT-1250, KN-LIT-1034, KN-LIT-2195, KN-LIT-4167, KN-LIT-4537]
 added: 2026-07-31
 superseded_by: null
 ---
 
 ## Method
 
-Matsui (1993) looks for a parity relation that holds slightly more often than
-half the time:
+Wagner's boomerang attack (1999) targets the case where a cipher resists
+end-to-end differential cryptanalysis but its halves do not. Split
+`E = E_1 ∘ E_0`. Take a differential `α → β` with probability `p` over `E_0` and
+`γ → δ` with probability `q` over `E_1`.
 
-  `⟨α, P⟩ ⊕ ⟨β, C⟩ = ⟨γ, K⟩`  with probability `1/2 + ε`.
+**The quartet.** Encrypt `P` and `P' = P ⊕ α`. Shift both ciphertexts by `δ`,
+decrypt, and check whether the resulting plaintexts differ by `α`. Each of the
+two `E_1`-side legs costs `q`, and the `E_0` differential must hold on the way
+out — the standard count gives `p²q²` against `2^{-n}` for a random permutation.
+The attack is **adaptive chosen plaintext and ciphertext**, a strictly stronger
+access model than plain differential cryptanalysis.
 
-Two equivalent measures are in use and both appear in the literature: the
-**bias** `ε = p − 1/2`, and the **correlation** `c = 2ε ∈ [−1, 1]`. Correlation
-is the better working unit because it composes multiplicatively and because it
-is exactly a Walsh–Hadamard coefficient.
+**Variants, and what each one buys.**
 
-**The objects.**
+- **Amplified boomerang / rectangle** (Kelsey–Kohno–Schneier; Biham–Dunkelman–
+  Keller). Removes the need for decryption queries by working with many pairs
+  and waiting for the middle difference to match by chance. The price is a
+  `2^{-n}` factor: probability `2^{-n} p̂² q̂²`, where `p̂ = sqrt(Σ_i p_i²)`
+  aggregates over *all* differentials with the given input difference — so
+  rectangle attacks benefit from clustering, and reporting a single trail's `p`
+  in place of `p̂` understates them (`KN-LIT-5142`, `KN-LIT-5680`).
+- **Truncated boomerangs** (`KN-LIT-1054`) combine the quartet structure with
+  the activity-pattern abstraction of `KN-TECH-063`, which is the natural fit
+  for AES-like designs (`KN-LIT-1250`).
+- **Related-key boomerangs** (`KN-LIT-1034`) run the two halves under related
+  keys, exploiting the key schedule. Access model caveat from `KN-TECH-062`
+  applies with force: this is often irrelevant to a protocol that never exposes
+  related keys, and is often decisive for one that does.
+- **Boomerang attacks on hash functions** (`KN-LIT-4167`, and the internal-
+  differential variant on Keccak, `KN-LIT-4537`) transfer the quartet structure
+  to the keyless setting; see `KN-TECH-066`.
 
-- **LAT.** For an S-box `S`, the linear approximation table records, for each
-  input mask `a` and output mask `b`, the correlation of `⟨b, S(x)⟩ ⊕ ⟨a, x⟩`.
-  Up to normalisation the LAT *is* the Walsh–Hadamard transform of the S-box,
-  and `max_{a, b≠0} |c|` is its **linearity**, the local quantity every linear
-  trail bound is built from — the exact counterpart of differential uniformity
-  in `KN-TECH-059`.
-- **Linear trail.** A mask specified after every round. Under an independence
-  assumption its correlation is the product of the per-round correlations
-  (**piling-up lemma**: for independent binary variables the biases satisfy
-  `ε = 2^{k-1} Π ε_i`, equivalently `c = Π c_i`).
-- **Linear approximation (hull).** Only the endpoint masks `(α, β)` are fixed.
-  Its correlation is the **signed sum** over all trails joining them — see
-  `KN-TECH-065`, which is where the trail/approximation distinction is worked
-  out. This entry uses single-trail estimates only as estimates.
+**The independence assumption, and why it is the interesting part.** The `p²q²`
+count assumes the two halves behave independently at the switch. They do not.
+The Dunkelman–Keller–Shamir **sandwich** reformulation makes the failure
+explicit: write `E = E_1 ∘ E_m ∘ E_0` with a thin middle layer and give the
+quartet through `E_m` its own probability `r`, so the total is `p²q²r`. `r` can
+be far *above* the independent estimate — the boomerang, ladder and Feistel
+"switches" — or far below, including exactly zero, which makes an apparently
+valid boomerang non-existent. The practical-time related-key attack of
+`KN-LIT-2195` is the canonical demonstration that `r` must be computed rather
+than assumed.
 
-**Key recovery.**
-
-- **Algorithm 1.** Count how often `⟨α, P⟩ ⊕ ⟨β, C⟩ = 0` over `N` known
-  plaintexts. The majority outcome yields the single key-parity bit `⟨γ, K⟩`.
-  Data `N ≈ c^{-2}`, with the constant set by the desired success probability.
-- **Algorithm 2.** Use an approximation over all but the outer round(s), guess
-  the `k` subkey bits feeding the active S-boxes there, partially decrypt, and
-  compute the counter for each candidate. The right guess shows correlation
-  `c`; the wrong ones are modelled as showing none. This recovers `k+1` bits at
-  roughly `2^k` times the work and is where essentially all practical linear
-  attacks live.
-
-**The statistical model is the delicate part.** Ranking key candidates by
-counter value requires the **wrong-key randomisation hypothesis** — that wrong
-guesses behave like a random permutation — and the relationship between data,
-advantage and success probability follows from a normal approximation to the
-counter distribution. Both are approximations, both have documented failure
-cases, and the general theory of what statistic is *optimal* (log-likelihood
-ratio, `χ²`, and their data requirements) is the subject of `KN-LIT-4248`. A
-geometric reformulation of the whole framework is given in `KN-LIT-2072`.
-
-**Historical calibration.** Matsui's attack on full 16-round DES needs about
-`2^{43}` known plaintexts — the first attack on full DES faster than exhaustive
-search that was actually carried out. It remains the standard illustration that
-a correlation of about `2^{-21}` is exploitable when the block cipher's data
-limit allows it.
+**The connectivity tables compute `r`.** The **Boomerang Connectivity Table**
+(`KN-LIT-2764`) tabulates, for a single S-box, the exact probability that the
+quartet closes across the switch — replacing the product-of-DDT-entries
+heuristic with an exact per-S-box quantity. Extensions of the same idea handle
+multiple S-box layers and Feistel structure. This is the reason modern boomerang
+claims are computed with a table rather than multiplied by hand, and it is the
+single most common source of corrections to older boomerang results.
 
 ## Program usage
 
-- **Known-plaintext is the weakest access model in the family.** A linear result
-  therefore has stronger deployment relevance than a chosen-plaintext or
-  adaptive result of comparable complexity, and the access model belongs in any
-  comparison (`KN-TECH-035`'s discipline applied to access rather than memory).
-- **Correlation is a Walsh coefficient, which is why the linear side has the
-  cleaner algebra.** Composition is matrix multiplication (`KN-TECH-067`), and
-  that structure is what makes the equivalences of `KN-TECH-066` provable rather
-  than analogical. When this program reaches for a spectral or transfer-operator
-  framing — `KN-TECH-017` records Koopman/transfer-operator methods in the
-  corpus already — the correlation-matrix formalism is the mature symmetric-side
-  instance of the same idea, and worth reading before inventing a new one.
-- **Masking and side-channel security reuse the same machinery** (`KN-LIT-3245`),
-  which is a reminder that "linear cryptanalysis" tooling is applied well beyond
-  key recovery on block ciphers.
+- **This is the corpus's best worked example of an independence assumption that
+  silently inflates or deflates a published advantage.** The program's own cost
+  models compose stage costs the same way — index-calculus relation collection
+  times per-relation solve (`KN-TECH-053`), memory-charged sieving stages
+  (`KN-TECH-044`), interpolated time–memory curves (`KN-TECH-058`). The BCT
+  correction is precedent for the discipline the red-team role is meant to
+  apply: *the composed probability is a measurement, not a product.*
+- **Access-model accounting.** Boomerangs need adaptive chosen-ciphertext
+  access; rectangles trade that for a `2^{-n}` penalty. Any comparison of the
+  two that does not state which oracle it assumes is incomplete. This is the
+  same class of omission as charging time but not memory (`KN-TECH-035`).
 
 ## Applicability limits
 
-- **`N ~ c^{-2}` is a hard wall.** A correlation below `2^{-n/2}` requires more
-  data than the block cipher can produce under one key; the attack then does not
-  exist, whatever the time complexity says.
-- **The piling-up lemma assumes independence between rounds**, which is false in
-  general; the resulting estimate can be wrong in either direction and is
-  routinely checked experimentally on reduced versions.
-- **Single-trail correlation understates the true correlation** whenever the hull
-  contains many trails, and can also overstate it when trails cancel — the sum
-  is signed. See `KN-TECH-065` before quoting any single-trail figure.
-- **The wrong-key randomisation hypothesis is an assumption**, and success-
-  probability claims inherit its accuracy.
-- **Round-reduced by default**, per `KN-TECH-059`.
+- **`r = 1` is a hypothesis, never a default.** A boomerang claim that does not
+  state how the middle was evaluated — by connectivity table, by experiment, or
+  by assumption — is not yet a claim.
+- **`p̂` and `p` are different numbers.** Rectangle probabilities aggregate over
+  clustered trails; single-trail figures are a lower bound and should be
+  labelled as such (`KN-TECH-076`).
+- **Adaptive access is a real restriction.** Many deployment settings do not
+  offer a decryption oracle, and a boomerang distinguisher there is a structural
+  observation rather than an attack.
+- **Round-reduced by default**, as everywhere in this family.
 
 ## Verified vs reported
 
-Governed by `KN-TECH-059`'s sourcing note. The LAT/Walsh correspondence, the
-piling-up lemma, Algorithms 1 and 2, the `N ~ c^{-2}` data law and the `2^{43}`
-DES figure are standard textbook results of the public literature, written from
-established knowledge; none was re-derived or measured in this program. Matsui's
-original papers and Nyberg's linear-hull paper are named in prose — this corpus
-holds no `KN-LIT` entry for either and no identifier was minted. The cited
-`KN-LIT` records are title-level per the family note; no complexity figure is
-taken from any of them. The comparison to `KN-TECH-017` is this program's own
-reasoning.
+Governed by `KN-TECH-062`'s sourcing note. The quartet construction, the `p²q²`
+and `2^{-n} p̂² q̂²` counts, the sandwich decomposition and the role of the
+connectivity table are standard published results, written from established
+knowledge and not re-derived here. Wagner's original paper and the
+Dunkelman–Keller–Shamir sandwich paper are named in prose; this corpus holds no
+`KN-LIT` entry for either and no identifier was minted. Every cited `KN-LIT`
+record in this entry is carried at **title level** — the specific attack
+complexities those papers report were not read and are deliberately not quoted.
+The analogy between the boomerang switch and this program's stage-composition
+cost models is this program's own reasoning.

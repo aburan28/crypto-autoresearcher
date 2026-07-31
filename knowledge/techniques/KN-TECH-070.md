@@ -1,116 +1,123 @@
 ---
 id: KN-TECH-070
 type: technique
-title: Cube attacks and cube testers - superpoly recovery as key-recovery higher-order differential cryptanalysis
-tags: [cube-attack, cube-tester, superpoly, dinur-shamir, higher-order-differential, algebraic-degree, dynamic-cube, conditional-cube, correlation-cube, trivium, grain, keccak, symmetric-cryptanalysis, symmetric, adjacent]
+title: Correlation matrices, the wide-trail strategy, and the invariant attacks that trail bounds do not cover
+tags: [correlation-matrix, walsh-transform, wide-trail, branch-number, active-sboxes, provable-resistance, invariant-subspace, nonlinear-invariant, round-constants, weak-keys, aes, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
-complexity: "summing the output over a cube of dimension k costs 2^k chosen-IV queries and yields the superpoly, of degree at most d - k for a master polynomial of degree d; a linear superpoly gives one linear equation in the key bits, and enough independent ones give key recovery"
-applicability: primitives with public tweakable input (IV, nonce, message) and a secret key, where the output bit is a polynomial of exploitably bounded degree in the combined variables; standard against stream ciphers with nonlinear update and against keyed sponge modes
-source_refs: [KN-TECH-060, KN-TECH-069, KN-TECH-071, KN-LIT-3344, KN-LIT-3345, KN-LIT-2792, KN-LIT-3091, KN-LIT-4389, KN-LIT-3177, KN-LIT-3178, KN-LIT-3342, KN-LIT-2153, KN-LIT-2087]
+complexity: "AES wide-trail bound: any 4 consecutive rounds activate at least 25 S-boxes, giving maximum differential trail probability <= 2^{-150} and maximum linear trail correlation <= 2^{-75}, from per-S-box bounds 2^{-6} and 2^{-3}"
+applicability: SPN design and evaluation; the standard way a design argues resistance to KN-TECH-062 and KN-TECH-067, and the standard way that argument is misread as covering more than it does
+source_refs: [KN-TECH-062, KN-TECH-067, KN-TECH-068, KN-LIT-2369, KN-LIT-7562, KN-LIT-2744, KN-LIT-2021, KN-LIT-2066, KN-LIT-5241, KN-LIT-5983, KN-LIT-724, KN-LIT-5956]
 added: 2026-07-31
 superseded_by: null
 ---
 
 ## Method
 
-Dinur–Shamir (2009, `KN-LIT-3344`) reframe higher-order differentials
-(`KN-TECH-060`) as a key-recovery method against black-box polynomials.
+### Correlation matrices
 
-Model an output bit as an unknown polynomial `P(k_1..k_m, v_1..v_n)` over `F_2`
-in secret key bits and public IV bits. Choose a **cube** `I ⊆ {v_1..v_n}` of
-size `k` and write
+Daemen–Govaerts–Vandewalle give linear cryptanalysis its algebra. For a map
+`F: F_2^n → F_2^n`, define the **correlation matrix** `C^F` with entries
 
-  `P = t_I · P_{S(I)} + Q`,
+  `C^F_{u,v} = correlation of ⟨u, F(x)⟩ ⊕ ⟨v, x⟩`.
 
-where `t_I` is the product of the cube variables, the **superpoly** `P_{S(I)}`
-contains no cube variable, and every monomial of `Q` misses at least one. Then
+Then `C^{G ∘ F} = C^G C^F`. Composition of rounds is **matrix multiplication**,
+a linear trail is a single term in the expanded product, and the linear hull of
+`KN-TECH-068` is an entry of the product matrix. Everything in the linear family
+follows from this identity, including why hull correlations are signed sums and
+why cancellation is possible.
 
-  `Σ_{v ∈ cube} P = P_{S(I)}`  — summing over all `2^k` assignments to `I`.
+### The wide-trail strategy
 
-The sum is a higher-order derivative; the content of the cube attack is that the
-derivative is **not** taken far enough to vanish, so what survives is a usable
-function of the key. Degree bookkeeping: if `deg P ≤ d` then `deg P_{S(I)} ≤
-d − k`, so cube dimension is chosen to drive the superpoly down to degree 1.
+Daemen–Rijmen's design answer (`KN-LIT-2369`) works on the *number of active
+S-boxes* rather than on individual probabilities:
 
-**The two phases.**
+- The S-box bounds the local quantities: for AES, maximum differential
+  probability `2^{-6}` and maximum absolute correlation `2^{-3}`.
+- The linear layer's **branch number** forces activity to spread. AES's
+  MixColumns has branch number 5, and combined with ShiftRows this guarantees
+  that **any four consecutive rounds activate at least 25 S-boxes**.
+- Multiplying: a 4-round differential trail has probability at most
+  `(2^{-6})^{25} = 2^{-150}`, and a 4-round linear trail correlation at most
+  `(2^{-3})^{25} = 2^{-75}`.
 
-- **Preprocessing (offline, chooses cubes).** With the key under the attacker's
-  control, search for cubes whose superpoly is linear (or low-degree), verify
-  with BLR-style linearity tests, and record the superpoly's coefficients.
-- **Online.** Against the real key, sum the output over each recorded cube; each
-  linear superpoly yields one linear equation in the key bits. Enough
-  independent equations give key recovery.
+This is what "provable security against differential and linear cryptanalysis"
+means in practice (`KN-LIT-7562`), and it is why modern SPN design is largely
+the design of a diffusion layer with a good branch number.
 
-**Cube testers** (`KN-LIT-3345`) drop key recovery and keep the distinguisher:
-test the superpoly for a property a random polynomial would not have — balance,
-degree, presence or absence of specific monomials, constancy. Cheaper, and
-usually reaches more rounds.
+### What the bound does not cover — and this is the load-bearing part
 
-**The variant family, each fixing a different limitation.**
+A wide-trail bound is a statement about **trails**, under the **averaged-key**
+model. It does not bound:
 
-- **Dynamic cube attacks** (`KN-LIT-2792`): choose the non-cube public variables
-  *as functions of the cube variables* to nullify state bits, simplifying the
-  polynomial before summation. This is what broke Grain-128 in its reported
-  form.
-- **Conditional cube attacks** (`KN-LIT-3091`): impose conditions that stop
-  chosen cube variables from multiplying together early, keeping the degree low
-  for extra rounds. The standard tool against round-reduced keyed Keccak modes,
-  with cube selection itself delegated to MILP (`KN-LIT-4389`, `KN-TECH-073`).
-- **Correlation cube attacks** (`KN-LIT-3178`, `KN-LIT-3177`): exploit a
-  *probabilistic* relation between the superpoly and key expressions when no
-  exact linear superpoly is available.
-- **Cube-attack-like cryptanalysis** of sponge modes (`KN-LIT-3342`), and
-  side-channel-assisted variants with error tolerance (`KN-LIT-2153`).
-
-**The scaling barrier and its removal.** Cube dimension is limited by the `2^k`
-query cost and, more restrictively, by the need to *know* the superpoly — which
-originally meant computing it experimentally. Division-property methods
-(`KN-TECH-071`) recover superpolies for cubes far too large to evaluate by
-experiment, and that combination produced the deepest published results in this
-line, such as key recovery on 855-round Trivium (`KN-LIT-2087`).
+1. **Hulls and differentials.** The bound applies to individual trails, while
+   attacks exploit the sum over them (`KN-TECH-068`). For AES the gap is
+   believed benign; in general it is not automatic.
+2. **Fixed-key behaviour.** The averaging assumptions of `KN-TECH-062` are
+   inherited wholesale.
+3. **Attacks that are not trail-shaped at all.** This is the important one.
+   - **Invariant subspace attacks** (`KN-LIT-2021`, `KN-LIT-2066`): an affine
+     subspace preserved by the round function for some keys. Round constants
+     and key schedule decide whether it exists; the S-box and branch number are
+     irrelevant to it.
+   - **Nonlinear invariant attacks** (`KN-LIT-5241`): a nonlinear Boolean
+     function preserved (up to a constant) by the round function, giving
+     practical distinguishers on full ciphers for weak-key classes.
+   - The unifying view is spectral: such invariants are **eigenvectors of the
+     correlation matrix** (`KN-LIT-2744`), which is why the same algebra that
+     produces the wide-trail bound also explains the attacks the bound misses.
+   - Resistance is argued separately, principally through round-constant
+     selection (`KN-LIT-5983`), and weak-key structure is analysed in its own
+     right even for AES (`KN-LIT-724`).
+4. **Whole other attack classes** — integral, algebraic, meet-in-the-middle —
+   which is why decorrelation-style arguments that bound *classes* of attacks
+   exist as a separate line (`KN-LIT-5956`).
 
 ## Program usage
 
-- **The tightest available example of "a distinguisher exists" versus "the
-  distinguisher is computable".** A cube sum is a well-defined quantity for any
-  cube; what limits the attack is knowing the resulting superpoly. That is the
-  same distinction the program draws between an object existing and a
-  certificate for it existing (`docs/claims-and-verification.md`), and the same
-  gap `KN-FIND-008` recorded on the lifting side — rare-event density gates are
-  settled exactly by fibering over solutions, once you can enumerate them.
-- **Keyed-Keccak relevance is real and bounded.** Conditional cube attacks are
-  the live line against round-reduced keyed Keccak modes, and Keccak underlies
-  every hash and expansion in FIPS 203/204. **The published results in this
-  corpus are round-reduced**; nothing recorded here affects the standardised
-  parameter sets.
-- **Preprocessing is a cost.** The offline cube search is often the dominant
-  expense and is charged, not discounted, under `KN-TECH-035`.
+- **The cleanest available example of a proof whose scope is narrower than its
+  slogan.** "Provably secure against differential and linear cryptanalysis"
+  means *trail probabilities are bounded under an averaged-key model*, and full
+  ciphers satisfying such bounds have been broken by attacks outside the model.
+  This is precisely the failure the program guards against in its own
+  deliverables: `AGENTS.md` requires every conclusion scoped to what was tested,
+  and `KN-TECH-058` is the corpus's existing case study in a figure that was
+  correct as a statement about one algorithm and wrong as a statement about a
+  problem. This entry is the symmetric-side case study, and the more instructive
+  one, because here the *proof* was correct and the *scope reading* was not.
+- **The correlation-matrix formalism is the mature version of a spectral idea
+  the corpus already gestures at** (`KN-TECH-017`, transfer operators). If a
+  proposal in this program reaches for spectral or operator-theoretic structure,
+  the composition-is-matrix-multiplication identity and its eigenvector reading
+  are the precedent to check against.
+- **Branch number is a design parameter, not an attack.** Nothing here transfers
+  to the ECDLP line; it is recorded for evaluation and novelty-checking of
+  symmetric proposals.
 
 ## Applicability limits
 
-- **Public tweakable input is required.** No IV/nonce/message freedom, no cube.
-- **Degree must be bounded and known**, or the superpoly is unpredictable; that
-  is exactly what `KN-TECH-071` supplies, and without it cube selection is
-  experimental and shallow.
-- **`2^k` is a hard query cost** in the online phase, and the data limit of the
-  target caps `k` regardless of what preprocessing found.
-- **Preprocessing assumes key-controlled access**, which is a modelling
-  assumption about the attacker, not a property of the primitive.
-- **Superpoly linearity is fragile.** A superpoly linear for one cube is
-  generally not for a neighbouring one, and reported attacks depend on specific
-  cubes found by search, which is why reproducibility of the search matters as
-  much as the attack.
+- **The 25-active-S-box figure is specific to the AES round structure.** It does
+  not transfer to other block sizes, other diffusion layers, or reduced-round
+  variants without redoing the count.
+- **Active-S-box counting bounds trails only.** Converting it into a statement
+  about differentials or hulls requires an additional argument that the bound
+  itself does not supply.
+- **Invariant attacks depend on round constants and key schedule**, which means
+  a design's resistance to them can be broken by a change that leaves every
+  trail bound intact.
+- **Nonlinear-invariant results are typically weak-key results.** The size of the
+  weak-key class is part of the claim and must be stated.
 
 ## Verified vs reported
 
-Governed by `KN-TECH-059`'s sourcing note. The cube decomposition, the
-`Σ_{cube} P = P_{S(I)}` identity, the `deg ≤ d − k` bound and the
-preprocessing/online split are standard published results, written from
-established knowledge and not re-derived here. `KN-LIT-3344` and `KN-LIT-3345`
-are the corpus's records for the originating papers, carried at **title level**.
-Attributions of technique-to-target — dynamic cubes to Grain-128, conditional
-cubes to Keccak, 855 rounds to Trivium — are read from the **titles** of
-`KN-LIT-2792`, `KN-LIT-3091` and `KN-LIT-2087`, which name them explicitly; **no
-complexity figure from any of those papers is quoted, and none was verified.**
-The comparison to `KN-FIND-008` and to the program's certificate rule is this
-program's own reasoning.
+Governed by `KN-TECH-062`'s sourcing note. The correlation-matrix composition
+identity, the branch-number argument, the 25-active-S-box property of AES over
+four rounds and the resulting `2^{-150}` / `2^{-75}` trail bounds are standard
+textbook results of the public literature, written from established knowledge;
+none was re-derived or recomputed in this program. The
+Daemen–Govaerts–Vandewalle correlation-matrix papers are named in prose, this
+corpus holding no entry for them; no identifier was minted. The invariant-attack
+records cited are **title-level** — that they exist, that they target the named
+primitives, and that round-constant choice is the stated countermeasure are read
+from titles; no complexity or weak-key-class size is quoted from any of them.
+The framing of this entry as a scope-reading case study, and the comparison to
+`KN-TECH-058`, are this program's own reasoning.

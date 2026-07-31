@@ -1,109 +1,114 @@
 ---
 id: KN-TECH-074
 type: technique
-title: Related-key, known-key and rotational cryptanalysis - differential and linear attacks in strengthened access models
-tags: [related-key, known-key, open-key, rotational-cryptanalysis, key-schedule, arx, access-model, differential-cryptanalysis, distinguisher, threat-model, symmetric-cryptanalysis, symmetric, adjacent]
+title: Division property and monomial prediction - deciding when an integral distinguisher survives
+tags: [division-property, integral-attack, bit-based-division-property, three-subset, monomial-prediction, parity-set, todo, superpoly-recovery, milp, algebraic-degree, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
-complexity: "no separate cost law: the differential and linear cost formulas of KN-TECH-059 and KN-TECH-064 apply unchanged. What changes is the oracle - the attacker additionally controls a key relation, or knows the key outright - and therefore what the resulting number means"
-applicability: evaluating key schedules, and evaluating whether a published attack applies to a given deployment; a related-key or known-key result is a design-strength statement first and a deployment threat only when the protocol supplies the relation
-source_refs: [KN-TECH-059, KN-TECH-061, KN-TECH-062, KN-TECH-064, KN-LIT-2254, KN-LIT-2279, KN-LIT-2902, KN-LIT-2643, KN-LIT-385, KN-LIT-1034, KN-LIT-2195, KN-LIT-6206, KN-LIT-4610, KN-LIT-4611, KN-LIT-5486, KN-LIT-7238, KN-LIT-6307, KN-LIT-6308, KN-LIT-6309, KN-LIT-6306, KN-LIT-6310, KN-LIT-1196, KN-LIT-789, KN-LIT-723]
+complexity: "propagation over the round function is tracked as a set of exponent vectors; bit-based tracking is exponential in state size if done naively, which is why the standard implementation is an MILP/SAT model whose feasibility answers the distinguisher question"
+applicability: deciding whether a summation over a chosen input set is guaranteed to vanish after r rounds - i.e. whether an integral distinguisher exists - and, in its monomial-prediction form, recovering cube superpolies too large to evaluate experimentally
+source_refs: [KN-TECH-063, KN-TECH-073, KN-TECH-076, KN-LIT-2713, KN-LIT-2567, KN-LIT-2646, KN-LIT-2564, KN-LIT-2453, KN-LIT-3165, KN-LIT-3343, KN-LIT-4403, KN-LIT-5472, KN-LIT-1995, KN-LIT-4527, KN-LIT-2087]
 added: 2026-07-31
 superseded_by: null
 ---
 
 ## Method
 
-The differential and linear machinery does not change here. The **oracle** does,
-and with it the meaning of every number the machinery produces. Three models,
-strictly stronger than the single-key model of `KN-TECH-059`:
+### The question it answers
 
-### Related-key
+Integral/saturation/square attacks (Daemen–Knudsen–Rijmen; Knudsen–Wagner) take
+a structured input set — typically all values of one word, everything else fixed
+— and observe that some output word sums to zero. Classically these
+distinguishers were found by hand, by tracking a small vocabulary of word
+states (ALL / CONSTANT / BALANCED / UNKNOWN) through the rounds. The vocabulary
+is coarse: it loses information at the S-box, so it reports UNKNOWN where a
+sharper analysis would still prove balance.
 
-The attacker obtains encryptions under keys satisfying a chosen relation —
-typically `K' = K ⊕ Δ_K`. The differential is then taken over *both* the data
-path and the key schedule: a **related-key characteristic** specifies the
-difference in the state and in the round keys at every round, and the key
-schedule's own diffusion becomes part of the trail probability.
+Todo (2015) replaced the vocabulary with an algebraic invariant. For a multiset
+`X ⊆ F_2^n`, ask for which exponent vectors `u` the sum `Σ_{x∈X} x^u` is
+**guaranteed** zero — where `x^u = Π x_i^{u_i}`. The **division property** is the
+bookkeeping of the surviving `u`'s, propagated through the round function by
+rules for COPY, XOR, AND and S-box application (the S-box rule being governed by
+its algebraic degree). If after `r` rounds the vector selecting an output bit is
+guaranteed absent, that bit's sum is zero — an integral distinguisher, proved
+rather than guessed.
 
-This is why key schedules are studied as cryptanalytic objects in their own
-right (`KN-LIT-1196`, `KN-LIT-789`, `KN-LIT-723`) — a linear or slow-diffusing
-key schedule permits key differences that cancel state differences for several
-rounds, and no amount of data-path wide-trail strength repairs it. Search for
-these characteristics is automated exactly as in `KN-TECH-073`
-(`KN-LIT-2643`, `KN-LIT-385`), and the boomerang machinery of `KN-TECH-061`
-combines with the model to give related-key boomerangs and rectangles
-(`KN-LIT-1034`, `KN-LIT-6206`, `KN-LIT-2195`).
+### Refinements, in the order they mattered
 
-The security notion itself needs care: what relations an adversary may request
-must be specified, or the model admits trivially unachievable ones. That
-formalisation is its own literature (`KN-LIT-2254`, `KN-LIT-2279`,
-`KN-LIT-2902`).
+- **Bit-based division property** (`KN-LIT-2713`): track individual bits rather
+  than words. Far sharper, and immediately expensive — the state set is
+  exponential in the state size.
+- **MILP/SAT modelling** (`KN-LIT-2567`, `KN-LIT-2646`): encode the propagation
+  rules as constraints and let a solver decide feasibility. This is what made
+  bit-based tracking practical, and it is why this technique and `KN-TECH-076`
+  are inseparable in practice.
+- **Three-subset division property and monomial prediction.** The plain division
+  property proves a monomial *absent*; it cannot prove one *present*, because
+  cancellation is not tracked. Refining the state to count parity exactly turns
+  the method from a one-sided proof into an exact computation of whether a given
+  monomial appears — which is precisely **superpoly recovery** for cube attacks
+  (`KN-TECH-073`).
+- **Alternative formulations**: parity sets and the set-theoretic view
+  (`KN-LIT-2564`), an algebraic formulation tying it to degree evaluation
+  (`KN-LIT-2453`), convexity structure in the transitions (`KN-LIT-3165`), and
+  a field-based version for primitives over large prime fields (`KN-LIT-5472`,
+  used against the designs of `KN-TECH-075`).
 
-### Known-key and open-key
+### What it delivered
 
-The key is *given* to the attacker, who must then exhibit a structural property
-of the permutation that would cost more to produce for an ideal cipher —
-`KN-LIT-4610`, `KN-LIT-4611`. There is no secret to recover, so "attack" means
-"non-random behaviour demonstrated more cheaply than generically". The model
-exists because block ciphers are used as building blocks for hash functions,
-where the key is public by construction (`KN-LIT-5486`), and its precise
-security statement is still being sharpened (`KN-LIT-7238`, `KN-LIT-6818`).
-
-### Rotational
-
-For ARX designs — addition, rotation, XOR, no S-box — the useful relation is
-often not a difference but a **rotation**: track the pair `(x, x <<< r)` through
-the round function. XOR and rotation commute with rotation exactly; modular
-addition does so with a computable probability, which is what makes the analysis
-work (`KN-LIT-6307`, `KN-LIT-6308`). Round constants are the standard defence,
-since they break rotational invariance. The technique extends to Keccak
-(`KN-LIT-6309`) and combines with the linear side to give
-rotational-differential-linear distinguishers (`KN-LIT-6306`, `KN-LIT-6310`,
-`KN-TECH-062`).
+- Integral distinguishers beyond what hand analysis found, including the full-
+  MISTY1 results (`KN-LIT-1995`, `KN-LIT-4527`).
+- Division-property-based cube attacks (`KN-LIT-3343`, `KN-LIT-4403`), which
+  lifted cube attacks past the `2^k`-evaluation barrier and produced the deepest
+  reported results on Trivium-family ciphers (`KN-LIT-2087`).
 
 ## Program usage
 
-- **This entry exists mainly to keep access models honest.** `KN-TECH-059`
-  states the rule; this is where it bites hardest. A related-key attack on a
-  cipher whose protocol never exposes related keys is a *design* result, not a
-  deployment break — and conversely, a protocol that derives session keys by
-  simple offsets can turn an academic related-key result into a real one. Any
-  citation of an attack in this family that does not state the model has omitted
-  the load-bearing qualifier.
-- **The program's own scoping rule is the same rule.** `AGENTS.md` requires every
-  conclusion scoped to the tested curves, parameters, solver and budget; here the
-  scope parameter is the oracle. The corpus already carries the analogous care on
-  the asymmetric side, where `KN-TECH-034` records that invalid-curve and
-  small-subgroup attacks depend on what the *implementation* accepts rather than
-  on the group's hardness.
-- **Known-key distinguishers are the symmetric field's version of a claim tier.**
-  They are real results that assert far less than a key recovery, and the
-  literature marks the difference explicitly. `docs/claims-and-verification.md`
-  asks the same of this program's evidence records.
+- **This is the entry with the most direct methodological transfer to this
+  program's own work.** Its content is: *replace an ad-hoc propagation
+  vocabulary with an algebraic invariant that is exactly preserved by the
+  operations you care about, then decide the question by constraint solving.*
+  The program's own degree-of-regularity and syzygy analysis (`KN-FIND-006`) is
+  the same species of move — replacing a heuristic rank count with a structural
+  one — and `KN-TECH-056`'s object-first protocol asks for exactly this kind of
+  tracked object.
+- **It is also a case study in one-sidedness.** The plain division property
+  proves absence only; treating "no distinguisher found" as "no distinguisher
+  exists" was the standing error, and the three-subset/monomial-prediction
+  refinement is what closed it. The program's rule that a timeout is never
+  negative mathematical evidence (`AGENTS.md`) is the same principle; here the
+  field paid for learning it, and the fix was a sharper invariant rather than a
+  bigger budget.
+- **Keccak and AES relevance is indirect.** The technique bears on the symmetric
+  components the PQC standards use, at round-reduced scale only, as recorded in
+  `KN-TECH-066` and `KN-TECH-073`.
 
 ## Applicability limits
 
-- **A related-key result does not imply a single-key result**, and the two must
-  never be reported interchangeably.
-- **The relation must be achievable.** A result requiring a key relation the
-  attacker cannot induce is a statement about the primitive's ideal-cipher
-  behaviour only.
-- **Known-key results assert non-randomness, not recovery.** Translating one into
-  a hash-mode attack requires the mode argument to be made explicitly.
-- **Rotational analysis is defeated by round constants** in most modern designs,
-  so results are usually on constant-free variants or reduced rounds — the
-  variant analysed belongs in the citation.
-- **Round-reduced by default**, per `KN-TECH-059`.
+- **Absence is proved; presence is not** — unless the three-subset or
+  monomial-prediction refinement is used. A plain division-property search that
+  finds no distinguisher has proved nothing about the cipher.
+- **Model correctness is the attack surface.** The result is a solver verdict on
+  an encoding; an incorrect propagation constraint yields a confidently wrong
+  answer in either direction. Independent re-encoding is the standard check,
+  and `KN-TECH-076` records the wider hygiene.
+- **Solver cost is unpredictable.** MILP/SAT feasibility on these models has no
+  useful a-priori bound, and reported run times are instance-specific
+  observations, not complexities.
+- **Distinguisher, not break.** An integral distinguisher on `r` rounds is a
+  distinguisher on `r` rounds; converting it to key recovery costs extra rounds
+  and extra data, and that conversion is a separate argument.
 
 ## Verified vs reported
 
-Governed by `KN-TECH-059`'s sourcing note. The related-key characteristic
-construction, the known-key/open-key notion, and the behaviour of rotation under
-XOR, rotation and modular addition are standard published results, written from
-established knowledge and not re-derived here. Biham's original related-key work
-and Knudsen–Rijmen's known-key distinguishers are named in prose or cited only
-through this corpus's title-level records; no identifier was minted for a paper
-this corpus does not hold. All cited `KN-LIT` records are **title-level** per the
-family note; no complexity figure from any of them is quoted. The comparison to
-`KN-TECH-034` and to the program's claim-tier rules is this program's own
-reasoning.
+Governed by `KN-TECH-062`'s sourcing note. The division-property definition, the
+propagation-rule structure, the one-sidedness of the plain form and the role of
+the three-subset/monomial-prediction refinement in superpoly recovery are
+standard published results, written from established knowledge and not
+re-derived or implemented here. Todo's originating papers, the Todo–Morii
+bit-based paper, the Xiang et al. MILP modelling and the Hu–Sun–Wang–Wang
+monomial-prediction line are named in prose or cited only through this corpus's
+**title-level** records; no identifier was minted for any paper this corpus does
+not hold. The attributions of full MISTY1 to `KN-LIT-1995`/`KN-LIT-4527` and of
+855-round Trivium to `KN-LIT-2087` are read from titles; **their complexity
+figures were not read and are not quoted.** The comparison to `KN-FIND-006` and
+to the program's timeout rule is this program's own reasoning.

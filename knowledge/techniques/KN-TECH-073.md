@@ -1,127 +1,116 @@
 ---
 id: KN-TECH-073
 type: technique
-title: Automated trail search (MILP / SAT / SMT / CP) and the reporting gap between an optimal trail and a real advantage
-tags: [automated-search, milp, sat, smt, constraint-programming, trail-search, active-sboxes, model-correctness, clustering-effect, search-hygiene, tooling, symmetric-cryptanalysis, symmetric, adjacent]
+title: Cube attacks and cube testers - superpoly recovery as key-recovery higher-order differential cryptanalysis
+tags: [cube-attack, cube-tester, superpoly, dinur-shamir, higher-order-differential, algebraic-degree, dynamic-cube, conditional-cube, correlation-cube, trivium, grain, keccak, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
-complexity: "no closed-form cost: the output is a solver verdict on an encoding, and run time is instance-specific. A proved-optimal trail bounds only trails, never the differential or hull that an attack exploits"
-applicability: searching for differential/linear trails, active-S-box lower bounds, impossible-differential and zero-correlation distinguishers, division-property propagation, and cube selection; the standard implementation layer beneath most of KN-TECH-059 through KN-TECH-071
-source_refs: [KN-TECH-059, KN-TECH-060, KN-TECH-061, KN-TECH-065, KN-TECH-066, KN-TECH-071, KN-LIT-385, KN-LIT-2644, KN-LIT-2567, KN-LIT-2646, KN-LIT-3896, KN-LIT-1034, KN-LIT-3165, KN-LIT-2927, KN-LIT-4389, KN-LIT-5934, KN-LIT-3730, KN-LIT-2642]
+complexity: "summing the output over a cube of dimension k costs 2^k chosen-IV queries and yields the superpoly, of degree at most d - k for a master polynomial of degree d; a linear superpoly gives one linear equation in the key bits, and enough independent ones give key recovery"
+applicability: primitives with public tweakable input (IV, nonce, message) and a secret key, where the output bit is a polynomial of exploitably bounded degree in the combined variables; standard against stream ciphers with nonlinear update and against keyed sponge modes
+source_refs: [KN-TECH-063, KN-TECH-072, KN-TECH-074, KN-LIT-3344, KN-LIT-3345, KN-LIT-2792, KN-LIT-3091, KN-LIT-4389, KN-LIT-3177, KN-LIT-3178, KN-LIT-3342, KN-LIT-2153, KN-LIT-2087]
 added: 2026-07-31
 superseded_by: null
 ---
 
 ## Method
 
-Since about 2011 the search step of symmetric cryptanalysis has been delegated
-to general-purpose combinatorial solvers. The move is uniform across the family:
-express propagation as constraints, express the objective as a cost, and let a
-solver return an optimum with a proof of optimality *within the model*.
+Dinur–Shamir (2009, `KN-LIT-3344`) reframe higher-order differentials
+(`KN-TECH-063`) as a key-recovery method against black-box polynomials.
 
-**The encodings, and what each is good for.**
+Model an output bit as an unknown polynomial `P(k_1..k_m, v_1..v_n)` over `F_2`
+in secret key bits and public IV bits. Choose a **cube** `I ⊆ {v_1..v_n}` of
+size `k` and write
 
-- **MILP.** Mouha–Wang–Gu–Preneel's word-level active-S-box counting was the
-  opening; Sun et al. (`KN-LIT-385`) moved it to bit level by modelling S-box
-  differential transitions as linear inequalities (derived from the DDT's
-  support, typically via convex-hull computation), which brought related-key
-  characteristic search into scope. MILP is now the default for active-S-box
-  bounds, division-property propagation (`KN-LIT-2567`, `KN-LIT-2646`,
-  `KN-LIT-3165`) and cube selection (`KN-LIT-4389`).
-- **SAT/SMT.** Better where the constraint is bit-logical and the objective is
-  a threshold rather than a linear cost — the natural fit for ARX designs, where
-  modular addition has a clean bit-level differential characterisation
-  (`KN-LIT-2644`, best trails for Speck).
-- **Constraint programming.** Strongest where the structure is combinatorial and
-  the propagation is naturally table-driven: related-key boomerangs
-  (`KN-LIT-1034`), Demirci–Selçuk meet-in-the-middle configurations
-  (`KN-LIT-5934`, `KN-LIT-3730`), key-bridging (`KN-LIT-2642`).
-- **Unified distinguisher search.** One model can emit impossible-differential,
-  zero-correlation and integral distinguishers together (`KN-LIT-3896`), which
-  is the practical payoff of the equivalences catalogued in `KN-TECH-066`.
+  `P = t_I · P_{S(I)} + Q`,
 
-**Two-stage practice.** Real searches usually run in two stages: first minimise
-the number of active S-boxes (a coarse, cheap model), then instantiate the
-surviving patterns with actual differences to obtain a probability. Conflating
-the stages — quoting an active-S-box bound as a probability — is a common
-reporting slip.
+where `t_I` is the product of the cube variables, the **superpoly** `P_{S(I)}`
+contains no cube variable, and every monomial of `Q` misses at least one. Then
 
-## The reporting gap — the reason this entry exists
+  `Σ_{v ∈ cube} P = P_{S(I)}`  — summing over all `2^k` assignments to `I`.
 
-An automated search returns *the best trail in the model*. Four distinct things
-that is not:
+The sum is a higher-order derivative; the content of the cube attack is that the
+derivative is **not** taken far enough to vanish, so what survives is a usable
+function of the key. Degree bookkeeping: if `deg P ≤ d` then `deg P_{S(I)} ≤
+d − k`, so cube dimension is chosen to drive the superpoly down to degree 1.
 
-1. **Not the differential's probability, nor the hull's correlation.** Attacks
-   exploit sums over trails (`KN-TECH-059`, `KN-TECH-065`); clustering can put
-   the real quantity well above the best single trail, as documented for Simon
-   and Simeck (`KN-LIT-2927`), and cancellation can put it below. A search
-   result is a **single term**, and calling it the answer is the same category
-   error `KN-TECH-053` records for solver exponents versus end-to-end exponents.
-2. **Not a security proof.** "No trail better than `2^{-x}` up to `r` rounds"
-   bounds trails under the model's assumptions. It does not exclude attacks that
-   are not trail-shaped — invariant, integral, algebraic, meet-in-the-middle —
-   which is precisely the scope lesson of `KN-TECH-067`.
-3. **Not independent of the encoding's correctness.** The verdict is about the
-   model. A wrong inequality set for an S-box, a missing constraint on the key
-   schedule, or an unsound modular-addition encoding produces a confident,
-   optimal, wrong answer. Independent re-encoding, or verification of found
-   trails against a reference implementation, is the standard check — and a
-   found trail is *checkable in one evaluation*, which makes its absence in a
-   report notable.
-4. **Not a complexity statement.** Solver run time on these models has no useful
-   a-priori bound. A reported wall-clock time is an observation about one
-   instance, one encoding and one solver version.
+**The two phases.**
 
-**And the asymmetry that matters most: a solver timeout proves nothing.**
-"No trail found within the budget" is not "no trail exists" unless the search
-terminated with a proof of optimality. This is the exact rule `AGENTS.md`
-already binds this program to — timeouts are never negative mathematical
-evidence — arriving from the symmetric side.
+- **Preprocessing (offline, chooses cubes).** With the key under the attacker's
+  control, search for cubes whose superpoly is linear (or low-degree), verify
+  with BLR-style linearity tests, and record the superpoly's coefficients.
+- **Online.** Against the real key, sum the output over each recorded cube; each
+  linear superpoly yields one linear equation in the key bits. Enough
+  independent equations give key recovery.
+
+**Cube testers** (`KN-LIT-3345`) drop key recovery and keep the distinguisher:
+test the superpoly for a property a random polynomial would not have — balance,
+degree, presence or absence of specific monomials, constancy. Cheaper, and
+usually reaches more rounds.
+
+**The variant family, each fixing a different limitation.**
+
+- **Dynamic cube attacks** (`KN-LIT-2792`): choose the non-cube public variables
+  *as functions of the cube variables* to nullify state bits, simplifying the
+  polynomial before summation. This is what broke Grain-128 in its reported
+  form.
+- **Conditional cube attacks** (`KN-LIT-3091`): impose conditions that stop
+  chosen cube variables from multiplying together early, keeping the degree low
+  for extra rounds. The standard tool against round-reduced keyed Keccak modes,
+  with cube selection itself delegated to MILP (`KN-LIT-4389`, `KN-TECH-076`).
+- **Correlation cube attacks** (`KN-LIT-3178`, `KN-LIT-3177`): exploit a
+  *probabilistic* relation between the superpoly and key expressions when no
+  exact linear superpoly is available.
+- **Cube-attack-like cryptanalysis** of sponge modes (`KN-LIT-3342`), and
+  side-channel-assisted variants with error tolerance (`KN-LIT-2153`).
+
+**The scaling barrier and its removal.** Cube dimension is limited by the `2^k`
+query cost and, more restrictively, by the need to *know* the superpoly — which
+originally meant computing it experimentally. Division-property methods
+(`KN-TECH-074`) recover superpolies for cubes far too large to evaluate by
+experiment, and that combination produced the deepest published results in this
+line, such as key recovery on 855-round Trivium (`KN-LIT-2087`).
 
 ## Program usage
 
-- **Directly reusable tooling.** This program already solves structured search
-  and feasibility problems (mixed-volume and polyhedral methods in
-  `KN-TECH-007`, sparse linear algebra in `KN-TECH-008`, MQ/Boolean solving in
-  `KN-TECH-053`). The symmetric field's experience with MILP/SAT/CP encodings —
-  particularly the discipline of *proving the encoding correct separately from
-  running it* — transfers to any experiment here that hands a research question
-  to a general-purpose solver.
-- **A model of how to report a solver-backed result.** The mature papers in this
-  line state: the encoding, the solver and version, whether optimality was
-  proved or the search was truncated, and the gap between the trail found and
-  the quantity of interest. That list is a good template for this program's own
-  run records, and maps onto the manifest requirements already in force.
-- **Precedent for the inventor protocol's closure standard.** `KN-TECH-056`
-  demands real closure rather than exhaustion of patience; a proved-optimal MILP
-  bound is a closure, a timed-out search is not, and the difference is exactly
-  what the protocol asks proposals to state in advance.
+- **The tightest available example of "a distinguisher exists" versus "the
+  distinguisher is computable".** A cube sum is a well-defined quantity for any
+  cube; what limits the attack is knowing the resulting superpoly. That is the
+  same distinction the program draws between an object existing and a
+  certificate for it existing (`docs/claims-and-verification.md`), and the same
+  gap `KN-FIND-008` recorded on the lifting side — rare-event density gates are
+  settled exactly by fibering over solutions, once you can enumerate them.
+- **Keyed-Keccak relevance is real and bounded.** Conditional cube attacks are
+  the live line against round-reduced keyed Keccak modes, and Keccak underlies
+  every hash and expansion in FIPS 203/204. **The published results in this
+  corpus are round-reduced**; nothing recorded here affects the standardised
+  parameter sets.
+- **Preprocessing is a cost.** The offline cube search is often the dominant
+  expense and is charged, not discounted, under `KN-TECH-035`.
 
 ## Applicability limits
 
-- **Model size is the binding constraint.** Bit-level models of large states
-  over many rounds routinely exceed practical solver limits, which is why
-  word-level abstractions and two-stage searches persist.
-- **The abstraction chosen decides what can be found.** An activity-pattern
-  model cannot find a distinguisher that depends on difference values; a
-  fixed-key phenomenon is invisible to an averaged-key model.
-- **Optimality is relative to the objective.** Minimising active S-boxes and
-  maximising differential probability are different objectives and can select
-  different trails.
-- **Reproducibility is fragile.** Solver version, seed, symmetry breaking and
-  time limit all affect what is returned; a result reported without them is not
-  independently checkable.
+- **Public tweakable input is required.** No IV/nonce/message freedom, no cube.
+- **Degree must be bounded and known**, or the superpoly is unpredictable; that
+  is exactly what `KN-TECH-074` supplies, and without it cube selection is
+  experimental and shallow.
+- **`2^k` is a hard query cost** in the online phase, and the data limit of the
+  target caps `k` regardless of what preprocessing found.
+- **Preprocessing assumes key-controlled access**, which is a modelling
+  assumption about the attacker, not a property of the primitive.
+- **Superpoly linearity is fragile.** A superpoly linear for one cube is
+  generally not for a neighbouring one, and reported attacks depend on specific
+  cubes found by search, which is why reproducibility of the search matters as
+  much as the attack.
 
 ## Verified vs reported
 
-Governed by `KN-TECH-059`'s sourcing note. The encoding techniques, the
-two-stage search practice and the trail-versus-differential gap are standard
-published knowledge of the public literature, written from established knowledge;
-**no model in this entry was implemented, run, or checked in this program.**
-Mouha–Wang–Gu–Preneel's originating MILP paper is named in prose, this corpus
-holding no entry for it; no identifier was minted. All cited `KN-LIT` records are
-title-level per the family note — the technique-to-target attributions (Speck
-trails to `KN-LIT-2644`, Simon/Simeck clustering to `KN-LIT-2927`, unified
-impossible/zero-correlation/integral search to `KN-LIT-3896`) are read from
-titles, and no complexity, bound, or run time from any of them is quoted. The
-mapping of the timeout asymmetry onto `AGENTS.md`, and of solver-result reporting
-onto this program's run-record requirements, is this program's own reasoning.
+Governed by `KN-TECH-062`'s sourcing note. The cube decomposition, the
+`Σ_{cube} P = P_{S(I)}` identity, the `deg ≤ d − k` bound and the
+preprocessing/online split are standard published results, written from
+established knowledge and not re-derived here. `KN-LIT-3344` and `KN-LIT-3345`
+are the corpus's records for the originating papers, carried at **title level**.
+Attributions of technique-to-target — dynamic cubes to Grain-128, conditional
+cubes to Keccak, 855 rounds to Trivium — are read from the **titles** of
+`KN-LIT-2792`, `KN-LIT-3091` and `KN-LIT-2087`, which name them explicitly; **no
+complexity figure from any of those papers is quoted, and none was verified.**
+The comparison to `KN-FIND-008` and to the program's certificate rule is this
+program's own reasoning.

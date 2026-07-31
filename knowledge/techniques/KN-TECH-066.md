@@ -1,112 +1,117 @@
 ---
 id: KN-TECH-066
 type: technique
-title: Zero-correlation linear cryptanalysis and the impossible / integral / zero-correlation equivalences
-tags: [zero-correlation, bogdanov-rijmen, impossible-differential, integral-attack, links, blondeau-nyberg, multiple-zero-correlation, distinguisher-duality, block-cipher, symmetric-cryptanalysis, symmetric, adjacent]
+title: Differential cryptanalysis of hash functions and permutations - message modification, the rebound attack, and internal differentials
+tags: [hash-function, collision-attack, message-modification, rebound-attack, inbound-outbound, freedom-degrees, internal-differential, keccak, sponge, permutation, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
-complexity: "a single zero-correlation approximation costs close to the full codebook; using r independent zero-correlation approximations reduces data to roughly 2^n / sqrt(r) order, which is what makes the technique usable"
-applicability: ciphers whose mask-transition graph admits a provable contradiction between forward and backward propagation; also the correct entry point for translating a known impossible-differential or integral distinguisher into its dual rather than rediscovering it
-source_refs: [KN-TECH-060, KN-TECH-064, KN-TECH-065, KN-LIT-7539, KN-LIT-4526, KN-LIT-4764, KN-LIT-5125, KN-LIT-4765, KN-LIT-2516, KN-LIT-3896, KN-LIT-5965, KN-TECH-071]
+complexity: "unkeyed setting: the attacker controls the input, so freedom degrees are spent rather than data collected; rebound cost is the outbound probability once the inbound phase is satisfied at amortised cost ~1 per solution, against generic collision bound 2^{n/2} and preimage bound 2^n"
+applicability: compression functions, block-cipher-based hashes, and cryptographic permutations (AES-like and sponge); the correct frame whenever there is no secret key and the attacker chooses the input
+source_refs: [KN-TECH-062, KN-TECH-063, KN-TECH-064, KN-LIT-4287, KN-LIT-1053, KN-LIT-4399, KN-LIT-2529, KN-LIT-2958, KN-LIT-4387, KN-LIT-4909, KN-LIT-6396, KN-LIT-4537, KN-LIT-3425, KN-LIT-6311]
 added: 2026-07-31
 superseded_by: null
 ---
 
 ## Method
 
-### Zero correlation
+Removing the key changes the economics of differential cryptanalysis completely,
+and the change runs in the attacker's favour.
 
-Bogdanov–Rijmen (2011) invert linear cryptanalysis the way impossible
-differentials invert differential cryptanalysis. Instead of an approximation
-with unusually *high* correlation, use one whose correlation is **exactly
-zero** for every key. Such approximations exist because the hull is a signed
-sum (`KN-TECH-065`): systematic cancellation, or the absence of any trail
-connecting the endpoint masks, forces the total to vanish.
+**What changes.** In the keyed setting the attacker *collects* pairs and pays
+`p^{-1}` data for a differential of probability `p` (`KN-TECH-062`). In the
+unkeyed setting the attacker *constructs* them: the input is fully controlled,
+the internal state is computable, and the averaging arguments that justified the
+Markov model are unavailable — there is one function, not a family. The
+resource being spent is **degrees of freedom** in the message or state, and the
+central accounting question is how many remain after the constraints imposed by
+the chosen differential path.
 
-Exploitation mirrors `KN-TECH-060`: a key guess under which the observed
-correlation is measurably non-zero is **wrong** and is discarded. The right key
-is the one that keeps showing nothing.
+**Message modification (Wang et al., 2004–05).** Choose a differential path,
+then use the freedom in the message words to force the early, expensive
+conditions to hold deterministically, leaving only the later conditions to
+probability. This is what took MD5 and SHA-1 collisions from "the path has
+probability `2^{-x}`" to practical, and the same accounting drives the local
+collisions and disturbance vectors used against the SHA family
+(`KN-LIT-2958`, `KN-LIT-4387`, `KN-LIT-4909`).
 
-The original form is data-hungry — verifying "correlation is zero" against
-statistical noise requires close to the full codebook. The technique became
-practical with **multiple zero-correlation** approximations, where `r`
-independent zero-correlation relations are tested jointly and the data
-requirement drops by roughly `sqrt(r)` (`KN-LIT-7539`). The same aggregation
-idea as capacity in `KN-TECH-065`, applied to the null rather than the signal.
+**The rebound attack (Mendel–Rechberger–Schläffer–Thomsen, 2009).** The standard
+tool against AES-like permutations. Split the path into three parts and attack
+the middle first:
 
-### The equivalences
+- **Inbound phase.** Pick the truncated differential (`KN-TECH-063`) so that its
+  most expensive segment sits in the middle, then *solve* it directly using the
+  S-box DDT and the freedom in the state — producing many conforming pairs at
+  amortised cost close to one each, rather than paying that segment's
+  probability.
+- **Outbound phase.** Propagate each solution forward and backward
+  probabilistically; the attack cost is the outbound probability alone.
 
-The important content of this line is not the attack but the **duality
-catalogue**. The literature establishes concrete links between distinguishers
-that were discovered independently:
+Refinements extend the inbound phase (start-from-the-middle, super-S-box, and
+the improvements of `KN-LIT-4287`; the triangulation framing of `KN-LIT-1053`),
+and the technique is standard against AES-based hashing and its relatives
+(`KN-LIT-4399`, `KN-LIT-2529`). Rotational and second-order variants exist
+(`KN-LIT-6311`, `KN-LIT-6396`), and boomerang quartets transfer to the hash
+setting directly (`KN-TECH-064`, `KN-LIT-4167`).
 
-- **Zero-correlation ⇔ integral.** A set of zero-correlation linear
-  approximations spanning a suitable subspace yields an integral distinguisher,
-  and conversely under stated conditions (`KN-LIT-4526`).
-- **Impossible differential ⇔ zero-correlation.** Under structural conditions
-  the two are the same object viewed through the difference and mask lenses
-  respectively (`KN-LIT-4764`, `KN-LIT-2516`).
-- **Truncated differential ⇔ multidimensional linear.** A correspondence between
-  the probability of a truncated differential and the capacity of a
-  multidimensional linear approximation (`KN-LIT-4765`).
-- **General differential/linear links** beyond the zero case (`KN-LIT-5125`).
+**Internal differentials.** For permutations with strong internal symmetry —
+Keccak's round structure is the archetype — the difference is taken between
+*parts of a single state* rather than between two states. This yields
+distinguishers and collisions with no second query, and combines with the
+quartet structure (`KN-LIT-4537`). Direct differential propagation analysis of
+Keccak (`KN-LIT-3425`) is the foundation these build on.
 
-Two practical consequences. First, **automated search can be unified**: one
-search engine can produce impossible-differential, zero-correlation and integral
-distinguishers together, which is exactly what `KN-LIT-3896` does. Second,
-**provable-resistance arguments transfer**: a structural bound against one class
-bounds its duals (`KN-LIT-5965`).
-
-The links are stated under hypotheses — on the cipher's structure, on the mask
-subspaces involved, on independence — and are *not* a blanket assertion that the
-four techniques are interchangeable.
+**The bounds being beaten.** Generic collision cost is `2^{n/2}`, preimage cost
+`2^n`. A hash result must be stated against those, at the round count reached,
+and distinguishing the permutation is much weaker than breaking the hash built
+on it — a distinction that matters because sponge constructions expose the
+permutation directly.
 
 ## Program usage
 
-- **The catalogue is the transferable asset, not the attack.** The program's
-  inventor protocol (`KN-TECH-056`) requires a novelty check before belief; this
-  family is the field's own worked example of *four independently invented
-  techniques turning out to be one object*. Anyone proposing a "new"
-  distinguisher shape should be able to say which of these it reduces to, or why
-  it does not. That question has closed candidate families in this program
-  before (`KN-FIND-002` closed jet and endomorphism oracles by exhibiting a
-  simulation), and the shape of the argument is the same: *find the map, don't
-  count the successes.*
-- **Zero-correlation is a second worked example of a proved negative being
-  exploitable**, alongside impossible differentials. The program's own
-  scoped-negative findings (`KN-FIND-006`, `KN-FIND-009`) are recorded as
-  boundaries; this family shows a negative used as an instrument.
-- **The `sqrt(r)` aggregation** is the null-hypothesis analogue of capacity, and
-  is worth having in hand whenever a single control measurement is too noisy to
-  be decisive on its own.
+- **This is the branch that touches the PQC schemes the program tracks.** FIPS
+  203 and FIPS 204 build every hash, expansion and sampling operation on Keccak.
+  Differential and internal-differential analysis of round-reduced Keccak
+  (`KN-LIT-3425`, `KN-LIT-4537`) plus the cube line of `KN-TECH-073` are the
+  live analysis surface there. **The published results are round-reduced and no
+  entry in this corpus reports a break of full Keccak**; the standardised
+  primitives are not affected by anything recorded here.
+- **Freedom-degree accounting is the transferable idea.** The rebound attack's
+  real content is: *identify the expensive constraint, and pay for it with
+  structure instead of with samples.* That is the same move as choosing a
+  factor base to make relations cheap (`KN-TECH-003`), and the same trap —
+  `KN-FIND-007` established that factor-base geometry redistributes yield rather
+  than creating it. The corresponding question for a rebound-style claim is
+  whether the inbound phase genuinely amortises or has merely moved the cost
+  somewhere unmeasured.
+- **The keyless setting removes an excuse.** With no key averaging available,
+  claims here are directly checkable by computation, and published rebound
+  results are routinely verified on reduced versions. That is the standard this
+  program's own empirical claims are held to (`docs/claims-and-verification.md`).
 
 ## Applicability limits
 
-- **Data cost is the binding constraint.** Even in multiple form, zero-
-  correlation attacks tend to sit near the codebook limit, which frequently
-  makes them structurally interesting but operationally out of reach.
-- **"Exactly zero" is a claim about *all* keys** and must be proved
-  structurally. A correlation measured as zero on samples is not a
-  zero-correlation approximation; it is an unmeasured small correlation.
-- **The equivalences are conditional.** Each link comes with hypotheses about
-  the construction and the masks. Citing "impossible differentials and
-  zero-correlation are equivalent" without those hypotheses overstates every
-  source in this entry.
-- **Independence of the `r` approximations is assumed** in the data reduction,
-  and is not automatic.
+- **A permutation distinguisher is not a hash break, and neither is a
+  compression-function attack in general.** The mode of operation determines
+  what transfers; sponge and Merkle–Damgård differ, and semi-free-start
+  collisions are weaker than collisions.
+- **Freedom degrees are finite.** Message modification and inbound solving both
+  run out; an attack that consumes more freedom than the state provides does not
+  exist, and the count belongs in the claim.
+- **Inbound solving is structure-specific.** The AES-like S-box-plus-MDS shape is
+  what makes the middle solvable; designs without it do not admit the same
+  amortisation.
+- **Round-reduced by default.** Every result cited here is on a reduced version
+  unless it explicitly says otherwise.
 
 ## Verified vs reported
 
-Governed by `KN-TECH-059`'s sourcing note. The zero-correlation principle, the
-wrong-key elimination logic and the existence of the four links are standard
-published results, written from established knowledge and not re-derived here.
-Bogdanov–Rijmen's original papers and the Blondeau–Nyberg links line are named
-in prose where this corpus holds no entry; no identifier was minted. The `sqrt(r)`
-data reduction is stated at the level of scaling shape from `KN-LIT-7539`'s
-**title-level** record — the paper's precise data figures were not read and are
-not quoted. The link statements are attributed to the titles of `KN-LIT-4526`,
-`KN-LIT-4764` and `KN-LIT-4765`, which name the links explicitly; **the
-hypotheses under which each link holds were not extracted from those records**,
-which is why this entry insists they are conditional without stating the
-conditions. That gap is a known limitation of this entry and a candidate for a
-future reading pass. The comparison to `KN-FIND-002` and the inventor protocol
-is this program's own reasoning.
+Governed by `KN-TECH-062`'s sourcing note. The inbound/outbound decomposition,
+the freedom-degree accounting, the message-modification principle and the
+generic `2^{n/2}` / `2^n` bounds are standard published results, written from
+established knowledge and not re-derived here. Wang et al.'s MD5/SHA-1 work and
+the original Mendel–Rechberger–Schläffer–Thomsen rebound paper are named in
+prose; this corpus holds no `KN-LIT` entry for either and no identifier was
+minted. All cited `KN-LIT` records are title-level per the family note, and no
+complexity figure from any of them is quoted here. The statement that no entry
+in this corpus reports a break of full Keccak is an observation about **this
+corpus's contents** as read on 2026-07-31, not a claim about the literature at
+large. The comparison to `KN-FIND-007` is this program's own reasoning.

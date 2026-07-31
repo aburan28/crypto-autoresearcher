@@ -1,121 +1,108 @@
 ---
 id: KN-TECH-072
 type: technique
-title: Interpolation and Groebner-basis attacks on low-degree and arithmetization-oriented ciphers
-tags: [interpolation-attack, groebner-attack, arithmetization-oriented, mimc, poseidon, anemoi, griffin, marvellous, low-multiplicative-complexity, solving-degree, prime-field, zero-knowledge, symmetric-cryptanalysis, symmetric, adjacent]
+title: Algebraic and fast algebraic attacks on LFSR-based stream ciphers - annihilators, algebraic immunity, and the precomputation trade
+tags: [algebraic-attack, stream-cipher, lfsr, annihilator, algebraic-immunity, fast-algebraic-attack, berlekamp-massey, boolean-function, correlation-attack, filter-generator, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
-complexity: "interpolation: about d+1 known plaintext-ciphertext pairs and Lagrange reconstruction for a cipher of polynomial degree d over the native field; Groebner route: cost is the solving degree of the round-by-round system, which is the quantity these attacks and these designs argue over"
-applicability: ciphers designed for low multiplicative complexity over a large field - ZK/MPC/FHE-oriented primitives - where the security argument is algebraic rather than trail-based; not applicable to bit-oriented wide-trail SPNs
-source_refs: [KN-TECH-004, KN-TECH-011, KN-TECH-053, KN-TECH-060, KN-TECH-068, KN-LIT-4921, KN-LIT-2451, KN-LIT-2396, KN-LIT-5695, KN-LIT-4246, KN-LIT-5110, KN-LIT-5472, KN-LIT-5676, KN-LIT-7202]
+complexity: "classical: linearisation over D = sum_{i<=d} binom(n,i) monomials, time ~ D^omega with d the annihilator degree and n the LFSR state length; fast algebraic: relations of the form f*g = h with deg g = e << d reduce the online system to degree e, at the cost of a precomputation that eliminates the degree-d part"
+applicability: keystream generators whose state update is linear (LFSR/filter/combiner constructions) and whose nonlinearity is confined to a Boolean output function; not applicable to designs with nonlinear state update unless the update linearises
+source_refs: [KN-TECH-053, KN-TECH-071, KN-LIT-2389, KN-LIT-3781, KN-LIT-6276, KN-LIT-2390, KN-LIT-4452, KN-LIT-3062, KN-LIT-3544, KN-LIT-2401, KN-LIT-5745, KN-LIT-7431, KN-LIT-5484, KN-LIT-3792]
 added: 2026-07-31
 superseded_by: null
 ---
 
 ## Method
 
-### The design class, and why it changes the analysis
+The setting is the classical keystream generator: an `n`-bit **linear** state
+update (one or more LFSRs) with a **nonlinear** Boolean output function `f`.
+Because the update is linear, the state at time `t` is a known linear function
+`L^t(s)` of the initial state `s`, so each keystream bit gives one equation
 
-Primitives built for zero-knowledge proofs, MPC and FHE are costed in **field
-multiplications**, not in gates. That pushes designers toward round functions
-that are algebraically simple over a large field `F_p` or `F_{2^n}` — a single
-power map `x → x^3` or `x → x^{1/α}`, few rounds, minimal linear layers. MiMC
-(`KN-LIT-4921`), the MARVELlous family (`KN-LIT-2396`), Griffin
-(`KN-LIT-4246`) and Anemoi (`KN-LIT-5110`) are representative.
+  `f(L^t(s)) = z_t`
 
-The consequence for cryptanalysis is structural: **the wide-trail argument of
-`KN-TECH-067` is unavailable and largely irrelevant.** There are too few S-boxes
-for active-S-box counting to say anything, and statistical trails are not the
-threat. The security argument is about **algebraic degree and solving degree**,
-so the attacks are the algebraic ones.
+of degree `deg f` in the `n` unknowns. Collecting enough of them and solving is
+the whole attack. Direct linearisation costs `D^ω` with
+`D = Σ_{i≤deg f} C(n,i)` monomials, which for a well-chosen `f` is too large.
 
-### Interpolation attacks (Jakobsen–Knudsen, 1997)
+**The Courtois–Meier insight** (`KN-LIT-2389`): you do not have to use `f`. If
+there is a low-degree `g ≠ 0` with `f · g = 0` — an **annihilator** of `f` — then
+multiplying the equation by `g` gives, whenever `z_t = 1`, an equation of degree
+`deg g` only. Symmetrically, an annihilator of `f ⊕ 1` handles the `z_t = 0`
+positions. The attack's degree is therefore not `deg f` but
 
-If the cipher, as a function of the plaintext over its native field, is a
-polynomial of degree `d` with `d` small enough, an attacker reconstructs it by
-Lagrange interpolation from about `d+1` known pairs — obtaining a functionally
-equivalent decryption box with **no key recovery at all**. Variants push the
-interpolation through part of the cipher and solve for the remaining key
-material; optimised versions apply to designs like LowMC (`KN-LIT-5676`).
+  **`AI(f)` = the minimum degree of a nonzero annihilator of `f` or of `f ⊕ 1`**,
 
-The design response is to force degree growth; the attack's reach is then set by
-how fast degree actually grows, which for a power map over `F_p` is far slower
-than intuition from bit-oriented ciphers suggests.
+the **algebraic immunity**. Complexity becomes `D^ω` with
+`D = Σ_{i≤AI(f)} C(n,i)`. Two facts fix the design landscape: `AI(f) ≤ ⌈n/2⌉`
+always, so the parameter is bounded; and high nonlinearity does **not** imply
+high algebraic immunity, so a function chosen only against correlation attacks
+can be algebraically weak. Computing `AI` efficiently is itself a studied
+problem (`KN-LIT-3062`, `KN-LIT-3544`, and for S-boxes `KN-LIT-2401`), as is
+constructing functions that maximise it (`KN-LIT-5745`, `KN-LIT-7431`) — and
+maximising it trades against other criteria (`KN-LIT-5484`).
 
-### The Gröbner route
+**Fast algebraic attacks** (Courtois, `KN-LIT-3781`) go further. Look for a
+relation `f · g = h` with `deg g = e` **small** and `deg h = d` possibly large.
+The high-degree part `h` is then eliminated by a **precomputation**: because the
+`h`-contributions satisfy a linear recurrence in `t`, a Berlekamp–Massey-style
+step finds a combination of consecutive keystream equations in which they
+cancel, leaving a system of degree `e` in the state bits. The cost moves from
+online solving into offline precomputation, and the online system becomes much
+smaller. The precomputation's own complexity is the subject of continuing
+analysis (`KN-LIT-6276`, `KN-LIT-4452`), and the same idea extends to
+summation-generator constructions (`KN-LIT-2390`).
 
-The general form: introduce a variable per round state, write one low-degree
-equation per round, and solve the resulting system with a Gröbner basis
-computation (`KN-TECH-004`, `KN-TECH-011`) or an MQ-style solver
-(`KN-TECH-053`). The attack cost is the **solving degree** of that system — the
-same quantity, with the same estimation difficulties, that this program tracks
-for summation-polynomial systems.
-
-Results in this style include the algebraic attacks on STARK-friendly designs
-(`KN-LIT-2396`), the low-degree round-function attack reaching full MiMC
-(`KN-LIT-2451`), and the collection of techniques aimed specifically at
-integrity-oriented primitives in `KN-LIT-5695`. Higher-order differentials
-(`KN-TECH-060`) transfer to this setting with `F_p`-subspaces in place of
-`F_2`-subspaces, and the division property has a field-based analogue built for
-it (`KN-LIT-5472`).
-
-**The recurring pattern in this literature:** a design's security margin is
-argued from an *estimated* solving degree or an *assumed* degree-growth rate; a
-subsequent paper computes the actual system's behaviour and the margin moves —
-sometimes far. The unifying-view surveys (`KN-LIT-7202`) exist because this
-class keeps producing that pattern.
+**Position among stream-cipher attacks.** Algebraic attacks are one of two
+families that exploit a linear state update; the other is **correlation and fast
+correlation attacks**, which treat the keystream as a noisy LFSR codeword and
+decode (`KN-LIT-3792`). The two make different demands — algebraic attacks want
+low `AI`, correlation attacks want a biased approximation — and a design must
+resist both.
 
 ## Program usage
 
-- **This is the closest external analogue to the program's own main-line
-  technical problem.** Point-decomposition index calculus reduces the ECDLP to
-  solving structured polynomial systems whose solving degree decides the
-  exponent (`KN-TECH-003`, `KN-TECH-004`); arithmetization-oriented
-  cryptanalysis reduces a cipher to structured polynomial systems whose solving
-  degree decides the attack. **The same solvers, the same estimation problem,
-  the same failure mode** — an assumed degree of regularity that the structured
-  system does not obey. The program's own `KN-FIND-006` (the Macaulay rank
-  deficit is bounded structural syzygy content) is a result of exactly the type
-  this literature needs and often lacks.
-- **It is therefore a source of transferable technique, not just of
-  literature.** Methods developed to bound solving degree for round-based
-  systems are candidates for adaptation to summation-polynomial systems, and the
-  reverse. Any such adaptation is a proposal to be tested under
-  `/design-experiment`, not an established transfer — the systems differ in
-  structure and field, and nothing here licenses assuming the behaviour carries.
-- **The margin-moves pattern is a warning about the program's own extrapolated
-  exponents.** `KN-TECH-052` governs fitting exponents from bounded runs; this
-  design class is the field's ongoing demonstration of what happens when such a
-  fit is treated as a security argument.
+- **The clearest instance in this corpus of a hard problem made easy by a
+  representation change, with a *provable* handle on when.** The attack does not
+  solve the system it is given; it finds a different, lower-degree system with
+  the same solutions. The program's inventor protocol (`KN-TECH-056`) is built
+  around exactly this move — object-first search with a lossy-projection test —
+  and algebraic immunity is a rare case where the field has a **computable
+  invariant** saying how far the move can go. When a proposal in this program
+  claims a representation change buys degree, `AI` is the precedent for asking
+  what invariant bounds the gain.
+- **Solver continuity.** The linearised systems here are exactly the MQ/Boolean
+  systems of `KN-TECH-053`, and the `D^ω` cost has the same shape as the
+  linear-algebra step in index calculus (`KN-TECH-008`). The `ω` in that formula
+  is a cost-model choice, and quoting `ω = 2` where the implementation is
+  Gaussian is the same defect `KN-TECH-035` catalogues.
+- **Precomputation must be charged.** Fast algebraic attacks move work offline;
+  under this program's full-cost rules an offline phase is still a cost and is
+  reported beside the online figure, never instead of it.
 
 ## Applicability limits
 
-- **Design-class specific.** Nothing here applies to AES, Keccak or any
-  bit-oriented wide-trail design; conversely, trail-counting says nothing useful
-  about these primitives.
-- **Solving degree is not the same as degree of regularity**, and structured
-  systems routinely violate the semi-regularity assumptions under which the
-  latter is computed. Estimates in this area carry that caveat by default.
-- **Field matters.** `F_p` and `F_{2^n}` behave differently for degree growth,
-  for interpolation cost and for division-property analogues; a result over one
-  does not transfer to the other.
-- **Claimed complexities in this class have historically moved.** Treat any
-  single reported solving-degree estimate as provisional unless it is backed by
-  a computation on the actual system at the actual parameters.
+- **Linear state update is the load-bearing hypothesis.** Modern designs
+  (Trivium, Grain) use nonlinear update precisely to break it; against those the
+  relevant tools are cube and division-property methods (`KN-TECH-073`,
+  `KN-TECH-074`), not this entry.
+- **`AI(f)` bounds the degree, not the attack's feasibility.** `D` grows
+  combinatorially in `n`, so a moderate `AI` with a large state is out of reach;
+  the numbers must be computed for the actual parameters.
+- **Keystream requirement.** Enough keystream must be available under one key to
+  build the system — a data constraint that frame-based protocols often violate.
+- **`ω` is an assumption.** The `D^ω` figure inherits whichever
+  matrix-multiplication or sparse-linear-algebra model is assumed
+  (`KN-TECH-008`).
 
 ## Verified vs reported
 
-Governed by `KN-TECH-059`'s sourcing note. The interpolation-attack principle,
-the `d+1` reconstruction cost, the round-system Gröbner formulation and the
-reason wide-trail arguments do not apply to this design class are standard
-published knowledge, written from established knowledge and not re-derived here.
-Jakobsen–Knudsen's interpolation paper is named in prose; this corpus holds no
-entry for it and no identifier was minted. All cited `KN-LIT` records are
-**title-level**: that `KN-LIT-2451` reaches full MiMC is read from its title,
-and **no complexity figure from it or from any other record here is quoted or
-verified.** The statement that margins in this class have historically moved is
-this program's characterisation of the literature, corroborated in this corpus
-only by the presence of successive attack papers against the named designs — it
-is not a claim any single cited source makes. The parallel to the program's own
-index-calculus solving-degree problem, and the suggestion that techniques may
-transfer, are this program's own reasoning and are **untested hypotheses**, not
-results.
+Governed by `KN-TECH-062`'s sourcing note. The annihilator construction, the
+definition and `⌈n/2⌉` bound of algebraic immunity, the `D^ω` linearisation cost
+and the structure of the fast-algebraic precomputation are standard published
+results, written from established knowledge and not re-derived or measured in
+this program. `KN-LIT-2389` and `KN-LIT-3781` are the corpus's records for the
+two originating papers, both carried at **title level**; no complexity figure
+from either is quoted here. All other cited records are title-level per the
+family note. The reading of algebraic immunity as a computable invariant
+bounding a representation change, and the comparison to `KN-TECH-056` and
+`KN-TECH-008`, are this program's own reasoning.

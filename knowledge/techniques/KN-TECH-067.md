@@ -1,123 +1,112 @@
 ---
 id: KN-TECH-067
 type: technique
-title: Correlation matrices, the wide-trail strategy, and the invariant attacks that trail bounds do not cover
-tags: [correlation-matrix, walsh-transform, wide-trail, branch-number, active-sboxes, provable-resistance, invariant-subspace, nonlinear-invariant, round-constants, weak-keys, aes, symmetric-cryptanalysis, symmetric, adjacent]
+title: Linear cryptanalysis - linear approximation tables, correlation and the piling-up lemma, Matsui's Algorithms 1 and 2
+tags: [linear-cryptanalysis, matsui, linear-approximation-table, walsh-transform, correlation, bias, piling-up-lemma, known-plaintext, wrong-key-randomisation, block-cipher, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
-complexity: "AES wide-trail bound: any 4 consecutive rounds activate at least 25 S-boxes, giving maximum differential trail probability <= 2^{-150} and maximum linear trail correlation <= 2^{-75}, from per-S-box bounds 2^{-6} and 2^{-3}"
-applicability: SPN design and evaluation; the standard way a design argues resistance to KN-TECH-059 and KN-TECH-064, and the standard way that argument is misread as covering more than it does
-source_refs: [KN-TECH-059, KN-TECH-064, KN-TECH-065, KN-LIT-2369, KN-LIT-7562, KN-LIT-2744, KN-LIT-2021, KN-LIT-2066, KN-LIT-5241, KN-LIT-5983, KN-LIT-724, KN-LIT-5956]
+complexity: "distinguisher data N ~ c^{-2} known plaintexts for correlation c = 2*eps (constant set by the target success probability); Algorithm 2 key recovery adds a factor 2^k for k guessed subkey bits in the partial-decryption step"
+applicability: iterated block ciphers under known-plaintext access (the weakest useful access model in the family); the root method of the linear family and the reference for KN-TECH-068 through KN-TECH-070
+source_refs: [KN-TECH-062, KN-LIT-2072, KN-LIT-4248, KN-LIT-2369, KN-LIT-3245, KN-LIT-7562, KN-TECH-068]
 added: 2026-07-31
 superseded_by: null
 ---
 
 ## Method
 
-### Correlation matrices
+Matsui (1993) looks for a parity relation that holds slightly more often than
+half the time:
 
-Daemen–Govaerts–Vandewalle give linear cryptanalysis its algebra. For a map
-`F: F_2^n → F_2^n`, define the **correlation matrix** `C^F` with entries
+  `⟨α, P⟩ ⊕ ⟨β, C⟩ = ⟨γ, K⟩`  with probability `1/2 + ε`.
 
-  `C^F_{u,v} = correlation of ⟨u, F(x)⟩ ⊕ ⟨v, x⟩`.
+Two equivalent measures are in use and both appear in the literature: the
+**bias** `ε = p − 1/2`, and the **correlation** `c = 2ε ∈ [−1, 1]`. Correlation
+is the better working unit because it composes multiplicatively and because it
+is exactly a Walsh–Hadamard coefficient.
 
-Then `C^{G ∘ F} = C^G C^F`. Composition of rounds is **matrix multiplication**,
-a linear trail is a single term in the expanded product, and the linear hull of
-`KN-TECH-065` is an entry of the product matrix. Everything in the linear family
-follows from this identity, including why hull correlations are signed sums and
-why cancellation is possible.
+**The objects.**
 
-### The wide-trail strategy
+- **LAT.** For an S-box `S`, the linear approximation table records, for each
+  input mask `a` and output mask `b`, the correlation of `⟨b, S(x)⟩ ⊕ ⟨a, x⟩`.
+  Up to normalisation the LAT *is* the Walsh–Hadamard transform of the S-box,
+  and `max_{a, b≠0} |c|` is its **linearity**, the local quantity every linear
+  trail bound is built from — the exact counterpart of differential uniformity
+  in `KN-TECH-062`.
+- **Linear trail.** A mask specified after every round. Under an independence
+  assumption its correlation is the product of the per-round correlations
+  (**piling-up lemma**: for independent binary variables the biases satisfy
+  `ε = 2^{k-1} Π ε_i`, equivalently `c = Π c_i`).
+- **Linear approximation (hull).** Only the endpoint masks `(α, β)` are fixed.
+  Its correlation is the **signed sum** over all trails joining them — see
+  `KN-TECH-068`, which is where the trail/approximation distinction is worked
+  out. This entry uses single-trail estimates only as estimates.
 
-Daemen–Rijmen's design answer (`KN-LIT-2369`) works on the *number of active
-S-boxes* rather than on individual probabilities:
+**Key recovery.**
 
-- The S-box bounds the local quantities: for AES, maximum differential
-  probability `2^{-6}` and maximum absolute correlation `2^{-3}`.
-- The linear layer's **branch number** forces activity to spread. AES's
-  MixColumns has branch number 5, and combined with ShiftRows this guarantees
-  that **any four consecutive rounds activate at least 25 S-boxes**.
-- Multiplying: a 4-round differential trail has probability at most
-  `(2^{-6})^{25} = 2^{-150}`, and a 4-round linear trail correlation at most
-  `(2^{-3})^{25} = 2^{-75}`.
+- **Algorithm 1.** Count how often `⟨α, P⟩ ⊕ ⟨β, C⟩ = 0` over `N` known
+  plaintexts. The majority outcome yields the single key-parity bit `⟨γ, K⟩`.
+  Data `N ≈ c^{-2}`, with the constant set by the desired success probability.
+- **Algorithm 2.** Use an approximation over all but the outer round(s), guess
+  the `k` subkey bits feeding the active S-boxes there, partially decrypt, and
+  compute the counter for each candidate. The right guess shows correlation
+  `c`; the wrong ones are modelled as showing none. This recovers `k+1` bits at
+  roughly `2^k` times the work and is where essentially all practical linear
+  attacks live.
 
-This is what "provable security against differential and linear cryptanalysis"
-means in practice (`KN-LIT-7562`), and it is why modern SPN design is largely
-the design of a diffusion layer with a good branch number.
+**The statistical model is the delicate part.** Ranking key candidates by
+counter value requires the **wrong-key randomisation hypothesis** — that wrong
+guesses behave like a random permutation — and the relationship between data,
+advantage and success probability follows from a normal approximation to the
+counter distribution. Both are approximations, both have documented failure
+cases, and the general theory of what statistic is *optimal* (log-likelihood
+ratio, `χ²`, and their data requirements) is the subject of `KN-LIT-4248`. A
+geometric reformulation of the whole framework is given in `KN-LIT-2072`.
 
-### What the bound does not cover — and this is the load-bearing part
-
-A wide-trail bound is a statement about **trails**, under the **averaged-key**
-model. It does not bound:
-
-1. **Hulls and differentials.** The bound applies to individual trails, while
-   attacks exploit the sum over them (`KN-TECH-065`). For AES the gap is
-   believed benign; in general it is not automatic.
-2. **Fixed-key behaviour.** The averaging assumptions of `KN-TECH-059` are
-   inherited wholesale.
-3. **Attacks that are not trail-shaped at all.** This is the important one.
-   - **Invariant subspace attacks** (`KN-LIT-2021`, `KN-LIT-2066`): an affine
-     subspace preserved by the round function for some keys. Round constants
-     and key schedule decide whether it exists; the S-box and branch number are
-     irrelevant to it.
-   - **Nonlinear invariant attacks** (`KN-LIT-5241`): a nonlinear Boolean
-     function preserved (up to a constant) by the round function, giving
-     practical distinguishers on full ciphers for weak-key classes.
-   - The unifying view is spectral: such invariants are **eigenvectors of the
-     correlation matrix** (`KN-LIT-2744`), which is why the same algebra that
-     produces the wide-trail bound also explains the attacks the bound misses.
-   - Resistance is argued separately, principally through round-constant
-     selection (`KN-LIT-5983`), and weak-key structure is analysed in its own
-     right even for AES (`KN-LIT-724`).
-4. **Whole other attack classes** — integral, algebraic, meet-in-the-middle —
-   which is why decorrelation-style arguments that bound *classes* of attacks
-   exist as a separate line (`KN-LIT-5956`).
+**Historical calibration.** Matsui's attack on full 16-round DES needs about
+`2^{43}` known plaintexts — the first attack on full DES faster than exhaustive
+search that was actually carried out. It remains the standard illustration that
+a correlation of about `2^{-21}` is exploitable when the block cipher's data
+limit allows it.
 
 ## Program usage
 
-- **The cleanest available example of a proof whose scope is narrower than its
-  slogan.** "Provably secure against differential and linear cryptanalysis"
-  means *trail probabilities are bounded under an averaged-key model*, and full
-  ciphers satisfying such bounds have been broken by attacks outside the model.
-  This is precisely the failure the program guards against in its own
-  deliverables: `AGENTS.md` requires every conclusion scoped to what was tested,
-  and `KN-TECH-058` is the corpus's existing case study in a figure that was
-  correct as a statement about one algorithm and wrong as a statement about a
-  problem. This entry is the symmetric-side case study, and the more instructive
-  one, because here the *proof* was correct and the *scope reading* was not.
-- **The correlation-matrix formalism is the mature version of a spectral idea
-  the corpus already gestures at** (`KN-TECH-017`, transfer operators). If a
-  proposal in this program reaches for spectral or operator-theoretic structure,
-  the composition-is-matrix-multiplication identity and its eigenvector reading
-  are the precedent to check against.
-- **Branch number is a design parameter, not an attack.** Nothing here transfers
-  to the ECDLP line; it is recorded for evaluation and novelty-checking of
-  symmetric proposals.
+- **Known-plaintext is the weakest access model in the family.** A linear result
+  therefore has stronger deployment relevance than a chosen-plaintext or
+  adaptive result of comparable complexity, and the access model belongs in any
+  comparison (`KN-TECH-035`'s discipline applied to access rather than memory).
+- **Correlation is a Walsh coefficient, which is why the linear side has the
+  cleaner algebra.** Composition is matrix multiplication (`KN-TECH-070`), and
+  that structure is what makes the equivalences of `KN-TECH-069` provable rather
+  than analogical. When this program reaches for a spectral or transfer-operator
+  framing — `KN-TECH-017` records Koopman/transfer-operator methods in the
+  corpus already — the correlation-matrix formalism is the mature symmetric-side
+  instance of the same idea, and worth reading before inventing a new one.
+- **Masking and side-channel security reuse the same machinery** (`KN-LIT-3245`),
+  which is a reminder that "linear cryptanalysis" tooling is applied well beyond
+  key recovery on block ciphers.
 
 ## Applicability limits
 
-- **The 25-active-S-box figure is specific to the AES round structure.** It does
-  not transfer to other block sizes, other diffusion layers, or reduced-round
-  variants without redoing the count.
-- **Active-S-box counting bounds trails only.** Converting it into a statement
-  about differentials or hulls requires an additional argument that the bound
-  itself does not supply.
-- **Invariant attacks depend on round constants and key schedule**, which means
-  a design's resistance to them can be broken by a change that leaves every
-  trail bound intact.
-- **Nonlinear-invariant results are typically weak-key results.** The size of the
-  weak-key class is part of the claim and must be stated.
+- **`N ~ c^{-2}` is a hard wall.** A correlation below `2^{-n/2}` requires more
+  data than the block cipher can produce under one key; the attack then does not
+  exist, whatever the time complexity says.
+- **The piling-up lemma assumes independence between rounds**, which is false in
+  general; the resulting estimate can be wrong in either direction and is
+  routinely checked experimentally on reduced versions.
+- **Single-trail correlation understates the true correlation** whenever the hull
+  contains many trails, and can also overstate it when trails cancel — the sum
+  is signed. See `KN-TECH-068` before quoting any single-trail figure.
+- **The wrong-key randomisation hypothesis is an assumption**, and success-
+  probability claims inherit its accuracy.
+- **Round-reduced by default**, per `KN-TECH-062`.
 
 ## Verified vs reported
 
-Governed by `KN-TECH-059`'s sourcing note. The correlation-matrix composition
-identity, the branch-number argument, the 25-active-S-box property of AES over
-four rounds and the resulting `2^{-150}` / `2^{-75}` trail bounds are standard
-textbook results of the public literature, written from established knowledge;
-none was re-derived or recomputed in this program. The
-Daemen–Govaerts–Vandewalle correlation-matrix papers are named in prose, this
-corpus holding no entry for them; no identifier was minted. The invariant-attack
-records cited are **title-level** — that they exist, that they target the named
-primitives, and that round-constant choice is the stated countermeasure are read
-from titles; no complexity or weak-key-class size is quoted from any of them.
-The framing of this entry as a scope-reading case study, and the comparison to
-`KN-TECH-058`, are this program's own reasoning.
+Governed by `KN-TECH-062`'s sourcing note. The LAT/Walsh correspondence, the
+piling-up lemma, Algorithms 1 and 2, the `N ~ c^{-2}` data law and the `2^{43}`
+DES figure are standard textbook results of the public literature, written from
+established knowledge; none was re-derived or measured in this program. Matsui's
+original papers and Nyberg's linear-hull paper are named in prose — this corpus
+holds no `KN-LIT` entry for either and no identifier was minted. The cited
+`KN-LIT` records are title-level per the family note; no complexity figure is
+taken from any of them. The comparison to `KN-TECH-017` is this program's own
+reasoning.

@@ -1,108 +1,112 @@
 ---
 id: KN-TECH-069
 type: technique
-title: Algebraic and fast algebraic attacks on LFSR-based stream ciphers - annihilators, algebraic immunity, and the precomputation trade
-tags: [algebraic-attack, stream-cipher, lfsr, annihilator, algebraic-immunity, fast-algebraic-attack, berlekamp-massey, boolean-function, correlation-attack, filter-generator, symmetric-cryptanalysis, symmetric, adjacent]
+title: Zero-correlation linear cryptanalysis and the impossible / integral / zero-correlation equivalences
+tags: [zero-correlation, bogdanov-rijmen, impossible-differential, integral-attack, links, blondeau-nyberg, multiple-zero-correlation, distinguisher-duality, block-cipher, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
-complexity: "classical: linearisation over D = sum_{i<=d} binom(n,i) monomials, time ~ D^omega with d the annihilator degree and n the LFSR state length; fast algebraic: relations of the form f*g = h with deg g = e << d reduce the online system to degree e, at the cost of a precomputation that eliminates the degree-d part"
-applicability: keystream generators whose state update is linear (LFSR/filter/combiner constructions) and whose nonlinearity is confined to a Boolean output function; not applicable to designs with nonlinear state update unless the update linearises
-source_refs: [KN-TECH-053, KN-TECH-068, KN-LIT-2389, KN-LIT-3781, KN-LIT-6276, KN-LIT-2390, KN-LIT-4452, KN-LIT-3062, KN-LIT-3544, KN-LIT-2401, KN-LIT-5745, KN-LIT-7431, KN-LIT-5484, KN-LIT-3792]
+complexity: "a single zero-correlation approximation costs close to the full codebook; using r independent zero-correlation approximations reduces data to roughly 2^n / sqrt(r) order, which is what makes the technique usable"
+applicability: ciphers whose mask-transition graph admits a provable contradiction between forward and backward propagation; also the correct entry point for translating a known impossible-differential or integral distinguisher into its dual rather than rediscovering it
+source_refs: [KN-TECH-063, KN-TECH-067, KN-TECH-068, KN-LIT-7539, KN-LIT-4526, KN-LIT-4764, KN-LIT-5125, KN-LIT-4765, KN-LIT-2516, KN-LIT-3896, KN-LIT-5965, KN-TECH-074]
 added: 2026-07-31
 superseded_by: null
 ---
 
 ## Method
 
-The setting is the classical keystream generator: an `n`-bit **linear** state
-update (one or more LFSRs) with a **nonlinear** Boolean output function `f`.
-Because the update is linear, the state at time `t` is a known linear function
-`L^t(s)` of the initial state `s`, so each keystream bit gives one equation
+### Zero correlation
 
-  `f(L^t(s)) = z_t`
+Bogdanov–Rijmen (2011) invert linear cryptanalysis the way impossible
+differentials invert differential cryptanalysis. Instead of an approximation
+with unusually *high* correlation, use one whose correlation is **exactly
+zero** for every key. Such approximations exist because the hull is a signed
+sum (`KN-TECH-068`): systematic cancellation, or the absence of any trail
+connecting the endpoint masks, forces the total to vanish.
 
-of degree `deg f` in the `n` unknowns. Collecting enough of them and solving is
-the whole attack. Direct linearisation costs `D^ω` with
-`D = Σ_{i≤deg f} C(n,i)` monomials, which for a well-chosen `f` is too large.
+Exploitation mirrors `KN-TECH-063`: a key guess under which the observed
+correlation is measurably non-zero is **wrong** and is discarded. The right key
+is the one that keeps showing nothing.
 
-**The Courtois–Meier insight** (`KN-LIT-2389`): you do not have to use `f`. If
-there is a low-degree `g ≠ 0` with `f · g = 0` — an **annihilator** of `f` — then
-multiplying the equation by `g` gives, whenever `z_t = 1`, an equation of degree
-`deg g` only. Symmetrically, an annihilator of `f ⊕ 1` handles the `z_t = 0`
-positions. The attack's degree is therefore not `deg f` but
+The original form is data-hungry — verifying "correlation is zero" against
+statistical noise requires close to the full codebook. The technique became
+practical with **multiple zero-correlation** approximations, where `r`
+independent zero-correlation relations are tested jointly and the data
+requirement drops by roughly `sqrt(r)` (`KN-LIT-7539`). The same aggregation
+idea as capacity in `KN-TECH-068`, applied to the null rather than the signal.
 
-  **`AI(f)` = the minimum degree of a nonzero annihilator of `f` or of `f ⊕ 1`**,
+### The equivalences
 
-the **algebraic immunity**. Complexity becomes `D^ω` with
-`D = Σ_{i≤AI(f)} C(n,i)`. Two facts fix the design landscape: `AI(f) ≤ ⌈n/2⌉`
-always, so the parameter is bounded; and high nonlinearity does **not** imply
-high algebraic immunity, so a function chosen only against correlation attacks
-can be algebraically weak. Computing `AI` efficiently is itself a studied
-problem (`KN-LIT-3062`, `KN-LIT-3544`, and for S-boxes `KN-LIT-2401`), as is
-constructing functions that maximise it (`KN-LIT-5745`, `KN-LIT-7431`) — and
-maximising it trades against other criteria (`KN-LIT-5484`).
+The important content of this line is not the attack but the **duality
+catalogue**. The literature establishes concrete links between distinguishers
+that were discovered independently:
 
-**Fast algebraic attacks** (Courtois, `KN-LIT-3781`) go further. Look for a
-relation `f · g = h` with `deg g = e` **small** and `deg h = d` possibly large.
-The high-degree part `h` is then eliminated by a **precomputation**: because the
-`h`-contributions satisfy a linear recurrence in `t`, a Berlekamp–Massey-style
-step finds a combination of consecutive keystream equations in which they
-cancel, leaving a system of degree `e` in the state bits. The cost moves from
-online solving into offline precomputation, and the online system becomes much
-smaller. The precomputation's own complexity is the subject of continuing
-analysis (`KN-LIT-6276`, `KN-LIT-4452`), and the same idea extends to
-summation-generator constructions (`KN-LIT-2390`).
+- **Zero-correlation ⇔ integral.** A set of zero-correlation linear
+  approximations spanning a suitable subspace yields an integral distinguisher,
+  and conversely under stated conditions (`KN-LIT-4526`).
+- **Impossible differential ⇔ zero-correlation.** Under structural conditions
+  the two are the same object viewed through the difference and mask lenses
+  respectively (`KN-LIT-4764`, `KN-LIT-2516`).
+- **Truncated differential ⇔ multidimensional linear.** A correspondence between
+  the probability of a truncated differential and the capacity of a
+  multidimensional linear approximation (`KN-LIT-4765`).
+- **General differential/linear links** beyond the zero case (`KN-LIT-5125`).
 
-**Position among stream-cipher attacks.** Algebraic attacks are one of two
-families that exploit a linear state update; the other is **correlation and fast
-correlation attacks**, which treat the keystream as a noisy LFSR codeword and
-decode (`KN-LIT-3792`). The two make different demands — algebraic attacks want
-low `AI`, correlation attacks want a biased approximation — and a design must
-resist both.
+Two practical consequences. First, **automated search can be unified**: one
+search engine can produce impossible-differential, zero-correlation and integral
+distinguishers together, which is exactly what `KN-LIT-3896` does. Second,
+**provable-resistance arguments transfer**: a structural bound against one class
+bounds its duals (`KN-LIT-5965`).
+
+The links are stated under hypotheses — on the cipher's structure, on the mask
+subspaces involved, on independence — and are *not* a blanket assertion that the
+four techniques are interchangeable.
 
 ## Program usage
 
-- **The clearest instance in this corpus of a hard problem made easy by a
-  representation change, with a *provable* handle on when.** The attack does not
-  solve the system it is given; it finds a different, lower-degree system with
-  the same solutions. The program's inventor protocol (`KN-TECH-056`) is built
-  around exactly this move — object-first search with a lossy-projection test —
-  and algebraic immunity is a rare case where the field has a **computable
-  invariant** saying how far the move can go. When a proposal in this program
-  claims a representation change buys degree, `AI` is the precedent for asking
-  what invariant bounds the gain.
-- **Solver continuity.** The linearised systems here are exactly the MQ/Boolean
-  systems of `KN-TECH-053`, and the `D^ω` cost has the same shape as the
-  linear-algebra step in index calculus (`KN-TECH-008`). The `ω` in that formula
-  is a cost-model choice, and quoting `ω = 2` where the implementation is
-  Gaussian is the same defect `KN-TECH-035` catalogues.
-- **Precomputation must be charged.** Fast algebraic attacks move work offline;
-  under this program's full-cost rules an offline phase is still a cost and is
-  reported beside the online figure, never instead of it.
+- **The catalogue is the transferable asset, not the attack.** The program's
+  inventor protocol (`KN-TECH-056`) requires a novelty check before belief; this
+  family is the field's own worked example of *four independently invented
+  techniques turning out to be one object*. Anyone proposing a "new"
+  distinguisher shape should be able to say which of these it reduces to, or why
+  it does not. That question has closed candidate families in this program
+  before (`KN-FIND-002` closed jet and endomorphism oracles by exhibiting a
+  simulation), and the shape of the argument is the same: *find the map, don't
+  count the successes.*
+- **Zero-correlation is a second worked example of a proved negative being
+  exploitable**, alongside impossible differentials. The program's own
+  scoped-negative findings (`KN-FIND-006`, `KN-FIND-009`) are recorded as
+  boundaries; this family shows a negative used as an instrument.
+- **The `sqrt(r)` aggregation** is the null-hypothesis analogue of capacity, and
+  is worth having in hand whenever a single control measurement is too noisy to
+  be decisive on its own.
 
 ## Applicability limits
 
-- **Linear state update is the load-bearing hypothesis.** Modern designs
-  (Trivium, Grain) use nonlinear update precisely to break it; against those the
-  relevant tools are cube and division-property methods (`KN-TECH-070`,
-  `KN-TECH-071`), not this entry.
-- **`AI(f)` bounds the degree, not the attack's feasibility.** `D` grows
-  combinatorially in `n`, so a moderate `AI` with a large state is out of reach;
-  the numbers must be computed for the actual parameters.
-- **Keystream requirement.** Enough keystream must be available under one key to
-  build the system — a data constraint that frame-based protocols often violate.
-- **`ω` is an assumption.** The `D^ω` figure inherits whichever
-  matrix-multiplication or sparse-linear-algebra model is assumed
-  (`KN-TECH-008`).
+- **Data cost is the binding constraint.** Even in multiple form, zero-
+  correlation attacks tend to sit near the codebook limit, which frequently
+  makes them structurally interesting but operationally out of reach.
+- **"Exactly zero" is a claim about *all* keys** and must be proved
+  structurally. A correlation measured as zero on samples is not a
+  zero-correlation approximation; it is an unmeasured small correlation.
+- **The equivalences are conditional.** Each link comes with hypotheses about
+  the construction and the masks. Citing "impossible differentials and
+  zero-correlation are equivalent" without those hypotheses overstates every
+  source in this entry.
+- **Independence of the `r` approximations is assumed** in the data reduction,
+  and is not automatic.
 
 ## Verified vs reported
 
-Governed by `KN-TECH-059`'s sourcing note. The annihilator construction, the
-definition and `⌈n/2⌉` bound of algebraic immunity, the `D^ω` linearisation cost
-and the structure of the fast-algebraic precomputation are standard published
-results, written from established knowledge and not re-derived or measured in
-this program. `KN-LIT-2389` and `KN-LIT-3781` are the corpus's records for the
-two originating papers, both carried at **title level**; no complexity figure
-from either is quoted here. All other cited records are title-level per the
-family note. The reading of algebraic immunity as a computable invariant
-bounding a representation change, and the comparison to `KN-TECH-056` and
-`KN-TECH-008`, are this program's own reasoning.
+Governed by `KN-TECH-062`'s sourcing note. The zero-correlation principle, the
+wrong-key elimination logic and the existence of the four links are standard
+published results, written from established knowledge and not re-derived here.
+Bogdanov–Rijmen's original papers and the Blondeau–Nyberg links line are named
+in prose where this corpus holds no entry; no identifier was minted. The `sqrt(r)`
+data reduction is stated at the level of scaling shape from `KN-LIT-7539`'s
+**title-level** record — the paper's precise data figures were not read and are
+not quoted. The link statements are attributed to the titles of `KN-LIT-4526`,
+`KN-LIT-4764` and `KN-LIT-4765`, which name the links explicitly; **the
+hypotheses under which each link holds were not extracted from those records**,
+which is why this entry insists they are conditional without stating the
+conditions. That gap is a known limitation of this entry and a candidate for a
+future reading pass. The comparison to `KN-FIND-002` and the inventor protocol
+is this program's own reasoning.
