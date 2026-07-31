@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7703 entries.
+7714 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -23,6 +23,17 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-014 | Carrier verifyModel Pwrong scores are FFT/k_fft while Pgood scores are raw cosine sums; scale-aligned Fig 4.1 coverage gap remains (fraction_inside=0) | internal_finding | provisional |  | dual-attack carrier pwrong score-scale verifyModel kyber kn-open-016 erratum |
 | KN-FIND-015 | Under pinned MATZOV costing, Kyber dual_hybrid does not beat primal_bdd and does not reproduce Carrier/MATZOV-2022 dual headlines; primal_bdd still undercuts NIST classical cutoffs | internal_finding | provisional |  | dual-attack primal-bdd matzov kyber ml-kem concrete-security cost-model contested lattice kn-open-016 |
 | KN-FIND-016 | Carrier Table 5.1 CC dual costs are Theorem-4.1-consistent; Table C.2 CN/Kyber-512 log2(Tsample)=143.30 is a transcription error for ≈134.30 | internal_finding | provisional |  | dual-attack carrier matzov kyber ml-kem concrete-security table-erratum cost-model kn-open-016 |
+| KN-FIND-017 | Scoped finding from EV-BKK-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-018 | Scoped finding from EV-BKKMV-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-019 | Scoped finding from EV-BKKMV-002 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-020 | Scoped finding from EV-EQJ-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-021 | Scoped finding from EV-FB-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-022 | Scoped finding from EV-NCP-001 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-023 | Scoped finding from EV-REP-002 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-024 | Scoped finding from EV-SIG-002 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-025 | Scoped finding from EV-SIG-003 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-026 | Scoped finding from EV-SIG-004 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-027 | Scoped finding from EV-SIG-005 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
