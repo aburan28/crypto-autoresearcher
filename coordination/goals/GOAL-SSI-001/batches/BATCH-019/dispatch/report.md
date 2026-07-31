@@ -6,11 +6,11 @@ BATCH-019: bounded FC0 lifetime/Verify spike against CollimationSieve@6f9188e4 o
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-049` | red-team | queued | 80 | TASK-20260730-047, TASK-20260730-048 | coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-049/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-049/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-019/tasks/TASK-20260730-049 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-050`: dependency_not_completed:TASK-20260730-049:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-019: bounded FC0 lifetime/Verify spike against CollimationSieve@6f9188e4 o
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b8ed5ac05f7b6ec6f55c8242a09229a86c72b8fd390bda8640af18c66c9a8022`
+Plan SHA-256: `be2d4e8f1832179b3d594564ea6f865d869cb4c1d7d9115dbc5ca7666b415a35`
