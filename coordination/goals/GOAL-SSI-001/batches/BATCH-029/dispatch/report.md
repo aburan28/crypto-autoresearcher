@@ -6,11 +6,11 @@ BATCH-029: construct a checkable symbolic Verify-relative success-exit and F_ver
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-089` | red-team | queued | 80 | TASK-20260730-087, TASK-20260730-088 | coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-089/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-089/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-029/tasks/TASK-20260730-089 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-090`: dependency_not_completed:TASK-20260730-089:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-029: construct a checkable symbolic Verify-relative success-exit and F_ver
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `45b57e9a7c5d5147c58f11c29145d2fe13fcacdc084e19094c3d5bc72501ed47`
+Plan SHA-256: `1d93cb755c58687047e55a37f75aa54fcf9540eabb697c6c398d0ad75d3cd8ef`
