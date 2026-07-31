@@ -6,12 +6,10 @@ BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-054` | coordinator | queued | 100 | - | experiments/EXP-DS-001/amendments/v2_ctrl_theater_repair.yaml, experiments/EXP-DS-001/controls/CTRL-RT025-PLANT-INDEPENDENT.yaml, experiments/EXP-DS-001/controls/CTRL-RT025-RHO-CALIB.yaml, experiments/EXP-DS-001/controls/CTRL-RT025-NULL-SPLIT-COMPOSITION.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/QUEUE-AMEND-20260731-005.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/tasks/TASK-20260731-054/task_report.md, ledger/decisions/DEC-20260731-014.yaml | experiments/EXP-DS-001/amendments, experiments/EXP-DS-001/controls, ledger/decisions/DEC-20260731-014.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/QUEUE-AMEND-20260731-005.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/tasks/TASK-20260731-054 |
+| `TASK-20260731-056` | reviewer | queued | 80 | TASK-20260731-055 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-055`: dependency_not_completed:TASK-20260731-054:queued
-- `TASK-20260731-056`: dependency_not_completed:TASK-20260731-055:queued
 - `TASK-20260731-057`: dependency_not_completed:TASK-20260731-056:queued
 - `TASK-20260731-058`: dependency_not_completed:TASK-20260731-057:queued
 - `TASK-20260731-059`: dependency_not_completed:TASK-20260731-058:queued
@@ -32,4 +30,4 @@ BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `085da24e326c702a63779a50b46c6233694f7cf7b8dc2bf3955dcb16d1da834c`
+Plan SHA-256: `a93c4d5d657cfe58f40089a5353e9e8057f070bef8ceea9ff5c73045c752eafc`
