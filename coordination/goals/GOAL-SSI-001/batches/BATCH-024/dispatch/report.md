@@ -6,11 +6,11 @@ BATCH-024: attempt checkable path-justified F_* ⊆ F inclusions on FC0-EXT-PKG-
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-069` | red-team | queued | 80 | TASK-20260730-067, TASK-20260730-068 | coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-069/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-069/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-069 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-070`: dependency_not_completed:TASK-20260730-069:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-024: attempt checkable path-justified F_* ⊆ F inclusions on FC0-EXT-PKG-
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `282bafea0b1011f521c6ced7fea479d1af8566c0e80a465e0f0399b7d4b533bc`
+Plan SHA-256: `e105dfce62cfecbb9857606d03ec8ce6cec8fd32b3b878f4f2b163df9b86f1ae`
