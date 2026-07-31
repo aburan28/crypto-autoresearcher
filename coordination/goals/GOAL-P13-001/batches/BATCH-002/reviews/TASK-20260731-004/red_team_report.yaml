@@ -1,0 +1,828 @@
+red_team_report:
+  id: RT-20260731-004
+  task_id: TASK-20260731-004
+  goal_id: GOAL-P13-001
+  batch_id: BATCH-002
+  role: red-team
+  reviewed_snapshot: 7c2bd6f7
+  contract_commit: 35701d8f
+  independent_session: true
+
+  claim_under_review: >
+    RUN-SSI-002 under frozen contract EXP-SSI-002 reports pre-registered reading
+    READING-NOT-IDENTIFIED on two contributing gates - GOF-3 (M-A beats the null
+    model M-0 by only 1.5523x in residual standard error against a pre-registered
+    2x threshold) and CTRL-CAL-GATE (the t_mul(p) slope interval overlaps the
+    primary fit's interval). No exponent is carried, no margin figure is claimed,
+    and the measured per-entry table-construction cost of Algorithm 1 is reported
+    as the batch's product.
+
+  direction_being_attacked:
+    stated_plainly: >
+      THE BATCH REPORTS NEITHER DIRECTION. IT REPORTS A NULL. I ATTACK THE NULL
+      ITSELF, AND I ATTACK IT IN BOTH SUB-DIRECTIONS.
+    sub_direction_1_the_null_understates_what_was_learned: >
+      The underlying numbers are NOT uninformative. On the primary series
+      c_fit = 0.1388 with carried interval [0.0358, 0.2418]; the largest c_hi of
+      any series is 0.7745 (V-2); c_star = 1.9224. Every carried interval lies
+      entirely below c_star. Model-free, the total swing of log2(T_entry_ops)
+      across the whole sweep is 0.3012 bits, whereas c = c_star would produce
+      3.561 bits. The run therefore excludes c ~ 1.9 by roughly a factor of 12 in
+      swing. READING-NOT-IDENTIFIED conceals a decision-relevant and reasonably
+      well-powered bound, and that bound points at the THREATENED direction, which
+      is the uncomfortable one.
+    sub_direction_2_that_same_bound_badly_understates_the_true_cost: >
+      I then attack the bound for UNDERSTATING cost, which is the constraint's
+      required attack on a small-c reading. Extending the identical measured
+      quantity past 2^40 (probes RT-A/RT-B below, run by me in this session)
+      shows the p <= 2^40 window is a Python-dispatch FLOOR in which the
+      p-dependent component has not yet emerged. c_local rises from 0.0301
+      (2^20 -> 2^40) to ~0.40 (>= 2^64), a ~13x underestimate, and the per-entry
+      cost at the actual NIST-I prime size is 10.1x the 2^40 value. The run's
+      c ~ 0.14 is a floor measurement, not an exponent.
+    what_survives_both_attacks: >
+      Even after correcting the regime, this implementation's directly measured
+      per-entry overhead at log2 p = 256 is 14.22 bits, against the 30.76 bits
+      that c_star requires. NOTHING IN THIS BATCH OR IN MY PROBES SUPPORTS A
+      COMFORTABLE READING, AND NOTHING IN IT CONSTITUTES AN ATTACK OR A
+      PARAMETER RECOMMENDATION EITHER.
+
+  objections:
+
+    - id: OBJ-1
+      severity: CRITICAL
+      title: >
+        THE MEASURED WINDOW IS A DISPATCH FLOOR. The near-flat T_entry_ops(p) is a
+        property of p <= 2^40 in interpreted Sage, not of Algorithm 1, and the
+        6.4-fold extrapolation the contract declared unavoidable (EA-1) was never
+        necessary because the operating prime size is DIRECTLY MEASURABLE for this
+        quantity.
+      mechanism: >
+        The timed window charges Phi_ell specialisation (component c1) plus root
+        finding in F_{p^2} (c2). c1 is pure interpreter/database dispatch and is
+        p-independent by construction. c2 requires x^(p^2) mod f and therefore
+        grows about linearly in log p in F_{p^2}-operations. At p <= 2^40 the
+        p-independent component c1 is 31-35 percent of the total and c2 has not
+        yet begun to dominate, so the pooled per-entry cost is a two-component
+        mixture whose flat component mechanically suppresses any fitted slope.
+        This is a lossy-projection artifact in the sense of
+        docs/inventor-protocol.md section 3: the quantity that was supposed to
+        grow was measured exactly where it cannot.
+      what_it_predicts: >
+        Extend the SAME quantity past 2^40 and the flatness must break, the c2
+        share must rise toward 1, and c_local must rise and then stabilise.
+      what_i_ran_and_what_it_showed:
+        probe_RT_A:
+          method: >
+            Same timed-window shape as EXP-SSI-002 V-1 (classical_modular_polynomial
+            specialisation, .roots() in F_{p^2}, non-backtracking filter), plus the
+            same t_mul / t_noop calibration, at log2 p in {20, 40, 64, 128, 256, 512},
+            ell in {2, 3}, 30 steps per cell, E0: y^2 = x^3 + x, p = largest prime
+            below 2^k with p = 3 mod 4, supersingularity verified true at every p.
+          T_entry_ops_median_ell2_by_log2p:
+            20: 1805.05
+            40: 1876.22
+            64: 2100.28
+            128: 5572.47
+            256: 19025.13
+            512: 120365.65
+          log2_of_those: [10.818, 10.874, 11.036, 12.444, 14.216, 16.877]
+          c_local_in_the_M_A_parameterisation:
+            "20->40": 0.0301
+            "40->64": 0.0971
+            "64->128": 0.4248
+            "128->256": 0.3780
+            "256->512": 0.4016
+          M_A_refit_on_{64,128,256,512}: {c: 0.3969, max_abs_residual_bits: 0.060}
+          reading: >
+            M-A is a GOOD functional form once out of the floor (max residual
+            0.06 bits over four points spanning a 3.5x range in sqrt(log2 p)).
+            The run fitted it in the one window where it is not.
+        probe_RT_B:
+          method: component split, two independent repetitions, ell = 2.
+          c2_rootfinding_share_of_total_by_log2p: {20: 0.655, 40: 0.685, 64: 0.729, 128: 0.967, 256: 0.988}
+          c1_phi_specialise_seconds_by_log2p: {20: 8.81e-05, 40: 8.97e-05, 64: 8.90e-05, 128: 1.103e-04, 256: 1.400e-04}
+          c2_rootfind_seconds_by_log2p: {20: 1.706e-04, 40: 1.987e-04, 64: 2.456e-04, 128: 3.103e-03, 256: 1.244e-02}
+          reading: >
+            c1 grows 1.6x across a 12.8x growth in log p - it is dispatch.
+            c2 grows 72x. The two repetitions agree to within 3 percent at every
+            prime, so the split is not noise.
+      probe_provenance_and_limits: >
+        RT-A and RT-B ARE RED-TEAM PROBES, NOT MEASUREMENTS OF RECORD, and no c
+        from them may be quoted as a fitted exponent. They ran on the same host
+        as RUN-SSI-002 with Sage 10.9, at 30 steps per cell (far below the
+        contract's 300-entry admissibility floor), with no random-walk starting
+        curves, no interleaved calibration schedule, no null control, no
+        determinism re-execution, no bootstrap and no confidence interval. They
+        are sufficient to establish the QUALITATIVE claim that the flatness
+        breaks and where, and insufficient for anything else. Scripts are at the
+        paths named under artifact_paths.
+      what_would_settle_it: >
+        Re-run EXP-SSI-002's own harness, unmodified, with the prime sweep
+        extended to log2 p in {20, 40, 64, 96, 128, 192, 256, 320} at B-FIX-8,
+        V-1, SEED-A, with every existing control interleaved. This is NC-2-EXT
+        below.
+
+    - id: OBJ-2
+      severity: MATERIAL
+      title: >
+        CTRL-CAL-GATE IS MIS-SPECIFIED FOR THE SERIES IT WAS APPLIED TO. It was
+        written for a raw-seconds primary and applied to a ratio in which the
+        control quantity has ALREADY been divided out, so it double-counts.
+      mechanism: >
+        log2(T_entry_ops) = log2(T_entry_s) - log2(t_mul), and OLS is linear, so
+        slope(ops) = slope(sec) - slope(t_mul) EXACTLY. I verified this on the
+        run's own numbers: slope(sec) = 0.2097, slope(t_mul) = 0.0709,
+        slope(ops) = 0.1388 = 0.2097 - 0.0709 to all reported digits. The gate
+        asks whether slope(ops) overlaps slope(t_mul), i.e. whether
+        slope(sec) - slope(t_mul) overlaps slope(t_mul), i.e. whether
+        slope(sec) is about 2 x slope(t_mul). That is not a test of host
+        contamination of the normalised series; the normalised series is the
+        host-corrected one. The genuine host-contamination test on a normalised
+        series is CTRL-NULL, which is CLEAN here (NULL-1 slope 0.000202, carried
+        interval [-0.00309, +0.00349]; NULL-2 likewise).
+      is_it_a_tautology_in_this_regime: >
+        NO, BUT IT IS CLOSE, AND THE MARGIN IS SMALL. t_mul's carried interval is
+        [-0.01300, +0.15484]. The gate fails to fire only if the primary interval's
+        lower endpoint exceeds 0.15484. With the observed primary half-width of
+        0.1031 that needs c_fit > about 0.258. So CTRL-CAL CAN fail to fire, and
+        would have failed to fire comfortably at c = 1.9224 (the primary interval
+        would sit near [1.82, 2.03]). It is NOT the BATCH-016 CTRL-4 failure class
+        in the strict sense. BUT it is GUARANTEED to fire whenever the true c is
+        below about 0.26 - which is exactly the regime the instrument is in - so
+        in this regime it cannot distinguish "host artifact" from "small true
+        effect", and the run's own artifacts do not say so.
+      what_would_settle_it: >
+        Replace the gate for normalised series with the correct null object:
+        require slope(t_noop) to be consistent with zero (it is: t_noop is flat
+        at 5.4-5.9 ns across the sweep) and require slope(t_mul) itself to be
+        reported as a SEPARATE additive contribution to the raw-seconds slope,
+        rather than compared to a quantity from which it has been subtracted.
+        This is a protocol_amendment, not an executor decision, and it must not
+        be applied retroactively to this run.
+
+    - id: OBJ-3
+      severity: MATERIAL
+      title: >
+        GOF-3 IS A RELATIVE-VARIANCE GATE. IT FIRES WHEN THE EFFECT IS SMALL, NOT
+        WHEN THE MEASUREMENT IS BAD. THE DESIGN WAS POWERED TO DETECT c ~ 1.9 WITH
+        ROUGHLY TENFOLD MARGIN, AND THE BATCH MUST SAY SO IN THOSE WORDS.
+      power_analysis_i_computed:
+        design: eight primes, log2 p in {20,...,40}, regressor sqrt(log2 p), Sxx = 3.0411, n = 8
+        observed_noise_rse_M_A_bits: 0.073423
+        minimum_c_at_which_GOF_3_would_NOT_fire: 0.1975
+        expected_rse_ratio_M0_over_MA_if_c_were:
+          0.20: 2.02
+          0.30: 2.85
+          0.50: 4.58
+          1.00: 9.02
+          1.9224: 17.28
+        c_star: 1.9224
+        verdict: >
+          c = c_star would have produced a reduction factor of 17.3 against a
+          threshold of 2.0. THE DESIGN WAS NOT UNDERPOWERED FOR THE VALUE THAT
+          MATTERS. It was powered to about c = 0.20 and the truth in this regime
+          is about c = 0.14, so the gate fired because the effect is genuinely
+          small HERE, not because the instrument was blind.
+      the_consequence_that_must_be_recorded: >
+        "READING-NOT-IDENTIFIED" is mechanically correct under the frozen rules and
+        must stand. But it MUST NOT be reported, summarised or carried into
+        DEC-20260731-001 as "the experiment could not see a p-dependence". The
+        accurate sentence is: "in the measured window the p-dependence of the
+        host-normalised per-entry cost is below the pre-registered detection
+        threshold of c = 0.1975, and a c of order c_star = 1.9224 would have been
+        detected at 17x the threshold." A batch that banks the first sentence and
+        drops the second has banked a null it did not earn.
+      the_second_consequence: >
+        The reading is contingent on the choice of PRIMARY QUANTITY, and the
+        contract's other mandated series tell a different story. All four V-1
+        RAW-SECONDS series pass GOF-1, GOF-2 AND GOF-3 and report an identified
+        exponent (B-ASY c = 0.2097 with rse ratio 4.244; B-FIX-8 c = 0.1783,
+        ratio 3.938; B-FIX-32 c = 0.1376, ratio 4.625). The normalisation that
+        the contract makes primary is exactly what subtracts a real slope and
+        collapses the signal-to-noise. This is honestly a consequence of
+        pre-registration and is NOT misconduct - but the closing decision must
+        state it, because "no p-dependence detected" and "an adequate fit with
+        c = 0.21 on the mandated secondary series" are both true of this run.
+
+    - id: OBJ-4
+      severity: MATERIAL
+      title: >
+        THE DECISION-RELEVANT PRODUCT OF THIS RUN IS THE INTERCEPT, NOT THE SLOPE,
+        AND NO READING WAS PRE-REGISTERED ON IT.
+      mechanism: >
+        The frozen source's Section 4.1 conservatively assumes ONE F_{p^2}
+        operation per entry. RUN-SSI-002 measures 1568-1933 host-normalised
+        F_{p^2}-operations per entry, i.e. 10.6-10.9 BITS of flat constant
+        overhead that the committed cost model's c = 0 scenario does not charge
+        at all. That constant is decision-relevant on its own: substituted into
+        the committed model at log2 p = 256 and w = 2^30 it moves the margin from
+        34.269 bits to 23.40 bits WITHOUT ANY EXPONENT BEING IDENTIFIED. The
+        experiment pre-registered four readings, all keyed to the SLOPE, and none
+        keyed to the level, so its single most robust number falls through the
+        reading grid.
+      caveat_i_must_state: >
+        That 1800x figure is itself contaminated by exactly the dispatch floor of
+        OBJ-1 - it is 1800 Python-level operations, not 1800 machine field
+        multiplications - so it is an upper bound on an optimised implementation
+        and by S-2/EA-4 it does not establish safety in either direction. It is
+        reportable as a measured level with that limitation attached; it is not a
+        margin claim.
+
+    - id: OBJ-5
+      severity: MATERIAL
+      title: >
+        A STATEMENT OF RECORD IN TWO RUN ARTIFACTS IS FALSE. Margins at memory
+        budgets other than w = 2^30 are asserted to be reported and are not
+        reported anywhere.
+      evidence: >
+        fit_report.json line 3640 and line 3683:
+        "all_memory_budgets_also_reported": true.
+        execution_report.yaml D-6: "Margins at w in {2^30..2^80} are reported
+        alongside." I searched every artifact of RUN-SSI-002 for any margin at any
+        w other than 2^30 (grep for w=2^40 / 2^50 / 2^60 / 2^70 / 2^80 and for
+        "memory_budget" across summary.json, fit_report.json, controls.json,
+        manifest.yaml, execution_report.yaml). THERE ARE NONE. The only figures
+        present are at w = 2^30.
+      why_it_matters_quantitatively: >
+        I recomputed c_star from the committed unmodified cost model at log2 p = 256:
+        w=2^20 -> c_star 1.6099; w=2^30 -> 1.9224; w=2^40 -> 2.2349;
+        w=2^50 -> 2.5474; w=2^60 -> 2.8599; w=2^70 -> 3.1724; w=2^80 -> 3.4849;
+        w=2^92 -> 3.8599 (the model's own log2 M at this p is 93.28). c_star
+        therefore ranges over 2.25 in c across the model's own memory axis, which
+        is ELEVEN TIMES the width of the run's carried interval (0.2060). The
+        frozen contract names no w, so every reading condition in
+        pre_registered_readings is conditioned on an unstated parameter.
+      what_would_settle_it: >
+        Either publish the margin table across the full w grid, or supersede the
+        two sentences. Under AGENTS.md rule 2 the run record is immutable, so this
+        is a SUPERSEDING correction in EV-SSI-006 / DEC-20260731-001, not an edit.
+
+    - id: OBJ-6
+      severity: MATERIAL
+      title: >
+        THE PRIMARY SERIES HAS AN UNTESTED ell-MIXTURE CONFOUND, BECAUSE FIT-ELL
+        WAS RUN AT B-FIX-8 AND THE PRIMARY SERIES IS B-ASY.
+      evidence: >
+        B-ASY's realised B and prime set, from summary.json, are
+        k=20,23: B=3, ell in {2,3}; k=26,29,32: B=4, ell in {2,3};
+        k=35,38,40: B=5, ell in {2,3,5}. The ell-set CHANGES at k = 35, inside the
+        primary sweep. The contract's own R-10 says a pooled fit over a drifting
+        ell-mixture is not a c, and mandates FIT-ELL as the test - but FIT-ELL is
+        specified at B-FIX-8, V-1 only, so the confound is tested on a series that
+        is NOT the primary one. Worse, FIT-ELL|ell=2 is unusable (only 3 of 8
+        primes cleared the 300-entry floor; carried interval [-1.815, +1.097],
+        width 2.91) and FIT-ELL|ell=3 overlaps the B-FIX-8 pooled interval, so the
+        one usable comparison is against the wrong series.
+      what_it_predicts: >
+        If the mixture drives the primary slope, refitting B-ASY restricted to
+        ell = 2 alone and to ell = 3 alone should move c by more than its interval.
+        I could not run this from the archived artifacts: the per-ell breakdown
+        MIX-1 is reported per cell as a median, which is enough for a per-ell
+        series but the executor did not build the B-ASY per-ell fits, and I am not
+        authorised to rewrite the fit stage. NAMED AS NOT ATTACKED (see
+        attacks_not_run).
+      cheapest_settlement: >
+        Recompute FIT-ELL on B-ASY from the archived raw-timings.json alone. It is
+        pure re-analysis, costs seconds, and needs no new measurement.
+
+    - id: OBJ-7
+      severity: MATERIAL
+      title: >
+        THE BATCH UNDER-USED ITS OWN AUTHORIZATION BY ABOUT 30x, AND THE ONE
+        THING IT DID NOT SPEND THE HEADROOM ON IS THE ONE THING THAT WOULD HAVE
+        CHANGED THE READING.
+      evidence: >
+        budget_used.session_wall_seconds = 178.666 against a 5400 s total cap.
+        Per-prime spend ranged 10.5-31.1 s against a 600 s per-prime sub-cap.
+        mandatory_cell_accounting records "B-FIX-32 under V-2 at every prime"
+        skipped as OPTIONAL-IF-BUDGET - correctly named, but skipped with 5221 s
+        unspent, so the stated reason does not hold. No cell hit a cap; no cell
+        was under-sampled; cells_not_reached is empty. The run stopped because the
+        script ended, not because a budget bound.
+      why_it_is_a_finding_and_not_a_nitpick: >
+        My RT-A probe reached log2 p = 512 in roughly seven minutes on the same
+        host. The contract's declared single largest extrapolation - EA-1, the
+        6.4-fold extrapolation in log2 p - was therefore avoidable at about 8
+        percent of the unspent budget. THE EXTRAPOLATION WAS A DESIGN CHOICE OF
+        THE CONTRACT, NOT A CONSTRAINT OF THE PROBLEM, and the contract froze
+        exponents_log2p at {20..40} without stating a reason tied to the measured
+        quantity. Table CONSTRUCTION at cryptographic p is infeasible; measuring
+        the PER-ENTRY cost of one neighbour expansion at cryptographic p is not,
+        and per-entry cost is what NC-2 asked for.
+      what_would_settle_it: NC-2-EXT below.
+
+    - id: OBJ-8
+      severity: MINOR_BUT_LATENT
+      title: >
+        READING-SMALL-C's TEXT CONTRADICTS ITS OWN CONDITION AND THE COMMITTED
+        MODEL'S SIGN CONVENTION. It is a trap for the closing decision.
+      evidence: >
+        In the committed model, margin := log2speedup_vs_DG =
+        log2 T_DG - (log2 T_full - 0.5*min(w, log2 M) + c*sqrt(log2 p)), which is
+        DECREASING in c. So c_hi < c_star implies margin > 3.51 bits, i.e. the
+        attacker's speedup EXCEEDS the noise band - the threatened direction.
+        READING-SMALL-C's condition (c_hi < c_star) and its label (THREATENED) are
+        both right; its text - "THE EXTRAPOLATED NIST-I MARGIN IS SMALLER THAN THE
+        3.51-BIT IRREPRODUCIBILITY BAND" - has the inequality backwards.
+      effect_on_this_run: NONE. The reading was evaluated mechanically on the condition, and READING-NOT-IDENTIFIED took precedence anyway.
+      why_i_still_raise_it: >
+        DEC-20260731-001 will quote these readings in prose. A reviewer reading
+        the text rather than the condition will conclude the opposite of what the
+        model says. Fix by superseding text, never by editing the frozen contract.
+
+    - id: OBJ-9
+      severity: PROCEDURAL
+      title: fallback_used true against a handoff that set fallback_allowed false.
+      assessment_i_am_asked_for_but_do_not_adjudicate: >
+        manifest.yaml records requested_policy "executor-implementation",
+        resolved_model claude-opus-5, model_verified false, fallback_used true,
+        fallback_allowed_by_handoff false, with an explicit fallback_disclosure.
+        Under AGENTS.md a substitution requires fallback_allowed, so this is a
+        DECLARED DEVIATION FROM AN INFERENCE CONSTRAINT, not a silent one. My
+        assessment: it is a HARNESS-LEVEL IMPOSSIBILITY, not an executor choice -
+        Claude Code cannot resolve GPT-5.6-family aliases at all, so
+        fallback_allowed: false was an unsatisfiable constraint at dispatch time
+        and the dispatcher, not the executor, owns the defect. The mathematics of
+        the run does not depend on which model wrote the script: the arithmetic is
+        independently reproducible from raw-timings.json, the validator reproduced
+        it, and I reproduced the primary fit myself (c = 0.138802, rse 0.073423,
+        ratio 1.5523, matching fit_report.json to six digits). I therefore see NO
+        GROUND TO RULE THE MEASUREMENT INADMISSIBLE on this basis, and I recommend
+        the Coordinator record the deviation against the DISPATCH step and fix the
+        queue template so an unsatisfiable inference constraint is not emitted
+        again. THE COORDINATOR ADJUDICATES, NOT ME.
+      what_the_shared_model_costs_here_specifically: >
+        BATCH-016's finding holds and recurs. R-9 ("everything is charged") is a
+        MECHANICAL constraint on the execution layer and it worked: the timed
+        window really does charge Phi evaluation, root finding, the filter and
+        insertion, and CTRL-COUNT's 50/50 spot checks pass in every cell. What the
+        shared model did NOT protect is the SELECTION layer - the choice of
+        exponents_log2p = {20..40}. Executor, validator and red team all inherit
+        the same prior that "toy scale means small primes", and the executor and
+        validator both accepted a p range that makes the headline quantity
+        unmeasurable. I only broke it because CTRL-RT039-A's
+        adversarial-mutation-selection rule forced me to choose my own
+        perturbations, and the perturbation I chose was to the DESIGN (extend p)
+        rather than to the FIT. THAT IS THE MITIGATION WORKING; IT IS NOT MODEL
+        INDEPENDENCE AND THIS REPORT DOES NOT CLAIM IT RESTORES ANY.
+
+  attacks_i_ran_that_FAILED_reported_as_failed:
+    - id: FAIL-1
+      attack: LEAVE-ONE-PRIME-OUT on the primary series (my own perturbation, not the producer's).
+      result: >
+        c moves over [0.1250, 0.1747], span 0.0498, against a reported carried
+        interval width of 0.2060. span/width = 0.24. THE INTERVAL IS NOT TOO
+        NARROW. Largest single-point influence is k = 40 (+0.0359). The fit is
+        stable under leave-one-out and I could not break it.
+    - id: FAIL-2
+      attack: SHORTEST 5-PRIME SUB-RANGE REFITS.
+      result: >
+        c = 0.1304 / 0.1688 / 0.1812 / 0.1879 on windows {20..32} / {23..35} /
+        {26..38} / {29..40}. All four intervals contain the pooled c. A monotone
+        upward drift with window centre is present and is DIRECTIONALLY consistent
+        with OBJ-1's curvature, but at these interval widths (CI-T half-widths
+        0.26-0.38) it is not significant on its own and I do not present it as
+        evidence. Attack failed as a standalone objection.
+    - id: FAIL-3
+      attack: MEDIAN vs MEAN.
+      result: c 0.1388 -> 0.1653 (ops), 0.2097 -> 0.2363 (raw seconds). Both moves are inside the reported interval. mean/median ratios per cell are 0.98-1.03. Failed.
+    - id: FAIL-4
+      attack: NORMALISED vs RAW (drop the normalisation).
+      result: >
+        c 0.1388 (ops) vs 0.2097 (raw s); intervals overlap; the difference is
+        exactly slope(t_mul) = 0.0709 by the algebraic identity of OBJ-2. This did
+        NOT falsify the fit. It did surface OBJ-2 and the OBJ-3 primary-quantity
+        contingency, which are reported there instead.
+    - id: FAIL-5
+      attack: CONTAMINATION via CTRL-NULL.
+      result: >
+        NULL-1 (SHA-256 of a fixed 4 KiB buffer) slope 0.000202, carried interval
+        [-0.00309, +0.00349]; the eight measured values span 0.0060 bits total.
+        NULL-2 likewise. The harness is NOT measuring a p-independent quantity as
+        p-dependent. This is a clean, well-executed null-object control and I have
+        no objection to it.
+    - id: FAIL-6
+      attack: SEEDING (GAP-1). Does SEED-A's stated basis hold and is the constant seeding-dependent?
+      result: >
+        BASIS HOLDS. SEED-A charges the entire first layer to the timed window,
+        which is the conservative direction for a cost floor, and it is the
+        minimal completion that makes the loop execute. SEED-A/SEED-B per-entry
+        ratios are 0.9721 at k = 20 and 0.9785 at k = 40, both inside the
+        pre-registered [0.90, 1.10] band; seed_seconds is 7.5e-05 s and 1.6e-05 s
+        (SEED-A), outside the timed window in both. THE REPORTED CONSTANT IS NOT
+        SEEDING-DEPENDENT AT THE 2-3 PERCENT LEVEL. I looked for a third strategy
+        that would move it further and I do not believe one exists at this entry
+        count: at >= 1500 entries per cell any seeding choice affects at most the
+        first ell+1 entries, so its weight is O(1/1500). Attack failed. GAP-1
+        REMAINS AN OPEN DEFECT OF THE FROZEN TEXT AND IS NOT REPAIRED BY THIS
+        FINDING.
+    - id: FAIL-7
+      attack: M-A vs M-B collinearity - does the report admit they are indistinguishable?
+      result: >
+        YES, IT ADMITS IT, UP FRONT AND CORRECTLY. Pearson correlation between
+        sqrt(log2 p) and log2(log2 p) over the admissible set is 0.998795, it is
+        reported in every series block, the pre-registration in the queue predates
+        the measurement, and every fit block carries the sentence that a fitted c
+        is a slope in a chosen parameterisation. R^2 is 0.6443 (M-A) vs 0.6526
+        (M-B) - indistinguishable, exactly as pre-registered. NO OBJECTION.
+    - id: FAIL-8
+      attack: CLAIM-CEILING BREACH HUNT across all thirteen run artifacts.
+      result: >
+        I FOUND NO BREACH. No artifact asserts the NIST-I margin as measured, none
+        claims Heuristic 1 is validated or weakened, none claims GAP-1 or GAP-2 is
+        repaired, none makes a parameter recommendation, none claims an asymptotic
+        result, none mentions CSIDH or PEGASIS. execution_report.yaml explicitly
+        restates all of these as unrepaired. The margin figures in
+        extrapolation_for_all_series carry the LABEL "EXTRAPOLATION", EA-3 restated
+        beside each one, and the note that they are "arithmetic on a fit that was
+        declared not adequate, NOT a margin claim". THE ONE FALSE STATEMENT OF
+        RECORD I FOUND IS OBJ-5, WHICH IS AN OVERSTATEMENT OF COMPLETENESS AND NOT
+        A CLAIM-CEILING BREACH. Attack failed and I report it as failed.
+    - id: FAIL-9
+      attack: Is the w = 2^30 identification outcome-determining?
+      result: >
+        PARTLY FAILED, AND I SAY SO. See OBJ-5 for what it does move. What it does
+        NOT move is WHICH READING FIRES: c_star exceeds 1.61 at every w on and
+        below the model's own log2 M = 93.28, and the largest c_hi in the whole
+        run is 0.7745, so no memory budget in the feasible range flips
+        READING-SMALL-C to READING-LARGE-C or to READING-STRADDLE. My verdict on
+        w = 2^30 is in verdict_on_w_2_30 below and it is a split one.
+    - id: FAIL-10
+      attack: ST-B / ST-V / CTRL-DRIFT / CTRL-DET / CTRL-COUNT.
+      result: >
+        All clean and all correctly evaluated. ST-B's three intervals are not
+        pairwise disjoint; ST-V's two are not disjoint; CTRL-DRIFT did not fire;
+        CTRL-DET reproduced entry counts, table sizes and j-invariant sets;
+        CTRL-COUNT's spot checks are 50/50 in every cell with no Lemma 3.2 upper
+        bound violation. I could not falsify any of them.
+
+  verdict_on_w_2_30:
+    is_it_a_genuine_constraint: >
+      NO. It is a free parameter of the committed model that the frozen contract
+      never named, and 2^30 table entries is a laptop, not a NIST-I adversary,
+      against the model's own log2 M = 93.28.
+    is_it_curve_fitting_to_a_remembered_pair: >
+      IT IS REVERSE-ENGINEERED FROM THE ANSWER, AND THE EXECUTOR SAYS SO IN THOSE
+      TERMS, WHICH IS THE HONEST WAY TO DO IT. w was chosen because at w = 2^30 the
+      committed model returns margin(c=0) = 34.269 and margin(c=2) = 2.269, which
+      reproduce NC-2's "~34-bit and ~2-bit" framing and DEC-20260724-016's recorded
+      2.3-bit margin. I verified that reproduction independently against the
+      committed cost_model.py (sha256 a82b9d5b1f...) and it is exact, and I
+      verified it is UNIQUE on the model's memory grid {30,40,50,60,70,80}. So it
+      is a correct RECONSTRUCTION of the memory budget DEC-20260724-016 was
+      implicitly using, and recovering that is a real service.
+    what_a_different_w_does: >
+      c_star moves from 1.6099 (w=2^20) to 3.8599 (w=2^92); margin(c_fit=0.1388)
+      at log2 p = 256 moves from 32.05 bits (w=2^30) to 57.05 bits (w=2^80).
+      The margin figure is strongly w-dependent; the reading is not.
+    verdict: >
+      ACCEPT THE IDENTIFICATION, REJECT ITS PRESENTATION. The reconstruction is
+      sound and load-bearing for a number the batch could not otherwise compute.
+      But the run asserts a full-grid margin table that does not exist (OBJ-5), and
+      the underlying defect belongs to DEC-20260724-016, which quoted a margin
+      without naming the memory budget that produced it. That defect should be
+      recorded against the DECISION record, not against this run.
+
+  heuristic_challenges:
+    - id: HC-1
+      status: NOT APPLICABLE AND CORRECTLY SO.
+      text: >
+        Heuristic 1 is not under test in this batch (S-3) and I confirm nothing in
+        RUN-SSI-002 samples the smoothness distribution of the smallest
+        conjugate-isogeny degree. H-P13-001's heuristic_1_status must be carried
+        verbatim. I DO NOT REOPEN IT, GAP-2 OR SECTION 4.1 ON THE MERITS, per my
+        card. I cite them only as limits on what this batch can conclude.
+    - id: HC-2
+      text: >
+        THE EXEMPLAR-PROFILE CHALLENGE THAT DOES APPLY: docs/target-result-profile.md
+        requires validation at cryptographic scale, not toy scale (AGENTS rule 7).
+        This batch validated at log2 p <= 40 against a target of 256 and called the
+        gap unavoidable. OBJ-1 and OBJ-7 show it was not. The profile's standard is
+        therefore NOT met by BATCH-002, and NC-2-EXT is what would meet it for the
+        cost half of the conditional result. The heuristic half remains NC-3 and is
+        untouched.
+
+  cost_model_challenges:
+    - id: CC-1
+      text: >
+        THE TOTAL-COST RULE IS SATISFIED BY THE MODEL AND UNTESTED BY THE RUN. The
+        committed model computes T_full = M / P0 (expected cost = per-attempt cost
+        x inverse success probability) and applies the van Oorschot-Wiener
+        interpolation T(w) = T_full / sqrt(min(w, M)) back to the Delfs-Galbraith
+        baseline. That is the correct shape and I verified it in cost_model.py
+        lines 266-277. BUT the per-entry cost this batch measured enters that model
+        as a multiplicative overhead 2^{c*sqrt(log2 p)} on TOTAL time, and EA-2
+        correctly flags that the o(1) in P0, the Psi tightness, Algorithm 2's
+        matching loop, Algorithm 3's walks, and memory access across a 2^93-entry
+        table are ALL uncharged. The batch's own accounting is
+        optimistic-for-the-attacker and says so.
+    - id: CC-2
+      text: >
+        EA-3 IS UNREPAIRED BY THIS BATCH AND UNREPAIRED BY MY PROBES, AND IT IS
+        STILL THE BINDING LIMITATION. I computed the committed model's optimal B at
+        log2 p = 256: log2 B = 14.2, i.e. B is about 18,800, with log2 X = 49.6,
+        u = 5.986, log2 M = 93.28, log2 T = 108.73. The run measured B <= 32
+        (ell <= 31); the primary B-ASY series measured B in {3, 4, 5}. That is a
+        gap of about 9.2 bits in log2 B, and Lemma 3.3's cost carries a B^{O(1)}
+        factor. MY RT-A PROBE FIXES THE p AXIS AND DOES NOTHING FOR THE B AXIS: it
+        used ell in {2, 3} at log2 p = 256. So NO MEASUREMENT IN THIS BATCH OR IN
+        THIS REVIEW BEARS ON THE OPERATING (p, B) POINT, and the honest scope is
+        "the p axis is now measurable and was not measured; the B axis remains an
+        extrapolation".
+    - id: CC-3
+      text: >
+        PER-ENTRY CONSTANTS AND MEMORY ARE REPORTED AND THAT IS TO THE BATCH'S
+        CREDIT: peak RSS per cell, estimated bytes per entry (about 6.3 kB/entry at
+        k = 20 from the RSS delta), entry counts, table sizes and the four-way
+        component split are all present. The 6.3 kB/entry figure is itself
+        decision-relevant and unremarked: at 2^93 entries it is not a
+        1-byte-per-entry table, and the model's memory axis charges entries, not
+        bytes. NOT AN OBJECTION TO THE RUN - it is outside the contract - but it is
+        a cost-model honesty item for the next batch.
+
+  reduction_and_scope_challenges:
+    - id: SC-1
+      text: >
+        SCOPE IS NOT INFLATED. Every artifact scopes to eight primes in 2^20..2^40,
+        three B settings, two variants, two seedings, one host, one Sage build, one
+        session, and states that p <= 2^40 is not cryptographic size. The
+        affected-scheme scope is correctly NOT asserted: no claim about SQIsign
+        parameters, none about CSIDH or PEGASIS. NO OBJECTION.
+    - id: SC-2
+      text: >
+        NO CORROLLARY-VIA-CITED-REDUCTION IS INSTANTIATED BY THIS BATCH (no
+        OneEnd -> EndRing -> Isogeny step is used), so that class of challenge does
+        not apply here. GAP-2 - Corollary 1.2's citation of a nonexistent
+        Proposition 8.5 of [35], with Proposition 8.4 GRH-conditional as published -
+        remains the live instance of it and is carried unrepaired.
+    - id: SC-3
+      text: >
+        A SCOPED FAILURE IS NOT AN IMPOSSIBILITY. Nothing in this report says the
+        NC-2 instrument cannot work. It says the instrument was pointed at the wrong
+        p range. That is a repairable design defect with a named repair, not an
+        obstruction. AND NO INFRASTRUCTURE SIGNAL IS USED AS MATHEMATICAL EVIDENCE
+        ANYWHERE IN THIS REPORT: D-7 (the artifact-size breach and re-downsampling)
+        and the fallback disclosure are treated as procedural facts only.
+
+  extrapolation_verdict:
+    question: Does the extrapolation from p <= 2^40 support ANY NIST-I statement at all?
+    answer_stated_plainly: >
+      NO. THE EXTRAPOLATION DOES NOT SUPPORT A NIST-I STATEMENT. I state that in
+      those words, as the card invites.
+    the_reason_is_not_the_one_the_contract_gave: >
+      The contract's reason (EA-1: a 6.4-fold extrapolation in log2 p from at most
+      8 points) is a statement about statistical reach. My reason is stronger and
+      different: the fitted quantity in the measured window is not the quantity the
+      extrapolation needs. c_local is 0.0301 over 2^20 -> 2^40 and about 0.40 for
+      log2 p >= 64, so extrapolating the measured slope to 256 understates this
+      implementation's own per-entry cost at 256 by about 12 bits (predicted
+      2^12.22 ops from the fit, measured 2^14.22 ops directly). The extrapolation
+      is not merely wide - it is biased, in the direction of a LARGER attacker
+      margin, i.e. it makes the threat look worse than this implementation
+      actually is.
+    what_would_be_defensible_instead: >
+      A DIRECT MEASUREMENT AT THE OPERATING PRIME SIZE, WHICH IS CHEAP AND WAS NOT
+      DONE. My RT-A/RT-B figure at log2 p = 256, ell = 2, is 19025 host-normalised
+      F_{p^2}-operations per entry = 14.22 overhead bits, equivalent to c = 0.8885
+      in the model's parameterisation, against c_star = 1.9224 at w = 2^30. That
+      still leaves the committed model's speedup over Delfs-Galbraith at about
+      20.05 bits at w = 2^30, far outside the 3.51-bit band. BUT THIS IS NOT A
+      NIST-I STATEMENT EITHER, AND MUST NOT BE RECORDED AS ONE, FOR THREE REASONS:
+      (i) ell in {2,3} is not the operating B (CC-2); (ii) EA-2's uncharged
+      overheads remain uncharged; (iii) RT-A/RT-B are 30-step unreplicated probes
+      that do not meet the contract's own admissibility floor. The correct
+      disposition of this whole line is REFINE_AND_EXPAND to NC-2-EXT.
+
+  baseline_comparison:
+    end_to_end_baseline_named: >
+      DELFS-GALBRAITH at p^{1/2}, i.e. log2 T = 128 at log2 p = 256, which is
+      exactly the committed model's log2TDG and the baseline every margin figure in
+      this campaign is stated against. THAT IS THE CORRECT END-TO-END BASELINE FOR
+      THIS PROBLEM and it is already the one in use - I name it rather than invent a
+      new one. The relevant secondary baselines for the memory axis are the
+      van Oorschot-Wiener interpolation (already in the model, T_full/sqrt(min(w,M)))
+      and, for the pure search framing, meet-in-the-middle at 2^{log2 M} memory.
+      Pollard-rho and BSGS are NOT the right baselines here: the target is the
+      supersingular isogeny / EndRing problem, not a group-order DLP, and quoting
+      them would be a category error.
+    what_this_batch_contributes_to_the_frontier: >
+      NOTHING ON THE ATTACK FRONTIER. This batch executes no attack, produces no
+      solve, and does not move any (time, memory, data) point. Its contribution is a
+      CALIBRATION INPUT to a cost model, plus a procedural fact (M-7).
+    dominated_by: >
+      NOT APPLICABLE - THIS IS NOT A NULL I AM DECLINING TO CHECK. There is no
+      Pareto point to place, because no attack cost was produced at any (time,
+      memory, data/queries) coordinate. I checked all three axes and there is
+      nothing to compare: no time-to-solve, no memory-for-a-solve, no query count.
+      Recording dominated_by: null here would be a category error, not a
+      fabrication, and the correct field value is the string
+      "not_applicable_no_attack_point_produced". IF ANY DOWNSTREAM RECORD PLACES
+      THIS BATCH ON A FRONTIER, THAT RECORD IS OVERSTATING IT.
+    sota_delta:
+      quantitative: >
+        sota_delta = 0 bits against Delfs-Galbraith. No attack was run and no
+        speedup was realised at any parameter size.
+      the_only_honest_delta_is_epistemic_not_cryptanalytic: >
+        The campaign's prior position was that the NIST-I margin is undecidable
+        because 2.3 bits sits inside a 3.51-bit band. After this batch plus this
+        review, the position is: the per-entry table-construction overhead of an
+        unoptimised Sage proof of concept is 10.8 bits at p ~ 2^40 and 14.2 bits
+        measured directly at p ~ 2^256 for ell = 2, against the 30.8 bits that would
+        be needed to close the margin to the band. THAT IS EVIDENCE POINTING AT THE
+        THREATENED DIRECTION AND AWAY FROM THE COMFORTABLE ONE, at the strength of a
+        single unreplicated one-host measurement in a B regime nine bits below the
+        operating point. IT IS NOT A BREAK, NOT AN ATTACK, AND NOT A PARAMETER
+        RECOMMENDATION.
+
+  required_controls:
+    - id: RC-1
+      name: NC-2-EXT - THE PRIME SWEEP EXTENDED TO CRYPTOGRAPHIC SIZE
+      what: >
+        Re-run experiments/EXP-SSI-002/calibration_probe.py UNMODIFIED except for
+        exponents_log2p, extended to {20, 40, 64, 96, 128, 192, 256, 320}, at
+        B-FIX-8 and B-FIX-32, V-1 and V-2, SEED-A, with CTRL-CAL, CTRL-NULL,
+        CTRL-DRIFT, CTRL-DET and CTRL-COUNT interleaved exactly as now, and the
+        same entry-count admissibility floor.
+      why_it_is_the_cheapest_discriminating_control: >
+        It changes ONE pre-registered parameter, reuses the entire validated
+        harness and every control unchanged, costs an estimated 20-40 minutes
+        against a 5400 s cap already shown to have 30x headroom, and it settles
+        OBJ-1, OBJ-3, OBJ-7 and the extrapolation verdict simultaneously. Nothing
+        cheaper distinguishes "Algorithm 1's per-entry cost is flat in p" from "the
+        p <= 2^40 window is a dispatch floor", and that is the single question on
+        which the whole reading turns.
+      it_is_not_a_rename: >
+        THIS IS NOT NC-1 AND NOT NC-3, WHICH REMAIN UNOPENED AT THEIR RECORDED
+        PRIORITIES, AND IT IS NOT A RENAME OF AN EXISTING CONTROL. It is NC-2 with
+        its prime range corrected, and it should be recorded as a SUCCESSOR
+        EXPERIMENT (EXP-SSI-003 / RUN-SSI-003), never as an amendment to the frozen
+        EXP-SSI-002.
+      pre_registration_required_before_running_it: >
+        Because I have already seen RT-A's numbers, the readings, gates and
+        thresholds of NC-2-EXT MUST BE FROZEN BY THE COORDINATOR BEFORE IT RUNS, AND
+        MY PROBE NUMBERS MUST NOT BE USED TO SET THEM. Setting a threshold from a
+        red-team probe would be exactly the post-hoc criterion movement S-10
+        forbids.
+    - id: RC-2
+      name: FIT-ELL RECOMPUTED ON THE PRIMARY B-ASY SERIES
+      what: Re-analysis only, from the archived raw-timings.json, no new measurement. Settles OBJ-6.
+      cost: seconds.
+    - id: RC-3
+      name: THE FULL w GRID FOR EVERY MARGIN FIGURE
+      what: Publish margin(c) at w in {2^30..2^92} beside every quoted margin, or supersede the two false completeness statements of OBJ-5.
+      cost: seconds.
+    - id: RC-4
+      name: THE NULL-OBJECT CONTROL FOR THE NORMALISATION
+      what: >
+        Report slope(t_noop) explicitly as the p-independent null object for the
+        normalisation, and stop comparing slope(T_entry_ops) to slope(t_mul) (OBJ-2).
+        Requires a versioned protocol_amendment; MUST NOT be applied retroactively
+        to RUN-SSI-002.
+
+  counterexample_or_mutation: >
+    THE MUTATION I SELECTED, AS CTRL-RT039-A REQUIRES, WAS NOT A MUTATION OF THE FIT
+    BUT OF THE DESIGN. I ran all four fit perturbations the card names
+    (leave-one-prime-out, shortest-5-prime sub-range, median-vs-mean,
+    normalised-vs-raw) AND ALL FOUR FAILED TO BREAK THE FIT - the fit is exactly as
+    stable as reported. The mutation that DID break something was to extend the
+    measured quantity's prime range past the contract's frozen ceiling, which is a
+    perturbation the producer could not have chosen without amending its own
+    contract. Result: T_entry_ops(ell=2) goes 1876 (2^40) -> 2100 (2^64) -> 5572
+    (2^128) -> 19025 (2^256) -> 120366 (2^512), with the root-finding share of the
+    timed window going 0.685 -> 0.729 -> 0.967 -> 0.988. The reported flatness does
+    not survive the mutation.
+
+  narrowest_supported_statement: >
+    ON ONE HOST, IN ONE SESSION, WITH ONE SAGE 10.9 BUILD: the host-normalised
+    per-entry table-construction cost of Algorithm 1 as implemented in
+    calibration_probe.py is 1568-1933 F_{p^2}-operation-equivalents per entry across
+    eight primes in 2^20..2^40 at B in {3,4,5} (B-ASY), 8 and 32, and its dependence
+    on p over that window is below the pre-registered detection threshold of
+    c = 0.1975 in the M-A parameterisation. THE PRE-REGISTERED READING
+    READING-NOT-IDENTIFIED FIRED CORRECTLY AND MECHANICALLY AND SHOULD STAND. It must
+    be recorded together with the fact that the same design would have detected
+    c = c_star at 17x the gate threshold, and with the fact that the measured window
+    lies below the point at which this implementation's p-dependence emerges.
+    NOTHING HERE MEASURES THE NIST-I MARGIN, TESTS HEURISTIC 1, REPAIRS GAP-1 OR
+    GAP-2, VALIDATES SECTION 4.1, OR RECOMMENDS ANY PARAMETER.
+
+  recommended_disposition_advisory_only:
+    disposition: refine_and_expand
+    basis: >
+      The run is valid, the controls are clean, the arithmetic reproduces, the
+      claim ceiling is respected, and the reading is mechanically correct. The
+      defect is in the frozen contract's prime range, not in the execution. The
+      Coordinator decides; I do not. reject_scoped is forbidden here (N-7) and I do
+      not seek it, and `replicate` alone would repeat the same blind spot.
+    on_premature_closure: >
+      I EXPLICITLY DO NOT SUPPORT CLOSING THE NC-2 LANE. A null obtained inside a
+      measurement floor is a fatigue report about the instrument, not a statement
+      about Algorithm 1, and docs/inventor-protocol.md section 4 would require a
+      NAMED OBSTRUCTION to close, which nobody has. There is no obstruction here -
+      there is an unspent budget and a frozen parameter that should not have been
+      frozen where it was.
+
+  self_falsifiers_and_dissents_including_against_my_own_recommendation:
+    - id: SF-1
+      text: >
+        MY RT-A/RT-B PROBES COULD BE MEASURING SAGE'S GENERIC ROOT-FINDING, NOT
+        ALGORITHM 1. .roots() over F_{p^2} at 256 bits computes x^{p^2} mod f
+        generically; a real implementation exploiting that Phi_ell(j,x) splits
+        completely over F_{p^2} for supersingular j would pay far less, and the
+        frozen source's own Lemma 3.3 footnote points at batched evaluation. So my
+        c ~ 0.40 IS AN UPPER BOUND ON AN OPTIMISED IMPLEMENTATION EXACTLY AS EA-4
+        says the run's numbers are, AND IT DOES NOT ESTABLISH A SAFE MARGIN EITHER.
+        If someone quotes my 14.22 overhead bits at log2 p = 256 as evidence that
+        SQIsign is safe, they have misread this report.
+    - id: SF-2
+      text: >
+        DISSENT AGAINST MY OWN RC-1. NC-2-EXT fixes the p axis and leaves the B axis
+        (CC-2) untouched, and the B axis is the larger gap: 9.2 bits in log2 B
+        versus 2.7 bits in log2 log2 p. A reviewer could reasonably argue the
+        cheapest discriminating control is a B SWEEP at fixed moderate p rather than
+        a p sweep at fixed tiny B. I chose the p sweep because the p axis is what
+        the batch called its single largest extrapolation, because it is the axis I
+        have DEMONSTRATED is mismeasured rather than merely suspected, and because a
+        B sweep at B ~ 2^14 requires modular polynomials Phi_ell for ell up to about
+        18800, which is a data-availability problem this harness has not solved
+        (D-1 already records that the Kohel database is not installed and V-1 falls
+        back to PARI polmodular). A COMBINED (p, B) GRID WOULD BE BETTER THAN EITHER
+        AND I DID NOT PROPOSE IT ONLY BECAUSE ITS COST IS UNKNOWN TO ME.
+    - id: SF-3
+      text: >
+        DISSENT ON OBJ-3's FRAMING. It is arguable that GOF-3 did exactly its job:
+        it refused to let a slope of 0.14 with an interval touching 0.036 be
+        promoted to "an exponent", which is a defensible standard. I hold my
+        objection because the run's artifacts do not distinguish "small effect" from
+        "no resolution", not because GOF-3 should have been different.
+    - id: SF-4
+      text: >
+        MY PROBES ARE NOT MODEL-INDEPENDENT OF THE PRODUCER. I resolve to
+        claude-opus-5, as does the executor and the validator. The probe scripts
+        were written by me from the frozen contract and from calibration_probe.py's
+        expand_step_V1, so they share its structure and could share its blind spots.
+        THE ADVERSARIAL-MUTATION-SELECTION RULE IS A MITIGATION FOR THAT AND NOT A
+        SUBSTITUTE FOR IT, AND THIS REPORT CLAIMS NO MODEL-LEVEL INDEPENDENT
+        CONFIRMATION. N-8 STANDS.
+    - id: SF-5
+      text: >
+        I DID NOT RE-VERIFY THE COMMITTED COST MODEL'S DICKMAN MACHINERY, ITS
+        OPTIMISER GRID, OR ITS 0.05-3.51 BIT REPRODUCTION BAND (EA-5). I imported it
+        unmodified and checked its sha256 against the run's recorded value
+        (a82b9d5b1f...). Every margin number I quote inherits that band additively
+        and I have not audited it.
+
+  attacks_not_run_named_explicitly:
+    - FIT-ELL on the primary B-ASY series (OBJ-6). I identified the confound and did not have an authorised re-analysis path from the archived artifacts inside my card; named as RC-2.
+    - Any B sweep at all. CC-2 stands entirely unrepaired by me. I measured ell in {2,3} only.
+    - Any audit of the committed cost model's internals (SF-5).
+    - Any check of RUN-SSI-002 against a SECOND host. The run is one host and I used the same one, so I have not separated a host-specific dispatch profile from a general one.
+    - Any check of the V-2 (Velu) route past 2^40. RT-A/RT-B are V-1 only.
+    - CTRL-DRIFT re-derivation from raw timings; I accepted the executor's start/end ratios.
+    - Any assessment of NC-1 or NC-3, which this batch does not open (N-9).
+
+  next_concrete_action: >
+    THE COORDINATOR SHOULD RECORD READING-NOT-IDENTIFIED AS FIRED AND CORRECT, AND
+    IMMEDIATELY OPEN NC-2-EXT (RC-1) AS A NEW FROZEN CONTRACT EXP-SSI-003 WITH
+    exponents_log2p = {20, 40, 64, 96, 128, 192, 256, 320} AND ITS GATES AND
+    READINGS FROZEN BEFORE ANY EXECUTION AND WITHOUT REFERENCE TO THE NUMBERS IN
+    THIS REPORT. Everything else in EXP-SSI-002 - the controls, the gates, the
+    seeding pre-registration, the claim ceiling - should be carried over unchanged,
+    because they worked.
+
+  provenance:
+    reviewer_role: red-team
+    requested_policy: review-xhigh
+    requested_policy_source: TASK-20260731-004.handoff.inference.policy
+    resolved_model: claude-opus-5
+    model_verified: false
+    fallback_used: true
+    fallback_allowed_by_handoff: false
+    fallback_disclosure: >
+      Claude Code cannot resolve the GPT-5.6-family policy aliases in
+      orchestration/model-policies.yaml, so review-xhigh could not be honoured.
+      The substitution is DISCLOSED, not silent. INDEPENDENCE FROM THE PRODUCER IS
+      SESSION-LEVEL AND IMPLEMENTATION-LEVEL AND IS NOT MODEL-LEVEL; the executor,
+      the validator and this red team all resolve to claude-opus-5.
+      CTRL-RT039-A's adversarial-mutation-selection rule was followed - every
+      perturbation in this report was chosen by me, not re-run from the producer's
+      control list - AND IT IS A MITIGATION FOR THE MISSING MODEL INDEPENDENCE, NOT
+      A SUBSTITUTE FOR IT.
+    session: independent; did not originate RUN-SSI-002 and did not author EXP-SSI-002.
+    commits_made: NONE.
+    files_written: only the two artifact_paths below, both inside the declared write_scope.
+    budget: card cap 3600 s wall / 4 GB; probes RT-A and RT-B consumed roughly 20 minutes of compute inside that cap; no cap was breached.
+    tooling_used: python3 for all refits and power analysis; sage 10.9 via /usr/local/bin/sage for RT-A and RT-B; experiments/EXP-P13VOW-001/cost_model.py imported unmodified for c_star and margin recomputation.
+
+  artifact_paths:
+    - coordination/goals/GOAL-P13-001/batches/BATCH-002/reviews/TASK-20260731-004/red_team_report.yaml
+    - coordination/goals/GOAL-P13-001/batches/BATCH-002/reviews/TASK-20260731-004/red_team_notes.md
+  probe_script_paths_outside_the_repository:
+    - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher--claude-worktrees-run-harness-boi-060771/e6be2d6e-7396-4b4c-b287-44e8a4b9dac9/scratchpad/rt_probe.py
+    - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher--claude-worktrees-run-harness-boi-060771/e6be2d6e-7396-4b4c-b287-44e8a4b9dac9/scratchpad/rt_probe2.py
+  probe_script_note: >
+    THE PROBE SCRIPTS ARE DELIBERATELY OUTSIDE THE REPOSITORY. They are red-team
+    working artifacts, not run records, and writing them under experiments/ would
+    imply a run package that does not exist. If NC-2-EXT is opened they should be
+    REWRITTEN from the frozen contract, not adopted.
