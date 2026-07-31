@@ -6,12 +6,10 @@ BATCH-028: construct a checkable symbolic retry/cleanup and residual-tail charge
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-083` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-083/retry_cleanup_tail_routing.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-083/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-083/routing_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-083/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-083/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-083 |
+| `TASK-20260730-085` | red-team | queued | 80 | TASK-20260730-083, TASK-20260730-084 | coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-085/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-085/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-085 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-084`: dependency_not_completed:TASK-20260730-083:queued
-- `TASK-20260730-085`: dependency_not_completed:TASK-20260730-083:queued, dependency_not_completed:TASK-20260730-084:queued
 - `TASK-20260730-086`: dependency_not_completed:TASK-20260730-085:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-028: construct a checkable symbolic retry/cleanup and residual-tail charge
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9de5a273bd5e5db0c3918dc5266928687a0efbf3db13bd86ec16ef87850bbc39`
+Plan SHA-256: `7d7edd1efa6c80eddc52dff2a1f48b392ca9129240f3827816e4e3924bbd151e`
