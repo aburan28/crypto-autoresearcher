@@ -6,11 +6,11 @@ BATCH-022: bounded executor spike implementing Verify(x,k') and W/R/B/M_tail lif
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-061` | red-team | queued | 80 | TASK-20260730-059, TASK-20260730-060 | coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-061/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-061/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-061 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-062`: dependency_not_completed:TASK-20260730-061:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-022: bounded executor spike implementing Verify(x,k') and W/R/B/M_tail lif
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `06c031bb7c617cf83d483f42217f50aa362d33586cc396cdf868ca4f6b9c07e2`
+Plan SHA-256: `a73d5276625debf5deeb30c026534b776cc5da1db2bd3754ef229fa32cea1491`
