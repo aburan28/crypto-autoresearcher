@@ -1,7 +1,7 @@
 # Bounded idealized reachable-state audit
 
 Task `TASK-20260730-017` executes one deterministic, discrete-combinatorics
-package under `DEC-20260730-004`. It does not run the pinned simulator, any
+package under `DEC-20260730-011`. It does not run the pinned simulator, any
 curve/isogeny computation, or a quantum circuit.
 
 ## Finite model and bounds

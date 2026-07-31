@@ -1,6 +1,6 @@
 # Primary-source excerpts for Equation (4.1) and the \(8L\) bound
 
-Task `TASK-20260730-001` · access date 2026-07-30
+Task `TASK-20260730-037` · access date 2026-07-30
 
 ## Source identity and verification
 

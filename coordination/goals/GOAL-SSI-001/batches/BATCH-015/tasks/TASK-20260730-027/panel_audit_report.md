@@ -112,7 +112,7 @@ was not an explicit `ttm-v1` typed-tape/history transition machine.
 No equality or disagreement with the 176-pair result can be asserted here:
 the frozen machine blocks before a pair can be formed, and its syntactic
 zero-progress definition is an individual threshold-rejected `decide` state,
-not BATCH-014's all-q-bins predicate.  DEC-20260730-006 already requires
+not BATCH-014's all-q-bins predicate.  DEC-20260730-013 already requires
 that the BATCH-014 pin order be described as self-attested rather than
 independently durable, and that its analyzer be described as static
 enumeration.  This audit confirms those qualifications remain necessary; it

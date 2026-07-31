@@ -1,6 +1,6 @@
 # FC0-R2 revision note — GOAL-SSI-001 BATCH-009
 
-Task `TASK-20260730-001` · access date 2026-07-30  
+Task `TASK-20260730-037` · access date 2026-07-30  
 Version: **CSIDH-COLLIMATION-FC0-R2**  
 Supersedes for this control gate: `CSIDH-COLLIMATION-FC0-R1`
 

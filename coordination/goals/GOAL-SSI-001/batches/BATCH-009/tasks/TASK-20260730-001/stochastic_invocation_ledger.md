@@ -1,6 +1,6 @@
 # FC0-R2 stochastic invocation ledger
 
-Task `TASK-20260730-001` · convention `CSIDH-COLLIMATION-FC0-R2`  
+Task `TASK-20260730-037` · convention `CSIDH-COLLIMATION-FC0-R2`  
 Scope: zero-compute accounting control for `IDEA-20260729-001`
 
 ## 1. Probability space and stopping process
