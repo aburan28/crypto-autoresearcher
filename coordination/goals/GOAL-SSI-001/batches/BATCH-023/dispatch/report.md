@@ -6,11 +6,11 @@ BATCH-023: deepen F_* composition and peak-stage live-set accounting against FC0
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-065` | red-team | queued | 80 | TASK-20260730-063, TASK-20260730-064 | coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-065/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-065/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-065 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-066`: dependency_not_completed:TASK-20260730-065:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-023: deepen F_* composition and peak-stage live-set accounting against FC0
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b0fbf2071b07f7fe9368d17804d586d2ce324b7339db77c52630296c057baf0e`
+Plan SHA-256: `2c3437dbb38c1b1f11d7b0465d7484615d1a08490516eef32d9f9fee53c4e6a6`
