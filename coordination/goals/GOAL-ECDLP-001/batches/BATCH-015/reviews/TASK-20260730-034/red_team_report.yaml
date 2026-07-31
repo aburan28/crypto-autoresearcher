@@ -1,0 +1,764 @@
+red_team_report:
+  id: null
+  id_note: >-
+    NO RT-* IDENTIFIER IS MINTED. This report is cited BY PATH AND TASK ID ONLY,
+    per the TASK-20260730-034 constraint and per INT-BATCH014-N (the allocator
+    cannot detect an RT-* collision). Cite it as
+    coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/reviews/TASK-20260730-034/red_team_report.yaml,
+    TASK-20260730-034. RT-20260729-036 IS NOT ISSUED TO ANY REPORT.
+  task_id: TASK-20260730-034
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-015
+  role: red-team
+  reviewed_snapshot_commit: e3cf9fdd770cbab3ebf55691a60143ace2b75f4c
+  reviewed_bytes_verified: >-
+    ALL FOUR SUBSTANTIVE PROBE ARTIFACTS WERE RE-HASHED FROM GIT OBJECT CONTENT
+    AT e3cf9fdd AND COMPARED AGAINST THE WORKING TREE. structure_probe.json
+    d6bbd9b5..., supply_probe.json c48b54d8..., probe_driver.py 98858103...,
+    probe_manifest.json b7dea56f... - ALL FOUR IDENTICAL. This review is of the
+    committed snapshot, not of a working-tree artifact.
+
+  claim_under_review: >-
+    The TASK-20260730-031 probe's headline observations as they will be read by a
+    successor: (a) "both CTRL-4 structure assertions PASS at B = 192 and B = 193";
+    (b) "28 supply units with maximum base-row shortfall ZERO"; (c) "the
+    pre-registered falsification condition did NOT fire". The probe's own
+    artifacts state these narrowly and write no interpretation; THE OBJECT OF
+    THIS REVIEW IS THE INTERPRETATION A SUCCESSOR WILL DEFAULT TO.
+
+  session_and_independence:
+    session_independent: true
+    model_independent: false
+    model_independence_claimed: false
+    requested_policy: review-adversarial
+    resolved_model_id: claude-opus-5
+    model_verified: false
+    model_verified_reason: >-
+      `python3 -m orchestration.adapter doctor --probe` does not exist on this
+      branch (INT-BATCH015-D). The resolved model is the harness-reported model of
+      this session and is not independently attested.
+    fallback_used: true
+    fallback_reason: >-
+      orchestration/model-policies.yaml routes review-adversarial to a
+      GPT-5.6-family policy alias requiring xhigh against a binding ceiling of
+      high. Claude Code cannot resolve it. DISCLOSED, NOT SILENTLY SUBSTITUTED.
+    counts_toward_completion_quorum: false
+
+  # ------------------------------------------------------------------ OBJECTIONS
+  objections:
+    - id: OBJ-1
+      severity: blocking_for_interpretation
+      not_blocking_for: >-
+        The committed artifacts themselves, which are honest, in scope and
+        correctly narrow. THIS OBJECTION BLOCKS A READING, NOT AN ARTIFACT.
+      title: >-
+        CTRL-4 CONDITION (ii) IS A TAUTOLOGY OF THE CONSTRUCTOR. IT CANNOT FAIL
+        FOR ANY B, ANY CURVE OR ANY zeta3, AND ITS `PASS` CARRIES ZERO
+        INFORMATION ABOUT PHI-INVARIANCE.
+      argument: >-
+        harness/endomorphism_la.py::_build_phi_invariant_factor_base builds its
+        output by exactly one statement, `xs.extend(orbit)` where
+        `orbit = [x, (zeta3*x) % p, (zeta3*zeta3*x) % p]`. xs is never permuted,
+        never inserted into, and never appended to by any other path; the return
+        is `xs[:B]`, which preserves the first floor(B/3) contiguous triples
+        intact. CTRL-4's condition (ii) then checks
+        `F[3j+k] == pow(zeta3,k,p) * F[3j] % p` for `0 <= j < len(F)//3` - that
+        is, it re-evaluates THE SAME ARITHMETIC EXPRESSION THE CONSTRUCTOR USED
+        and compares it against itself. This is a MIRROR TEST, not a test.
+      demonstration_run_by_this_review: >-
+        I called the committed builder at B = 192 on CURVE-J12S1 with three
+        values of zeta3: the true one (1303, cube 1 mod 2293), 5 (cube 125 mod
+        2293) and 1234 (cube 1799 mod 2293). CTRL-4 conditions (i) AND (ii)
+        REPORT PASS IN ALL THREE CASES. A "phi-invariance" assertion that passes
+        with a value that is not a cube root of unity is not an assertion about
+        phi at all. Command reproducible from the committed harness; nothing was
+        modified.
+      what_actually_survives: >-
+        Only condition (i), `len(F) == B`. Condition (ii) establishes nothing and
+        must not be reported as a verified structural property of the factor base.
+      what_the_condition_conspicuously_does_not_cover: >-
+        The one structural variable the EXP-STR-004 ladder is built on. That
+        contract's own text says at B = 3q+1 "the last phi-orbit is TRUNCATED to a
+        single element whose phi-image is not in F". CTRL-4 (ii) checks only
+        COMPLETE blocks and is therefore blind to the truncated tail by
+        construction. At B = 193 the probe correctly records
+        tail_indices_not_in_a_complete_block = [192] and checks nothing about it.
+      consequence_for_the_batch: >-
+        M-1's second limb is NOT established. Any BATCH-015 record must say that
+        CTRL-4 condition (ii) is a constructor identity, so that no successor
+        treats "both structure assertions PASS" as evidence that the arm A-prime
+        factor base is phi-closed.
+
+    - id: OBJ-2
+      severity: high
+      title: >-
+        THE PART A LIMB OF THE PRE-REGISTERED FALSIFICATION CONDITION WAS
+        STRUCTURALLY INCAPABLE OF FIRING AT B = 192 AND B = 193. "IT DID NOT
+        FIRE" CARRIES NO INFORMATION ON THAT LIMB.
+      argument: >-
+        The clause `len(F) != B` fires only if the builder exhausts its trial
+        bound j < 50*B + 1000 before accumulating ceil(B/3) whole orbits. On
+        CURVE-J12S1 (p = 2293) I measured, by re-running the committed builder
+        read-only, that it consumes 139 draws at B = 192 and 140 at B = 193
+        against permitted bounds of 10600 and 10650 - A MARGIN OF ROUGHLY 76x.
+        The instance affords 366 distinct full phi-orbits (1099 liftable
+        x-coordinates, and the liftable set is CLOSED under x -> zeta3*x because
+        a = 0 makes (zeta3*x)^3 + b = x^3 + b, so the builder's per-member curve
+        test never rejects anything). The builder first returns a SHORT list only
+        at B of about 1142 on this instance - roughly SIX TIMES the tested B.
+      what_the_quantity_should_have_done: >-
+        B is the parameter that is supposed to destroy the D-3 length property.
+        The honest measurement is a SWEEP IN B up to and past the orbit-supply
+        boundary, with `len(F) == B` expected to hold up to B ~ 1098 and to fail
+        above it. Two adjacent PASSes taken at ~1/6 of the boundary, with a 76x
+        trial-bound margin, is the canonical artifact tell of docs/inventor-
+        protocol.md section 3: a quantity reported flat where nothing was doing
+        the work of making it vary.
+      what_survives: >-
+        A true and narrow procedural fact: at commit e3cf9fdd, on CURVE-J12S1,
+        the committed builder returns lists of length exactly 192 and 193. That
+        is worth having and is what D-3's length limb asked for. It is NOT a
+        passed stress test and must not be banked as one.
+
+    - id: OBJ-3
+      severity: high
+      title: >-
+        183 IS AN INSTRUMENT CONSTANT OF THE TARGET GENERATOR, NOT A PROPERTY OF
+        THE CURVE, THE FIELD OR EITHER FACTOR BASE. THE TWO HEADLINE CELLS ARE
+        MEASURING THE INSTRUMENT.
+      argument: >-
+        harness/endomorphism_la.py::_collect_relations generates targets by the
+        arithmetic progression `k = (t_idx + 1) * c % (n - 1) + 1` with
+        `c = max(2, inst.seed % max(2, n - 3))`. On CURVE-J12S1, n = 733 and the
+        derived seed is 100, so c = 100 and gcd(100, 732) = 4. The progression
+        therefore visits exactly (n - 1) / gcd(c, n - 1) = 732 / 4 = 183 distinct
+        k values, and I verified by direct computation that these yield exactly
+        183 distinct target x-coordinates. THE 183 IS 732/4. It is a divisibility
+        accident of the seed against n - 1.
+      consequence: >-
+        At L192 (Q = 202) and L193 (Q = 203) THE QUOTA IS UNREACHABLE BY
+        CONSTRUCTION. `len(relations) = 183` at those cells is the target
+        generator's cycle length, reached with a 100% decomposition rate
+        (hits = attempts = 183 in both arms). The loop's remaining 827 of 1010
+        iterations do nothing but `continue` on the seen_targets set.
+      the_censoring_is_wider_than_the_two_headline_cells: >-
+        Of the 28 supply units, 24 report a SATURATED INSTRUMENT CONSTANT rather
+        than a supply measurement: len(relations) = 60 = Q at L24, L25, L48, L49,
+        A12M3, A13M3 (both arms, 12 units); = 106 or 107 = Q at L96, L97, X96,
+        X97 (both arms, 8 units); = 183 = target-cycle ceiling at L192, L193
+        (both arms, 4 units). ONLY L12 AND L13, BOTH ARMS - FOUR UNITS - REPORT
+        AN UNCENSORED NUMBER.
+      what_the_quantity_should_have_done: >-
+        len(relations) should rise with Q and then flatten when either the quota
+        or the distinct-target supply binds. It flattened at exactly Q, or at
+        exactly 183, at 24 of 28 units. That is the instrument, and any ladder
+        statement across B built on those cells is confounded above the ceiling.
+
+    - id: OBJ-4
+      severity: high
+      title: >-
+        THE ARM E-PRIME NULL OBJECT IS WELL CONSTRUCTED BUT WAS MEASURED ON A
+        CENSORED QUANTITY. THE A-PRIME = E-PRIME IDENTITIES ARE FORCED BY THE
+        CEILING AND ARE NOT EVIDENCE OF INSENSITIVITY.
+      the_null_is_genuinely_null_on_construction: >-
+        I read harness/semaev.py::build_factor_base, which
+        `_build_random_factor_base` delegates to. It returns `size` DISTINCT
+        ON-CURVE x-coordinates from the same `_seed_int` stream and the same
+        trial bound. It is matched to arm A-prime on size, on liftability, on
+        determinism and on seed source, and differs only in phi-orbit structure.
+        THIS IS A PROPERLY CONSTRUCTED NULL OBJECT AND THE PROBE DESERVES CREDIT
+        FOR RUNNING IT. It is not a strawman.
+      but_the_comparison_is_uninterpretable: >-
+        The identities the successor will notice - 60/60, 106/106, 107/107,
+        183/183 - occur at exactly the units where OBJ-3 shows the quantity is
+        pinned at Q or at 183. Two arms cannot differ on a number that is
+        clamped. The identity is FORCED and is not a controlled null.
+      and_the_quantity_is_NOT_arm_insensitive: >-
+        Where the clamp does not bind, the arms separate substantially and in a
+        consistent direction. len(relations) at L12: A-prime 29 vs E-prime 17.
+        At L13: 31 vs 20. And even at quota-pinned cells the arms separate on the
+        number of targets consumed to reach the quota - L24 150 vs 132, L25 139
+        vs 129, L48 67 vs 68, A12M3 82 vs 104, A13M3 75 vs 95, X96 289 vs 296.
+        SO THE INSTRUMENT IS NOT BLIND TO THE ARM; THE REPORTED QUANTITY IS
+        CENSORED.
+      what_this_batch_may_and_may_not_say: >-
+        MAY: the null object was built and run at all fourteen cells, and no
+        (cell, arm) unit fell short of R_base(B). MAY NOT, IN EITHER DIRECTION:
+        any A-prime versus E-prime comparison, any statement that the arms are
+        indistinguishable, any statement that a phi-invariant factor base yields
+        more relations. The queue's own restriction to "ONLY len(relations)"
+        forbids the second and third, and OBJ-3's censoring forbids the first.
+        A SUCCESSOR WHO READS 183/183 AS A CONTROLLED NULL IS READING THE CLAMP.
+
+    - id: OBJ-5
+      severity: medium
+      title: >-
+        THE SUPPLY LIMB OF THE FALSIFICATION CONDITION WAS APPLIED EXACTLY AS
+        WRITTEN, BUT WITH A MARGIN OF 3.4x TO 36x. QUOTE THE MARGIN OR THE
+        "DID NOT FIRE" IS BANKED ABOVE ITS WORTH.
+      argument: >-
+        The clause needs max(0, R_base(B) - len(relations)) >= 2 at some unit.
+        The tightest unit in the whole probe is L12/arm_E_prime: R_base = 5, so
+        firing required len(relations) <= 3; the observed value was 17, a factor
+        of 5.7 clear, and 3.4x clear of R_base itself. At the two headline cells
+        R_base is 65 and 66 against an observed 183 - firing would have required
+        the decomposition hit rate to collapse below 36%, where the observed rate
+        was 100%. UNLIKE OBJ-1 AND OBJ-2 THIS LIMB WAS NOT ANALYTICALLY DEAD: at
+        B = 12 the m = 2 pair-coverage argument gives no a-priori guarantee, and
+        the E-prime arm did land within a factor of 5.7 of firing. THE LIMB WAS A
+        REAL TEST, WITH A WIDE MARGIN, AND SHOULD BE REPORTED WITH THE MARGIN.
+      required_wording: >-
+        "The supply limb was evaluated at all 28 units and did not fire; the
+        tightest unit was L12/arm_E_prime at len(relations) = 17 against
+        R_base = 5" - NOT "the falsification condition passed".
+
+    - id: OBJ-6
+      severity: medium
+      title: >-
+        THE `CTRL-4` IDENTIFIER IS DEMONSTRABLY AMBIGUOUS ACROSS THE TWO FROZEN
+        COPIES OF EXP-STR-004. NOTHING IN BATCH-015 DEPENDS ON THE DISCARDED
+        COPY, BUT EVERY FUTURE CITATION MUST CARRY A COMMIT SHA.
+      what_i_checked: >-
+        I diffed the committed experiments/EXP-STR-004/specification.yaml against
+        the discarded duplicate preserved in the session scratchpad. IN THE
+        COMMITTED COPY, CTRL-4 IS THE FACTOR-BASE STRUCTURE ASSERTION. IN THE
+        DISCARDED COPY, CTRL-4 IS A DIFFERENT CONTROL ENTIRELY - "RESIDUE
+        CONTRAST AT EVERY RUNG" - and that copy has no `the_fourteen_named_cells`
+        block at that location at all.
+      does_batch_015_depend_on_the_discarded_artifact: >-
+        NO, AND I CHECKED RATHER THAN ASSUMED. The probe recomputed R_base(B) and
+        Q(B) from the two formulas and recorded `table_disagreements: []`; I
+        independently confirmed the fourteen cells and the CTRL-4 text in the
+        COMMITTED copy match what the queue carried and what the driver executed.
+        The structure_probe.json authority field cites the path, which resolves
+        unambiguously on this branch.
+      required_forward_action: >-
+        Any successor record citing CTRL-4 must cite it as "CTRL-4 of
+        experiments/EXP-STR-004/specification.yaml at <commit sha>". The bare
+        identifier is now known to name two different controls.
+
+    - id: OBJ-7
+      severity: medium
+      title: >-
+        QUEUE-AMEND-20260730-002 CREATES A TOOLING-DRIVEN PRESSURE TO MINT AN
+        EVIDENCE RECORD FOR A PROBE THE SAME QUEUE SAYS IS NOT A RESULT.
+      argument: >-
+        tools/research_dispatch.py::_validate_ledger_archive requires
+        unconditionally that a `ledger` archive declare at least one path under
+        ledger/evidence/. The amendment therefore put ledger/evidence/EV-STR-005.yaml
+        into TASK-20260730-035's artifact_paths UNCONDITIONALLY. A dispatcher
+        schema now asserts, structurally, that an evidence record will exist for
+        a batch whose own claim ceiling says it produces no result.
+      mitigating_fact_recorded_fairly: >-
+        The amendment names this hazard itself and forbids it in terms: "NO
+        EVIDENCE RECORD MAY BE WRITTEN UNDER BRANCH 2 IN ORDER TO MAKE A DECLARED
+        PATH COUNT COME TRUE." The declare-then-deviate route with a recorded
+        shortfall is already pre-registered, with BATCH-014's TASK-20260729-048
+        as its precedent.
+      required_forward_action: >-
+        TASK-20260730-035 must exercise declare-then-deviate and RECORD THE
+        SHORTFALL if it does not write EV-STR-005, and must not write an evidence
+        record to satisfy a path count. This is a live hazard, not a breach.
+
+    - id: OBJ-8
+      severity: low
+      title: >-
+        THE MEASURED DISTINCT-TARGET COUNT OF 183 AGREES NUMERICALLY WITH THE
+        TASK-20260729-043 DERIVED BOUND OF 183, AND THE PROBE DID NOT COMPARE
+        MEMBER SETS. UNDER PRED-ID-STR THAT IS CARDINALITY-ONLY AGREEMENT ON THE
+        FACE OF THE ARTIFACTS.
+      what_i_did_about_it: >-
+        I checked the underlying sets myself. The 183 distinct targets ARE the
+        full k-cycle of the progression, so the agreement here is GENUINE and not
+        cardinality-only. THE PROBE IS NOT WRONG; ITS ARTIFACTS SIMPLY DO NOT
+        ESTABLISH THIS, and a successor must not upgrade "183 = 183" to set
+        agreement on the strength of the probe alone. The probe's own artifacts
+        correctly report both figures side by side without claiming agreement.
+
+    - id: OBJ-9
+      severity: process_medium
+      title: >-
+        THE SHARED-MODEL FALLBACK IS A REAL THREAT TO THE INDEPENDENCE THIS
+        REVIEW CHAIN ASSUMES, AND OBJ-1 IS AN EXAMPLE OF THE FAILURE MODE IT
+        PRODUCES.
+      argument: >-
+        The producing Executor (TASK-20260730-031), the Validator
+        (TASK-20260730-033) and this Red Team (TASK-20260730-034) all resolve to
+        claude-opus-5 with fallback_used true and model_verified false. The
+        specific hazard is CORRELATED BLIND SPOTS, not laziness: an executor that
+        implements a check by transcribing the constructor's own expression, and
+        a reviewer running the same model that reads the check and finds it
+        faithful to the contract, will agree - correctly on fidelity and wrongly
+        on informativeness. OBJ-1 IS EXACTLY THAT SHAPE. I did not find it by
+        reading; I found it by RE-EXECUTING THE COMMITTED BUILDER WITH A BOGUS
+        zeta3 AND WATCHING THE ASSERTION PASS.
+      the_available_mitigation_costs_no_model_diversity: >-
+        REQUIRE A MUTATION TEST FOR EVERY ASSERTION-STYLE CONTROL. A control that
+        has never been shown to FAIL on a deliberately broken input is not known
+        to be a control. Mutation evidence is model-independent in a way that
+        cross-reading is not, and it is available at zero additional model cost.
+      what_is_not_claimed: >-
+        NO MODEL INDEPENDENCE IS CLAIMED ANYWHERE IN THIS REPORT (INT-BATCH015-D,
+        INT-BATCH015-E, N-5). This session is session-level and
+        implementation-level independent only, and counts toward no quorum.
+
+  # ------------------------------------------------- PROCESS CHECKS (G2, G3, G4)
+  falsification_condition_integrity_check:
+    gate: G2
+    was_it_reinterpreted: "NO."
+    commit_order_checked_against_git_not_assertion: true
+    evidence:
+      - "d0bdec8434f2394c625222cf0e44edac41780bd8 - 2026-07-30 18:14:54 -0700 - BATCH-015 opening; freezes PRE_REGISTERED_FALSIFICATION_CONDITION."
+      - "085f5d485cc21b4c46e4c6fb4a1db788567f79b7 - 2026-07-30 18:25:00 -0700 - QUEUE-AMEND-20260730-001/-002."
+      - "e3cf9fdd770cbab3ebf55691a60143ace2b75f4c - 2026-07-30 18:33:52 -0700 - probe artifacts."
+      - "THE CONDITION PRECEDES THE PROBE BY NINETEEN MINUTES AND TWO COMMITS."
+    threshold_comparison_and_scope_check: >-
+      probe_driver.py::finish() implements exactly two clauses: `returned_length
+      != B` over PART A assertions with valid true, and `shortfall >= 2` over
+      PART B records with valid true, where shortfall is
+      max(0, R_base_recomputed - len(relations)). NO OTHER THRESHOLD, NO OTHER
+      COMPARISON, NO OTHER SCOPE. A shortfall of ONE is tolerated exactly as the
+      arm E-prime limb declares. Infrastructure-failed and budget-cancelled units
+      are excluded and named rather than scored as zeros - correct under AGENTS
+      core rule 5. NO ARTIFACT OF THIS BATCH APPLIES A DIFFERENT RULE.
+    but_see: "OBJ-1, OBJ-2 and OBJ-5 - the condition was applied faithfully; two of its three clauses could not have fired at these parameters."
+
+  amendment_materiality_assessment:
+    question: "Did QUEUE-AMEND-20260730-001 or -002 materially alter what BATCH-015 could conclude?"
+    method: "git diff d0bdec84 085f5d48, read in full."
+    finding: >-
+      NO. The diff is PURE ADDITION - 274 insertions, ZERO deletions, across
+      dispatch_queue.json (+77), and the two newly rendered dispatch_plan files.
+      The additions are: two task-level `archive` objects for the two Coordinator
+      archive cards; ledger/evidence/EV-STR-005.yaml added to TASK-035's
+      artifact_paths and EV-STR-005 to its record_ids; and the two amendment
+      records themselves. NO TASK'S objective, constraints, budget, read_scope,
+      write_scope, completion_gate OR inference block changed. THE
+      FALSIFICATION CONDITION TEXT, THE CLAIM CEILING, THE FOURTEEN CELLS, THE
+      TWO ARMS AND THE EXECUTOR CARD ARE BYTE-IDENTICAL ACROSS THE AMENDMENT.
+    verdict: "SCHEMA REPAIRS AS CLAIMED. One forward hazard follows from -002 and is raised as OBJ-7, not as a breach."
+    standing_lesson_endorsed: "A dispatch queue that has never been rendered by tools/research_dispatch.py is an unverified artifact. The queue's own root_cause note says this and it is correct."
+
+  discarded_duplicate_dependency_assessment:
+    question: "Does anything in BATCH-015 silently depend on the discarded uncommitted EXP-STR-004 copy?"
+    finding: "NO - checked by diff, not assumed. See OBJ-6 for the identifier ambiguity that IS real."
+
+  prohibition_check_item_by_item:
+    gate: G3
+    method: "Recursive grep over every BATCH-015 artifact for each prohibited construction, plus manual read of the probe artifacts and the snapshot receipt."
+    items:
+      - prohibition: "No record may say H-STR-002's MECHANISM was tested, confirmed or refuted by BATCH-014 or BATCH-015."
+        result: "NO VIOLATION. probe_manifest.json what_this_is states the negative explicitly."
+      - prohibition: "No record may cite a low measured alpha on a shift-closed row list as confirming H-STR-002's first prediction."
+        result: "NO VIOLATION. No alpha is computed anywhere; the only occurrence of the token `alpha` in the probe tree is in the driver's own prohibition docstring."
+      - prohibition: "No record may assert, in either direction, that phi_alpha is an artifact of the row-insertion rule for the as-committed filtered closure."
+        result: "NO VIOLATION. No closure was invoked; include_phi_orbits is recorded False at all 28 units plus 4 determinism repeats."
+      - prohibition: "No record may promote the reserved KN-FIND-010 sentence in its present wording."
+        result: "NO VIOLATION. KN-FIND-010 appears only in the prohibition text itself."
+      - prohibition: "No record may describe DEFER-BATCH009-001 as discharged, D-3 as established beyond what the probe measures, RT-CM-1..6 as addressed, or UC-3..7 as repaired."
+        result: >-
+          NO VIOLATION IN THE ARTIFACTS. The snapshot receipt states the negative.
+          BUT NOTE OBJ-1: D-3 has TWO limbs and only the LENGTH limb is
+          established. A record saying "D-3 holds on committed code" WITHOUT that
+          qualification would violate this prohibition. FLAGGED FORWARD.
+      - prohibition: "No record may quote EV-STR-001's yield penalty as 17.5x alone."
+        result: "NO VIOLATION. Every occurrence in the batch tree is the full range inside the prohibition text."
+      - prohibition: "No record may quote the C-20 power sentence unaccompanied by RT21-1, PDC-15's `better than 3.2e-5`, the deviation count of eight, or an EXP-YIELD-002 difference column."
+        result: "NO VIOLATION. None appears in any probe artifact."
+      - prohibition: "No record may issue RT-20260729-036 to any report."
+        result: "NO VIOLATION, AND THIS REPORT MINTS NO RT-* IDENTIFIER AT ALL."
+      - prohibition: "AND NO RECORD MAY STATE OR IMPLY THAT THE LEDGER VALIDATES."
+        result: "NO VIOLATION. INT-BATCH012-F is carried unrepaired in the queue and no artifact contradicts it. THIS REPORT DOES NOT STATE OR IMPLY THAT THE LEDGER VALIDATES."
+
+  batch_014_readjudication_check:
+    gate: G4
+    finding: >-
+      NO INSTANCE FOUND. No BATCH-015 artifact argues for or against
+      DEC-20260729-004 `refine`, the TASK-20260729-042 REVISE contract review, the
+      TASK-20260729-043 NOT APPROVED determination or the QUEUE-AMEND-20260729-005
+      stand-down. No artifact treats EXP-STR-004 as approved. No artifact treats
+      it as ambiguous between the two frozen copies - the probe cites the
+      committed path. THE FOUR ARE CARRIED AS COMMITTED FACTS. NOTHING BLOCKING.
+    this_report_does_not_reopen_them_either: true
+
+  claim_ceiling_audit:
+    breaches_found_in_committed_artifacts: none
+    detail: >-
+      I looked specifically for drift toward alpha, closure, rank, diagnosticity,
+      solvability, cost, and H-STR-002's mechanism, for toy-scale results
+      presented as broader, and for any implication that DEFER-BATCH009-001 is
+      discharged or EXP-STR-004 approved. THE PROBE ARTIFACTS AND THE SNAPSHOT
+      RECEIPT ARE CLEAN ON ALL SEVEN. The wall-clock and RSS figures are labelled
+      budget accounting in three separate places. run_ids is empty with its
+      reason. The certificate block says no certifiable claim is made rather than
+      emitting an empty certificate. THE EXECUTOR EXERCISED REAL DISCIPLINE AND
+      THIS REPORT RECORDS THAT PLAINLY RATHER THAN MANUFACTURING A BREACH.
+    the_risk_is_downstream_not_upstream: >-
+      The exposure is not in what was written but in what will be read from it.
+      OBJ-1, OBJ-3 and OBJ-4 name the three specific sentences a successor is
+      likely to write that WOULD breach the ceiling.
+
+  # ------------------------------------------------------------- CONTROLS (G5)
+  required_controls:
+    - id: CTRL-RT034-A
+      name: "MUTATION TEST OF CTRL-4 - the cheapest discriminating control in this review."
+      what_it_does: >-
+        Re-run the CTRL-4 assertion against three deliberately broken inputs and
+        require it to FAIL on each: (1) a zeta3 that is not a cube root of unity;
+        (2) a factor base with one element of one complete block replaced by an
+        unrelated on-curve x; (3) a factor base with two blocks' contents
+        interleaved. If the assertion passes any of the three, the assertion is a
+        mirror of the constructor and is retired or rewritten.
+      why_it_is_the_cheapest: >-
+        Milliseconds of compute, about ten lines, no new curve, no new cell, no
+        closure, no alpha, no cost quantity. IT IS THE ONE MEASUREMENT THAT
+        DETERMINES WHETHER "CTRL-4 PASSES" EVER MEANT ANYTHING.
+      expected_outcome_prestated: >-
+        Case (1) WILL PASS the assertion - I have already run it and reported it
+        under OBJ-1. That is the finding. Cases (2) and (3) should fail; if they
+        pass, the checker itself is broken as well as vacuous.
+      should_it_be_dispatched: >-
+        YES, IN A SUCCESSOR, AND NOT HERE. TASK-20260730-034 may not enlarge
+        BATCH-015. It should be attached to any successor contract that retains
+        CTRL-4, and CTRL-4 should not be retained in its present form without it.
+
+    - id: CTRL-RT034-B
+      name: "DECENSOR THE HEADLINE CELLS - break the 183 target-cycle ceiling."
+      what_it_does: >-
+        At L192 and L193 only, either (a) vary the target-progression multiplier
+        so gcd(c, n - 1) = 1, giving up to 732 distinct targets, or (b) report the
+        cell as censored with the ceiling quoted. Then re-measure len(relations)
+        against Q = 202/203.
+      why: >-
+        Until the ceiling is broken, L192 and L193 measure 732/gcd(100,732) and
+        nothing else, and the two cells the whole batch was built around are the
+        two most confounded cells in it.
+      note_on_scope: >-
+        Option (a) changes committed harness behaviour and therefore needs a
+        versioned protocol amendment; option (b) is free and can be done in
+        prose. NEITHER IS DISPATCHED HERE.
+      should_it_be_dispatched: "YES, IN A SUCCESSOR. Option (b) immediately and at zero cost; option (a) only under an amendment."
+
+    - id: CTRL-RT034-C
+      name: "REPORT THE UNCENSORED SUPPLY QUANTITY - hits against attempts."
+      what_it_does: >-
+        Report the already-returned `hits` and `attempts` at every cell as the
+        supply quantity, instead of len(relations), which is clamped at Q.
+      why: >-
+        `_collect_relations` ALREADY RETURNS BOTH and the probe already recorded
+        both. The quantity exists; only the reading is censored. This is not a
+        cost quantity, not a ratio against any baseline and not a rate claim -
+        it is two counts the committed loop returns.
+      should_it_be_dispatched: "YES, IN A SUCCESSOR, and it costs zero additional compute because the numbers are already committed at e3cf9fdd."
+
+    - id: CTRL-RT034-D
+      name: "BUILDER FAILURE-BOUNDARY SWEEP - locate the B at which D-3's length limb actually breaks."
+      what_it_does: >-
+        Sweep B upward on the declared curves and record the first B at which
+        _build_phi_invariant_factor_base returns a short list, so that every
+        future D-3 assertion is positioned relative to a known boundary rather
+        than at an unstated distance from one.
+      prestated_expectation: >-
+        About B = 1142 on CURVE-J12S1, from the 366 available full orbits. I have
+        run this read-only and report it as a RED-TEAM DIAGNOSTIC, NOT AS A BATCH
+        MEASUREMENT AND NOT AS EVIDENCE.
+      should_it_be_dispatched: "YES, IN A SUCCESSOR. Seconds of compute; it converts OBJ-2 from an objection into a calibrated instrument."
+
+    - id: CTRL-RT034-E
+      name: "CROSS-CURVE BREADTH EXTENSION - more seeds, more curves, same censored quantity."
+      what_it_does: "Repeat the fourteen-cell supply probe on additional j = 0 instances."
+      should_it_be_dispatched: >-
+        NO. I WOULD NOT RUN THIS, AND I NAME IT SO MY RECOMMENDATION IS
+        FALSIFIABLE. It buys breadth on a quantity that is instrument-saturated
+        at 24 of 28 units, so it would multiply censored numbers rather than
+        produce information. Decensoring (CTRL-RT034-B and -C) strictly dominates
+        it, and it should be reconsidered only AFTER the quantity is uncensored.
+
+  counterexample_or_mutation: >-
+    THE MUTATION THAT BREAKS THE READING, ALREADY EXECUTED. Call the committed
+    _build_phi_invariant_factor_base(inst, 192, z) on CURVE-J12S1 with z = 5,
+    whose cube modulo 2293 is 125 and which is therefore NOT a primitive cube root
+    of unity. Both CTRL-4 conditions REPORT PASS. Same for z = 1234 (cube 1799).
+    A structure assertion that passes on a factor base built from a non-cube-root
+    is not an assertion about phi-invariance; it is the constructor's own
+    arithmetic read back. THIS SINGLE THREE-LINE MUTATION DEFEATS THE
+    INTERPRETATION "BOTH CTRL-4 STRUCTURE ASSERTIONS PASS, THEREFORE THE FACTOR
+    BASE IS PHI-INVARIANT AS THE DERIVATION ASSUMES."
+
+  baseline_comparison:
+    what_is_being_compared: >-
+      Nothing. The probe produces no time, memory, data or query figure that any
+      baseline could be compared against, and its own manifest says so three
+      times.
+    pollard_rho: >-
+      NOT COMPARED AND NOT COMPARABLE. The probe performs no solve, emits no
+      certificate and computes no cost quantity. Pollard rho on this instance
+      (n = 733) is trivial and would settle the instance outright; the probe does
+      not attempt it and must not be read as competing with it.
+    bsgs: "NOT COMPARED AND NOT COMPARABLE, for the same reason."
+    closest_specialized_baseline: >-
+      Pollard rho WITH the order-3 automorphism speedup - Wiener-Zuccherato and
+      Duursma-Gaudry-Morain - which on a j = 0 curve gives the classical constant
+      factor r = 3 (sqrt(3) in the number of steps for the automorphism group of
+      order 3, quoted in this lineage as r = 3). THE ONLY REPRODUCIBLE SPEEDUP
+      MEASURED ANYWHERE IN THIS LINEAGE IS THAT CONSTANT FACTOR, AND IT IS
+      ALREADY THE SPECIALIZED BASELINE RATHER THAN AN IMPROVEMENT ON IT.
+    dominated_by:
+      - "Pollard rho with the order-3 automorphism (Wiener-Zuccherato; Duursma-Gaudry-Morain) - the specialized baseline for j = 0 curves. DOMINATES ON TIME, ON MEMORY AND ON DATA, since the probe offers no figure on any of the three axes."
+      - "Plain Pollard rho and BSGS - dominate trivially for the same reason."
+      - "EV-STR-001 and EV-STR-003 within this campaign, which at least measured quantities (yield, alpha) on the same instrument. The probe measures the instrument."
+    dominated_by_null_is_refused: >-
+      `null` WOULD BE A FABRICATION HERE UNDER AGENTS RULE 5 AND UNDER
+      docs/inventor-protocol.md's Pareto-honesty clause. The frontier was checked
+      on all three axes - time, memory, data/queries - and the probe is on none
+      of them.
+    sota_delta:
+      time: "0. No time figure is produced. The recorded 2.05 s of PART B is budget accounting and is explicitly not a cost measurement."
+      memory: "0. No memory figure is produced. The 76 MB peak RSS is budget accounting."
+      data_or_queries: "0. No query or data complexity is produced."
+      exponent: "0. No asymptotic exponent is moved, approached or bounded in either direction."
+      summary: "sota_delta = 0 ON EVERY AXIS. The probe's contribution is instrument metrology, not a frontier movement, and this field says so rather than leaving it to be inferred."
+    rule_A1_status: >-
+      NOT TARGET-CLASS, and the constant factor r = 3 IS NOT TARGET-CLASS EITHER.
+      docs/target-result-profile.md rule A1 asks for mechanisms that move the
+      ASYMPTOTIC EXPONENT of a central hard problem; a constant factor of 3 leaves
+      the exponent of sqrt(n) exactly where it was, and is in any case already
+      classical. BATCH-015 is admitted only under A1's building-block clause, and
+      the queue's own scope ruling says so. THIS REPORT AGREES WITH THAT
+      SELF-ASSESSMENT AND DOES NOT SOFTEN IT.
+
+  heuristic_challenges:
+    - id: HC-1
+      status: not_applicable_with_reason
+      detail: >-
+        The probe states no conditional result and introduces no numbered
+        heuristic. It asserts deterministic properties of a deterministic builder
+        and counts the output of a deterministic loop at fixed quotas, verified by
+        an in-process determinism repeat at L12 and A12M3 in both arms, all PASS.
+        THERE IS NO DISTRIBUTION TO SAMPLE AND NOTHING TO VALIDATE AT SCALE. The
+        queue declares the conditional-result pairing rule inapplicable with its
+        reason rather than fabricating a pairing, AND THAT IS THE CORRECT
+        HANDLING.
+    - id: HC-2
+      status: forward_warning
+      detail: >-
+        The moment a successor writes "the phi-invariant factor base supplies more
+        relations", it has stated a distributional claim over instances from n = 1
+        curve and 1 seed, and the pairing obligation attaches to THAT record. The
+        four uncensored units (L12, L13, both arms) are one realisation each on
+        one instance and cannot support it.
+
+  cost_model_challenges:
+    - id: CMC-1
+      detail: >-
+        NO COST MODEL IS PRESENT AND NONE MAY BE INFERRED. The 2.05 s and 76 MB
+        are budget accounting; peak RSS is a monotonic process peak, not a
+        per-unit delta, and the driver says so. A successor must not build a
+        per-entry constant, an o(1) overhead estimate or a time-memory
+        interpolation from these numbers.
+    - id: CMC-2
+      detail: >-
+        WHEN A COST MODEL DOES ARRIVE, the total expected cost must be per-attempt
+        cost times INVERSE SUCCESS PROBABILITY, never per-attempt cost alone, and
+        the van Oorschot-Wiener time-memory interpolation back to
+        rho-with-automorphism must be reported, not just the headline. That
+        obligation attaches to the successor cost experiment, WHICH IS NOT
+        APPROVED, NOT FROZEN, NOT SCHEDULED AND NOT AUTHORIZED, AND WHICH THIS
+        REPORT DOES NOT RECOMMEND APPROVING.
+    - id: CMC-3
+      detail: >-
+        The eliminated-dimension rule (KN-LIT-7593) applies in advance: if a
+        future record claims that phi-invariance removes a search dimension, the
+        cost of BUILDING the invariant factor base must be charged into the total.
+        The probe shows that build cost is not zero - 139 draws with a lift test
+        each at B = 192 - and it is currently uncharged everywhere.
+
+  reduction_and_scope_challenges:
+    - id: RSC-1
+      detail: >-
+        SCOPE IS ONE INSTANCE. CURVE-J12S1 is p = 2293, n = 733, a = 0, b = 417,
+        derived seed 100, curve_id TOY-P12-cf8e3078. Twelve-bit field. NOTHING
+        HERE EXTENDS TO ANY OTHER CURVE, TO j != 0, TO GENERIC CURVES, TO B > 193,
+        TO ARITY m > 3, OR TO MEDIUM OR CRYPTOGRAPHIC SCALE. Two cells touch a
+        second instance (CURVE-J16S3) and both are quota-pinned.
+    - id: RSC-2
+      detail: >-
+        AGENTS RULE 7 - TOY SCALE STAYS TOY SCALE. p = 2293 is roughly 244 bits
+        short of any standardized parameter size. No validation at cryptographic
+        scale exists in this lineage and none is claimed.
+    - id: RSC-3
+      detail: >-
+        NO REDUCTION IS INVOKED AND NO COROLLARY IS DRAWN, so there is no cited
+        theorem whose hypotheses need checking. AFFECTED-SCHEME SCOPE IS EMPTY:
+        no deployed scheme is affected by this probe in any direction, and no
+        artifact suggests otherwise.
+    - id: RSC-4
+      detail: >-
+        DRIVER FIDELITY IS UNREACHABLE AND STAYS UNREACHED. Neither arm's closure
+        is committed code; the driver has never been written. A derivation whose
+        committed-code hypotheses hold is not thereby a correct prediction about
+        an unwritten driver, and N-2 says so. This review adds nothing to and
+        subtracts nothing from that.
+
+  # ------------------------------------------------------------------- VERDICT
+  verdict:
+    overall: >-
+      THE PROBE IS SOUND AS EXECUTED AND OVER-READ AS FRAMED. The artifacts are
+      honest, in scope, reproducible, byte-verified at e3cf9fdd, and free of
+      claim-ceiling breaches. The falsification condition was applied exactly as
+      pre-registered and was frozen two commits and nineteen minutes before the
+      probe existed. BUT TWO OF THE CONDITION'S THREE CLAUSES COULD NOT HAVE
+      FIRED AT THESE PARAMETERS, AND 24 OF THE 28 SUPPLY UNITS REPORT A SATURATED
+      INSTRUMENT CONSTANT RATHER THAN A SUPPLY MEASUREMENT. "It did not fire" is
+      therefore worth much less than it reads.
+    was_the_falsification_condition_capable_of_failing:
+      part_a_clause_len_F_not_equal_B: "CAPABLE IN PRINCIPLE, DEAD IN PRACTICE. 76x trial-bound margin; failure boundary at B of about 1142 against a tested B of 192/193."
+      part_a_condition_ii_block_identity: >-
+        NOT CAPABLE AT ALL, AT ANY B, ON ANY CURVE, WITH ANY zeta3. It is a
+        constructor identity. NOTE: condition (ii) is NOT part of the
+        pre-registered falsification condition, which cites only `len(F) != B` -
+        so this does not impugn the condition; it impugns the headline sentence
+        "both CTRL-4 structure assertions PASS", which is where the information
+        content is silently zero.
+      part_b_clause_shortfall_ge_2: "GENUINELY CAPABLE. Tightest unit L12/arm_E_prime cleared it by a factor of 5.7. THIS IS THE ONE REAL TEST IN THE PROBE AND IT WAS PASSED."
+    does_the_output_support_reopening_the_execution_question_on_the_merits: >-
+      NO. The pre-registered disposition made reopening contingent on the
+      condition FIRING, and it did not fire. Nothing measured here contradicts
+      DEC-20260729-004's derivation on the two facts about committed code that it
+      assumes, so far as those facts were actually reached. I SAY THIS PLAINLY
+      RATHER THAN MANUFACTURING AN OBJECTION: the stand-down's basis is not shown
+      defective by this probe. EQUALLY, NOTHING HERE SUPPORTS APPROVING ANYTHING,
+      AND THIS REPORT RECOMMENDS NO APPROVAL AND NO ENLARGEMENT.
+    is_this_a_closure: >-
+      NO, IN EITHER DIRECTION. This report closes no lane, names no obstruction
+      and declares nothing dead. Premature closure is a failure mode symmetric
+      with overclaiming, and a count of instrument checks is not a statement about
+      the endomorphism lane's mathematics.
+
+  narrowest_supported_statement: >-
+    AT COMMIT e3cf9fdd, ON THE SINGLE DETERMINISTICALLY GENERATED INSTANCE
+    CURVE-J12S1 (p = 2293, n = 733, a = 0, b = 417, derived seed 100, curve_id
+    TOY-P12-cf8e3078), THE COMMITTED harness.endomorphism_la
+    _build_phi_invariant_factor_base RETURNED LISTS OF LENGTH EXACTLY 192 AND
+    EXACTLY 193, AND THE COMMITTED _collect_relations WITH include_phi_orbits
+    FALSE RETURNED, AT EACH OF FOURTEEN NAMED CELLS AND EACH OF TWO NAMED FACTOR
+    BASES, A NUMBER OF RELATIONS NOT LESS THAN R_base(B) = (B + 2) // 3 + 1, THE
+    TIGHTEST UNIT BEING L12/arm_E_prime AT 17 AGAINST 5. THE CTRL-4 BLOCK
+    IDENTITY IS A CONSTRUCTOR TAUTOLOGY AND ESTABLISHES NOTHING. TWENTY-FOUR OF
+    THE TWENTY-EIGHT SUPPLY COUNTS ARE CLAMPED AT Q(B) OR AT THE 183-TARGET
+    CYCLE CEILING OF THE COMMITTED TARGET GENERATOR AND ARE NOT SUPPLY
+    MEASUREMENTS. NO ARM COMPARISON IS SUPPORTED IN EITHER DIRECTION. ONE HOST,
+    ONE SOFTWARE STACK, ONE REALISATION PLUS AN IN-PROCESS DETERMINISM REPEAT AT
+    FOUR UNITS. H-STR-002 STAYS `weakened`. DEFER-BATCH009-001 IS NOT DISCHARGED.
+    EXP-STR-004 IS NOT APPROVED. NOTHING ABOUT DRIVER FIDELITY, ALPHA, RANK,
+    DIAGNOSTICITY, SOLVABILITY, COST OR ANY ASYMPTOTIC QUANTITY IS ESTABLISHED IN
+    EITHER DIRECTION.
+
+  what_would_falsify_my_own_recommendation:
+    - id: SELF-F1
+      falsifies: "OBJ-1, the tautology finding, which is the whole of my strongest objection."
+      test: >-
+        EXHIBIT ANY (inst, B, zeta3) FOR WHICH THE COMMITTED
+        _build_phi_invariant_factor_base RETURNS A LIST WHOSE COMPLETE BLOCKS
+        VIOLATE F[3j+k] == pow(zeta3,k,p) * F[3j] % p. I claim none exists because
+        `xs.extend(orbit)` is the only mutation of xs on any path and `xs[:B]`
+        preserves whole leading triples. ONE COUNTEREXAMPLE AND OBJ-1 FALLS
+        ENTIRELY, and CTRL-4 (ii) becomes a real control.
+    - id: SELF-F2
+      falsifies: "OBJ-3, the 183-is-an-instrument-constant finding."
+      test: >-
+        SHOW THAT THE DISTINCT-TARGET COUNT STAYS 183 WHEN THE PROGRESSION
+        MULTIPLIER c IS VARIED SO THAT gcd(c, n - 1) CHANGES. If 183 survives that
+        variation, it is not 732/gcd(100,732) and my reading is wrong.
+    - id: SELF-F3
+      falsifies: "OBJ-2, the dead-clause finding."
+      test: >-
+        SHOW THAT THE ORBIT SUPPLY OR THE TRIAL BOUND MAKES len(F) != B REACHABLE
+        AT OR NEAR B = 192 ON A DECLARED CURVE - for instance if CURVE-J16S3 or
+        another declared instance has far fewer usable orbits than CURVE-J12S1's
+        366. I did not sweep every declared curve; if such a curve is exhibited,
+        the clause was live and OBJ-2 weakens to "live on one curve, dead on
+        another".
+    - id: SELF-F4
+      falsifies: "My verdict that the probe does not support reopening the execution question."
+      test: >-
+        DEMONSTRATE THAT THE PRE-REGISTERED CONDITION, READ AS WRITTEN, ADMITS A
+        CLAUSE I MISSED that the committed data trips. I read the driver's
+        finish() implementation line by line and found exactly two clauses. If a
+        third exists in the preserved text and the data trips it, my
+        recommendation is wrong and reopening is owed.
+
+  dissents_recorded_verbatim:
+    - id: DISSENT-1
+      against: "My own OBJ-4 and my own verdict."
+      text: >-
+        "A DISSENT AGAINST MY OWN REPORT. I have written that no arm comparison is
+        supported. But the direction of the four uncensored units and of every
+        target-count separation is CONSISTENT: arm A-prime reached the same quota
+        on fewer targets at L24, L25, A12M3, A13M3 and X96, and produced more
+        relations at L12 and L13. Seven signals, one direction, zero
+        counterexamples in the committed data. I HAVE DECLINED TO CALL THAT A
+        FINDING because the batch forbids it, because it is one instance and one
+        realisation, and because I have not run the null-object control that would
+        distinguish an orbit-structure effect from a plain coverage effect. THAT
+        IS A SCOPE DECISION, NOT A MATHEMATICAL ONE, AND I RECORD MY OWN
+        DISCOMFORT WITH IT. If a successor decensors the quantity and the
+        direction holds, I will have been wrong to say nothing was there."
+    - id: DISSENT-2
+      against: "My own recommendation that CTRL-4 be rewritten rather than retired."
+      text: >-
+        "A SECOND DISSENT. It is arguable that CTRL-4 should simply be DELETED
+        rather than repaired, since a mutation-tested version of it would still
+        only check a constructor whose behaviour is fully determined by four lines
+        of committed code that anyone can read. The counter-argument, which I
+        accept only weakly, is that a contract executed by an agent should assert
+        its assumptions mechanically rather than trusting a reading. I RECORD THE
+        DISAGREEMENT RATHER THAN RESOLVING IT."
+    - id: DISSENT-3
+      against: "My own claim-ceiling audit finding of `none`."
+      text: >-
+        "A THIRD DISSENT, AGAINST MY OWN CLEAN BILL. I found no breach in the
+        committed artifacts, and I stand by that. But the probe_manifest's
+        `what_this_is` field and the snapshot receipt between them state the
+        negative eleven times, and a document that must deny eleven claims is a
+        document positioned close to all eleven. I DO NOT CALL THAT A BREACH.
+        I DO SAY THAT THE DENSITY OF DENIAL IS ITSELF EVIDENCE OF HOW STRONG THE
+        PULL TOWARD OVER-READING IS IN THIS LANE, and it is why OBJ-1, OBJ-3 and
+        OBJ-4 are written as forward prohibitions rather than as observations."
+
+  next_concrete_action: >-
+    TASK-20260730-035 SHOULD RECORD, IN THE DEC-20260730-031 SCOPE TEXT AND IN
+    ANY EV-STR-005 IT WRITES, THE SINGLE SENTENCE THAT CTRL-4 CONDITION (ii) IS AN
+    IDENTITY OF harness.endomorphism_la._build_phi_invariant_factor_base AND
+    ESTABLISHES NO PROPERTY OF THE FACTOR BASE, AND THAT 24 OF THE 28 SUPPLY
+    COUNTS ARE CLAMPED AT Q(B) OR AT THE 183-TARGET CYCLE CEILING. That one
+    sentence is what prevents the next Coordinator from banking a tautology and a
+    clamp as two settled facts. NO NEW CARD, NO NEW COMPUTE, NO APPROVAL AND NO
+    ENLARGEMENT IS PROPOSED BY THIS REPORT.
+
+  bounded_card_completion:
+    budget_seconds: 2400
+    lines_of_attack_not_reached:
+      - >-
+        I DID NOT SWEEP THE BUILDER FAILURE BOUNDARY ON CURVE-J16S3. My OBJ-2
+        margin figures are for CURVE-J12S1 only, and SELF-F3 names that as a live
+        falsifier of my own objection.
+      - >-
+        I DID NOT READ ledger/hypotheses/H-STR-002.yaml OR
+        ledger/decisions/DEC-20260729-004.yaml IN FULL WITHIN THE CAP. I checked
+        for re-adjudication by grep across the BATCH-015 tree and found none, and
+        I neither relied on nor disputed the content of either record. UC-7's
+        record that FC-1 is AMBIGUOUS AS DRAFTED is carried unresolved and is not
+        resolved by this batch or by this report.
+      - >-
+        I DID NOT READ the BATCH-014 TASK-20260729-046 validation report's
+        narrowings N1 to N8 or the TASK-20260729-047 red-team report in full. I
+        worked from the queue's carried text of RT35-CTRL-1, RT35-CTRL-2 and the
+        third dissent. IF ANY OF N1 TO N8 CONTRADICTS SOMETHING HERE, THAT
+        DOCUMENT GOVERNS AND THIS IS A GAP IN MY REVIEW, NAMED RATHER THAN HIDDEN.
+    everything_else_in_the_completion_gate: "reached; G1 through G9 addressed in the sections above."
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/reviews/TASK-20260730-034/red_team_report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/reviews/TASK-20260730-034/falsification_review.md
+  commit_status: "NO COMMIT MADE BY THIS SESSION. TASK-20260730-035 archives these two files. Nothing was written outside this review directory."
