@@ -154,3 +154,29 @@
 - No edits to `specification.v2.yaml`, theater-r2 controls, or rejected BATCH-021 freeze blobs.
 - No H-IC-001 / H-STR-002 changes; no STR reopen; no commit (TASK-077 archives).
 - Toy claim ceiling; observations only; no S1_met / support interpretation.
+
+---
+
+# EXP-DS-001 v2.6-ctrl-structure-null-r2 (TASK-20260731-098)
+
+**Amendment:** `PA-DS-001-v2-ctrl-structure-null-r2` (APPROVED at TASK-20260731-097 / DEC-20260731-027, archive `b27db960`, package snapshot `0d13ad5a`)  
+**Control:** CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2  
+**Run:** `RUN-DS-001-ctrl-structure-null-r2`  
+**Parent contract:** `specification.v2.yaml` immutable (sha256 `898304bf…a5636a`)
+
+## Driver extensions
+
+1. `--mode ctrl-structure-null-r2` — primary 16/128/4/102 + optional secondary 20/64/4/101 + harden ladder ≤6 under `null_split_mode=composing`; writes `runs/RUN-DS-001-ctrl-structure-null-r2/` + `results/ctrl_structure_null_r2/`.
+2. `structure_null_direction_evaluate` — records `R`, `R_null`, `advantageous_R`, `structure_null_ok`, `structure_gate_eligible`, `rising_ladder_ok`, `structure_direction_pass` / `structure_direction_fail`, `packaging_rule_ref`, `raw_costs_ref`.
+3. Reuses composing null-object packaging hygiene from CTRL-RT056-NULL-SPLIT-HARD-DESTROY (join evidence probe; blob not edited).
+4. Pass IFF `structure_gate_eligible` (R<0.5 AND R_null≥0.9) OR documented `rising_ladder_ok`. Else honest `structure_direction_fail` as `completed_valid` (not infrastructure failure).
+5. Does not rename plant-contrast / `planted_bug_detected` as structure support. No S1_met / support / asymptotic claim.
+
+## Archive note
+
+- `ds001_driver.py` is git assume-unchanged (`H`). Coordinator archive TASK-099 should hash via `git hash-object experiments/EXP-DS-001/implementation/ds001_driver.py`.
+
+## Out of scope (honored)
+
+- No edits to abandoned BATCH-024 stubs, `specification.v2.yaml`, H-IC-001, H-STR-002, or EXP-IT paths.
+- No commit (TASK-099 archives). Toy claim ceiling; observations only.

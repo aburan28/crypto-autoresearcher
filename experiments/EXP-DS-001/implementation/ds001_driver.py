@@ -1718,6 +1718,134 @@ def null_split_hard_destroy_report(
     }
 
 
+PACKAGING_RULE_REF = (
+    "experiments/EXP-DS-001/controls/CTRL-RT056-NULL-SPLIT-HARD-DESTROY.yaml"
+    "#method.compose (composing null_split; claw_key join identical to real arm; "
+    "reused by CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2 without editing that blob)"
+)
+
+
+def structure_null_direction_evaluate(search_record: list[dict]) -> dict:
+    """CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2 gate fields (observations only).
+
+    structure_direction_pass IFF structure_gate_eligible OR rising_ladder_ok.
+    Honest structure_direction_fail is a completed observation, not infra failure.
+    """
+    reported = [e for e in search_record if e.get("cell_status") == "completed_valid"
+                and e.get("R") is not None and e.get("R_null") is not None]
+    primary = next((e for e in reported if e.get("role") == "primary"),
+                   reported[0] if reported else None)
+
+    def _flags(entry: Optional[dict]) -> dict:
+        if entry is None:
+            return {
+                "R": None,
+                "R_null": None,
+                "advantageous_R": False,
+                "structure_null_ok": False,
+                "structure_gate_eligible": False,
+            }
+        R = float(entry["R"])
+        R_null = float(entry["R_null"])
+        advantageous_R = bool(R < 0.5)
+        structure_null_ok = bool(R_null >= 0.9)
+        return {
+            "R": R,
+            "R_null": R_null,
+            "advantageous_R": advantageous_R,
+            "structure_null_ok": structure_null_ok,
+            "structure_gate_eligible": bool(advantageous_R and structure_null_ok),
+        }
+
+    primary_flags = _flags(primary)
+    # rising_ladder_ok: among advantageous cells ordered by harden index,
+    # R_null is strictly increasing and terminal R_null >= 0.9.
+    adv = [
+        e for e in reported
+        if e.get("R") is not None and float(e["R"]) < 0.5 and e.get("R_null") is not None
+    ]
+    adv_sorted = sorted(adv, key=lambda e: (e.get("index", 0), e.get("bits", 0), e.get("B", 0)))
+    rising = False
+    if len(adv_sorted) >= 2:
+        rn = [float(e["R_null"]) for e in adv_sorted]
+        mono_up = all(rn[i + 1] > rn[i] for i in range(len(rn) - 1))
+        rising = bool(mono_up and rn[-1] >= 0.9)
+    # Also pass if any single cell is structure_gate_eligible (already covered).
+    any_eligible = any(
+        float(e["R"]) < 0.5 and float(e["R_null"]) >= 0.9 for e in reported
+    )
+    structure_gate_eligible = bool(primary_flags["structure_gate_eligible"] or any_eligible)
+    rising_ladder_ok = bool(rising)
+    structure_direction_pass = bool(structure_gate_eligible or rising_ladder_ok)
+    structure_direction_fail = not structure_direction_pass
+    raw_costs_ref = (
+        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-structure-null-r2/raw-result.json"
+        "#cell_or_ladder_search_record[*].raw_costs"
+    )
+    return {
+        "control_id": "CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-structure-null-r2",
+        "backend_id": BACKEND_ID,
+        "null_split_mode": "composing",
+        "packaging_rule_ref": PACKAGING_RULE_REF,
+        "raw_costs_ref": raw_costs_ref,
+        "cell_or_ladder_search_record": search_record,
+        "reported_cell": (
+            {
+                "bits": primary.get("bits"),
+                "B": primary.get("B"),
+                "m": primary.get("m"),
+                "seed": primary.get("seed"),
+                "role": primary.get("role"),
+            }
+            if primary is not None
+            else None
+        ),
+        "R": primary_flags["R"],
+        "R_null": primary_flags["R_null"],
+        "advantageous_R": primary_flags["advantageous_R"],
+        "structure_null_ok": primary_flags["structure_null_ok"],
+        "structure_gate_eligible": structure_gate_eligible,
+        "rising_ladder_ok": rising_ladder_ok,
+        "structure_direction_pass": structure_direction_pass,
+        "structure_direction_fail": structure_direction_fail,
+        "advantageous_ladder_R_null_sequence": [
+            {
+                "index": e.get("index"),
+                "bits": e.get("bits"),
+                "B": e.get("B"),
+                "m": e.get("m"),
+                "seed": e.get("seed"),
+                "R": e.get("R"),
+                "R_null": e.get("R_null"),
+            }
+            for e in adv_sorted
+        ],
+        "definitions": {
+            "advantageous_R": "R < 0.5",
+            "structure_null_ok": "R_null >= 0.9",
+            "structure_gate_eligible": "advantageous_R AND structure_null_ok",
+            "rising_ladder_ok": (
+                ">=2 advantageous cells with strictly increasing R_null and "
+                "terminal R_null >= 0.9 under identical composing packaging"
+            ),
+            "structure_direction_pass": (
+                "structure_gate_eligible OR rising_ladder_ok"
+            ),
+        },
+        "forbid_note": (
+            "Does not equate planted_bug_detected / contrastive_discriminative "
+            "with structure support. No S1_met / support / asymptotic_promotion. "
+            "Does not launder RUN-DS-001-ctrl-theater or EXP-IT WIP."
+        ),
+        "note": (
+            "Honest structure_direction_fail is a completed observation when "
+            "advantageous_R holds but R_null stays < 0.9 with no rising ladder — "
+            "expected under RT079-B3 / EV-DS-007 R_null≪1; not infrastructure failure."
+        ),
+    }
+
+
 # --- HEUR-DS-1 sampling -----------------------------------------------------
 
 def sample_heur(bits: int, B: int, m: int, seed: int, n_samples: int, wall_budget: float) -> dict:
@@ -3157,6 +3285,403 @@ def mode_ctrl_plant_contrast(args: argparse.Namespace) -> int:
     return 0 if status in ("completed_valid", "resource_exhaustion", "cancelled_by_budget") else 1
 
 
+def mode_ctrl_structure_null_r2(args: argparse.Namespace) -> int:
+    """PA-DS-001-v2-ctrl-structure-null-r2 / CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2.
+
+    Measure R and R_null under composing null-object packaging. Credit
+    structure_direction_pass only if structure_gate_eligible or rising_ladder_ok.
+    Honest structure_direction_fail is completed_valid (not infra failure).
+    """
+    started = utc_now()
+    t0 = time.perf_counter()
+    cell_wall = float(args.cell_wall)
+    relations = int(args.relations)
+    run_id = "RUN-DS-001-ctrl-structure-null-r2"
+    # Primary + optional secondary + harden ladder; hard cap 6 cells.
+    ladder = [
+        {"bits": 16, "B": 128, "m": 4, "seed": 102, "role": "primary"},
+        {"bits": 20, "B": 64, "m": 4, "seed": 101, "role": "secondary"},
+        {"bits": 16, "B": 256, "m": 4, "seed": 102, "role": "harden_ladder"},
+        {"bits": 20, "B": 128, "m": 4, "seed": 101, "role": "harden_ladder"},
+        {"bits": 24, "B": 64, "m": 4, "seed": 101, "role": "harden_ladder"},
+        {"bits": 24, "B": 128, "m": 4, "seed": 102, "role": "harden_ladder"},
+    ]
+    logs = [
+        f"CTRL structure-null-r2 RUN={run_id} ladder_cells={len(ladder)} (max 6)",
+        f"cell_wall={cell_wall} relations_target={relations} smoothness_abort=false",
+        f"target_mode=planted_m_sum (packaging-like real arm) backend_id={BACKEND_ID}",
+        "null_split_mode=composing (reuse CTRL-RT056-NULL-SPLIT-HARD-DESTROY hygiene)",
+        "binding: TASK-097 APPROVED b27db960 / DEC-20260731-027; package snapshot 0d13ad5a; "
+        "PA-DS-001-v2-ctrl-structure-null-r2 / CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2",
+        "R-1: primary plant OFF; no plant-contrast rename as structure_gate",
+        "pass: structure_gate_eligible (R<0.5 AND R_null>=0.9) OR rising_ladder_ok",
+    ]
+
+    search_record: list[dict] = []
+    cells_by_key: dict[tuple, CellResult] = {}
+    infrastructure_errors: list[str] = []
+    budget_remaining = float(getattr(args, "total_wall", 7200.0))
+    join_evidence_sample = None
+
+    for idx, spec in enumerate(ladder):
+        if time.perf_counter() - t0 > budget_remaining:
+            logs.append(f"BUDGET: stopping before cell index={idx}")
+            break
+        bits, B, m, seed = spec["bits"], spec["B"], spec["m"], spec["seed"]
+        per_cell_wall = min(cell_wall, max(30.0, budget_remaining - (time.perf_counter() - t0)))
+        logs.append(
+            f"LADDER[{idx}] bits={bits} B={B} m={m} seed={seed} role={spec['role']} "
+            f"wall={per_cell_wall:.1f}"
+        )
+        try:
+            cell = execute_cell(
+                bits=bits,
+                B=B,
+                m=m,
+                seed=seed,
+                cell_wall_budget=per_cell_wall,
+                relations_target=relations,
+                do_planted=False,
+                smoothness_abort=False,
+                target_mode="planted_m_sum",
+                null_split_mode="composing",
+            )
+        except Exception as e:
+            msg = f"execute_cell failed bits={bits} B={B} m={m} seed={seed}: {e}"
+            logs.append(f"INFRA: {msg}")
+            infrastructure_errors.append(msg)
+            search_record.append({
+                "index": idx,
+                "bits": bits,
+                "B": B,
+                "m": m,
+                "seed": seed,
+                "role": spec["role"],
+                "cell_status": "failed_infrastructure",
+                "error": str(e),
+                "R": None,
+                "R_null": None,
+                "advantageous_R": False,
+                "structure_null_ok": False,
+                "structure_gate_eligible": False,
+            })
+            continue
+
+        cells_by_key[(bits, B, m, seed)] = cell
+        advantageous_R = bool(cell.R is not None and cell.R < 0.5)
+        structure_null_ok = bool(cell.R_null is not None and cell.R_null >= 0.9)
+        entry = {
+            "index": idx,
+            "bits": bits,
+            "B": B,
+            "m": m,
+            "seed": seed,
+            "role": spec["role"],
+            "cell_status": cell.status,
+            "R": cell.R,
+            "R_null": cell.R_null,
+            "advantageous_R": advantageous_R,
+            "structure_null_ok": structure_null_ok,
+            "structure_gate_eligible": bool(advantageous_R and structure_null_ok),
+            "protocol_stop": cell.protocol_stop,
+            "r1_cell_label": cell.r1_cell_label,
+            "raw_costs": {
+                "cost_naive": cell.cost_naive,
+                "cost_split": cell.cost_split,
+                "cost_naive_null": cell.cost_naive_null,
+                "cost_split_null": cell.cost_split_null,
+                "wall_naive": cell.wall_naive,
+                "wall_split": cell.wall_split,
+                "wall_naive_null": cell.wall_naive_null,
+                "wall_split_null": cell.wall_split_null,
+                "n_usable_naive": cell.n_usable_naive,
+                "n_usable_split": cell.n_usable_split,
+                "n_usable_naive_null": cell.n_usable_naive_null,
+                "n_usable_split_null": cell.n_usable_split_null,
+            },
+            "null_object_spec_hash": cell.null_object_spec_hash,
+            "fb_x_hash": cell.fb_x_hash,
+            "plant_applied_to_primary": cell.plant_applied_to_primary,
+            "target_mode": cell.target_mode,
+            "null_split_mode": "composing",
+        }
+        search_record.append(entry)
+        logs.append(
+            f"  status={cell.status} R={cell.R} R_null={cell.R_null} "
+            f"advantageous_R={advantageous_R} structure_null_ok={structure_null_ok} "
+            f"structure_gate_eligible={entry['structure_gate_eligible']} "
+            f"label={cell.r1_cell_label}"
+        )
+
+        # Join-evidence probe on first successful cell (packaging hygiene documentation).
+        if join_evidence_sample is None:
+            try:
+                inst = generate_instance(seed, bits)
+                fb = make_factor_base(inst, B, seed)
+                probe = null_split_search_composing(
+                    fb.xs, seed, bits, B, m, target_tag=1,
+                    deadline=time.perf_counter() + min(30.0, per_cell_wall),
+                    charge_backend=lambda mm: charge_backend_units(mm),
+                )
+                if probe.relation and isinstance(probe.relation, dict):
+                    join_evidence_sample = probe.relation.get("join_evidence")
+            except Exception as e:
+                logs.append(f"join_evidence_probe_error: {e}")
+
+        # Early stop if primary alone already structure_gate_eligible.
+        if entry["role"] == "primary" and entry["structure_gate_eligible"]:
+            logs.append("PRIMARY structure_gate_eligible; skipping optional ladder")
+            break
+        # If we already have rising_ladder_ok among completed cells, can stop.
+        interim = structure_null_direction_evaluate(search_record)
+        if interim.get("rising_ladder_ok"):
+            logs.append(f"RISING_LADDER_OK at ladder index={idx}; stopping")
+            break
+
+    report = structure_null_direction_evaluate(search_record)
+    report["join_evidence_sample"] = join_evidence_sample
+    report["packaging_hygiene"] = {
+        "extends_protocol": "CTRL-RT056-NULL-SPLIT-HARD-DESTROY",
+        "null_split_mode": "composing",
+        "composition_rule": (
+            "(null_half_int(left)+null_half_int(right)) mod M "
+            "== null_target_int(target_tag) mod M; "
+            "table keyed/looked-up with claw_key(N) identical to real arm"
+        ),
+        "blob_edited": False,
+        "join_evidence_present": join_evidence_sample is not None,
+    }
+
+    primary_cell = cells_by_key.get((16, 128, 4, 102))
+    # Honest fail / pass are both completed_valid when measurement succeeded.
+    if infrastructure_errors and primary_cell is None and not any(
+        e.get("cell_status") == "completed_valid" for e in search_record
+    ):
+        status = "failed_infrastructure"
+    elif primary_cell is None and not search_record:
+        status = "failed_infrastructure"
+    else:
+        status = "completed_valid"
+
+    if primary_cell is not None and primary_cell.plant_applied_to_primary:
+        status = "invalid_measurement"
+        logs.append("INVALID: plant leaked into primary R (R-1 violation)")
+
+    cert = {"kind": "none", "verified": True, "verifier": None}
+    if primary_cell is not None and primary_cell.rho and primary_cell.rho.get("solved"):
+        cert = {
+            "kind": "discrete_log",
+            "verified": bool(primary_cell.rho.get("certificate_verified")),
+            "verifier": (
+                "harness.toycurve.EllipticCurve.mul independent check in driver "
+                "+ verify_certificates.py"
+            ),
+            "k": primary_cell.rho.get("k"),
+        }
+        if not cert.get("verified"):
+            status = "invalid_measurement"
+
+    structure_direction_pass = bool(report.get("structure_direction_pass"))
+    structure_direction_fail = bool(report.get("structure_direction_fail"))
+    outcome_label = (
+        "structure_direction_pass"
+        if structure_direction_pass and status == "completed_valid"
+        else "structure_direction_fail"
+        if status == "completed_valid"
+        else status
+    )
+    logs.append(
+        f"OUTCOME={outcome_label} cells_tried={len(search_record)} "
+        f"structure_gate_eligible={report.get('structure_gate_eligible')} "
+        f"rising_ladder_ok={report.get('rising_ladder_ok')} "
+        f"structure_direction_pass={structure_direction_pass} "
+        f"structure_direction_fail={structure_direction_fail} "
+        f"R={report.get('R')} R_null={report.get('R_null')}"
+    )
+
+    raw = {
+        "mode": "ctrl-structure-null-r2",
+        "run_id": run_id,
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-structure-null-r2",
+        "control_ids": ["CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2"],
+        "approval_binding": {
+            "approval_task": "TASK-20260731-097",
+            "approval_determination": "APPROVED",
+            "approval_decision": "DEC-20260731-027",
+            "approval_archive_commit": "b27db9602ed8dfb6c0cf385920544530acfa717c",
+            "package_snapshot": "0d13ad5a83f77f35ac3b87194b72ac6be942013f",
+            "reviewer_report": "RT-20260731-096",
+            "restored_by_decision": "DEC-20260731-025",
+        },
+        "ladder_cells_declared": ladder,
+        "cells_tried": len(search_record),
+        "cell_or_ladder_search_record": search_record,
+        "selected_cell": asdict(primary_cell) if primary_cell is not None else None,
+        "structure_null": report,
+        "outcome_label": outcome_label,
+        "metrics": {
+            "cells_tried": len(search_record),
+            "R": report.get("R"),
+            "R_null": report.get("R_null"),
+            "advantageous_R": report.get("advantageous_R"),
+            "structure_null_ok": report.get("structure_null_ok"),
+            "structure_gate_eligible": report.get("structure_gate_eligible"),
+            "rising_ladder_ok": report.get("rising_ladder_ok"),
+            "structure_direction_pass": structure_direction_pass,
+            "structure_direction_fail": structure_direction_fail,
+            "packaging_rule_ref": report.get("packaging_rule_ref"),
+            "raw_costs_ref": report.get("raw_costs_ref"),
+            "backend_id": BACKEND_ID,
+            "target_mode": "planted_m_sum",
+            "null_split_mode": "composing",
+            "outcome_label": outcome_label,
+            "claim_tier": "toy",
+        },
+        "certificate": cert,
+        "infrastructure_errors": infrastructure_errors,
+        "cost_identities": {
+            "rho_gop_per_second": "rho_total_group_operations / rho_wall_seconds",
+            "cost_naive": "wall_seconds_naive * rho_gop_per_second / max(n_usable_relations_naive, 1)",
+            "cost_split": "wall_seconds_split * rho_gop_per_second / max(n_usable_relations_split, 1)",
+            "R": "cost_split / cost_naive",
+            "R_null": "cost_split_null / cost_naive_null",
+        },
+        "_stdout": "\n".join(logs),
+        "_stderr": "\n".join(infrastructure_errors),
+    }
+
+    finished = utc_now()
+    wall_seconds = time.perf_counter() - t0
+    cmd = (
+        f"python3 experiments/EXP-DS-001/implementation/ds001_driver.py "
+        f"--mode ctrl-structure-null-r2 --cell-wall {cell_wall} --relations {relations}"
+    )
+    out_run = Path(args.out_run)
+    write_run_artifacts(
+        run_id,
+        out_run,
+        cmd,
+        raw,
+        status,
+        started=started,
+        finished=finished,
+        wall_seconds=wall_seconds,
+        task_id="TASK-20260731-098",
+        batch_id="BATCH-025",
+        contract_extra={
+            "control_protocol_paths": [
+                "experiments/EXP-DS-001/controls/CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2.yaml",
+            ],
+            "protocol_amendment_id": "PA-DS-001-v2-ctrl-structure-null-r2",
+            "amendment_path": "experiments/EXP-DS-001/amendments/v2_ctrl_structure_null_r2.yaml",
+            "approval_task": "TASK-20260731-097",
+            "approval_determination": "APPROVED",
+            "approval_decision": "DEC-20260731-027",
+            "approval_archive_commit": "b27db9602ed8dfb6c0cf385920544530acfa717c",
+            "package_snapshot": "0d13ad5a83f77f35ac3b87194b72ac6be942013f",
+            "parent_contract_sha256": (
+                "898304bfc9225062e68c5d7977d1490cad95957e856847676ef7ae1423a5636a"
+            ),
+            "claim_tier": "toy",
+        },
+        inputs_extra={
+            "ladder_cells": ladder,
+            "primary_cell": {"bits": 16, "B": 128, "m": 4, "seed": 102},
+            "secondary_cell": {"bits": 20, "B": 64, "m": 4, "seed": 101},
+            "target_mode": "planted_m_sum",
+            "null_split_mode": "composing",
+            "smoothness_abort": False,
+            "relations_target": relations,
+            "cell_wall_seconds": cell_wall,
+            "plant_on_primary": False,
+            "claim_tier": "toy",
+        },
+    )
+
+    results_dir = Path(args.exp_root) / "results" / "ctrl_structure_null_r2"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    (results_dir / "structure_null_report.json").write_text(
+        json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+    summary = {
+        "experiment_id": "EXP-DS-001",
+        "run_id": run_id,
+        "task_id": "TASK-20260731-098",
+        "batch_id": "BATCH-025",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-structure-null-r2",
+        "control_ids": ["CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2"],
+        "approval_binding": raw["approval_binding"],
+        "claim_tier": "toy",
+        "confirmatory_status": "exploratory_control",
+        "status": status,
+        "outcome_label": outcome_label,
+        "backend_id": BACKEND_ID,
+        "target_mode": "planted_m_sum",
+        "null_split_mode": "composing",
+        "smoothness_abort": False,
+        "relations_target": relations,
+        "cell_wall_seconds": cell_wall,
+        "plant_applied_to_primary": False,
+        "cells_tried": len(search_record),
+        "cell_or_ladder_search_record": search_record,
+        "R": report.get("R"),
+        "R_null": report.get("R_null"),
+        "advantageous_R": report.get("advantageous_R"),
+        "structure_null_ok": report.get("structure_null_ok"),
+        "structure_gate_eligible": report.get("structure_gate_eligible"),
+        "rising_ladder_ok": report.get("rising_ladder_ok"),
+        "structure_direction_pass": structure_direction_pass,
+        "structure_direction_fail": structure_direction_fail,
+        "packaging_rule_ref": report.get("packaging_rule_ref"),
+        "raw_costs_ref": report.get("raw_costs_ref"),
+        "does_not_supersede": (
+            "Does not overwrite EV-DS-002/003/004/006/007. "
+            "Does not reuse unauthorized RUN-DS-001-ctrl-theater. "
+            "Does not launder EXP-IT-001 / H-IT-001."
+        ),
+        "does_not_modify_hypotheses": ["H-IC-001", "H-STR-002"],
+        "forbid": [
+            "S1_met",
+            "support",
+            "asymptotic_promotion",
+            "structure_gate_from_plant_contrast_alone",
+        ],
+        "inference": inference_block(),
+        "git": git_state(),
+        "wall_seconds_run": wall_seconds,
+        "note": (
+            "Toy-tier structure-null-r2 control observations only. "
+            "No crypto-scale or asymptotic claim. No S1_met / support interpretation. "
+            "structure_direction_fail is honest negative on structure-claim eligibility, "
+            "not infrastructure failure and not reject_scoped on H-DS-001."
+        ),
+    }
+    (results_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+
+    print("\n".join(logs))
+    print(
+        "SUMMARY",
+        json.dumps(
+            {
+                "status": status,
+                "outcome_label": outcome_label,
+                "cells_tried": len(search_record),
+                "R": report.get("R"),
+                "R_null": report.get("R_null"),
+                "advantageous_R": report.get("advantageous_R"),
+                "structure_null_ok": report.get("structure_null_ok"),
+                "structure_gate_eligible": report.get("structure_gate_eligible"),
+                "rising_ladder_ok": report.get("rising_ladder_ok"),
+                "structure_direction_pass": structure_direction_pass,
+                "structure_direction_fail": structure_direction_fail,
+            }
+        ),
+    )
+    return 0 if status in ("completed_valid", "resource_exhaustion", "cancelled_by_budget") else 1
+
+
 def mode_finalize(args: argparse.Namespace) -> int:
     """Assemble results/*.json from the three run raw-results."""
     root = Path(args.exp_root)
@@ -3273,6 +3798,7 @@ def main() -> int:
             "ctrl-unplanted",
             "ctrl-theater-r2",
             "ctrl-plant-contrast",
+            "ctrl-structure-null-r2",
         ],
         required=True,
     )
@@ -3292,6 +3818,7 @@ def main() -> int:
             "ctrl-unplanted": "RUN-DS-001-ctrl-unplanted",
             "ctrl-theater-r2": "RUN-DS-001-ctrl-theater-r2",
             "ctrl-plant-contrast": "RUN-DS-001-ctrl-plant-contrast",
+            "ctrl-structure-null-r2": "RUN-DS-001-ctrl-structure-null-r2",
         }[args.mode])
     if args.mode == "impl":
         return mode_impl(args)
@@ -3314,6 +3841,12 @@ def main() -> int:
         if args.total_wall == 3600.0:
             args.total_wall = 7200.0
         return mode_ctrl_plant_contrast(args)
+    if args.mode == "ctrl-structure-null-r2":
+        if args.cell_wall == 90.0:
+            args.cell_wall = 7200.0
+        if args.total_wall == 3600.0:
+            args.total_wall = 7200.0
+        return mode_ctrl_structure_null_r2(args)
     return mode_finalize(args)
 
 
