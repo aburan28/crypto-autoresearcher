@@ -6,11 +6,10 @@ BATCH-032: construct a checkable symbolic numeric-width / peak-byte obligation s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-100` | coordinator | queued | 90 | TASK-20260730-099 | coordination/goals/GOAL-SSI-001/batches/BATCH-032/archives/TASK-20260730-100/snapshot-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-032/archives/TASK-20260730-100 |
+| `TASK-20260730-101` | red-team | queued | 80 | TASK-20260730-099, TASK-20260730-100 | coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-101/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-101/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-101 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-101`: dependency_not_completed:TASK-20260730-100:queued
 - `TASK-20260730-102`: dependency_not_completed:TASK-20260730-101:queued
 
 ## Dispatch Gates
@@ -26,4 +25,4 @@ BATCH-032: construct a checkable symbolic numeric-width / peak-byte obligation s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `00557b1e0d0eac7bf81424b378a060e5f304ec3442267cf4498002b7b6555e26`
+Plan SHA-256: `62bf362c365b177fc9d45715248bc8bef7d6c49c92724dee40e5f18cb5f293f0`
