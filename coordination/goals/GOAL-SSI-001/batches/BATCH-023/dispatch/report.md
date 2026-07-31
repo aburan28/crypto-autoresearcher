@@ -6,12 +6,10 @@ BATCH-023: deepen F_* composition and peak-stage live-set accounting against FC0
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-063` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/f_star_probe.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/harness_receipt.json, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/peak_live_set_probe.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/scaffold_import.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/test_composition.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/f_star_composition.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/peak_live_set_accounting.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063 |
+| `TASK-20260730-065` | red-team | queued | 80 | TASK-20260730-063, TASK-20260730-064 | coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-065/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-065/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-065 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-064`: dependency_not_completed:TASK-20260730-063:queued
-- `TASK-20260730-065`: dependency_not_completed:TASK-20260730-063:queued, dependency_not_completed:TASK-20260730-064:queued
 - `TASK-20260730-066`: dependency_not_completed:TASK-20260730-065:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-023: deepen F_* composition and peak-stage live-set accounting against FC0
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `fb9237ca275bde324d1c5d8ad086169f0e1b8d3226d7a3c2620bd3dbd30d5b93`
+Plan SHA-256: `b0fbf2071b07f7fe9368d17804d586d2ce324b7339db77c52630296c057baf0e`
