@@ -6,12 +6,10 @@ BATCH-031: construct a checkable symbolic τ-schema / stopping-coverage obligati
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-095` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-095/tau_schema_stopping_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-095/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-095/stopping_coverage_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-095/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-095/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-095 |
+| `TASK-20260730-097` | red-team | queued | 80 | TASK-20260730-095, TASK-20260730-096 | coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-097/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-097/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-097 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-096`: dependency_not_completed:TASK-20260730-095:queued
-- `TASK-20260730-097`: dependency_not_completed:TASK-20260730-095:queued, dependency_not_completed:TASK-20260730-096:queued
 - `TASK-20260730-098`: dependency_not_completed:TASK-20260730-097:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-031: construct a checkable symbolic τ-schema / stopping-coverage obligati
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `195eacc42919e4773cffca8934d559c047a8566cc09692f504274e303c83d5a6`
+Plan SHA-256: `39d51da0921f041230133c19e96e5d33fa3f9cb714e4c5ec226dd23f00e01e28`
