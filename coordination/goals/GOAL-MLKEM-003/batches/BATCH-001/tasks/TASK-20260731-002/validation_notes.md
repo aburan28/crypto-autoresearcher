@@ -1,4 +1,4 @@
-# Validation notes — TASK-20260731-002 / EXP-MLKEM-009
+# Validation notes — TASK-20260731-002 / EXP-MLKEM-015
 
 Independent of the Executor. Report id **VAL-20260731-001**. No official state changed. No git commit performed.
 
@@ -32,7 +32,7 @@ Independent of the Executor. Report id **VAL-20260731-001**. No official state c
 - **C3** holds (primal_bdd < NIST on all sets).
 - **C4** holds (ADPS16 vs Kyber.py within 1.5 bits on all sets).
 
-No H-MLKEM-009 falsification_condition fires. Recorded delta fields match independent recomputation.
+No H-MLKEM-014 falsification_condition fires. Recorded delta fields match independent recomputation.
 
 ## Scope
 

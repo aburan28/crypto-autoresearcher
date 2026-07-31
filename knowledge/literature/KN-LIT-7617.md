@@ -51,7 +51,7 @@ GOAL-MLKEM-003 / RQ-MLKEM-003.
   `experiments/EXP-MLKEM-010/vendor-lock/optimized_withExperimentalPolar.pkl`
   from `kevin-carrier/CodedDualAttack` @ `9c1367f`.
 
-## Program verification (EV-MLKEM-010 / KN-FIND-011)
+## Program verification (EV-MLKEM-016 / KN-FIND-016)
 - Table 5.1 Algorithm-3.1 columns match the pickle within 0.05 bits (all nine
   cells); Theorem 4.1 recomputed from pickle intermediates matches.
 - Abstract shortfalls 3.5/11.9/12.3 are exactly NIST−CC and are arithmetically
@@ -60,7 +60,7 @@ GOAL-MLKEM-003 / RQ-MLKEM-003.
   inconsistent with pickle ≈134.30; digit transposition explains the
   paper-only Thm-4.1 anomaly. Table 5.1 CN 134.5 is the consistent figure.
 - Polar-decoding / `Pwrong` heuristics were **not** validated here.
-  lattice-estimator MATZOV dual comparison is EV-MLKEM-009 / KN-FIND-010.
+  lattice-estimator MATZOV dual comparison is EV-MLKEM-015 / KN-FIND-015.
 
 ## Not verified here
 Full proofs of Lemmas 3.x–4.x were not re-derived. Polar decoder experiments

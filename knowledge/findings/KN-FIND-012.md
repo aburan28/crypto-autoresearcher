@@ -6,7 +6,7 @@ title: >-
   Kyber-scale Pwrong is ~84+ bits beyond the toy floor
 tags: [dual-attack, carrier, pwrong, polar-code, kyber, ml-kem, extrapolation, contested, kn-open-016, heuristic-validation]
 confidence: provisional
-internal_refs: [EV-MLKEM-011, EXP-MLKEM-011, H-MLKEM-011, KN-LIT-7617, KN-LIT-111, KN-FIND-010, KN-FIND-011, KN-OPEN-016]
+internal_refs: [EV-MLKEM-011, EXP-MLKEM-011, H-MLKEM-011, KN-LIT-7617, KN-LIT-111, KN-FIND-015, KN-FIND-016, KN-OPEN-016]
 proof_status: empirical_only
 proof_refs:
   - experiments/EXP-MLKEM-011/runs/RUN-MLKEM-011-001/pwrong_scope_gap.json
@@ -36,7 +36,7 @@ any jump to Kyber dimensions.
 
 ## Why it matters for KN-OPEN-016
 
-KN-FIND-011 showed Table 5.1 arithmetic is consistent. This finding shows the
+KN-FIND-016 showed Table 5.1 arithmetic is consistent. This finding shows the
 empirical pillar under that table does not cover the threshold regime that sets
 ε = R·q^{k_fft}·Pwrong. That is a heuristic-coverage failure mode in the same
 family as KN-LIT-111's objections — not a transcription bug.

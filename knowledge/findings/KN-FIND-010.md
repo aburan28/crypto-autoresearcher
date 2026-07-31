@@ -1,63 +1,26 @@
 ---
 id: KN-FIND-010
+title: Joint deg-x≤3 / deg-b=10 non-isotrivial free-x still admit inf-norm-1 MW relations at p≤19; p=31 density-blocked
 type: internal_finding
-title: >-
-  Under pinned MATZOV costing, Kyber dual_hybrid does not beat primal_bdd and
-  does not reproduce Carrier/MATZOV-2022 dual headlines; primal_bdd still
-  undercuts NIST classical cutoffs
-tags: [dual-attack, primal-bdd, matzov, kyber, ml-kem, concrete-security, cost-model, contested, lattice, kn-open-016]
-confidence: provisional
-internal_refs: [EV-MLKEM-009, DEC-20260731-001, EXP-MLKEM-009, H-MLKEM-009, RUN-MLKEM-009-001, KN-LIT-110, KN-LIT-7617, KN-LIT-7618, KN-OPEN-016]
-proof_status: empirical_only
-proof_refs:
-  - experiments/EXP-MLKEM-009/runs/RUN-MLKEM-009-001/results.json
-  - experiments/EXP-MLKEM-009/source-lock.yaml
-added: 2026-07-31
-superseded_by: null
+status: established
+tags: [lifting, xedni, function-field, non-isotrivial, mordell-weil, coefficient-bound, methodology, toy-scale]
+evidence: [EV-XEDN-005]
+decision: [DEC-20260730-001]
 ---
 
-## What is established, and at what level
+# KN-FIND-010
 
-**Empirical / estimate level (not a cryptanalytic certificate).** Using
-lattice-estimator commit `3e48ef421ec256afddb3e7d2249a77eab6e9ba12` and
-`schemes.Kyber{512,768,1024}` under `RC.MATZOV`:
+On plant-discovered non-isotrivial surfaces `y²=x³+a(t)x+b(t)` with `a≠0`,
+`deg a≤2`, `deg b=10`, and non-constant `j`, free-x sections `deg x≤3`,
+`deg y≤5` admit group-law-verified Mordell–Weil relations with infinity-norm 1
+at `p∈{7,13,19}` (EXP-XEDN-006 / EV-XEDN-005). Slope of max_|coeff| vs log p
+is 0 on those measurable sizes. μ₃ orbits remain absent.
 
-| set | NIST | primal_bdd | dual_hybrid+fft | best | Carrier claim | MATZOV-2022 claim |
-|---|---:|---:|---:|---|---:|---:|
-| Kyber512 | 143 | 140.20 | 143.79 | primal_bdd | 139.5 | 137.5 |
-| Kyber768 | 207 | 200.96 | 203.79 | primal_bdd | 195.1 | 193.5 |
-| Kyber1024 | 272 | 270.72 | 273.82 | primal_bdd | 259.7 | 257.8 |
+At `p=31`, the same plant-and-enumerate census found almost exclusively
+single-slot surfaces: 48 analyzed, 2 eligible, 0 verified short relations
+under budget. This is a free-x **relation-density** obstruction, not an
+observed coefficient blow-up. The joint degree-shape transfer of the
+coefficient-bound story therefore holds only for the measured sizes; it is
+not established at p=31.
 
-Official `pq-crystals/security-estimates` Kyber.py classical core-SVP column
-(118 / 183 / 256) is reproduced by `primal_usvp` under `RC.ADPS16` within
-1 bit.
-
-## Why it matters
-
-1. **Dual does not win under the public MATZOV instrument.** Headline dual
-   superiority is not visible in lattice-estimator's `dual_hybrid` once the
-   comparison is matched inside `RC.MATZOV`.
-2. **Published dual shortfalls are not reproduced.** Carrier's claimed costs
-   sit 4.3 / 8.7 / 14.1 bits below this dual instrument; MATZOV-2022 sits
-   6.3 / 10.3 / 16.0 bits below. Those gaps are the residual of KN-OPEN-016
-   after this finding: they must come from ingredients beyond the public
-   MATZOV dual, from a different cost arithmetic, or from overclaim.
-3. **Category pressure already appears in the primal.** Under MATZOV gate
-   counts, `primal_bdd` alone is 2.8 / 6.0 / 1.3 bits below NIST classical
-   cutoffs. Dual-attack drama is not required for that pressure.
-
-## What this does *not* establish
-
-- Not a break of ML-KEM / FIPS 203; no key recovery; no solution certificate.
-- Not a validation or falsification of Carrier polar-decoding heuristics
-  (KN-LIT-7617); that paper was not fully re-derived here (ePrint PDF was
-  network-blocked during the run; abstract claims used as comparison targets).
-- Not a statement that NIST categories are operationally broken — only that
-  under this named cost model the estimated `log2(rop)` figures land where
-  the table says.
-
-## Next measurement that would raise confidence
-
-Independent recomputation of Carrier Table 5.1 / Appendix C from primary text,
-or a small-dimension polar-decode experiment that can falsify the repaired
-heuristic in the Ducas–Pulles sense (KN-LIT-111).
+Scope: toy only; not B2 / crypto-scale.

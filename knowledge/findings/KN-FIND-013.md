@@ -6,7 +6,7 @@ title: >-
   under a stated second-term payment heuristic
 tags: [dual-attack, carrier, pwrong, cost-sensitivity, kyber, ml-kem, kn-open-016, conditional]
 confidence: provisional
-internal_refs: [EV-MLKEM-012, EXP-MLKEM-012, H-MLKEM-012, KN-FIND-012, KN-FIND-011, KN-OPEN-016]
+internal_refs: [EV-MLKEM-012, EXP-MLKEM-012, H-MLKEM-012, KN-FIND-012, KN-FIND-016, KN-OPEN-016]
 proof_status: derivation
 proof_refs:
   - experiments/EXP-MLKEM-012/runs/RUN-MLKEM-012-001/cost_sensitivity.json

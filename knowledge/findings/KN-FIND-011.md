@@ -1,47 +1,23 @@
 ---
 id: KN-FIND-011
+title: Full-enum densification recovers inf-norm-1 free-x MW relations at p=31 on joint deg-x≤3 / deg-b=10 family
 type: internal_finding
-title: >-
-  Carrier Table 5.1 CC dual costs are Theorem-4.1-consistent; Table C.2
-  CN/Kyber-512 log2(Tsample)=143.30 is a transcription error for ≈134.30
-tags: [dual-attack, carrier, matzov, kyber, ml-kem, concrete-security, table-erratum, cost-model, kn-open-016]
-confidence: provisional
-internal_refs: [EV-MLKEM-010, EXP-MLKEM-010, H-MLKEM-010, KN-LIT-7617, KN-FIND-010, KN-OPEN-016]
-proof_status: empirical_only
-proof_refs:
-  - experiments/EXP-MLKEM-010/runs/RUN-MLKEM-010-001/results.json
-  - experiments/EXP-MLKEM-010/vendor-lock/optimized_withExperimentalPolar.pkl
-  - experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf
-added: 2026-07-31
-superseded_by: null
+status: established
+tags: [lifting, xedni, function-field, non-isotrivial, mordell-weil, coefficient-bound, methodology, toy-scale]
+evidence: [EV-XEDN-006]
+decision: [DEC-20260730-002]
 ---
 
-## What is established
+# KN-FIND-011
 
-Against HAL `hal-05406481` (Carrier et al., ePrint 2022/1750) and commit
-`9c1367f` of `kevin-carrier/CodedDualAttack`:
+Under full free-x enumeration (`deg x≤3`) on plant-discovered non-isotrivial
+surfaces with `deg a≤2`, `deg b=10` at `p=31`, EXP-XEDN-007 recovered two
+group-law-verified Mordell–Weil relations with infinity-norm 1 (120 surfaces
+analyzed; 14 eligible). This overturns the EXP-XEDN-006 sampling-regime
+density block at p=31 without observing coefficient growth.
 
-1. **Table 5.1 stands.** All nine Algorithm-3.1 cells match
-   `optimized_withExperimentalPolar.pkl` within 0.05 bits. Theorem 4.1
-   `T = Tsample + R·(N·Tdec + TFFT)` recomputed from pickle intermediates
-   matches the pickle totals.
-2. **Abstract CC shortfalls are the CC column.** NIST − {139.5, 195.1, 259.7}
-   = {3.5, 11.9, 12.3}. Those numbers are arithmetically supported given the
-   authors' intermediates.
-3. **Table C.2 typo.** Printed `log2(Tsample)=143.30` for CN/Kyber-512 should
-   be ≈`134.30` (pickle: 134.295). The paper-only Thm-4.1 check that produced
-   an 8.8-bit anomaly is resolved by this correction; Table 5.1's CN claim
-   134.5 is the consistent figure.
+Together with EXP-XEDN-006 at `p∈{7,13,19}`, the joint degree-shape window
+shows `max_|coeff|=1` on all tested sizes, with sparse but nonempty
+relations at p=31.
 
-## What remains open (KN-OPEN-016)
-
-Whether the intermediates themselves are justified — polar decoding distortion,
-`Pwrong` / `Pgood`, short-vector sampling under GSA/GH, and the named C0/CC/CN
-cost models — is untouched. EV-MLKEM-009 still shows the public
-lattice-estimator MATZOV dual does not beat primal_bdd and does not match these
-CC dual headlines.
-
-## Non-claims
-
-Not a break of ML-KEM. Not a validation of polar heuristics. Not a NIST
-operational finding.
+Scope: toy only; not B2 / crypto-scale.

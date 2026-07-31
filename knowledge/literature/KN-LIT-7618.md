@@ -27,15 +27,15 @@ public `pq-crystals/security-estimates` scripts).
 - Parameters: n=256, q=3329; (k, η1, η2) = (2,3,2) / (3,2,2) / (4,2,2) for
   Kyber512/768/1024 (ciphertext compression differs at Kyber1024).
 - Security estimates in the supporting scripts report classical core-SVP costs
-  near 118 / 183 / 256 for the three sets (reproduced in EXP-MLKEM-009 /
-  RUN-MLKEM-009-001).
+  near 118 / 183 / 256 for the three sets (reproduced in EXP-MLKEM-015 /
+  RUN-MLKEM-015-001).
 - These core-SVP numbers are deliberately not the same cost convention as the
   NIST classical Category cutoffs 143 / 207 / 272 used in MATZOV / Carrier
   comparisons (KN-LIT-110, KN-LIT-7617).
 
 ## Local artifact
-`experiments/EXP-MLKEM-009/vendor-lock/kyber-round3-specification.pdf`
-(sha256 to be recorded in EXP-MLKEM-009 source-lock).
+`experiments/EXP-MLKEM-015/vendor-lock/kyber-round3-specification.pdf`
+(sha256 to be recorded in EXP-MLKEM-015 source-lock).
 
 ## Relevance
 Mandatory primary for RQ-MLKEM-003 / GOAL-MLKEM-003 before any parameter-level
