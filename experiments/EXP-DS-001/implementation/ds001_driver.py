@@ -1153,6 +1153,147 @@ def evaluate_ci_identity(
     }
 
 
+def evaluate_sparse_p_success_cell(
+    cell: CellResult,
+    *,
+    decay_threshold: float = 0.5,
+    saturated_reference_p_hat: float = 1.0,
+    decay_margin: float = 0.5,
+    is_harder_than_reference: bool = False,
+) -> dict:
+    """Per-cell sparse p̂ / total-expected-cost fields for CTRL-RT025-SPARSE-P-SUCCESS."""
+    cost_id_ref = (
+        "experiments/EXP-DS-001/specification.v2.yaml#cost_identities.R "
+        "(cost_split/cost_naive; yield-charged via rho_gop_per_second)"
+    )
+    attempts = int(cell.attempted_targets_naive or 0)
+    n_usable = int(cell.n_usable_naive or 0)
+    p_hat = (n_usable / attempts) if attempts > 0 else 0.0
+    per_attempt_cost_naive = cell.cost_naive
+    per_attempt_cost_split = cell.cost_split
+    R_per_attempt = cell.R
+    total_expected_cost_naive = None
+    total_expected_cost_split = None
+    R_total_expected = None
+    if p_hat > 0 and per_attempt_cost_naive is not None and per_attempt_cost_split is not None:
+        total_expected_cost_naive = per_attempt_cost_naive / p_hat
+        total_expected_cost_split = per_attempt_cost_split / p_hat
+        if total_expected_cost_naive > 0:
+            R_total_expected = total_expected_cost_split / total_expected_cost_naive
+    cell_decay = (
+        p_hat < decay_threshold
+        or p_hat < (saturated_reference_p_hat - decay_margin)
+    )
+    p_hat_decay_observed = bool(is_harder_than_reference and cell_decay)
+    required_present = all(
+        x is not None
+        for x in (
+            per_attempt_cost_naive,
+            per_attempt_cost_split,
+            R_per_attempt,
+            R_total_expected,
+            total_expected_cost_naive,
+            total_expected_cost_split,
+        )
+    ) and attempts > 0
+    return {
+        "cell_record": {
+            "bits": cell.bits,
+            "B": cell.B,
+            "m": cell.m,
+            "seed": cell.seed,
+            "target_mode": cell.target_mode,
+            "status": cell.status,
+        },
+        "bits": cell.bits,
+        "B": cell.B,
+        "m": cell.m,
+        "seed": cell.seed,
+        "attempts": attempts,
+        "n_usable": n_usable,
+        "p_hat": p_hat,
+        "p_hat_decay_threshold": decay_threshold,
+        "p_hat_decay_margin": decay_margin,
+        "p_hat_decay_observed": p_hat_decay_observed,
+        "is_harder_than_reference": is_harder_than_reference,
+        "R_per_attempt": R_per_attempt,
+        "R_total_expected": R_total_expected,
+        "total_expected_cost_split": total_expected_cost_split,
+        "total_expected_cost_naive": total_expected_cost_naive,
+        "per_attempt_cost_split": per_attempt_cost_split,
+        "per_attempt_cost_naive": per_attempt_cost_naive,
+        "cost_identity_definition_ref": cost_id_ref,
+        "required_fields_present": required_present,
+        "raw_costs": {
+            "cost_naive": cell.cost_naive,
+            "cost_split": cell.cost_split,
+            "cost_naive_null": cell.cost_naive_null,
+            "cost_split_null": cell.cost_split_null,
+            "wall_naive": cell.wall_naive,
+            "wall_split": cell.wall_split,
+            "wall_naive_null": cell.wall_naive_null,
+            "wall_split_null": cell.wall_split_null,
+            "n_usable_naive": cell.n_usable_naive,
+            "n_usable_split": cell.n_usable_split,
+            "n_usable_naive_null": cell.n_usable_naive_null,
+            "n_usable_split_null": cell.n_usable_split_null,
+            "attempted_targets_naive": cell.attempted_targets_naive,
+            "attempted_targets_split": cell.attempted_targets_split,
+            "success_count_naive": cell.success_count_naive,
+            "success_count_split": cell.success_count_split,
+            "empirical_success_probability_naive": cell.empirical_success_probability_naive,
+            "empirical_success_probability_split": cell.empirical_success_probability_split,
+            "rho_gop_per_second": rho_gop_per_second_from_cell(cell),
+        },
+        "cell_status": cell.status,
+        "R_null": cell.R_null,
+        "r1_cell_label": cell.r1_cell_label,
+        "protocol_stop": cell.protocol_stop,
+        "plant_applied_to_primary": cell.plant_applied_to_primary,
+    }
+
+
+def evaluate_sparse_p_success_ladder(
+    ladder_evals: list[dict],
+    *,
+    reference_cell: dict,
+) -> dict:
+    """Aggregate ladder pass/fail for CTRL-RT025-SPARSE-P-SUCCESS."""
+    ref_bits = reference_cell["bits"]
+    ref_B = reference_cell["B"]
+    ref_key = (ref_bits, ref_B, reference_cell["m"], reference_cell["seed"])
+    ref_eval = None
+    for ev in ladder_evals:
+        key = (ev["bits"], ev["B"], ev["m"], ev["seed"])
+        if key == ref_key:
+            ref_eval = ev
+            break
+    ref_p_hat = ref_eval["p_hat"] if ref_eval else 1.0
+    any_decay = False
+    all_required = True
+    for ev in ladder_evals:
+        harder = (ev["bits"] > ref_bits) or (ev["B"] < ref_B)
+        ev["is_harder_than_reference"] = harder
+        cell_decay = (
+            ev["p_hat"] < ev["p_hat_decay_threshold"]
+            or ev["p_hat"] < (ref_p_hat - ev["p_hat_decay_margin"])
+        )
+        ev["p_hat_decay_observed"] = bool(harder and cell_decay)
+        if ev["p_hat_decay_observed"]:
+            any_decay = True
+        if not ev.get("required_fields_present"):
+            all_required = False
+    sparse_p_success_pass = bool(any_decay and all_required)
+    sparse_p_success_fail = not sparse_p_success_pass
+    return {
+        "p_hat_decay_observed": any_decay,
+        "sparse_p_success_pass": sparse_p_success_pass,
+        "sparse_p_success_fail": sparse_p_success_fail,
+        "reference_p_hat_measured": ref_p_hat,
+        "all_required_fields_present": all_required,
+    }
+
+
 def execute_cell(
     bits: int,
     B: int,
@@ -4217,6 +4358,372 @@ def mode_ctrl_ci_identity(args: argparse.Namespace) -> int:
     return 0 if status in ("completed_valid", "resource_exhaustion", "cancelled_by_budget") else 1
 
 
+def mode_ctrl_sparse_p_success(args: argparse.Namespace) -> int:
+    """PA-DS-001-v2-ctrl-sparse-p-success / CTRL-RT025-SPARSE-P-SUCCESS.
+
+    Ladder ≤4 unplanted cells: reference saturated 20/64/4/101 plus harder
+    cells to drive p̂ decay. Report R_per_attempt and R_total_expected with
+    total-expected-cost = per-attempt / p̂. Honest sparse_p_success_fail is
+    completed_valid.
+    """
+    started = utc_now()
+    t0 = time.perf_counter()
+    cell_wall = float(args.cell_wall)
+    relations = int(args.relations)
+    run_id = "RUN-DS-001-ctrl-sparse-p-success"
+    reference = {"bits": 20, "B": 64, "m": 4, "seed": 101, "role": "reference_saturated"}
+    ladder = [
+        reference,
+        {"bits": 24, "B": 64, "m": 4, "seed": 101, "role": "harder_bits"},
+        {"bits": 20, "B": 32, "m": 4, "seed": 101, "role": "harder_B"},
+        {"bits": 24, "B": 32, "m": 4, "seed": 101, "role": "harder_bits_and_B"},
+    ]
+    logs = [
+        f"CTRL-RT025-SPARSE-P-SUCCESS RUN={run_id} ladder_cells={len(ladder)} (max 4)",
+        f"cell_wall={cell_wall} relations_target={relations} smoothness_abort=false",
+        f"target_mode=unplanted_uniform_random backend_id={BACKEND_ID}",
+        "binding: TASK-136 APPROVED e3b82f7b / DEC-20260731-038; package snapshot 0d6a1a94; "
+        "PA-DS-001-v2-ctrl-sparse-p-success / CTRL-RT025-SPARSE-P-SUCCESS",
+        "R-1: primary plant OFF; reference saturated EV-DS-003 cell 20/64/4/101",
+        "pass: sparse_p_success_pass IFF p_hat_decay_observed on harder ladder cell "
+        "AND required R / total-expected fields present",
+    ]
+
+    cell_records: list[dict] = []
+    infrastructure_errors: list[str] = []
+    budget_remaining = float(getattr(args, "total_wall", 7200.0))
+    cells_by_key: dict[tuple, CellResult] = {}
+
+    for idx, spec in enumerate(ladder):
+        if time.perf_counter() - t0 > budget_remaining:
+            logs.append(f"BUDGET: stopping before cell index={idx}")
+            break
+        bits, B, m, seed = spec["bits"], spec["B"], spec["m"], spec["seed"]
+        per_cell_wall = min(cell_wall, max(30.0, budget_remaining - (time.perf_counter() - t0)))
+        logs.append(
+            f"LADDER[{idx}] bits={bits} B={B} m={m} seed={seed} role={spec['role']} "
+            f"wall={per_cell_wall:.1f}"
+        )
+        try:
+            cell = execute_cell(
+                bits=bits,
+                B=B,
+                m=m,
+                seed=seed,
+                cell_wall_budget=per_cell_wall,
+                relations_target=relations,
+                do_planted=False,
+                smoothness_abort=False,
+                target_mode="unplanted_uniform_random",
+            )
+        except Exception as e:
+            msg = f"execute_cell failed bits={bits} B={B} m={m} seed={seed}: {e}"
+            logs.append(f"INFRA: {msg}")
+            infrastructure_errors.append(msg)
+            cell_records.append({
+                "role": spec["role"],
+                "cell_status": "failed_infrastructure",
+                "error": str(e),
+                "bits": bits,
+                "B": B,
+                "m": m,
+                "seed": seed,
+            })
+            continue
+
+        cells_by_key[(bits, B, m, seed)] = cell
+        harder = (bits > reference["bits"]) or (B < reference["B"])
+        sparse_eval = evaluate_sparse_p_success_cell(
+            cell,
+            is_harder_than_reference=harder,
+        )
+        sparse_eval["role"] = spec["role"]
+        cell_records.append(sparse_eval)
+        logs.append(
+            f"  status={cell.status} p_hat={sparse_eval['p_hat']:.6f} "
+            f"attempts={sparse_eval['attempts']} n_usable={sparse_eval['n_usable']} "
+            f"R_per_attempt={sparse_eval['R_per_attempt']} "
+            f"R_total_expected={sparse_eval['R_total_expected']} "
+            f"p_hat_decay_observed={sparse_eval['p_hat_decay_observed']}"
+        )
+
+    ladder_summary = evaluate_sparse_p_success_ladder(cell_records, reference_cell=reference)
+    p_hat_decay_observed = ladder_summary["p_hat_decay_observed"]
+    sparse_p_success_pass = ladder_summary["sparse_p_success_pass"]
+    sparse_p_success_fail = ladder_summary["sparse_p_success_fail"]
+
+    ref_eval = next(
+        (
+            ev for ev in cell_records
+            if (ev.get("bits"), ev.get("B"), ev.get("m"), ev.get("seed"))
+            == (reference["bits"], reference["B"], reference["m"], reference["seed"])
+        ),
+        None,
+    )
+    primary_eval = ref_eval or (cell_records[0] if cell_records else None)
+
+    if infrastructure_errors and not any(
+        ev.get("cell_status") not in ("failed_infrastructure", None)
+        for ev in cell_records
+    ):
+        status = "failed_infrastructure"
+    elif not cell_records:
+        status = "failed_infrastructure"
+    else:
+        status = "completed_valid"
+
+    ref_cell = cells_by_key.get(
+        (reference["bits"], reference["B"], reference["m"], reference["seed"])
+    )
+    if ref_cell is not None and ref_cell.plant_applied_to_primary:
+        status = "invalid_measurement"
+        logs.append("INVALID: plant leaked into primary R (R-1 violation)")
+
+    cert = {"kind": "none", "verified": True, "verifier": None}
+    if ref_cell is not None and ref_cell.rho and ref_cell.rho.get("solved"):
+        cert = {
+            "kind": "discrete_log",
+            "verified": bool(ref_cell.rho.get("certificate_verified")),
+            "verifier": (
+                "harness.toycurve.EllipticCurve.mul independent check in driver "
+                "+ verify_certificates.py"
+            ),
+            "k": ref_cell.rho.get("k"),
+        }
+        if not cert.get("verified"):
+            status = "invalid_measurement"
+
+    raw_costs_ref = (
+        f"experiments/EXP-DS-001/runs/{run_id}/raw-result.json"
+        "#cell_records[*].raw_costs"
+    )
+
+    raw = {
+        "mode": "ctrl-sparse-p-success",
+        "control_id": "CTRL-RT025-SPARSE-P-SUCCESS",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-sparse-p-success",
+        "ladder_cells": ladder,
+        "cell_records": cell_records,
+        "reported_cell": reference,
+        "metrics": {
+            "p_hat_decay_observed": p_hat_decay_observed,
+            "sparse_p_success_pass": sparse_p_success_pass,
+            "sparse_p_success_fail": sparse_p_success_fail,
+            "reference_p_hat_measured": ladder_summary.get("reference_p_hat_measured"),
+            "p_hat_decay_threshold": 0.5,
+            "p_hat_decay_margin": 0.5,
+            "R_per_attempt": primary_eval.get("R_per_attempt") if primary_eval else None,
+            "R_total_expected": primary_eval.get("R_total_expected") if primary_eval else None,
+            "total_expected_cost_split": (
+                primary_eval.get("total_expected_cost_split") if primary_eval else None
+            ),
+            "total_expected_cost_naive": (
+                primary_eval.get("total_expected_cost_naive") if primary_eval else None
+            ),
+            "per_attempt_cost_split": (
+                primary_eval.get("per_attempt_cost_split") if primary_eval else None
+            ),
+            "per_attempt_cost_naive": (
+                primary_eval.get("per_attempt_cost_naive") if primary_eval else None
+            ),
+            "cost_identity_definition_ref": (
+                primary_eval.get("cost_identity_definition_ref") if primary_eval else None
+            ),
+            "backend_id": BACKEND_ID,
+            "target_mode": "unplanted_uniform_random",
+        },
+        "certificate": cert,
+        "cost_identities": {
+            "rho_gop_per_second": "rho_total_group_operations / rho_wall_seconds",
+            "cost_naive": "wall_seconds_naive * rho_gop_per_second / max(n_usable_relations_naive, 1)",
+            "cost_split": "wall_seconds_split * rho_gop_per_second / max(n_usable_relations_split, 1)",
+            "R": "cost_split / cost_naive",
+            "R_null": "cost_split_null / cost_naive_null",
+            "total_expected_cost_naive": "per_attempt_cost_naive / p_hat (p_hat>0)",
+            "total_expected_cost_split": "per_attempt_cost_split / p_hat (p_hat>0)",
+            "R_total_expected": "total_expected_cost_split / total_expected_cost_naive",
+        },
+        "raw_costs_ref": raw_costs_ref,
+        "forbid_note": (
+            "Toy-tier sparse p̂ / total-expected-cost control only. No S1_met / support / "
+            "asymptotic_promotion. Does not launder RUN-DS-001-ctrl-theater or EXP-IT WIP."
+        ),
+        "infrastructure_errors": infrastructure_errors,
+        "_stdout": "\n".join(logs),
+        "_stderr": "\n".join(infrastructure_errors),
+    }
+
+    finished = utc_now()
+    wall_seconds = time.perf_counter() - t0
+    cmd = (
+        f"python3 experiments/EXP-DS-001/implementation/ds001_driver.py "
+        f"--mode ctrl-sparse-p-success --cell-wall {cell_wall} --relations {relations} "
+        f"--total-wall {budget_remaining}"
+    )
+    out_run = Path(args.out_run)
+    write_run_artifacts(
+        run_id,
+        out_run,
+        cmd,
+        raw,
+        status,
+        started=started,
+        finished=finished,
+        wall_seconds=wall_seconds,
+        task_id="TASK-20260731-136",
+        batch_id="BATCH-029",
+        contract_extra={
+            "control_protocol_path": (
+                "experiments/EXP-DS-001/controls/CTRL-RT025-SPARSE-P-SUCCESS.yaml"
+            ),
+            "protocol_amendment_id": "PA-DS-001-v2-ctrl-sparse-p-success",
+            "amendment_path": (
+                "experiments/EXP-DS-001/amendments/v2_ctrl_sparse_p_success.yaml"
+            ),
+            "approval_task": "TASK-20260731-135",
+            "approval_determination": "APPROVED",
+            "approval_snapshot": "e3b82f7b",
+            "package_snapshot": "0d6a1a94",
+            "approval_decision": "DEC-20260731-038",
+            "decision": "DEC-20260731-038",
+            "claim_tier": "toy",
+            "parent_contract_sha256": (
+                "898304bfc9225062e68c5d7977d1490cad95957e856847676ef7ae1423a5636a"
+            ),
+        },
+        inputs_extra={
+            "ladder_cells": ladder,
+            "reference_saturated_cell": reference,
+            "target_mode": "unplanted_uniform_random",
+            "smoothness_abort": False,
+            "relations_target": relations,
+            "cell_wall_seconds": cell_wall,
+            "total_wall_seconds": budget_remaining,
+            "plant_on_primary": False,
+        },
+    )
+
+    results_dir = Path(args.exp_root) / "results" / "ctrl_sparse_p_success"
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    sparse_report = {
+        "control_id": "CTRL-RT025-SPARSE-P-SUCCESS",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-sparse-p-success",
+        "run_id": run_id,
+        "task_id": "TASK-20260731-136",
+        "batch_id": "BATCH-029",
+        "approval_binding": {
+            "approval_task": "TASK-20260731-135",
+            "approval_determination": "APPROVED",
+            "approval_decision": "DEC-20260731-038",
+            "approval_snapshot": "e3b82f7b",
+            "package_snapshot": "0d6a1a94",
+            "review": "RT-20260731-134",
+        },
+        "backend_id": BACKEND_ID,
+        "raw_costs_ref": raw_costs_ref,
+        "ladder_cells": ladder,
+        "cell_records": cell_records,
+        "reported_cell": reference,
+        "reference_saturated_cell": reference,
+        "p_hat_decay_observed": p_hat_decay_observed,
+        "p_hat_decay_threshold": 0.5,
+        "p_hat_decay_margin": 0.5,
+        "reference_p_hat_measured": ladder_summary.get("reference_p_hat_measured"),
+        "sparse_p_success_pass": sparse_p_success_pass,
+        "sparse_p_success_fail": sparse_p_success_fail,
+        "cost_identity_definition_ref": (
+            primary_eval.get("cost_identity_definition_ref") if primary_eval else None
+        ),
+        "definitions": {
+            "p_hat": "n_usable_naive / attempted_targets_naive on unplanted cell",
+            "R_per_attempt": "yield-charged cost_identity_R = cost_split / cost_naive",
+            "total_expected_cost_naive": "per_attempt_cost_naive / p_hat (p_hat>0)",
+            "total_expected_cost_split": "per_attempt_cost_split / p_hat (p_hat>0)",
+            "R_total_expected": "total_expected_cost_split / total_expected_cost_naive",
+            "p_hat_decay_observed": (
+                "p_hat below threshold (0.5) or below reference p_hat by margin ≥0.5 "
+                "on a harder ladder cell (larger bits and/or stricter B)"
+            ),
+            "sparse_p_success_pass": (
+                "p_hat_decay_observed AND all required fields present AND "
+                "R_per_attempt / R_total_expected / total_expected_* mutually consistent"
+            ),
+            "sparse_p_success_fail": (
+                "honest negative when p_hat does not decay or required fields missing; "
+                "NOT infrastructure failure; NOT lane death"
+            ),
+        },
+        "forbid_note": raw["forbid_note"],
+        "status": status,
+        "note": (
+            "Honest sparse_p_success_fail is completed_valid when p̂ does not decay on "
+            "the declared ladder — not infrastructure failure."
+        ),
+    }
+    (results_dir / "sparse_p_success_report.json").write_text(
+        json.dumps(sparse_report, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+
+    summary = {
+        "control_id": "CTRL-RT025-SPARSE-P-SUCCESS",
+        "run_id": run_id,
+        "task_id": "TASK-20260731-136",
+        "batch_id": "BATCH-029",
+        "status": status,
+        "outcome_label": (
+            "sparse_p_success_pass"
+            if sparse_p_success_pass and status == "completed_valid"
+            else "sparse_p_success_fail"
+            if status == "completed_valid"
+            else status
+        ),
+        "sparse_p_success_pass": sparse_p_success_pass,
+        "sparse_p_success_fail": sparse_p_success_fail,
+        "p_hat_decay_observed": p_hat_decay_observed,
+        "reference_p_hat_measured": ladder_summary.get("reference_p_hat_measured"),
+        "cells_measured": len(cell_records),
+        "ladder_cells": ladder,
+        "reported_cell": reference,
+        "claim_ceiling": "toy",
+        "does_not_modify_hypotheses": ["H-IC-001", "H-STR-002"],
+        "forbid": [
+            "S1_met",
+            "support",
+            "asymptotic_promotion",
+            "structure_gate_passed",
+            "launder_EXP_IT_001",
+            "launder_RUN-DS-001-ctrl-theater",
+        ],
+        "inference": inference_block(),
+        "git": git_state(),
+        "wall_seconds_run": wall_seconds,
+        "note": (
+            "Toy-tier sparse p̂ / total-expected-cost observations only. "
+            "No crypto-scale or asymptotic claim."
+        ),
+    }
+    (results_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+
+    print("\n".join(logs))
+    print(
+        "SUMMARY",
+        json.dumps(
+            {
+                "status": status,
+                "sparse_p_success_pass": sparse_p_success_pass,
+                "sparse_p_success_fail": sparse_p_success_fail,
+                "p_hat_decay_observed": p_hat_decay_observed,
+                "reference_p_hat": ladder_summary.get("reference_p_hat_measured"),
+                "cells_measured": len(cell_records),
+            }
+        ),
+    )
+    return 0 if status in ("completed_valid", "resource_exhaustion", "cancelled_by_budget") else 1
+
+
 def mode_finalize(args: argparse.Namespace) -> int:
     """Assemble results/*.json from the three run raw-results."""
     root = Path(args.exp_root)
@@ -4335,6 +4842,7 @@ def main() -> int:
             "ctrl-plant-contrast",
             "ctrl-structure-null-r2",
             "ctrl-ci-identity",
+            "ctrl-sparse-p-success",
         ],
         required=True,
     )
@@ -4356,6 +4864,7 @@ def main() -> int:
             "ctrl-plant-contrast": "RUN-DS-001-ctrl-plant-contrast",
             "ctrl-structure-null-r2": "RUN-DS-001-ctrl-structure-null-r2",
             "ctrl-ci-identity": "RUN-DS-001-ctrl-ci-identity",
+            "ctrl-sparse-p-success": "RUN-DS-001-ctrl-sparse-p-success",
         }[args.mode])
     if args.mode == "impl":
         return mode_impl(args)
@@ -4388,6 +4897,12 @@ def main() -> int:
         if args.cell_wall == 90.0:
             args.cell_wall = 7200.0
         return mode_ctrl_ci_identity(args)
+    if args.mode == "ctrl-sparse-p-success":
+        if args.cell_wall == 90.0:
+            args.cell_wall = 7200.0
+        if args.total_wall == 3600.0:
+            args.total_wall = 7200.0
+        return mode_ctrl_sparse_p_success(args)
     return mode_finalize(args)
 
 

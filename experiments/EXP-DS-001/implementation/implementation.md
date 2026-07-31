@@ -211,3 +211,37 @@
 
 - No edits to `specification.v2.yaml`, H-IC-001, H-STR-002, EXP-IT, or theater WIP.
 - No commit (TASK-116 archives). Toy claim ceiling; observations only; no S1_met / support.
+
+---
+
+# EXP-DS-001 v2.8-ctrl-sparse-p-success (TASK-20260731-136)
+
+**Amendment:** `PA-DS-001-v2-ctrl-sparse-p-success` (APPROVED at TASK-20260731-135 / DEC-20260731-038, snapshot `e3b82f7b`, package `0d6a1a94`)  
+**Control:** CTRL-RT025-SPARSE-P-SUCCESS  
+**Run:** `RUN-DS-001-ctrl-sparse-p-success`  
+**Parent contract:** `specification.v2.yaml` immutable (sha256 `898304bf…a5636a`)
+
+## Driver extensions
+
+1. `--mode ctrl-sparse-p-success` — 4-cell unplanted ladder (reference 20/64/4/101 + harder 24/64, 20/32, 24/32); writes `runs/RUN-DS-001-ctrl-sparse-p-success/` + `results/ctrl_sparse_p_success/`.
+2. `evaluate_sparse_p_success_cell` — per-cell `p_hat = n_usable_naive/attempts`, yield-charged `R_per_attempt`, `total_expected_cost_* = per_attempt/p_hat`, `R_total_expected`.
+3. `evaluate_sparse_p_success_ladder` — aggregate `p_hat_decay_observed`, `sparse_p_success_pass` / `sparse_p_success_fail`.
+4. Honest `sparse_p_success_fail` is `completed_valid` (not infrastructure failure; not lane death).
+
+## Observed (no interpretation)
+
+- Reference 20/64/4/101: `p_hat=1.0`, `R_per_attempt≈0.0272`, `R_total_expected≈0.0272`.
+- Harder 24/64/4/101: `p_hat≈0.704`, `R_per_attempt≈0.0425` (no decay vs threshold).
+- Harder 20/32/4/101: `p_hat≈0.631`, `R_per_attempt≈0.104` (no decay vs threshold).
+- Harder 24/32/4/101: `p_hat≈0.0676`, `p_hat_decay_observed=true`, `R_per_attempt≈0.0763`.
+- Ladder aggregate: `sparse_p_success_pass=true`, `p_hat_decay_observed=true`.
+
+## Archive note
+
+- `ds001_driver.py` is git assume-unchanged (`H`). Coordinator archive TASK-137 should hash via `git hash-object experiments/EXP-DS-001/implementation/ds001_driver.py` → `628d81e5c56799ea5e6ad5f26ed9d9f240c8458d`.
+
+## Out of scope (honored)
+
+- No edits to `specification.v2.yaml`, H-IC-001, H-STR-002, EXP-IT, theater, or BATCH-027/028 paths.
+- No commit (TASK-137 archives). Toy claim ceiling; observations only; no S1_met / support.
+
