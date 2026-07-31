@@ -6,12 +6,10 @@ BATCH-027: construct a checkable symbolic stage↔resource charge-incidence ledg
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-079` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-079/charge_incidence_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-079/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-079/charge_incidence_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-079/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-079/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-079 |
+| `TASK-20260730-081` | red-team | queued | 80 | TASK-20260730-079, TASK-20260730-080 | coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-081/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-081/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-081 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-080`: dependency_not_completed:TASK-20260730-079:queued
-- `TASK-20260730-081`: dependency_not_completed:TASK-20260730-079:queued, dependency_not_completed:TASK-20260730-080:queued
 - `TASK-20260730-082`: dependency_not_completed:TASK-20260730-081:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-027: construct a checkable symbolic stage↔resource charge-incidence ledg
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `3236e0223612bde37eb49c4ac25b2282e2123ccf4770eac005acc268749d3fb9`
+Plan SHA-256: `cb7f28a1eeb564824f249fbcd21e5ce9febe95291f41d194d03d5e372b16bbfa`
