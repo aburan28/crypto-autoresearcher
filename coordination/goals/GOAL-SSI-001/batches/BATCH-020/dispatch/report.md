@@ -6,11 +6,11 @@ BATCH-020: novelty-screen and pin successor FC0 host/extension for Verify and W/
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-053` | red-team | queued | 80 | TASK-20260730-051, TASK-20260730-052 | coordination/goals/GOAL-SSI-001/batches/BATCH-020/tasks/TASK-20260730-053/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-020/tasks/TASK-20260730-053/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-020/tasks/TASK-20260730-053 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-054`: dependency_not_completed:TASK-20260730-053:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-020: novelty-screen and pin successor FC0 host/extension for Verify and W/
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `23db4dd0e0fabca383641f4b2377762304a30fb9847f493b76e1ede0ab41e917`
+Plan SHA-256: `e0e83266dd638367284f319b4526f6245f4e974cb20c448b26a83bde6d9cc06c`
