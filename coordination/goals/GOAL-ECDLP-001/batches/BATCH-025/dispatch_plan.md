@@ -1,16 +1,17 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-025 RC-25b after TASK-105 REVISE / TASK-106 NOT APPROVED (DEC-20260731-026 / QUEUE-AMEND-20260731-014): one protocol_amendment discharging B-1–B-4 on EXP-IT-001 / H-IT-001; freeze snapshot; independent re-review. No Executor until APPROVED. Structure-null-r2 deferred (DEC-025 superseded for execution). H-DS-001 analyzed. Toy ceiling. No STR. No push.
+BATCH-025 structure-null-r2 after APPROVED b27db960: run snapshotted; Val+RT; ledger EV-DS-008/DEC-20260731-028. Toy ceiling. No EXP-IT launder. No STR.
 
 ## Ready Tasks
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-109` | reviewer | queued | 90 | TASK-20260731-108 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-109/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-109/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-109 |
+| `TASK-20260731-100` | validator | running | 70 | TASK-20260731-098, TASK-20260731-099 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-100/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-100 |
+| `TASK-20260731-101` | red-team | running | 70 | TASK-20260731-098, TASK-20260731-099 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-101/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-101 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-110`: dependency_not_completed:TASK-20260731-109:queued
+- `TASK-20260731-102`: dependency_not_completed:TASK-20260731-100:running, dependency_not_completed:TASK-20260731-101:running
 
 ## Dispatch Gates
 
@@ -25,4 +26,4 @@ BATCH-025 RC-25b after TASK-105 REVISE / TASK-106 NOT APPROVED (DEC-20260731-026
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e99976a758d00eee5edfeb13c35a8bda84b969e713a2c6d6d0ce9604d7cd9113`
+Plan SHA-256: `3e3d02bb1d0cf6e4d5a3386424d4ecb7f9a308c92955c800e4c7762cc94fc993`
