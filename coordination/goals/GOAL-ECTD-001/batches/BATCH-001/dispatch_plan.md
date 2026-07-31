@@ -6,14 +6,12 @@ Open GOAL-ECTD-001 BATCH-001: file/upgrade Teske and approach-adjacent primary s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-027` | idea-generator | queued | 95 | TASK-20260731-034 | knowledge/literature/KN-LIT-7261.md, knowledge/literature/KN-LIT-7630.md, knowledge/literature/KN-LIT-7631.md, knowledge/literature/KN-LIT-7632.md, knowledge/literature/KN-LIT-7633.md, knowledge/literature/KN-LIT-7634.md, knowledge/literature/KN-LIT-7635.md, knowledge/literature/KN-LIT-7636.md, coordination/goals/GOAL-ECTD-001/batches/BATCH-001/tasks/TASK-20260731-027/sources_note.md | knowledge/literature, coordination/goals/GOAL-ECTD-001/batches/BATCH-001/tasks/TASK-20260731-027 |
+| `TASK-20260731-029` | idea-generator | queued | 80 | TASK-20260731-028 | ledger/proposals/IDEA-20260731-016.yaml, ledger/proposals/IDEA-20260731-017.yaml, ledger/proposals/IDEA-20260731-018.yaml, coordination/goals/GOAL-ECTD-001/batches/BATCH-001/tasks/TASK-20260731-029/ideation_report.md | ledger/proposals, coordination/goals/GOAL-ECTD-001/batches/BATCH-001/tasks/TASK-20260731-029 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-028`: dependency_not_completed:TASK-20260731-027:queued
-- `TASK-20260731-029`: dependency_not_completed:TASK-20260731-028:queued
 - `TASK-20260731-030`: dependency_not_completed:TASK-20260731-029:queued
-- `TASK-20260731-031`: dependency_not_completed:TASK-20260731-027:queued, dependency_not_completed:TASK-20260731-028:queued, dependency_not_completed:TASK-20260731-029:queued, dependency_not_completed:TASK-20260731-030:queued
+- `TASK-20260731-031`: dependency_not_completed:TASK-20260731-029:queued, dependency_not_completed:TASK-20260731-030:queued
 - `TASK-20260731-032`: dependency_not_completed:TASK-20260731-031:queued
 
 ## Dispatch Gates
@@ -29,4 +27,4 @@ Open GOAL-ECTD-001 BATCH-001: file/upgrade Teske and approach-adjacent primary s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `2f0c0a9cb20a5e46d670be8213df9608bd03bdfb9aaccf748b45af63c6b9cb09`
+Plan SHA-256: `a960b87daa46267d7118805455e0abdce0929a2c6de706258fd3eb0544f47cd7`
