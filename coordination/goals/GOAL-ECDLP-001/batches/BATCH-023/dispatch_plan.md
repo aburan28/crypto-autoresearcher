@@ -6,12 +6,11 @@ BATCH-023 residual plant-contrastive control under SG-ECDLP-001: author PA-DS-00
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-078` | validator | running | 70 | TASK-20260731-076, TASK-20260731-077 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-078/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-078 |
-| `TASK-20260731-079` | red-team | running | 70 | TASK-20260731-076, TASK-20260731-077 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-079/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-079 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-080`: dependency_not_completed:TASK-20260731-078:running, dependency_not_completed:TASK-20260731-079:running
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-023 residual plant-contrastive control under SG-ECDLP-001: author PA-DS-00
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `c0ae95517254c02ad9b268458ceb1dc53a231cf320c77323c5dac976d2fb9c45`
+Plan SHA-256: `497150f077dbdf6f70b9bc1358dc80d3927bec25e2192e88836b1c2b10107d25`
