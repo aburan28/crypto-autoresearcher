@@ -6,14 +6,12 @@ BATCH-022 residual-control theater-r2 under SG-ECDLP-001: author PA-DS-001-v2-ct
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-067` | executor | running | 70 | TASK-20260731-066 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater-r2/manifest.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater-r2/raw-result.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater-r2/stdout.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater-r2/stderr.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater-r2/command.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater-r2/environment.json, experiments/EXP-DS-001/results/ctrl_theater_r2/summary.json, experiments/EXP-DS-001/results/ctrl_theater_r2/plant_closed_path_report.json, experiments/EXP-DS-001/results/ctrl_theater_r2/rho_calib_audited_report.json, experiments/EXP-DS-001/results/ctrl_theater_r2/null_split_hard_destroy_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/tasks/TASK-20260731-067/execution_report.yaml | experiments/EXP-DS-001/implementation, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater-r2, experiments/EXP-DS-001/results/ctrl_theater_r2, coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/tasks/TASK-20260731-067 |
+| `TASK-20260731-069` | validator | queued | 70 | TASK-20260731-067, TASK-20260731-068 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-069/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-069 |
+| `TASK-20260731-070` | red-team | queued | 70 | TASK-20260731-067, TASK-20260731-068 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-070/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-070 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-068`: dependency_not_completed:TASK-20260731-067:running
-- `TASK-20260731-069`: dependency_not_completed:TASK-20260731-067:running, dependency_not_completed:TASK-20260731-068:queued
-- `TASK-20260731-070`: dependency_not_completed:TASK-20260731-067:running, dependency_not_completed:TASK-20260731-068:queued
-- `TASK-20260731-071`: dependency_not_completed:TASK-20260731-068:queued, dependency_not_completed:TASK-20260731-069:queued, dependency_not_completed:TASK-20260731-070:queued
+- `TASK-20260731-071`: dependency_not_completed:TASK-20260731-069:queued, dependency_not_completed:TASK-20260731-070:queued
 
 ## Dispatch Gates
 
@@ -28,4 +26,4 @@ BATCH-022 residual-control theater-r2 under SG-ECDLP-001: author PA-DS-001-v2-ct
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `462d4b68ae025bf936739025e13780f606ff5daf40afc87bfe872f03dd960a12`
+Plan SHA-256: `cacb2c97b33b6afd97b50bfe41d99fdc63ea174b9e226396ade760a660818f4c`
