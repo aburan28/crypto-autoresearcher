@@ -1,16 +1,21 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-025 REDIRECTED (DEC-20260731-024 / QUEUE-AMEND-20260731-012): cancel structure-null-r2 execution; admit independent pre-exec review of H-IT-001 / EXP-IT-001 already snapshot-archived at 303ae797; Coordinator APPROVED/NOT APPROVED at TASK-106. SG-ECDLP-001 residuals deferred (not lane death). Toy ceiling. No STR. No H-DS-001 support. No push.
+BATCH-025 restore executable structure-null-r2 under SG-ECDLP-001 (DEC-20260731-025 supersedes DEC-024 pivot race): PA-DS-001-v2-ctrl-structure-null-r2 / CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2 encoding R_null>=0.9 structure credit (RT079-B3/RT070-B3); one RC-25 review cycle; Executor only if APPROVED; Val+RT; ledger EV-DS-008/DEC-20260731-026. Do not edit abandoned BATCH-024 stubs. Do not launder EXP-IT-001/H-IT-001. Deferred CI/SPARSE. Toy ceiling. No STR. No push.
 
 ## Ready Tasks
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-105` | reviewer | queued | 90 | TASK-20260731-104 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-105/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-105/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-105 |
+| `TASK-20260731-096` | reviewer | running | 80 | TASK-20260731-095 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-096/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-096/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-096 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-106`: dependency_not_completed:TASK-20260731-105:queued
+- `TASK-20260731-097`: dependency_not_completed:TASK-20260731-096:running
+- `TASK-20260731-098`: dependency_not_completed:TASK-20260731-097:queued
+- `TASK-20260731-099`: dependency_not_completed:TASK-20260731-098:queued
+- `TASK-20260731-100`: dependency_not_completed:TASK-20260731-098:queued, dependency_not_completed:TASK-20260731-099:queued
+- `TASK-20260731-101`: dependency_not_completed:TASK-20260731-098:queued, dependency_not_completed:TASK-20260731-099:queued
+- `TASK-20260731-102`: dependency_not_completed:TASK-20260731-099:queued, dependency_not_completed:TASK-20260731-100:queued, dependency_not_completed:TASK-20260731-101:queued
 
 ## Dispatch Gates
 
@@ -25,4 +30,4 @@ BATCH-025 REDIRECTED (DEC-20260731-024 / QUEUE-AMEND-20260731-012): cancel struc
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a182c0ecf23c990f65516061cead9b1c8b896ab183f18cbd3202f2aec9688c68`
+Plan SHA-256: `820ba6b813bb6ad574673abbe16b9673b353570de3fa9e04e8ae80f93f1713c4`
