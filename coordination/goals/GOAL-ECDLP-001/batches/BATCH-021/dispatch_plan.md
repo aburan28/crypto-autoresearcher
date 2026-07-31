@@ -6,14 +6,11 @@ BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-058` | executor | running | 70 | TASK-20260731-057 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/manifest.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/raw-result.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/stdout.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/stderr.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/command.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/environment.json, experiments/EXP-DS-001/results/ctrl_theater/summary.json, experiments/EXP-DS-001/results/ctrl_theater/plant_independent_report.json, experiments/EXP-DS-001/results/ctrl_theater/rho_calib_report.json, experiments/EXP-DS-001/results/ctrl_theater/null_split_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/tasks/TASK-20260731-058/execution_report.yaml | experiments/EXP-DS-001/implementation, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater, experiments/EXP-DS-001/results/ctrl_theater, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/tasks/TASK-20260731-058 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-059`: dependency_not_completed:TASK-20260731-058:running
-- `TASK-20260731-060`: dependency_not_completed:TASK-20260731-058:running, dependency_not_completed:TASK-20260731-059:queued
-- `TASK-20260731-061`: dependency_not_completed:TASK-20260731-058:running, dependency_not_completed:TASK-20260731-059:queued
-- `TASK-20260731-062`: dependency_not_completed:TASK-20260731-059:queued, dependency_not_completed:TASK-20260731-060:queued, dependency_not_completed:TASK-20260731-061:queued
+None.
 
 ## Dispatch Gates
 
@@ -28,4 +25,4 @@ BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `0340d37f1ba1b838d1f47c4d8fa470e87cd0d275f623c19fade77adac5dda35c`
+Plan SHA-256: `e843a800ea2d08f2f66d5802b2f6044d675d9498060be8138d7758471f4a4ebd`
