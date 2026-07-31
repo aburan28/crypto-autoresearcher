@@ -6,11 +6,11 @@ BATCH-028: construct a checkable symbolic retry/cleanup and residual-tail charge
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-085` | red-team | queued | 80 | TASK-20260730-083, TASK-20260730-084 | coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-085/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-085/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-028/tasks/TASK-20260730-085 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-086`: dependency_not_completed:TASK-20260730-085:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-028: construct a checkable symbolic retry/cleanup and residual-tail charge
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `7d7edd1efa6c80eddc52dff2a1f48b392ca9129240f3827816e4e3924bbd151e`
+Plan SHA-256: `fbedefda50aec767da22be1c224f078e7323730f5108740b39d642ee75477a0a`
