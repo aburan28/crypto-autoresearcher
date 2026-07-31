@@ -6,12 +6,11 @@ BATCH-022 residual-control theater-r2 under SG-ECDLP-001: author PA-DS-001-v2-ct
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-069` | validator | running | 70 | TASK-20260731-067, TASK-20260731-068 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-069/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-069 |
-| `TASK-20260731-070` | red-team | running | 70 | TASK-20260731-067, TASK-20260731-068 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-070/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-070 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-071`: dependency_not_completed:TASK-20260731-069:running, dependency_not_completed:TASK-20260731-070:running
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-022 residual-control theater-r2 under SG-ECDLP-001: author PA-DS-001-v2-ct
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `cb8b1bf39f3ca13204b18747a3c90e023e4a1993ec4032071f4426bdd3c89436`
+Plan SHA-256: `4e470baf233e7a5a77e95216188245951eb462da43c055bc767c50207f3d3bbb`
