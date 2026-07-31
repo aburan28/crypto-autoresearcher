@@ -51,3 +51,42 @@
 - No edits to `specification*.yaml`, amendments, H-IC-001, H-STR-002.
 - No commits (snapshot is TASK-20260731-023).
 - No crypto-scale or asymptotic claims in artifacts.
+
+---
+
+# EXP-DS-001 v2.1-ctrl — CTRL-RT025-UNPLANTED (TASK-20260731-044)
+
+**Control protocol:** `experiments/EXP-DS-001/controls/CTRL-RT025-UNPLANTED.yaml`  
+**Amendment:** `PA-DS-001-v2-ctrl-unplanted` (APPROVED at TASK-20260731-043)  
+**Parent contract:** `specification.v2.yaml` (immutable; not edited)  
+**Run:** `RUN-DS-001-ctrl-unplanted`
+
+## Driver extensions (prior planted modes preserved)
+
+1. `uniform_random_curve_target` — samples `k*P` uniformly; not a planted m-sum.
+2. `execute_cell(..., target_mode=)` — `planted_m_sum` (legacy) or `unplanted_uniform_random`.
+3. `--mode ctrl-unplanted` — single cell bits=20,B=64,m=4,seed=101; writes run + `results/ctrl_unplanted/`.
+4. `live_plant_detect` — companion-only live `/4` on reported split costs with null echo; **no** `synth_R`/`synth_Rn` OR-path.
+5. Primary R / R_null always measured with plant OFF (`plant_applied_to_primary=false`).
+
+## Protocol adherence
+
+- Backend id unchanged: `ds001-v2-point-sum-membership+charged-units-v1`
+- `smoothness_abort=false`
+- `relations_target=200` (hit; `protocol_stop=relations_target_reached`)
+- `cell_wall=7200` (budget available; finished early on relations)
+- Null object `NULL-DS-RANDOM-MULTIHOMOGENEOUS` required and recorded
+- R-1: primary plant OFF; live plant only in `live_plant_report.json`
+
+## Protocol deviations
+
+1. Same membership-backend proxy as planted package (exact point-sum + charged units; not sympy GB).
+2. Unplanted empirical success probability was 1.0 on both real arms at this toy cell (every uniform subgroup target found a decomposition within the scan). Recorded in `attempted_targets_*` / `success_count_*` / `empirical_success_probability_*`; not imputed from planted yield.
+3. Inference: requested `executor-implementation`, resolved `cursor-grok-4.5`, `fallback_used: true`.
+
+## Out of scope (honored)
+
+- No edits to `specification*.yaml` or amendment after approval.
+- No changes to H-IC-001 / H-STR-002; FAEST/XEDN untouched.
+- No commit (TASK-20260731-045 archives).
+- Does not supersede planted EV-DS-002 package.
