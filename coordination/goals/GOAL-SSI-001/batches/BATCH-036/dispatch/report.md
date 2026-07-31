@@ -6,12 +6,11 @@ BATCH-036: construct a checkable symbolic numeric charge-metering obligation sch
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-115` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-036/tasks/TASK-20260730-115/charge_metering_schema_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-036/tasks/TASK-20260730-115/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-036/tasks/TASK-20260730-115/charge_metering_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-036/tasks/TASK-20260730-115/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-036/tasks/TASK-20260730-115/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-036/tasks/TASK-20260730-115 |
+| `TASK-20260730-116` | coordinator | queued | 90 | TASK-20260730-115 | coordination/goals/GOAL-SSI-001/batches/BATCH-036/archives/TASK-20260730-116/snapshot-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-036/archives/TASK-20260730-116 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-116`: dependency_not_completed:TASK-20260730-115:queued
-- `TASK-20260730-117`: dependency_not_completed:TASK-20260730-115:queued, dependency_not_completed:TASK-20260730-116:queued
+- `TASK-20260730-117`: dependency_not_completed:TASK-20260730-116:queued
 - `TASK-20260730-118`: dependency_not_completed:TASK-20260730-117:queued
 
 ## Dispatch Gates
@@ -27,4 +26,4 @@ BATCH-036: construct a checkable symbolic numeric charge-metering obligation sch
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `210843b4039f73f47557be946b72e7dc32987435fd52ee639f1b02dc6444904e`
+Plan SHA-256: `37a79ff64ce71143a44b450ef9a8277f75bf64760102cb4d9a6caaad105316eb`
