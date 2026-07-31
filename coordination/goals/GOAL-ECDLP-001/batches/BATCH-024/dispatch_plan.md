@@ -6,16 +6,11 @@ BATCH-024 residual structure-null control under SG-ECDLP-001: author PA-DS-001-v
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-083` | reviewer | running | 80 | TASK-20260731-082 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260731-083/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260731-083/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260731-083 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-084`: dependency_not_completed:TASK-20260731-083:running
-- `TASK-20260731-085`: dependency_not_completed:TASK-20260731-084:queued
-- `TASK-20260731-086`: dependency_not_completed:TASK-20260731-085:queued
-- `TASK-20260731-087`: dependency_not_completed:TASK-20260731-085:queued, dependency_not_completed:TASK-20260731-086:queued
-- `TASK-20260731-088`: dependency_not_completed:TASK-20260731-085:queued, dependency_not_completed:TASK-20260731-086:queued
-- `TASK-20260731-089`: dependency_not_completed:TASK-20260731-086:queued, dependency_not_completed:TASK-20260731-087:queued, dependency_not_completed:TASK-20260731-088:queued
+None.
 
 ## Dispatch Gates
 
@@ -30,4 +25,4 @@ BATCH-024 residual structure-null control under SG-ECDLP-001: author PA-DS-001-v
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `eda16ad6642f3074bc55543bbc14431caa720fff5e8a4541bdad923a74d5b926`
+Plan SHA-256: `aed808bdb634e453f1178c65e72463b0559732492b5551dcf683309812e26dc9`
