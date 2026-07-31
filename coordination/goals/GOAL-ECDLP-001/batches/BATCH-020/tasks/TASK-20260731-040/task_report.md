@@ -9,7 +9,7 @@ Completed (authoring). Snapshot archive is TASK-20260731-041.
 - DEC-20260731-018 inconclusive; exact next_action CTRL-RT025-UNPLANTED
 - RT-20260731-038 (RT038-B7; CTRL-RT025-UNPLANTED / PLANT-LIVE still required)
 - EXP-DS-001 `specification.v2.yaml` (sha256 `898304bfc9225062e68c5d7977d1490cad95957e856847676ef7ae1423a5636a`)
-- Parent approval snapshot `65f3c82b` / DEC-20260731-013
+- Parent approval snapshot `65f3c82b` / DEC-20260731-022
 
 ## Deliverables
 
