@@ -6,11 +6,11 @@ BATCH-026: construct a checkable symbolic Q/S/P/C(+H) resource-vector ledger aga
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-077` | red-team | queued | 80 | TASK-20260730-075, TASK-20260730-076 | coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-077/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-077/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-026/tasks/TASK-20260730-077 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-078`: dependency_not_completed:TASK-20260730-077:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-026: construct a checkable symbolic Q/S/P/C(+H) resource-vector ledger aga
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `aba15e557c60f2dc596d65e367467b77a892d70112787a2ad6926dbb2f6eb93f`
+Plan SHA-256: `d29a49907682fd321263951fc15232765d19bc2535d3bb40f480fb9a218ed7e0`
