@@ -6,11 +6,11 @@ BATCH-027: construct a checkable symbolic stage↔resource charge-incidence ledg
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-081` | red-team | queued | 80 | TASK-20260730-079, TASK-20260730-080 | coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-081/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-081/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-027/tasks/TASK-20260730-081 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-082`: dependency_not_completed:TASK-20260730-081:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-027: construct a checkable symbolic stage↔resource charge-incidence ledg
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `cb7f28a1eeb564824f249fbcd21e5ce9febe95291f41d194d03d5e372b16bbfa`
+Plan SHA-256: `37f0122bdb3d241ef5ddf5604dd92c9c38a0385d8a6012d898be54e6bf385e57`
