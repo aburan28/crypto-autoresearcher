@@ -6,11 +6,11 @@ Open GOAL-ECTD-001 BATCH-001: file/upgrade Teske and approach-adjacent primary s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-031` | red-team | queued | 60 | TASK-20260731-027, TASK-20260731-028, TASK-20260731-029, TASK-20260731-030 | coordination/goals/GOAL-ECTD-001/batches/BATCH-001/reviews/TASK-20260731-031/review_report.yaml, coordination/goals/GOAL-ECTD-001/batches/BATCH-001/reviews/TASK-20260731-031/objections.md | coordination/goals/GOAL-ECTD-001/batches/BATCH-001/reviews/TASK-20260731-031 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-032`: dependency_not_completed:TASK-20260731-031:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Open GOAL-ECTD-001 BATCH-001: file/upgrade Teske and approach-adjacent primary s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `20170f9648c324ea464ccb76d57cd96d0c21331b73fa11e59af64bffe41d095a`
+Plan SHA-256: `63610147ec5fd637faf84be91bd17001aff2424a566c5a5912d5082eeae7e560`
