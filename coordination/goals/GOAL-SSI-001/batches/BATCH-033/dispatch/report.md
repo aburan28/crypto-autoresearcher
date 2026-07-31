@@ -6,11 +6,11 @@ BATCH-033: construct a checkable symbolic width-slot ↔ lifetime-hook / charge-
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-105` | red-team | queued | 80 | TASK-20260730-103, TASK-20260730-104 | coordination/goals/GOAL-SSI-001/batches/BATCH-033/tasks/TASK-20260730-105/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-033/tasks/TASK-20260730-105/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-033/tasks/TASK-20260730-105 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-106`: dependency_not_completed:TASK-20260730-105:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-033: construct a checkable symbolic width-slot ↔ lifetime-hook / charge-
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `709da8965ee60b841c82858d32b1efe4dad89e29e85b657b1dfc33d1338f23ff`
+Plan SHA-256: `e661dd3f7a652ff8538df525e4ac57556e6a63780323404466b7c1f9e69a0b5d`
