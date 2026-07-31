@@ -65,6 +65,10 @@ contract is in `agents/executor.md`; the global inter-agent contract is in
 - Return the exact artifact paths to the Coordinator snapshot task. Do not
   commit into a shared worktree; the Coordinator commits the frozen receipt
   before Validator or Red Team review.
+- Never push branches, merge `main`, or open/update pull requests yourself —
+  the Coordinator syncs the branch with `main` and surfaces the work as a PR
+  after its snapshot archive. Your run package is not durable until that
+  pushed, open-PR archive exists.
 
 ## Prohibitions
 
