@@ -6,14 +6,12 @@ BATCH-023 residual plant-contrastive control under SG-ECDLP-001: author PA-DS-00
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-076` | executor | running | 70 | TASK-20260731-075 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-plant-contrast/manifest.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-plant-contrast/raw-result.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-plant-contrast/stdout.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-plant-contrast/stderr.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-plant-contrast/command.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-plant-contrast/environment.json, experiments/EXP-DS-001/results/ctrl_plant_contrast/summary.json, experiments/EXP-DS-001/results/ctrl_plant_contrast/plant_contrastive_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/tasks/TASK-20260731-076/execution_report.yaml, experiments/EXP-DS-001/implementation/ds001_driver.py, experiments/EXP-DS-001/implementation/implementation.md | experiments/EXP-DS-001/implementation, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-plant-contrast, experiments/EXP-DS-001/results/ctrl_plant_contrast, coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/tasks/TASK-20260731-076 |
+| `TASK-20260731-078` | validator | queued | 70 | TASK-20260731-076, TASK-20260731-077 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-078/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-078 |
+| `TASK-20260731-079` | red-team | queued | 70 | TASK-20260731-076, TASK-20260731-077 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-079/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-079 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-077`: dependency_not_completed:TASK-20260731-076:running
-- `TASK-20260731-078`: dependency_not_completed:TASK-20260731-076:running, dependency_not_completed:TASK-20260731-077:queued
-- `TASK-20260731-079`: dependency_not_completed:TASK-20260731-076:running, dependency_not_completed:TASK-20260731-077:queued
-- `TASK-20260731-080`: dependency_not_completed:TASK-20260731-077:queued, dependency_not_completed:TASK-20260731-078:queued, dependency_not_completed:TASK-20260731-079:queued
+- `TASK-20260731-080`: dependency_not_completed:TASK-20260731-078:queued, dependency_not_completed:TASK-20260731-079:queued
 
 ## Dispatch Gates
 
@@ -28,4 +26,4 @@ BATCH-023 residual plant-contrastive control under SG-ECDLP-001: author PA-DS-00
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `6ff3359f36d82473ad374be610e3a2b5a68d4af87a7666b7bcc3fc040a0f7fb7`
+Plan SHA-256: `b57d64d141d35f9aa1e7fb2152172f8aa2c92e646b41203c76457571ad0c605e`
