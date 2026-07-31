@@ -6,11 +6,11 @@ BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-056` | reviewer | queued | 80 | TASK-20260731-055 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056 |
+| `TASK-20260731-056` | reviewer | running | 80 | TASK-20260731-055 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-057`: dependency_not_completed:TASK-20260731-056:queued
+- `TASK-20260731-057`: dependency_not_completed:TASK-20260731-056:running
 - `TASK-20260731-058`: dependency_not_completed:TASK-20260731-057:queued
 - `TASK-20260731-059`: dependency_not_completed:TASK-20260731-058:queued
 - `TASK-20260731-060`: dependency_not_completed:TASK-20260731-058:queued, dependency_not_completed:TASK-20260731-059:queued
@@ -30,4 +30,4 @@ BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `0cd0acf62f7e68cd7b2ada6d9064980a0541b8e4b2bedd4ad1823b594cc88d0f`
+Plan SHA-256: `37e362d0a470f0902ab859171a43504ebe375736554c0bd7aac2386973fdcde0`
