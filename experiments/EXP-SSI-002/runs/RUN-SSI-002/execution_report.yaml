@@ -1,0 +1,557 @@
+execution_report:
+  experiment_id: EXP-SSI-002
+  run_id: RUN-SSI-002
+  task_id: TASK-20260731-001
+  goal_id: GOAL-P13-001
+  batch_id: BATCH-002
+  originating_control: NC-2 of DEC-20260724-016
+  implementation_commit: f88bd1dd9efbd3960ad45495486cd3e951038edd
+  implementation_tree_state: >-
+    Untracked only, all inside the declared write scope:
+    experiments/EXP-SSI-002/calibration_probe.py,
+    experiments/EXP-SSI-002/fit_analysis.py,
+    experiments/EXP-SSI-002/runs/. No tracked file was modified.
+    The frozen contract experiments/EXP-SSI-002/specification.yaml and
+    experiments/EXP-SSI-002/derivation_note.md were committed at 35701d8f
+    BEFORE this run and are UNMODIFIED.
+  no_commit_made: true
+
+  protocol_deviations:
+    - id: D-1
+      severity: material
+      what: >-
+        The Kohel classical modular polynomial database is NOT INSTALLED on this
+        host: ClassicalModularPolynomialDatabase() raises
+        FileNotFoundError('file not found in the Kohel database'). The contract's
+        V-1 says "obtain Phi_ell(j(E'), x) ... from Sage's classical modular
+        polynomial database".
+      what_was_done: >-
+        V-1 uses Sage's classical_modular_polynomial(ell, j), which on a database
+        miss falls back to PARI polmodular and COMPUTES Phi_ell from scratch. The
+        Sage source
+        (sage/schemes/elliptic_curves/mod_poly.py) was READ to confirm the fallback
+        path does not use isogeny computation, so V-1 and V-2 remain genuinely
+        independent routes. No Phi_ell coefficients were supplied by hand, so no
+        transcribed input data enters the measurement.
+      effect_on_the_measurement: >-
+        Phi_ell retrieval is a PARI computation rather than a database read, which
+        changes the precomputation cost reported under precomputation_policy but
+        not the per-entry arithmetic. Both the amortised and the fully charged
+        accountings are reported and their fits agree within the intervals for
+        every series (fit_report.stability.amortised_vs_fully_charged).
+    - id: D-2
+      severity: minor
+      what: >-
+        Algorithm 1 lines 3-4 as literally written re-iterate over ALL of L at
+        every round i, so an entry already expanded for the same ell at an earlier
+        round is expanded again and line 7's set union discards the duplicates.
+      what_was_done: >-
+        Each (psi, ell) pair is expanded exactly once, by carrying the round's
+        frontier. This produces the SAME set L and removes pure duplicate work
+        that would otherwise inflate the measured per-entry cost.
+      effect_on_the_measurement: Removes duplicate work; the output set L is unchanged.
+    - id: D-3
+      severity: minor
+      what: >-
+        The contract sets a per-cell target of at least 1500 timed entries and a
+        120 s per-cell cap but no per-starting-curve bound.
+      what_was_done: >-
+        A per-starting-curve entry ceiling of 6000 entries was imposed, taken at a
+        round boundary, so that one starting curve at large X cannot consume the
+        whole cell cap. Truncation is RECORDED per curve
+        (curves[].truncated_by_entry_ceiling).
+      effect_on_the_measurement: >-
+        At large X the ell-mixture reaching the timed windows is truncated to the
+        small ell, because Algorithm 1's ell-loop is ascending. THIS IS THE
+        MIXTURE EFFECT FIT-ELL EXISTS TO DETECT and it is reported in MIX-1 and in
+        FIT-ELL rather than hidden.
+    - id: D-4
+      severity: minor
+      what: The contract does not specify how the starting-curve walk is computed.
+      what_was_done: >-
+        The walk uses Velu 2-isogenies for BOTH variants from the same seed, so
+        V-1 and V-2 cells start from the SAME curve and the V-1/V-2 comparison is
+        paired; it also keeps the walk inside the F_{p^2}-rational isogeny class of
+        E0, where Frobenius acts as a scalar on every torsion subgroup, so all
+        ell+1 ell-isogenies are F_{p^2}-rational at every step.
+      effect_on_the_measurement: >-
+        None on the timed windows: the walk is OUTSIDE every timed window and is
+        reported as walk_seconds.
+    - id: D-5
+      severity: material
+      classification: specification ambiguity, REPORTED NOT RESOLVED BY PREFERENCE
+      what: >-
+        The frozen contract names V-1, SEED-A, T_entry_ops and the AMORTISED Phi
+        accounting as PRIMARY, but names NO PRIMARY B SETTING, while CTRL-CAL-GATE,
+        CTRL-NULL-GATE and the pre-registered readings all refer to "the primary
+        fit's interval".
+      what_was_done: >-
+        B-ASY is used as the primary series, because the contract's own rationale
+        for it ("the paper's own asymptotic parameter choice, so its fitted c is
+        the one comparable to the red team's c ~ 1.8 calibration") is the one tied
+        to the parameterisation the extrapolation substitutes into. ALL THREE B
+        SERIES ARE REPORTED WITH EQUAL COMPLETENESS and the margin arithmetic is
+        reported for all four series, so the choice is not load-bearing.
+      effect_on_the_measurement: >-
+        None on the outcome: GOF-3 fires on all three T_entry_ops_amortised B
+        series (B-ASY, B-FIX-8, B-FIX-32), so READING-NOT-IDENTIFIED fires
+        whichever B setting is designated primary.
+    - id: D-6
+      severity: material
+      classification: specification ambiguity, REPORTED
+      what: >-
+        extrapolation_protocol requires the committed model to compute "the implied
+        time, memory and margin against Delfs-Galbraith", but names NO MEMORY
+        BUDGET w, and the committed model's margin depends on w.
+      what_was_done: >-
+        margin(c) is taken at w = 2^30, VERIFIED BY REPRODUCTION rather than
+        asserted: at that budget the committed model returns margin(c=0) = 34.269
+        bits and margin(c=2) = 2.269 bits at log2 p = 256, which are exactly
+        NC-2's "~34-bit and ~2-bit" framing and DEC-20260724-016's recorded 2.3-bit
+        NIST-I margin. Margins at w in {2^30..2^80} are reported alongside.
+      effect_on_the_measurement: c_star = 1.9224444008 is computed at that budget.
+    - id: D-7
+      severity: material
+      classification: BUDGET BREACH -- INFRASTRUCTURE SIGNAL, NOT A MEASUREMENT
+      what: >-
+        The first write of raw-timings.json was 10,597,988 bytes, breaching the
+        8,388,608-byte per-file artifact cap.
+      what_was_done: >-
+        The contract's own downsampling rule (budgets.raw_timing_downsampling_rule:
+        "keep every k-th entry, with k the smallest integer bringing the cell under
+        the cap, RECORDING k AND THE PRE-DOWNSAMPLING COUNT") was applied with a
+        multiplier m = 2, giving k = 2 per cell and 5,398,386 bytes. Because the
+        retained list of a cell was already all_steps[::k1], taking kept[::m] is
+        EXACTLY all_steps[::(k1*m)], so this is identical to having downsampled
+        once at the larger k. NO MEASUREMENT WAS REPEATED, NO SUMMARY STATISTIC
+        CHANGED (all summary statistics were computed on the FULL undownsampled
+        step list inside the measurement stage), and NO TRUNCATED JSON DOCUMENT
+        WAS EVER WRITTEN.
+      effect_on_the_measurement: >-
+        None on any fitted or summary quantity. The only quantity computed from the
+        retained step list is the descriptive root-count observation, whose scope
+        is stated in summary.json.root_count_observation_scope.
+    - id: D-8
+      severity: minor
+      what: >-
+        Sage caches the generic Phi_ell process-globally and PARI's polmodular has
+        further internal caching this harness cannot clear, so a genuinely
+        uncached "first retrieval within a cell" is not measurable after the first
+        cell.
+      what_was_done: >-
+        phi_load_seconds[ell] is the wall time of the in-cell retrieval call (a
+        cache hit, ~0 s, recorded as measured). The one-time uncached build cost
+        per ell was measured ONCE at session start in a fresh process after
+        clearing Sage's cache, recorded as phi_generic_build_seconds, and it is
+        THAT figure that is divided across the cell's entries for the FULLY CHARGED
+        accounting. The PARI-internal caching caveat is recorded in
+        raw-timings.json.phi_build_caveat.
+    - id: D-9
+      severity: minor
+      what: >-
+        The contract names the SAME two cells (smallest p and largest p at
+        B-FIX-8, V-1, SEED-A) for CTRL-DRIFT's end measurement and for CTRL-DET's
+        re-execution.
+      what_was_done: >-
+        One re-execution per prime serves both controls: the same seeds give
+        CTRL-DET its exact-reproduction check and the timing ratio gives
+        CTRL-DRIFT its start/end ratio.
+    - id: D-10
+      severity: minor
+      what: A true isolated per-cell peak RSS is not available from resource.getrusage.
+      what_was_done: >-
+        ru_maxrss is the PROCESS peak so far; it is reported per cell as
+        before/after/delta and the estimated bytes per entry is derived from the
+        delta. The limitation is stated in environment.json.memory_reporting.
+    - id: D-11
+      severity: minor
+      what: >-
+        The contract asks for T_entry mean/median/MAD/p10/p90 "over per-step
+        measurements", while a step produces up to ell entries.
+      what_was_done: >-
+        The distribution is over per-step values NORMALISED by that step's entry
+        count (window_seconds / entries_produced), so every reported statistic is
+        in seconds per entry. The unnormalised total ratio
+        T_entry_s_total_over_entries is reported beside it.
+    - id: D-12
+      severity: minor
+      what: >-
+        CTRL-COUNT requires Psi computed by the committed EXP-P13VOW-001 Dickman
+        machinery. That machinery is asymptotic and this sweep runs at X in
+        [15.6, 512].
+      what_was_done: >-
+        Psi is computed by IMPORTING the committed cost_model.py
+        (dickman_log2_grid, log2_rho) unmodified, using its own relation
+        M = Psi(X,B)*X with log2 M = 2 log2 X + log2 rho(log X / log B). The EXACT
+        enumerated smooth-number count is reported beside it as a diagnostic. At
+        X = 25.4, B = 8 the committed estimate is 14.17 against an exact count of
+        19. BOTH ARE REPORTED; the gate uses the committed figure as specified.
+    - id: D-13
+      severity: material
+      classification: OPTIONAL CELL SKIPPED -- RECORDED BY NAME, AND NOT BUDGET-FORCED
+      what: >-
+        B-FIX-32 under V-2 at all eight primes is OPTIONAL-IF-BUDGET in the
+        contract and WAS NOT RUN.
+      what_was_done: >-
+        The cell schedule was fixed before the session's runtime was known and did
+        not include it. THE SKIP WAS NOT FORCED BY BUDGET: the session used
+        178.7 s of the 5400 s total budget, so 5221 s were unused. This is
+        recorded as an executor scheduling decision, NOT as a budget breach and NOT
+        as a resource exhaustion.
+      named_cells_not_run:
+        - k20|B-FIX-32|V-2|SEED-A
+        - k23|B-FIX-32|V-2|SEED-A
+        - k26|B-FIX-32|V-2|SEED-A
+        - k29|B-FIX-32|V-2|SEED-A
+        - k32|B-FIX-32|V-2|SEED-A
+        - k35|B-FIX-32|V-2|SEED-A
+        - k38|B-FIX-32|V-2|SEED-A
+        - k40|B-FIX-32|V-2|SEED-A
+    - id: D-14
+      severity: none
+      what: Sage invocation form.
+      what_was_done: >-
+        Sage was invoked as `/usr/local/bin/sage -python <script>` -- through the
+        sage binary, never as a bare python3 invocation of Sage code and never as
+        `import sage` from the system python3. `sage --version` was captured
+        verbatim into sage_version.txt BEFORE the first computation.
+
+  runs:
+    completed:
+      - RUN-SSI-002
+    invalid: []
+    failed: []
+
+  observations:
+    frozen_prediction_reference: >-
+      No prediction is scored by this run. The frozen references applied exactly as
+      written are: the pre-registered readings of EXP-SSI-002
+      (READING-SMALL-C / READING-LARGE-C / READING-STRADDLE /
+      READING-NOT-IDENTIFIED / READING-INFRASTRUCTURE), and the COMMITTED,
+      UNMODIFIED cost model experiments/EXP-P13VOW-001/cost_model.py
+      (sha256 a82b9d5b1fe3a2c74208d8474d9ff8791c1859d925863bb48c0a58d766f5cb6f)
+      through which c_star was solved numerically.
+    sweep_completeness: >-
+      All eight primes were COMPUTED in-session by the contract's rule and all
+      eight are supersingular at E0. All 34 mandatory cells ran, plus 2
+      re-executions for CTRL-DET/CTRL-DRIFT. NO CELL IS MISSING and no cell is
+      under-sampled (every cell has at least 1533 timed entries against an
+      admissibility floor of 300).
+    primary_fit_MA_B_ASY_V1_SEEDA_T_entry_ops_amortised:
+      c: 0.13880213854255802
+      CI_T: [0.03577840042398943, 0.2418258766611266]
+      CI_BOOT: [0.06505624697213747, 0.20612790224452486]
+      carried_interval: [0.03577840042398943, 0.2418258766611266]
+      carried_from: CI-T (the wider of the two, as the contract requires)
+      r2: 0.6443
+      residual_standard_error_bits: 0.07342
+      max_abs_residual_bits: 0.10749
+      residual_sign_pattern: "-++-+++-"
+      residuals_signed_by_log2p:
+        20: -0.0227167565
+        23: 0.0007836938
+        26: 0.0752835132
+        29: -0.1074854179
+        32: 0.0180057712
+        35: 0.0748958962
+        38: 0.0435579962
+        40: -0.0823246963
+      GOF-1: not fired (adequate)
+      GOF-2: not fired (adequate)
+      GOF-3: >-
+        FIRED. M-A reduces the residual standard error against the null M-0 by a
+        factor 1.5523, below the required factor 2. Recorded verbatim as the
+        contract's own admissible outcome: "NO DETECTABLE p-DEPENDENCE IN THIS
+        REGIME".
+    regressor_collinearity_pearson_sqrt_log2p_vs_log2log2p: 0.998795182224937
+    collinearity_statement: >-
+      As PRE-REGISTERED, M-A and M-B are not discriminated by these data. A FITTED
+      c IS A SLOPE IN A CHOSEN PARAMETERISATION AND IS NOT EVIDENCE THAT THE TRUE
+      FUNCTIONAL FORM IS sqrt(log2 p).
+    measured_per_entry_cost_levels: >-
+      The measured per-entry table-construction cost is 2.6e-4 to 3.6e-4 s under
+      V-1 and 3.0e-3 to 3.9e-3 s under V-2, i.e. approximately 1568 to 1932
+      host-normalised F_{p^2}-operations per entry under V-1 (B-ASY series). These
+      are MEASURED values on one host with one Sage build.
+    controls:
+      CTRL-CAL: >-
+        FIRED. The M-A fit to t_mul(p) has carried interval [-0.01300, 0.15484],
+        which OVERLAPS the primary interval [0.03578, 0.24183]. Per the contract the
+        primary fit IS NOT SEPARATED FROM HOST AND INTERPRETER EFFECTS. t_inv(p)
+        does show a resolvable slope (c = 0.28829, [0.18721, 0.38937]); t_noop is
+        flat (c = -0.00501, [-0.07868, 0.06866]) as it must be. 100000 repetitions
+        per quantity per prime.
+      CTRL-NULL: >-
+        NOT FIRED. NULL-1 (SHA-256 of a fixed 4 KiB buffer) c = 0.00020,
+        [-0.00309, 0.00349]; NULL-2 (1000 fixed dict keys) c = 0.00352,
+        [-0.04105, 0.04810]. Both intervals CONTAIN ZERO, so neither satisfies the
+        gate's conjunction, and no contamination is detected by this gate.
+      CTRL-DRIFT: >-
+        NOT FIRED. End/start ratios 1.0151 at log2 p = 20 and 1.0195 at
+        log2 p = 40, both inside [0.85, 1.18]. No interval widening applied. Cells
+        were scheduled CONFIG-MAJOR / PRIME-MINOR (round-robin across primes), and
+        wall and CPU time are recorded separately for every cell and every window.
+      CTRL-COUNT: >-
+        NOT FIRED. No cell violates the Lemma 3.2 upper bound. All 36 cells passed
+        50/50 Phi_ell(j_parent, j_child) = 0 spot checks and 50/50
+        non-backtracking checks. 12 of 36 cells realised a table BELOW the
+        Section 4.1 lower bound Psi(X,B)*X. TEN of those twelve are cells whose
+        table was truncated by the per-curve entry ceiling or the cell cap, where
+        the comparison is not meaningful. THE OTHER TWO ARE NOT TRUNCATED AND THE
+        SHORTFALL IS REAL: k20|B-FIX-32|V-1|SEED-A realised L = 1756 against a
+        lower bound of 2277.3 (0.375 bits short), and k23|B-FIX-32|V-1|SEED-A
+        realised L = 3366 against 4050.7 (0.267 bits short). At those two cells the
+        committed Dickman Psi (44.83, 56.39) is close to the exact enumerated
+        count (46, 62), so the shortfall is NOT an artifact of the Psi estimate.
+        RECORDED AS AN OBSERVATION ABOUT THAT BOUND AT THIS SCALE AND EXPLICITLY
+        NOT AS A CLAIM THAT SECTION 4.1 IS WRONG: Section 4.1 is already recorded
+        UNVERIFIABLE-AS-WRITTEN and its stated "lower bound" is already recorded as
+        overestimating the provable bound by ~2.2 bits
+        (TASK-20260724-P13-REV-R1), which exceeds both observed shortfalls. THAT
+        DEFECT IS CARRIED, NOT RE-LITIGATED.
+      CTRL-DET: >-
+        PASSED EXACTLY. At log2 p = 20 and log2 p = 40 the re-execution under the
+        same seeds reproduced the entry count (1795 / 6000), the table size
+        (1800 / 6001) and the SHA-256 of the sorted j-invariant set EXACTLY.
+        Timing ratios 1.0151 and 1.0195 are folded into CTRL-DRIFT.
+      MIX-1: reported as a named per-cell per-ell table in controls.json.
+    stability:
+      ST-B: >-
+        The three intervals are NOT pairwise disjoint (B-ASY [0.03578, 0.24183],
+        B-FIX-8 [-0.01177, 0.22646], B-FIX-32 [-0.03315, 0.16648]).
+      ST-V: >-
+        NOT disjoint. V-1 [-0.01177, 0.22646] and V-2 [-0.27055, 0.77449] at
+        B-FIX-8 overlap. The V-2 fit is itself declared NOT ADEQUATE by GOF-1
+        (max |residual| 0.5963 bits > 0.5). The per-entry LEVEL differs by roughly
+        a factor 10 between the variants; the SLOPE does not separate.
+      ST-SEED: >-
+        SEED-GATE NOT FIRED. SEED-A/SEED-B per-entry ratios 0.9721 at log2 p = 20
+        (1795 vs 1780 entries) and 0.9785 at log2 p = 40 (6000 vs 5997 entries),
+        both inside [0.90, 1.10]. NO SEED-B SLOPE IS FITTED OR REPORTED AS A
+        FITTED EXPONENT: only two primes run under SEED-B and two points cannot
+        support a slope with an interval.
+      ST-NORM: >-
+        No series shows a disjoint normalised-vs-raw pair. The two do differ in
+        gate outcome: on RAW SECONDS the B-ASY, B-FIX-8 and B-FIX-32 series pass
+        GOF-3 (c = 0.20972, 0.17826, 0.13758) while on HOST-NORMALISED OPS they
+        fail it. BOTH ARE REPORTED; the disagreement is recorded as a finding
+        about the normalisation and is not resolved by preference.
+      amortised_vs_fully_charged: >-
+        No series shows a disjoint pair, so the measurement is not dominated by
+        precomputation loading at this scale.
+    FIT_ELL:
+      ell_2: >-
+        NO FITTED EXPONENT IS REPORTED. Only 3 of 8 primes reached 300 entries at
+        ell = 2 within the cell (225, 279, 186, 189, 189 entries at
+        log2 p = 20, 23, 26, 29, 32), below the 6-prime floor.
+      ell_3: >-
+        c = 0.19353, carried interval [0.07576, 0.31130], R^2 = 0.729,
+        max |residual| 0.1140 bits, sign pattern "--+-+++-", GOF-3 FIRED.
+      vs_pooled: >-
+        The ell = 3 interval OVERLAPS the pooled B-FIX-8 interval, so the pooled
+        slope is not shown to be an artifact of the ell-mixture by this test. The
+        ell = 2 comparison is NOT AVAILABLE because no exponent is reported there.
+    root_count_phi_vs_velu: >-
+      Over every retained step of every cell and every ell in {2,3,5,7,11,13,17,
+      19,23,29,31}, the number of roots of Phi_ell(j, x) COUNTED WITH MULTIPLICITY
+      equals ell + 1 and equals the degree of the specialised polynomial, and the
+      number of distinct roots equals that same number (all roots simple). Under
+      V-2, E.isogenies_prime_degree(ell) returned exactly ell + 1 isogenies at
+      every step. At log2 p = 20 and log2 p = 40 with B-FIX-8 the V-1 and V-2
+      cells produced IDENTICAL entry counts and IDENTICAL table sizes.
+    pre_registered_reading_fired: READING-NOT-IDENTIFIED
+    reading_contributing_gates:
+      - GOF-3 fired on the primary series B-ASY|V-1|SEED-A|T_entry_ops_amortised
+      - CTRL-CAL-GATE fired
+    extrapolation_emitted: >-
+      NONE. READING-NOT-IDENTIFIED takes precedence over READING-SMALL-C,
+      READING-LARGE-C and READING-STRADDLE, so NO c IS CARRIED INTO THE
+      EXTRAPOLATION AND NO MARGIN FIGURE IS PRODUCED as the batch's result.
+      fit_report.json.extrapolation is null. c_star = 1.9224444008 (solve
+      tolerance 1e-9) IS reported, because the contract requires it computed by
+      the committed model regardless. The block
+      fit_report.json.extrapolation_for_all_series contains margin arithmetic for
+      all four series LABELLED EXTRAPOLATION with EA-1..EA-6 attached and
+      explicitly marked as arithmetic on a fit that was declared not adequate, NOT
+      as a margin claim.
+
+  anomalies:
+    - id: A-1
+      kind: unexpected observation
+      text: >-
+        The host-normalised fit and the raw-seconds fit disagree in GATE OUTCOME
+        though not in interval: raw seconds passes GOF-3 on all three V-1 B series,
+        host-normalised ops fails it on all three. The cause is visible in
+        CTRL-CAL: t_mul(p) itself drifts upward across the sweep (173.5 ns at
+        log2 p = 20 to 200.5 ns at log2 p = 40), so dividing by it removes part of
+        the raw-seconds slope. Recorded, not resolved by preference.
+    - id: A-2
+      kind: unexpected observation
+      text: >-
+        CTRL-CAL-GATE fired: the t_mul(p) slope interval overlaps the primary
+        interval. Over 20 to 40 bits an F_{p^2} multiplication crosses at most one
+        machine-word boundary, so this is the outcome the control was designed to
+        expose, and it is the reason the primary fit is reported NOT separated from
+        host and interpreter effects.
+    - id: A-3
+      kind: unexpected observation
+      text: >-
+        t_inv(p) DOES resolve a slope (c = 0.28829, [0.18721, 0.38937]) while
+        t_mul(p) does not, i.e. the host's inversion cost scales measurably over
+        this range while its multiplication cost barely does. Reported as an
+        observation about the host, not about the algorithm.
+    - id: A-4
+      kind: unexpected observation
+      text: >-
+        The component split is route-dependent and strongly so. Under V-1 at
+        log2 p = 40, B-FIX-8: Phi evaluation 31.5%, ROOT FINDING 54.4%,
+        non-backtracking filter 0.1%, entry build and table insertion 14.0%. Under
+        V-2 the isogeny computation is 97.7% and everything else is noise. ROOT
+        FINDING IS THE SINGLE LARGEST V-1 COMPONENT, which is the component the
+        contract insisted be charged.
+    - id: A-5
+      kind: unexpected observation
+      text: >-
+        The measured per-entry cost is roughly 1.6e3 to 1.9e3 host-normalised
+        F_{p^2}-operations, against the frozen source's Section 4.1 assumption of
+        ONE F_{p^2}-operation per entry. This is a LEVEL observation at
+        p <= 2^40 in this implementation; it is NOT an exponent, it is NOT carried
+        into the model (which parameterises overhead as a p-dependent multiplier
+        2^{c sqrt(log2 p)}, not as a constant), and it is NOT a statement about
+        any NIST level.
+    - id: A-6
+      kind: unexpected observation
+      text: >-
+        12 of 36 cells realised a table smaller than the Section 4.1 lower bound
+        Psi(X,B)*X. Ten are truncated cells (D-3) where the comparison is not
+        meaningful. TWO ARE NOT TRUNCATED: k20|B-FIX-32|V-1|SEED-A (L = 1756 vs
+        2277.3, 0.375 bits short) and k23|B-FIX-32|V-1|SEED-A (L = 3366 vs 4050.7,
+        0.267 bits short), and at both the committed Dickman Psi is close to the
+        exact enumerated count, so the shortfall is not a Psi-estimation artifact.
+        A first draft of this report asserted that all twelve were truncated; that
+        was WRONG and is corrected here rather than removed. Recorded as an
+        observation about that bound at this scale and EXPLICITLY NOT as a claim
+        that Section 4.1 is wrong; both shortfalls are smaller than the ~2.2 bits
+        by which that bound is already recorded as overestimating the provable one.
+    - id: A-7
+      kind: infrastructure event
+      text: >-
+        Artifact size cap breach on the first write of raw-timings.json
+        (10,597,988 bytes against 8,388,608). Handled by the contract's own
+        downsampling rule; see deviation D-7. INFRASTRUCTURE SIGNAL, NOT A
+        MEASUREMENT.
+    - id: A-8
+      kind: infrastructure event
+      text: >-
+        Missing dependency: the Kohel classical modular polynomial database is not
+        installed. See deviation D-1. INFRASTRUCTURE SIGNAL, NOT A MEASUREMENT AND
+        NOT EVIDENCE FOR OR AGAINST ANYTHING.
+    - id: A-9
+      kind: deviation from expectation
+      text: >-
+        The Phi-roots-vs-Velu root-count discrepancy flagged in the task briefing
+        (2 roots vs 3 isogenies at p = nextprime(2^20)) DID NOT OCCUR AT ANY STEP
+        OF THE MEASUREMENT. It was reproduced and characterised out of band before
+        the run: it is specific to j = 1728, where E has extra automorphisms and
+        Phi_2(1728, Y) has roots {1728, 287496} with MULTIPLICITIES {1, 2} summing
+        to 3 = ell + 1. Counting distinct roots undercounts; counting roots WITH
+        MULTIPLICITY matches Velu exactly. Every measurement cell starts from a
+        curve reached by a walk of length 2*ceil(log2 p) from E0, so no cell
+        expands j = 1728, and the implementation counts with multiplicity
+        regardless. IT WAS NOT A DEFECT AND IT INTRODUCED NO OFF-BY-ONE INTO c.
+
+  budget:
+    wall_clock_seconds_total_cap: 5400
+    wall_clock_seconds_used_measurement_stage: 178.666
+    wall_clock_seconds_used_fit_stage: 3.797
+    per_prime_sub_cap_seconds: 600
+    per_prime_seconds_used_max: 31.14 (log2 p = 40)
+    per_cell_cap_seconds: 120
+    per_cell_seconds_used_max: 21.60 (k38|B-FIX-8|V-2|SEED-A)
+    calibration_control_cap_seconds: 300
+    calibration_control_seconds_used: 0.476
+    null_control_cap_seconds: 180
+    null_control_seconds_used: 28.352
+    drift_and_determinism_cap_seconds: 360
+    drift_and_determinism_seconds_used: 3.257
+    fit_analysis_cap_seconds: 300
+    fit_analysis_seconds_used: 3.797
+    memory_gb_cap: 4
+    peak_rss_bytes: 458522624
+    peak_rss_gb: 0.427
+    artifact_size_per_file_cap_bytes: 8388608
+    artifact_size_per_file_max_bytes: 5398386 (raw-timings.json, after D-7)
+    artifact_size_per_run_dir_cap_bytes: 33554432
+    artifact_size_run_dir_bytes: 5992722
+    pre_flight_disk_free_bytes: 755870322688
+    pre_flight_disk_free_gib: 703.959
+    pre_flight_disk_threshold_gib: 5
+    pre_flight_disk_verdict: PASSED
+    caps_breached: [artifact_size_per_file_bytes (first write only; see D-7)]
+
+  artifact_paths:
+    - experiments/EXP-SSI-002/calibration_probe.py
+    - experiments/EXP-SSI-002/fit_analysis.py
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/manifest.yaml
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/raw-timings.json
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/summary.json
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/fit_report.json
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/controls.json
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/execution_report.yaml
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/sage_version.txt
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/command.txt
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/environment.json
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/stdout.txt
+    - experiments/EXP-SSI-002/runs/RUN-SSI-002/stderr.txt
+
+  executor_assessment:
+    protocol_complete: true
+    protocol_complete_qualification: >-
+      All 34 mandatory cells, all five controls, MIX-1, both FIT-ELL refits and
+      all four stability checks ran. The OPTIONAL-IF-BUDGET B-FIX-32/V-2 cells were
+      not run and are named in D-13; the skip was a scheduling decision and was
+      NOT forced by budget.
+    data_quality: limited
+    data_quality_reason: >-
+      The measurement itself is clean: CTRL-DET reproduces exactly, CTRL-COUNT
+      passes on every cell, CTRL-NULL and CTRL-DRIFT do not fire, no cell is
+      under-sampled and no cell is missing. The LIMITATION is in what the sweep can
+      identify, and it is a pre-registered one: over log2 p in [20, 40] the
+      p-dependence of the host-normalised per-entry cost is not resolvable against
+      the null model (GOF-3), and the primary fit is not separated from host and
+      interpreter effects (CTRL-CAL-GATE). Both were named as gates before any
+      number existed and both fired.
+    requires_rerun: false
+    requires_rerun_reason: >-
+      maximum_runs is 1 and is not authorization to retry a disappointing number.
+      READING-NOT-IDENTIFIED is a pre-registered legitimate outcome, not a failure
+      of the run. Nothing here is an implementation_error, an
+      infrastructure_error or a resource_exhaustion that a rerun would repair.
+    failure_classification: >-
+      Not a failure. The run is a valid measurement whose pre-registered
+      identification gates did not clear. It is NOT a negative_observation about
+      the frozen source: no mathematical claim of the frozen source was tested.
+    certificate:
+      kind: none
+      why: >-
+        NO SOLVE AND NO RELATION IS CLAIMED, so no solution certificate is emitted
+        (docs/claims-and-verification.md). This is stated explicitly rather than
+        emitted as an empty certificate block. The re-verifiable artifacts of this
+        run are instead: the computed primes with their selection rule and
+        rejection counts, the eight E0.is_supersingular() checks, the 36 x 50
+        CTRL-COUNT ell-isogeny spot checks, the CTRL-DET exact reproduction of
+        entry counts, table sizes and j-invariant-set hashes, and the fit, which
+        fit_analysis.py recomputes from raw-timings.json ALONE.
+    scope_of_every_number_here: >-
+      p <= 2^40 IS NOT CRYPTOGRAPHIC SIZE. Every quantity is scoped to eight primes
+      in 2^20..2^40, three B settings with B <= 32 and ell <= 31, two
+      implementation variants, two seeding strategies, ONE host and ONE Sage build.
+      THE NIST-I MARGIN IS NOT MEASURED BY THIS RUN. Heuristic 1 is not under test
+      and gains nothing from this run. GAP-1 remains an open recorded defect and is
+      not repaired by the seeding supplied here. GAP-2 is untouched. Section 4.1
+      remains UNVERIFIABLE-AS-WRITTEN.
+    interpretation_written: >-
+      NONE. This report records observations and mechanically evaluated gate
+      outcomes only. It contains no disposition, no recommendation, no
+      hypothesis-status opinion and no statement that any heuristic is validated or
+      refuted. Those belong to the Validator, the Red Team and the Coordinator.
