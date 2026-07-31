@@ -6,11 +6,10 @@ BATCH-022 residual-control theater-r2 under SG-ECDLP-001: author PA-DS-001-v2-ct
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-064` | coordinator | running | 95 | TASK-20260731-063 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/archives/TASK-20260731-064/snapshot_commit_receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/archives/TASK-20260731-064 |
+| `TASK-20260731-065` | reviewer | queued | 80 | TASK-20260731-064 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-065/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-065/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260731-065 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-065`: dependency_not_completed:TASK-20260731-064:running
 - `TASK-20260731-066`: dependency_not_completed:TASK-20260731-065:queued
 - `TASK-20260731-067`: dependency_not_completed:TASK-20260731-066:queued
 - `TASK-20260731-068`: dependency_not_completed:TASK-20260731-067:queued
@@ -31,4 +30,4 @@ BATCH-022 residual-control theater-r2 under SG-ECDLP-001: author PA-DS-001-v2-ct
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `f78777dc66cb207dc40e45473c8d074370922c1ca53fa9da99d25ca4b6fa59a5`
+Plan SHA-256: `f4a096cee873452b28a38ef4cb889aba77fe6442db3d21ecf0226b6416560a3e`
