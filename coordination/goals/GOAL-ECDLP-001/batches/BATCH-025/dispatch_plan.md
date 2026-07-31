@@ -1,22 +1,16 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-025 re-author executable structure-null-r2 under SG-ECDLP-001: PA-DS-001-v2-ctrl-structure-null-r2 / CTRL-NULL-OBJECT-STRUCTURE-DIRECTION-R2 encoding R_null>=0.9 structure credit (RT079-B3/RT070-B3) on fresh -r2 paths; one RC-25 review cycle; Executor RUN-DS-001-ctrl-structure-null-r2 only if APPROVED; Val+RT; ledger EV-DS-008/DEC-20260731-024. Do not edit abandoned BATCH-024 stubs. Do not launder EXP-IT-001/H-IT-001/DEC-021. Deferred CI/SPARSE. Toy ceiling. No STR. No H-IC/H-STR edits. No push.
+BATCH-025 REDIRECTED (DEC-20260731-024 / QUEUE-AMEND-20260731-012): cancel structure-null-r2 execution; admit independent pre-exec review of H-IT-001 / EXP-IT-001 already snapshot-archived at 303ae797; Coordinator APPROVED/NOT APPROVED. SG-ECDLP-001 residuals deferred (not lane death). Toy ceiling. No STR. No H-DS-001 support. No push.
 
 ## Ready Tasks
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-095` | coordinator | queued | 95 | TASK-20260731-094 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/archives/TASK-20260731-095/snapshot_commit_receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/archives/TASK-20260731-095 |
+| `TASK-20260731-105` | reviewer | queued | 90 | TASK-20260731-104 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-105/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-105/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-105 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-096`: dependency_not_completed:TASK-20260731-095:queued
-- `TASK-20260731-097`: dependency_not_completed:TASK-20260731-096:queued
-- `TASK-20260731-098`: dependency_not_completed:TASK-20260731-097:queued
-- `TASK-20260731-099`: dependency_not_completed:TASK-20260731-098:queued
-- `TASK-20260731-100`: dependency_not_completed:TASK-20260731-098:queued, dependency_not_completed:TASK-20260731-099:queued
-- `TASK-20260731-101`: dependency_not_completed:TASK-20260731-098:queued, dependency_not_completed:TASK-20260731-099:queued
-- `TASK-20260731-102`: dependency_not_completed:TASK-20260731-099:queued, dependency_not_completed:TASK-20260731-100:queued, dependency_not_completed:TASK-20260731-101:queued
+- `TASK-20260731-106`: dependency_not_completed:TASK-20260731-105:queued
 
 ## Dispatch Gates
 
@@ -31,4 +25,4 @@ BATCH-025 re-author executable structure-null-r2 under SG-ECDLP-001: PA-DS-001-v
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `d57adf9b72a0eb336f2c23d2a260df4b9a09b5f9bfd20eb2d290b6321ded0426`
+Plan SHA-256: `978344c9a902f0e6c6481a01803c5d02836d6e46cbf18e24a57ea78da2939126`
