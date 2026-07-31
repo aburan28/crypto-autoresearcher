@@ -6,11 +6,11 @@ BATCH-036: construct a checkable symbolic numeric charge-metering obligation sch
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-117` | red-team | queued | 80 | TASK-20260730-115, TASK-20260730-116 | coordination/goals/GOAL-SSI-001/batches/BATCH-036/tasks/TASK-20260730-117/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-036/tasks/TASK-20260730-117/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-036/tasks/TASK-20260730-117 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-118`: dependency_not_completed:TASK-20260730-117:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-036: construct a checkable symbolic numeric charge-metering obligation sch
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `448bc033387d6aa088e3488395c56e029ac426eb156c91834142aeb99e1f8bab`
+Plan SHA-256: `0687ed024aed1ec1a0626c61b135dbf829566556625cfac073d47cb6abce365f`
