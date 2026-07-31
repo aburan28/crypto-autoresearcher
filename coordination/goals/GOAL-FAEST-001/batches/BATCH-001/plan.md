@@ -6,7 +6,7 @@ Open GOAL-FAEST-001 BATCH-001: obtain the Round-3 FAEST specification and refere
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-005` | reviewer | queued | 60 | TASK-20260731-001, TASK-20260731-002, TASK-20260731-003, TASK-20260731-004 | coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-005/review_report.yaml, coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-005/objections.md | coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-005 |
+| `TASK-20260731-005` | red-team | queued | 60 | TASK-20260731-001, TASK-20260731-002, TASK-20260731-003, TASK-20260731-004 | coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-005/review_report.yaml, coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-005/objections.md | coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-005 |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ Open GOAL-FAEST-001 BATCH-001: obtain the Round-3 FAEST specification and refere
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `65fd96fa23377c87c1bf535d5afb914b1fcf6d9f14bd80e85be9d1ee19483993`
+Plan SHA-256: `bf55042416f4a04226efa7054327bb4e3595cbfe41189f95fc9cc557190233a0`
