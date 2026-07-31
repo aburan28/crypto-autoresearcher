@@ -6,14 +6,11 @@ BATCH-002: pay TASK-20260731-031 independence debt with an independent review-ad
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-049` | red-team | queued | 100 | - | coordination/goals/GOAL-ECTD-001/batches/BATCH-002/reviews/TASK-20260731-049/review_report.yaml, coordination/goals/GOAL-ECTD-001/batches/BATCH-002/reviews/TASK-20260731-049/objections.md | coordination/goals/GOAL-ECTD-001/batches/BATCH-002/reviews/TASK-20260731-049 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-050`: dependency_not_completed:TASK-20260731-049:queued
-- `TASK-20260731-051`: dependency_not_completed:TASK-20260731-050:queued
-- `TASK-20260731-052`: dependency_not_completed:TASK-20260731-049:queued, dependency_not_completed:TASK-20260731-050:queued, dependency_not_completed:TASK-20260731-051:queued
-- `TASK-20260731-053`: dependency_not_completed:TASK-20260731-049:queued, dependency_not_completed:TASK-20260731-052:queued
+None.
 
 ## Dispatch Gates
 
@@ -28,4 +25,4 @@ BATCH-002: pay TASK-20260731-031 independence debt with an independent review-ad
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `0e3229687f69b5d4eb2b00047452bae7e61034a2b6d1084e0a411620e6f6665d`
+Plan SHA-256: `bd721ac5de07d9636620dcec52dc47969a1b6bba1a0e1d02b9de7cd3873614b6`
