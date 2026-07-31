@@ -1,0 +1,118 @@
+handoff:
+  id: TASK-20260731-602
+  from: coordinator
+  to: executor
+  objective: >-
+    Create the campaign's reproducibility floor: a reduced-round-capable AES
+    implementation whose FULL-round outputs are checked against FIPS-197
+    known-answer vectors under BOTH pycryptodome and the openssl CLI, with
+    the round count parameterisable for later cryptanalytic work,
+    deterministic seeds, and a machine-readable receipt of every vector
+    check.
+  uncertainty_reduced: >-
+    Whether this environment can produce an AES ground truth that is pinned
+    locally rather than trusted — i.e. whether every later reduced-round
+    measurement in this campaign can be certified against an implementation
+    whose correctness was independently demonstrated, with no network access
+    to the specification.
+  inputs:
+    - GOAL-AES-001
+    - RQ-AES-001
+    - docs/claims-and-verification.md (certificate independence rule)
+    - >-
+      Local tooling verified this session: python3 with pycryptodome 3.23.0,
+      openssl CLI, gcc 13.3.0 with -maes, 4 CPU cores, 15 GB RAM, no GPU, no
+      sage.
+  constraints:
+    - >-
+      Implementation and verification only. Record observations; make no
+      cryptanalytic claim, propose no mechanism, and change no official
+      state.
+    - >-
+      The implementation exposes the round count as a parameter (at minimum
+      3–10 rounds for AES-128) while its full-round behaviour is exactly
+      FIPS-197 AES. Document precisely which final-round transformations are
+      kept or dropped at r < full: that convention determines every later
+      result in this campaign.
+    - >-
+      Agreement must be demonstrated against BOTH pycryptodome and the
+      openssl CLI independently. Two checks against the same backend are not
+      independent agreement.
+    - >-
+      The implementation under test must not call pycryptodome or openssl
+      internally on the checked path. Agreement is meaningful only if the
+      code paths are independent (docs/claims-and-verification.md).
+    - >-
+      Cover all three key sizes (128/192/256) for the full-round
+      known-answer checks, and both encryption and decryption directions
+      where the reference tools permit.
+    - >-
+      Seed all randomness deterministically and record every seed. Later
+      cryptanalytic runs must be reproducible from the receipt.
+    - >-
+      Record exact commands, exit statuses, resolved tool versions, git
+      commit and dirty-tree state, timestamps, and any check that did NOT run
+      and why. Do not fabricate a command, version string, output, or passing
+      check (AGENTS.md rule 9). A vector that cannot be checked is recorded
+      as unchecked.
+    - >-
+      No literature baseline is relevant to this task; nothing here depends
+      on any unverified recalled number.
+    - >-
+      If openssl or pycryptodome cannot perform a required check, report the
+      exact failure as an infrastructure limitation. That is a task-scope
+      result, never negative mathematical evidence (AGENTS.md rule 5).
+    - Write only under the assigned task directory.
+  deliverables:
+    - aes_reduced.py
+    - vector_check_receipt.json
+    - run_record.md
+  artifact_paths:
+    - coordination/goals/GOAL-AES-001/batches/BATCH-001/tasks/TASK-20260731-602/aes_reduced.py
+    - coordination/goals/GOAL-AES-001/batches/BATCH-001/tasks/TASK-20260731-602/vector_check_receipt.json
+    - coordination/goals/GOAL-AES-001/batches/BATCH-001/tasks/TASK-20260731-602/run_record.md
+  archived_by: TASK-20260731-603
+  inference:
+    policy: executor-implementation
+    requested_policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    harness_note: >-
+      Under this Claude Code harness the subagent frontmatter cannot resolve
+      the orchestration/model-policies.yaml identifiers (CLAUDE.md, "Model
+      policy note"): all subagents run `model: inherit`. Record
+      `requested_policy: executor-implementation` and the ACTUAL resolved
+      model in the run manifest's `inference` block, with
+      `fallback_used: true` if they differ. Never silently substitute.
+  budget:
+    wall_clock_seconds: 3000
+    memory_gb: 4
+    maximum_runs: 8
+  completion_gate:
+    - >-
+      aes_reduced.py implements AES with a parameterisable round count, and
+      its full-round output for AES-128/192/256 matches the FIPS-197
+      known-answer vectors.
+    - >-
+      vector_check_receipt.json is machine-readable and records, per vector:
+      key size, direction, input, expected output, the output from
+      aes_reduced.py, the output from pycryptodome, the output from the
+      openssl CLI, and a pass/fail verdict per comparison.
+    - >-
+      The receipt records exact commands, exit statuses, resolved tool
+      versions (python3, pycryptodome, openssl, gcc), git commit and
+      dirty-tree state, seeds, and timestamps.
+    - >-
+      The reduced-round convention (which final-round transformations are
+      kept at r < full) is stated explicitly in run_record.md.
+    - >-
+      run_record.md states the terminal status of every attempted check,
+      including any that failed or did not run, with the reason. No check is
+      reported as passing unless it was executed and its output is present in
+      the receipt.
+  return_format: >-
+    The three artifacts under the assigned task directory, plus a short
+    summary naming which vector checks passed, which failed, which did not
+    run, and the exact reduced-round convention adopted.
