@@ -5,7 +5,7 @@ title: Linear cryptanalysis - linear approximation tables, correlation and the p
 tags: [linear-cryptanalysis, matsui, linear-approximation-table, walsh-transform, correlation, bias, piling-up-lemma, known-plaintext, wrong-key-randomisation, block-cipher, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
 complexity: "distinguisher data N ~ c^{-2} known plaintexts for correlation c = 2*eps (constant set by the target success probability); Algorithm 2 key recovery adds a factor 2^k for k guessed subkey bits in the partial-decryption step"
-applicability: iterated block ciphers under known-plaintext access (the weakest useful access model in the family); the root method of the linear family and the reference for KN-TECH-068 through KN-TECH-070
+applicability: iterated block ciphers under known-plaintext access (the weakest useful access model in the family); the root method of the linear family and the reference for KN-TECH-068 through KN-TECH-070 and KN-TECH-078
 source_refs: [KN-TECH-062, KN-LIT-2072, KN-LIT-4248, KN-LIT-2369, KN-LIT-3245, KN-LIT-7562, KN-TECH-068]
 added: 2026-07-31
 superseded_by: null

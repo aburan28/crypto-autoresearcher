@@ -5,7 +5,7 @@ title: Differential cryptanalysis - difference distribution tables, characterist
 tags: [differential-cryptanalysis, ddt, characteristic, trail, markov-cipher, stochastic-equivalence, signal-to-noise, key-recovery, block-cipher, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
 complexity: "distinguisher data ~ p^{-1} chosen plaintext pairs for a differential of probability p; key recovery ~ c*p^{-1} pairs with c set by the signal-to-noise ratio; the attack exists only while p >> 2^{-n} for block size n"
-applicability: iterated block ciphers and permutations under chosen-plaintext (or chosen-ciphertext) access; the root method of the differential family and the reference against which every variant in KN-TECH-063 through KN-TECH-066 is stated
+applicability: iterated block ciphers and permutations under chosen-plaintext (or chosen-ciphertext) access; the root method of the differential family and the reference against which every variant in KN-TECH-063 through KN-TECH-066, KN-TECH-077, and KN-TECH-079 is stated
 source_refs: [KN-LIT-3417, KN-LIT-2540, KN-LIT-3425, KN-LIT-2409, KN-LIT-7562, KN-TECH-063, KN-TECH-067]
 added: 2026-07-31
 superseded_by: null
@@ -118,7 +118,7 @@ testing (`KN-TECH-054`)" explicitly.
 
 ## Verified vs reported — sourcing note for the whole symmetric family
 
-This note governs `KN-TECH-062` through `KN-TECH-076`; those entries refer back
+This note governs `KN-TECH-062` through `KN-TECH-079`; those entries refer back
 here rather than restating it.
 
 - **The mechanisms, formulas and complexity shapes recorded in these entries are
