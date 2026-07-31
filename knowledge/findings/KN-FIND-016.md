@@ -1,17 +1,30 @@
 ---
 id: KN-FIND-016
 type: internal_finding
-title: >-
-  Carrier Table 5.1 CC dual costs are Theorem-4.1-consistent; Table C.2
-  CN/Kyber-512 log2(Tsample)=143.30 is a transcription error for ≈134.30
-tags: [dual-attack, carrier, matzov, kyber, ml-kem, concrete-security, table-erratum, cost-model, kn-open-016]
+title: Carrier Table 5.1 CC dual costs are Theorem-4.1-consistent; Table C.2 CN/Kyber-512
+  log2(Tsample)=143.30 is a transcription error for ≈134.30
+tags:
+- dual-attack
+- carrier
+- matzov
+- kyber
+- ml-kem
+- concrete-security
+- table-erratum
+- cost-model
+- kn-open-016
 confidence: provisional
-internal_refs: [EV-MLKEM-016, EXP-MLKEM-010, H-MLKEM-010, KN-LIT-7617, KN-FIND-015, KN-OPEN-016]
+internal_refs:
+- EV-MLKEM-016
+- EXP-MLKEM-010
+- H-MLKEM-010
+- RUN-MLKEM-010-001
+- DEC-20260731-002
 proof_status: empirical_only
 proof_refs:
-  - experiments/EXP-MLKEM-010/runs/RUN-MLKEM-010-001/results.json
-  - experiments/EXP-MLKEM-010/vendor-lock/optimized_withExperimentalPolar.pkl
-  - experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf
+- experiments/EXP-MLKEM-010/runs/RUN-MLKEM-010-001/results.json
+- experiments/EXP-MLKEM-010/vendor-lock/optimized_withExperimentalPolar.pkl
+- experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf
 added: 2026-07-31
 superseded_by: null
 ---

@@ -1,17 +1,31 @@
 ---
 id: KN-FIND-012
 type: internal_finding
-title: >-
-  Carrier Fig 4.1 Pwrong simulations do not cover the Pgood≈1/2 threshold;
-  Kyber-scale Pwrong is ~84+ bits beyond the toy floor
-tags: [dual-attack, carrier, pwrong, polar-code, kyber, ml-kem, extrapolation, contested, kn-open-016, heuristic-validation]
+title: Carrier Fig 4.1 Pwrong simulations do not cover the Pgood≈1/2 threshold; Kyber-scale
+  Pwrong is ~84+ bits beyond the toy floor
+tags:
+- dual-attack
+- carrier
+- pwrong
+- polar-code
+- kyber
+- ml-kem
+- extrapolation
+- contested
+- kn-open-016
+- heuristic-validation
 confidence: provisional
-internal_refs: [EV-MLKEM-011, EXP-MLKEM-011, H-MLKEM-011, KN-LIT-7617, KN-LIT-111, KN-FIND-015, KN-FIND-016, KN-OPEN-016]
+internal_refs:
+- EV-MLKEM-011
+- EXP-MLKEM-011
+- H-MLKEM-011
+- RUN-MLKEM-011-001
+- DEC-20260731-003
 proof_status: empirical_only
 proof_refs:
-  - experiments/EXP-MLKEM-011/runs/RUN-MLKEM-011-001/pwrong_scope_gap.json
-  - experiments/EXP-MLKEM-011/vendor-lock/data/Pwrong_q241_m40_n43_nfft8_kfft3_nlat35_beta032_beta144_N25971.out
-  - experiments/EXP-MLKEM-011/vendor-lock/data/Pgood_q241_m40_n43_nfft8_kfft3_nlat35_beta032_beta144_N25971.out
+- experiments/EXP-MLKEM-011/runs/RUN-MLKEM-011-001/pwrong_scope_gap.json
+- experiments/EXP-MLKEM-011/vendor-lock/data/Pwrong_q241_m40_n43_nfft8_kfft3_nlat35_beta032_beta144_N25971.out
+- experiments/EXP-MLKEM-011/vendor-lock/data/Pgood_q241_m40_n43_nfft8_kfft3_nlat35_beta032_beta144_N25971.out
 added: 2026-07-31
 superseded_by: null
 ---

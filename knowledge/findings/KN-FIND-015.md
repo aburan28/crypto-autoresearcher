@@ -1,17 +1,31 @@
 ---
 id: KN-FIND-015
 type: internal_finding
-title: >-
-  Under pinned MATZOV costing, Kyber dual_hybrid does not beat primal_bdd and
-  does not reproduce Carrier/MATZOV-2022 dual headlines; primal_bdd still
-  undercuts NIST classical cutoffs
-tags: [dual-attack, primal-bdd, matzov, kyber, ml-kem, concrete-security, cost-model, contested, lattice, kn-open-016]
+title: Under pinned MATZOV costing, Kyber dual_hybrid does not beat primal_bdd and
+  does not reproduce Carrier/MATZOV-2022 dual headlines; primal_bdd still undercuts
+  NIST classical cutoffs
+tags:
+- dual-attack
+- primal-bdd
+- matzov
+- kyber
+- ml-kem
+- concrete-security
+- cost-model
+- contested
+- lattice
+- kn-open-016
 confidence: provisional
-internal_refs: [EV-MLKEM-015, DEC-20260731-001, EXP-MLKEM-015, H-MLKEM-014, RUN-MLKEM-015-001, KN-LIT-110, KN-LIT-7617, KN-LIT-7618, KN-OPEN-016]
+internal_refs:
+- EV-MLKEM-015
+- DEC-20260731-001
+- EXP-MLKEM-015
+- H-MLKEM-014
+- RUN-MLKEM-015-001
 proof_status: empirical_only
 proof_refs:
-  - experiments/EXP-MLKEM-015/runs/RUN-MLKEM-015-001/results.json
-  - experiments/EXP-MLKEM-015/source-lock.yaml
+- experiments/EXP-MLKEM-015/runs/RUN-MLKEM-015-001/results.json
+- experiments/EXP-MLKEM-015/source-lock.yaml
 added: 2026-07-31
 superseded_by: null
 ---

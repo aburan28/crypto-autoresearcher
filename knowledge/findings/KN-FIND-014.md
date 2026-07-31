@@ -1,16 +1,29 @@
 ---
 id: KN-FIND-014
 type: internal_finding
-title: >-
-  Carrier verifyModel Pwrong scores are FFT/k_fft while Pgood scores are raw
+title: Carrier verifyModel Pwrong scores are FFT/k_fft while Pgood scores are raw
   cosine sums; scale-aligned Fig 4.1 coverage gap remains (fraction_inside=0)
-tags: [dual-attack, carrier, pwrong, score-scale, verifyModel, kyber, kn-open-016, erratum]
+tags:
+- dual-attack
+- carrier
+- pwrong
+- score-scale
+- verifyModel
+- kyber
+- kn-open-016
+- erratum
 confidence: provisional
-internal_refs: [EV-MLKEM-013, EXP-MLKEM-013, H-MLKEM-013, EV-MLKEM-011, KN-FIND-012, RT-20260731-002]
+internal_refs:
+- EV-MLKEM-013
+- EXP-MLKEM-013
+- H-MLKEM-013
+- EV-MLKEM-011
+- RUN-MLKEM-013-001
+- DEC-20260731-005
 proof_status: empirical_only
 proof_refs:
-  - experiments/EXP-MLKEM-013/runs/RUN-MLKEM-013-001/results.json
-  - experiments/EXP-MLKEM-013/vendor-lock/FFT_sample.py
+- experiments/EXP-MLKEM-013/runs/RUN-MLKEM-013-001/results.json
+- experiments/EXP-MLKEM-013/vendor-lock/FFT_sample.py
 added: 2026-07-31
 superseded_by: null
 ---

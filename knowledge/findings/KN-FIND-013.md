@@ -1,15 +1,27 @@
 ---
 id: KN-FIND-013
 type: internal_finding
-title: >-
-  Carrier CC NIST shortfalls are erased by ≈10–15 bits of Pwrong underestimation
+title: Carrier CC NIST shortfalls are erased by ≈10–15 bits of Pwrong underestimation
   under a stated second-term payment heuristic
-tags: [dual-attack, carrier, pwrong, cost-sensitivity, kyber, ml-kem, kn-open-016, conditional]
+tags:
+- dual-attack
+- carrier
+- pwrong
+- cost-sensitivity
+- kyber
+- ml-kem
+- kn-open-016
+- conditional
 confidence: provisional
-internal_refs: [EV-MLKEM-012, EXP-MLKEM-012, H-MLKEM-012, KN-FIND-012, KN-FIND-016, KN-OPEN-016]
+internal_refs:
+- EV-MLKEM-012
+- EXP-MLKEM-012
+- H-MLKEM-012
+- RUN-MLKEM-012-001
+- DEC-20260731-004
 proof_status: derivation
 proof_refs:
-  - experiments/EXP-MLKEM-012/runs/RUN-MLKEM-012-001/cost_sensitivity.json
+- experiments/EXP-MLKEM-012/runs/RUN-MLKEM-012-001/cost_sensitivity.json
 added: 2026-07-31
 superseded_by: null
 ---
