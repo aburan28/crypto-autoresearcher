@@ -6,7 +6,7 @@ BATCH-022: bounded executor spike implementing Verify(x,k') and W/R/B/M_tail lif
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-059` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/spike_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/impl_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/lifetime_verify_attempt.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059 |
+| `TASK-20260730-059` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/impl_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/lifetime_verify_attempt.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/harness_receipt.json, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/lifetime_hooks.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/state_machine.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/test_scaffold.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/types.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/verify.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/spike_report.md | coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059 |
 
 ## Deferred or Blocked
 
@@ -27,4 +27,4 @@ BATCH-022: bounded executor spike implementing Verify(x,k') and W/R/B/M_tail lif
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `c6bd08ab3bfb531327be7402a4800a3fcb41f7f7ff06241c8a116b9713907418`
+Plan SHA-256: `0dce85e7d50ec6a9bd1a374176e1d7242c03544aa8d26f988011ffe7d7b2d42d`
