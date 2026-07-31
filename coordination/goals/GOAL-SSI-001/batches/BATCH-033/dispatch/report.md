@@ -6,11 +6,10 @@ BATCH-033: construct a checkable symbolic width-slot ↔ lifetime-hook / charge-
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-104` | coordinator | queued | 90 | TASK-20260730-103 | coordination/goals/GOAL-SSI-001/batches/BATCH-033/archives/TASK-20260730-104/snapshot-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-033/archives/TASK-20260730-104 |
+| `TASK-20260730-105` | red-team | queued | 80 | TASK-20260730-103, TASK-20260730-104 | coordination/goals/GOAL-SSI-001/batches/BATCH-033/tasks/TASK-20260730-105/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-033/tasks/TASK-20260730-105/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-033/tasks/TASK-20260730-105 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-105`: dependency_not_completed:TASK-20260730-104:queued
 - `TASK-20260730-106`: dependency_not_completed:TASK-20260730-105:queued
 
 ## Dispatch Gates
@@ -26,4 +25,4 @@ BATCH-033: construct a checkable symbolic width-slot ↔ lifetime-hook / charge-
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `f221df281b2fcfa49a2ed86a30f4704b3e77258737a7738e85a87b108810efe6`
+Plan SHA-256: `709da8965ee60b841c82858d32b1efe4dad89e29e85b657b1dfc33d1338f23ff`
