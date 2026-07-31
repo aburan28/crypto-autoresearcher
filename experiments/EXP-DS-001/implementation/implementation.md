@@ -2,7 +2,7 @@
 
 **Task:** TASK-20260731-022  
 **Contract:** `experiments/EXP-DS-001/specification.v2.yaml` only (v1 not executed)  
-**Approval:** snapshot `65f3c82b` / DEC-20260731-003  
+**Approval:** snapshot `65f3c82b` / DEC-20260731-013  
 
 ## What was implemented
 

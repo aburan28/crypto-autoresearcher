@@ -1219,7 +1219,7 @@ def write_run_artifacts(
             "path": CONTRACT_PATH,
             "version": 2,
             "approval_snapshot": "65f3c82babae49a9acea64cfa2650d4f3d45cf72",
-            "decision": "DEC-20260731-003",
+            "decision": "DEC-20260731-013",
             "approved_by_in_file": None,
             "d1_note": "approved_by null in v2 file by design; approval lives in TASK-021 receipt",
         },

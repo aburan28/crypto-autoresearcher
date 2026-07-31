@@ -75,6 +75,29 @@ knowledge records. Verify the commit receipt against Git before making an
 official transition. Do not ask concurrent workers to commit into one shared
 worktree.
 
+## Branch and PR discipline
+
+Research state becomes durable only when it is committed, pushed, and
+reviewable. Every generation step — a new goal, idea, hypothesis, experiment,
+evidence record, decision, or knowledge entry — carries two git duties that
+the Coordinator must ensure are completed (executed by the control plane /
+session that drives this role; see `.claude/skills/launch-research-harness`
+and `.claude/skills/coordinate-research-goal`):
+
+1. **Merge `main` in before generating.** Before a new goal or batch is
+   created, merge `origin/main` into the working branch — merge, never rebase
+   (AGENTS.md forbids rewriting the commits run records were archived in).
+   A sync conflict inside an immutable record is never resolved by picking a
+   side: it is a new superseding record under a new id. Re-run
+   `tools/validate_ledger.py` on the merged tree before dispatching.
+2. **Open or update a PR against `main` after every archive.** Each time a
+   snapshot or ledger archive adds new `GOAL-*`, `RQ-*`, `IDEA-*`, `H-*`,
+   `EXP-*`, `EV-*`, `DEC-*`, `TASK-*`, or `KN-*` records, push the branch and
+   open (or refresh) a PR against `main` naming those records. A record that
+   exists only in a local commit is not generated for the program — it is
+   unpublished, and downstream review or promotion must not treat it as
+   durable evidence.
+
 ## Target result profile and promotion gates
 
 The canonical exemplar of a high-value result for this program is documented

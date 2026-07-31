@@ -1,0 +1,223 @@
+joint_ledger:
+  task_id: TASK-20260730-013
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-012
+  idea_id: IDEA-20260729-001
+  convention: CSIDH-COLLIMATION-FC0-R2
+  artifact:
+    repository: https://github.com/cpeikert/CollimationSieve
+    commit: 6f9188e4eb5611bcfdf29a3e1ec3cd69a29a50e9
+    primary_path: src/Main.hs
+    primary_blob_sha1: 2854fc0ab55a5db7c2bcc63833e12dd036cdadf3
+  zero_compute: true
+  simulator_runs: 0
+
+  stopping_law:
+    required_tau: >-
+      Number of every sieve invocation through terminal recovery, classical
+      tail entry, verification, or failure, including recursive discards,
+      fresh recovery sieves, and all retries.
+    artifact_scope: one recursive sieve invocation and output statistics
+    local_state: >-
+      (alwaysKeep, N, threshold, interval schedule, requested length,
+      recursively generated child vectors, DRBG state)
+    local_transition_kernel:
+      status: explicit_conditional_kernel_extracted
+      statement: >-
+        Given child vectors v1,v2, sample one index from each uniformly under
+        the ideal-random reading of getRandomR, choose q=floor((v1[i]+v2[j])/S),
+        output the complete q-bin V_q, and keep iff alwaysKeep or
+        |V_q| >= ceil(threshold*L); otherwise retry the same internal call.
+      source: src/Main.hs symbols collimate and sieve'
+    random_source:
+      implementation: system-entropy-seeded HashDRBG
+      source: src/Random.hs evalCryptoRandIO
+      formal_iid_contract_in_repository: false
+    end_to_end_tau_instantiated: false
+    finite_almost_surely_proved: false
+    finite_moments_proved: false
+    conditional_progress:
+      exact_local_expression_available: true
+      uniform_positive_lower_bound: null
+      geometric_tail_derivable_from_artifact: false
+      blocker: >-
+        No invariant, theorem, assertion, or test proves that every reachable
+        internal retry state has keep probability at least epsilon > 0.
+    terminal_recovery_transition: absent
+    classical_tail_transition: absent
+    verification_transition: absent
+    status: unreconciled
+    blocker: QM-STOPPING
+
+  additive_resources:
+    common_probability_space_instantiated: false
+    comparison_statistic: expectation_under_one_end_to_end_stopping_law
+    Q:
+      artifact_counter: numQueries
+      local_semantics: base-level subset-sum query count in a terminating sieve
+      random_variable: sum_k_le_tau_Q_k
+      expectation: null
+      finite: unproved_not_refuted
+      status: unreconciled
+    S:
+      artifact_proxies:
+        - numNodes
+        - numDiscarded
+        - wall_time_for_one_terminating_invocation
+      random_variable: sum_k_le_tau_S_k
+      expectation: null
+      finite: unproved_not_refuted
+      status: unreconciled
+    P:
+      artifact_scope: >-
+        histogram, puncture, and probability summaries after one sieve return;
+        no recovery-loop charge
+      random_variable: sum_k_le_tau_P_k
+      expectation: null
+      finite: unproved_not_refuted
+      status: unreconciled
+    C:
+      artifact_scope: >-
+        No complete classical recovery, residual enumeration, verification,
+        or terminal-work counter.
+      random_variable: sum_k_le_tau_C_k_plus_H
+      expectation: null
+      finite: unproved_not_refuted
+      status: unreconciled
+    all_expectations_jointly_finite: null
+    finiteness_result: neither_proved_nor_refuted
+    blocker: QM-STOPPING
+
+  memory_schedule:
+    required_semantics: >-
+      Hard bound or essential supremum on one global end-to-end timeline, with
+      widths, births, deaths, cleanup, reuse, and deterministic concurrency.
+    simulator_source_reference_trace:
+      recursion_depth: D_equals_length_interval_schedule_minus_one
+      deterministic_phasevector_root_bound: D_plus_3
+      failed_vectors_retained_across_retry: false
+      scope: >-
+        Lexical PhaseVector references only; excludes library temporaries,
+        parallel workers, compiler retention, and garbage collection.
+    W:
+      meaning: coherent_logical_workspace
+      artifact_representation: absent
+      births: null
+      deaths: null
+      peak: null
+      status: unreconciled
+    R:
+      meaning: qracm_bits
+      artifact_representation: ordinary Haskell PhaseVector arrays only
+      births:
+        - v1_on_first_child_return
+        - v2_on_second_child_return
+        - v_on_collimation
+      deaths:
+        - v1_and_v2_after_last_use_subject_to_runtime_retention
+        - failed_v_before_same_level_retry_at_source_reference_level
+      qracm_width_map: null
+      peak: null
+      status: local_reference_liveness_only_fc0_unreconciled
+    B:
+      meaning: other_classical_backing_memory
+      artifact_representation: Massiv and Vector arrays plus runtime temporaries
+      births_and_deaths: partially_traced_at_source_reference_level
+      explicit_cleanup: absent_gc_managed
+      runtime_heap_hard_bound: null
+      peak: null
+      status: unreconciled
+    M_tail:
+      meaning: terminal_classical_tail_memory
+      artifact_representation: absent
+      births: null
+      deaths: null
+      peak: null
+      status: unreconciled
+    deterministic_retry_concurrency:
+      simulator_phasevector_roots: bounded_by_D_plus_3
+      complete_fc0_objects: null
+    finite_global_fc0_peaks_established: false
+    blocker: QM-MEMORY-MAP
+
+  error_metric:
+    required_metric: Pr[F]
+    F: final operational failure of the declared end-to-end key-recovery procedure
+    artifact_event:
+      name: F_sim
+      definition: >-
+        Simulator invocation does not emit its complete declared report for
+        the supplied arguments.
+      mapped_paths:
+        - malformed_or_missing_arguments
+        - explicit_empty_schedule_error
+        - drbg_or_random_range_error
+        - vector_length_or_allocation_failure
+        - arithmetic_index_or_machine_int_failure
+        - internal_retry_nontermination
+    F_sim_to_F_implication: null
+    oracle_to_F_map: null
+    sieve_to_F_map: null
+    postprocessing_to_F_map: null
+    recovery_to_F_map: null
+    verification_to_F_map: null
+    tail_to_F_map: null
+    composed_bound: null
+    status: unreconciled
+    blocker: QM-ERROR
+
+  mutations:
+    C2_heavy_tail:
+      result: remains_live
+      reason: >-
+        The artifact fixes a local random-choice kernel, but supplies no
+        uniform conditional keep bound, formal DRBG probability contract, or
+        end-to-end recovery law from which to exclude an infinite-mean retry
+        tail.
+      scope_guard: >-
+        This does not assert that the implementation actually has the
+        mutation's 1/(n(n+1)) stopping distribution.
+    C3_overlap:
+      result: rejected
+      scope: source_level_simulator_phasevector_references_only
+      reason: >-
+        Failed vectors are not passed to or stored by the same-level retry;
+        lexical root concurrency is bounded by fixed recursion depth D plus
+        three local vectors.
+      fc0_memory_clearance: false
+      residual_gap: >-
+        Quantum W/R, runtime backing/GC, and M_tail are absent or unmapped, so
+        rejecting source-reference retention does not complete FC0 memory.
+    error_map_audit:
+      result: remains_live
+      reason: >-
+        All simulator failures can be typed into F_sim, but no code maps
+        F_sim, oracle, recovery, verification, or tail paths to final
+        key-recovery event F.
+
+  named_blockers:
+    - id: QM-STOPPING
+      detail: >-
+        Local conditional kernel is pinned, but no uniform progress/tail
+        theorem or end-to-end recovery process proves finite joint Q/S/P/C
+        expectations.
+    - id: QM-MEMORY-MAP
+      detail: >-
+        Source-level PhaseVector retry overlap is bounded, but the classical
+        simulator does not instantiate quantum W/R widths, a runtime heap/GC
+        hard bound for B, or terminal-tail M_tail.
+    - id: QM-ERROR
+      detail: >-
+        Artifact failure event F_sim has no implication map to the required
+        final key-recovery event F, and recovery/verification/tail paths are absent.
+
+  joint_ledger_complete: false
+  disposition: FC0_QUERY_MEMORY_SEMANTICS_UNRECONCILED
+  claim_boundary:
+    numeric_security: false
+    nist_level: false
+    breakthrough: false
+    completion: false
+    curve_compute: false
+    isogeny_compute: false
+    quantum_circuit_compute: false

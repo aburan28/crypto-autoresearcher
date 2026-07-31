@@ -18,7 +18,7 @@ None. No idea is rejected: each names an exact attack object (never "attack
 FAEST"), carries a matched baseline under one cost convention with the RSF-1
 one-pair caveat and UNVERIFIED labels in place, is falsifiable in its
 decisive direction with named controls, and is honestly distinguished from
-IDEA-20260731-001..003.
+IDEA-20260731-019, IDEA-20260731-002..003.
 
 ---
 
@@ -224,7 +224,7 @@ the random-P null at matched sizes.
 **OBJ-6-3 (nonfatal_gating_note) — The EM chain is not closed by the OWF
 baseline alone.**
 
-IDEA-20260731-001..004 are specified at the AES-instance parameter sets
+IDEA-20260731-019, IDEA-20260731-002..004 are specified at the AES-instance parameter sets
 (faest_128f/s). The EM instances (faest_em_*) carry their own (kappa, tau,
 eps_cc, field) parameters (UNVERIFIED placeholders), and with the OWF
 baseline at exactly 2^n, the layer terms must be re-checked at the EM

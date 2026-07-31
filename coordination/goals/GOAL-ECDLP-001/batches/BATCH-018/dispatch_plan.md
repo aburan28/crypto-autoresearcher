@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-018 EXECUTES APPROVED EXP-DS-001 v2 only (snapshot 65f3c82b; DEC-20260731-003; run_authorized true): implement+run bounded matrix with IDEA-20260731-011 null control, matched CTRL-RHO/CTRL-BSGS, HEUR-DS-1 sampling; snapshot-archive; independent Validator + Red Team; ledger EV-DS-001 + DEC-20260731-005 + GOAL checkpoint. Apply R-1 (F2 over S1 when any R<0.5 cell has R_null<0.9). TOY TIER. Do NOT execute v1. Do NOT alter H-IC-001/H-STR-002. No second amendment cycle.
+BATCH-018 EXECUTES APPROVED EXP-DS-001 v2 only (snapshot 65f3c82b; DEC-20260731-013; run_authorized true): implement+run bounded matrix with IDEA-20260731-011 null control, matched CTRL-RHO/CTRL-BSGS, HEUR-DS-1 sampling; snapshot-archive; independent Validator + Red Team; ledger EV-DS-001 + DEC-20260731-014 + GOAL checkpoint. Apply R-1 (F2 over S1 when any R<0.5 cell has R_null<0.9). TOY TIER. Do NOT execute v1. Do NOT alter H-IC-001/H-STR-002. No second amendment cycle.
 
 ## Ready Tasks
 

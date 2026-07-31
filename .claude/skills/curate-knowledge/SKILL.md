@@ -55,6 +55,9 @@ promote it.
      a Coordinator decision; must cite the EV-/DEC-/EXP- IDs.
    - `open_problem` → `knowledge/open-problems/KN-OPEN-NNN.md` — precisely
      stated unknown worth future work.
+   Before curating, merge `origin/main` into the working branch (merge,
+   never rebase) so the entry and index are built against current knowledge —
+   see "Branch and PR hygiene" below.
 2. Pick the next free ID in that class (grep existing files).
 3. Write the entry using the frontmatter schema from `knowledge/README.md`
    (id, type, title, tags, confidence, source/citation or internal refs,
@@ -66,7 +69,23 @@ promote it.
    the exact entry, index, and any cited internal evidence/decision records.
    Report the item only after the post-commit verifier accepts its declared
    paths and hashes.
-6. Report what was added and any related entries found while grepping.
+6. Push the branch and open or refresh a PR against `main` naming the new
+   `KN-*` records (see "Branch and PR hygiene"). A knowledge entry that exists
+   only in a local commit is not part of the corpus — it is unpublished.
+7. Report what was added and any related entries found while grepping.
+
+## Branch and PR hygiene
+
+Curating knowledge changes the shared corpus, so every run of this skill also
+pulls in `main` and surfaces the entry as a PR:
+
+- **Before curating:** `git fetch origin && git merge origin/main` — merge,
+  never rebase. If the merge conflicts, stop and report; never resolve a
+  conflict by editing a record. Re-run `tools/validate_ledger.py` and
+  `tools/build_knowledge_index.py --check` after the merge.
+- **After the archive commit:** `git push -u origin <branch>` then
+  `gh pr create --base main --head <branch> --title "knowledge: <KN-ID>" --body "<KN-* IDs>"`
+  (or `gh pr edit <number>` when a PR for the branch already exists).
 
 ## Rules
 
