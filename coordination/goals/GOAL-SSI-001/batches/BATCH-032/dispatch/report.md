@@ -6,12 +6,11 @@ BATCH-032: construct a checkable symbolic numeric-width / peak-byte obligation s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-099` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-099/numeric_width_schema_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-099/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-099/width_schema_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-099/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-099/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-099 |
+| `TASK-20260730-100` | coordinator | queued | 90 | TASK-20260730-099 | coordination/goals/GOAL-SSI-001/batches/BATCH-032/archives/TASK-20260730-100/snapshot-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-032/archives/TASK-20260730-100 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-100`: dependency_not_completed:TASK-20260730-099:queued
-- `TASK-20260730-101`: dependency_not_completed:TASK-20260730-099:queued, dependency_not_completed:TASK-20260730-100:queued
+- `TASK-20260730-101`: dependency_not_completed:TASK-20260730-100:queued
 - `TASK-20260730-102`: dependency_not_completed:TASK-20260730-101:queued
 
 ## Dispatch Gates
@@ -27,4 +26,4 @@ BATCH-032: construct a checkable symbolic numeric-width / peak-byte obligation s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `01ae3cb2bb86b1a54d903f64ad7aaac4ff0a08e09dadad4698935c9a93093aa0`
+Plan SHA-256: `00557b1e0d0eac7bf81424b378a060e5f304ec3442267cf4498002b7b6555e26`
