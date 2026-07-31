@@ -6,11 +6,11 @@ BATCH-034: construct a checkable symbolic retry-to-peak-byte conversion obligati
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-109` | red-team | queued | 80 | TASK-20260730-107, TASK-20260730-108 | coordination/goals/GOAL-SSI-001/batches/BATCH-034/tasks/TASK-20260730-109/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-034/tasks/TASK-20260730-109/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-034/tasks/TASK-20260730-109 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-110`: dependency_not_completed:TASK-20260730-109:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-034: construct a checkable symbolic retry-to-peak-byte conversion obligati
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `5d58c2b9763bd3ef2513782ee5c8871c57314d6280ef465965caac5ac17afc34`
+Plan SHA-256: `87b43ba2b69ac311098e16e1563d4ef4d5d24fdec1d7247401d4b238da18e9c1`
