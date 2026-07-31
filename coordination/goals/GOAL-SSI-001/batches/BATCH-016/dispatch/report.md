@@ -6,12 +6,10 @@ BATCH-016: preregister ttm-v2 with explicit return-modulus and requested-length 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-031` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-031/schedule_panel.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-031/tape_machine_spec_v2.md, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-031/preregistration_manifest.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-031 |
+| `TASK-20260730-033` | executor | queued | 90 | TASK-20260730-031, TASK-20260730-032 | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033/zero_tape_traces.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033/panel_audit_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033/panel_audit_results.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-032`: dependency_not_completed:TASK-20260730-031:queued
-- `TASK-20260730-033`: dependency_not_completed:TASK-20260730-031:queued, dependency_not_completed:TASK-20260730-032:queued
 - `TASK-20260730-034`: dependency_not_completed:TASK-20260730-033:queued
 - `TASK-20260730-035`: dependency_not_completed:TASK-20260730-033:queued, dependency_not_completed:TASK-20260730-034:queued
 - `TASK-20260730-036`: dependency_not_completed:TASK-20260730-035:queued
@@ -29,4 +27,4 @@ BATCH-016: preregister ttm-v2 with explicit return-modulus and requested-length 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `15e6ea80e74dab3ec0fe9ebba348dfbd8f62dc19f3bbb071b5c62813ee881ce5`
+Plan SHA-256: `0ac8a7013aeab3dc2af0338ee466c81643328a18a32b0e4ccf233de96b8283c7`
