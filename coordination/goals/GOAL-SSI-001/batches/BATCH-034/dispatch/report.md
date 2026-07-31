@@ -6,11 +6,10 @@ BATCH-034: construct a checkable symbolic retry-to-peak-byte conversion obligati
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-108` | coordinator | queued | 90 | TASK-20260730-107 | coordination/goals/GOAL-SSI-001/batches/BATCH-034/archives/TASK-20260730-108/snapshot-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-034/archives/TASK-20260730-108 |
+| `TASK-20260730-109` | red-team | queued | 80 | TASK-20260730-107, TASK-20260730-108 | coordination/goals/GOAL-SSI-001/batches/BATCH-034/tasks/TASK-20260730-109/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-034/tasks/TASK-20260730-109/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-034/tasks/TASK-20260730-109 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-109`: dependency_not_completed:TASK-20260730-108:queued
 - `TASK-20260730-110`: dependency_not_completed:TASK-20260730-109:queued
 
 ## Dispatch Gates
@@ -26,4 +25,4 @@ BATCH-034: construct a checkable symbolic retry-to-peak-byte conversion obligati
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `df7eef0c2071c4def58a2d7a28efe3252ce2d017886eda3fe605b4dc46e14bd1`
+Plan SHA-256: `5d58c2b9763bd3ef2513782ee5c8871c57314d6280ef465965caac5ac17afc34`
