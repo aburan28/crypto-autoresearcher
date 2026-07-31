@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `497150f077dbdf6f70b9bc1358dc80d3927bec25e2192e88836b1c2b10107d25`
+Plan SHA-256: `d20645f528922b61469e4d511c3ad589d36603406b26d438c5c227514d494d33`
