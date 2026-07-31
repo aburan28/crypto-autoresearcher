@@ -6,11 +6,11 @@ BATCH-018: produce stopping-law / joint Q/S/P/C control artifact for QM-STOPPING
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-045` | red-team | queued | 80 | TASK-20260730-043, TASK-20260730-044 | coordination/goals/GOAL-SSI-001/batches/BATCH-018/tasks/TASK-20260730-045/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-018/tasks/TASK-20260730-045/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-018/tasks/TASK-20260730-045 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-046`: dependency_not_completed:TASK-20260730-045:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-018: produce stopping-law / joint Q/S/P/C control artifact for QM-STOPPING
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `298a26b4eda6cb87b17acdaad8524f6ff7a01bdc67e2150109b10f73b17ee4cf`
+Plan SHA-256: `a2a066fc62a67239d5b46405861fe92095beb6031f80ff9ed4ea55907d1fdd45`
