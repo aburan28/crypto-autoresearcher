@@ -6,11 +6,11 @@ BATCH-021: freeze in-repo FC0 extension-package interfaces (Verify(x,k') and W/R
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-057` | red-team | queued | 80 | TASK-20260730-055, TASK-20260730-056 | coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-057/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-057/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-057 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-058`: dependency_not_completed:TASK-20260730-057:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-021: freeze in-repo FC0 extension-package interfaces (Verify(x,k') and W/R
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b786d1fc3e9be189feeebba77b714bdddd46024fc38b15fce6686dd55ff451f8`
+Plan SHA-256: `a9665e7cb9081c887b21f3669dfe545bb1ab7c06258040dfc5306eaaa5864d35`
