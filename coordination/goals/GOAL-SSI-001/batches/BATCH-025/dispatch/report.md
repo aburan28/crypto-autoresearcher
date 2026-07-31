@@ -6,11 +6,11 @@ BATCH-025: construct a checkable symbolic F-union / operational-error compositio
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-073` | red-team | queued | 80 | TASK-20260730-071, TASK-20260730-072 | coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-073/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-073/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-073 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-074`: dependency_not_completed:TASK-20260730-073:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-025: construct a checkable symbolic F-union / operational-error compositio
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `3f80a5a9417be992fddc500985541350fe5ea2e73895e214e04747db6cede46e`
+Plan SHA-256: `5bf0f2a02035871ab15bfdd7abd3f547d30bc0087b4da9a82b5d60d1bd0f88a9`
