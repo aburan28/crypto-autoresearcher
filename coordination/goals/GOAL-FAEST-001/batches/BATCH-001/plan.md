@@ -6,12 +6,10 @@ Open GOAL-FAEST-001 BATCH-001: obtain the Round-3 FAEST specification and refere
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-003` | idea-generator | queued | 80 | TASK-20260731-002 | ledger/proposals/IDEA-20260731-001.yaml, ledger/proposals/IDEA-20260731-002.yaml, ledger/proposals/IDEA-20260731-003.yaml, coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-003/ideation_report.md | ledger/proposals, coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-003 |
+| `TASK-20260731-005` | reviewer | queued | 60 | TASK-20260731-001, TASK-20260731-002, TASK-20260731-003, TASK-20260731-004 | coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-005/review_report.yaml, coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-005/objections.md | coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-005 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-004`: dependency_not_completed:TASK-20260731-003:queued
-- `TASK-20260731-005`: dependency_not_completed:TASK-20260731-003:queued, dependency_not_completed:TASK-20260731-004:queued
 - `TASK-20260731-006`: dependency_not_completed:TASK-20260731-005:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ Open GOAL-FAEST-001 BATCH-001: obtain the Round-3 FAEST specification and refere
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `631b4f1150277291fbc5759a33c09dcbc27d8d31ca90d17a4a5c57b2f7305f95`
+Plan SHA-256: `65fd96fa23377c87c1bf535d5afb914b1fcf6d9f14bd80e85be9d1ee19483993`
