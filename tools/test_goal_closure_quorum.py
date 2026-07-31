@@ -130,6 +130,23 @@ class GoalClosureQuorumTests(unittest.TestCase):
         errs = errors_for(goal(quorum=q))
         self.assertTrue(any("unknown record" in e for e in errs))
 
+    def test_attestation_citing_knowledge_id_is_accepted(self) -> None:
+        """Promoted KN-FIND / KN-* corpus ids are valid reviewed_record_ids."""
+        q = {"attestations": [
+            attestation("claude-opus-5",
+                        reviewed_record_ids=["GOAL-TEST-001", "KN-FIND-011"]),
+            attestation("gpt-5.6-sol",
+                        reviewed_record_ids=["GOAL-TEST-001", "KN-FIND-011"]),
+            attestation("gemini-3-pro",
+                        reviewed_record_ids=["GOAL-TEST-001", "KN-FIND-011"]),
+        ]}
+        ctx = vl.Ctx(set())
+        ctx.ids["GOAL-TEST-001"] = "x"
+        ctx.knowledge["KN-FIND-011"] = "knowledge/findings/KN-FIND-011.md"
+        body = goal(quorum=q)
+        vl.check_goal_closure_quorum("ledger/goals/GOAL-TEST-001.yaml", body, ctx)
+        self.assertEqual(ctx.errors, [])
+
     def test_quorum_satisfied_without_the_transition_is_rejected(self) -> None:
         """Attestations may be gathered early, but they do not close the goal."""
         body = goal(status="active", quorum={
