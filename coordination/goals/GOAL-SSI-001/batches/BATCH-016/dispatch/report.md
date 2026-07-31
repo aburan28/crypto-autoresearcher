@@ -6,12 +6,10 @@ BATCH-016: preregister ttm-v2 with explicit return-modulus and requested-length 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-033` | executor | queued | 90 | TASK-20260730-031, TASK-20260730-032 | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033/zero_tape_traces.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033/panel_audit_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033/panel_audit_results.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-033 |
+| `TASK-20260730-035` | red-team | queued | 80 | TASK-20260730-033, TASK-20260730-034 | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-035/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-035/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-035 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-034`: dependency_not_completed:TASK-20260730-033:queued
-- `TASK-20260730-035`: dependency_not_completed:TASK-20260730-033:queued, dependency_not_completed:TASK-20260730-034:queued
 - `TASK-20260730-036`: dependency_not_completed:TASK-20260730-035:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-016: preregister ttm-v2 with explicit return-modulus and requested-length 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `0ac8a7013aeab3dc2af0338ee466c81643328a18a32b0e4ccf233de96b8283c7`
+Plan SHA-256: `a0ce7b9f07637da5e23026dce40773289559b9173e72262d7fd23cd437e88b0f`
