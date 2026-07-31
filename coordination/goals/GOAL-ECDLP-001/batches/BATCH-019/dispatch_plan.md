@@ -6,12 +6,11 @@ BATCH-019 SCOPED REPAIR: archive the working-tree EXP-DS-001 relations=200 packa
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-037` | validator | queued | 85 | TASK-20260731-035, TASK-20260731-036 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-019/reviews/TASK-20260731-037/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-019/reviews/TASK-20260731-037 |
-| `TASK-20260731-038` | red-team | queued | 85 | TASK-20260731-035, TASK-20260731-036 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-019/reviews/TASK-20260731-038/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-019/reviews/TASK-20260731-038 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-039`: dependency_not_completed:TASK-20260731-037:queued, dependency_not_completed:TASK-20260731-038:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-019 SCOPED REPAIR: archive the working-tree EXP-DS-001 relations=200 packa
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `fae158bef603947ffbf04873c0e46806f4f6a8a00adad69b45dc867e6f43074d`
+Plan SHA-256: `10f99ff6f8dcbb21dd39597166a0f9b1ad02c7910e6dbbfd31611b23bf34adbb`
