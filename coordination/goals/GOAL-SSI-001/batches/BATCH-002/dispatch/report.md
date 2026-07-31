@@ -1,18 +1,16 @@
 # Dynamic Subagent Dispatch Plan
 
-Execute the scoped baseline derivation gate for revised IDEA-20260725-001: separate F_{p^2} MITM full-cost from F_p Delfs-Galbraith dominance, define or falsify the low-memory isogeny-graph collision-search analogue, and emit a matched-baseline recommendation. Zero curve compute. Does not count toward completion unless a new attack mechanism appears.
+Scoped baseline derivation for revised IDEA-20260725-001: F_p2 vs F_p regime split, low-memory isogeny-graph collision-search definition or falsification, matched-baseline recommendation.
 
 ## Ready Tasks
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260727-601` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-002/tasks/TASK-20260727-601/derivation_note.md, coordination/goals/GOAL-SSI-001/batches/BATCH-002/tasks/TASK-20260727-601/matched_baseline_recommendation.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-002/tasks/TASK-20260727-601 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260727-602`: dependency_not_completed:TASK-20260727-601:queued
-- `TASK-20260727-603`: dependency_not_completed:TASK-20260727-601:queued, dependency_not_completed:TASK-20260727-602:queued
-- `TASK-20260727-604`: dependency_not_completed:TASK-20260727-603:queued
+None.
 
 ## Dispatch Gates
 
@@ -27,4 +25,4 @@ Execute the scoped baseline derivation gate for revised IDEA-20260725-001: separ
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `ebe9a228d05b7c32201d1f8de892c5f85757b08bda4f75e908dce8167ea95120`
+Plan SHA-256: `112508aff4b0f08abade83eb306f56b197cb74bc11ffd8fac82f1435aad95f90`

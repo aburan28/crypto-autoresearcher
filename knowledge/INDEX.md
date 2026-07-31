@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7696 entries.
+7703 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -18,6 +18,11 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-009 | Degeneracy of endomorphism-augmented ECDLP witness lattices is governed by short eigenvalue relations, not by the rank of End(E) | internal_finding | established |  | endomorphism witness-lattice glv relation-lattice minkowski vieta complex-multiplication scoped-negative experiment-design ecdlp |
 | KN-FIND-010 | Joint deg-x≤3 / deg-b=10 non-isotrivial free-x still admit inf-norm-1 MW relations at p≤19; p=31 density-blocked | internal_finding |  | established | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
 | KN-FIND-011 | Full-enum densification recovers inf-norm-1 free-x MW relations at p=31 on joint deg-x≤3 / deg-b=10 family | internal_finding |  | established | lifting xedni function-field non-isotrivial mordell-weil coefficient-bound methodology toy-scale |
+| KN-FIND-012 | Carrier Fig 4.1 Pwrong simulations do not cover the Pgood≈1/2 threshold; Kyber-scale Pwrong is ~84+ bits beyond the toy floor | internal_finding | provisional |  | dual-attack carrier pwrong polar-code kyber ml-kem extrapolation contested kn-open-016 heuristic-validation |
+| KN-FIND-013 | Carrier CC NIST shortfalls are erased by ≈10–15 bits of Pwrong underestimation under a stated second-term payment heuristic | internal_finding | provisional |  | dual-attack carrier pwrong cost-sensitivity kyber ml-kem kn-open-016 conditional |
+| KN-FIND-014 | Carrier verifyModel Pwrong scores are FFT/k_fft while Pgood scores are raw cosine sums; scale-aligned Fig 4.1 coverage gap remains (fraction_inside=0) | internal_finding | provisional |  | dual-attack carrier pwrong score-scale verifyModel kyber kn-open-016 erratum |
+| KN-FIND-015 | Under pinned MATZOV costing, Kyber dual_hybrid does not beat primal_bdd and does not reproduce Carrier/MATZOV-2022 dual headlines; primal_bdd still undercuts NIST classical cutoffs | internal_finding | provisional |  | dual-attack primal-bdd matzov kyber ml-kem concrete-security cost-model contested lattice kn-open-016 |
+| KN-FIND-016 | Carrier Table 5.1 CC dual costs are Theorem-4.1-consistent; Table C.2 CN/Kyber-512 log2(Tsample)=143.30 is a transcription error for ≈134.30 | internal_finding | provisional |  | dual-attack carrier matzov kyber ml-kem concrete-security table-erratum cost-model kn-open-016 |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
@@ -7388,6 +7393,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7614 | Extremal Chowla sets and their linear analogues: A human-AI mathematical investigation using Co-Scientist | literature | reported | web | human-ai-collaboration co-scientist agentic-mathematics methodology extremal-invariant finite-groups field-extensions normal-basis research-protocol adjacent |
 | KN-LIT-7615 | Certified in Theory, Broken in Practice: Assumption Gaps in Cryptographic Model Certification | literature | reported | web | assumption-gap certification zero-knowledge-proof auditing benchmark-overfitting scope-of-claim security-definition methodology claim-tier adjacent |
 | KN-LIT-7616 | Can PCE solve the factorisation problem via optimisation? | literature | reported | web | pauli-correlation-encoding factorization binary-optimization qubit-compression quantum-annealing-style preliminary negative-result cost-model rsa adjacent |
+| KN-LIT-7617 | Assessing the Impact of a Variant of MATZOV's Dual Attack on Kyber | literature | reported | read | dual-attack polar-code fft lwe kyber ml-kem matzov repaired-heuristics concrete-security contested lattice nist |
+| KN-LIT-7618 | CRYSTALS-Kyber: Algorithm Specifications And Supporting Documentation (Round 3) | literature | reported | read | kyber ml-kem nist specification module-lwe concrete-security primary-source lattice |
 | KN-LIT-762 | Far Field EM Side-Channel Attack on AES Using Deep Learning | literature | reported | read | cryptanalysis side-channel symmetric |
 | KN-LIT-763 | FAST COMPUTATION OF ELLIPTIC CURVE ISOGENIES IN CHARACTERISTIC TWO | literature | reported | read | binary-field elliptic-curve finite-field isogeny |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny pairing sidh-csidh |
