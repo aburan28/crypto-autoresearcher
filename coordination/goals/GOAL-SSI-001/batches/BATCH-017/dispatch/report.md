@@ -6,11 +6,11 @@ BATCH-017: implement recovery and object-lifetime tracing gate for QM-MEMORY-MAP
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-041` | red-team | queued | 80 | TASK-20260730-039, TASK-20260730-040 | coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-041/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-041/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-041 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-042`: dependency_not_completed:TASK-20260730-041:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-017: implement recovery and object-lifetime tracing gate for QM-MEMORY-MAP
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b7afaa36779795c8f16c9efd37a9409109b51b44ebe129352f68dad2e2eff743`
+Plan SHA-256: `2bac2b76c11cc52bd714c04dab3aa0560748e1805a879b5b700409b4e2d93a3a`
