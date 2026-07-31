@@ -11,8 +11,6 @@ confidence: reported
 internal_refs:
 - EV-REP-002
 - DEC-20260716-002
-- EXP-REP-002
-- H-REP-001
 proof_status: empirical_only
 proof_refs: []
 added: 2026-07-25

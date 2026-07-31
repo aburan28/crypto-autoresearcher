@@ -11,7 +11,6 @@ confidence: reported
 internal_refs:
 - EV-FB-001
 - DEC-20260716-004
-- EXP-FB-001
 - H-FB-001
 proof_status: empirical_only
 proof_refs: []
