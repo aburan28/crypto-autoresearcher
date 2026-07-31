@@ -197,7 +197,7 @@ remains open, with named obstructions and forward guidance:
    Obstruction: the spec PDF body text was unextractable in the sources
    task (KN-LIT-7637 limit), so every deployed-parameter statement in every
    record is an UNVERIFIED placeholder. Forward guidance (unchanged from
-   DEC-20260731-011): resolve via an alternate extraction path or adopt a
+   DEC-20260731-020): resolve via an alternate extraction path or adopt a
    pinned faest-ref commit as ground truth; no experiment design for any of
    the six ideas before that gate. IDEA-006's pinning surface is the
    smallest (faest-ref owf.c/h + aes.c/h), so it is the cheapest lane to

@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell bits=20,B=64,m=4,seed=101; unplanted; live /4 plant); one RC-20 review cycle; Executor RUN-DS-001-ctrl-unplanted only if APPROVED; Val+RT; ledger EV-DS-003/DEC-20260731-011. Toy claim ceiling. No full 54-cell matrix. No v1. Do not alter H-IC-001/H-STR-002. Leave FAEST/XEDN alone.
+BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell bits=20,B=64,m=4,seed=101; unplanted; live /4 plant); one RC-20 review cycle; Executor RUN-DS-001-ctrl-unplanted only if APPROVED; Val+RT; ledger EV-DS-003/DEC-20260731-020. Toy claim ceiling. No full 54-cell matrix. No v1. Do not alter H-IC-001/H-STR-002. Leave FAEST/XEDN alone.
 
 ## Ready Tasks
 
