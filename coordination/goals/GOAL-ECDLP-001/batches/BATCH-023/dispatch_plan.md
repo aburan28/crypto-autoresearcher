@@ -6,11 +6,11 @@ BATCH-023 residual plant-contrastive control under SG-ECDLP-001: author PA-DS-00
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-074` | reviewer | queued | 80 | TASK-20260731-073 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-074/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-074/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-074 |
+| `TASK-20260731-074` | reviewer | running | 80 | TASK-20260731-073 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-074/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-074/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260731-074 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-075`: dependency_not_completed:TASK-20260731-074:queued
+- `TASK-20260731-075`: dependency_not_completed:TASK-20260731-074:running
 - `TASK-20260731-076`: dependency_not_completed:TASK-20260731-075:queued
 - `TASK-20260731-077`: dependency_not_completed:TASK-20260731-076:queued
 - `TASK-20260731-078`: dependency_not_completed:TASK-20260731-076:queued, dependency_not_completed:TASK-20260731-077:queued
@@ -30,4 +30,4 @@ BATCH-023 residual plant-contrastive control under SG-ECDLP-001: author PA-DS-00
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e8a6c77445df0ec94126ae82d2083df2c7ed2853010d88345bd5e816bee69a42`
+Plan SHA-256: `a8c0439377d7dd9b86c70fc5031f22ca565a129be63b946664979e9c643c86df`
