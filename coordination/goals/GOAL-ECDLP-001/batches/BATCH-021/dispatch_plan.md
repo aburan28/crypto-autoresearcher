@@ -6,12 +6,10 @@ BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-056` | reviewer | running | 80 | TASK-20260731-055 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260731-056 |
+| `TASK-20260731-058` | executor | queued | 70 | TASK-20260731-057 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/manifest.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/raw-result.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/stdout.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/stderr.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/command.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater/environment.json, experiments/EXP-DS-001/results/ctrl_theater/summary.json, experiments/EXP-DS-001/results/ctrl_theater/plant_independent_report.json, experiments/EXP-DS-001/results/ctrl_theater/rho_calib_report.json, experiments/EXP-DS-001/results/ctrl_theater/null_split_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/tasks/TASK-20260731-058/execution_report.yaml | experiments/EXP-DS-001/implementation, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-theater, experiments/EXP-DS-001/results/ctrl_theater, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/tasks/TASK-20260731-058 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-057`: dependency_not_completed:TASK-20260731-056:running
-- `TASK-20260731-058`: dependency_not_completed:TASK-20260731-057:queued
 - `TASK-20260731-059`: dependency_not_completed:TASK-20260731-058:queued
 - `TASK-20260731-060`: dependency_not_completed:TASK-20260731-058:queued, dependency_not_completed:TASK-20260731-059:queued
 - `TASK-20260731-061`: dependency_not_completed:TASK-20260731-058:queued, dependency_not_completed:TASK-20260731-059:queued
@@ -30,4 +28,4 @@ BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `37e362d0a470f0902ab859171a43504ebe375736554c0bd7aac2386973fdcde0`
+Plan SHA-256: `0ad557518bd2d0c9b7765399618fd1deef0ba609857b995dd52db94b9c5f3138`
