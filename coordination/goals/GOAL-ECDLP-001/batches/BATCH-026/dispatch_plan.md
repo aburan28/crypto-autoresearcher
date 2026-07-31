@@ -6,14 +6,12 @@ BATCH-026 residual CI-IDENTITY under SG-ECDLP-001 (RT047-B2/RT079-B6/RT101-B6); 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-115` | executor | running | 80 | TASK-20260731-114 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-ci-identity/manifest.json, experiments/EXP-DS-001/results/ctrl_ci_identity/summary.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/tasks/TASK-20260731-115/execution_report.yaml | experiments/EXP-DS-001/implementation, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-ci-identity, experiments/EXP-DS-001/results/ctrl_ci_identity, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/tasks/TASK-20260731-115 |
+| `TASK-20260731-117` | validator | running | 70 | TASK-20260731-115, TASK-20260731-116 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260731-117/validation_report.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260731-117/receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260731-117 |
+| `TASK-20260731-118` | red-team | running | 70 | TASK-20260731-115, TASK-20260731-116 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260731-118/red_team_report.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260731-118/objections.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260731-118/receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260731-118 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-116`: dependency_not_completed:TASK-20260731-115:running
-- `TASK-20260731-117`: dependency_not_completed:TASK-20260731-115:running, dependency_not_completed:TASK-20260731-116:queued
-- `TASK-20260731-118`: dependency_not_completed:TASK-20260731-115:running, dependency_not_completed:TASK-20260731-116:queued
-- `TASK-20260731-119`: dependency_not_completed:TASK-20260731-116:queued, dependency_not_completed:TASK-20260731-117:queued, dependency_not_completed:TASK-20260731-118:queued
+- `TASK-20260731-119`: dependency_not_completed:TASK-20260731-117:running, dependency_not_completed:TASK-20260731-118:running
 
 ## Dispatch Gates
 
@@ -28,4 +26,4 @@ BATCH-026 residual CI-IDENTITY under SG-ECDLP-001 (RT047-B2/RT079-B6/RT101-B6); 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `49ce929ed7a4f514438aed8fd6eafb5cd8d23a53d651c85253930b401b697792`
+Plan SHA-256: `f669455b4c6ecf8359db605d28d6c22f9e147e9a4333037ae92a063c8509c18e`
