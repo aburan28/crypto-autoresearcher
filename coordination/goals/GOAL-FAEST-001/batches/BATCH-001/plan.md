@@ -6,14 +6,12 @@ Open GOAL-FAEST-001 BATCH-001: obtain the Round-3 FAEST specification and refere
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-001` | idea-generator | queued | 100 | - | knowledge/literature/KN-LIT-7617.md, knowledge/literature/KN-LIT-7618.md, knowledge/literature/KN-LIT-7619.md, knowledge/literature/KN-LIT-7620.md, coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-001/sources_note.md | knowledge/literature, coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-001 |
+| `TASK-20260731-003` | idea-generator | queued | 80 | TASK-20260731-002 | ledger/proposals/IDEA-20260731-001.yaml, ledger/proposals/IDEA-20260731-002.yaml, ledger/proposals/IDEA-20260731-003.yaml, coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-003/ideation_report.md | ledger/proposals, coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-003 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-002`: dependency_not_completed:TASK-20260731-001:queued
-- `TASK-20260731-003`: dependency_not_completed:TASK-20260731-002:queued
 - `TASK-20260731-004`: dependency_not_completed:TASK-20260731-003:queued
-- `TASK-20260731-005`: dependency_not_completed:TASK-20260731-001:queued, dependency_not_completed:TASK-20260731-002:queued, dependency_not_completed:TASK-20260731-003:queued, dependency_not_completed:TASK-20260731-004:queued
+- `TASK-20260731-005`: dependency_not_completed:TASK-20260731-003:queued, dependency_not_completed:TASK-20260731-004:queued
 - `TASK-20260731-006`: dependency_not_completed:TASK-20260731-005:queued
 
 ## Dispatch Gates
@@ -29,4 +27,4 @@ Open GOAL-FAEST-001 BATCH-001: obtain the Round-3 FAEST specification and refere
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `8a3e2360fcbd7264ee3800890aa8648c09f10d26c3fa4aafe44b547c38ac12e8`
+Plan SHA-256: `631b4f1150277291fbc5759a33c09dcbc27d8d31ca90d17a4a5c57b2f7305f95`
