@@ -1,18 +1,19 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-025 RC-25b after TASK-105 REVISE / TASK-106 NOT APPROVED (DEC-20260731-026 / QUEUE-AMEND-20260731-014): one protocol_amendment discharging B-1–B-4 on EXP-IT-001 / H-IT-001; freeze snapshot; independent re-review. No Executor until APPROVED. Structure-null-r2 deferred (DEC-025 superseded for execution). H-DS-001 analyzed. Toy ceiling. No STR. No push.
+BATCH-025 APPROVED structure-null-r2 (DEC-20260731-027 / RT-20260731-096 PASS on 0d13ad5a): Executor RUN-DS-001-ctrl-structure-null-r2; Val+RT; ledger EV-DS-008/DEC-20260731-028. Do not admit TASK-105. Do not launder EXP-IT. Toy ceiling. No STR. No push.
 
 ## Ready Tasks
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-107` | coordinator | queued | 100 | TASK-20260731-106 | experiments/EXP-IT-001/specification.v2.yaml, experiments/EXP-IT-001/amendments/PA-IT-001-v2-rc25b-b1-b4.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260731-107/task_report.md | experiments/EXP-IT-001/specification.v2.yaml, experiments/EXP-IT-001/amendments, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260731-107, ledger/hypotheses/H-IT-001.yaml |
+| `TASK-20260731-098` | executor | running | 70 | TASK-20260731-097 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-structure-null-r2/manifest.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-structure-null-r2/raw-result.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-structure-null-r2/stdout.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-structure-null-r2/stderr.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-structure-null-r2/command.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-structure-null-r2/environment.json, experiments/EXP-DS-001/results/ctrl_structure_null_r2/summary.json, experiments/EXP-DS-001/results/ctrl_structure_null_r2/structure_null_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260731-098/execution_report.yaml, experiments/EXP-DS-001/implementation/ds001_driver.py, experiments/EXP-DS-001/implementation/implementation.md | experiments/EXP-DS-001/implementation, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-structure-null-r2, experiments/EXP-DS-001/results/ctrl_structure_null_r2, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260731-098 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-108`: dependency_not_completed:TASK-20260731-107:queued
-- `TASK-20260731-109`: dependency_not_completed:TASK-20260731-108:queued
-- `TASK-20260731-110`: dependency_not_completed:TASK-20260731-109:queued
+- `TASK-20260731-099`: dependency_not_completed:TASK-20260731-098:running
+- `TASK-20260731-100`: dependency_not_completed:TASK-20260731-098:running, dependency_not_completed:TASK-20260731-099:queued
+- `TASK-20260731-101`: dependency_not_completed:TASK-20260731-098:running, dependency_not_completed:TASK-20260731-099:queued
+- `TASK-20260731-102`: dependency_not_completed:TASK-20260731-099:queued, dependency_not_completed:TASK-20260731-100:queued, dependency_not_completed:TASK-20260731-101:queued
 
 ## Dispatch Gates
 
@@ -27,4 +28,4 @@ BATCH-025 RC-25b after TASK-105 REVISE / TASK-106 NOT APPROVED (DEC-20260731-026
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `38a28e1589b48a76844f286fd821c0ea0d682ca6bde43c53d8031d0bd31cc338`
+Plan SHA-256: `73da9b553c51daa41ae4c1aa75738be698bc01ed41b3d7347652ed7aef790c8c`
