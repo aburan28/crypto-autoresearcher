@@ -11,8 +11,6 @@ confidence: reported
 internal_refs:
 - EV-SIG-005
 - DEC-20260720-001
-- EXP-SIG-005
-- H-SIG-001
 proof_status: empirical_only
 proof_refs: []
 added: 2026-07-25

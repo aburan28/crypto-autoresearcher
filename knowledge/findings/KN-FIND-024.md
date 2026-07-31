@@ -12,7 +12,6 @@ internal_refs:
 - EV-SIG-002
 - DEC-20260718-017
 - EXP-SIG-002
-- H-SIG-001
 proof_status: empirical_only
 proof_refs: []
 added: 2026-07-25

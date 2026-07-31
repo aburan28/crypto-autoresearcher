@@ -11,8 +11,6 @@ confidence: reported
 internal_refs:
 - EV-EQJ-001
 - DEC-20260718-006
-- EXP-EQJ-001
-- H-EQJ-001
 proof_status: empirical_only
 proof_refs: []
 added: 2026-07-25

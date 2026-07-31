@@ -12,7 +12,6 @@ internal_refs:
 - EV-BKKMV-002
 - DEC-20260722-003
 - EXP-BKKMV-002
-- H-BKKMV-001
 proof_status: empirical_only
 proof_refs:
 - research/THM_BKKMV1.md
