@@ -1,0 +1,98 @@
+idea:
+  id: IDEA-20260731-008
+  question_id: RQ-ECDLP-002
+  title: Isogeny-transfer cost gate — when a short ordinary isogeny to a special-curve family can beat
+    matched rho after charging the path
+  class: mechanism
+  claim: 'Let E/F_p be a prime-field curve with prime-order subgroup G of order N. Suppose there exists
+    a public ordinary isogeny phi: E -> E'' of degree ell with E'' in a named special family (anomalous
+    N=p, low embedding degree for MOV/Frey-Ruck, or subfield/Weil-descent friendly). Then the charged
+    attack cost is C_path(ell) + C_special(E'',N), and the claim is that for GENERIC random E (no planted
+    path), the minimal ell connecting E to any member of those special families satisfies C_path(ell)
+    >= 0.886 sqrt(N) with high probability under HEUR-ISO-1 (random isogeny-graph distance), so isogeny
+    transfer cannot move the ECDLP exponent on generic curves. The claim is falsified if a constructive
+    search finds, on a random sample of >=20 toy curves at 20–28 bits, a path with total charged cost
+    < 0.7 * matched_rho and a verified discrete-log certificate on E pulled back from E''.'
+  mechanism: 'Special-curve ECDLP algorithms (Smart–Araki–Satoh–Semaev anomalous; MOV; GHS Weil descent
+    on weak extension fields) beat rho only on sparse families. An isogeny is a group homomorphism on
+    the N-primary part when deg is coprime to N, so logs transfer as log_E(Q) = log_{E''}(phi(Q)) * (deg-scaling).
+    The bottleneck is finding a short path in the ordinary isogeny graph to a weak j-invariant. This idea
+    installs a cost gate: measure path-finding cost against matched rho before any special-curve algorithm
+    is credited as a generic-curve attack. External structural ingredient: ordinary isogeny volcano /
+    class-group action geometry (Delfs–Galbraith; Couveignes HHS).'
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-07-31'
+    corpus_paths_grepped:
+    - ledger/proposals
+    - knowledge/INDEX.md
+    grep_results:
+    - IDEA-20260727-005 exit-map classification closes algebraic homomorphisms; this idea charges isogeny
+      PATH FINDING to special families, a distinct cost gate.
+    - KN-LIT entries exist for SIDH/SQIsign/isogeny graphs but not as a ledger ECDLP cost gate on ordinary
+      prime-field transfer.
+    literature_verified: []
+    conclusion: Adaptation of known transfer attacks into an explicit charged cost gate; novelty unverified.
+  assumptions:
+  - deg(phi) coprime to N so phi is injective on G.
+  - Special-family detectors are exact (embedding degree, trace, subfield).
+  - Toy sizes only for constructive path search.
+  predictions:
+  - metric: min_charged_transfer_ratio
+    direction: higher
+    minimum_effect: min (C_path+C_special)/matched_rho >= 1.0 on >=90% of random toy curves sampled
+  minimal_test:
+    design: Sample >=20 random prime-field curves with prime-order subgroups at 20, 24, and 28 bits. For
+      each, run bounded ordinary isogeny BFS/meet-in-middle up to degree budget ell_max = N^{1/2}, checking
+      neighbors for special-family predicates. Charge group-op equivalents for isogeny evaluation. If
+      a path is found, run the corresponding special-curve solver, pull the log back, and certificate-check
+      [k]P=Q on E. Compare total cost to matched rho/BSGS.
+    controls:
+    - 'Planted-path positive control: start from a known anomalous or low-embedding curve and walk a short
+      random isogeny to E_rand; harness must recover a cheap reverse path.'
+    - Matched Pollard rho and BSGS on E.
+    - 'Exit-map consistency with IDEA-20260727-005: algebraic self-maps must not be miscounted as transfer
+      paths.'
+    required_metrics:
+    - per-curve min ell, C_path, C_special, ratio vs rho
+    - fraction of curves with ratio < 1
+    - certificate pass/fail for any claimed solve
+  falsification_conditions:
+  - '>=2 random (unplanted) curves show total charged ratio < 0.7 with certificates: generic-curve safety
+    claim fails inside tested scope; independent review mandatory.'
+  - 'Planted-path positive control not recovered: harness void.'
+  confounders:
+  - Special-family detectors may miss some weak curves (false negatives inflate apparent safety).
+  - Isogeny evaluation cost model must be calibrated; ±10x sensitivity required.
+  interpretation_limits:
+  - Toy graph diameter is not crypto graph diameter; a negative at 28 bits does not prove crypto-scale
+    safety.
+  - Structured public curves (explicit CM, pairing-friendly) are out of the GENERIC claim and must be
+    scored separately.
+  heuristic_assumptions:
+  - id: HEUR-ISO-1
+    statement: For a random ordinary curve E/F_p with End ring of discriminant ~p, distances in the ell-isogeny
+      graph to the sparse set of special j-invariants behave like distances to a sparse set in a random
+      regular graph of the same degree, so the expected minimal ell is exponential in the special-set
+      density.
+    rigorous_support: Random regular graph distance heuristics; Delfs–Galbraith structure of ordinary
+      volcanoes supplies the graph model but not the special-set hitting time.
+    validation_plan: At toy sizes, compare observed min-ell distribution to the random-regular hitting-time
+      prediction; report KS distance. Crypto-scale validation would need class-number sampling correspondences
+      and is out of the minimal test.
+  target_complexity:
+    time_exponent: '>= 1/2 for generic E under HEUR-ISO-1; special E retain their known special exponents
+      after transfer'
+    memory_exponent: MITM path find ~ ell^{1/2} nodes
+    best_known: rho at 1/2 for generic prime-field ECDLP; special families as cited
+    hidden_overhead: poly(log p) isogeny arithmetic; class polynomial costs if CM methods used
+    tradeoff_note: Larger ell-budgets trade time for higher hit probability; VW-style parallelization
+      applies to MITM path search
+  dominated_by: Pollard rho for generic curves under HEUR-ISO-1; special-curve algorithms dominate only
+    after a short path is exhibited
+  sota_delta: No exponent improvement claimed on generic curves; deliverable is a charged transfer gate
+    that blocks silent special-curve overclaiming
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: high
