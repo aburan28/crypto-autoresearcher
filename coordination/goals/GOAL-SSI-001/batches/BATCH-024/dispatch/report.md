@@ -6,12 +6,10 @@ BATCH-024: attempt checkable path-justified F_* ⊆ F inclusions on FC0-EXT-PKG-
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-067` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/f_sim_treatment.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/inclusion_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/inclusion_harness/f_sim_probe.py, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/inclusion_harness/harness_receipt.json, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/inclusion_harness/path_probe.py, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/inclusion_harness/procedure_driver.py, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/inclusion_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/inclusion_harness/scaffold_import.py, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/inclusion_harness/test_inclusion.py, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/inclusion_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067/path_justified_inclusions.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-067 |
+| `TASK-20260730-069` | red-team | queued | 80 | TASK-20260730-067, TASK-20260730-068 | coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-069/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-069/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-024/tasks/TASK-20260730-069 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-068`: dependency_not_completed:TASK-20260730-067:queued
-- `TASK-20260730-069`: dependency_not_completed:TASK-20260730-067:queued, dependency_not_completed:TASK-20260730-068:queued
 - `TASK-20260730-070`: dependency_not_completed:TASK-20260730-069:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-024: attempt checkable path-justified F_* ⊆ F inclusions on FC0-EXT-PKG-
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `37a31a9c647c1e8ed93df29e2605b908043bd24993b40203b4d7e51f2766af91`
+Plan SHA-256: `282bafea0b1011f521c6ced7fea479d1af8566c0e80a465e0f0399b7d4b533bc`
