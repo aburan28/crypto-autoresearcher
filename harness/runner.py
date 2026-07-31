@@ -100,6 +100,23 @@ def _verify(cert: dict) -> tuple[bool, str]:
     return False, f"unknown-kind:{kind}"
 
 
+def _inference_block() -> dict:
+    """Provenance for a harness run.
+
+    The harness executes a frozen protocol deterministically -- no model is in
+    the loop -- but AGENTS.md requires every run manifest to carry the same
+    inference fields as an agent-produced run, so the absence of a model is
+    recorded explicitly rather than by omission.
+    """
+    return {
+        "requested_policy": "executor-terra",
+        "resolved_model_id": "none (deterministic harness execution)",
+        "reasoning_effort": None,
+        "fallback_used": False,
+        "adapter_version": None,
+    }
+
+
 def write_run(exp_id: str, exp_area: str, result: RunResult, *,
               status: str, command: str, started: float, finished: float,
               out_root: str | None = None) -> str:
@@ -137,13 +154,7 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
             "experiment_id": exp_id,
             "status": final_status,
             "code": {"commit": commit, "dirty": dirty, "command": command},
-            "inference": {
-                "requested_policy": "executor-terra",
-                "resolved_model_id": "none (deterministic harness execution)",
-                "reasoning_effort": None,
-                "fallback_used": False,
-                "adapter_version": None,
-            },
+            "inference": _inference_block(),
             "environment": environment(),
             "inputs": {
                 "curve_id": result.curve_id,
