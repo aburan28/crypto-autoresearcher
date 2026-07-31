@@ -1260,6 +1260,7 @@ def run_sems1():
         t0 = time.time()
         lifts = {}
         families = {}
+        kernels = {}
         anchors = {}
         for D in (3, 4, 5):
             tagsD, prodsD, allcolsD, colidxD = build_rows(ms, degs, nb, D)
@@ -1271,6 +1272,7 @@ def run_sems1():
                 if len(pz) == 0:
                     fam.append(np.array([ix], dtype=np.int32))
             ker = left_kernel_positions(MD)
+            kernels[D] = ker
             rA, rt, lift = quotient_lift_positions(fam, ker, len(tagsD))
             lifts[D] = (tagsD, tag2idxD, lift)
             families[D] = fam
@@ -1289,15 +1291,17 @@ def run_sems1():
                 out["cells"] = [cell]
                 halt(8, "quotient size at D%d = %d != recorded %d — drift"
                      % (D, anchors[D]["quotient"], exp_q[D]), cell=cell)
-        # D5 closure anchor: A3_5 == 242, A4_5 == 444 via this machinery
+        # D5 closure anchor: A3_5 == 242, A4_5 == 444 via the PINNED
+        # EXP-SIG-003 link semantics: FULL left-kernel bases (kernel_3,
+        # kernel_4), monomial multiples embedded in the D5 row space,
+        # rank mod K5. (The earlier quotient-lift variant was method drift:
+        # A4_5 came out 242; fixed to the pinned full-kernel source.)
         t0 = time.time()
-        tags5, tag2idx5, _ = lifts[5]
-        _, _, lift3 = lifts[3]
-        _, _, lift4 = lifts[4]
+        tags5, tag2idx5 = lifts[5][0], lifts[5][1]
         m2 = [0] + COMBOS_LIST[1] + COMBOS_LIST[2]
         m1 = [0] + COMBOS_LIST[1]
-        f3_5, miss3 = images_of_int(lift3, lifts[3][0], tag2idx5, m2)
-        f4_5, miss4 = images_of_int(lift4, lifts[4][0], tag2idx5, m1)
+        f3_5, miss3 = images_of_int(kernels[3], lifts[3][0], tag2idx5, m2)
+        f4_5, miss4 = images_of_int(kernels[4], lifts[4][0], tag2idx5, m1)
         MK = m4ri_from_positions(families[5], len(tags5))
         MK.echelonize()
         rankK5 = int(MK.rank())
@@ -1325,10 +1329,10 @@ def run_sems1():
         log("sems1 s1: D5 closure anchor rankK5=%d A3_5=%d A4_5=%d pass=%s"
             % (rankK5, A3_5, A4_5, ok))
         cell["d35_anchors"] = anchors
-        # persist lifts for stage 4 (F-images) BEFORE marking stage 1 done
-        with open(WORK / "sem_lifts.pkl", "wb") as f:
-            pickle.dump({"lift3": lifts[3][2], "lift4": lifts[4][2],
-                         "lift5": lifts[5][2]}, f, protocol=4)
+        # persist FULL kernel bases for stage 4 (F-images) BEFORE stage 1 done
+        with open(WORK / "sem_kernels.pkl", "wb") as f:
+            pickle.dump({"k3": kernels[3], "k4": kernels[4],
+                         "k5": kernels[5]}, f, protocol=4)
         save_stage(1)
         if not ok:
             halt(8, "D5 closure anchor mismatch — method/instrument drift",
@@ -1404,14 +1408,14 @@ def run_sems1():
             gc.collect()
         tags6, prods6, allcols6, colidx6 = build_rows(ms, degs, nb, 6)
         tag2idx6 = {tg: ix for ix, tg in enumerate(tags6)}
-        with open(WORK / "sem_lifts.pkl", "rb") as f:
-            L = pickle.load(f)
+        with open(WORK / "sem_kernels.pkl", "rb") as f:
+            K = pickle.load(f)
         m3 = [0] + COMBOS_LIST[1] + COMBOS_LIST[2] + COMBOS_LIST[3]
         m2 = [0] + COMBOS_LIST[1] + COMBOS_LIST[2]
         m1 = [0] + COMBOS_LIST[1]
-        f3, miss3 = images_of_int(L["lift3"], tagsD[3], tag2idx6, m3)
-        f4, miss4 = images_of_int(L["lift4"], tagsD[4], tag2idx6, m2)
-        f5, miss5 = images_of_int(L["lift5"], tagsD[5], tag2idx6, m1)
+        f3, miss3 = images_of_int(K["k3"], tagsD[3], tag2idx6, m3)
+        f4, miss4 = images_of_int(K["k4"], tagsD[4], tag2idx6, m2)
+        f5, miss5 = images_of_int(K["k5"], tagsD[5], tag2idx6, m1)
         cell["F3_size"] = len(f3)
         cell["F4_size"] = len(f4)
         cell["F5_size"] = len(f5)
@@ -1433,61 +1437,160 @@ def run_sems1():
 # mode: sems2 — union ranks at D6 (rankK6, A3_6, A4_6, A5)
 # ==========================================================================
 def run_sems2():
+    # Single-process staged union ranks; NO m4ri pickling (rows*ncols >
+    # INT_MAX overflows the Sage 10.9 matrix pickle reduce -> segfault).
     cell = {"kind": "sems2", "n": N, "seed": SEED}
+    st_path = WORK / "sem_s2_state.json"
+    st = {"stage": int(0)}
+    if st_path.exists():
+        with open(st_path) as f:
+            st = json.load(f)
+
+    def save_stage(sn):
+        st["stage"] = int(sn)
+        with open(st_path.with_suffix('.tmp'), "w") as f:
+            json.dump(fsafe(st), f)
+        os.replace(st_path.with_suffix('.tmp'), st_path)
+        out["cells"] = [cell]
+        flush()
+
     with open(WORK / "sem_s1.pkl", "rb") as f:
         s1 = pickle.load(f)
-    with open(WORK / "sem_f345.pkl", "rb") as f:
-        F = pickle.load(f)
     nrows6 = s1["nrows"]
     tm = {}
+    if st["stage"] >= 2 and st.get("base_parts"):
+        t0 = time.time()
+        parts = []
+        for pi in range(st["base_parts"]):
+            with open(WORK / ("sem_s2_base_%02d.pkl" % pi), "rb") as f:
+                parts.append(pickle.load(f))
+        base = parts[0]
+        for Bp in parts[1:]:
+            base = base.stack(Bp)
+            del Bp
+        del parts
+        gc.collect()
+        rankK6 = st["rankK6"]
+        log("sems2: resumed base rank %d (%.1fs)"
+            % (int(base.rank()), time.time() - t0))
+        with open(WORK / "sem_f345.pkl", "rb") as f:
+            F = pickle.load(f)
+        t0 = time.time()
+        FM = m4ri_from_positions(F["f5"], nrows6)
+        C = base.stack(FM)
+        del base, FM
+        gc.collect()
+        C.echelonize()
+        st["A5"] = int(C.rank()) - rankK6
+        tm["ech_f5"] = round(time.time() - t0, 2)
+        st["tm"] = tm
+        log("sems2: A5=%d (%.1fs)" % (st["A5"], tm["ech_f5"]))
+        save_stage(3)
+        del C
+        gc.collect()
+        with open(WORK / "sem_rankK6.json") as f:
+            rk = json.load(f)["rankK6"]
+        cell["closure_D6"] = {"rankK6": rankK6, "A3_6": st["A3_6"],
+                              "A4_6": st["A4_6"], "A5": st["A5"],
+                              "m4ri_times": tm,
+                              "method": "reduction-free union rank (dense "
+                                        "m4ri), resumed for f5"}
+        cell["rankK6_matches_sems1"] = bool(rankK6 == rk)
+        log("sems2: rankK6=%d A3_6=%d A4_6=%d A5=%d"
+            % (rankK6, st["A3_6"], st["A4_6"], st["A5"]))
+        cell["status"] = "completed"
+        out["cells"].append(cell)
+        flush()
+        return
     t0 = time.time()
     M = m4ri_from_positions(s1["k6_pos"], nrows6)
     M.echelonize()
     rankK6 = int(M.rank())
-    tm["ech_k6"] = round(time.time() - t0, 2)
-    t0 = time.time()
+    st["rankK6"] = rankK6
     base = M.matrix_from_rows(list(range(rankK6)))
     del M
     gc.collect()
-    C = base.stack(m4ri_from_positions(F["f3"], nrows6))
+    tm["ech_k6"] = round(time.time() - t0, 2)
+    st["tm"] = tm
+    log("sems2 s1: rankK6=%d (%.1fs)" % (rankK6, tm["ech_k6"]))
+    save_stage(1)
+    with open(WORK / "sem_f345.pkl", "rb") as f:
+        F = pickle.load(f)
+    plan = [("f3", "A3_6", None), ("f4", "A4_6", None),
+            ("f5", "A5", 22000)]
+    for key, aname, chunk in plan:
+        if softcap_hit():
+            cell["status"] = "censored_softcap_before_%s" % key
+            cell["partial"] = {k: st[k] for k in ("rankK6", "A3_6", "A4_6")
+                               if k in st}
+            out["cells"] = [cell]
+            flush()
+            return
+        t0 = time.time()
+        vecs = F[key]
+        if chunk is None:
+            chunks = [vecs]
+        else:
+            chunks = [vecs[i:i + chunk] for i in range(0, len(vecs), chunk)]
+        ci = 0
+        for ch in chunks:
+            ci += 1
+            FM = m4ri_from_positions(ch, nrows6)
+            C = base.stack(FM)
+            del base, FM
+            gc.collect()
+            C.echelonize()
+            r1 = int(C.rank())
+            base = C.matrix_from_rows(list(range(r1)))
+            del C
+            gc.collect()
+            log("sems2: %s chunk %d/%d stacked, cum rank %d (%.1fs)"
+                % (key, ci, len(chunks), r1, time.time() - t0))
+            if key == "f5" and softcap_hit(275) and ci < len(chunks):
+                cell["status"] = "censored_softcap_mid_f5"
+                cell["partial"] = {k: st[k] for k in
+                                   ("rankK6", "A3_6", "A4_6") if k in st}
+                cell["f5_chunks_done"] = ci
+                out["cells"] = [cell]
+                flush()
+                return
+        st[aname] = int(base.rank()) - rankK6
+        tm["ech_" + key] = round(time.time() - t0, 2)
+        st["tm"] = tm
+        log("sems2: %s=%d (%.1fs)" % (aname, st[aname], tm["ech_" + key]))
+        save_stage(2)
+        if key == "f4":
+            r = int(base.rank())
+            part = 10000
+            for pi, b0 in enumerate(range(0, r, part)):
+                Bp = base.matrix_from_rows(
+                    list(range(b0, min(r, b0 + part))))
+                with open(WORK / ("sem_s2_base_%02d.pkl" % pi), "wb") as f:
+                    pickle.dump(Bp, f, protocol=4)
+                del Bp
+                gc.collect()
+            st["base_parts"] = (r + part - 1) // part
+            st["base_rank"] = r
+            save_stage(2)
+            log("sems2: base persisted in %d parts (rank %d)"
+                % (st["base_parts"], r))
+            if softcap_hit():
+                cell["status"] = "checkpointed_before_f5"
+                out["cells"] = [cell]
+                flush()
+                return
     del base
     gc.collect()
-    C.echelonize()
-    r3 = int(C.rank())
-    A3_6 = r3 - rankK6
-    tm["ech_f3"] = round(time.time() - t0, 2)
-    t0 = time.time()
-    base = C.matrix_from_rows(list(range(r3)))
-    del C
-    gc.collect()
-    C = base.stack(m4ri_from_positions(F["f4"], nrows6))
-    del base
-    gc.collect()
-    C.echelonize()
-    r4 = int(C.rank())
-    A4_6 = r4 - rankK6
-    tm["ech_f4"] = round(time.time() - t0, 2)
-    t0 = time.time()
-    base = C.matrix_from_rows(list(range(r4)))
-    del C
-    gc.collect()
-    C = base.stack(m4ri_from_positions(F["f5"], nrows6))
-    del base
-    gc.collect()
-    C.echelonize()
-    r5 = int(C.rank())
-    A5 = r5 - rankK6
-    tm["ech_f5"] = round(time.time() - t0, 2)
-    del C
-    gc.collect()
-    cell["closure_D6"] = {"rankK6": rankK6, "A3_6": A3_6, "A4_6": A4_6,
-                          "A5": A5, "m4ri_times": tm,
-                          "method": "reduction-free union rank (dense m4ri): "
-                                    "rank(K6 u F)-rank(K6)"}
     with open(WORK / "sem_rankK6.json") as f:
         rk = json.load(f)["rankK6"]
+    cell["closure_D6"] = {"rankK6": rankK6, "A3_6": st["A3_6"],
+                          "A4_6": st["A4_6"], "A5": st["A5"],
+                          "m4ri_times": tm,
+                          "method": "reduction-free union rank (dense m4ri): "
+                                    "rank(K6 u F)-rank(K6), single-process"}
     cell["rankK6_matches_sems1"] = bool(rankK6 == rk)
-    log("sems2: rankK6=%d A3_6=%d A4_6=%d A5=%d" % (rankK6, A3_6, A4_6, A5))
+    log("sems2: rankK6=%d A3_6=%d A4_6=%d A5=%d"
+        % (rankK6, st["A3_6"], st["A4_6"], st["A5"]))
     cell["status"] = "completed"
     out["cells"].append(cell)
     flush()

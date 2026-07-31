@@ -92,11 +92,36 @@ must name the missing gates instead of requesting promotion.
 ## Completion and pause
 
 Mark the persistent goal `completed` only when a committed Coordinator decision
-shows that a declared completion criterion was met. Mark it `paused` only when
-the user requests it or a committed decision records the stated scoped pause
-condition. A failed candidate, empty queue, timeout, or temporary lack of a
-promising idea does not complete the goal: record the narrowest result and add
-the next concrete action instead.
+shows that a declared completion criterion was met **and** the three-model
+closure quorum is satisfied. Mark it `paused` only when the user requests it or
+a committed decision records the stated scoped pause condition. A failed
+candidate, empty queue, timeout, or temporary lack of a promising idea does not
+complete the goal: record the narrowest result and add the next concrete action
+instead.
+
+### Closure quorum (AGENTS.md rule 13)
+
+Before any `status: completed` transition, collect **three** independent
+attestations into `completion_quorum.attestations`:
+
+1. Dispatch three review sessions on three **different** models. Distinctness is
+   judged on `resolved_model_id`, not the requested policy alias — if the
+   backend falls back and all three resolve to the same model, you do not have a
+   quorum and must say so rather than record one.
+2. Each session reads the committed evidence and decision records for itself,
+   sets `independent_session: true`, cites the exact record IDs it reviewed, and
+   returns `CONCUR` or `DISSENT` with a rationale.
+3. All three must `CONCUR`. A single `DISSENT` blocks closure and stands until a
+   new Coordinator decision supersedes it on the merits — do not outvote it, and
+   do not re-roll for a friendlier verdict.
+4. The ledger archive that sets `status: completed` also sets
+   `quorum_satisfied: true` and commits the attestations in the same commit.
+
+If three distinct models cannot be resolved, **do not close the goal**. Leave it
+`paused` with a concrete resume action and state plainly that closure was
+blocked on model availability, not on the research. `tools/validate_ledger.py`
+rejects a `completed` goal whose quorum is missing, short, correlated, or
+dissenting.
 
 ## Output after each batch
 

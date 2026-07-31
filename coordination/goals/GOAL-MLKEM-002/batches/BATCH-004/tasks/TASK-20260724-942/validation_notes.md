@@ -1,4 +1,4 @@
-# Validation notes — TASK-20260724-942 / EXP-MLKEM-007
+# Validation notes — TASK-20260724-942 / EXP-MLKEM-009
 
 Independent of Executor session. Snapshot basis: `226ea0cf` (TASK-20260724-941).
 

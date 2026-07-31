@@ -45,8 +45,26 @@ research work. This file wires that contract into Claude Code.
 7. The Coordinator makes isolated snapshot and ledger commits for declared
    research artifacts. A theory, run package, review report, or ledger record
    is not official until the dispatcher's post-commit verifier accepts it.
+8. A `GOAL-*` record reaches `status: completed` only on a three-model closure
+   quorum: three `CONCUR` attestations in `completion_quorum.attestations`
+   whose `resolved_model_id` values are pairwise distinct, with any single
+   `DISSENT` blocking closure. Distinctness is on the resolved model, not the
+   requested policy alias — three aliases falling back to one model is not a
+   quorum. Under this harness that fallback is the common case (see the model
+   policy note below), so closing a goal here usually requires deliberately
+   routing three different backends. If you cannot, leave the goal `paused` and
+   say so; never record an attestation you did not obtain. Enforced by
+   `check_goals` in `tools/validate_ledger.py`.
 
 ## Research direction
+
+Procedure for ideation and closure is anchored by `docs/inventor-protocol.md`
+(technique abstract: `knowledge/techniques/KN-TECH-056.md`): object-first
+generation, the lossy-projection test, null-object controls before belief, a
+real closure standard, and Pareto `dominated_by`/`sota_delta` honesty in every
+deliverable. It binds the idea-generator, validator, and red-team subagents.
+Premature closure — declining to search because a target looks saturated — is
+treated as a failure mode symmetric with overclaiming.
 
 Direction and taste are anchored by `docs/target-result-profile.md`, whose
 canonical exemplar is Wesolowski's p^{1/3+o(1)} supersingular-isogeny result
