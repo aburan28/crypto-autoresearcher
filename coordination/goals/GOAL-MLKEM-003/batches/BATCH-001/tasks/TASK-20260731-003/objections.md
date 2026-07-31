@@ -1,4 +1,4 @@
-# Red-team objections — EXP-MLKEM-015 / EV-MLKEM-015 / DEC-20260731-001
+# Red-team objections — EXP-MLKEM-015 / EV-MLKEM-015 / DEC-20260731-007
 
 - **Report id:** RT-20260731-001
 - **Task:** TASK-20260731-003 (GOAL-MLKEM-003, BATCH-001)
@@ -6,9 +6,9 @@
 - **Validator ref:** VAL-20260731-001 (`accept_with_qualifications`, `blocks_ledger_record: false`)
 - **Verdict:** `pass_with_constraints`
 - **blocks_ledger_record:** false
-- **Disposition on DEC-20260731-001 refine:** accept with constraints (refine stands; KN-FIND-015 promotion stands under scoped reading)
+- **Disposition on DEC-20260731-007 refine:** accept with constraints (refine stands; KN-FIND-015 promotion stands under scoped reading)
 
-Independence: this session did not author EXP-MLKEM-015, EV-MLKEM-015, DEC-20260731-001, KN-FIND-015, or VAL-20260731-001. Inference: `requested_policy=review-xhigh`, `resolved_model_id=cursor-grok-4.5`, `fallback_used=true`, `independent_session=true`.
+Independence: this session did not author EXP-MLKEM-015, EV-MLKEM-015, DEC-20260731-007, KN-FIND-015, or VAL-20260731-001. Inference: `requested_policy=review-xhigh`, `resolved_model_id=cursor-grok-4.5`, `fallback_used=true`, `independent_session=true`.
 
 Attack lines challenged: cost-model sleight of hand; equating LE MATZOV dual with Carrier polar repair; NIST pressure as break; MLWE vs LWE; whether KN-OPEN-016 is advanced.
 

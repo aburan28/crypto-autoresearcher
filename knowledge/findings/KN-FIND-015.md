@@ -18,7 +18,7 @@ tags:
 confidence: provisional
 internal_refs:
 - EV-MLKEM-015
-- DEC-20260731-001
+- DEC-20260731-007
 - EXP-MLKEM-015
 - H-MLKEM-014
 - RUN-MLKEM-015-001

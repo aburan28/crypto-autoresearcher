@@ -19,7 +19,7 @@ internal_refs:
 - EXP-MLKEM-010
 - H-MLKEM-010
 - RUN-MLKEM-010-001
-- DEC-20260731-002
+- DEC-20260731-008
 proof_status: empirical_only
 proof_refs:
 - experiments/EXP-MLKEM-010/runs/RUN-MLKEM-010-001/results.json
