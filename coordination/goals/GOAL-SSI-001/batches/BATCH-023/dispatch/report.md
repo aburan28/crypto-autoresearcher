@@ -6,7 +6,7 @@ BATCH-023: deepen F_* composition and peak-stage live-set accounting against FC0
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-063` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/f_star_composition.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/peak_live_set_accounting.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063 |
+| `TASK-20260730-063` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/f_star_probe.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/harness_receipt.json, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/peak_live_set_probe.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/scaffold_import.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_harness/test_composition.py, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/composition_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/f_star_composition.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063/peak_live_set_accounting.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-023/tasks/TASK-20260730-063 |
 
 ## Deferred or Blocked
 
@@ -27,4 +27,4 @@ BATCH-023: deepen F_* composition and peak-stage live-set accounting against FC0
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `7a9855510baa1fc030b043b5c3a7c7178e45320727c382b09a57d463e8cb04e5`
+Plan SHA-256: `fb9237ca275bde324d1c5d8ad086169f0e1b8d3226d7a3c2620bd3dbd30d5b93`
