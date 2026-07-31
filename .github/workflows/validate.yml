@@ -28,6 +28,19 @@ jobs:
       - name: Check the local entry point is usable
         run: python3 -m orchestration doctor || true
 
+      # Runs BEFORE the ledger validator, and is absolute rather than diffed
+      # against the base. The step below can only compare error sets, and a
+      # record that does not parse cannot be schema-checked -- so corrupting
+      # one REMOVES errors and reads as an improvement. Nine files reached
+      # main holding literal conflict markers through exactly that gap.
+      - name: Merge hygiene — conflict markers, parseability, id collisions
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python3 tools/check_merge_hygiene.py --base "origin/${{ github.base_ref }}"
+          else
+            python3 tools/check_merge_hygiene.py
+          fi
+
       - name: Validate ledger, experiments, and run records
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then

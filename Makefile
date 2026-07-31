@@ -29,11 +29,22 @@ help:
 	@echo "  make eval-held-out   held-out split — spend this sparingly"
 	@echo "  make baseline SUITE=capability FROM=evals/results/<stamp>/capability"
 
-install:
+install: hooks
 	TMPDIR=$$(mktemp -d /tmp/autoresearch-build.XXXXXX) \
 		$(PYTHON) -m pip install -e ".[agent,dev]"
 	@echo
 	@$(PYTHON) -m orchestration doctor || true
+
+# CI is the backstop, not the gate: workflows from a new contributor sit in
+# "awaiting approval" and did not run at all on the two PRs that corrupted
+# nine records. The local hook is what actually catches a half-finished merge,
+# so it is installed by default rather than opted into.
+hooks:
+	@mkdir -p .git/hooks
+	@printf '#!/bin/sh\nexec python3 tools/check_merge_hygiene.py\n' \
+		> .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "installed .git/hooks/pre-commit (merge hygiene)"
 
 doctor:
 	@$(PYTHON) -m orchestration doctor
@@ -46,6 +57,7 @@ check: check-harness check-ledger
 # What this toolchain owns. Green means your setup is good.
 check-harness:
 	$(PYTHON) -m orchestration.adapter doctor
+	$(PYTHON) tools/generate_runtime_agents.py --check
 	$(PYTHON) tools/check_runtime_bindings.py
 	@for suite in evals/suites/*.yaml; do \
 		case "$$suite" in */._*) continue ;; esac; \
@@ -57,9 +69,16 @@ check-harness:
 # Research-record integrity. Currently RED for a pre-existing reason: literature
 # entries seeded before `tags` became required are missing it. Kept separate so
 # a newcomer can tell "my install is broken" from "this repo has an open issue".
-check-ledger:
+check-ledger: check-merge
 	$(PYTHON) tools/validate_ledger.py
 	$(PYTHON) tools/check_run_immutability.py
+
+# Absolute gate, and deliberately ordered first: conflict markers and
+# unparseable records make every check after this one meaningless. A record
+# that does not parse cannot be schema-checked, so breaking it REMOVES
+# validator errors -- which a relative gate reads as an improvement.
+check-merge:
+	$(PYTHON) tools/check_merge_hygiene.py --base origin/main
 
 test:
 	$(PYTHON) -m pytest -q
