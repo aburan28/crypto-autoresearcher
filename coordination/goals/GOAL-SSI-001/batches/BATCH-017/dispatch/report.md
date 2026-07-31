@@ -6,12 +6,10 @@ BATCH-017: implement recovery and object-lifetime tracing gate for QM-MEMORY-MAP
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-039` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-039/lifetime_trace.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-039/component_to_F_map.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-039/gate_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-039/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-039/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-039 |
+| `TASK-20260730-041` | red-team | queued | 80 | TASK-20260730-039, TASK-20260730-040 | coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-041/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-041/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-041 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-040`: dependency_not_completed:TASK-20260730-039:queued
-- `TASK-20260730-041`: dependency_not_completed:TASK-20260730-039:queued, dependency_not_completed:TASK-20260730-040:queued
 - `TASK-20260730-042`: dependency_not_completed:TASK-20260730-041:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-017: implement recovery and object-lifetime tracing gate for QM-MEMORY-MAP
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a627d799a3235774a553dda6685d2a0852b8894e666312a5037f13099494dbe6`
+Plan SHA-256: `b7afaa36779795c8f16c9efd37a9409109b51b44ebe129352f68dad2e2eff743`
