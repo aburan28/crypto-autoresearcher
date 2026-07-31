@@ -5,7 +5,7 @@ title: Automated trail search (MILP / SAT / SMT / CP) and the reporting gap betw
 tags: [automated-search, milp, sat, smt, constraint-programming, trail-search, active-sboxes, model-correctness, clustering-effect, search-hygiene, tooling, symmetric-cryptanalysis, symmetric, adjacent]
 confidence: established
 complexity: "no closed-form cost: the output is a solver verdict on an encoding, and run time is instance-specific. A proved-optimal trail bounds only trails, never the differential or hull that an attack exploits"
-applicability: searching for differential/linear trails, active-S-box lower bounds, impossible-differential and zero-correlation distinguishers, division-property propagation, and cube selection; the standard implementation layer beneath most of KN-TECH-062 through KN-TECH-074
+applicability: searching for differential/linear trails, active-S-box lower bounds, impossible-differential and zero-correlation distinguishers, division-property propagation, and cube selection; the standard implementation layer beneath most of KN-TECH-062 through KN-TECH-074, KN-TECH-077, and KN-TECH-079
 source_refs: [KN-TECH-062, KN-TECH-063, KN-TECH-064, KN-TECH-068, KN-TECH-069, KN-TECH-074, KN-LIT-385, KN-LIT-2644, KN-LIT-2567, KN-LIT-2646, KN-LIT-3896, KN-LIT-1034, KN-LIT-3165, KN-LIT-2927, KN-LIT-4389, KN-LIT-5934, KN-LIT-3730, KN-LIT-2642]
 added: 2026-07-31
 superseded_by: null
