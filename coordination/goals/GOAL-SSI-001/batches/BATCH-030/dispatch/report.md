@@ -6,11 +6,11 @@ BATCH-030: construct a checkable symbolic history-uniform / summable-tail obliga
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-093` | red-team | queued | 80 | TASK-20260730-091, TASK-20260730-092 | coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-093/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-093/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-093 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-094`: dependency_not_completed:TASK-20260730-093:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-030: construct a checkable symbolic history-uniform / summable-tail obliga
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `d39cb1ef66cb83c28d241bffdf92861e82191c1b0941f325e19a5b232b96edbb`
+Plan SHA-256: `8a187893ee215c704b1fff9596786b6851178079b9eeb1520931fb7422571f03`
