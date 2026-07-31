@@ -1,0 +1,242 @@
+red_team_report:
+  id: RT-20260730-003
+  task_id: TASK-20260730-003
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-015
+  role: red-team
+  reviewed_at_head: 230a1734f78943a6cf5671fbf14d341e2d11aa72
+  reviewed_branch: claude/ecdlp-b011
+  reviewed_worktree: /Volumes/Volume/crypto-autoresearcher-worktrees/ecdlp-resume
+  snapshot_commit: 0122174582bff55f660e4488c55f1054d1ee333a
+  snapshot_parent: 06f37d31382d767f51f93fbddf4e06c04b6e14ef
+  governing_record: ledger/decisions/DEC-20260729-004.yaml
+  claim_under_review: >-
+    Producer package EXP-STR-005 / TASK-20260730-001: CTRL-1 PASS_CTRL4;
+    CTRL-2 FAIL_SUPPLY_OR_FB_SHORT with shortfall≥2 at L12/E_prime, L13/A_prime,
+    L13/E_prime; stand_down_basis_defective_on_committed_code=true.
+
+  verdict: REVISE
+  verdict_summary: >-
+    CTRL-1 PASS is confirmed. CTRL-2 FAIL and stand_down_basis_defective=true
+    are NOT licensed: the probe set num_targets=R_base instead of the RT35-CTRL-2
+    / EXP-STR-004 quota Q(B)=max(60,B+10), under-sampling the small-B cells by
+    ~12x and exhausting the 5*R_base attempt cap exactly where shortfalls appear.
+    Do not reopen execution on this artifact; re-run CTRL-2 with Q(B) first.
+    No H-STR-002 mechanism claim and no claim-tier inflation were found.
+
+  independence:
+    independent_session: true
+    non_originating: true
+    attestation: >-
+      This session authored nothing in TASK-20260730-001, TASK-20260730-002, or
+      EXP-STR-005. It did not write the probe driver, results, execution report,
+      or snapshot receipt. Distinct from the producer/executor session.
+    inference_record:
+      requested_policy: review-adversarial
+      requested_policy_alias_noted: review-xhigh
+      reasoning_effort_requested: xhigh
+      resolved_model_id: cursor-grok-4.5-high-fast
+      model_verified: false
+      model_verified_note: >-
+        NOT probe-verified by this session. No
+        `python3 -m orchestration.adapter doctor --probe` was run.
+      fallback_used: true
+      fallback_reason: >-
+        review-xhigh / review-adversarial preferred backends unavailable in this
+        runtime; session ran as cursor-grok-4.5-high-fast fallback. Recorded
+        honestly per AGENTS.md model policy.
+      independent_session: true
+      degraded_requirements:
+        - >-
+          reasoning_effort xhigh is not separately settable here; requested
+          effort recorded, delivered effort is the runtime default for the
+          resolved model.
+
+  integrity_checks:
+    snapshot_reachable_from_HEAD: true
+    method: >-
+      git cat-file -t; git merge-base --is-ancestor
+      0122174582bff55f660e4488c55f1054d1ee333a HEAD; SHA-256 recompute of
+      working-tree bytes; git rev-parse / git hash-object blob identity vs
+      snapshot tree.
+    path_sha256_recomputed:
+      experiments/EXP-STR-005/driver/rt35_probe.py: >-
+        986dde356cdde2ff19acfd4435e2932c22cd4e611d9bea9398644221322be0e8
+      experiments/EXP-STR-005/results/probe_results.json: >-
+        0700dd33f86c32ecd80ce433496709d5c52cf407b1613c7cce04d5bbdfa425d5
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/tasks/TASK-20260730-001/execution_report.md: >-
+        aff13edc4203de13e838a438c77823381fb15039ee93d8f0966c78f55e539fee
+    path_sha256_match_dispatch_queue_archive: true
+    blob_identity_vs_snapshot: true
+    note_on_receipt: >-
+      archives/TASK-20260730-002/snapshot-receipt.json still shows
+      commit_sha:null and verification.status:pending_post_commit, while
+      dispatch_queue.json archive block records commit_sha
+      0122174582bff55f660e4488c55f1054d1ee333a. Integrity is verified against
+      Git and the queue hashes; the receipt file itself is stale relative to
+      the completed snapshot commit. Not treated as a probe-math defect.
+
+  producer_claim_reading:
+    ctrl1_claimed: PASS_CTRL4
+    ctrl2_claimed: FAIL_SUPPLY_OR_FB_SHORT
+    shortfall_ge_2_cells_claimed:
+      - {cell: L12, arm: E_prime_random_fb, shortfall: 4}
+      - {cell: L13, arm: A_prime_phi_invariant_fb, shortfall: 2}
+      - {cell: L13, arm: E_prime_random_fb, shortfall: 4}
+    stand_down_basis_defective_claimed: true
+    claim_tier_claimed: toy
+    mechanism_claim_present: false
+
+  focus_1_collection_budget_fidelity:
+    question: >-
+      Is num_targets=R_base with attempts≤5*R_base a faithful reading of
+      DEC-20260729-004 / RT35-CTRL-2 supply probe, or does it under-sample and
+      falsely fire shortfall?
+    answer: UNDER-SAMPLES AND CAN FALSELY FIRE SHORTFALL
+    binding_definitions:
+      RT35_CTRL_2_from_BATCH014_red_team: >-
+        call _collect_relations(inst, fb, m, Q(B)) with
+        include_phi_orbits=False; report len(relations) against R_base(B).
+      EXP_STR_004_collection_quota: >-
+        Q(B)=max(60, B+10) as num_targets. Floor of 60 declared expressly
+        because at small B the harness allowance 5*num_targets otherwise leaves
+        too few candidates to make R_base base rows probable
+        (specification.yaml collection_quota).
+      DEC_20260729_004_next_action: >-
+        Names RT35-CTRL-1 and RT35-CTRL-2 jointly; SUPPLY limb says call
+        _collect_relations with orbit closure DISABLED and report len(relations)
+        against R_base(B) (and distinct-target count). Incorporates CTRL-2 by
+        name; does not authorize substituting R_base for Q(B).
+      harness_loop: >-
+        endomorphism_la._collect_relations loops range(num_targets*5) and breaks
+        when len(relations)>=num_targets. Quota sets both stop and search
+        allowance.
+    what_the_probe_did: >-
+      rt35_probe.py line ~98: num_targets=R_base. At B=12/13 that is 5/6, so
+      attempt cap 25/30 — not Q=60 with cap 300.
+    evidence_of_false_fire_pattern:
+      - >-
+        All three shortfall≥2 rows exhausted the R_base attempt cap
+        (attempts=25,30,30 = 5*R_base).
+      - >-
+        L12/A_prime also shortfall=1 at attempts=25 (cap) — same pattern, below
+        the ≥2 trigger.
+      - >-
+        Naive constant-rate extrapolation to Q-budget (300 attempts): L12/E
+        hit_rate 0.04 → ~12 expected hits vs R_base=5; L13/A 0.133 → ~40 vs 6;
+        L13/E 0.067 → ~20 vs 6. Fills are likely under the declared quota; the
+        FAIL is not established as a supply defect on committed code under
+        RT35-CTRL-2.
+      - >-
+        Larger-B and m=3 cells fill under R_base targets — failure concentrates
+        exactly where EXP-STR-004's Q floor was designed to protect.
+    severity: BLOCKING on CTRL-2 disposition and stand_down_basis_defective
+
+  focus_2_fail_triggers_reopen_without_mechanism_claim:
+    question: >-
+      Does FAIL correctly trigger reopen of the execution question without
+      claiming an H-STR-002 mechanism result?
+    answer: >-
+      PROCEDURE SHAPE IS RIGHT; TRIGGER FIRING IS NOT. IF a faithful CTRL-2
+      FAIL occurred, DEC-20260729-004 pre-registers reopen of the execution
+      question on the merits, without adjudicating H-STR-002's mechanism. The
+      producer correctly fences mechanism (claim_tier toy; what_this_is_not).
+      BUT because CTRL-2 was not the declared supply probe, FAIL must not fire
+      that reopen from this package.
+    producer_fencing_ok:
+      - claim_tier: toy
+      - no_alpha_ladder_driver_rank_cost: true
+      - not_H_STR_002_mechanism_test: true
+    reopen_licensed_by_this_package: false
+
+  focus_3_overclaim_and_claim_tier:
+    claim_tier_inflation: NOT FOUND
+    mechanism_overclaim: NOT FOUND
+    falsification_trigger_inflation: FOUND
+    detail: >-
+      stand_down_basis_defective_on_committed_code=true overclaims relative to
+      the pre-registered falsifier. That boolean is licensed only by a faithful
+      RT35-CTRL-1/2 probe. CTRL-1 PASS alone does not set it; CTRL-2 under
+      num_targets=R_base does not. Setting the flag here is disposition
+      inflation, not tier inflation. Distinct-target count required by DEC was
+      also not reported (minor omission beside the budget defect).
+
+  ctrl1_independent_reading:
+    disposition: CONFIRM_PASS_CTRL4
+    checks:
+      B_192: {len_F: 192, len_equals_B: true, orbit_block_ok: true, short_list: false}
+      B_193: {len_F: 193, len_equals_B: true, orbit_block_ok: true, short_list: false}
+    note: >-
+      Structure probe at B=192/193 matches CTRL-4 / RT35-CTRL-1. Does not by
+      itself establish or refute stand-down basis defectiveness.
+
+  ctrl2_independent_reading:
+    disposition_as_faithful_RT35_CTRL_2: REJECT_AS_INVALID_BUDGET
+    arithmetic_under_probe_budget_as_run: >-
+      Recomputed shortfall = max(0, R_base - len(relations)) matches JSON for
+      all 28 rows; n_shortfall_ge_2=3; n_fb_short=0; R_base=(B+2)//3+1 holds.
+    meaning: >-
+      The numbers are consistent with the code that was run. They are not a
+      faithful measurement of the supply condition DEC/RT35-CTRL-2 asked for.
+
+  objections:
+    - id: RT36-1
+      severity: BLOCKING
+      title: CTRL-2 used num_targets=R_base instead of Q(B)=max(60,B+10)
+      detail: >-
+        Violates RT35-CTRL-2 and EXP-STR-004 collection_quota. Under-samples
+        small-B cells (~12x fewer attempts) and falsely enables shortfall≥2.
+    - id: RT36-2
+      severity: BLOCKING
+      title: stand_down_basis_defective_on_committed_code=true is not licensed
+      detail: >-
+        Pre-registered falsifier requires faithful CTRL-1/2. CTRL-2 invalid;
+        flag must stay false / unset for ledger purposes until re-probe.
+    - id: RT36-3
+      severity: MAJOR
+      title: Shortfall cells are exactly attempt-cap exhausted
+      detail: >-
+        L12/E, L13/A, L13/E all stop at attempts=5*R_base with unmet R_base.
+        Diagnostic of budget starvation, not established collector/FB collapse.
+    - id: RT36-4
+      severity: MINOR
+      title: Distinct-target count not reported
+      detail: >-
+        DEC SUPPLY limb asks len(relations) against R_base and measured
+        distinct-target count. Probe omits the latter.
+    - id: RT36-5
+      severity: INFORMATIONAL
+      title: Snapshot receipt file not post-commit-finalized
+      detail: >-
+        receipt commit_sha null / pending_post_commit vs queue-recorded
+        01221745…; Git verifies the snapshot. Coordinator hygiene, not probe math.
+
+  narrowest_supported_statement: >-
+    On snapshot 0122174582bff55f660e4488c55f1054d1ee333a, committed
+    _build_phi_invariant_factor_base on CURVE-J12S1 returns length-B
+    orbit-blocked lists at B=192 and B=193 (CTRL-1 PASS). The same snapshot's
+    CTRL-2 run collected relations with num_targets=R_base (attempts≤5*R_base)
+    and observed shortfall≥2 at three small-B arm-cells under that reduced
+    budget. THAT DOES NOT ESTABLISH a base-row supply shortfall under
+    RT35-CTRL-2 / Q(B), DOES NOT license stand_down_basis_defective=true, and
+    DOES NOT adjudicate H-STR-002. Claim tier toy. Artifact class observation
+    under a non-faithful supply budget.
+
+  recommended_coordinator_actions:
+    - >-
+      Do NOT treat stand_down_basis_defective_on_committed_code as true in
+      DEC-20260730-001 / EV-STR-005 on the strength of this package alone.
+    - >-
+      Successor probe: identical cells/arms, include_phi_orbits=False,
+      num_targets=Q(B)=max(60,B+10); report len(relations), hits, attempts,
+      distinct-target count, shortfall vs R_base; then re-evaluate the
+      pre-registered falsifier.
+    - >-
+      Keep CTRL-1 PASS; no alpha/ladder/driver/rank/cost; no H-STR-002 mechanism
+      claim.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/tasks/TASK-20260730-003/red_team_report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/tasks/TASK-20260730-003/falsification_review.md
+
+  no_commit_performed: true
