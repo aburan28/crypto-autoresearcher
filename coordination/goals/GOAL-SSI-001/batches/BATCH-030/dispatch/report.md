@@ -6,12 +6,10 @@ BATCH-030: construct a checkable symbolic history-uniform / summable-tail obliga
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-091` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-091/history_uniform_tail_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-091/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-091/tail_obligation_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-091/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-091/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-091 |
+| `TASK-20260730-093` | red-team | queued | 80 | TASK-20260730-091, TASK-20260730-092 | coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-093/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-093/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-030/tasks/TASK-20260730-093 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-092`: dependency_not_completed:TASK-20260730-091:queued
-- `TASK-20260730-093`: dependency_not_completed:TASK-20260730-091:queued, dependency_not_completed:TASK-20260730-092:queued
 - `TASK-20260730-094`: dependency_not_completed:TASK-20260730-093:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-030: construct a checkable symbolic history-uniform / summable-tail obliga
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `160b606912df5c6a23b4d60705adc4e4b42d0af1746b8b698129a07ba3ad2e01`
+Plan SHA-256: `d39cb1ef66cb83c28d241bffdf92861e82191c1b0941f325e19a5b232b96edbb`
