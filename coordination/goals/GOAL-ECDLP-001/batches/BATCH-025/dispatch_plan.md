@@ -1,17 +1,16 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-025 structure-null-r2 after APPROVED b27db960: run snapshotted; Val+RT; ledger EV-DS-008/DEC-20260731-028. Toy ceiling. No EXP-IT launder. No STR.
+BATCH-025 EXP-IT RC-25b CLOSED as design-path non-execution (DEC-20260731-028 / TASK-110 NOT APPROVED / 1cb3c6c4 after RT-109 second REVISE). B-5–B-8 open for BATCH-026 fresh amend outside RC-25b. No EXP-IT Executor. H-IT-001 specified; H-DS-001 analyzed. Toy ceiling. No STR. No push.
 
 ## Ready Tasks
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-100` | validator | running | 70 | TASK-20260731-098, TASK-20260731-099 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-100/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-100 |
-| `TASK-20260731-101` | red-team | running | 70 | TASK-20260731-098, TASK-20260731-099 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-101/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260731-101 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-102`: dependency_not_completed:TASK-20260731-100:running, dependency_not_completed:TASK-20260731-101:running
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-025 structure-null-r2 after APPROVED b27db960: run snapshotted; Val+RT; le
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `3e3d02bb1d0cf6e4d5a3386424d4ecb7f9a308c92955c800e4c7762cc94fc993`
+Plan SHA-256: `54d13e1ce27aa0a0e3f39867f5fdcd2cc34f0262193151fc7d12e6886f4d3411`
