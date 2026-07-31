@@ -6,11 +6,10 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-041` | coordinator | queued | 95 | TASK-20260731-040 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260731-041/snapshot_commit_receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260731-041 |
+| `TASK-20260731-042` | reviewer | queued | 90 | TASK-20260731-040, TASK-20260731-041 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-042/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-042/derivation_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-042 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-042`: dependency_not_completed:TASK-20260731-041:queued
 - `TASK-20260731-043`: dependency_not_completed:TASK-20260731-042:queued
 - `TASK-20260731-044`: dependency_not_completed:TASK-20260731-043:queued
 - `TASK-20260731-045`: dependency_not_completed:TASK-20260731-044:queued
@@ -31,4 +30,4 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `912a00000d2ad923173cc538637e35fbd5d2646bd575fda690d37933872b56bd`
+Plan SHA-256: `eaa786f51e8d4e7ba5d0c5cd85079a59c6e8087cecd52053feb058e9c75f8600`
