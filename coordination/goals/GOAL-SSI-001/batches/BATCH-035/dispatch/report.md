@@ -6,11 +6,10 @@ BATCH-035: construct a checkable symbolic peak-byte bound obligation schema ledg
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-112` | coordinator | queued | 90 | TASK-20260730-111 | coordination/goals/GOAL-SSI-001/batches/BATCH-035/archives/TASK-20260730-112/snapshot-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-035/archives/TASK-20260730-112 |
+| `TASK-20260730-113` | red-team | queued | 80 | TASK-20260730-111, TASK-20260730-112 | coordination/goals/GOAL-SSI-001/batches/BATCH-035/tasks/TASK-20260730-113/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-035/tasks/TASK-20260730-113/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-035/tasks/TASK-20260730-113 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-113`: dependency_not_completed:TASK-20260730-112:queued
 - `TASK-20260730-114`: dependency_not_completed:TASK-20260730-113:queued
 
 ## Dispatch Gates
@@ -26,4 +25,4 @@ BATCH-035: construct a checkable symbolic peak-byte bound obligation schema ledg
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a8dae293b8890683cd6079074eede18cfc03572385b6c6b961153880c6189287`
+Plan SHA-256: `f5ef8fa8b3c701870d8ac019bfa8e30223bf96262b30f8b4084be839741e1ce3`
