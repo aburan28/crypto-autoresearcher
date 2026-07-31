@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7699 entries.
+7711 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7392,6 +7392,15 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7619 | FAEST reference implementation (faest-ref) | literature | reported | true | faest reference-implementation source-code digital-signatures aes vole-in-the-head meson c post-quantum primary-source |
 | KN-LIT-762 | Far Field EM Side-Channel Attack on AES Using Deep Learning | literature | reported | read | cryptanalysis side-channel symmetric |
 | KN-LIT-7620 | NIST IR 8610: Status Report on the Second Round of the Additional Digital Signature Schemes for the NIST Post-Quantum Cryptography Standardization Process | literature | reported | true | nist pqc additional-digital-signatures round-3 status-report standardization faest primary-source |
+| KN-LIT-7621 | The Arithmetic of Elliptic Curves (2nd ed.) | literature | established | web | elliptic-curve formal-group height neron-tate mordell-weil finite-field local-field textbook foundational number-theory |
+| KN-LIT-7622 | Heegner points and derivatives of L-series | literature | reported | web | heegner-point l-function height neron-tate modular-forms modular-curve bsd mordell-weil foundational number-theory |
+| KN-LIT-7623 | Formal complex multiplication in local fields | literature | reported | web | lubin-tate formal-group local-field complex-multiplication class-field-theory p-adic foundational number-theory |
+| KN-LIT-7624 | Endomorphisms of abelian varieties over finite fields | literature | reported | web | abelian-variety endomorphism tate-module isogeny finite-field honda-tate foundational number-theory algebraic-geometry |
+| KN-LIT-7625 | Isogeny classes of abelian varieties over finite fields | literature | reported | web | abelian-variety isogeny honda-tate weil-number finite-field frobenius foundational number-theory algebraic-geometry |
+| KN-LIT-7626 | Abelian varieties over finite fields | literature | reported | web | abelian-variety endomorphism isogeny honda-tate finite-field ordinary supersingular polarization foundational number-theory algebraic-geometry |
+| KN-LIT-7627 | Néron Models | literature | reported | web | neron-model abelian-variety jacobian picard-functor reduction scheme algebraic-geometry foundational number-theory |
+| KN-LIT-7628 | Abelian varieties | literature | reported | web | abelian-variety polarization dual-abelian-variety theta scheme algebraic-geometry foundational textbook |
+| KN-LIT-7629 | A First Course in Modular Forms | literature | reported | web | modular-forms modular-curve hecke eichler-shimura galois-representation moduli jacobian textbook foundational number-theory |
 | KN-LIT-763 | FAST COMPUTATION OF ELLIPTIC CURVE ISOGENIES IN CHARACTERISTIC TWO | literature | reported | read | binary-field elliptic-curve finite-field isogeny |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny pairing sidh-csidh |
 | KN-LIT-765 | Finding Elliptic Curves With Many Integral Points arXiv:2012.06233v1 [math.NT] 11 Dec 2020 Benjamin Jones | literature | reported | read | elliptic-curve |
@@ -7706,3 +7715,6 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-056 | Object-first invention protocol — tracked-object search with forbidden families, controlled nulls, mandatory closures, and Pareto-domination honesty | technique | reported |  | methodology research-protocol agentic-harness tracked-object negative-closure control-experiment pareto-domination sota-honesty deliverable-schema prior-art-triage saturation-discipline inventor |
 | KN-TECH-057 | Full-cost matched baselines for classical supersingular path-finding (Wiener 3D wiring model applied to MITM, Delfs-Galbraith, and van Oorschot-Wiener collision search on the isogeny graph) | technique | derivation_confirmed |  | isogeny-problem path-finding full-cost wiener-model mitm delfs-galbraith van-oorschot-wiener collision-search distinguished-points matched-baseline cost-model isogeny |
 | KN-TECH-058 | Supersingular isogeny-problem baselines, corrected against archived primary text (supersedes KN-TECH-029's classical F_p^2 figure) | technique | reported |  | isogeny-problem path-finding endomorphism-ring meet-in-the-middle claw-finding cost-model corpus-currency supersession isogeny adjacent |
+| KN-TECH-059 | Formal groups of elliptic curves | technique | established |  | formal-group elliptic-curve p-adic anomalous logarithm lubin-tate local-field foundational number-theory |
+| KN-TECH-060 | Néron–Tate canonical heights on elliptic curves and abelian varieties | technique | established |  | height neron-tate mordell-weil heegner-point bsd xedni lattice foundational number-theory |
+| KN-TECH-061 | Honda–Tate classification of abelian varieties over finite fields | technique | established |  | honda-tate abelian-variety isogeny weil-number frobenius endomorphism finite-field foundational number-theory algebraic-geometry |
