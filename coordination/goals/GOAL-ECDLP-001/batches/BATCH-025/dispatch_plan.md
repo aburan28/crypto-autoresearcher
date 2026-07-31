@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-025 EXP-IT RC-25b CLOSED as design-path non-execution (DEC-20260731-028 / TASK-110 NOT APPROVED / 1cb3c6c4 after RT-109 second REVISE). B-5–B-8 open for BATCH-026 fresh amend outside RC-25b. No EXP-IT Executor. H-IT-001 specified; H-DS-001 analyzed. Toy ceiling. No STR. No push.
+BATCH-025 structure-null-r2 CLOSED inconclusive (EV-DS-008 / DEC-20260731-029).
 
 ## Ready Tasks
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `54d13e1ce27aa0a0e3f39867f5fdcd2cc34f0262193151fc7d12e6886f4d3411`
+Plan SHA-256: `c79a8d58b546a1a266b22423eec78cfd91616e94cb7e7c61dd3c97ad393ee083`
