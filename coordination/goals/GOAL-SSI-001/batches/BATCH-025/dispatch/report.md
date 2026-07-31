@@ -6,7 +6,7 @@ BATCH-025: construct a checkable symbolic F-union / operational-error compositio
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-071` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/f_union_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/operational_error_composition.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/composition_ledger_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071 |
+| `TASK-20260730-071` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/composition_ledger_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/composition_ledger_harness/composition_rules.py, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/composition_ledger_harness/harness_receipt.json, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/composition_ledger_harness/membership_rules.py, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/composition_ledger_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/composition_ledger_harness/test_composition_ledger.py, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/composition_ledger_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/f_union_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071/operational_error_composition.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-025/tasks/TASK-20260730-071 |
 
 ## Deferred or Blocked
 
@@ -27,4 +27,4 @@ BATCH-025: construct a checkable symbolic F-union / operational-error compositio
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a77ca6b0991d5026bb50afffe490ca67ec941dce2734db3348f638bf24c3bcd0`
+Plan SHA-256: `55728b287ee0b7e8ffb2c40f68d61a1dee3adeabfc885695dad529373d22a830`
