@@ -30,4 +30,4 @@ BATCH-022 residual-control theater-r2 under SG-ECDLP-001: author PA-DS-001-v2-ct
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `f4a096cee873452b28a38ef4cb889aba77fe6442db3d21ecf0226b6416560a3e`
+Plan SHA-256: `5bb98c9386296326723efa310d405a6e92d0d36150eb13d7ba2b37836a3ff990`
