@@ -6,11 +6,10 @@ BATCH-015 RT35-CTRL-1/2 probe; reopen execution question iff pre-registered fals
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-002` | coordinator | queued | 90 | TASK-20260730-001 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/archives/TASK-20260730-002/snapshot-receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/archives/TASK-20260730-002 |
+| `TASK-20260730-003` | red-team | queued | 80 | TASK-20260730-001, TASK-20260730-002 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/tasks/TASK-20260730-003/red_team_report.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/tasks/TASK-20260730-003/falsification_review.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-015/tasks/TASK-20260730-003 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-003`: dependency_not_completed:TASK-20260730-002:queued
 - `TASK-20260730-004`: dependency_not_completed:TASK-20260730-003:queued
 
 ## Dispatch Gates
@@ -26,4 +25,4 @@ BATCH-015 RT35-CTRL-1/2 probe; reopen execution question iff pre-registered fals
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `996d4f3dd1689ed57fb485c2c0c7dcd21f3647c5facda48d2e24267ea9a340d4`
+Plan SHA-256: `86df48db21a3b1dcb92700b602fcd1b09241031c5278eac2e8f63e1dc2967b13`
