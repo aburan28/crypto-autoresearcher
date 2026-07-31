@@ -1,0 +1,359 @@
+idea:
+  id: IDEA-20260731-005
+  title: "Algebraic attacks on the FAEST degree-3 AES constraint system under partial VOLE openings: a solving-degree census against the matched AES baseline"
+  class: measurement
+  claim: >-
+    For the deployed FAEST v2.0 AES proof constraint family (max constraint
+    degree d <= 3 per KN-LIT-7637, deployed field, witness variables
+    including key bits, state bytes, and S-box auxiliary variables), the
+    extrapolated cost of the best algebraic solver (Groebner F4/F5, XL /
+    linearization, or hybrid BooleanSolve/crossbred) that recovers the AES
+    key from the constraint system augmented with the partial assignments a
+    transcript's VOLE openings reveal (I_open, modeled as fixed variables)
+    is >= the matched AES-128 key-recovery baseline 2^126.1 under the same
+    cost convention. Equivalently: the constraint-system link of the
+    soundness chain is not the source of a forgery cheaper than AES key
+    recovery, and the partial-openings information does not provide
+    super-linear leverage on the solve. This is a verification/barrier lane:
+    confirmation produces the scoped barrier statement for this link backed
+    by a measured solving-degree law (first-fall degree / degree of
+    regularity vs system size); a measured or extrapolated solve below the
+    baseline is a scoped algebraic-attack finding, toy-tier until re-derived
+    at deployed parameters and certified (AGENTS.md rule 7, claim_tier_ceiling
+    of RQ-FAEST-001).
+  mechanism: >-
+    Exact attack object: the polynomial system S = (C, F, V) where C is the
+    deployed AES ZK constraint family (max degree d in {2,3} per KN-LIT-7637
+    — the actual degree must be pinned from the spec), F the deployed field,
+    V the witness variables (AES-128 key bits, round-key and state bytes,
+    and the auxiliary S-box input/output variables introduced by the
+    degree-3 decomposition), together with the partial-assignment set I_open
+    (the positions a transcript's VOLE opening / consistency-check structure
+    reveals, modeled as fixed variables) — and the concrete cost of the best
+    algebraic solve of S union I_open. The attack surface: FAEST's ZK proof
+    proves knowledge of k with AES_k(x) = y via a constraint system optimized
+    for ZK efficiency, not algebraic hardness; the degree-3-with-auxiliaries
+    representation is a different polynomial system than the classic
+    degree-7-ANF system of AES, and its algebraic behavior (first-fall degree,
+    degree of regularity, Macaulay matrix size at d_reg, sparsity, structured
+    syzygies) is not inherited from the ANF system. Known ingredients: (i)
+    the full-AES-128 key-recovery ideal is zero-dimensional and its Groebner
+    basis is computable by the Buchmann-Pyshkin-Weinmann method, whose
+    security implications were explicitly left open (KN-LIT-2288); (ii) ZK /
+    MPC-friendly constraint representations of ciphers have been attacked
+    algebraically in the STARK-friendly line (KN-LIT-2396); (iii) this
+    program has working solving-degree instrumentation (d_reg / d_ff,
+    Macaulay rank and deficit analysis, sem-vs-null control design —
+    RQ-DREG-001, EXP-DREG-001..004, EV-DREG-001..004) that RQ-MQOM-001
+    already plans to reuse for its own systems. The mechanism under test:
+    whether S's solving indicators, measured at toy scale on the
+    deployed-shaped family (1 S-box up to 2-4 toy rounds, toy field), predict
+    a full-size solve >= 2^126.1 (barrier), or whether a structural property
+    (a constant d_reg with a sparse low-rank Macaulay matrix, or I_open
+    fixing enough variables to kill the high-degree part of the system)
+    pushes the extrapolated cost below the baseline. The partial-openings
+    component is the novel twist relative to the plain AES algebraic
+    baseline: the openings fix variables, and the question is whether the
+    fixing interacts with the degree-3 structure beyond the nominal binomial
+    cost reduction.
+  novelty_status: speculative
+  assumptions:
+    - >-
+      The exact constraint family (equations, degree, field, variable
+      layout) and the opening pattern I_open are UNVERIFIED: the spec v2.0
+      PDF body text was not extractable in the sources task (KN-LIT-7637
+      limit) and faest-ref was not fetched locally (KN-LIT-7619 limit; the
+      constraint-building code would live in fields.c/h, instances.c/h and
+      the top-level sources). Pinning the family from spec v2.0 text and/or
+      a pinned faest-ref commit is a hard completion gate (RSF-5), exactly as
+      for IDEA-20260731-019/003.
+    - >-
+      The constraint family has max degree d <= 3, with d = 3 reported for
+      v2.0 (KN-LIT-7637, from the official resources page — reported, not
+      read). The re-derivation must confirm the actual degree distribution
+      (degree-2 constraints may also be present) before the semi-regular
+      comparison is valid.
+    - >-
+      RSF-1 data-budget caveat applies: FAEST's OWF inversion is one-pair key
+      recovery; the biclique 2^126.1 baseline is published at ~2^88 chosen
+      plaintexts and is a comparative lower bound on the one-pair cost.
+    - >-
+      This record isolates the constraint-system (witness-knowledge) link of
+      the soundness chain. The consistency-check term, the grinding/repetition
+      model, the commitment-binding term, and the QROM extractor loss are the
+      objects of IDEA-20260731-019/002/003/004; a finding here must not be
+      conflated with a finding on those links.
+  predictions:
+    - metric: extrapolated_fullsize_solve_cost_log2
+      direction: higher
+      minimum_effect: >-
+        The extrapolated full-size algebraic solve cost, computed from the
+        measured solving indicators (d_reg / d_ff and the Macaulay matrix
+        size at d_reg with disclosed sparsity corrections), is >= 126.1
+        (log2, AES-equivalent evaluations) at the deployed family size. The
+        falsification direction is an extrapolated cost < 126.1, which is
+        toy-tier until re-derived at the pinned deployed family and
+        certified with a recovered-key certificate at reduced parameters.
+    - metric: per_sbox_solve_cost_scaling
+      direction: higher
+      minimum_effect: >-
+        The per-S-box solve-cost ratio (size s+1)/(size s) is >= 1 at every
+        tested toy size s (each additional S-box must not make the system
+        relatively cheaper as it grows). A ratio < 1 is the structural tell
+        that algebraic hardness is not accumulating with system size
+        (inventor-protocol §3: the quantity that should not decay must not
+        decay).
+    - metric: opening_leverage_ratio
+      direction: lower
+      minimum_effect: >-
+        The measured solve-cost reduction from the opening-fixed variables
+        I_open, divided by the binomial cost reduction of fixing the nominal
+        variable count, is <= 1 at every tested point (the openings give no
+        super-linear leverage). A ratio > 1 is a structural finding (the
+        openings interact with the degree-3 structure beyond fixing
+        variables).
+  minimal_test:
+    design: >-
+      Three components. (1) CONSTRAINT PINNING (derivation artifact): from
+      spec v2.0 (constraint equations) and a pinned faest-ref commit (the
+      constraint-building code, per the KN-LIT-7619 layout), fix the exact
+      constraint family, the degree distribution, the field, the variable
+      layout, and the opening pattern I_open; emit the family spec. This is a
+      hard completion gate before any run (mirrors RSF-3 for IDEA-001). (2)
+      TOY SOLVING-DEGREE CENSUS (run): build the deployed-shaped family at
+      toy scale (1 S-box; 1-round toy AES; 2..4 toy rounds; toy field
+      GF(2^4)..GF(2^8)), using this program's existing Macaulay / F4-style
+      instrumentation (RQ-DREG-001 machinery: rank/deficit analysis at each
+      degree, sem-vs-null control design); measure first-fall degree d_ff and
+      degree of regularity d_reg per cell, plus wall cost (implementation-
+      bound, labeled as such per KN-TECH-004); repeat with I_open applied
+      (fixing the nominal variable count from the pinned opening pattern);
+      compute the extrapolated full-size cost via matrix-size accounting
+      C(n + d_reg, d_reg) with sparsity corrections disclosed. (3)
+      EXTRAPOLATION AND BASELINE CHECK: assemble the deployed-size prediction
+      and compare against the matched baseline, with the extrapolation risks
+      disclosed.
+    controls:
+      - >-
+        Unstructured control: a random degree-3 system with the same (n, m,
+        d) at each toy size. Its d_reg must match the semi-regular / Macaulay
+        prediction (harness calibration; KN-TECH-004/053). A mismatch means
+        the instrumentation is miscalibrated and the census is invalid.
+      - >-
+        Null-object control (inventor-protocol §3): the same constraint-family
+        shape applied to a random-permutation-shaped S-box (random 8-bit
+        table with the same degree-3 decomposition shape). If the AES family's
+        indicators deviate from the null's, the deviation is AES-specific
+        structure (the signal); if they match everywhere, the family behaves
+        like a generic degree-3 system and the census records that as a
+        controlled null, not a finding.
+      - >-
+        Scale control: per-S-box solve cost must not decrease as the number
+        of S-boxes grows (prediction P2). A decreasing ratio is the canonical
+        artifact / structural tell.
+    required_metrics:
+      - pinned family spec: equations, degree distribution, field, variable layout, opening pattern (derivation artifact)
+      - d_ff and d_reg per (rounds, field, I_open) cell
+      - Macaulay matrix dimensions and rank/deficit at d_reg per cell
+      - measured wall cost at toy scale (labeled implementation-bound)
+      - opening-fixed variable count per I_open
+      - extrapolated solve-cost exponent and its sensitivity to d_reg +/- 1
+  falsification_conditions:
+    - >-
+      An extrapolated full-size solve cost < 126.1 from the measured
+      indicators — toy-tier: requires re-derivation at the pinned deployed
+      family and a certified solve (recovered key annihilates the public map)
+      at reduced parameters before any claim about FAEST (AGENTS.md rule 7,
+      claim_tier_ceiling of RQ-FAEST-001).
+    - >-
+      A per-S-box cost ratio < 1 at any tested size — a structural flatness
+      finding: the system becomes relatively easier as it grows. Scoped to
+      the tested sizes and the pinned family shape.
+    - >-
+      An opening-leverage ratio > 1 — super-linear leverage of the partial
+      openings on the solve, a structural finding feeding the forgery model.
+    - >-
+      The unstructured control failing to match the semi-regular prediction,
+      or the null-object control showing the same deviations as the AES
+      family — harness artifact; the test is invalid, not the scheme.
+    - >-
+      A qualitative verdict that flips with the solver family (F4 vs F5 vs XL
+      vs BooleanSolve, KN-TECH-053): the claim must be solver-family-neutral
+      (indicator-based) or name the solver family as part of the claim.
+  confounders:
+    - >-
+      Unread deployed family: if the toy family is not isomorphic to the
+      deployed one (degree distribution, field, variable layout, S-box
+      decomposition), the census measures the wrong object. The pinning
+      component must precede and gate every run.
+    - >-
+      The opening pattern is unverified; I_open must be modeled from the
+      spec's actual pattern after the read, not from memory.
+    - >-
+      Wall-cost measurements are implementation-bound (sympy-style Buchberger
+      vs optimized F4 differ by orders of magnitude — KN-TECH-004 note); only
+      the indicator trends and the extrapolated exponent are interpretable.
+    - >-
+      Extrapolation validity: matrix-size accounting ignores sparsity and
+      structured-syzygy effects at scale. The program's own DREG line has
+      found structured rank deficits in its systems (EV-DREG-001..004); the
+      extrapolation must disclose whether such effects grow or shrink the
+      estimate, not hide them in an o(1).
+    - >-
+      The constraint degree (2 vs 3) changes the semi-regular d_reg
+      prediction; the pinning must settle it before the census.
+  interpretation_limits:
+    - >-
+      Confirmation closes exactly the constraint-system link of the soundness
+      chain, at exactly the pinned family and tested parameter sets, with a
+      measured solving-degree law at toy scale plus a labeled extrapolation;
+      it is a scoped barrier statement, not a statement about the whole
+      chain, and not an attack.
+    - >-
+      A below-baseline extrapolation is toy-tier / derivation-tier; no claim
+      about FAEST without re-derivation and certification (claim_tier_ceiling
+      of RQ-FAEST-001).
+    - >-
+      The measured d_reg / d_ff law is evidence about the tested toy family
+      and sizes; the deployed-scale statement is an extrapolation and is
+      labeled as such (target-result-profile C17 discipline).
+    - >-
+      This record creates no hypothesis, experiment, evidence, or decision
+      record; it is a proposal whose minimal test, if approved, would be
+      specified and executed under later tasks.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The deployed constraint family has max degree d in {2,3} with the
+        same equation structure as reported (degree-3 for v2.0), and the toy
+        family mirrors it exactly (same S-box decomposition shape, same field
+        arithmetic), so measurements on the toy family transfer to the
+        deployed family up to the extrapolation.
+      rigorous_support: >-
+        KN-LIT-7637 reports degree-3 constraints from the official resources
+        page (reported, not read); the exact decomposition shape is
+        UNVERIFIED until the spec is read.
+      validation_plan: >-
+        Pin the family from spec v2.0 and a pinned faest-ref commit; the toy
+        family builder is generated from the pinned equations, not from
+        memory; the pinning artifact is archived before any run (completion
+        gate).
+    - id: H2
+      statement: >-
+        The solving indicators of the family behave like those of a
+        semi-regular system of the same (n, m, d) up to AES-type deviations,
+        and the first-fall degree d_ff is a faithful proxy for the degree of
+        regularity d_reg for this family.
+      rigorous_support: >-
+        Semi-regular / Macaulay bounds (KN-TECH-004; KN-LIT-029); the
+        d_ff-vs-d_reg relationship is itself KN-OPEN-002 — the census
+        measures both and records the gap rather than assuming it.
+      validation_plan: >-
+        The unstructured control (random degree-3 system) pins the
+        semi-regular baseline at each toy size; the AES-family d_ff and d_reg
+        are read against it; a d_ff/d_reg gap that grows with size is
+        recorded as a finding, not assumed away.
+    - id: H3
+      statement: >-
+        The partial openings I_open fix exactly the variables the protocol's
+        opening pattern implies (nominal count, no key bits directly), and
+        fixing a variable contributes its binomial cost effect to the solve
+        — no super-linear interaction with the degree-3 structure.
+      rigorous_support: >-
+        The VOLEitH opening structure (KN-LIT-7638, abstract-level only); the
+        deployed pattern is UNVERIFIED until the spec is read.
+      validation_plan: >-
+        Derive the opening pattern from spec / faest-ref; measure the
+        fixed-variable count at toy scale; prediction P3 checks the leverage
+        ratio against the binomial baseline, with a ratio > 1 as the
+        falsification.
+    - id: H4
+      statement: >-
+        The extrapolation from toy sizes to the deployed size via matrix-size
+        accounting (C(n + d_reg, d_reg) with disclosed sparsity corrections)
+        is representative: the measured d_reg law is stable across sizes.
+      rigorous_support: >-
+        None beyond the method itself — this is the assumption under test
+        (inventor-protocol §6 ladder step 2: the improvement must appear as a
+        measured ratio against the baseline on a scaled-down instance, not as
+        an extrapolation).
+      validation_plan: >-
+        The scaled-down-instance ladder: run the full pin -> census ->
+        extrapolation pipeline at each toy size and confirm the extrapolated
+        cost grows consistently (P2); check the predicted negative cases too
+        (sizes where the baseline's parameter space is fully enumerable).
+  matched_baseline:
+    parameter_set: >-
+      faest_128f / faest_128s (spec v2.0, category-1, AES-128). The exact
+      constraint family, field, degree distribution, and opening pattern are
+      UNVERIFIED placeholders (spec PDF body text not extractable in the
+      sources task, KN-LIT-7637 limit; faest-ref not fetched locally,
+      KN-LIT-7619 limit); pinned from spec v2.0 and a pinned faest-ref commit
+      before any experiment (RQ-FAEST-001 constraint).
+    convention: >-
+      Serial classical cost in AES-128-equivalent evaluations (one AES-128
+      encryption = 1 unit); hash calls converted at the deployed hash's
+      per-call AES count; memory in bits charged separately; data charged;
+      quantum baselines stated separately under a depth-limited (MAXDEPTH)
+      convention. Identical convention on both sides of every comparison
+      (KN-TECH-040).
+    aes_key_recovery: >-
+      Best known AES-128 key recovery (full 10-round, single-key, known
+      plaintext-ciphertext pair): 2^126.1 time, biclique
+      (Bogdanov-Khovratovich-Rechberger; KN-LIT-2701, archived, confidence
+      reported). RSF-1 caveat: FAEST's OWF inversion is one-pair key
+      recovery; the biclique is published at ~2^88 chosen plaintexts
+      (data/memory detail UNVERIFIED in-repo) and is a comparative lower
+      bound on the one-pair cost. Algebraic-attack baseline: the full-AES-128
+      key-recovery ideal is zero-dimensional with a computable Groebner basis
+      (Buchmann-Pyshkin-Weinmann, KN-LIT-2288), whose security implications
+      were explicitly left open in that work; no published full-AES-128
+      algebraic attack below 2^126.1 is known to this program (in-repo grep
+      of knowledge/ and ledger/ — UNVERIFIED beyond the in-repo scope);
+      reduced-round algebraic attacks (KN-LIT-2645, KN-LIT-2396 lines) do not
+      reach the full cipher. Quantum: Grover ~2^64 sequential AES evaluations
+      (KN-LIT-679), depth-limited ~2^85.8 and NIST gate-count ~2^143
+      (UNVERIFIED in-repo).
+    voleith_fs_soundness: >-
+      Best known attack on the VOLEitH/Fiat-Shamir layer: the generic
+      multi-round transcript forgery 2^{kappa} * eps_cc^{-tau} * C_transcript
+      (deployed values UNVERIFIED placeholders; the object of
+      IDEA-20260731-002). This idea attacks a named term on the
+      witness-knowledge side of the chain: the soundness reduction claims
+      that extracting a witness from an accepting transcript is as hard as
+      inverting the OWF — the census measures the concrete algebraic content
+      of that claim against the actual constraint family and the partial
+      openings. No structural algebraic attack on FAEST's deployed constraint
+      family is published to this program's knowledge (prior-art grep of
+      knowledge/ and ledger/ found no FAEST constraint-system record).
+  target_complexity:
+    time_exponent: >-
+      n/a — no attack claimed. The measured quantities are the solving-degree
+      indicators (d_ff, d_reg) and the Macaulay matrix size C(n + d_reg,
+      d_reg) of the deployed family; the extrapolated solve-cost exponent is
+      compared against 126.1 (the matched baseline), with the falsification
+      being an extrapolated value below 126.1.
+    memory_exponent: >-
+      The Macaulay matrix at d_reg is charged in bits: C(n + d_reg, d_reg)
+      entries at the deployed size, with sparsity disclosed; the time-memory
+      position follows the matrix dimensions and the solver's linear-algebra
+      phase.
+    best_known: >-
+      2^126.1 AES-128 key recovery (KN-LIT-2701); algebraic baseline: the
+      zero-dimensional AES-128 key-recovery ideal of KN-LIT-2288 (security
+      implications open); generic transcript forgery 2^{kappa}*eps_cc^{-tau}
+      *C_transcript (deployed values unverified).
+    hidden_overhead: >-
+      Sparsity and structured-syzygy effects are outside the binomial
+      accounting and are the main extrapolation risk; they are disclosed per
+      component (the DREG deficit line is the in-repo precedent that such
+      effects are real and measurable), never folded into an o(1).
+    tradeoff_note: >-
+      The solver-family trade (F4/F5 vs XL vs BooleanSolve/crossbred,
+      KN-TECH-053) is a cofactor-level lever, not exponent-moving; the
+      time-memory trade follows the Macaulay dimensions, and the census
+      reports the indicator-based exponents that are solver-family-neutral.
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium

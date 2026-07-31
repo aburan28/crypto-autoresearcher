@@ -558,8 +558,15 @@ def check_goal_closure_quorum(path: str, goal: dict, ctx: Ctx):
     for i, att in enumerate(attestations):
         refs = att.get("reviewed_record_ids")
         if isinstance(refs, list) and refs:
-            unknown = [r for r in refs
-                       if r not in ctx.ids and not str(r).startswith("GOAL-")]
+            # Knowledge findings/literature live in ctx.knowledge (loaded
+            # before check_goals), not ctx.ids. GOAL-* keeps the prefix
+            # escape used when a goal id is mid-registration.
+            unknown = [
+                r for r in refs
+                if r not in ctx.ids
+                and r not in ctx.knowledge
+                and not str(r).startswith("GOAL-")
+            ]
             if unknown:
                 ctx.err(path, f"completion_quorum.attestations[{i}] cites "
                               f"unknown record(s) {unknown}")
@@ -690,9 +697,12 @@ def main() -> int:
                                               "*", "manifest.yaml"))):
         check_run(path, ctx)
     check_legacy_id_remaps(ctx)
+    # Knowledge must be indexed before goal closure quorum checks so that
+    # reviewed_record_ids may cite KN-* entries (ctx.knowledge), not only
+    # ledger ids (ctx.ids).
+    check_knowledge_entries(ctx)
     check_goals(ctx)
     check_cross_refs(ctx)
-    check_knowledge_entries(ctx)
     check_knowledge_index(ctx)
 
     current = set(ctx.errors)

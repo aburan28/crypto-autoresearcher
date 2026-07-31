@@ -68,6 +68,10 @@ Confirm before dispatching workers:
 - Campaign budget still allows another batch (`maximum_batches`,
   `total_wall_clock_seconds`, `max_concurrent` ≤ 3).
 - `next_action` is concrete; empty queue alone does not complete the goal.
+- The working branch exists, is pushed to origin, and has an open PR against
+  `main`. If not, create the branch, push it, and open the PR now — do not run
+  a campaign that cannot surface its artifacts.
+- The working branch is current with `main` (see "Branch and PR hygiene").
 
 If a pause/completion criterion already holds, stop and report — do not invent
 work to fill capacity.
@@ -113,7 +117,46 @@ Lifecycle stage skills when a ready task maps to them: `/propose-ideas`,
 Handoffs live in `ledger/handoffs/` (envelope in `AGENTS.md`). Task cards and
 receipts stay under the batch/task `write_scope`.
 
-### 7. Stop conditions
+### 7. Branch and PR hygiene
+
+Research only exists as durable evidence when it is committed AND pushed to a
+branch that has an open PR against `main`. Two git duties ride alongside every
+generation step — new goals, ideas, experiments, evidence, decisions, and
+knowledge entries all require them:
+
+**Pull in changes from `main` before generating.** Before creating or resuming
+a goal, and before each new batch, merge `origin/main` into the working branch:
+
+```sh
+git fetch origin
+git merge origin/main          # merge, never rebase — AGENTS.md rule
+```
+
+Never rebase: the branch carries pushed run records and rebasing rewrites the
+commits they were archived in. If the merge conflicts, do NOT resolve it by
+picking a side — stop, report the conflict, and let the Coordinator create a
+new superseding record (the same rule as any other immutable-record conflict).
+After the merge, re-run the ledger validator (`tools/validate_ledger.py`) and
+`tools/check_merge_hygiene.py` before dispatching workers.
+
+**Open or update the PR when new records are generated.** Each time a snapshot
+or ledger archive adds new `GOAL-*`, `RQ-*`, `IDEA-*`, `H-*`, `EXP-*`, `EV-*`,
+`DEC-*`, `TASK-*`, or `KN-*` records, push the branch and open or refresh a PR
+against `main`:
+
+```sh
+git push -u origin <branch>
+gh pr create --base main --head <branch> --title "research: <summary>" --body "<records>"
+# or, for an existing PR:
+gh pr edit <number> --title "research: <summary>" --body "<records>"
+```
+
+Keep the PR open for the life of the campaign and mark it draft only while the
+batch is mid-flight; it exists so the work is reviewable and mergeable, not as
+a claim of closure. A goal, idea, or experiment that exists only in a local
+commit is not generated — it is unpublished.
+
+### 8. Stop conditions
 
 Stop the harness when any of these hold:
 
@@ -147,12 +190,16 @@ completion: record it and set the next action.
   stage declared paths and must pass post-commit verification.
 - At most three concurrent non-archive tasks; do not fill idle slots without a
   ranked next action.
+- Every batch merges `origin/main` into the working branch (never rebases) and
+  pushes with an open/updated PR against `main` before the next batch starts;
+  never resolve a sync conflict by editing a record.
 
 ## Output after each batch (and on stop)
 
 Report: goal ID + status; completed task IDs + verified commits; evidence /
 decision IDs with claim boundaries; knowledge promotions or `not_warranted`
-reasons; exact next action (or pause/complete rationale).
+reasons; exact next action (or pause/complete rationale); PR number/branch the
+batch was pushed to and how current it is with `main`.
 
 ## Quick examples
 
