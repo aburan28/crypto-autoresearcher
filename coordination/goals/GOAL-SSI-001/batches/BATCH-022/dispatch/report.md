@@ -6,12 +6,10 @@ BATCH-022: bounded executor spike implementing Verify(x,k') and W/R/B/M_tail lif
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-059` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/impl_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/lifetime_verify_attempt.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/harness_receipt.json, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/lifetime_hooks.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/state_machine.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/test_scaffold.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/types.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/scaffold/verify.py, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059/spike_report.md | coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-059 |
+| `TASK-20260730-061` | red-team | queued | 80 | TASK-20260730-059, TASK-20260730-060 | coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-061/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-061/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-022/tasks/TASK-20260730-061 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-060`: dependency_not_completed:TASK-20260730-059:queued
-- `TASK-20260730-061`: dependency_not_completed:TASK-20260730-059:queued, dependency_not_completed:TASK-20260730-060:queued
 - `TASK-20260730-062`: dependency_not_completed:TASK-20260730-061:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-022: bounded executor spike implementing Verify(x,k') and W/R/B/M_tail lif
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `0dce85e7d50ec6a9bd1a374176e1d7242c03544aa8d26f988011ffe7d7b2d42d`
+Plan SHA-256: `06c031bb7c617cf83d483f42217f50aa362d33586cc396cdf868ca4f6b9c07e2`
