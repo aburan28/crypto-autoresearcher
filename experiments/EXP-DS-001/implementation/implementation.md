@@ -90,3 +90,32 @@
 - No changes to H-IC-001 / H-STR-002; FAEST/XEDN untouched.
 - No commit (TASK-20260731-045 archives).
 - Does not supersede planted EV-DS-002 package.
+
+---
+
+# EXP-DS-001 v2.3-ctrl-theater-r2 (TASK-20260731-067)
+
+**Amendment:** `PA-DS-001-v2-ctrl-theater-r2` (APPROVED at TASK-20260731-066, snapshot `ecf99e6e`, bind `c31e3f00`)  
+**Controls:** CTRL-RT056-PLANT-CLOSED-PATH + CTRL-RT056-RHO-CALIB-AUDITED + CTRL-RT056-NULL-SPLIT-HARD-DESTROY  
+**Run:** `RUN-DS-001-ctrl-theater-r2` (single cell bits=20,B=64,m=4,seed=101)  
+**Parent contract:** `specification.v2.yaml` immutable (sha256 `898304bf…a5636a`)
+
+## Driver extensions
+
+1. `--mode ctrl-theater-r2` — packaging-like `planted_m_sum` + `null_split_mode=composing`.
+2. `null_split_search_composing` — claw/join via `(enc(L)+enc(R)) mod M == enc(T)`; same `claw_key` as real arm.
+3. `plant_closed_path_detect` — inject `/4` in reporting path before gate; detection_path enum `{null_gate_f2_shape}` only; `echo_entailment_check=false`.
+4. `measure_rho_calib_audited` — measured real/null rho wall/gop ratios (not hardcoded 1.0).
+5. `null_split_hard_destroy_report` — `composition_repaired`; `destroy_demonstrated` iff measured primary plant-OFF `R_null<0.9`; `falsifiability_failed` is terminal non-discharge (not soft PASS).
+
+## Protocol deviations
+
+1. Same membership-backend proxy as prior packages (exact point-sum + charged units; not sympy GB).
+2. Inference: requested `executor-implementation`, resolved `cursor-grok-4.5`, `fallback_used: true`, `model_verified: false`.
+3. Unauthorized `RUN-DS-001-ctrl-theater` / `results/ctrl_theater` ignored as non-binding (not copied).
+
+## Out of scope (honored)
+
+- No edits to `specification.v2.yaml` or rejected BATCH-021 freeze blobs.
+- No H-IC-001 / H-STR-002 changes; no STR reopen; no commit (TASK-068 archives).
+- Toy claim ceiling; observations only; no S1_met.

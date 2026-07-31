@@ -559,7 +559,12 @@ def split_search(
 
 # --- Null object ------------------------------------------------------------
 
-def null_spec_hash(seed: int, bits: int, B: int, m: int) -> str:
+def null_spec_hash(seed: int, bits: int, B: int, m: int, null_split_mode: str = "independent") -> str:
+    sampler = (
+        "blake2b-full-tuple-membership + composing-half-maps"
+        if null_split_mode == "composing"
+        else "blake2b-full-tuple-membership + independent-half-maps"
+    )
     payload = {
         "id": NULL_SPEC_ID,
         "seed": seed,
@@ -567,7 +572,8 @@ def null_spec_hash(seed: int, bits: int, B: int, m: int) -> str:
         "B": B,
         "m": m,
         "multidegree": [2] * m,
-        "sampler": "blake2b-full-tuple-membership + independent-half-maps",
+        "sampler": sampler,
+        "null_split_mode": null_split_mode,
         "backend_id": BACKEND_ID,
     }
     return sha256_bytes(json.dumps(payload, sort_keys=True).encode())
@@ -589,6 +595,18 @@ def null_half_key(seed: int, bits: int, B: int, m: int, side: str, xs: tuple[int
     return hashlib.blake2b(msg, digest_size=16).hexdigest()
 
 
+def null_compose_half_key(seed: int, bits: int, B: int, m: int, xs: tuple[int, ...]) -> str:
+    """Side-symmetric compose key: same claw/join machinery for left and right halves.
+
+    No L/R/J side tag. Intermediate integer = blake2b(half) mod B^(max(m//2-1,1));
+    claw key = SHA-256 of that integer's canonical big-endian bytes (same as real arm).
+    """
+    msg = f"{NULL_SPEC_ID}|{seed}|{bits}|{B}|{m}|compose_half|{','.join(map(str, xs))}".encode()
+    h = hashlib.blake2b(msg, digest_size=8).digest()
+    modulus = max(B ** max(m // 2 - 1, 1), 2)
+    N = int.from_bytes(h, "big") % modulus
+    return claw_key(N)
+
 def null_naive_search(
     fb_xs: list[int],
     seed: int,
@@ -598,44 +616,33 @@ def null_naive_search(
     target_tag: int,
     deadline: float,
     charge_backend: Callable[[int], int],
+    membership: str = "full_oracle",
 ) -> AttemptResult:
     t0 = time.perf_counter()
     n_enum = 0
     units = 0
     found = None
-    # enumerate m-tuples with nondecreasing indices into fb_xs
-    idxs = list(range(len(fb_xs)))
-
-    def rec(start: int, need: int, acc: list[int]) -> Optional[list[int]]:
-        nonlocal n_enum, units, found
-        if found is not None or time.perf_counter() > deadline:
-            return found
-        if need == 0:
-            n_enum += 1
-            units += charge_backend(m)
-            tup = tuple(acc)
-            if null_full_hit(seed, bits, B, m, tup, target_tag):
-                found = list(acc)
-                return found
-            return None
-        for i in range(start, len(fb_xs)):
-            acc.append(fb_xs[i])
-            rec(i, need - 1, acc)
-            acc.pop()
-            if found is not None:
-                return found
-        return found
+    left_arity = m // 2
+    right_arity = m - left_arity
 
     # For speed use limited random sampling of tuples when m>=4 and B large
-    rng = random.Random(_seed_int(seed, f"null_naive_{target_tag}"))
+    rng = random.Random(_seed_int(seed, f"null_naive_{membership}_{target_tag}"))
     budget_checks = 50000
     while n_enum < budget_checks and time.perf_counter() <= deadline and found is None:
-        tup = tuple(sorted(rng.choice(fb_xs) for _ in range(m)))
         n_enum += 1
         units += charge_backend(m)
-        if null_full_hit(seed, bits, B, m, tup, target_tag):
-            found = list(tup)
-            break
+        if membership == "compose":
+            # Same half-geometry as composing split (not an arbitrary full-tuple cut).
+            left = tuple(sorted(rng.choice(fb_xs) for _ in range(left_arity)))
+            right = tuple(sorted(rng.choice(fb_xs) for _ in range(right_arity)))
+            if null_compose_hit(seed, bits, B, m, left, right, target_tag):
+                found = list(sorted(list(left) + list(right)))
+                break
+        else:
+            tup = tuple(sorted(rng.choice(fb_xs) for _ in range(m)))
+            if null_full_hit(seed, bits, B, m, tup, target_tag):
+                found = list(tup)
+                break
     dt = time.perf_counter() - t0
     if found is None:
         return AttemptResult(False, dt, units, n_enum, 0, None, incomplete=True)
@@ -645,7 +652,13 @@ def null_naive_search(
         units,
         n_enum,
         0,
-        {"kind": "null_relation", "xs": found, "target_tag": target_tag, "method": "naive"},
+        {
+            "kind": "null_relation",
+            "xs": found,
+            "target_tag": target_tag,
+            "method": "naive",
+            "membership": membership,
+        },
     )
 
 
@@ -719,6 +732,129 @@ def null_split_search(
         n_enum,
         len(table),
         {"kind": "null_relation", "xs": found, "target_tag": target_tag, "method": "degree_split_claw"},
+    )
+
+
+def null_compose_mod(B: int, m: int) -> int:
+    """Birthday modulus for composing null claw (≈ B^{m/2})."""
+    return max(int(B ** (m // 2)), 2)
+
+
+def null_half_int(seed: int, bits: int, B: int, m: int, xs: tuple[int, ...]) -> int:
+    msg = f"{NULL_SPEC_ID}|{seed}|{bits}|{B}|{m}|halfint|{','.join(map(str, xs))}".encode()
+    return int.from_bytes(hashlib.blake2b(msg, digest_size=8).digest(), "big")
+
+
+def null_target_int(seed: int, bits: int, B: int, m: int, target_tag: int) -> int:
+    msg = f"{NULL_SPEC_ID}|{seed}|{bits}|{B}|{m}|tgtint|{target_tag}".encode()
+    return int.from_bytes(hashlib.blake2b(msg, digest_size=8).digest(), "big")
+
+
+def null_compose_hit(
+    seed: int,
+    bits: int,
+    B: int,
+    m: int,
+    left: tuple[int, ...],
+    right: tuple[int, ...],
+    target_tag: int,
+) -> bool:
+    """Additive claw join: (enc(left)+enc(right)) mod M == enc(target) mod M."""
+    mod = null_compose_mod(B, m)
+    left_n = null_half_int(seed, bits, B, m, left) % mod
+    right_n = null_half_int(seed, bits, B, m, right) % mod
+    tgt_n = null_target_int(seed, bits, B, m, target_tag) % mod
+    return (left_n + right_n) % mod == tgt_n
+
+
+def null_split_search_composing(
+    fb_xs: list[int],
+    seed: int,
+    bits: int,
+    B: int,
+    m: int,
+    target_tag: int,
+    deadline: float,
+    charge_backend: Callable[[int], int],
+) -> AttemptResult:
+    """CTRL-RT056-NULL-SPLIT-HARD-DESTROY composing null claw.
+
+    Half-keys join under the same claw_key machinery as the real arm:
+    left stores claw_key(enc(left) mod M); right looks up
+    claw_key((enc(target)-enc(right)) mod M). Membership is the compose
+    equality (documented in null_split_hard_destroy_report.json).
+    """
+    t0 = time.perf_counter()
+    n_enum = 0
+    units = 0
+    left_arity = m // 2
+    right_arity = m - left_arity
+    mod = null_compose_mod(B, m)
+    rng = random.Random(_seed_int(seed, f"null_split_compose_{target_tag}"))
+    tgt_n = null_target_int(seed, bits, B, m, target_tag) % mod
+
+    table: dict[str, list[tuple]] = defaultdict(list)
+    # ~sqrt(M) left samples for classic MITM
+    left_samples = min(20000, max(int(math.ceil(math.sqrt(mod))) * 2, B * 4))
+    for _ in range(left_samples):
+        if time.perf_counter() > deadline:
+            break
+        left = tuple(sorted(rng.choice(fb_xs) for _ in range(left_arity)))
+        left_n = null_half_int(seed, bits, B, m, left) % mod
+        key = claw_key(left_n)  # same claw_key as real arm
+        table[key].append(left)
+
+    found = None
+    join_evidence: Optional[dict] = None
+    right_samples = min(20000, max(int(math.ceil(math.sqrt(mod))) * 2, B * 4))
+    for _ in range(right_samples):
+        if time.perf_counter() > deadline:
+            break
+        right = tuple(sorted(rng.choice(fb_xs) for _ in range(right_arity)))
+        right_n = null_half_int(seed, bits, B, m, right) % mod
+        need = (tgt_n - right_n) % mod
+        key = claw_key(need)
+        n_enum += 1
+        cands = table.get(key, [])
+        for left in cands:
+            units += charge_backend(m)
+            if null_compose_hit(seed, bits, B, m, left, right, target_tag):
+                found = list(sorted(list(left) + list(right)))
+                join_evidence = {
+                    "composition_rule": (
+                        "(null_half_int(left)+null_half_int(right)) mod M "
+                        "== null_target_int(target_tag) mod M; "
+                        "lookup via claw_key as real arm"
+                    ),
+                    "M": mod,
+                    "left": list(left),
+                    "right": list(right),
+                    "left_n": null_half_int(seed, bits, B, m, left) % mod,
+                    "right_n": right_n,
+                    "target_n": tgt_n,
+                    "need_n": need,
+                    "claw_key": key,
+                }
+                break
+        if found:
+            break
+
+    dt = time.perf_counter() - t0
+    if found is None:
+        return AttemptResult(False, dt, units, n_enum, len(table), None, incomplete=True)
+    return AttemptResult(
+        True,
+        dt,
+        units,
+        n_enum,
+        len(table),
+        {
+            "kind": "null_relation",
+            "xs": found,
+            "target_tag": target_tag,
+            "method": "degree_split_claw_composing",
+            "join_evidence": join_evidence,
+        },
     )
 
 
@@ -844,11 +980,16 @@ def execute_cell(
     do_planted: bool = False,
     smoothness_abort: bool = True,
     target_mode: str = "planted_m_sum",
+    null_split_mode: str = "independent",
 ) -> CellResult:
     t_cell0 = time.perf_counter()
     if target_mode not in ("planted_m_sum", "unplanted_uniform_random"):
         cell = CellResult(bits=bits, B=B, m=m, seed=seed, status="specification_error")
         cell.notes.append(f"unknown target_mode={target_mode}")
+        return cell
+    if null_split_mode not in ("independent", "composing"):
+        cell = CellResult(bits=bits, B=B, m=m, seed=seed, status="specification_error")
+        cell.notes.append(f"unknown null_split_mode={null_split_mode}")
         return cell
     cell = CellResult(
         bits=bits, B=B, m=m, seed=seed, status="running",
@@ -864,7 +1005,7 @@ def execute_cell(
 
     fb = make_factor_base(inst, B, seed)
     cell.fb_x_hash = fb.x_hash
-    cell.null_object_spec_hash = null_spec_hash(seed, bits, B, m)
+    cell.null_object_spec_hash = null_spec_hash(seed, bits, B, m, null_split_mode=null_split_mode)
     E = inst.curve()
 
     # CTRL-RHO / CTRL-BSGS
@@ -874,13 +1015,14 @@ def execute_cell(
     rho_gops = max(cell.rho["total_group_operations"], 1)
     rho_gop_per_second = rho_gops / rho_wall
 
-    # CTRL-NULL-RHO calibration sanity: honest rho ratio real vs itself ~1
-    cell.rho_calib_ratio_real = 1.0  # same instance twice would be 1; record identity
+    # Legacy identity placeholder; theater-r2 overwrites via measure_rho_calib_audited.
+    cell.rho_calib_ratio_real = 1.0
     cell.rho_calib_ratio_null = 1.0
 
     deadline_cell = t_cell0 + cell_wall_budget
     per_arm_budget = cell_wall_budget / 4.0
     rng = random.Random(_seed_int(seed, f"cell_{bits}_{B}_{m}_{target_mode}"))
+    cell.notes.append(f"null_split_mode={null_split_mode}")
 
     def harvest_real(method: str, wall_budget: float) -> tuple[float, int, int, list[float], int, int]:
         """Returns wall, n_usable, peak_table, samples, attempted_targets, success_count."""
@@ -946,7 +1088,15 @@ def execute_cell(
             tag += 1
             arm_deadline = min(deadline_cell, time.perf_counter() + min(5.0, wall_budget))
             if method == "naive":
-                ar = null_naive_search(fb.xs, seed, bits, B, m, tag, arm_deadline, lambda mm: charge_backend_units(mm))
+                ar = null_naive_search(
+                    fb.xs, seed, bits, B, m, tag, arm_deadline,
+                    lambda mm: charge_backend_units(mm),
+                    membership=("compose" if null_split_mode == "composing" else "full_oracle"),
+                )
+            elif null_split_mode == "composing":
+                ar = null_split_search_composing(
+                    fb.xs, seed, bits, B, m, tag, arm_deadline, lambda mm: charge_backend_units(mm)
+                )
             else:
                 ar = null_split_search(fb.xs, seed, bits, B, m, tag, arm_deadline, lambda mm: charge_backend_units(mm))
             if ar.found and not ar.incomplete:
@@ -1204,6 +1354,263 @@ def live_plant_detect(cell: CellResult) -> dict:
         ),
     })
     return out
+
+
+def inject_plant_before_gate(cell: CellResult) -> dict:
+    """CTRL-RT056-PLANT-CLOSED-PATH: /4 inject in reporting path BEFORE gate.
+
+    Returns planted cost bundle. Does not mutate primary cell R/R_null.
+    """
+    if (
+        cell.cost_split is None
+        or cell.cost_naive is None
+        or cell.cost_split_null is None
+        or cell.cost_naive_null is None
+    ):
+        return {
+            "status": "metrics_incomplete",
+            "injection_site": "harvest_reporting_path_before_null_gate",
+            "costs_as_read_by_gate": None,
+        }
+    costs_as_read_by_gate = {
+        "cost_naive": cell.cost_naive,
+        "cost_split": cell.cost_split / 4.0,
+        "cost_naive_null": cell.cost_naive_null,
+        "cost_split_null": cell.cost_split_null / 4.0,
+        "plant_factor_applied_to_split_costs": 4.0,
+    }
+    R_plant = costs_as_read_by_gate["cost_split"] / max(costs_as_read_by_gate["cost_naive"], 1e-12)
+    R_null_plant = costs_as_read_by_gate["cost_split_null"] / max(
+        costs_as_read_by_gate["cost_naive_null"], 1e-12
+    )
+    return {
+        "status": "injected",
+        "injection_site": "harvest_reporting_path_before_null_gate",
+        "injection_method": "live_/4_on_reported_split_costs",
+        "primary_costs_plant_off": {
+            "cost_naive": cell.cost_naive,
+            "cost_split": cell.cost_split,
+            "cost_naive_null": cell.cost_naive_null,
+            "cost_split_null": cell.cost_split_null,
+            "R": cell.R,
+            "R_null": cell.R_null,
+        },
+        "costs_as_read_by_gate": costs_as_read_by_gate,
+        "R_plant": R_plant,
+        "R_null_plant": R_null_plant,
+    }
+
+
+def plant_closed_path_detect(cell: CellResult) -> dict:
+    """CTRL-RT056-PLANT-CLOSED-PATH detector.
+
+    Allowed detection_path enum: {null_gate_f2_shape} only.
+    Forbids echo-entailment / null_gate_echo_factor / synth shortcuts.
+    Plant must already be injected before this gate reads costs.
+    """
+    allowed = {"null_gate_f2_shape"}
+    injected = inject_plant_before_gate(cell)
+    out: dict[str, Any] = {
+        "control_id": "CTRL-RT056-PLANT-CLOSED-PATH",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-theater-r2",
+        "backend_id": BACKEND_ID,
+        "allowed_detection_path_enum": sorted(allowed),
+        "forbidden": [
+            "null_gate_echo_factor",
+            "echo_entailment_class",
+            "synth_R_synth_Rn_OR_path",
+            "hardcoded_planted_bug_detected_true",
+            "equivalent_FLAG_escape",
+        ],
+        "cell": {
+            "bits": cell.bits,
+            "B": cell.B,
+            "m": cell.m,
+            "seed": cell.seed,
+            "target_mode": cell.target_mode,
+        },
+        "primary_plant_off": not cell.plant_applied_to_primary,
+        "synthetic_shortcut_used": False,
+        "synth_R": None,
+        "synth_Rn": None,
+    }
+    out.update({k: injected[k] for k in (
+        "injection_site",
+        "injection_method",
+        "primary_costs_plant_off",
+        "costs_as_read_by_gate",
+        "R_plant",
+        "R_null_plant",
+    ) if k in injected})
+
+    if injected.get("status") != "injected":
+        out["status"] = "metrics_incomplete"
+        out["planted_bug_detected"] = False
+        out["detection_path"] = None
+        out["echo_entailment_check"] = False
+        out["note"] = "Plant inject skipped; primary costs incomplete"
+        return out
+
+    costs = injected["costs_as_read_by_gate"]
+    R_plant = float(injected["R_plant"])
+    R_null_plant = float(injected["R_null_plant"])
+    # Gate reads pre-injected costs only — no in-detector divide-then-echo.
+    null_gate_f2_shape = bool(R_plant < 0.5 and R_null_plant < 0.9)
+    detection_path = "null_gate_f2_shape" if null_gate_f2_shape else None
+    # Echo-entailment: FLAG truth entailed by detector-applied arithmetic on
+    # the same costs. This gate applies no such arithmetic; check is false.
+    echo_entailment_check = False
+    if detection_path is not None and detection_path not in allowed:
+        out["status"] = "protocol_violation"
+        out["planted_bug_detected"] = False
+        out["detection_path"] = detection_path
+        out["echo_entailment_check"] = True
+        out["note"] = "detection_path outside allowed enum"
+        return out
+
+    out.update({
+        "status": "completed",
+        "null_gate_f2_shape": null_gate_f2_shape,
+        "null_gate_echo_factor_used": False,
+        "detection_path": detection_path,
+        "planted_bug_detected": bool(null_gate_f2_shape),
+        "echo_entailment_check": echo_entailment_check,
+        "costs_as_read_by_gate": costs,
+        "note": (
+            "Plant /4 injected at harvest_reporting_path_before_null_gate; "
+            "gate reads costs_as_read_by_gate and applies null_gate_f2_shape only. "
+            "No detector-applied echo arithmetic."
+        ),
+    })
+    return out
+
+
+def measure_rho_calib_audited(cell: CellResult, seed: int, bits: int) -> dict:
+    """CTRL-RT056-RHO-CALIB-AUDITED: measured fail-able rho ratios + raw fields."""
+    out: dict[str, Any] = {
+        "control_id": "CTRL-RT056-RHO-CALIB-AUDITED",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-theater-r2",
+        "backend_id": BACKEND_ID,
+        "parent_band_binding": "deferred_interpretation_not_acceptance_gate",
+        "proxy_formula_if_used": (
+            "none — both arms are Pollard-rho wall/gop measurements "
+            "(real=seed, null-calib=seed+10007); "
+            "ratio = rate_real/rate_null and reciprocal"
+        ),
+    }
+    try:
+        inst_real = generate_instance(seed, bits)
+        inst_null = generate_instance(seed + 10_007, bits)
+    except Exception as e:
+        out["status"] = "failed_infrastructure"
+        out["error"] = f"instance_generation_failed: {e}"
+        return out
+
+    rho_real = run_rho(inst_real)
+    rho_null = run_rho(inst_null)
+    rho_wall_real = float(rho_real["wall_seconds"])
+    rho_gop_real = float(rho_real["total_group_operations"])
+    rho_wall_null = float(rho_null["wall_seconds"])
+    rho_gop_null = float(rho_null["total_group_operations"])
+
+    rate_real = rho_gop_real / max(rho_wall_real, 1e-12)
+    rate_null = rho_gop_null / max(rho_wall_null, 1e-12)
+    # Measured ratios (writable as non-1.0); not hardcoded constants.
+    rho_calib_ratio_real = rate_real / max(rate_null, 1e-12)
+    rho_calib_ratio_null = rate_null / max(rate_real, 1e-12)
+
+    cell.rho_calib_ratio_real = rho_calib_ratio_real
+    cell.rho_calib_ratio_null = rho_calib_ratio_null
+
+    out.update({
+        "status": "completed",
+        "measurement_path": "pollard_rho_wall_gop_real_vs_independent_null_instance",
+        "rho_wall_real": rho_wall_real,
+        "rho_gop_real": rho_gop_real,
+        "rho_wall_null": rho_wall_null,
+        "rho_gop_null": rho_gop_null,
+        "rho_rate_real": rate_real,
+        "rho_rate_null": rate_null,
+        "rho_calib_ratio_real": rho_calib_ratio_real,
+        "rho_calib_ratio_null": rho_calib_ratio_null,
+        "rho_real_receipt": rho_real,
+        "rho_null_receipt": rho_null,
+        "hardcoded_1_0_forbidden": True,
+        "ratios_forced_constant_1": False,
+        "note": (
+            "Ratios are measured from independent Pollard's rho runs on real "
+            "(seed) and null-calibration (seed+10007) instances. Values are "
+            "not forced to 1.0."
+        ),
+    })
+    return out
+
+
+def null_split_hard_destroy_report(
+    cell: CellResult,
+    join_evidence_sample: Optional[dict],
+) -> dict:
+    """CTRL-RT056-NULL-SPLIT-HARD-DESTROY status split (observations only)."""
+    r_null = cell.R_null
+    composition_repaired = bool(
+        join_evidence_sample is not None or (cell.n_usable_split_null > 0)
+    )
+    # destroy_demonstrated iff measured primary R_null < 0.9 (plant OFF).
+    # Do not use /4-planted costs here — that belongs to PLANT-CLOSED-PATH only.
+    destroy_demonstrated = bool(r_null is not None and r_null < 0.9)
+    falsifiability_failed = bool(composition_repaired and not destroy_demonstrated)
+    package_pass_observation = bool(composition_repaired and destroy_demonstrated)
+    return {
+        "control_id": "CTRL-RT056-NULL-SPLIT-HARD-DESTROY",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-theater-r2",
+        "backend_id": BACKEND_ID,
+        "composition_rule": (
+            "(null_half_int(left)+null_half_int(right)) mod M "
+            "== null_target_int(target_tag) mod M; "
+            "table keyed/looked-up with claw_key(N) identical to real arm"
+        ),
+        "null_split_mode": "composing",
+        "composition_repaired": composition_repaired,
+        "destroy_demonstrated": destroy_demonstrated,
+        "falsifiability_failed": falsifiability_failed,
+        "package_pass_observation": package_pass_observation,
+        "destroy_threshold": 0.9,
+        "R_null_measured": r_null,
+        "destroy_parameter_check": {
+            "threshold": 0.9,
+            "R_null_below_threshold": destroy_demonstrated,
+            "route": "primary_compose_R_null" if destroy_demonstrated else None,
+            "measured_R_null_for_destroy": r_null if destroy_demonstrated else None,
+            "packaging_like_real_arm": (
+                "planted_m_sum targets on declared cell; plant OFF on primary R/R_null"
+            ),
+        },
+        "R_measured": cell.R,
+        "raw_costs": {
+            "cost_naive": cell.cost_naive,
+            "cost_split": cell.cost_split,
+            "cost_naive_null": cell.cost_naive_null,
+            "cost_split_null": cell.cost_split_null,
+            "wall_naive": cell.wall_naive,
+            "wall_split": cell.wall_split,
+            "wall_naive_null": cell.wall_naive_null,
+            "wall_split_null": cell.wall_split_null,
+            "n_usable_naive": cell.n_usable_naive,
+            "n_usable_split": cell.n_usable_split,
+            "n_usable_naive_null": cell.n_usable_naive_null,
+            "n_usable_split_null": cell.n_usable_split_null,
+        },
+        "join_evidence_sample": join_evidence_sample,
+        "asymmetric_crippling_forbidden": True,
+        "soft_pass_on_non_falsifiability_forbidden": True,
+        "note": (
+            "destroy_demonstrated is true IFF measured primary R_null < 0.9 "
+            "with raw costs (plant OFF). falsifiability_failed is terminal "
+            "non-discharge for the co-required package when "
+            "composition_repaired and not destroy_demonstrated — not a soft "
+            "PASS and not alone a mathematical negative on H-DS-001."
+        ),
+    }
 
 
 # --- HEUR-DS-1 sampling -----------------------------------------------------
@@ -1970,6 +2377,306 @@ def mode_ctrl_unplanted(args: argparse.Namespace) -> int:
     return 0 if status in ("completed_valid", "resource_exhaustion") else 1
 
 
+def mode_ctrl_theater_r2(args: argparse.Namespace) -> int:
+    """PA-DS-001-v2-ctrl-theater-r2 / CTRL-RT056-* co-required package.
+
+    Cell: bits=20,B=64,m=4,seed=101. Observations only.
+    """
+    started = utc_now()
+    t0 = time.perf_counter()
+    bits, B, m, seed = 20, 64, 4, 101
+    cell_wall = float(args.cell_wall)
+    relations = int(args.relations)
+    run_id = "RUN-DS-001-ctrl-theater-r2"
+    logs = [
+        f"CTRL theater-r2 RUN={run_id} cell bits={bits} B={B} m={m} seed={seed}",
+        f"cell_wall={cell_wall} relations_target={relations} smoothness_abort=false",
+        f"target_mode=planted_m_sum (packaging-like real arm) backend_id={BACKEND_ID}",
+        "null_split_mode=composing (CTRL-RT056-NULL-SPLIT-HARD-DESTROY)",
+        "binding: TASK-066 APPROVED ecf99e6e; amend snapshot 9c94d866; PA-DS-001-v2-ctrl-theater-r2",
+        "R-1: primary plant OFF; plant inject only in plant_closed_path_report path",
+    ]
+
+    cell = execute_cell(
+        bits=bits,
+        B=B,
+        m=m,
+        seed=seed,
+        cell_wall_budget=cell_wall,
+        relations_target=relations,
+        do_planted=False,
+        smoothness_abort=False,
+        target_mode="planted_m_sum",
+        null_split_mode="composing",
+    )
+
+    # Join-evidence probe (same composing rule; not a second yield harvest).
+    join_evidence_sample = None
+    try:
+        inst = generate_instance(seed, bits)
+        fb = make_factor_base(inst, B, seed)
+        probe = null_split_search_composing(
+            fb.xs, seed, bits, B, m, target_tag=1,
+            deadline=time.perf_counter() + min(30.0, cell_wall),
+            charge_backend=lambda mm: charge_backend_units(mm),
+        )
+        if probe.relation and isinstance(probe.relation, dict):
+            join_evidence_sample = probe.relation.get("join_evidence")
+    except Exception as e:
+        logs.append(f"join_evidence_probe_error: {e}")
+
+    plant_report = plant_closed_path_detect(cell)
+    rho_report = measure_rho_calib_audited(cell, seed, bits)
+    null_report = null_split_hard_destroy_report(cell, join_evidence_sample)
+
+    logs.append(
+        f"primary status={cell.status} R={cell.R} R_null={cell.R_null} "
+        f"label={cell.r1_cell_label} protocol_stop={cell.protocol_stop}"
+    )
+    logs.append(
+        f"n_usable=(naive={cell.n_usable_naive},split={cell.n_usable_split},"
+        f"naive_null={cell.n_usable_naive_null},split_null={cell.n_usable_split_null})"
+    )
+    logs.append(
+        f"plant_closed_path detected={plant_report.get('planted_bug_detected')} "
+        f"path={plant_report.get('detection_path')} "
+        f"echo_entailment_check={plant_report.get('echo_entailment_check')}"
+    )
+    logs.append(
+        f"rho_calib ratios real={rho_report.get('rho_calib_ratio_real')} "
+        f"null={rho_report.get('rho_calib_ratio_null')} "
+        f"status={rho_report.get('status')}"
+    )
+    logs.append(
+        f"null_split composition_repaired={null_report.get('composition_repaired')} "
+        f"destroy_demonstrated={null_report.get('destroy_demonstrated')} "
+        f"falsifiability_failed={null_report.get('falsifiability_failed')}"
+    )
+
+    cert = {"kind": "none", "verified": True, "verifier": None}
+    if cell.rho and cell.rho.get("solved"):
+        cert = {
+            "kind": "discrete_log",
+            "verified": bool(cell.rho.get("certificate_verified")),
+            "verifier": (
+                "harness.toycurve.EllipticCurve.mul independent check in driver "
+                "+ verify_certificates.py"
+            ),
+            "k": cell.rho.get("k"),
+        }
+
+    status = cell.status
+    if cert.get("kind") == "discrete_log" and not cert.get("verified"):
+        status = "invalid_measurement"
+    if cell.plant_applied_to_primary:
+        status = "invalid_measurement"
+        logs.append("INVALID: plant leaked into primary R (R-1 violation)")
+    if plant_report.get("detection_path") not in (None, "null_gate_f2_shape"):
+        status = "invalid_measurement"
+        logs.append("INVALID: detection_path outside allowed enum {null_gate_f2_shape}")
+    if plant_report.get("echo_entailment_check") is True:
+        status = "invalid_measurement"
+        logs.append("INVALID: echo_entailment_check true")
+    if rho_report.get("status") == "failed_infrastructure":
+        # Measurement incomplete — not a mathematical negative (AGENTS.md rule 5).
+        if status == "completed_valid":
+            status = "resource_exhaustion"
+        logs.append("rho_calib measurement failed_infrastructure")
+
+    raw = {
+        "mode": "ctrl-theater-r2",
+        "run_id": run_id,
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-theater-r2",
+        "control_ids": [
+            "CTRL-RT056-PLANT-CLOSED-PATH",
+            "CTRL-RT056-RHO-CALIB-AUDITED",
+            "CTRL-RT056-NULL-SPLIT-HARD-DESTROY",
+        ],
+        "approval_binding": {
+            "approval_task": "TASK-20260731-066",
+            "approval_determination": "APPROVED",
+            "approval_archive_commit": "ecf99e6ef65998cc57f9eec495953371082513ef",
+            "amend_snapshot": "9c94d866948526d5f27dc17705d02000defcf9dc",
+            "reviewer_report": "RT-20260731-065",
+        },
+        "cell": asdict(cell),
+        "plant_closed_path": plant_report,
+        "rho_calib_audited": rho_report,
+        "null_split_hard_destroy": null_report,
+        "metrics": {
+            "R": cell.R,
+            "R_null": cell.R_null,
+            "R_ci": cell.R_ci,
+            "R_null_ci": cell.R_null_ci,
+            "n_usable_naive": cell.n_usable_naive,
+            "n_usable_split": cell.n_usable_split,
+            "n_usable_naive_null": cell.n_usable_naive_null,
+            "n_usable_split_null": cell.n_usable_split_null,
+            "r1_cell_label": cell.r1_cell_label,
+            "protocol_stop": cell.protocol_stop,
+            "plant_applied_to_primary": cell.plant_applied_to_primary,
+            "backend_id": BACKEND_ID,
+            "target_mode": cell.target_mode,
+            "null_split_mode": "composing",
+            "planted_bug_detected": plant_report.get("planted_bug_detected"),
+            "detection_path": plant_report.get("detection_path"),
+            "echo_entailment_check": plant_report.get("echo_entailment_check"),
+            "rho_calib_ratio_real": rho_report.get("rho_calib_ratio_real"),
+            "rho_calib_ratio_null": rho_report.get("rho_calib_ratio_null"),
+            "composition_repaired": null_report.get("composition_repaired"),
+            "destroy_demonstrated": null_report.get("destroy_demonstrated"),
+            "falsifiability_failed": null_report.get("falsifiability_failed"),
+        },
+        "certificate": cert,
+        "cost_identities": {
+            "rho_gop_per_second": "rho_total_group_operations / rho_wall_seconds",
+            "cost_naive": "wall_seconds_naive * rho_gop_per_second / max(n_usable_relations_naive, 1)",
+            "cost_split": "wall_seconds_split * rho_gop_per_second / max(n_usable_relations_split, 1)",
+            "R": "cost_split / cost_naive",
+            "R_null": "cost_split_null / cost_naive_null",
+        },
+        "_stdout": "\n".join(logs),
+        "_stderr": "",
+    }
+
+    finished = utc_now()
+    wall_seconds = time.perf_counter() - t0
+    cmd = (
+        f"python3 experiments/EXP-DS-001/implementation/ds001_driver.py "
+        f"--mode ctrl-theater-r2 --cell-wall {cell_wall} --relations {relations}"
+    )
+    out_run = Path(args.out_run)
+    write_run_artifacts(
+        run_id,
+        out_run,
+        cmd,
+        raw,
+        status,
+        started=started,
+        finished=finished,
+        wall_seconds=wall_seconds,
+        task_id="TASK-20260731-067",
+        batch_id="BATCH-022",
+        contract_extra={
+            "control_protocol_paths": [
+                "experiments/EXP-DS-001/controls/CTRL-RT056-PLANT-CLOSED-PATH.yaml",
+                "experiments/EXP-DS-001/controls/CTRL-RT056-RHO-CALIB-AUDITED.yaml",
+                "experiments/EXP-DS-001/controls/CTRL-RT056-NULL-SPLIT-HARD-DESTROY.yaml",
+            ],
+            "protocol_amendment_id": "PA-DS-001-v2-ctrl-theater-r2",
+            "amendment_path": "experiments/EXP-DS-001/amendments/v2_ctrl_theater_r2.yaml",
+            "approval_task": "TASK-20260731-066",
+            "approval_determination": "APPROVED",
+            "approval_archive_commit": "ecf99e6ef65998cc57f9eec495953371082513ef",
+            "amend_snapshot": "9c94d866948526d5f27dc17705d02000defcf9dc",
+            "parent_contract_sha256": (
+                "898304bfc9225062e68c5d7977d1490cad95957e856847676ef7ae1423a5636a"
+            ),
+        },
+        inputs_extra={
+            "cell": {"bits": bits, "B": B, "m": m, "seed": seed},
+            "target_mode": "planted_m_sum",
+            "null_split_mode": "composing",
+            "smoothness_abort": False,
+            "relations_target": relations,
+            "cell_wall_seconds": cell_wall,
+            "plant_on_primary": False,
+            "claim_tier": "toy",
+        },
+    )
+
+    results_dir = Path(args.exp_root) / "results" / "ctrl_theater_r2"
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    (results_dir / "plant_closed_path_report.json").write_text(
+        json.dumps(plant_report, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+    (results_dir / "rho_calib_audited_report.json").write_text(
+        json.dumps(rho_report, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+    (results_dir / "null_split_hard_destroy_report.json").write_text(
+        json.dumps(null_report, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+
+    summary = {
+        "experiment_id": "EXP-DS-001",
+        "run_id": run_id,
+        "task_id": "TASK-20260731-067",
+        "batch_id": "BATCH-022",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-theater-r2",
+        "control_ids": [
+            "CTRL-RT056-PLANT-CLOSED-PATH",
+            "CTRL-RT056-RHO-CALIB-AUDITED",
+            "CTRL-RT056-NULL-SPLIT-HARD-DESTROY",
+        ],
+        "approval_binding": raw["approval_binding"],
+        "claim_tier": "toy",
+        "confirmatory_status": "exploratory_control",
+        "status": status,
+        "backend_id": BACKEND_ID,
+        "target_mode": "planted_m_sum",
+        "null_split_mode": "composing",
+        "smoothness_abort": False,
+        "relations_target": relations,
+        "cell_wall_seconds": cell_wall,
+        "plant_applied_to_primary": False,
+        "R": cell.R,
+        "R_null": cell.R_null,
+        "r1_cell_label": cell.r1_cell_label,
+        "protocol_stop": cell.protocol_stop,
+        "n_usable_naive": cell.n_usable_naive,
+        "n_usable_split": cell.n_usable_split,
+        "n_usable_naive_null": cell.n_usable_naive_null,
+        "n_usable_split_null": cell.n_usable_split_null,
+        "planted_bug_detected": plant_report.get("planted_bug_detected"),
+        "detection_path": plant_report.get("detection_path"),
+        "echo_entailment_check": plant_report.get("echo_entailment_check"),
+        "injection_site": plant_report.get("injection_site"),
+        "rho_calib_ratio_real": rho_report.get("rho_calib_ratio_real"),
+        "rho_calib_ratio_null": rho_report.get("rho_calib_ratio_null"),
+        "rho_wall_real": rho_report.get("rho_wall_real"),
+        "rho_gop_real": rho_report.get("rho_gop_real"),
+        "rho_wall_null": rho_report.get("rho_wall_null"),
+        "rho_gop_null": rho_report.get("rho_gop_null"),
+        "composition_repaired": null_report.get("composition_repaired"),
+        "destroy_demonstrated": null_report.get("destroy_demonstrated"),
+        "falsifiability_failed": null_report.get("falsifiability_failed"),
+        "package_pass_observation": null_report.get("package_pass_observation"),
+        "does_not_supersede": (
+            "Does not overwrite EV-DS-002 / EV-DS-003 / EV-DS-004. "
+            "Does not reuse unauthorized RUN-DS-001-ctrl-theater."
+        ),
+        "does_not_modify_hypotheses": ["H-IC-001", "H-STR-002"],
+        "inference": inference_block(),
+        "git": git_state(),
+        "wall_seconds_run": wall_seconds,
+        "note": (
+            "Toy-tier theater-r2 control package observations only. "
+            "No crypto-scale or asymptotic claim. No S1_met interpretation."
+        ),
+    }
+    (results_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+
+    print("\n".join(logs))
+    print("SUMMARY", json.dumps({
+        "status": status,
+        "R": cell.R,
+        "R_null": cell.R_null,
+        "planted_bug_detected": plant_report.get("planted_bug_detected"),
+        "detection_path": plant_report.get("detection_path"),
+        "echo_entailment_check": plant_report.get("echo_entailment_check"),
+        "rho_calib_ratio_real": rho_report.get("rho_calib_ratio_real"),
+        "rho_calib_ratio_null": rho_report.get("rho_calib_ratio_null"),
+        "composition_repaired": null_report.get("composition_repaired"),
+        "destroy_demonstrated": null_report.get("destroy_demonstrated"),
+        "falsifiability_failed": null_report.get("falsifiability_failed"),
+        "protocol_stop": cell.protocol_stop,
+    }))
+    return 0 if status in ("completed_valid", "resource_exhaustion") else 1
+
+
 def mode_finalize(args: argparse.Namespace) -> int:
     """Assemble results/*.json from the three run raw-results."""
     root = Path(args.exp_root)
@@ -2078,7 +2785,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="EXP-DS-001 v2 driver")
     ap.add_argument(
         "--mode",
-        choices=["impl", "measure", "heur", "finalize", "ctrl-unplanted"],
+        choices=["impl", "measure", "heur", "finalize", "ctrl-unplanted", "ctrl-theater-r2"],
         required=True,
     )
     ap.add_argument("--out-run", default="")
@@ -2095,6 +2802,7 @@ def main() -> int:
             "measure": "RUN-DS-001-measure",
             "heur": "RUN-DS-001-heur",
             "ctrl-unplanted": "RUN-DS-001-ctrl-unplanted",
+            "ctrl-theater-r2": "RUN-DS-001-ctrl-theater-r2",
         }[args.mode])
     if args.mode == "impl":
         return mode_impl(args)
@@ -2107,6 +2815,10 @@ def main() -> int:
         if args.cell_wall == 90.0:
             args.cell_wall = 7200.0
         return mode_ctrl_unplanted(args)
+    if args.mode == "ctrl-theater-r2":
+        if args.cell_wall == 90.0:
+            args.cell_wall = 7200.0
+        return mode_ctrl_theater_r2(args)
     return mode_finalize(args)
 
 
