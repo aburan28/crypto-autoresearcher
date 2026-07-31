@@ -1,0 +1,40 @@
+# TASK-20260730-036 - CTRL-RT034-A mutation test of the CTRL-4 assertion.
+# Executed from the repository root of the worktree
+#   /Volumes/SSD990/crypto-autoresearcher/.claude/worktrees/run-harness-boi-060771
+# NO COMMIT IS MADE BY THIS CARD. TASK-20260730-037 archives these files.
+
+# --- pre-flight disk check, run BEFORE the first write (also re-run inside the
+# --- driver and recorded in mutation_manifest.json.pre_flight_disk_check)
+df -k /Volumes/SSD990
+
+# --- git state recorded before the run (clean tree, dirty count 0)
+git rev-parse HEAD
+git status --porcelain | wc -l
+
+# --- the run itself (one execution; maximum_runs = 1)
+MUT_GIT_HEAD="$(git rev-parse HEAD)" \
+MUT_GIT_DIRTY_COUNT="$(git status --porcelain | wc -l | tr -d ' ')" \
+python3 coordination/goals/GOAL-ECDLP-001/batches/BATCH-016/mutation/mutation_driver.py \
+  > coordination/goals/GOAL-ECDLP-001/batches/BATCH-016/mutation/stdout.log \
+  2> coordination/goals/GOAL-ECDLP-001/batches/BATCH-016/mutation/stderr.log
+
+# --- post-run hash pass: fills mutation_manifest.json.artifact_sha256 with a
+# --- sha256 for every OTHER artifact (the manifest does not hash itself).
+# --- It runs after stdout.log and stderr.log are closed, and writes nothing to
+# --- either of them, so the recorded hashes are the final file contents.
+python3 - <<'PY'
+import hashlib, json, pathlib
+d = pathlib.Path("coordination/goals/GOAL-ECDLP-001/batches/BATCH-016/mutation")
+m = d / "mutation_manifest.json"
+man = json.loads(m.read_text())
+names = ["mutation_driver.py", "command.txt", "environment.json",
+         "stdout.log", "stderr.log", "mutation_probe.json"]
+man["artifact_sha256"] = {
+    n: hashlib.sha256((d / n).read_bytes()).hexdigest() for n in names}
+man["artifact_sizes_bytes"] = {n: (d / n).stat().st_size for n in names}
+man["artifact_sha256_note"] = (
+    "Computed by the post-run hash pass recorded in command.txt, after "
+    "stdout.log and stderr.log were closed. mutation_manifest.json does not "
+    "hash itself; a sha256 is recorded for every OTHER artifact.")
+m.write_text(json.dumps(man, indent=2) + "\n")
+PY
