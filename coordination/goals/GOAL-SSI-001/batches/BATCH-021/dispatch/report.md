@@ -6,12 +6,10 @@ BATCH-021: freeze in-repo FC0 extension-package interfaces (Verify(x,k') and W/R
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-055` | idea-generator | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-055/fc0_extension_package.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-055/verify_interface.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-055/lifetime_hooks_interface.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-055/freeze_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-055/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-055/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-055 |
+| `TASK-20260730-057` | red-team | queued | 80 | TASK-20260730-055, TASK-20260730-056 | coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-057/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-057/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-021/tasks/TASK-20260730-057 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-056`: dependency_not_completed:TASK-20260730-055:queued
-- `TASK-20260730-057`: dependency_not_completed:TASK-20260730-055:queued, dependency_not_completed:TASK-20260730-056:queued
 - `TASK-20260730-058`: dependency_not_completed:TASK-20260730-057:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-021: freeze in-repo FC0 extension-package interfaces (Verify(x,k') and W/R
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b8639c6fd0faa7889a4ebde804b05e5c2cfb96142591ab95ebc5dbb45ae47f5c`
+Plan SHA-256: `b786d1fc3e9be189feeebba77b714bdddd46024fc38b15fce6686dd55ff451f8`
