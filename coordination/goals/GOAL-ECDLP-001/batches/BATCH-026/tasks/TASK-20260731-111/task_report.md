@@ -17,6 +17,7 @@ No run. No Executor until APPROVED. Toy ceiling. No STR.
 
 A concurrent session raced an IT-amend task_report into snapshot 07232da8;
 see REPAIR-20260731-task-report-race.md. Official package is CI-IDENTITY.
+Immutable review authority remains the PA/CTRL/DEC-030 blobs at 07232da8.
 
 ## Next
 
