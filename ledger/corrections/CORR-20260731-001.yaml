@@ -1,0 +1,67 @@
+correction:
+  id: CORR-20260731-001
+  recorded_at: '2026-07-31'
+  record_type: claim
+  record_id: SCHEMA-CONFORMANCE-MLKEM-RUN-MANIFESTS
+  field: run_manifest_schema
+  prior_value:
+    schema_shape: >-
+      Eight GOAL-MLKEM-002 run manifests recorded reproducibility and
+      certificate data under run.command, run.git_commit, and run.certificate,
+      and wrote companion artifacts as raw.json / stdout.txt / stderr.txt.
+    affected_runs:
+      - RUN-MLKEM-021
+      - RUN-MLKEM-022
+      - RUN-MLKEM-023
+      - RUN-MLKEM-024
+      - RUN-MLKEM-033
+      - RUN-MLKEM-034
+      - RUN-MLKEM-035
+      - RUN-MLKEM-036
+  corrected_value:
+    schema_shape: >-
+      Each manifest additionally carries run.code.{command,commit} and
+      run.result.{certificate,validity_status,validity_reason}, and each run
+      directory additionally carries raw-result.json / stdout.log / stderr.log.
+  reason: >-
+    tools/validate_ledger.py requires run.code.{command,commit},
+    run.result.certificate.kind, and companion artifacts named
+    raw-result.json / stdout.log / stderr.log. The eight manifests above
+    recorded every one of those values, but under different key paths and
+    filenames, so the CI ledger gate reported 64 validation errors introduced
+    by PR #67 relative to origin/main. This correction is representational
+    only. Every added value is copied verbatim from a key already present in
+    the same manifest (run.command -> run.code.command, run.git_commit ->
+    run.code.commit, run.certificate -> run.result.certificate) and every added
+    artifact is a byte-identical copy of an existing file in the same run
+    directory. No run was re-executed, no timing, metric, environment,
+    certificate, or validity judgement was altered, and nothing was derived or
+    invented. All original keys and files are retained unchanged, so the
+    assertions reviewed by the Validator and Red Team remain present and
+    readable in place.
+  edits_are_additive_only: true
+  snapshot_receipts_deliberately_not_updated: >-
+    coordination/goals/GOAL-MLKEM-002/batches/BATCH-003/archives/TASK-20260724-934/snapshot-receipt.json
+    and .../BATCH-004/archives/TASK-20260724-941/snapshot-receipt.json record
+    sha256 values for the manifests as they existed at their snapshot commits.
+    Those receipts are intentionally left unmodified: they remain exactly
+    verifiable against the commits they name (git show <commit_sha>:<path>),
+    and rewriting them to match the post-conformance files would assert that
+    the snapshot commits contained content the reviewers never saw. The same
+    reasoning applies to the manifest hashes quoted in
+    BATCH-003/tasks/TASK-20260724-935/validation_report.yaml and the BATCH-003
+    and BATCH-004 dispatch queues, which are also left unmodified. Current
+    working-tree manifest hashes therefore differ from those receipts by
+    design; the snapshot commits stay authoritative for the reviewed bytes.
+  evidence_artifacts:
+    - ledger/corrections/CORR-20260731-001.yaml
+    - experiments/EXP-MLKEM-006/runs/RUN-MLKEM-021/manifest.yaml
+    - experiments/EXP-MLKEM-009/runs/RUN-MLKEM-033/manifest.yaml
+  affects:
+    - GOAL-MLKEM-002 BATCH-003 and BATCH-004 run packages (manifests + artifacts)
+  verification: >-
+    After this correction, tools/validate_ledger.py on the PR #67 merge tree
+    introduces zero errors relative to origin/main (previously 64), and
+    tools/check_run_immutability.py reports no modified or deleted committed
+    run artifacts.
+  decided_by: coordinator
