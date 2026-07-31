@@ -26,4 +26,4 @@ BATCH-023 residual plant-contrastive control under SG-ECDLP-001: author PA-DS-00
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `92afd136415b031c83e324b23c2f537ded8d597d48d0cc811b8771a0002347e7`
+Plan SHA-256: `c0ae95517254c02ad9b268458ceb1dc53a231cf320c77323c5dac976d2fb9c45`
