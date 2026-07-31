@@ -6,11 +6,11 @@ BATCH-031: construct a checkable symbolic τ-schema / stopping-coverage obligati
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-097` | red-team | queued | 80 | TASK-20260730-095, TASK-20260730-096 | coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-097/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-097/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-031/tasks/TASK-20260730-097 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-098`: dependency_not_completed:TASK-20260730-097:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-031: construct a checkable symbolic τ-schema / stopping-coverage obligati
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `39d51da0921f041230133c19e96e5d33fa3f9cb714e4c5ec226dd23f00e01e28`
+Plan SHA-256: `de2de719035378cdd384c54b8cbdd63f5339a351c0b3135aa3464598ab3599d3`
