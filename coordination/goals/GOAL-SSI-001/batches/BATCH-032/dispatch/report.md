@@ -6,11 +6,11 @@ BATCH-032: construct a checkable symbolic numeric-width / peak-byte obligation s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-101` | red-team | queued | 80 | TASK-20260730-099, TASK-20260730-100 | coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-101/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-101/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-032/tasks/TASK-20260730-101 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-102`: dependency_not_completed:TASK-20260730-101:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-032: construct a checkable symbolic numeric-width / peak-byte obligation s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `62bf362c365b177fc9d45715248bc8bef7d6c49c92724dee40e5f18cb5f293f0`
+Plan SHA-256: `02223c7f9e526be57f9282c007209242e8f33cec5e905c0c231bf75274d3af7f`
