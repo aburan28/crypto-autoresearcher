@@ -6,11 +6,10 @@ Open GOAL-ECTD-001 BATCH-001: file/upgrade Teske and approach-adjacent primary s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-034` | coordinator | queued | 98 | TASK-20260731-033 | coordination/goals/GOAL-ECTD-001/batches/BATCH-001/archives/TASK-20260731-034/snapshot-receipt.json | coordination/goals/GOAL-ECTD-001/batches/BATCH-001/archives/TASK-20260731-034 |
+| `TASK-20260731-027` | idea-generator | queued | 95 | TASK-20260731-034 | knowledge/literature/KN-LIT-7261.md, knowledge/literature/KN-LIT-7630.md, knowledge/literature/KN-LIT-7631.md, knowledge/literature/KN-LIT-7632.md, knowledge/literature/KN-LIT-7633.md, knowledge/literature/KN-LIT-7634.md, knowledge/literature/KN-LIT-7635.md, knowledge/literature/KN-LIT-7636.md, coordination/goals/GOAL-ECTD-001/batches/BATCH-001/tasks/TASK-20260731-027/sources_note.md | knowledge/literature, coordination/goals/GOAL-ECTD-001/batches/BATCH-001/tasks/TASK-20260731-027 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-027`: dependency_not_completed:TASK-20260731-034:queued
 - `TASK-20260731-028`: dependency_not_completed:TASK-20260731-027:queued
 - `TASK-20260731-029`: dependency_not_completed:TASK-20260731-028:queued
 - `TASK-20260731-030`: dependency_not_completed:TASK-20260731-029:queued
@@ -30,4 +29,4 @@ Open GOAL-ECTD-001 BATCH-001: file/upgrade Teske and approach-adjacent primary s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `f23fcb2e8bacd8ca584dd45a3fc94d2cad3e9ebe8d1dfb9e8f177535f2445818`
+Plan SHA-256: `2f0c0a9cb20a5e46d670be8213df9608bd03bdfb9aaccf748b45af63c6b9cb09`
