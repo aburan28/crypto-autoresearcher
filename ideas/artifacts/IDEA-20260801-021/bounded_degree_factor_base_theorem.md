@@ -58,6 +58,26 @@ B_p := |F_p| <= 3 d_p.
 The non-containment check is essential. A polynomial that vanishes identically
 on `E` is not an admissible predicate in this theorem.
 
+### Algebraic-degree generalization
+
+The polynomial presentation is only a concrete way to expose the relevant
+complexity. More generally, let `Z_p` be any projective algebraic locus whose
+intersection with the projective cubic is proper and has finite geometric
+intersection degree `Delta_p`. For
+
+```text
+F_p subseteq G intersect (E_bar intersect Z_p)(F_p),
+```
+
+the same argument gives `|F_p| <= Delta_p`. A finite zero-dimensional locus
+uses its scheme degree as `Delta_p`; a proper complete intersection may use its
+Bezout product bound. Replacing `3 d_p` by `Delta_p` in Theorems 2--4 yields
+the identical coverage and rerandomized-cost conclusions. Thus the durable
+scope is “algebraic factor bases with an explicit subpolynomial intersection-
+degree bound,” not merely one syntactic polynomial form. Descriptions whose
+closure contains `E`, or whose degree/intersection complexity is not charged,
+remain outside the theorem.
+
 ## Theorem 2: sumset coverage is bounded by tuple count
 
 The elliptic-curve addition map

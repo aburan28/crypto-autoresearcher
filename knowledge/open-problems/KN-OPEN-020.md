@@ -21,10 +21,12 @@ time, and memory costs charged?
 
 `ideas/artifacts/IDEA-20260801-021/bounded_degree_factor_base_theorem.md`
 gives a derivation-level obstruction for one nonzero bounded-degree plane
-polynomial predicate, explicit bounded-arity sumset descent, and
-min-entropy-random targets. Bezout bounds the factor base by `3d`; tuple-image
-counting bounds the reachable target set by `B^m`; and the resulting expected
-charged descent cost is `Omega(N/B^m)`.
+polynomial predicate, and its algebraic-degree generalization to any proper
+locus with explicit finite intersection degree `Delta`. For explicit
+bounded-arity sumset descent and min-entropy-random targets, Bezout bounds the
+factor base by `3d` (or `Delta`); tuple-image counting bounds the reachable
+target set by `B^m`; and the optional fresh-rerandomized descent interface has
+the expected charged-trial lower bound `Omega(N/B^m)`.
 
 ## Why the universal statement remains open
 
