@@ -15,7 +15,7 @@ tags: [astra, openai, ai-for-mathematics, autonomous-research, machine-discovere
 confidence: reported
 citation_verified: false
 added: "2026-08-01"
-superseded_by: null
+superseded_by: KN-LIT-7640
 ---
 
 ## Sourcing warning — read before citing this entry

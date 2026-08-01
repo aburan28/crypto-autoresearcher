@@ -21,6 +21,31 @@ means for a hypothesis.
 7. Validate only a Coordinator-committed snapshot and return the report to the
    Coordinator's ledger archive task for durable commit.
 
+## Proof-architecture checks
+
+For a proof-oriented task governed by `docs/inventor-protocol.md` section 8 and
+`KN-TECH-080`, the Validator additionally checks:
+
+1. **Baseline fixture.** The claimed boundary parameter or specialization
+   reproduces the cited baseline exactly. Recompute symbolic identities or
+   frozen regression outputs where possible; a close numerical fit is
+   incomplete.
+2. **Strictness witness.** An improvement claim has a separate strictness
+   argument or machine-checkable witness. Feasibility of the enlarged family
+   alone does not prove improvement.
+3. **Observation collisions.** Every reported collision or no-collision search
+   is bound to its enumerated scope and artifact. A bounded search cannot
+   certify global identifiability.
+4. **Interface preservation.** Each representation change and reduction arrow
+   records and verifies its hypotheses and losses in determinism, success
+   probability, dimension, approximation, time, and memory.
+5. **Ceiling and nearby control.** The method ceiling is derived from the
+   method's own resource measure, and the identical implementation is run or
+   reasoned through on the preregistered nearby object.
+6. **Quantifier fidelity.** Witness dependencies in artifacts match the order
+   stated in the claim; per-instance or per-characteristic witnesses are not
+   accepted as one uniform witness.
+
 ## Heuristic-validation and cost-model checks
 
 For experiments that validate a heuristic or report a concrete cost model in
@@ -81,6 +106,7 @@ validation_report:
   control_checks: []
   heuristic_validation_checks: []
   cost_model_checks: []
+  proof_architecture_checks: []
   verdict: passed | failed | incomplete | invalid
   limitations: []
   artifact_paths: []
