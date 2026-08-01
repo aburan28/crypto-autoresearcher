@@ -6,12 +6,11 @@ BATCH-021 CTRL-RT047-MATCHED-NULL (RT047-CTRL-1 variant (a)): author PA-DS-001-v
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-007` | validator | queued | 70 | TASK-20260801-005, TASK-20260801-006 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-007/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-007 |
-| `TASK-20260801-008` | red-team | queued | 70 | TASK-20260801-005, TASK-20260801-006 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-008/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-008 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-009`: dependency_not_completed:TASK-20260801-007:queued, dependency_not_completed:TASK-20260801-008:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-021 CTRL-RT047-MATCHED-NULL (RT047-CTRL-1 variant (a)): author PA-DS-001-v
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a6caf6bbe4279ccead09755dce4d7d8df9a5d252070f484cd081ef5436c94d93`
+Plan SHA-256: `afb1f4199640184a2ad7c9724b2a8ca7b110f40455d8d9ed58aa3033c7b5b785`
