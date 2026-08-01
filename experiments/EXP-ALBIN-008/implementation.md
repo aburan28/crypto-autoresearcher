@@ -11,10 +11,10 @@ Historical Autolab port (no re-execution).
 
 ## Copied artifacts
 - `source/bin_exp008_result.md`
-- `source/bin_exp008_solving_degree_vs_n.sage`
-- `source/bin_exp008b_subregularity_gap.sage`
 - `source/bin_exp008_solving_degree_vs_n.log`
+- `source/bin_exp008_solving_degree_vs_n.sage`
 - `source/bin_exp008b_subregularity_gap.log`
+- `source/bin_exp008b_subregularity_gap.sage`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

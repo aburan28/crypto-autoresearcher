@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round020_solvegate
 
 ## Observation
-{'e_ic_decomp_ops': 0.8892717464264962, 'e_rho_empirical': 0.25922705660116446, 'rho_theory_exponent': '0.500000000000000', 'ic_solved_sizes': ['10', '12', '14', '16']}
+`round020_solvegate_contract.md`. Reproduction: `round020_solvegate_ic_vs_rho.sage` (+ `.log`, `_result.json`).
 
 Source excerpt / raw summary:
 

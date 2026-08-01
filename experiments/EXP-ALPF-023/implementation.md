@@ -10,11 +10,10 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
+- `source/round012_exp028_theta_kummer_surface.log`
+- `source/round012_exp028_theta_kummer_surface.sage`
 - `source/round012_exp028_theta_kummer_surface_result.json`
 - `source/round012_exp028_theta_kummer_surface_result.md`
-- `source/round012_exp028_theta_kummer_surface.sage`
-- `source/round012_exp028_theta_kummer_surface.sage.py`
-- `source/round012_exp028_theta_kummer_surface.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

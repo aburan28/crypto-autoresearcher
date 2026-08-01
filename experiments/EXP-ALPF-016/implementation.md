@@ -10,11 +10,10 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
+- `source/round008_exp015_m4_semaev_gated.log`
+- `source/round008_exp015_m4_semaev_gated.sage`
 - `source/round008_exp015_m4_semaev_gated_result.json`
 - `source/round008_exp015_m4_semaev_gated_result.md`
-- `source/round008_exp015_m4_semaev_gated.sage`
-- `source/round008_exp015_m4_semaev_gated.sage.py`
-- `source/round008_exp015_m4_semaev_gated.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

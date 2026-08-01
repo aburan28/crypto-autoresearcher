@@ -1,7 +1,7 @@
 # Analysis — Autolab binary-field BIN-EXP-006: m scaling
 
 ## Observation
-**Date:** 2026-05-31. Script: `bin_exp006_m_scaling.sage`. Log: `bin_exp006_m_scaling.log` (RC=0, 10/10 cells, RESULTS_JSON byte-verified).
+BIN-NR-003 (capstone) identified the |FB|²≈2^{2n/3} sparse-linear-algebra stage as the obstruction for fixed m=3. The Petit–Quisquater subexponential heuristic escapes it by **growing m** (≈n^{1/3}), which shrinks |FB|≈2^{n/m} and the LA exponent 2n/m. This experiment asks the directly-measurable version: **at FIXED n, does increasing m shrink the IC/rho gap (toward a crossover) or does the per-relation solving cost rise faster?** For n∈{31,41}, m∈{2,…,6}, we measure EXACT |FB| (enumerated) and 
 
 Source excerpt / raw summary:
 

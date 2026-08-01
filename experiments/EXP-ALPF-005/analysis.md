@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round003_exp004_firstfall_reps
 
 ## Observation
-failed
+**Experiment:** round003-exp004 **Seed:** 42 **Date:** 2026-05-30 21:21 **Verdict:** FAILED
 
 Source excerpt / raw summary:
 

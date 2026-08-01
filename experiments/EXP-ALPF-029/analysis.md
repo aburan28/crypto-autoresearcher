@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round018_T2_isogeny_gatedmeter
 
 ## Observation
-Historical Autolab experiment with retained result artifacts.
+No narrative finding recorded; source result artifact carries fields: partA_topform_invariant, partB_distinct_maxGBdeg, partB_distinct_nsols, partB_falsified, partB_rows.
 
 Source excerpt / raw summary:
 

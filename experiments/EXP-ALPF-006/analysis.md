@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round004_exp005_validated_firstfall
 
 ## Observation
-inconclusive
+**Experiment:** round004-exp005 **Seed:** 42 **Date:** 2026-05-30 21:47 **Verdict:** INCONCLUSIVE
 
 Source excerpt / raw summary:
 

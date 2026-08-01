@@ -10,9 +10,9 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/bin_exp005_result.md`
-- `source/bin_exp005_cost_balance.sage`
 - `source/bin_exp005_cost_balance.log`
+- `source/bin_exp005_cost_balance.sage`
+- `source/bin_exp005_result.md`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

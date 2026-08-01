@@ -11,7 +11,6 @@ Historical Autolab port (no re-execution).
 
 ## Copied artifacts
 - `source/p1486_degree_first_hecke_verify_result.json`
-- `source/p1486_degree_first_hecke_verify.sage.py`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

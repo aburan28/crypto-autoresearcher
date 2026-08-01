@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round015_exp031_torus_semaev
 
 ## Observation
-inconclusive
+Round 15. Last genuinely-novel algebra lever in the named queue.
 
 Source excerpt / raw summary:
 

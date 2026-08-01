@@ -10,10 +10,8 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
+- `source/p1243_auxiliary_geometric_principalization_contract_20260729.md`
 - `source/p1243_auxiliary_geometric_principalization_result.json`
-- `source/._p1243_auxiliary_geometric_principalization_contract_20260729.md`
-- `source/p1243_auxiliary_geometric_principalization.sage.py`
-- `source/p1243_auxiliary_geometric_principalization_verify.sage.py`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

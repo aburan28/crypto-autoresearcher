@@ -10,9 +10,9 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/p1243_parity_repair_phase_diagram_result.json`
-- `source/._p1243_parity_repair_phase_diagram_contract_20260729.md`
 - `source/p1243_parity_repair_phase_diagram.py`
+- `source/p1243_parity_repair_phase_diagram_contract_20260729.md`
+- `source/p1243_parity_repair_phase_diagram_result.json`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

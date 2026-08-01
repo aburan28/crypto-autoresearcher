@@ -1,7 +1,7 @@
 # Analysis — Autolab binary-field BIN-EXP-001: Weil-descent gate
 
 ## Observation
-**Date:** 2026-05-31. Script: `bin_exp001_weil_descent_gate.sage`. Log: `bin_exp001_weil_descent_gate.log`.
+**Completion:** 5 of 6 planned cells completed; the 6th cell (n=11, m=3) was KILLED after ~16 min (expensive S₄ resultant + variety) and is NOT reported (no fabricated row). Meter self-validated OVERALL_PASS=True in-run.
 
 Source excerpt / raw summary:
 

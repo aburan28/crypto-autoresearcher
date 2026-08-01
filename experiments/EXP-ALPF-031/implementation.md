@@ -10,10 +10,9 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/round019b_ering_sweep_result.json`
-- `source/round019b_ering_sweep_flat_volcano.sage`
-- `source/round019b_ering_sweep_flat_volcano.sage.py`
 - `source/round019b_ering_sweep.log`
+- `source/round019b_ering_sweep_flat_volcano.sage`
+- `source/round019b_ering_sweep_result.json`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

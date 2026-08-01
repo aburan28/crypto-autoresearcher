@@ -1,7 +1,7 @@
 # Analysis — Autolab binary-field BIN-EXP-002: Solving degree
 
 ## Observation
-**Date:** 2026-05-31. Script: `bin_exp002_solving_degree.sage`. Log: `bin_exp002_solving_degree.log` (RC=0, 5/5 cells, RESULTS_JSON in `bin_exp002_stdout.txt`). All cells fast.
+| n | nvars | genuine maxdeg | genuine consistent | genuine #sols | control maxdeg | control #sols | DISCRIMINATES | rho≈2^ |
 
 Source excerpt / raw summary:
 

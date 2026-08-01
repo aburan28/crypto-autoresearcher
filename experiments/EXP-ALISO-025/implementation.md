@@ -10,8 +10,8 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/p1243_parity_repaired_kani_probe_result.json`
 - `source/p1243_parity_repaired_kani_probe.py`
+- `source/p1243_parity_repaired_kani_probe_result.json`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

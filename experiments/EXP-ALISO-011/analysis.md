@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_parity_center_smoothness_verify
 
 ## Observation
-Historical Autolab experiment with retained result artifacts.
+INDEPENDENTLY-VERIFIED EXACT POPULATIONS AND TOY DISTRIBUTIONAL EVIDENCE / REGISTERED TREND FAILS / MODEL-BOUND / NO GENERAL COMPLEXITY CLAIM
 
 Source excerpt / raw summary:
 

@@ -10,12 +10,11 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
+- `source/round017_exp033_precomputed_dp_rho.log`
+- `source/round017_exp033_precomputed_dp_rho.sage`
+- `source/round017_exp033_precomputed_dp_rho_contract.md`
 - `source/round017_exp033_precomputed_dp_rho_result.json`
 - `source/round017_exp033_precomputed_dp_rho_result.md`
-- `source/round017_exp033_precomputed_dp_rho_contract.md`
-- `source/round017_exp033_precomputed_dp_rho.sage`
-- `source/round017_exp033_precomputed_dp_rho.sage.py`
-- `source/round017_exp033_precomputed_dp_rho.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

@@ -10,11 +10,10 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
+- `source/round013_exp029b_bsmooth_psin_fb.log`
+- `source/round013_exp029b_bsmooth_psin_fb.sage`
 - `source/round013_exp029b_bsmooth_psin_fb_result.json`
 - `source/round013_exp029b_bsmooth_psin_fb_result.md`
-- `source/round013_exp029b_bsmooth_psin_fb.sage`
-- `source/round013_exp029b_bsmooth_psin_fb.sage.py`
-- `source/round013_exp029b_bsmooth_psin_fb.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

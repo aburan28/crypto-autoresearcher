@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round007_exp013_posc_anchor
 
 ## Observation
-{'n_cells_attempted': 10, 'n_cells_valid': 10, 'n_fire': '10', 'n_gate_pass': '10', 'n_gate_meaningful': '10', 'n_gb_below_Dreg': '10', 'n_not_unit_ideal': '10', 'self_validation_pass': True}
+**Experiment**: EXP-013 **Round**: 007 **Timestamp**: 2026-05-31 00:33:32
 
 Source excerpt / raw summary:
 

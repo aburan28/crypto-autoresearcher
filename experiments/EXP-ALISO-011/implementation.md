@@ -10,8 +10,8 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/p1486_parity_center_smoothness_verify_result.json`
 - `source/p1486_parity_center_smoothness_verify.py`
+- `source/p1486_parity_center_smoothness_verify_result.json`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.
