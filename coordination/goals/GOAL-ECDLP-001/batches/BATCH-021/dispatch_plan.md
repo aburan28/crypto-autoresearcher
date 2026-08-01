@@ -6,11 +6,11 @@ Object-first, ledger-wide, primary-literature-checked ECDLP ideation after an em
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-007` | reviewer | queued | 90 | TASK-20260801-005, TASK-20260801-006 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-007/cohort_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-007/dedup_audit.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-007 |
+| `TASK-20260801-008` | coordinator | queued | 80 | TASK-20260801-007 | ledger/evidence/EV-ECDLP-015.yaml, ledger/decisions/DEC-20260801-003.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/archives/TASK-20260801-008/ledger_commit_receipt.json | ledger/evidence/EV-ECDLP-015.yaml, ledger/decisions/DEC-20260801-003.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/archives/TASK-20260801-008 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-008`: dependency_not_completed:TASK-20260801-007:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Object-first, ledger-wide, primary-literature-checked ECDLP ideation after an em
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `95d8c94548c41204bc03f26e615d46637aa478f28b55f0612f5c4bb6ffbc1e7c`
+Plan SHA-256: `921ada348268621c0eaeb7774fe6370651f989366781a332cb3c96f28d85b766`
