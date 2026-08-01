@@ -6,19 +6,16 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-037` | validator | queued | 92 | TASK-20260801-035, TASK-20260801-036 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-037/calibration_validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-037 |
+| `TASK-20260801-040` | reviewer | queued | 93 | TASK-20260801-039 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-040/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-040/attainability_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-040/anti_tuning_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-040/alternative_class_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-040 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-038`: dependency_not_completed:TASK-20260801-037:queued
-- `TASK-20260801-039`: dependency_not_completed:TASK-20260801-038:queued
-- `TASK-20260801-040`: dependency_not_completed:TASK-20260801-039:queued
 - `TASK-20260801-041`: dependency_not_completed:TASK-20260801-040:queued
 - `TASK-20260801-042`: dependency_not_completed:TASK-20260801-041:queued
 - `TASK-20260801-043`: dependency_not_completed:TASK-20260801-042:queued
 - `TASK-20260801-044`: dependency_not_completed:TASK-20260801-042:queued, dependency_not_completed:TASK-20260801-043:queued
 - `TASK-20260801-045`: dependency_not_completed:TASK-20260801-042:queued, dependency_not_completed:TASK-20260801-043:queued
-- `TASK-20260801-046`: dependency_not_completed:TASK-20260801-037:queued, dependency_not_completed:TASK-20260801-043:queued, dependency_not_completed:TASK-20260801-044:queued, dependency_not_completed:TASK-20260801-045:queued
+- `TASK-20260801-046`: dependency_not_completed:TASK-20260801-043:queued, dependency_not_completed:TASK-20260801-044:queued, dependency_not_completed:TASK-20260801-045:queued
 
 ## Dispatch Gates
 
@@ -33,4 +30,4 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `900314c92845f667bbdc37eb9b1404747d91481684495bac21eae3d090b7f3e2`
+Plan SHA-256: `71f8c590cb71ff48318eafb59f75d9ceed15700accd1ee4bfbb131c0a4198406`
