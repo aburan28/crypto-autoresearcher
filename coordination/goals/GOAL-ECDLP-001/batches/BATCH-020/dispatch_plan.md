@@ -6,7 +6,7 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-044` | executor | queued | 80 | TASK-20260731-043 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/manifest.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/raw-result.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stdout.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stderr.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/command.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/environment.json, experiments/EXP-DS-001/results/ctrl_unplanted/summary.json, experiments/EXP-DS-001/results/ctrl_unplanted/R_cell.json, experiments/EXP-DS-001/results/ctrl_unplanted/null_control_report.json, experiments/EXP-DS-001/results/ctrl_unplanted/live_plant_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044/execution_report.yaml | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted, experiments/EXP-DS-001/results/ctrl_unplanted, experiments/EXP-DS-001/implementation, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044 |
+| `TASK-20260731-044` | executor | queued | 80 | TASK-20260731-043 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/manifest.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/raw-result.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stdout.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stderr.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/command.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/environment.json, experiments/EXP-DS-001/results/ctrl_unplanted/summary.json, experiments/EXP-DS-001/results/ctrl_unplanted/R_cell.json, experiments/EXP-DS-001/results/ctrl_unplanted/null_control_report.json, experiments/EXP-DS-001/results/ctrl_unplanted/live_plant_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044/execution_report.yaml, experiments/EXP-DS-001/implementation/ds001_driver.py | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted, experiments/EXP-DS-001/results/ctrl_unplanted, experiments/EXP-DS-001/implementation, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044 |
 
 ## Deferred or Blocked
 
@@ -28,4 +28,4 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `11705b1d77284356c74714c316b707a858845eb8ddb640a4c4ab69aa619a7307`
+Plan SHA-256: `b12c6ed414585e8c2ec84fcfad8b2f2fb238054eeb780f61c007116a26506bad`
