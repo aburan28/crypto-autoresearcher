@@ -15,7 +15,9 @@ review, and synthesis.
 ## Steps
 
 1. Read the experiment's `execution_report`, run manifests, and raw results
-   from `experiments/<EXP-ID>/`.
+   from `experiments/<EXP-ID>/`. Before reviewing, merge `origin/main` into
+   the working branch (merge, never rebase) so the decision is made against
+   current ledger state — see "Branch and PR hygiene" below.
 2. Dispatch the **coordinator** subagent to:
    - re-verify validity before interpreting anything (run count, schema,
      seeds, raw/summary agreement, controls). Invalid or incomplete run
@@ -81,9 +83,26 @@ review, and synthesis.
    record, and any hypothesis or knowledge update by exact path. The official
    transition is blocked until the dispatcher verifies that commit's parent,
    diff, record IDs, and file hashes.
-5. Report to the user: the decision, the evidence strength, the exact scoped
+5. Push the branch and open or refresh a PR against `main` naming the new
+   `EV-*`/`DEC-*`/`KN-*` records (see "Branch and PR hygiene"). An evidence
+   or decision record that exists only in a local commit has not been made
+   official — it is unpublished.
+6. Report to the user: the decision, the evidence strength, the exact scoped
    claim the data justify (use the negative-result phrasing rules from
    `docs/evidence-and-reproducibility.md`), and the next actions.
+
+## Branch and PR hygiene
+
+Evidence review creates official records, so every run of this skill also
+pulls in `main` and surfaces the decision as a PR:
+
+- **Before reviewing:** `git fetch origin && git merge origin/main` — merge,
+  never rebase. If the merge conflicts, stop and report; never resolve a
+  conflict by editing a record. Re-run `tools/validate_ledger.py` after the
+  merge.
+- **After the ledger archive:** `git push -u origin <branch>` then
+  `gh pr create --base main --head <branch> --title "evidence: <EV-ID>/<DEC-ID>" --body "<EV-*/DEC-*/KN-* IDs>"`
+  (or `gh pr edit <number>` when a PR for the branch already exists).
 
 ## Rules
 
