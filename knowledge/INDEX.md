@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7696 entries.
+7699 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7388,6 +7388,9 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7614 | Extremal Chowla sets and their linear analogues: A human-AI mathematical investigation using Co-Scientist | literature | reported | web | human-ai-collaboration co-scientist agentic-mathematics methodology extremal-invariant finite-groups field-extensions normal-basis research-protocol adjacent |
 | KN-LIT-7615 | Certified in Theory, Broken in Practice: Assumption Gaps in Cryptographic Model Certification | literature | reported | web | assumption-gap certification zero-knowledge-proof auditing benchmark-overfitting scope-of-claim security-definition methodology claim-tier adjacent |
 | KN-LIT-7616 | Can PCE solve the factorisation problem via optimisation? | literature | reported | web | pauli-correlation-encoding factorization binary-optimization qubit-compression quantum-annealing-style preliminary negative-result cost-model rsa adjacent |
+| KN-LIT-7617 | Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE | literature | unverified | web | ring-lwe module-lwe hybrid-attack decoding-attack sparse-secret ternary-secret fhe-parameters lattice-estimator concrete-security 128-bit-security bootstrapping-cost unread-primary-source rq-fhe-001 |
+| KN-LIT-7618 | Attacks Against the IND-CPA^D Security of Exact FHE Schemes | literature | unverified | web | fhe ind-cpa-d security-notion decryption-oracle exact-fhe bgv bfv tfhe ckks correctness-failure unread-primary-source rq-fhe-001 |
+| KN-LIT-7619 | Revisiting the Security of Approximate FHE with Noise-Flooding Countermeasures | literature | unverified | web | fhe ckks approximate-fhe noise-flooding smudging ind-cpa-d key-recovery bootstrapping-failure-probability precision-loss countermeasure-gap unread-primary-source rq-fhe-001 |
 | KN-LIT-762 | Far Field EM Side-Channel Attack on AES Using Deep Learning | literature | reported | read | cryptanalysis side-channel symmetric |
 | KN-LIT-763 | FAST COMPUTATION OF ELLIPTIC CURVE ISOGENIES IN CHARACTERISTIC TWO | literature | reported | read | binary-field elliptic-curve finite-field isogeny |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny pairing sidh-csidh |
