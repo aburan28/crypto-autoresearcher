@@ -6,11 +6,10 @@ BATCH-021 CTRL-RT047-MATCHED-NULL (RT047-CTRL-1 variant (a)): author PA-DS-001-v
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-002` | coordinator | queued | 95 | TASK-20260801-001 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/archives/TASK-20260801-002/snapshot_commit_receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/archives/TASK-20260801-002 |
+| `TASK-20260801-003` | reviewer | queued | 90 | TASK-20260801-001, TASK-20260801-002 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-003/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-003/preregistration_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-003 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-003`: dependency_not_completed:TASK-20260801-002:queued
 - `TASK-20260801-004`: dependency_not_completed:TASK-20260801-003:queued
 - `TASK-20260801-005`: dependency_not_completed:TASK-20260801-004:queued
 - `TASK-20260801-006`: dependency_not_completed:TASK-20260801-005:queued
@@ -31,4 +30,4 @@ BATCH-021 CTRL-RT047-MATCHED-NULL (RT047-CTRL-1 variant (a)): author PA-DS-001-v
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `c81f14a1a680ce04eb71b5be767a617ccab2da81bbe046bc6952bb9e2a125ede`
+Plan SHA-256: `c4d7d6b78eac223eeb8084631d2c615f63df2bdeff1e690d09773f0b6ced0865`
