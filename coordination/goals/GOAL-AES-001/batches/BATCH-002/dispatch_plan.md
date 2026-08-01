@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-Execute the GOAL-AES-001 BATCH-002 plan reranked on the committed DEC-20260731-003 checkpoint: (1) archive the two durable negative facts recomputed in BATCH-001 as a standalone, independently verifiable derivation note -- the artifact that must precede any decision relying on it -- and perform object-first ideation on the one exponent-relevant residual BATCH-001 left open, cross-column / super-box-level objects at the 2-round 32-bit super-box where ShiftRows sits on the outside; (2) repair harness defects H-1 and H-3 in a superseding BATCH-002 package, with H-2 recorded; (3) run GATE-601-B only, limited to its three self-contained yields with every struck literature comparison removed; then close the batch through independent three-way validation and a verified ledger archive that promotes KN-FIND-012 if and only if the derivation note survives review.
+Execute the GOAL-AES-001 BATCH-002 plan reranked on the committed DEC-20260731-011 checkpoint: (1) archive the two durable negative facts recomputed in BATCH-001 as a standalone, independently verifiable derivation note -- the artifact that must precede any decision relying on it -- and perform object-first ideation on the one exponent-relevant residual BATCH-001 left open, cross-column / super-box-level objects at the 2-round 32-bit super-box where ShiftRows sits on the outside; (2) repair harness defects H-1 and H-3 in a superseding BATCH-002 package, with H-2 recorded; (3) run GATE-601-B only, limited to its three self-contained yields with every struck literature comparison removed; then close the batch through independent three-way validation and a verified ledger archive that promotes KN-FIND-017 if and only if the derivation note survives review.
 
 ## Ready Tasks
 
@@ -29,4 +29,4 @@ Execute the GOAL-AES-001 BATCH-002 plan reranked on the committed DEC-20260731-0
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `4262fa7804da87f95dc13547f91ed0611af5e455033f796265a9389c5a244452`
+Plan SHA-256: `b825e7ac32be08875f6cff8b031ed6a8223581a59fe6cf15b17ac916c37248e9`
