@@ -6,16 +6,15 @@ BATCH-022 RT048-CTRL-1: author a FRESH frozen experiment contract under the NEW 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-012` | reviewer | queued | 90 | TASK-20260801-010, TASK-20260801-011 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260801-012/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260801-012/attainability_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260801-012 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-013`: dependency_not_completed:TASK-20260801-012:queued
-- `TASK-20260801-014`: dependency_not_completed:TASK-20260801-013:queued
-- `TASK-20260801-015`: dependency_not_completed:TASK-20260801-014:queued
-- `TASK-20260801-016`: dependency_not_completed:TASK-20260801-014:queued, dependency_not_completed:TASK-20260801-015:queued
-- `TASK-20260801-017`: dependency_not_completed:TASK-20260801-014:queued, dependency_not_completed:TASK-20260801-015:queued
-- `TASK-20260801-018`: dependency_not_completed:TASK-20260801-015:queued, dependency_not_completed:TASK-20260801-016:queued, dependency_not_completed:TASK-20260801-017:queued
+- `TASK-20260801-014`: task_marked_blocked
+- `TASK-20260801-015`: task_marked_blocked
+- `TASK-20260801-016`: task_marked_blocked
+- `TASK-20260801-017`: task_marked_blocked
+- `TASK-20260801-018`: task_marked_blocked
 
 ## Dispatch Gates
 
@@ -30,4 +29,4 @@ BATCH-022 RT048-CTRL-1: author a FRESH frozen experiment contract under the NEW 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `6f11a7f140cab1f7347efefd616e5145d72e80619de6d17761e1bef5db994186`
+Plan SHA-256: `48814834aa4fdaa15ab0123ace7fab1482d4e5414bacfa0e6163000b59be1724`
