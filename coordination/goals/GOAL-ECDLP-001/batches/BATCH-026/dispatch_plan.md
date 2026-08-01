@@ -6,12 +6,10 @@ BATCH-026 EXP-LPF-001 REPAIR AND MEASURE. Carry the RTB-054-1 mechanical repair 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-063` | executor | queued | 90 | TASK-20260801-062 | experiments/EXP-LPF-001/implementation/plant_z_regen.py, experiments/EXP-LPF-001/runs/RUN-LPF-001-plantz/manifest.yaml, experiments/EXP-LPF-001/runs/RUN-LPF-001-plantz/raw-result.json, experiments/EXP-LPF-001/runs/RUN-LPF-001-plantz/command.txt, experiments/EXP-LPF-001/runs/RUN-LPF-001-plantz/environment.json, experiments/EXP-LPF-001/runs/RUN-LPF-001-plantz/stdout.log, experiments/EXP-LPF-001/runs/RUN-LPF-001-plantz/stderr.log, experiments/EXP-LPF-001/runs/RUN-LPF-001-plantz/git_status_prerun.txt, experiments/EXP-LPF-001/results/plantz/plant_z_tail_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/tasks/TASK-20260801-063/execution_report.yaml | experiments/EXP-LPF-001/implementation/plant_z_regen.py, experiments/EXP-LPF-001/runs/RUN-LPF-001-plantz, experiments/EXP-LPF-001/results/plantz, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/tasks/TASK-20260801-063 |
+| `TASK-20260801-065` | validator | queued | 86 | TASK-20260801-064, TASK-20260801-063 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260801-065/plant_z_validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260801-065 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-064`: dependency_not_completed:TASK-20260801-063:queued
-- `TASK-20260801-065`: dependency_not_completed:TASK-20260801-064:queued, dependency_not_completed:TASK-20260801-063:queued
 - `TASK-20260801-066`: dependency_not_completed:TASK-20260801-065:queued
 - `TASK-20260801-067`: dependency_not_completed:TASK-20260801-066:queued
 - `TASK-20260801-068`: dependency_not_completed:TASK-20260801-067:queued
@@ -35,4 +33,4 @@ BATCH-026 EXP-LPF-001 REPAIR AND MEASURE. Carry the RTB-054-1 mechanical repair 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `5f68cdfe97176c89e223548a4d69ac7f84785c8d0a662b22e830937d3dc4570c`
+Plan SHA-256: `dfd6ef6796e4929b5e381700b12ee32e83cf6e4df1802eb032971088032246b7`
