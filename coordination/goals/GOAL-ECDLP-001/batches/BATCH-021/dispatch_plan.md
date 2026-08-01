@@ -6,12 +6,10 @@ BATCH-021 CTRL-RT047-MATCHED-NULL (RT047-CTRL-1 variant (a)): author PA-DS-001-v
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-003` | reviewer | queued | 90 | TASK-20260801-001, TASK-20260801-002 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-003/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-003/preregistration_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-003 |
+| `TASK-20260801-005` | executor | queued | 80 | TASK-20260801-004 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-matched-null/manifest.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-matched-null/raw-result.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-matched-null/stdout.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-matched-null/stderr.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-matched-null/command.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-matched-null/environment.json, experiments/EXP-DS-001/results/ctrl_matched_null/summary.json, experiments/EXP-DS-001/results/ctrl_matched_null/R_cell.json, experiments/EXP-DS-001/results/ctrl_matched_null/matched_null_report.json, experiments/EXP-DS-001/results/ctrl_matched_null/proxy_sensitivity_report.json, experiments/EXP-DS-001/implementation/ds001_ctrl_matched_null.py, experiments/EXP-DS-001/implementation/implementation.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/tasks/TASK-20260801-005/execution_report.yaml | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-matched-null, experiments/EXP-DS-001/results/ctrl_matched_null, experiments/EXP-DS-001/implementation/ds001_ctrl_matched_null.py, experiments/EXP-DS-001/implementation/implementation.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/tasks/TASK-20260801-005 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-004`: dependency_not_completed:TASK-20260801-003:queued
-- `TASK-20260801-005`: dependency_not_completed:TASK-20260801-004:queued
 - `TASK-20260801-006`: dependency_not_completed:TASK-20260801-005:queued
 - `TASK-20260801-007`: dependency_not_completed:TASK-20260801-005:queued, dependency_not_completed:TASK-20260801-006:queued
 - `TASK-20260801-008`: dependency_not_completed:TASK-20260801-005:queued, dependency_not_completed:TASK-20260801-006:queued
@@ -30,4 +28,4 @@ BATCH-021 CTRL-RT047-MATCHED-NULL (RT047-CTRL-1 variant (a)): author PA-DS-001-v
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `c4d7d6b78eac223eeb8084631d2c615f63df2bdeff1e690d09773f0b6ced0865`
+Plan SHA-256: `d133528b614ffe185e22cd483ba64a400df5069158b3462fd59c8dc31436543b`
