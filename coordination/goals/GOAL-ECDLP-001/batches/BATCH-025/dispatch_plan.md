@@ -6,19 +6,16 @@ BATCH-025 EXP-LPF-001: PAY OPEN-BATCH023-A. Sample GENUINE half-arity Semaev par
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-051` | validator | queued | 85 | TASK-20260801-050, TASK-20260801-049 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-051/calibration_validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-051 |
+| `TASK-20260801-054` | reviewer | queued | 82 | TASK-20260801-053 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-054/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-054/attainability_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-054/anti_tuning_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-054/alternative_class_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-054/perturbation_movement_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-054 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-052`: dependency_not_completed:TASK-20260801-051:queued
-- `TASK-20260801-053`: dependency_not_completed:TASK-20260801-052:queued
-- `TASK-20260801-054`: dependency_not_completed:TASK-20260801-053:queued
 - `TASK-20260801-055`: dependency_not_completed:TASK-20260801-054:queued
 - `TASK-20260801-056`: dependency_not_completed:TASK-20260801-055:queued
 - `TASK-20260801-057`: dependency_not_completed:TASK-20260801-056:queued
 - `TASK-20260801-058`: dependency_not_completed:TASK-20260801-057:queued, dependency_not_completed:TASK-20260801-056:queued
 - `TASK-20260801-059`: dependency_not_completed:TASK-20260801-057:queued, dependency_not_completed:TASK-20260801-056:queued
-- `TASK-20260801-060`: dependency_not_completed:TASK-20260801-051:queued, dependency_not_completed:TASK-20260801-057:queued, dependency_not_completed:TASK-20260801-058:queued, dependency_not_completed:TASK-20260801-059:queued
+- `TASK-20260801-060`: dependency_not_completed:TASK-20260801-057:queued, dependency_not_completed:TASK-20260801-058:queued, dependency_not_completed:TASK-20260801-059:queued
 
 ## Dispatch Gates
 
@@ -33,4 +30,4 @@ BATCH-025 EXP-LPF-001: PAY OPEN-BATCH023-A. Sample GENUINE half-arity Semaev par
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `6bdb763b5b44b36177f437d2530541443f26dea9d8f8e90b27bd5515792fef76`
+Plan SHA-256: `10bce086f8fb47e3dbd7b34c99bfc47c51c339f7223acb90b66e7cfeb845147c`
