@@ -6,7 +6,7 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-003` | validator | queued | 95 | TASK-20260801-001, TASK-20260801-002 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260801-003/binding_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260801-003/blob_audit.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260801-003 |
+| `TASK-20260801-004` | coordinator | queued | 99 | TASK-20260801-003 | ledger/evidence/EV-ECDLP-014.yaml, ledger/decisions/DEC-20260801-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260801-004/ledger_commit_receipt.json | ledger/evidence/EV-ECDLP-014.yaml, ledger/decisions/DEC-20260801-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260801-004 |
 
 ## Deferred or Blocked
 
@@ -15,7 +15,6 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 - `TASK-20260731-046`: dependency_not_completed:TASK-20260731-044:queued, dependency_not_completed:TASK-20260731-045:queued
 - `TASK-20260731-047`: dependency_not_completed:TASK-20260731-044:queued, dependency_not_completed:TASK-20260731-045:queued
 - `TASK-20260731-048`: dependency_not_completed:TASK-20260731-045:queued, dependency_not_completed:TASK-20260731-046:queued, dependency_not_completed:TASK-20260731-047:queued
-- `TASK-20260801-004`: dependency_not_completed:TASK-20260801-003:queued
 
 ## Dispatch Gates
 
@@ -30,4 +29,4 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `25a9e3250ae4b9257b41c8a8358d0bdc7e9c7c19c2826fac1d088f6e3a9c0dad`
+Plan SHA-256: `53088b6a5a8c12d4f68611ffd4217aecfb26da29742b020a854a25e74bb509a4`
