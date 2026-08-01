@@ -78,6 +78,29 @@ degree bound,” not merely one syntactic polynomial form. Descriptions whose
 closure contains `E`, or whose degree/intersection complexity is not charged,
 remain outside the theorem.
 
+### Theorem 1G: universal form within the algebraic-degree interface
+
+For every sequence of target-independent projective algebraic loci `Z_p` with
+no component equal to `E` and finite intersection degree `Delta_p`, and every
+factor base satisfying
+
+```text
+F_p subseteq G intersect (E_bar intersect Z_p)(F_p),
+```
+
+the bound `|F_p| <= Delta_p` holds. Consequently, for every fixed
+`0 < epsilon < 1`, every eventual sequence with
+
+```text
+Delta_p^{m_p} <= N^(1-epsilon)
+```
+
+has the same fixed-target coverage cap and fresh-rerandomized cost lower bound
+as Theorems 2--4 after replacing `3 d_p` by `Delta_p`. This is the theorem's
+universal quantifier: it covers every algebraic description admitted by the
+explicit intersection-degree interface. It does not assign a subpolynomial
+`Delta_p` to an unrestricted description for free.
+
 ## Theorem 2: sumset coverage is bounded by tuple count
 
 The elliptic-curve addition map
