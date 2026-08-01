@@ -1,0 +1,82 @@
+experiment:
+  id: EXP-BKKMV-001
+  hypothesis_id: H-BKKMV-001
+  version: 1
+  status: approved
+  title: "BKKMV certificate: exact Newton polytopes and mixed volumes of the target-sectioned Semaev summation family, m in {3,4,5}, with BKK cross-check against brute-force F_p solution counts (candidate D2; self-contained independent replication of the B2 MV object)"
+  objective: >
+    Compute exactly, and certify computationally, the Newton polytopes and mixed
+    volumes (MV) of the target-sectioned Semaev summation system at m in {3,4,5}
+    on three seeded curves; cross-check MV against actual torus solution counts
+    over F_p (BKK: count <= MV; any violation is a computation bug); deliver the
+    measured growth law MV_m and its ratios to the Bezout baselines with exact
+    arithmetic. Toy prime fields only; no crypto-scale claim.
+  frozen_system_definition: >
+    For a short-Weierstrass curve E/F_p: y^2 = x^3 + A x + B and pairwise
+    distinct nonzero target x-coordinates t_1..t_{m-1} in F_p (each a valid
+    curve x-coordinate), the level-m system is
+      Sys_m = { f_j(x_1..x_{m-1}) = S_m(x_1,..,x_{m-1}, t_j) = 0 : j = 1..m-1 },
+    n = m-1 equations in n unknowns, where S_m is the m-th Semaev summation
+    polynomial (S_3 explicit; S_m = Res_X(S_{m-1}(x_1..x_{m-2},X), S_3(x_{m-1},x_m,X))).
+    MV(Sys_m) is the mixed volume of the actual Newton polytopes of f_1..f_n,
+    computed exactly by inclusion-exclusion: n!*MV = sum_{nonempty S subset [n]}
+    (-1)^{n-|S|} Vol(NewtonPolytope(prod_{i in S} f_i)). Polytope volumes are
+    exact (bounding-box grid proof when support is a full box; exact Polyhedron
+    volume otherwise; scipy float only as a flagged last resort).
+  baselines:
+    bezout_total: "d_m^n with d_m = total degree of sectioned S_m (classical Bezout number)"
+    bezout_box: "n! * prod_i deg_{x_i}(f) = n! * (2^{m-2})^n (multi-graded / (P^1)^n Bezout reference)"
+  inputs:
+    seeds: [20260717, 20260718, 20260719]
+    primes_counts: [101, 431, 1009]
+    primes_cert: [1000003, 1000033]
+    m_grid: [3, 4, 5]
+    count_scope: "m in {3,4}: all p in {101,431,1009}; m=5: p=101 only (enumeration budget; recorded as scope)"
+    curve_generation: "per (seed,p): A,B drawn by random.Random(seed*10000007+p); resample on 4A^3+27B^2==0"
+    section_policy: "t from random.Random(seed*10000033+p*131+m), nonzero, valid curve x-coordinate, distinct; accept lossless section (sectioned support == projection of unsectioned support at that p); else after 12 candidates keep maximal-support candidate and record the loss"
+  controls:
+    - id: P1_dense_simplex
+      type: positive
+      what: "random dense total-degree-d systems in n vars, (n,d) in {(2,2),(2,4),(3,4),(4,8)}: pipeline MV must equal d^n exactly (classical theorem)"
+    - id: P2_hand_value_m3
+      type: positive
+      what: "m=3 canonical sectioned support must be the full 3x3 grid (9 monomials) and MV must equal 8 (hand-derived: bidegree (2,2) square, 2!*4)"
+    - id: P3_bkk_bound
+      type: positive
+      what: "for every Semaev instance: torus solution count <= MV_actual (D2's named baseline; any violation = computation bug)"
+    - id: N1_same_support
+      type: negative
+      what: "random-coefficient systems on the SAME supports: MV must equal the Semaev instance MV (support-only dependence; no EC leakage into MV) and their counts must obey the same bound"
+    - id: N2_violation_witness
+      type: negative
+      what: "degenerate repeated-section system (f_1=...=f_n): expected count >> MV (positive-dimensional); if the counter does NOT exceed MV, the counting engine is untrustworthy"
+    - id: N3_engine_selfcheck
+      type: negative
+      what: "numpy counting engine vs naive brute-force enumeration on one small cell (m=3, p=101): counts must match exactly"
+    - id: P4_support_stability
+      type: positive
+      what: "supports equal across primes 1000003/1000033 (m=3,4,5) and equal to QQ computation (m=3,4, same integer A,B)"
+  independent_variables: [m, seed/curve, p]
+  metrics:
+    primary: [MV_m (exact), "support sizes (unsectioned/sectioned)", "polytope volumes (exact)", "torus solution counts", "ratios MV/Bezout_total and MV/Bezout_box"]
+    secondary: ["growth increments log2 MV_{m+1} - log2 MV_m", "count/MV", "section losses", "timings"]
+  replication: {seeds: [20260717, 20260718, 20260719], independent_instances: 3}
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_wall_clock_seconds: 2400
+    maximum_runs: 8
+  stopping_rules:
+    - "any single sage invocation > 600 s: kill, record as failed_infrastructure (NOT evidence), split or reduce sizes; seeds stay >= 3 (20260717..20260719)"
+    - "soft budget 540 s per run: finish current cell, then stop and mark remaining cells censored"
+    - "m=5 counts restricted to p=101 by enumeration budget (pre-registered scope, not a deviation)"
+  invalidation_rules:
+    - "P1 or P2 fails -> validity_status: invalid (pipeline cannot compute MV)"
+    - "P4 unexplained mismatch -> invalid (support extraction broken)"
+    - "count > MV_actual for any Semaev instance without a recorded positive-dimensional/degenerate explanation -> invalid"
+    - "N2 does not exceed MV -> counting engine untrustworthy -> invalid"
+    - "crash/timeout -> failed_infrastructure, not evidence"
+  success_criterion: "exact MV_m delivered for m in {3,4,5} x 3 curves, all controls pass, BKK cross-check holds in every counted cell, growth-law arithmetic (values, increments, both ratios) reported"
+  falsification_criterion: "MV pipeline cannot be certified (control failure) or computation infeasible within budget"
+  required_artifacts: [specification.yaml, bkkmv1_cert.sage, "runs/RUN-BKKMV-001-{a..e}/manifest.yaml", raw.json, stderr.txt, stdout.txt, analysis.md, "ledger/RQ-BKKMV-001.yaml", "ledger/H-BKKMV-001.yaml", "ledger/EV-BKKMV-001.yaml"]
+  assigned_to: executor
+  approved_by: coordinator

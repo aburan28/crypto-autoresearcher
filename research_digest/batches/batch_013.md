@@ -1,0 +1,61 @@
+# Batch 013 digest
+
+## Overview
+- All 50 files are IACR ePrint first pages (IDs ~11239195–11272197, i.e. 2018-era), dominated by TCC 2018 and ASIACRYPT 2018 conference papers on theoretical cryptography.
+- Heavy emphasis on MPC round-complexity and security notions (two-round MPC, adaptively secure MPC, black-box constructions) and on foundations/impossibility results (unique signatures, enhanced trapdoor permutations, black-box separations).
+- Strong lattice/post-quantum thread: LWE-based traitor tracing, OT, IPFE, GPV-IBE in QROM, quantum lattice enumeration, plus cryptanalysis of NIST PQC candidates (Walnut, DRS).
+- Multilinear maps and obfuscation appear repeatedly: CLT13/GGH15 zeroizing-attack-resistant constructions and GGH13 statistical-leak analysis.
+- Symmetric/side-channel cluster: masking instantiations, noisy-leakage proofs, Feistel/tweakable ciphers, DS-MITM automation, invariant attacks on Midori-64/MANTIS, hidden-shift quantum attacks.
+- Anomalies: 11239269.pdf is an ML fairness paper (algorithmic classification), not cryptography; 11272173.pdf (Costello, Kummer surfaces) is the only isogeny/elliptic-curve paper despite the corpus being mostly ECC.
+
+## Papers
+- **11239195.pdf** — Continuous NMC Secure Against Permutations and Overwrites (Damgård, Kazana, Obremski, Raj, Siniscalchi). First information-theoretic continuous non-malleable code outside the split-state model; links CNMC to parallel CCA commitments.
+- **11239200.pdf** — Best Possible Information-Theoretic MPC (Halevi, Ishai, Kushilevitz, Rabin). New "best possible" information-theoretic MPC notion retaining meaningful security against dishonest majorities.
+- **11239203.pdf** — On Basing Search SIVP on NP-Hardness (Tianren Liu). Rules out NP-hardness of approximate search SIVP: any language reducible to it lies in AM ∩ coAM.
+- **11239204.pdf** — Ciphertext Expansion in Limited-Leakage Order-Preserving Encryption (Segev, Shahaf). Tight computational lower bound on ciphertext expansion for Chenette et al.'s limited-leakage OPE security notion.
+- **11239209.pdf** — The Security of Lazy Users in Out-of-Band Authentication (Naor, Rotem, Segev). Models users who compare only part of authentication values; WhatsApp-style protocols shown vulnerable, new framework proposed.
+- **11239214.pdf** — Traitor-Tracing from LWE Made Simple and Attribute-Based (Chen, Vaikuntanathan, Waters, Wee, Wichs). Simpler LWE-based mixed functional encryption yielding improved and attribute-based traitor tracing.
+- **11239217.pdf** — Secure Certification of Mixed Quantum States (Dupuis, Fehr, Lamontagne, Salvail). Sampling protocol certifying mixed quantum states with a possibly dishonest prover; applied to two-party quantum coin tossing.
+- **11239219.pdf** — Game Theoretic Notions of Fairness in Multi-Party Coin Toss (Chung, Guo, Lin, Pass, Shi). Studies Blum's weak (self-sacrificing-bias-allowed) fairness for multi-party coin toss via game-theoretic notions.
+- **11239220.pdf** — Provable Time-Memory Trade-Offs (Tessaro, Thiruvengadam). Encryption/authentication modes secure beyond the 2^n barrier against memory-bounded adversaries; key stretching via list-disjointness.
+- **11239222.pdf** — On the Security Loss of Unique Signatures (Morgan, Pass). Full impossibility: any linear-preserving black-box reduction basing unique signatures on bounded-round assumptions implies breaking the assumption.
+- **11239229.pdf** — Injective Trapdoor Functions via Derandomization (Rotem, Segev). Explores Rudich's black-box barrier; non-black-box injective TDF constructions from hitting-set generators.
+- **11239232.pdf** — Watermarking PRFs under Standard Assumptions (Quach, Wichs, Zirdelis). PRF watermarking with public marking and security against extraction queries from standard assumptions.
+- **11239233.pdf** — Registration-Based Encryption (Garg, Hajiabadi, Mahmoody, Rahimi). Introduces RBE to remove the trusted private-key generator from IBE; users self-generate keys with a key curator.
+- **11239235.pdf** — The MMap Strikes Back (Ma, Zhandry). CLT13-based multilinear maps provably immune to zeroizing attacks under a strengthened BPUA assumption; efficient multiparty key agreement.
+- **11239242.pdf** — Enhancements Are Blackbox Non-Trivial (Hajiabadi). No fully black-box construction of enhanced trapdoor permutations from classical TDPs; impacts OT and NIZK constructions.
+- **11239245.pdf** — Two-Message Statistically Sender-Private OT from LWE (Brakerski, Döttling). First post-quantum two-message OT with statistical sender privacy against malicious receivers, via lattice/dual transference.
+- **11239246.pdf** — Certifying Trapdoor Permutations, Revisited (Canetti, Lichtenberg). Identifies domain-recognizability gap in TDP modeling (breaks FLS instantiation); proposes certifiably injective doubly enhanced TDFs.
+- **11239251.pdf** — Round-Optimal Fully Black-Box Zero-Knowledge Arguments from One-Way Permutations (Hazay, Venkitasubramaniam). 4-round black-box ZK arguments for NP from injective one-way functions; perfect ZK from claw-free permutations.
+- **11239255.pdf** — Return of GGH15 (Bartusek, Guan, Ma, Zhandry). General GGH15 zeroizing-attack model plus a new variant and iO candidate proven secure against known zeroizing strategies.
+- **11239259.pdf** — Perfect Secure Computation in Two Rounds (Applebaum, Brakerski, Tsabary). Two-round MPC with perfect semi-honest security for honest majority, settling IT round complexity.
+- **11239260.pdf** — Two-Round Adaptively Secure Multiparty Computation from Standard Assumptions (Benhamouda, Lin, Polychroniadou, Venkitasubramaniam). First two-round MPC against malicious adaptive corruptions in the CRS model from DDH/LWE/QR.
+- **11239263.pdf** — Static-Memory-Hard Functions, and Modeling the Cost of Space vs. Time (Dryja, Liu, Park). New memory-hardness models accounting for static memory; constructions from hard-to-pebble graphs.
+- **11239264.pdf** — Information-Theoretic Broadcast with Dishonest Majority for Long Messages (Chongchitmate, Ostrovsky). Broadcast extension for t<n improving round complexity to O(n^3) with optimal O(ℓn) communication.
+- **11239268.pdf** — Succinct Garbling Schemes from Functional Encryption through a Local Simulation Paradigm (Ananth, Lombardi). Locally simulatable garbling yields succinct garbling for Turing machines from polynomially hard compact FE.
+- **11239269.pdf** — Achieving Fair Treatment in Algorithmic Classification (Morgan, Pass). Not cryptography: sanitizes unfair ML classifiers to satisfy approximate equalized odds via black-box output perturbation.
+- **11272107.pdf** — New Instantiations of the CRYPTO 2017 Masking Schemes (Karpman, Roche). Finds safe matrix instances for Belaïd et al.'s masking multiplication algorithms up to order d=6.
+- **11272109.pdf** — Pattern Matching on Encrypted Streams (Desmoulins, Fouque, Onete, Sanders). Introduces Searchable Encryption with Shiftable Trapdoors for flexible pattern matching on encrypted data without keyword lists or tokenization.
+- **11272112.pdf** — Revisiting Key-alternating Feistel Ciphers for Shorter Keys and Multi-user Security (Guo, Wang). Provable security of 4- and 6-round KAF ciphers with short main-key-derived round keys, including first beyond-birthday result.
+- **11272116.pdf** — Practical attacks against the Walnut digital signature scheme (Beullens, Blackburn). Breaks NIST PQC candidate WalnutDSA via E-Multiplication's algebraic structure; forges signatures in under a minute.
+- **11272117.pdf** — Tweakable Block Ciphers Secure Beyond the Birthday Bound in the Ideal Cipher Model (Lee, Lee). XHX2 construction, first beyond-birthday-bound secure tweakable cipher in the ideal cipher model.
+- **11272121.pdf** — On Multiparty Garbling of Arithmetic Circuits (Ben-Efraim). First multiparty garbling for mixed Boolean-arithmetic circuits, semi-honest secure, constant rounds with honest majority.
+- **11272127.pdf** — Learning Strikes Again: the Case of the DRS Signature Scheme (Yu, Ducas). Statistical learning attack on NIST PQC candidate DRS, recovering partial secret-key information from many signatures.
+- **11272128.pdf** — Unbounded Inner Product Functional Encryption from Bilinear Maps (Tomida, Takashima). First unbounded-length IPFE schemes (function-hiding private-key and adaptively secure public-key) from SXDH.
+- **11272133.pdf** — Practical Fully Secure Unrestricted Inner Product Functional Encryption modulo p (Castagnos, Laguillaumie, Tucker). Practical adaptively secure IPFE mod p removing prior schemes' interval/parameter drawbacks.
+- **11272139.pdf** — Signatures with Flexible Public Key (Backes, Hanzlik, Kluczniak, Schneider). Introduces equivalence classes over public keys; applications to shorter group signatures, self-blindable certificates, and cryptocurrencies.
+- **11272141.pdf** — Compact Multi-Signatures for Smaller Blockchains (Boneh, Drijvers, Neven). Schnorr/BLS-based multi-signatures with key aggregation in the plain public-key model; first short accountable-subgroup multi-signature.
+- **11272146.pdf** — How to Securely Compute with Noisy Leakage in Quasilinear Complexity (Goudarzi, Joux, Rivain). Masking security proofs in the noisy leakage model with improved leakage rate and quasilinear complexity.
+- **11272155.pdf** — Hidden Shift Quantum Cryptanalysis and Implications (Bonnetain, Naya-Plasencia). Improved Kuperberg-type hidden-shift algorithms; superposition attack on Poly1305 and analysis of FX-construction tweaks.
+- **11272162.pdf** — Secure Computation with Low Communication from Cross-checking (Gordon, Ranellucci, Wang). Four-party MPC secure against one malicious corruption sending only 1.5 ring elements per party per gate.
+- **11272165.pdf** — Programming the Demirci-Selçuk Meet-in-the-Middle Attack with Constraints (Shi, Sun, Derbez, Todo, Sun, Hu). Automates DS-MITM cryptanalysis via constraint programming.
+- **11272167.pdf** — Parameter-Hiding Order Revealing Encryption (Cash, Liu, O'Neill, Zhandry, Zhang). New ORE security notion hiding distribution parameters, with a construction from bilinear maps.
+- **11272173.pdf** — Computing supersingular isogenies on Kummer surfaces (Costello). Chains of 2-isogenies computed as Richelot (2,2)-isogenies on Kummer surfaces for faster SIDH/SIKE-style cryptography.
+- **11272174.pdf** — Robustly Reusable Fuzzy Extractor from Standard Assumptions (Wen, Liu). Formalizes and constructs computational fuzzy extractors combining reusability and robustness in the CRS model.
+- **11272176.pdf** — Adaptively Simulation-Secure Attribute-Hiding Predicate Encryption (Datta, Okamoto, Takashima). Simulation-based strongly partially-hiding PE for ABP predicates from bilinear groups, adaptive security.
+- **11272177.pdf** — A Framework for Achieving KDM-CCA Secure Public-Key Encryption (Kitagawa, Tanaka). Projective-hash framework for KDM-CCA PKE from DDH/QR/DCR without NIZK or pairings.
+- **11272186.pdf** — On the Statistical Leak of the GGH13 Multilinear Map and some Variants (Ducas, Pellet-Mary). Systematic averaging-attack analysis of GGH13 variants; conservative countermeasures leak less noisily but still leak.
+- **11272189.pdf** — Understanding and Constructing AKE via Double-key Key Encapsulation Mechanism (Xue, Lu, Li, Liang, He). 2-key KEM abstraction unifying HMQV/NAXOS-style AKE; yields a Kyber-based lattice AKE.
+- **11272193.pdf** — Block Cipher Invariants as Eigenvectors of Correlation Matrices (Beyne). New invariant/correlation-matrix framework yielding weak-key key-recovery attacks on Midori-64 and MANTIS-4.
+- **11272194.pdf** — Quantum Lattice Enumeration and Tweaking Discrete Pruning (Aono, Nguyen, Shen). Quantum speedup (~√T) for lattice enumeration with cylinder/discrete pruning, tightening NIST lattice security estimates.
+- **11272197.pdf** — Tighter Security Proofs for GPV-IBE in the Quantum Random Oracle Model (Katsumata, Yamada, Yamakawa). Improved QROM reductions for GPV-IBE, including multi-challenge-tight results.

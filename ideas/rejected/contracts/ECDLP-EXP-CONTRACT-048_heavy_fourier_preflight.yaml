@@ -1,0 +1,176 @@
+experiment:
+  id: EXP-ECDLP-IDEA-048-PREFLIGHT
+  hypothesis_id: ECDLP-IDEA-048
+  lane: conservative
+  version: 1
+  title: Algebraic heavy-Fourier scalar-decoder preflight
+  status: review_required
+  objective: >-
+    Test whether a predicate frozen from public curve data has a sparse, separated
+    scalar-Fourier signature that a fixed chosen-query significant-coefficient algorithm
+    can recover and match between P and Q below complete rho/BSGS time and bit-memory
+    exponents, without a dense scalar table or label-based predicate selection.
+  claim_boundary:
+    evidence_scale: toy
+    model_status: heuristic_model_bound
+    novelty_status: novelty_unverified
+    breakthrough_claim: false
+  theorem_preflight:
+    required_before_implementation:
+      - Bind every SFT subroutine to a named theorem and record its exact query, arithmetic, precision, memory, and failure dependence on N and tau.
+      - Prove in the implementation specification that F_Q(t)=F_P(t*x) implies hat_F_Q(k)=hat_F_P(k*x_inverse).
+      - Prove that interval matching emits every compatible ratio k/j and that source-curve verification cannot accept a false scalar.
+      - Establish a non-dense exact truth method for exhaustive cells and forbid its use by the learner.
+    failure_state: theorem_binding_failed
+    rule: No non-oracle predicate cell may run until every theorem-preflight item has an independently reviewed certificate.
+  inputs:
+    field_bit_sizes: [10, 11, 12, 13, 14, 16, 18, 20]
+    independent_curves_per_size: 24
+    curve_rule: lexicographically first 24 supported ordinary prime-order curves per size, or every supported curve if fewer exist
+    exhaustive_dft_max_bits: 14
+    predicate_grammar:
+      primary: quadratic_character_x_minus_xP
+      frozen_controls:
+        - quadratic_character_y_minus_yP
+        - quadratic_character_x_plus_curve_a
+        - quadratic_character_product_x_minus_xP_y_plus_yP
+      zero_and_pole_rule: emit_zero_without_resampling
+      selection_rule: primary and controls are frozen before any scalar-indexed value is inspected
+    sft_algorithm:
+      specification_path: ideas/artifacts/ECDLP-IDEA-048/sft_spec.md
+      group: Z_mod_prime_N
+      normalized_transform: hat_F(k)=N_inverse_sum_u_F(u)_exp_minus_2pi_i_k_u_over_N
+      thresholds: [0.25, 0.125, 0.0625, 0.03125]
+      coefficient_error_fraction_of_threshold: 0.125
+      total_failure_probability_per_cell: 0.000001
+      adaptive_queries: permitted_only_as_frozen_by_sft_spec
+      dense_sampling: forbidden_above_exhaustive_dft_max_bits
+    planted_frequencies: [1, 3, 5, 7]
+    planted_erasure_rates: [0.0, 0.05, 0.20]
+    target_scalars_per_curve: 64
+    seeds: [20260717481, 20260717482, 20260717483]
+    finite_size_fit: preregistered log-log threshold, heavy-set, complete-time, and bit-memory slopes with leave-largest-size-out and leave-curve-family-out sensitivity
+  controls:
+    - planted sign-cosine signals with hidden frequency and every declared threshold
+    - planted group-query signal whose dense table is inaccessible to the learner
+    - exhaustive DFT and ratio truth through 14 bits, isolated from learner code
+    - independent random ternary signals with matched erasure and marginal rates
+    - scalar-label permutation preserving each predicate multiset
+    - invalid dense DFT measured only as an oracle cost control
+    - invalid best-after-label predicate selection measured but barred from inference
+  independent_variables:
+    - field bit size
+    - curve instance
+    - predicate arm
+    - SFT threshold
+    - planted frequency
+    - erasure rate
+    - target scalar
+    - seed
+  metrics:
+    primary:
+      - exact and estimated normalized Fourier coefficients
+      - coefficient completeness and interval coverage
+      - threshold exponent delta
+      - heavy-set exponent h
+      - complete query exponent q for setup plus target passes
+      - predicate construction exponent c and per-query exponent e
+      - non-oracle SFT bit-operation exponent z and bit-memory exponent z_m
+      - complete match, candidate-output, and verification exponent v
+      - full time exponent lambda=max(c,e+q,z,v)
+      - full bit-memory exponent mu including predicate state, SFT state, spectra, and candidates
+      - independently verified blinded scalar-recovery rate
+    secondary:
+      - zero and pole rates
+      - planted-frequency false negatives and false positives
+      - coefficient-signature multiplicity
+      - interval-match pair count
+      - predicate degree and straight-line-program size
+      - group, field, and bit operation counts
+      - precision bits and peak resident memory
+  replication:
+    planned_curve_instances: 192
+    target_scalars_per_curve: 64
+    rerun_same_seed: true
+    independent_sft_implementation: required_for_exhaustive_and_planted_cells
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 240
+    maximum_memory_gb: 24
+    maximum_runs: 6000
+    maximum_output_gb: 40
+  stopping_rules:
+    - Stop dense exhaustive DFT above 14 bits; retain only the frozen non-dense SFT and sampled validation schedule.
+    - Stop a predicate arm after two consecutive sizes exceed 22 GB median peak memory; mark remaining cells censored_by_budget.
+    - Halt after any planted/exhaustive SFT, transform-identity, ratio, or accepted-scalar mismatch and audit implementation validity before inference.
+    - Do not add predicates, change thresholds, choose anchors, or alter matching after scalar-indexed values or target spectra are visible.
+  invalidation_rules:
+    - Missing or failed independent theorem-to-pseudocode bindings invalidate all non-oracle mechanism cells.
+    - Any target-dependent predicate, scalar-labeled training, scalar-indexed table, dense target transform, or post-hoc arm selection invalidates the mechanism arm.
+    - Omitted failed queries, erasures, retries, precision, coefficient records, matches, candidates, construction work, or memory invalidate cost inference.
+    - A timeout, dependency failure, unsupported curve, or crash is infrastructure or coverage evidence only.
+    - A correct SFT, nonzero coefficient, or verified toy scalar without complete cost accounting cannot satisfy success.
+  success_criterion: >-
+    Zero exhaustive and planted mismatches; at least 99 percent planted-frequency recovery
+    at every declared threshold and erasure rate; a multiplicity-corrected lower 95
+    percent bound delta<=0.20 for one predicate frozen before labels on every declared
+    curve family at both largest completed sizes; heavy-set exponent h<=0.10 and
+    complete-match exponent v<=0.30; at least 95 percent independently verified blinded
+    scalar recovery on held-out curves; upper 95 percent bounds lambda<=0.45 and
+    mu<=0.45 with all construction, chosen queries, precision, misses, spectra, matching,
+    output, and verification charged; and stable conclusions under both preregistered
+    finite-size sensitivities.
+  falsification_criterion: >-
+    The theorem preflight fails; exhaustive or planted checks fail after independent
+    repair; every fixed non-oracle predicate has a lower 95 percent fitted delta>=0.25;
+    any complete-cost lower 95 percent bound reaches lambda>=0.50 or mu>=0.50; matching
+    emits an N^(1/2) list; held-out recovery is below 50 percent; or usefulness depends on
+    scalar labels, target data, a dense transform, a truth table, or post-hoc selection.
+  required_artifacts:
+    - ideas/artifacts/ECDLP-IDEA-048/predicates.yaml
+    - ideas/artifacts/ECDLP-IDEA-048/sft_spec.md
+    - ideas/artifacts/ECDLP-IDEA-048/theorem_bindings.md
+    - ideas/artifacts/ECDLP-IDEA-048/implementation.md
+    - ideas/artifacts/ECDLP-IDEA-048/runs/<run-id>/manifest.yaml
+    - ideas/artifacts/ECDLP-IDEA-048/runs/<run-id>/command.txt
+    - ideas/artifacts/ECDLP-IDEA-048/runs/<run-id>/environment.json
+    - ideas/artifacts/ECDLP-IDEA-048/runs/<run-id>/queries.jsonl
+    - ideas/artifacts/ECDLP-IDEA-048/runs/<run-id>/spectra.jsonl
+    - ideas/artifacts/ECDLP-IDEA-048/runs/<run-id>/candidates.jsonl
+    - ideas/artifacts/ECDLP-IDEA-048/runs/<run-id>/resources.json
+    - ideas/artifacts/ECDLP-IDEA-048/runs/<run-id>/stdout.log
+    - ideas/artifacts/ECDLP-IDEA-048/runs/<run-id>/stderr.log
+    - ideas/artifacts/ECDLP-IDEA-048/analysis.md
+  assigned_to: executor
+  approved_by: null
+
+handoff:
+  id: TASK-20260717-048
+  from: coordinator
+  to: executor
+  objective: Implement the frozen theorem-first heavy-Fourier preflight exactly after approval.
+  uncertainty_reduced: Whether a public algebraic predicate supplies a sparse scalar-frequency signature with complete sub-rho recovery.
+  inputs:
+    - ideas/ECDLP-IDEA-048_algebraic_heavy_fourier_scalar_decoder_hypothesis.md
+    - ideas/contracts/ECDLP-EXP-CONTRACT-048_heavy_fourier_preflight.yaml
+  constraints:
+    - Do not run while status is review_required.
+    - Complete independent theorem-to-pseudocode review before any non-oracle mechanism cell.
+    - Do not materialize a dense scalar table or choose predicates, anchors, thresholds, or matching rules after labels or target spectra are visible.
+    - Preserve every query, erasure, failed match, candidate, timing, precision, and memory measurement.
+    - Do not interpret SFT correctness, a toy-heavy coefficient, or toy scalar recovery as a breakthrough.
+  deliverables:
+    - reviewed theorem bindings and immutable SFT specification
+    - exhaustive and planted-control validation
+    - per-curve spectra and held-out recovery report
+    - full rho and BSGS time and bit-memory comparison with sensitivity analyses
+  budget:
+    wall_clock_seconds: 864000
+    memory_gb: 24
+    maximum_runs: 6000
+  completion_gate:
+    - Every planned cell has a terminal state.
+    - Every accepted scalar independently verifies on the original curve.
+    - Raw queries, spectra, candidates, resource metrics, and summaries agree.
+    - All required artifact paths exist and are checksummed.
+  return_format: execution_report

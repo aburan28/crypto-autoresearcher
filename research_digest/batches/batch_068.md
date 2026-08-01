@@ -1,0 +1,61 @@
+# Batch 068 digest
+
+## Overview
+- Mid-2000s Springer-style conference papers (c. 2005, FSE/SAC/CRYPTO era); split roughly evenly between symmetric cryptanalysis and provable-security protocol work.
+- Landmark hash-function cryptanalysis: Wang–Yu–Yin's collisions for full SHA-0 (2^39) and full SHA-1 (2^69), plus attacks on MD2, and stream ciphers (RC4, VMPC, RC4A, Mugi, bit-search generator).
+- Side-channel/fault theme: AES S-box masking, DPA-vs-S-box transparency order, fault analysis of RC4, padding oracles with secret random IVs.
+- Protocol theme: MPC without authentication, constant-round MPC, NIZK characterizations, secret sharing, broadcast encryption (Boneh–Gentry–Waters), HMQV, HB+ RFID authentication.
+- ECDLP relevance is thin: one paper on index calculus for the DLP on algebraic tori (Granger–Vercauteren), plus a CDH-based signature and HMQV in the discrete-log setting.
+- Anomalies: 35570282.pdf and 35570324.pdf are garbled font/CID-mapped extractions; 35570357.pdf has no extracted text; 368.pdf is raw hex-CID garbage (4 extraction failures total).
+
+## Papers
+- **35570213.pdf** — Some Attacks on the Bit-Search Generator (Martin Hell, Thomas Johansson). Key-recovery and distinguishing attacks on the LFSR-based bit-search stream generator using differential structure of the output.
+- **35570226.pdf** — SMASH — A Cryptographic Hash Function (Lars Knudsen). New non-MD4-family hash design with a 256-bit variant claimed at least as fast as SHA-256.
+- **35570241.pdf** — Security Analysis of a 2/3-rate Double Length Compression Function (Nandi, Lee, Sakurai, Lee). Proposes a parallelizable double-length compression function and proves ~2^(2n/3) collision security in the black-box model.
+- **35570253.pdf** — Preimage and Collision Attacks on MD2 (Knudsen, Mathiassen). Improves MD2 preimage complexity to ~2^97 with variable-length preimages and gives first pseudo-collisions for full MD2.
+- **35570266.pdf** — How to Enhance the Security of the 3GPP Confidentiality and Integrity Algorithms (Iwata, Kurosawa). Proposes f8+/f9+, minimal modifications of KASUMI-based 3GPP modes admitting proofs under the standard PRP assumption.
+- **35570282.pdf** — Not a readable extract: CJK/identity-mapped font garbage; title and content unrecoverable from this text.
+- **35570297.pdf** — Padding Oracle Attacks on CBC-mode Encryption with Secret and Random IVs (Yau, Paterson, Mitchell). Shows several ISO padding methods remain vulnerable to padding oracles even with secret random IVs.
+- **35570314.pdf** — Analysis of the Non-linear Part of Mugi (Biryukov, Shamir). Preliminary cryptanalysis of the Mugi stream cipher; shows extreme sensitivity to design variations, recovering state/key under small changes.
+- **35570324.pdf** — Not a readable extract: garbled CID-mapped text; paper unidentifiable from this content.
+- **35570336.pdf** — Two Linear Distinguishing Attacks on VMPC and RC4A (Alexander Maximov). First attacks on the FSE 2004 ciphers VMPC (2^54) and RC4A (2^58), plus theoretical weaknesses of the RC4 family.
+- **35570348.pdf** — Impossible Fault Analysis of RC4 and Differential Fault Analysis of RC4 (Biham, Granboulan, Nguyen). Introduces impossible fault analysis; breaks RC4 with 2^21, and under 2^16 with a second fault attack.
+- **35570357.pdf** — No text extracted from the PDF's first page; cannot identify the paper.
+- **35570373.pdf** — New Attacks against Reduced-Round Versions of IDEA (Pascal Junod). Efficient chosen-plaintext attacks on IDEA reduced to up to 4 rounds, improving time/data trade-offs over prior work.
+- **35570387.pdf** — How to Maximize Software Performance of Symmetric Primitives on Pentium III and 4 (Matsui, Fukuda). Pipeline-aware optimization of AES, SNOW2.0, FOX128, SHA-512, Whirlpool; fastest AES on Pentium 4 at the time.
+- **35570401.pdf** — A Side-Channel Analysis Resistant Description of the AES S-box (Oswald, Mangard, Pramstaller, Rijmen). Masking scheme computing S-box inversion in GF(4), giving compact first-order-DPA-resistant AES hardware.
+- **35570412.pdf** — DPA Attacks and S-Boxes (Emmanuel Prouff). Rewrites DPA via correlation coefficients and introduces the "transparency order" criterion quantifying S-box resistance to DPA.
+- **36210001.pdf** — Efficient Collision Search Attacks on SHA-0 (Wang, Yu, Yin). New techniques find full 80-step SHA-0 collisions with under 2^39 hash operations.
+- **36210017.pdf** — Finding Collisions in the Full SHA-1 (Wang, Yin, Yu). Landmark first collision attack on full SHA-1 with complexity below 2^69, under the 2^80 birthday bound.
+- **36210037.pdf** — Pebbling and Proofs of Work (Dwork, Naor, Wee). Answers an open question by compactly representing the "incompressible" table of a memory-bound proof-of-work function via time/space trade-off.
+- **36210054.pdf** — Composition Does Not Imply Adaptive Security (Krzysztof Pietrzak). Under DDH, exhibits non-adaptively secure functions whose sequential/parallel composition is adaptively breakable with three queries.
+- **36210065.pdf** — On the Discrete Logarithm Problem on Algebraic Tori (Granger, Vercauteren). Index-calculus algorithm solving DLP directly in tori T2 and T6 over F_p^m; prime-field LUC/XTR/CEILIDH unaffected.
+- **36210085.pdf** — A Practical Attack on a Braid Group Based Cryptographic Protocol (Myasnikov, Shpilrain, Ushakov). Heuristic attack breaking the Ko–Lee Crypto 2000 braid key exchange in ~150 minutes with >95% success.
+- **36210097.pdf** — The Conditional Correlation Attack: A Practical Attack on Bluetooth Encryption (Lu, Meier, Vaudenay). Generalizes conditional correlation and builds an optimized key-recovery distinguisher against Bluetooth's two-level E0.
+- **36210114.pdf** — Unconditional Characterizations of Non-Interactive Zero-Knowledge (Pass, shelat). Characterizes NIZK classes in public/secret parameter models; one-way functions are necessary and sufficient for computational NIZK of hard languages.
+- **36210131.pdf** — Impossibility and Feasibility Results for Zero Knowledge with Public Keys (Alwen, Persiano, Visconti). Rules out 3-round concurrent black-box ZK arguments in the BPK model; gives conditions for 3-round resettable ZK proofs.
+- **36210148.pdf** — Communication-Efficient Non-Interactive Proofs of Knowledge with Online Extractors (Marc Fischlin). Fiat-Shamir-style transform in the ROM supporting instant online extraction, with matching lower bound on hash evaluations.
+- **36210165.pdf** — A Formal Treatment of Onion Routing (Camenisch, Lysyanskaya). Gives UC definition of onion-routing security, a simpler CCA2-like sufficient notion, and an efficient provably secure construction.
+- **36210183.pdf** — Simple and Efficient Shuffling with Provable Correctness and ZK Privacy (Peng, Boyd, Dawson). Two efficient mix-net shuffling protocols achieving provable correctness and zero-knowledge privacy with unlimited permutations.
+- **36210200.pdf** — Searchable Encryption Revisited (Abdalla, Bellare, Catalano, Kiltz, Kohno, Lange, Malone-Lee, Neven, Paillier, Shi). Fills consistency gaps in public-key encryption with keyword search and relates it to anonymous IBE with extensions.
+- **36210217.pdf** — Private Searching on Streaming Data (Ostrovsky, Skeith). Efficient schemes for searching streams under secret criteria, generalizing PIR toward privacy-preserving datamining and program obfuscation.
+- **36210235.pdf** — Privacy-Preserving Set Operations (Kissner, Song). Polynomial-based framework for secure multiparty union, intersection, and element-reduction on private multisets.
+- **36210252.pdf** — Collusion Resistant Broadcast Encryption with Short Ciphertexts and Private Keys (Boneh, Gentry, Waters). Fully collusion-resistant broadcast encryption with constant-size ciphertexts and keys; second scheme trades O(sqrt(n)) sizes.
+- **36210269.pdf** — Generic Transformation for Scalable Broadcast Encryption Schemes (Hwang, Lee, Lim). Generic transform trading slightly larger transmission for lower storage/computation; instances comparable to stratified subset difference.
+- **36210286.pdf** — Authenticating Pervasive Devices with Human Protocols (Juels, Weis). Analyzes Hopper–Blum authentication for RFID and introduces HB+, proven secure against active adversaries under LPN hardness.
+- **36210303.pdf** — Secure Communications over Insecure Channels Based on Short Authenticated Strings (Serge Vaudenay). Optimal SAS-based authenticated key establishment using extractable/equivocable commitments, replacing PKI or passwords.
+- **36210321.pdf** — On Codes, Matroids and Secure Multi-Party Computation from Linear Secret Sharing Schemes (Cramer, Daza, Gracia, Jimenez Urroz, Leander, Marti-Farre, Padro). Studies (strongly) multiplicative LSSSs via codes/matroids using a generalized Berlekamp–Welch decoder.
+- **36210338.pdf** — Black-Box Secret Sharing from Primitive Sets in Algebraic Number Fields (Cramer, Fehr, Stam). New BBSSS with expansion factor minimal up to additive 2 and faster sharing/reconstruction than prior schemes.
+- **36210355.pdf** — Secure Computation Without Authentication (Barak, Canetti, Lindell, Pass, Rabin). Defines and realizes meaningful secure multiparty computation over fully unauthenticated channels with no setup assumptions.
+- **36210372.pdf** — Constant-Round Multiparty Computation Using a Black-Box Pseudorandom Generator (Damgard, Ishai). Constant-round general MPC tolerating active adaptive minority corruption, using only black-box PRG, no zero-knowledge proofs.
+- **36210389.pdf** — Secure Computation of Constant-Depth Circuits with Applications to Database Search (Barkol, Ishai). Communication-optimal (up to polylog) MPC for constant-depth circuits, yielding sublinear-communication private database search.
+- **36210406.pdf** — Analysis of Random Oracle Instantiation Scenarios for OAEP and Other Practical Schemes (Boldyreva, Fischlin). Shows POWHF/VPRF instantiations of random oracles generally fail for OAEP and FDH, disproving earlier conjectures.
+- **36210424.pdf** — Merkle-Damgard Revisited: How to Construct a Hash Function (Coron, Dodis, Malinaud, Puniya). Introduces indifferentiability-style hash notion, shows plain Merkle-Damgard fails it, and gives minimal fixes that provably satisfy it.
+- **36210443.pdf** — On the Generic Insecurity of the Full Domain Hash (Dodis, Oliveira, Pietrzak). Rules out standard-model hash instantiations of FDH signatures under any natural assumption on the trapdoor permutation family.
+- **36210461.pdf** — New Monotones and Lower Bounds in Unconditional Two-Party Computation (Wolf, Wullschleger). Defines three protocol monotones giving lower bounds on reductions between OT variants; presents a matching optimal OT extension protocol.
+- **36210472.pdf** — One-Way Secret-Key Agreement and Applications to Circuit Polarization and Immunization of Public-Key Encryption (Holenstein, Renner). Exact one-way key-agreement rate characterization, applied to circuit polarization and immunizing PKE.
+- **36210490.pdf** — A Quantum Cipher with Near Optimal Key-Recycling (Damgard, Pedersen, Salvail). Unconditionally secure quantum-channel encryption recycling almost the whole key when no eavesdropping is detected; shown essentially optimal.
+- **36210507.pdf** — An Efficient CDH-based Signature Scheme with a Tight Security Reduction (Chevallier-Mames). Signature scheme with tight CDH reduction, shorter signatures than EDL, naturally online-efficient; ~25% improvement on elliptic curves.
+- **36210523.pdf** — Improved Security Analyses for CBC MACs (Bellare, Pietrzak, Rogaway). Tightens bounds for basic and encrypted CBC MACs from m^2q^2/2^n to roughly mq^2/2^n, improving forgery-resistance guarantees.
+- **36210542.pdf** — HMQV: A High-Performance Secure Diffie-Hellman Protocol (Hugo Krawczyk). Shows MQV fails its stated goals in the Canetti–Krawczyk model via explicit attacks; proposes provably secure variant HMQV.
+- **368.pdf** — Not a readable extract: raw hex-CID encoded text (font mapping failure); content unidentifiable.

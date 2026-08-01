@@ -1,0 +1,958 @@
+#!/usr/bin/env python3
+"""Validate and render a bounded, artifact-driven subagent dispatch queue."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path, PurePosixPath
+from typing import Any, Protocol, Sequence
+
+
+SCHEMA = "crypto.autoresearch.dispatch_queue.v1"
+PLAN_SCHEMA = "crypto.autoresearch.dispatch_plan.v1"
+ROLES = {
+    "coordinator",
+    "executor",
+    "reviewer",
+    "validator",
+    "red-team",
+    "idea-generator",
+}
+INDEPENDENT_REVIEW_ROLES = {"reviewer", "validator", "red-team"}
+TERMINAL_STATES = {"completed", "failed", "invalid", "cancelled"}
+STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
+ARCHIVE_KINDS = {"snapshot", "ledger"}
+SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+
+
+class DispatchError(ValueError):
+    """Raised when a dispatch queue cannot be safely scheduled."""
+
+
+class RepositoryVerifier(Protocol):
+    """Verifies the Git receipt for a completed archival task."""
+
+    def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
+        """Raise DispatchError unless ``task`` has the required archive commit."""
+
+
+def canonical(value: Any) -> bytes:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode(
+        "ascii"
+    )
+
+
+def digest(value: Any) -> str:
+    return hashlib.sha256(canonical(value)).hexdigest()
+
+
+def require_text(record: dict[str, Any], field: str, location: str) -> None:
+    value = record.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise DispatchError(f"{location}.{field} must be nonempty text")
+
+
+def require_text_list(
+    record: dict[str, Any], field: str, location: str, *, allow_empty: bool = False
+) -> None:
+    value = record.get(field)
+    if not isinstance(value, list) or (not allow_empty and not value) or not all(
+        isinstance(item, str) and item.strip() for item in value
+    ):
+        qualifier = "a text list" if allow_empty else "a nonempty text list"
+        raise DispatchError(f"{location}.{field} must be {qualifier}")
+
+
+def require_positive_number(record: dict[str, Any], field: str, location: str) -> None:
+    value = record.get(field)
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+        raise DispatchError(f"{location}.{field} must be a positive number")
+
+
+def _validate_path_text(path: str, location: str) -> tuple[PurePosixPath, str]:
+    if not isinstance(path, str) or not path or path != path.strip():
+        raise DispatchError(f"{location} must be a safe repository-relative path")
+    if any(character in path for character in ("\x00", "\n", "\r", "\t")):
+        raise DispatchError(f"{location} must be a safe repository-relative path")
+    candidate = PurePosixPath(path)
+    normalized = candidate.as_posix()
+    if (
+        candidate.is_absolute()
+        or ".." in candidate.parts
+        or normalized in {"", "."}
+        or path.startswith("./")
+    ):
+        raise DispatchError(f"{location} must be a safe repository-relative path")
+    return candidate, normalized
+
+
+def validate_scope(path: str, location: str) -> str:
+    """Return a canonical repository-relative scope, allowing a trailing slash."""
+
+    source = path[:-1] if isinstance(path, str) and path.endswith("/") else path
+    _, normalized = _validate_path_text(source, location)
+    return normalized
+
+
+def validate_artifact_path(path: str, location: str) -> str:
+    """Validate one exact, non-directory repository-relative artifact path."""
+
+    if not isinstance(path, str) or path.endswith("/"):
+        raise DispatchError(f"{location} must be an exact safe repository-relative file path")
+    _, normalized = _validate_path_text(path, location)
+    if normalized != path:
+        raise DispatchError(f"{location} must be an exact safe repository-relative file path")
+    return normalized
+
+
+def path_within_scope(path: str, scope: str) -> bool:
+    return path == scope or path.startswith(scope + "/")
+
+
+def paths_within_scopes(paths: Sequence[str], scopes: Sequence[str]) -> bool:
+    return all(any(path_within_scope(path, scope) for scope in scopes) for path in paths)
+
+
+def scope_overlaps(left: str, right: str) -> bool:
+    return left == right or left.startswith(right + "/") or right.startswith(left + "/")
+
+
+def is_archive(task: dict[str, Any]) -> bool:
+    return "archive" in task
+
+
+def assert_acyclic(graph: dict[str, list[str]]) -> None:
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(node: str) -> None:
+        if node in visiting:
+            raise DispatchError(f"task dependency graph has a cycle at {node}")
+        if node in visited:
+            return
+        visiting.add(node)
+        for dependency in graph[node]:
+            visit(dependency)
+        visiting.remove(node)
+        visited.add(node)
+
+    for node in graph:
+        visit(node)
+
+
+def validate_inference(handoff: dict[str, Any], role: str | None,
+                       location: str) -> None:
+    """Check the optional `inference` block against the policy contract.
+
+    A task may omit the block (many predate it), but a policy that IS named
+    must exist, and an independent-review role must not be routed to a policy
+    that permits changing official state. A typo here would otherwise surface
+    only when the task was already running.
+    """
+    inference = handoff.get("inference")
+    if inference is None:
+        return
+    if not isinstance(inference, dict):
+        raise DispatchError(f"{location}.inference must be an object")
+    policy_id = inference.get("policy")
+    if policy_id is None:
+        return
+    try:
+        from orchestration.adapter import load as load_inference_config
+    except Exception:                      # adapter unavailable: nothing to check
+        return
+    try:
+        config = load_inference_config()
+        canonical = config.canonical_policy(policy_id)
+    except Exception as exc:
+        raise DispatchError(f"{location}.inference.policy: {exc}") from None
+    policy = config.policy_table[canonical]
+
+    effort = inference.get("reasoning_effort")
+    if effort is not None:
+        if effort not in config.effort_order:
+            raise DispatchError(
+                f"{location}.inference.reasoning_effort {effort!r} is not in the "
+                f"lattice {config.effort_order}")
+        # Calibrating a review down is the one trade this program never makes
+        # silently: it is the gate protecting every claim in the ledger.
+        floor = (policy.get("requires") or {}).get("reasoning_effort")
+        if (policy.get("independent_session_required")
+                and config.effort_order.index(effort)
+                < config.effort_order.index(floor)):
+            raise DispatchError(
+                f"{location}.inference.reasoning_effort {effort!r} is below the "
+                f"{floor!r} floor for review policy {policy_id!r}; a review may "
+                f"not be calibrated down to save budget")
+
+    if role in INDEPENDENT_REVIEW_ROLES and not policy.get(
+            "independent_session_required"):
+        raise DispatchError(
+            f"{location}.inference.policy {policy_id!r} does not require an "
+            f"independent session, but role {role!r} is an independent reviewer")
+    if role not in (None, "coordinator") and policy.get("may_change_official_state"):
+        raise DispatchError(
+            f"{location}.inference.policy {policy_id!r} may change official "
+            f"state, which role {role!r} may not")
+
+
+def validate_handoff(task: dict[str, Any], location: str) -> None:
+    handoff = task.get("handoff")
+    if not isinstance(handoff, dict):
+        raise DispatchError(f"{location}.handoff must be an object")
+    validate_inference(handoff, task.get("role"), f"{location}.handoff")
+    for field in ("objective", "uncertainty_reduced"):
+        require_text(handoff, field, f"{location}.handoff")
+    for field in ("inputs", "constraints", "deliverables", "completion_gate"):
+        require_text_list(handoff, field, f"{location}.handoff")
+    budget = handoff.get("budget")
+    if not isinstance(budget, dict):
+        raise DispatchError(f"{location}.handoff.budget must be an object")
+    for field in ("wall_clock_seconds", "memory_gb"):
+        require_positive_number(budget, field, f"{location}.handoff.budget")
+    maximum_runs = budget.get("maximum_runs")
+    if not isinstance(maximum_runs, int) or isinstance(maximum_runs, bool) or maximum_runs < 1:
+        raise DispatchError(f"{location}.handoff.budget.maximum_runs must be a positive integer")
+
+
+def _require_optional_sha(value: Any, location: str) -> None:
+    if value is not None and (not isinstance(value, str) or not SHA_PATTERN.fullmatch(value)):
+        raise DispatchError(f"{location} must be null or a Git commit SHA")
+
+
+def validate_archive_shape(task: dict[str, Any], location: str) -> None:
+    archive = task.get("archive")
+    if not isinstance(archive, dict):
+        raise DispatchError(f"{location}.archive must be an object")
+    if task["role"] != "coordinator":
+        raise DispatchError(f"{location} archive tasks must have the coordinator role")
+    if task["review_required"]:
+        raise DispatchError(f"{location} archive tasks cannot be claim-relevant producers")
+    for field in (
+        "kind",
+        "source_task_ids",
+        "commit_sha",
+        "parent_sha",
+        "path_sha256",
+        "record_ids",
+    ):
+        if field not in archive:
+            raise DispatchError(f"{location}.archive.{field} is required")
+    if archive["kind"] not in ARCHIVE_KINDS:
+        raise DispatchError(f"{location}.archive.kind must be snapshot or ledger")
+    require_text_list(archive, "source_task_ids", f"{location}.archive")
+    if len(archive["source_task_ids"]) != len(set(archive["source_task_ids"])):
+        raise DispatchError(f"{location}.archive.source_task_ids contains duplicates")
+    require_text_list(archive, "record_ids", f"{location}.archive", allow_empty=True)
+    if len(archive["record_ids"]) != len(set(archive["record_ids"])):
+        raise DispatchError(f"{location}.archive.record_ids contains duplicates")
+    _require_optional_sha(archive["commit_sha"], f"{location}.archive.commit_sha")
+    _require_optional_sha(archive["parent_sha"], f"{location}.archive.parent_sha")
+    hashes = archive["path_sha256"]
+    if not isinstance(hashes, dict):
+        raise DispatchError(f"{location}.archive.path_sha256 must be an object")
+    normalized_hashes: dict[str, str] = {}
+    for path, value in hashes.items():
+        normalized = validate_artifact_path(path, f"{location}.archive.path_sha256 path")
+        if not isinstance(value, str) or not SHA256_PATTERN.fullmatch(value):
+            raise DispatchError(
+                f"{location}.archive.path_sha256[{path!r}] must be a lowercase SHA-256"
+            )
+        normalized_hashes[normalized] = value
+    archive["path_sha256"] = normalized_hashes
+
+
+def _ledger_record_matches_path(record_ids: Sequence[str], path: str) -> bool:
+    """Ledger record identifiers must be visible in their immutable artifact names."""
+
+    filename = PurePosixPath(path).name
+    return any(record_id in filename for record_id in record_ids)
+
+
+def _validate_ledger_archive(task: dict[str, Any]) -> None:
+    archive = task["archive"]
+    if archive["kind"] != "ledger":
+        return
+    evidence = [path for path in task["artifact_paths"] if path.startswith("ledger/evidence/")]
+    decisions = [path for path in task["artifact_paths"] if path.startswith("ledger/decisions/")]
+    if not evidence or not decisions:
+        raise DispatchError(
+            f"ledger archive {task['id']} must own exact artifacts under ledger/evidence/ "
+            "and ledger/decisions/"
+        )
+    if not archive["record_ids"]:
+        raise DispatchError(f"ledger archive {task['id']} must include relevant ledger record IDs")
+    for path in evidence + decisions:
+        if not _ledger_record_matches_path(archive["record_ids"], path):
+            raise DispatchError(
+                f"ledger archive {task['id']} record_ids must include the record ID for {path}"
+            )
+
+
+def _validate_review_chains(
+    tasks: Sequence[dict[str, Any]],
+    assignments: dict[str, dict[str, Any]],
+) -> None:
+    """Preserve independent review while forcing the archival claim lifecycle."""
+
+    for producer in tasks:
+        if not producer["review_required"]:
+            continue
+        reviews = [
+            successor
+            for successor in tasks
+            if producer["id"] in successor["depends_on"]
+            and successor["role"] in INDEPENDENT_REVIEW_ROLES
+        ]
+        if not reviews:
+            raise DispatchError(
+                f"{producer['id']} requires an independent reviewer, validator, or red-team successor"
+            )
+        snapshot = assignments[producer["id"]]
+        if snapshot["archive"]["kind"] != "snapshot":
+            raise DispatchError(
+                f"claim-relevant producer {producer['id']} must have a snapshot archive successor"
+            )
+        for review in reviews:
+            if snapshot["id"] not in review["depends_on"]:
+                raise DispatchError(
+                    f"independent review {review['id']} for {producer['id']} must depend on "
+                    f"snapshot archive {snapshot['id']}"
+                )
+        review_archives = {assignments[review["id"]]["id"] for review in reviews}
+        if len(review_archives) != 1:
+            raise DispatchError(
+                f"claim-relevant producer {producer['id']} requires one ledger archive successor "
+                "for every direct independent review"
+            )
+        ledger = assignments[reviews[0]["id"]]
+        if ledger["archive"]["kind"] != "ledger":
+            raise DispatchError(
+                f"claim-relevant producer {producer['id']} requires a ledger archive after review"
+            )
+        review_ids = {review["id"] for review in reviews}
+        if not review_ids.issubset(set(ledger["depends_on"])):
+            raise DispatchError(
+                f"ledger archive {ledger['id']} must directly depend on every independent review "
+                f"of {producer['id']}"
+            )
+
+
+def validate_queue(
+    queue: Any, *, repository_verifier: RepositoryVerifier | None = None
+) -> dict[str, dict[str, Any]]:
+    if not isinstance(queue, dict):
+        raise DispatchError("queue must be an object")
+    if queue.get("schema") != SCHEMA:
+        raise DispatchError(f"queue.schema must be {SCHEMA}")
+    require_text(queue, "objective", "queue")
+    if "goal_id" in queue:
+        require_text(queue, "goal_id", "queue")
+    maximum = queue.get("max_concurrent")
+    if not isinstance(maximum, int) or isinstance(maximum, bool) or not 1 <= maximum <= 3:
+        raise DispatchError("queue.max_concurrent must be an integer 1..3")
+    tasks = queue.get("tasks")
+    if not isinstance(tasks, list) or not tasks:
+        raise DispatchError("queue.tasks must be a nonempty list")
+
+    ids: list[str] = []
+    artifact_owners: dict[str, str] = {}
+    for index, task in enumerate(tasks):
+        location = f"tasks[{index}]"
+        if not isinstance(task, dict):
+            raise DispatchError(f"{location} must be an object")
+        for field in ("id", "title"):
+            require_text(task, field, location)
+        if task.get("role") not in ROLES:
+            raise DispatchError(f"{location}.role is invalid")
+        if task.get("state") not in STATES:
+            raise DispatchError(f"{location}.state is invalid")
+        if not isinstance(task.get("review_required"), bool):
+            raise DispatchError(f"{location}.review_required must be boolean")
+        priority = task.get("priority")
+        if not isinstance(priority, int) or isinstance(priority, bool) or not 0 <= priority <= 100:
+            raise DispatchError(f"{location}.priority must be an integer 0..100")
+        require_text_list(task, "depends_on", location, allow_empty=True)
+        if len(task["depends_on"]) != len(set(task["depends_on"])):
+            raise DispatchError(f"{location}.depends_on contains duplicates")
+        for field in ("read_scope", "write_scope"):
+            require_text_list(task, field, location)
+        task["read_scope"] = [
+            validate_scope(path, f"{location}.read_scope") for path in task["read_scope"]
+        ]
+        task["write_scope"] = [
+            validate_scope(path, f"{location}.write_scope") for path in task["write_scope"]
+        ]
+        if len(task["read_scope"]) != len(set(task["read_scope"])):
+            raise DispatchError(f"{location}.read_scope contains duplicates")
+        if len(task["write_scope"]) != len(set(task["write_scope"])):
+            raise DispatchError(f"{location}.write_scope contains duplicates")
+        require_text_list(task, "artifact_paths", location)
+        task["artifact_paths"] = [
+            validate_artifact_path(path, f"{location}.artifact_paths")
+            for path in task["artifact_paths"]
+        ]
+        if len(task["artifact_paths"]) != len(set(task["artifact_paths"])):
+            raise DispatchError(f"{location}.artifact_paths contains duplicates")
+        if not paths_within_scopes(task["artifact_paths"], task["write_scope"]):
+            raise DispatchError(f"{location}.artifact_paths must be inside its write_scope")
+        for path in task["artifact_paths"]:
+            previous_owner = artifact_owners.get(path)
+            if previous_owner is not None:
+                raise DispatchError(
+                    f"artifact path {path} is owned by both {previous_owner} and {task['id']}"
+                )
+            artifact_owners[path] = task["id"]
+        validate_handoff(task, location)
+        if is_archive(task):
+            validate_archive_shape(task, location)
+        ids.append(task["id"])
+
+    if len(ids) != len(set(ids)):
+        raise DispatchError("task IDs must be unique")
+    by_id = {task["id"]: task for task in tasks}
+    for task in tasks:
+        for dependency in task["depends_on"]:
+            if dependency not in by_id:
+                raise DispatchError(f"{task['id']} has unknown dependency {dependency}")
+            if dependency == task["id"]:
+                raise DispatchError(f"{task['id']} depends on itself")
+    assert_acyclic({task["id"]: task["depends_on"] for task in tasks})
+
+    archives = [task for task in tasks if is_archive(task)]
+    non_archives = [task for task in tasks if not is_archive(task)]
+    assignments: dict[str, dict[str, Any]] = {}
+    archive_expected_paths: dict[str, list[str]] = {}
+    for archive_task in archives:
+        archive = archive_task["archive"]
+        source_paths: list[str] = []
+        for source_id in archive["source_task_ids"]:
+            source = by_id.get(source_id)
+            if source is None:
+                raise DispatchError(f"archive task {archive_task['id']} has unknown source {source_id}")
+            if is_archive(source):
+                raise DispatchError(
+                    f"archive task {archive_task['id']} may only archive non-archive source tasks"
+                )
+            if source_id not in archive_task["depends_on"]:
+                raise DispatchError(
+                    f"archive task {archive_task['id']} must directly depend on source {source_id}"
+                )
+            if source_id in assignments:
+                raise DispatchError(
+                    f"non-archive task {source_id} is assigned to both "
+                    f"{assignments[source_id]['id']} and {archive_task['id']}"
+                )
+            assignments[source_id] = archive_task
+            source_paths.extend(source["artifact_paths"])
+        if not paths_within_scopes(source_paths, archive_task["read_scope"]):
+            raise DispatchError(
+                f"archive task {archive_task['id']} read_scope must cover every source artifact path"
+            )
+        expected_paths = sorted(set(archive_task["artifact_paths"]) | set(source_paths))
+        archive_expected_paths[archive_task["id"]] = expected_paths
+        hash_paths = set(archive["path_sha256"])
+        expected_set = set(expected_paths)
+        if not hash_paths.issubset(expected_set):
+            raise DispatchError(
+                f"archive task {archive_task['id']} path_sha256 contains paths outside its commit scope"
+            )
+        if archive_task["state"] == "completed":
+            if archive["commit_sha"] is None:
+                raise DispatchError(
+                    f"completed archive task {archive_task['id']} requires archive.commit_sha"
+                )
+            if hash_paths != expected_set:
+                raise DispatchError(
+                    f"completed archive task {archive_task['id']} path_sha256 must cover every "
+                    "archive and source artifact"
+                )
+
+    for task in non_archives:
+        if task["id"] not in assignments:
+            raise DispatchError(
+                f"non-archive task {task['id']} must be assigned exactly once to an archive task"
+            )
+    for archive_task in archives:
+        _validate_ledger_archive(archive_task)
+    _validate_review_chains(tasks, assignments)
+
+    for archive_task in archives:
+        if archive_task["state"] != "completed":
+            continue
+        if repository_verifier is None:
+            raise DispatchError(
+                f"completed archive task {archive_task['id']} requires a repository verifier"
+            )
+        repository_verifier.verify_archive(
+            archive_task, archive_expected_paths[archive_task["id"]]
+        )
+
+    for task in tasks:
+        if task["state"] == "running":
+            incomplete = [
+                dependency
+                for dependency in task["depends_on"]
+                if by_id[dependency]["state"] != "completed"
+            ]
+            if incomplete:
+                raise DispatchError(
+                    f"running task {task['id']} has incomplete dependencies {incomplete}"
+                )
+
+    running = [task for task in tasks if task["state"] == "running"]
+    if len(running) > maximum:
+        raise DispatchError("running task count exceeds queue.max_concurrent")
+    running_archives = [task for task in running if is_archive(task)]
+    if running_archives and len(running) != 1:
+        raise DispatchError(f"running archive task {running_archives[0]['id']} must run alone")
+    for index, left in enumerate(running):
+        for right in running[index + 1 :]:
+            if any(
+                scope_overlaps(left_scope, right_scope)
+                for left_scope in left["write_scope"]
+                for right_scope in right["write_scope"]
+            ):
+                raise DispatchError(
+                    f"running tasks {left['id']} and {right['id']} have overlapping write scopes"
+                )
+    return by_id
+
+
+def blockers(task: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> list[str]:
+    output: list[str] = []
+    for dependency in task["depends_on"]:
+        state = by_id[dependency]["state"]
+        if state != "completed":
+            output.append(f"dependency_not_completed:{dependency}:{state}")
+    if task["state"] == "blocked":
+        output.append("task_marked_blocked")
+    return output
+
+
+def conflicts(task: dict[str, Any], selected: Sequence[dict[str, Any]]) -> list[str]:
+    conflicting_ids = []
+    for other in selected:
+        if any(
+            scope_overlaps(task_scope, other_scope)
+            for task_scope in task["write_scope"]
+            for other_scope in other["write_scope"]
+        ):
+            conflicting_ids.append(other["id"])
+    return sorted(conflicting_ids)
+
+
+def _defer(
+    deferred: dict[str, list[str]], task_id: str, reasons: Sequence[str]
+) -> None:
+    current = deferred.setdefault(task_id, [])
+    for reason in reasons:
+        if reason not in current:
+            current.append(reason)
+
+
+def _ready_queued(
+    queue: dict[str, Any], by_id: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
+    queued = [
+        task
+        for task in queue["tasks"]
+        if task["state"] == "queued" and not blockers(task, by_id)
+    ]
+    return sorted(queued, key=lambda task: (-task["priority"], task["id"]))
+
+
+def select(
+    queue: dict[str, Any], *, repository_verifier: RepositoryVerifier | None = None
+) -> dict[str, Any]:
+    by_id = validate_queue(queue, repository_verifier=repository_verifier)
+    running = [task for task in queue["tasks"] if task["state"] == "running"]
+    ready = _ready_queued(queue, by_id)
+    ready_archives = [task for task in ready if is_archive(task)]
+    selected: list[dict[str, Any]] = list(running)
+    deferred: dict[str, list[str]] = {}
+
+    running_archives = [task for task in running if is_archive(task)]
+    if running_archives:
+        archive_id = running_archives[0]["id"]
+        for task in ready:
+            _defer(deferred, task["id"], [f"archive_isolation_running:{archive_id}"])
+    elif ready_archives:
+        chosen = ready_archives[0]
+        if running:
+            running_ids = ",".join(sorted(task["id"] for task in running))
+            _defer(
+                deferred,
+                chosen["id"],
+                [f"archive_requires_isolation:running:{running_ids}"],
+            )
+            for task in ready_archives[1:]:
+                _defer(deferred, task["id"], [f"archive_priority_deferred:{chosen['id']}"])
+            for task in ready:
+                if not is_archive(task):
+                    _defer(
+                        deferred,
+                        task["id"],
+                        [f"archive_pending_isolation:{chosen['id']}"],
+                    )
+        else:
+            selected = [chosen]
+            for task in ready_archives[1:]:
+                _defer(deferred, task["id"], [f"archive_priority_deferred:{chosen['id']}"])
+            for task in ready:
+                if not is_archive(task):
+                    _defer(
+                        deferred,
+                        task["id"],
+                        [f"archive_requires_isolation:{chosen['id']}"],
+                    )
+    else:
+        for task in ready:
+            if len(selected) == queue["max_concurrent"]:
+                _defer(deferred, task["id"], ["concurrency_cap"])
+                continue
+            conflicting = conflicts(task, selected)
+            if conflicting:
+                _defer(
+                    deferred,
+                    task["id"],
+                    [f"write_scope_conflict:{identifier}" for identifier in conflicting],
+                )
+                continue
+            selected.append(task)
+
+    selected_ids = {task["id"] for task in selected}
+    for task in queue["tasks"]:
+        if task["id"] in selected_ids or task["state"] in TERMINAL_STATES:
+            continue
+        if task["state"] == "queued":
+            task_blockers = blockers(task, by_id)
+            if task_blockers:
+                _defer(deferred, task["id"], task_blockers)
+        elif task["state"] == "blocked":
+            _defer(deferred, task["id"], ["task_marked_blocked"])
+
+    dispatches = [
+        {
+            "id": task["id"],
+            "title": task["title"],
+            "role": task["role"],
+            "state": task["state"],
+            "priority": task["priority"],
+            "review_required": task["review_required"],
+            "depends_on": task["depends_on"],
+            "read_scope": task["read_scope"],
+            "write_scope": task["write_scope"],
+            "artifact_paths": task["artifact_paths"],
+            "handoff": task["handoff"],
+            **({"archive": task["archive"]} if is_archive(task) else {}),
+        }
+        for task in selected
+    ]
+    plan = {
+        "schema": PLAN_SCHEMA,
+        "source_schema": SCHEMA,
+        "objective": queue["objective"],
+        **({"goal_id": queue["goal_id"]} if "goal_id" in queue else {}),
+        "source_queue_sha256": digest(queue),
+        "max_concurrent": queue["max_concurrent"],
+        "dispatches": dispatches,
+        "deferred": [
+            {"id": task_id, "reason": reasons}
+            for task_id, reasons in sorted(deferred.items())
+        ],
+        "terminal": [
+            {"id": task["id"], "state": task["state"]}
+            for task in queue["tasks"]
+            if task["state"] in TERMINAL_STATES
+        ],
+        "gates": {
+            "concurrency_cap_respected": len(selected) <= queue["max_concurrent"] <= 3,
+            "all_selected_dependencies_completed": all(
+                not blockers(task, by_id) for task in selected
+            ),
+            "selected_write_scopes_do_not_overlap": all(
+                not conflicts(task, selected[:index])
+                for index, task in enumerate(selected)
+            ),
+            "archive_tasks_run_in_isolation": all(
+                not is_archive(task) or len(selected) == 1 for task in selected
+            ),
+            "all_artifact_paths_are_exact_and_scoped": all(
+                paths_within_scopes(task["artifact_paths"], task["write_scope"])
+                for task in queue["tasks"]
+            ),
+            "archive_artifact_coverage_complete": {
+                source_id
+                for task in queue["tasks"]
+                if is_archive(task)
+                for source_id in task["archive"]["source_task_ids"]
+            } == {
+                task["id"] for task in queue["tasks"] if not is_archive(task)
+            },
+            "completed_archive_commits_verified": all(
+                task["state"] != "completed"
+                or (task["archive"]["commit_sha"] is not None
+                    and bool(task["archive"]["path_sha256"]))
+                for task in queue["tasks"]
+                if is_archive(task)
+            ),
+            "archive_tasks_are_coordinator_owned": all(
+                task["role"] == "coordinator"
+                for task in queue["tasks"]
+                if is_archive(task)
+            ),
+            "terminal_noncompleted_tasks_do_not_unblock_successors": all(
+                all(by_id[dependency]["state"] == "completed"
+                    for dependency in task["depends_on"])
+                for task in selected
+            ),
+            "claim_relevant_tasks_have_independent_review": all(
+                any(
+                    task["id"] in successor["depends_on"]
+                    and successor["role"] in INDEPENDENT_REVIEW_ROLES
+                    for successor in queue["tasks"]
+                )
+                for task in queue["tasks"]
+                if task["review_required"]
+            ),
+        },
+    }
+    plan["plan_sha256"] = digest(plan)
+    return plan
+
+
+def markdown(plan: dict[str, Any]) -> str:
+    lines = [
+        "# Dynamic Subagent Dispatch Plan",
+        "",
+        plan["objective"],
+        "",
+        "## Ready Tasks",
+        "",
+        "| ID | Role | State | Priority | Dependencies | Artifacts | Write scope |",
+        "|---|---|---|---:|---|---|---|",
+    ]
+    if not plan["dispatches"]:
+        lines.append("| none | - | - | - | - | - | - |")
+    for task in plan["dispatches"]:
+        lines.append(
+            f"| `{task['id']}` | {task['role']} | {task['state']} | {task['priority']} | "
+            f"{', '.join(task['depends_on']) or '-'} | {', '.join(task['artifact_paths'])} | "
+            f"{', '.join(task['write_scope'])} |"
+        )
+    lines.extend(["", "## Deferred or Blocked", ""])
+    if not plan["deferred"]:
+        lines.append("None.")
+    for task in plan["deferred"]:
+        lines.append(f"- `{task['id']}`: {', '.join(task['reason'])}")
+    lines.extend(["", "## Dispatch Gates", ""])
+    for gate, passed in plan["gates"].items():
+        lines.append(f"- `{gate}`: {'passed' if passed else 'failed'}")
+    lines.extend(["", f"Plan SHA-256: `{plan['plan_sha256']}`", ""])
+    return "\n".join(lines)
+
+
+class GitRepositoryVerifier:
+    """Verify archive receipts using Git at one explicit repository root."""
+
+    def __init__(self, repo_root: Path):
+        self.repo_root = repo_root.resolve()
+
+    def _run(self, arguments: Sequence[str]) -> bytes:
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(self.repo_root), *arguments],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        except OSError as error:
+            raise DispatchError(f"unable to execute git for archive verification: {error}") from error
+        if result.returncode != 0:
+            detail = result.stderr.decode("utf-8", "replace").strip()
+            raise DispatchError(
+                f"git archive verification failed ({' '.join(arguments)}): {detail or 'unknown error'}"
+            )
+        return result.stdout
+
+    def _resolve_commit(self, reference: str, task_id: str, field: str) -> str:
+        try:
+            return self._run(["rev-parse", "--verify", f"{reference}^{{commit}}"]).decode(
+                "ascii"
+            ).strip()
+        except DispatchError as error:
+            raise DispatchError(
+                f"archive task {task_id} {field} does not resolve to a commit: {reference}"
+            ) from error
+
+    def _changed_paths(self, commit_sha: str, task_id: str) -> list[str]:
+        raw = self._run(
+            [
+                "diff-tree",
+                "--no-commit-id",
+                "--no-renames",
+                "--name-status",
+                "-r",
+                "--root",
+                "-z",
+                commit_sha,
+            ]
+        )
+        fields = raw.split(b"\0")
+        paths: list[str] = []
+        index = 0
+        while index < len(fields) - 1:
+            status = fields[index]
+            index += 1
+            if not status:
+                continue
+            if index >= len(fields):
+                raise DispatchError(f"archive task {task_id} has malformed Git diff output")
+            path = fields[index].decode("utf-8", "surrogateescape")
+            index += 1
+            if status[:1] == b"D":
+                raise DispatchError(
+                    f"archive task {task_id} commit deletes artifact path {path}; archives require content"
+                )
+            paths.append(path)
+        return paths
+
+    def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
+        archive = task["archive"]
+        task_id = task["id"]
+        declared_commit = archive["commit_sha"]
+        if not isinstance(declared_commit, str):
+            raise DispatchError(f"completed archive task {task_id} requires archive.commit_sha")
+        commit_sha = self._resolve_commit(declared_commit, task_id, "archive.commit_sha")
+
+        try:
+            ancestor = subprocess.run(
+                ["git", "-C", str(self.repo_root), "merge-base", "--is-ancestor", commit_sha, "HEAD"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        except OSError as error:
+            raise DispatchError(f"unable to execute git for archive verification: {error}") from error
+        if ancestor.returncode == 1:
+            raise DispatchError(f"archive task {task_id} commit is not an ancestor of HEAD")
+        if ancestor.returncode != 0:
+            detail = ancestor.stderr.decode("utf-8", "replace").strip()
+            raise DispatchError(
+                f"git archive verification failed (merge-base): {detail or 'unknown error'}"
+            )
+
+        parents = self._run(["show", "-s", "--format=%P", commit_sha]).decode("ascii").split()
+        declared_parent = archive["parent_sha"]
+        if not parents:
+            if declared_parent is not None:
+                raise DispatchError(
+                    f"archive task {task_id} parent_sha must be null for a root commit"
+                )
+        else:
+            if declared_parent is None:
+                raise DispatchError(
+                    f"archive task {task_id} parent_sha must match first parent {parents[0]}"
+                )
+            parent_sha = self._resolve_commit(declared_parent, task_id, "archive.parent_sha")
+            if parent_sha != parents[0]:
+                raise DispatchError(
+                    f"archive task {task_id} parent_sha does not match first parent {parents[0]}"
+                )
+
+        actual_paths = self._changed_paths(commit_sha, task_id)
+        expected = set(expected_paths)
+        actual = set(actual_paths)
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        if missing or extra or len(actual_paths) != len(actual):
+            details: list[str] = []
+            if missing:
+                details.append(f"missing {missing}")
+            if extra:
+                details.append(f"extra {extra}")
+            if len(actual_paths) != len(actual):
+                details.append("duplicate changed path")
+            raise DispatchError(
+                f"archive task {task_id} commit must change exactly declared archive and source "
+                f"artifacts ({'; '.join(details)})"
+            )
+
+        for path in sorted(expected):
+            object_type = self._run(["cat-file", "-t", f"{commit_sha}:{path}"]).decode("ascii").strip()
+            if object_type != "blob":
+                raise DispatchError(f"archive task {task_id} artifact {path} is not a file blob")
+            content = self._run(["show", f"{commit_sha}:{path}"])
+            observed = hashlib.sha256(content).hexdigest()
+            if observed != archive["path_sha256"][path]:
+                raise DispatchError(
+                    f"archive task {task_id} content hash mismatch for {path}: "
+                    f"expected {archive['path_sha256'][path]}, observed {observed}"
+                )
+
+        message = self._run(["log", "-1", "--format=%B", commit_sha]).decode(
+            "utf-8", "replace"
+        )
+        missing_ids = [
+            identifier
+            for identifier in [task_id, *archive["record_ids"]]
+            if identifier not in message
+        ]
+        if missing_ids:
+            raise DispatchError(
+                f"archive task {task_id} commit message is missing IDs {missing_ids}"
+            )
+
+
+def discover_repository_root(start: Path) -> Path:
+    """Resolve a repository root once so CLI verification cannot drift by cwd."""
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(start.resolve()), "rev-parse", "--show-toplevel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    except OSError as error:
+        raise DispatchError(f"unable to execute git while finding repository root: {error}") from error
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", "replace").strip()
+        raise DispatchError(f"unable to find repository root: {detail or 'unknown git error'}")
+    return Path(result.stdout.decode("utf-8").strip()).resolve()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("queue", type=Path, help="dispatch queue JSON")
+    parser.add_argument("--output", type=Path, required=True, help="dispatch plan JSON")
+    parser.add_argument("--report", type=Path, required=True, help="dispatch plan Markdown")
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        help="repository root used to verify completed archive commits (defaults to queue repository)",
+    )
+    args = parser.parse_args()
+    try:
+        queue = json.loads(args.queue.read_text(encoding="utf-8"))
+        repo_root = args.repo_root.resolve() if args.repo_root else discover_repository_root(args.queue.parent)
+        plan = select(queue, repository_verifier=GitRepositoryVerifier(repo_root))
+    except (OSError, json.JSONDecodeError, DispatchError) as error:
+        print(f"dispatch error: {error}", file=sys.stderr)
+        return 2
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    args.report.write_text(markdown(plan), encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,179 @@
+{
+  "schema": "crypto.autoresearch.dispatch_queue.v1",
+  "goal_id": "GOAL-DREG-001",
+  "objective": "Produce the first admissible full-column d_reg datum past the D=5 wall (D6-at-n=12, now valid) plus the gap(n)=d_reg-d_ff ladder n=12,15,18 (>=3 seeds), null-controlled, toward the H-DREG-001 degree-axis decision.",
+  "max_concurrent": 3,
+  "tasks": [
+    {
+      "id": "TASK-20260721-DREG-N12D6-P1",
+      "title": "Full-column D6-at-n=12 deficit (sem+null) + gap(n) ladder n=12,15,18",
+      "role": "executor",
+      "state": "queued",
+      "priority": 90,
+      "review_required": true,
+      "depends_on": [],
+      "read_scope": [
+        "experiments/EXP-DREG-001/",
+        "experiments/EXP-SIG-005/src/",
+        "research/dreg-linear-law/FINDING_v2.md",
+        "ledger/H-DREG-001.yaml"
+      ],
+      "write_scope": [
+        "experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/"
+      ],
+      "artifact_paths": [
+        "experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/manifest.yaml",
+        "experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/raw-result.json"
+      ],
+      "handoff": {
+        "objective": "Measure the D=6 full-column rank deficit at n=12 for sem and T11 null (valid since d_reg(12)=7>6; no D6 repair needed), plus gap(n)=d_reg-d_ff at n=12,15,18 with >=3 seeds.",
+        "uncertainty_reduced": "Whether the boolean Semaev d_reg(sem) departs from the semi-regular null past the D=5 wall (H-DREG-001 support clauses) by an admissible full-column measurement.",
+        "inputs": [
+          "experiments/EXP-DREG-001/ (block-m4ri instrument, DREG_dff.sage)",
+          "experiments/EXP-SIG-005/src/ (build_boolean_semaev, boolean_null, ic_first_fall_fast)"
+        ],
+        "constraints": [
+          "Full-column exact rank ONLY; subset-column corank is invalid for the sem arm (h012 finding iv).",
+          "Timeout/OOM = failed_infrastructure (AGENTS rule 5), never evidence.",
+          "Sage TMPDIR/SAGE_TMP on /Volumes/Volume; do not fill root disk.",
+          "Both arms in the same cell; deterministic seeds."
+        ],
+        "deliverables": [
+          "manifest.yaml",
+          "raw-result.json"
+        ],
+        "budget": {
+          "wall_clock_seconds": 7200,
+          "memory_gb": 40,
+          "maximum_runs": 12
+        },
+        "completion_gate": [
+          "n=12 D6 full-column rank for BOTH arms exists, or the cell is recorded as failed_infrastructure with the exact cap hit.",
+          "gap(n) recorded at every n where d_reg is attained."
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260721-DREG-N12D6-SNAP-C1",
+      "title": "Snapshot-commit the exact N12-D6 producer artifacts",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 100,
+      "review_required": false,
+      "depends_on": ["TASK-20260721-DREG-N12D6-P1"],
+      "read_scope": ["experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/"],
+      "write_scope": ["coordination/goals/GOAL-DREG-001/batches/BATCH-002/snapshot/"],
+      "artifact_paths": ["coordination/goals/GOAL-DREG-001/batches/BATCH-002/snapshot/snapshot_commit_receipt.json"],
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": ["TASK-20260721-DREG-N12D6-P1"],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": ["EXP-DREG-001", "RUN-DREG-001-MEASURE-N12-D6"]
+      },
+      "handoff": {
+        "objective": "Commit exactly the declared executor artifacts before review (isolated commit).",
+        "uncertainty_reduced": "Whether reviewers have an immutable, hash-bound producer receipt.",
+        "inputs": ["experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/"],
+        "constraints": ["Run alone; stage only declared source and receipt paths."],
+        "deliverables": ["snapshot_commit_receipt.json"],
+        "budget": {"wall_clock_seconds": 300, "memory_gb": 1, "maximum_runs": 1},
+        "completion_gate": ["The post-commit verifier accepts the exact Git diff and file hashes."]
+      }
+    },
+    {
+      "id": "TASK-20260721-DREG-N12D6-VAL-R1",
+      "title": "Independently validate the N12-D6 full-column ranks",
+      "role": "validator",
+      "state": "queued",
+      "priority": 95,
+      "review_required": false,
+      "depends_on": ["TASK-20260721-DREG-N12D6-P1", "TASK-20260721-DREG-N12D6-SNAP-C1"],
+      "read_scope": [
+        "experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/",
+        "coordination/goals/GOAL-DREG-001/batches/BATCH-002/snapshot/"
+      ],
+      "write_scope": ["coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/VAL-N12D6/"],
+      "artifact_paths": ["coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/VAL-N12D6/validation_report.yaml"],
+      "handoff": {
+        "objective": "Reproduce every rank via a distinct engine; confirm FULL-column (not subset) ranks; recompute sr_pred; verify the null control and seed/receipt bindings.",
+        "uncertainty_reduced": "Whether the N12-D6 producer receipt is admissible evidence.",
+        "inputs": ["experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/"],
+        "constraints": ["Do not edit producer artifacts.", "Report missing evidence as incomplete or invalid."],
+        "deliverables": ["validation_report.yaml"],
+        "budget": {"wall_clock_seconds": 3600, "memory_gb": 40, "maximum_runs": 4},
+        "completion_gate": ["A machine-checkable validation report has a terminal verdict."]
+      }
+    },
+    {
+      "id": "TASK-20260721-DREG-N12D6-RT-R1",
+      "title": "Red-team the N12-D6 interpretation and baseline",
+      "role": "red-team",
+      "state": "queued",
+      "priority": 85,
+      "review_required": false,
+      "depends_on": ["TASK-20260721-DREG-N12D6-P1", "TASK-20260721-DREG-N12D6-SNAP-C1"],
+      "read_scope": [
+        "experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/",
+        "coordination/goals/GOAL-DREG-001/batches/BATCH-002/snapshot/"
+      ],
+      "write_scope": ["coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/RT-N12D6/"],
+      "artifact_paths": ["coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/RT-N12D6/red_team_report.yaml"],
+      "handoff": {
+        "objective": "Ensure any d_reg(sem)-vs-null inference is built only on cells where d_reg is actually attained (not a fixed-degree corank); audit the rho / first-fall baseline; name the cheapest falsification of the weaken/KILL direction.",
+        "uncertainty_reduced": "Whether a valid full-column toy observation supports the degree-axis interpretation.",
+        "inputs": ["experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/"],
+        "constraints": ["Do not call a scoped failure an impossibility result."],
+        "deliverables": ["red_team_report.yaml"],
+        "budget": {"wall_clock_seconds": 3600, "memory_gb": 8, "maximum_runs": 4},
+        "completion_gate": ["The report names an end-to-end baseline and one concrete next control."]
+      }
+    },
+    {
+      "id": "TASK-20260721-DREG-N12D6-LEDGER-C2",
+      "title": "Ledger-commit reviews, evidence, decision, and goal checkpoint",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 100,
+      "review_required": false,
+      "depends_on": ["TASK-20260721-DREG-N12D6-VAL-R1", "TASK-20260721-DREG-N12D6-RT-R1"],
+      "read_scope": [
+        "coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/VAL-N12D6/",
+        "coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/RT-N12D6/"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-DREG-001/batches/BATCH-002/ledger/",
+        "ledger/evidence/",
+        "ledger/decisions/",
+        "ledger/goals/GOAL-DREG-001.yaml"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-DREG-001/batches/BATCH-002/ledger/ledger_commit_receipt.json",
+        "ledger/evidence/EV-DREG-004.yaml",
+        "ledger/decisions/DEC-20260721-001.yaml",
+        "ledger/goals/GOAL-DREG-001.yaml"
+      ],
+      "archive": {
+        "kind": "ledger",
+        "source_task_ids": ["TASK-20260721-DREG-N12D6-VAL-R1", "TASK-20260721-DREG-N12D6-RT-R1"],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": ["EV-DREG-004", "DEC-20260721-001", "GOAL-DREG-001"]
+      },
+      "handoff": {
+        "objective": "Commit exact review reports, the evidence, and the goal-scoped decision on H-DREG-001's degree axis (support|weaken|reject_scoped), scoped to reached cells; update the goal checkpoint and rerank. Official shared-ledger EV/DEC minting + H-DREG-001 status flip deferred to Coordinator-of-record / merge (isolation).",
+        "uncertainty_reduced": "Whether the batch is durable and the degree axis reaches a committed decision.",
+        "inputs": [
+          "coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/VAL-N12D6/validation_report.yaml",
+          "coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/RT-N12D6/red_team_report.yaml"
+        ],
+        "constraints": ["Run alone.", "Do not promote a toy result to a cryptanalytic improvement."],
+        "deliverables": ["ledger_commit_receipt.json", "decision.yaml", "GOAL-DREG-001.yaml"],
+        "budget": {"wall_clock_seconds": 600, "memory_gb": 2, "maximum_runs": 1},
+        "completion_gate": ["The ledger archive commit changes exactly the declared paths and hashes."]
+      }
+    }
+  ]
+}

@@ -1,0 +1,673 @@
+red_team_report:
+  id: RT-20260727-003
+  task_id: TASK-20260727-017
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-007
+  produced_by: red-team
+  produced_on: '2026-07-27'
+  session: fresh, non-originating; did not produce EXP-STR-002, EV-STR-002,
+    DEC-20260726-006 or CENSUS-STR-002-20260727
+  record_class: >-
+    Red Team report under a dispatch-queue review directory. NOT a ledger
+    record, NOT evidence, NOT a decision. Changes no hypothesis status.
+    Frozen input to the TASK-20260727-018 ledger archive.
+  claim_tier: toy
+  not_a: >-
+    Nothing in this report is a cryptanalytic result, an attack, an attack
+    improvement, a closure, an impossibility claim, or a claim above toy tier.
+    No asymptotic exponent moves in either direction.
+
+  snapshot_validation:
+    bound_commit: 6eb3779987c6c0d3608193eff69df83c410f8cd1
+    verified_against_git: true
+    checks:
+    - "git rev-parse HEAD == 6eb3779987c6c0d3608193eff69df83c410f8cd1 (commit IS HEAD, reachable)"
+    - "git rev-parse 6eb3779^ == 4aa4068cff6c46e1f1c000c0380d9352a0fa1082 == receipt parent_sha"
+    - "commit changes exactly the 3 declared paths (A/A/M), matching committed_paths"
+    - "blob sha256 of all 3 declared paths reproduce the receipt path_sha256 exactly"
+    - "tracked working tree clean (0 modified tracked files); only untracked path is
+       the archives/ dir holding the receipt itself, as declared by AMEND-2026-07-27-D"
+    verdict: >-
+      Receipt ACCEPTED. The census report reviewed here is a durable committed
+      artifact. All review below is against commit 6eb3779.
+
+  claim_under_review: >-
+    (a) DEC-20260726-006 `support` for H-STR-002, resting on B=55/204/397
+    measurements (phi_alpha 2/4/1 vs rand_alpha 53/200/387; cost_ratio
+    0.218/0.314/0.011; "structured solve beats Wiedemann at B >= 55"), and
+    (b) the framing of CENSUS-STR-002-20260727 as an evidence-integrity finding
+    that is explicitly NOT a refutation of H-STR-002.
+
+  method:
+    capabilities_used: read-only shell, git queries, read-only execution of the
+      committed harness via direct function calls and via `main()` with `--out`
+      redirected outside the repository
+    wrote_into_repository: >-
+      Only this task's two deliverables under the assigned write_scope. No
+      commit was made. No file under experiments/, ledger/, harness/ or
+      TASK-20260727-013/ was modified; `git status --porcelain -- experiments/`
+      is empty after every probe.
+    probe_scripts:
+    - /private/tmp/claude-501/-Volumes-Volume-crypto-autoresearcher/455e8ba4-931b-40ce-8b54-c2895583be26/scratchpad/obs1_probe.py
+    - /private/tmp/claude-501/-Volumes-Volume-crypto-autoresearcher/455e8ba4-931b-40ce-8b54-c2895583be26/scratchpad/commutation_probe.py
+    probe_status: >-
+      RED-TEAM PROBES, NOT RUN RECORDS. They carry no manifest, no run id and no
+      archived environment block, they live in a session scratchpad outside the
+      repository, and they must not be cited as evidence. They are falsification
+      probes whose only claim is reproducibility: any agent can re-execute them
+      from a clean checkout of 6eb3779 in under ten minutes total.
+    probe_environment:
+      python: 3.13.1
+      numpy: 2.4.0
+      sympy: 1.14.0
+      repo_commit_during_probe: 6eb3779987c6c0d3608193eff69df83c410f8cd1
+      tracked_tree_dirty: false
+    probes_never_called: harness.runner.write_run into the repository tree
+
+  objections:
+
+  - id: RT-OBJ-1
+    severity: fatal_to_the_primary_metric
+    title: >-
+      OBS-1 ADJUDICATED YES. phi_alpha measures the row-insertion bookkeeping,
+      not phi. A factor base with ZERO phi content scores BETTER.
+    answers: Q7
+    static_argument: >-
+      In the square branch (harness/endomorphism_la.py:234-242, taken whenever
+      #rows >= B) the displacement matrix is exactly
+      D[i][j] = M[i][j] - M[sigma(i)][sigma(j)], where sigma is the positional
+      block-of-3 permutation 3j+k -> 3j+((k+1) mod 3). Row i of D is zero if and
+      only if relations[sigma(i)] == relations[i] * Z. Lines 292-304 append,
+      immediately after each found row r, the rows r*Z and r*Z^2 in consecutive
+      positions. Whenever that append is not interrupted, row index 3j+k holds
+      r_j * Z^k, which makes relations[sigma(i)] == relations[i]*Z identically
+      and forces D == 0. Therefore alpha is bounded above by the number of row
+      indices i < B at which the append order lost alignment - i.e. by the count
+      of rows suppressed by the `shifted_row not in relations` dedup at line 303,
+      the `sum(shifted_row) > 0` filter, and truncated tail orbits. alpha is a
+      statistic of the insertion bookkeeping. It has no dependence on relation
+      collection beyond how often the dedup fired.
+    empirical_confirmation_of_the_static_argument: >-
+      Measured misalignment count vs measured alpha, same instances:
+      B=27 -> misaligned 9, alpha 9. B=204 -> misaligned 4, alpha 4.
+      B=397 -> misaligned 1, alpha 1. B=55 -> misaligned 5, alpha 2 (rank <= count).
+      The bound is tight in three of four cases.
+    discriminating_control_arm_E: >-
+      DECISIVE. Take a RANDOM, non-phi-invariant factor base; collect relations
+      with include_phi_orbits disabled; then synthetically close the row list
+      under the same positional block-of-3 shift (an operation with no
+      endomorphism content whatsoever - the appended rows are index permutations
+      of incidence vectors and are NOT images of relations under any map of the
+      curve); measure with the "phi" shift. Results:
+      B=27 alpha=0, B=55 alpha=1, B=204 alpha=0, B=397 alpha=1.
+      Compare the as-shipped phi arm on the same instances: 9, 2, 4, 1.
+      A construction containing no phi at all scores equal to or BETTER than the
+      phi-invariant factor base at every headline B. Whatever phi_alpha measures,
+      it is not phi.
+    ablation_arm_B_same_phi_FB_same_phi_shift_rows_not_appended: >-
+      B=27: 27 (random baseline 27). B=55: 52 (random 54). B=204: 197 (random 201).
+      B=397: 386 (random 382). Separation ratios 1.00x, 1.04x, 1.02x, 0.99x. At
+      B=397 the phi-invariant factor base is WORSE than the random one. Without
+      the insertion rule there is no separation at any tested B.
+    anticipated_rebuttal_and_why_it_fails: >-
+      The strongest defence is that phi(R) genuinely IS a relation when F is
+      phi-invariant, so appending it is mathematically correct and arm B unfairly
+      handicaps the method by discarding free relations. That defence is correct
+      about the mathematics and it does not save the metric, because arm E grants
+      exactly the same free extra rows to a factor base with no phi-invariance and
+      obtains a strictly better score. The free-rows advantage and the low alpha
+      are therefore separable, and the low alpha tracks the free-rows bookkeeping,
+      not the endomorphism.
+    what_the_appended_rows_do_legitimately_buy: >-
+      A genuine factor-r saving in relation-collection searches per relation row,
+      which is the standard automorphism speedup and is visible in the data:
+      searches per row, phi arm vs random arm, are 0.69/1.81 (B=27), 0.36/1.15
+      (B=55), 0.38/1.14 (B=204), 0.77/2.47 (B=397) - ratios 2.62x, 3.17x, 2.96x,
+      3.21x, i.e. approximately r = 3 at every B. That is the real signal. It is a
+      constant factor and it appears in relation collection, not in displacement rank.
+
+  - id: RT-OBJ-2
+    severity: fatal_to_commutation_as_a_falsification_test
+    title: >-
+      `commutation_holds` is True by default and True by construction. It is the
+      instrument for H-STR-002 falsification condition 3, which is therefore
+      untestable as implemented.
+    answers: Q7
+    detail: >-
+      Line 442 initialises `commutation = True` and lines 443-452 only overwrite
+      it when `phi_rels and len(phi_fb) >= 3`. The four committed B=2 records
+      therefore report `commutation_holds: true` on runs that found ZERO
+      relations. When relations do exist, the test shifts phi_rels[0] and asks
+      whether the shifted row is in phi_rels - but lines 293-304 appended exactly
+      that row immediately after phi_rels[0], so membership is guaranteed unless
+      the shifted row was all-zero. Measured: True on every phi arm tested
+      (8-bit s1/s2/s3, 12-bit s1). The metric cannot return False in the
+      as-shipped configuration, so H-STR-002 falsification condition 3
+      ("the commutation M*Phi = Phi*M fails on measured relation matrices") was
+      never at risk.
+
+  - id: RT-OBJ-3
+    severity: high_artifact_integrity
+    title: >-
+      The committed `main()` CRASHES on four of the nine inline rows, including
+      two of the three headline rows. The code path that produced them is not in
+      the tree.
+    finding: >-
+      Line 451 computes `shifted_idx = (idx//3)*3 + ((idx%3)+1)%3` and assigns
+      into a list of length B. When B mod 3 != 0 and at least one relation was
+      found, the final partial orbit drives shifted_idx to B, raising
+      IndexError before the metrics dict at line 454 is ever built.
+    reproduced: >-
+      `python3 -m harness.endomorphism_la --bits 12 --seeds 2 --arity 2
+      --targets 10 --out <scratchpad>` at commit 6eb3779 terminates with
+      `IndexError: list assignment index out of range` at endomorphism_la.py:451,
+      after printing `bits=12 seed=2 p=2953 n=3061 B=55 zeta3=800`. Same crash at
+      `--bits 20 --seeds 3` (B=397). The same command at `--bits 16 --seeds 3`
+      (B=204, 204 = 3*68) completes and writes three run records.
+    affected_rows: >-
+      B=55 (12,2), B=52 (16,2), B=107 (20,2), B=397 (20,3) all have B mod 3 != 0
+      with relations found, and all crash. B=55 and B=397 carry the two strongest
+      headline numbers in DEC-20260726-006 (cost_ratio 0.218 and 0.011).
+    consequence: >-
+      Those four rows cannot have been produced by the committed end-to-end code
+      path. They must have come from a driver that bypasses or patches lines
+      441-452, and no such driver exists anywhere in the repository. This is a
+      second, independent artifact-integrity gap that CENSUS-STR-002-20260727 did
+      not identify: not only are the run records missing, the producing code is
+      missing. It is recorded as a fact about executable behaviour; this report
+      does not speculate about what that driver was or who ran it.
+    also_resolves_census_F6: >-
+      F6 recorded that the committed set is rho+phi+rand at (8,1),(8,2),(8,3),
+      (12,1) then rho ALONE at (12,2), and stated "It does NOT establish WHY...
+      This session cannot distinguish them without git history". The WHY is now
+      determined and requires no git history: (12,2) is B=55, the rho record is
+      written at line 425 and the phi arm crashes at line 451, so the archive
+      stops at exactly the point the committed code deterministically fails. An
+      interrupted execution is the correct reading and it is reproducible on demand.
+
+  - id: RT-OBJ-4
+    severity: high
+    title: >-
+      The primary metric as implemented is not the primary metric as frozen, and
+      no protocol amendment exists.
+    detail: >-
+      specification.yaml:48-52 freezes displacement_rank_alpha as
+      "rank([M, Z*M]) - rank(M) over F_n". The implementation computes
+      rank(M*Z - M) when #rows < B and rank(M - Z*M*Z^{-1}) when #rows >= B.
+      Neither equals the frozen definition, and the frozen definition is
+      dimensionally ill-posed for rectangular M (Z is B x B, M is rows x B, so
+      Z*M is undefined unless rows == B). The source comments at lines 205-219
+      record the substitution being made in code
+      ("Z * M doesn't work dimensionally", "doesn't work either", "Let's use the
+      column-only displacement") with no versioned amendment. This is census
+      finding F7's defect class applied to the PRIMARY metric definition rather
+      than to the success criterion, and F7 did not catch it.
+    branch_dependence_is_itself_a_defect: >-
+      The two branches are not comparable quantities. In the rectangular branch
+      alpha <= #rows, so any instance where relation collection nearly FAILS
+      scores a low alpha. Committed and reproduced example: (12,3) found 1
+      relation, 3 rows after closure, alpha = 2, cost_ratio 0.370 - recorded in
+      analysis.md as a passing row. The success criterion "alpha <= 3" is
+      automatically satisfied by total collection failure. The metric rewards the
+      failure mode it should penalise.
+
+  - id: RT-OBJ-5
+    severity: high
+    title: The object measured is not the matrix any linear-algebra step would solve.
+    detail:
+    - >-
+      No right-hand side. `_collect_relations` returns 0/1 incidence rows over F
+      only; the target scalar k (line 272) is discarded. Index-calculus linear
+      algebra solves the AUGMENTED system over Z/n. Under phi the shifted
+      relation's right-hand side is k*lambda, not k, where lambda is the GLV
+      eigenvalue of phi - so any equivariance claim about the augmented system
+      needs the lambda-twist, which was never formed and never tested.
+    - >-
+      Multiplicities are collapsed. Line 288 assigns `row[...] = 1` rather than
+      accumulating, so a decomposition T = 2A yields row weight 1 instead of 2.
+      Over Z/n that row is a false relation.
+    - >-
+      Appended rows can be silently corrupted. Line 301 only sets an entry when
+      `shifted_x in factor_base`; when a summand's phi-image falls outside a
+      truncated tail orbit the appended row has fewer ones and is not a relation.
+    - >-
+      rank(M) is never measured. Nothing in the experiment establishes that the
+      collected system is solvable at all, yet a solve cost is compared against
+      Wiedemann.
+    - >-
+      No end-to-end path exists. There is no Q-side (no l*Q targets), hence no
+      target descent and no source recovery; the rho control solves the DLP and
+      the index-calculus arm never does. This is acceptable for a measurement
+      experiment and it means no attack-side claim may attach to it.
+
+  - id: RT-OBJ-6
+    severity: high
+    title: >-
+      The "density penalty ~2-3x" reported in EV-STR-002, DEC-20260726-006 and
+      analysis.md appears in no run record and is contradicted by direct execution.
+    detail: >-
+      Census F8 established that every committed value is 0.994, 1.0 or -1.
+      This report extends that to the uncommitted rows by execution: measured
+      density_penalty is 0.994 (B=27), 0.946 (B=55), 1.003 (B=204), 0.936
+      (B=397). The B=204 value 1.0029721079103795 comes from a run record written
+      by the committed `main()` at commit 6eb3779 during this review. No
+      computation available to this session yields anything near 2 or 3 at any of
+      the nine instances.
+    direction_note_recorded_in_fairness: >-
+      This error is CONSERVATIVE - it overstates a cost against the hypothesis -
+      so it does not inflate the claim. It is an objection because the number is
+      not traceable to any computation, not because it favours the conclusion.
+
+  cost_model_challenges:
+
+  - id: RT-CM-1
+    title: The cost model applies displacement-rank theory to an operator it does not cover.
+    detail: >-
+      alpha^2 * B * log B is the superfast-solver cost for a Toeplitz-LIKE matrix,
+      where the displacement operator is built from the NILPOTENT lower shift
+      (Z^B = 0) and small rank(M - Z M Z^T) forces near-Toeplitz structure
+      (Kailath-Kung-Morf; Bitmead-Anderson; Morf). Here Z is a permutation of
+      ORDER 3. Small rank(M - Z M Z^{-1}) for a finite-order permutation means M
+      is nearly C_3-EQUIVARIANT, which is a completely different structure. An
+      exactly C_3-equivariant matrix block-diagonalises over the group algebra
+      into 3 blocks of size B/3, so a dense solve costs 3*(B/3)^2 = B^2/3. The
+      honest structural ceiling is a factor r = 3 - not the factor
+      B/(alpha^2 log B) the hypothesis claims (44x at B=397). Nothing in the
+      experiment tests Toeplitz-likeness, and no structured solver was written.
+  - id: RT-CM-2
+    title: The model is degenerate exactly where the hypothesis is maximally confirmed.
+    detail: >-
+      At alpha = 0 the model returns cost 0 - zero operations to solve a B x B
+      system. The harness hides this with a -1 sentinel at line 472 rather than
+      treating it as a contradiction. Arm E produced alpha = 0 at B = 27 and
+      B = 204. A cost model that prices the perfectly-structured case at zero is
+      not a cost model.
+  - id: RT-CM-3
+    title: Relation collection is not charged, and it dominates the entire comparison.
+    detail: >-
+      The arity-2 search is a double loop over F, about B(B+1)/2 s3_eval calls per
+      attempt. Collection cost against the modelled Wiedemann cost 2B^2, using the
+      measured attempt counts: B=27 -> 10,206 vs 1,458 (7.0x); B=55 -> 36,960 vs
+      6,050 (6.1x); B=204 -> 1,714,620 vs 83,232 (20.6x); B=397 -> 24,806,942 vs
+      315,218 (78.7x). Relation collection is 7x to 79x the ENTIRE modelled linear
+      algebra, and the ratio grows with B. Any LA saving, real or artifactual, is
+      irrelevant at these sizes. H-STR-002's own falsification condition 2 is
+      framed around this and was never charged.
+  - id: RT-CM-4
+    title: Memory is absent on both sides.
+    detail: >-
+      Wiedemann's entire point is O(B) memory for a sparse matrix at O(B^2) ops;
+      the structured side needs an alpha-generator representation plus the
+      transform. Neither is costed. No time-memory interpolation is offered, so
+      there is no way to check whether a memory-constrained baseline dominates.
+  - id: RT-CM-5
+    title: Honest cost_ratio under the ablation inverts the headline.
+    detail: >-
+      Recomputing the committed cost model on the ablated alpha (arm B, same phi
+      factor base, same phi shift, shifted rows not appended):
+      B=27 -> 67.5; B=55 -> 147.5; B=204 -> 761.0; B=397 -> 1688.9.
+      At every headline B the "structured" solve is two to three orders of
+      magnitude WORSE than Wiedemann, not 3x-90x better. The claimed crossover at
+      B ~ 55 does not exist under any measurement that is not produced by the
+      insertion rule.
+  - id: RT-CM-6
+    title: Units are not comparable and this cuts both ways.
+    detail: >-
+      "s3_eval", "group operation" and the model's unnamed "operation" are
+      different units. The collection-vs-LA ratios above are order-of-magnitude
+      statements, not exact. Recorded so that RT-CM-3 and the baseline comparison
+      are not read as more precise than they are; the conclusions survive any
+      plausible unit conversion because the gaps are 1-4 orders of magnitude.
+
+  baseline_comparison:
+    pollard_rho: >-
+      Matched rho baselines SOLVE the DLP on the identical instances with
+      independently verified discrete_log certificates. Committed:
+      RUN-STR-rho-b12-s1 (n=733) 24 group ops; RUN-STR-rho-b12-s2 (n=3061) 156.
+      Reproduced from committed code during this review: n=41617 -> 237 group ops;
+      n=158071 -> 1104 group ops, both certificate_verified. Against this, the
+      index-calculus arm at n=158071 spent about 2.5e7 s3_eval on relation
+      collection alone, formed no augmented system, measured no rank and solved
+      nothing. The gap is roughly 3-4 orders of magnitude and it WIDENS with B.
+    bsgs: >-
+      2*sqrt(n) group operations with sqrt(n) stored points: about 795 ops at
+      n=158071. Also dominates by 3-4 orders of magnitude. Neither EV-STR-002 nor
+      DEC-20260726-006 compares against rho or BSGS at all; they compare a model
+      of one LA step against a model of another LA step.
+    closest_specialized_baseline: >-
+      Automorphism exploitation is a solved, quantified technique. For rho on a
+      curve with an automorphism group of order r, Wiener-Zuccherato and
+      Duursma-Gaudry-Morain give a sqrt(r) speedup (sqrt(3) ~ 1.73x here). For
+      index calculus, quotienting the factor base by an order-r automorphism gives
+      a factor-r reduction in relation collection and a factor-r block
+      decomposition in linear algebra. The measured searches-per-row ratio of
+      2.62x-3.21x across all four instances is exactly that known factor-r effect,
+      correctly sized. H-STR-002 claims a super-constant B/(alpha^2 log B) LA
+      saving on top of it; the excess over the known factor-3 ceiling is precisely
+      the part produced by the insertion rule.
+    verdict: >-
+      Against every relevant baseline - rho, BSGS, and the standard automorphism
+      speedup - this direction shows no advantage at any tested size, and the one
+      real effect it does show is already in the literature as a constant factor.
+
+  heuristic_challenges:
+  - id: RT-H-1
+    note: >-
+      H-STR-002 is an empirical toy-scale hypothesis, not an exponent-first
+      heuristic-conditional claim in the exemplar profile, so the exemplar
+      checklist mostly does not bind. Two items bind anyway.
+  - id: RT-H-2
+    title: Unnumbered implicit assumption, unstated noise model.
+    detail: >-
+      analysis.md:41-43 reports the success criterion MET while listing alpha=4 at
+      B=204, calling 4 > 3 "within noise of the O(r=3) prediction". No noise model
+      is stated in specification.yaml or H-STR-002. An unnumbered, unjustified
+      tolerance introduced after the measurement is an objection on its own terms.
+  - id: RT-H-3
+    title: Random-model transfer was never at issue because no random model was stated.
+    detail: >-
+      The implicit null is "rand_alpha ~ B for an unstructured matrix". That null
+      is never justified and, more importantly, the treatment and the null differ
+      in TWO variables at once (factor base AND shift operator), so the comparison
+      identifies nothing. specification.yaml:36-39 declared the one-variable
+      ablation that would have fixed this - same phi-invariant F, random shift -
+      and harness line 439 measures the random shift against the RANDOM factor base
+      instead, so the declared control was never implemented (census F9). Executed
+      here: phi FB with phi-closed rows under a RANDOM shift gives 27, 54, 196, 383
+      at B=27/55/204/397, i.e. it does return to ~B as the specification predicted.
+      That control alone looks favourable, which is exactly why it is insufficient:
+      arm E shows the same "structure" arises with no phi at all.
+
+  reduction_and_scope_challenges:
+  - id: RT-SC-1
+    title: Scope statement CONFIRMED sound. Nothing here supports above toy tier.
+    answers: Q8
+    detail: >-
+      Every instance, committed or reproduced, is a j=0 (a=0, CM discriminant -3)
+      prime-field curve with p in [151, 877879], field_bits <= 20, prime subgroup
+      order n <= 158071 (about 17 bits), B <= 397, arity m = 2 only. All inside
+      the toy band. CENSUS-STR-002-20260727's claim_tier, claim_tier_basis,
+      what_this_is_NOT, precise_classification and what_is_NOT_established blocks
+      are accurate and smuggle in no asymptotic claim in either direction. This
+      report asserts nothing above toy tier either, and nothing here is a
+      cryptanalytic result.
+  - id: RT-SC-2
+    title: Target-class check.
+    detail: >-
+      docs/target-result-profile.md is ABSENT at commit 6eb3779 (verified by
+      `ls`); it is cited here as governing policy per the task card and NOT as a
+      present document. Under rule A1 as stated in the task card, constant-factor
+      and log-cofactor improvements are not target-class. The only effect this
+      experiment demonstrably supports is a factor-r = 3 saving in relation
+      collection, which is a constant factor and therefore not target-class. Even
+      the claimed-but-unsupported LA saving would be a polynomial-cofactor
+      improvement inside an index-calculus method that is itself 3-4 orders of
+      magnitude behind rho at the tested sizes, so it would not be target-class
+      either.
+  - id: RT-SC-3
+    title: No scope inflation found in the census; one scope DEFLATION found.
+    detail: >-
+      The census is if anything narrower than its own evidence supports - see the
+      framing verdict below. It does not overstate.
+
+  framing_verdict:
+    answers: Q1 and Q6
+    question: >-
+      Is the census's framing - evidence-integrity finding, explicitly NOT a
+      refutation of H-STR-002, on the ground that H-STR-002's falsification
+      condition requires ABSENCE of separation and B=27 shows 9 vs 27 - correct,
+      too generous, or too harsh?
+    verdict: TOO GENEROUS, on two independent grounds. The finding-class
+      (artifact_integrity) is right; the "not a refutation" reasoning is not.
+    ground_1_only_one_of_four_conditions_was_checked: >-
+      H-STR-002 (ledger/hypotheses/H-STR-002.yaml:69-82) lists FOUR falsification
+      conditions. The census quotes only the first. Condition 4 - "the fully-charged
+      total cost (including penalty) exceeds matched rho for all tested B and m" -
+      is MET on committed data plus arithmetic, needing no new run: relation
+      collection alone is 7x-79x the entire modelled LA cost, and matched rho
+      solves the same instances in 24-1104 verified group operations. Condition 3
+      is not met but is untestable as instrumented (RT-OBJ-2). Condition 1 is met
+      under the ablation (RT-OBJ-1). Whether meeting condition 4 licenses "reject"
+      is the Coordinator's call, but the census's stated reason for withholding
+      refutation does not survive reading the whole list.
+    ground_2_the_credited_separation_is_the_artifact: >-
+      The census credits a "3x separation" at B=27 (9 vs 27) as the reason
+      refutation is unavailable. Arm B shows that separation is 27 vs 27 - i.e.
+      none - once the appended rows are removed, and arm E shows a factor base
+      with no phi content scores 0. The separation the census credits is produced
+      by the insertion rule the census itself flagged in OBS-1 and declined to
+      adjudicate. Having recorded OBS-1, the census could not simultaneously rely
+      on the number OBS-1 puts in question.
+    what_the_census_got_right: >-
+      Refusing to allege fabrication (correct, and now positively disproved for
+      the primary column - see below); routing OBS-1 to an independent agent
+      rather than adjudicating it itself; claim_tier toy; recording the strongest
+      case against itself in internal_consistency_checks; declaring its own
+      unverified inputs (ref_search) rather than adopting them; and reserving
+      rather than creating record ids. Its F1-F9 are, so far as this review
+      re-checked them, accurate.
+    independent_confirmation_of_the_unverified_ref_search: >-
+      Census R3/Q1 recorded the all-refs claim as orchestrator-supplied and
+      unverified. This session verified it with git: across all 439 refs and every
+      commit reachable from any ref, the only directories under
+      experiments/EXP-STR-002/runs/ are the same 13 the census enumerated. No run
+      record for B = 55, 204 or 397 has ever existed in any ref. CONFIRMED.
+    recommended_transition_exactly_one: weaken
+    transition_rationale: >-
+      `weaken` on DEC-20260726-006's support verdict, with H-STR-002 moved to
+      `weakened`, not `rejected`. The MECHANISM survives untouched: phi is an
+      automorphism, phi(R) is a relation, and a phi-invariant factor base does
+      give an equivariant relation system. What fails is (i) the instrument that
+      claimed to measure it, (ii) the cost model that converts equivariance into a
+      super-constant saving, and (iii) the evidentiary basis of the specific
+      numbers. `replicate` is the wrong call: re-running the same instrument
+      reproduces the same artifact - this session already reproduced all nine rows
+      in under ten minutes - so replication would spend capacity confirming a
+      confound. `reject_scoped` is not available on this report alone: no instance
+      is exhibited on which the mechanism itself fails, and the honest factor-r
+      effect is real. A correction (CORR-20260727-007) is separately warranted for
+      the specific false statements: "density penalty ~2-3x", "no decompositions at
+      B >= 27", and the "Groebner" framing.
+
+  the_case_for_the_inline_measurements:
+    answers: Q5 and Q2
+    question_asked: >-
+      Does the arithmetic self-consistency of the uncommitted 9-row table carry
+      evidential weight about whether the (alpha, B) pairs were measured?
+    census_reasoning_assessed: >-
+      The census's check_4_interpretation is CORRECT for the columns it names.
+      cost_ratio and reduction are deterministic functions of (alpha, B), so their
+      consistency is vacuous as evidence about alpha - it rules out arithmetic
+      slips in derived columns and nothing more. The census drew the boundary one
+      column too wide, however, by grouping "every B equals isqrt(n)" with the
+      vacuous checks. n is NOT free: it is the largest prime factor of the order of
+      a deterministically generated j=0 curve, so each (bits, seed) -> n entry is a
+      non-derivable, checkable prediction of the committed generator. Nine correct
+      such entries are weak positive evidence, not zero.
+    but_the_question_is_moot_and_that_is_the_real_criticism: >-
+      Reasoning about consistency was strictly dominated by REPRODUCTION, which
+      cost 0.3 seconds for six of the nine rows and under ten minutes for all nine.
+      The census had a shell-less session and correctly declared that limit, but
+      the dispatch should not have posed a reproducibility question to a session
+      that could not execute. That is the one process criticism this report makes
+      of the census.
+    result_of_reproduction: >-
+      All nine phi_alpha values in analysis.md:5-15 reproduce EXACTLY from the
+      committed measurement functions at commit 6eb3779, including both "-"
+      entries: (12,1) 9; (12,2) 2; (12,3) 2; (16,1) 6; (16,2) 27; (16,3) 4;
+      (20,1) - (no relations found); (20,2) 20; (20,3) 1. Every n and every B
+      reproduces. rand_alpha reproduces exactly in 4 of 7 defined rows and differs
+      in three: 53 vs measured 54 (B=55), 30 vs 29 (B=52), 200 vs 201 (B=204),
+      387 vs 382 (B=397). The B=204 discrepancy is in a row that the committed
+      `main()` runs to completion, so it is directly checkable.
+    plain_answer_to_Q5: >-
+      The missing-artifact gap is a BOOKKEEPING FAILURE AROUND REAL MEASUREMENTS,
+      not an evidentiary invention. The primary column was measured, by the
+      committed measurement code, on the stated instances. Any downstream record
+      that implies otherwise would be wrong, and this report positively disproves
+      fabrication of phi_alpha. But this exonerates the numbers only as numbers.
+      They are real outputs of an instrument that RT-OBJ-1 shows does not measure
+      what the hypothesis needs, produced by a driver that is not in the tree
+      (RT-OBJ-3). The crossover claim is therefore not unsupported for want of
+      artifacts - it is unsupported because the quantity it rests on is an artifact
+      of construction.
+
+  required_controls:
+  - id: RT-CTRL-1
+    priority: 1
+    name: Arm E, the phi-free positive control on the null
+    what: >-
+      Random (non-phi-invariant) factor base + rows synthetically closed under the
+      positional block-of-3 shift + measurement with the "phi" shift.
+    why_it_is_the_cheapest_decisive_control: >-
+      It is a positive control on the NULL. If a construction containing no
+      endomorphism scores as well as or better than the phi arm, the metric cannot
+      be measuring the endomorphism, and no amount of additional phi-arm data can
+      rescue it. Cost: under one second per instance, no new curve, no new
+      factor-base construction, about 20 lines. It is strictly cheaper AND
+      strictly more decisive than either option the task card offered.
+    status: >-
+      ALREADY EXECUTED IN THIS REVIEW. Result: alpha 0, 1, 0, 1 at
+      B = 27, 55, 204, 397, versus the phi arm's 9, 2, 4, 1.
+  - id: RT-CTRL-2
+    priority: 2
+    name: Arm B, exclusion of the appended rows
+    status: ALREADY EXECUTED. alpha 27, 52, 197, 386 versus random baseline
+      27, 54, 201, 382 - no separation at any B.
+    caveat: >-
+      Weaker than arm E because it invites the fair objection that it handicaps
+      the method by discarding relations an attacker would genuinely get for free.
+      Report it beside arm E, never instead of it.
+  - id: RT-CTRL-3
+    priority: 3
+    name: Free static control, no execution required
+    what: >-
+      Verify on paper that D[i][j] = M[i][j] - M[sigma(i)][sigma(j)] vanishes
+      exactly when relations[sigma(i)] = relations[i]*Z, and that lines 292-304
+      enforce that identically absent dedup. Then check alpha against the
+      misalignment count in any existing record.
+    status: DONE. Bound confirmed tight at B=27 (9/9), B=204 (4/4), B=397 (1/1).
+  - id: RT-CTRL-4
+    priority: 4
+    name: Charge relation collection and compare to matched rho end-to-end
+    what: >-
+      Report searches, s3_eval count and wall time for relation collection beside
+      the LA model, and put matched rho group operations in the same table. This
+      is what H-STR-002 falsification condition 4 requires and it was never done.
+    status: PARTIALLY DONE HERE (RT-CM-3, baseline_comparison). Needs to be a
+      standing requirement of any successor experiment.
+  - id: RT-CTRL-5
+    priority: 5
+    name: Not recommended - re-execution at B=55/204/397 for artifacts alone
+    why_not: >-
+      The task card offered this as a candidate. It is NOT decisive: this session
+      already reproduced all nine rows, and reproduction is equally consistent with
+      both readings of OBS-1. Producing manifests for a confounded metric buys
+      archival hygiene and zero epistemic progress. If the Coordinator wants the
+      artifacts anyway, the IndexError at line 451 must be fixed first, and any fix
+      is a code change that must be recorded as an amendment - it cannot be
+      slipped in as a re-run of the same experiment.
+
+  counterexample_or_mutation: >-
+    The counterexample is arm E, and it is a counterexample in the strict sense:
+    an explicit construction satisfying the metric's premise (a relation list
+    closed under the block-of-3 shift, measured with the phi shift) while
+    violating the property the metric is claimed to detect (phi-invariance of the
+    factor base), which scores BETTER than the genuine article - alpha 0 at B=204
+    against the phi arm's 4. The mutation that exposes it is one line: build the
+    factor base with `_build_random_factor_base` instead of
+    `_build_phi_invariant_factor_base`, keep everything else.
+
+  narrowest_supported_statement: >-
+    At commit 6eb3779, on nine deterministically generated j=0 prime-field toy
+    curves with p <= 877879, prime subgroup order n <= 158071 and factor base
+    B = isqrt(n) <= 397 at arity m = 2:
+    (1) the metric `phi_alpha` reported by harness/endomorphism_la.py is bounded
+    by, and in three of four checked instances equal to, the number of positions
+    at which the row-append rule of lines 292-304 lost alignment with the
+    block-of-3 column indexing; it is a statistic of the insertion bookkeeping;
+    (2) a control with no endomorphism content whatsoever attains phi_alpha 0 or 1
+    at every tested B, equal to or better than the phi-invariant factor base;
+    (3) with the appended rows removed, the phi-invariant factor base shows no
+    separation from the random baseline at any tested B (27 vs 27, 52 vs 54,
+    197 vs 201, 386 vs 382);
+    (4) the committed `main()` raises IndexError at line 451 whenever B mod 3 != 0
+    with relations present, so it cannot have produced the B = 52, 55, 107 or 397
+    rows, two of which carry the headline numbers;
+    (5) all nine phi_alpha values nevertheless reproduce exactly from the committed
+    measurement functions, so those numbers were measured and were not invented;
+    (6) the one effect the data do support is a factor of 2.62x-3.21x fewer
+    relation-collection searches per relation row on a phi-invariant factor base -
+    consistent with the known factor-r automorphism saving for r = 3, a constant
+    factor;
+    (7) on the same instances, matched Pollard rho solves the discrete logarithm
+    with independently verified certificates in 24 to 1104 group operations, while
+    relation collection alone costs 7x to 79x the entire modelled linear-algebra
+    step, so the total charged cost exceeds matched rho at every tested B.
+    Nothing above is a cryptanalytic result, an attack, or a claim above toy tier,
+    and none of it extends to generic curves, to j != 0 curves, to arity m = 3,
+    to B > 397, or to any cryptographic parameter size.
+
+  what_this_report_does_NOT_establish:
+  - >-
+    That H-STR-002's MECHANISM is false. It is not. phi is an automorphism,
+    phi(R) is a genuine relation when F is phi-invariant, and the relation system
+    really is C_3-equivariant. The mechanism yields a factor r = 3, not the
+    claimed factor B/(alpha^2 log B).
+  - >-
+    That anyone fabricated data. The opposite is positively established for the
+    primary column. This report makes no statement about intent anywhere.
+  - >-
+    That a correctly instrumented phi-invariant factor base could not show a
+    genuine factor-3 linear-algebra saving via block-diagonalisation. It probably
+    could. That would be a constant factor and not target-class.
+  - >-
+    Anything about medium or cryptographic scale, or about index calculus in
+    general.
+  - >-
+    Why the four uncommitted rows' rand_alpha values differ from reproduction by
+    1 to 5. Recorded as an open discrepancy, not explained, not speculated about.
+
+  next_concrete_action: >-
+    Dispatch ONE scoped Validator task (extend TASK-20260727-016 or open a
+    successor) whose sole deliverable is an independent re-execution, from a clean
+    checkout of 6eb3779, of exactly two things: (a) the four-arm ablation A/B/C/E
+    at (bits,seed) = (12,1), (12,2), (16,3), (20,3), reporting alpha for each arm;
+    and (b) `python3 -m harness.endomorphism_la --bits 12 --seeds 2 --arity 2
+    --targets 10 --out <outside-repo>`, reporting whether it terminates with
+    IndexError at endomorphism_la.py:451. Archive the result as a proper run
+    package under a new EXP id - NOT as an EXP-STR-002 run, since it is a
+    different protocol. That receipt, and only that receipt, is the precondition
+    for TASK-20260727-018 to record `weaken` on DEC-20260726-006 plus
+    CORR-20260727-007. Total expected cost: under fifteen minutes of compute.
+
+  artifact_paths:
+  - coordination/goals/GOAL-ECDLP-001/batches/BATCH-007/reviews/TASK-20260727-017/red_team_report.yaml
+  - coordination/goals/GOAL-ECDLP-001/batches/BATCH-007/reviews/TASK-20260727-017/adversarial_notes.md
+
+  integrity_notes:
+  - id: RT-INT-1
+    note: >-
+      This report is not durable until a Coordinator archival task commits it and
+      the dispatcher's post-commit verifier accepts the receipt. Until then it is
+      a working-tree artifact. This session made no commit and changed no status.
+  - id: RT-INT-2
+    note: >-
+      Every number attributed to a committed run record was read from that record
+      at commit 6eb3779. Every number attributed to a probe was produced by the
+      two scratchpad scripts named under `method`, which are outside the
+      repository and are NOT run records. The distinction is maintained
+      throughout; no probe output may be promoted to evidence without being
+      re-executed and archived under RT-CTRL / next_concrete_action.
+  - id: RT-INT-3
+    note: >-
+      The probe run directories written under the scratchpad
+      (PROBE/runs/RUN-STR-phi-b16-s3-m2 and siblings) reuse RUN-STR-* suffixes.
+      They are OUTSIDE the repository and must never be moved into
+      experiments/EXP-STR-002/runs/; doing so would collide with the immutable id
+      space and would misrepresent a red-team probe as an experiment run.
+  - id: RT-INT-4
+    note: >-
+      No hypothesis status was changed, no evidence record was created, no
+      decision record was created, and no file under experiments/, ledger/,
+      harness/ or TASK-20260727-013/ was modified by this session.

@@ -1,0 +1,95 @@
+coordinator_decision:
+  id: DEC-20260801-001
+  context: >-
+    BATCH-020 dispatch is blocked. tools/research_dispatch.py rejects the
+    TASK-20260731-041 archive receipt because merge da6f4fdafd, while resolving
+    an origin/main ID collision on DEC-20260731-009..012 (remapped to
+    DEC-20260731-018..021), retroactively edited two artifacts that describe the
+    already-attested snapshot commit cac4d8b459a44f1561d3f47835562824f7767765
+    (parent 5e2d33458d749dd2ccc5aed829805d2cbc5f5cbf): the TASK-20260731-041
+    snapshot receipt and the TASK-20260731-041 archive block of the BATCH-020
+    dispatch queue. Both now claim the commit contained
+    ledger/decisions/DEC-20260731-019.yaml; the commit actually contains
+    ledger/decisions/DEC-20260731-010.yaml (same blob,
+    sha256 b76b7f915cf5625ada84e9e933bfd9919c592e9cd2eb1ec0f4d563820097189e).
+  decision: approve
+  target_ids:
+    - TASK-20260731-041
+    - BATCH-020
+    - GOAL-ECDLP-001
+    - CORR-20260801-001
+  rationale:
+    - >-
+      An archive receipt is a factual description of what a commit did, not a
+      view of current ledger naming. Restoring the as-committed declarations is
+      the only reading consistent with AGENTS.md core rule 4 and the
+      "Durable research commits" verifier contract.
+    - >-
+      The ID remap is real and must stay auditable, but under AGENTS.md a sync
+      conflict inside a ledger record is resolved by a superseding record, never
+      by an edit that rewrites history. CORR-20260801-001 is that record; the
+      queue carries a remap_note pointer so no reader is misled.
+    - >-
+      No mathematical or empirical content is touched. The decision blob is
+      byte-identical before and after the remap, so no evidence, hypothesis, or
+      goal status depends on which label the archive declaration carries.
+    - >-
+      This unblocks the goal's declared next action (TASK-20260731-044) without
+      authorizing it: TASK-20260731-044 stays queued and gated on
+      APPROVAL_DETERMINATION APPROVED at TASK-20260731-043.
+  evidence_refs:
+    - cac4d8b459a44f1561d3f47835562824f7767765
+    - 5e2d33458d749dd2ccc5aed829805d2cbc5f5cbf
+    - da6f4fdafd
+    - >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260731-041/snapshot_commit_receipt.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/dispatch_queue.json
+    - ledger/corrections/CORR-20260801-001.yaml
+    - >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/QUEUE-AMEND-20260801-001.md
+  limitations:
+    - >-
+      Bookkeeping only. Asserts nothing about EXP-DS-001, H-DS-001, H-IC-001,
+      H-STR-002, FAEST or XEDN, and no evidence strength is claimed or revised.
+    - >-
+      Commit SHAs and file hashes here were supplied and git-verified by the
+      dispatching session; this coordinator had no shell access and did not
+      independently re-derive them. The post-commit verifier remains the
+      authority: the repair is not durable until it accepts the commit.
+    - >-
+      Restoration extends to every as-committed declaration of the completed
+      TASK-20260731-040 / TASK-20260731-041 pair, not the archive block alone:
+      declared_commit_sets.TASK-20260731-041_snapshot, TASK-040 write_scope /
+      artifact_paths / handoff deliverables, artifact_paths and objective, and
+      TASK-041 archive.path_sha256, archive.record_ids, handoff objective and
+      commit-message constraint. This was forced by the dispatcher, which
+      derives an archive task's commit scope from the source task's
+      artifact_paths and requires the attested commit message to contain every
+      archive.record_ids entry.
+    - >-
+      Two references were deliberately left reading DEC-20260731-019 because
+      they are live current-ledger reads rather than statements about the
+      commit: the queue's top-level authorization_status and TASK-20260731-042's
+      handoff inputs. The split is stated in archive.remap_note and in
+      CORR-20260801-001; a future reader must not "normalize" the queue to one
+      ID.
+  next_actions:
+    - >-
+      Dispatching session stages and commits exactly the declared set for this
+      repair, then re-runs tools/research_dispatch.py on the BATCH-020 queue and
+      confirms the TASK-20260731-041 archive verification passes.
+    - >-
+      Push the branch and refresh the PR naming CORR-20260801-001 and
+      DEC-20260801-001; a record in a local commit only is unpublished.
+    - >-
+      If verification passes, resume BATCH-020 at its unchanged next action
+      (TASK-20260731-044, still gated on TASK-20260731-043 APPROVED). If it
+      fails, report the concrete defect; do not edit any receipt again.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      Not an evidence-review decision. No research claim, run, or evidence
+      record is involved; this is a repository-hygiene repair with no durable
+      mathematical content to promote.
+  decided_by: coordinator
+  decided_at: '2026-08-01'
