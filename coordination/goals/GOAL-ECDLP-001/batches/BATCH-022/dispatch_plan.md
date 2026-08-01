@@ -6,11 +6,11 @@ Theorem-first primary-literature scouting for an external structural ingredient 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-011` | reviewer | queued | 90 | TASK-20260801-009, TASK-20260801-010 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260801-011/theorem_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260801-011/applicability_audit.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/reviews/TASK-20260801-011 |
+| `TASK-20260801-012` | coordinator | queued | 80 | TASK-20260801-011 | ledger/evidence/EV-ECDLP-016.yaml, ledger/decisions/DEC-20260801-004.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/archives/TASK-20260801-012/ledger_commit_receipt.json | ledger/evidence/EV-ECDLP-016.yaml, ledger/decisions/DEC-20260801-004.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/archives/TASK-20260801-012 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-012`: dependency_not_completed:TASK-20260801-011:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Theorem-first primary-literature scouting for an external structural ingredient 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9d92d5380498cc7844030efefb2a3d3a972ef85f6fd45658655a1974717adec8`
+Plan SHA-256: `edc9be03ac108b7a48b3db8bc73a06c65317af5f9d9dd76c18e64f3e51cc6613`
