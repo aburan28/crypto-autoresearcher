@@ -56,6 +56,7 @@ orchestration/agent/                   api_direct runtime: LangGraph tool loop, 
 orchestration/eval/                    Capability and discipline measurement, with intervals
 evals/suites/                          Eval tasks: verifiable answers and trap cases
 docs/measuring-the-harness.md          How harness effectiveness is measured, and what it misses
+docs/inventor-protocol.md              Object-first ideation, closure, and proof-architecture search
 docs/inference-backends.md             Backend/runtime setup and resolution semantics
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
