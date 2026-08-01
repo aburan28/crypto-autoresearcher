@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7704 entries.
+7705 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -24,6 +24,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-015 | Under pinned MATZOV costing, Kyber dual_hybrid does not beat primal_bdd and does not reproduce Carrier/MATZOV-2022 dual headlines; primal_bdd still undercuts NIST classical cutoffs | internal_finding | provisional |  | dual-attack primal-bdd matzov kyber ml-kem concrete-security cost-model contested lattice kn-open-016 |
 | KN-FIND-016 | Carrier Table 5.1 CC dual costs are Theorem-4.1-consistent; Table C.2 CN/Kyber-512 log2(Tsample)=143.30 is a transcription error for ≈134.30 | internal_finding | provisional |  | dual-attack carrier matzov kyber ml-kem concrete-security table-erratum cost-model kn-open-016 |
 | KN-FIND-017 | AES supplies one element of order 4 in GL(4,GF(2^8)) on a column, so no GL/AGL transitivity argument kills column-local invariants; and byte-wise Inv preserves GF(2^8)-collinearity, so the obstruction at SubBytes is the affine layer L | internal_finding | established |  | aes mixcolumns subbytes gf256 collinearity transitivity burnside column-local scoped-negative argument-unavailability derivation toy-scale reduced-round |
+| KN-FIND-018 | Five false-green escapes across three repairs of one mutation control; coverage escapes are closable by construction, evasion escapes are not closable by an in-process instrument | internal_finding | reported |  | mutation-testing false-green coverage-escape observability trusting-trust harness-integrity instrument-design experiment-design methodology controls-before-belief scoped-negative aes toy-scale |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
