@@ -1,16 +1,15 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell bits=20,B=64,m=4,seed=101; unplanted; live /4 plant); one RC-20 review cycle; Executor RUN-DS-001-ctrl-unplanted only if APPROVED; Val+RT; ledger EV-DS-003/DEC-20260731-020. Toy claim ceiling. No full 54-cell matrix. No v1. Do not alter H-IC-001/H-STR-002. Leave FAEST/XEDN alone.
+BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell bits=20,B=64,m=4,seed=101; unplanted; live /4 plant); one RC-20 review cycle; Executor RUN-DS-001-ctrl-unplanted only if APPROVED; Val+RT; ledger EV-DS-003/DEC-20260801-002. Toy claim ceiling. No full 54-cell matrix. No v1. Do not alter H-IC-001/H-STR-002. Leave FAEST/XEDN alone.
 
 ## Ready Tasks
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-004` | coordinator | queued | 99 | TASK-20260801-003 | ledger/evidence/EV-ECDLP-014.yaml, ledger/decisions/DEC-20260801-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260801-004/ledger_commit_receipt.json | ledger/evidence/EV-ECDLP-014.yaml, ledger/decisions/DEC-20260801-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260801-004 |
+| `TASK-20260731-044` | executor | queued | 80 | TASK-20260801-004 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/manifest.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/raw-result.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stdout.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stderr.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/command.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/environment.json, experiments/EXP-DS-001/results/ctrl_unplanted/summary.json, experiments/EXP-DS-001/results/ctrl_unplanted/R_cell.json, experiments/EXP-DS-001/results/ctrl_unplanted/null_control_report.json, experiments/EXP-DS-001/results/ctrl_unplanted/live_plant_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044/execution_report.yaml | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted, experiments/EXP-DS-001/results/ctrl_unplanted, experiments/EXP-DS-001/implementation, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-044`: dependency_not_completed:TASK-20260801-004:queued
 - `TASK-20260731-045`: dependency_not_completed:TASK-20260731-044:queued
 - `TASK-20260731-046`: dependency_not_completed:TASK-20260731-044:queued, dependency_not_completed:TASK-20260731-045:queued
 - `TASK-20260731-047`: dependency_not_completed:TASK-20260731-044:queued, dependency_not_completed:TASK-20260731-045:queued
@@ -29,4 +28,4 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `53088b6a5a8c12d4f68611ffd4217aecfb26da29742b020a854a25e74bb509a4`
+Plan SHA-256: `b88aae204986b10d3e0828697bdeba9fb086e9981abed2ab45b84397c857507a`
