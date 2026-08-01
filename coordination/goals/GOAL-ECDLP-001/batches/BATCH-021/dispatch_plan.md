@@ -6,7 +6,7 @@ Object-first, ledger-wide, primary-literature-checked ECDLP ideation after an em
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-008` | coordinator | queued | 80 | TASK-20260801-007 | ledger/evidence/EV-ECDLP-015.yaml, ledger/decisions/DEC-20260801-003.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/archives/TASK-20260801-008/ledger_commit_receipt.json | ledger/evidence/EV-ECDLP-015.yaml, ledger/decisions/DEC-20260801-003.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/archives/TASK-20260801-008 |
+| `TASK-20260801-008` | coordinator | queued | 80 | TASK-20260801-007 | ledger/evidence/EV-ECDLP-015.yaml, ledger/decisions/DEC-20260801-003.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/archives/TASK-20260801-008/ledger_commit_receipt.json | ledger/evidence/EV-ECDLP-015.yaml, ledger/decisions/DEC-20260801-003.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/archives/TASK-20260801-008 |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `921ada348268621c0eaeb7774fe6370651f989366781a332cb3c96f28d85b766`
+Plan SHA-256: `9a4cc36bc2636d4300a5d231b4b5d6ddde0f88914dd23fd9f350f30efe261367`
