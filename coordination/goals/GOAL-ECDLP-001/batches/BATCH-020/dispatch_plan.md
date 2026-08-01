@@ -28,4 +28,4 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9b4dc4b4f7e5e5b24d8d60d712519733a51677ee87e16604826566be042662db`
+Plan SHA-256: `1cc031252dd14e90baf716826fcbeb52986ec358dce431f9072b411e22e1991c`
