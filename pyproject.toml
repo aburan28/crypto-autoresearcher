@@ -4,15 +4,34 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crypto-autoresearcher"
-version = "0.1.0"
-description = "A dependency-free orchestration harness for reproducible cryptanalysis experiments"
-requires-python = ">=3.10"
+version = "0.3.0"
+description = "Runtime-neutral multi-agent harness for reproducible ECDLP research"
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0", "sympy>=1.12"]
+
+[project.optional-dependencies]
+# The api_direct runtime and the eval harness. Kept optional so the ledger and
+# experiment toolchain stays installable from a small, slow-moving dependency
+# set -- a run record has to be reproducible years from now.
+agent = ["langgraph>=1.0,<2", "langchain-core>=1.0,<2", "langgraph-checkpoint-sqlite>=3.0,<4"]
+dev = ["pytest>=8.0"]
 
 [project.scripts]
-crypto-autoresearcher = "crypto_autoresearcher.cli:main"
+autoresearch = "orchestration.cli:main"
+autoresearch-adapter = "orchestration.adapter.cli:main"
+autoresearch-agent = "orchestration.agent.cli:main"
+autoresearch-eval = "orchestration.eval.cli:main"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+# INSTALL WITH `pip install -e .`
+#
+# This is a repository-resident tool, not a redistributable library: role
+# contracts (AGENTS.md, agents/*.md), suites, and the ledger live at the
+# repository root and are located relative to the package. A non-editable
+# install puts the package in site-packages and those lookups break --
+# `autoresearch doctor` detects that and says so.
+packages = ["orchestration", "orchestration.adapter", "orchestration.agent",
+            "orchestration.eval", "harness"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.pytest.ini_options]
+testpaths = ["tests", "tools"]

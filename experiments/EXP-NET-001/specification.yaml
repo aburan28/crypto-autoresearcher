@@ -1,0 +1,102 @@
+experiment:
+  id: EXP-NET-001
+  hypothesis_id: NET-H-001
+  version: 1
+  status: approved
+  title: "Elliptic-net (EDS) relation supply: Somos-collision sieve vs BSGS at equal op budget"
+  objective: >
+    Candidate B1 (research_directions_20260717.md): re-encode the ECDLP in the elliptic
+    divisibility net (Shipsey/Stange), where Somos-type quadratic identities supply a
+    two-parameter family of exact multiplicative relations among net terms. This experiment
+    measures whether that relation supply yields k-dependent multiplicative relations among
+    factor-base-index net terms at sub-birthday cost -- i.e. whether k-recovery in the net
+    domain beats BSGS at equal charged op budget on toy prime fields. Toy evidence closes
+    only the tested scope; it is not crypto-scale validation (contract rule 7).
+  inputs:
+    primes: [101, 431, 1601]
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]
+    curve_rule: >
+      Seeded random curves E/F_p (random.Random stream derived from (seed, p)); require
+      4a^3+27b^2 != 0; exclude supersingular (#E = p+1); let n = largest prime divisor of
+      #E(F_p) with n >= 37; require embedding degree ord_n(p) >= 7 (target family excludes
+      the pairing channel); P = (#E/n)*G for seeded random G, require P != O (then ord(P) = n,
+      asserted by n*P = O). Cofactor h = #E/n recorded.
+    secret_rule: "k seeded uniform in [2, n-2]; Q = k*P (k known to the analyst for classification only)"
+    fb_rule: "B = ceil(sqrt(n)); FB = {W_P(i), W_Q(i) : 1 <= i <= B}; EDS terms via Shipsey rank-1 recurrence from W(1..4)"
+    eds_definition: "W_X(i) = psi_i(X) (division-polynomial normalization): W(1)=1, W(2)=2y, W(3)=3x^4+6ax^2+12bx-a^2, W(4)=4y(x^6+5ax^4+20bx^3-5a^2x^2-4abx-8b^2-a^3); recurrence W(2m-1)=W(m+1)W(m-1)^3-W(m-2)W(m)^3, W(2m)=W(m)(W(m+2)W(m-1)^2-W(m-2)W(m+1)^2)/W(2)"
+  controls:
+    positive:
+      PC1_pairing: >
+        Stange pairing recomputation: on dedicated seeded embedding-degree-1 instances
+        (n prime, n | p-1, n >= 5, largest available), compute the rank-2 net row
+        D(i) = W_{P,Q}(i,1) from exact initial values W(2,1)=x_P-x_{P+Q},
+        D(3)=4*y_P*y_{P+Q}-(x_Q-x_P)*W(2,1)^2 and the closed recurrence
+        D(i+2)D(i-2)=D(i+1)D(i-1)W_P(2)^2-W_P(3)D(i)^2; require
+        [D(n+1)/W_P(n+1)]^((p-1)/n) == P.tate_pairing(Q,n,1) (Sage), with non-vacuous
+        value (!= 1). DEVIATION from candidate text: reduced TATE pairing is used instead
+        of Weil because toy fields host no independent rational n-torsion pair
+        (n^2 > #E at these p); both formulas are from the same theorem family
+        (Stange, Pairing 2007, Thm 1). Recorded in analysis.md and EV record.
+      PC2_net_exactness: >
+        On every main instance: (a) EDS recurrence output equals direct division-polynomial
+        evaluation for m <= 12; (b) EDS translation identity W_{kP}(i)*W_P(k)^{i^2} = W_P(ik)
+        holds exactly for sampled i in [1..B]; (c) Somos identity
+        W(i+j)W(i-j) = W(i+1)W(i-1)W(j)^2 - W(j+1)W(j-1)W(i)^2 holds exactly for sampled
+        (i,j). Any failure => validity_status invalid.
+    negative:
+      NC1_independent_curve: >
+        Sieve cross-collisions between W_P-products on E and W_R-products on an independent
+        seeded curve E'/F_p (no shared group) must show enrichment ~ 1.0 vs the birthday
+        model; material enrichment would indicate sieve-machinery artifact => invalid.
+      NC2_permuted_target: >
+        WQ values with seeded-permuted indices (k-structure destroyed, value multiset kept):
+        enrichment and k-yielding-relation count must fall to the random-model baseline;
+        if they do not, any enrichment in the main sieve is a distributional artifact.
+      NC3_random_oracle: >
+        Uniform random F_p* sequences of identical sizes through the identical sieve code
+        path: validates the birthday denominator (enrichment ~ 1.0).
+  independent_variables: [p, seed]
+  metrics:
+    primary:
+      - "collision counts per family (S1 single-term scope; S2 pairwise-product scope: PP, QQ, PQ and mixed) vs birthday expectation C(M,2)/p or M1*M2/p; enrichment = observed/expected"
+      - "k-yielding relations: per collision involving >= 1 Q-term, consistency set S = {k' in [1,n-1] : relation holds at k'} computed exactly from W_P indices; counts of universal (|S|=n-1), k-yielding (|S|=1), narrowing (1<|S|<n-1); assert k in S"
+      - "charged ops per scope and k-recovery charged exponent log(ops)/log(n) vs BSGS reference ops at equal units"
+    secondary:
+      - "net-relation rank per field op vs BSGS-equivalent: (yielding_relations/ops_sieve) / (1/ops_BSGS)"
+      - "consistency-set size distribution; global ambiguity set |intersection of S over sampled collisions|"
+  op_accounting_policy:
+    unit: "F_p multiplication = 1 op; 1 inversion = 10 ops; 1 sort comparison = 1 op (charged separately and summed); policy stated here and identical for sieve and BSGS reference"
+    eds_setup: "25 ops per EDS (psi_2/psi_3/psi_4 closed-form evaluation) + 10 (one inversion of W(2))"
+    eds_term: "6 ops per recurrence step"
+    product: "1 op per enumerated pairwise product"
+    verify_per_collision: "full-EDS precompute 6*(B*(n-1)-4) ops once per instance + 15 ops per candidate k' (one F_p pow + ~4 mults)"
+    bsgs_reference: "2*ceil(sqrt(n)) point ops * 16 ops (add: 1 inv + 6 mults) + ceil(sqrt(n))*ceil(log2(ceil(sqrt(n)))) table comparisons"
+  replication:
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]
+    independent_instances: "18 main (3 primes x 6 seeds) + 3 pairing-control instances"
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_wall_clock_seconds: 2400
+    maximum_runs: 8
+  stopping_rules:
+    - "Any single sage invocation running > 600 s is killed and recorded as infrastructure timeout (NOT evidence against the hypothesis); seeds are then reduced to the minimum [20260717, 20260718, 20260719] and the deviation is recorded in analysis.md and the EV record."
+    - "Script-internal guard: if wall time exceeds 240 s during the k-consistency analysis, remaining consistency sets are skipped with flag (recorded deviation); enrichment metrics (already computed) remain valid."
+  invalidation_rules:
+    - "PC1 pairing mismatch on any pairing-control instance"
+    - "PC2 any exactness check failure on any instance"
+    - "true k absent from any computed consistency set (implementation bug)"
+    - "NC1 or NC3 enrichment materially different from 1.0 (sieve artifact)"
+    - "W_P(2) = 0, zero FB term, or degenerate instance"
+  success_criterion: "k-recovery charged exponent trend < 0.49 across sizes AND net-relation rank per field op >= 2x BSGS-equivalent (promotion gate of candidate B1, quoted verbatim)"
+  falsification_criterion: "Measured collision statistics equal to random-oracle birthday statistics across sizes and no k-yielding relation below BSGS budget => representation is generic on the tested scope (candidate disproof track, quoted verbatim)"
+  required_artifacts:
+    - experiments/EXP-NET-001/specification.yaml
+    - experiments/EXP-NET-001/net1_somos_sieve.sage
+    - experiments/EXP-NET-001/runs/RUN-NET-001-a/manifest.yaml
+    - experiments/EXP-NET-001/runs/RUN-NET-001-a/raw.json
+    - experiments/EXP-NET-001/runs/RUN-NET-001-a/stdout.txt
+    - experiments/EXP-NET-001/runs/RUN-NET-001-a/stderr.txt
+    - experiments/EXP-NET-001/analysis.md
+  assigned_to: executor
+  approved_by: coordinator
+  handoff_id: TASK-20260717-B1

@@ -1,8 +1,21 @@
 # Research Task Lifecycle
 
+## 0. Persistent goal binding
+
+For a sustained campaign, the Coordinator creates or resumes a
+`ledger/goals/GOAL-<AREA>-<NNN>.yaml` record before intake. It binds the
+objective to its research questions, completion criteria, pause conditions,
+budget, batch queue, latest verified commit, and exactly one next action. The
+initial goal checkpoint is committed before work begins.
+
 ## 1. Intake
 
 The Coordinator records a research question with scope, motivation, constraints, and the decision it is intended to inform.
+
+The question enters the executable focus queue before experiment design. The
+queue admits at most three active critical experiments and requires explicit
+positive, negative, and inconclusive decision branches plus recorded ambiguity
+resolutions and excluded peripheral work.
 
 ## 2. Ideation
 
@@ -22,6 +35,7 @@ The Coordinator creates an experiment contract containing:
 - primary and secondary metrics;
 - seed and replication strategy;
 - resource budget;
+- stage-by-stage wall-clock, CPU, memory, and sharding estimates;
 - stopping and invalidation rules;
 - success and falsification criteria;
 - required artifacts.
@@ -31,6 +45,16 @@ The experiment enters `review_required` until these fields are complete.
 ## 5. Approval and handoff
 
 The Coordinator approves the frozen protocol and sends it to the Executor. Protocol changes after approval require a versioned amendment. Exploratory changes must be labeled exploratory and cannot be evaluated against the original confirmatory criterion.
+
+The Coordinator also records a bounded task card in the dispatch queue with an
+exclusive write scope, resource budget, completion gate, and dependencies. Use
+`tools/research_dispatch.py` to select the ready cards. If a producer result
+could change a research claim, mark the task `review_required: true` and create
+a dependent Reviewer, Validator, or Red Team task before dispatching it.
+
+The Coordinator commits the frozen hypothesis, specification, and handoff by
+their exact paths before starting work. A task card must name every artifact it
+will produce and the Coordinator-only archive task that will commit it.
 
 ## 6. Execution
 
@@ -54,6 +78,15 @@ Before analysis, the Executor checks:
 - control comparability;
 - unexpected protocol deviations.
 
+## 7a. Snapshot commit
+
+After a producer reaches a terminal outcome, the Coordinator runs its isolated
+snapshot archive task before any dependent review. The task stages only the
+declared producer artifacts, creates a commit naming the task and record IDs,
+and records the commit, parent, paths, and file hashes. The dispatcher verifies
+that receipt against Git. A failed snapshot gate stops the review chain; it is
+an evidence-integrity failure, not a negative result.
+
 ## 8. Analysis
 
 Analysis must separate:
@@ -76,9 +109,40 @@ The Coordinator assigns an evidence strength and chooses one transition:
 - `inconclusive` — data do not discriminate explanations;
 - `pause` — low expected information gain relative to cost.
 
+Before a `weaken` or `reject_scoped` transition, the Coordinator seeks the
+strongest checkable refutation artifact the result admits — counterexample
+certificate, then derivation note, then declared `empirical_only` — and
+records it in the evidence record's `proof_status`/`proof_refs`
+(`docs/claims-and-verification.md`, "Refutation artifacts"). The artifact is
+archived before the decision that relies on it.
+
+The decision record's `knowledge_promotion` field is filled at this step: a
+`support` or `reject_scoped` decision backed by `replicated`/`strong`
+evidence promotes a `KN-FIND` entry into `knowledge/findings/` (per
+`/curate-knowledge`); any other outcome records a concrete `not_warranted`
+reason. Proven scoped negatives are promoted like positives — they are the
+boundaries future ideation checks against.
+
+## 9a. Ledger commit and official transition
+
+After every required Validator, Reviewer, and Red Team task completes, the
+Coordinator runs an isolated ledger archive task. It commits the exact review
+reports, analysis, evidence record, decision record, and any hypothesis-status
+or knowledge update. The task must pass the post-commit diff-and-hash check
+before the Coordinator records an official transition. Workers never race to
+commit inside a shared worktree.
+
 ## 10. Synthesis
 
 Synthesis statements must reference hypothesis, experiment, run, evidence, and decision IDs. They must explicitly distinguish toy-scale, medium-scale, and cryptographic-scale evidence.
+
+## 10a. Goal checkpoint, rerank, and continuation
+
+For an active `GOAL-*`, the Coordinator updates the goal record in the ledger
+archive commit with the completed batch, verified commit, decision, and next
+action. Only then rerank and schedule the next bounded batch. A scoped negative
+result, invalid run, or empty batch ends the affected task but leaves the goal
+active unless a declared completion or pause condition is committed.
 
 ## Protocol amendments
 

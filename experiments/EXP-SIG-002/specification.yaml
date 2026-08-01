@@ -1,0 +1,150 @@
+experiment:
+  id: EXP-SIG-002
+  hypothesis_id: H-SIG-001
+  version: 1
+  title: >-
+    Growth resolution of the residual non-rewritable D4 syzygy family:
+    non-degenerate n=12 re-run, >=3 seeds per size at n in {9,12,15,18,21},
+    and a D=5 count-only extension arm at n <= 15.
+  status: approved
+  objective: >-
+    DEC-20260718-015 left H-SIG-001 inconclusive: falsification clause (a)
+    fails numerically (genuine non-Koszul D3 syzygy; residual non-rewritable
+    D4 syzygies 23, 82*, 10, 13 at n = 9, 12*, 15, 18, seed 1), but the
+    exploitability question — does the residual non-rewritable component GROW
+    with n — rested on 1 seed and 2 T2-anchored sizes (10 -> 13). EXP-SIG-002
+    resolves the growth question with >= 3 seeds per size over
+    n in {9,12,15,18,21}, replaces the degenerate n=12 seed-1 instance
+    (R_x = 0, 2-torsion target) with non-degenerate seeds, checks whether the
+    n=9 D4 deficit 41 (vs the 8n/3 = 24 law) replicates across seeds, and
+    extends the boolean arm to D = 5 (count-only) at n <= 15 if budget remains.
+  inputs:
+    systems: boolean chained Semaev m = t = 3 systems (semaev_tree builder),
+      n in {9, 12, 15, 18, 21}, seeds >= 3 per size (degenerate R_x = 0
+      instances recorded and replaced by probing further seeds).
+    reference: T11-certified support-matched semi-regular null (boolean_null).
+    instrument: >-
+      bit-identical copy of the EXP-SIG-001 instrument
+      (src/h013_f5_signatures.sage, sha256
+      1ba96fe477c9dc2e7c551c96353c8361d21e40134551342636b2f13015c09087) +
+      semaev_tree.py / ic_first_fall_fast.py / macaulay_export.py copies;
+      new driver SIG2_run.sage.
+  controls:
+    - V1 null control at every measured cell — support-matched null must have
+      extra = 0 and rank == sr_pred at D = 3, 4 (and at D = 5 where the D5
+      null is measured).
+    - V2 injected-syzygy detection (known 3-generator constant-multiplier
+      syzygy must be detected) — gate, before any measurement cell.
+    - T2 anchors at n >= 12 — D4 deficit == 8n/3 and D3 deficit == 1 must
+      reproduce at the previously certified sizes (n = 15, 18 seed 1 values
+      40, 48). At n = 12 (non-degenerate) and n = 21 the 8n/3 value (32, 56)
+      is a measurement, not a certified anchor.
+    - Determinism — one cell (n = 15, seed 2) computed twice in-run, outputs
+      must be identical.
+    - Degeneracy control — every cell records R_x; R_x = 0 instances are
+      flagged degenerate, retained as observations, and excluded from the
+      growth series (replaced by further seeds until >= 3 non-degenerate per
+      size, cap 8 probed seeds per size).
+  independent_variables:
+    - n in {9, 12, 15, 18, 21}
+    - seed (>= 3 non-degenerate per size)
+    - Macaulay degree D in {3, 4} (classification), D = 5 (count-only arm)
+  metrics:
+    primary:
+      - residual_new_at_D4 = extra(D4) - rank mod K4 of D3-syzygy multiples,
+        per (n, seed) — the growth series under test
+      - D4 deficit vs 8n/3 per (n, seed)
+    secondary:
+      - D3 deficit / extra / rankK per (n, seed)
+      - D4 extra / rankK per (n, seed); null extra (must be 0)
+      - n = 9 D4 deficit across seeds (41 replication check vs 8n/3 = 24)
+      - D = 5 count-only — nrows, rank, sr_pred, deficit, kernel_dim, rankK,
+        extra (sem; null where budget allows)
+      - per-cell wall seconds; per-run peak RSS and CPU seconds
+  replication:
+    seeds: ">= 3 non-degenerate per size (probed 1..8 as needed)"
+    independent_instances: "5 sizes x >= 3 seeds = >= 15 boolean cells"
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_wall_clock_seconds: 3300
+    maximum_memory_gb: 24
+    maximum_runs: 10
+  stopping_rules:
+    - The V1/V2 gate runs first; no measurement number is recorded unless the
+      gate passes.
+    - Any single sage invocation > 600 s is killed (timeout wrapper); cells
+      already flushed remain valid, unlaunched cells are recorded as
+      not_run/censored (infrastructure censoring, AGENTS rule 5 — NOT
+      evidence).
+    - Driver soft-cap (default 480 s) stops launching new cells before the
+      hard kill, so censoring happens at cell (checkpoint) boundaries.
+    - D5 cells run in ascending-n order so censoring hits the most expensive
+      tail first.
+  invalidation_rules:
+    - Timeout/OOM/kill = failed_infrastructure (AGENTS rule 5), never evidence.
+    - A determinism mismatch invalidates the affected cell.
+    - A null cell with extra != 0 or rank != sr_pred invalidates the run's
+      instrument state (gate semantics).
+    - Degenerate R_x = 0 cells describe only that instance; they are excluded
+      from the growth series but retained as records.
+  success_criterion: >-
+    Measurement completed (numbers only; the verdict belongs to the
+    Coordinator): a residual_new_at_D4 series over n in {9,12,15,18,21} with
+    >= 3 non-degenerate seeds per size, sufficient to distinguish growth /
+    stall / decline of the residual non-rewritable component (H-SIG-001
+    minimum_effect clause).
+  falsification_criterion: >-
+    Per H-SIG-001: if the residual non-rewritable component is constant-sized
+    (or absent) in n across seeds, the "deviations constant-sized in n"
+    falsification disjunct is engaged (scoped; Coordinator decides).
+  required_artifacts:
+    - specification.yaml (this file)
+    - implementation.md
+    - SIG2_run.sage (driver)
+    - src/ instrument copies (sha256-recorded)
+    - runs/RUN-EXP-SIG-002-*/manifest.yaml (command, commit, dirty-tree, env,
+      seeds, params, resources, validity_status)
+    - runs/RUN-EXP-SIG-002-*/raw.json (per-cell ranks/predictions/kernel data,
+      v3-multiples analysis, controls, R_x flags)
+    - runs/RUN-EXP-SIG-002-*/stdout.txt, stderr.txt, command.txt,
+      environment.json
+    - analysis.md (growth series table, control outcomes, deviations,
+      unexpected observations, numbers-only gate arithmetic)
+    - ledger/EV-SIG-002.yaml
+  assigned_to: executor
+  approved_by: coordinator   # DEC-20260718-015 next_actions; handoff TASK-20260718-SIG-F2
+
+handoff:
+  id: TASK-20260718-SIG-F2
+  from: coordinator
+  to: executor
+  objective: >-
+    Resolve whether the residual non-rewritable D4 syzygy component grows with
+    n (H-SIG-001 success clause) or is constant-sized (falsification
+    disjunct), with the n = 12 degeneracy repaired and >= 3 seeds per size.
+  uncertainty_reduced: >-
+    Growth vs stall vs decline of the residual non-rewritable D4 family
+    (current data: 23, 82*, 10, 13 at seed 1, *degenerate); replication of the
+    n = 9 D4 deficit anomaly (41 vs 24); first D = 5 counts.
+  inputs:
+    - experiments/EXP-SIG-001/ (instrument + driver, read-only reference)
+    - ledger/H-SIG-001.yaml, EV-SIG-001.yaml, DEC-20260718-015.yaml
+  constraints:
+    - Do not modify any file outside experiments/EXP-SIG-002/ and
+      ledger/EV-SIG-002.yaml; do not git commit.
+    - 600 s per-invocation kill rule applied at cell/checkpoint boundaries.
+    - A partial result with honest validity_status is a success; fabrication
+      is the only failure.
+  deliverables:
+    - experiments/EXP-SIG-002/ complete artifact tree
+    - ledger/EV-SIG-002.yaml
+    - final report to the Coordinator (numbers only, no verdict)
+  budget:
+    wall_clock_seconds: 3300
+    memory_gb: 24
+    maximum_runs: 10
+  completion_gate:
+    - all artifacts written
+    - controls pass or deviation recorded
+    - validity_status set honestly
+  return_format: execution_report

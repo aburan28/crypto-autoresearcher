@@ -1,0 +1,30 @@
+STATUS: failed_infrastructure (resource_exhaustion) -- NOT mathematical evidence (AGENTS rule 5).
+
+Cell: first-fall ladder, sem arm, n=18, t=3, targets={0,1,2}, max_D=6, seed=2026.
+Instrument: experiments/EXP-DREG-001/DREG_dff.sage (single un-chunked Sage GF(2)
+Matrix.echelon_form per degree level).
+
+What happened:
+- The harness (DREG_harness.py, --timeout 200, per-target-cap 25) launched the sem
+  n=18 ladder. Target ti=0 has a high first-fall degree, so the instrument advanced to
+  the large D5/D6 Macaulay level (n=18: nb=36; D6 ncols ~ C(36,<=6) ~ 2.4e6 monomials).
+  A single un-chunked echelon_form of that matrix exceeded physical RAM (48 GB, ~23 GB
+  free) and drove the OS into swap. Because swap on this host lives on the root volume
+  (which had only ~2-7 GB free), this endangered host stability.
+- The SIGALRM per-target cap cannot preempt the in-progress C-level echelon, so the cell
+  did not censor gracefully. The harness watchdog fired at 200 s and SIGKILLed the group,
+  but the killed process was stuck in uninterruptible swap I/O (D state), so the harness
+  itself blocked in proc.wait() and never wrote command.txt / manifest.yaml. The executor
+  killed the harness process group manually; this run dir is therefore empty of a receipt.
+- No cell of the n=18 sem ladder produced a measurement (ti=0 blocks ti=1, ti=2 because
+  the instrument runs targets sequentially in one process and cannot skip ti=0).
+
+Classification: resource_exhaustion (memory/disk wall of the un-chunked first-fall
+instrument at n=18). This is an infrastructure limit of the d_ff instrument, not a
+negative mathematical observation.
+
+Decision: NOT re-run. Two prior bounded probes plus this incident establish that the
+un-chunked first-fall echelon at n>=15 (null arm always; high-first-fall sem targets)
+exceeds host memory and swaps onto the near-full root disk. Re-running risks crashing
+the host for a near-certain infra censor. The cheap, host-safe portion of the gap ladder
+(sem n=12/15 low-first-fall targets; null n=12 full D6 sweep) still stands.

@@ -1,0 +1,128 @@
+experiment:
+  id: EXP-TTN-002
+  hypothesis_id: H-TTN-001
+  version: 2
+  status: approved
+  title: "m=6 bond-rank certificate for the Semaev recursion tensor: exact test of chi(6) = C(2^{6-3}+2, 2) = 45 at d = 16"
+  changelog_v2: >
+    Protocol amendments made during execution (all recorded here and in the run manifests):
+    (a) added control C3 (rank(E_bond) == rank(W_L FORM W_R^T) at every cell);
+    (b) P2-S5 check compares my coefficient path against the per-cell SYMBOLIC formal S5
+    (sage multivariate resultant) via a staged, per-stage mod-p-reduced diagonal contraction
+    (single-einsum version overflowed int64 at p=1009 in RUN-TTN-002-a);
+    (c) C1's sage nested-resultant path is padded to FORMAL degree at every level via
+    Sylv_{m,n}(f,g) = lead(f)^{n-deg g} Sylv_{m,deg g}(f,g) (single-level correction was
+    insufficient at an inner-drop point in RUN-TTN-002-b);
+    (d) added the pivot-basis W-reduction so factor-rank-deficient cells still yield an
+    exact form rank (used at every cell for the child bond: factors 69 < 70);
+    (e) the dense symbolic S6 probe moved out-of-band to ttn2_dense_probe.sage with a
+    subprocess-level hard kill (SIGALRM cannot interrupt Singular C-level code).
+  objective: >
+    DEC-20260718-008 follow-up (i): the measured law chi(m) = C(2^{m-3}+2, 2) (exact at
+    m = 3,4,5: 3, 6, 15; EV-TTN-001) predicts chi(6) = 45 at per-variable degree d = 16.
+    Compute the exact F_p bond ranks of the Semaev recursion tensor S_6 and test the
+    prediction exactly. Bonds (EXP-TTN-001 convention, recursion tree of
+    S_6 = Res_X(S_3(x1,x2,X), S_5(X,x3,x4,x5,x6))):
+    root bond {x1,x2}|{x3,x4,x5,x6} (the mechanism bond of the law, left-comb Sylvester
+    expansion gives <= 45 by construction), child bond {x1,x2,x3}|{x4,x5,x6} (also the
+    m=6 "balanced split {x1..x_floor(m/2)}|rest" growth-family bond of EXP-TTN-001; the
+    law's face-value prediction 45 vs the balanced-recursion multiset count C(8,4) = 70),
+    grandchild {x1..x4}|{x5,x6} (symmetry probe; = 45 iff the recursion-built S_6 is
+    symmetric), single-variable {x1}|rest (context; full 17 expected).
+    NOTE: m=6 is the first size where the growth-family bond (3|3) and the mechanism
+    bond (2|4) diverge, so this experiment discriminates between the two readings of
+    the chi law.
+  method: >
+    Exact certificate by explicit Sylvester-structure factorization, no symbolic S_6
+    materialization. (a) One-off deterministic extraction of the formal-degree Sylvester
+    determinant expansions via structured Leibniz enumeration: root 10x10 gives
+    S_6 = sum_M c^M(x1,x2) H_M(x3..x6) with M ranging over the C(10,2) = 45 multisets of
+    8 factors from {c0,c1,c2} (PROVES root rank <= 45); child 8x8 (balanced recursion
+    S_6 = Res_X(S_4(x1,x2,x3,X), S_4(X,x4,x5,x6))) gives S_6 = sum_{M,N} s_{MN} a^M b^N
+    with a 70x70 integer sign matrix S (PROVES child rank <= 70, given comb == balanced
+    identity verified in C1). Extraction self-checked against numeric determinants.
+    (b) Vectorized exact F_p evaluation of all needed coefficient polynomials
+    (S_3 closed form; S_4/S_5 X-coefficients by evaluation+interpolation through
+    5/9 points of per-point scalar Sylvester determinants). (c) Ranks: rank <= bound is
+    structural; rank >= bound is certified by exhibiting full-rank sampled factor
+    matrices (eval-vector independence implies polynomial independence): root rank = 45
+    EXACT iff rank(CM) = rank(HM) = 45; child rank = rank(S mod p) EXACT iff
+    rank(A) = rank(B) = 70 and C1 identity holds. (d) Cross-checks: sampled evaluation
+    matrices E (96x96 per bond) and their ranks vs the certified values; three
+    independent evaluation paths (comb expansion / balanced expansion / sage nested
+    univariate resultants) must agree pointwise.
+  inputs:
+    primes: [101, 431, 1009]              # handoff minimum {101, 431}; 1009 added for field-size independence (cheap)
+    m: 6                                  # d = 2^{m-2} = 16, tensor side n = 17
+    seeds: [20260717, 20260718, 20260719] # handoff protocol seeds (min 1 if heavy; all 3 cheap here)
+    curve_generation: "per (p, seed): seeded RNG picks a,b in F_p, reject 4a^3+27b^2=0 (identical to EXP-TTN-001)"
+    sample_points_per_bond_side: 96       # >= 70 (child factor count) and >= 45 (root); seeded uniform
+    tensor_definition: "S_6 := formal-degree Sylvester resultant Res_X(S_3(x1,x2,X), S_5(X,x3..x6)), S_5, S_4 likewise nested (identical to EXP-TTN-001 build_Sm recursion); balanced variant Res_X(S_4(x1,x2,x3,X), S_4(X,x4,x5,x6)) used for the child bond and C1"
+  predictions:
+    - "root bond {x1,x2}|rest rank == 45 == C(2^{6-3}+2, 2) in every cell (THE LAW; falsified if any cell != 45)"
+    - "child bond {x1,x2,x3}|{x4,x5,x6}: law face-value 45 vs balanced multiset count 70; exact value = rank(S mod p) measured"
+    - "grandchild {x1..x4}|{x5,x6} == 45 iff S_6 recursion output symmetric (observation/control)"
+    - "single-var {x1}|rest == 17 (context)"
+    - "ranks identical across primes and seeds (field-size independence, beta = 0 as at m <= 5)"
+  controls:
+    positive:
+      - id: P1
+        name: "Semaev S3 baseline reproduction"
+        check: "20 seeded random (P,Q) pairs per curve: S3(x(P),x(Q),x(-(P+Q))) == 0 for all"
+      - id: P2
+        name: "coefficient-path cross-checks"
+        check: "S4 X-coeff path: poly-eval == direct per-point 4x4 Sylvester det at 200 seeded points per cell; S5 X-coeff path vs sage nested resultant at 64 seeded points per cell"
+      - id: C1
+        name: "three independent evaluation paths agree (contraction == direct definition analog)"
+        check: "comb-expansion eval == balanced-expansion eval at 4096 seeded random points per cell (also verifies S_6 comb == balanced recursion identity used for the child <= 70 bound); comb eval == sage nested univariate resultants at 512 seeded points per cell"
+      - id: C2
+        name: "Sylvester-structure extraction self-check"
+        check: "extracted 10x10 and 8x8 expansions == plain numeric Gaussian-elimination determinants at 3 seeded random (coeff) points each, before any cell work"
+      - id: P3
+        name: "prefix-CUR exactness at full rank (apparatus, mirrors EXP-TTN-001 P3)"
+        check: "at chi = rank(E_root), prefix-CUR reconstruction == E_root exactly"
+    negative:
+      - id: N1
+        name: "random matrices full rank (apparatus)"
+        check: "seeded uniform random 96x96 F_p matrix has rank 96"
+      - id: N2
+        name: "planted rank-45 bilinear form recovered"
+        check: "seeded random 96x45 F, G: rank(F G^T) == 45 (rank revelation at 96 samples adequate)"
+  independent_variables: [p, seed]
+  metrics:
+    primary:
+      - "rank_root, rank_child, rank_grandchild, rank_singlevar per cell (exact, certified as described)"
+      - "factor ranks: rank(CM), rank(HM) (45 each expected), rank(A), rank(B) (70 each expected)"
+      - "rank(S mod p) and rank(S over QQ) for the child 70x70 sign matrix"
+      - "rank(E_bond) sampled 96x96 evaluation matrices per bond (cross-check)"
+    secondary:
+      - "extraction sizes (nonzero terms in s_root / s_child)"
+      - "dense symbolic S_6 attempt (single cell, 90 s alarm cap): terms/time or infrastructure-censored (NOT evidence)"
+      - "control pass counts; wall times per stage"
+  replication:
+    seeds: [20260717, 20260718, 20260719]
+    independent_instances: 9    # 3 p x 3 seeds
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_wall_clock_seconds: 3300
+    maximum_runs: 10
+  stopping_rules:
+    - "any single sage invocation > 600 s: kill at a checkpoint boundary, record infrastructure censoring (NOT evidence), reduce scope (seeds -> 1, points 96 -> 64), record deviations"
+    - "dense symbolic S_6 probe capped at 90 s by in-script alarm after main results are written; on cap/exception: record infrastructure censoring, NOT evidence"
+    - "if a sampled factor matrix is rank-deficient vs its structural count: one documented redraw with a second seeded stream at 128 points; both outcomes recorded (a persistent deficiency is a MEASUREMENT, not an error)"
+  invalidation_rules:
+    - "any of P1, P2, C1, C2, N1 fails -> validity_status invalid with reason"
+    - "N2 or P3 failure -> investigate; invalid unless a documented benign cause"
+  success_criterion: "exact certified bond ranks for all cells with controls passing; the chi(6) = 45 prediction is arithmetic on measured ranks, verdict belongs to the Coordinator"
+  falsification_criterion: "root bond rank != 45 in any certified cell refutes chi(m) = C(2^{m-3}+2, 2) at m=6 on the mechanism bond; child bond value decides the growth-family (3|3) reading (45 = law holds as stated; 70 = law survives only on the mechanism family; any other value = law refuted on both readings)"
+  required_artifacts:
+    - specification.yaml
+    - ttn2_bond_rank_cert.sage
+    - runs/RUN-TTN-002-a/manifest.yaml
+    - runs/RUN-TTN-002-a/raw.json
+    - runs/RUN-TTN-002-a/stdout.txt
+    - runs/RUN-TTN-002-a/stderr.txt
+    - analysis.md
+  assigned_to: executor
+  approved_by: coordinator
+  handoff_id: TASK-20260718-TTNM6

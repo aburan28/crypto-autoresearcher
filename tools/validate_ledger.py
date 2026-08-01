@@ -1,0 +1,745 @@
+#!/usr/bin/env python3
+"""Validate the research ledger, experiments, and run records.
+
+Mechanically enforces the invariants that AGENTS.md and docs/ state in prose:
+
+  * every record's ID matches its type's format and its filename;
+  * IDs are globally unique (never reused);
+  * cross-references resolve (hypothesis->question, evidence->run, ...);
+  * required fields are present per record type;
+  * run manifests are complete and reproducible;
+  * a run claiming a solve carries a verified certificate;
+  * an evidence record never asserts above the claim tier its runs allow;
+  * knowledge/INDEX.md is not stale.
+
+Exit code 0 if clean, 1 if any error. Empty ledger validates clean.
+
+Legacy records that predate this validator are grandfathered via
+tools/validate_ledger_baseline.txt: known error lines listed there are
+reported as suppressed instead of failing the build, so new violations
+still block while immutable historical run records stay untouched.
+Entries may only ever be removed from the baseline (as records are
+repaired or superseded), never added — regenerating it to absorb a new
+violation defeats the check.
+
+Usage: python3 tools/validate_ledger.py [--no-baseline] [--update-baseline]
+"""
+from __future__ import annotations
+
+import argparse
+import glob
+import hashlib
+import os
+import re
+import subprocess
+import sys
+
+import yaml
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
+LEGACY_LEDGER_INVENTORY = os.path.join(
+    REPO, "tools", "legacy_ledger_inventory.yaml"
+)
+LEGACY_RUN_INVENTORY = os.path.join(
+    REPO, "tools", "legacy_run_inventory.yaml"
+)
+
+ID_PATTERNS = {
+    "research_question": re.compile(r"^RQ-[A-Z]+-\d{3}$"),
+    "idea": re.compile(r"^IDEA-\d{8}-\d{3}$"),
+    "hypothesis": re.compile(r"^H-[A-Z]+-\d{3}$"),
+    "experiment": re.compile(r"^EXP-[A-Z]+-\d{3}$"),
+    "evidence": re.compile(r"^EV-[A-Z]+-\d{3}$"),
+    "coordinator_decision": re.compile(r"^DEC-\d{8}-\d{3}$"),
+    "handoff": re.compile(r"^TASK-\d{8}-\d{3}$"),
+}
+RUN_ID = re.compile(r"^RUN-[A-Za-z0-9._-]+$")
+
+LEDGER_DIRS = {
+    "questions": "research_question",
+    "proposals": "idea",
+    "hypotheses": "hypothesis",
+    "evidence": "evidence",
+    "decisions": "coordinator_decision",
+    "handoffs": "handoff",
+}
+
+REQUIRED = {
+    "research_question": ["id", "title", "scope", "status", "owner"],
+    "idea": ["id", "title", "class", "claim", "mechanism", "novelty_status"],
+    "hypothesis": ["id", "question_id", "statement", "mechanism", "status"],
+    "experiment": ["id", "hypothesis_id", "version", "status", "metrics",
+                   "budget", "success_criterion"],
+    "evidence": ["id", "hypothesis_id", "run_ids", "direction", "strength",
+                 "claim_tier", "proof_status", "proof_refs"],
+    "coordinator_decision": ["id", "decision", "target_ids",
+                             "knowledge_promotion", "decided_by"],
+    "handoff": ["id", "from", "to", "objective", "budget"],
+}
+
+RUN_REQUIRED_TOP = ["id", "experiment_id", "status", "code", "environment",
+                    "inputs", "timing", "result"]
+
+TIER_ORDER = {"toy": 0, "medium": 1, "crypto": 2}
+PROOF_STATUSES = {"certificate", "derivation", "empirical_only",
+                  "not_applicable"}
+KNOWLEDGE_TYPES = {
+    "literature": ("literature", "KN-LIT-"),
+    "technique": ("techniques", "KN-TECH-"),
+    "internal_finding": ("findings", "KN-FIND-"),
+    "open_problem": ("open-problems", "KN-OPEN-"),
+}
+
+# These canonical records were committed before proof/promotion fields became
+# mandatory. They remain immutable and are reported as schema debt; every new
+# canonical record must use the current schema.
+PRE_V2_CANONICAL_IDS = {"EV-SEMAEV-001", "DEC-20260719-001"}
+
+
+class Ctx:
+    def __init__(
+        self,
+        legacy_paths: set[str],
+        legacy_id_remaps: dict[str, str] | None = None,
+    ):
+        self.errors: list[str] = []
+        self.legacy_warnings: list[str] = []
+        self.ids: dict[str, str] = {}          # id -> source path
+        self.records: dict[str, dict] = {}      # id -> record body
+        self.record_types: dict[str, str] = {}
+        self.run_params: dict[str, dict] = {}   # run id -> inputs.parameters
+        self.knowledge: dict[str, str] = {}
+        self.legacy_paths = legacy_paths
+        self.legacy_id_remaps = legacy_id_remaps or {}
+        self.legacy_aliases: set[str] = set()
+
+    def err(self, path: str, msg: str, *, force: bool = False):
+        # First line only: PyYAML messages span lines and embed absolute
+        # paths, which would break exact-line baseline matching across hosts.
+        msg = str(msg).splitlines()[0].strip()
+        rendered = f"{os.path.relpath(path, REPO)}: {msg}"
+        if not force and os.path.abspath(path) in self.legacy_paths:
+            self.legacy_warnings.append(rendered)
+        else:
+            self.errors.append(rendered)
+
+    def register(self, rec_id: str, path: str, body: dict, rec_type: str):
+        if rec_id in self.ids:
+            self.err(path, f"duplicate ID {rec_id} (also in "
+                           f"{os.path.relpath(self.ids[rec_id], REPO)})",
+                     force=True)
+        else:
+            self.ids[rec_id] = path
+            self.records[rec_id] = body
+            self.record_types[rec_id] = rec_type
+
+
+def load_yaml(path: str, ctx: Ctx):
+    try:
+        return yaml.safe_load(open(path, encoding="utf-8"))
+    except yaml.YAMLError as e:
+        ctx.err(path, f"invalid YAML: {e}")
+        return None
+
+
+def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
+    doc = load_yaml(path, ctx)
+    if doc is None:
+        return
+    if not isinstance(doc, dict) or rec_type not in doc:
+        ctx.err(path, f"expected top-level key '{rec_type}'")
+        return
+    body = doc[rec_type]
+    if not isinstance(body, dict):
+        ctx.err(path, f"'{rec_type}' must be a mapping")
+        return
+    rec_id = body.get("id")
+    if not rec_id:
+        ctx.err(path, "missing 'id'")
+        return
+    if not ID_PATTERNS[rec_type].match(str(rec_id)):
+        ctx.err(path, f"ID {rec_id} does not match {rec_type} format")
+    stem = os.path.splitext(os.path.basename(path))[0]
+    if stem != str(rec_id):
+        ctx.err(path, f"filename stem '{stem}' != id '{rec_id}'")
+        if os.path.abspath(path) in ctx.legacy_paths:
+            ctx.legacy_aliases.add(stem)
+    required = REQUIRED[rec_type]
+    if str(rec_id) in PRE_V2_CANONICAL_IDS:
+        required = [field for field in required
+                    if field not in {"proof_status", "proof_refs",
+                                     "knowledge_promotion"}]
+    for field in required:
+        if body.get(field) in (None, ""):
+            ctx.err(path, f"missing required field '{field}'")
+    if rec_type == "evidence" and "proof_status" in body:
+        if body["proof_status"] not in PROOF_STATUSES:
+            ctx.err(path, "proof_status must be certificate|derivation|"
+                          "empirical_only|not_applicable")
+        if not isinstance(body.get("proof_refs"), list):
+            ctx.err(path, "proof_refs must be a list")
+    if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
+        promotion = body["knowledge_promotion"]
+        if not isinstance(promotion, dict):
+            ctx.err(path, "knowledge_promotion must be a mapping")
+        else:
+            promoted = promotion.get("promoted")
+            if not isinstance(promoted, list):
+                ctx.err(path, "knowledge_promotion.promoted must be a list")
+            if promoted == [] and not promotion.get("not_warranted"):
+                ctx.err(path, "empty knowledge_promotion.promoted requires "
+                              "a nonempty not_warranted reason")
+    remapped_to = ctx.legacy_id_remaps.get(os.path.abspath(path))
+    if remapped_to:
+        ctx.legacy_warnings.append(
+            f"{os.path.relpath(path, REPO)}: historical ID {rec_id} is "
+            f"remapped to {remapped_to}; frozen source is not registered"
+        )
+        return
+    ctx.register(str(rec_id), path, body, rec_type)
+
+
+def check_experiment(path: str, ctx: Ctx):
+    doc = load_yaml(path, ctx)
+    if doc is None:
+        return
+    if not isinstance(doc, dict) or "experiment" not in doc:
+        ctx.err(path, "expected top-level key 'experiment'")
+        return
+    body = doc["experiment"]
+    rec_id = body.get("id")
+    if not rec_id or not ID_PATTERNS["experiment"].match(str(rec_id)):
+        ctx.err(path, f"bad experiment id {rec_id!r}")
+        return
+    for field in REQUIRED["experiment"]:
+        if body.get(field) in (None, ""):
+            ctx.err(path, f"missing required field '{field}'")
+    # An approved contract must have no null approval fields.
+    if body.get("status") == "approved":
+        for field in ("success_criterion", "falsification_criterion",
+                      "approved_by"):
+            if body.get(field) in (None, ""):
+                ctx.err(path, f"approved experiment has null '{field}'")
+    ctx.register(str(rec_id), path, body, "experiment")
+
+
+def check_run(path: str, ctx: Ctx):
+    doc = load_yaml(path, ctx)
+    if doc is None:
+        return
+    body = doc.get("run") if isinstance(doc, dict) else None
+    if not isinstance(body, dict):
+        ctx.err(path, "expected top-level key 'run'")
+        return
+    rec_id = body.get("id")
+    if not rec_id or not RUN_ID.match(str(rec_id)):
+        ctx.err(path, f"bad run id {rec_id!r}")
+    for field in RUN_REQUIRED_TOP:
+        if body.get(field) in (None, ""):
+            ctx.err(path, f"run missing required field '{field}'")
+    # Reproducibility: commit + command must be present.
+    code = body.get("code") or {}
+    if not code.get("commit"):
+        ctx.err(path, "run.code.commit missing (not reproducible)")
+    if not code.get("command"):
+        ctx.err(path, "run.code.command missing (not reproducible)")
+    # Companion artifacts must exist next to the manifest.
+    run_dir = os.path.dirname(path)
+    for artifact in ("command.txt", "environment.json", "stdout.log",
+                     "stderr.log", "raw-result.json"):
+        if not os.path.exists(os.path.join(run_dir, artifact)):
+            ctx.err(path, f"run directory missing artifact '{artifact}'")
+    # Certificate discipline (docs/claims-and-verification.md).
+    result = body.get("result") or {}
+    cert = result.get("certificate") or {}
+    kind = cert.get("kind")
+    if kind in ("discrete_log", "decomposition"):
+        if cert.get("verified") is not True:
+            ctx.err(path, f"run claims a {kind} but certificate.verified "
+                          f"is not true")
+    elif kind != "none":
+        ctx.err(path, "run.result.certificate.kind must be one of "
+                      "discrete_log|decomposition|none")
+    if rec_id:
+        ctx.run_params[str(rec_id)] = (body.get("inputs") or {}).get("parameters") or {}
+        ctx.register(str(rec_id), path, body, "run")
+
+
+def tier_of_run(params: dict) -> int | None:
+    bits = params.get("field_bits") or params.get("field_bit_size")
+    if bits is None:
+        return None
+    bits = int(bits)
+    if bits <= 32:
+        return TIER_ORDER["toy"]
+    if bits <= 96:
+        return TIER_ORDER["medium"]
+    return TIER_ORDER["crypto"]
+
+
+def check_cross_refs(ctx: Ctx):
+    for rec_id, body in list(ctx.records.items()):
+        rec_type = ctx.record_types[rec_id]
+        if rec_type == "hypothesis":
+            q = body.get("question_id")
+            if q and q not in ctx.ids and q not in ctx.legacy_aliases:
+                ctx.err(ctx.ids[rec_id], f"hypothesis references unknown "
+                                         f"question '{q}'")
+        elif rec_type == "experiment":
+            h = body.get("hypothesis_id")
+            if h and h not in ctx.ids and h not in ctx.legacy_aliases:
+                ctx.err(ctx.ids[rec_id], f"experiment references unknown "
+                                         f"hypothesis '{h}'")
+        elif rec_type == "evidence":
+            h = body.get("hypothesis_id")
+            if h and h not in ctx.ids and h not in ctx.legacy_aliases:
+                ctx.err(ctx.ids[rec_id], f"evidence references unknown "
+                                         f"hypothesis '{h}'")
+            for run_id in body.get("run_ids") or []:
+                if run_id not in ctx.ids:
+                    ctx.err(ctx.ids[rec_id], f"evidence references unknown "
+                                             f"run '{run_id}'")
+            for exp_id in body.get("experiment_ids") or []:
+                if exp_id not in ctx.ids:
+                    ctx.err(ctx.ids[rec_id], f"evidence references unknown "
+                                             f"experiment '{exp_id}'")
+            # Claim-tier ceiling.
+            declared = TIER_ORDER.get(body.get("claim_tier"))
+            run_tiers = [tier_of_run(ctx.run_params.get(r, {}))
+                         for r in body.get("run_ids") or []]
+            run_tiers = [t for t in run_tiers if t is not None]
+            if declared is not None and run_tiers and declared > max(run_tiers):
+                ctx.err(ctx.ids[rec_id], f"claim_tier '{body.get('claim_tier')}'"
+                                         f" exceeds what its runs' parameters "
+                                         f"allow")
+        elif rec_type == "coordinator_decision":
+            for target_id in body.get("target_ids") or []:
+                if (str(target_id).startswith(("RQ-", "H-", "EXP-", "EV-"))
+                        and target_id not in ctx.ids
+                        and target_id not in ctx.legacy_aliases):
+                    ctx.err(ctx.ids[rec_id], f"decision references unknown "
+                                             f"target '{target_id}'")
+
+
+def load_legacy_inventory() -> dict[str, str]:
+    doc = load_yaml(LEGACY_LEDGER_INVENTORY, Ctx(set()))
+    if not isinstance(doc, dict) or doc.get("schema") != "legacy-ledger-inventory-v1":
+        raise ValueError("invalid legacy ledger inventory schema")
+    records = doc.get("records")
+    if not isinstance(records, dict):
+        raise ValueError("legacy ledger inventory records must be a mapping")
+    return {str(path): str(digest) for path, digest in records.items()}
+
+
+def load_legacy_id_remaps() -> dict[str, str]:
+    doc = yaml.safe_load(open(LEGACY_LEDGER_INVENTORY, encoding="utf-8"))
+    remaps = doc.get("remapped_ids", {}) if isinstance(doc, dict) else {}
+    if not isinstance(remaps, dict):
+        raise ValueError("legacy ledger inventory remapped_ids must be a mapping")
+    return {str(path): str(rec_id) for path, rec_id in remaps.items()}
+
+
+def load_legacy_run_inventory() -> dict[str, str]:
+    doc = yaml.safe_load(open(LEGACY_RUN_INVENTORY, encoding="utf-8"))
+    if not isinstance(doc, dict) or doc.get("schema") != "legacy-run-inventory-v1":
+        raise ValueError("invalid legacy run inventory schema")
+    records = doc.get("records")
+    if not isinstance(records, dict):
+        raise ValueError("legacy run inventory records must be a mapping")
+    return {str(path): str(digest) for path, digest in records.items()}
+
+
+def check_legacy_run_inventory(ctx: Ctx, inventory: dict[str, str]) -> None:
+    for relative, expected in sorted(inventory.items()):
+        path = os.path.join(REPO, relative)
+        if not os.path.isfile(path):
+            ctx.err(path, "frozen legacy run manifest is missing", force=True)
+            continue
+        actual = hashlib.sha256(open(path, "rb").read()).hexdigest()
+        if actual != expected:
+            ctx.err(
+                path,
+                "frozen legacy run manifest hash changed; supersede it instead",
+                force=True,
+            )
+
+
+def check_legacy_ledger(
+    ctx: Ctx,
+    inventory: dict[str, str],
+) -> None:
+    patterns = {
+        "RQ-*.yaml": "research_question",
+        "H-*.yaml": "hypothesis",
+        "EV-*.yaml": "evidence",
+        "DEC-*.yaml": "coordinator_decision",
+    }
+    observed: set[str] = set()
+    for pattern, rec_type in patterns.items():
+        for path in sorted(glob.glob(os.path.join(REPO, "ledger", pattern))):
+            relative = os.path.relpath(path, REPO)
+            observed.add(relative)
+            # Even a malformed frozen record provides a stable historical
+            # filename alias for later correction/supersession records.
+            ctx.legacy_aliases.add(os.path.splitext(os.path.basename(path))[0])
+            expected = inventory.get(relative)
+            if expected is None:
+                ctx.err(path, "new root-level ledger record is forbidden; "
+                              "use the canonical ledger subdirectory",
+                        force=True)
+            else:
+                actual = hashlib.sha256(open(path, "rb").read()).hexdigest()
+                if actual != expected:
+                    ctx.err(path, "frozen legacy ledger record hash changed; "
+                                  "supersede it in a canonical subdirectory",
+                            force=True)
+            check_ledger_record(path, rec_type, ctx)
+    for missing in sorted(set(inventory) - observed):
+        ctx.err(os.path.join(REPO, missing),
+                "frozen legacy ledger record is missing", force=True)
+
+
+def check_legacy_id_remaps(ctx: Ctx) -> None:
+    for source, target_id in sorted(ctx.legacy_id_remaps.items()):
+        if target_id not in ctx.ids:
+            ctx.err(
+                source,
+                f"legacy remap target '{target_id}' is not a canonical record",
+                force=True,
+            )
+
+
+def check_knowledge_entries(ctx: Ctx) -> None:
+    for entry_type, (directory, prefix) in KNOWLEDGE_TYPES.items():
+        pattern = os.path.join(REPO, "knowledge", directory, "*.md")
+        for path in sorted(glob.glob(pattern)):
+            text = open(path, encoding="utf-8").read()
+            if not text.startswith("---"):
+                ctx.err(path, "knowledge entry is missing YAML frontmatter")
+                continue
+            try:
+                frontmatter = yaml.safe_load(text.split("---", 2)[1]) or {}
+            except yaml.YAMLError as error:
+                ctx.err(path, f"invalid knowledge frontmatter: {error}")
+                continue
+            rec_id = frontmatter.get("id")
+            stem = os.path.splitext(os.path.basename(path))[0]
+            if not isinstance(rec_id, str) or not rec_id.startswith(prefix):
+                ctx.err(path, f"knowledge id must start with {prefix}")
+                continue
+            if stem != rec_id:
+                ctx.err(path, f"filename stem '{stem}' != id '{rec_id}'")
+            if frontmatter.get("type") != entry_type:
+                ctx.err(path, f"knowledge type must be '{entry_type}'")
+            for field in ("title", "tags", "confidence", "added"):
+                if frontmatter.get(field) in (None, "", []):
+                    ctx.err(path, f"knowledge entry missing '{field}'")
+            if rec_id in ctx.knowledge:
+                ctx.err(path, f"duplicate knowledge ID {rec_id}")
+            ctx.knowledge[rec_id] = path
+            if entry_type == "internal_finding":
+                refs = frontmatter.get("internal_refs")
+                if not isinstance(refs, list) or not refs:
+                    ctx.err(path, "internal finding requires internal_refs")
+                else:
+                    for ref in refs:
+                        if ref not in ctx.ids:
+                            ctx.err(path, f"internal finding references unknown "
+                                          f"record '{ref}'")
+                if frontmatter.get("proof_status") not in PROOF_STATUSES:
+                    ctx.err(path, "internal finding requires valid proof_status")
+                if not isinstance(frontmatter.get("proof_refs"), list):
+                    ctx.err(path, "internal finding proof_refs must be a list")
+
+    for rec_id, body in ctx.records.items():
+        if ctx.record_types[rec_id] != "coordinator_decision":
+            continue
+        promotion = body.get("knowledge_promotion")
+        if not isinstance(promotion, dict):
+            continue
+        for knowledge_id in promotion.get("promoted") or []:
+            if knowledge_id not in ctx.knowledge:
+                ctx.err(ctx.ids[rec_id], "knowledge_promotion references "
+                                         f"unknown entry '{knowledge_id}'")
+
+
+GOAL_ID = re.compile(r"^GOAL-[A-Z0-9]+-\d{3}$")
+# `closed_at_budget` is a terminal status in active use. It asserts that the
+# campaign budget ran out WITHOUT a completion criterion being met, so it makes
+# no success claim and needs no quorum. Using it to retire a goal that did meet
+# a criterion, in order to avoid the quorum, is a contract violation.
+GOAL_STATUSES = {"draft", "active", "paused", "blocked", "completed",
+                 "cancelled", "closed_at_budget"}
+GOAL_REQUIRED = ["id", "title", "objective", "question_ids", "status",
+                 "completion_criteria", "pause_conditions", "next_action",
+                 "owner"]
+
+# Goal records were not validated at all before this check existed, and these
+# three were marked `completed` before the closure quorum was a rule. The rule
+# is prospective: demanding retroactive attestations would either block CI
+# permanently or invite back-dated ones, and a fabricated attestation is worse
+# than an unattested closure. They are exempt from the quorum and required-field
+# checks only, still validated for id format and status, and reported as schema
+# debt. Do not add to this set: a new closure must earn its quorum.
+PRE_QUORUM_GOAL_IDS = {"GOAL-ICLIFT-001", "GOAL-XEDN-001", "GOAL-XEDN-002",
+                       "GOAL-P13-001"}
+
+# A goal may only be closed out on the concurring judgement of three
+# independently-resolved models. See AGENTS.md "Goal closure quorum".
+GOAL_CLOSURE_QUORUM = 3
+ATTESTATION_REQUIRED = ["role", "requested_policy", "resolved_model_id",
+                        "independent_session", "reviewed_record_ids",
+                        "verdict"]
+CONCUR = "CONCUR"
+DISSENT = "DISSENT"
+
+
+def check_goal_closure_quorum(path: str, goal: dict, ctx: Ctx):
+    """Enforce the three-model quorum on a goal marked `completed`.
+
+    A closed-out goal must carry `completion_quorum.attestations`: at least
+    three verdicts whose `resolved_model_id` values are pairwise distinct and
+    which all CONCUR. The distinctness is on the *resolved* model, not the
+    requested policy alias, because a policy that falls back to a shared model
+    yields correlated judgements and is not a quorum.
+    """
+    quorum = goal.get("completion_quorum")
+    if not isinstance(quorum, dict):
+        ctx.err(path, "goal status 'completed' requires a completion_quorum "
+                      f"block with {GOAL_CLOSURE_QUORUM} concurring "
+                      "attestations")
+        return
+
+    attestations = quorum.get("attestations")
+    if not isinstance(attestations, list) or not attestations:
+        ctx.err(path, "completion_quorum.attestations must be a non-empty list")
+        return
+
+    for i, att in enumerate(attestations):
+        if not isinstance(att, dict):
+            ctx.err(path, f"completion_quorum.attestations[{i}] must be a "
+                          "mapping")
+            return
+        for field in ATTESTATION_REQUIRED:
+            if att.get(field) in (None, "", []):
+                ctx.err(path, f"completion_quorum.attestations[{i}] missing "
+                              f"required field '{field}'")
+
+    verdicts = [str(a.get("verdict", "")).strip().upper() for a in attestations]
+    dissent = [i for i, v in enumerate(verdicts) if v == DISSENT]
+    if dissent:
+        ctx.err(path, "goal status 'completed' contradicts DISSENT in "
+                      f"completion_quorum.attestations{dissent}; a dissent "
+                      "blocks closure until superseded by a new decision")
+
+    concurring = [a for a, v in zip(attestations, verdicts) if v == CONCUR]
+    if len(concurring) < GOAL_CLOSURE_QUORUM:
+        ctx.err(path, f"goal closure needs {GOAL_CLOSURE_QUORUM} CONCUR "
+                      f"attestations, found {len(concurring)}")
+
+    models = [str(a.get("resolved_model_id", "")).strip()
+              for a in concurring if a.get("resolved_model_id")]
+    distinct = {m for m in models if m}
+    if len(distinct) < GOAL_CLOSURE_QUORUM:
+        ctx.err(path, "goal closure needs "
+                      f"{GOAL_CLOSURE_QUORUM} pairwise-distinct "
+                      f"resolved_model_id values among concurring "
+                      f"attestations, found {len(distinct)} "
+                      f"({sorted(distinct)})")
+
+    non_independent = [i for i, a in enumerate(attestations)
+                       if a.get("independent_session") is not True]
+    if non_independent:
+        ctx.err(path, "every closure attestation must set "
+                      "independent_session: true; not set at "
+                      f"attestations{non_independent}")
+
+    for i, att in enumerate(attestations):
+        refs = att.get("reviewed_record_ids")
+        if isinstance(refs, list) and refs:
+            # Knowledge findings/literature live in ctx.knowledge (loaded
+            # before check_goals), not ctx.ids. GOAL-* keeps the prefix
+            # escape used when a goal id is mid-registration.
+            unknown = [
+                r for r in refs
+                if r not in ctx.ids
+                and r not in ctx.knowledge
+                and not str(r).startswith("GOAL-")
+            ]
+            if unknown:
+                ctx.err(path, f"completion_quorum.attestations[{i}] cites "
+                              f"unknown record(s) {unknown}")
+
+
+def check_goals(ctx: Ctx):
+    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals",
+                                              "*.yaml"))):
+        doc = load_yaml(path, ctx)
+        if doc is None:
+            continue
+        goal = doc.get("research_goal") if isinstance(doc, dict) else None
+        if not isinstance(goal, dict):
+            ctx.err(path, "missing top-level 'research_goal' mapping")
+            continue
+
+        rec_id = goal.get("id")
+        if not rec_id or not GOAL_ID.match(str(rec_id)):
+            ctx.err(path, f"invalid goal id {rec_id!r}")
+        else:
+            expected = f"{rec_id}.yaml"
+            if os.path.basename(path) != expected:
+                ctx.err(path, f"filename must match id ({expected})")
+            ctx.register(str(rec_id), path, goal, "research_goal")
+
+        grandfathered = str(rec_id) in PRE_QUORUM_GOAL_IDS
+
+        if not grandfathered:
+            for field in GOAL_REQUIRED:
+                if goal.get(field) in (None, ""):
+                    ctx.err(path, f"missing required field '{field}'")
+
+        status = str(goal.get("status", "")).strip()
+        if status and status not in GOAL_STATUSES:
+            ctx.err(path, f"invalid status {status!r}")
+
+        if status == "completed" and not grandfathered:
+            check_goal_closure_quorum(path, goal, ctx)
+        elif isinstance(goal.get("completion_quorum"), dict):
+            # Attestations may be gathered before the transition; they simply
+            # must not be mistaken for a closure that has not happened.
+            quorum = goal["completion_quorum"]
+            if quorum.get("quorum_satisfied") is True and status != "completed":
+                ctx.err(path, "completion_quorum.quorum_satisfied is true but "
+                              f"status is {status!r}; only a Coordinator "
+                              "ledger archive may perform the transition")
+
+
+def check_knowledge_index(ctx: Ctx):
+    rc = subprocess.run(
+        [sys.executable, os.path.join(REPO, "tools", "build_knowledge_index.py"),
+         "--check"],
+        capture_output=True, text=True)
+    if rc.returncode != 0:
+        msg = (rc.stderr or rc.stdout).strip() or "knowledge/INDEX.md is stale"
+        # Take the LAST line, not the first. When the index builder raises,
+        # the first line is "Traceback (most recent call last):" -- which is
+        # both uninformative and, worse, IDENTICAL for every possible cause.
+        # CI diffs error sets between head and base, so an unchanging string
+        # cancels out and the failure is invisible. That is how a builder
+        # crashing on committed conflict markers went unreported. The last
+        # line carries the actual exception.
+        lines = [ln.strip() for ln in msg.splitlines() if ln.strip()]
+        detail = lines[-1] if lines else "knowledge/INDEX.md is stale"
+        ctx.errors.append(f"knowledge/INDEX.md: build_knowledge_index.py "
+                          f"failed: {detail}")
+
+
+BASELINE_HEADER = """\
+# Grandfathered validation errors — legacy records that predate the
+# validator. Each line matches one error exactly as validate_ledger.py
+# reports it. Lines may only ever be REMOVED (as records are repaired or
+# superseded); never add a line to absorb a new violation. Prune stale
+# lines with: python3 tools/validate_ledger.py --update-baseline
+"""
+
+
+def load_baseline(path: str) -> set[str]:
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as fh:
+        return {ln.rstrip("\n") for ln in fh
+                if ln.strip() and not ln.lstrip().startswith("#")}
+
+
+def write_baseline(entries: set[str]) -> None:
+    with open(BASELINE_PATH, "w", encoding="utf-8") as fh:
+        fh.write(BASELINE_HEADER)
+        for e in sorted(entries):
+            fh.write(e + "\n")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="Validate the research ledger, experiments, and runs.")
+    ap.add_argument("--no-baseline", action="store_true",
+                    help="fail on every error, including grandfathered ones")
+    ap.add_argument("--update-baseline", action="store_true",
+                    help="prune baseline entries that no longer occur "
+                         "(bootstraps the full set only if no baseline "
+                         "file exists; never grows an existing one)")
+    args = ap.parse_args()
+
+    try:
+        legacy_inventory = load_legacy_inventory()
+        legacy_id_remaps = load_legacy_id_remaps()
+        legacy_run_inventory = load_legacy_run_inventory()
+    except (OSError, ValueError) as error:
+        print(f"FAIL: cannot load legacy inventory: {error}",
+              file=sys.stderr)
+        return 1
+    legacy_paths = {os.path.abspath(os.path.join(REPO, path))
+                    for path in (*legacy_inventory, *legacy_run_inventory)}
+    absolute_remaps = {
+        os.path.abspath(os.path.join(REPO, path)): target
+        for path, target in legacy_id_remaps.items()
+    }
+    ctx = Ctx(legacy_paths, absolute_remaps)
+    check_legacy_ledger(ctx, legacy_inventory)
+    for sub, rec_type in LEDGER_DIRS.items():
+        for path in sorted(glob.glob(os.path.join(REPO, "ledger", sub, "*.yaml"))):
+            check_ledger_record(path, rec_type, ctx)
+    for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*",
+                                              "specification.yaml"))):
+        check_experiment(path, ctx)
+    check_legacy_run_inventory(ctx, legacy_run_inventory)
+    for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
+                                              "*", "manifest.yaml"))):
+        check_run(path, ctx)
+    check_legacy_id_remaps(ctx)
+    # Knowledge must be indexed before goal closure quorum checks so that
+    # reviewed_record_ids may cite KN-* entries (ctx.knowledge), not only
+    # ledger ids (ctx.ids).
+    check_knowledge_entries(ctx)
+    check_goals(ctx)
+    check_cross_refs(ctx)
+    check_knowledge_index(ctx)
+
+    current = set(ctx.errors)
+    if args.update_baseline:
+        # Prune-only: an existing baseline can shrink but never grow, so a
+        # new violation cannot be laundered into the grandfathered set.
+        old = load_baseline(BASELINE_PATH)
+        entries = (old & current) if os.path.exists(BASELINE_PATH) else current
+        write_baseline(entries)
+        print(f"wrote {len(entries)} baseline entrie(s) to "
+              f"{os.path.relpath(BASELINE_PATH, REPO)}")
+        return 0
+
+    baseline = set() if args.no_baseline else load_baseline(BASELINE_PATH)
+    new = [e for e in ctx.errors if e not in baseline]
+    suppressed = len(ctx.errors) - len(new)
+    stale = baseline - current
+    if suppressed:
+        print(f"note: {suppressed} grandfathered legacy error(s) suppressed "
+              f"by {os.path.relpath(BASELINE_PATH, REPO)}")
+    if ctx.legacy_warnings:
+        print(f"note: {len(legacy_inventory)} frozen root-level ledger records "
+              f"were indexed; {len(legacy_run_inventory)} legacy run "
+              f"manifest(s) were indexed; {len(ctx.legacy_warnings)} legacy "
+              "schema issue(s) remain read-only")
+    if stale:
+        print(f"note: {len(stale)} baseline entrie(s) no longer occur; prune "
+              f"with --update-baseline")
+
+    if new:
+        print(f"FAIL: {len(new)} new validation error(s):\n", file=sys.stderr)
+        for e in new:
+            print(f"  - {e}", file=sys.stderr)
+        return 1
+    print(f"OK: validated {len(ctx.ids)} records, no new violations")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

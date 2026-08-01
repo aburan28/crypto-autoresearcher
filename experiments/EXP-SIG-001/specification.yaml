@@ -1,0 +1,110 @@
+experiment:
+  id: EXP-SIG-001
+  hypothesis_id: H-SIG-001
+  version: 1
+  title: >-
+    Signature-tracked F5 on the boolean chained Semaev system: origin of the T2
+    syzygy family, Yokoyama #G* / NS(Syz) object, Betti tables, CM panel.
+  status: approved
+  objective: >-
+    Reduce the uncertainty in RQ-SIG-001: implement the recovered Yokoyama
+    object (D5_YOKOYAMA_OBJECT.md), track F5 signatures on the chained m=3
+    systems, classify the observed syzygy family (1 at D3, 8n/3 at D4) as
+    rewritable/Koszul vs genuinely non-rewritable, and measure #G* against
+    m*d^{m-1} across the CM panel. Absorbs AUTOLAB_TASKS T3 and T5.
+  inputs:
+    systems: boolean chained Semaev m=2,3 systems (semaev_tree builder), n = 9..18.
+    panel: generic + CM {j=0, 1728, -3375, 8000, -32768, isogenous}, >=3 seeds.
+    reference: T11-certified support-matched semi-regular null.
+    object_definition: ecdlp-autolab D5_YOKOYAMA_OBJECT.md (Syz=(J:S), NS(Syz),
+      sig(f)=LM(RSC(f)), Phi(s), #G* on the non-reduced GB).
+  controls:
+    - Matched semi-regular null (T11-certified), same (n, D) cells.
+    - Validation system with a KNOWN Koszul family (instrument must classify it
+      as fully rewritable) — gates all panel measurements.
+    - Same-order isogenous curve per panel entry.
+    - Same-seed re-run (determinism / infrastructure-failure separation).
+  independent_variables:
+    - panel family (generic + 6 CM entries)
+    - n (9, 12, 15, 18); m (2, 3); max_D (<=6)
+    - curve seed (>=3)
+  metrics:
+    primary:
+      - non-rewritable low-degree signature count and degree histogram per (family, n)
+      - "#G* vs m*d^{m-1} per family; NS(Syz) size"
+    secondary:
+      - graded Betti tables vs the null (extra strands, their growth in n)
+      - confirmation of the T2 counts (1 at D3, 8n/3 at D4) and their signature origin
+      - regularity of the ideal per family
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: ">=3 seeds x 7 panel families"
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 80
+    maximum_memory_gb: 24
+    maximum_runs: 160
+  stopping_rules:
+    - The Koszul-validation gate runs first; no panel number is recorded until
+      the instrument classifies the known family correctly.
+    - Cells exceeding the wall/memory cap are censored and reported.
+    - If any family shows a growing non-rewritable count at n<=15, the n=18
+      confirmation arm runs before the rest of the panel.
+  invalidation_rules:
+    - The old normal() proxy is invalid for this question and excluded wherever
+      it appears.
+    - Timeout/OOM = failed_infrastructure (AGENTS rule 5), never evidence.
+    - A signature trace inconsistent across same-seed re-runs invalidates the cell.
+  success_criterion: >-
+    A non-rewritable low-degree signature component that GROWS with n on any
+    panel family (CI-separated from the null profile), OR #G* collapse below
+    m*d^{m-1} on any family: structural deviation, feeds EXP-DREG-001.
+  falsification_criterion: >-
+    All extra syzygies rewritable/Koszul with the T2 counts fully explained as
+    shared-variable Koszul pairs, AND #G* matching m*d^{m-1} on every panel
+    family: D5 closed with the correct object (scoped KILL; two-sided outcome,
+    null = theorem-shaped closure).
+  required_artifacts:
+    - src/h013_f5_signatures.sage (instrument, committed)
+    - runs/<run-id>/manifest.yaml (command, commit, dirty-tree, env, seeds, params)
+    - runs/<run-id>/raw.json (signature histograms, #G*, Betti tables per cell)
+    - runs/<run-id>/stdout.txt and stderr.txt
+    - analysis.md (classification of the T2 family, panel table, censoring
+      table, verdict against the frozen criteria)
+  assigned_to: executor
+  approved_by: coordinator   # DEC-20260717-002
+
+handoff:
+  id: TASK-20260717-004
+  from: coordinator
+  to: executor
+  objective: >-
+    Build the signature/Yokoyama instrument per D5_YOKOYAMA_OBJECT.md, pass the
+    Koszul-validation gate, then classify the T2 syzygy family and run the CM
+    panel.
+  uncertainty_reduced: >-
+    Whether the program's one measured departure from semi-regularity (the T2
+    syzygy family) is algebraically forced or genuinely structural — and
+    whether D5 closes with the correct object.
+  inputs:
+    - experiments/EXP-SIG-001/specification.yaml
+    - ecdlp-autolab: D5_YOKOYAMA_OBJECT.md, hunt_H7_formsearch_final.sage,
+      semaev_tree builder, T11 null harness
+  constraints:
+    - The instrumented object is the Yokoyama signature object, NOT normal().
+    - Koszul-validation gate before any panel measurement.
+    - Do not run while status is review_required (status is approved).
+  deliverables:
+    - committed instrument h013_f5_signatures.sage
+    - signature classification of the T2 family with degree histograms
+    - #G* / Betti panel table across 7 families
+    - analysis.md with the frozen-criteria verdict and censoring table
+  budget:
+    wall_clock_seconds: 288000
+    memory_gb: 24
+    maximum_runs: 160
+  completion_gate:
+    - Every planned cell has a terminal state (measured | censored | invalid).
+    - Koszul-validation gate passed and logged.
+    - Raw results, resource metrics, and summaries agree; artifacts checksummed.
+  return_format: execution_report

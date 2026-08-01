@@ -1,0 +1,364 @@
+experiment:
+  id: EXP-MLKEM-003
+  hypothesis_id: H-MLKEM-003
+  goal_id: GOAL-MLKEM-001
+  version: 1
+  title: Frozen hardened multi-class ML-KEM comparison-conformance gate applied across implementations
+  status: approved
+  frozen: true
+  objective: >-
+    Harden the conformance gate validated in EXP-MLKEM-002 against the five
+    objections that survived independent red team, then use the hardened gate to
+    decide whether the incomplete re-encryption comparison class is isolated to
+    the audited wolfSSL pre-fix routines or systemic across optimized ML-KEM
+    implementations. The hardening adds a multi-class generator, four keys per
+    parameter set, a strong named conformance anchor, and measurement at the
+    Algorithm 18 decapsulation boundary rather than only at the comparison
+    primitive.
+
+  inherited_objections_addressed:
+    OBJ-001: >-
+      Primitive silence is not universal API accept. Every table separates the
+      primitive verdict from the decapsulation verdict, and every accept is
+      annotated with whether the recovered message was stable.
+    OBJ-002: >-
+      The post-fix null was generator-scoped. Generator classes G2 multi-byte,
+      G3 alignment and lane boundary, and G4 malformed length are added, and G5
+      replays every class across four keys.
+    OBJ-003: >-
+      Direct-symbol probing did not attest the live path. Every backend that
+      receives a conformance verdict must carry at least one measurement taken
+      through the public decapsulation API, including the emulated aarch64 NEON
+      backend.
+    OBJ-004: >-
+      Exact inputs were not archived. Ciphertext and shared-secret digests plus
+      the generating seeds are archived, and the first key per parameter set is
+      archived as raw bytes under vectors/.
+    OBJ-005: >-
+      The anchor was the weakest accepted one. A strong anchor is required if
+      retrievable, and the anchor actually used is named and graded.
+
+  source_lock:
+    wolfssl:
+      repository: https://github.com/wolfSSL/wolfssl
+      prefix_tag: v5.9.1-stable
+      prefix_commit_peeled_expected: 1d363f3adceba9d1478230ede476a37b0dcdef24
+      postfix_tag: v5.9.2-stable
+      postfix_commit_peeled_expected: ac01707f552c611fbd135cc723b2682b3e7f80f2
+      role: known_defective_positive_control_and_patched_control
+      established_by: EV-MLKEM-005
+    second_implementation:
+      selection_rule: >-
+        Choose exactly one additional independent open-source ML-KEM
+        implementation that can be built and probed offline within budget.
+        Preference order: liboqs, PQClean, BoringSSL, then the pq-crystals
+        reference. Record the repository, the pinned tag or commit, the reason
+        the choice was made, and the reason any higher-preference candidate was
+        rejected.
+      requirement: >-
+        Its ciphertext comparison and its decapsulation entry point must both be
+        reachable; if only one is reachable, say so and scope the verdict.
+    fips_203:
+      publication_date: '2024-08-13'
+      doi: 10.6028/NIST.FIPS.203
+      normative_algorithms: [17, 18]
+
+  inputs:
+    parameter_sets:
+      ML-KEM-512: {ciphertext_bytes: 768}
+      ML-KEM-768: {ciphertext_bytes: 1088}
+      ML-KEM-1024: {ciphertext_bytes: 1568}
+    keys_per_parameter_set: 4
+    seed_policy: >-
+      Four recorded seeds per parameter set drive deterministic key generation
+      and encapsulation. Seeds, ciphertext SHA-256, and shared-secret SHA-256
+      are archived for every key; the first key per parameter set additionally
+      has its raw encapsulation key, ciphertext, and shared secret archived
+      under experiments/EXP-MLKEM-003/vectors/.
+    generator_classes:
+      G1_single_byte:
+        description: xor 0x01 and xor 0xff at every ciphertext index.
+        purpose: Baseline and cross-check against EXP-MLKEM-002.
+      G2_multi_byte:
+        description: >-
+          Seeded coordinated flips of k contiguous and k scattered bytes for k
+          in [2, 4, 8, 16], plus whole 16, 32, and 64 byte block inversions, at
+          seeded offsets covering the full length.
+        purpose: Detect omissions visible only to coordinated differences.
+      G3_alignment:
+        description: >-
+          Mutations at every 16, 32, and 64 byte boundary index, at the last
+          byte of each aligned block, and at the final partial block.
+        purpose: Detect lane, block-tail, and remainder-handling omissions.
+      G4_malformed_length:
+        description: >-
+          Ciphertexts truncated by 1, 16, and 32 bytes and extended by 1, 16,
+          and 32 bytes, submitted only to the public API.
+        purpose: >-
+          Record length handling in its own table. A malformed-length result is
+          never counted as a comparison omission and never contributes to a
+          silent set.
+      G5_key_dependence:
+        description: Every one of G1 through G4 replayed across all four keys.
+        purpose: Detect key-dependent behavior and establish reproduction.
+    probe_levels:
+      primitive: The ciphertext comparison routine of each backend, reached as in EXP-MLKEM-002.
+      decapsulation: >-
+        The public decapsulation API, comparing the returned 32 bytes against
+        the honest shared secret and against the implicit-rejection value.
+
+  controls:
+    - id: CTRL-POSITIVE-CONTROL-RETAINED
+      method: >-
+        Run every generator class against the wolfSSL v5.9.1 AVX2 backend, whose
+        1536..1567 omission is established by EV-MLKEM-005.
+      pass_condition: >-
+        Every generator class whose mutations reach indices 1536..1567 detects
+        the omission at the primitive level, and the decapsulation probe accepts
+        at least one mutated ciphertext.
+    - id: CTRL-NEGATIVE-HARNESS
+      method: Retain the deliberately truncated harness comparator and run every generator class against it.
+      pass_condition: Each class flags exactly the omitted range it can reach.
+    - id: CTRL-BACKEND-ATTESTATION
+      method: >-
+        Attest each backend by build configuration, symbol or disassembly
+        evidence, and, for every backend receiving a conformance verdict, at
+        least one decapsulation-boundary measurement.
+      pass_condition: No verdict is issued for an unattested backend or for a backend with primitive-only evidence.
+    - id: CTRL-STRONG-ANCHOR
+      method: >-
+        Validate each implementation against NIST ACVP ML-KEM encapDecap vectors
+        or its in-tree known-answer vectors before differential use.
+      pass_condition: >-
+        The anchor used is named and graded strong or weak. A weak anchor is
+        permitted only if the strong anchors are unavailable, and that
+        unavailability is recorded with the exact attempts made.
+    - id: CTRL-MESSAGE-STABILITY
+      method: >-
+        For each decapsulation-level accept or reject on a silent index, record
+        whether the mutated ciphertext still decrypts to the honest message.
+      pass_condition: >-
+        Accepts coincide with message-stable mutations, or every exception is
+        enumerated. This is a mechanism annotation only; no secret is recovered
+        and no key material is derived from it.
+    - id: CTRL-CROSS-IMPLEMENTATION-BASELINE
+      method: >-
+        Run the identical generator against the second implementation and
+        against the wolfSSL post-fix scalar backend as a conforming reference.
+      pass_condition: Both are measured with the same classes, keys, and coverage accounting.
+    - id: CTRL-LENGTH-TABLE-SEPARATION
+      method: Record every G4 result in a dedicated malformed-length table.
+      pass_condition: No malformed-length result appears in any silent set or disagreement count.
+
+  metrics:
+    primary:
+      - id: positive_control_detection_by_class
+        definition: Per generator class, whether the known v5.9.1 AVX2 omission is detected.
+        decision_use: Establish that the hardened gate retains discriminating power.
+      - id: new_silent_indices
+        definition: Reproducible silent indices not already recorded in EV-MLKEM-005, per target, backend, parameter set, and class.
+        decision_use: Decide isolated versus systemic.
+      - id: decapsulation_accept_on_mutation
+        definition: Per target and class, count of mutated equal-length ciphertexts whose decapsulation returns the honest shared secret.
+        decision_use: Bind primitive findings to the API boundary.
+      - id: malformed_length_disposition
+        definition: Per input, the API behavior for truncated and extended ciphertexts.
+        decision_use: Separate length handling from comparison completeness.
+      - id: anchor_grade
+        definition: strong or weak, with the anchor named.
+        decision_use: Qualify the strength of every differential reference.
+      - id: class_marginal_information
+        definition: Findings attributable to G2, G3, or G4 that G1 did not produce.
+        decision_use: Judge whether hardening added discriminating power.
+    secondary:
+      - mutations_executed_per_class
+      - coverage_accounting_per_class
+      - message_stability_annotations
+      - second_implementation_selection_rationale
+      - build_and_attestation_evidence
+      - per_stage_wall_clock_seconds
+      - peak_memory_gb
+
+  replication:
+    seeds: [1, 2, 3, 4]
+    seed_policy: Deterministic; no statistical sampling. Multi-byte offsets are seeded and recorded, not random at run time.
+    independent_instances: 4
+    replication_rule: A finding is reportable only if it reproduces across at least two keys within its class.
+    planned_runs:
+      - id: RUN-MLKEM-009
+        purpose: Build and attest all targets, select and pin the second implementation, and establish the conformance anchor.
+      - id: RUN-MLKEM-010
+        purpose: Run G1, G2, and G3 at the primitive level across all targets, plus the negative harness and the retained positive control.
+      - id: RUN-MLKEM-011
+        purpose: Run the decapsulation-boundary probe for every target and class, with message-stability annotation and the G4 malformed-length table.
+      - id: RUN-MLKEM-012
+        purpose: Cross-implementation comparison, coverage accounting, archival of vectors, and outcome classification.
+    expected_run_count: 4
+    agreement_gate: A silent index or accept is reportable only if the primitive and decapsulation observations are consistent or their inconsistency is explicitly recorded and explained.
+
+  outcome_classification:
+    precedence:
+      - invalid_harness_or_dispatch
+      - positive_control_undetected
+      - systemic_incomplete_comparison
+      - generator_hardening_insufficient
+      - isolated_to_audited_commits
+    invalid_harness_or_dispatch: >-
+      A required build fails, a backend cannot be attested, no anchor can be
+      established, or the decapsulation probe cannot be reached for a target
+      that would otherwise receive a verdict.
+    positive_control_undetected: >-
+      A generator class whose mutations reach 1536..1567 fails to detect the
+      known v5.9.1 AVX2 omission, or the negative harness is not flagged.
+    systemic_incomplete_comparison: >-
+      A reproducible silent index or a decapsulation accept on an equal-length
+      mutated ciphertext appears in a wolfSSL post-fix backend or in the second
+      implementation. Stop, record the exact target, commit, backend, parameter
+      set, class, and index list, and escalate to the coordinator. Construct no
+      exploitation path, publish nothing, and contact no third party.
+    generator_hardening_insufficient: >-
+      G2, G3, and G4 produce no finding that G1 did not already produce, on any
+      target including the positive control, so the widened generator adds no
+      discriminating power.
+    isolated_to_audited_commits: >-
+      The positive control and negative harness are detected, and no new
+      reproducible silent index or accept appears on any other target under any
+      class.
+
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_wall_clock_seconds: 5400
+    total_cpu_hours: 2.0
+    maximum_memory_gb: 4
+    maximum_runs: 4
+    maximum_processes: 4
+    network_operations: source_retrieval_and_package_install_only
+    deployed_system_queries: 0
+    mutation_cap_per_target_parameter_set: 20000
+    stages:
+      - id: build_select_and_anchor
+        wall_clock_seconds: 1800
+        stop_rule: If the second implementation cannot be built within this stage, record the attempts, drop to the next preference, and if all fail record infrastructure unavailability for the cross-implementation line only.
+      - id: primitive_multiclass_grid
+        wall_clock_seconds: 1500
+        stop_rule: Stop at the mutation cap and record coverage honestly as partial for that class.
+      - id: decapsulation_boundary_and_length
+        wall_clock_seconds: 1200
+        stop_rule: Stop at the cap; a partial API table is infrastructure signal, not a null.
+      - id: comparison_and_packaging
+        wall_clock_seconds: 900
+        stop_rule: Stop without interpretation if any required artifact is incomplete.
+
+  stopping_rules:
+    - Stop and escalate immediately on any reproducible silent index or accept outside the known v5.9.1 defect; do not characterize it further, do not build an exploitation path, and do not contact anyone outside this repository.
+    - Stop the cross-implementation line and record infrastructure unavailability if no second implementation can be built within its stage budget.
+    - Stop after the four planned runs; no exploratory fifth run is authorized.
+    - Stop before any key recovery, oracle construction, query chaining, or attack-cost estimation.
+    - Stop before touching any system, network endpoint, or key not created inside this experiment.
+    - Stop at 5400 total wall-clock seconds, 2.0 CPU-hours, or 4 GB resident memory.
+
+  invalidation_rules:
+    - Any run lacks its exact command, commit and dirty state, environment, dependency and compiler versions, timestamps, resource use, stdout, stderr, raw result, summary, or inference metadata.
+    - Expected run count is not exactly four or a planned run has no terminal status.
+    - A conformance verdict is issued for a backend without decapsulation-boundary evidence.
+    - Library comparison logic, buffer lengths, or dispatch conditions were modified.
+    - Malformed-length results are counted as comparison omissions.
+    - A finding is reported without reproduction across at least two keys.
+    - The positive control or negative harness is omitted.
+    - Any result is described as an exploit, an attack, or a disclosure-ready vulnerability claim.
+    - A build, clone, toolchain, or emulator failure is interpreted as evidence about implementation correctness.
+
+  success_criterion: >-
+    The protocol succeeds as an audit if all four runs reach terminal status,
+    the positive control and negative harness are detected, every conformance
+    verdict rests on an attested backend with decapsulation-boundary evidence,
+    the anchor is named and graded, coverage is accounted per class, and the
+    outcome is uniquely classified. H-MLKEM-003 is supported within this
+    laboratory boundary only if no new reproducible silent index or accept
+    appears outside the known v5.9.1 defect.
+  falsification_criterion: >-
+    H-MLKEM-003 is falsified if a reproducible silent index or an equal-length
+    decapsulation accept appears in a wolfSSL post-fix backend or in the second
+    implementation, which would make the class systemic rather than isolated. It
+    is also falsified, as a hardening claim, if the widened generator cannot
+    detect the known defect. Infrastructure failure falsifies nothing.
+
+  required_artifacts:
+    - experiments/EXP-MLKEM-003/source-lock.yaml
+    - experiments/EXP-MLKEM-003/implementation/build_matrix.sh
+    - experiments/EXP-MLKEM-003/implementation/multiclass_generator.py
+    - experiments/EXP-MLKEM-003/implementation/conformance_probe.c
+    - experiments/EXP-MLKEM-003/implementation/decap_boundary_probe.c
+    - experiments/EXP-MLKEM-003/implementation/run_experiment.py
+    - experiments/EXP-MLKEM-003/analysis/second_implementation_selection.md
+    - experiments/EXP-MLKEM-003/analysis/class_coverage_report.json
+    - experiments/EXP-MLKEM-003/analysis/malformed_length_table.json
+    - experiments/EXP-MLKEM-003/vectors/README.md
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-009/manifest.yaml
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-009/command.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-009/environment.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-009/raw.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-009/summary.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-009/stdout.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-009/stderr.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-010/manifest.yaml
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-010/command.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-010/environment.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-010/raw.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-010/summary.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-010/stdout.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-010/stderr.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-011/manifest.yaml
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-011/command.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-011/environment.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-011/raw.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-011/summary.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-011/stdout.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-011/stderr.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-012/manifest.yaml
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-012/command.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-012/environment.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-012/raw.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-012/summary.json
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-012/stdout.txt
+    - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-012/stderr.txt
+    - experiments/EXP-MLKEM-003/implementation.md
+    - experiments/EXP-MLKEM-003/execution-report.yaml
+
+  completion_gate:
+    - Exactly four schema-complete terminal run manifests exist.
+    - Positive control and negative harness results are reported before any new-target conclusion.
+    - Every conformance verdict names an attested backend and cites a decapsulation-boundary measurement.
+    - The second implementation is named with its pinned commit and selection rationale, or its unavailability is recorded with the exact attempts.
+    - The anchor is named and graded for every target.
+    - Coverage is accounted per generator class, with any cap-induced partial coverage stated.
+    - Malformed-length results appear only in their own table.
+    - Every observed difference is assigned exactly one predeclared outcome class.
+    - The report states explicitly that no key recovery, oracle construction, exploitation path, disclosure, or deployed-system interaction occurred.
+
+  scope_exclusions:
+    - key recovery, oracle construction, query chaining, exploitation, or attack-cost estimation
+    - any external disclosure, issue, advisory, or third-party contact
+    - deployed systems, network peers, or third-party keys
+    - timing, power, EM, cache, microarchitectural, or fault measurement
+    - modification of any library's comparison logic, lengths, or dispatch
+    - claims about implementations, versions, or backends not built and attested here
+    - any statement about MLWE hardness or passive ML-KEM security
+
+  assigned_to: executor
+  approval:
+    protocol_class_confirmed_by_user: true
+    selection_decision: DEC-20260724-018
+    evidence_ref: EV-MLKEM-005
+    approved_by: coordinator
+    approved_at: '2026-07-24'
+    execution_authorized: true
+    authorization_note: >-
+      Approved under DEC-20260724-018 as the BATCH-006 final campaign batch.
+      Execution authorized by Executor handoff TASK-20260724-235 after protocol
+      snapshot TASK-20260724-234. Runtime inference uses Cursor Grok 4.5 with
+      fallback_used true versus executor-terra.
+    executor_handoff: TASK-20260724-235
+    protocol_snapshot: TASK-20260724-234
+  approved_by: coordinator
+  status_note: approved_and_execution_authorized

@@ -1,0 +1,114 @@
+experiment:
+  id: EXP-FB3-001
+  hypothesis_id: H-FB3-001
+  version: 1
+  title: >-
+    Factor-base geometry battery (batched H004 + H018-H022): six structured
+    bases vs matched random, growth arm 2^14..2^18, one Holm family.
+  status: approved
+  objective: >-
+    Reduce the uncertainty in RQ-FB3-001: retire the F3 factor-base family with
+    family-wise statistics — one battery, one pre-registered cell list, one
+    Holm-Bonferroni correction, and a mandatory growth arm so that any
+    surviving effect is exponent-relevant rather than constant.
+  inputs:
+    harness: H016 decomposition-counting harness (results/h016_base_yield.json
+      format), extended with the 2^14/2^18 growth arms.
+    geometries:
+      - high_bit_interval (H018): base = x with top bits in a window
+      - small_height (H019): points of small canonical height
+      - mixed_two_base (H020): x-interval UNION small multiples, typed decompositions
+      - coset_union (H021): union of small multiplicative cosets x*H, H <= F_p^*
+      - greedy_optimized (H022): submodular-greedy base from a candidate pool,
+        selected on a training half, evaluated on held-out targets
+      - asymmetric_sizing (H004): B_1 != B_2 != B_3 with B_1*B_2*B_3 ~ l,
+        per-size decomposition-probability fit
+    prior_cells: H016 (QR) and H017 (small multiples) enter the Holm family as
+      already-run cells (not re-run).
+  controls:
+    - Matched random base, same size, same curve, same targets (per cell).
+    - Permutation null on the base labeling, >=100 draws per cell (family
+      comparability with H016/H017).
+    - Same-curve / same-target pairing across geometries (paired, not pooled).
+  independent_variables:
+    - geometry (6 arms + 2 prior cells)
+    - N (2^14, 2^16, 2^18)
+    - curve (>=4)
+  metrics:
+    primary:
+      - yield ratio (structured / matched random) per (geometry, N), bootstrap CI
+      - effect slope vs log N per geometry (the growth clause)
+      - Holm-adjusted significance across the full 8-geometry family
+    secondary:
+      - coverable-target fraction per geometry (the H017 starvation diagnostic)
+      - typed-decomposition mix for mixed_two_base; transfer gap for greedy
+      - per-size exponent fit for asymmetric_sizing
+  replication:
+    seeds: [1, 2, 3, 4]
+    independent_instances: ">=4 curves x >=300 targets per cell"
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 24
+    maximum_memory_gb: 8
+    maximum_runs: 96
+  stopping_rules:
+    - The full pre-registered cell list runs regardless of per-cell outcomes
+      (no early-stop fishing); censoring is reported.
+    - Greedy selection may see each target at most once during optimization;
+      any leakage invalidates the greedy arm.
+  invalidation_rules:
+    - A geometry whose base cannot be constructed at matched size on a curve is
+      recorded as infeasible for that cell, not as a null result.
+    - Crashes/timeouts = failed_infrastructure (AGENTS rule 5), excluded.
+    - Post-hoc geometry variants (anything not in the pre-registered list) are
+      exploratory and cannot satisfy the success criterion.
+  success_criterion: >-
+    At least one geometry with Holm-adjusted yield ratio CI excluding 1 AND a
+    growth slope vs log N excluding 0 in the alive direction across
+    2^14..2^18 (exponent-relevant; triggers a larger-N confirmation arm and
+    feeds base selection for EXP-R6-001).
+  falsification_criterion: >-
+    All geometries within CIs / permutation bands at every N, or every nonzero
+    effect constant across N: scoped KILL of the F3 family — "no signal seen at
+    reachable scale," with the family-wise correction reported.
+  required_artifacts:
+    - runs/<run-id>/manifest.yaml (command, commit, dirty-tree, env, seeds, params)
+    - runs/<run-id>/raw.json (per-cell yields, ratios, CIs, null bands, slopes)
+    - runs/<run-id>/stdout.txt and stderr.txt
+    - analysis.md (family table with Holm correction, growth fits, verdict
+      against the frozen criteria)
+  assigned_to: executor
+  approved_by: coordinator   # DEC-20260717-002
+
+handoff:
+  id: TASK-20260717-005
+  from: coordinator
+  to: executor
+  objective: >-
+    Run the six-geometry factor-base battery with growth arms and family-wise
+    Holm correction; retire the F3 family decisively.
+  uncertainty_reduced: >-
+    Whether ANY structured factor-base geometry has an exponent-relevant
+    (growing-with-N) decomposition advantage — the last open question in the
+    F3 family after the H016/H017 kills.
+  inputs:
+    - experiments/EXP-FB3-001/specification.yaml
+    - inputs/h100_session/h016_base_yield.json (prior cells + harness format)
+    - ecdlp-autolab H016 harness sources, h022_greedy_base.py sketch
+  constraints:
+    - One pre-registered cell list; no post-hoc geometry arms.
+    - Greedy train/eval separation enforced.
+    - Do not run while status is review_required (status is approved).
+  deliverables:
+    - per-cell yield-ratio table with CIs, null bands, and growth slopes
+    - Holm-corrected family verdict
+    - analysis.md with the frozen-criteria verdict
+  budget:
+    wall_clock_seconds: 86400
+    memory_gb: 8
+    maximum_runs: 96
+  completion_gate:
+    - Every pre-registered cell has a terminal state (measured | infeasible | invalid).
+    - H016/H017 prior cells included in the Holm family accounting.
+    - Raw results, resource metrics, and summaries agree; artifacts checksummed.
+  return_format: execution_report

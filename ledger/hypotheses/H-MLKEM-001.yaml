@@ -1,0 +1,123 @@
+hypothesis:
+  id: H-MLKEM-001
+  question_id: RQ-MLKEM-001
+  title: Exact small-dimension audit of the Thorns-to-ML-KEM marginal transfer
+  statement: >-
+    After repairing the ePrint 2026/1022 lower-bound set, matching the
+    Gaussian product and surrogate scales, and applying exact FIPS 203
+    modulo-q representatives and rounding, the Thorns mechanism changes joint
+    convolution geometry but does not by itself change a no-compression
+    one-output-coordinate CBD marginal. Any discrepancy against the pinned
+    pq-crystals estimator must be attributable either to exact compression and
+    shared-variable dependence or to an identifiable representative,
+    rounding, or port mismatch.
+  mechanism: >-
+    For a fixed no-compression output coordinate, negacyclic convolution pairs
+    independent CBD coefficients, so its exact scalar law is obtained by
+    convolving independent product laws even though output coordinates are
+    jointly dependent. The estimator's final n-fold multiplication is a union
+    bound and remains valid under that dependence. Compression can instead
+    alter a marginal because its quantization errors are data-dependent and
+    share A, s, e, y, e1, and e2; exact FIPS lifting and tie semantics are
+    therefore the only claim-relevant bridge tested here. Separately, the
+    paper's displayed Gaussian comparison must be rescaled before any tail
+    interpretation.
+  assumptions:
+    - FIPS 203 Algorithms 3, 4, 8, and 13 through 15 define the normative integer and modulo-q semantics.
+    - q is 3329 and centered representatives are the unique integers in [-1664, 1664].
+    - CBD_eta has mass binom(2*eta, eta+x)/2^(2*eta) on x in [-eta, eta].
+    - The estimator baseline is exactly pq-crystals/security-estimates commit 75c26949a902ca297b181375bfb7cfaf22cce784.
+    - The estimator is an auditable model, not ground truth or a rigorous FIPS failure bound.
+    - Exact toy dimensions can discriminate marginal, joint-dependence, and implementation effects but cannot validate n=256.
+  predictions:
+    - metric: displayed_surrogate_to_product_second_moment_ratio
+      direction: different
+      minimum_effect: 'Exactly 4/sigma^2; at sigma=10 the ratio is 0.04 rather than 1.'
+    - metric: repaired_LDP_rate_function
+      direction: different
+      minimum_effect: 'The shifted-polydisc repair preserves I(u)=c*(||u||_1-1) with only an O(1) exponent term.'
+    - metric: aligned_no_compression_one_coordinate_total_variation_distance
+      direction: lower
+      minimum_effect: 'Exactly 0 for every frozen n, k, eta1, and eta2 control.'
+    - metric: exact_any_coordinate_probability_minus_independence_formula
+      direction: different
+      minimum_effect: 'Nonzero at at least one nontrivial threshold is allowed, while exact_any_coordinate_probability never exceeds n times the exact marginal.'
+    - metric: aligned_compressed_scalar_total_variation_distance_from_estimator
+      direction: lower
+      minimum_effect: 'Exactly 0 unless a compression/shared-variable marginal discrepancy survives semantic alignment.'
+  test_boundary:
+    instances:
+      - Gaussian radial laws from ePrint 2026/1022 revision 20260719:093516
+      - General shifted-polydisc lower-bound derivation plus finite sanity checks at complex dimensions 2 and 8
+      - Exact no-compression CBD one-coordinate controls at n in [2, 4, 8]
+      - Exact no-compression joint control at n=2 and k=1 with eta1=eta2=2
+      - Exact compressed scalar ring control at n=1, k=1, q=3329 for the three FIPS eta1/eta2/du/dv tuples
+      - Exhaustive FIPS-versus-Python rounding tables for d in [1, 4, 5, 10, 11, 12]
+    parameters:
+      q: 3329
+      centered_representatives: '[-1664,1664]'
+      fips_parameter_tuples:
+        ML-KEM-512: {eta1: 3, eta2: 2, du: 10, dv: 4}
+        ML-KEM-768: {eta1: 2, eta2: 2, du: 10, dv: 4}
+        ML-KEM-1024: {eta1: 2, eta2: 2, du: 11, dv: 5}
+      no_compression_dimensions: [2, 4, 8]
+      joint_control: {n: 2, k: 1, eta1: 2, eta2: 2}
+      compressed_scalar_control: {n: 1, k: 1, messages: [0, 1]}
+      prohibited_dimension: 256
+    implementation: >-
+      Two exact-integer implementations: a weighted direct enumerator and an
+      independently structured generating-function or variable-elimination
+      dynamic program, plus a source-faithful port of the three pinned
+      estimator files. Floating point may be used only for presentation after
+      exact equality checks.
+    budget:
+      wall_clock_seconds: 4200
+      cpu_hours: 1.75
+      maximum_memory_gb: 2
+      maximum_runs: 4
+  falsification_conditions:
+    - >-
+      With identical CBD inputs, threshold convention, representatives, and
+      no-compression semantics, either exact implementation finds a nonzero
+      one-coordinate distance from the faithful estimator law.
+    - >-
+      After normative FIPS tie and representative semantics are aligned, the
+      exact compressed scalar marginal still differs from the aligned
+      estimator model; this falsifies the no-marginal-gap prediction within
+      that toy scope and triggers a separately frozen finite-n protocol.
+    - >-
+      The shifted-polydisc set cannot be proved inside the strict outer sphere
+      while preserving the speed-R lower exponent.
+    - >-
+      An exact any-coordinate probability exceeds n times its exact
+      one-coordinate probability; this indicates a derivation or
+      implementation failure, not evidence against the union bound.
+  distinguishable_outcomes:
+    paper_scale_artifact: >-
+      The displayed second moments are unequal and equal-moment rescaling
+      materially changes the plotted/tail comparison; no FIPS inference follows.
+    joint_dependence_only: >-
+      Exact one-coordinate laws agree after semantic alignment, while the
+      exact joint event differs from 1-(1-p)^n and has measurable union-bound
+      slack; n*p remains an upper bound.
+    exact_marginal_discrepancy: >-
+      A nonzero exact one-coordinate difference survives use of identical
+      normative FIPS representatives and ties and passes both exact engines.
+    implementation_mismatch: >-
+      A difference is fully explained by Python ties, representative choice,
+      threshold convention, or a non-faithful port; repair the comparison and
+      do not attribute it to Thorns.
+  interpretation_limits:
+    - No 2^-138.8, 2^-164.8, or 2^-174.8 event is estimated or extrapolated.
+    - No n=256 distribution, failure rate, oracle, key recovery, or deployed system is tested.
+    - n=1 is a scalar compression dependency control, not an ML-KEM ring instance.
+    - n=2, 4, and 8 are exact mechanism controls and cannot validate standardized dimension.
+    - A toy marginal discrepancy justifies a new bounded protocol; it does not revise FIPS 203.
+    - Infrastructure, resource, or implementation failure is not mathematical evidence.
+  selected_by: DEC-20260723-005
+  evidence_basis: [EV-MLKEM-003]
+  status: supported
+  status_detail: supported_within_toy_boundary
+  status_decision: DEC-20260724-006
+  status_evidence: EV-MLKEM-004
+  proposed_by: idea-generator

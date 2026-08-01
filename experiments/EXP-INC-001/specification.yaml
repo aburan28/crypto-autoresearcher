@@ -1,0 +1,59 @@
+experiment:
+  id: EXP-INC-001
+  hypothesis_id: H-INC-001
+  version: 1
+  status: approved
+  title: "Output-sensitive finite-field incidence reporting for chord harvesting: dual range-searching reporters vs exact enumeration (candidate A2, m=3)"
+  objective: >
+    Measure whether a dual range-searching reporter (grid-bucketing; algebraic-partition
+    variant) reports s-rich lines (s=3 collinear FB-point triples, i.e. chord relations
+    P_i+P_j+P_k=O) of an elliptic-curve factor-base chord arrangement with setup o(B^2)
+    and output-proportional marginal cost, beating the Theta(B^2) exact enumerator.
+    Frozen from research_directions_20260717.md, "Candidate: A2" (Minimal falsifying
+    experiment / Cost model / Quantitative promotion gate).
+  parameters:
+    primes: [211, 1009, 4099]                      # exact grid from candidate section
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]  # 20260717..20260722
+    B_grid_exponents: ["n^(1/4)", "n^(1/3)", "n^(2/5)"]  # n = #E(F_p), prime order
+    B_rule: "B = floor(n^frac + 0.5); grid points with B < 8 excluded per target-family rule (recorded, not clamped)"
+    m: 3                                            # triple relations (chord + third intersection in FB)
+    curve_selection: "deterministic scan (a,b)=(cnt mod p, (7*cnt+3) mod p), first curve with #E(F_p) prime; prime order implies ordinary for p>3"
+    fb_selection: "per seed: uniform distinct x in [0,p), lift_x, until B points (all in the prime-order group)"
+    grid_buckets_g: "ceil(sqrt(B)) x-representative interval buckets over [0,p) (reporter r1)"
+    algebraic_partition: "cell key = int(x^2 - y) mod 9 (reporter r2)"
+    random_control: "per seed: B points with distinct uniform x, independent uniform y in F_p, NOT constrained to the curve"
+  methods:
+    enum: "exact enumerator (baseline): for each unordered FB pair {i,j}, R = -(P_i+P_j) via one EC addition; hash-lookup x(R) in FB x-index; record sorted collinear triples. Candidate tests = C(B,2)."
+    r1: "dual range-searching reporter, grid-bucketing: bucket FB points by x-representative interval (g buckets); scan bucket pairs; pair body identical to enum. No correctness-preserving skip rule exists over F_p (no order structure), so candidate tests are recorded honestly."
+    r2: "algebraic partition variant: cell key int(x^2-y) mod 9; otherwise identical to r1."
+    r1_rand: "negative control: r1 applied to random non-EC point set; per-pair test = (B-2) determinant collinearity tests (no group law available)."
+  controls:
+    positive: "for every (p, B, seed): triple multiset of r1 and r2 must EQUAL enum exactly, and every reported triple verified by EC addition (P_i+P_j+P_k == O). Any mismatch => validity_status invalid."
+    negative: "random non-EC point sets must not be reported more cheaply: avoided_pairs(rand) <= avoided_pairs(EC). If the reporter avoided MORE candidate pairs on random sets than on EC sets, any EC-side cost claim is a generic bucket-sort artifact (control FAILS)."
+  independent_variables: [p, B_grid_row, seed, method]
+  metrics:
+    primary: [candidate pair tests, setup ops, total ops, marginal per-incidence cost (non-setup ops / I, seed-aggregated), I = number of collinear triples]
+    secondary: [rich line count, point-line incidences on rich lines, measured I vs random-model prediction C(B,3)/n, wall seconds, fitted exponents]
+  derived_quantities:
+    alpha2: "least-squares slope of log2(total_ops) vs log2(B), pooled over surviving (p,B) rows (seed means), per method. Gate threshold: < 3/2."
+    setup_ratio: "setup_ops(r1)/B^2 per row; 'setup o(B^2)' requires this -> 0."
+    complete_cost_trend: "slope of log2(total_ops) vs log2(n) along each B-grid row with >= 2 surviving sizes. Gate threshold: pointing below 0.49; ledger floors 2/3 (RT-1472) and 0.886*sqrt(n) also reported per row."
+    charged_ratios: "total_ops / (0.886*sqrt(n)) and total_ops / n^(2/3) per (p, B) row."
+  replication:
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]
+    independent_instances: "one fixed curve per prime; 6 seeded factor bases per (p, B) grid point"
+  budget:
+    wall_clock_seconds: 2400
+    maximum_runs: 8
+    per_invocation_timeout_seconds: 600
+  stopping_rules:
+    - "any single sage invocation > 600 s: kill, record as infrastructure timeout (NOT evidence against the hypothesis), reduce seeds to minimum 3 (20260717..20260719) or sizes, record deviation in analysis.md and EV record"
+  invalidation_rules:
+    - "positive-control mismatch (reporter output != enumerator output on any instance)"
+    - "unverified witness triple"
+    - "fewer than 3 seeds completed"
+  success_criterion: "measured alpha2 < 3/2 with setup o(B^2) confirmed and complete-cost trend across three sizes pointing below 0.49 (promotion gate arithmetic reported either way)"
+  falsification_criterion: "alpha2 >= 3/2, or candidate tests remain Omega(B^2), or complete-cost trend not below 0.49, across the tested grid"
+  required_artifacts: [specification.yaml, inc1_report.sage, runs/RUN-INC-001-a/manifest.yaml, runs/RUN-INC-001-a/raw.json, runs/RUN-INC-001-a/stderr.txt, analysis.md]
+  assigned_to: executor
+  approved_by: coordinator

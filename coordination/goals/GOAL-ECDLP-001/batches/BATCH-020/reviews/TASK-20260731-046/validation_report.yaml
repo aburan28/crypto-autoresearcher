@@ -1,0 +1,696 @@
+validation_report:
+  id: VAL-20260801-001
+  task_id: TASK-20260731-046
+  role: validator
+  independent_session: true
+  produced_this_run: false
+  goal_id: GOAL-ECDLP-001
+  sub_goal_id: SG-ECDLP-001
+  batch_id: BATCH-020
+  experiment_id: EXP-DS-001
+  hypothesis_id: H-DS-001
+  control_protocol_id: CTRL-RT025-UNPLANTED
+  companion_control_id: CTRL-RT025-PLANT-LIVE
+  run_ids:
+    - RUN-DS-001-ctrl-unplanted
+
+  snapshot_under_review:
+    commit: 1d241a878b4f0e74cadbb5e2e0995c0bf6f97cbd
+    parent: 64c069ab08e6e61fa39d6c783484d2131d361b89
+    paths_changed_measured: 14
+    paths_changed_declared: 14
+    verified_by: "git show --stat 1d241a878...; git diff 1d241a878..HEAD -- experiments/EXP-DS-001"
+    working_tree_vs_snapshot: >-
+      experiments/EXP-DS-001 is byte-identical between the snapshot commit and
+      the session HEAD (1a56acc61); the only post-snapshot delta anywhere in the
+      read scope is BATCH-020 dispatch_plan/dispatch_queue control-plane files.
+      All content checks below were therefore run against blobs read with
+      `git show 1d241a878:<path>`; the driver re-run used the identical
+      working-tree blob (sha256 confirmed equal to the manifest value).
+
+  scope_of_this_report:
+    question: >-
+      ADMISSIBILITY of the RUN-DS-001-ctrl-unplanted package as empirical_only,
+      toy-tier evidence.
+    explicitly_not_adjudicated:
+      - whether the mechanism behind R = 0.0322 is supported
+      - whether S1_met / F1 / F2 / F3 holds
+      - whether CTRL-RT025-PLANT-LIVE is discharged under Reading A, B or C
+      - any hypothesis status, promotion, or ECDLP claim
+    claim_tier_confirmed: toy
+
+  # ------------------------------------------------------------------
+  artifact_checks:
+    - id: AC-1
+      check: "All 11 Executor-declared artifacts exist at the snapshot and parse"
+      method: "git show <snapshot>:<path> for each; json.loads / yaml.safe_load"
+      result: pass
+      detail: >-
+        manifest.json (12180 B), raw-result.json (315418 B), stdout.txt (5248 B),
+        stderr.txt (0 B, present-and-empty, matches AN-6), command.txt (909 B),
+        environment.json (1011 B), results/ctrl_unplanted/{summary.json 5574 B,
+        R_cell.json 2847 B, null_control_report.json 14744 B,
+        live_plant_report.json 67049 B}, and
+        coordination/.../TASK-20260731-044/execution_report.yaml (25911 B).
+        All five JSON artifacts parse; the execution report parses as YAML with a
+        single top-level `execution_report` key. Every artifact carries an
+        explicit `schema` string.
+    - id: AC-2
+      check: "Snapshot receipt hashes match the archived blobs"
+      method: "sha256 of each blob at the snapshot vs receipt.source_path_sha256"
+      result: pass
+      detail: >-
+        13 of 13 hashed source paths match exactly (the 14th declared path is the
+        receipt itself, which cannot hash itself). declared_path_count 14 equals
+        the measured 14 changed paths. receipt.parent_sha equals the actual
+        parent 64c069ab.
+      observation: >-
+        receipt.commit_sha is null (the receipt was written pre-commit and not
+        back-filled), so the receipt does not self-bind to 1d241a87. Coordinator-
+        side bookkeeping item; ancestry and hashes were verified here directly
+        from Git instead.
+    - id: AC-3
+      check: "Manifest completeness against the AGENTS.md artifact policy"
+      result: pass_with_minor_gaps
+      present:
+        - exact command (command.txt + manifest.code.command + manifest.code.argv)
+        - git commit 4e62780c6a141d629c0b51becef3ebe920e7f154, dirty=true (recorded, not hidden)
+        - environment + dependency versions (python 3.13.1, sympy 1.14.0, numpy 2.4.0, macOS-26.6-arm64)
+        - inputs, cell, seeds [101], target_mode, target_stream_sha256, fb_x_hash, null_object_spec_hash
+        - inference block (requested_policy / resolved_model_id / fallback_used / fallback_reason / model_verified)
+        - stdout.txt and stderr.txt
+        - raw machine-readable results
+        - status completed_valid + invalid_reason null
+        - timestamps and resources (wall 24.739 s, cpu 24.874 s, peak_rss 69091328 B)
+      minor_gaps:
+        - "manifest.inference has no `degraded_requirements` field; degraded_allowed was false and no degradation is claimed, so the omission is inert."
+        - "manifest.artifacts maps to absolute host paths rather than repository-relative paths."
+    - id: AC-4
+      check: "Driver and backend module hashes match the manifest"
+      method: "shasum -a 256 on the snapshot blobs"
+      result: pass
+      detail: >-
+        ds001_ctrl_unplanted.py = 3ee4f68f4da6d7732e8d904243bd469d42c3bca527fa0c470e6216bfb9031d05
+        (manifest match); ds001_driver.py =
+        5ac7a4ed6e9fbe3710ca821f92955570cfed7abb582b502cb49917561ba596af
+        (manifest match); specification.v2.yaml =
+        898304bf... (matches parent_sha256_expected).
+    - id: AC-5
+      check: "Reproducibility pointer exercised: ds001_ctrl_unplanted.py present in the snapshot"
+      result: pass
+      detail: >-
+        git ls-tree 1d241a878 experiments/EXP-DS-001/implementation/ lists
+        ds001_ctrl_unplanted.py, ds001_driver.py, implementation.md and
+        verify_certificates.py. The file named by command.txt and manifest.json
+        is in the archive scope (QUEUE-AMEND-20260801-002 / DEC-20260801-002
+        effect confirmed).
+
+  # ------------------------------------------------------------------
+  metric_recomputations:
+    - id: MR-1
+      quantity: "R and R_null (primary, plant OFF)"
+      method: >-
+        Recomputed from the archived per-arm reported_wall_seconds,
+        n_usable_relations and rho_gop_per_second using the frozen cost identity
+        cost = wall * rho_gop_per_second / max(n_usable,1); R = cost_split/cost_naive.
+      recomputed: {R: 0.03216272974914815, R_null: 111.44703608667204}
+      recorded: {R: 0.03216272974914815, R_null: 111.44703608667204}
+      result: exact_match
+    - id: MR-2
+      quantity: "Bootstrap 95% CIs for R and R_null"
+      method: >-
+        Independent reimplementation of the PD-7 construction (2000 resamples of
+        the archived per_relation_wall_samples, arm overhead amortized over yield,
+        seeded from sha256("101:boot_R_primary_unplanted_plant_off") /
+        "...boot_Rn_...") run against the archived raw samples.
+      recomputed_R_ci: [0.026748552461786024, 0.03871977109388453]
+      recorded_R_ci: [0.026748552461786024, 0.03871977109388453]
+      recomputed_R_null_ci: [97.8369583091906, 128.23854868696864]
+      recorded_R_null_ci: [97.8369583091906, 128.23854868696864]
+      result: exact_match
+      excludes_half_from_above: true
+      detail: >-
+        The CI for R is [0.0267, 0.0387], entirely below 0.5, so the
+        packaging_falsification_rule phrase "bootstrap CI honestly excluding 0.5
+        from above" is satisfied as written. Construction caveat, declared by the
+        Executor as PD-7 and confirmed by reading the code: only the per-relation
+        wall samples are resampled; each arm's fixed overhead (for real_split this
+        is the 0.01192 s claw-table build, the whole of its overhead) is held
+        constant, and host run-to-run timing variation is not inside the CI.
+    - id: MR-3
+      quantity: "Certificates (decomposition relations)"
+      method: >-
+        Fully independent re-verification: my own F_p elliptic-curve addition
+        written from scratch in this session (no harness or driver import),
+        applied to all 400 archived certificates in
+        raw-result.certificates_primary. Checks performed per certificate:
+        certificate curve equals the recorded instance (p=752627, a=99676,
+        b=5169; p confirmed prime and 4a^3+27b^2 != 0 via sympy), target on
+        curve, exactly 4 summands, every summand on curve, and the recomputed
+        point sum equals the target.
+      certificates_reverified_by_me: 400
+      failures: 0
+      factor_base_membership: >-
+        Independently confirmed without trusting the harness: the 400
+        certificates use 127 distinct summand points spanning exactly 64 distinct
+        x-coordinates, and sha256 of that sorted x-list computed by me equals the
+        recorded fb_x_hash
+        697365f1a41cc2980da10027da28e2ef0e9d9d3a996fa4d0cd0c3bcd4862a412.
+      result: pass
+    - id: MR-4
+      quantity: "Modeled BSGS numbers (AN-7 self-correction)"
+      method: "2*ceil(sqrt(n)) recomputed for n=241 and for the full group order 753848"
+      result: pass
+      detail: >-
+        2*ceil(sqrt(241)) = 32 with 16 storage elements, matching
+        raw-result.controls.CTRL_BSGS; 2*ceil(sqrt(753848)) = 1738, the value the
+        Executor says it mistyped and corrected. AN-7 is arithmetically accurate,
+        the archived artifacts carry 32/16, and the value is labelled `modeled`
+        in every artifact that reports it. No measured number was involved.
+    - id: MR-5
+      quantity: "backend_id_sha256"
+      method: "sha256(b'ds001-v2-point-sum-membership+charged-units-v1') computed here"
+      recomputed: 9eb0acb7b80bc2ef3ca5ee8593643bab5d1df63c705cbb4d3cf361d15df00beb
+      recorded: 9eb0acb7b80bc2ef3ca5ee8593643bab5d1df63c705cbb4d3cf361d15df00beb
+      result: exact_match
+
+  # ------------------------------------------------------------------
+  control_checks:
+    - id: CC-1
+      check: "Cell binding bits=20, B=64, m=4, seed=101 with no drift"
+      result: pass
+      method: >-
+        Recursive scan for any {bits,B,m,seed} object in manifest.json,
+        raw-result.json, summary.json, R_cell.json, null_control_report.json and
+        live_plant_report.json.
+      detail: >-
+        Exactly one cell object appears in each of manifest (inputs.cell),
+        raw-result (cell), summary (cell) and R_cell (cell), all equal to
+        {bits:20, B:64, m:4, seed:101}. The null and live-plant reports carry no
+        cell object of their own and no conflicting values. The execution report
+        repeats the same cell in three places. Zero drift. The contract's
+        scope.cells single cell is the cell that was run; no matrix re-run,
+        consistent with the scope clause.
+      seed_binding: >-
+        seeds:[101] in the manifest; randomness_sources in raw-result enumerate
+        every derived stream (instance, factor base, target stream, null sampler,
+        bootstrap), each derived from master seed 101 by
+        _seed_int(101, <label>) = int(sha256("101:<label>"),16). I reproduced the
+        target-stream derivation exactly (see CC-3).
+    - id: CC-2
+      check: "backend_id exactly ds001-v2-point-sum-membership+charged-units-v1"
+      result: pass
+      detail: >-
+        String appears in manifest (inputs + result.metrics), raw-result
+        (backend_id, CTRL_BACKEND_IDENTICAL, null_object_spec payload), summary
+        and stdout; no other ds001-* backend token occurs anywhere in the
+        package. Cross-checked against the planted v2 package
+        (runs/RUN-DS-001-measure/manifest.json), whose only ds001-* token is the
+        same string, so backend_id_matches_planted_package: true is correct and
+        the control comparison is not voided on identity grounds.
+        CTRL_BACKEND_IDENTICAL records the id shared by all four arms and the
+        unmodified charge function.
+    - id: CC-3
+      check: "Target mode is genuinely unplanted (contract forbids planted m-sums as primary yield)"
+      result: pass
+      method: >-
+        Verified from raw artifacts and source, not from the summary's
+        self-description. (a) Read unplanted_target_stream() in
+        ds001_ctrl_unplanted.py: uniform x drawn from random.Random(_seed_int(101,
+        "ctrl_unplanted_targets")).randrange(p), rejection-accepted via lift_x;
+        no factor-base points are involved in target construction. (b)
+        Reimplemented that sampler myself (own lift_x via Legendre symbol +
+        sympy sqrt_mod, own sha256 accumulation) and regenerated the 4000-point
+        stream.
+      independent_reproduction:
+        regenerated_lift_x_attempts: 7872
+        recorded_lift_x_attempts: 7872
+        regenerated_target_stream_sha256: 4a0207492889bf3ba0a1763c43d3be598fab4f54f910f65d506d08f015019a9c
+        recorded_target_stream_sha256: 4a0207492889bf3ba0a1763c43d3be598fab4f54f910f65d506d08f015019a9c
+        certificate_targets_equal_first_200_stream_points: true
+        note: >-
+          Verified for both real arms: the 200 certificate targets are, in order,
+          exactly the first 200 points of the independently regenerated uniform
+          stream, and all 200 are distinct. Combined with MR-3 (each certificate's
+          4 summands lie in the 64-x factor base and sum to the target), the
+          reported 200/200 successes on both real arms are genuine
+          factor-base decompositions of uniform random curve points, not planted
+          sums. raw-result.target_mode.planted_m_sums_used is false and the code
+          contains no planted-target path (the planting path lives in
+          ds001_driver.random_target, which this driver never calls).
+      note_on_100_percent_yield: >-
+        Empirical success probability 1.000 on both real arms is consistent with
+        the parameters (128 signed factor-base points, m=4, group order 753848 =>
+        order 1e7 candidate 4-multisets), and the Executor flags it as AN-3. It is
+        an observation about parameter choice, not an integrity defect; whether a
+        cell with saturating yield can discriminate anything is a question for the
+        Reviewer/Red Team, not an admissibility defect.
+    - id: CC-4
+      check: "smoothness_abort=false"
+      result: pass
+      detail: >-
+        SMOOTHNESS_ABORT = False at ds001_ctrl_unplanted.py:66 and is the value
+        passed into build_claw_table and split_search; recorded false in the
+        manifest inputs, raw-result, summary, stdout header and execution report.
+    - id: CC-5
+      check: "Stopping rule honesty: relations_target=200 reached, not a shortened wall"
+      result: pass
+      detail: >-
+        All 12 arms across the three measurements record
+        stop_reason = relations_target_reached with n_usable_relations = 200 and
+        hit_relations_target = true; no arm reports arm_wall_budget,
+        target_stream_exhausted, attempt_cap_no_progress or resource_exhaustion.
+        The recorded command passes --wall 7200 (and wraps in `timeout 7200`), and
+        raw-result.budget records wall_clock_seconds_allowed 7200.0 vs used
+        24.739. The 24.74 s is the declared stopping rule firing: the real arms
+        consumed 200 of the 4000 available targets, and the null split arm needed
+        269 attempts for 200 hits (success probability 0.743), all far inside the
+        1200 s per-arm budget. PD-4 is accurate; this is not truncation and the
+        run is not a resource_exhaustion record.
+      independent_confirmation: >-
+        My own re-run (see RC-1) reproduced stop_reason=relations_target_reached
+        on all 12 arms in 24.38 s.
+    - id: CC-6
+      check: "Live-plant artifact integrity (LIVE injection, no synthetic known-answer, no hardcoded detection)"
+      result: pass
+      method: "Line-by-line read of ds001_ctrl_unplanted.py plus numeric cross-check"
+      detail: >-
+        The divisor is applied inside the measurement loop: harvest_real and
+        harvest_null divide each timing segment and each backend-unit increment by
+        plant_divisor at the moment it is recorded (lines 194, 217-218, 222,
+        286-287, 290), and each arm additionally records
+        true_elapsed_wall_seconds measured independently of the divisor. There is
+        no synth_R / synth_Rn constant anywhere in the file (the only three
+        occurrences of that token are the docstring stating their absence and the
+        two report fields asserting it), and planted_bug_detected is assigned
+        from measured data (planted_bug_detected = reading_B at line 575), never
+        hardcoded. For contrast, the untouched ds001_driver.py still contains the
+        forbidden shortcut (`synth_R, synth_Rn = 0.05, 0.05` at line 1018) and a
+        chain of overwritten detection assignments; the control driver reuses that
+        module's search kernels but none of its plant path.
+      plant_off_on_primary: >-
+        Confirmed. measure_cell(..., 1.0, "primary_unplanted_plant_off") produces
+        the binding R / R_null; raw-result records
+        plant_divisor_on_split_arms = 1.0 and every primary arm has
+        plant_divisor_applied_live = 1.0 with reported_wall equal to
+        true_elapsed_wall to within 1e-4 s. The plant appears only in the
+        companion_live_plant_on measurement.
+      plant_arithmetic_cross_check: >-
+        With the plant on, real_split reports 0.0355 s against 0.1423 s true
+        (ratio 4.0053) and null_split reports 0.7272 s against 2.9090 s true
+        (ratio 4.0005); echo ratios R_on/R_off = 0.2512 and
+        R_null_on/R_null_off = 0.2499. These are the /4 signature and they are
+        arithmetically consistent with a live divisor rather than a substituted
+        constant.
+    - id: CC-7
+      check: "PD-1 (no numeric detection predicate in the frozen contract)"
+      result: honestly_recorded
+      detail: >-
+        I read both frozen documents. CTRL-RT025-UNPLANTED.companion_live_plant
+        says only "Null gate must FLAG the plant (R_null echo)" and its
+        pass_condition says "planted_bug_detected true via live /4 detection
+        path"; neither fixes a numeric rule. The Executor did not invent one: all
+        three readings are computed and reported at their measured values in
+        raw-result, live_plant_report, summary and the execution report, with
+        Reading A recorded false on both plant-on and plant-off (discriminates:
+        false) and Reading C's 1.5 threshold explicitly labelled non-contractual.
+        planted_bug_detected=true is reported under Reading B with the reading
+        named in every artifact that carries the flag. The falsifies_if clause
+        ("live plant not detected while summary still claims
+        planted_bug_detected=true") is not triggered, because no reading is
+        asserted true against its own measurement. Which reading discharges
+        CTRL-RT025-PLANT-LIVE is a Reviewer/Coordinator adjudication and is NOT
+        made here.
+    - id: CC-8
+      check: "PD-2 post-review blob drift — verified independently by git diff"
+      result: verified_as_described
+      method: "git cat-file -p cac4d8b4:<path> | shasum; git diff cac4d8b4 1d241a878 -- <the two files>"
+      detail: >-
+        Reviewed-snapshot hashes reproduce exactly (control c85cc14c...,
+        amendment 2c9ab2e1...), as do the executed hashes (42022e88...,
+        93b9e86f...). The complete diff is five changed lines and nothing else:
+        control parent_approval_decision DEC-20260731-003 -> -022; control
+        sources DEC-20260731-009 -> -018 and DEC-20260731-005 -> -023; amendment
+        prior_disposition DEC-20260731-009 -> -018; amendment discharges.source
+        DEC-20260731-009 -> -018. Cell, target_mode, backend clause,
+        smoothness_abort, relations_target, resource_stop, cost_identities,
+        companion_live_plant, null_control/R-1, packaging_falsification_rule,
+        required_run, budget and claim ceiling are byte-identical. The Executor's
+        claim is accurate and the Executor did not edit the frozen files.
+      residual_for_coordinator: >-
+        The package is bound to blobs that are not the ones RT-20260731-042
+        reviewed. The science content is unchanged, so this does not make the run
+        inadmissible, but the Coordinator should record the re-binding explicitly
+        rather than leaving the review-to-execution hash chain broken.
+    - id: CC-9
+      check: "PD-3 rlimit unenforceable / PD-4 wall / PD-5 CTRL-NULL-RHO / PD-6 driver unmodified"
+      result: all_honestly_recorded
+      detail: >-
+        PD-3: the three setrlimit failures are recorded verbatim in both
+        environment.json and raw-result.budget with applied:false, and peak RSS
+        69091328 B (~0.066 GB) is measured and reported alongside; an unenforced
+        cap that was never approached is an infrastructure note, not a result.
+        PD-4: see CC-5. PD-5: raw-result.controls.CTRL_NULL_RHO carries
+        rho_calib_ratio_real/null = null with status "not_measured" and names the
+        unrepaired RT038-B3 defect — the honest missing-data behaviour required by
+        AGENTS rule 9, and a visible improvement on the earlier package's
+        hardcoded 1.0. PD-6: ds001_driver.py's blob id at the snapshot
+        (a5de9da98537...) is identical to its blob at the implementation commit
+        4e62780c, so "unmodified" is true, and implementation.md changed by 92
+        insertions and 0 deletions against the snapshot's parent, so "appended to,
+        never rewritten" is also true. (A single deletion appears only against the
+        older 33a1f6ae9 baseline, and that line — a DEC id — was already changed
+        at the parent commit by the merge remap, not by the Executor.)
+    - id: CC-10
+      check: "Null-object control present and of the same shape (inventor-protocol section 3)"
+      result: pass_with_limitation
+      detail: >-
+        The null object NULL-DS-RANDOM-MULTIHOMOGENEOUS is present, hashed
+        (d501f75e...), constructed at matched multidegree [2]*m with independent
+        half-key maps, imported unchanged from ds001_driver, charged through the
+        same backend units, and subjected to the identical stopping rule and the
+        identical live plant. R_null = 111.45 (CI [97.84, 128.24]) is reported
+        beside R = 0.0322, so the measurement against the structure-destroyed
+        object was actually run and reported, which is what the protocol requires
+        before belief.
+      limitation: >-
+        The package does not include a decay sweep: there is no parameter varied
+        to show the split-arm advantage shrinking monotonically as structure is
+        removed, only the single on/off contrast at one cell, and the artifacts do
+        not state what R_null *should* do as that parameter increases. Recorded as
+        a limitation on evidential strength for the Reviewer/Red Team; it is not
+        an integrity defect and I do not adjudicate what the contrast means.
+    - id: CC-11
+      check: "Positive control (CTRL-RHO) present and self-certifying"
+      result: pass
+      detail: >-
+        CTRL_RHO solved=true, k=43, 744 group operations, certificate_verified
+        true; it supplies rho_gop_per_second = 1444660.19 used by the cost
+        identity. CTRL-BSGS is present and explicitly labelled modeled, not
+        measured, in every artifact.
+
+  # ------------------------------------------------------------------
+  reproducibility_checks:
+    - id: RC-1
+      check: "Re-run the recorded command at the recorded seed"
+      performed: true
+      command: >-
+        python3 experiments/EXP-DS-001/implementation/ds001_ctrl_unplanted.py
+        --wall 7200 --arm-wall 1200 --relations 200 --targets 4000 --memory-gb 16
+        --run-dir <scratchpad>/run --results-dir <scratchpad>/res
+      note: >-
+        Output directories were redirected into a session scratchpad so that
+        nothing in the archived run package or results tree was touched. Exit 0,
+        empty stderr, wall 24.38 s.
+      reproduced_exactly:
+        - target_stream_sha256 4a020749...
+        - fb_x_hash 697365f1...
+        - null_object_spec_hash d501f75e...
+        - certificates_primary byte-identical to the archived 400 certificates
+        - all six certificate aggregates 200/200 verified (1200 total, 0 failures)
+        - n_usable 200 on all four primary arms; all 12 arms stop_reason relations_target_reached
+        - r1_observation_label S1_eligible_on_null_axis
+        - planted_bug_detected true (Reading B), status completed_valid
+      reproduced_to_timing_noise:
+        R: {archived: 0.03216272974914815, my_rerun: 0.031788213742608935, relative_difference: 0.0117}
+        R_null: {archived: 111.44703608667204, my_rerun: 107.96406306467662, relative_difference: 0.0312}
+        R_ci_my_rerun: [0.026424980698208617, 0.03824495925555446]
+      assessment: >-
+        The deterministic content of the run reproduces exactly on a third
+        invocation in an independent session; the wall-clock-derived costs
+        reproduce to ~1-3%, consistent with the Executor's stated ~1-2% in-run
+        replicate figure. The qualitative facts asserted by the package (R well
+        below 0.5 with a CI excluding it, R_null far above 0.9, 200/200 on both
+        real arms, live /4 detected under Reading B) all reproduce.
+    - id: RC-2
+      check: "Separate-process verify_certificates.py, as cited in command.txt"
+      performed: true
+      exit_code: 0
+      finding: >-
+        It exits 0, but reading its source shows it verifies exactly ONE
+        certificate — the single exemplar at manifest.result.certificate.statement
+        — and its verify_decomposition() checks only on-curve-ness and the point
+        sum, not factor-base membership and not arity m=4. Its exit code
+        therefore corroborates 1 relation, not 1200. The execution report is
+        careful about this split (it attributes the 400+800 to the in-driver
+        verifier and lists verify_certificates.py separately), but the manifest's
+        `certificate.verifier` string reads as though both verifiers covered
+        everything. Recorded as defect D-1.
+
+  # ------------------------------------------------------------------
+  heuristic_validation_checks:
+    - id: HV-1
+      applicable: false
+      reason: >-
+        CTRL-RT025-UNPLANTED.scope.heursampling forbids re-running RUN-DS-001-heur,
+        and the package reports no RATE-DS-1 / KS-DS-1 / TAIL-DS-1 statistic and
+        makes no claim about HEUR-DS-1. The prior HEUR-DS-1 F3 observation
+        (EV-DS-002) is untouched by this run, and no pre-registered distributional
+        prediction is at stake here. The only tail statistic present is
+        TAIL-R-BOOTSTRAP, recomputed exactly at MR-2.
+    - id: HV-2
+      check: "Scale binding (AGENTS rule 7)"
+      result: pass
+      detail: >-
+        p = 752627 (20-bit), B = 64, m = 4, prime subgroup order 241, one cell,
+        one seed, one host. Every artifact carries claim_tier: toy and
+        confirmatory_status: exploratory_control, and the execution report's
+        ceiling block records crypto_scale_claim false and asymptotic_claim false.
+        Toy scale is recorded as a limitation throughout, never as scale-matched
+        evidence. Note also AN-5: the membership search runs over the full group
+        E(F_p) of order 753848 while the prime subgroup is only 241 — recorded by
+        the Executor, relevant to any later interpretation, not to admissibility.
+
+  cost_model_checks:
+    - id: CM-1
+      check: "Cost unit declared"
+      result: pass
+      detail: >-
+        cost_identities_used in R_cell.json states the unit explicitly:
+        rho-calibrated group operations per usable relation, cost = wall *
+        rho_gop_per_second / max(n_usable,1), with rho_gop_per_second defined as
+        the CTRL-RHO operations/wall ratio. R and R_null are dimensionless ratios
+        in which that calibration cancels.
+    - id: CM-2
+      check: "Memory reported alongside time"
+      result: pass
+      detail: >-
+        peak_rss_bytes 69091328 in manifest.resources, raw-result.budget and
+        summary; peak_claw_table_entries 8256 reported per split arm, which is the
+        memory term that matters for the claw structure. Time-memory tradeoff is
+        not explored (single configuration).
+    - id: CM-3
+      check: "Optimistic assumptions flagged"
+      result: pass
+      detail: >-
+        summary.optimistic_assumptions_restated names three: the charged-unit
+        proxy standing in for a per-attempt Groebner solve (applied to both arms),
+        the single reused CTRL-RHO calibration, and BSGS being modeled rather than
+        measured. The execution report adds a fourth (wall-clock-derived costs
+        inherit host timing noise) and quantifies it with an in-run replicate.
+    - id: CM-4
+      check: "per-attempt cost x inverse success probability bookkeeping"
+      result: pass
+      detail: >-
+        The cost identity divides charged wall by n_usable, which is exactly the
+        per-attempt-cost / success-probability accounting; attempted_targets,
+        success_count and empirical_success_probability are recorded per arm
+        (real arms 200/200 = 1.000; null split 200/269 = 0.743), so the
+        sparse_requires clause of the contract's target_mode is satisfied and no
+        yield is imputed.
+    - id: CM-5
+      check: "Known open cost-model defect"
+      result: recorded_not_repaired
+      detail: >-
+        CTRL-NULL-RHO is not measured, so the rho calibration is assumed common to
+        the real and null objects. It cancels within R and within R_null but does
+        not cancel in any cross-object comparison of R against R_null. The
+        Executor scopes this out honestly (PD-5, RT038-B3 still open) rather than
+        hardcoding 1.0. Any interpretation that leans on the R-vs-R_null contrast
+        must carry this caveat; that interpretation is not made here.
+
+  # ------------------------------------------------------------------
+  defects:
+    - id: D-1
+      severity: minor
+      class: overbroad_verifier_attribution
+      statement: >-
+        manifest.result.certificate.verifier names
+        "independent_verify_decomposition ... + verify_certificates.py" as a
+        single compound verifier over an aggregate of 1200 relations. I ran
+        verify_certificates.py myself: it verifies one exemplar certificate and
+        omits the factor-base-membership and arity checks. The 1200 figure rests
+        entirely on the in-driver verifier.
+      admissibility_impact: none
+      why: >-
+        The claim is repairable by wording, and I re-verified 400 certificates
+        myself with independent arithmetic including membership and arity, and
+        reproduced all 1200 aggregate verifications by re-running the driver. The
+        underlying fact is true; only the attribution is loose.
+    - id: D-2
+      severity: minor
+      class: artifact_completeness
+      statement: >-
+        Only the 400 primary-arm certificates are archived per-certificate
+        (raw-result.certificates_primary). The 800 companion-arm certificates
+        exist in the archive only as counts, so a reader cannot re-verify them
+        from artifacts alone without re-running the driver.
+      admissibility_impact: none
+      why: >-
+        The contract requires no certificate archival at all; the primary
+        measurement — the only one carrying the binding R/R_null — is fully
+        covered, and my re-run regenerated the companion aggregates identically.
+    - id: D-3
+      severity: minor
+      class: undeclared_parameter
+      statement: >-
+        PER_TARGET_CAP_SECONDS = 5.0 is a hard-coded per-attempt truncation inside
+        the measurement loop (ds001_ctrl_unplanted.py lines 67, 207, 278). It is
+        not in the frozen contract and appears in no manifest, raw-result or
+        summary field, so a reader of the artifacts cannot see that a per-attempt
+        cap exists. At larger parameters such a cap truncates the slower (naive)
+        arm first and would bias R downward.
+      admissibility_impact: none_on_this_run
+      why: >-
+        It demonstrably never bound: the largest per-relation wall in the whole
+        run is 0.1196 s on real_naive, 42x under the cap, and every arm reached
+        200 usable relations with zero incomplete attempts. Reported so that it is
+        declared before any larger-parameter re-use of this driver.
+    - id: D-4
+      severity: cosmetic
+      class: manifest_hygiene
+      statement: >-
+        manifest.artifacts uses absolute host paths; manifest.inference omits
+        degraded_requirements (inert here, degraded_allowed false); the
+        TASK-20260731-045 snapshot receipt carries commit_sha: null.
+      admissibility_impact: none
+
+  no_defect_found_on:
+    - "artifact presence, parseability and schema completeness (11/11)"
+    - "cell binding and seed binding (zero drift across six artifacts)"
+    - "backend identity (matches the planted package exactly)"
+    - "unplanted target mode (independently regenerated, sha256 match, certificate targets = stream prefix)"
+    - "smoothness_abort = false"
+    - "stopping-rule honesty (relations_target on all 12 arms; no shortened wall; no resource exhaustion)"
+    - "live-plant integrity (live in-loop divisor; no synth_R/synth_Rn; no hardcoded detection; plant OFF for primary)"
+    - "bootstrap CI construction and the exclusion of 0.5"
+    - "dirty-tree state, git commit, environment and resource records"
+    - "declared deviations PD-1..PD-7 and AN-7 (all accurate as written)"
+
+  independently_reverified_by_me:
+    - "400 decomposition certificates, using elliptic-curve arithmetic I wrote in this session (0 failures)"
+    - "factor-base membership and the fb_x_hash, from the certificates alone"
+    - "the 4000-point unplanted target stream and its sha256, from seed 101 with my own sampler"
+    - "that the certificate targets are exactly the first 200 stream points, in order, on both real arms"
+    - "R and R_null from the archived per-arm walls and yields"
+    - "both bootstrap CIs, from the archived per-relation samples with my own reimplementation"
+    - "the sha256 of every frozen contract file, the driver, and the backend module"
+    - "13/13 snapshot-receipt source hashes against the committed blobs"
+    - "the PD-2 blob drift, by git diff between cac4d8b4 and the snapshot (five lines, all DEC ids)"
+    - "that ds001_driver.py is byte-identical to its pre-run blob and implementation.md is append-only"
+    - "the modeled BSGS arithmetic behind AN-7 (32/16 vs 1738/869)"
+    - "a full re-run of the driver from the recorded command and seed"
+    - "the separate-process verify_certificates.py, which is how D-1 was found"
+
+  taken_on_trust_or_unverified:
+    - item: "The 800 companion-arm certificates as archived"
+      status: "not independently re-verifiable from artifacts (D-2); re-verified only via my own re-run of the driver's verifier"
+    - item: "resolved_model_id 'claude-opus-5 (runtime-reported)' in the Executor's inference block"
+      status: "unverifiable in this harness; model_verified: false is recorded honestly and no probe exists here"
+    - item: "The wall-clock timings of the original 2026-08-01T07:23:59Z execution"
+      status: "not reproducible bit-for-bit by construction; corroborated to ~1-3% by my re-run on the same host class"
+    - item: "That RT-20260731-042 returned PASS and TASK-20260731-043 recorded APPROVED"
+      status: "commit 64981f9a confirmed to exist, to be an ancestor of HEAD, and to carry the quoted APPROVAL_DETERMINATION APPROVED subject line; the report contents themselves were not re-adjudicated, being outside this task"
+    - item: "Whether Reading B is the correct discharge predicate for CTRL-RT025-PLANT-LIVE"
+      status: "deliberately not adjudicated — Reviewer/Coordinator scope (PD-1)"
+
+  limitations:
+    - "Single cell, single seed, single host, one authorized run; nothing here is replication."
+    - "Toy tier: 20-bit p, prime subgroup order 241. No crypto-scale or asymptotic reading is supported by this package and none is made."
+    - "Costs are wall-clock derived; the bootstrap CIs capture within-run per-relation variability only and exclude host run-to-run variation and the fixed table-build overhead."
+    - "CTRL-NULL-RHO is not measured, so the R-vs-R_null cross-object comparison rests on an unvalidated shared calibration (RT038-B3 open)."
+    - "The null control is an on/off contrast at one cell, not a decay sweep; the artifacts do not state what R_null should do as structure is progressively destroyed."
+    - "Real-arm yield saturates at 1.000, so this cell cannot discriminate on the yield axis at all."
+    - "PD-2 leaves the review-to-execution hash chain formally broken (content-identical, id-remapped); the Coordinator should re-bind it explicitly."
+    - "A passed verdict means this receipt is admissible evidence. It does not support an ECDLP claim, does not demonstrate a speedup, does not adjudicate S1_met, and authorizes no promotion."
+
+  verdict: passed
+  admissibility: ADMISSIBLE
+  admissibility_statement: >-
+    RUN-DS-001-ctrl-unplanted is ADMISSIBLE as empirical_only, toy-tier evidence
+    for GOAL-ECDLP-001 / BATCH-020. Every contract-binding integrity condition in
+    the TASK-20260731-046 objective checks out under independent re-verification:
+    11/11 artifacts present and schema-complete, cell 20/64/4/101 bound with zero
+    drift, backend identity unchanged from the planted package, targets genuinely
+    unplanted and reproduced byte-exactly from seed 101, smoothness_abort false,
+    every arm stopped on the declared relations_target rule rather than a
+    shortened wall, the live plant genuinely live with no synthetic shortcut and
+    no hardcoded detection, the primary R/R_null measured with the plant off, both
+    bootstrap CIs reproducing exactly with the R interval entirely below 0.5, and
+    the whole run reproducing on a from-scratch re-execution. The four defects are
+    minor (loose verifier attribution, partial certificate archival, one
+    undeclared inert per-attempt cap, manifest hygiene) and none of them touches a
+    reported number. All seven Executor-declared deviations and the AN-7
+    self-correction are honestly recorded and were verified independently, PD-2
+    by direct git diff.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-046/validation_report.yaml
+
+  records_reviewed:
+    - 1d241a878b4f0e74cadbb5e2e0995c0bf6f97cbd
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/manifest.json
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/raw-result.json
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/command.txt
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/environment.json
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stdout.txt
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stderr.txt
+    - experiments/EXP-DS-001/results/ctrl_unplanted/summary.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/R_cell.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/null_control_report.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/live_plant_report.json
+    - experiments/EXP-DS-001/implementation/ds001_ctrl_unplanted.py
+    - experiments/EXP-DS-001/implementation/ds001_driver.py
+    - experiments/EXP-DS-001/implementation/verify_certificates.py
+    - experiments/EXP-DS-001/implementation/implementation.md
+    - experiments/EXP-DS-001/controls/CTRL-RT025-UNPLANTED.yaml
+    - experiments/EXP-DS-001/amendments/v2_ctrl_unplanted.yaml
+    - experiments/EXP-DS-001/specification.v2.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044/execution_report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260731-045/snapshot_commit_receipt.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/dispatch_queue.json
+
+  prohibitions_honored:
+    git_commit_made: false
+    wrote_only_within_write_scope: true
+    modified_run_package: false
+    modified_ledger_or_hypotheses: false
+    H-IC-001_touched: false
+    H-STR-002_touched: false
+    H-DS-001_touched: false
+    mechanism_or_S1_adjudicated: false
+    claim_tier_raised: false
+    note: >-
+      The driver re-run wrote only into a session scratchpad directory outside the
+      repository; no archived artifact was read-modified or rewritten.
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the GPT-5.6-family policy aliases in
+      orchestration/model-policies.yaml; subagent frontmatter supports Claude
+      models only. Recorded rather than silently substituted.
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    independent_session: true
+    adapter_version: null
+    note: >-
+      resolved_model_id is runtime-reported and not probe-verified in this
+      harness.
+
+  archived_by: TASK-20260731-048
+  recorded_at: '2026-08-01T08:00:00Z'
