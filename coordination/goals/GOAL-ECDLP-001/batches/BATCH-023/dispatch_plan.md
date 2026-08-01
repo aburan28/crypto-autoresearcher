@@ -6,19 +6,16 @@ BATCH-023 EXP-EQD-001: measure the joint law of the half-arity Semaev fibre inva
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-032` | validator | queued | 92 | TASK-20260801-021, TASK-20260801-022 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-032/calibration_validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-032 |
+| `TASK-20260801-025` | reviewer | queued | 90 | TASK-20260801-020, TASK-20260801-022, TASK-20260801-024 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-025/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-025/attainability_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-025/anti_tuning_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-025 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-023`: dependency_not_completed:TASK-20260801-032:queued
-- `TASK-20260801-024`: dependency_not_completed:TASK-20260801-023:queued
-- `TASK-20260801-025`: dependency_not_completed:TASK-20260801-024:queued
 - `TASK-20260801-026`: dependency_not_completed:TASK-20260801-025:queued
 - `TASK-20260801-027`: dependency_not_completed:TASK-20260801-026:queued
 - `TASK-20260801-028`: dependency_not_completed:TASK-20260801-027:queued
 - `TASK-20260801-029`: dependency_not_completed:TASK-20260801-027:queued, dependency_not_completed:TASK-20260801-028:queued
 - `TASK-20260801-030`: dependency_not_completed:TASK-20260801-027:queued, dependency_not_completed:TASK-20260801-028:queued
-- `TASK-20260801-031`: dependency_not_completed:TASK-20260801-028:queued, dependency_not_completed:TASK-20260801-029:queued, dependency_not_completed:TASK-20260801-030:queued, dependency_not_completed:TASK-20260801-032:queued
+- `TASK-20260801-031`: dependency_not_completed:TASK-20260801-028:queued, dependency_not_completed:TASK-20260801-029:queued, dependency_not_completed:TASK-20260801-030:queued
 
 ## Dispatch Gates
 
@@ -33,4 +30,4 @@ BATCH-023 EXP-EQD-001: measure the joint law of the half-arity Semaev fibre inva
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `355d1fc458cb98fd62c24fc6c04758418342b9dc09d2ce882418da37b7c44716`
+Plan SHA-256: `ff2f29f619be5095a5b7938da0a14f19763569f63ac8f62a084d1b30f91fc4b0`
