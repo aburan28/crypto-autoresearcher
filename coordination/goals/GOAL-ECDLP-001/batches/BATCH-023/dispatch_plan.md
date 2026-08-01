@@ -6,12 +6,10 @@ BATCH-023 EXP-EQD-001: measure the joint law of the half-arity Semaev fibre inva
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-025` | reviewer | queued | 90 | TASK-20260801-020, TASK-20260801-022, TASK-20260801-024 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-025/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-025/attainability_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-025/anti_tuning_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-025 |
+| `TASK-20260801-027` | executor | queued | 80 | TASK-20260801-026 | experiments/EXP-EQD-001/runs/RUN-EQD-001-real/manifest.yaml, experiments/EXP-EQD-001/runs/RUN-EQD-001-real/raw-result.json, experiments/EXP-EQD-001/runs/RUN-EQD-001-real/command.txt, experiments/EXP-EQD-001/runs/RUN-EQD-001-real/environment.json, experiments/EXP-EQD-001/runs/RUN-EQD-001-real/stdout.log, experiments/EXP-EQD-001/runs/RUN-EQD-001-real/stderr.log, experiments/EXP-EQD-001/results/real/EQD_report.json, experiments/EXP-EQD-001/results/real/matched_null_comparison.json, experiments/EXP-EQD-001/results/real/power_certificate.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/tasks/TASK-20260801-027/execution_report.yaml | experiments/EXP-EQD-001/runs/RUN-EQD-001-real, experiments/EXP-EQD-001/results/real, coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/tasks/TASK-20260801-027 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-026`: dependency_not_completed:TASK-20260801-025:queued
-- `TASK-20260801-027`: dependency_not_completed:TASK-20260801-026:queued
 - `TASK-20260801-028`: dependency_not_completed:TASK-20260801-027:queued
 - `TASK-20260801-029`: dependency_not_completed:TASK-20260801-027:queued, dependency_not_completed:TASK-20260801-028:queued
 - `TASK-20260801-030`: dependency_not_completed:TASK-20260801-027:queued, dependency_not_completed:TASK-20260801-028:queued
@@ -30,4 +28,4 @@ BATCH-023 EXP-EQD-001: measure the joint law of the half-arity Semaev fibre inva
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `ff2f29f619be5095a5b7938da0a14f19763569f63ac8f62a084d1b30f91fc4b0`
+Plan SHA-256: `09c8246790326b01aa90e9a0c09359a1e87a6a86ef41445f9bed6161917d89f0`
