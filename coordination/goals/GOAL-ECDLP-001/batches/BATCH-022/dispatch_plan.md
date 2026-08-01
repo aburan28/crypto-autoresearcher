@@ -6,7 +6,7 @@ Theorem-first primary-literature scouting for an external structural ingredient 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-012` | coordinator | queued | 80 | TASK-20260801-011 | ledger/evidence/EV-ECDLP-016.yaml, ledger/decisions/DEC-20260801-004.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/archives/TASK-20260801-012/ledger_commit_receipt.json | ledger/evidence/EV-ECDLP-016.yaml, ledger/decisions/DEC-20260801-004.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-022/archives/TASK-20260801-012 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `edc9be03ac108b7a48b3db8bc73a06c65317af5f9d9dd76c18e64f3e51cc6613`
+Plan SHA-256: `7745071e1a5cc51b1ab376e709a3d4e27e37ab4fe87da9fe2375dd0340d7385c`
