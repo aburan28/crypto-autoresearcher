@@ -6,12 +6,11 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-046` | validator | queued | 70 | TASK-20260731-044, TASK-20260731-045 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-046/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-046 |
-| `TASK-20260731-047` | red-team | queued | 70 | TASK-20260731-044, TASK-20260731-045 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-047/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-047 |
+| `TASK-20260731-048` | coordinator | queued | 100 | TASK-20260731-045, TASK-20260731-046, TASK-20260731-047 | ledger/evidence/EV-DS-003.yaml, ledger/decisions/DEC-20260801-002.yaml, ledger/hypotheses/H-DS-001.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260731-048/ledger_commit_receipt.json | ledger/evidence/EV-DS-003.yaml, ledger/decisions/DEC-20260801-002.yaml, ledger/hypotheses/H-DS-001.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260731-048 |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-048`: dependency_not_completed:TASK-20260731-046:queued, dependency_not_completed:TASK-20260731-047:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `21e6dc64b0358d87ce2aac5c244e642d4e4ff9fad677a9aedc372c5e9300640b`
+Plan SHA-256: `ed2ec15f402eabd2c098ec949e5943d01bab7a2c948ae5f4e3a60eb2b0ae36cd`
