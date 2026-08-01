@@ -6,11 +6,10 @@ BATCH-025 EXP-LPF-001: PAY OPEN-BATCH023-A. Sample GENUINE half-arity Semaev par
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-048` | coordinator | queued | 95 | TASK-20260801-047 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/archives/TASK-20260801-048/snapshot_commit_receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/archives/TASK-20260801-048 |
+| `TASK-20260801-049` | executor | queued | 90 | TASK-20260801-048 | experiments/EXP-LPF-001/implementation/lpf001_driver.py, experiments/EXP-LPF-001/implementation/implementation.md, experiments/EXP-LPF-001/runs/RUN-LPF-001-calib/manifest.yaml, experiments/EXP-LPF-001/runs/RUN-LPF-001-calib/raw-result.json, experiments/EXP-LPF-001/runs/RUN-LPF-001-calib/command.txt, experiments/EXP-LPF-001/runs/RUN-LPF-001-calib/environment.json, experiments/EXP-LPF-001/runs/RUN-LPF-001-calib/stdout.log, experiments/EXP-LPF-001/runs/RUN-LPF-001-calib/stderr.log, experiments/EXP-LPF-001/runs/RUN-LPF-001-calib/git_status_prerun.txt, experiments/EXP-LPF-001/results/calib/null_replicate_statistics.json, experiments/EXP-LPF-001/results/calib/perturbation_movement_report.json, experiments/EXP-LPF-001/results/calib/dickman_reference_reproduction.json, experiments/EXP-LPF-001/results/calib/apparatus_identity_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260801-049/execution_report.yaml | experiments/EXP-LPF-001/implementation, experiments/EXP-LPF-001/runs/RUN-LPF-001-calib, experiments/EXP-LPF-001/results/calib, coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260801-049 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-049`: dependency_not_completed:TASK-20260801-048:queued
 - `TASK-20260801-050`: dependency_not_completed:TASK-20260801-049:queued
 - `TASK-20260801-051`: dependency_not_completed:TASK-20260801-050:queued, dependency_not_completed:TASK-20260801-049:queued
 - `TASK-20260801-052`: dependency_not_completed:TASK-20260801-051:queued
@@ -36,4 +35,4 @@ BATCH-025 EXP-LPF-001: PAY OPEN-BATCH023-A. Sample GENUINE half-arity Semaev par
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `6ea6736a7a3ab84a1f7ee2d83130bccc23479dc25123c16224b6be85b9216731`
+Plan SHA-256: `5bde240273f02a6ff1d795a9df838181fe226b478621d621a9f4f9b92e83879d`
