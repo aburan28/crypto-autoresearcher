@@ -1,0 +1,161 @@
+correction:
+  id: CORR-20260801-002
+  recorded_at: '2026-08-01'
+  record_type: claim
+  record_id: BATCH-020-LEDGER-ARCHIVE-TASK-20260731-048-YAML-SYNTAX-DEFECT
+  field: yaml_serialization_of_three_BATCH-020_archived_records
+  prior_value:
+    as_committed_at_7ae492d7:
+      commit_sha: 7ae492d7c8af5226f9209dc95b457e6718619cb2
+      archive_task: TASK-20260731-048
+      archive_kind: ledger archive (BATCH-020)
+      declared_path_count: 7
+      defect_class: >-
+        Unparseable YAML. Five prose items in block sequences were written as
+        plain scalars containing a colon-space (": "). YAML interprets ": "
+        inside a plain scalar as a mapping key/value separator, so each item was
+        read as a malformed mapping and the enclosing document failed to load.
+      unparseable_files:
+        - ledger/evidence/EV-DS-003.yaml
+        - ledger/decisions/DEC-20260801-003.yaml
+        - >-
+          coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-047/red_team_report.yaml
+      defective_items:
+        - file: ledger/evidence/EV-DS-003.yaml
+          sequence: boundaries
+          item_opening_text: 'Toy tier only, one cell: p = 752627 ...'
+        - file: ledger/evidence/EV-DS-003.yaml
+          sequence: boundaries
+          item_opening_text: >-
+            Single unreplicated empirical_only set: reject_scoped is forbidden
+            ...
+        - file: ledger/decisions/DEC-20260801-003.yaml
+          item_opening_text: 'PD-2 blob drift re-bound at EV-DS-003 O-9: ...'
+        - file: ledger/decisions/DEC-20260801-003.yaml
+          item_opening_text: >-
+            Inference fallback: requested coordinator-orchestration-code, ...
+        - file: >-
+            coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-047/red_team_report.yaml
+          item_opening_text: >-
+            matched-rho calibration: CTRL_NULL_RHO rho_calib_ratio_real and ...
+      tooling_observations_on_the_defective_tree:
+        - >-
+          tools/check_merge_hygiene.py FAILED with "EV-DS-003.yaml: does not
+          parse".
+        - >-
+          tools/validate_ledger.py reported "invalid YAML: while scanning a
+          simple key" for ledger/evidence/EV-DS-003.yaml and
+          ledger/decisions/DEC-20260801-003.yaml.
+  corrected_value:
+    repair_kind: syntax_only
+    repair_commit_relationship: >-
+      NEW commit applied on top of the archive commit. Commit
+      7ae492d7c8af5226f9209dc95b457e6718619cb2 is NOT rewritten, amended,
+      rebased, or replaced; it is preserved as the historical record of exactly
+      what the TASK-20260731-048 ledger archive contained.
+    repair_applied:
+      - >-
+        Each of the five items listed above was converted from a plain scalar to
+        a folded block scalar ("- >-" followed by the original text re-indented
+        one level).
+    prose_byte_identical: true
+    changed_content:
+      words: none
+      numbers: none
+      record_ids: none
+      verdicts: none
+      claims: none
+      statuses: none
+    post_repair_tooling:
+      - All three files parse.
+      - tools/check_merge_hygiene.py passes.
+      - >-
+        tools/validate_ledger.py reports no errors against any BATCH-020 record
+        of this goal.
+      - >-
+        tools/research_dispatch.py still renders the BATCH-020 plan with exit 0,
+        re-run after the repair.
+    archive_binding_status: unaffected
+    archive_binding_reason: >-
+      The dispatcher's post-commit verifier hashes the declared blobs AS THEY
+      EXIST AT 7ae492d7. Because that commit is untouched, the TASK-20260731-048
+      archive binding recorded in the BATCH-020 dispatch queue remains valid and
+      verifiable.
+    resulting_drift:
+      description: >-
+        The working-tree copies of ledger/evidence/EV-DS-003.yaml,
+        ledger/decisions/DEC-20260801-003.yaml, and the TASK-20260731-047
+        red_team_report.yaml now differ byte-for-byte from the blobs attested in
+        their own archive commit 7ae492d7.
+      drift_class: >-
+        Same class as CORR-20260801-001 (working-tree artifact diverging from the
+        blob attested in the archive commit that declared it).
+      why_acceptable_here: >-
+        The divergence is deliberate, documented in this record, and
+        content-preserving: it is a YAML serialization change only, the prose is
+        byte-identical, and the attested commit is preserved unmodified as the
+        historical record. Unlike the CORR-20260801-001 case, nothing here
+        rewrites a factual description of history, and no receipt, declaration,
+        hash, verdict, or claim is restated. The alternative — leaving three
+        ledger records unparseable — would block every downstream validator and
+        dispatcher read of BATCH-020.
+  reason: >-
+    Three records archived by the BATCH-020 ledger commit
+    7ae492d7c8af5226f9209dc95b457e6718619cb2 (TASK-20260731-048, 7 declared
+    paths) were unparseable YAML, so the ledger validator and merge-hygiene
+    checks could not read them. The repair restores parseability without
+    altering content, by a new commit on top rather than a rewrite of the
+    attested archive commit.
+  responsibility: >-
+    The dispatching session. It staged and committed the ledger archive without
+    first running tools/check_merge_hygiene.py and tools/validate_ledger.py
+    against the tree. The authoring Coordinator session is not at fault for the
+    commit.
+  scope_of_effect:
+    research_claims_affected: none
+    evidence_direction_changed: none
+    evidence_strength_changed: none
+    decision_verdict_changed: none
+    hypothesis_status_changed: none
+    goal_status_changed: none
+    claim_tier_changed: none
+    statement: >-
+      This correction is a YAML syntax repair only. It alters no claim, no
+      evidence direction, no evidence strength, no decision verdict, no
+      hypothesis status, no goal status, and no claim tier. EV-DS-003 remains
+      neutral / preliminary / toy tier. DEC-20260801-003 remains inconclusive.
+      H-DS-001 remains analyzed. GOAL-ECDLP-001 remains active. No run is
+      authorized, no task is added or removed, no budget, protocol, control, or
+      success criterion is changed, and no knowledge promotion follows from it.
+  forward_action: >-
+    Ledger and coordination YAML should be parsed (tools/validate_ledger.py and
+    tools/check_merge_hygiene.py) before an archive commit is staged. This is a
+    candidate harness gate: the repository's CI validate workflow gates pull
+    requests only differentially against the base branch, so an unparseable
+    record can land without failing that gate.
+  evidence_artifacts:
+    - ledger/evidence/EV-DS-003.yaml
+    - ledger/decisions/DEC-20260801-003.yaml
+    - >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-047/red_team_report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/dispatch_queue.json
+    - ledger/corrections/CORR-20260801-001.yaml
+  referenced_commits:
+    - sha: 7ae492d7c8af5226f9209dc95b457e6718619cb2
+      role: >-
+        TASK-20260731-048 attested BATCH-020 ledger archive commit; preserved
+        unmodified, still the binding target of the dispatcher's post-commit
+        verifier
+  related_corrections:
+    - id: CORR-20260801-001
+      relation: same_drift_class
+  referenced_record_ids:
+    - TASK-20260731-048
+    - TASK-20260731-047
+    - EV-DS-003
+    - DEC-20260801-003
+    - H-DS-001
+    - GOAL-ECDLP-001
+    - BATCH-020
+    - CORR-20260801-001
+  recorded_by: coordinator

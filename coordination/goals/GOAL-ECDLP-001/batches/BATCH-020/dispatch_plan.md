@@ -6,12 +6,11 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-046` | validator | queued | 70 | TASK-20260731-044, TASK-20260731-045 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-046/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-046 |
-| `TASK-20260731-047` | red-team | queued | 70 | TASK-20260731-044, TASK-20260731-045 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-047/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260731-047 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260731-048`: dependency_not_completed:TASK-20260731-046:queued, dependency_not_completed:TASK-20260731-047:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `837903ab27636fdb17c25b10964356809db2d1b8b3c282eff48fdb384e484803`
+Plan SHA-256: `29ce742c23cac89c9bff4abddf877e58ae0639f7e4fe9c09197403fbdefd1d9a`
