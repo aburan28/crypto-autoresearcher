@@ -6,12 +6,11 @@ BATCH-023 EXP-EQD-001: measure the joint law of the half-arity Semaev fibre inva
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-029` | validator | queued | 70 | TASK-20260801-027, TASK-20260801-028 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-029/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-029 |
-| `TASK-20260801-030` | red-team | queued | 70 | TASK-20260801-027, TASK-20260801-028 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-030/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-023/reviews/TASK-20260801-030 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-031`: dependency_not_completed:TASK-20260801-029:queued, dependency_not_completed:TASK-20260801-030:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-023 EXP-EQD-001: measure the joint law of the half-arity Semaev fibre inva
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a0ca70e0a408671a345d6c1b9e78c272f8ed655adf2cf0afb7a5f34c1ed2b722`
+Plan SHA-256: `2962b3454482f86cf1bf250f0de77c55105ddb49f7be90928b6d024dff9936f9`
