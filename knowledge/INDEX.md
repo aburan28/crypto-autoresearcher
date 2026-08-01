@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7755 entries.
+7756 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7428,6 +7428,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7636 | Removable Weak Keys for Discrete Logarithm Based Cryptography | literature | reported | true | weak-keys discrete-log elliptic-curve cheon implicit-representation |
 | KN-LIT-7637 | FAEST: Algorithm Specifications (v2.0, latest published; no Round-3 specification exists as of 2026-07-31) | literature | reported | true | faest vole-in-the-head mpc-in-the-head digital-signatures aes post-quantum nist-pqc additional-signatures specification primary-source |
 | KN-LIT-7638 | Publicly Verifiable Zero-Knowledge and Post-Quantum Signatures From VOLE-in-the-Head | literature | reported | true | faest vole-in-the-head zero-knowledge fiat-shamir nizk mpc-in-the-head post-quantum-signatures aes crypto-2023 primary-source |
+| KN-LIT-7639 | Ten advances in mathematics and theoretical computer science (OpenAI / Astra) | literature | reported | false | astra openai ai-for-mathematics autonomous-research machine-discovered-proof lean4 mathlib formal-verification proof-certificate verification-bottleneck closest-vector-problem cvp lattice hardness-of-approximation post-quantum sphere-packing coding-theory non-sofic-groups connes-rigidity operator-algebras arithmetic-circuit-complexity permanent parallel-repetition quantum-games ehrhart ramsey erdos-problems extremal-graph-theory premature-closure test-time-compute methodology program-level secondary-sourced |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny pairing sidh-csidh |
 | KN-LIT-765 | Finding Elliptic Curves With Many Integral Points arXiv:2012.06233v1 [math.NT] 11 Dec 2020 Benjamin Jones | literature | reported | read | elliptic-curve |
 | KN-LIT-766 | Fine-Grained Cryptography: A New Frontier? | literature | reported | read | complexity-theory cryptanalysis hash protocol provable-security survey |
