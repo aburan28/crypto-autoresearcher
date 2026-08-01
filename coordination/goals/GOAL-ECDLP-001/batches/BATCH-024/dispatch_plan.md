@@ -6,11 +6,10 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-034` | coordinator | queued | 95 | TASK-20260801-033 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-034/snapshot_commit_receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-034 |
+| `TASK-20260801-035` | executor | queued | 90 | TASK-20260801-034 | experiments/EXP-DEP-001/implementation/dep001_driver.py, experiments/EXP-DEP-001/implementation/implementation.md, experiments/EXP-DEP-001/runs/RUN-DEP-001-calib/manifest.yaml, experiments/EXP-DEP-001/runs/RUN-DEP-001-calib/raw-result.json, experiments/EXP-DEP-001/runs/RUN-DEP-001-calib/command.txt, experiments/EXP-DEP-001/runs/RUN-DEP-001-calib/environment.json, experiments/EXP-DEP-001/runs/RUN-DEP-001-calib/stdout.log, experiments/EXP-DEP-001/runs/RUN-DEP-001-calib/stderr.log, experiments/EXP-DEP-001/runs/RUN-DEP-001-calib/git_status_prerun.txt, experiments/EXP-DEP-001/results/calib/null_replicate_statistics.json, experiments/EXP-DEP-001/results/calib/marginal_integrity_report.json, experiments/EXP-DEP-001/results/calib/archived_threshold_reproduction.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/tasks/TASK-20260801-035/execution_report.yaml | experiments/EXP-DEP-001/implementation, experiments/EXP-DEP-001/runs/RUN-DEP-001-calib, experiments/EXP-DEP-001/results/calib, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/tasks/TASK-20260801-035 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-035`: dependency_not_completed:TASK-20260801-034:queued
 - `TASK-20260801-036`: dependency_not_completed:TASK-20260801-035:queued
 - `TASK-20260801-037`: dependency_not_completed:TASK-20260801-035:queued, dependency_not_completed:TASK-20260801-036:queued
 - `TASK-20260801-038`: dependency_not_completed:TASK-20260801-036:queued, dependency_not_completed:TASK-20260801-037:queued
@@ -36,4 +35,4 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e3fa0d928d07cb744596b0fce07531929235e3b805b8ff79c70262a4d2f791f8`
+Plan SHA-256: `b432be82a78b4508710498c4d4571b503c56e7cfdeac1420a2778d565cdfd8ae`
