@@ -1,0 +1,286 @@
+execution_report:
+  experiment_id: EXP-DS-001
+  specification: experiments/EXP-DS-001/specification.v2.yaml
+  specification_version: "2.1-ctrl"
+  parent_specification_version: 2
+  parent_approval_snapshot: 65f3c82babae49a9acea64cfa2650d4f3d45cf72
+  control_protocol: experiments/EXP-DS-001/controls/CTRL-RT025-UNPLANTED.yaml
+  control_protocol_id: CTRL-RT025-UNPLANTED
+  companion_control_id: CTRL-RT025-PLANT-LIVE
+  protocol_amendment: experiments/EXP-DS-001/amendments/v2_ctrl_unplanted.yaml
+  protocol_amendment_id: PA-DS-001-v2-ctrl-unplanted
+  approval_task: TASK-20260731-043
+  approval_determination: APPROVED
+  approval_receipt: coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/TASK-20260731-043/snapshot_commit_receipt.json
+  task_id: TASK-20260731-044
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-020
+  claim_tier: toy
+  v1_executed: false
+  v1_approval_status: "NOT APPROVED (per TASK-20260731-043 receipt; v1 was not run)"
+  implementation_commit: 981d25421066a6126df29fd4ce36159d99acd352
+  implementation_dirty_tree: true
+  implementation_dirty_tree_contents:
+    - experiments/EXP-DS-001/implementation/ds001_driver.py (modified, additive only)
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/ (new)
+    - experiments/EXP-DS-001/results/ctrl_unplanted/ (new)
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044/ (new)
+  inference:
+    requested_policy: executor-implementation
+    resolved_model_id: claude-sonnet-5
+    reasoning_effort: null
+    fallback_allowed: true
+    fallback_used: false
+    fallback_reason: null
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_note: >-
+      orchestration/model-bindings.yaml binds executor-implementation on backend
+      anthropic to claude-sonnet-5 (provenance runtime-verified). `python3 -m
+      orchestration.adapter doctor` cannot itself probe from this container
+      because $ANTHROPIC_API_KEY is unset -- an infrastructure observation, not
+      a policy failure. This task ran directly under the Claude Code runtime
+      (not the adapter), which is the mechanism the harness uses to resolve
+      executor-implementation to this session's own model identity
+      (self-reported as claude-sonnet-5 per the launching system prompt).
+    independent_session_required: false
+  protocol_deviations:
+    - >-
+      IMPLEMENTATION GAP FOUND AND REPAIRED (additive, in-scope): none of the
+      existing driver modes (impl/measure/heur/finalize) can express an
+      "unplanted uniform random target" or a live /4 plant detection path free
+      of a synthetic known-answer shortcut. harvest_real() inside execute_cell
+      (used by impl and measure) always calls random_target(), which plants a
+      known m-sum so a hit is guaranteed by construction -- exactly the
+      planted-yield packaging this control exists to discriminate against
+      (RT-20260731-038 / DEC-20260731-018). mode_impl's do_planted branch also
+      always executes a hardcoded "Synthetic known-answer plant (always
+      exercised)" path (synth_R=0.05, synth_Rn=0.05, OR'd into
+      planted_bug_detected), which CTRL-RT025-UNPLANTED.yaml's
+      companion_live_plant explicitly forbids for this control
+      ("WITHOUT synthetic known-answer synth_R/synth_Rn shortcuts").
+      Added a new `--mode ctrl-unplanted` to
+      experiments/EXP-DS-001/implementation/ds001_driver.py (additive only --
+      no existing function body was modified) that (a) generates targets as
+      T = k*P for k uniform in [1, n-1] (random_uniform_target), carrying no
+      planted decomposition witness, (b) harvests naive/split relations against
+      those targets (harvest_real_unplanted) up to relations_target or
+      wall-budget, tracking attempted_targets/success_count per arm, and
+      (c) computes the live /4 plant companion strictly from this run's own
+      measured cost_naive/cost_split/cost_naive_null/cost_split_null
+      (compute_live_plant_companion), with no synthetic fallback of any kind.
+      All membership search, cost-charging, and backend functions
+      (naive_search, split_search, build_claw_table, charge_backend_units,
+      null_naive_search, null_split_search, cost_from_wall, bootstrap_ci,
+      run_rho, run_bsgs, BACKEND_ID) are reused unmodified from the existing
+      v2 driver, so the backend identity and cost identities are byte-identical
+      to the planted-package measurement.
+    - >-
+      Deliberately omitted the "give up early if zero successes after N*50
+      attempts" heuristic present in harvest_real/harvest_null when writing
+      harvest_real_unplanted/harvest_null_arm, so the only stopping conditions
+      are relations_target reached or wall_clock_seconds exhausted -- the exact
+      frozen stopping rule ("stop after 200 successful usable relations or
+      wall_clock_seconds_per_run, whichever first"), with no extra undocumented
+      early exit.
+    - >-
+      cell_wall used was 7200s (the full contractual per-run wall from
+      specification.v2.yaml budget.wall_clock_seconds_per_run and
+      CTRL-RT025-UNPLANTED.yaml budget.wall_clock_seconds) -- NOT shortened, so
+      R-2 (prefer contractual 7200s) does not apply as a deviation. All four
+      arms (real-naive, real-split, null-naive, null-split) reached
+      relations_target=200 well inside that ceiling; measured total run
+      wall_seconds was 25.2s (see timing below), so the 7200s ceiling was never
+      actually exercised.
+    - >-
+      Certificate handling follows the exact precedent set by the sibling runs
+      of this same experiment (RUN-DS-001-impl/measure): the top-level
+      "certificate" field is escalated to kind=discrete_log only when CTRL-RHO
+      independently solves and verifies k (which it did here: n=241 is a small
+      toy subgroup and rho solved trivially, k=43). Individual usable relations
+      (the primary yield) are each re-verified in-place by an independent
+      from-scratch resummation (point_sum over the claimed summands vs. the
+      target) inside naive_search/split_search before being counted; this
+      mirrors, not extends, the certificate-handling convention already
+      established by RUN-DS-001-impl/measure/heur, which used the same pattern
+      without per-relation certificate objects.
+    - >-
+      REPRODUCIBILITY NOTE (measured, not a bug): re-ran the identical command
+      and revision into a scratch directory as a reproducibility check.
+      Deterministic quantities (n_usable_*, attempted_*, the target/hit
+      sequence, fb_x_hash, null_object_spec_hash, r1_cell_label) reproduced
+      exactly. The wall-clock-derived cost metrics (R, R_null, cost_naive,
+      cost_split, cost_naive_null, cost_split_null) did NOT reproduce bit-for-
+      bit -- expected, because cost_identities.cost_* is defined on measured
+      wall_seconds (specification.v2.yaml cost_identities), which is inherently
+      subject to run-to-run system timing variance; this is a property of the
+      frozen wall-clock cost definition itself, not of this run's code. The
+      qualitative regime was stable across both runs (R stayed in the
+      approximately-0.03-0.04 band, R_null stayed two orders of magnitude above
+      0.9).
+    - >-
+      ANOMALY CARRIED FROM THE PARENT v2 DRIVER (not introduced here): the
+      bootstrap CI construction (ratio of individually-resampled per-relation
+      wall times) does not bracket the point estimate R in this cell
+      (R=0.0366, R_ci=[0.108, 0.415]). Checked the already-completed sibling
+      package (experiments/EXP-DS-001/results/R_table.json, produced by the
+      unmodified v2 driver): the identical mismatch occurs in 41/54 of the
+      planted-matrix cells, including the SAME cell under the planted target
+      mode (bits=20,B=64,m=4,seed=101: R=0.03404, CI=[0.256, 0.919]). This
+      confirms the CI construction is a pre-existing characteristic of the
+      frozen cost_identities/bootstrap methodology (a ratio-of-per-attempt-
+      ratios proxy vs. the ratio-of-aggregate-sums R metric), reproduced
+      faithfully rather than corrected (correcting it would be an
+      unauthorized post-hoc edit to a frozen cost model).
+  runs:
+    completed:
+      - RUN-DS-001-ctrl-unplanted
+    invalid: []
+    failed: []
+  run_validity:
+    RUN-DS-001-ctrl-unplanted:
+      status: completed_valid
+      protocol_stop: target_reached_all_arms
+      target_mode: unplanted_uniform_random
+      smoothness_abort: false
+      backend_id: ds001-v2-point-sum-membership+charged-units-v1
+      relations_target: 200
+      n_usable_naive: 200
+      n_usable_split: 200
+      n_usable_naive_null: 200
+      n_usable_split_null: 200
+      attempted_naive: 200
+      attempted_split: 200
+      attempted_naive_null: 200
+      attempted_split_null: 269
+      success_probability_naive: 1.0
+      success_probability_split: 1.0
+      stop_reason_naive: target_reached
+      stop_reason_split: target_reached
+      stop_reason_naive_null: target_reached
+      stop_reason_split_null: target_reached
+      R: 0.03655178401486385
+      R_null: 112.10530072371081
+      R_bootstrap_ci_95: [0.10827016673962503, 0.4152572281248494]
+      r1_cell_label: S1_eligible_on_null_axis
+      live_plant_detected: false
+      certificate: "discrete_log verified true (k=43, n=241, seed=101, bits=20); independently re-checked by verify_certificates.py -> ok=true"
+      wall_seconds_total: 25.200729178000074
+      real_start_epoch_utc: "2026-08-01T04:31:45Z"
+      real_finish_epoch_utc: "2026-08-01T04:32:10Z"
+      exit_code: 0
+  observations:
+    - >-
+      Primary unplanted measurement (plant OFF, per R-1 binding): R=0.03655,
+      R_null=112.105. R < 0.5 AND R_null >= 0.9, so r1_cell_label =
+      S1_eligible_on_null_axis, NOT F2_eligible. The R-1 rule (F2_eligible iff
+      R<0.5 and R_null<0.9) does not apply to this cell. This is an observation
+      only; it does not constitute an S1_met determination (a single cell alone
+      cannot -- specification.v2.yaml success_criterion requires >=2 distinct
+      bit sizes) and is not a conclusion about H-DS-001.
+    - >-
+      Both real-arm methods (naive and split) hit 100% empirical success
+      probability against genuinely unplanted (T = k*P, k uniform in [1,n-1])
+      targets: 200/200 naive, 200/200 split. This reflects the toy-scale group
+      structure of this specific cell (subgroup order n=241; the signed
+      factor-base list has 128 elements, so m=4-fold signed sums cover the
+      241-element group with high multiplicity) -- not a general claim about
+      unplanted success rates at other parameters. Executor makes no claim
+      about how this generalizes to other (bits,B,m) cells.
+    - >-
+      Live /4 plant companion (CTRL-RT025-PLANT-LIVE, computed strictly from
+      this run's own measured costs, no synthetic known-answer): fake_R =
+      0.009138, fake_R_null = 28.026. planted_bug_detected = False, because
+      fake_R_null (28.03) remains far above the 0.9 detection threshold even
+      after the live /4 inflation -- the null arm's true R_null (112.1) is so
+      far above 0.9 that a 4x inflation of split-cost alone does not push it
+      under 0.9. This is an honest, non-fabricated negative detection result on
+      this specific cell; it does not by itself mean CTRL-NULL-PLANT is
+      generally ineffective (the sibling RUN-DS-001-impl cell, bits=16, DID
+      detect its plant), and the run does not claim
+      planted_bug_detected=true anywhere.
+    - >-
+      CTRL-RHO / CTRL-BSGS matched baselines present: rho solved (k=43, 744
+      total_group_operations, wall 0.00124s) with certificate_verified=true
+      inside the driver, and independently re-verified true by
+      experiments/EXP-DS-001/implementation/verify_certificates.py run
+      separately against the committed run directory (ok=true).
+      calibration_perturbation_sign_stable=true.
+    - >-
+      HEUR-DS-1 was NOT re-run (CTRL-RT025-UNPLANTED.yaml scope.heursampling
+      forbids re-running RUN-DS-001-heur for this control). The prior
+      HEUR-DS-1 F3 observation (EV-DS-002) stands unchanged and unreferenced by
+      this run's own metrics.
+    - >-
+      This control package does NOT supersede or re-score the planted
+      relations=200 package (EV-DS-002 / snapshot 1eb431f1); it is a separate,
+      additional measurement, exactly as CTRL-RT025-UNPLANTED.yaml
+      scope.does_not_supersede requires.
+  anomalies:
+    - >-
+      Implementation gap: the frozen driver, as delivered to this task, had no
+      mode capable of executing this control's exact requirements (unplanted
+      targets; live-plant-without-synthetic-shortcut). See
+      protocol_deviations above for the additive repair and its scope.
+    - >-
+      Bootstrap CI does not bracket the point estimate R for this cell -- a
+      pre-existing characteristic of the frozen v2 cost/bootstrap methodology,
+      confirmed present in 41/54 cells of the already-completed planted matrix
+      including the same (bits,B,m,seed) cell under planted targets. Recorded,
+      not corrected (correcting a frozen cost/statistics model is out of
+      Executor authority; would require a Coordinator-approved amendment).
+    - >-
+      Wall-clock-derived cost metrics (R, R_null, cost_*) are not bit-for-bit
+      reproducible across repeated executions of the identical command and
+      revision, because cost_identities.cost_* is defined on measured
+      wall_seconds (inherent system timing variance). Deterministic quantities
+      (relation counts, attempted counts, hashes, r1_cell_label) ARE bit-for-
+      bit reproducible. This is a property of the frozen cost definition, not
+      a code defect; verified directly by a reproducibility re-run (see
+      protocol_deviations).
+    - >-
+      /usr/bin/time was not installed in this execution container; wall-clock
+      timing for the run command was measured with shell epoch timestamps
+      (date -u +%s.%N before/after) instead, cross-checked against the
+      manifest's internally recorded wall_seconds (25.2007s vs. shell-measured
+      26.07s for the same invocation, the difference being interpreter
+      startup/import overhead outside the timed region) -- an infrastructure
+      observation, not a measurement failure.
+    - >-
+      pip install sympy was required in this container (sympy was not
+      preinstalled, unlike the prior executor session's macOS environment
+      recorded in RUN-DS-001-impl/measure/heur's environment.json). Installed
+      sympy==1.14.0 via `pip3 install --user sympy` before running. Recorded in
+      this run's environment.json (dependencies.sympy: "1.14.0").
+  artifact_paths:
+    - experiments/EXP-DS-001/implementation/ds001_driver.py
+    - experiments/EXP-DS-001/implementation/verify_certificates.py
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/manifest.json
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/raw-result.json
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stdout.txt
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stderr.txt
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/command.txt
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/environment.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/summary.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/R_cell.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/null_control_report.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/live_plant_report.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044/execution_report.yaml
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+    notes: >-
+      Single planned run terminal completed_valid, target_reached on all four
+      arms well inside budget (25.2s measured against a 7200s ceiling; maximum_runs=1
+      respected -- exactly one execution of ds001_driver.py --mode ctrl-unplanted
+      was performed, plus one separate, out-of-write-scope, scratch-directory
+      reproducibility re-run whose outputs were discarded and never written
+      inside experiments/EXP-DS-001). R-1 label is S1_eligible_on_null_axis
+      (observation only). Live plant companion honestly reports not detected on
+      this cell (no synthetic shortcut used). No hypothesis status change; does
+      not alter H-IC-001 or H-STR-002; does not supersede EV-DS-002. Executor
+      interprets nothing -- Reviewer/Validator/Red Team (TASK-20260731-046/047)
+      and Coordinator archive (TASK-20260731-045) are the next steps. MAKE NO
+      COMMIT by Executor -- none made; nothing staged.

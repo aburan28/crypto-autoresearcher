@@ -1579,9 +1579,783 @@ def mode_finalize(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- RUN-DS-001-ctrl-unplanted (CTRL-RT025-UNPLANTED / PA-DS-001-v2-ctrl-unplanted) ----
+#
+# Added for TASK-20260731-044 (BATCH-020). The impl/measure/heur modes above
+# ALWAYS plant a known m-sum as the real-arm target via random_target() (see
+# harvest_real's `T, _planted = random_target(...)`), which is exactly the
+# "planted-yield packaging" this control is designed to discriminate against
+# (RT-20260731-038 / DEC-20260731-018). None of the four existing modes can
+# express "unplanted uniform random target" or a live /4 plant detection path
+# that is not backstopped by a synthetic known-answer shortcut, so this
+# section adds that capability additively, reusing the exact same backend
+# functions (naive_search, split_search, build_claw_table, charge_backend_units,
+# null_naive_search, null_split_search, cost_from_wall, bootstrap_ci, run_rho,
+# run_bsgs) so BACKEND_ID and the cost identities are byte-identical to the
+# planted-package v2 driver above. No existing function above is modified.
+
+def random_uniform_target(E: EllipticCurve, inst: ECDLPInstance, rng: random.Random) -> Point:
+    """A genuinely uniform random element of <P> (order n): T = k*P, k in [1,n-1].
+
+    Unlike random_target() (which sums m signed factor-base points so a hit is
+    guaranteed by construction -- the "planted" mode), this never touches the
+    factor base and carries no known decomposition witness. Whether T can be
+    written as a signed m-sum of factor-base points is exactly what the
+    membership search below must discover, with no planted answer.
+    """
+    k = rng.randrange(1, inst.n)
+    return E.mul(k, inst.P)
+
+
+def harvest_real_unplanted(
+    E: EllipticCurve,
+    inst: ECDLPInstance,
+    fb: FBPack,
+    method: str,
+    m: int,
+    bits: int,
+    B: int,
+    table: Optional[dict],
+    wall_budget: float,
+    deadline_cell: float,
+    relations_target: int,
+    smoothness_abort: bool,
+    rng: random.Random,
+) -> tuple[float, int, int, int, list[float]]:
+    """Harvest usable relations against unplanted (uniform random) targets.
+
+    Returns (wall_seconds, n_usable, attempted_targets, peak_table_entries,
+    per-relation wall-time samples). Stops at relations_target successes or
+    wall_budget, whichever first -- the frozen stopping rule -- with no extra
+    early-bailout heuristic (deliberately omitted; see implementation.md).
+    """
+    t0 = time.perf_counter()
+    n_usable = 0
+    attempted = 0
+    peak_table = 0
+    samples: list[float] = []
+    while n_usable < relations_target and time.perf_counter() - t0 < wall_budget:
+        attempted += 1
+        T = random_uniform_target(E, inst, rng)
+        arm_deadline = min(deadline_cell, time.perf_counter() + min(5.0, wall_budget))
+        if method == "naive":
+            ar = naive_search(E, fb.signed, T, m, arm_deadline, lambda mm: charge_backend_units(mm))
+        else:
+            assert table is not None
+            ar = split_search(
+                E, fb.signed, T, m, bits, B, table, arm_deadline,
+                lambda mm: charge_backend_units(mm), smoothness_abort,
+            )
+            peak_table = max(peak_table, ar.peak_table_entries)
+        if ar.found and ar.relation and not ar.incomplete:
+            n_usable += 1
+            samples.append(ar.wall_seconds)
+    wall = time.perf_counter() - t0
+    return wall, n_usable, attempted, peak_table, samples
+
+
+def harvest_null_arm(
+    fb_xs: list[int],
+    seed: int,
+    bits: int,
+    B: int,
+    m: int,
+    method: str,
+    wall_budget: float,
+    deadline_cell: float,
+    relations_target: int,
+) -> tuple[float, int, int]:
+    """Standalone version of execute_cell's harvest_null closure (unmodified
+    logic), exposed so the control-run cell function can call it without
+    duplicating execute_cell itself. Returns (wall_seconds, n_usable, attempted).
+    """
+    t0 = time.perf_counter()
+    n_usable = 0
+    tag = 0
+    while n_usable < relations_target and time.perf_counter() - t0 < wall_budget:
+        tag += 1
+        arm_deadline = min(deadline_cell, time.perf_counter() + min(5.0, wall_budget))
+        if method == "naive":
+            ar = null_naive_search(fb_xs, seed, bits, B, m, tag, arm_deadline, lambda mm: charge_backend_units(mm))
+        else:
+            ar = null_split_search(fb_xs, seed, bits, B, m, tag, arm_deadline, lambda mm: charge_backend_units(mm))
+        if ar.found and not ar.incomplete:
+            n_usable += 1
+    return time.perf_counter() - t0, n_usable, tag
+
+
+@dataclass
+class CtrlUnplantedCellResult:
+    bits: int
+    B: int
+    m: int
+    seed: int
+    status: str
+    target_mode: str = "unplanted_uniform_random"
+    relations_target: int = 200
+    R: Optional[float] = None
+    R_null: Optional[float] = None
+    R_ci: Optional[list] = None
+    R_null_ci: Optional[list] = None
+    cost_naive: Optional[float] = None
+    cost_split: Optional[float] = None
+    cost_naive_null: Optional[float] = None
+    cost_split_null: Optional[float] = None
+    n_usable_naive: int = 0
+    n_usable_split: int = 0
+    n_usable_naive_null: int = 0
+    n_usable_split_null: int = 0
+    attempted_naive: int = 0
+    attempted_split: int = 0
+    attempted_naive_null: int = 0
+    attempted_split_null: int = 0
+    success_probability_naive: Optional[float] = None
+    success_probability_split: Optional[float] = None
+    stop_reason_naive: str = ""
+    stop_reason_split: str = ""
+    stop_reason_naive_null: str = ""
+    stop_reason_split_null: str = ""
+    wall_naive: float = 0.0
+    wall_split: float = 0.0
+    wall_naive_null: float = 0.0
+    wall_split_null: float = 0.0
+    peak_rss_bytes_claw_table: int = 0
+    null_object_spec_hash: str = ""
+    fb_x_hash: str = ""
+    rho: Optional[dict] = None
+    bsgs: Optional[dict] = None
+    assembled_E_proxy: Optional[float] = None
+    calibration_perturbation_sign_stable: Optional[bool] = None
+    r1_cell_label: Optional[str] = None
+    notes: list[str] = field(default_factory=list)
+    protocol_stop: str = ""
+
+
+def execute_ctrl_cell(
+    bits: int,
+    B: int,
+    m: int,
+    seed: int,
+    cell_wall_budget: float,
+    relations_target: int,
+    smoothness_abort: bool = False,
+) -> CtrlUnplantedCellResult:
+    t_cell0 = time.perf_counter()
+    cell = CtrlUnplantedCellResult(
+        bits=bits, B=B, m=m, seed=seed, status="running", relations_target=relations_target,
+    )
+    try:
+        inst = generate_instance(seed, bits)
+    except Exception as e:
+        cell.status = "infrastructure_error"
+        cell.notes.append(f"instance_generation_failed: {e}")
+        return cell
+
+    fb = make_factor_base(inst, B, seed)
+    cell.fb_x_hash = fb.x_hash
+    cell.null_object_spec_hash = null_spec_hash(seed, bits, B, m)
+    E = inst.curve()
+
+    # CTRL-RHO / CTRL-BSGS matched baselines (same functions as the planted package).
+    cell.rho = run_rho(inst)
+    cell.bsgs = run_bsgs(inst)
+    rho_wall = max(cell.rho["wall_seconds"], 1e-9)
+    rho_gops = max(cell.rho["total_group_operations"], 1)
+    rho_gop_per_second = rho_gops / rho_wall
+
+    deadline_cell = t_cell0 + cell_wall_budget
+    per_arm_budget = cell_wall_budget / 4.0
+    rng = random.Random(_seed_int(seed, f"ctrl_unplanted_{bits}_{B}_{m}"))
+
+    # Real arm: naive, unplanted targets.
+    cell.wall_naive, cell.n_usable_naive, cell.attempted_naive, _, samples_n = harvest_real_unplanted(
+        E, inst, fb, "naive", m, bits, B, None, per_arm_budget, deadline_cell,
+        relations_target, smoothness_abort, rng,
+    )
+    cell.stop_reason_naive = "target_reached" if cell.n_usable_naive >= relations_target else "resource_exhaustion"
+
+    # Real arm: degree-split claw, unplanted targets. Table build wall is
+    # charged into wall_split per cost_identities.cost_split.
+    D = frozen_D(bits, m)
+    left_arity = m // 2
+    tb0 = time.perf_counter()
+    table, entries, _im = build_claw_table(
+        E, fb.signed, left_arity, D, B, smoothness_abort, tb0 + per_arm_budget * 0.4,
+    )
+    remaining_budget = max(per_arm_budget - (time.perf_counter() - tb0), 0.0)
+    _harvest_wall, cell.n_usable_split, cell.attempted_split, peak_tab, samples_s = harvest_real_unplanted(
+        E, inst, fb, "split", m, bits, B, table, remaining_budget, deadline_cell,
+        relations_target, smoothness_abort, rng,
+    )
+    cell.wall_split = time.perf_counter() - tb0
+    cell.stop_reason_split = "target_reached" if cell.n_usable_split >= relations_target else "resource_exhaustion"
+    cell.peak_rss_bytes_claw_table = entries * 64
+    try:
+        cell.peak_rss_bytes_claw_table = max(
+            cell.peak_rss_bytes_claw_table,
+            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        )
+    except Exception:
+        pass
+
+    cell.cost_naive = cost_from_wall(cell.wall_naive, rho_gop_per_second, cell.n_usable_naive)
+    cell.cost_split = cost_from_wall(cell.wall_split, rho_gop_per_second, cell.n_usable_split)
+    if cell.cost_naive and cell.cost_naive > 0:
+        cell.R = cell.cost_split / cell.cost_naive
+    else:
+        cell.notes.append("cost_naive_zero_or_missing")
+
+    cell.success_probability_naive = (
+        cell.n_usable_naive / cell.attempted_naive if cell.attempted_naive else None
+    )
+    cell.success_probability_split = (
+        cell.n_usable_split / cell.attempted_split if cell.attempted_split else None
+    )
+
+    # Null arms (structure-destruction object): unchanged hash-oracle logic,
+    # inherently not "planted" in the sense this control tests -- no real-curve
+    # witness is ever embedded in NULL-DS-RANDOM-MULTIHOMOGENEOUS.
+    cell.wall_naive_null, cell.n_usable_naive_null, cell.attempted_naive_null = harvest_null_arm(
+        fb.xs, seed, bits, B, m, "naive", per_arm_budget, deadline_cell, relations_target,
+    )
+    cell.stop_reason_naive_null = (
+        "target_reached" if cell.n_usable_naive_null >= relations_target else "resource_exhaustion"
+    )
+    cell.wall_split_null, cell.n_usable_split_null, cell.attempted_split_null = harvest_null_arm(
+        fb.xs, seed, bits, B, m, "split", per_arm_budget, deadline_cell, relations_target,
+    )
+    cell.stop_reason_split_null = (
+        "target_reached" if cell.n_usable_split_null >= relations_target else "resource_exhaustion"
+    )
+    cell.cost_naive_null = cost_from_wall(cell.wall_naive_null, rho_gop_per_second, cell.n_usable_naive_null)
+    cell.cost_split_null = cost_from_wall(cell.wall_split_null, rho_gop_per_second, cell.n_usable_split_null)
+    if cell.cost_naive_null and cell.cost_naive_null > 0:
+        cell.R_null = cell.cost_split_null / cell.cost_naive_null
+
+    # Bootstrap CI (same construction as execute_cell).
+    brng = random.Random(_seed_int(seed, "bootstrap_ctrl_unplanted"))
+    if samples_n and samples_s and cell.n_usable_naive > 0 and cell.n_usable_split > 0:
+        reps = []
+        for _ in range(min(100, len(samples_n), len(samples_s))):
+            wn = samples_n[brng.randrange(len(samples_n))]
+            ws = samples_s[brng.randrange(len(samples_s))]
+            if wn > 0:
+                reps.append(ws / wn)
+        if reps:
+            lo, hi = bootstrap_ci(reps, brng)
+            cell.R_ci = [lo, hi]
+    if cell.R is not None and cell.R_ci is None:
+        cell.R_ci = [cell.R, cell.R]
+    if cell.R_null is not None:
+        cell.R_null_ci = [cell.R_null, cell.R_null]
+
+    # CTRL-BACKEND-IDENTICAL sign-stability proxy (same formula as execute_cell).
+    if cell.R is not None and cell.R_ci is not None:
+        lo, hi = cell.R_ci
+        ci_excludes = hi < 0.5 or lo > 0.5
+        R_lo = cell.R / 1.1
+        R_hi = cell.R * 1.1
+        stable = (R_lo - 0.5) * (R_hi - 0.5) > 0 if ci_excludes else True
+        cell.calibration_perturbation_sign_stable = bool(stable)
+
+    # Assembled E proxy (same formula as execute_cell).
+    n = max(inst.n, 2)
+    beta = math.log(max(B, 2)) / math.log(n)
+    omega_LA = 2.0
+    cell.assembled_E_proxy = max(beta * m / 2.0, omega_LA * beta, beta)
+
+    # R-1 cell label (observation only -- identical rule to execute_cell).
+    if cell.R is not None and cell.R_null is not None:
+        if cell.R < 0.5 and cell.R_null < 0.9:
+            cell.r1_cell_label = "F2_eligible"
+        elif cell.R < 0.5 and cell.R_null >= 0.9:
+            cell.r1_cell_label = "S1_eligible_on_null_axis"
+        elif cell.R >= 0.9:
+            cell.r1_cell_label = "F1_band"
+        else:
+            cell.r1_cell_label = "middle_band"
+    else:
+        cell.r1_cell_label = "metrics_incomplete"
+
+    if cell.n_usable_naive == 0 and cell.n_usable_split == 0:
+        cell.status = "resource_exhaustion"
+        cell.protocol_stop = "no_usable_relations_within_cell_budget"
+    elif (
+        cell.n_usable_naive >= relations_target
+        and cell.n_usable_split >= relations_target
+        and cell.n_usable_naive_null >= relations_target
+        and cell.n_usable_split_null >= relations_target
+    ):
+        cell.status = "completed_valid"
+        cell.protocol_stop = "target_reached_all_arms"
+    elif time.perf_counter() - t_cell0 >= cell_wall_budget:
+        cell.status = "completed_valid" if (cell.n_usable_naive > 0 or cell.n_usable_split > 0) else "resource_exhaustion"
+        cell.protocol_stop = "wall_clock_cell_budget"
+    else:
+        cell.status = "completed_valid"
+        cell.protocol_stop = "relations_or_attempt_cap"
+
+    return cell
+
+
+def compute_live_plant_companion(
+    cost_naive: Optional[float],
+    cost_split: Optional[float],
+    cost_naive_null: Optional[float],
+    cost_split_null: Optional[float],
+) -> dict:
+    """CTRL-RT025-PLANT-LIVE: live /4 inflation of measured split costs
+    (real + null echo), WITHOUT any synthetic known-answer shortcut. Detection
+    is computed strictly from the actually-measured cost numbers of this run's
+    primary unplanted cell -- there is no synth_R/synth_Rn fallback and no
+    hardcoded True. If the live numbers do not trip the gate, this function
+    honestly reports planted_bug_detected=False.
+    """
+    result: dict = {
+        "method": "live_quarter_inflation_on_measured_costs",
+        "synthetic_known_answer_used": False,
+        "cost_naive_measured": cost_naive,
+        "cost_split_measured": cost_split,
+        "cost_naive_null_measured": cost_naive_null,
+        "cost_split_null_measured": cost_split_null,
+    }
+    if not cost_naive or not cost_naive_null or cost_split is None or cost_split_null is None:
+        result.update({
+            "fake_cost_split": None,
+            "fake_cost_split_null": None,
+            "fake_R": None,
+            "fake_R_null": None,
+            "planted_bug_detected": False,
+            "detection_note": "insufficient measured costs to construct live plant",
+        })
+        return result
+    fake_cost_split = cost_split / 4.0
+    fake_cost_split_null = cost_split_null / 4.0
+    fake_R = fake_cost_split / cost_naive
+    fake_R_null = fake_cost_split_null / cost_naive_null
+    detected = bool(fake_R < 0.5 and fake_R_null < 0.9)
+    result.update({
+        "fake_cost_split": fake_cost_split,
+        "fake_cost_split_null": fake_cost_split_null,
+        "fake_R": fake_R,
+        "fake_R_null": fake_R_null,
+        "planted_bug_detected": detected,
+        "detection_rule": "detected iff fake_R < 0.5 and fake_R_null < 0.9 (both live-measured, no synthetic fallback)",
+    })
+    return result
+
+
+def inference_block_ctrl_unplanted() -> dict:
+    """Inference provenance for TASK-20260731-044, distinct from the prior
+    executor session's inference_block() (which correctly records that prior
+    session's own Cursor/Grok resolution and must not be reused here)."""
+    return {
+        "requested_policy": "executor-implementation",
+        "resolved_model_id": "claude-sonnet-5",
+        "reasoning_effort": None,
+        "fallback_allowed": True,
+        "fallback_used": False,
+        "fallback_reason": None,
+        "degraded_allowed": False,
+        "degraded_requirements": [],
+        "model_verified": False,
+        "model_verified_note": (
+            "orchestration/model-bindings.yaml binds executor-implementation on "
+            "backend anthropic to claude-sonnet-5 (provenance runtime-verified). "
+            "`python3 -m orchestration.adapter doctor` cannot itself probe from "
+            "this container because $ANTHROPIC_API_KEY is unset -- an "
+            "infrastructure observation, not a policy failure. This task runs "
+            "directly under the Claude Code runtime (not the adapter), which is "
+            "the mechanism the harness uses to resolve executor-implementation "
+            "to this session's own model identity."
+        ),
+        "independent_session_required": False,
+        "adapter_version": None,
+    }
+
+
+def write_ctrl_run_artifacts(
+    run_id: str,
+    out_dir: Path,
+    command: str,
+    raw: dict,
+    status: str,
+    cell: CtrlUnplantedCellResult,
+    invalid_reason: Optional[str] = None,
+    started: Optional[str] = None,
+    finished: Optional[str] = None,
+    wall_seconds: Optional[float] = None,
+) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    g = git_state()
+    env = env_block()
+    (out_dir / "command.txt").write_text(command + "\n", encoding="utf-8")
+    (out_dir / "environment.json").write_text(json.dumps(env, indent=2) + "\n", encoding="utf-8")
+    (out_dir / "stdout.txt").write_text(raw.get("_stdout", "") + "\n", encoding="utf-8")
+    (out_dir / "stderr.txt").write_text(raw.get("_stderr", "") + "\n", encoding="utf-8")
+    raw_out = {k: v for k, v in raw.items() if not k.startswith("_")}
+    (out_dir / "raw-result.json").write_text(json.dumps(raw_out, indent=2, default=str) + "\n", encoding="utf-8")
+
+    cert = raw_out.get("certificate") or {"kind": "none", "verified": True, "verifier": None}
+    manifest = {
+        "schema": "crypto.autoresearch.run_manifest.v1",
+        "run_id": run_id,
+        "experiment_id": "EXP-DS-001",
+        "hypothesis_id": "H-DS-001",
+        "task_id": "TASK-20260731-044",
+        "goal_id": "GOAL-ECDLP-001",
+        "batch_id": "BATCH-020",
+        "contract": {
+            "path": CONTRACT_PATH,
+            "version": "2.1-ctrl",
+            "parent_version": 2,
+            "parent_approval_snapshot": "65f3c82babae49a9acea64cfa2650d4f3d45cf72",
+            "control_protocol_path": "experiments/EXP-DS-001/controls/CTRL-RT025-UNPLANTED.yaml",
+            "control_protocol_id": "CTRL-RT025-UNPLANTED",
+            "companion_control_id": "CTRL-RT025-PLANT-LIVE",
+            "amendment_path": "experiments/EXP-DS-001/amendments/v2_ctrl_unplanted.yaml",
+            "protocol_amendment_id": "PA-DS-001-v2-ctrl-unplanted",
+            "approval_task": "TASK-20260731-043",
+            "approval_determination": "APPROVED",
+            "approval_receipt": (
+                "coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/archives/"
+                "TASK-20260731-043/snapshot_commit_receipt.json"
+            ),
+        },
+        "status": status,
+        "code": {
+            "commit": g.get("commit"),
+            "dirty": g.get("dirty"),
+            "branch": g.get("branch"),
+            "command": command,
+        },
+        "inference": inference_block_ctrl_unplanted(),
+        "environment": env,
+        "inputs": {
+            "bits": cell.bits,
+            "B": cell.B,
+            "m": cell.m,
+            "seed": cell.seed,
+            "backend_id": BACKEND_ID,
+            "backend_id_sha256": sha256_bytes(BACKEND_ID.encode()),
+            "target_mode": cell.target_mode,
+            "smoothness_abort": False,
+            "relations_target": cell.relations_target,
+        },
+        "timing": {
+            "started_at": started,
+            "finished_at": finished,
+            "wall_seconds": wall_seconds,
+        },
+        "resources": {
+            "peak_rss_bytes": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+            "cpu_seconds": resource.getrusage(resource.RUSAGE_SELF).ru_utime
+            + resource.getrusage(resource.RUSAGE_SELF).ru_stime,
+        },
+        "result": {
+            "metrics": raw_out.get("metrics", {}),
+            "valid": status == "completed_valid",
+            "invalid_reason": invalid_reason,
+            "certificate": cert,
+        },
+        "artifacts": {
+            "raw-result.json": str(out_dir / "raw-result.json"),
+            "stdout.txt": str(out_dir / "stdout.txt"),
+            "stderr.txt": str(out_dir / "stderr.txt"),
+        },
+    }
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str) + "\n", encoding="utf-8")
+
+
+def mode_ctrl_unplanted(args: argparse.Namespace) -> int:
+    started = utc_now()
+    t0 = time.perf_counter()
+    logs = []
+    bits, B, m, seed = args.bits, args.B, args.m, args.seed
+    relations_target = args.relations
+    cell_wall = args.cell_wall
+
+    cell = execute_ctrl_cell(
+        bits=bits, B=B, m=m, seed=seed,
+        cell_wall_budget=cell_wall,
+        relations_target=relations_target,
+        smoothness_abort=False,
+    )
+    logs.append(
+        f"ctrl_unplanted_cell bits={bits} B={B} m={m} seed={seed} status={cell.status} "
+        f"protocol_stop={cell.protocol_stop} R={cell.R} R_null={cell.R_null} "
+        f"label={cell.r1_cell_label} "
+        f"n=(naive={cell.n_usable_naive},split={cell.n_usable_split},"
+        f"naive_null={cell.n_usable_naive_null},split_null={cell.n_usable_split_null}) "
+        f"attempted=(naive={cell.attempted_naive},split={cell.attempted_split}) "
+        f"stop=(naive={cell.stop_reason_naive},split={cell.stop_reason_split},"
+        f"naive_null={cell.stop_reason_naive_null},split_null={cell.stop_reason_split_null})"
+    )
+
+    live_plant = compute_live_plant_companion(
+        cell.cost_naive, cell.cost_split, cell.cost_naive_null, cell.cost_split_null,
+    )
+    logs.append(
+        f"live_plant_companion fake_R={live_plant.get('fake_R')} "
+        f"fake_R_null={live_plant.get('fake_R_null')} "
+        f"detected={live_plant['planted_bug_detected']} "
+        f"synthetic_used={live_plant['synthetic_known_answer_used']}"
+    )
+
+    cert = {"kind": "none", "verified": True, "verifier": None}
+    status = cell.status
+    invalid_reason = None
+    if cell.rho and cell.rho.get("solved"):
+        cert = {
+            "kind": "discrete_log",
+            "verified": bool(cell.rho.get("certificate_verified")),
+            "verifier": "harness.toycurve.EllipticCurve.mul independent check in driver + verify_certificates.py",
+            "k": cell.rho.get("k"),
+        }
+        if not cert["verified"]:
+            status = "invalid_measurement"
+            invalid_reason = "CTRL-RHO discrete_log certificate failed independent re-verification"
+
+    raw = {
+        "mode": "ctrl-unplanted",
+        "run_id": "RUN-DS-001-ctrl-unplanted",
+        "control_protocol_id": "CTRL-RT025-UNPLANTED",
+        "companion_control_id": "CTRL-RT025-PLANT-LIVE",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-unplanted",
+        "cell": asdict(cell),
+        "live_plant_companion": live_plant,
+        "metrics": {
+            "R": cell.R,
+            "R_null": cell.R_null,
+            "r1_cell_label": cell.r1_cell_label,
+            "fb_x_hash": cell.fb_x_hash,
+            "null_object_spec_hash": cell.null_object_spec_hash,
+            "backend_id": BACKEND_ID,
+            "relations_target": relations_target,
+            "n_usable_naive": cell.n_usable_naive,
+            "n_usable_split": cell.n_usable_split,
+            "n_usable_naive_null": cell.n_usable_naive_null,
+            "n_usable_split_null": cell.n_usable_split_null,
+            "attempted_naive": cell.attempted_naive,
+            "attempted_split": cell.attempted_split,
+            "success_probability_naive": cell.success_probability_naive,
+            "success_probability_split": cell.success_probability_split,
+            "stop_reason_naive": cell.stop_reason_naive,
+            "stop_reason_split": cell.stop_reason_split,
+            "stop_reason_naive_null": cell.stop_reason_naive_null,
+            "stop_reason_split_null": cell.stop_reason_split_null,
+            "protocol_stop": cell.protocol_stop,
+            "live_plant_detected": live_plant["planted_bug_detected"],
+        },
+        "certificate": cert,
+        "r1_note": (
+            "R-1 binding: primary unplanted R/R_null measured with the /4 plant "
+            "OFF; F2_eligible iff R<0.5 and R_null<0.9 (observation label only, "
+            "not a conclusion about H-DS-001). Live /4 plant is a companion "
+            "detection path only (live_plant_companion / live_plant_report.json) "
+            "and does not confound the primary R/R_null reported here."
+        ),
+        "relation_verification_note": (
+            "Each reported usable relation is re-verified by an independent "
+            "from-scratch resummation (point_sum over the claimed summands, "
+            "compared to the target) inside naive_search/split_search before "
+            "being counted -- same convention as RUN-DS-001-impl/measure. The "
+            "top-level certificate field follows that same sibling-run "
+            "precedent: escalated to kind=discrete_log only when CTRL-RHO "
+            "independently solves and verifies k."
+        ),
+        "_stdout": "\n".join(logs),
+        "_stderr": "",
+    }
+    finished = utc_now()
+    cmd = (
+        f"python3 experiments/EXP-DS-001/implementation/ds001_driver.py "
+        f"--mode ctrl-unplanted --bits {bits} --B {B} --m {m} --seed {seed} "
+        f"--cell-wall {cell_wall} --relations {relations_target} "
+        f"--out-run {args.out_run} --results-dir {args.results_dir}"
+    )
+    write_ctrl_run_artifacts(
+        "RUN-DS-001-ctrl-unplanted", Path(args.out_run), cmd, raw, status, cell,
+        invalid_reason=invalid_reason, started=started, finished=finished,
+        wall_seconds=time.perf_counter() - t0,
+    )
+
+    # Assemble experiments/EXP-DS-001/results/ctrl_unplanted/*.json directly
+    # from this single-cell run (no separate finalize pass needed).
+    results_dir = Path(args.results_dir)
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    summary = {
+        "experiment_id": "EXP-DS-001",
+        "run_id": "RUN-DS-001-ctrl-unplanted",
+        "task_id": "TASK-20260731-044",
+        "control_protocol_id": "CTRL-RT025-UNPLANTED",
+        "companion_control_id": "CTRL-RT025-PLANT-LIVE",
+        "protocol_amendment_id": "PA-DS-001-v2-ctrl-unplanted",
+        "claim_tier": "toy",
+        "cell": {"bits": bits, "B": B, "m": m, "seed": seed},
+        "target_mode": cell.target_mode,
+        "backend_id": BACKEND_ID,
+        "smoothness_abort": False,
+        "relations_target": relations_target,
+        "status": status,
+        "protocol_stop": cell.protocol_stop,
+        "R": cell.R,
+        "R_null": cell.R_null,
+        "r1_cell_label": cell.r1_cell_label,
+        "n_usable_naive": cell.n_usable_naive,
+        "n_usable_split": cell.n_usable_split,
+        "n_usable_naive_null": cell.n_usable_naive_null,
+        "n_usable_split_null": cell.n_usable_split_null,
+        "attempted_naive": cell.attempted_naive,
+        "attempted_split": cell.attempted_split,
+        "success_probability_naive": cell.success_probability_naive,
+        "success_probability_split": cell.success_probability_split,
+        "stop_reason_naive": cell.stop_reason_naive,
+        "stop_reason_split": cell.stop_reason_split,
+        "stop_reason_naive_null": cell.stop_reason_naive_null,
+        "stop_reason_split_null": cell.stop_reason_split_null,
+        "live_plant_detected": live_plant["planted_bug_detected"],
+        "certificate": cert,
+        "inference": inference_block_ctrl_unplanted(),
+        "git": git_state(),
+        "does_not_supersede": (
+            "EV-DS-002 / planted relations=200 package (snapshot 1eb431f1) "
+            "remains the operative planted-package record; this is a separate "
+            "control-package measurement."
+        ),
+        "note": (
+            "Toy-tier single-cell control remeasure only. Observation only; "
+            "no interpretation of H-DS-001 status. Not S1_met from this control "
+            "alone; no asymptotic support; H-IC-001/H-STR-002 untouched."
+        ),
+    }
+    (results_dir / "summary.json").write_text(json.dumps(summary, indent=2, default=str) + "\n")
+
+    r_cell = {
+        "bits": bits, "B": B, "m": m, "seed": seed,
+        "status": status,
+        "target_mode": cell.target_mode,
+        "plant_state": (
+            "OFF on primary measurement (R-1 binding); live /4 companion "
+            "reported separately in live_plant_report.json"
+        ),
+        "backend_id": BACKEND_ID,
+        "smoothness_abort": False,
+        "relations_target": relations_target,
+        "R": cell.R,
+        "R_bootstrap_ci_95": cell.R_ci,
+        "R_null": cell.R_null,
+        "R_null_bootstrap_ci_95": cell.R_null_ci,
+        "cost_naive": cell.cost_naive,
+        "cost_split": cell.cost_split,
+        "cost_naive_null": cell.cost_naive_null,
+        "cost_split_null": cell.cost_split_null,
+        "n_usable_naive": cell.n_usable_naive,
+        "n_usable_split": cell.n_usable_split,
+        "n_usable_naive_null": cell.n_usable_naive_null,
+        "n_usable_split_null": cell.n_usable_split_null,
+        "attempted_naive": cell.attempted_naive,
+        "attempted_split": cell.attempted_split,
+        "attempted_naive_null": cell.attempted_naive_null,
+        "attempted_split_null": cell.attempted_split_null,
+        "success_probability_naive": cell.success_probability_naive,
+        "success_probability_split": cell.success_probability_split,
+        "wall_naive": cell.wall_naive,
+        "wall_split": cell.wall_split,
+        "wall_naive_null": cell.wall_naive_null,
+        "wall_split_null": cell.wall_split_null,
+        "stop_reason_naive": cell.stop_reason_naive,
+        "stop_reason_split": cell.stop_reason_split,
+        "stop_reason_naive_null": cell.stop_reason_naive_null,
+        "stop_reason_split_null": cell.stop_reason_split_null,
+        "cost_identities": {
+            "rho_gop_per_second": "rho_total_group_operations / rho_wall_seconds",
+            "cost_naive": "wall_seconds_naive * rho_gop_per_second / max(n_usable_relations_naive, 1)",
+            "cost_split": "wall_seconds_split * rho_gop_per_second / max(n_usable_relations_split, 1)",
+            "R": "cost_split / cost_naive",
+            "R_null": "cost_split_null / cost_naive_null",
+        },
+        "assembled_E_proxy": cell.assembled_E_proxy,
+        "calibration_perturbation_sign_stable": cell.calibration_perturbation_sign_stable,
+        "rho": cell.rho,
+        "bsgs": cell.bsgs,
+        "peak_rss_bytes_claw_table": cell.peak_rss_bytes_claw_table,
+        "fb_x_hash": cell.fb_x_hash,
+        "null_object_spec_hash": cell.null_object_spec_hash,
+        "r1_cell_label": cell.r1_cell_label,
+        "r1_note": "F2_eligible iff R<0.5 and R_null<0.9; observation label only, not a conclusion (R-1).",
+        "notes": cell.notes,
+    }
+    (results_dir / "R_cell.json").write_text(json.dumps(r_cell, indent=2, default=str) + "\n")
+
+    null_report = {
+        "null_object_id": NULL_SPEC_ID,
+        "null_object_spec_hash": cell.null_object_spec_hash,
+        "proposal": "IDEA-20260731-011",
+        "cell": {"bits": bits, "B": B, "m": m, "seed": seed},
+        "R": cell.R,
+        "R_null": cell.R_null,
+        "r1_cell_label": cell.r1_cell_label,
+        "n_usable_naive_null": cell.n_usable_naive_null,
+        "n_usable_split_null": cell.n_usable_split_null,
+        "attempted_naive_null": cell.attempted_naive_null,
+        "attempted_split_null": cell.attempted_split_null,
+        "cost_naive_null": cell.cost_naive_null,
+        "cost_split_null": cell.cost_split_null,
+        "stop_reason_naive_null": cell.stop_reason_naive_null,
+        "stop_reason_split_null": cell.stop_reason_split_null,
+        "gate": "R-1: report R and R_null for the unplanted cell; F2_eligible iff R<0.5 and R_null<0.9",
+        "heur_note": (
+            "Not re-run for this control (CTRL-RT025-UNPLANTED.yaml scope.heursampling); "
+            "prior HEUR-DS-1 F3 observation (EV-DS-002) remains standing."
+        ),
+    }
+    (results_dir / "null_control_report.json").write_text(json.dumps(null_report, indent=2, default=str) + "\n")
+
+    live_plant_report = {
+        "control_id": "CTRL-RT025-PLANT-LIVE",
+        "cell": {"bits": bits, "B": B, "m": m, "seed": seed},
+        "method": live_plant["method"],
+        "synthetic_known_answer_used": live_plant["synthetic_known_answer_used"],
+        "measured_costs_used": {
+            "cost_naive": live_plant["cost_naive_measured"],
+            "cost_split": live_plant["cost_split_measured"],
+            "cost_naive_null": live_plant["cost_naive_null_measured"],
+            "cost_split_null": live_plant["cost_split_null_measured"],
+        },
+        "fake_cost_split": live_plant.get("fake_cost_split"),
+        "fake_cost_split_null": live_plant.get("fake_cost_split_null"),
+        "fake_R": live_plant.get("fake_R"),
+        "fake_R_null": live_plant.get("fake_R_null"),
+        "planted_bug_detected": live_plant["planted_bug_detected"],
+        "detection_rule": live_plant.get("detection_rule"),
+        "pass_condition": (
+            "planted_bug_detected true via live /4 detection path; "
+            "synthetic-only detection is insufficient for discharge "
+            "(CTRL-RT025-UNPLANTED.yaml companion_live_plant)."
+        ),
+        "falsifies_if": "Live plant not detected while summary still claims planted_bug_detected=true.",
+        "note": (
+            "Companion detection path only; does NOT affect the primary "
+            "unplanted R/R_null reported in R_cell.json (R-1 binding, plant "
+            "OFF on primary)."
+        ),
+    }
+    (results_dir / "live_plant_report.json").write_text(json.dumps(live_plant_report, indent=2, default=str) + "\n")
+
+    print("\n".join(logs))
+    print("LIVE_PLANT_DETECTED", live_plant["planted_bug_detected"])
+    return 0 if status == "completed_valid" else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="EXP-DS-001 v2 driver")
-    ap.add_argument("--mode", choices=["impl", "measure", "heur", "finalize"], required=True)
+    ap.add_argument(
+        "--mode",
+        choices=["impl", "measure", "heur", "finalize", "ctrl-unplanted"],
+        required=True,
+    )
     ap.add_argument("--out-run", default="")
     ap.add_argument("--exp-root", default=str(REPO / "experiments" / "EXP-DS-001"))
     ap.add_argument("--cell-wall", type=float, default=90.0)
@@ -1589,19 +2363,30 @@ def main() -> int:
     ap.add_argument("--relations", type=int, default=200)
     ap.add_argument("--n-samples", type=int, default=100000)
     ap.add_argument("--smoke-matrix", action="store_true")
+    # ctrl-unplanted (TASK-20260731-044 / CTRL-RT025-UNPLANTED) single-cell args.
+    ap.add_argument("--bits", type=int, default=20)
+    ap.add_argument("--B", dest="B", type=int, default=64)
+    ap.add_argument("--m", type=int, default=4)
+    ap.add_argument("--seed", type=int, default=101)
+    ap.add_argument("--results-dir", default="")
     args = ap.parse_args()
-    if args.mode != "finalize" and not args.out_run:
+    if args.mode not in ("finalize",) and not args.out_run:
         args.out_run = str(Path(args.exp_root) / "runs" / {
             "impl": "RUN-DS-001-impl",
             "measure": "RUN-DS-001-measure",
             "heur": "RUN-DS-001-heur",
+            "ctrl-unplanted": "RUN-DS-001-ctrl-unplanted",
         }[args.mode])
+    if args.mode == "ctrl-unplanted" and not args.results_dir:
+        args.results_dir = str(Path(args.exp_root) / "results" / "ctrl_unplanted")
     if args.mode == "impl":
         return mode_impl(args)
     if args.mode == "measure":
         return mode_measure(args)
     if args.mode == "heur":
         return mode_heur(args)
+    if args.mode == "ctrl-unplanted":
+        return mode_ctrl_unplanted(args)
     return mode_finalize(args)
 
 
