@@ -6,14 +6,18 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260731-044` | executor | queued | 80 | TASK-20260731-043 | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/manifest.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/raw-result.json, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stdout.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stderr.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/command.txt, experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/environment.json, experiments/EXP-DS-001/results/ctrl_unplanted/summary.json, experiments/EXP-DS-001/results/ctrl_unplanted/R_cell.json, experiments/EXP-DS-001/results/ctrl_unplanted/null_control_report.json, experiments/EXP-DS-001/results/ctrl_unplanted/live_plant_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044/execution_report.yaml | experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted, experiments/EXP-DS-001/results/ctrl_unplanted, experiments/EXP-DS-001/implementation, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044 |
+| `TASK-20260801-001` | coordinator | queued | 100 | - | ledger/corrections/CORR-20260801-001.yaml, experiments/EXP-DS-001/amendments/v2_ctrl_unplanted_archive_rebind.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/QUEUE-AMEND-20260801-002.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260801-001/task_report.md | ledger/corrections/CORR-20260801-001.yaml, experiments/EXP-DS-001/amendments/v2_ctrl_unplanted_archive_rebind.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/QUEUE-AMEND-20260801-002.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260801-001 |
 
 ## Deferred or Blocked
 
+- `TASK-20260731-044`: dependency_not_completed:TASK-20260801-004:queued
 - `TASK-20260731-045`: dependency_not_completed:TASK-20260731-044:queued
 - `TASK-20260731-046`: dependency_not_completed:TASK-20260731-044:queued, dependency_not_completed:TASK-20260731-045:queued
 - `TASK-20260731-047`: dependency_not_completed:TASK-20260731-044:queued, dependency_not_completed:TASK-20260731-045:queued
 - `TASK-20260731-048`: dependency_not_completed:TASK-20260731-045:queued, dependency_not_completed:TASK-20260731-046:queued, dependency_not_completed:TASK-20260731-047:queued
+- `TASK-20260801-002`: dependency_not_completed:TASK-20260801-001:queued
+- `TASK-20260801-003`: dependency_not_completed:TASK-20260801-001:queued, dependency_not_completed:TASK-20260801-002:queued
+- `TASK-20260801-004`: dependency_not_completed:TASK-20260801-003:queued
 
 ## Dispatch Gates
 
@@ -28,4 +32,4 @@ BATCH-020 CTRL-RT025-UNPLANTED: author PA-DS-001-v2-ctrl-unplanted (single cell 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9b4dc4b4f7e5e5b24d8d60d712519733a51677ee87e16604826566be042662db`
+Plan SHA-256: `59920144603dd654743e6a2441f1397c95655a609f6fea39f567d6d15b12ef05`
