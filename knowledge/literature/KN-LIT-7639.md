@@ -15,8 +15,18 @@ tags: [astra, openai, ai-for-mathematics, autonomous-research, machine-discovere
 confidence: reported
 citation_verified: false
 added: "2026-08-01"
-superseded_by: null
+superseded_by: KN-LIT-7640
 ---
+
+> **Superseded by [[KN-LIT-7640]] (2026-08-02).** The primary PDF was retrieved
+> and read once egress was opened. Three claims below did not survive it: the
+> model is never named "Astra" in the source, the source contains no Lean
+> formalization or certificate of any kind, and the sphere-packing result is an
+> exact determination of the Cohn–Elkies rate plus a matching barrier rather than
+> an approach to a threshold. The ≈$2,000 cost figure appears nowhere in the
+> primary source. This entry is retained unaltered as the record of what was
+> knowable from coverage alone, and remains the only place the announcement-page
+> and social-media claims are collected — all still unverified.
 
 ## Sourcing warning — read before citing this entry
 
