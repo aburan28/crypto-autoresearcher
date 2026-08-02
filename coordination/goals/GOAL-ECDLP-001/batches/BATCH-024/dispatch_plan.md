@@ -6,15 +6,12 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-040` | reviewer | queued | 93 | TASK-20260801-039 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-040/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-040/attainability_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-040/anti_tuning_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-040/alternative_class_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-040 |
+| `TASK-20260801-043` | coordinator | queued | 95 | TASK-20260801-042 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-043/snapshot_commit_receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-043 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-041`: dependency_not_completed:TASK-20260801-040:queued
-- `TASK-20260801-042`: dependency_not_completed:TASK-20260801-041:queued
-- `TASK-20260801-043`: dependency_not_completed:TASK-20260801-042:queued
-- `TASK-20260801-044`: dependency_not_completed:TASK-20260801-042:queued, dependency_not_completed:TASK-20260801-043:queued
-- `TASK-20260801-045`: dependency_not_completed:TASK-20260801-042:queued, dependency_not_completed:TASK-20260801-043:queued
+- `TASK-20260801-044`: dependency_not_completed:TASK-20260801-043:queued
+- `TASK-20260801-045`: dependency_not_completed:TASK-20260801-043:queued
 - `TASK-20260801-046`: dependency_not_completed:TASK-20260801-043:queued, dependency_not_completed:TASK-20260801-044:queued, dependency_not_completed:TASK-20260801-045:queued
 
 ## Dispatch Gates
@@ -30,4 +27,4 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `71f8c590cb71ff48318eafb59f75d9ceed15700accd1ee4bfbb131c0a4198406`
+Plan SHA-256: `833b5ebc0e1d83b4adeb3c2c142e0ecdce5381eb1ea9a4b136bf5645311d115c`
