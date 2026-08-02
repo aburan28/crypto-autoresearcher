@@ -125,7 +125,7 @@ def main() -> int:
             relation_input = INPUT.write_fixture_record(relation_path, fixture_path, curve_id, FAMILIES)
             instance = fixture["instances"][0]
             selector_orders = {
-                (len(item["factor_base"]["points"]), item["run_seed"]): _selector_order(instance["curve"], item)
+                (len(item["factor_base"]["points"]), item["run_seed"] ^ 0x5A17C0DE): _selector_order(instance["curve"], item)
                 for item in instance["families"]
             }
             candidate = _run_candidate([relation_path], fixture_path, fixture, selector_orders)
@@ -185,4 +185,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
