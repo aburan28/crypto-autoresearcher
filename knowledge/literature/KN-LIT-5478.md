@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-5478
 type: literature
-title: "On the Gold Standard for Security of Universal Steganography"
+title: On the Gold Standard for Security of Universal Steganography
 authors:
-  - "Sebastian Berndt"
-  - "Maciej Liśkiewicz"
+- Sebastian Berndt
+- Maciej Liśkiewicz
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- steganography
+- provable-security
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

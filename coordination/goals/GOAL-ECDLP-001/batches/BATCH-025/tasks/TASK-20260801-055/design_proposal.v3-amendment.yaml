@@ -1,0 +1,105 @@
+design_proposal_v3_amendment:
+  task_id: TASK-20260801-055
+  amends: >-
+    coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260801-051/design_proposal.v2.yaml
+  amendment_rule: >-
+    Every field below replaces the same-named v2 field. Unnamed v2 fields remain
+    binding. A conflict is resolved in favor of this amendment. Both files form
+    the v3 design and neither file may be edited.
+  review_repaired: RT-20260801-052
+  status: coordinator_draft_not_approved
+  execution_authorized: false
+
+  statistics_replacement:
+    empirical_cdf: F_A(t)=#{z in A:z<=t}/|A|
+    support_for_suprema: sorted union of test and reference z values
+    two_sided_KS_z: max_t(abs(F_test(t)-F_reference(t)))
+    directional_KS_smoother_z: max_t(F_test(t)-F_reference(t))
+    smooth_rate_difference_u: (c_test_u-c_reference_u)/130816
+    corrected_log_rate_ratio_u: >-
+      log((c_test_u+0.5)/(130816+1))-log((c_reference_u+0.5)/(130816+1)).
+      Larger is smoother and is the frozen positive direction.
+    reference_minus_test_top_mean_k: >-
+      mean of the k largest reference z values minus mean of the k largest test
+      z values, using k in [1,8,64,512]. Larger is smoother.
+    floating_point: IEEE-754 binary64 with Python math.log; sort ascending by (z,N,index)
+
+  calibration_validation_predicate:
+    literal_pass: >-
+      PASS iff all 32 transformation and 32 maximum replicates exist at every
+      one of eight fixtures; every array has 130816 values in [1,X]; all
+      factorization reconstructions and hashes pass; stream domains are unique;
+      the 28-coordinate order matches v2 exactly; centers, MAD, IQR fallback,
+      scales, all 32 M_r values and the p-grid are bit-for-bit reproduced by an
+      independent implementation; and no source or plant artifact exists.
+    any_failure: REVISE_WITHOUT_SOURCE
+
+  gross_plant_replacement:
+    construction: >-
+      Draw fresh NULL-K512-ADD U. For each U factor it, retain exactly the
+      prime-power factors with prime<=B_4, multiply them to N_gross using 1 for
+      an empty product, serialize N_gross, and re-factor N_gross through the
+      ordinary pipeline.
+    pass: >-
+      family p<=0.05, positive aggregate u4 smooth-rate difference at both bits,
+      and positive u4 sign in at least 3 of 4 fixtures per bit.
+    role: Gross implementation responsiveness only; never a sensitivity floor.
+
+  matched_plant_replacement:
+    base_and_pool: >-
+      One fresh base NULL-K512-ADD array and one four-times-larger candidate
+      pool per fixture are shared read-only across all three deltas.
+    bins: >-
+      bin(N)=min(255,floor(256*log2(N)/log2(X))) for N>1; N=1 is excluded from
+      selection and replacement.
+    candidate_order: ascending tuple (bin,LPF,N,candidate_global_index)
+    selected_edge_rule: >-
+      For each delta set m=floor(delta*n_nonone). Rank non-one base edges by
+      SHA256("PLANT-BIN-SMTH/v3|"||delta||"|"||fixture||"|"||edge_index), then
+      edge_index, and select the first m. This is fixed-cardinality, not Bernoulli.
+    replacement_rule: >-
+      For each selected edge independently choose the first candidate in its
+      bin whose LPF is strictly smaller than the base LPF. Candidate reuse is
+      allowed without limit and candidates are never consumed. If none exists,
+      retain the base value. Ties are resolved by candidate_order.
+    refactorization: Every emitted array is re-factored independently for each delta.
+    integrity:
+    - bin-count vector is bit-identical to base
+    - N=1 locations and count are bit-identical to base
+    - selected, replaced, unreplaced and candidate-reuse counts are recorded
+    mandatory_pass: >-
+      At least one delta independently satisfies family p<=0.05, positive
+      aggregate u4 difference at both bits, and positive u4 sign in at least
+      3 of 4 fixtures per bit. Otherwise REVISE_WITHOUT_SOURCE.
+
+  source_gate_replacement: >-
+    Source code may be authored only after calibration validation PASS, gross
+    plant PASS and matched plant mandatory_pass, each independently validated
+    and snapshot-committed. Gross PASS can never substitute for matched PASS.
+
+  branch_repair: >-
+    revise_without_source fires exactly when calibration_validation_predicate
+    fails OR gross plant pass is false OR matched mandatory_pass is false.
+    With precedence after integrity and infrastructure guards, this is a
+    mechanical boolean and the remaining v2 branches are exclusive.
+
+  accounting_confirmation:
+    candidate_pool_shared_across_deltas: true
+    base_shared_across_deltas: true
+    output_refactored_per_delta: true
+    v2_subtotal_unchanged: 79536128
+
+  RT052_repairs:
+    RT052-B1: Fixed-cardinality selection, ordering, ties, reuse and sharing frozen.
+    RT052-B2: Calibration, gross and mandatory matched pass predicates frozen.
+    RT052-B3: Repaired by the separate pilot protocol amendment.
+    RT052-B4: Repaired by the separate pilot protocol amendment.
+    RT052-B5: Every statistic is defined algebraically and oriented.
+
+  claim_boundary:
+    dominated_by: Pollard-rho generic exact ECDLP
+    sota_delta:
+      time_exponent: 0.0
+      memory_exponent: 0.0
+      data_exponent: 0.0
+      solved_instances: 0

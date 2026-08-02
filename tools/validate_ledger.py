@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import glob
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -45,14 +46,35 @@ LEGACY_RUN_INVENTORY = os.path.join(
     REPO, "tools", "legacy_run_inventory.yaml"
 )
 
+# Identifier suffixes. TWO FORMS ARE VALID AND THE RANDOM ONE IS PREFERRED.
+#
+#   SUFFIX_LEGACY  \d{3}        sequential, allocated max+1. Every record minted
+#                               before 2026-08-01 uses it. STILL VALID FOREVER --
+#                               those records are immutable and must keep
+#                               validating -- but NEVER MINT A NEW ONE.
+#   SUFFIX_RANDOM  [0-9a-f]{6}  a random 24-bit token. This is the form new
+#                               records use.
+#
+# Why the change: sequential allocation requires scanning committed state for a
+# maximum, and CONCURRENT WORKTREES ALL SCAN THE SAME STATE AND GET THE SAME
+# ANSWER. They then mint the same identifier for different records, and the
+# collision is only discovered at merge time, when both records are already
+# committed and immutable and neither can be renamed without breaking whatever
+# archive binds it. The random token needs no scan at all, so two worktrees
+# cannot converge by construction. Cost of the change: identifiers no longer
+# sort into creation order. Nothing in this repository ordered by them.
+SUFFIX_LEGACY = r"\d{3}"
+SUFFIX_RANDOM = r"[0-9a-f]{6}"
+SUFFIX = rf"(?:{SUFFIX_LEGACY}|{SUFFIX_RANDOM})"
+
 ID_PATTERNS = {
-    "research_question": re.compile(r"^RQ-[A-Z]+-\d{3}$"),
-    "idea": re.compile(r"^IDEA-\d{8}-\d{3}$"),
-    "hypothesis": re.compile(r"^H-[A-Z]+-\d{3}$"),
-    "experiment": re.compile(r"^EXP-[A-Z]+-\d{3}$"),
-    "evidence": re.compile(r"^EV-[A-Z]+-\d{3}$"),
-    "coordinator_decision": re.compile(r"^DEC-\d{8}-\d{3}$"),
-    "handoff": re.compile(r"^TASK-\d{8}-\d{3}$"),
+    "research_question": re.compile(rf"^RQ-[A-Z]+-{SUFFIX}$"),
+    "idea": re.compile(rf"^IDEA-\d{{8}}-{SUFFIX}$"),
+    "hypothesis": re.compile(rf"^H-[A-Z]+-{SUFFIX}$"),
+    "experiment": re.compile(rf"^EXP-[A-Z]+-{SUFFIX}$"),
+    "evidence": re.compile(rf"^EV-[A-Z]+-{SUFFIX}$"),
+    "coordinator_decision": re.compile(rf"^DEC-\d{{8}}-{SUFFIX}$"),
+    "handoff": re.compile(rf"^TASK-\d{{8}}-{SUFFIX}$"),
 }
 RUN_ID = re.compile(r"^RUN-[A-Za-z0-9._-]+$")
 
@@ -80,6 +102,29 @@ REQUIRED = {
 
 RUN_REQUIRED_TOP = ["id", "experiment_id", "status", "code", "environment",
                     "inputs", "timing", "result"]
+
+# A control, instrument check or certification run legitimately bears on NO
+# hypothesis, and several records say so at length: "Naming a hypothesis here
+# would invite exactly the inference the run cannot support." Requiring the
+# field non-empty pushed those records toward naming a hypothesis they must not
+# name -- the rule inverted its own purpose. An explicit null is accepted, but
+# only when the record documents the choice in a sibling note, so a silent
+# omission is still an error and the reasoning stays on the record.
+DOCUMENTED_NULL_OK = {
+    "hypothesis_id": ("hypothesis_id_note", "hypothesis_note"),
+}
+
+
+def field_is_satisfied(body: dict, field: str) -> bool:
+    if body.get(field) not in (None, ""):
+        return True
+    if field not in body:
+        return False          # absent entirely: never excused
+    for note in DOCUMENTED_NULL_OK.get(field, ()):
+        if str(body.get(note) or "").strip():
+            return True
+    return False
+
 
 TIER_ORDER = {"toy": 0, "medium": 1, "crypto": 2}
 PROOF_STATUSES = {"certificate", "derivation", "empirical_only",
@@ -171,7 +216,7 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
                     if field not in {"proof_status", "proof_refs",
                                      "knowledge_promotion"}]
     for field in required:
-        if body.get(field) in (None, ""):
+        if not field_is_satisfied(body, field):
             ctx.err(path, f"missing required field '{field}'")
     if rec_type == "evidence" and "proof_status" in body:
         if body["proof_status"] not in PROOF_STATUSES:
@@ -213,7 +258,7 @@ def check_experiment(path: str, ctx: Ctx):
         ctx.err(path, f"bad experiment id {rec_id!r}")
         return
     for field in REQUIRED["experiment"]:
-        if body.get(field) in (None, ""):
+        if not field_is_satisfied(body, field):
             ctx.err(path, f"missing required field '{field}'")
     # An approved contract must have no null approval fields.
     if body.get("status") == "approved":
@@ -231,6 +276,17 @@ def check_run(path: str, ctx: Ctx):
     body = doc.get("run") if isinstance(doc, dict) else None
     if not isinstance(body, dict):
         ctx.err(path, "expected top-level key 'run'")
+        # A frozen legacy manifest predates the nested `run:` shape and records
+        # its id flat. ctx.err has already suppressed the shape complaint for
+        # it, but without registering the id nothing may cite the run -- every
+        # evidence record naming it fails instead, which is the schema debt
+        # reported as the record's own defect. Register it the way legacy
+        # ledger records register their filename stem: the run exists, it is
+        # frozen by hash, and it is simply not schema-checkable.
+        if os.path.abspath(path) in ctx.legacy_paths and isinstance(doc, dict):
+            legacy_id = doc.get("run_id") or doc.get("id")
+            if isinstance(legacy_id, str) and RUN_ID.match(legacy_id):
+                ctx.legacy_aliases.add(legacy_id)
         return
     rec_id = body.get("id")
     if not rec_id or not RUN_ID.match(str(rec_id)):
@@ -296,12 +352,17 @@ def check_cross_refs(ctx: Ctx):
             if h and h not in ctx.ids and h not in ctx.legacy_aliases:
                 ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                          f"hypothesis '{h}'")
+            # legacy_aliases is consulted here for the same reason the
+            # hypothesis and question checks above consult it: a frozen
+            # pre-schema record exists and may be cited, it just cannot be
+            # schema-checked. Omitting it here reported the citing record as
+            # defective for naming a run that is present and hash-frozen.
             for run_id in body.get("run_ids") or []:
-                if run_id not in ctx.ids:
+                if run_id not in ctx.ids and run_id not in ctx.legacy_aliases:
                     ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                              f"run '{run_id}'")
             for exp_id in body.get("experiment_ids") or []:
-                if exp_id not in ctx.ids:
+                if exp_id not in ctx.ids and exp_id not in ctx.legacy_aliases:
                     ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                              f"experiment '{exp_id}'")
             # Claim-tier ceiling.
@@ -363,6 +424,37 @@ def check_legacy_run_inventory(ctx: Ctx, inventory: dict[str, str]) -> None:
                 "frozen legacy run manifest hash changed; supersede it instead",
                 force=True,
             )
+
+
+def register_legacy_json_runs(ctx: Ctx, inventory: dict[str, str]) -> None:
+    """Register run ids of frozen legacy manifests serialized as JSON.
+
+    Some pre-canonical runs recorded their manifest as `manifest.json` rather
+    than `manifest.yaml`. The scan below only visits `manifest.yaml`, so those
+    runs were never seen at all: not schema-checked (correctly -- they predate
+    the schema) but also never registered, so every evidence record citing one
+    was reported as referencing an unknown run. The run is present and frozen
+    by hash in the inventory; only its serialization is old.
+
+    This registers the id as a legacy alias, exactly as a flat `manifest.yaml`
+    does. It deliberately does NOT register the body: nothing here becomes
+    schema-checkable, claim tiers are not derived from it, and a run with no
+    manifest of any kind stays unregistered, because no record of it exists.
+    """
+    for relative in sorted(inventory):
+        if not relative.endswith(".json"):
+            continue
+        path = os.path.join(REPO, relative)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError):
+            continue          # hash/presence is check_legacy_run_inventory's job
+        if not isinstance(doc, dict):
+            continue
+        legacy_id = doc.get("run_id") or doc.get("id")
+        if isinstance(legacy_id, str) and RUN_ID.match(legacy_id):
+            ctx.legacy_aliases.add(legacy_id)
 
 
 def check_legacy_ledger(
@@ -693,6 +785,7 @@ def main() -> int:
                                               "specification.yaml"))):
         check_experiment(path, ctx)
     check_legacy_run_inventory(ctx, legacy_run_inventory)
+    register_legacy_json_runs(ctx, legacy_run_inventory)
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
                                               "*", "manifest.yaml"))):
         check_run(path, ctx)
