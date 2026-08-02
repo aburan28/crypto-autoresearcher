@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-EXP-P13VOW-001 / TASK-20260724-P13-COST
+EXP-WESOVOW-001 / TASK-20260724-P13-COST
 
 Concrete cost model of Wesolowski's p^{1/3+o(1)} supersingular isogeny attack
 (frozen source: inputs/P13-WESOLOWSKI-2026/paper_fulltext.md, Section 4.1),
@@ -80,7 +80,7 @@ GL_NODES = 96
 EULER_GAMMA = 0.5772156649015328606
 
 RAW_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "runs", "RUN-P13VOW-001", "raw-result.json")
+                        "runs", "RUN-WESOVOW-001", "raw-result.json")
 
 _GL_X, _GL_W = leggauss(GL_NODES)
 _GL_S = 0.5 * (_GL_X + 1.0)     # nodes mapped to [0,1]
@@ -222,8 +222,8 @@ def main():
     }
 
     results = {
-        "experiment_id": "EXP-P13VOW-001",
-        "run_id": "RUN-P13VOW-001",
+        "experiment_id": "EXP-WESOVOW-001",
+        "run_id": "RUN-WESOVOW-001",
         "seed": SEED,
         "model": {
             "unit_of_cost": "F_{p^2}-operations",
@@ -320,7 +320,7 @@ def main():
         json.dump(results, f, indent=2, sort_keys=False)
 
     # ------------------------------------------------------ stdout summary
-    print("EXP-P13VOW-001 / RUN-P13VOW-001 — cost model observations")
+    print("EXP-WESOVOW-001 / RUN-WESOVOW-001 — cost model observations")
     print(f"Dickman rho: Laplace inversion (h={LAP_H}, T={LAP_T}, GL={GL_NODES}), "
           f"grid du={RHO_DU} umax={UMAX}")
     print(f"  validation: rho(2) relerr vs exact = {rho2_relerr:.2e}; "
