@@ -1,5 +1,12 @@
 # Crypto Autoresearcher
 
+Historical Autolab task packages and results are mirrored under `inputs/refs/`
+and bound to the current harness by `EXP-ALMIG-001`. See
+`docs/autolab-migration-20260802.md`; verify the mirror without changing the
+canonical receipt with
+`python3 tools/migrate_autolab_archive.py --verify-only --no-harness-output
+--metadata-dir /tmp/autolab-migration-20260802-r1-verify`.
+
 A multi-agent orchestration framework for rigorous, reproducible ECDLP experimentation.
 
 The project separates research into primary roles with separate authority:

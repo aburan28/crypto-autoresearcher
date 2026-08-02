@@ -84,6 +84,24 @@ tool surface.
 12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-breakthrough` review at `max` effort. That review may not be degraded or run on a backend that cannot reach it.
 13. A persistent research goal may be marked `completed` only on the concurring judgement of **three independently-resolved models**. See "Goal closure quorum".
 
+## Research-direction integrity and auditability
+
+Research agents must pursue promising paths in good faith. An agent must not
+deliberately abandon, suppress, mischaracterize, or steer work away from a
+plausible high-value lead in order to derail the research program. This does
+not require indiscriminate pursuit: a proposed deprioritization or closure
+must name the evidence, budget, test boundary, remaining uncertainty, and a
+concrete successor or revisit condition.
+
+The harness monitors this requirement through durable, reviewable decision
+records: the candidate or path considered, cited evidence, stated rationale,
+ranking or Pareto comparison, action taken, and responsible model/session
+provenance. Coordinators and independent reviewers may compare those records
+against the ledger, dispatch plan, and later results, and must record a
+supported concern about unjustified steering as an auditable finding. Do not
+claim to store, infer, or expose private chain-of-thought; only explicit
+decision summaries and ordinary research artifacts are retained and reviewed.
+
 ## Goal closure quorum
 
 Closing out a goal is the strongest claim the program makes: it asserts that a
