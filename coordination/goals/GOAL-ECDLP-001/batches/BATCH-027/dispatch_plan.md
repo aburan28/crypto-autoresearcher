@@ -6,11 +6,10 @@ BATCH-027 RUN THE MEASUREMENT. Everything the measurement needs already exists, 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-076` | coordinator | queued | 95 | TASK-20260801-075 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/archives/TASK-20260801-076/snapshot_commit_receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/archives/TASK-20260801-076 |
+| `TASK-20260801-077` | reviewer | queued | 92 | TASK-20260801-076 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-077/tool_change_review.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-077 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-077`: dependency_not_completed:TASK-20260801-076:queued
 - `TASK-20260801-078`: dependency_not_completed:TASK-20260801-077:queued
 - `TASK-20260801-079`: dependency_not_completed:TASK-20260801-078:queued
 - `TASK-20260801-080`: dependency_not_completed:TASK-20260801-079:queued
@@ -31,4 +30,4 @@ BATCH-027 RUN THE MEASUREMENT. Everything the measurement needs already exists, 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `3f6c503516cdb38be7a115fd8eb509a08fc5d5a48bb68ee4a7bcebdf82918ce6`
+Plan SHA-256: `036222a61e4800a35a47ff11d38383c663b18c460ae6c477d256b70eb31dfb39`
