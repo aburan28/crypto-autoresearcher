@@ -159,6 +159,7 @@ class ProjectivePredicates(ORBIT.OrbitPredicates):
 
 
 ORBIT.OrbitPredicates = ProjectivePredicates
+ORBIT.BASE.OrbitPredicates = ProjectivePredicates
 
 
 def run(relation_inputs: list[Path], fixture_path: Path, families: list[str], budget_labels: list[str]) -> dict[str, Any]:

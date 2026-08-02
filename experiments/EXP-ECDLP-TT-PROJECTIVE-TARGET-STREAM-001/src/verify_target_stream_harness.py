@@ -83,6 +83,7 @@ def main() -> int:
                 checks[f"{seed}_{family}_scale"] = metrics["nonzero_scale_checks"] >= 0
                 full = next(item for item in case["candidate"]["rows"] if item["family"] == family)["budgets"][-1]
                 rank_gate = rank_gate and full["candidate_rank"] == 15
+                checks[f"{seed}_{family}_candidate_projective_ops"] = full["candidate_quotient_ops"].get("projective_predicate_field_multiplications", 0) > 0 and full["candidate_advice_build_ops"].get("paired_projective_calls", 0) > 0
                 for weight in WEIGHTS:
                     weighted = case["weighted_costs"][family][str(weight)]
                     checks[f"{seed}_{family}_weighted_{weight}"] = weighted["projective"] < weighted["naive_orbit"] and weighted["projective"] < weighted["original_affine"]
