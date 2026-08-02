@@ -1,7 +1,8 @@
 # EXP-SMTH-PILOT-001 implementation repair note
 
 Tasks: `TASK-20260801-082`, repairs `TASK-20260801-095`,
-`TASK-20260801-100`, `TASK-20260801-105`, and `TASK-20260801-115`
+`TASK-20260801-100`, `TASK-20260801-105`, `TASK-20260801-115`, and
+`TASK-20260801-136`
 
 Scope: implementation only. No registered scientific run was started, and no
 run or result artifact was generated. The implementation exposes only the
@@ -27,6 +28,20 @@ The descriptor-binding repair binds snapshot
 preconstruction failure `TASK-20260801-113` under authorization
 `TASK-20260801-114`. It changes only the platform-specific path verification
 and its bounded regression control; it does not alter the scientific protocol.
+
+The successor binding repair is authorized by committed
+`TASK-20260801-135` at `5ed0a5408562331c5e0b77876f28a7f8e86cc90d`
+and binds the implementation to `EXP-SMTH-PILOT-001-AMEND-011`, whose
+committed-byte review `VAL-20260801-133` passed at amendment snapshot
+`98ed8c204f3607e63996c5ff5d73da4dc2a38c64`. Under the canonical alias rule,
+future manifest fields use experiment ID `EXP-SMTHPILOT-001`, while the
+historical storage path remains `experiments/EXP-SMTH-PILOT-001` and the seed
+domain remains `EXP-SMTH-PILOT-001/v1`. The run binding and its exact six
+run-package sinks are now `RUN-SMTH-PILOT-002`. The terminal predecessor
+`RUN-SMTH-PILOT-001` stdout and stderr remain outside the successor roster,
+rejected by the repository sink guard, and bound to their immutable AMEND-011
+hashes. This is an identifier/path-only repair and changes no scientific
+logic, counts, seeds, objects, caps, outcomes, interpretation, or status.
 
 Frozen scientific plumbing remains 32 deterministic null arrays, exact `i<j`
 enumeration, 4,186,112 factorization/reconstruction calls, the shared
@@ -237,5 +252,30 @@ No command invoked `run-null-pilot`, and the archived stdout/stderr files from
    that the new guard rejects a different existing path.
 
 This task used one of its authorized ten bounded test attempts.
+
+## TASK-20260801-136 canonical successor binding repair
+
+No command invoked `run-null-pilot`; no run or result artifact was created or
+modified. The predecessor logs were read only for their frozen SHA-256 checks.
+
+1. An AST-only syntax parse passed without bytecode output.
+2. The targeted `exact-137-path-roster` self-test exited 0 with `status=pass`
+   and `scientific_runs=0`. It verified the canonical manifest experiment ID,
+   historical storage and domain aliases, RUN002 binding, exact six RUN002
+   run-package sinks, predecessor-log exclusion from the 137-path roster,
+   repository sink rejection of both predecessor logs, and their unchanged
+   hashes.
+3. One full bounded `self-test` invocation exited 0 with `status=pass`,
+   `scientific_runs=0`, and all 16 named controls passing, including the
+   successor-binding regression and the unchanged deterministic-null,
+   certificate, seed, resource, checkpoint, failure, storage, and descriptor
+   controls.
+
+This task used two of its authorized fifteen bounded self-test invocations.
+The immutable predecessor hashes remained
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`
+for stdout and
+`fce9cbf8d3ceea7cea60ef8ff19d150e5f8e47ad61565eafcd273618bbce8919`
+for stderr before and after testing. `RUN-SMTH-PILOT-002` remained absent.
 
 Scientific run count: **0**.

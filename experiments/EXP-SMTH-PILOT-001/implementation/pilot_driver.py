@@ -33,8 +33,8 @@ import time
 from typing import BinaryIO, Callable, Iterable, Iterator, Sequence
 
 
-EXPERIMENT_ID = "EXP-SMTH-PILOT-001"
-RUN_ID = "RUN-SMTH-PILOT-001"
+EXPERIMENT_ID = "EXP-SMTHPILOT-001"
+RUN_ID = "RUN-SMTH-PILOT-002"
 DOMAIN = "EXP-SMTH-PILOT-001/v1"
 MASTER_SEED = 25051
 BITS = (16, 20)
@@ -70,6 +70,19 @@ FULL_V2_FACTORING_SUBTOTAL = 79_536_128
 EXP_REL = Path("experiments/EXP-SMTH-PILOT-001")
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RUN_REL = EXP_REL / "runs" / RUN_ID
+PREDECESSOR_RUN_REL = EXP_REL / "runs" / "RUN-SMTH-PILOT-001"
+IMMUTABLE_PREDECESSOR_LOGS = (
+    PREDECESSOR_RUN_REL / "stdout.log",
+    PREDECESSOR_RUN_REL / "stderr.log",
+)
+IMMUTABLE_PREDECESSOR_LOG_SHA256 = {
+    PREDECESSOR_RUN_REL / "stdout.log": (
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    ),
+    PREDECESSOR_RUN_REL / "stderr.log": (
+        "fce9cbf8d3ceea7cea60ef8ff19d150e5f8e47ad61565eafcd273618bbce8919"
+    ),
+}
 RESULT_REL = EXP_REL / "results"
 CERT_REL = RESULT_REL / "certificates"
 RUN_FIXED_RELATIVE_PATHS = (
@@ -93,6 +106,7 @@ assert RECORDS_PER_ARRAY == 130_816
 assert TOTAL_RECORDS == 4_186_112
 assert RECORDS_PER_SHARD * SHARD_COUNT == TOTAL_RECORDS
 assert len(RUN_EVIDENCE_ROSTER) == len(set(RUN_EVIDENCE_ROSTER)) == 137
+assert set(IMMUTABLE_PREDECESSOR_LOGS).isdisjoint(RUN_EVIDENCE_ROSTER)
 
 
 class IntegrityError(RuntimeError):
@@ -1383,8 +1397,39 @@ def run_self_tests(only: set[str] | None = None) -> dict:
 
         def exact_path_roster() -> None:
             assert len(RUN_EVIDENCE_ROSTER) == len(set(RUN_EVIDENCE_ROSTER)) == 137
+            assert EXPERIMENT_ID == "EXP-SMTHPILOT-001"
+            assert EXP_REL == Path("experiments/EXP-SMTH-PILOT-001")
+            assert DOMAIN == "EXP-SMTH-PILOT-001/v1"
+            assert RUN_ID == "RUN-SMTH-PILOT-002"
+            assert RUN_REL == EXP_REL / "runs" / "RUN-SMTH-PILOT-002"
+            assert RUN_FIXED_RELATIVE_PATHS[:6] == tuple(
+                RUN_REL / name
+                for name in (
+                    "manifest.yaml",
+                    "command.txt",
+                    "environment.json",
+                    "stdout.log",
+                    "stderr.log",
+                    "raw-result.json",
+                )
+            )
             assert SHARD_RELATIVE_PATHS[0] == CERT_REL / "shard-000.jsonl.gz"
             assert SHARD_RELATIVE_PATHS[-1] == CERT_REL / "shard-127.jsonl.gz"
+            assert set(IMMUTABLE_PREDECESSOR_LOGS).isdisjoint(
+                RUN_EVIDENCE_ROSTER
+            )
+            for predecessor_log in IMMUTABLE_PREDECESSOR_LOGS:
+                expected_sha256 = IMMUTABLE_PREDECESSOR_LOG_SHA256[predecessor_log]
+                assert sha256_file(REPO_ROOT / predecessor_log) == expected_sha256
+                try:
+                    repository_path(predecessor_log)
+                except IntegrityError:
+                    pass
+                else:
+                    raise AssertionError(
+                        "immutable predecessor log admitted as a writable sink"
+                    )
+                assert sha256_file(REPO_ROOT / predecessor_log) == expected_sha256
             try:
                 repository_path(Path("outside.json"))
             except IntegrityError:
