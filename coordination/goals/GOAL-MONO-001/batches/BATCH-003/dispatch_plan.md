@@ -6,13 +6,12 @@ Execute the frozen m=3 Semaev-cover cycle-type census authorized by DEC-20260802
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-d49dee` | coordinator | queued | 90 | TASK-20260802-815548 | coordination/goals/GOAL-MONO-001/batches/BATCH-003/archives/TASK-20260802-d49dee/snapshot-receipt.json | coordination/goals/GOAL-MONO-001/batches/BATCH-003/archives/TASK-20260802-d49dee |
+| `TASK-20260802-1b4130` | red-team | queued | 85 | TASK-20260802-815548, TASK-20260802-d49dee | coordination/goals/GOAL-MONO-001/batches/BATCH-003/reviews/TASK-20260802-1b4130/red_team_report.md | coordination/goals/GOAL-MONO-001/batches/BATCH-003/reviews/TASK-20260802-1b4130 |
+| `TASK-20260802-e2702a` | validator | queued | 85 | TASK-20260802-815548, TASK-20260802-d49dee | coordination/goals/GOAL-MONO-001/batches/BATCH-003/reviews/TASK-20260802-e2702a/validation_report.md | coordination/goals/GOAL-MONO-001/batches/BATCH-003/reviews/TASK-20260802-e2702a |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-1b4130`: dependency_not_completed:TASK-20260802-d49dee:queued
 - `TASK-20260802-32e4bf`: dependency_not_completed:TASK-20260802-e2702a:queued, dependency_not_completed:TASK-20260802-1b4130:queued
-- `TASK-20260802-e2702a`: dependency_not_completed:TASK-20260802-d49dee:queued
 
 ## Dispatch Gates
 
@@ -27,4 +26,4 @@ Execute the frozen m=3 Semaev-cover cycle-type census authorized by DEC-20260802
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `8a3e040733a6fb6844f56d7919e159be268a05853f7afb5d3b741a0d3c2cc4e6`
+Plan SHA-256: `edc9c80c1338284d523357440d0aed5256f006efb830a2675cf2cb2df649644f`
