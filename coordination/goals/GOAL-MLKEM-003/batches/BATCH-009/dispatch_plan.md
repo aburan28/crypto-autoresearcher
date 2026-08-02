@@ -6,13 +6,11 @@ F1: recompute Approximation 4.9's predicted Pwrong survival curve from the archi
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-8bae8e` | executor | queued | 95 | - | coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260802-8bae8e/approx49_comparison.py, coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260802-8bae8e/comparison_results.json, coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260802-8bae8e/comparison_report.md, coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260802-8bae8e/receipt.json | coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260802-8bae8e |
+| `TASK-20260802-08f428` | validator | queued | 85 | TASK-20260802-8bae8e, TASK-20260802-7c4aee | coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260802-08f428/validation_report.yaml, coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260802-08f428/validation_notes.md | coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260802-08f428 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-08f428`: dependency_not_completed:TASK-20260802-8bae8e:queued, dependency_not_completed:TASK-20260802-7c4aee:queued
 - `TASK-20260802-43e5e4`: dependency_not_completed:TASK-20260802-08f428:queued
-- `TASK-20260802-7c4aee`: dependency_not_completed:TASK-20260802-8bae8e:queued
 
 ## Dispatch Gates
 
@@ -27,4 +25,4 @@ F1: recompute Approximation 4.9's predicted Pwrong survival curve from the archi
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `1470bf7d930b3c18d0647a131c3752e571330f5c7c2df415e8c412e2dff3ff13`
+Plan SHA-256: `a023249668a2712d4f610e119345b2ffbc343dfd42ecd97a9b3dabb544505460`
