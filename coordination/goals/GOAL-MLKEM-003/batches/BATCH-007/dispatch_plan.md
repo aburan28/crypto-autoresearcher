@@ -6,14 +6,11 @@ Network access to primary sources is restored. Vendor, with recorded provenance,
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-101` | executor | queued | 95 | - | inputs/MLKEM-DUAL-SOURCES-20260802/provenance.json, inputs/MLKEM-DUAL-SOURCES-20260802/README.md, coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-101/fetch_sources.py, coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-101/source_adjudication.md, coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-101/adjudication_results.json | coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-101, inputs/MLKEM-DUAL-SOURCES-20260802 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-102`: dependency_not_completed:TASK-20260802-101:queued
-- `TASK-20260802-103`: dependency_not_completed:TASK-20260802-101:queued, dependency_not_completed:TASK-20260802-102:queued
-- `TASK-20260802-104`: dependency_not_completed:TASK-20260802-101:queued, dependency_not_completed:TASK-20260802-102:queued
-- `TASK-20260802-105`: dependency_not_completed:TASK-20260802-103:queued, dependency_not_completed:TASK-20260802-104:queued
+None.
 
 ## Dispatch Gates
 
@@ -28,4 +25,4 @@ Network access to primary sources is restored. Vendor, with recorded provenance,
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e50d2901547e1ea48e379a9fcb05b71b72865a792e05b9245db319981cc3f7c7`
+Plan SHA-256: `726701a727bf9aa9eb715209c7e7363e8034fc98c3467194a0815a03aa1fd63c`

@@ -1,16 +1,20 @@
 # Dynamic Subagent Dispatch Plan
 
-Bounded correction of the four defective theorem rows in the BATCH-027 ingredient scout, snapshotted, then independently re-reviewed against the primary sources.
+Perform OPEN-BATCH023-A, THE OWED DIRECT SMOOTHNESS MEASUREMENT OF HEUR-DS-1, which DEC-20260801-011 ranked first and which BATCH-024 closed WITHOUT PERFORMING -- that decision records in its own words that no integer was factored and HEUR-DS-1 was neither validated nor refuted. This batch factors integers and measures the declared quantity directly. Two gating disciplines are built into the cards rather than left to good intentions: the contract is FROZEN by task one, which produces no datum, and its sha256 is re-checked by task two before the first measurement, so 'frozen before any datum' is VERIFIABLE; and the null is MEASURED AT THE ACTUAL X and committed BEFORE the treatment arm, because the asymptotic Dickman rho is not a calibration at finite X. Enumeration is i<j so the diagonal is excluded by construction rather than filtered afterwards. AN INCONCLUSIVE RESULT IS A LEGITIMATE OUTCOME and closes the open item as attempted-and-inconclusive; it is not dressed as support or refutation.
 
 ## Ready Tasks
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-dce621` | reviewer | queued | 80 | TASK-20260802-a04888, TASK-20260802-849b64 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/reviews/TASK-20260802-dce621/theorem_review.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/reviews/TASK-20260802-dce621 |
+| `TASK-20260802-80f5e9` | executor | queued | 100 | - | experiments/EXP-SMTH-4403c4/specification.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-80f5e9/freeze_receipt.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-80f5e9/budget_stamps.jsonl | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-80f5e9, experiments/EXP-SMTH-4403c4 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-41760c`: task_marked_blocked
+- `TASK-20260802-0a1d4d`: dependency_not_completed:TASK-20260802-80f5e9:queued, dependency_not_completed:TASK-20260802-6a39f8:queued, dependency_not_completed:TASK-20260802-d34ac4:queued
+- `TASK-20260802-268ec9`: dependency_not_completed:TASK-20260802-0a1d4d:queued, dependency_not_completed:TASK-20260802-411037:queued
+- `TASK-20260802-411037`: dependency_not_completed:TASK-20260802-80f5e9:queued, dependency_not_completed:TASK-20260802-6a39f8:queued, dependency_not_completed:TASK-20260802-d34ac4:queued
+- `TASK-20260802-6a39f8`: dependency_not_completed:TASK-20260802-80f5e9:queued
+- `TASK-20260802-d34ac4`: dependency_not_completed:TASK-20260802-80f5e9:queued, dependency_not_completed:TASK-20260802-6a39f8:queued
 
 ## Dispatch Gates
 
@@ -25,4 +29,4 @@ Bounded correction of the four defective theorem rows in the BATCH-027 ingredien
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `69d9fe2bea25535d40a3e7c246cacce45bd166885b57eccf1fe2913ef7400595`
+Plan SHA-256: `c6af638c59448dab92a95ab654b7d0f83a4891933e1a7f3181e252e936ce216d`
