@@ -76,7 +76,7 @@ def main() -> int:
                     weighted = case["weighted_costs"][family][str(weight)]
                     checks[f"{seed}_{family}_weighted_{weight}"] = weighted["projective"] < weighted["naive_orbit"] and weighted["projective"] < weighted["original_affine"]
                 checks[f"{seed}_{family}_downstream"] = all(item["candidate_rank"] >= 0 and item["relation_equation_count"] >= 0 for item in case["downstream"][family])
-            checks[f"{seed}_target_batch"] = all(case["relation_target_count"] == 29 for _ in [0]) and all(row["target_count"] == 33 for row in case["candidate"]["rows"])
+            checks[f"{seed}_target_batch"] = case["relation_target_count"] == 29 and all(next(item for item in row["budgets"] if item["budget_label"] == "full")["target_count"] == 33 for row in case["candidate"]["rows"])
             checks[f"{seed}_curve_match"] = case.get("curve_id") == fixture["instances"][0]["curve"]["id"]
     checks["rank_gate"] = rank_gate
     integrity = [value for key, value in checks.items() if key != "rank_gate"]
