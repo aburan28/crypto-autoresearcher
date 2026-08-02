@@ -77,7 +77,7 @@ def main() -> int:
             relation_input = INPUT.write_fixture_record(relation_path, fixture_path, instance["curve"]["id"], FAMILIES, relation_target_count)
             candidate = PROJECTIVE.run([relation_path], fixture_path, FAMILIES, BUDGETS)
             candidate["protocol"] = "EXP-ECDLP-TT-PROJECTIVE-RANK-COMPLETION-001-candidate-v1"
-            candidate["source"].update({"harness_source_sha256": sha256(SCRIPT_PATH), "locator_sha256": sha256(PROJECTIVE_SOURCE), "projective_locator_sha256": sha256(PROJECTIVE_SOURCE), "rank_input_sha256": sha256(INPUT_SOURCE)})
+            candidate["source"].update({"harness_source_sha256": sha256(SCRIPT_PATH), "locator_sha256": sha256(PROJECTIVE_SOURCE), "rank_input_sha256": sha256(INPUT_SOURCE)})
             candidate["config"].update({"budgets": BUDGETS, "field_bits": FIELD_BITS, "relation_target_count": relation_target_count, "selection_uses_targets": False, "selection_uses_relations": False})
             naive = ORBIT.run([relation_path], fixture_path, FAMILIES, ["full"])
             affine = AFFINE.run([relation_path], fixture_path, FAMILIES, ["full"])
