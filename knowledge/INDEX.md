@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7797 entries.
+7798 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7467,6 +7467,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7671 | Exploiting the complexity of Lattice Isomorphism Problem via Irreducible Decomposition | literature | reported | web | lattice-isomorphism-problem slip complexity am-coam polynomial-hierarchy np-hardness graph-isomorphism kz-basis orthogonal-decomposition svp foundational |
 | KN-LIT-7672 | Revisiting the Concrete Security of Falcon-type Signatures | literature | reported | web | falcon gpv ntru trapdoor concrete-security reduction-tightness provable-security strong-unforgeability random-oracle parameter-selection pqc lattice |
 | KN-LIT-7673 | HAWK: Having Automorphisms Weakens Key | literature | reported | read | hawk module-lip lattice-isomorphism-problem smlip automorphism galois-automorphism cyclotomic svp bkz root-hermite-factor omsvp signature pqc lattice heuristic |
+| KN-LIT-7674 | Cryptanalysis of HAWK: a Guessing Game | literature | reported | read | hawk lattice-isomorphism-problem module-lip nrd-pip principal-ideal-problem quaternion lenstra-silverberg subfield-attack heuristic retracted-claim super-polynomial key-recovery pqc cryptanalysis lattice |
 | KN-LIT-768 | From the Hardness of Detecting Superpositions to Cryptography: Quantum Public Key Encryption and Commitments | literature | reported | read | dlp pairing pqc provable-security |
 | KN-LIT-769 | Hardness of LWE on General Entropic Distributions? | literature | reported | read | fhe lattice pairing pqc provable-security quantum |
 | KN-LIT-770 | Hashing to elliptic curves of j “ 0 and Mordell–Weil groups | literature | reported | read | curve-arithmetic elliptic-curve finite-field pairing |

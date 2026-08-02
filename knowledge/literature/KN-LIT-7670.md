@@ -18,8 +18,20 @@ tags: [hawk, lattice-isomorphism-problem, module-lip, nrd-pip, principal-ideal-p
 confidence: reported
 citation_verified: web
 added: "2026-08-01"
-superseded_by: null
+superseded_by: KN-LIT-7674
 ---
+
+> **Superseded 2026-08-02 by [[KN-LIT-7674]].** This entry records the paper's
+> 30/06 update as "truncated mid-sentence in the retrieved record" and therefore
+> stops before the authors' actual retraction. **The source was never truncated** —
+> the ePrint abstract is 2031 characters, complete, unchanged since before this
+> entry was written. The truncation was an artifact of a 1600-character display cap
+> in this program's own extraction script, recorded as a property of the source.
+> The missing text states that "the main algorithm appears to run in
+> **super-polynomial time**", names the cause (fractional ideals omitted from a
+> count of ideals of norm `q'` in `O_F`), and adds that **Heuristics 1-3 have been
+> independently experimentally verified**. Cite KN-LIT-7674. Body left unedited per
+> the immutability rule; see `ledger/corrections/CORR-20260802-001.yaml`.
 
 ## Contribution
 A **classical algorithm claimed to recover the HAWK secret key in probabilistic
