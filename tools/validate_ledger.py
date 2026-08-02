@@ -698,13 +698,18 @@ BASELINE_HEADER = """\
 #       certificate.kind) — repair blocked by tools/check_run_immutability.py
 #   235 run IDs shared across EXP-FCP-001/EXP-FCP-002/EXP-IC-001 — same
 #       block; disclosed in tools/duplicate_run_ids.yaml, which must not grow
-#    70 evidence and decision records citing runs or experiments that do not
+#    69 evidence and decision records citing runs or experiments that do not
 #       register in this repository — disclosed on each affected record
 #    35 evidence records missing direction/strength — disclosed in
 #       ledger/registers/unevidenced-records.yaml; none may support a
 #       hypothesis transition until reviewed
 #    82 knowledge frontmatter pending /curate-knowledge
-#     4 ID area tokens containing digits (RQ/H-PMA4-001, H/EV-P13-001).
+#     5 ID area tokens containing digits (RQ/H/EXP-PMA4-001, H/EV-P13-001).
+#       Four report "ID ... does not match ... format"; EXP-PMA4-001 reports
+#       "bad experiment id" instead, because check_experiment returns early on
+#       a malformed id rather than continuing like check_ledger_record. Same
+#       defect, different message, so a message-shaped count splits the
+#       category away from the five records this line names.
 #       These records register and all cross-references resolve; renaming
 #       was refused on cost/risk grounds. The ID patterns were NOT widened,
 #       so a new non-conforming ID still fails.
