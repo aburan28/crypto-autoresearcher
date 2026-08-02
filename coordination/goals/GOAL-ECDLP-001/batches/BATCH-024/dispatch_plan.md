@@ -6,7 +6,7 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-046` | coordinator | queued | 100 | TASK-20260801-037, TASK-20260801-043, TASK-20260801-044, TASK-20260801-045 | ledger/evidence/EV-DEP-001.yaml, ledger/decisions/DEC-20260801-011.yaml, ledger/hypotheses/H-DEP-001.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-046/ledger_commit_receipt.json | ledger/evidence/EV-DEP-001.yaml, ledger/decisions/DEC-20260801-011.yaml, ledger/hypotheses/H-DEP-001.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-046 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `f26fc9f1493dc6405c9c22573426234ecd9b7ae4fa2d3a2f523c1908c205fc37`
+Plan SHA-256: `a7c0a1c783dd609d744f2879e3fc114aabef58fbeaa464c28a67edfaade39c89`
