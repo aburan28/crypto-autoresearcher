@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-4037
 type: literature
-title: "Functional Re-encryption and Collusion-Resistant Obfuscation"
+title: Functional Re-encryption and Collusion-Resistant Obfuscation
 authors:
-  - "Nishanth Chandran"
-  - "Melissa Chase"
-  - "Vinod Vaikuntanathan"
+- Nishanth Chandran
+- Melissa Chase
+- Vinod Vaikuntanathan
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- obfuscation
+- functional-encryption
+- re-encryption
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

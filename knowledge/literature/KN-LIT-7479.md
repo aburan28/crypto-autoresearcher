@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-7479
 type: literature
-title: "VOLE-PSI: Fast OPRF and Circuit-PSI from Vector-OLE"
+title: 'VOLE-PSI: Fast OPRF and Circuit-PSI from Vector-OLE'
 authors:
-  - "Peter Rindal"
-  - "Phillipp Schoppmann"
+- Peter Rindal
+- Phillipp Schoppmann
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- private-set-intersection
+- oblivious-prf
+- vector-ole
+- mpc
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 
