@@ -74,13 +74,18 @@ The first follow-up is complete on the same 8-bit fixture:
 | first-half diagonal | misses 1 | exact | original contiguous-prefix negative |
 | interleaved diagonal | exact full support, no held-out gate | misses 2 | candidate-family signal only |
 | source-hash-ranked | misses 1 | misses 2 | no generic support signal |
+| parity-balanced | misses 2 | misses 3 | no generic support signal |
 
 The interleaved and hash-ranked generator receipts are independently checked
 by `RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-022` and
 `RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-023`, both with valid integrity
 receipts. The interleaved result is worth preserving as a source-family
 diagnostic, but the randomized control prevents promotion to a generic
-coordinate locator.
+coordinate locator. The parity-balanced generator `RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-024`
+selected the same `32/64` budget and missed two source-family and three
+random-control relations. Its independent verifier `RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-025`
+also returned a valid integrity receipt. This third schedule does not repair
+the support loss.
 
 ## Claim boundary
 

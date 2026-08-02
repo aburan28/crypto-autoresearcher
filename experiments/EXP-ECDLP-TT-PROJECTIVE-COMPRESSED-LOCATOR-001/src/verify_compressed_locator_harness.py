@@ -78,7 +78,7 @@ def main() -> int:
     inputs = raw.get("inputs", {})
     field_bits = inputs.get("field_bits")
     selector = inputs.get("selector")
-    allowed_selectors = {"source-derived-diagonal-prefix", "interleaved-diagonal-prefix", "source-hash-ranked-prefix"}
+    allowed_selectors = {"source-derived-diagonal-prefix", "interleaved-diagonal-prefix", "parity-balanced-prefix", "source-hash-ranked-prefix"}
     if selector not in allowed_selectors:
         raise SystemExit(f"unsupported selector in generator receipt: {selector!r}")
     PROJECTIVE.SELECTOR = selector

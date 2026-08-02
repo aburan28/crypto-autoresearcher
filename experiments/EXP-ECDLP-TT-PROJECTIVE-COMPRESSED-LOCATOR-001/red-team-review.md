@@ -38,16 +38,19 @@ candidate subproblem, but exact relation support fails at both smoke and
 
 At 8 bits, interleaving improves the candidate family to exact full support,
 but misses two randomized-control relations and has no held-out gate. A
-source-hash permutation misses support in both families. These are useful
-control results, not a generic positive signal.
+source-hash permutation misses support in both families. The parity-balanced
+schedule misses two candidate-family and three randomized-control relations at
+the same `32/64` budget. These are useful control results, not a generic
+positive signal.
 
 ## Required next gate
 
-Compare three source-only schedules at equal prefix budget: first-half
-diagonal, interleaved diagonal, and deterministic source-hash permutation.
-Require exact support and held-out coverage on at least three sizes before
-any query-reduction signal is promoted. Then add complete advice, bandwidth,
-sparse-LA, descent, and rho accounting.
+No tested 50% schedule passes the generic support gate. A future schedule
+should be tested on fresh 12/16-bit curves only if it has a mechanism beyond
+fixed prefix ordering; otherwise the positive search should move to
+target-independent row-space compression. Any successor still requires exact
+support, held-out coverage, complete advice, bandwidth, sparse-LA, descent,
+and rho accounting.
 
 ## Handoff
 
@@ -66,16 +69,21 @@ OPEN
 ### Evidence so far
 - First-half truncation cuts queries by about half but loses support at 8 and
   16 bits; source-family rank can survive the loss.
+- Interleaved, source-hash, and parity-balanced 8-bit controls do not jointly
+  preserve candidate and randomized support at the same half-prefix budget.
 
 ### Failure modes
 - Any fixed schedule misses structured relation fibers; balanced schedules
   may preserve support but erase all query savings.
 
 ### Next concrete action
-Implement interleaved and source-hash prefix schedules under the same contract
-and run the 8-bit falsifying sweep before another 16-bit run.
+Move to a target-independent row-space compressor or an explicitly
+geometry-derived schedule; require a new positive mechanism before spending a
+12/16-bit run.
 
 ### Artifact paths
 - `runs/RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-014/raw-result.json`
 - `runs/RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-015/raw-result.json`
 - `runs/RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-017/raw-result.json`
+- `runs/RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-024/raw-result.json`
+- `runs/RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-025/raw-result.json`

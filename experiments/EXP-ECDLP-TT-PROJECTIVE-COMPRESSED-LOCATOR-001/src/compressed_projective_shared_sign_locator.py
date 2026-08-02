@@ -41,6 +41,9 @@ def selected_prefixes(a_size: int, b_size: int) -> list[tuple[int, int, int]]:
         return full[:count]
     if SELECTOR == "interleaved-diagonal-prefix":
         return full[::2][:count]
+    if SELECTOR == "parity-balanced-prefix":
+        balanced = [prefix for prefix in full if sum(prefix) % 2 == 0]
+        return balanced[:count]
     if SELECTOR == "source-hash-ranked-prefix":
         ranked = sorted(full, key=lambda prefix: hashlib.sha256(("prefix:" + ",".join(str(value) for value in prefix)).encode("ascii")).digest())
         return ranked[:count]

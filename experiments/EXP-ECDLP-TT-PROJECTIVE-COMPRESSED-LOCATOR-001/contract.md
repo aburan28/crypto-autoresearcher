@@ -21,7 +21,7 @@ query reduction unusable; any arithmetic advantage is only a sub-cost.
 - orbit budgets: `96`, `full`
 - prefix selector: source-derived diagonal order, first `ceil(0.5 * |A|^3)` prefixes
 - successor selectors: interleaved diagonal order and deterministic
-  source-hash-ranked order at the same prefix fraction
+  source-hash-ranked and parity-balanced orders at the same prefix fraction
 - target dependence: none; selection uses only public source indices
 - run budget: up to 24 receipts, including implementation-audit failures and
   independent verifier attempts

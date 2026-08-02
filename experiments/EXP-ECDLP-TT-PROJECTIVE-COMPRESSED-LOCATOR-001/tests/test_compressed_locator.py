@@ -34,7 +34,10 @@ def test_stratified_selectors_are_source_only_and_balanced():
         interleaved = module.selected_prefixes(4, 4)
         module.SELECTOR = "source-hash-ranked-prefix"
         hashed = module.selected_prefixes(4, 4)
-        assert len(interleaved) == len(hashed) == 32
+        module.SELECTOR = "parity-balanced-prefix"
+        balanced = module.selected_prefixes(4, 4)
+        assert len(interleaved) == len(hashed) == len(balanced) == 32
         assert interleaved != hashed
+        assert balanced != interleaved
     finally:
         module.SELECTOR = original
