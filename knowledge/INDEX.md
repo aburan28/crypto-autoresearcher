@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7803 entries.
+7804 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7728,6 +7728,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-026 | How large is the concrete security discount from module/ring structure, and does it grow with better techniques? | open_problem | reported | open | module-lwe ring-lwe lwe structure hybrid-attack coefficient-isometry sparse-secret fhe kyber ml-kem concrete-security cost-model symmetry open lattice |
 | KN-OPEN-027 | Is HAWK's module-LIP assumption reachable through nrd-PIP, and do the four heuristics hold? | open_problem | reported | open | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg heuristic unverified-heuristic pqc concrete-security open lattice |
 | KN-OPEN-028 | What is the corrected cost of the nrd-PIP route against HAWK, now that Heuristic 4 has failed and 1-3 are verified? | open_problem | reported | open | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg super-polynomial fractional-ideals heuristic retracted-claim pqc open lattice |
+| KN-OPEN-3f7a21 | Can this program's literature corpus support its own citation_verified markings, when 7457 of 7666 entries claim read against a downloads/ tree that has never existed in the repository? | open_problem | reported | open | corpus-integrity provenance citation-verified seeding novelty-screen knowledge-base meta open tooling audit |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
 | KN-TECH-002 | Semaev summation polynomials | technique | established |  | semaev summation-polynomial point-decomposition index-calculus |
 | KN-TECH-003 | Point-decomposition index calculus for ECDLP | technique | established |  | index-calculus point-decomposition factor-base relations ecdlp |
