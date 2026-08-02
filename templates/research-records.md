@@ -86,6 +86,31 @@ hypothesis:
   statement: null
   mechanism: null
   assumptions: []
+  proof_search_map:              # required for proof-oriented hypotheses;
+                                 # docs/inventor-protocol.md section 8
+    bottleneck: null             # exact step whose removal changes theorem/cost
+    baseline_embedding:
+      parameter_slice: null      # exact old-method boundary, or not_applicable
+      reproduction_check: null   # symbolic proof or frozen regression fixture
+    observation_collision:
+      observable: null           # invariant/certificate/quotient carrying claim
+      distinct_preimage_search: null
+    constructive_transforms:
+      - transform: null          # boundary_lift | stronger_invariant |
+                                 # telescoping_potential | specialization_pack |
+                                 # representation_reduction | observable_fiber
+        proposed_object: null
+        predicted_gain: null
+    quantifier_order: null       # explicit forall/exists statement and dependencies
+    method_ceiling:
+      strongest_certifiable_claim: null
+      nearby_object_control: null
+    proof_obligations:
+      - claim: null
+        responsibility: null     # baseline | feasibility | strictness | size |
+                                 # runtime | memory | correctness |
+                                 # success_probability | interface | scope
+    not_applicable_reason: null
   rerandomization: null         # worst-to-average-case device, if any: the
                                 # re-randomizing walk, its mixing-time
                                 # justification (with citation), and how the
@@ -143,6 +168,12 @@ leaves `asymptotic_claim` null. Each `HEUR-NNN` is part of the hypothesis
 and is refuted only through its own `falsification_condition` — an
 infrastructure failure or timeout is never evidence against it (AGENTS.md
 rule 5).
+
+`proof_search_map` operationalizes `KN-TECH-080`. A hypothesis that is purely
+empirical may set `not_applicable_reason` and leave the other subfields null.
+For proof-oriented work, nulling the whole map is incomplete: baseline
+reproduction, observation collisions, quantifier order, and method ceilings
+are deliberately cheap pre-compute audits.
 
 ## Experiment
 

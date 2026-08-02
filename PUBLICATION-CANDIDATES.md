@@ -120,7 +120,7 @@ property of a known object rather than the object itself.
 
 **No result here is confirmed publication-worthy.** Tier 1 contains three
 candidates whose novelty is genuinely open and none of which I can settle. The
-strongest non-AES candidate in the corpus is `KN-FIND-018` — five distinct ways
+strongest non-AES candidate in the corpus is `KN-FIND-029` — five distinct ways
 an automated verification harness reports success on demonstrably broken code,
 each found only by looking, three of them *inside the repair for the previous
 one*. That is a methodological finding about automated research systems, and it

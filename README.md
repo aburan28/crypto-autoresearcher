@@ -56,6 +56,7 @@ orchestration/agent/                   api_direct runtime: LangGraph tool loop, 
 orchestration/eval/                    Capability and discipline measurement, with intervals
 evals/suites/                          Eval tasks: verifiable answers and trap cases
 docs/measuring-the-harness.md          How harness effectiveness is measured, and what it misses
+docs/inventor-protocol.md              Object-first ideation, closure, and proof-architecture search
 docs/inference-backends.md             Backend/runtime setup and resolution semantics
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
@@ -76,6 +77,10 @@ ledger/                                Canonical YAML research records
 experiments/                           Frozen contracts and immutable run artifacts
 knowledge/                             Curated long-term knowledge corpus
 ROADMAP.md                             Initial engineering and ECDLP research roadmap
+schemas/                               Strict JSON schemas for shared records
+src/crypto_autoresearcher/             Validation, ID, ledger, and immutable-run CLI
+experiments/                            Frozen protocols, implementations, and run artifacts
+tests/                                  Dependency-free unit and toy arithmetic checks
 ```
 
 ## Operating loop
@@ -195,6 +200,53 @@ Manual path:
 4. Freeze an experiment protocol before dispatching it to the Executor.
 5. Store every run with its exact command, revision, environment, seed, raw result, logs, and validity status.
 6. Record the Coordinator decision that follows from the evidence.
+
+## Local CLI
+
+The initial CLI uses only the Python standard library. Run it without installing the package:
+
+```bash
+PYTHONPATH=src python3 -m crypto_autoresearcher validate experiments
+PYTHONPATH=src python3 -m crypto_autoresearcher new-id EXP ECDLP-ENERGY
+PYTHONPATH=src python3 -m crypto_autoresearcher index --output ledger.json
+```
+
+Unapproved `draft` experiments may use explicit `--allow-dirty` development
+runs. They cannot produce locked receipts and are not canonical evidence:
+
+```bash
+PYTHONPATH=src python3 -m crypto_autoresearcher run --allow-dirty \
+  --experiment-dir experiments/EXP-DRAFT-001 \
+  --run-id RUN-DRAFT-001 --seed 1 --timeout 60 -- \
+  python3 experiments/EXP-DRAFT-001/src/run.py
+```
+
+An `approved` experiment must declare an execution plan and cannot fall back to
+development mode. Canonical launch additionally requires an externally audited
+approval file and its expected SHA-256:
+
+```bash
+PYTHONPATH=src python3 -m crypto_autoresearcher run \
+  --experiment-dir experiments/EXP-NAME-001 \
+  --run-id RUN-NAME-001 --seed 1 \
+  --approval-lock /absolute/path/execution-approval.json \
+  --approval-lock-sha256 <audited-sha256> -- \
+  /absolute/path/to/python -I -S -B experiments/EXP-NAME-001/src/run.py
+```
+
+The lock binds the approved commit, specification, plan, complete protocol
+hashes, Python runtime, and resource policy. Locked runs emit a strict runner
+receipt, recheck state after execution, and never overwrite a run ID.
+
+Run the test suite with:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -v
+```
+
+## First research program
+
+[`EXP-ECDLP-ENERGY-001`](experiments/EXP-ECDLP-ENERGY-001/contract.md) is a verification-first toy preflight for coordinate additive energy, recursive two-/three-sum compilation, five-term decomposition, and fixed-curve preprocessing. It includes matched random and high-energy controls, measured Pollard rho, separate offline/online accounting, and an independent arithmetic verifier. Its protocol explicitly forbids interpreting toy success as a faster-than-rho or deployed-curve result.
 
 ## Status
 
