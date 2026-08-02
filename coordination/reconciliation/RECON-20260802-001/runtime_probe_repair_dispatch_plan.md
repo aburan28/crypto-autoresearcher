@@ -6,11 +6,10 @@ Freeze, implement, snapshot, and independently revalidate the bounded repair for
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-971` | coordinator | queued | 100 | TASK-20260802-970 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-971/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-971 |
+| `TASK-20260802-972` | executor | queued | 100 | TASK-20260802-971 | orchestration/adapter/codex_runtime.py, tests/test_codex_runtime_probe.py, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-972/repair_report.yaml | orchestration/adapter/codex_runtime.py, tests/test_codex_runtime_probe.py, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-972 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-972`: dependency_not_completed:TASK-20260802-971:queued
 - `TASK-20260802-973`: dependency_not_completed:TASK-20260802-972:queued
 
 ## Dispatch Gates
@@ -26,4 +25,4 @@ Freeze, implement, snapshot, and independently revalidate the bounded repair for
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b437f43063c3bf6ec1d1c8977ad47402eab39a2600004dde906635dccda534b9`
+Plan SHA-256: `48607cb747cd9c4aab3664a2303cbe8fe723ed053dc0b45ae1f49097d60e465f`
