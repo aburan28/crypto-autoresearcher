@@ -1,24 +1,28 @@
 ---
 id: KN-LIT-1681
 type: literature
-title: "Highlights Image Encryption via DataIdentified Discrete Chaotic Maps"
+title: Highlights Image Encryption via DataIdentified Discrete Chaotic Maps
 authors:
-  - "Wenyuan Li"
-  - "Xiao-Yun Wang"
-  - "Zhigang Zhu"
-  - "Xiaofeng Zhang"
-  - "Li Zhang"
+- Wenyuan Li
+- Xiao-Yun Wang
+- Zhigang Zhu
+- Xiaofeng Zhang
+- Li Zhang
 year: 2026
-venue: "arXiv preprint"
+venue: arXiv preprint
 identifiers:
   eprint: null
   doi: null
-  arxiv: "2605.21118"
-  url: "https://arxiv.org/abs/2605.21118"
-tags: []
+  arxiv: '2605.21118'
+  url: https://arxiv.org/abs/2605.21118
+tags:
+- symmetric
+- image-encryption
+- chaotic-map
+- implementation
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

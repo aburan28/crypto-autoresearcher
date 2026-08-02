@@ -1,21 +1,25 @@
 ---
 id: KN-LIT-7380
 type: literature
-title: "Universal Composition with Responsive Environments"
+title: Universal Composition with Responsive Environments
 authors:
-  - "Ralf Küsters"
-  - "Daniel Rausch"
+- Ralf Küsters
+- Daniel Rausch
 year: null
-venue: "IACR Cryptology ePrint Archive"
+venue: IACR Cryptology ePrint Archive
 identifiers:
   eprint: null
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- uc-framework
+- responsive-environment
+- provable-security
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

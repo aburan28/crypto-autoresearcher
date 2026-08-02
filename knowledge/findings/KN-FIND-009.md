@@ -1,14 +1,42 @@
 ---
 id: KN-FIND-009
 type: internal_finding
-title: Degeneracy of endomorphism-augmented ECDLP witness lattices is governed by short eigenvalue relations, not by the rank of End(E)
-tags: [endomorphism, witness-lattice, glv, relation-lattice, minkowski, vieta, complex-multiplication, scoped-negative, experiment-design, ecdlp]
+title: Degeneracy of endomorphism-augmented ECDLP witness lattices is governed by short eigenvalue
+  relations, not by the rank of End(E)
+tags:
+- endomorphism
+- witness-lattice
+- glv
+- relation-lattice
+- minkowski
+- vieta
+- complex-multiplication
+- scoped-negative
+- experiment-design
+- ecdlp
 confidence: established
-internal_refs: [EV-ENDO-001, DEC-20260728-005, EXP-ENDO-001, H-ENDO-001, REF-20260728-002, VAL-20260728-001, RT-20260728-002]
+internal_refs:
+- EV-ENDO-001
+- DEC-20260728-005
+- EXP-ENDO-001
+- H-ENDO-001
+coordination_refs:
+- REF-20260728-002
+- RT-20260728-002
+- VAL-20260728-001
 proof_status: certificate
-proof_refs: [coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-012/instantiation.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-012/verification_report.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-013/scope_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/archives/TASK-20260728-009/refutation_claims_v2.yaml]
+proof_refs:
+- coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-012/instantiation.json
+- coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-012/verification_report.yaml
+- coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/reviews/TASK-20260728-013/scope_review.yaml
+- coordination/goals/GOAL-ECDLP-001/batches/BATCH-009/archives/TASK-20260728-009/refutation_claims_v2.yaml
 added: 2026-07-28
 superseded_by: null
+schema_repair_note: internal_refs carried three dispatch-queue report ids (REF-20260728-002,
+  VAL-20260728-001, RT-20260728-002). Those are review-artifact identifiers under coordination/,
+  not ledger records, so the cross-check could never resolve them. Moved to coordination_refs
+  2026-08-02 under CORR-20260802-007; the reports they name are already cited by path in proof_refs.
+  Nothing is dropped and no claim changes.
 ---
 
 ## What is established, and at what level

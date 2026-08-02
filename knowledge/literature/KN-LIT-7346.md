@@ -1,12 +1,12 @@
 ---
 id: KN-LIT-7346
 type: literature
-title: "Unclonable Polymers and"
+title: Unclonable Polymers and
 authors:
-  - "Tal Malkin"
-  - "Itsik Pe’er"
-  - "Anna Roitburd-Berman"
-  - "Eran Tromer"
+- Tal Malkin
+- Itsik Pe’er
+- Anna Roitburd-Berman
+- Eran Tromer
 year: null
 venue: null
 identifiers:
@@ -14,10 +14,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- unclonable
+- polymer
+- hardware
+- applied-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

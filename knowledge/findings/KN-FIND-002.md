@@ -1,17 +1,43 @@
 ---
 id: KN-FIND-002
-type: finding
-title: >-
-  Jet and endomorphism ECDLP oracles are GGM-simulable with O(1) overhead,
-  closing their candidate families at exponent 1/2; elliptic-net and incidence
-  oracles are GGM-simulable with non-constant overhead, providing no
-  sub-birthday advantage
-tags: [ggm, simulability, jet, endomorphism, elliptic-net, incidence, ecdlp, closure, exponent-half, generic-group-model]
+type: internal_finding
+title: Jet and endomorphism ECDLP oracles are GGM-simulable with O(1) overhead, closing their
+  candidate families at exponent 1/2; elliptic-net and incidence oracles are GGM-simulable
+  with non-constant overhead, providing no sub-birthday advantage
+tags:
+- ggm
+- simulability
+- jet
+- endomorphism
+- elliptic-net
+- incidence
+- ecdlp
+- closure
+- exponent-half
+- generic-group-model
 confidence: strong
 status: established
-source_refs: [EV-GGM-001, DEC-20260726-007, EXP-GGM-001, KN-TECH-005, KN-OPEN-005]
+internal_refs:
+- EV-GGM-001
+- DEC-20260726-007
+- EXP-GGM-001
+knowledge_refs:
+- KN-TECH-005
+- KN-OPEN-005
+proof_status: derivation
+proof_refs:
+- ledger/evidence/EV-GGM-001.yaml
+- experiments/EXP-GGM-001/analysis.md
+- experiments/EXP-GGM-001/specification.yaml
+- experiments/EXP-GGM-001/simulability_test.py
 added: 2026-07-26
 superseded_by: null
+schema_repair_note: 'Committed as type `finding` with a `source_refs` key, neither of which
+  the schema defines, so this entry was never checked as an internal finding. Repaired 2026-08-02
+  under CORR-20260802-007. source_refs is split: ledger records go to internal_refs (which
+  is cross-checked), knowledge entries to knowledge_refs (KN-* are not ledger ids). proof_status
+  is `derivation`, the level this record''s own body and EV-GGM-001 already state. No claim,
+  scope or exponent in the body text is changed.'
 ---
 
 ## Finding
