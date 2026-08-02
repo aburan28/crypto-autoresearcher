@@ -148,7 +148,11 @@ out = {
    "relationship_to_reference":"BATCH-001's coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/count5/count5.c was READ for its conventions (byte order, coset layout, projection index convention, the (sum m^2 - N)/2 cross-check). No code was copied. cnt.c differs materially: it carries a software T-table engine with a CONFIGURABLE GF(2^8) mixing matrix (count5.c has none, it is AES-NI only, so it cannot vary the mixing layer at all), and it supports uint16 windowed counters.",
    "which_code_was_used":"cnt.c for every measurement in this record. count5.c was not executed.",
    "counting_kernel_final":"value-partitioned threads with plain (non-atomic) increments; each thread scans the whole input space and increments only its own slice of the value space, so there are no data races. Runs here used 1 thread (see deviation D-3).",
-   "exactness_checks_per_run":["n vs n_alt = (sum_v m_v^2 - N)/2","N == 2^32","counter integrity: sum_v v*hist[v] == number of outputs falling in the window (detects any counter wrap exactly)"],
+   "exactness_checks_per_run":{
+     "CORRECTION_ACCEPTED_FROM_REVIEWERS":"An earlier version of this file called these THREE independent checks. They are TWO. `n` and `n_alt` are both computed from the SAME occupancy histogram gh[], so `agree` is algebraically equivalent to sum_b b*gh[b] == N, which the per-window integrity test (if wsum != inw) already implies. It is arithmetic self-consistency of one histogram, not independent corroboration, and it is no longer counted as such.",
+     "check_1_counter_integrity":"sum_v v*hist[v] == the number of outputs the workers actually placed in the window. This is the substantive check: it detects any counter wrap and any lost update exactly. N == 2^32 is the whole-run form of it.",
+     "check_2_arithmetic_self_consistency":"n from sum_v C(m_v,2) equals n_alt from (sum_v m_v^2 - N)/2. Both are functions of the same histogram, so this catches an arithmetic or overflow fault in the summation stage only, and is implied by check 1 given the histogram.",
+     "what_neither_check_covers":"Neither check validates the cipher itself. That is what the pin does: bit-exact agreement of the C soft engine with an independent Python reference and with the AES-NI path on 8 random keys at r = 4, 5 and 10 for all three matrices, plus FIPS-197 C.1."},
    "pin": pin},
  "matrices": json.load(open(os.path.join(D,"matrices.json"))) if os.path.exists(os.path.join(D,"matrices.json")) else None,
  "rank2_null_residue_distribution": {
@@ -181,6 +185,8 @@ out = {
 
 # ---------------- RANK 4 ----------------
 PRED = {
+ "M1_r5_j1": {"pred_n_mod8": 0, "pred_n_min": 547608330240, "pred_max_occ_min": 256,
+   "pred_verdict": "second M1 arm, different j0: r=5 mod-8 property SURVIVES with fact 2 false"},
  "M0_r5_j2_ALTKEY": {"pred_n_mod8": 0, "pred_verdict": "r=5 mod-8 property SURVIVES the zero entry (third arm, different key/base/j0)"},
  "M0_r4_j0_CRIT": {"pred_n": 547608330240, "pred_max_occ": 256,
    "pred_occ_hist": {"0": 4278190080, "256": 16777216},
@@ -248,13 +254,17 @@ if r5_valid and len(r5_zero) == len(r5_valid):
       "same projection, same key and base - the r=5 statistic still reads n = 0 mod 8 in %d of %d valid arms. "
       "The r=5 property is NOT destroyed by a zero entry in the mixing layer." % (len(r5_zero), len(r5_valid)))
     finding["evidential_strength_stated_plainly"] = (
-      "%d arm(s), each reading 0 mod 8. Under the alternative in which the property is destroyed and the residue is "
-      "uniform, a single arm reads 0 with probability 1/8, so %d arms cost 8^-%d = %s. That alone is suggestive, not "
-      "decisive, and it is stated as such. What makes the reading strong is not the r=5 arms in isolation but the r=4 "
-      "pair below: the same analytic model that predicts r=5 survival also predicted, before measurement, an EXACT "
-      "40-bit integer and an EXACT occupancy histogram at one j0 and an exact zero at another j0 under the SAME "
-      "matrix, and both hit. A model that got those two right by accident is far less likely than a 1-in-8 residue "
-      "coincidence." % (len(r5_zero), len(r5_zero), len(r5_zero), "1/" + str(8**len(r5_zero))))
+      "CORRECTED, ON A REVIEWER FINDING I ACCEPT. An earlier version of this file attached 8^-2 = 1/64 to my two M0 "
+      "r=5 arms. That assumed an independence I had not established: those two arms are two PROJECTIONS OF THE SAME "
+      "2^32 CIPHERTEXTS - same matrix, same key, same base, differing only in the projection index j0 - so they are "
+      "not two independent trials and 1/64 was not mine to claim. My own independence_caveat field said as much two "
+      "fields away, which makes the overstatement worse, not better. The honest position: my %d M0 r=5 arm(s) "
+      "constitute ONE independent key. A genuine 1/64 across two independent keys does now exist, and it belongs to "
+      "the VALIDATOR, which ran M0_r5_j2_ALTKEY on its own key and read n = 2147227472, n mod 8 = 0. Attribution: "
+      "validator, not this task. What this task contributes to the strength of the reading is not residue counting "
+      "at all but the r=4 pair below, where the same analytic model predicted, before measurement, an EXACT 40-bit "
+      "integer and an EXACT occupancy histogram at one j0 and an exact zero at another j0 under the SAME matrix, and "
+      "both hit." % len(r5_zero))
     finding["live_reminder_of_the_1_in_8_coincidence"] = (
       "The one random-permutation null arm that completed in this task (N1, 10-round AES surrogate) itself read "
       "n mod 8 = 0. That is the expected 1/8 coincidence, it is exactly the caution the BATCH-001 validator "
@@ -301,6 +311,30 @@ if r5_valid and len(r5_zero) == len(r5_valid):
       "scope": (
         "Applies to the stated hypothesis of the r=5 mod-8 property of an AES-SHAPED SPN. It is not a claim about "
         "AES security, says nothing about full-round or deployed AES, and is not a comparison to any published work."),
+      "reviewer_findings_accepted": {
+        "red_team": ("M0 carries a single zero, at (0,0). For the one column col = j0 it relaxes exactly ONE of the "
+          "four i-constraints while the other three still force f = 0, so under M0 the CONCLUSION of fact 2 still "
+          "holds at every j0. M0 therefore falsifies the literal sentence 'MC has no zero entry' as a NECESSARY "
+          "condition, but it does not test whether the exclusion fact 2 actually performs is load-bearing. Accepted: "
+          "this is sharper than what I recorded, and it is why the M1 arm below was run."),
+        "validator": ("Fact 2's k=1 class contributes 256^3 * N_ord/2, a multiple of 2^24 and hence of 8, so the "
+          "mod-8 conclusion survives deleting fact 2 entirely. Ruling: section 3.5 fact 2 is a TRUE statement about "
+          "AES's MC that is NON-MINIMAL rather than wrong, and any supersession must be SPLIT BY ROUND COUNT. "
+          "Accepted."),
+        "effect_on_this_record": ("D-DERIV-1 is restated below in the split form the validator required. The word "
+          "'wrong' is retained only where it is exact: the derivation asserts the no-zero-entry condition as a "
+          "hypothesis of the r=5 result, and that ASSERTION is false. Fact 2 itself, read as a statement about AES's "
+          "own MC, is true; it is simply not needed at r=5.")},
+      "split_by_round_count": {
+        "r5": ("DROP the no-zero-entry condition. Measured: n_5 = 0 mod 8 under M0 (zero entry, fact 2's conclusion "
+          "still holding) and under M1 (fact 2 FALSE for a whole column) - see the M1 arm status below. The correct "
+          "hypothesis at r=5 is a non-singular column-preserving mixing layer."),
+        "r4": ("KEEP the condition, in its exact form. It is measurably load-bearing: under the SAME matrix M0 and "
+          "the SAME key and base, n_4 = 547608330240 at the critical j0 and exactly 0 at a non-critical j0. The "
+          "precise statement is that the four entries M[(-c-j0) mod 4][c], c = 0..3, must be non-zero; 'no zero "
+          "entries anywhere' is sufficient but not necessary."),
+        "why_the_split_matters": ("A single undifferentiated supersession would have dropped at r=4 a condition this "
+          "task's own arms show is real there. The reviewers caught that; it is their correction, not mine.")},
       "residual_uncertainty": (
         "M0 carries ONE zero entry. Layers with many zeros were not tested: the M1 arm, whose zero pattern makes "
         "fact 2 fail outright for a whole column rather than merely being unnecessary, did not run. The claim "
@@ -344,6 +378,78 @@ elif r4c is not None or r4n is not None:
 else:
     finding["r4_outcome"] = "NOT MEASURED"
 
+m1_arms = [(l, measured(l)) for l in ("M1_r5_j0","M1_r5_j1") if measured(l)]
+m1_valid = [(l,m) for l,m in m1_arms if m["agree"] and m["N_ok"] and m["counter_integrity_ok"]]
+K1 = 547608330240
+if m1_valid:
+    l, m = m1_valid[0]
+    ok_res = (m["n_mod8"] == 0); ok_mag = (m["n"] >= K1); ok_occ = (m["max_occ"] >= 256)
+    verdict = ("CONFIRMED" if (ok_res and ok_mag and ok_occ) else
+               ("REFUTED - residue non-zero" if not ok_res else "PARTIAL - residue as predicted, structure prediction missed"))
+    finding["decisive_M1_arm"] = {
+      "status": "MEASURED", "verdict": verdict,
+      "why_this_arm_is_the_decisive_one": (
+        "Under M1 the zeros sit at (i, (-i) mod 4), so in the r=5 condition the term column col contributes to "
+        "equation i through M[i][(col-j0-i) mod 4], which vanishes for ALL FOUR i exactly when col = j0. Fact 2 is "
+        "therefore not merely unnecessary under M1, it is FALSE: g_{j0} == 0 identically, and every pair differing "
+        "only in column j0 satisfies the r=5 condition whatever the S-box does. M0 never exercised this."),
+      "preregistered_S3_predictions": {"S3-P1 n mod 8": 0, "S3-P2 n >=": K1, "S3-P3 max_occ >=": 256,
+                                       "S3-P4 n mod 16 in": [0, 8]},
+      "measured": {"arm": l, "n": m["n"], "n_mod8": m["n_mod8"], "n_mod16": m["n_mod16"],
+                   "max_occ": m["max_occ"], "N": m["N"], "j0": m["j0"], "key": m["key"], "base": m["base"],
+                   "counter_width_bits": m["cw"], "windows": 2**m["wbits"], "wall_s": m.get("wall_s"),
+                   "segment": 3},
+      "prediction_outcomes": {"S3-P1_residue_zero": ok_res, "S3-P2_at_least_k1_term": ok_mag,
+                              "S3-P3_max_occ_at_least_256": ok_occ,
+                              "S3-P4_mod16": m["n_mod16"] in (0, 8)},
+      "excess_over_k1_term": m["n"] - K1,
+      "structural_decomposition_check_NOT_preregistered": (lambda oh: (lambda occs: {
+          "note": ("This check was NOT pre-registered; it fell out of the measured histogram and is reported as a "
+                   "post-hoc consistency check, labelled as such, never as a confirmed prediction."),
+          "every_occupancy_is_a_multiple_of_256": all(o % 256 == 0 for o in occs if o),
+          "occupancies_observed": sorted(o for o in occs if o),
+          "blocks_per_bucket_j_observed": sorted(o//256 for o in occs if o),
+          "total_blocks_sum_j_times_count": sum((o//256)*oh[str(o)] for o in occs if o),
+          "expected_total_blocks_2_pow_24": 16777216,
+          "block_count_matches": sum((o//256)*oh[str(o)] for o in occs if o) == 16777216,
+          "n_decomposition": {
+            "within_block_pairs_2pow24_times_C(256,2)": K1,
+            "across_block_pairs_65536_times_sum_C(j,2)":
+                65536*sum(((o//256)*((o//256)-1)//2)*oh[str(o)] for o in occs if o),
+            "sum": K1 + 65536*sum(((o//256)*((o//256)-1)//2)*oh[str(o)] for o in occs if o),
+            "measured_n": m["n"],
+            "matches": K1 + 65536*sum(((o//256)*((o//256)-1)//2)*oh[str(o)] for o in occs if o) == m["n"]},
+          "interpretation": ("Every colliding class is a union of whole 256-element orbits of the free column j0, "
+                             "exactly the mechanism by which g_{j0} == 0 forces collisions, and the 2^24 orbits land "
+                             "in buckets with a Poisson-like multiplicity. The mod-8 residue is then forced twice "
+                             "over: the within-orbit term is 2^24 * C(256,2) and the across-orbit term carries a "
+                             "factor 256^2.")})([int(k) for k in oh]))(m["occ_hist"]),
+      "statement": (
+        ("MEASURED. With fact 2 FALSE for a whole column - not merely unnecessary - the r=5 statistic still reads "
+         "n mod 8 = 0. The exclusion fact 2 performs is therefore genuinely dispensable for the mod-8 conclusion, "
+         "which is what the red team said M0 had not shown and what the validator's k=1 counting predicted. "
+         "D-DERIV-1 stands, in the split-by-round-count form above.")
+        if verdict == "CONFIRMED" else
+        ("MEASURED, AND IT GOES AGAINST MY ANALYSIS. The M1 arm read n mod 8 = %d. Under the falsification criteria "
+         "frozen in PREREGISTRATION.md section S3.4 this REFUTES the 'fact 2 is dispensable' analysis. D-DERIV-1 "
+         "must be WITHDRAWN rather than split, and the exact r=4 hit sits next to an r=5 error - which is precisely "
+         "the transfer of belief the red team warned this package leans on. Recorded against my own prior claim."
+         % m["n_mod8"])
+        if not ok_res else
+        ("MEASURED, MIXED. The residue read 0 mod 8 as predicted, but the structural predictions S3-P2/S3-P3 did not "
+         "both hold (n = %d against a predicted floor of %d; max_occ = %d against a predicted floor of 256). The "
+         "residue may therefore be right for a reason I have not established, and D-DERIV-1 should not be minted on "
+         "this arm alone." % (m["n"], K1, m["max_occ"]))),
+    }
+    if len(m1_valid) > 1:
+        finding["decisive_M1_arm"]["second_arm"] = {l2: {"n": m2["n"], "n_mod8": m2["n_mod8"],
+                                                         "max_occ": m2["max_occ"]} for l2, m2 in m1_valid[1:]}
+else:
+    finding["decisive_M1_arm"] = {"status": "NOT MEASURED",
+      "consequence": ("The arm both reviewers named as decisive did not produce a valid reading in this segment. "
+        "D-DERIV-1 remains HELD, not minted: on M0 alone the red team's objection stands, namely that M0 falsifies "
+        "the literal necessary-condition sentence without testing the exclusion fact 2 performs.")}
+
 finding["carried_forward_unhedged"] = (
   "The r=4 and r=5 properties are NOT specific to the AES S-box. They follow from round geometry alone and were "
   "reproduced by the BATCH-001 validator with uniformly random bijective S-boxes at 120/120. This CONFIRMS the "
@@ -374,16 +480,21 @@ out["rank4_zero_entry_mixing_layer"] = {
  "finding": finding,
 }
 
-out["segments"] = [
+out["segments"] = sorted([
  {"segment":1,"start_utc":"2026-08-02T17:07:06Z","binding_stop_utc":"2026-08-02T17:57:06Z",
   "machine_conditions":"HEAVILY CONTENDED: load average ~13 on 4 cores, unrelated producers taking ~2.7 cores",
   "measurements_completed":0,
   "outcome":"resource_exhaustion. Both started arms were killed by their timeouts with exit 124 and produced no output; two earlier instances of arm N1 were killed during instrument changes and also produced nothing. Zero measured numbers.",
   "attribution_recorded_by_coordinator":"The coordinator recorded the contention as its own scheduling error (batch PROTOCOL-DEVIATIONS.md D-1 and D-6): three producers were dispatched onto 4 cores against the goal's instruction that a batch waits rather than run degraded. Recorded here for the audit trail; the executor makes no claim about fault beyond reporting what was measured, which was nothing."},
+ {"segment":3,"start_utc":"2026-08-02T20:17:01Z","binding_stop_utc":"2026-08-02T20:47:01Z",
+  "machine_conditions":"UNCONTENDED: 4 cores idle, coordinator-confirmed load 0.24 at segment start",
+  "purpose":"the decisive M1 arm both reviewers named: the mixing layer for which derivation section 3.5 fact 2 is FALSE, not merely unnecessary",
+  "preregistration":"PREREGISTRATION.md CONTINUATION SECTION - SEGMENT 3, appended and frozen at 2026-08-02T20:18Z, before any M1 full-coset number existed, including the explicit falsification criteria in S3.4",
+  "note":"Segment 1 and segment 2 records are preserved unchanged."},
  {"segment":2,"start_utc":"2026-08-02T18:33:37Z","binding_stop_utc":"2026-08-02T19:23:37Z",
   "machine_conditions":"UNCONTENDED: 4 cores, no other producers, coordinator-confirmed load average 0.29 at segment start",
   "outcome":"measurements completed; see arms. Calibration: the same class of full-coset pass that failed to finish in 854 s under contention completed in 490-681 s uncontended at full thread count.",
-  "note":"Segment 1 records are preserved unchanged; nothing from segment 1 was overwritten or re-keyed."}]
+  "note":"Segment 1 records are preserved unchanged; nothing from segment 1 was overwritten or re-keyed."}], key=lambda x: x["segment"])
 
 out["deviations"] = [
  {"id":"D-1","kind":"protocol/governance",
@@ -409,6 +520,7 @@ out["dropped_work_named"] = {
  "rank2_gate_status": ("MET" if len(new_arms)>=3 else "NOT MET: the gate required at least three further random-permutation null arms at r=5 on the full coset; %d completed." % len(new_arms)),
  "rank4_arms_not_run": dropped_rank4,
  "cause":"binding C2 stop at 2026-08-02T17:57:06Z, reached under the external CPU contention recorded in deviation D-3. A budget halt is not a null result and is not evidence about AES or about the derivation.",
+ "note_on_M0_r5_j2_ALTKEY":"Dropped by THIS task at the segment-2 stop. It was subsequently run by the VALIDATOR on its own independent key, n = 2147227472, n mod 8 = 0. That reading is the validator\'s, is attributed to the validator throughout this record, and is not counted among this task\'s arms.",
  "what_a_successor_should_run_first":["M0_r5_j0 / M0_r4_j0_CRIT / M0_r4_j1_NONCRIT if not completed here","CTRL_AESMC_r4_j0 and CTRL_AESMC_r5_j0 (software-engine controls with the real AES matrix)","M1_r5_j0, the arm in which derivation fact 2 fails outright","the three or more PRP null arms N1..N5 with the frozen parameters in params.json"]}
 
 out["checks_not_run"] = [
@@ -431,6 +543,8 @@ out["artifacts"] = {
 ncomplete = len([k2 for k2,v in arms4.items() if v.get("status")=="completed"])
 out["outcome_classification"] = "completed_valid" if ncomplete else "resource_exhaustion"
 out["outcome_summary"] = (
+ "SEGMENT 3 ran the arm both reviewers named as decisive, M1, the mixing layer for which fact 2 is FALSE rather "
+ "than merely unnecessary, against predictions frozen beforehand including explicit falsification criteria. "
  "SEGMENT 1 (contended machine) produced ZERO measured numbers and is recorded as resource_exhaustion. "
  "SEGMENT 2 (uncontended machine) completed %d RANK 4 full-coset arms, every one of which passed all three "
  "exactness checks (N == 2^32; n == (sum m^2 - N)/2; counter integrity). RANK 4 result: with a non-singular "
