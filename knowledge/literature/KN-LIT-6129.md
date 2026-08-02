@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-6129
 type: literature
-title: "Random Selection with an Adversarial Majority?"
+title: Random Selection with an Adversarial Majority?
 authors:
-  - "Ronen Gradwohl"
-  - "Salil Vadhan"
-  - "David Zuckerman"
+- Ronen Gradwohl
+- Salil Vadhan
+- David Zuckerman
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- mpc
+- random-selection
+- adversarial-majority
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

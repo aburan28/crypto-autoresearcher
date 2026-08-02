@@ -1,633 +1,507 @@
-# TASK-20260802-104 — red team: the argued case
+# TASK-20260802-104 — Red-team objections to the BATCH-007 source adjudication
 
-**Target:** Coordinator snapshot `bd184fff917e84ff1f0c909412a3e49e2a5e784c`, the
-TASK-20260802-101 source-adjudication package.
-**Scope of this review:** the *interpretation*, its materiality, and its scope.
-Arithmetic and quotation fidelity are TASK-20260802-103's job and are not
-re-adjudicated here.
-**Independent session.** I did not read the producer's conclusions as
-authoritative and I re-ran two retrievals of my own (recorded in §0).
-**Verdict: `pass_with_constraints`.** All three verdict *labels* survive an
-adversarial reading. Two of the *supporting arguments* do not, and one of them
-is the argument that protects the batch's headline. Constraints in §11.
-
----
-
-## 0. Retrievals performed by this session
-
-Two, both inside the access classes the handoff states are permitted. Recorded
-so that nothing below rests on the producer's record alone.
-
-| id | url | http_status | retrieved_at (UTC) | bytes | sha256 |
-|---|---|---:|---|---:|---|
-| `rt104-eprint-versions-retry` | `https://eprint.iacr.org/archive/versions/2022/1750` | 403 | 2026-08-02 | 5569 | (Cloudflare `Just a moment...` interstitial, not the object) |
-| `rt104-cwi-33407-refetch` | `https://ir.cwi.nl/pub/33407/33407.pdf` | 200 | 2026-08-02 | 1021750 | `947f2826ce64d7a8c09493f9901ef418095b89a8660be075880f8874863eb62e` |
-
-The second hash equals the producer's `cwi-33407-ducas-pulles-2023` record
-exactly, so §1 below is derived from the same bytes the package is derived from.
-The first independently confirms the producer's `eprint-2022-1750-versions`
-403: I re-attempted the *HTML* versions listing in a session where ePrint HTML
-otherwise works, and it is challenged too. No cheaper path exists there.
-
-No GitHub host was contacted. No `raw.githubusercontent.com` substitution. No
-`web.archive.org` attempt. No ePrint PDF attempt.
+- Report id: `RT-20260802-3a440d`
+- Goal `GOAL-MLKEM-003` · Batch `BATCH-007` · Package under review: snapshot commit
+  `38cc4402087bae7578472d03dffda61764d1d3bf` (producer task `TASK-20260802-101`)
+- Role: red-team · independent session · did not produce the package · edited no
+  producer artifact, no ledger record, no `experiments/` path, and made no commit
+- Requested policy `review-adversarial`, `reasoning_effort: xhigh`,
+  `independent_session_required: true`; resolved model `claude-opus-5`;
+  `fallback_used: true`
+- **Verdict: `blocking_objections`** (one of three verdicts is falsified by
+  retrievable primary evidence; two carry label overclaims). Nothing below is a
+  claim about the security of ML-KEM, and nothing below asserts an ML-KEM break.
 
 ---
 
-## 1. OBJ-1 — the incommensurability argument is wrong on the load-bearing figure
+## 0. What I re-derived myself, with provenance
 
-**Severity: high. This is the place the batch is about to claim more than it
-measured.**
+Everything I fetched, in retrieval order. All on 2026-08-02 UTC.
 
-`adjudication_results.json`, Q3 → `sources_searched[1].note`:
+| # | url | http | retrieved_at (UTC) | bytes | sha256 | status |
+|---|---|---|---|---|---|---|
+| R1 | `https://eprint.iacr.org/2022/1750.pdf` | 403 | 2026-08-02T17:45:15Z–17:45:17Z | 5381 | `aa340c87cd39d440e3e874af2462d3b6dc7d254e10d9882a666a5fabcaee57a9` | **unretrieved** — Cloudflare `Just a moment...` interstitial, not solved |
+| R2 | `https://eprint.iacr.org/2023/302.pdf` | 403 | 2026-08-02T17:45:15Z–17:45:17Z | 5378 | `240044d763f4ccc293ff4913b9afea0857dec011e10ad9e9e5322b69c47567c0` | **unretrieved** — same interstitial |
+| R3 | `https://eprint.iacr.org/archive/versions/2022/1750` | 403 | 2026-08-02T17:45:15Z–17:45:17Z | 5441 | `9908799f9206621a9d7dc712965720d6abe3a3ad69a6761c0b0c0cd40f671b03` | **unretrieved** — same interstitial |
+| R4 | `https://hal.science/hal-05406481v1/file/2022-1750.pdf` | 200 | 2026-08-02T17:45:34Z–17:45:40Z | 1252838 | `083b142256eecaebfa72dfccf847151b2175666a3979cef4e7383376757b8005` | **retrieved**, `application/pdf` |
+| R5 | `https://inria.hal.science/hal-05406481/file/2022-1750.pdf` | 200 | 2026-08-02T17:45:34Z–17:45:40Z | 1252838 | `083b142256eecaebfa72dfccf847151b2175666a3979cef4e7383376757b8005` | **retrieved**, `application/pdf` |
+| R6 | `https://hal.science/hal-05406481/document` | 200 | 2026-08-02T17:45:34Z–17:45:40Z | 1252838 | `083b142256eecaebfa72dfccf847151b2175666a3979cef4e7383376757b8005` | **retrieved**, `application/pdf` (re-fetched once more for text extraction; identical sha256) |
+| R7 | `https://api.openalex.org/works?filter=title.search:Does%20the%20Dual-Sieve%20Attack%20on%20Learning%20with%20Errors%20even%20Work` | 200 | 2026-08-02T17:46:53Z | 13824 | `67a4f75b3e0d31bc56c52db882cb0a03249f6de4703a8072018583e96027bbd5` | retrieved |
+| R8 | `https://api.openalex.org/works/doi:10.1007/978-3-030-92068-5_2` | 200 | 2026-08-02T17:46:53Z–17:47:09Z | 14933 | `90d35bafbd3fec58dbb57d9c4beaa2bf2a885126374a99e630ef3758c119cdc2` | retrieved |
+| R9 | `https://ir.cwi.nl/pub/33407` | 200 | 2026-08-02T17:47:09Z–17:47:11Z | 23524 | `e23603497e2ea34de3663ccdeb9c2a0d0472b077501643b6e1545507a264644f` | retrieved |
+| R10 | `https://lup.lub.lu.se/record/292b3d98-754c-414d-95db-ee38806157f9` | 200 | 2026-08-02T17:47:09Z–17:47:11Z | 46819 | `738f31b520f15fe3199228603dd7c02a5ed79a9222a5e0933f760f11370ff483` | retrieved (no full-text link exposed) |
+| R11 | `https://ir.cwi.nl/pub/33407/33407.pdf` | 200 | 2026-08-02T17:47:18Z–17:47:20Z | 1021750 | `947f2826ce64d7a8c09493f9901ef418095b89a8660be075880f8874863eb62e` | **retrieved**, `application/pdf`, 36 pages, `/CreationDate D:20230228174928+01'00'` |
+| R12 | `git ls-remote https://github.com/ludopulles/DoesDualSieveWork` | exit 0 | 2026-08-02T17:49:13Z | — | `HEAD = refs/heads/main = f390d77b21d40d711add90791fbe86d2c695ce35` | retrieved |
+| R13 | `https://raw.githubusercontent.com/ludopulles/DoesDualSieveWork/main/data/{unif,bdd}_scores_n{40,50,60,70,80,90}.csv` | 200 ×12 | 2026-08-02T17:49:24Z (loop start; no end stamp recorded) | 5110/22369, 6380/22637, 14839/22991, 20868/22977, 43961/23251, 80027/23345 | see `red_team_report.yaml` `own_retrievals` | **retrieved** |
 
-> "Their T is a number of samples/candidates (e.g. T = 2.05n uniform samples),
-> not a score threshold, so their Figure 4 log2 T axis is not commensurable
-> with Carrier's Fig 4.1 T-axis."
+Two earlier `raw.githubusercontent.com` probes returned HTTP 200 but were lost to
+a local write error (`curl: (23)`, target path was a directory). They are
+superseded by R13 and are recorded here rather than omitted.
 
-and `source_adjudication.md` §Q3: *"The Ducas–Pulles result is the closest thing
-in the corpus and it is **not commensurable** with the residual … it transfers
-nothing."*
-
-That is true of Ducas–Pulles' **Figure 4** and false of their **Figure 3**, and
-Figure 3 is the object described by the §5.2 passage the producer actually
-quoted. From the same bytes (`947f2826ce64…`), the Figure 3 legend reads
-verbatim:
-
-```
-Legend: distribution of the scores on the x-axis and the logarithm (base 2) of the
-survival function (SF) on the y-axis. Dashed blue line: prediction from the heuristic
-analysis. Red line: experimental distribution. 2^45 samples per curve.
-Fig. 3. The distribution of scores according to the prediction and determined
-experimentally. The experimental data is obtained with unif_scores.py and listed in
-data/unif_scores_nX.csv of the auxiliary files.
-```
-
-and Figure 5 is the same plot for BDD (good) targets:
-
-```
-Fig. 5. The distribution of scores according to the prediction and the distribution
-determined experimentally. The experimental data is obtained with bdd_scores.py and
-listed in data/bdd_scores_nX.csv of the auxiliary files.
-```
-
-Structurally that is Carrier's Figure 4.1: score threshold on the x-axis,
-log2 of the tail probability on the y-axis, heuristic prediction against
-experiment. For uniform (= wrong) targets it *is* the survival function
-`P[score ≥ x]` — the definition is stated in the same document ("the survival
-function (SF) of D is `P[X ≥ x]`"). Ducas–Pulles measure it over dimensions
-n = 40–90 with **2^45 samples per curve**, and measure the good-target
-distribution on the same score axis in Figure 5.
-
-Sampling depth, for comparison. Carrier's estimator is
-`|{z ∈ Z_q^{k_fft} : F(z) ≥ T}| / q^{k_fft}` over 4000 iterations at
-`q = 241, k_fft = 3`, so its effective sample count is
-`4000 · 241³ = 2^35.70`. Ducas–Pulles' is `2^45`. The neighbouring attack's
-analogous measurement is roughly **9.4 bits deeper** than the one KN-FIND-012
-audits.
-
-**What this does and does not do.**
-
-- It does **not** overturn Q3's verdict label. On the narrow reading — "does any
-  retrieved source report *Carrier's* `Pwrong`, for *Carrier's* polar-decoding
-  score function, at the aligned `Pgood` threshold" — the answer is still no,
-  and `indeterminate` stands.
-- It does **not** overturn KN-FIND-012 or KN-FIND-014. Those are claims about
-  what *Carrier's* Figure 4.1 covers, and they survive intact.
-- It **does** destroy the sentence "it transfers nothing," and with it any
-  reading of Q3 as establishing that the residual measurement is novel in kind.
-  The measurement type is established prior art in the immediately adjacent
-  attack, published in 2023, by the authors of the objection this whole lane is
-  built on, at greater depth, with the good-target and wrong-target
-  distributions both plotted.
-- It **does** mean the residual must be restated. What is undone is the
-  *instantiation* for the polar-code score function — not the *measurement*.
-- It also narrows a headline number honestly: Ducas–Pulles' 2^45 does not close
-  the residual either. Kyber-scale `log2(Pwrong) = −119.57` is ~74 bits below a
-  2^45 floor rather than ~84 bits below a 2^35.7 floor. The extrapolation
-  problem is real at either depth; the specific "~84 bits" figure is
-  instrument-relative.
-
-**Cheapest check (zero network):** `pypdf` extraction over the already-hashed
-CWI PDF, printing the `Fig. 3` and `Fig. 5` captions and the legend block. I
-ran exactly this. The producer's own extract file
-`inputs/MLKEM-DUAL-SOURCES-20260802/extracts/ducas-pulles-2023-sec5.2-5.3-excerpt.txt`
-already contains the §5.2 and §5.3 sentences ("We measured the score
-distribution for uniform targets… plotted our result in Figure 3"; "We measured
-the score distribution for BDD targets… plotted our result in Figure 3"); only
-the caption and legend were outside the extracted window.
+I recomputed the following from bytes only. No number below is recalled.
 
 ---
 
-## 2. OBJ-2 — the instrument behind "none of them reports the quantity" has no
-discriminating power
+## 1. The two headline objections
 
-**Severity: high.**
+### O1 — Q3's answer is false, and the falsifier was three cheap hops away
 
-`fetch_sources.py`, three times (Ducas–Pulles, Pouly–Shen, MATZOV):
+Q3 answers, verbatim in `adjudication_results.json`:
 
-```python
-r["mentions_Pwrong_token"] = "Pwrong" in joined
-```
+> "No. No retrieved source reports a MEASURED Pwrong at or near the aligned Pgood
+> ~ 1/2 operating threshold."
 
-`Pwrong` is Carrier's own notation. A literal substring test for it returns
-`False` on every paper that is not Carrier's, *regardless of whether that paper
-measures the quantity*. The instrument measures notation, not content.
+The producer names the source most likely to contradict this — Ducas–Pulles,
+ePrint 2023/302 — and records it as unretrieved after **two** attempts, both
+against `eprint.iacr.org`.
 
-This is the inventor-protocol §3 situation exactly, and the null-object control
-is already available and already run: apply the instrument to a document that
-demonstrably **does** report the quantity — Ducas–Pulles, per OBJ-1 — and it
-returns `False`. I confirmed this directly against `947f2826…`:
-`"Pwrong" in text` → `False`; `"survival function (SF)" in text` → `True`. A
-matched null. Under §3 that is a controlled null, not a finding, and the
-`mentions_Pwrong_token: false` fields may not be carried as support for
-anything.
+I retrieved it in three hops from information the producer already had in its own
+toolkit: OpenAlex (R7) → CWI institutional repository landing (R9) → PDF (R11).
+Elapsed: about eleven seconds. The paper's own §1.1 names its data repository,
+`https://github.com/ludopulles/DoesDualSieveWork`, whose auxiliary CSVs I then
+fetched (R12, R13).
 
-The aggravating detail is placement. In `adjudication_results.json` the fields
-`mentions_Pwrong_token: false` and `reports_pwrong_at_operating_threshold:
-false` sit in the same object, in that order, for each source. A downstream
-reader will take the first as evidence for the second. It is not; it is
-evidence about naming conventions.
+That data is the measurement KN-OPEN-016's residual names, literally and in the
+same units. In `data/bdd_scores_nX.csv` the column `cdf_real` is the measured CDF
+of the score of a **BDD (correct) target**; the score at which it first reaches
+0.5 *is* the operating threshold `T` in Carrier's own convention ("we select `T`
+… ensuring that `Pgood ≈ 1/2`", vendored extract
+`extracts/carrier-hal-05406481/page27_threshold_choice.txt`). In
+`data/unif_scores_nX.csv` the column `log2_sf_real` is the measured log₂ survival
+function of the score of a **uniform (wrong) target** — that is, measured
+`log2(Pwrong)` at each score. Both files at a given `n` carry the **same** `N`
+(number of dual vectors) in their metadata rows, so the two measurements are on a
+common score scale with no `k_fft`-style rescaling needed.
 
-**Cheapest check:** re-run the same three cached PDFs with a content vocabulary
-— `{"survival function", "score distribution", "uniform target", "BDD target",
-"false candidate", "log2", "SF"}` — and report per-source hit counts alongside
-the token result. Zero network; all three objects are hashed and re-fetchable
-from hosts that answered 200.
+Reading measured `log2(Pwrong)` at the measured `Pgood = 1/2` threshold:
 
----
+| n | N (same in both files) | T at `Pgood = 1/2` | first measured uniform score ≥ T | measured `log2(Pwrong)` there | model prediction there | top of measured uniform support |
+|---:|---:|---:|---:|---:|---:|---:|
+| 40 | 284 | 29.43 | 30.00 | **−7.301** | −7.403 | 120.56 = 4.10 × T |
+| 50 | 1196 | 76.59 | 77.00 | **−10.135** | −10.252 | 283.85 = 3.71 × T |
+| 60 | 5040 | 198.21 | 199.00 | **−14.655** | −14.729 | 465.99 = 2.35 × T |
+| 70 | 21238 | 515.87 | 516.00 | **−21.712** | −21.789 | 1003.37 = 1.94 × T |
+| 80 | 89494 | 1345.29 | 1346.00 | **−33.151** | −33.235 | 1958.43 = 1.46 × T |
+| 90 | 377126 | 3521.49 | 3655.21 | **−46.415** | −55.530 | 3916.47 = 1.11 × T |
 
-## 3. OBJ-3 — the "byte-identity" observation overstates its scope, and is
-near-vacuous within it
+The measured wrong-target survival function covers the good-target median at
+every dimension, and continues past it by factors 1.11× to 4.10×. At n = 90 the
+measured value exceeds the model prediction by **9.1 bits** at the first grid
+point above the threshold — this is the "waterfall-floor" the abstract advertises,
+landing precisely in the threshold region, and in the direction that *increases*
+`Pwrong`. (At n = 90 the tail grid is sparse, so `−46.415` is measured slightly
+above T; because a survival function is non-increasing, measured
+`log2(Pwrong)` at T is ≥ −46.415. The bracket is what matters.)
 
-**Severity: high (scope), medium (strength).**
+So the residual measurement is not absent from the literature. Q3's verdict is
+correct only under the scope fence the producer added — "over the sources
+actually retrieved in this task" — and that fence does not make the verdict true,
+it makes it **unfalsifiable**. Under `docs/inventor-protocol.md` §4, a
+negative-existence result whose scope is "the sources I happened to retrieve" is
+a fatigue report about the search, not a statement about the problem, and its
+honest status is `unverified`.
 
-`source_adjudication.md` unexpected observation 6:
+**Steelman, and the narrowing the producer should have written.** Ducas–Pulles
+measure the MATZOV/Dual-Sieve-FFT score of [LW21, GJ21, MAT22] as reconstructed in
+their §2.3, *not* Carrier's polar-coded score under Approximation 4.9, and they do
+it at n = 40…90, which is toy scale against Kyber's β ≈ 384–816 (AGENTS rule 7).
+So this does **not** settle whether *Carrier's* `Pwrong` has been measured at
+*Carrier's* threshold. The defect is that Q3 never states which of these two
+questions it is asking, and the two have different answers. As asked, the answer
+is *yes, at toy dimensions, for the dual-sieve score*; as the producer's evidence
+supports, the answer is *no, for Carrier's polar-coded score at Carrier's Fig 4.1
+parameters*. The batch must carry the second, explicitly narrowed, and must
+record the first as counter-evidence.
 
-> "the HAL object the findings were derived from has not changed since it was
-> vendored, so none of KN-FIND-012/013/014/016 was derived from a copy that has
-> since been silently replaced."
-
-**Scope defect.** The byte-identity check covers one object: the HAL PDF. But
-
-- KN-FIND-012's evidence is `experiments/EXP-MLKEM-011/vendor-lock/data/Pwrong_*.out`
-  and `Pgood_*.out`;
-- KN-FIND-014's is `experiments/EXP-MLKEM-013/vendor-lock/FFT_sample.py`;
-- KN-FIND-013 is built on KN-FIND-012's numbers.
-
-All three trace to `kevin-carrier/CodedDualAttack` — the exact object Q2 could
-not reach. For three of the four findings named, the proposition asserted by
-observation 6 is precisely what this session could not test. Only KN-FIND-016's
-PDF source is covered.
-
-**And the code side is worse than untested for one of them.**
-`experiments/EXP-MLKEM-011/specification.yaml` line 22 records
-`code: https://github.com/kevin-carrier/CodedDualAttack/tree/main/verifyModel`
-— an unpinned branch URL, no commit — and
-`experiments/EXP-MLKEM-011/runs/RUN-MLKEM-011-001/fig41_left_gaussian_baseline.json`
-records the data path as `/tmp/CodedDualAttack/verifyModel/ScoreExperimentalDistribution/data/…`.
-So KN-FIND-012's upstream repository state is not recorded anywhere.
-KN-FIND-014's is (`9c1367f85d26038244bc83c025d84c0b7006f2ee`, in
-`EXP-MLKEM-013/specification.yaml`). That asymmetry is invisible in the package
-and should not be.
-
-**Strength defect, within scope.** The HAL object's own metadata
-(`extracts/carrier-hal-05406481-pdf-metadata.json`) reads `/Creator: HAL`,
-`/CreationDate: D:20260721165108+02'00'` — HAL regenerates the cover-sheeted
-PDF, and did so on 2026-07-21. EXP-MLKEM-010 ran 2026-07-31; the re-fetch is
-2026-08-02. The demonstrated stability window is **two days**, over a
-HAL-regenerated derivative rather than over the authors' file. What actually
-excludes a silent author-side replacement is `version_i: 1` in the HAL API
-record, which the producer did capture — that is the load-bearing fact, and the
-hash comparison is close to decorative next to it.
-
-**Cheapest check:** `git log --diff-filter=A -- experiments/EXP-MLKEM-011/vendor-lock/data/`
-to date the vendoring, and `grep -rn "9c1367f\|commit" experiments/EXP-MLKEM-011/`
-to confirm no commit pin exists. Then restate observation 6 as covering
-KN-FIND-016's PDF source only.
+**Cheapest check:** `curl -sL https://raw.githubusercontent.com/ludopulles/DoesDualSieveWork/main/data/bdd_scores_n90.csv`
+and `.../unif_scores_n90.csv` (23 345 + 80 027 bytes); take the first `score`
+whose `cdf_real ≥ 0.5` (3521.49) and read `log2_sf_real` at the first uniform
+`score ≥` it (3655.21 → −46.415).
 
 ---
 
-## 4. OBJ-4 — Q1 is a near-vacuous question and its verdict label names the
-wrong proposition
+### O2 — The batch endorses a statistic that is exactly a counting-resolution floor
 
-**Severity: medium.** The handoff asks for the strongest case that Q1 is a
-trivium dressed as a result. Here it is, then the honest other side.
+This is the "ask what the reported quantity should have done" test
+(`docs/inventor-protocol.md` §3), applied to the single number the batch
+reproduces most proudly.
 
-**(a) The answer was determined before the session began.** ePrint records the
-last revision as 2025-06-11 (`extracts/eprint-2022-1750-abstract-page.txt`
-line 44). KN-FIND-016 was added 2026-07-31 — thirteen months later. The authors
-were never notified by this program. There is no counterfactual world in which
-the cell had changed in response to anything. Q1's entire informational yield
-over the pre-existing vendored artifact is one HTML line reading "last of 3
-revisions." Thirty-five retrieval attempts; for Q1, one bit.
+`source_adjudication.md` §"Reproduction check" reports, as agreement with
+EV-MLKEM-011: last `T` with `Pwrong > 0` = 1802, `log2(Pwrong)` there = −35.7045.
+The archived file header
+(`inputs/MLKEM-DUAL-SOURCES-20260802/extracts/codeddualattack/Pwrong_q241_m40_n43_nfft8_kfft3_nlat35_beta032_beta144_N25971.out.header.txt`)
+gives `q = 241`, `k_fft = 3`, `nb_iteration = 4000`, and states that line *i* is
+`P(F ≥ i)` for a uniform target. The FFT scores all `q^{k_fft}` candidates per
+iteration, so the experiment scores
 
-**(b) The defect it confirms is, by the program's own finding, immaterial.**
-KN-FIND-016 records that Table 5.1's nine Algorithm-3.1 cells match the
-authors' pickle within 0.05 bits, that the abstract's 3.5/11.9/12.3 shortfalls
-are "arithmetically supported given the authors' intermediates," and that the
-only consequence of the `143.30` typo was an 8.8-bit anomaly in the program's
-*own* paper-only recomputation, which correcting the typo *removes*. The typo
-is an appendix transcription slip whose discovery made the paper look **more**
-internally consistent, not less. Confirming it survives is confirming the
-persistence of a defect that the program has already shown does not touch the
-security claim.
+    nb_iteration · q^{k_fft} = 4000 · 241³ = 55 990 084 000 = 2^35.7045
 
-**(c) The verdict label names the finding, not the proposition.**
-`confirmed_in_current_source` reads as "KN-FIND-016 is confirmed." KN-FIND-016's
-substantive claim is *"`143.30` is a transcription error for ≈`134.30`."* Q1 did
-not adjudicate that — the `verdict_scope` string says so explicitly and
-correctly ("This says nothing about whether 143.30 is in fact a transcription
-error"). But enum labels travel and scope strings do not. Anyone consuming the
-enum will raise KN-FIND-016's confidence on evidence that bears on none of its
-content. This is the implicit inference the handoff asked me to attack, and it
-is live at the level of vocabulary rather than of prose.
+candidates in total, and the smallest non-zero empirical probability it can
+represent is one count in that many, i.e. `log2 = −35.7045`.
 
-**The honest other side, which I do hold.** Q1 establishes one thing that is not
-trivial: the four findings target the **published CRYPTO 2025 version of
-record** — `Published by the IACR in CRYPTO 2025`, DOI
-`10.1007/978-3-032-01855-7_15` — not a superseded preprint. That cuts both
-ways and both cuts are informative. It *raises* the stakes of KN-FIND-012 and
-KN-FIND-014, because peer review did not close the Fig-4.1 coverage gap. It
-*lowers* the stakes of KN-FIND-016, because peer review did not catch the typo
-either, which is what one expects of an immaterial appendix slip. Together with
-the retitling (below), that is the batch's durable output, and the headline
-should lead with it rather than with "the erratum is unfixed."
+**The recorded floor equals the resolution limit to four decimal places.** And it
+is not a coincidence of one file — all three archived `Pwrong` files terminate at
+their own resolution limit:
 
-The retitling discovery is worth its own sentence. The 2023 objection
-literature cites this paper as three-author *"Faster dual lattice attacks by
-using coding theory"*; the current revision is four-author *"Assessing the
-Impact of a Variant of MATZOV's Dual Attack on Kyber."* Anyone reconciling
-KN-LIT-111's bibliography with KN-LIT-7617 needs that, and it was obtainable
-only from primary sources. It is a better result than Q1.
+| file (`nb_iteration`) | `nb·q^{k_fft}` | resolution floor `−log2` | recorded last-positive `log2(Pwrong)` | Δ (bits) |
+|---|---:|---:|---:|---:|
+| `…nlat35_beta032_beta144_N25971` (4000) | 2^35.7045 | −35.7045 | −35.7045 | 0.0000 |
+| `…nlat35_beta037_beta144_N200001` (1) | 2^23.7387 | −23.7387 | −23.74 | 0.0013 |
+| `…n50_nlat42_beta035_beta141_N25970` (6000) | 2^36.2894 | −36.2894 | −36.29 | 0.0006 |
 
-**Constraint:** Q1 may not raise KN-FIND-016 above `confidence: provisional`.
-**Cheapest check:** read `knowledge/findings/KN-FIND-016.md` lines 43–47 against
-`adjudication_results.json` Q1 `verdict_scope`. They describe different
-propositions.
+Consequence: the endpoint of the measured `Pwrong` support — and therefore the
+program's "`fraction_inside = 0`" and "aligned `T`-gap ≈ 421" statistics that
+KN-FIND-012 and KN-FIND-014 headline and that BATCH-007 re-endorses — is set by
+the authors' **sample budget**, not by the score distribution. The parameter that
+is supposed to destroy the gap is `nb_iteration`; it was never varied, and the
+identical measurement was never run against a matched-budget control. A quantity
+that terminates exactly at 1/(sample count) is a measurement artifact tell.
+
+This does *not* show the coverage gap is spurious. It shows the gap is
+**confounded** and that the standing records state it in a form that invites the
+wrong reading ("the empirical pillar does not cover the threshold regime" reads
+as a property of the analysis; it is at least partly a property of the run
+length). Ducas–Pulles is the existence proof that the control is runnable: same
+score function, uniform-target survival measured down to 2^−44…2^−48 by FFT-bucketed
+enumeration, and at that budget the wrong-target support *does* cover the
+good-target median at every dimension tested.
+
+**Cheapest check:** one line — `python3 -c "import math; print(-math.log2(4000*241**3))"`
+→ `-35.70450…`, against EV-MLKEM-011's recorded `−35.70` and the batch's
+recomputed `−35.7045`. Zero network. Bytes already in the repository.
 
 ---
 
-## 5. OBJ-5 — Q1's revision-identity inference, and why its stated remedy would
-misfire
+## 2. Q1 — the Table C.2 cell
 
-**Severity: medium.** The handoff asks whether `confirmed_in_current_source` is
-honest here or whether it should be `indeterminate`.
+### O3 — The program is treating a self-correcting appendix typo as a finding
 
-**Answer.** It is honest for the proposition actually tested and dishonest for
-the proposition the label implies. Specifically:
+The brief asks whether the program is mistaking a typo for a defect, and whether
+Table C.2's other columns or Table 5.1 constrain the cell arithmetically. They
+do, twice over. I recomputed both from the vendored extract
+`extracts/carrier-hal-05406481/page37_tables_C1_C2.txt` (no external data, no
+pickle):
 
-- *"The authors' own deposit of the 2025-06-11 build prints 143.30, and ePrint
-  records no revision after 2025-06-11"* → `confirmed_in_current_source`. Fully
-  supported.
-- *"The bytes ePrint serves today print 143.30"* → `indeterminate`. Never
-  tested.
+1. **Theorem 4.1 constrains it.** `T = Tsample + R·(N·Tdec + TFFT)` applied to
+   the printed Table C.2 rows reproduces Table 5.1 to ≤ 0.05 bits for **8 of 9**
+   rows (C0: 121.82 / 173.02 / 238.99; CC: 139.53 / 195.10 / 259.65; CN-768:
+   189.80; CN-1024: 254.63). The ninth, CN/Kyber-512, gives 143.30 against Table
+   5.1's 134.5. Substituting `log2(Tsample) = 134.30` gives **134.52**. The
+   corrected value is *forced* by the paper's own two tables; nothing outside the
+   PDF is needed to detect it or to repair it.
+2. **The ε column independently vindicates the rest of the row.** With
+   `ε = R · q^{k_fft} · Pwrong`, `q = 3329`, and `k_fft` read from Table C.1, the
+   printed `log2(ε)` reproduces for **all nine rows** to ≤ 0.01 bits (CN/Kyber-512:
+   `7.71 + 9·11.7009 − 120.51 = −7.492` vs printed `−7.49`). So `Pwrong` and `R`
+   in the CN/Kyber-512 row are internally consistent; `Tsample` is the sole
+   outlier in the entire table.
 
-The fix is to the proposition, not to the enum. Rewriting the verdict to
-`indeterminate` would discard a real, verified fact; leaving the proposition
-unstated licenses the second reading. Restate and keep.
+Therefore: the slip is *detectable, correctable, and demonstrably non-propagating
+from the published document alone*. It cannot reach any headline number, because
+Table 5.1 already carries the corrected total. Under
+`docs/target-result-profile.md` this is a proofreading observation, not a
+cost-model or heuristic finding, and KN-FIND-016's item 3 should be recorded as
+exactly that. Its persistence in the current revision carries no information
+about the analysis and should not be given equal billing with Q2 and Q3 in the
+batch's headline.
 
-**The scenario in which the inference is wrong.** HAL v1 holds the CRYPTO 2025
-camera-ready rather than ePrint revision 3. This is not idle: HAL's own
-`producedDate_s` is `2025-08-17` and the conference was August 2025, so the
-deposit is plausibly conference-associated. A camera-ready and an ePrint
-revision built from a shared source on 2025-06-11 would carry the same
-`/ModDate` while differing in body content after copy-editing.
+**Cheapest check:** the recomputation above, from
+`extracts/carrier-hal-05406481/page37_tables_C1_C2.txt` and
+`experiments/EXP-MLKEM-010/runs/RUN-MLKEM-010-001/theorem41_recompute.json`
+(whose nine `recomputed_log2` values I reproduce exactly).
 
-**The retrieved fact that would have caught it** is the per-revision listing at
-`https://eprint.iacr.org/archive/versions/2022/1750`, which enumerates each
-revision's timestamp and archive PDF URL. It is 403 Cloudflare-challenged. I
-re-attempted it independently this session and confirm the 403 (§0), so this is
-a genuine dead end in this harness, not a producer omission.
+### O4 — DEC-20260802-002 overstated Q1's falsification value, and the batch inherited it
 
-**Countervailing, and the producer under-uses it.** The ePrint `Note` — "This
-version of the paper differs only in the title" — implies revisions 2 and 3
-have identical bodies, so the HAL-vs-rev2/rev3 ambiguity is *immaterial for
-Table C.2*; and the title page carries the rev-3 title, so HAL ≠ rev1. That is
-a stronger defence of Q1 than the four-point chain the package actually gives.
-But the `Note` has a second natural reading — *"this ePrint version differs
-only in the title from the published version"* — under which it says nothing
-about rev2→rev3 while resolving the package's "Springer version unknown" item.
-The package commits to one reading silently. Both readings support Q1; they
-support it for different reasons and license different downstream statements
-about the Springer version of record.
+The authorizing decision justifies the whole batch with:
 
-**The stated remedy would misfire.** `verdict_sensitivity` says "the residual
-is one successful GET of `https://eprint.iacr.org/2022/1750.pdf`." That
-implies a hash comparison. It cannot be one: the HAL object has a HAL cover
-sheet (37 pages; the paper's title page is page 2) and `/Creator: HAL`,
-`/CreationDate: D:20260721165108`. **Byte-identity with any ePrint-hosted PDF
-is impossible by construction**, so a naive execution of the stated remedy
-returns a mismatch and could be misread as contradicting Q1. The residual check
-must be content-level: extract the Table C.2 page from ePrint bytes, read the
-`CN/Kyber-512` cell, and compare `/ModDate`.
+> "If the Table C.2 transcription error is already corrected by the authors,
+> KN-FIND-016 is a finding about a superseded document and the program should
+> know that before spending a batch on G6K."
 
-**Cheapest check:** the single most-available target for ePrint-hosted bytes is
-already named in the package's own provenance — the Wayback availability API
-returned 200 and named snapshot
-`web/20260114001146/https://eprint.iacr.org/2022/1750.pdf` (2026-01-14, after
-both the last revision and the HAL deposit). That URL is 403 by egress policy
-*here*; it is one GET from any session where web.archive.org is permitted, and
-it is a fixed immutable URL rather than a hope that Cloudflare does not fire.
-Compare content, not hashes.
+That is not true of KN-FIND-016, only of one of its three items. Items 1 and 2 —
+Table 5.1 matches `optimized_withExperimentalPolar.pkl` for all nine cells within
+0.05 bits, and the abstract's 3.5 / 11.9 / 12.3-bit shortfalls are the CC column —
+rest on the pickle and on Theorem 4.1, and are entirely unaffected by whether the
+authors fixed a printed digit. The cheap-falsification-before-expensive-measurement
+ordering was the right call; the specific falsification target chosen for it could
+not have falsified what the decision said it would.
 
----
+**Cheapest check:** `ledger/decisions/DEC-20260802-002.yaml`
+`why_this_is_not_the_paused_next_action`, read against `knowledge/findings/KN-FIND-016.md`
+"What is established", items 1–3.
 
-## 6. OBJ-6 — Q2 as posed cannot adjudicate what it is being used for, even with
-access
+### O5 — Identification-chain item (6) is inert and should be struck, not counted
 
-**Severity: medium.** First, the rule-5 audit the handoff asked for, because it
-matters that this comes out clean: **I find no leakage of infrastructure
-failure into evidence about KN-FIND-014.** `adjudication_results.json` Q2 sets
-`observed_head_commit_sha: null` explicitly rather than omitting it, states
-"neither confirmed nor contradicted," cites rule 5 by name, records the
-`numpy/numpy` control probe establishing the denial is session-wide, and
-records the `raw.githubusercontent.com` non-attempt with its reason. Q2 is the
-cleanest part of the package and the non-attempt is the right call.
+The sixth link in Q1's chain is the ePrint landing-page note *"This version of the
+paper differs only in the title"*, glossed as "consistent with no numerical change
+in the last revision". The ePrint `Note:` field is free-form author text with no
+date and no stated referent; it is overwritten at each revision, so nothing in the
+retrieved bytes says which pair of versions it compares. Under the competing and
+at least equally natural reading — "this ePrint version differs from the published
+version only in the title" — the note is vacuous here, because I checked and the
+three titles are the same string: ePrint `<title>` and OAI `<dc:title>`
+= "Assessing the Impact of a Variant of MATZOV's Dual Attack on Kyber"; the HAL
+PDF `/Title` is the same; Springer's JSON-LD `headline` is the same modulo a
+typographic apostrophe.
 
-The objection is to the question, not the answer.
+This is a small point with a specific cost: presenting six links where three carry
+the argument inflates the apparent strength of a metadata chain the producer
+itself flags as not a byte comparison. Links (1)–(3) are sound and sufficient for
+what they establish; (6) should be removed.
 
-The paper's footnote (`extracts/carrier-hal-05406481-fig4.1-validation-section.txt`)
-cites `https://github.com/kevin-carrier/CodedDualAttack/tree/main/verifyModel`
-— a **branch pointer**, mutable, not a commit. So:
+**Cheapest check:** `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/landing.html`
+(the `<strong>Note:</strong>` block), `oai_getrecord.xml` `<dc:title>`,
+`springer_landing.html` JSON-LD `headline`, and
+`extracts/carrier-hal-05406481/pdf_metadata.json` `/Title`.
 
-1. "Does the asymmetry persist at current HEAD" is not the question that bears
-   on the published Figure 4.1. HEAD in 2026-08 is not the object CRYPTO 2025
-   cited. The question that bears is *what was the state of
-   `verifyModel/ScoreExperimentalDistribution/FFT_sample.py` at or before the
-   2025-06-11 build.*
-2. The Q2 `remedy` asks only for `commits/main → sha` and a diff against
-   `9c1367f`. That cannot answer (1). Run in that order it produces a
-   HEAD-vs-9c1367f comparison and no statement about the published figure at
-   all.
-3. The `incidental_gain` says the footnote "confirms that this code is the code
-   the paper itself offers as the experimental backing for Approximation 4.9."
-   The footnote offers a *directory as of an unspecified time*. Identifying it
-   with `9c1367f` is an inference of the same species as Q1's revision-identity
-   inference, and unlike Q1's it is not labelled as one. (The path *does* line
-   up — `EXP-MLKEM-013/specification.yaml` names
-   `verifyModel/ScoreExperimentalDistribution/FFT_sample.py`, which is inside
-   the cited directory — so this is a labelling defect, not a mis-attribution.)
+### O6 — "HAL unretrieved" was a client artifact, and the `/CreationDate` gloss is falsified
 
-**Cheapest check:** once access exists, one call —
-`GET /repos/kevin-carrier/CodedDualAttack/commits?path=verifyModel/ScoreExperimentalDistribution/FFT_sample.py&until=2025-06-12`
-— returns the commit that backed the published figure. Do that **before** the
-HEAD diff, and pin it.
+The producer records the HAL file as unretrieved (Anubis proof-of-work
+interstitial) and uses that, with the ePrint 403, to explain why no byte
+comparison was possible. I fetched the same file at three URLs with plain `curl`
+(R4, R5, R6): HTTP 200, `application/pdf`, 1 252 838 bytes, sha256
+`083b142256eecaebfa72dfccf847151b2175666a3979cef4e7383376757b8005` — **byte-identical
+to the program's vendor-lock artifact**
+`experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf`
+(`cmp` clean). From those fresh bytes I extracted PDF page 37 and confirmed the
+Q1 locus independently: the `CN: Kyber-512` row reads
+`−120.51 7.71 143.30 117.91 124.00 0.71 −7.49`, `143.30` occurs once on the page
+and once in the whole document, and `134.30` occurs zero times document-wide.
 
----
+Two consequences, one favourable to the package and one not.
 
-## 7. OBJ-7 — the corpus sweep is incomplete in the one direction that would
-settle novelty, and a relevant signal sits unexamined in a *retrieved* extract
+*Favourable, and unclaimed by the batch:* the vendor-lock artifact is now
+reproducible today from the authoritative repository, not merely vendored once.
+That is a genuine strengthening of Side A that the batch could have recorded and
+did not.
 
-**Severity: medium.**
+*Unfavourable:* the adjudication's interpretive gloss that
+`/CreationDate D:20260721165108+02'00'` is "HAL's cover-page stamping **at download
+time**, 2026-07-21" is falsified — a download on 2026-08-02 carries the same
+2026-07-21 stamp. The gloss appears inside the very argument that asks a reader to
+trust embedded PDF timestamps as revision evidence, so an incorrect model of how
+one of those timestamps is produced is a defect in that argument, even though it
+does not change the verdict.
 
-The sweep had exactly two seeds: one ePrint full-text search (`coded dual
-attack`) and Semantic Scholar citation edges of the Carrier DOI. It never
-followed an edge *out of a retrieved abstract*, and it never searched for the
-**quantity** under any name (see OBJ-2).
+**Cheapest check:** `curl -sL -o /tmp/x.pdf https://hal.science/hal-05406481/document && sha256sum /tmp/x.pdf experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf`.
 
-The concrete miss is in a file the package already committed.
-`extracts/eprint-2026-1326-abstract.txt` names the provable-dual-attack line —
-Pouly–Shen (EUROCRYPT 2024) → **Qu–Xu (ASIACRYPT 2025)** → LaMS — and states,
-verbatim:
+### O7 — `confirmed_in_current_source` overclaims for Q1; the self-flag is honest but structurally misplaced
 
-> "We also correct a parameter issue in previous Kyber estimates. With this
-> correction, LaMS reduces the estimated attack cost by 22/31/41 bits for
-> Kyber-512/768/1024, respectively, relative to the corrected CRT-based attack
-> of Qu and Xu."
+The brief asks whether the producer's self-flagging is adequate or cosmetic. My
+judgement: **substantively honest, structurally insufficient — and now moot in a
+way that makes the label worse, not better.**
 
-A **published correction to previous Kyber dual-attack estimates** is the same
-species of object as KN-FIND-016, and a 22/31/41-bit re-costing is the same
-species as KN-FIND-013's Δ-sensitivity. Neither is surfaced anywhere in the Q3
-discussion, and Qu–Xu (ASIACRYPT 2025) never entered the retrieval set at all,
-despite being named in a retrieved document. That is a live edge into precisely
-the region where prior art for this program's findings would live.
+The prose in `source_adjudication.md` and the `residual_uncertainty` field in
+`adjudication_results.json` are unusually candid: they state the identification is
+a metadata chain, name byte identity as the thing not achieved, and name the exact
+GET that would settle it. That is not cosmetic. But:
 
-**Cheapest check:** four requests, all in the permitted HTML class, no PDFs —
-three ePrint searches (`score distribution dual attack`, `survival function LWE
-dual`, `false candidates FFT distinguisher`) plus one landing-page GET for the
-Qu–Xu paper.
+- the load-bearing token that downstream automation and EV-MLKEM-017 will quote is
+  `"verdict": "confirmed_in_current_source"`, and it carries no qualifier;
+- the declared enum contains `indeterminate`, which is available and unused, and
+  the JSON has no `verdict_basis: byte_comparison | metadata_chain` field to carry
+  the distinction machine-readably (the `comparison.side_b_full_text_retrieved:
+  false` flag exists but is one nesting level away from the verdict);
+- **and, per O6, the byte comparison against Side A was available in this session
+  at zero cost.** Doing it would not have closed the real gap — Side A is the
+  vendored artifact, so re-fetching it says nothing about the ePrint-hosted bytes —
+  but the producer's stated reason for the gap ("no fresh copy of the full text
+  was obtained this session") was avoidable, and it is the reason the reader is
+  asked to accept the metadata chain.
 
----
+The honest label for Q1, against the question as posed ("does the cell still read
+143.30 **in the current revision of ePrint 2022/1750**"), is
+`indeterminate`, with the finding recorded as *confirmed in the only retrievable
+authoritative full text, whose compile timestamp falls 6 m 32 s before the current
+ePrint revision's OAI datestamp*. I now hold that full text and confirm the cell
+in it; I do not hold the ePrint bytes and neither does the program.
 
-## 8. OBJ-8 — a re-asserted quantity is a resolution artifact and is not flagged
-as one
-
-**Severity: medium. This is the "what should the quantity have done" check.**
-
-`source_adjudication.md` §Q3 restates, now from the primary source, that "the
-measured Pwrong support in the current text ends at T ≈ 1600–1800," and
-KN-FIND-012 records `last T with Pwrong>0 = 1802` at `log2(Pwrong) ≈ −35.70`.
-
-Carrier's estimator is `|{z ∈ Z_q^{k_fft} : F(z) ≥ T}| / q^{k_fft}` over 4000
-iterations at `q = 241, k_fft = 3`. Its smallest attainable non-zero value is
-therefore `1 / (4000 · 241³)`, and
-
-```
-log2(4000 · 241³) = 35.70
-```
-
-which matches the recorded floor to two decimals. **The "floor" is the
-estimator's resolution limit, not a property of the distribution.**
-
-Apply the inventor-protocol §3 question. The parameter that is supposed to
-destroy this quantity is the iteration count: `T_last-positive` should march
-outward as `−log2(iters · q^{k_fft})` deepens. A number that is fixed by the
-sample budget carries no information about the soundness of Approximation 4.9 —
-it reports how long the authors ran the script.
-
-**This does not touch KN-FIND-012's real content.** The gap between the
-measured `Pwrong` support and the `Pgood` operating threshold is real, the
-`fraction_inside = 0` result is real, and the extrapolation distance to
-Kyber-scale `log2(Pwrong) = −119.57` is real. What must stop is citing `1802`
-or `−35.70` as though they were evidence *about the paper*.
-
-**Cheapest check:** one line, no network, no new data — recompute
-`−log2(4000 · 241³)` and compare to `−35.70`.
-
-**Constructive follow-on, and this is the useful part.** The same closed form
-inverts. It gives, directly, the iteration count needed for a Fig-4.1-style
-simulation to reach the aligned `Pgood` threshold, and the count needed to
-reach `−119.57` (which will be absurd, and *that* is the honest statement of
-the residual). This converts KN-OPEN-016's residual from "unmeasured" into
-"costed," which is a stronger deliverable than either and costs nothing.
+**Cheapest check:** `adjudication_results.json` `questions[0].verdict` against
+`questions[0].comparison.side_b_full_text_retrieved` and `verdict_enum`.
 
 ---
 
-## 9. OBJ-9 — partial access does not license partial novelty claims
+## 3. Q2 — the `k_fft` score-scale asymmetry
 
-**Severity: medium.** The handoff asks this directly.
+### O8 — Head == pin makes Q2 self-answering; the verdict reports a tautology in the vocabulary of corroboration
 
-`PUBLICATION-CANDIDATES.md` lines 7–12 state the correct rule for a total
-block: *"Novelty therefore cannot be adjudicated here in either direction."*
-Under *partial* access that rule does not weaken. It sharpens, and it sharpens
-**by class**, not by fraction:
+`git ls-remote` resolves `HEAD` and `refs/heads/main` to
+`9c1367f85d26038244bc83c025d84c0b7006f2ee`, the pinned commit. The producer says
+so plainly and marks `head_equals_pinned: true`. But `confirmed_in_current_source`
+then conflates two epistemically different states:
 
-> A novelty claim is licensable only where the retrievable class is the class in
-> which the prior art would live.
+- (i) *a newly retrieved authoritative source independently says the same thing* —
+  corroboration; and
+- (ii) *the source is the identical object already held* — zero new bits.
 
-Here the retrievable class is HTML abstracts plus non-ePrint mirrors. The class
-in which a re-measurement of a score survival function lives is the **full text
-of PDFs**, and every ePrint PDF path in this harness is 403. Four full texts on
-the direct follow-up line — Guo–Johansson (2021/948), 2026/1400, 2026/1326,
-2026/599 — are unread, and the producer itself names 2026/1400 as "the most
-likely single place a re-measurement or re-derivation of these quantities would
-appear." So the novelty answer for the KN-OPEN-016 residual is **still not
-adjudicable**, and 50% of the sources is not 50% of an answer.
+Q2 is case (ii). "The current head IS the pinned commit, so the asymmetry cannot
+have changed" is a correct sentence and an empty confirmation: it establishes only
+that the repository was not updated between 2025-04-13 and 2026-08-02. The
+appropriate label is something like `unchanged_since_derivation`, which the enum
+lacks. Q1 is a weaker instance of the same problem: the text adjudicated *is*
+Side A.
 
-Worse for the batch: the one class that *was* retrievable already contains
-adverse prior art (OBJ-1). Partial access moved the novelty answer toward *less
-novel*, not toward *novel*. Any document that reads this batch as strengthening
-a publication posture has the sign backwards.
+More important is what the verdict is silently read as licensing. It confirms that
+KN-FIND-014's **quoted code facts** are accurate at that commit. It does not
+confirm KN-FIND-014's **interpretation** of those facts, and the producer says so:
+EV-MLKEM-013's synthetic identity check (raw cosine sum equals `fftn(·).real`, with
+the factor exactly `k_fft`) was not re-run. So the load-bearing step — that
+dividing `Pgood` by `k_fft = 3` is the *correct* alignment, which is what converts
+a raw `T`-gap of ~1262 into the reported aligned gap of 420.56 and sets the whole
+Q3 comparison — remains resting on a single un-replicated 2026-07-31 run. It is
+also the step whose failure would change Q3's headline number, and it was the
+cheapest thing in the batch to re-run: the identity is a ten-line NumPy check.
 
-**Pareto honesty.** `adjudication_results.json` carries no `dominated_by` and no
-`sota_delta` field. Inventor-protocol §5 makes an unchecked `null` a
-fabrication under AGENTS rule 5; an *absent* field accompanied by a prose
-dismissal of the single candidate frontier row is the same defect wearing a
-different hat. If any part of this package is to support a publication posture
-it needs, at minimum:
+Additional scope point the batch should carry: the asymmetry lives in
+`verifyModel/ScoreExperimentalDistribution/`, a *verification-model* directory. No
+retrieved artifact shows that this directory's convention is the one used to
+produce Table 5.1 or Table C.2, and the producer correctly declines to claim so
+("Confirming the asymmetry in the code says nothing about whether it affects the
+paper's published analysis"). That non-claim must survive into EV-MLKEM-017 rather
+than being dropped in synthesis.
 
-```
-dominated_by: "Ducas-Pulles CRYPTO 2023 §5.2/5.3 (Fig. 3 uniform-target SF,
-               Fig. 5 BDD-target scores, 2^45 samples, n=40..90) — for the
-               measurement type"
-sota_delta:   "no new measurement; the polar-code score-function instantiation
-               is undone, and Carrier's own Fig 4.1 coverage gap is the finding"
-```
-
-**Cheapest check:** `grep -n "dominated_by\|sota_delta" adjudication_results.json`
-→ absent.
-
----
-
-## 10. OBJ-10 — the abstract-tension observation is over-read
-
-**Severity: low.**
-
-Unexpected observation 5 contrasts the abstract's *"we fully back up our
-analysis with experimental evidences"* against Fig 4.1's `T ∈ [200, 1600]`.
-Two problems, both small:
-
-1. **Partial quotation of the referent.** The same abstract
-   (`extracts/eprint-2022-1750-abstract-page.txt` line 13) also says *"we
-   confirm their strong distortion properties through benchmarks"* — a second,
-   distinct experimental component. The authors' "fully back up" covers more
-   than `Pwrong`; contrasting it with `Pwrong` coverage alone overstates the
-   tension.
-2. **A universal claim over a document read in three slices.**
-   `fetch_sources.py` extracts exactly three regions of the 37-page PDF: the
-   title page, the page matching `"Table C.2" and "143.30"`, and the block after
-   `"Validating our Analysis Through Simulations"`. "The **only** experimental
-   validation of `Pwrong` in the paper" is not supported by that. Relatedly,
-   "Figure 4.1 plots Pwrong only; no Pgood curve appears on it" is inferred from
-   *text extraction*, which cannot see curves.
-
-The narrowest valid version survives and should replace it: *the paper's own
-`Pwrong` validation spans `T ∈ [200, 1600]` at `n = 43/50`, `k_fft = 3`, while
-Table C.2 applies the approximation at `log2(Pwrong) = −119.57`.* That is
-KN-FIND-012, already established.
-
-**Cheapest check:** extract all 37 pages of the vendored PDF and grep
-`experiment|simulation|benchmark|Figure`; render the Fig 4.1 page to an image to
-confirm the absent `Pgood` curve. Both zero-network, on the file already in
-`experiments/EXP-MLKEM-010/vendor-lock/`.
+**Cheapest check:** re-run the EV-MLKEM-013 identity on
+`experiments/EXP-MLKEM-013/vendor-lock/FFT_sample.py` (sha256
+`2a5f3dedceb68b0836efc92f0b58294ce4193a9553493e7c0d4e4ce67b922531`): build a small
+random `T`, compare `sum cos(...)` from `Score_Function.compute_score` against
+`numpy.fft.fftn(T).real`, and confirm the ratio is exactly `k_fft`.
 
 ---
 
-## 11. Closure-standard audit, and the constraints
+## 4. Retrieval asymmetry, closure standard, and the security inference
 
-**Premature closure: none found, and the package actively resists it.**
-Unexpected observation 4 ("The lane is active, not saturated") cites 2026/1400,
-2026/1326 and 2026/599 and refuses to treat the direction as mined out. That is
-correct and I endorse it. Q2's remedy is real forward guidance naming a
-concrete unblock (`add_repo`).
+### O9 — Retrieval effort was allocated inversely to falsification value
 
-**Illegitimate closure: none asserted, but one is available downstream.** If the
-batch headline is consumed as *"the four findings are confirmed against the
-authoritative current text,"* that is a closure of the source-verification lane,
-and under §4 it does not qualify: three of the four findings' upstream objects
-(the `CodedDualAttack` artifacts) were never reached, and one of those three has
-no commit pin at all (OBJ-3).
+Counted from `inputs/MLKEM-DUAL-SOURCES-20260802/provenance.json` (25 `attempts`
++ 3 `addendum_attempts` = 28 records) plus the `code_repository` block:
 
-**The one closure the batch has actually earned**, stated at the §4 standard:
+- Carrier / ePrint 2022/1750 (the **confirming** side of Q1): ~17 attempts across
+  eight hosts — `eprint.iacr.org`, `hal.science`, `api.archives-ouvertes.fr`,
+  `api.openalex.org`, `api.semanticscholar.org`, `link.springer.com`,
+  `web.archive.org`, plus the local baseline.
+- `kevin-carrier/CodedDualAttack` (the **confirming** side of Q2): five routes
+  (REST, web, codeload, `raw.githubusercontent.com`, git smart-HTTP), of which the
+  fifth succeeded.
+- Ducas–Pulles ePrint 2023/302 (the source the producer itself designates as
+  **most likely to falsify Q3**): **two** attempts, one host, no OpenAlex query —
+  even though OpenAlex was already used twice in the same session for other
+  sources, and one OpenAlex call returns the CWI location that serves the PDF.
+- Guo–Johansson: OpenAlex was queried and reported `is_oa: false`; the producer
+  stopped there. I confirm OpenAlex reports no OA location (R8) and that the Lund
+  record page (R10) exposes no full-text link — so for this source the negative
+  stands on the evidence I could gather too.
 
-> *Named obstruction.* Every `eprint.iacr.org` **PDF** path in this harness
-> returns HTTP 403 with `cf-mitigated: challenge`, and the block is path-class
-> wide — demonstrated by the `2023/302.pdf` control, and extending to the HTML
-> `/archive/versions/` path, which I re-attempted independently this session
-> (§0). `web.archive.org` is separately blocked by egress policy, removing the
-> standard fallback. *Therefore* no ePrint-hosted byte is obtainable in this
-> harness, and no ePrint-hosted-bytes question can be answered here by any
-> amount of further effort. *Forward guidance:* route PDF needs through HAL,
-> institutional repositories and Zenodo (all 200 here); route the code lane
-> through `add_repo`; and for the one question that genuinely needs ePrint
-> bytes, the fixed immutable target is the Wayback snapshot the availability
-> API already named (OBJ-5).
+The producer used ~1260 s of a granted 3000 s (`receipt.json` `budget.used`). This
+was not a budget-forced omission. Under AGENTS rule 9 and
+`docs/inventor-protocol.md` §3, a negative-existence verdict must spend at least as
+much retrieval effort on the source that could refute it as on the sources that
+confirm it. Here the ratio is roughly 8:1 the wrong way.
 
-That is a closure. "Two of three questions came back unconfident" is not one —
-it is a report about this session's network, and if it appears in a summary it
-should be phrased in those terms.
+I record no view about intent. The auditable fact is the effort allocation and its
+consequence, which O1 demonstrates.
 
-### Constraints attached to `pass_with_constraints`
+**Cheapest check:** `provenance.json` `attempts[13]`, `attempts[14]` (the only two
+Ducas–Pulles records) against the `code_repository` block and `receipt.json`
+`budget.used.wall_clock_seconds_approx`.
 
-1. **OBJ-1 is binding.** The Q3 "not commensurable / transfers nothing"
-   argument may not be carried forward in any downstream record. It requires a
-   superseding correction (never an overwrite — AGENTS rule 2) naming
-   Ducas–Pulles Fig. 3 and Fig. 5.
-2. **No novelty statement** — in either direction — may cite this package,
-   per OBJ-9. If one is made anyway, my verdict converts to
-   `blocking_objections`.
-3. **Q1 may not raise `KN-FIND-016` above `provisional`** (OBJ-4), and its
-   proposition must be restated per OBJ-5.
-4. **Observation 6 must be re-scoped** to KN-FIND-016's PDF source (OBJ-3).
-5. **`1802` / `−35.70` may not be cited as evidence about the paper** (OBJ-8).
-6. Any deliverable built on this package must carry `dominated_by` and
-   `sota_delta` (OBJ-9).
+### O10 — If any part of this batch reads as "the residual is dead", it needs a named obstruction
+
+`docs/inventor-protocol.md` §4 applies to this batch's own output. As written, the
+Q3 verdict plus KN-OPEN-016's "Residual open piece" reads as *the measurement
+nobody has* — a statement about the search. The obstruction is nameable now, and
+it is not "nobody has measured this":
+
+> **Named obstruction.** Carrier's archived `verifyModel` outputs cannot exhibit
+> `Pwrong` at the aligned `Pgood ≈ 1/2` threshold because each file's support
+> terminates exactly at its counting-resolution floor `1/(nb_iteration · q^{k_fft})`
+> — 2^−35.70, 2^−23.74, 2^−36.29 for the three archived files (O2) — while the
+> aligned `Pgood` minimum for the only doubly-instrumented parameter set sits at
+> score 2222.56, some 420.56 units beyond where that budget expires. The gap is a
+> sample-budget boundary, not a measured absence of mass. Independently, for the
+> *non-polar* Dual-Sieve-FFT score, the measurement does exist: Ducas–Pulles report
+> measured `log2(Pwrong)` at the measured `Pgood = 1/2` threshold at six
+> dimensions (O1), with a 9.1-bit excess over the model at n = 90.
+
+> **Forward guidance — what remains open.** (a) Fit the measured Carrier `Pwrong`
+> survival function on its measured range and extrapolate to the aligned `Pgood`
+> median (2222.56) *against* Approximation 4.9's prediction at the same point. This
+> costs no new compute — the `.out` files are already vendored — and converts
+> "`fraction_inside = 0`" from a coverage statement into a quantitative test with a
+> stated extrapolation assumption. (b) Estimate the `nb_iteration` needed to reach
+> score 2222.56 at those parameters; if it is feasible, that is a cheaper route to
+> the residual than the twice-blocked G6K branch. (c) Whether the Ducas–Pulles
+> floor transfers to the polar-coded score is genuinely open — Carrier's abstract
+> claims their analysis avoids the flawed independence assumptions, so this is a
+> real question and not a rhetorical one. `unif_scores.py` in the Ducas–Pulles
+> repository is the reference implementation of the FFT-bucketed enumeration that
+> makes deep-tail sampling affordable.
+
+### O11 — No security inference is licensed by any conjunction of the three verdicts
+
+State the conjunction plainly, because the batch's own vocabulary ("erratum
+survives", the `erratum` / `table-erratum` tags on KN-FIND-014 and KN-FIND-016)
+invites the slide:
+
+- **Q1 ⇒** an appendix intermediate-results table still contains one arithmetically
+  self-correcting typographic cell. Not a claim about any headline number.
+- **Q2 ⇒** one file in a verification-model directory of a GitHub repository has
+  not changed since 2025-04-13. Not a claim about the paper's analysis.
+- **Q3 ⇒** (as narrowed by O1) Carrier's own archived data does not measure
+  `Pwrong` at their own operating threshold, for the reason named in O10. Not a
+  claim that Approximation 4.9 is wrong, and not a claim that nobody has measured
+  it.
+
+None of the three, severally or jointly, constrains whether Carrier's Kyber cost
+figures are right, and none is evidence about the security of ML-KEM in either
+direction. "The erratum survives" ⇏ "the security claim is wrong": survival of a
+typo in a table whose other columns already force the corrected value is
+compatible with the analysis being entirely correct, and equally compatible with
+it being wrong. The batch's own scope statement says this; the risk is that
+EV-MLKEM-017 and DEC-20260802-003 (TASK-20260802-105 write scope) synthesize
+"three confirmations" into standing for the program's critique. They must not.
+
+**Cheapest check:** when written, `ledger/evidence/EV-MLKEM-017.yaml` fields
+`direction`, `strength`, `claim_tier`, `boundaries`; and
+`ledger/decisions/DEC-20260802-003.yaml` `non_claims`. If `direction: supports`
+appears against any hypothesis about Carrier's cost model or ML-KEM security, this
+objection has been realized.
 
 ---
 
-## 12. The single cheapest check that falsifies the batch headline
+## 5. Narrowest supported statement
 
-**One zero-network `pypdf` extraction of the `Fig. 3` caption, its legend block,
-and the `Fig. 5` caption from the already-retrieved, already-hashed CWI copy of
-Ducas–Pulles (`sha256 947f2826ce64d7a8c09493f9901ef418095b89a8660be075880f8874863eb62e`).**
+> Against the vendored Carrier full text
+> (`hal-05406481` v1, sha256 `083b1422…757b8005`, re-fetched independently on
+> 2026-08-02 and byte-identical), Table C.2's `CN`/Kyber-512 `log2(Tsample)` cell
+> reads `143.30`; that value is contradicted by Theorem 4.1 applied to the same
+> row together with Table 5.1's `134.5`, which forces ≈ `134.30`, and no
+> retrievable source shows an authors' correction. The identification of this
+> text with ePrint 2022/1750 revision 3 rests on metadata, not bytes, and is
+> **indeterminate** at the byte level. `kevin-carrier/CodedDualAttack` HEAD equals
+> the pinned commit `9c1367f`, so KN-FIND-014's quoted code facts hold there and
+> nothing about them can have changed; their interpretation was not re-derived.
+> Carrier's three archived `Pwrong` files each terminate exactly at their
+> counting-resolution floor, so the reported non-coverage of the aligned
+> `Pgood ≈ 1/2` threshold is a sample-budget boundary; for the non-polar
+> Dual-Sieve-FFT score, Ducas–Pulles do report measured `Pwrong` at the measured
+> `Pgood = 1/2` threshold at n = 40…90.
 
-No network. No new source. No new permission. The bytes are already in the
-package's provenance record and I re-fetched them to confirm the hash.
+Nothing here is a claim about the security of ML-KEM, and nothing here is an
+ML-KEM break claim.
 
-That one command converts
+## 6. The cheapest single check that falsifies the batch's headline reading
 
-> "no retrieved source reports the quantity; Ducas–Pulles' `T` is a sample
-> count, not a score threshold, so it is not commensurable and transfers
-> nothing"
+**`python3 -c "import math; print(-math.log2(4000*241**3))"` → `-35.7045…`,
+compared against the `−35.7045` the batch reports as reproducing EV-MLKEM-011.**
 
-into
+Zero network, one line, bytes already in the repository
+(`extracts/codeddualattack/Pwrong_q241_…N25971.out.header.txt` supplies
+`nb_iteration = 4000`, `q = 241`, `k_fft = 3`). Equality shows that the
+`Pwrong` support endpoint the batch endorses — and therefore the
+`fraction_inside = 0` and aligned-`T`-gap statistics resting on it — is the
+experiment's counting-resolution limit rather than a property of the score
+distribution, which falsifies the reading that BATCH-007's three confirmations
+leave the standing findings and their residual undisturbed.
 
-> "a retrieved source plots the wrong-target score survival function against
-> its heuristic prediction, on a score axis, at 2^45 samples — roughly 9.4 bits
-> deeper than Carrier's 2^35.70 — and plots the good-target distribution on the
-> same axis in the adjacent figure. The residual is an instantiation gap for
-> the polar-code score function, not a measurement-type gap."
-
-Everything else in this report is a constraint on how the package may be used.
-That is the one thing that changes what it says.
-
----
-
-## 13. Narrowest supported statement
-
-> Against the authors' own HAL deposit of the 2025-06-11 build of ePrint
-> 2022/1750 (`sha256 083b1422…`, byte-identical to what HAL served on
-> 2026-08-02, HAL `version_i: 1`), the Table C.2 `CN/Kyber-512`
-> `log2(Tsample)` cell reads `143.30`, and ePrint's landing page records no
-> revision after 2025-06-11. The identity of that deposit with the bytes ePrint
-> serves is inferred, not verified. Nothing was retrieved bearing on
-> `kevin-carrier/CodedDualAttack` at any commit. No retrieved source reports
-> `Pwrong` for Carrier's polar-code score function at the aligned `Pgood`
-> threshold; the analogous measurement for the neighbouring MATZOV/LW21
-> dual-sieve **is** reported by Ducas–Pulles (CRYPTO 2023, Fig. 3 and Fig. 5),
-> at greater sampling depth, and closes neither the extrapolation to Kyber
-> scale nor the residual for Carrier's score function.
-
-Estimate/table tier. No ML-KEM break claim. No crypto-scale claim. No promotion
-or closure of any hypothesis, finding, or open problem.
+The cheapest *network* falsification, targeting Q3's verdict specifically, is
+O1's two-CSV check (≈ 103 KB, seconds).

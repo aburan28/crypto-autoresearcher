@@ -129,6 +129,11 @@ def main() -> int:
     touched = [
         line for line in diff.stdout.splitlines()
         if "/runs/" in line and line.startswith("experiments/")
+        # A zero-byte placeholder that exists only to keep an empty runs/
+        # directory in git. It records no measurement, so moving or dropping
+        # one destroys no evidence -- and an experiment directory could never
+        # be renamed while its own placeholder counted as an immutable run.
+        and os.path.basename(line) != ".gitkeep"
     ]
 
     # A declared rename shows up as D on every old path. Accept those only

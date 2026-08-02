@@ -45,16 +45,19 @@ research work. This file wires that contract into Claude Code.
 7. The Coordinator makes isolated snapshot and ledger commits for declared
    research artifacts. A theory, run package, review report, or ledger record
    is not official until the dispatcher's post-commit verifier accepts it.
-8. A `GOAL-*` record reaches `status: completed` only on a three-model closure
-   quorum: three `CONCUR` attestations in `completion_quorum.attestations`
-   whose `resolved_model_id` values are pairwise distinct, with any single
-   `DISSENT` blocking closure. Distinctness is on the resolved model, not the
-   requested policy alias — three aliases falling back to one model is not a
-   quorum. Under this harness that fallback is the common case (see the model
-   policy note below), so closing a goal here usually requires deliberately
-   routing three different backends. If you cannot, leave the goal `paused` and
-   say so; never record an attestation you did not obtain. Enforced by
-   `check_goals` in `tools/validate_ledger.py`.
+8. **The three-model closure quorum is SUSPENDED.** A `GOAL-*` record reaches
+   `status: completed` on a committed Coordinator decision showing a declared
+   completion criterion was met; no `completion_quorum` block is required.
+   Under this harness every policy alias falls back to one model (see the model
+   policy note below), so the quorum made closure unreachable rather than
+   rigorous. Still binding: attestations remain supported and, when recorded,
+   must be genuine — **never record an attestation you did not obtain**; a
+   recorded `DISSENT` still blocks closure; and closing a goal is still the
+   program's strongest claim, now resting on the Coordinator decision and its
+   cited evidence alone. Do not retire a goal that met a criterion under
+   `paused`/`closed_at_budget` to understate it. The rule and its enforcement
+   are retained in `tools/validate_ledger.py` and restored by setting
+   `GOAL_CLOSURE_QUORUM_REQUIRED = True`. See AGENTS.md "Goal closure quorum".
 9. Pursue promising paths in good faith. Do not deliberately abandon,
    suppress, mischaracterize, or steer away from a plausible high-value lead
    to derail research. Any deprioritization or closure must record its

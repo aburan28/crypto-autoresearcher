@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-5256
 type: literature
-title: "Obfuscating Conjunctions"
+title: Obfuscating Conjunctions
 authors:
-  - "Zvika Brakerski"
-  - "Guy N. Rothblum"
+- Zvika Brakerski
+- Guy N. Rothblum
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- obfuscation
+- conjunctions
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

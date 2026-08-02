@@ -1,106 +1,71 @@
-# MLKEM-DUAL-SOURCES-20260802
+# MLKEM-DUAL-SOURCES-20260802 — vendored primary-source provenance
 
-Primary-source retrieval package for **TASK-20260802-101** (GOAL-MLKEM-003,
-BATCH-007). Produced by
-`coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-101/fetch_sources.py`
-on 2026-08-02 UTC, repository commit `25e90257`.
+Produced by **TASK-20260802-101** (executor) under GOAL-MLKEM-003 / BATCH-007,
+authorized by DEC-20260802-002, on 2026-08-02 (retrieval window
+17:23:43Z–17:26:05Z) at repo commit `b71403265d782449e227c10f46f3b076d8a47761`.
 
-## Why this package exists
-
-For the whole prior history of GOAL-MLKEM-003 every primary source was
-unreachable, so all four standing Carrier findings (KN-FIND-012/013/014/016)
-were derived from a single vendored HAL snapshot and a pinned code commit with
-no way to check them against an authoritative current revision. Network access
-was partially restored for this session. This package is the retrieval half of
-the resulting cheap falsification gate; the adjudication half lives in
+Purpose: give the program's standing Carrier findings (KN-FIND-012, -013, -014,
+-016 and the KN-OPEN-016 residual) a checkable link to the primary sources,
+after a period in which network policy blocked every one of them. The
+adjudication itself lives in
 `coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-101/source_adjudication.md`.
 
 ## What is here
 
-| Path | What it is |
+| path | what it is |
 |---|---|
-| `provenance.json` | One record per attempted source: `url`, `http_status`, `retrieved_at` (UTC), `sha256`, `bytes`, `revision_id`, `status` ∈ {`retrieved`, `unretrieved`, `not_attempted`}, the exact curl command, and for failures the exact server error. 35 attempts: 20 retrieved, 14 unretrieved, 1 deliberately not attempted. |
-| `extracts/` | The small text regions the adjudication actually quotes. |
+| `provenance.json` | **one record per attempted source**: url, http_status, retrieved_at (UTC), sha256, byte size, content type, `revision_id` (+ the `revision_id_basis` it was derived from), `retrieved`/`unretrieved` + reason. Also the code-repository block (`git ls-remote` output, clone head) and the local baseline artifact. `addendum_attempts` holds the corrected Guo–Johansson lookups. |
+| `source_reads.json` | the **reads** the three verdicts rest on: Table C.2 row, ePrint revision metadata, code score-path lines, measured `Pwrong`/`Pgood` ranges, term counts in MATZOV and FIPS 203. |
+| `eprint-2022-1750/` | ePrint landing page, OAI-PMH record, HAL API record, OpenAlex and Semantic Scholar records, Springer landing page, and the **failed-attempt bodies** (Cloudflare / Anubis interstitials) kept as evidence of the block. |
+| `eprint-2023-302/`, `eprint-2021-948/` | Ducas–Pulles and (mis-targeted, see below) landing pages plus their failed PDF attempt bodies. |
+| `guo-johansson-2021/` | OpenAlex record and ePrint title-search page for KN-LIT-109. |
+| `fips203/`, `matzov-2022/` | landing page / Zenodo record; the PDFs themselves are **not** vendored (see reuse boundary). |
+| `codeddualattack/` | `FFT_sample.py` as served by `raw.githubusercontent.com` at `main`, plus the GitHub 403 bodies. |
+| `extracts/` | the exact text regions used by the adjudication: Carrier PDF pages 23, 25, 26, 27, 37 and its metadata; the code head's `FFT_sample.py`, the sha256 manifest of all 167 tracked files at head, and the `.out` file headers; MATZOV's false-positive locus; FIPS 203 front matter. |
 
-### `extracts/` contents
-
-| File | Derived from | Used for |
-|---|---|---|
-| `eprint-2022-1750-abstract-page.txt` | ePrint 2022/1750 landing page (HTML) | Q1: revision history (`2025-06-11: last of 3 revisions`, `2022-12-20: received`), the `Note:` field, publication info |
-| `eprint-search-coded-dual-attack-hits.txt` | ePrint search index | Q1 corroboration (`2022/1750 last_updated=2025-06-11`); Q3 literature sweep |
-| `hal-05406481-api.json` | HAL search API | Q1: deposit version (`version_i: 1`), `submittedDate_s`, `producedDate_s`, file URL |
-| `carrier-hal-05406481-pdf-metadata.json` | HAL PDF document info dictionary | Q1: `/ModDate D:20250611152836+02'00'`, page count, title, author list |
-| `carrier-hal-05406481-p02-titlepage.txt` | HAL PDF page 2 (page 1 is the HAL cover sheet) | Q1: the paper's own title and author list |
-| `carrier-hal-05406481-p37-tableC1-C2.txt` | HAL PDF page 37 (printed page 36) | **Q1 locus**: Tables C.1 and C.2 verbatim, including the CN/Kyber-512 row |
-| `carrier-hal-05406481-fig4.1-validation-section.txt` | HAL PDF, Section 4 | **Q2 locus** (the footnote naming the code repository, branch and directory) and **Q3 locus** (the Fig 4.1 T-axis range and parameters) |
-| `ducas-pulles-2023-sec5.2-5.3-excerpt.txt` | CWI repository copy of Ducas–Pulles, CRYPTO 2023 | Q3: what that paper actually measured, and in which variable |
-| `eprint-2026-599-abstract.txt`, `eprint-2026-1400-abstract.txt`, `eprint-2026-1326-abstract.txt` | ePrint landing pages | Q3: recent work building on the Carrier variant |
-| `semanticscholar-citations-carrier.json` | Semantic Scholar citation edges for DOI 10.1007/978-3-032-01855-7_15 | Q3: citation sweep |
-
-## What was deliberately **not** vendored
-
-Five full PDFs were retrieved, hashed, and read, but not committed, because the
-handoff forbids committing multi-megabyte binaries when the adjudication needs a
-table. Their complete-object `sha256` values are in `provenance.json` and are
-the authoritative identifiers:
-
-| Object | bytes | sha256 |
-|---|---|---|
-| `https://hal.science/hal-05406481/document` | 1252838 | `083b142256eecaebfa72dfccf847151b2175666a3979cef4e7383376757b8005` |
-| `https://ir.cwi.nl/pub/33407/33407.pdf` (Ducas–Pulles, CRYPTO 2023) | 1021750 | `947f2826ce64d7a8c09493f9901ef418095b89a8660be075880f8874863eb62e` |
-| `https://inria.hal.science/hal-04827068/document` (Pouly–Shen, EUROCRYPT 2024) | 925479 | `d120d4a43607053a2c66cbee72e45a236327e93dd1563f14183add35d4a2386f` |
-| `https://zenodo.org/api/records/6493704/.../content` (MATZOV 2022) | 610325 | `2a6cb56e5ca2d80e7b6c12d32779ab330c1b5938ba91e22822b634647056c3a9` |
-| `https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf` | 1252341 | `fe1f12f32a7e44ec9fdebbf400cda843a40b506dee676725234dc6f7923b6cac` |
-
-The HAL Carrier PDF is **byte-identical** to the existing immutable run artifact
-`experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf`
-(same sha256; `provenance.json` records this comparison under
-`byte_identical_to_vendored_artifact`). Re-vendoring it here would have created
-a second copy of an immutable artifact, so it was not copied. That directory was
-not modified by this task.
+Total: 39 files, ~628 KB. Re-run, from the repo root and in this order, the
+three scripts in
+`coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-101/`:
+`fetch_sources.py` (all retrievals), `fetch_addendum.py` (the corrected
+Guo–Johansson lookups), `annotate_revisions.py` (derives each entry's
+`revision_id` from the already-retrieved artifacts; adds fields only).
 
 ## Reuse boundary
 
-Read this before citing anything in this directory.
+- **Text regions, not whole papers.** Large PDFs (NIST FIPS 203, 1 252 341 B;
+  MATZOV 2022, 609 899 B) were downloaded to a work directory outside the
+  repository. Only their sha256, metadata and the extracted regions actually
+  used are vendored. Re-download them from the recorded URLs and check the
+  sha256 in `provenance.json`.
+- **The Carrier full text is not re-vendored here.** The program's copy at
+  `experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf`
+  (sha256 `083b1422…757b8005`) is an immutable run artifact; this task opened it
+  **read-only** and vendored only text extracts of pages 23/25/26/27/37. Nothing
+  under `experiments/` was modified.
+- **Licences.** The Carrier paper is CC BY (per the ePrint landing page).
+  `kevin-carrier/CodedDualAttack` carries no licence file at HEAD; only the two
+  short excerpts needed to state the Q2 finding are vendored, everything else is
+  referenced by commit + sha256.
+- These bytes are **inputs**, not results. Nothing here is evidence for or
+  against any hypothesis on its own; the evidence claims live in the ledger and
+  cite this directory by path and hash.
 
-1. **`extracts/` is derived text, not source bytes.** Every `.txt` under
-   `extracts/` was produced by `pypdf` 6.14.2 text extraction or by HTML tag
-   stripping. Extraction reorders and mangles mathematical typesetting (see the
-   run-together tokens in the Table C.2 extract). It is adequate for reading a
-   numeric cell and quoting a sentence; it is **not** adequate for
-   character-level claims about the source. Any downstream claim must be
-   re-derived from the full object identified by its `sha256` in
-   `provenance.json`.
-2. **Only `retrieved` records are usable.** A record with
-   `status: unretrieved` is an infrastructure fact and is never evidence for or
-   against a finding (AGENTS.md rule 5). Fourteen such records are present,
-   including every ePrint-hosted PDF and every GitHub endpoint.
-3. **Nothing here was written from recollection.** Every byte in `extracts/`
-   came off the wire in this session through the commands recorded in
-   `provenance.json`.
-4. **Revision identity is claimed only where recorded.** `revision_id` states
-   what a record is; where the identity of a retrieved object with a nominal
-   revision is an *inference* rather than a byte equality, that inference and
-   its evidence are set out explicitly in `source_adjudication.md` (Q1) and are
-   not asserted here.
-5. **Scope.** These are estimate/table-tier reference materials for auditing
-   published cost tables. Nothing in this directory supports any ML-KEM break
-   claim or any crypto-scale claim.
-6. **Third-party content.** ePrint 2022/1750 is distributed CC BY (recorded on
-   its landing page). The other excerpts are short verbatim quotations retained
-   for verification of published numbers; their licences were not established
-   and no redistribution beyond that purpose is intended. The MATZOV report is
-   from Zenodo record 6493704 and FIPS 203 is a US Government publication.
+## Honest limits of this snapshot
 
-## Reproducing
-
-```
-python3 coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-101/fetch_sources.py
-```
-
-The script is idempotent, re-writes `provenance.json` and `extracts/`, and
-requires network egress plus `pypdf`. Retrieval outcomes are environment
-dependent: the ePrint PDF failures are Cloudflare bot mitigation
-(`cf-mitigated: challenge`) and the GitHub failures are a session-scoped egress
-policy, so a different session may see different `status` values. That is why
-each record stores the exact status and error rather than only the successes.
+- `eprint.iacr.org/*.pdf` and `/archive/versions/*` returned **HTTP 403** with a
+  Cloudflare interstitial for all three ePrint papers attempted; `hal.science`
+  served an **Anubis proof-of-work** interstitial; `web.archive.org` was denied
+  by **proxy egress policy**. None of these challenges was solved or
+  circumvented, and none of them is evidence about the content of the source.
+- `github.com`, `api.github.com` and `codeload.github.com` return HTTP 403
+  (`GitHub access to this repository is not enabled for this session`).
+  `git ls-remote` / `git clone` over git smart-HTTP and `raw.githubusercontent.com`
+  do work, and that is how the code head was read.
+- `eprint-2021-948/` is a **mis-targeted attempt kept on purpose**: the first
+  pass guessed that ePrint number for Guo–Johansson, and the retrieved page shows
+  it belongs to an unrelated paper (Watanabe et al., searchable symmetric
+  encryption). KN-LIT-109 records `eprint: null`. The attempt is preserved
+  rather than deleted so the record shows what was actually tried.
+- Guo–Johansson (ASIACRYPT 2021) has **no open-access location** per OpenAlex,
+  and Ducas–Pulles' full text was unretrievable; both gaps bound what the Q3
+  adjudication can claim.

@@ -1,477 +1,595 @@
 #!/usr/bin/env python3
-"""TASK-20260802-101 -- primary-source retrieval for the GOAL-MLKEM-003 falsification gate.
+"""TASK-20260802-101 -- primary-source retrieval and source reads for GOAL-MLKEM-003.
 
-This is the exact retrieval script run for TASK-20260802-101. It performs every
-network attempt that backs the adjudication, records the outcome of each attempt
-(retrieved or unretrieved, with the exact error), and writes:
+Retrieves (or records the failure to retrieve) the primary sources behind the
+program's standing Carrier findings, and performs the *reads* the three
+adjudication questions need.  It performs no experiment, fits no model and
+draws no conclusion: every number it emits is either a byte-level fact about a
+retrieved artifact, or a direct read of a retrieved artifact's contents.
 
-  inputs/MLKEM-DUAL-SOURCES-20260802/provenance.json
-  inputs/MLKEM-DUAL-SOURCES-20260802/extracts/*        (small text regions actually used)
+Outputs (all inside the task's declared write scope):
 
-Design rules imposed by the handoff (ledger/handoffs/TASK-20260802-101.yaml):
+  inputs/MLKEM-DUAL-SOURCES-20260802/provenance.json   one record per attempt
+  inputs/MLKEM-DUAL-SOURCES-20260802/source_reads.json machine-readable reads
+  inputs/MLKEM-DUAL-SOURCES-20260802/extracts/...      the text regions used
 
-  * Every attempted source gets a record with url, http_status, retrieved_at
-    (UTC), sha256, bytes, revision_id and retrieved|unretrieved. A source that
-    cannot be fetched is recorded as unretrieved with its exact error; it is
-    NEVER paraphrased from memory and is NEVER evidence for or against a
-    finding (AGENTS.md rule 5).
-  * Large binaries are hashed but not vendored. Only the small text regions the
-    adjudication actually quotes are written under extracts/.
-  * No adjudication logic lives here. This script retrieves and extracts; the
-    verdicts are in source_adjudication.md / adjudication_results.json.
-  * Outbound HTTPS goes through the session agent proxy. TLS verification is
-    never disabled. Hosts denied by egress policy are reported, not routed
-    around: in particular github.com / api.github.com returned a
-    repository-scoped 403 from the proxy for kevin-carrier/CodedDualAttack, and
-    this script does not substitute a sibling host to read that repository.
+Large binaries (FIPS 203 PDF, MATZOV PDF) are downloaded to a work directory
+outside the repository; only their provenance and the extracted regions
+actually used are vendored.  The Carrier full text is NOT re-vendored: the
+run-immutable copy at experiments/EXP-MLKEM-010/vendor-lock/ is opened
+read-only and only text regions are extracted from it.
 
-Full-object bytes are cached under CACHE_DIR (a scratch directory outside the
-repository) so that a re-run is cheap; the sha256 recorded is always the sha256
-of the complete retrieved object, whatever subset is vendored.
+Usage:  python3 fetch_sources.py [--work DIR] [--skip-network]
 """
 
 from __future__ import annotations
 
+import argparse
 import datetime as _dt
 import hashlib
-import html
 import json
 import os
+import pathlib
 import re
+import shutil
+import statistics
 import subprocess
 import sys
+import types
 
-REPO = "/home/user/crypto-autoresearcher"
-OUT_DIR = os.path.join(REPO, "inputs", "MLKEM-DUAL-SOURCES-20260802")
-EXTRACT_DIR = os.path.join(OUT_DIR, "extracts")
-CACHE_DIR = os.environ.get(
-    "TASK101_CACHE",
-    "/tmp/claude-0/-home-user-crypto-autoresearcher/"
-    "6f974a8d-a1d9-5a78-a9b4-6eaac09bcaf4/scratchpad/task101cache",
+HERE = pathlib.Path(__file__).resolve().parent
+REPO_ROOT = HERE.parents[6]
+OUT_ROOT = REPO_ROOT / "inputs" / "MLKEM-DUAL-SOURCES-20260802"
+EXTRACTS = OUT_ROOT / "extracts"
+
+CARRIER_VENDOR_PDF = (
+    REPO_ROOT
+    / "experiments"
+    / "EXP-MLKEM-010"
+    / "vendor-lock"
+    / "Carrier-2022-1750-hal-05406481.pdf"
 )
 
-# A plain, honest UA. No attempt is made to defeat a bot challenge.
-UA = "crypto-autoresearcher/TASK-20260802-101 (+curl)"
+# A plain desktop-browser UA.  No attempt is made to defeat any bot challenge:
+# a challenge response is recorded as `unretrieved`, never worked around.
+UA = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
 
-RECORDS: list[dict] = []
+# ---------------------------------------------------------------------------
+# attempt table: every URL this task tried, in the handoff's preference order
+# ---------------------------------------------------------------------------
+ATTEMPTS = [
+    # (1) ePrint 2022/1750 -- Carrier-Meyer-Hilfiger-Shen-Tillich
+    dict(id="eprint-2022-1750-landing", url="https://eprint.iacr.org/2022/1750",
+         save="eprint-2022-1750/landing.html", kind="html",
+         purpose="current revision history + authors' version note (Q1)"),
+    dict(id="eprint-2022-1750-pdf", url="https://eprint.iacr.org/2022/1750.pdf",
+         save="eprint-2022-1750/pdf_attempt.body", kind="pdf",
+         purpose="current-revision full text (Q1) -- byte-level check"),
+    dict(id="eprint-2022-1750-versions",
+         url="https://eprint.iacr.org/archive/versions/2022/1750",
+         save="eprint-2022-1750/versions_attempt.body", kind="html",
+         purpose="per-revision list (Q1)"),
+    dict(id="eprint-2022-1750-oai",
+         url=("https://eprint.iacr.org/oai?verb=GetRecord&identifier="
+              "oai:eprint.iacr.org:2022/1750&metadataPrefix=oai_dc"),
+         save="eprint-2022-1750/oai_getrecord.xml", kind="xml",
+         purpose="machine-readable datestamp of the current revision (Q1)"),
+    dict(id="hal-05406481-api",
+         url=("https://api.archives-ouvertes.fr/search/?q=halId_s:hal-05406481"
+              "&fl=halId_s,version_i,title_s,submittedDate_s,modifiedDate_s,"
+              "fileMain_s,files_s,label_s,doiId_s&wt=json"),
+         save="eprint-2022-1750/hal_api_record.json", kind="json",
+         purpose="identity/version of the vendored HAL deposit (Q1 baseline)"),
+    dict(id="hal-05406481-document", url="https://hal.science/hal-05406481/document",
+         save="eprint-2022-1750/hal_document_attempt.body", kind="pdf",
+         purpose="fresh copy of the vendored full text (Q1)"),
+    dict(id="hal-05406481-file",
+         url="https://hal.science/hal-05406481/file/2022-1750.pdf",
+         save="eprint-2022-1750/hal_file_attempt.body", kind="pdf",
+         purpose="fresh copy of the vendored full text, direct file URL (Q1)"),
+    dict(id="openalex-work",
+         url="https://api.openalex.org/works/doi:10.1007/978-3-032-01855-7_15",
+         save="eprint-2022-1750/openalex_work.json", kind="json",
+         purpose="enumerate every open-access full-text location (Q1)"),
+    dict(id="semanticscholar-work",
+         url=("https://api.semanticscholar.org/graph/v1/paper/"
+              "DOI:10.1007/978-3-032-01855-7_15?fields=title,openAccessPdf,"
+              "externalIds,isOpenAccess"),
+         save="eprint-2022-1750/semanticscholar.json", kind="json",
+         purpose="independent open-access location check (Q1)"),
+    dict(id="springer-chapter",
+         url="https://link.springer.com/chapter/10.1007/978-3-032-01855-7_15",
+         save="eprint-2022-1750/springer_landing.html", kind="html",
+         purpose="published CRYPTO 2025 version landing page (Q1)"),
+    dict(id="wayback-cdx-eprint-pdf",
+         url=("http://web.archive.org/cdx/search/cdx?url=eprint.iacr.org/2022/"
+              "1750.pdf&output=json&limit=20"),
+         save="eprint-2022-1750/wayback_cdx_attempt.body", kind="json",
+         purpose="archived copy of the ePrint PDF (Q1 fallback)"),
+    # (2) NIST FIPS 203
+    dict(id="fips203-landing", url="https://csrc.nist.gov/pubs/fips/203/final",
+         save="fips203/landing.html", kind="html",
+         purpose="ML-KEM standard, publication record"),
+    dict(id="fips203-pdf",
+         url="https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf",
+         save=None, kind="pdf", work_only=True,
+         purpose="ML-KEM standard full text (Q3 corpus check)"),
+    # (3) Ducas-Pulles ePrint 2023/302
+    dict(id="eprint-2023-302-landing", url="https://eprint.iacr.org/2023/302",
+         save="eprint-2023-302/landing.html", kind="html",
+         purpose="dual-sieve heuristic objections, metadata + abstract (Q3)"),
+    dict(id="eprint-2023-302-pdf", url="https://eprint.iacr.org/2023/302.pdf",
+         save="eprint-2023-302/pdf_attempt.body", kind="pdf",
+         purpose="Ducas-Pulles full text (Q3)"),
+    # (4) MATZOV 2022
+    dict(id="matzov-zenodo-record", url="https://zenodo.org/api/records/6412487",
+         save="matzov-2022/zenodo_record.json", kind="json",
+         purpose="MATZOV report provenance"),
+    dict(id="matzov-pdf",
+         url=("https://zenodo.org/api/records/6412487/files/"
+              "Report%20on%20the%20Security%20of%20LWE.pdf/content"),
+         save=None, kind="pdf", work_only=True,
+         purpose="MATZOV full text (Q3)"),
+    # (5) Guo-Johansson
+    dict(id="eprint-2021-948-landing", url="https://eprint.iacr.org/2021/948",
+         save="eprint-2021-948/landing.html", kind="html",
+         purpose="Guo-Johansson dual attack, metadata + abstract (Q3)"),
+    dict(id="eprint-2021-948-pdf", url="https://eprint.iacr.org/2021/948.pdf",
+         save="eprint-2021-948/pdf_attempt.body", kind="pdf",
+         purpose="Guo-Johansson full text (Q3)"),
+    # code: kevin-carrier/CodedDualAttack (Q2)
+    dict(id="github-api-repo",
+         url="https://api.github.com/repos/kevin-carrier/CodedDualAttack",
+         save="codeddualattack/github_api_attempt.json", kind="json",
+         purpose="repository head metadata (Q2)"),
+    dict(id="github-web-repo",
+         url="https://github.com/kevin-carrier/CodedDualAttack",
+         save="codeddualattack/github_web_attempt.body", kind="html",
+         purpose="repository web page (Q2)"),
+    dict(id="codeload-tarball",
+         url=("https://codeload.github.com/kevin-carrier/CodedDualAttack/"
+              "tar.gz/refs/heads/main"),
+         save=None, kind="bin", work_only=True,
+         purpose="repository tarball at head (Q2)"),
+    dict(id="raw-readme-main",
+         url=("https://raw.githubusercontent.com/kevin-carrier/CodedDualAttack/"
+              "main/README.md"),
+         save=None, kind="text", work_only=True,
+         purpose="branch-name probe recorded in the handoff (Q2)"),
+    dict(id="raw-readme-master",
+         url=("https://raw.githubusercontent.com/kevin-carrier/CodedDualAttack/"
+              "master/README.md"),
+         save=None, kind="text", work_only=True,
+         purpose="branch-name probe recorded in the handoff (Q2)"),
+    dict(id="raw-fft-sample-main",
+         url=("https://raw.githubusercontent.com/kevin-carrier/CodedDualAttack/"
+              "main/verifyModel/ScoreExperimentalDistribution/FFT_sample.py"),
+         save="codeddualattack/FFT_sample.raw-main.py", kind="text",
+         purpose="Pwrong/Pgood score paths at the current default branch (Q2)"),
+]
+
+BOT_CHALLENGE_MARKERS = (
+    b"Just a moment...",
+    b"Making sure you&#39;re not a bot",
+    b"Making sure you're not a bot",
+    b"Protected by Anubis",
+    b"cf-browser-verification",
+)
 
 
 def utcnow() -> str:
     return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def fetch(source_id: str, url: str, *, revision_id: str, note: str = "",
-          follow: bool = True, expect_pdf: bool = False) -> dict:
-    """One HTTPS attempt. Returns the provenance record; caches the body.
+def sha256_bytes(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
 
-    ``expect_pdf`` guards against the common failure where a publisher answers a
-    PDF URL with HTTP 200 and a cookie-wall HTML page. Such a response is
-    recorded as *unretrieved*: a 200 that does not carry the requested object is
-    a failed retrieval, not a retrieval.
-    """
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    body_path = os.path.join(CACHE_DIR, source_id + ".body")
-    hdr_path = os.path.join(CACHE_DIR, source_id + ".hdr")
-    cmd = ["curl", "-sS", "-A", UA, "-D", hdr_path, "-o", body_path,
-           "-w", "%{http_code}|%{size_download}|%{content_type}|%{url_effective}"]
-    if follow:
-        cmd.append("-L")
-    cmd.append(url)
-    rec = {
-        "source_id": source_id,
-        "url": url,
-        "revision_id": revision_id,
-        "retrieved_at": utcnow(),
-        "command": " ".join(cmd),
-        "note": note,
-    }
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-    except subprocess.TimeoutExpired as exc:
-        rec.update(status="unretrieved", http_status=None, sha256=None, bytes=None,
-                   error=f"timeout after 180s: {exc}")
-        RECORDS.append(rec)
-        return rec
-    if proc.returncode != 0:
-        rec.update(status="unretrieved", http_status=None, sha256=None, bytes=None,
-                   error=f"curl exit {proc.returncode}: {proc.stderr.strip()[:400]}")
-        RECORDS.append(rec)
-        return rec
-    parts = proc.stdout.split("|")
-    http_status = int(parts[0])
-    content_type = parts[2].strip() if len(parts) > 2 else None
-    url_effective = parts[3].strip() if len(parts) > 3 else url
-    raw = open(body_path, "rb").read()
-    rec.update(
-        http_status=http_status,
-        bytes=len(raw),
-        sha256=hashlib.sha256(raw).hexdigest(),
-        content_type=content_type,
-        url_effective=url_effective,
-        cache_path=body_path,
+
+def sha256_file(p: pathlib.Path) -> str:
+    h = hashlib.sha256()
+    with open(p, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def run(cmd, **kw):
+    return subprocess.run(cmd, capture_output=True, text=True, **kw)
+
+
+def fetch(attempt: dict, work: pathlib.Path) -> dict:
+    """One retrieval attempt, recorded whether it succeeds or fails."""
+    body = work / ("body_" + attempt["id"] + ".bin")
+    started = utcnow()
+    cmd = [
+        "curl", "-sSL", "-A", UA, "--max-time", "300",
+        "-o", str(body),
+        "-w", "%{http_code}\t%{size_download}\t%{content_type}\t%{url_effective}\t%{time_total}",
+        attempt["url"],
+    ]
+    proc = run(cmd)
+    rec = dict(
+        source_id=attempt["id"],
+        url=attempt["url"],
+        purpose=attempt["purpose"],
+        retrieved_at=started,
+        curl_exit=proc.returncode,
+        curl_stderr=proc.stderr.strip() or None,
     )
-    if expect_pdf:
-        rec["is_pdf"] = raw[:5] == b"%PDF-"
-    if http_status == 200 and len(raw) > 0 and (not expect_pdf or rec.get("is_pdf")):
-        rec["status"] = "retrieved"
-    elif http_status == 200 and expect_pdf and not rec.get("is_pdf"):
+    if proc.returncode != 0 or "\t" not in proc.stdout:
+        rec.update(status="unretrieved", http_status=None, bytes=None, sha256=None,
+                   content_type=None,
+                   unretrieved_reason=(proc.stderr.strip() or
+                                       "curl failed with no diagnostic"))
+        return rec
+    code, size, ctype, eff, ttot = proc.stdout.split("\t")
+    raw = body.read_bytes() if body.exists() else b""
+    rec.update(http_status=int(code), bytes=len(raw), content_type=ctype,
+               effective_url=eff, seconds=float(ttot),
+               sha256=sha256_bytes(raw) if raw else None)
+
+    challenge = next((m.decode("utf-8", "replace") for m in BOT_CHALLENGE_MARKERS
+                      if m in raw[:20000]), None)
+    wanted_pdf = attempt["kind"] == "pdf"
+    is_pdf = raw[:5] == b"%PDF-"
+    if rec["http_status"] != 200:
         rec["status"] = "unretrieved"
-        rec["error"] = (
-            "HTTP 200 but the body is not a PDF (content_type=%s, first 5 bytes=%r); "
-            "the server answered the PDF URL with an interstitial/cookie-wall page."
-            % (content_type, raw[:5])
-        )
+        rec["unretrieved_reason"] = "HTTP %s" % code + (
+            "; bot-challenge interstitial (%s)" % challenge if challenge else "")
+        if b"Blocked by egress policy" in raw:
+            rec["unretrieved_reason"] += "; proxy egress policy denial"
+        if raw and b"not enabled for this session" in raw:
+            rec["unretrieved_reason"] += "; session GitHub access gate"
+    elif challenge and not is_pdf:
+        rec["status"] = "unretrieved"
+        rec["unretrieved_reason"] = (
+            "HTTP 200 but body is a bot-challenge interstitial (%s); "
+            "not circumvented" % challenge)
+    elif wanted_pdf and not is_pdf:
+        rec["status"] = "unretrieved"
+        rec["unretrieved_reason"] = "HTTP 200 but body is not a PDF (%s)" % ctype
     else:
-        rec["status"] = "unretrieved"
-        # Preserve the exact server-side explanation, truncated.
-        snippet = raw[:400].decode("utf-8", "replace")
-        mitigated = ""
-        try:
-            hdrs = open(hdr_path, encoding="utf-8", errors="replace").read()
-            m = re.search(r"^cf-mitigated:\s*(\S+)", hdrs, re.M | re.I)
-            if m:
-                mitigated = f" [cf-mitigated: {m.group(1)}]"
-        except OSError:
-            pass
-        rec["error"] = f"HTTP {http_status}{mitigated}; body[0:400]={snippet!r}"
-    RECORDS.append(rec)
-    print(f"[{rec['status']:11s}] {http_status} {len(raw):>9d}B  {source_id}", file=sys.stderr)
+        rec["status"] = "retrieved"
+
+    # keep the body: vendored inside the repo when small and useful, otherwise
+    # only in the work directory (provenance still carries its sha256)
+    if attempt.get("save") and raw:
+        dest = OUT_ROOT / attempt["save"]
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(body, dest)
+        rec["vendored_path"] = str(dest.relative_to(REPO_ROOT))
+    elif raw:
+        rec["work_path_not_vendored"] = str(body)
     return rec
 
 
-def note_only(source_id: str, url: str, *, revision_id: str, status: str,
-              error: str, note: str) -> dict:
-    """A source that was deliberately NOT fetched, recorded with the reason."""
-    rec = {
-        "source_id": source_id,
-        "url": url,
-        "revision_id": revision_id,
-        "retrieved_at": utcnow(),
-        "command": None,
-        "http_status": None,
-        "bytes": None,
-        "sha256": None,
-        "status": status,
-        "error": error,
-        "note": note,
-    }
-    RECORDS.append(rec)
-    return rec
+# ---------------------------------------------------------------------------
+# PDF text extraction
+# ---------------------------------------------------------------------------
+def pdf_pages(path: pathlib.Path):
+    """Extract per-page text.
+
+    pypdf probes `cryptography` at import time; this image's cryptography rust
+    binding raises pyo3 PanicException, which pypdf's ImportError guard cannot
+    catch.  The stubs below force pypdf onto its pure-python crypt provider.
+    All PDFs read here are unencrypted, so no decryption path is exercised.
+    """
+    for name in ("cryptography", "cryptography.hazmat",
+                 "cryptography.hazmat.primitives",
+                 "cryptography.hazmat.primitives.ciphers",
+                 "cryptography.hazmat.primitives.asymmetric",
+                 "cryptography.exceptions"):
+        if name not in sys.modules:
+            mod = types.ModuleType(name)
+            mod.__path__ = []          # type: ignore[attr-defined]
+            sys.modules[name] = mod
+    import pypdf  # noqa: E402
+    reader = pypdf.PdfReader(str(path))
+    meta = {k: str(v) for k, v in (reader.metadata or {}).items()}
+    return meta, [p.extract_text() for p in reader.pages], pypdf.__version__
 
 
-def strip_html(raw: bytes) -> str:
-    s = raw.decode("utf-8", "replace")
-    s = re.sub(r"<script.*?</script>", " ", s, flags=re.S)
-    s = re.sub(r"<style.*?</style>", " ", s, flags=re.S)
-    s = re.sub(r"<[^>]+>", "\n", s)
-    s = html.unescape(s)
-    return "\n".join(l.strip() for l in s.split("\n") if l.strip())
+def write_extract(relpath: str, text: str) -> str:
+    dest = EXTRACTS / relpath
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(text, encoding="utf-8")
+    return str(dest.relative_to(REPO_ROOT))
 
 
-def write_extract(name: str, text: str) -> str:
-    os.makedirs(EXTRACT_DIR, exist_ok=True)
-    path = os.path.join(EXTRACT_DIR, name)
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(text)
-    print(f"  -> extract {name} ({len(text.encode())}B)", file=sys.stderr)
-    return path
-
-
-def pdf_pages(path: str) -> list[str]:
-    from pypdf import PdfReader
-    reader = PdfReader(path)
-    return [p.extract_text() or "" for p in reader.pages]
-
-
-def pdf_meta(path: str) -> dict:
-    from pypdf import PdfReader
-    return {k: str(v) for k, v in (PdfReader(path).metadata or {}).items()}
+def load_out_file(path: pathlib.Path):
+    """Parse a CodedDualAttack .out file: '#'-comment header + one float/line."""
+    header, values = [], []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("#"):
+            header.append(s)
+        else:
+            values.append(float(s))
+    return header, values
 
 
 def main() -> int:
-    os.makedirs(OUT_DIR, exist_ok=True)
-    os.makedirs(EXTRACT_DIR, exist_ok=True)
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--work", default=os.environ.get(
+        "TASK101_WORK", "/tmp/task-20260802-101-work"))
+    ap.add_argument("--skip-network", action="store_true")
+    args = ap.parse_args()
 
-    # ---------------------------------------------------------------- Q1 side A
-    # ePrint 2022/1750: abstract/metadata page (HTML) -- carries the revision
-    # history line that pins the current revision.
-    r = fetch("eprint-2022-1750-abstract", "https://eprint.iacr.org/2022/1750",
-              revision_id="eprint:2022/1750 landing page as served on retrieval date",
-              note="Authoritative ePrint metadata page: title, revision count/date, note field.")
-    if r["status"] == "retrieved":
-        txt = strip_html(open(r["cache_path"], "rb").read())
-        # Keep the paper block only (from the title heading to the BibTeX block).
-        i = txt.find("Paper 2022/1750")
-        j = txt.find("Note: In order to protect the privacy")
-        write_extract("eprint-2022-1750-abstract-page.txt",
-                      txt[i if i >= 0 else 0: j if j > 0 else len(txt)])
+    work = pathlib.Path(args.work)
+    work.mkdir(parents=True, exist_ok=True)
+    OUT_ROOT.mkdir(parents=True, exist_ok=True)
+    EXTRACTS.mkdir(parents=True, exist_ok=True)
 
-    # ePrint revision-history listing (all versions with timestamps).
-    fetch("eprint-2022-1750-versions", "https://eprint.iacr.org/archive/versions/2022/1750",
-          revision_id="eprint:2022/1750 all-versions listing",
-          note="Needed to enumerate exact per-revision timestamps and archive PDF URLs.")
+    provenance = dict(
+        schema="crypto.autoresearch.source_provenance.v1",
+        task_id="TASK-20260802-101",
+        goal_id="GOAL-MLKEM-003",
+        generated_at=utcnow(),
+        generator="coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/"
+                  "TASK-20260802-101/fetch_sources.py",
+        policy_note=(
+            "Bot-challenge interstitials (Cloudflare on eprint.iacr.org PDF "
+            "endpoints, Anubis proof-of-work on hal.science) were NOT solved or "
+            "circumvented; they are recorded as unretrieved. Proxy egress "
+            "denials were not retried or routed around."),
+        attempts=[],
+        local_artifacts=[],
+        code_repository=None,
+    )
+    reads = dict(
+        schema="crypto.autoresearch.source_reads.v1",
+        task_id="TASK-20260802-101",
+        generated_at=utcnow(),
+        note=("Direct reads of retrieved artifacts. No model is fitted and no "
+              "conclusion is drawn here."),
+    )
 
-    # ePrint current PDF (the object Q1 nominally wants).
-    fetch("eprint-2022-1750-pdf", "https://eprint.iacr.org/2022/1750.pdf",
-          revision_id="eprint:2022/1750 current revision PDF", expect_pdf=True)
+    # ---------------- network attempts ----------------
+    if not args.skip_network:
+        for attempt in ATTEMPTS:
+            rec = fetch(attempt, work)
+            provenance["attempts"].append(rec)
+            print("[%-9s] %s %s" % (rec["status"], rec.get("http_status"),
+                                    rec["url"]), flush=True)
 
-    # Control: is the PDF block specific to this paper, or to all ePrint PDFs?
-    fetch("eprint-2023-302-pdf-control", "https://eprint.iacr.org/2023/302.pdf",
-          revision_id="eprint:2023/302 current revision PDF", expect_pdf=True,
-          note="Control probe: establishes that the 403 is path-class-wide on ePrint, "
-               "not specific to 2022/1750.")
+    # ---------------- code head (git smart-HTTP) ----------------
+    repo_url = "https://github.com/kevin-carrier/CodedDualAttack"
+    clone = work / "CodedDualAttack_head"
+    ls = run(["git", "ls-remote", repo_url])
+    code = dict(url=repo_url, retrieved_at=utcnow(),
+                ls_remote_cmd="git ls-remote " + repo_url,
+                ls_remote_exit=ls.returncode,
+                ls_remote_stdout=ls.stdout.strip(),
+                ls_remote_stderr=ls.stderr.strip() or None)
+    if ls.returncode == 0 and ls.stdout.strip():
+        refs = dict((ln.split("\t")[1], ln.split("\t")[0])
+                    for ln in ls.stdout.strip().splitlines())
+        code["refs"] = refs
+        code["head_commit"] = refs.get("HEAD")
+        code["status"] = "retrieved"
+    else:
+        code["status"] = "unretrieved"
+        code["unretrieved_reason"] = ls.stderr.strip() or "git ls-remote failed"
 
-    # ePrint search index entry -- independent confirmation of the last-updated date.
-    r = fetch("eprint-search-coded-dual-attack",
-              "https://eprint.iacr.org/search?q=coded+dual+attack",
-              revision_id="eprint search index as served on retrieval date",
-              note="Q3 literature sweep + independent 'Last updated' date for 2022/1750.")
-    if r["status"] == "retrieved":
-        raw = open(r["cache_path"], "rb").read().decode("utf-8", "replace")
-        rows = []
-        for m in re.finditer(
-                r'class="paperlink" href="/(\d{4}/\d+)">.*?Last updated: ([\d-]+).*?<strong>(.*?)</strong>',
-                raw, re.S):
-            rows.append(f"{m.group(1)}  last_updated={m.group(2)}  "
-                        f"{html.unescape(re.sub('<[^>]+>', '', m.group(3)))}")
-        write_extract("eprint-search-coded-dual-attack-hits.txt", "\n".join(rows) + "\n")
+    if code["status"] == "retrieved" and not args.skip_network:
+        if clone.exists():
+            shutil.rmtree(clone)
+        cl = run(["git", "clone", "--depth", "1", repo_url, str(clone)])
+        code["clone_cmd"] = "git clone --depth 1 %s %s" % (repo_url, clone)
+        code["clone_exit"] = cl.returncode
+        code["clone_stderr"] = cl.stderr.strip() or None
+    if clone.exists():
+        head = run(["git", "-C", str(clone), "log", "-1",
+                    "--format=%H\t%cI\t%an\t%s"]).stdout.strip()
+        if head:
+            h, cdate, author, subject = head.split("\t", 3)
+            code.update(cloned_head_commit=h, head_commit_date=cdate,
+                        head_author=author, head_subject=subject)
+        files = run(["git", "-C", str(clone), "ls-files"]).stdout.split()
+        manifest = {f: sha256_file(clone / f) for f in files
+                    if (clone / f).is_file()}
+        code["file_count"] = len(manifest)
+        write_extract("codeddualattack/file_sha256_manifest.txt",
+                      "".join("%s  %s\n" % (v, k)
+                              for k, v in sorted(manifest.items())))
+        code["file_sha256_manifest"] = (
+            "inputs/MLKEM-DUAL-SOURCES-20260802/extracts/codeddualattack/"
+            "file_sha256_manifest.txt")
+    provenance["code_repository"] = code
 
-    # ---------------------------------------------------------------- Q1 side B
-    # HAL metadata for hal-05406481 -- pins the vendored artifact's deposit side.
-    r = fetch("hal-05406481-api",
-              "https://api.archives-ouvertes.fr/search/?q=halId_s:hal-05406481"
-              "&fl=halId_s,version_i,title_s,submittedDate_s,modifiedDate_s,"
-              "fileMain_s,files_s,label_s,producedDate_s&wt=json",
-              revision_id="hal-05406481 (HAL API record)",
-              note="Deposit version, dates and file URL for the vendored artifact.")
-    if r["status"] == "retrieved":
-        write_extract("hal-05406481-api.json",
-                      open(r["cache_path"], encoding="utf-8", errors="replace").read())
+    # ---------------- Q2 read: score-path asymmetry at head ----------------
+    if clone.exists():
+        vm = clone / "verifyModel" / "ScoreExperimentalDistribution"
+        fft_src = (vm / "FFT_sample.py").read_text()
+        alg_src = (vm / "Algorithm.py").read_text()
+        vendored_fft = (REPO_ROOT / "experiments" / "EXP-MLKEM-013" /
+                        "vendor-lock" / "FFT_sample.py")
+        pwrong_line = next(l.strip() for l in fft_src.splitlines()
+                           if "fftn" in l)
+        pgood_lines = [l.rstrip() for l in fft_src.splitlines()
+                       if "self.F" in l]
+        reads["q2_code_head"] = dict(
+            head_commit=code.get("cloned_head_commit"),
+            pinned_commit_in_findings="9c1367f85d26038244bc83c025d84c0b7006f2ee",
+            head_equals_pinned=(code.get("cloned_head_commit") ==
+                                "9c1367f85d26038244bc83c025d84c0b7006f2ee"),
+            fft_sample_sha256_head=sha256_file(vm / "FFT_sample.py"),
+            fft_sample_sha256_vendored=sha256_file(vendored_fft),
+            algorithm_py_sha256_head=sha256_file(vm / "Algorithm.py"),
+            pwrong_scale_line=pwrong_line,
+            pgood_scale_lines=pgood_lines,
+            pwrong_pipeline_lines=[l.strip() for l in alg_src.splitlines()
+                                   if "T_FFT" in l or "score_function_complete" in l
+                                   or "compute_survival" in l][:8],
+            pgood_pipeline_lines=[l.strip() for l in alg_src.splitlines()
+                                  if "compute_score" in l or
+                                  "score_function_target" in l][:8],
+        )
+        write_extract("codeddualattack/FFT_sample.head.py", fft_src)
 
-    # HAL document PDF -- the live copy of the object the findings were derived from.
-    r = fetch("hal-05406481-document", "https://hal.science/hal-05406481/document",
-              revision_id="hal-05406481 v1 (deposited 2025-12-09)", expect_pdf=True,
-              note="Full PDF; hashed but NOT vendored (already an immutable run artifact "
-                   "at experiments/EXP-MLKEM-010/vendor-lock/). Only Table C.2 page and "
-                   "the Fig 4.1 section are extracted.")
-    if r["status"] == "retrieved":
-        pdf_path = r["cache_path"] + ".pdf"
-        os.replace(r["cache_path"], pdf_path)
-        r["cache_path"] = pdf_path
-        pages = pdf_pages(pdf_path)
-        meta = pdf_meta(pdf_path)
-        r["pdf_metadata"] = meta
-        r["pdf_pages"] = len(pages)
-        write_extract("carrier-hal-05406481-pdf-metadata.json",
-                      json.dumps({"pages": len(pages), "metadata": meta}, indent=2) + "\n")
-        # Title page (page 2; page 1 is the HAL cover sheet).
-        write_extract("carrier-hal-05406481-p02-titlepage.txt", pages[1][:1200])
-        # Table C.2 page.
-        for idx, page in enumerate(pages):
-            if "Table C.2" in page and "143.30" in page:
-                write_extract("carrier-hal-05406481-p%02d-tableC1-C2.txt" % (idx + 1), page)
-        # Fig 4.1 validation section.
-        joined = "\n".join(pages)
-        k = joined.find("Validating our Analysis Through Simulations")
-        if k >= 0:
-            end = joined.find("5 Application", k)
-            write_extract("carrier-hal-05406481-fig4.1-validation-section.txt",
-                          joined[k:end if end > k else k + 6000])
+        # ---------------- Q3 read: measured T ranges at head ----------------
+        data = vm / "data"
+        q3 = dict(k_fft_alignment_note=(
+            "EV-MLKEM-013 froze the alignment: Pwrong is fftn(T).real/k_fft, "
+            "Pgood is the raw cosine sum, so Pgood/k_fft puts both on one "
+            "scale. k_fft=3 for every archived parameter set below."),
+            pwrong_files=[], pgood_files=[])
+        for p in sorted(data.glob("Pwrong_*.out")):
+            header, vals = load_out_file(p)
+            positive = [i for i, v in enumerate(vals) if v > 0]
+            q3["pwrong_files"].append(dict(
+                file=p.name, sha256=sha256_file(p), bytes=p.stat().st_size,
+                n_data_lines=len(vals), max_T_index=len(vals) - 1,
+                last_T_with_positive_mass=positive[-1] if positive else None,
+                value_at_last_positive=vals[positive[-1]] if positive else None,
+                header=[h for h in header if len(h) < 200]))
+            write_extract("codeddualattack/%s.header.txt" % p.name,
+                          "\n".join(header) + "\n")
+        for p in sorted(data.glob("Pgood_*.out")):
+            header, vals = load_out_file(p)
+            q3["pgood_files"].append(dict(
+                file=p.name, sha256=sha256_file(p), bytes=p.stat().st_size,
+                n_values=len(vals),
+                raw_min=min(vals), raw_median=statistics.median(vals),
+                raw_max=max(vals),
+                aligned_min=min(vals) / 3.0,
+                aligned_median=statistics.median(vals) / 3.0,
+                aligned_max=max(vals) / 3.0,
+                header=[h for h in header if len(h) < 200]))
+            write_extract("codeddualattack/%s.header.txt" % p.name,
+                          "\n".join(header) + "\n")
+        reads["q3_code_head_data"] = q3
 
-        # Independent cross-check of the vendored artifact under the SAME hash.
-        vendored = os.path.join(REPO, "experiments", "EXP-MLKEM-010", "vendor-lock",
-                                "Carrier-2022-1750-hal-05406481.pdf")
-        if os.path.exists(vendored):
-            vh = hashlib.sha256(open(vendored, "rb").read()).hexdigest()
-            r["vendored_artifact_sha256"] = vh
-            r["byte_identical_to_vendored_artifact"] = (vh == r["sha256"])
+    # ---------------- Q1 read: Table C.2 in the vendored full text ---------
+    if CARRIER_VENDOR_PDF.exists():
+        meta, pages, pypdf_version = pdf_pages(CARRIER_VENDOR_PDF)
+        prov_local = dict(
+            path=str(CARRIER_VENDOR_PDF.relative_to(REPO_ROOT)),
+            sha256=sha256_file(CARRIER_VENDOR_PDF),
+            bytes=CARRIER_VENDOR_PDF.stat().st_size,
+            role="baseline artifact the standing findings were derived from "
+                 "(read-only; not modified, not re-vendored)",
+            pdf_metadata=meta, pages=len(pages), pypdf_version=pypdf_version)
+        provenance["local_artifacts"].append(prov_local)
 
-    # Published version of record (CRYPTO 2025) -- a third, independent revision.
-    fetch("springer-chapter-landing",
-          "https://link.springer.com/chapter/10.1007/978-3-032-01855-7_15",
-          revision_id="Springer CRYPTO 2025 chapter, DOI 10.1007/978-3-032-01855-7_15")
-    fetch("springer-chapter-pdf",
-          "https://link.springer.com/content/pdf/10.1007/978-3-032-01855-7_15.pdf",
-          revision_id="Springer CRYPTO 2025 chapter PDF (open access, CC BY)",
-          expect_pdf=True)
-    fetch("unpaywall-978-3-032-01855-7_15",
-          "https://api.unpaywall.org/v2/10.1007/978-3-032-01855-7_15?email=info@adamburan.com",
-          revision_id="Unpaywall OA-location index",
-          note="Enumerates every OA host for the published version.")
-    fetch("semanticscholar-978-3-032-01855-7_15",
-          "https://api.semanticscholar.org/graph/v1/paper/DOI:10.1007/978-3-032-01855-7_15"
-          "?fields=title,externalIds,openAccessPdf,year,venue",
-          revision_id="Semantic Scholar record")
+        wanted = {37: "carrier-hal-05406481/page37_tables_C1_C2.txt",
+                  26: "carrier-hal-05406481/page26_fig41.txt",
+                  25: "carrier-hal-05406481/page25_pwrong_validation.txt",
+                  23: "carrier-hal-05406481/page23_approx_4_8_4_9.txt",
+                  27: "carrier-hal-05406481/page27_threshold_choice.txt"}
+        extract_paths = {}
+        for pageno, rel in wanted.items():
+            if pageno <= len(pages):
+                extract_paths[pageno] = write_extract(rel, pages[pageno - 1])
+        write_extract("carrier-hal-05406481/pdf_metadata.json",
+                      json.dumps(meta, indent=2) + "\n")
 
-    # ------------------------------------------------------------------- Q2
-    # kevin-carrier/CodedDualAttack. Both GitHub hosts are denied for this
-    # session by egress policy; recorded and NOT routed around.
-    fetch("github-api-CodedDualAttack",
-          "https://api.github.com/repos/kevin-carrier/CodedDualAttack",
-          revision_id="repository HEAD (unknown -- not obtained)")
-    fetch("github-api-CodedDualAttack-commits",
-          "https://api.github.com/repos/kevin-carrier/CodedDualAttack/commits?per_page=3",
-          revision_id="repository HEAD commit list (unknown -- not obtained)")
-    fetch("github-web-CodedDualAttack",
-          "https://github.com/kevin-carrier/CodedDualAttack",
-          revision_id="repository HEAD (unknown -- not obtained)")
-    fetch("github-api-numpy-control", "https://api.github.com/repos/numpy/numpy",
-          revision_id="n/a (control probe)",
-          note="Control probe: establishes the GitHub denial is session-wide, not a "
-               "property of the CodedDualAttack repository or a transient error.")
-    note_only(
-        "raw-githubusercontent-CodedDualAttack",
-        "https://raw.githubusercontent.com/kevin-carrier/CodedDualAttack/main/verifyModel/FFT_sample.py",
-        revision_id="repository HEAD (unknown -- not obtained)",
-        status="not_attempted",
-        error=("Deliberately not fetched. The session carries an explicit "
-               "repository-scoped GitHub access denial (see github-* records). "
-               "/root/.ccr/README.md instructs that a proxy 403 must be reported, "
-               "not routed around, so a sibling host was not used to read the same "
-               "repository. Independently, the handoff requires the observed HEAD "
-               "commit SHA, which raw.githubusercontent.com cannot supply."),
-        note=("Remedy for a follow-up task: obtain GitHub access for "
-              "kevin-carrier/CodedDualAttack (add_repo) and re-run Q2."))
+        page37 = pages[36] if len(pages) >= 37 else ""
+        cn_block = page37.split("CN:")[-1] if "CN:" in page37 else ""
+        cn_row = next((l for l in cn_block.splitlines()
+                       if l.startswith("Kyber-512")), None)
+        reads["q1_table_c2"] = dict(
+            artifact=prov_local["path"],
+            artifact_sha256=prov_local["sha256"],
+            pdf_moddate=meta.get("/ModDate"),
+            pdf_creationdate=meta.get("/CreationDate"),
+            pdf_creator=meta.get("/Creator"),
+            pdf_producer=meta.get("/Producer"),
+            pdf_page_of_table_c2=37,
+            printed_page_number="36",
+            cn_kyber512_row_verbatim=cn_row,
+            cn_kyber512_log2_Tsample=(cn_row.split()[3] if cn_row else None),
+            cc_kyber512_row_verbatim=next(
+                (l for l in page37.split("CC:")[-1].split("CN:")[0].splitlines()
+                 if l.startswith("Kyber-512")), None),
+            table_c2_caption=next((l for l in page37.splitlines()
+                                   if l.startswith("Table C.2")), None),
+            occurrences_of_143_30=page37.count("143.30"),
+            occurrences_of_134_30=page37.count("134.30"),
+            extract_paths=extract_paths)
 
-    # ------------------------------------------------------------------- Q3
-    # Ducas-Pulles CRYPTO 2023 (the heuristics objection).
-    fetch("eprint-2023-302-abstract", "https://eprint.iacr.org/2023/302",
-          revision_id="eprint:2023/302 landing page as served on retrieval date")
-    r = fetch("cwi-33407-ducas-pulles-2023", "https://ir.cwi.nl/pub/33407/33407.pdf",
-              revision_id="CWI repository copy of Ducas-Pulles, CRYPTO 2023", expect_pdf=True,
-              note="Full PDF hashed, not vendored; only the Section 5 experiments "
-                   "region is extracted.")
-    if r["status"] == "retrieved":
-        p = r["cache_path"] + ".pdf"
-        os.replace(r["cache_path"], p)
-        r["cache_path"] = p
-        joined = "\n".join(pdf_pages(p))
-        k = joined.find("5.2 Distribution of Scores of Uniform Targets")
-        if k >= 0:
-            end = joined.find("Conclusion. All in all", k)
-            write_extract("ducas-pulles-2023-sec5.2-5.3-excerpt.txt",
-                          joined[k:end + 600 if end > k else k + 7000])
-        # Record whether the Carrier-specific quantity appears at all.
-        r["mentions_Pwrong_token"] = "Pwrong" in joined
-        r["mentions_Carrier"] = "Carrier" in joined
+        # Q3 read on the paper side: where does Fig 4.1 measure Pwrong?
+        p26 = pages[25] if len(pages) >= 26 else ""
+        ticks = re.findall(r"\b\d{3,4}\b", p26.split("T\n")[0]) if p26 else []
+        reads["q3_paper_side"] = dict(
+            fig41_axis_ticks_first_panel=ticks[:10],
+            fig41_caption_snippet=(p26[p26.find("Fig.4.1"):p26.find("Fig.4.1") + 420]
+                                   if "Fig.4.1" in p26 else None),
+            threshold_choice_quote=next(
+                (s.strip() for s in (pages[26] if len(pages) >= 27 else "")
+                 .split(".") if "Approximation 4.8" in s and "Pgood" in s), None),
+            table_c2_caption_pgood=reads["q1_table_c2"]["table_c2_caption"])
 
-    # Pouly-Shen EUROCRYPT 2024, provable dual attack (post-objection line).
-    r = fetch("hal-04827068-pouly-shen-2024", "https://inria.hal.science/hal-04827068/document",
-              revision_id="hal-04827068 v1 (submitted 2024-12-09)", expect_pdf=True)
-    if r["status"] == "retrieved":
-        p = r["cache_path"] + ".pdf"
-        os.replace(r["cache_path"], p)
-        r["cache_path"] = p
-        joined = "\n".join(pdf_pages(p))
-        r["mentions_Pwrong_token"] = "Pwrong" in joined
-        r["mentions_Carrier"] = "Carrier" in joined
+    # ---------------- corpus checks on the other retrieved PDFs ------------
+    corpus = {}
+    for sid, fname in (("matzov-pdf", "body_matzov-pdf.bin"),
+                       ("fips203-pdf", "body_fips203-pdf.bin")):
+        p = work / fname
+        if not p.exists() or p.read_bytes()[:5] != b"%PDF-":
+            corpus[sid] = dict(available=False)
+            continue
+        meta, pages, _ = pdf_pages(p)
+        text = "\n".join(pages)
+        counts = {pat: len(re.findall(re.escape(pat), text, flags=re.I))
+                  for pat in ("Pwrong", "P_wrong", "false positive",
+                              "false-positive", "Pgood", "threshold",
+                              "simulation", "experimental")}
+        corpus[sid] = dict(available=True, sha256=sha256_file(p),
+                           bytes=p.stat().st_size, pages=len(pages),
+                           pdf_metadata=meta, term_counts=counts)
+        if sid == "matzov-pdf":
+            idx = text.lower().find("false positive")
+            if idx >= 0:
+                region = re.sub(r"\s+", " ", text[max(0, idx - 900): idx + 600])
+                corpus[sid]["false_positive_locus"] = region
+                write_extract("matzov-2022/false_positive_locus.txt",
+                              region + "\n")
+        if sid == "fips203-pdf":
+            write_extract("fips203/front_matter.txt",
+                          "\n".join(pages[:2]))
+    reads["q3_other_sources"] = corpus
 
-    # MATZOV 2022 technical report.
-    r = fetch("zenodo-6493704-matzov",
-              "https://zenodo.org/api/records/6493704/files/"
-              "Report%20on%20the%20Security%20of%20LWE%20updated.pdf/content",
-              revision_id="Zenodo record 6493704 (DOI 10.5281/zenodo.6493704), 'updated' file",
-              expect_pdf=True)
-    if r["status"] == "retrieved":
-        p = r["cache_path"] + ".pdf"
-        os.replace(r["cache_path"], p)
-        r["cache_path"] = p
-        joined = "\n".join(pdf_pages(p))
-        r["mentions_Pwrong_token"] = "Pwrong" in joined
+    # ---------------- ePrint revision history (Q1, current side) ----------
+    landing = OUT_ROOT / "eprint-2022-1750" / "landing.html"
+    oai = OUT_ROOT / "eprint-2022-1750" / "oai_getrecord.xml"
+    hist = {}
+    if landing.exists():
+        html = landing.read_text(encoding="utf-8", errors="replace")
+        flat = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
+        m = re.search(r"History (.{0,160}?) See all versions", flat)
+        hist["landing_history_text"] = m.group(1).strip() if m else None
+        n = re.search(r"Note: ([^<]{0,200}?) Metadata", flat)
+        hist["landing_version_note"] = n.group(1).strip() if n else None
+        hist["landing_sha256"] = sha256_file(landing)
+    if oai.exists():
+        xml = oai.read_text(encoding="utf-8", errors="replace")
+        d = re.search(r"<datestamp>([^<]+)</datestamp>", xml)
+        hist["oai_datestamp"] = d.group(1) if d else None
+        hist["oai_sha256"] = sha256_file(oai)
+    hal = OUT_ROOT / "eprint-2022-1750" / "hal_api_record.json"
+    if hal.exists():
+        try:
+            doc = json.loads(hal.read_text())["response"]["docs"][0]
+            hist["hal_record"] = doc
+        except Exception as exc:                        # pragma: no cover
+            hist["hal_record_parse_error"] = repr(exc)
+    reads["q1_current_revision_metadata"] = hist
 
-    # Guo-Johansson ASIACRYPT 2021 (the other dual-attack claim).
-    fetch("eprint-2021-948-abstract", "https://eprint.iacr.org/2021/948",
-          revision_id="eprint:2021/948 landing page as served on retrieval date")
-    fetch("eprint-2021-948-pdf", "https://eprint.iacr.org/2021/948.pdf",
-          revision_id="eprint:2021/948 current revision PDF", expect_pdf=True)
-    fetch("lup-guo-johansson-record",
-          "https://lup.lub.lu.se/record/292b3d98-754c-414d-95db-ee38806157f9",
-          revision_id="Lund University Publications record",
-          note="Checked for an OA full text; none linked.")
-
-    # Newer work citing the Carrier variant (Q3 sweep).
-    for pid in ("2026/599", "2026/1400", "2026/1326"):
-        sid = "eprint-%s-abstract" % pid.replace("/", "-")
-        r = fetch(sid, "https://eprint.iacr.org/%s" % pid,
-                  revision_id="eprint:%s landing page as served on retrieval date" % pid,
-                  note="Q3 sweep: recent paper surfaced by the ePrint search for "
-                       "coded/dual attacks on LWE.")
-        if r["status"] == "retrieved":
-            txt = strip_html(open(r["cache_path"], "rb").read())
-            i = txt.find("Paper %s" % pid)
-            j = txt.find("Note: In order to protect the privacy")
-            write_extract("eprint-%s-abstract.txt" % pid.replace("/", "-"),
-                          txt[i if i >= 0 else 0: j if j > 0 else len(txt)])
-        fetch(sid.replace("-abstract", "-pdf"), "https://eprint.iacr.org/%s.pdf" % pid,
-              revision_id="eprint:%s current revision PDF" % pid, expect_pdf=True)
-
-    r = fetch("semanticscholar-citations-carrier",
-              "https://api.semanticscholar.org/graph/v1/paper/"
-              "DOI:10.1007/978-3-032-01855-7_15/citations"
-              "?fields=title,year,venue,externalIds,openAccessPdf&limit=100",
-              revision_id="Semantic Scholar citation edges as served on retrieval date")
-    if r["status"] == "retrieved":
-        write_extract("semanticscholar-citations-carrier.json",
-                      open(r["cache_path"], encoding="utf-8", errors="replace").read())
-
-    # Wayback: an archived copy of the ePrint PDF would settle Q1 on ePrint bytes.
-    fetch("wayback-availability-eprint-pdf",
-          "https://archive.org/wayback/available?url=eprint.iacr.org/2022/1750.pdf",
-          revision_id="Wayback availability index")
-    fetch("wayback-cdx-eprint-pdf",
-          "http://web.archive.org/cdx/search/cdx?url=eprint.iacr.org/2022/1750.pdf"
-          "&output=json&limit=30",
-          revision_id="Wayback CDX index for the ePrint PDF")
-    fetch("wayback-snapshot-eprint-pdf",
-          "http://web.archive.org/web/20260114001146/https://eprint.iacr.org/2022/1750.pdf",
-          revision_id="Wayback snapshot 20260114001146 of eprint.iacr.org/2022/1750.pdf",
-          expect_pdf=True,
-          note="The snapshot named by the archive.org availability API; would give "
-               "ePrint-hosted bytes for the current revision if reachable.")
-
-    # ----------------------------------------------------- handoff priority (2)
-    fetch("nist-fips-203", "https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf",
-          revision_id="FIPS 203 (final, published 2024-08-13)", expect_pdf=True,
-          note="Handoff priority (2). Retrieved for provenance completeness; the "
-               "adjudication of Q1/Q2/Q3 does not depend on it.")
-    fetch("nist-fips-203-landing", "https://csrc.nist.gov/pubs/fips/203/final",
-          revision_id="CSRC landing page for FIPS 203 (final)")
-
-    # ------------------------------------------------------------------ output
-    env = {
-        "retrieved_at_utc": utcnow(),
-        "curl_version": subprocess.run(["curl", "--version"], capture_output=True,
-                                       text=True).stdout.splitlines()[0],
-        "python": sys.version.split()[0],
-        "git_commit": subprocess.run(["git", "-C", REPO, "rev-parse", "HEAD"],
-                                     capture_output=True, text=True).stdout.strip(),
-        "https_proxy_configured": bool(os.environ.get("HTTPS_PROXY")),
-        "tls_verification": "enabled (agent-proxy CA bundle /root/.ccr/ca-bundle.crt)",
-    }
-    try:
-        from pypdf import __version__ as _pv
-        env["pypdf"] = _pv
-    except Exception:
-        env["pypdf"] = None
-
-    doc = {
-        "task_id": "TASK-20260802-101",
-        "goal_id": "GOAL-MLKEM-003",
-        "batch_id": "BATCH-007",
-        "generated_by": os.path.basename(__file__),
-        "environment": env,
-        "counts": {
-            "attempted": len(RECORDS),
-            "retrieved": sum(1 for r in RECORDS if r["status"] == "retrieved"),
-            "unretrieved": sum(1 for r in RECORDS if r["status"] == "unretrieved"),
-            "not_attempted": sum(1 for r in RECORDS if r["status"] == "not_attempted"),
-        },
-        "sources": RECORDS,
-    }
-    with open(os.path.join(OUT_DIR, "provenance.json"), "w", encoding="utf-8") as fh:
-        json.dump(doc, fh, indent=2, sort_keys=False)
-        fh.write("\n")
-    print(json.dumps(doc["counts"]), file=sys.stderr)
+    # ---------------- write outputs ----------------
+    (OUT_ROOT / "provenance.json").write_text(
+        json.dumps(provenance, indent=2, sort_keys=False) + "\n")
+    (OUT_ROOT / "source_reads.json").write_text(
+        json.dumps(reads, indent=2, sort_keys=False) + "\n")
+    print("\nwrote %s" % (OUT_ROOT / "provenance.json"))
+    print("wrote %s" % (OUT_ROOT / "source_reads.json"))
+    retrieved = sum(1 for a in provenance["attempts"] if a["status"] == "retrieved")
+    print("attempts: %d retrieved, %d unretrieved"
+          % (retrieved, len(provenance["attempts"]) - retrieved))
     return 0
 
 

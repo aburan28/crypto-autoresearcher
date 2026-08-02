@@ -1,9 +1,9 @@
 ---
 id: KN-LIT-6854
 type: literature
-title: "Structured Encryption and Dynamic Leakage Suppression"
+title: Structured Encryption and Dynamic Leakage Suppression
 authors:
-  - "Marilyn George"
+- Marilyn George
 year: null
 venue: null
 identifiers:
@@ -11,10 +11,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- structured-encryption
+- leakage
+- searchable-encryption
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 
