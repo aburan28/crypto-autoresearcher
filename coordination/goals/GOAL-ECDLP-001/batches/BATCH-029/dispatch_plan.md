@@ -6,12 +6,10 @@ Deliver the owed RUN-SMTH-PILOT-003 design that TASK-20260801-160 handed off and
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-db286e` | idea-generator | queued | 100 | - | coordination/goals/GOAL-ECDLP-001/batches/BATCH-029/tasks/TASK-20260802-db286e/run003_design_proposal.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-029/tasks/TASK-20260802-db286e |
+| `TASK-20260802-4ea237` | validator | queued | 80 | TASK-20260802-db286e, TASK-20260802-2dbdff | coordination/goals/GOAL-ECDLP-001/batches/BATCH-029/reviews/TASK-20260802-4ea237/design_review.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-029/reviews/TASK-20260802-4ea237 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-2dbdff`: task_marked_blocked
-- `TASK-20260802-4ea237`: task_marked_blocked
 - `TASK-20260802-7ee93d`: task_marked_blocked
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ Deliver the owed RUN-SMTH-PILOT-003 design that TASK-20260801-160 handed off and
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `4ec1ba328f49a875cd2d38b31363087c6d7f6a6eb5500d1210d73a11a66b0887`
+Plan SHA-256: `0bea6f475dedb91e98d1548dc52098e9fec41b68d8a94c58c50a6e42a3d9fc6a`
