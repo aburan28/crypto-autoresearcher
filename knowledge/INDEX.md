@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7799 entries.
+7800 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -37,6 +37,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-028 | AES supplies one element of order 4 in GL(4,GF(2^8)) on a column, so no GL/AGL transitivity argument kills column-local invariants; and byte-wise Inv preserves GF(2^8)-collinearity, so the obstruction at SubBytes is the affine layer L | internal_finding | established |  | aes mixcolumns subbytes gf256 collinearity transitivity burnside column-local scoped-negative argument-unavailability derivation toy-scale reduced-round |
 | KN-FIND-029 | Five false-green escapes across three repairs of one mutation control; coverage escapes are closable by construction, evasion escapes are not closable by an in-process instrument | internal_finding | reported |  | mutation-testing false-green coverage-escape observability trusting-trust harness-integrity instrument-design experiment-design methodology controls-before-belief scoped-negative aes toy-scale |
 | KN-FIND-030 | Directory-scan ID allocation is not concurrency-safe across branches; two campaigns against one main allocate the same next-free id, and the correction record documenting the first collision collided the same way | internal_finding | established |  | harness-integrity ledger id-allocation concurrency merge-conflict record-immutability process methodology infrastructure scoped-negative non-cryptographic |
+| KN-FIND-031 | An empirical survival function's lowest nonzero value is 1/N, so a measured "floor" at log2 P = -log2 N is the estimator's resolution limit and not a property of the distribution; the Carrier Fig 4.1 Pwrong floor is exactly this | internal_finding | established |  | methodology instrument-artifact controls-before-belief rare-event survival-function sampling-resolution dual-attack carrier pwrong kyber ml-kem kn-open-016 experiment-design scoped-negative |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
