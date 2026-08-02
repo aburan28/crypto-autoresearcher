@@ -636,7 +636,23 @@ class SgcpEmbedVerifierTests(unittest.TestCase):
         run_id = generator_plan["run_id"]
         run_dir = EXPERIMENT / "runs" / run_id
         if run_dir.exists():
-            self.fail(f"reserved test run directory already exists: {run_dir}")
+            # This replay writes manifest.json, runner-receipt.json and
+            # raw-result.json into run_dir and rmtree()s it afterwards. Once a
+            # real run is committed under the plan's reserved id, running the
+            # replay would overwrite and then delete an immutable run record,
+            # so the guard is doing its job and the id is simply consumed.
+            # A directory that is NOT committed is stray state from an aborted
+            # replay and still has to fail loudly.
+            tracked = subprocess.run(
+                ["git", "ls-files", "--error-unmatch", str(run_dir)],
+                cwd=REPO_ROOT, capture_output=True, text=True, check=False,
+            ).returncode == 0
+            if not tracked:
+                self.fail(f"stray uncommitted run directory: {run_dir}")
+            self.skipTest(
+                f"{run_id} is now a committed run record; the execution plan "
+                f"needs a fresh reserved run id before this replay can run "
+                f"again without destroying it")
         run_dir.mkdir(parents=True)
         self.addCleanup(shutil.rmtree, run_dir, True)
 
@@ -644,6 +660,13 @@ class SgcpEmbedVerifierTests(unittest.TestCase):
             resource.setrlimit(resource.RLIMIT_NPROC, (0, 0))
 
         builder_command = list(generator_plan["argv"])
+        # The frozen plan pins an absolute interpreter path from the machine
+        # that authorized it. Replaying it elsewhere is not possible, and
+        # substituting sys.executable would stop testing the frozen argv.
+        if not Path(builder_command[0]).exists():
+            self.skipTest(
+                f"execution plan pins interpreter {builder_command[0]}, "
+                f"absent on this host")
         self.assertTrue(Path(builder_command[0]).samefile(sys.executable))
         builder_process = subprocess.run(
             builder_command,

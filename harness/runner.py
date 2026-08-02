@@ -194,7 +194,13 @@ def _iso(ts: float) -> str:
 
 
 def _inference_block() -> dict:
-    """Return the static inference metadata recorded in every harness run."""
+    """The `inference` block every harness-written run manifest carries.
+
+    A run produced by this module is deterministic Python, not a model call,
+    so there is no resolved model to record. Saying that explicitly is the
+    point: AGENTS.md requires the block on every run manifest, and an absent
+    block reads as "nobody recorded it" rather than "no inference happened".
+    """
     return {
         "requested_policy": "executor-terra",
         "resolved_model_id": "none (deterministic harness execution)",

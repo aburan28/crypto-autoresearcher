@@ -15,8 +15,17 @@ tags: [elliptic-curve, implementation, isogeny, lattice, pairing, pqc, provable-
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-7642
 ---
+
+> **Superseded 2026-08-01 by [[KN-LIT-7642]].** This record's bibliographic header is
+> corrupt: the `title` field concatenates an ANTS XVII conference banner with a
+> truncated paper title, the `authors` field holds the text fragment
+> `"APPLICATION TO THE"` instead of a person, and `year`, `venue`, and all three
+> identifier fields are `null`. The paper is Antonin Leroux, *Efficient quaternion
+> algorithms for the Deuring correspondence, and application to the evaluation of
+> modular polynomials*, IACR ePrint 2026/185. The body below is left unedited per the
+> immutability rule; cite KN-LIT-7642 instead.
 
 ## Contribution
 This work presents several algorithms to perform operations in the quaternion ideals and orders stemming from the Deuring correspondence. While most of the desired operations can be done with generic linear algebra, we show that they can be performed much more efficiently while maintaining a strict control over the size of the integers involved.
