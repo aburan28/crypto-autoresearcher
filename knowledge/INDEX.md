@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7799 entries.
+7800 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7720,6 +7720,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-017 | Where does the enumeration/sieving crossover move once sieving memory is fully charged? | open_problem | reported | open | full-cost memory sieving enumeration crossover cost-model kissing-number wiener concrete-security open lattice cross-domain |
 | KN-OPEN-018 | Does lattice machinery bear on the plain ECDLP at all, outside the leakage model? | open_problem | reported | open | cross-domain lattice ecdlp hnp coppersmith index-calculus descent leakage genericity open |
 | KN-OPEN-019 | What object does each ECDLP attack family track, and is that enumeration closed? | open_problem | reported | open | ecdlp methodology tracked-object attack-families closure saturation index-calculus generic-group isogeny open |
+| KN-OPEN-020 | Universal algebraic-factor-base no-go for prime-field index calculus | open_problem | unverified | open | prime-field ecdlp index-calculus factor-base algebraic-description lower-bound open |
 | KN-OPEN-024 | Does the rank-1 (quaternion-order) principal ideal problem inherit the tractability now shown for matrix rings M_g(O), g >= 2? | open_problem | reported | open | principal-ideal-problem quaternion quaternion-algebra order short-generator unit-group endomorphism-ring superspecial abelian-variety lattice-isomorphism-problem non-commutative open |
 | KN-OPEN-025 | For which automorphism orders k can Galois symmetry accelerate the TNFS linear-algebra step, and what is the end-to-end gain? | open_problem | reported | open | number-field-sieve tnfs galois automorphism symmetry linear-algebra dlp finite-field extension-field pairing cost-model open |
 | KN-OPEN-026 | How large is the concrete security discount from module/ring structure, and does it grow with better techniques? | open_problem | reported | open | module-lwe ring-lwe lwe structure hybrid-attack coefficient-isometry sparse-secret fhe kyber ml-kem concrete-security cost-model symmetry open lattice |
