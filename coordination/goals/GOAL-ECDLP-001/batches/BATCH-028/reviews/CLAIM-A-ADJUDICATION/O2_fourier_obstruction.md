@@ -1,5 +1,19 @@
 # (O2) as an argument — a Fourier obstruction to sum-compatible filters
 
+> **CORRECTION NOTICE — added after this document was written; no text below is
+> altered.** This document's word "**unconditionally**" (§0 and §4) is an
+> **overclaim** and is corrected in `O2_composition_closure.md` §2. Theorem A is
+> unconditional as an *inequality*, but the closure conclusion depends on
+> `Delta(h) = o(1/M)`, which §6 here **measured** for two filter families and
+> extrapolated. `O2_derivation_attempt.md` Proposition 2 exhibits a family — the
+> dlog-interval filter `floor(M*dlog(P)/N)` — for which `Delta ~ 1/2` at
+> arbitrarily large `M`, so the extrapolation is false in general. §7.3 below did
+> flag the scaling as "measured, not proven"; the headline did not carry that
+> qualifier. Theorems A and B, the exact identity, and every number in §6 stand
+> as written. Read `O2_composition_closure.md` for the corrected and composed
+> statement, in which the affine closure becomes *stronger* — a proof on a named
+> class rather than an extrapolation.
+
 Executes item **4** of `F1_sum_compatible_filter_search.md` §10: *"Making precise
 the step ... would convert (O2) from a measurement into an argument, which is
 what the closure standard actually asks for."*
