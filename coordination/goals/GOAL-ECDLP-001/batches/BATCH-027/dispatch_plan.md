@@ -6,12 +6,10 @@ BATCH-027 RUN THE MEASUREMENT. Everything the measurement needs already exists, 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-077` | reviewer | queued | 92 | TASK-20260801-076 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-077/tool_change_review.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-077 |
+| `TASK-20260801-079` | executor | queued | 88 | TASK-20260801-078 | experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/manifest.yaml, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/raw-result.json, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/command.txt, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/environment.json, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/stdout.log, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/stderr.log, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/git_status_prerun.txt, experiments/EXP-LPF-001/results/measure/LPF_report.json, experiments/EXP-LPF-001/results/measure/absolute_comparison.json, experiments/EXP-LPF-001/results/measure/relative_band_comparison.json, experiments/EXP-LPF-001/results/measure/deviation_certificate.json, experiments/EXP-LPF-001/results/measure/factorization_verification.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/tasks/TASK-20260801-079/execution_report.yaml | experiments/EXP-LPF-001/runs/RUN-LPF-001-measure, experiments/EXP-LPF-001/results/measure, coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/tasks/TASK-20260801-079 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-078`: dependency_not_completed:TASK-20260801-077:queued
-- `TASK-20260801-079`: dependency_not_completed:TASK-20260801-078:queued
 - `TASK-20260801-080`: dependency_not_completed:TASK-20260801-079:queued
 - `TASK-20260801-081`: dependency_not_completed:TASK-20260801-080:queued, dependency_not_completed:TASK-20260801-079:queued
 - `TASK-20260801-082`: dependency_not_completed:TASK-20260801-080:queued, dependency_not_completed:TASK-20260801-079:queued
@@ -30,4 +28,4 @@ BATCH-027 RUN THE MEASUREMENT. Everything the measurement needs already exists, 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `036222a61e4800a35a47ff11d38383c663b18c460ae6c477d256b70eb31dfb39`
+Plan SHA-256: `a1cdc219f8f20d50f62a6df8b25f367cf9c69ac925f4ef66100e597c4530dc12`
