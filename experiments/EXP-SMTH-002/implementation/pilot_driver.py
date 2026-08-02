@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Null-only EXP-SMTH-PILOT-001 implementation and bounded pack sink.
+"""Null-only EXP-SMTH-002 implementation and bounded pack sink.
 
 This module deliberately has no curve, factor-base, S3, source, plant,
 p-value, evidence, or research-state interface.  ``self-test`` uses only tiny
@@ -35,9 +35,9 @@ import time
 from typing import BinaryIO, Callable, Iterable, Iterator, Sequence
 
 
-EXPERIMENT_ID = "EXP-SMTHPILOT-001"
+EXPERIMENT_ID = "EXP-SMTH-002"
 RUN_ID = "RUN-SMTH-PILOT-002"
-DOMAIN = "EXP-SMTH-PILOT-001/v1"
+DOMAIN = "EXP-SMTH-002/v1"
 MASTER_SEED = 25051
 BITS = (16, 20)
 FIXTURES_PER_BIT = 2
@@ -69,7 +69,7 @@ WORKTREE_RESERVATION_BYTES = 1_610_612_736
 COMMON_DIR_RESERVATION_BYTES = 5_297_483_648
 SAME_DEVICE_RESERVATION_BYTES = 6_908_096_384
 FULL_V2_FACTORING_SUBTOTAL = 79_536_128
-EXP_REL = Path("experiments/EXP-SMTH-PILOT-001")
+EXP_REL = Path("experiments/EXP-SMTH-002")
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RUN_REL = EXP_REL / "runs" / RUN_ID
 PREDECESSOR_RUN_REL = EXP_REL / "runs" / "RUN-SMTH-PILOT-001"
@@ -1898,9 +1898,9 @@ def run_self_tests(only: set[str] | None = None) -> dict:
 
         def exact_path_roster() -> None:
             assert len(RUN_EVIDENCE_ROSTER) == len(set(RUN_EVIDENCE_ROSTER)) == 137
-            assert EXPERIMENT_ID == "EXP-SMTHPILOT-001"
-            assert EXP_REL == Path("experiments/EXP-SMTH-PILOT-001")
-            assert DOMAIN == "EXP-SMTH-PILOT-001/v1"
+            assert EXPERIMENT_ID == "EXP-SMTH-002"
+            assert EXP_REL == Path("experiments/EXP-SMTH-002")
+            assert DOMAIN == "EXP-SMTH-002/v1"
             assert RUN_ID == "RUN-SMTH-PILOT-002"
             assert RUN_REL == EXP_REL / "runs" / "RUN-SMTH-PILOT-002"
             assert RUN_FIXED_RELATIVE_PATHS[:6] == tuple(

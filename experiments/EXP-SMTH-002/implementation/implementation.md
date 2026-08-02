@@ -2,7 +2,8 @@
 
 Tasks: `TASK-20260801-082`, repairs `TASK-20260801-095`,
 `TASK-20260801-100`, `TASK-20260801-105`, `TASK-20260801-115`, and
-`TASK-20260801-136`; RSS epoch repair `TASK-20260801-149`
+`TASK-20260801-136`; RSS epoch repair `TASK-20260801-149`; canonical rebind
+`TASK-20260801-156`
 
 Scope: implementation only. No registered scientific run was started, and no
 run or result artifact was generated. The implementation exposes only the
@@ -29,12 +30,23 @@ preconstruction failure `TASK-20260801-113` under authorization
 `TASK-20260801-114`. It changes only the platform-specific path verification
 and its bounded regression control; it does not alter the scientific protocol.
 
-The successor binding repair is authorized by committed
-`TASK-20260801-135` at `5ed0a5408562331c5e0b77876f28a7f8e86cc90d`
+Current canonical binding: after the merge-only reconciliation
+`EXP-SMTH-002-AMEND-012` and independent PASS `VAL-20260801-154`, committed
+handoff `TASK-20260801-156` rebinds new implementation output to experiment ID
+`EXP-SMTH-002`, storage prefix `experiments/EXP-SMTH-002`, and seed domain
+`EXP-SMTH-002/v1`. `RUN_ID` remains `RUN-SMTH-PILOT-002`. This rebind changes
+only the seven binding string nodes in the driver AST; the validated RSS epoch
+repair and every scientific, resource, checkpoint, failure, certificate, and
+storage algorithm remain unchanged. It supplies no execution authority and
+does not alter immutable RUN002 or result bytes.
+
+Historical provenance: the predecessor successor-binding repair was authorized
+by committed `TASK-20260801-135` at
+`5ed0a5408562331c5e0b77876f28a7f8e86cc90d`
 and binds the implementation to `EXP-SMTH-PILOT-001-AMEND-011`, whose
 committed-byte review `VAL-20260801-133` passed at amendment snapshot
-`98ed8c204f3607e63996c5ff5d73da4dc2a38c64`. Under the canonical alias rule,
-future manifest fields use experiment ID `EXP-SMTHPILOT-001`, while the
+`98ed8c204f3607e63996c5ff5d73da4dc2a38c64`. Under that historical alias rule,
+then-future manifest fields used experiment ID `EXP-SMTHPILOT-001`, while the
 historical storage path remains `experiments/EXP-SMTH-PILOT-001` and the seed
 domain remains `EXP-SMTH-PILOT-001/v1`. The run binding and its exact six
 run-package sinks are now `RUN-SMTH-PILOT-002`. The terminal predecessor
@@ -330,5 +342,34 @@ The final scope audit found one ignored generated
 `implementation/__pycache__/pilot_driver.cpython-313.pyc`; the exact cache file
 and its now-empty directory were removed, and no bytecode or other extra path
 remains in the worktree.
+
+## TASK-20260801-156 canonical location rebind
+
+This implementation-only task changed the seven current binding string nodes
+from the malformed historical aliases to `EXP-SMTH-002`,
+`experiments/EXP-SMTH-002`, and `EXP-SMTH-002/v1`. `RUN_ID` remains
+`RUN-SMTH-PILOT-002`. Historical task, amendment, command, receipt, and review
+passages above retain their literal provenance values.
+
+The driver parsed before and after the edit with 17,158 AST nodes. Its raw AST
+SHA-256 changed from
+`81e32a980cf147c89b72018a57394cc7070c9894e7f79995666f8a4a76044882`
+to `b82653008d3cfdd1a09842ae09e6ca566b243c98c41c61cd9f90333caaee2608`,
+while the binding-normalized non-binding AST SHA-256 remained
+`f304e6726adfed277794661aa13061713bf84124fb1e268ba0f6240c674d2389`.
+The exact seven nodes are the module description; `EXPERIMENT_ID`, `DOMAIN`,
+and `EXP_REL`; and the three corresponding `exact_path_roster` assertions.
+
+One of the two permitted ordinary self-test invocations ran:
+`PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-002/implementation/pilot_driver.py self-test --only exact-137-path-roster`.
+It exited 0 with `status=pass`, `scientific_runs=0`, and the canonical binding,
+RUN002 roster, predecessor-log exclusion, and fixed-path assertions passing.
+No second self-test was needed.
+
+The protected 60-file inventory under canonical `runs/` and `results/` had
+identical before/after SHA-256
+`2ff1a53a61aee9785a6d89d10277c8962e016b82ac9afb83ff3bddcf9ee8cb7b`.
+No `RT146-C1`, `run-null-pilot`, pilot, resume, or scientific command ran; no
+protected artifact changed; and no bytecode or undeclared artifact remained.
 
 Scientific run count: **0**.
