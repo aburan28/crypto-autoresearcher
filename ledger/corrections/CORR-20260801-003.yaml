@@ -1,0 +1,170 @@
+correction:
+  id: CORR-20260801-003
+  recorded_at: '2026-08-01'
+  record_type: claim
+  record_type_note: >-
+    The template enumeration for record_type is candidate | claim | run. claim is
+    used as the closest permitted token, exactly as CORR-20260724-001 and
+    CORR-20260727-001 did for merge and identifier repairs. The corrected artifacts
+    are knowledge-corpus provenance statements, not research claims.
+
+  corrected_record: knowledge/gathers/GATHER-20260729.md
+  also_corrects:
+    - knowledge/literature/KN-LIT-7600.md
+    - knowledge/literature/KN-LIT-2414.md
+
+  summary: >-
+    Two independent provenance defects in the knowledge corpus, both found while
+    running the 2026-08-01 themed gather, both of a kind that identifier-based dedup
+    cannot catch. (1) GATHER-20260729 skipped iacr:2026/1244 as already ingested
+    under KN-LIT-7563; it was not ingested, and KN-LIT-7563 is a different paper.
+    The skipped paper is the only directly-ECDLP item either sweep encountered.
+    (2) KN-LIT-2414 holds iacr:2026/185 under a citation corrupted by a PDF scrape -
+    a conference banner as title, the text fragment "APPLICATION TO THE" as author,
+    and all identifiers null.
+
+  defect_1_false_positive_dedup:
+    claimed_by_gather_20260729: >-
+      Its "Already ingested" table lists `iacr:2026/1244` Resource Estimation,
+      Distributed Quantum ECDLP as KN-LIT-7563 and rejects it from ingestion on that
+      basis.
+    measured_facts:
+      method: >-
+        Read on the working tree of claude/algebraic-number-theory-kb-zpmu0c at the
+        merge-base with origin/main. Searches run: `grep -rn "2026/1244"
+        knowledge/literature/`, a title search for "Distributed Quantum Algorithm
+        for the Elliptic Curve", an author search for "Khajeian", and a phrase
+        search for "zero-quantum-communication" and "Quantum Processing Unit". No
+        value is relayed.
+      kn_lit_7563_actual_title: 'The supersingular isogeny problem in time and memory p^{1/3+o(1)}'
+      kn_lit_7563_eprint_field: null
+      entries_holding_iacr_2026_1244_as_identifier: 0
+      only_corpus_occurrence_of_the_string: >-
+        knowledge/literature/KN-LIT-7600.md line 50, in prose reading
+        "[[KN-LIT-7563]] (iacr:2026/1244) is the distributed-quantum ECDLP resource
+        estimate" - itself the same mis-citation.
+      author_search_khajeian_hits: 0
+    consequence: >-
+      An ePrint paper whose title contains "Elliptic Curve Logarithm Problem", giving
+      logical-qubit and Toffoli-count estimates for a 256-bit curve, was excluded
+      from the corpus by a dedup check that matched it against an unrelated entry.
+      Three consecutive gathers (20260726, 20260727, 20260729) repeated the
+      exclusion.
+    repair: >-
+      Ingested as KN-LIT-7657 on 2026-08-01 with citation verified against the
+      ePrint record. The entry carries a header note stating it is a dedup repair.
+
+  defect_2_corrupt_citation:
+    record: knowledge/literature/KN-LIT-2414.md
+    measured_facts:
+      title_field: >-
+        "Algorithmic Number Theory Symposium XVII, Groningen, July 6-10, 2026
+        EFFICIENT QUATERNION ALGORITHMS FOR THE DEURING" - a conference banner
+        concatenated with a truncated paper title.
+      authors_field: '["APPLICATION TO THE"]'
+      year_field: null
+      venue_field: null
+      identifiers_eprint_doi_arxiv: all null
+      added: '2026-07-24'
+      provenance_stated_in_body: >-
+        "Entry generated during the 2026-07-24 bulk seeding pass" - the record's own
+        "Not verified here" section says title/authors/year/venue were parsed
+        heuristically and may be mis-segmented.
+    actual_paper: >-
+      Antonin Leroux, "Efficient quaternion algorithms for the Deuring
+      correspondence, and application to the evaluation of modular polynomials",
+      IACR ePrint 2026/185.
+    consequence: >-
+      The record cannot support a citation or a novelty check. It was found only
+      because the 2026-08-01 sweep grepped candidate titles by distinctive term;
+      identifier dedup could never have matched it, since it carries no identifier.
+    repair: >-
+      KN-LIT-7642 written with the verified citation; KN-LIT-2414 marked
+      superseded_by KN-LIT-7642 with a header note. Its body is left unedited.
+
+  what_is_and_is_not_wrong:
+    gathers_are_otherwise_honest: >-
+      GATHER-20260729's counts, queries, and provenance statements are not
+      challenged here. The defect is one row of one table.
+    no_research_claim_is_affected: >-
+      Neither defect touches an evidence record, a decision, or a hypothesis status.
+      No experiment consumed either record.
+    kn_lit_7563_itself_is_fine: >-
+      KN-LIT-7563 is a correct entry for a different paper. The error is in the
+      records that cite it, not in it.
+    immutability_respected: >-
+      No record body was rewritten. KN-LIT-2414 received a superseded_by field and a
+      header note, which knowledge/README.md explicitly provides for. KN-LIT-7600's
+      mis-citation in prose is documented here and left in place, since amending it
+      would be a silent substantive rewrite.
+
+  systemic_finding:
+    statement: >-
+      Identifier-based dedup is insufficient in both directions. It produces false
+      negatives when a paper is held under a second identifier (three ePrint/arXiv
+      cross-posts found on 2026-08-01: KN-LIT-1885/iacr:2026/171,
+      KN-LIT-1919/iacr:2026/493, and KN-LIT-7652 which carries both), and - as
+      defect 1 shows - the human-written "already ingested" tables that compensate
+      for it produce false positives that silently drop on-topic papers.
+    procedural_conclusion: >-
+      Every dedup decision must be backed by a grep for distinctive title terms
+      against knowledge/literature/, and a claim that an item is already ingested
+      must name the entry AND be checked to hold the matching identifier. Both
+      checks were run for all candidates in GATHER-20260801.
+    unsized_risk: >-
+      The 2026-07-24 bulk PDF-scrape pass that produced KN-LIT-2414 ran at scale. A
+      single 16-item sweep collided with one corrupt record from it, which suggests a
+      non-trivial population of entries with unparseable titles, fragment authors,
+      and null identifiers. This record makes NO estimate of how many exist. A cheap
+      audit - count literature entries with all three identifier fields null and an
+      authors field that is not a plausible personal name - would size it and has
+      NOT been run.
+
+  corrected_statement: >-
+    iacr:2026/1244 (Khajeian, "Resource Estimation of the Distributed Quantum
+    Algorithm for the Elliptic Curve Logarithm Problem") was NOT in the knowledge
+    corpus before 2026-08-01, despite GATHER-20260729 recording it as ingested under
+    KN-LIT-7563. It is now KN-LIT-7657. iacr:2026/185 (Leroux) WAS in the corpus, as
+    KN-LIT-2414, under a corrupt citation; the verified entry is KN-LIT-7642 and
+    KN-LIT-2414 is superseded.
+
+  scope_of_this_correction:
+    corrects: >-
+      The dedup provenance of two literature items and the one GATHER-20260729 table
+      row asserting the first was already held.
+    does_not_correct:
+      - >-
+        Any other row of any gather's ingested or rejected tables, none of which were
+        re-checked.
+      - >-
+        KN-LIT-7600's substantive content; only its parenthetical mis-citation is
+        documented, and it is left in place.
+      - >-
+        KN-LIT-2414's body, which is left exactly as written.
+      - >-
+        Any evidence, decision, hypothesis, or experiment record.
+    changes_no_hypothesis_status: true
+    is_not_a_cryptanalytic_result: true
+
+  open_items:
+    - id: OI-1
+      item: >-
+        Sizing the 2026-07-24 bulk-scrape corruption population. Not run here.
+        Requires a corpus-wide audit and, if the population is non-trivial, a
+        Coordinator decision on whether to supersede entries individually or to
+        record a class-level correction.
+    - id: OI-2
+      item: >-
+        The corpus still has no mechanism for attaching a second identifier to an
+        existing immutable entry when a paper appears on both ePrint and arXiv.
+        Flagged by GATHER-20260729 and re-confirmed three times on 2026-08-01. This
+        is a schema decision for the Coordinator, not a repair.
+
+  recorded_by: orchestrator
+  authority_note: >-
+    Written from the branch claude/algebraic-number-theory-kb-zpmu0c by the session
+    that measured the discrepancy, following the precedent of CORR-20260729-003. It
+    creates no decision record, changes no status, edits no immutable record body,
+    and makes no queue amendment. Its claims are the measured absence of
+    iacr:2026/1244 from the corpus and the measured state of KN-LIT-2414's
+    frontmatter, both re-checkable by the greps named under measured_facts.

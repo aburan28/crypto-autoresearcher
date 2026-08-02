@@ -10,7 +10,7 @@
 
 ## Record formats & validators
 - templates/research-records.md schemas: research_goal, research_question, hypothesis, experiment, evidence (claim_tier toy|medium|crypto, proof_status), claim (reproduced/partially/not/not_attempted/open/invalidated), attention_contract + resource_estimate.stages (queue v3), run, correction (append-only), coordinator_decision (knowledge_promotion block), handoff, archive receipt.
-- tools/: validate_ledger.py (ID/xref/manifest checks; baseline grandfathering), check_run_immutability.py (CI gate), autoresearch_focus.py (≤3 active experiments, stage budgets, claim/run consistency), orchestration/adapter (policy resolution and receipts; superseded the pre-2.0 tools/model_policy.py), research_dispatch.py (Git-verified archives), build_knowledge_index.py.
+- tools/: validate_ledger.py (ID/xref/manifest checks; baseline grandfathering), check_run_immutability.py (CI gate), autoresearch_focus.py (≤3 active experiments, stage budgets, claim/run consistency), research_dispatch.py (Git-verified archives), build_knowledge_index.py. Resolution receipts are produced by `orchestration/adapter/resolver.py` (`python -m orchestration.adapter doctor`), not by tools/ — the parallel tools/model_policy.py implementation was removed once its catalog schema stopped matching the vendor-free model-policies.yaml.
 - tests/test_harness.py: 14 tests (curve law, determinism, rho 6–14 bits, S_3 identity, tamper detection, immutability).
 - knowledge/: 41 entries (KN-LIT-001..025, KN-TECH-001..010, KN-OPEN-001..006); knowledge/findings/ EMPTY (no KN-FIND yet).
 

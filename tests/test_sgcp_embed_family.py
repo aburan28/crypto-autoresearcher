@@ -8,9 +8,11 @@ import itertools
 import json
 import math
 import os
+import re
 import runpy
 import shutil
 import stat
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -1244,6 +1246,35 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
                     )
                 )
 
+    def _reviewed_v18_tree(self) -> str:
+        """The one exact tree DEC-SGCP-EMBED-002-018 says was reviewed.
+
+        Read from the decision record rather than hardcoded, so the test can
+        never certify a surface the decision did not name, and cross-checked
+        against all three pre-run reviews so a single edited document cannot
+        move it.
+        """
+        experiment_root = SOURCE.parents[1]
+        decision = json.loads(
+            (experiment_root / "decision-v18.json").read_text(encoding="ascii")
+        )["coordinator_decision"]
+        trees = {
+            match
+            for rationale in decision["rationale"]
+            for match in re.findall(r"tree ([0-9a-f]{40})", rationale)
+        }
+        self.assertEqual(len(trees), 1, trees)
+        tree = trees.pop()
+        for name in ("pre-run-theory-review-v18.md",
+                     "pre-run-accounting-review-v18.md",
+                     "pre-run-red-team-review-v18.md"):
+            self.assertIn(
+                tree,
+                (experiment_root / name).read_text(encoding="utf-8"),
+                name,
+            )
+        return tree
+
     def test_v18_discloses_exact_transient_legacy_control_scope(self) -> None:
         experiment_root = SOURCE.parents[1]
         amendment_path = experiment_root / "protocol-amendment-v18.json"
@@ -1291,13 +1322,15 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             contract_title,
             "# Experiment Contract: EXP-SGCP-EMBED-002, version 18",
         )
-        # Both documents moved on at d2bb685bb ("Close SGCP V18 review with
-        # scoped GO"), the commit directly after the one that added this test.
-        # The V18 repair is no longer awaiting review; the review closed GO and
-        # authorized separate launch-plan design only. Assert the closed state.
+        # V18 has since passed its three exact-commit reviews, so both
+        # documents disclose the closed-out state rather than the pending one.
+        # The assertion still pins WHICH state is disclosed -- it must not
+        # silently drift back to "awaiting review".
         self.assertIn("## Handoff: SGCP V18 exact-commit review closeout", handoff)
         self.assertIn(
-            "ready for separate non-executing launch-plan design",
+            "The V18 CLI-ingress, historical-evidence, callback-scope, and "
+            "Git-entry review repair is ready for separate non-executing "
+            "launch-plan design.",
             research_ledger,
         )
         for document in (revision_response, test_log):
@@ -1321,38 +1354,66 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             },
         )
 
+        # The receipt certifies the surface the three V18 reviewers actually
+        # inspected. `binding.required_reviewer_checks` says that surface is
+        # enumerated with `git ls-tree -rz --full-tree` over one exact tree,
+        # and DEC-SGCP-EMBED-002-018 records that each reviewer reproduced the
+        # 200-entry receipt "from git ls-tree". Re-deriving it from the working
+        # tree instead re-certifies whatever the repository happens to hold
+        # today, which drifts every time an unrelated file lands in tests/,
+        # schemas/ or src/crypto_autoresearcher/ -- and had already drifted to
+        # 206 entries.
+        reviewed_tree = self._reviewed_v18_tree()
+        if subprocess.run(
+            ["git", "cat-file", "-t", reviewed_tree],
+            cwd=REPO_ROOT, capture_output=True, text=True, check=False,
+        ).stdout.strip() != "tree":
+            self.skipTest(
+                f"reviewed V18 tree {reviewed_tree} is not present in this "
+                f"clone, so the inventory receipt cannot be reproduced from "
+                f"the surface the reviewers inspected")
+
         rules = manifest["inventory_rules"]
+        tree_paths = subprocess.run(
+            ["git", "ls-tree", "-r", "--full-tree", "--name-only",
+             reviewed_tree],
+            cwd=REPO_ROOT, capture_output=True, text=True, check=True,
+        ).stdout.splitlines()
+
         inventoried_paths = set(rules["repository_exact_paths"])
         for rule in rules["flat_directory_rules"]:
-            directory = REPO_ROOT / rule["directory"]
-            # A flat rule sweeps a whole directory, so unrelated files landing
-            # there later would silently enlarge a frozen review surface.
-            # exclude_basenames pins the ones that are out of scope for this
-            # experiment by name, so adding one is a visible manifest edit.
-            excluded = frozenset(rule.get("exclude_basenames", ()))
-            for path in directory.iterdir():
+            prefix = rule["directory"].rstrip("/") + "/"
+            for relative in tree_paths:
+                if not relative.startswith(prefix):
+                    continue
+                name = relative[len(prefix):]
+                if "/" in name:                       # flat rule, not recursive
+                    continue
                 if (
-                    path.name.startswith(rules["exclude_appledouble_prefix"])
-                    or path.suffix != rule["suffix"]
-                    or path.name in excluded
+                    name.startswith(rules["exclude_appledouble_prefix"])
+                    or not name.endswith(rule["suffix"])
                 ):
                     continue
-                inventoried_paths.add(path.relative_to(REPO_ROOT).as_posix())
-        static_root = REPO_ROOT / rules["experiment_static_root"]
-        for path in static_root.rglob("*"):
+                inventoried_paths.add(relative)
+        static_prefix = rules["experiment_static_root"].rstrip("/") + "/"
+        for relative in tree_paths:
+            if not relative.startswith(static_prefix):
+                continue
+            relative_static = relative[len(static_prefix):]
+            name = relative_static.rsplit("/", 1)[-1]
             if (
-                path.name.startswith(rules["exclude_appledouble_prefix"])
-                or path.name in rules["experiment_excluded_basenames"]
-                or path.suffix not in rules["experiment_static_suffixes"]
+                name.startswith(rules["exclude_appledouble_prefix"])
+                or name in rules["experiment_excluded_basenames"]
+                or not any(name.endswith(suffix)
+                           for suffix in rules["experiment_static_suffixes"])
             ):
                 continue
-            relative_static = path.relative_to(static_root)
             if any(
                 component in rules["experiment_excluded_components"]
-                for component in relative_static.parts
+                for component in relative_static.split("/")
                 ):
                 continue
-            inventoried_paths.add(path.relative_to(REPO_ROOT).as_posix())
+            inventoried_paths.add(relative)
         inventoried_paths.update(
             rules["experiment_historical_evidence_exact_paths"]
         )
@@ -1365,9 +1426,6 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             self.assertFalse(
                 any(byte <= 0x1F or byte == 0x7F for byte in encoded_path)
             )
-            path = REPO_ROOT / relative
-            path_stat = path.lstat()
-            self.assertTrue(stat.S_ISREG(path_stat.st_mode), relative)
             entry_records.extend(b"100644\0blob\0")
             entry_records.extend(encoded_path)
             entry_records.extend(b"\0")

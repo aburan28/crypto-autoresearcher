@@ -1641,7 +1641,7 @@ def mode_ctrl_unplanted(args: argparse.Namespace) -> int:
                 "version": "2.1-ctrl-archive-rebind-1",
                 "control_path": "experiments/EXP-DS-001/controls/CTRL-RT025-UNPLANTED.yaml",
                 "amendment_path": "experiments/EXP-DS-001/amendments/v2_ctrl_unplanted.yaml",
-                "approval_decision": "DEC-20260802-001",
+                "approval_decision": "DEC-20260802-005",
                 "approval_archive_commit": "4307cacf26635372333303350b13ea30d569f4cc",
                 "approval_determination": "APPROVED",
                 "hashes": contract_hashes,
