@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7802 entries.
+7803 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7727,6 +7727,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-025 | For which automorphism orders k can Galois symmetry accelerate the TNFS linear-algebra step, and what is the end-to-end gain? | open_problem | reported | open | number-field-sieve tnfs galois automorphism symmetry linear-algebra dlp finite-field extension-field pairing cost-model open |
 | KN-OPEN-026 | How large is the concrete security discount from module/ring structure, and does it grow with better techniques? | open_problem | reported | open | module-lwe ring-lwe lwe structure hybrid-attack coefficient-isometry sparse-secret fhe kyber ml-kem concrete-security cost-model symmetry open lattice |
 | KN-OPEN-027 | Is HAWK's module-LIP assumption reachable through nrd-PIP, and do the four heuristics hold? | open_problem | reported | open | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg heuristic unverified-heuristic pqc concrete-security open lattice |
+| KN-OPEN-028 | What is the corrected cost of the nrd-PIP route against HAWK, now that Heuristic 4 has failed and 1-3 are verified? | open_problem | reported | open | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg super-polynomial fractional-ideals heuristic retracted-claim pqc open lattice |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
 | KN-TECH-002 | Semaev summation polynomials | technique | established |  | semaev summation-polynomial point-decomposition index-calculus |
 | KN-TECH-003 | Point-decomposition index calculus for ECDLP | technique | established |  | index-calculus point-decomposition factor-base relations ecdlp |
