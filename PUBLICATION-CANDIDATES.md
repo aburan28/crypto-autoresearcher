@@ -46,15 +46,32 @@ help, and here is the round at which preservation fails."
 **Check:** is the involution and the r=5 preservation failure stated anywhere?
 **Artifacts:** `.../yoyo6/` (`pc2.jsonl`, `pc4.jsonl`, `iter5_aes.json`, `r5_corr.json`)
 
-### 3. The excess is structured in the active-byte count
-**Measured, inconclusive between two laws, and honestly so.** Ratios 1.60 ± 0.57,
-6.40 ± 1.13, 11.80 ± 1.54, 13.60 ± 1.65 for k = 1..4 active bytes; saturating
-near 13–16×. Normalised: observed 1, 4.0, 7.4, 8.5 against k² (1,4,9,16) and 2^k
-(1,2,4,8). **Neither law is separated at this resolution.**
+### 3. The excess grows in the active-byte count and fits NEITHER natural law
+**Measured, and now resolved — the check flagged here has been run.** Three
+independent runs (seeds 20260802 / 777333111 / 424242424; N = 2^30, 2^32, 2^34),
+combined:
 
-**Check:** more trials at k=1,2 separate them for ~20 minutes of compute. Worth
-doing before any writeup.
-**Artifacts:** `.../yoyo5/DISPATCHER-MECHANISM.json`
+| k | events | null | ratio | ± | rel. to k=1 |
+|---|---|---|---|---|---|
+| 1 | 29 | 21 | 1.38 | 0.26 | 1.00 |
+| 2 | 116 | 21 | 5.52 | 0.51 | 4.00 |
+| 3 | 59 | 5 | 11.80 | 1.54 | 8.54 |
+| 4 | 68 | 5 | 13.60 | 1.65 | 9.85 |
+
+Observed (normalised) **1, 4.0, 8.6, 9.9** against k² (1,4,9,16) and 2^k
+(1,2,4,8). At the discriminating point k=1 the data **disfavour 2^k** (z = −2.01)
+and sit high of k² (z = +1.75). But at k=2 *both* laws predict 4.0 and the data
+read 5.52, and growth **saturates** from k=3 to k=4 (11.8 → 13.6), which neither
+law does.
+
+**Result: neither candidate law describes the data across the range.** The
+producer's post-hoc 2^k DDT explanation is disfavoured; no replacement is
+asserted. The growth is sub-exponential and saturating, which is a genuine
+measured constraint on any mechanism proposed for this effect.
+
+**Check:** does any published treatment give the active-byte-count dependence
+at all? This is a structural profile, not a rate.
+**Artifacts:** `.../yoyo5/DISPATCHER-MECHANISM.json`, `DISPATCHER-mechanism-probe.c`
 
 ---
 
