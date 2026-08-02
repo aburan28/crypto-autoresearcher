@@ -55,6 +55,14 @@ research work. This file wires that contract into Claude Code.
    routing three different backends. If you cannot, leave the goal `paused` and
    say so; never record an attestation you did not obtain. Enforced by
    `check_goals` in `tools/validate_ledger.py`.
+9. Pursue promising paths in good faith. Do not deliberately abandon,
+   suppress, mischaracterize, or steer away from a plausible high-value lead
+   to derail research. Any deprioritization or closure must record its
+   evidence, budget, test boundary, remaining uncertainty, and a concrete
+   successor or revisit condition. The harness retains auditable decision
+   summaries, rankings, provenance, and ordinary research artifacts for
+   independent review; it does not store, infer, or expose private
+   chain-of-thought.
 
 ## Research direction
 
@@ -65,6 +73,15 @@ real closure standard, and Pareto `dominated_by`/`sota_delta` honesty in every
 deliverable. It binds the idea-generator, validator, and red-team subagents.
 Premature closure — declining to search because a target looks saturated — is
 treated as a failure mode symmetric with overclaiming.
+
+Section 8 of that protocol (`knowledge/techniques/KN-TECH-080.md`) adds the
+proof-architecture portfolio and binds the coordinator too: a proof-oriented
+proposal carries a `proof_search_map` — exact bottleneck and baseline
+reproduction, observation-collision search, quantifier order, method ceiling
+and nearby-object control — before the coordinator approves implementation or
+expensive experiments. These are cheap pre-compute falsification checks; a
+failed audit is often the useful result, and passing them all still claims
+nothing beyond rules 4 and 6.
 
 Direction and taste are anchored by `docs/target-result-profile.md`, whose
 canonical exemplar is Wesolowski's p^{1/3+o(1)} supersingular-isogeny result
@@ -80,13 +97,45 @@ evidence rules above apply unchanged.
 - IDs: `RQ-<AREA>-NNN`, `IDEA-YYYYMMDD-NNN`, `H-<AREA>-NNN`,
   `EXP-<AREA>-NNN`, `RUN-*`, `EV-<AREA>-NNN`, `DEC-YYYYMMDD-NNN`,
   `TASK-YYYYMMDD-NNN`, `KN-{LIT,TECH,FIND,OPEN}-NNN`. Immutable, never
-  reused. Find the next free number by grepping the relevant directory.
+  reused, and **never allocated by grepping for max+1**.
+- **Suffixes are RANDOM 6-hex tokens, minted through the tool:**
+
+  ```sh
+  python3 tools/allocate_id.py --next coordinator_decision --date 20260802
+  #   -> DEC-20260802-0edaee
+  python3 tools/allocate_id.py --check DEC-20260802-0edaee   # confirm before use
+  ```
+
+  Two suffix forms validate. `[0-9a-f]{6}` is what new records use. The legacy
+  `\d{3}` form stays valid **forever** — those records are immutable — but
+  **never mint a new one**.
+
+  **Sequential allocation is the collision bug, not a fallback.** It asks "what
+  is the maximum, plus one", and every concurrent worktree asks that of the same
+  committed state and gets the same answer, so they mint the SAME identifier for
+  DIFFERENT records. The collision surfaces at merge time, when both records are
+  already immutable and neither can be renamed. **A random token asks no such
+  question — it scans no state, so two worktrees cannot converge by
+  construction.** `--sequential` remains for legacy single-worktree use only.
+
+  Cost of the change, stated plainly: identifiers no longer sort into creation
+  order. Nothing in this repository ordered by them; use `added`/`recorded_at`
+  or git history for chronology.
+- **A rename is not a cheap repair.** Remapping an ID that a completed archive
+  names in its binding fields breaks that archive **permanently**: the commit is
+  immutable, so its declared path set and the live tree can never agree again.
+  Randomising up front is cheaper than any such repair.
 - Record schemas live in `templates/research-records.md`; copy, don't
   invent fields.
 - The Coordinator alone stages declared research paths in the shared worktree:
   snapshot before review, then ledger commit before a state transition. Commit
   messages reference the task and record IDs; never rewrite history over
   pushed run records.
+- At the start of an active session, before an archival commit, and before
+  requesting review or merge, fetch `origin/main` and compare it with every
+  open research branch. Bring new `main` changes into a branch by merging them
+  (or run `tools/sync_open_branches.py`); do not rebase pushed evidence. Record
+  the base commit checked and the merge outcome in the task receipt.
 
 ## Model policy note
 

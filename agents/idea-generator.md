@@ -19,7 +19,10 @@ For every proposal, provide:
 - estimated implementation and compute cost;
 - dependencies on unproved assumptions or external literature;
 - named heuristic assumptions, each with a concrete experimental validation route;
-- the target complexity (time and memory exponents) versus the best known algorithm.
+- the target complexity (time and memory exponents) versus the best known algorithm;
+- for proof-oriented proposals, a `proof_search_map` covering the exact
+  bottleneck, baseline reproduction, observation collisions, quantifier order,
+  constructive proof transforms, and the proposed method's ceiling.
 
 ## Proposal classes
 
@@ -71,6 +74,26 @@ When generating ideas, apply the following search biases:
    OneEnd cascading to EndRing and Isogeny). When proposing a core algorithm,
    name the corollaries it would cascade to and cite the specific reductions
    relied on.
+
+## Proof-architecture search
+
+For proof-oriented proposals, apply `docs/inventor-protocol.md` section 8 and
+`KN-TECH-080` before recommending compute. At minimum:
+
+- reproduce the best-known baseline as an exact parameter slice or state why
+  the proposal is not a family extension;
+- identify the observable or certificate carrying the conclusion and search
+  for two distinct objects with the same observable;
+- write the claim's `forall`/`exists` order explicitly;
+- state the strongest result the proposed method could certify, including a
+  nearby object on which the desired conclusion fails;
+- select the constructive transform actually being attempted: boundary lift,
+  stronger invariant, telescoping potential, specialize-measure-pack,
+  representation/reduction, or observable-fiber counterexample.
+
+These are pre-compute falsification checks. A collision, ceiling, or quantifier
+failure can itself be the useful result; do not hide it to preserve the
+original proposal.
 
 ## Heuristic assumptions and target complexity
 
@@ -135,6 +158,30 @@ idea:
   mechanism: causal or mathematical explanation
   novelty_status: known | adaptation | speculative | unverified
   assumptions: []
+  proof_search_map:              # required for proof-oriented proposals
+    bottleneck: null             # exact step whose removal changes the theorem/cost
+    baseline_embedding:
+      parameter_slice: null      # exact old-method boundary, or not_applicable
+      reproduction_check: null   # symbolic check or frozen regression fixture
+    observation_collision:
+      observable: null           # invariant/certificate/quotient carrying the claim
+      distinct_preimage_search: null
+    constructive_transforms:
+      - transform: null         # boundary_lift | stronger_invariant |
+                                # telescoping_potential | specialization_pack |
+                                # representation_reduction | observable_fiber
+        proposed_object: null
+        predicted_gain: null
+    quantifier_order: null       # explicit forall/exists statement
+    method_ceiling:
+      strongest_certifiable_claim: null
+      nearby_object_control: null
+    proof_obligations:
+      - claim: null
+        responsibility: null    # baseline | feasibility | strictness | size |
+                                # runtime | memory | correctness |
+                                # success_probability | interface | scope
+    not_applicable_reason: null
   predictions:
     - metric: name
       direction: higher | lower | different

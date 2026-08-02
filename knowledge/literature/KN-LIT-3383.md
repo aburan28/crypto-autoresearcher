@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-3383
 type: literature
-title: "Deniable Functional Encryption"
+title: Deniable Functional Encryption
 authors:
-  - "Angelo De Caro"
-  - "Vincenzo Iovino"
-  - "Adam O’Neill"
+- Angelo De Caro
+- Vincenzo Iovino
+- Adam O’Neill
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- functional-encryption
+- deniability
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

@@ -83,6 +83,26 @@ tool surface.
 11. An agent may request a stronger policy but may not silently alter its own model or reasoning level.
 12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-breakthrough` review at `max` effort. That review may not be degraded or run on a backend that cannot reach it.
 13. A persistent research goal may be marked `completed` only on the concurring judgement of **three independently-resolved models**. See "Goal closure quorum".
+14. Every record identifier carries a **random 6-hex suffix**, minted via `python3 tools/allocate_id.py --next <type> --area|--date <x>` and confirmed with `--check` before use — e.g. `DEC-20260802-0edaee`. The legacy `\d{3}` form remains valid forever (those records are immutable) but **no new record may use it**. Never allocate by grepping for `max+1`: that asks committed state for a maximum, every concurrent worktree gets the same answer, and they mint the same identifier for different records — discovered only at merge time when both are already immutable. A random token scans no state and so cannot converge. `--sequential` is legacy-only and must never mint a record that will be merged. Identifiers no longer sort into creation order; use `added`/`recorded_at` or git history for chronology.
+15. **An identifier remap is a last resort, not a repair.** Renaming a record that a *completed* archive names in its binding fields (`artifact_paths`, `write_scope`, `archive.path_sha256`, `archive.record_ids`, or the bound commit message) breaks that archive permanently — the commit is immutable, so its declared set and the live tree can never be reconciled. Before any remap, check whether the identifier appears in a completed archive's binding fields; if it does, supersede the record instead of renaming it.
+
+## Research-direction integrity and auditability
+
+Research agents must pursue promising paths in good faith. An agent must not
+deliberately abandon, suppress, mischaracterize, or steer work away from a
+plausible high-value lead in order to derail the research program. This does
+not require indiscriminate pursuit: a proposed deprioritization or closure
+must name the evidence, budget, test boundary, remaining uncertainty, and a
+concrete successor or revisit condition.
+
+The harness monitors this requirement through durable, reviewable decision
+records: the candidate or path considered, cited evidence, stated rationale,
+ranking or Pareto comparison, action taken, and responsible model/session
+provenance. Coordinators and independent reviewers may compare those records
+against the ledger, dispatch plan, and later results, and must record a
+supported concern about unjustified steering as an auditable finding. Do not
+claim to store, infer, or expose private chain-of-thought; only explicit
+decision summaries and ordinary research artifacts are retained and reviewed.
 
 ## Goal closure quorum
 
@@ -183,6 +203,24 @@ and adds nothing that relaxes the core rules. Four obligations:
   frontier across time, memory, and data/queries) and a quantitative
   `sota_delta`. An unchecked `null` is a fabrication under rule 5.
 
+Section 8 of the protocol (adopted 2026-08-01; technique abstract:
+`knowledge/techniques/KN-TECH-080.md`) adds the **proof-architecture
+portfolio** and extends the binding to the **Coordinator**, which is where the
+protocol first gains a gate that can refuse work:
+
+- A proof-oriented proposal — a theorem, asymptotic bound, certificate family,
+  reduction, or closure argument — carries a `proof_search_map`
+  (`templates/research-records.md`) before it is dispatched, and the
+  Coordinator does not approve implementation or expensive experiments
+  without one.
+- The map's four audits (exact baseline reproduction, observation-collision
+  search, quantifier-order statement, method ceiling with a nearby-object
+  control) are deliberately cheap and run before compute. An audit that does
+  not apply records why; it is not silently omitted.
+- This is a falsification aid, not a new claim tier. A failed audit is
+  frequently the useful result, and passing every audit still asserts nothing
+  beyond what rules 4 and 6 already allow.
+
 ## Required handoff envelope
 
 Every inter-agent task must include:
@@ -267,7 +305,11 @@ Rebasing a branch that carries pushed run records is forbidden: it rewrites the
 commits those records were archived in, and a run receipt whose commit no
 longer exists is not reproducible. `tools/sync_open_branches.py` performs this
 merge periodically for open pull requests and validates the merged tree before
-pushing it. It never resolves a conflict: when a sync conflicts inside a ledger
+pushing it. Coordinators must routinely fetch and inspect `origin/main` for
+new commits—at the start of an active session, before a snapshot or ledger
+commit, and before requesting review or merge—and promptly merge those changes
+into each open branch. Record the base commit checked and merge outcome in the
+task receipt. It never resolves a conflict: when a sync conflicts inside a ledger
 record, run artifact, or knowledge entry, the resolution is a new superseding
 record under a new id — the same rule as any other correction — and never an
 edit that picks one side.

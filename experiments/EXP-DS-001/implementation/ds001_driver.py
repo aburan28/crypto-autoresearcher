@@ -1552,7 +1552,7 @@ def mode_ctrl_unplanted(args: argparse.Namespace) -> int:
     }
     live_report = {
         "control_id": "CTRL-RT025-PLANT-LIVE",
-        "source": "measured costs from RUN-DS-001-ctrl-unplanted",
+        "source": "measured costs from RUN-DS-001-ctrl-unplanted-b",
         "operation": "divide measured split charged cost by 4 on real and same-shape null paths",
         "synthetic_known_answer_used": False,
         "hardcoded_detection_used": False,
@@ -1611,20 +1611,20 @@ def mode_ctrl_unplanted(args: argparse.Namespace) -> int:
     out_run = Path(args.out_run)
     artifact_paths = [
         "experiments/EXP-DS-001/implementation/ds001_driver.py",
-        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/manifest.json",
-        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/raw-result.json",
-        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stdout.txt",
-        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stderr.txt",
-        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/command.txt",
-        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/environment.json",
-        "experiments/EXP-DS-001/results/ctrl_unplanted/summary.json",
-        "experiments/EXP-DS-001/results/ctrl_unplanted/R_cell.json",
-        "experiments/EXP-DS-001/results/ctrl_unplanted/null_control_report.json",
-        "experiments/EXP-DS-001/results/ctrl_unplanted/live_plant_report.json",
-        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044/execution_report.yaml",
+        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted-b/manifest.json",
+        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted-b/raw-result.json",
+        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted-b/stdout.txt",
+        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted-b/stderr.txt",
+        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted-b/command.txt",
+        "experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted-b/environment.json",
+        "experiments/EXP-DS-001/results/ctrl_unplanted_b/summary.json",
+        "experiments/EXP-DS-001/results/ctrl_unplanted_b/R_cell.json",
+        "experiments/EXP-DS-001/results/ctrl_unplanted_b/null_control_report.json",
+        "experiments/EXP-DS-001/results/ctrl_unplanted_b/live_plant_report.json",
+        "coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260802-003/execution_report.yaml",
     ]
     write_run_artifacts(
-        "RUN-DS-001-ctrl-unplanted",
+        "RUN-DS-001-ctrl-unplanted-b",
         out_run,
         command,
         raw,
@@ -1634,14 +1634,14 @@ def mode_ctrl_unplanted(args: argparse.Namespace) -> int:
         finished=finished,
         wall_seconds=elapsed,
         manifest_context={
-            "task_id": "TASK-20260731-044",
+            "task_id": "TASK-20260802-003",
             "batch_id": "BATCH-020",
             "contract": {
                 "path": CONTRACT_PATH,
                 "version": "2.1-ctrl-archive-rebind-1",
                 "control_path": "experiments/EXP-DS-001/controls/CTRL-RT025-UNPLANTED.yaml",
                 "amendment_path": "experiments/EXP-DS-001/amendments/v2_ctrl_unplanted.yaml",
-                "approval_decision": "DEC-20260801-001",
+                "approval_decision": "DEC-20260802-005",
                 "approval_archive_commit": "4307cacf26635372333303350b13ea30d569f4cc",
                 "approval_determination": "APPROVED",
                 "hashes": contract_hashes,
@@ -1666,8 +1666,8 @@ def mode_ctrl_unplanted(args: argparse.Namespace) -> int:
     results_dir.mkdir(parents=True, exist_ok=True)
     summary = {
         "experiment_id": "EXP-DS-001",
-        "run_id": "RUN-DS-001-ctrl-unplanted",
-        "task_id": "TASK-20260731-044",
+        "run_id": "RUN-DS-001-ctrl-unplanted-b",
+        "task_id": "TASK-20260802-003",
         "status": status,
         "claim_tier": "toy",
         "protocol": {
@@ -1710,21 +1710,21 @@ def mode_ctrl_unplanted(args: argparse.Namespace) -> int:
     ):
         (results_dir / name).write_text(json.dumps(obj, indent=2, default=str) + "\n", encoding="utf-8")
 
-    report_dir = REPO / "coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044"
+    report_dir = REPO / "coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260802-003"
     report_dir.mkdir(parents=True, exist_ok=True)
     assessment_quality = "good" if status == "completed_valid" else ("limited" if status == "resource_exhaustion" else "invalid")
     execution_report = {
         "execution_report": {
             "experiment_id": "EXP-DS-001",
-            "run_id": "RUN-DS-001-ctrl-unplanted",
-            "task_id": "TASK-20260731-044",
+            "run_id": "RUN-DS-001-ctrl-unplanted-b",
+            "task_id": "TASK-20260802-003",
             "implementation_commit": git_state().get("commit"),
             "implementation_sha256": contract_hashes["implementation_sha256"],
             "protocol_deviations": [],
             "runs": {
-                "completed": ["RUN-DS-001-ctrl-unplanted"] if status == "completed_valid" else [],
-                "invalid": ["RUN-DS-001-ctrl-unplanted"] if status == "invalid_measurement" else [],
-                "failed": ["RUN-DS-001-ctrl-unplanted"] if status in {"resource_exhaustion", "infrastructure_error", "implementation_error"} else [],
+                "completed": ["RUN-DS-001-ctrl-unplanted-b"] if status == "completed_valid" else [],
+                "invalid": ["RUN-DS-001-ctrl-unplanted-b"] if status == "invalid_measurement" else [],
+                "failed": ["RUN-DS-001-ctrl-unplanted-b"] if status in {"resource_exhaustion", "infrastructure_error", "implementation_error"} else [],
             },
             "observations": [
                 {"R": cell.R, "R_null": cell.R_null, "r1_cell_label": cell.r1_cell_label},
@@ -1924,7 +1924,7 @@ def main() -> int:
             "impl": "RUN-DS-001-impl",
             "measure": "RUN-DS-001-measure",
             "heur": "RUN-DS-001-heur",
-            "ctrl-unplanted": "RUN-DS-001-ctrl-unplanted",
+            "ctrl-unplanted": "RUN-DS-001-ctrl-unplanted-b",
         }[args.mode])
     if args.mode == "impl":
         return mode_impl(args)
