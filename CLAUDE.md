@@ -80,7 +80,29 @@ evidence rules above apply unchanged.
 - IDs: `RQ-<AREA>-NNN`, `IDEA-YYYYMMDD-NNN`, `H-<AREA>-NNN`,
   `EXP-<AREA>-NNN`, `RUN-*`, `EV-<AREA>-NNN`, `DEC-YYYYMMDD-NNN`,
   `TASK-YYYYMMDD-NNN`, `KN-{LIT,TECH,FIND,OPEN}-NNN`. Immutable, never
-  reused. Find the next free number by grepping the relevant directory.
+  reused, and **never allocated by grepping for max+1**.
+- **Allocate the `NNN` suffix RANDOMLY, and always through the tool:**
+
+  ```sh
+  python3 tools/allocate_id.py --next coordinator_decision --date 20260801
+  python3 tools/allocate_id.py --check DEC-20260801-129   # confirm before use
+  ```
+
+  The tool picks uniformly from the free tail above the current maximum, so it
+  never fills a gap. **Sequential allocation is the collision bug, not a
+  fallback.** Several worktrees generate records against this repository
+  concurrently; each computes the same `max+1` from the same committed state and
+  mints the SAME identifier for a DIFFERENT record. The collision surfaces at
+  merge time, when both records are already committed and immutable and neither
+  can simply be renamed. `--sequential` exists only for a genuinely single
+  worktree and must never mint a record that will be merged.
+- **A rename is not a cheap repair.** Remapping an ID that a completed archive
+  names in its binding fields breaks that archive **permanently**: the commit is
+  immutable, so its declared path set and the live tree can never agree again.
+  This has already happened three times — `CORR-20260731-006` (KN-TECH remap),
+  `CORR-20260731-007` (a DEC remap that broke an archive binding), and
+  `CORR-20260731-010` (the resulting archive proved unbindable, forcing a whole
+  extra batch). Randomising up front is cheaper than any of those repairs.
 - Record schemas live in `templates/research-records.md`; copy, don't
   invent fields.
 - The Coordinator alone stages declared research paths in the shared worktree:

@@ -83,6 +83,8 @@ tool surface.
 11. An agent may request a stronger policy but may not silently alter its own model or reasoning level.
 12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-breakthrough` review at `max` effort. That review may not be degraded or run on a backend that cannot reach it.
 13. A persistent research goal may be marked `completed` only on the concurring judgement of **three independently-resolved models**. See "Goal closure quorum".
+14. Every record identifier is allocated **randomly** via `python3 tools/allocate_id.py --next <type> --area|--date <x>`, then confirmed with `--check` before use. Never allocate by grepping for `max+1`: concurrent worktrees all compute the same next value and mint the same identifier for different records, and the collision is only discovered at merge time when both are already immutable. `--sequential` is for a single worktree and must never mint a record that will be merged.
+15. **An identifier remap is a last resort, not a repair.** Renaming a record that a *completed* archive names in its binding fields (`artifact_paths`, `write_scope`, `archive.path_sha256`, `archive.record_ids`, or the bound commit message) breaks that archive permanently — the commit is immutable, so its declared set and the live tree can never be reconciled. Before any remap, check whether the identifier appears in a completed archive's binding fields; if it does, supersede the record instead of renaming it.
 
 ## Goal closure quorum
 

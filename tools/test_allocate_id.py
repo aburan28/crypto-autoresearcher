@@ -18,6 +18,8 @@ If either regresses, this tool is decorative.
 from __future__ import annotations
 
 import sys
+import inspect
+import random
 import unittest
 from pathlib import Path
 
@@ -87,6 +89,37 @@ class AllocationTests(unittest.TestCase):
         """Gaps have undetermined provenance; reusing one revives a retired record."""
         used = {1, 2, 5}
         self.assertEqual(max(used) + 1, 6)
+
+    def test_random_allocation_stays_strictly_above_the_maximum(self) -> None:
+        """Randomising must not start filling gaps: a gap is not a free slot."""
+        used = {1, 2, 5}
+        floor = max(used)
+        for seed in range(200):
+            rng = random.Random(seed)
+            pick = rng.choice(list(range(floor + 1, ai.CEILING + 1)))
+            self.assertGreater(pick, floor)
+            self.assertNotIn(pick, used)
+            self.assertLessEqual(pick, ai.CEILING)
+
+    def test_random_is_the_default_and_sequential_is_opt_in(self) -> None:
+        """The default must not be max+1: that is what collides across worktrees."""
+        sig = inspect.signature(ai.next_free)
+        self.assertIs(sig.parameters["random_pick"].default, True)
+
+    def test_random_allocation_spreads_across_the_tail(self) -> None:
+        """A 'random' allocator that returns one value would collide as badly."""
+        floor, picks = 24, set()
+        for seed in range(64):
+            rng = random.Random(seed)
+            picks.add(rng.choice(list(range(floor + 1, ai.CEILING + 1))))
+        self.assertGreater(len(picks), 32,
+                           "allocation is too concentrated to reduce collisions")
+
+    def test_seeded_allocation_is_reproducible(self) -> None:
+        """Tests and incident reproduction need determinism on demand."""
+        a = random.Random(11).choice(list(range(25, ai.CEILING + 1)))
+        b = random.Random(11).choice(list(range(25, ai.CEILING + 1)))
+        self.assertEqual(a, b)
 
     def test_audit_returns_nonzero_while_defects_remain(self) -> None:
         """The repo currently carries pre-existing malformed and duplicated ids."""

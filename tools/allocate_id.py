@@ -18,7 +18,7 @@ This tool asks both, together, before an identifier is used. It is a check and
 a suggester -- it writes no records and creates no files.
 
     python3 tools/allocate_id.py --check EXP-RT1476-001
-    python3 tools/allocate_id.py --next hypothesis --area SUBRES
+    python3 tools/allocate_id.py --next hypothesis --area SUBRES   # random suffix
     python3 tools/allocate_id.py --next coordinator_decision --date 20260728
     python3 tools/allocate_id.py --audit
 
@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import random
 import os
 import re
 import sys
@@ -128,7 +129,33 @@ def _used_numbers(prefix: str, middle: str) -> set[int]:
     return used
 
 
-def next_free(rec_type: str, middle: str) -> int:
+CEILING = 999  # three-digit suffix; every ID_PATTERN in validate_ledger uses \d{3}
+
+
+def next_free(rec_type: str, middle: str, *, random_pick: bool = True,
+              seed: int | None = None) -> int:
+    """Suggest a free identifier.
+
+    Two allocation modes, and the DEFAULT IS RANDOM ON PURPOSE.
+
+    Sequential (`--sequential`) returns max+1. That is correct for a single
+    worktree and WRONG for this repository, because several worktrees generate
+    records concurrently and every one of them computes the same max+1 from the
+    same committed state. They then mint the SAME identifier for DIFFERENT
+    records, and the collision is discovered at merge time -- after both records
+    are committed and immutable, when neither can simply be renamed. That has
+    already cost this program: CORR-20260731-006 (KN-TECH-059..076 remapped to
+    062..079), CORR-20260731-007 (a DEC remap that broke an archive binding), and
+    CORR-20260731-010 (the resulting archive proved permanently unbindable).
+
+    Random picks uniformly from the free tail (max, CEILING]. Two worktrees now
+    collide with probability about 1/len(tail) instead of 1.
+
+    BOTH MODES STAY STRICTLY ABOVE THE MAXIMUM. Gaps are never filled: their
+    provenance is usually undetermined, and reusing one silently revives a
+    retired record. Randomisation widens the gaps, which is expected and
+    harmless -- a gap is not a free slot.
+    """
     prefix = next(p for p, t in PREFIX_TYPE.items() if t == rec_type)
     candidate = f"{prefix}-{middle}-001"
     ok, why = well_formed(candidate)
@@ -136,11 +163,23 @@ def next_free(rec_type: str, middle: str) -> int:
         print(f"REFUSE: {candidate} is malformed -- {why}", file=sys.stderr)
         return 1
     used = _used_numbers(prefix, middle)
-    # Strictly above the maximum. Gaps are never filled: their provenance is
-    # usually undetermined, and reusing one silently revives a retired record.
-    nxt = (max(used) + 1) if used else 1
+    floor = max(used) if used else 0
+    if floor >= CEILING:
+        print(f"REFUSE: {prefix}-{middle}-* is exhausted at {CEILING:03d}; "
+              "the suffix space needs widening before another record is minted",
+              file=sys.stderr)
+        return 1
+    tail = range(floor + 1, CEILING + 1)
+    if random_pick:
+        rng = random.Random(seed) if seed is not None else random.SystemRandom()
+        nxt = rng.choice(list(tail))
+        mode = f"random from the free tail {floor + 1:03d}..{CEILING:03d}"
+    else:
+        nxt = floor + 1
+        mode = "sequential (max+1) -- COLLIDES ACROSS CONCURRENT WORKTREES"
     rec_id = f"{prefix}-{middle}-{nxt:03d}"
-    print(f"next free {rec_type} id for '{middle}': {rec_id}")
+    print(f"free {rec_type} id for '{middle}': {rec_id}")
+    print(f"  allocation: {mode}")
     if used:
         gaps = sorted(set(range(1, max(used))) - used)
         print(f"  in use: {len(used)} (max {max(used):03d})")
@@ -148,6 +187,7 @@ def next_free(rec_type: str, middle: str) -> int:
             print(f"  gaps NOT reused: {', '.join(f'{g:03d}' for g in gaps)}")
     else:
         print("  in use: none -- this is a new area code")
+    print("  VERIFY BEFORE USE: python3 tools/allocate_id.py --check " + rec_id)
     return 0
 
 
@@ -191,6 +231,13 @@ def main(argv: list[str] | None = None) -> int:
                    help="report every malformed or doubly-occupied identifier")
     ap.add_argument("--area", help="area code for --next (letters only)")
     ap.add_argument("--date", help="YYYYMMDD for --next on dated record types")
+    ap.add_argument("--sequential", action="store_true",
+                    help="allocate max+1 instead of a random free suffix. "
+                         "COLLIDES ACROSS CONCURRENT WORKTREES -- use only in a "
+                         "single-worktree context, and never to mint a record "
+                         "that will be merged.")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="seed the random allocator (tests and reproduction only)")
     args = ap.parse_args(argv)
 
     if args.check:
@@ -201,7 +248,8 @@ def main(argv: list[str] | None = None) -> int:
     if not middle:
         ap.error("--next requires --area (for RQ/H/EXP/EV) or --date "
                  "(for IDEA/DEC/TASK)")
-    return next_free(args.next, middle)
+    return next_free(args.next, middle,
+                     random_pick=not args.sequential, seed=args.seed)
 
 
 if __name__ == "__main__":
