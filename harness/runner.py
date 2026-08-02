@@ -137,13 +137,7 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
             "experiment_id": exp_id,
             "status": final_status,
             "code": {"commit": commit, "dirty": dirty, "command": command},
-            "inference": {
-                "requested_policy": "executor-terra",
-                "resolved_model_id": "none (deterministic harness execution)",
-                "reasoning_effort": None,
-                "fallback_used": False,
-                "adapter_version": None,
-            },
+            "inference": _inference_block(),
             "environment": environment(),
             "inputs": {
                 "curve_id": result.curve_id,
@@ -197,6 +191,17 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
 
 def _iso(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
+
+def _inference_block() -> dict:
+    """Return the static inference metadata recorded in every harness run."""
+    return {
+        "requested_policy": "executor-terra",
+        "resolved_model_id": "none (deterministic harness execution)",
+        "reasoning_effort": None,
+        "fallback_used": False,
+        "adapter_version": None,
+    }
 
 
 def _write(run_dir: str, name: str, content: str) -> None:

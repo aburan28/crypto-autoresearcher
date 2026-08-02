@@ -10,7 +10,11 @@ applicability: >-
   reductions, impossibility or closure arguments, and any experiment whose
   interpretation depends on an invariant or observable being identifying.
 source_refs: [KN-LIT-7640, KN-TECH-055, KN-TECH-056]
+<<<<<<< HEAD
 added: "2026-08-01"
+=======
+added: 2026-08-01
+>>>>>>> origin/main
 superseded_by: null
 ---
 
