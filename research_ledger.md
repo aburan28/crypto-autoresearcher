@@ -34,6 +34,7 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 - [ ] Does that coordinate-compatible density and coverage persist across random prime-field curves, coordinate predicates, and increasing field sizes after optimizer gaps and charged audit cost are included?
 
  - [ ] Can a projective-aware, source-derived class order or row-space basis restore full target-matrix rank at 16 bits without giving back the weighted arithmetic advantage?
+- [ ] Does the `2B+1` relation-target batch restore full rank and held-out support on a second fresh 16-bit curve without exceeding the `6 GB` memory budget?
 
 ## Active hypotheses
 
@@ -94,6 +95,7 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 | TH-ECDLP-MAP-UNION-001 | Unions of compositional rational-map images may improve recursive support geometry without exceptional curves. | CONJECTURE | algorithm designer | Test only after the recursive preflight establishes a sound measurement surface. |
 
 | H-ECDLP-TT-PROJECTIVE-16BIT-001 | The projective homogeneous zero-locator preserves its weighted arithmetic advantage at 16 bits while retaining a sub-full relation gate and full rank. | MIXED `TOY-EVIDENCE`, `MODEL-BOUND`; two fresh 16-bit curves pass full support/witness/rho and weighted arithmetic advantage in all 4 cells, but neither sub-full budget passes and full ranks are `11-13/15`; no exponent claim | coordinator, experiment engineer, benchmark, and red team | Preserve the arithmetic primitive; test projective-aware class ordering or compressed row-space construction with full rank, held-out support, weighted costs, cache bandwidth, and rho. |
+| H-ECDLP-TT-PROJECTIVE-RANK-COMPLETION-001 | Expanding the projective relation batch from `B+1` to `2B+1` restores the missing 16-bit target-matrix rank without removing the weighted arithmetic advantage. | POSITIVE `TOY-EVIDENCE`, `MODEL-BOUND`; one fresh 16-bit curve reaches rank `15/15` for both families, full support and held-out witnesses, weighted advantage `2/2`, and matched rho; `96` is accepted only for `random_x`; peak RSS `5.56 GB`; no exponent claim | coordinator, experiment engineer, benchmark, and red team | Repeat the expanded batch on a second fresh 16-bit curve with the same memory, held-out, rank, sparse-LA, and rho gates before field-size escalation. |
 
 ## Negative results
 
@@ -212,6 +214,7 @@ This ledger covers authorized toy experiments on generated prime-field curves. N
 ## Positive signals
 
 | EXP-ECDLP-TT-PROJECTIVE-16BIT-001 | The projective shared-sign arithmetic advantage survives at 16 bits, but the sub-full locator and full rank do not. | Seeds `97531`, `86420`; curves `p=62071,64283`, dimensions `[14,14]`, families `source_prf_x,random_x`, budgets `64,96,full`; full support/witness/rho valid, weighted advantage `4/4`, no accepted sub-full budget, ranks `11-13/15`; projective cache `~140.65 MB`, peak RSS `3.40 GB`, no generic or exponent claim. | Generator `RUN-TT-PROJECTIVE-16BIT-001` and independent verifier `RUN-TT-PROJECTIVE-16BIT-002` are `completed_valid`; raw hashes `2c2b7577...` and `679576d0...`; verifier has 64 checks with no failures. | Do not escalate the uncompressed scan. Build a rank-preserving projective-aware selector or compressed row-space basis, require full rank and held-out support, and remeasure weighted costs and bandwidth. |
+| EXP-ECDLP-TT-PROJECTIVE-RANK-COMPLETION-001 | Expanding the relation target batch can complete the 16-bit projective relation rank while retaining the weighted arithmetic signal. | Seed `97531`; fresh curve `p=64283,q=64171`, dimensions `[14,14]`, `29` generated plus up to `4` held-out targets, families `source_prf_x,random_x`, budgets `96,full`; both full ranks `15/15`, full support/witness/rho valid, weighted advantage `2/2`, `155,938` matched rho operations, peak RSS `5.56 GB`; no generic or exponent claim. | Generator `RUN-TT-PROJECTIVE-RANK-COMPLETION-003` and independent verifier `RUN-TT-PROJECTIVE-RANK-COMPLETION-006` are `completed_valid`; raw hashes `c41977b1...` and `e6f05e6b...`; verifier rank gate is true. | Treat as one-curve rank-completion evidence only. Repeat on a second fresh curve and add explicit sparse linear-algebra, bandwidth, and descent accounting before any scale or preprocessing claim. |
 
 | ID | Signal | Parameter regime | Evidence | Next validation |
 |---|---|---|---|---|
