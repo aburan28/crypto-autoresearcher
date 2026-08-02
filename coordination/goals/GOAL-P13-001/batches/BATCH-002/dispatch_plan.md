@@ -6,12 +6,11 @@ GOAL-P13-001 BATCH-002 executes red-team next-control NC-2 (DEC-20260724-016), t
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-96d908` | red-team | queued | 80 | TASK-20260802-b31c7f, TASK-20260802-ca5bdc | coordination/goals/GOAL-P13-001/batches/BATCH-002/reviews/TASK-20260802-96d908/red_team_report.yaml | coordination/goals/GOAL-P13-001/batches/BATCH-002/reviews/TASK-20260802-96d908 |
-| `TASK-20260802-9ade2e` | validator | queued | 80 | TASK-20260802-b31c7f, TASK-20260802-ca5bdc | coordination/goals/GOAL-P13-001/batches/BATCH-002/reviews/TASK-20260802-9ade2e/validation_report.yaml | coordination/goals/GOAL-P13-001/batches/BATCH-002/reviews/TASK-20260802-9ade2e |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-e804d1`: dependency_not_completed:TASK-20260802-9ade2e:queued, dependency_not_completed:TASK-20260802-96d908:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ GOAL-P13-001 BATCH-002 executes red-team next-control NC-2 (DEC-20260724-016), t
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `70c54af34eecf279f13f249949b81a4fe3b396e98f4e405c10fd0b094a5044fd`
+Plan SHA-256: `c4fa83be0b9931e9fa83dbef10f13878dd6753ea6ec780df39547ed8fba5a1a8`
