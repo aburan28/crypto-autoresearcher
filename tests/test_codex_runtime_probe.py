@@ -347,6 +347,23 @@ def test_metadata_mismatch_prevents_runtime_bindings_check(tmp_path):
     assert calls == []
 
 
+def test_prebinding_model_mismatch_backward_failure_clock_fails_timestamp_order(tmp_path):
+    calls = []
+
+    def forbidden_bindings_runner(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("metadata mismatch must prevent bindings check")
+
+    clock = SequenceClock((0, 1, 2, 3, 1))
+    arguments, receipt, *_ = _case(
+        tmp_path, row_changes={"model": "other-model"},
+        bindings_runner=forbidden_bindings_runner, clock=clock)
+    body = _failed(arguments, receipt, "model_mismatch")
+    assert body["identity"]["recorded_at"] == _iso(1)
+    assert body["verification"]["timestamp_order_valid"] is False
+    assert calls == []
+
+
 def test_workdir_mismatch_requires_canonical_existing_path(tmp_path):
     other = tmp_path / "other"
     other.mkdir()
@@ -420,6 +437,18 @@ def test_runtime_binding_failure_prevents_verification(tmp_path):
     check = body["verification"]["runtime_bindings_check"]
     assert check["exit_code"] == 1
     assert "fixture failure" not in json.dumps(body)
+
+
+def test_runtime_bindings_nonzero_backward_failure_clock_fails_timestamp_order(tmp_path):
+    def bindings_fail(argv, **kwargs):
+        return subprocess.CompletedProcess(argv, 1, b"", b"fixture failure")
+
+    clock = SequenceClock((0, 1, 2, 3, 4, 5, 1))
+    arguments, receipt, *_ = _case(
+        tmp_path, bindings_runner=bindings_fail, clock=clock)
+    body = _failed(arguments, receipt, "runtime_bindings_check_failed")
+    assert body["identity"]["recorded_at"] == _iso(1)
+    assert body["verification"]["timestamp_order_valid"] is False
 
 
 def test_final_timestamp_before_launch_fails_timestamp_invalid(tmp_path):

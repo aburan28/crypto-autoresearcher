@@ -727,6 +727,10 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
         body["verification"]["failures"] = list(failure.codes)
         if body["identity"]["recorded_at"] is None:
             body["identity"]["recorded_at"] = _iso(clock())
+        # Failed receipts never make an affirmative timestamp-order claim.
+        # Do this after preserving or assigning the exact persisted timestamp:
+        # an earlier preliminary metadata check may have set it true.
+        body["verification"]["timestamp_order_valid"] = False
         state_for_privacy = canonical_state_db or Path(state_db).expanduser()
         if not _privacy_invariant(result, state_db=state_for_privacy,
                                   receipt_path=target, rollout_path=rollout_path):
