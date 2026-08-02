@@ -6,12 +6,11 @@ BATCH-027 RUN THE MEASUREMENT. Everything the measurement needs already exists, 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-081` | validator | queued | 84 | TASK-20260801-080, TASK-20260801-079 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-081/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-081 |
-| `TASK-20260801-082` | red-team | queued | 82 | TASK-20260801-080, TASK-20260801-079 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-082/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-082 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-083`: dependency_not_completed:TASK-20260801-081:queued, dependency_not_completed:TASK-20260801-082:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-027 RUN THE MEASUREMENT. Everything the measurement needs already exists, 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `abde4f71bd3dc2c8b97dbe3e7bd97b609090c37d11e54db29e735bc16931463c`
+Plan SHA-256: `7938f2f6de344ae5621b3444f54cf8caaf9e4be4f6daadd6c0dba774781f721b`
