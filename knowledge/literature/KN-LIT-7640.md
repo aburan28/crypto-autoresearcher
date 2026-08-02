@@ -4,7 +4,11 @@ type: literature
 title: Ten Advances in Mathematics and Theoretical Computer Science
 authors: [OpenAI]
 year: 2026
-venue: OpenAI technical report; 249-page collection
+venue: >-
+  OpenAI technical report; 249-page collection. Read from the PDF recorded in
+  inputs/OAI-TEN-PROOFS-2026/source_record.yaml (SRC-OAI-TEN-PROOFS-2026).
+  Unlike SRC-P13-WESOLOWSKI-2026, the artifact is NOT frozen in-repo, so no
+  later session can re-read the source these summaries were taken from.
 identifiers:
   eprint: null
   doi: null
@@ -13,7 +17,8 @@ tags: [mathematics, theoretical-computer-science, proof-architecture, theorem-se
 confidence: reported
 citation_verified: read
 source_record: SRC-OAI-TEN-PROOFS-2026
-added: 2026-08-01
+added: "2026-08-01"
+supersedes: KN-LIT-7639
 superseded_by: null
 ---
 
@@ -114,6 +119,29 @@ not as a list of domain facts:
 These patterns are operationalized in `KN-TECH-080` and
 `docs/inventor-protocol.md` section 8.
 
+## What this entry does not carry over from KN-LIT-7639
+
+`KN-LIT-7639` recorded the *announcement*; this entry records the *PDF*. They
+are different sources, so supersession is scoped, not total. This intake read
+the technical collection and nothing else, and therefore does **not** upgrade
+any of the following announcement-level claims, which remain only in
+`KN-LIT-7639` at its `citation_verified: false` status:
+
+- attribution of the results to an internal model named "Astra", and the
+  "no progress for at least a decade" framing of the ten problems;
+- the Lean 4 / `mathlib` formalization of every result and the existence,
+  contents, or compilation of the reported `openai/ten-proofs` repository;
+- the approximately $2,000 discovery-token cost figure and its rate basis;
+- the volunteered negative base rate ("other major problems were attempted
+  without success; no Millennium Prize problems"), which is the item of most
+  methodological value to this program and is still second-hand;
+- the Erdos problem numbers (183, 146, 180) attached to items 9 and 10.
+
+Cite those from `KN-LIT-7639` with its sourcing warning attached, not from
+here. The reverse also holds: where the two entries describe the same result
+differently, this entry governs, because `KN-LIT-7639`'s statements were
+relayed from search summaries.
+
 ## Relevance to this program
 
 The source does not discuss generic prime-field ECDLP and supplies no ECDLP
@@ -131,3 +159,12 @@ against its primary publication, and no computation was reproduced. The
 proper content status is therefore `reported`. In particular, the report's
 claims of resolving or disproving longstanding conjectures must not be cited as
 established results on the strength of this intake alone.
+
+The intake is also not reproducible from this repository. The PDF was supplied
+as a conversation attachment and is not committed, so the sha256 in
+`SRC-OAI-TEN-PROOFS-2026` cannot be recomputed here and the summaries above
+cannot be re-checked against the source without re-acquiring the artifact. The
+comparison is `inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`, where the frozen
+text makes exactly that check possible. Any later use of this entry that needs
+the source text should re-acquire the PDF, verify the recorded hash, and freeze
+the extracted text before relying on a specific statement.
