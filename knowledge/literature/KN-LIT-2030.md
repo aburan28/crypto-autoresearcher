@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-2030
 type: literature
-title: "A Dichotomy for Local Small-Bias Generators"
+title: A Dichotomy for Local Small-Bias Generators
 authors:
-  - "Benny Applebaum"
-  - "Andrej Bogdanov"
-  - "Alon Rosen"
+- Benny Applebaum
+- Andrej Bogdanov
+- Alon Rosen
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- pseudorandom-generator
+- small-bias
+- complexity-theory
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

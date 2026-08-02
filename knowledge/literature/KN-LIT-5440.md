@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-5440
 type: literature
-title: "On the Complexity of Non-Adaptively Increasing the Stretch of Pseudorandom Generators"
+title: On the Complexity of Non-Adaptively Increasing the Stretch of Pseudorandom Generators
 authors:
-  - "Eric Miles"
-  - "Emanuele Viola"
+- Eric Miles
+- Emanuele Viola
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- pseudorandom-generator
+- stretch
+- complexity-theory
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

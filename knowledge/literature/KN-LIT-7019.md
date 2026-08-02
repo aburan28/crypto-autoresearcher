@@ -1,10 +1,11 @@
 ---
 id: KN-LIT-7019
 type: literature
-title: "The MMap Strikes Back: Obfuscation and New Multilinear Maps Immune to CLT13 Zeroizing Attacks?"
+title: 'The MMap Strikes Back: Obfuscation and New Multilinear Maps Immune to CLT13 Zeroizing
+  Attacks?'
 authors:
-  - "Fermi Ma"
-  - "Mark Zhandry"
+- Fermi Ma
+- Mark Zhandry
 year: null
 venue: null
 identifiers:
@@ -12,10 +13,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- multilinear-maps
+- obfuscation
+- cryptanalysis
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 
