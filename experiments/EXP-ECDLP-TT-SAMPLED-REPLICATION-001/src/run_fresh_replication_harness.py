@@ -47,6 +47,13 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _canonical_fixture(value: dict[str, Any]) -> dict[str, Any]:
+    # Wall time is runner metadata, not part of the deterministic fixture.
+    fixture = dict(value)
+    fixture.pop("total_wall_seconds", None)
+    return fixture
+
+
 def _rho_for_fixture(fixture: dict[str, Any], relation_input: dict[str, Any]) -> dict[str, Any]:
     instance = fixture["instances"][0]
     curve_record = instance["curve"]
@@ -95,7 +102,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="tt-sampled-replication-") as temp:
         temp_root = Path(temp)
         for seed in FRESH_SEEDS:
-            fixture = FRESH.run_experiment([14], seed, FAMILIES, 0.5, 32)
+            fixture = _canonical_fixture(FRESH.run_experiment([14], seed, FAMILIES, 0.5, 32))
             fixture_path = temp_root / f"fixture-{seed}.json"
             fixture_path.write_text(
                 json.dumps(fixture, sort_keys=True, separators=(",", ":")) + "\n",

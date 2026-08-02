@@ -45,6 +45,12 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _canonical_fixture(value: dict[str, Any]) -> dict[str, Any]:
+    fixture = dict(value)
+    fixture.pop("total_wall_seconds", None)
+    return fixture
+
+
 def _digest(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")).hexdigest()
 
@@ -142,7 +148,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="tt-sampled-replication-verify-") as temp:
         temp_root = Path(temp)
         for seed, case in zip(FRESH_SEEDS, raw.get("cases", [])):
-            fixture = FRESH.run_experiment([14], seed, FAMILIES, 0.5, 32)
+            fixture = _canonical_fixture(FRESH.run_experiment([14], seed, FAMILIES, 0.5, 32))
             fixture_path = temp_root / f"fixture-{seed}.json"
             fixture_path.write_text(json.dumps(fixture, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
             curve_id = fixture["instances"][0]["curve"]["id"]
