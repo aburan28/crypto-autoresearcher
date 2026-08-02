@@ -6,11 +6,11 @@ Implement, snapshot, and independently validate the Coordinator-approved, sessio
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-968` | validator | queued | 100 | TASK-20260802-967 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-968/validation_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-968 |
+| `TASK-20260802-969` | coordinator | queued | 100 | TASK-20260802-968 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-969/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-969 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-969`: dependency_not_completed:TASK-20260802-968:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Implement, snapshot, and independently validate the Coordinator-approved, sessio
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `0d238ea6891eb15f716fcc2e4a1db823708aeb07d7a91f8c376d06bbef915068`
+Plan SHA-256: `56ab319b6cdfe1f3b1442c0618aca87ce6bf522934192827c7c42a11acd5bfab`
