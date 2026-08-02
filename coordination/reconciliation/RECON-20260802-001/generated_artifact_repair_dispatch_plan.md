@@ -6,7 +6,7 @@ Snapshot and mechanically validate the narrow generated-artifact prescription th
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-994` | coordinator | queued | 100 | TASK-20260802-993 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-994/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-994 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `6eeca6aeb7bbaf3810cec25f7184443801f802f20b36ff0fc1165b7536168f2c`
+Plan SHA-256: `4f9e7b08478e73f80073b5ee9476cb4368c826644aea1272801b802a48b53242`
