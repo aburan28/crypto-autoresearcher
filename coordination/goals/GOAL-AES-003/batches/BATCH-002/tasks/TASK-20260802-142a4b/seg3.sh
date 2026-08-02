@@ -1,0 +1,34 @@
+#!/bin/bash
+cd "$(dirname "$0")"
+STOP=1785698617
+M0=00030101010203010101020303010102
+AESMC=02030101010203010101020303010102
+K=6fe52e2e9b3ea04085c370f9bc609245
+B=e35f00e7631cdd862e59d126e72b8fc9
+run(){
+  lbl=$1; shift
+  now=$(date -u +%s); left=$((STOP-now-70))
+  if [ $left -le 60 ]; then echo "SKIP $lbl (budget: ${left}s)"; return; fi
+  echo "SEG2 CMD $lbl ./cnt $*" >> commands.txt
+  s=$now
+  out=$(timeout $left ./cnt "$@"); st=$?
+  e=$(date -u +%s)
+  python3 -c "
+import json,sys
+lbl,st,s,e,raw=sys.argv[1],int(sys.argv[2]),int(sys.argv[3]),int(sys.argv[4]),sys.argv[5]
+try: d=json.loads(raw)
+except Exception: d={'parse_error':raw[:300],'status':'no_result_terminated_or_failed'}
+d['label']=lbl; d['exit_status']=st; d['start_epoch']=s; d['end_epoch']=e; d['wall_s']=e-s
+d['segment']=2; d['machine_conditions']='uncontended: 4 cores, no other producers'
+print(json.dumps(d))" "$lbl" "$st" "$s" "$e" "$out" >> raw.jsonl
+  echo "$lbl exit=$st $((e-s))s"
+  python3 -c "
+import time,json,sys
+now=int(time.time())
+print(json.dumps({'stamp':'C2_SECTION','segment':2,'section':'arm_'+sys.argv[1],'utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(now)),'epoch':now,'elapsed_s':now-1785695617,'remaining_s':1785698617-now,'marker':'arm '+sys.argv[1]+' terminal, exit '+sys.argv[2]}))" "$lbl" "$st" >> budget_stamps.jsonl
+}
+run M0_r5_j1 soft 5 1 $K $B $M0 8 0 4
+run M0_r5_j2_ALTKEY soft 5 2 d6e8b0bc6cb2749dc3e4b1d5359ddf85 502ddf7c0f432fb9a866f39e33cd0965 $M0 8 0 4
+run CTRL_AESMC_r5_j0 soft 5 0 $K $B $AESMC 8 0 4
+run N1 aesni 10 0 d6e8b0bc6cb2749dc3e4b1d5359ddf85 502ddf7c0f432fb9a866f39e33cd0965 $AESMC 8 0 4
+echo SEG3_DONE
