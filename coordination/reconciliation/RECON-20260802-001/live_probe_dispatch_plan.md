@@ -6,11 +6,10 @@ Snapshot and execute one accepted exact-session Codex live compatibility probe, 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-983` | coordinator | queued | 100 | TASK-20260802-982 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-983/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-983 |
+| `TASK-20260802-984` | executor | queued | 100 | TASK-20260802-983 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-984/runtime_session_receipt.json, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-984/execution_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-984 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-984`: dependency_not_completed:TASK-20260802-983:queued
 - `TASK-20260802-985`: dependency_not_completed:TASK-20260802-984:queued
 
 ## Dispatch Gates
@@ -26,4 +25,4 @@ Snapshot and execute one accepted exact-session Codex live compatibility probe, 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `c38849e84ba45712ee55832fe7a02038cd73a859369ae86fe47f9dd25fde6a8e`
+Plan SHA-256: `adf38852a277653d99ebb77485c883626dcf8378568897179d5b5e20d76f91ab`
