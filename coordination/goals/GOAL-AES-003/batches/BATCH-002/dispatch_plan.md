@@ -26,4 +26,4 @@ Execute GOAL-AES-003 BATCH-002 in the rank order DEC-20260802-9bda5c fixed. RANK
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `31884685037eae391bc857447c26230f9e5627ff2e7bee669f3955578c3532c1`
+Plan SHA-256: `9a8716a06a7d9967cdcd714955b88714345bf171060dbaf93bcb44cf49b7f672`
