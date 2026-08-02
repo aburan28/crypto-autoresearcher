@@ -18,7 +18,7 @@ This tool asks both, together, before an identifier is used. It is a check and
 a suggester -- it writes no records and creates no files.
 
     python3 tools/allocate_id.py --check EXP-RT1476-001
-    python3 tools/allocate_id.py --next hypothesis --area SUBRES
+    python3 tools/allocate_id.py --next hypothesis --area SUBRES   # random token
     python3 tools/allocate_id.py --next coordinator_decision --date 20260728
     python3 tools/allocate_id.py --audit
 
@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import random
 import os
 import re
 import sys
@@ -128,7 +129,58 @@ def _used_numbers(prefix: str, middle: str) -> set[int]:
     return used
 
 
+TOKEN_WIDTH = 6  # hex chars; 16**6 = 16_777_216 values per namespace
+
+
+def random_token(rng: random.Random | random.SystemRandom,
+                 width: int = TOKEN_WIDTH) -> str:
+    """A random hex suffix. NO STATE IS SCANNED, WHICH IS THE ENTIRE POINT.
+
+    Sequential allocation asks "what is the maximum in committed state, plus
+    one". Every concurrent worktree asks the same question of the same state and
+    gets the same answer, so they mint the same identifier for different records
+    and only discover it at merge time -- when both records are immutable and
+    neither can be renamed without breaking whatever archive binds it.
+
+    A random token has no such question to ask. Two worktrees collide only by
+    drawing the same value out of 16**6, which is why this is the default.
+    """
+    return "".join(rng.choice("0123456789abcdef") for _ in range(width))
+
+
+def token_id(rec_type: str, middle: str, *, seed: int | None = None) -> int:
+    """Mint a random-token identifier and verify it against the build gate."""
+    prefix = next((p for p, t in PREFIX_TYPE.items() if t == rec_type), None)
+    if prefix is None:
+        print(f"REFUSE: no prefix is registered for {rec_type}", file=sys.stderr)
+        return 1
+    rng = random.Random(seed) if seed is not None else random.SystemRandom()
+    for _ in range(64):  # bounded; a hit is overwhelmingly improbable
+        rec_id = f"{prefix}-{middle}-{random_token(rng)}"
+        ok, why = well_formed(rec_id)
+        if not ok:
+            print(f"REFUSE: {rec_id} is malformed -- {why}", file=sys.stderr)
+            return 1
+        if not occurrences(rec_id):
+            print(f"free {rec_type} id for '{middle}': {rec_id}")
+            print(f"  allocation: random {TOKEN_WIDTH}-hex token "
+                  f"(1 of {16 ** TOKEN_WIDTH:,} per namespace; no state scanned)")
+            print("  VERIFY BEFORE USE: python3 tools/allocate_id.py --check "
+                  + rec_id)
+            return 0
+    print("REFUSE: could not find a free token in 64 draws; that is so unlikely "
+          "it indicates a defect in the search path, not exhaustion",
+          file=sys.stderr)
+    return 1
+
+
 def next_free(rec_type: str, middle: str) -> int:
+    """LEGACY three-digit allocation. Kept for single-worktree use only.
+
+    Returns max+1, which is exactly why it collides: every concurrent worktree
+    computes it from the same committed state and gets the same answer. Never
+    use it to mint a record that will be merged; use token_id instead.
+    """
     prefix = next(p for p, t in PREFIX_TYPE.items() if t == rec_type)
     candidate = f"{prefix}-{middle}-001"
     ok, why = well_formed(candidate)
@@ -141,6 +193,8 @@ def next_free(rec_type: str, middle: str) -> int:
     nxt = (max(used) + 1) if used else 1
     rec_id = f"{prefix}-{middle}-{nxt:03d}"
     print(f"next free {rec_type} id for '{middle}': {rec_id}")
+    print("  allocation: sequential (max+1) -- COLLIDES ACROSS CONCURRENT "
+          "WORKTREES; prefer the default random token")
     if used:
         gaps = sorted(set(range(1, max(used))) - used)
         print(f"  in use: {len(used)} (max {max(used):03d})")
@@ -191,6 +245,12 @@ def main(argv: list[str] | None = None) -> int:
                    help="report every malformed or doubly-occupied identifier")
     ap.add_argument("--area", help="area code for --next (letters only)")
     ap.add_argument("--date", help="YYYYMMDD for --next on dated record types")
+    ap.add_argument("--sequential", action="store_true",
+                    help="legacy 3-digit suffix as max+1. COLLIDES ACROSS "
+                         "CONCURRENT WORKTREES -- never use it to mint a record "
+                         "that will be merged.")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="seed the random allocator (tests and reproduction only)")
     args = ap.parse_args(argv)
 
     if args.check:
@@ -201,7 +261,9 @@ def main(argv: list[str] | None = None) -> int:
     if not middle:
         ap.error("--next requires --area (for RQ/H/EXP/EV) or --date "
                  "(for IDEA/DEC/TASK)")
-    return next_free(args.next, middle)
+    if args.sequential:
+        return next_free(args.next, middle)
+    return token_id(args.next, middle, seed=args.seed)
 
 
 if __name__ == "__main__":

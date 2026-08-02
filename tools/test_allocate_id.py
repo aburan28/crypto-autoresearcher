@@ -18,6 +18,7 @@ If either regresses, this tool is decorative.
 from __future__ import annotations
 
 import sys
+import random
 import unittest
 from pathlib import Path
 
@@ -96,6 +97,38 @@ class AllocationTests(unittest.TestCase):
         """Gaps have undetermined provenance; reusing one revives a retired record."""
         used = {1, 2, 5}
         self.assertEqual(max(used) + 1, 6)
+
+    def test_random_token_is_the_default_allocation(self) -> None:
+        """Sequential scans committed state; only the token cannot converge."""
+        self.assertEqual(ai.TOKEN_WIDTH, 6)
+        self.assertRegex(ai.random_token(random.Random(3)), r"^[0-9a-f]{6}$")
+
+    def test_token_ids_validate_against_the_build_gate(self) -> None:
+        for rec_id in ("DEC-20260802-a3f9c2", "EV-DS-4fac95",
+                       "TASK-20260802-00ff11", "H-SUBRES-deadbe"):
+            ok, why = ai.well_formed(rec_id)
+            self.assertTrue(ok, f"{rec_id} rejected: {why}")
+
+    def test_legacy_numeric_ids_still_validate_forever(self) -> None:
+        """Pre-existing records are immutable; they must keep validating."""
+        for rec_id in ("DEC-20260731-019", "EV-DS-002", "TASK-20260731-044"):
+            ok, why = ai.well_formed(rec_id)
+            self.assertTrue(ok, f"legacy {rec_id} rejected: {why}")
+
+    def test_malformed_tokens_are_still_refused(self) -> None:
+        for rec_id in ("DEC-20260802-ZZZZZZ", "DEC-20260802-abcd",
+                       "DEC-20260802-abcdefg", "EV-DS-XYZ"):
+            ok, _ = ai.well_formed(rec_id)
+            self.assertFalse(ok, f"{rec_id} should not be well-formed")
+
+    def test_token_space_is_large_enough_to_matter(self) -> None:
+        """A 3-digit space made collisions routine; 24 bits makes them rare."""
+        self.assertGreater(16 ** ai.TOKEN_WIDTH, 1_000_000)
+
+    def test_seeded_allocation_is_reproducible(self) -> None:
+        """Tests and incident reproduction need determinism on demand."""
+        self.assertEqual(ai.random_token(random.Random(11)),
+                         ai.random_token(random.Random(11)))
 
     def test_audit_returns_nonzero_while_defects_remain(self) -> None:
         """The repo currently carries pre-existing malformed and duplicated ids."""

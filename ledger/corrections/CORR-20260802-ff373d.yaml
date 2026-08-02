@@ -1,0 +1,70 @@
+correction:
+  id: CORR-20260802-ff373d
+  recorded_at: '2026-08-02'
+  record_type: identifier_scheme
+  record_id: tools/allocate_id.py + tools/validate_ledger.py ID_PATTERNS
+  field: identifier_suffix_form_and_allocation_method
+  prior_value:
+    suffix_form: '\\d{3}'
+    allocation: >-
+      max+1 over committed state. THAT SCAN IS THE DEFECT: concurrent worktrees
+      scan the same state and get the same answer, so they mint the SAME
+      identifier for DIFFERENT records. The collision is discovered only at merge
+      time, when both records are already committed and immutable and neither can
+      be renamed without breaking whatever archive binds it.
+  corrected_value:
+    suffix_form: '[0-9a-f]{6}'
+    allocation: >-
+      A RANDOM 24-BIT TOKEN, DRAWN WITHOUT SCANNING ANY STATE. There is no shared
+      question for two worktrees to answer identically. 16**6 = 16,777,216 values
+      per (prefix, middle) namespace.
+    example: DEC-20260802-0edaee
+  why_this_is_needed_now: >-
+    THIS IS NOT HYPOTHETICAL AND main IS CURRENTLY PAYING FOR IT. The branch this
+    change was extracted from hit a five-identifier collision against main
+    (EV-DS-003, DEC-20260801-001 and three CORR records, each minted twice with
+    different content, discovered only at merge). main has independently been
+    repairing the same class: 'Repair duplicate RUN and DEC identifiers under
+    declared corrections', 'Close a rename hole in the run-immutability gate' and
+    'Repair seven records that never parsed' all landed on main while this fix
+    sat behind an unrelated conflict. Sequential allocation manufactures these
+    collisions; nothing downstream can prevent them.
+  backwards_compatibility: >-
+    BOTH FORMS VALIDATE AND THE LEGACY FORM IS VALID FOREVER. ID_PATTERNS now
+    reads (?:\\d{3}|[0-9a-f]{6}) for all seven patterned types. Every existing
+    record keeps its identifier and keeps validating - they are immutable and MUST
+    NOT be renamed. NO EXISTING RECORD IS TOUCHED BY THIS CHANGE. The alternation
+    only ADDS an accepted form, so no previously-valid identifier becomes invalid
+    and no previously-invalid one becomes valid except the new token shape.
+  what_was_changed:
+    - tools/validate_ledger.py: SUFFIX_LEGACY / SUFFIX_RANDOM / SUFFIX and the seven ID_PATTERNS entries.
+    - tools/allocate_id.py: random_token() and token_id(); --next mints a token by DEFAULT; --sequential retained as legacy-only and labelled with why it collides; --seed for reproducible allocation.
+    - AGENTS.md rule 14 (allocate randomly, --check before use) and rule 15 (a remap is a last resort, never remap an ID bound by a completed archive).
+    - CLAUDE.md conventions updated to match.
+    - tools/test_allocate_id.py: six new tests pinning the token regex, that token ids validate, that LEGACY ids still validate, that malformed tokens are refused, that the space is large, and that seeded allocation is reproducible.
+  cost_stated_rather_than_hidden: >-
+    IDENTIFIERS NO LONGER SORT INTO CREATION ORDER. The only numeric parse in the
+    repository was allocate_id's own _used_numbers, which now serves the legacy
+    mode alone, so nothing breaks today - but any future tooling wanting
+    chronology must read the record's added / recorded_at field or git history
+    rather than the suffix. Randomisation also widens gaps, which is harmless: a
+    gap was never a free slot.
+  residual_risk: >-
+    STATED RATHER THAN IMPLIED: randomisation REDUCES collisions, it does not
+    eliminate them. Two worktrees collide with probability about 1/16,777,216 per
+    draw within a namespace. The --check step before use remains MANDATORY and is
+    what catches the residue; token_id also redraws if a candidate is already
+    occupied, bounded at 64 attempts, and reports a defect rather than looping
+    forever.
+  scope_of_this_change: >-
+    TOOLING, SCHEMA AND DOCUMENTATION ONLY. No ledger record, experiment, run
+    package, hypothesis status, claim tier or goal status is touched. This
+    correction was extracted deliberately from a larger branch so that it could be
+    reviewed and merged on its own, without waiting on an unrelated dispute about
+    which of two independent GOAL-ECDLP-001 BATCH-020/021 executions is operative.
+  evidence_artifacts:
+    - tools/allocate_id.py
+    - tools/validate_ledger.py
+    - tools/test_allocate_id.py
+    - AGENTS.md
+    - CLAUDE.md
