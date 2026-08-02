@@ -1,7 +1,7 @@
 # EXP-SMTH-PILOT-001 implementation repair note
 
-Tasks: `TASK-20260801-082`, repairs `TASK-20260801-095` and
-`TASK-20260801-100`
+Tasks: `TASK-20260801-082`, repairs `TASK-20260801-095`,
+`TASK-20260801-100`, and `TASK-20260801-105`
 
 Scope: implementation only. No registered scientific run was started, and no
 run or result artifact was generated. The implementation exposes only the
@@ -19,6 +19,9 @@ The narrow successor repair binds implementation snapshot
 `e4e253b7e62dfea878622f6dc9563ef3c9b75b85` and validation
 `VAL-20260801-097` under authorization `TASK-20260801-099`; it changes no
 scientific design, count, seed, path, cap, or research status.
+The final two-defect repair binds snapshot
+`badc73b3f395858ff9ca898aaaa1483cce27a25b` and validation
+`VAL-20260801-102` under authorization `TASK-20260801-104`.
 
 Frozen scientific plumbing remains 32 deterministic null arrays, exact `i<j`
 enumeration, 4,186,112 factorization/reconstruction calls, the shared
@@ -104,6 +107,26 @@ The two validator-noted fixture debts are also repaired: the oversized JSONL
 fixture is exactly 1,025 bytes including its newline, and the one-byte mutation
 control mutates a real deterministic gzip certificate shard.
 
+## VAL-20260801-102 repairs
+
+- `VAL102-B1`: the three real SymPy wrapper paths now translate caught
+  `ImportError`/`ModuleNotFoundError` into the dedicated
+  `DependencyInfrastructureError`, which `classify_failure` maps to
+  `failed_infrastructure_or_budget` / `infrastructure_error`. The bounded test
+  intercepts the actual Python import used by `factor_certificate`, observes
+  the dedicated exception, and verifies its durable classification; it does
+  not call the classifier directly with a fabricated dependency exception.
+- `VAL102-B2`: `main` no longer prints the full returned result after the run
+  protocol. The protocol itself writes and fsyncs one bounded constant-size
+  terminal stdout record before final accounting. It then iteratively writes
+  the identical raw/feasibility receipts and terminal manifest, remeasures the
+  completed fixed roster, cap-checks every observation, and stops only when the
+  embedded receipt equals the post-write physical and tracked-byte measurement.
+  No successful-path write follows that equality check; `main` returns without
+  additional stdout bytes. The bounded temporary-roster control independently
+  recomputes terminal stdout, both result files, and manifest bytes and matches
+  all three durable receipts exactly.
+
 The live-bounded pack sink still writes at most
 `cap_bytes - bytes_written` from each chunk. On cap-plus-one it closes the
 producer pipe, waits for termination, and removes only the exact `.partial`.
@@ -171,5 +194,19 @@ No command invoked `run-null-pilot`.
    rerun alone and passed with `scientific_runs=0`.
 
 This task used 15 of its authorized 20 bounded test attempts.
+
+## TASK-20260801-105 tests
+
+No command invoked `run-null-pilot` and no run/result path was created.
+
+1. An AST-only syntax parse passed without bytecode output.
+2. The single full invocation
+   `PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py self-test`
+   exited 0 with `status=pass`, `scientific_runs=0`, and all 15 named controls
+   passing. The new combined release-candidate control passed both the real
+   missing-SymPy wrapper classification and convergent terminal-storage receipt
+   equality after terminal stdout and manifest writes.
+
+This task used exactly 15 of its authorized 15 bounded test attempts.
 
 Scientific run count: **0**.

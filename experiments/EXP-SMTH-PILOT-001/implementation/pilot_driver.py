@@ -10,6 +10,7 @@ must not be invoked without a successor execution authorization.
 from __future__ import annotations
 
 import argparse
+import builtins
 import concurrent.futures
 from concurrent.futures.process import BrokenProcessPool
 import contextlib
@@ -105,6 +106,10 @@ class NetworkBlockedError(RuntimeError):
     """An attempted network-capable socket violates the frozen run guard."""
 
 
+class DependencyInfrastructureError(RuntimeError):
+    """A required runtime dependency is unavailable."""
+
+
 def classify_failure(error: BaseException) -> tuple[str, str]:
     """Return (manifest status, failure class) without conflating integrity."""
     if isinstance(error, IntegrityError):
@@ -115,6 +120,7 @@ def classify_failure(error: BaseException) -> tuple[str, str]:
         error,
         (
             BrokenProcessPool,
+            DependencyInfrastructureError,
             ImportError,
             ModuleNotFoundError,
             OSError,
@@ -403,6 +409,49 @@ def enforce_storage_caps(measurement: dict) -> None:
         raise ResourceCapError("individual other-artifact cap exceeded")
 
 
+def finalize_stable_storage_receipt(
+    result: dict,
+    manifest: dict,
+    result_paths: Sequence[Path],
+    manifest_path: Path,
+    measure: Callable[[], dict],
+    enforce: Callable[[dict], None],
+    *,
+    maximum_iterations: int = 16,
+) -> dict:
+    """Converge self-accounting terminal JSON files without a later write."""
+    candidate = measure()
+    for iteration in range(maximum_iterations):
+        result["terminal_storage_receipt"] = candidate
+        if "disk_bytes_by_phase_and_total" in result:
+            result["disk_bytes_by_phase_and_total"]["run_phase_final"] = candidate
+            result["disk_bytes_by_phase_and_total"]["total_physical_bytes"] = candidate[
+                "physical_run_bytes"
+            ]
+        if "projected_v2_full_contract" in result:
+            result["projected_v2_full_contract"]["modeled_disk_bytes"] = (
+                candidate["tracked_bytes"]
+                * result["projected_v2_full_contract"]["factorization_count"]
+                / TOTAL_RECORDS
+            )
+        for path in result_paths:
+            atomic_json(path, result)
+        manifest["final_storage"] = candidate
+        manifest["storage_receipt_iteration"] = iteration
+        manifest["result_sha256"] = hashlib.sha256(
+            canonical_json_bytes(result)
+        ).hexdigest()
+        atomic_json(manifest_path, manifest)
+        observed = measure()
+        enforce(observed)
+        if observed == candidate:
+            # No write follows this equality check. The bytes just measured are
+            # the terminal bytes whose receipt is embedded in all three files.
+            return observed
+        candidate = observed
+    raise ResourceCapError("terminal storage receipt did not converge")
+
+
 def canonical_json_bytes(value: object) -> bytes:
     return json.dumps(
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=True
@@ -608,7 +657,7 @@ def deterministic_prime(bits: int, fixture: int) -> int:
     try:
         from sympy import isprime
     except ImportError as exc:  # pragma: no cover - environment failure path
-        raise RuntimeError("sympy is required") from exc
+        raise DependencyInfrastructureError("sympy is required") from exc
     seed = int.from_bytes(derived_seed("prime", bits, fixture, 0, 0), "big")
     candidate = (1 << (bits - 1)) + seed % (1 << (bits - 2))
     if candidate % 2 == 0:
@@ -710,7 +759,7 @@ def verify_alleged_factors(N: int, factors: Sequence[Sequence[int]]) -> bool:
     try:
         from sympy import isprime
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("sympy is required") from exc
+        raise DependencyInfrastructureError("sympy is required") from exc
     if N < 1 or len(factors) > MAX_PRIMALITY_CHECKS_PER_INTEGER:
         return False
     reconstruction = 1
@@ -730,7 +779,7 @@ def factor_certificate(sequential_index: int, N: int) -> tuple[dict, int]:
     try:
         from sympy import factorint, isprime
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("sympy is required") from exc
+        raise DependencyInfrastructureError("sympy is required") from exc
     if N < 1:
         raise IntegrityError("N outside [1,X]")
     raw = factorint(N)
@@ -1522,6 +1571,71 @@ def run_self_tests(only: set[str] | None = None) -> dict:
             assert not list(directory.glob("*.partial"))
             assert classify_failure(ModuleNotFoundError("synthetic dependency"))[1] == "infrastructure_error"
 
+        def dependency_wrapper_and_terminal_storage() -> None:
+            original_import = builtins.__import__
+
+            def missing_sympy(name, *args, **kwargs):
+                if name == "sympy" or name.startswith("sympy."):
+                    raise ModuleNotFoundError("synthetic missing sympy")
+                return original_import(name, *args, **kwargs)
+
+            builtins.__import__ = missing_sympy
+            try:
+                try:
+                    factor_certificate(0, 2)
+                except DependencyInfrastructureError as error:
+                    status, failure_class = classify_failure(error)
+                else:
+                    raise AssertionError("real factor wrapper hid missing SymPy")
+            finally:
+                builtins.__import__ = original_import
+            assert status == "failed_infrastructure_or_budget"
+            assert failure_class == "infrastructure_error"
+
+            terminal_root = root / "terminal-storage"
+            terminal_root.mkdir()
+            stdout_path = terminal_root / "stdout.log"
+            raw_path = terminal_root / "raw-result.json"
+            report_path = terminal_root / "feasibility_report.json"
+            manifest_path = terminal_root / "manifest.yaml"
+            stdout_path.write_bytes(
+                b'{"terminal_record":"see manifest"}\n'
+            )
+            paths = (stdout_path, raw_path, report_path, manifest_path)
+
+            def measure_terminal() -> dict:
+                logical = sum(path.stat().st_size for path in paths if path.exists())
+                physical = sum(_allocated_bytes(path) for path in paths if path.exists())
+                return {
+                    "other_tracked_bytes": logical,
+                    "oversized_other_paths": [],
+                    "physical_run_bytes": physical,
+                    "shard_tracked_bytes": 0,
+                    "tracked_bytes": logical,
+                }
+
+            def enforce_terminal(value: dict) -> None:
+                assert value["tracked_bytes"] < 1_000_000
+                assert value["physical_run_bytes"] < 1_000_000
+
+            synthetic_result = {
+                "disk_bytes_by_phase_and_total": {},
+                "factorization_calls": 0,
+            }
+            synthetic_manifest = {"status": "completed_feasibility_only"}
+            receipt = finalize_stable_storage_receipt(
+                synthetic_result,
+                synthetic_manifest,
+                (raw_path, report_path),
+                manifest_path,
+                measure_terminal,
+                enforce_terminal,
+            )
+            assert receipt == measure_terminal()
+            assert json.loads(raw_path.read_text())["terminal_storage_receipt"] == receipt
+            assert json.loads(report_path.read_text())["terminal_storage_receipt"] == receipt
+            assert json.loads(manifest_path.read_text())["final_storage"] == receipt
+
         check("bounded-pack-exact-cap", exact_cap)
         check("bounded-pack-cap-plus-one", cap_plus_one)
         check("bounded-pack-producer-failure", producer_failure)
@@ -1536,6 +1650,7 @@ def run_self_tests(only: set[str] | None = None) -> dict:
         check("integrity-and-resource-failure-cleanup", integrity_and_resource_failure_cleanup)
         check("cumulative-stop-resume-event-charging", cumulative_stop_resume_events)
         check("broken-worker-pool-infrastructure", broken_worker_pool_infrastructure)
+        check("dependency-wrapper-and-terminal-storage", dependency_wrapper_and_terminal_storage)
 
     return {"scientific_runs": 0, "status": "pass", "tests": tests}
 
@@ -1952,34 +2067,49 @@ def run_null_pilot(*, resume: bool = False) -> dict:
                 "sympy_version": environment["sympy_version"],
                 "wall_seconds": total_wall,
             }
-            atomic_json(repository_path(RUN_REL / "raw-result.json"), result)
-            atomic_json(repository_path(RESULT_REL / "feasibility_report.json"), result)
             final_manifest = json.loads(manifest_path.read_text())
             final_manifest.update({
                 "event_history": event_history,
                 "status": "completed_feasibility_only",
-                "result_sha256": hashlib.sha256(canonical_json_bytes(result)).hexdigest(),
             })
-            atomic_json(manifest_path, final_manifest)
+            result_paths = (
+                repository_path(RUN_REL / "raw-result.json"),
+                repository_path(RESULT_REL / "feasibility_report.json"),
+            )
+            preterminal_missing = [
+                str(relative) for relative in RUN_EVIDENCE_ROSTER
+                if not (REPO_ROOT / relative).is_file()
+                and relative not in (
+                    RUN_REL / "raw-result.json",
+                    RESULT_REL / "feasibility_report.json",
+                )
+            ]
+            if preterminal_missing:
+                raise IntegrityError(
+                    f"required preterminal paths missing: {preterminal_missing}"
+                )
+            terminal_message = canonical_json_bytes({
+                "experiment_id": EXPERIMENT_ID,
+                "run_id": RUN_ID,
+                "terminal_record": "see manifest",
+            }) + b"\n"
+            sys.stdout.buffer.write(terminal_message)
+            sys.stdout.buffer.flush()
+            os.fsync(sys.stdout.fileno())
+            finalize_stable_storage_receipt(
+                result,
+                final_manifest,
+                result_paths,
+                manifest_path,
+                measure_run_storage,
+                enforce_storage_caps,
+            )
             missing = [
                 str(relative) for relative in RUN_EVIDENCE_ROSTER
                 if not (REPO_ROOT / relative).is_file()
             ]
             if missing:
-                raise IntegrityError(f"required run-evidence paths missing: {missing}")
-            # Reconcile reported disk totals after every final tracked artifact
-            # exists. A second serialization has bounded, deterministic size.
-            final_storage = measure_run_storage()
-            enforce_storage_caps(final_storage)
-            result["disk_bytes_by_phase_and_total"]["run_phase_final"] = final_storage
-            result["disk_bytes_by_phase_and_total"]["total_physical_bytes"] = final_storage["physical_run_bytes"]
-            result["projected_v2_full_contract"]["modeled_disk_bytes"] = final_storage["tracked_bytes"] * multiplier
-            atomic_json(repository_path(RUN_REL / "raw-result.json"), result)
-            atomic_json(repository_path(RESULT_REL / "feasibility_report.json"), result)
-            final_manifest["result_sha256"] = hashlib.sha256(canonical_json_bytes(result)).hexdigest()
-            final_manifest["final_storage"] = measure_run_storage()
-            enforce_storage_caps(final_manifest["final_storage"])
-            atomic_json(manifest_path, final_manifest)
+                raise IntegrityError(f"terminal evidence paths missing: {missing}")
             return result
     except BaseException as exc:
         if writer is not None:
@@ -2059,7 +2189,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(run_self_tests(set(arguments.only) or None), sort_keys=True, indent=2))
         return 0
     if arguments.command == "run-null-pilot":
-        print(json.dumps(run_null_pilot(resume=arguments.resume), sort_keys=True, indent=2))
+        run_null_pilot(resume=arguments.resume)
         return 0
     raise AssertionError("unreachable")
 
