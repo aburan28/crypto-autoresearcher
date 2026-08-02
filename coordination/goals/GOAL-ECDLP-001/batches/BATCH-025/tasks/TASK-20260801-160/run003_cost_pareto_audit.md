@@ -1,7 +1,7 @@
 # RUN-SMTH-PILOT-003 cost and Pareto audit
 
-Task: `TASK-20260801-160`  
-Status: design only; no execution authorized  
+Task: `TASK-20260801-160`
+Status: design only; no execution authorized
 Target: resource feasibility of the null-only `EXP-SMTH-002` instrument
 
 ## Exact workload and fresh-state boundary
