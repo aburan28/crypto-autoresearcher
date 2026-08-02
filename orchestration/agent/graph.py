@@ -1,11 +1,18 @@
 """The `api_direct` tool loop, as a LangGraph state machine.
 
-Two nodes -- call the model, run the tools it asked for -- with the budget
-checked before each model call rather than after the fact. A run that stops
-because it ran out of steps or wall clock exits with that reason recorded:
-under `AGENTS.md` rule 5 an exhausted budget is infrastructure signal, and a
-report that cannot distinguish it from a completed task is worse than no
-report.
+Two nodes -- call the model, run the tools it asked for -- with the stop
+conditions checked before each model call rather than after the fact. A run
+that stops early exits with that reason recorded: under `AGENTS.md` rule 5 a
+run that halted is infrastructure signal, and a report that cannot distinguish
+it from a completed task is worse than no report. That rule is why the
+`stop_reason` plumbing survives the retirement of budgeting.
+
+`max_steps` is a runaway-loop backstop from the runtime config, not a research
+budget, and it stays. `deadline` is no longer fed by anything: task budgets
+were the only caller that set it, and they are retired. The parameter remains
+optional so an operator can still impose a wall clock deliberately, but nothing
+in the harness derives one from a task, and no task may be failed for lack of
+one.
 
 The checkpointer is what makes a long research task survivable. State is
 persisted after every node, keyed by the task id, so a crashed or interrupted

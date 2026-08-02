@@ -29,8 +29,10 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
   `templates/research-records.md`, with rationale and evidence references.
 - Every task you assign must be persisted as a `handoff` record in
   `ledger/handoffs/TASK-YYYYMMDD-NNN.yaml` with objective, constraints,
-  deliverables, budget, and completion gate filled in. Reject your own handoff
-  if any budget field is null.
+  deliverables, and completion gate filled in. There is no budget field to
+  fill: budgeting is retired, so a handoff imposes no wall-clock, memory, or
+  run ceiling. Reject your own handoff if the completion gate is vague -- with
+  no budget to stop the work, the gate is the only thing that defines done.
 - Every task card names exact artifact paths and exactly one archival task. Run
   snapshot archives alone before independent review, then ledger archives alone
   after review. Stage only declared paths; the post-commit verifier must accept
@@ -58,7 +60,8 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
   can be proved; an undeclared basis is the failure, not the lack of proof.
   `reject_scoped` on a single unreplicated empirical-only run is forbidden —
   use `weaken` + replication.
-- Scope every conclusion to the tested curves, parameters, solver, and budget.
+- Scope every conclusion to the tested curves, parameters, solver, and the
+  scope actually reached.
   Toy-scale evidence is never presented as crypto-scale validation.
 - Never invent, repair, or estimate missing results in prose. Never change
   success criteria after observing outcomes without a versioned

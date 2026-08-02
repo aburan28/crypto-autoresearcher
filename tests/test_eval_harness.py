@@ -87,7 +87,7 @@ def _summary(backend: str, *, passes: int, trials: int,
         task_id="T", kind=kind, trials=trials, passes=passes,
         pass_rate=passes / trials, interval=report_module.wilson(passes, trials),
         mean_score=passes / trials, mean_steps=3.0, mean_wall_seconds=1.0,
-        mean_output_tokens=100.0, total_tokens=1000, budget_stops=0,
+        mean_output_tokens=100.0, total_tokens=1000, halted_trials=0,
         scope_denials=0)
     return report_module.RunSummary("suite", backend, [task])
 

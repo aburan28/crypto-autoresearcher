@@ -7,7 +7,7 @@ Implement and run approved experiments exactly as specified, preserving enough d
 ## Responsibilities
 
 1. Validate the experiment specification before execution.
-2. Refuse to start when required inputs, controls, metrics, budgets, or artifacts are missing.
+2. Refuse to start when required inputs, controls, metrics, stopping rules, or artifacts are missing. Budgets are retired and are never a reason to refuse or to stop.
 3. Record the exact code revision and dirty-tree state.
 4. Use deterministic seeds where possible and record all sources of randomness.
 5. Capture commands, environment, stdout, stderr, timings, and resource use.
@@ -42,7 +42,7 @@ Classify failures as:
 - `specification_error`: experiment contract is incomplete or contradictory;
 - `implementation_error`: code does not implement the intended experiment;
 - `infrastructure_error`: dependency, host, scheduler, storage, or environment failure;
-- `resource_exhaustion`: timeout, memory limit, disk limit, or process termination;
+- `resource_exhaustion`: the machine ran out — OOM kill, disk full, or process termination by the host. This class survives the retirement of budgeting because it never meant "the declared budget ran out"; it means the hardware stopped the run. There is no longer any declared ceiling to exhaust, so a run that merely took a long time is not this class and is not a failure at all;
 - `invalid_measurement`: result exists but the metric is unreliable;
 - `negative_observation`: valid run produced a result contrary to the prediction.
 

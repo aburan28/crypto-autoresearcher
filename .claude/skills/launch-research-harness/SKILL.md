@@ -34,7 +34,7 @@ Run the `/research-status` checklist: scan `ledger/` and flag integrity issues
 ### 2. Discover goals
 
 List `ledger/goals/GOAL-*.yaml`. For each, read `research_goal.{id,status,
-title,current_batch_id,dispatch_queue_path,next_action,campaign_budget,
+title,current_batch_id,dispatch_queue_path,next_action,
 completion_criteria,pause_conditions}`.
 
 Statuses: `draft | active | paused | blocked | completed | cancelled`.
@@ -65,8 +65,10 @@ Confirm before dispatching workers:
 
 - Goal record is committed (or about to ride a Coordinator snapshot).
 - `dispatch_queue_path` exists and queue top-level `goal_id` matches.
-- Campaign budget still allows another batch (`maximum_batches`,
-  `total_wall_clock_seconds`, `max_concurrent` ≤ 3).
+- `max_concurrent` ≤ 3. This is a write-scope guard, not a budget: it caps how
+  many tasks may hold disjoint write scopes in the shared worktree at once.
+  There is no batch or wall-clock ceiling to check — budgeting is retired, so a
+  campaign is never out of road, only out of a ranked next action.
 - `next_action` is concrete; empty queue alone does not complete the goal.
 - The working branch exists, is pushed to origin, and has an open PR against
   `main`. If not, create the branch, push it, and open the PR now — do not run
@@ -166,7 +168,7 @@ Stop the harness when any of these hold:
   only then. Three CONCUR attestations with pairwise-distinct
   `resolved_model_id` (AGENTS.md rule 13). A criterion met without the quorum
   does not close the goal; a quorum without a met criterion does not either.
-- A declared `pause_conditions` item triggers (budget exhausted, archive
+- A declared `pause_conditions` item triggers (archive
   verification failure, unresolved required model policy with
   `fallback_allowed: false`) → mark `paused` with a concrete resume action.
 - Required model policy cannot be honored without silent downgrade — refuse

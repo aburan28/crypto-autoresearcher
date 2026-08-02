@@ -69,12 +69,6 @@ def require_text_list(
         raise DispatchError(f"{location}.{field} must be {qualifier}")
 
 
-def require_positive_number(record: dict[str, Any], field: str, location: str) -> None:
-    value = record.get(field)
-    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
-        raise DispatchError(f"{location}.{field} must be a positive number")
-
-
 def _validate_path_text(path: str, location: str) -> tuple[PurePosixPath, str]:
     if not isinstance(path, str) or not path or path != path.strip():
         raise DispatchError(f"{location} must be a safe repository-relative path")
@@ -211,14 +205,19 @@ def validate_handoff(task: dict[str, Any], location: str) -> None:
         require_text(handoff, field, f"{location}.handoff")
     for field in ("inputs", "constraints", "deliverables", "completion_gate"):
         require_text_list(handoff, field, f"{location}.handoff")
+    # `budget` is retired. It is no longer required, and no cap is enforced from
+    # it. Committed handoffs carry the block and stay valid; it is inert data.
+    #
+    # What did NOT go away with it is the reporting duty. A task that stops
+    # early still has to say so and say where it stopped -- see AGENTS.md rule 5
+    # and the `scope_reached` guidance in the handoff envelope. Budgets used to
+    # supply that boundary for free, because there was a declared number to hit.
+    # Without them the boundary has to be stated outright, which is why removing
+    # the cap does not license reporting a truncated run as a finished one.
     budget = handoff.get("budget")
-    if not isinstance(budget, dict):
-        raise DispatchError(f"{location}.handoff.budget must be an object")
-    for field in ("wall_clock_seconds", "memory_gb"):
-        require_positive_number(budget, field, f"{location}.handoff.budget")
-    maximum_runs = budget.get("maximum_runs")
-    if not isinstance(maximum_runs, int) or isinstance(maximum_runs, bool) or maximum_runs < 1:
-        raise DispatchError(f"{location}.handoff.budget.maximum_runs must be a positive integer")
+    if budget is not None and not isinstance(budget, dict):
+        raise DispatchError(
+            f"{location}.handoff.budget is retired; when present it must still be an object")
 
 
 def _require_optional_sha(value: Any, location: str) -> None:

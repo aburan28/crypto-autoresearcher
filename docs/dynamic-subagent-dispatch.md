@@ -8,7 +8,7 @@ turn a receipt into a conclusion.
 
 1. The Coordinator freezes an approved experiment or review task as a task
    card in a dispatch queue.
-2. `tools/research_dispatch.py` validates task IDs, dependencies, budgets,
+2. `tools/research_dispatch.py` validates task IDs, dependencies,
    role, completion gates, and exclusive write scopes.
 3. The tool emits only the currently ready tasks, limited by `max_concurrent`.
 4. Agents write only under their assigned `write_scope` and return an immutable

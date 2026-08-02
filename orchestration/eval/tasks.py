@@ -94,9 +94,10 @@ def _validate(tasks: list[EvalTask]) -> None:
         for spec in task.graders:
             if spec["type"] not in REGISTRY:
                 raise ValueError(f"{task.id}: unknown grader {spec['type']!r}")
-        budget = task.handoff.get("budget") or {}
-        if not budget.get("wall_clock_seconds"):
-            raise ValueError(f"{task.id}: handoff has no wall_clock_seconds budget")
+        # No budget check. Budgeting is retired, so an eval task declares no
+        # wall clock. The `graders` requirement above is what keeps a task
+        # scoreable, and `stopped_cleanly` still fails a trial that halted --
+        # see graders.py. A missing ceiling cannot make a trial pass.
 
 
 # --------------------------------------------------------------------------

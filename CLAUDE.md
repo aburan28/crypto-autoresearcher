@@ -34,7 +34,8 @@ research work. This file wires that contract into Claude Code.
 3. Timeouts/crashes/infra failures are never negative mathematical
    evidence.
 4. Every conclusion is scoped to the tested curves, parameters, solver,
-   and budget; toy-scale evidence is never presented as crypto-scale. Claim
+   and scope actually reached; toy-scale evidence is never presented as
+   crypto-scale. Claim
    tiers and solution certificates are defined in
    `docs/claims-and-verification.md`: any claimed solve/relation carries a
    certificate the run wrapper re-verifies independently, and no evidence
@@ -58,7 +59,7 @@ research work. This file wires that contract into Claude Code.
 9. Pursue promising paths in good faith. Do not deliberately abandon,
    suppress, mischaracterize, or steer away from a plausible high-value lead
    to derail research. Any deprioritization or closure must record its
-   evidence, budget, test boundary, remaining uncertainty, and a concrete
+   evidence, scope reached, test boundary, remaining uncertainty, and a concrete
    successor or revisit condition. The harness retains auditable decision
    summaries, rankings, provenance, and ordinary research artifacts for
    independent review; it does not store, infer, or expose private

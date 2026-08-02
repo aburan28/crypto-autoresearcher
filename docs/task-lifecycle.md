@@ -5,7 +5,9 @@
 For a sustained campaign, the Coordinator creates or resumes a
 `ledger/goals/GOAL-<AREA>-<NNN>.yaml` record before intake. It binds the
 objective to its research questions, completion criteria, pause conditions,
-budget, batch queue, latest verified commit, and exactly one next action. The
+batch queue, latest verified commit, and exactly one next action. (No budget:
+the mechanism is retired, so a goal is never out of road, only out of a ranked
+next action.) The
 initial goal checkpoint is committed before work begins.
 
 ## 1. Intake
@@ -34,7 +36,6 @@ The Coordinator creates an experiment contract containing:
 - independent variables;
 - primary and secondary metrics;
 - seed and replication strategy;
-- resource budget;
 - stage-by-stage wall-clock, CPU, memory, and sharding estimates;
 - stopping and invalidation rules;
 - success and falsification criteria;
@@ -47,7 +48,7 @@ The experiment enters `review_required` until these fields are complete.
 The Coordinator approves the frozen protocol and sends it to the Executor. Protocol changes after approval require a versioned amendment. Exploratory changes must be labeled exploratory and cannot be evaluated against the original confirmatory criterion.
 
 The Coordinator also records a bounded task card in the dispatch queue with an
-exclusive write scope, resource budget, completion gate, and dependencies. Use
+exclusive write scope, completion gate, and dependencies. Use
 `tools/research_dispatch.py` to select the ready cards. If a producer result
 could change a research claim, mark the task `review_required: true` and create
 a dependent Reviewer, Validator, or Red Team task before dispatching it.
@@ -65,7 +66,8 @@ The Executor creates immutable run records. Each planned run reaches one termina
 - `failed_infrastructure`;
 - `failed_implementation`;
 - `resource_exhaustion`;
-- `cancelled_by_budget`.
+- `cancelled` (a Coordinator decision; `cancelled_by_budget` is retired with
+  the budgeting mechanism, since no budget exists to cancel against).
 
 ## 7. Validation
 

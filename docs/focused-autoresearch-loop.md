@@ -29,7 +29,7 @@ Source: <https://x.com/askalphaxiv/status/2076737985559822734>
    cancelled, invalid, running, and planned runs remain in the run table but
    cannot satisfy a claim.
 9. Every active or queued experiment records its wall-clock, CPU, memory, and
-   run budget, dominant cost, complexity hypothesis, sharding plan, and stop
+   dominant cost, complexity hypothesis, sharding plan, and stop
    rule before execution.
 10. Scope deviations are attached to the claim they limit. A wording or scope
     correction appends a correction record containing both values and never

@@ -115,7 +115,6 @@ def system_prompt(role: str, roles_doc: dict[str, Any], *,
 def task_brief(task: dict[str, Any], scope: TaskScope, tool_names: list[str]) -> str:
     """The task envelope, including the limits the tools will actually enforce."""
     handoff = task["handoff"]
-    budget = handoff.get("budget") or {}
 
     def block(label: str, values: Any) -> str:
         if not values:
@@ -139,8 +138,11 @@ def task_brief(task: dict[str, Any], scope: TaskScope, tool_names: list[str]) ->
               list(scope.read_scope) or ["the whole repository"]),
         block("Tools available", tool_names),
         block("Commands you may run", list(scope.allowed_commands)),
-        f"Budget: wall_clock_seconds={budget.get('wall_clock_seconds')}, "
-        f"maximum_runs={budget.get('maximum_runs')}",
+        "No budget is imposed. There is no wall-clock or run ceiling to work "
+        "against, so stopping early is a decision you have to state, not a "
+        "limit you can point at: if you stop short of the deliverables, say "
+        "where you stopped and why, and report the result as scoped to what "
+        "you actually reached.",
         "Write your deliverables with the file tools before finishing. "
         "Existing files cannot be overwritten — artifacts are immutable, so a "
         "correction is a new path. When you are done, reply with a short "
@@ -189,10 +191,13 @@ def run_task(source: str | Path | dict[str, Any], *,
     else:
         model = model_factory(config=config, resolution=resolution)
 
-    budget = (task["handoff"].get("budget") or {})
-    wall_clock = budget.get("wall_clock_seconds")
+    # Budgets are retired: a task no longer carries a wall-clock ceiling, so
+    # there is no deadline to derive from it. `max_steps` is NOT a budget and
+    # stays -- it is a runaway-loop backstop from the runtime config, the same
+    # kind of guard as the concurrency cap, and removing it would let a looping
+    # agent run without bound rather than let it think longer.
     started = clock()
-    deadline = started + float(wall_clock) if wall_clock else None
+    deadline = None
     steps_limit = max_steps or int(api_config.get("max_steps", 40))
 
     checkpointer, closeable = graph_module.open_checkpointer(checkpoint_path)

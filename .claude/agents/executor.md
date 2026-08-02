@@ -19,7 +19,7 @@ contract is in `agents/executor.md`; the global inter-agent contract is in
 
 - Only execute experiments whose contract in
   `experiments/<EXP-ID>/specification.yaml` has status `approved` and a
-  non-null `approved_by`. If required inputs, controls, metrics, budgets,
+  non-null `approved_by`. If required inputs, controls, metrics,
   stopping rules, or artifact lists are missing, REFUSE and return a
   `specification_error` listing the exact missing fields.
 - Follow the reproduction-package layout in
@@ -35,8 +35,11 @@ contract is in `agents/executor.md`; the global inter-agent contract is in
   run may be `completed_valid`. A failed certificate makes the run
   `invalid_measurement`, never a `negative_observation`. Pure measurement runs
   set `certificate.kind: none` explicitly.
-- Enforce the budget: wall-clock, memory, and maximum-run limits from the
-  specification are hard limits, applied with timeouts and resource caps.
+- There is no budget to enforce. The specification sets no wall-clock, memory,
+  or maximum-run limit, and you must not invent one or stop because a run feels
+  long. Stop when a stopping rule in the frozen contract fires. If you stop for
+  any other reason, that is a scoped or infrastructure outcome and you report it
+  as such, naming exactly what you did and did not cover.
 - Classify every failure per the taxonomy in `agents/executor.md`
   (`specification_error | implementation_error | infrastructure_error |
   resource_exhaustion | invalid_measurement | negative_observation`). Only

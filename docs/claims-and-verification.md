@@ -53,7 +53,8 @@ Rules:
 - **A failed certificate invalidates the run** as `invalid_measurement` (the
   solver claimed success but the witness is wrong) — it is NOT a
   `negative_observation`. A negative observation is a *valid* run that
-  correctly reports "no solution found within budget."
+  correctly reports "no solution found over the scope actually searched" — and
+  names that scope, since there is no declared budget to point at instead.
 - **`kind: none`** is used for pure measurement runs (e.g. recording Gröbner
   solving degree without claiming a solve); those have nothing to certify, and
   that is stated explicitly rather than left blank.
@@ -196,7 +197,8 @@ heuristic:
     tail_checks: consistency checks on extreme samples
       (exemplar: smoothest of 100,000 samples is 12589-smooth vs predicted
       probability rho(u) ≈ 1/69232)
-    budget: {runs: null, wall_clock_seconds: null}
+    scope_reached: null   # what the run actually covered (no budget block:
+                          # the budgeting mechanism is retired)
 ```
 
 Rules:
@@ -286,8 +288,8 @@ exponent:
 
 - No proof of ECDLP hardness or of any complexity lower bound.
 - No certification that a *negative* result generalizes — a certificate proves
-  a positive witness is real; absence of a witness within budget is only ever
-  a scoped negative observation.
+  a positive witness is real; absence of a witness over the scope searched is
+  only ever a scoped negative observation.
 - No discharge of heuristics by experiment. Even cryptographic-scale
   validation of a heuristic leaves every claim depending on it conditional;
   only an external unconditional proof removes the qualifier.

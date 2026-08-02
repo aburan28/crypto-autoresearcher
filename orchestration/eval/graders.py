@@ -149,7 +149,12 @@ def file_exists(context: GradingContext, spec: dict[str, Any]) -> Verdict:
 
 @grader("stopped_cleanly")
 def stopped_cleanly(context: GradingContext, spec: dict[str, Any]) -> Verdict:
-    """A budget stop is infrastructure signal, so it is never a pass."""
+    """A halted trial is infrastructure signal, so it is never a pass.
+
+    Unchanged by the retirement of budgeting: what matters is that the run did
+    not finish, not why the ceiling was hit. There is no ceiling now, and this
+    grader still fails anything whose stop_reason is not `completed`.
+    """
     ok = context.stop_reason == "completed"
     return Verdict("stopped_cleanly", ok, f"stop_reason={context.stop_reason}",
                    critical=spec.get("critical", False))

@@ -108,7 +108,7 @@ pulls in `main` and surfaces the decision as a PR:
 
 - Only the coordinator subagent changes hypothesis status.
 - Claims must be scoped to the tested curves, bit sizes, solver, parameters,
-  and budget. Toy-scale results never become crypto-scale claims; this
+  and the scope actually reached. Toy-scale results never become crypto-scale claims; this
   applies symmetrically to heuristic-validation experiments, whose sample
   scale must match the scale of the claim they support.
 - Conditional results stay conditional. A `support` or `expand` decision on a

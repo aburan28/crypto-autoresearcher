@@ -308,8 +308,29 @@ def test_step_budget_stops_the_loop_and_says_so(cfg, scope, journal):
     assert state["steps"] == 2
 
 
+def test_task_brief_states_there_is_no_budget(cfg, scope, journal):
+    """Budgeting is retired, so the brief must not advertise a ceiling.
+
+    The brief used to print `Budget: wall_clock_seconds=..., maximum_runs=...`.
+    An agent told it has a ceiling behaves as if stopping at one is legitimate,
+    which is exactly the reading the retirement removes -- so this asserts both
+    that the old line is gone and that the replacement puts the duty back on
+    the agent to say where it stopped.
+    """
+    task = {"role": "executor", "id": "TASK-1",
+            "handoff": {"objective": "o", "uncertainty_reduced": "u",
+                        # a legacy budget block must NOT resurrect the line
+                        "budget": {"wall_clock_seconds": 600, "maximum_runs": 1}}}
+    brief = runner_module.task_brief(task, scope, ["read_file"])
+    assert "wall_clock_seconds=" not in brief
+    assert "No budget is imposed" in brief
+    assert "where you stopped" in brief
+
+
 def test_wall_clock_budget_stops_the_loop(cfg, scope, journal):
-    # The model keeps asking for tools, so only the clock can end this run.
+    # Still valid: `deadline` remains an explicit build_agent parameter an
+    # operator may set. What changed is that nothing DERIVES it from a task --
+    # see test_task_brief_states_there_is_no_budget and runner.run_task.
     ticks = iter([0.0, 100.0, 100.0])
     model = _model(cfg, [anthropic_tool_use("read_file",
                                             {"path": "ledger/H-A-001.yaml"})] * 3)

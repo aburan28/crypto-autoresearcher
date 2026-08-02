@@ -63,16 +63,18 @@ definition drifts from it.
 Under `api_direct` the ownership rules below are enforced rather than
 requested: a write outside the task's declared `write_scope` is refused and the
 refusal is recorded, existing artifacts cannot be overwritten, only allow-listed
-commands and read-only git subcommands run, an exhausted step or wall-clock
-budget is reported as such and never as a result, and a role whose capabilities
-that runtime cannot provide is refused outright rather than run with a reduced
-tool surface.
+commands and read-only git subcommands run, a run that halted on the runtime's
+runaway-loop step backstop is reported as having halted and never as a result,
+and a role whose capabilities that runtime cannot provide is refused outright
+rather than run with a reduced tool surface. That step backstop is a safety
+guard on the tool loop, not a research budget; no wall-clock or run ceiling is
+derived from a task.
 
 ## Core rules
 
 1. Separate speculation, implementation, observation, and conclusion.
 2. Every hypothesis must state a mechanism, predictions, test boundary, and falsification criteria.
-3. Every experiment must define controls, metrics, budgets, stopping rules, and required artifacts before execution.
+3. Every experiment must define controls, metrics, stopping rules, and required artifacts before execution. Budgets are **not** among them: the budgeting mechanism is retired and no experiment, task, or campaign carries a spend ceiling. Stopping rules stay mandatory and now carry the weight budgets used to share — they must say what ends the experiment and what a partial result means, in terms of the science rather than a number of seconds.
 4. Results are immutable records. Corrections create new records.
 5. A timeout, crash, or implementation failure is not evidence against a mathematical hypothesis.
 6. Negative evidence closes only the exact tested scope.
@@ -92,8 +94,11 @@ Research agents must pursue promising paths in good faith. An agent must not
 deliberately abandon, suppress, mischaracterize, or steer work away from a
 plausible high-value lead in order to derail the research program. This does
 not require indiscriminate pursuit: a proposed deprioritization or closure
-must name the evidence, budget, test boundary, remaining uncertainty, and a
-concrete successor or revisit condition.
+must name the evidence, the scope actually reached, the test boundary, the
+remaining uncertainty, and a concrete successor or revisit condition. Note what
+is no longer available here: "we ran out of budget" was the one closure
+rationale that needed no scientific content, and it is gone. A path is now
+dropped on its merits or not at all.
 
 The harness monitors this requirement through durable, reviewable decision
 records: the candidate or path considered, cited evidence, stated rationale,
@@ -126,9 +131,16 @@ are all `CONCUR` and whose `resolved_model_id` values are **pairwise distinct**.
 - Attestations may be gathered before the transition, but
   `quorum_satisfied: true` on a goal that is not `completed` is an error: only a
   Coordinator ledger archive performs the transition.
-- `paused`, `blocked`, and `closed_at_budget` assert no success and need no
-  quorum. Retiring a goal that *did* meet a criterion under one of those
-  statuses, to avoid the quorum, is a contract violation.
+- `paused` and `blocked` assert no success and need no quorum. Retiring a goal
+  that *did* meet a criterion under one of those statuses, to avoid the quorum,
+  is a contract violation.
+- `closed_at_budget` is **retired** with the budgeting mechanism: no campaign
+  budget exists to exhaust, so no new goal may take it. Goals already holding it
+  keep it — records are immutable — and `check_goals` grandfathers exactly that
+  set and rejects any addition. A goal with no useful next step is now `paused`
+  with a concrete resume action, which is the stricter record: the old status
+  said only that a number had been reached, while `paused` must say what would
+  restart the work.
 
 Enforced by `check_goals` in `tools/validate_ledger.py`; failure modes pinned in
 `tools/test_goal_closure_quorum.py`. The rule is prospective — goals closed
@@ -244,12 +256,23 @@ handoff:
     fallback_allowed: false
     degraded_allowed: false
     independent_session_required: false
-  budget:
-    wall_clock_seconds: null
-    memory_gb: null
-    maximum_runs: null
   completion_gate: []
+  scope_reached: null        # on a terminal receipt: what was actually covered
 ```
+
+There is no `budget` block. The mechanism is retired: no wall clock, no memory
+ceiling, no run cap, and no campaign batch limit. A handoff that still carries
+`budget:` is a committed record from before the retirement — it stays valid and
+is ignored.
+
+Removing the ceiling did not remove the obligation it used to discharge. A
+budget made a truncated run self-describing: the number was declared up front,
+so "we hit it" was a statement anyone could check. With no number, a task that
+stops short must say so in `scope_reached` and scope its claim to what it
+actually covered. Rules 5 and 6 are unchanged and now do this work alone — a
+run that halted is still not evidence, and a partial sweep still closes only
+the part it swept. Silence about where a run stopped is a reporting failure
+under rule 9, not a budget question.
 
 ## Dynamic dispatch
 

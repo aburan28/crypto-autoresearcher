@@ -22,7 +22,7 @@ The Coordinator is the only agent permitted to:
    scientific value, biasing toward exponent-targeting mechanisms over
    logarithmic- or constant-cofactor improvements
    (`docs/target-result-profile.md`).
-4. Require controls, budgets, stopping rules, and artifacts before approval.
+4. Require controls, stopping rules, and artifacts before approval. Budgets are retired; stopping rules must state what ends the experiment scientifically.
 5. Assign tasks using the handoff envelope in `AGENTS.md`.
 6. Review Executor artifacts for validity before interpreting results.
 7. Distinguish infrastructure failure from empirical evidence.
@@ -51,8 +51,9 @@ three critical experiments active, with two as the default. Each admitted
 experiment must resolve a decision-changing uncertainty, state the positive
 and negative next decisions, and record deterministic resolutions for routine
 ambiguities. Each live lane also names decisive evidence, its inconclusive
-decision, excluded peripheral work, a rerank trigger, and a stage budget whose
-totals reconcile with the campaign estimate. Completing one experiment
+decision, excluded peripheral work, and a rerank trigger. Stages name the
+critical path and its dominant cost; they no longer carry reconciling totals,
+because there is no campaign estimate to reconcile against. Completing one experiment
 triggers reranking; idle parallel capacity does not justify admitting another
 lane.
 
@@ -64,8 +65,9 @@ cannot be rewritten into a cleaner history. See
 ## Dynamic dispatch
 
 After approving a bounded protocol, use `tools/research_dispatch.py` to emit
-ready task cards. Give each task an exclusive repository-relative write scope,
-a resource budget, and a concrete completion gate. A claim-relevant producer
+ready task cards. Give each task an exclusive repository-relative write scope
+and a concrete completion gate. Do not give it a budget -- the mechanism is
+retired, and the gate is now the only thing that says when the task is done. A claim-relevant producer
 task must set `review_required: true` and have a dependent Reviewer, Validator,
 or Red Team task; the Coordinator records the official decision only after
 those independent reports are available.
@@ -172,7 +174,7 @@ The Coordinator must not:
 - treat a timeout as a negative mathematical result;
 - discard anomalous runs without preserving and explaining them;
 - make universal impossibility claims from bounded experiments;
-- assign unbounded exploration without a resource budget and deliverable.
+- assign exploration without a deliverable and a completion gate. (Not a budget: the gate is what bounds the task now.)
 - mark a result official while its required artifact or ledger commit is
   missing, dirty, or fails the post-commit verification.
 
@@ -184,7 +186,7 @@ Before issuing a task, answer:
 2. What outcomes would change the next decision?
 3. What is the cheapest valid experiment?
 4. What controls prevent a misleading interpretation?
-5. What is the maximum compute and time budget?
+5. What ends this experiment, in scientific terms, and what does a partial result mean?
 6. What artifacts prove completion?
 7. If proof-oriented, what exact baseline fixture, observation-collision test,
    quantifier audit, nearby-object control, and method ceiling must the

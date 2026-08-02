@@ -391,10 +391,40 @@ class FocusHarnessTests(unittest.TestCase):
         with self.assertRaisesRegex(focus.QueueError, "attention_contract"):
             focus.validate_queue(queue(experiment))
 
-    def test_v3_rejects_unreconciled_stage_budget(self) -> None:
+    def test_v3_accepts_unreconciled_stage_budget_now_that_budgeting_is_retired(
+        self,
+    ) -> None:
+        """The stage/total reconciliation was removed with the budgeting mechanism.
+
+        This is the inverse of the test it replaces. Numeric ceilings no longer
+        reconcile because there is no ceiling to reconcile against, and a queue
+        whose stage seconds do not sum to the total is no longer wrong -- the
+        totals are inert.
+        """
         experiment = candidate("EXP", 4)
         experiment["resource_estimate"]["stages"][0]["wall_clock_seconds"] = 59
-        with self.assertRaisesRegex(focus.QueueError, "wall-clock total"):
+        focus.validate_queue(queue(experiment))
+
+    def test_v3_accepts_missing_numeric_ceilings(self) -> None:
+        """Absence of the retired fields is not an error."""
+        experiment = candidate("EXP", 4)
+        for field in ("wall_clock_seconds", "cpu_hours", "maximum_memory_gb",
+                      "maximum_runs"):
+            experiment["resource_estimate"].pop(field, None)
+        for stage in experiment["resource_estimate"]["stages"]:
+            for field in ("wall_clock_seconds", "cpu_hours", "maximum_memory_gb"):
+                stage.pop(field, None)
+        focus.validate_queue(queue(experiment))
+
+    def test_v3_still_requires_the_prose_that_replaced_the_numbers(self) -> None:
+        """Retiring budgets must not weaken the record into pure vibes.
+
+        `stop_rule` says what ENDS the candidate. It carries the weight the
+        wall-clock ceiling used to share, so dropping it is still an error.
+        """
+        experiment = candidate("EXP", 4)
+        experiment["resource_estimate"].pop("stop_rule")
+        with self.assertRaisesRegex(focus.QueueError, "stop_rule"):
             focus.validate_queue(queue(experiment))
 
     def test_v2_queue_remains_readable(self) -> None:

@@ -43,7 +43,12 @@ A valid negative result may reject only a scoped prediction. It does not prove t
 
 Use language such as:
 
-> No improvement meeting the predefined threshold was observed over the tested instances, parameters, solver, and resource budget.
+> No improvement meeting the predefined threshold was observed over the tested instances, parameters, solver, and the scope actually reached.
+
+That last clause used to read "resource budget". It changed when budgeting was
+retired, and the replacement is stricter rather than looser: a budget bounded
+the claim with a number declared in advance, so the sentence was checkable
+without saying what had actually been covered. Now the run has to say it.
 
 ## Reproduction package
 

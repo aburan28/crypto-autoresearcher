@@ -67,7 +67,8 @@ class TaskSummary:
     mean_wall_seconds: float
     mean_output_tokens: float
     total_tokens: int
-    budget_stops: int
+    halted_trials: int          # was `budget_stops`; budgeting is retired and
+                                # this counts any non-completion, not a ceiling
     scope_denials: int
     failure_reasons: list[str] = field(default_factory=list)
 
@@ -100,7 +101,7 @@ def summarise_task(task_id: str, kind: str,
         mean_output_tokens=mean([t.usage.get("output_tokens", 0) for t in trials]),
         total_tokens=sum(t.usage.get("input_tokens", 0)
                          + t.usage.get("output_tokens", 0) for t in trials),
-        budget_stops=sum(1 for t in trials if t.stop_reason != "completed"),
+        halted_trials=sum(1 for t in trials if t.stop_reason != "completed"),
         scope_denials=sum(t.denials for t in trials),
         failure_reasons=_top(reasons))
 

@@ -24,11 +24,9 @@ def handoff() -> dict[str, Any]:
         "inputs": ["experiments/EXP-TEST-001/specification.yaml"],
         "constraints": ["Preserve raw evidence."],
         "deliverables": ["report.json"],
-        "budget": {
-            "wall_clock_seconds": 60,
-            "memory_gb": 1,
-            "maximum_runs": 1,
-        },
+        # No `budget`. The mechanism is retired, and the default fixture omits
+        # it so the common path is exercised budget-free. A legacy handoff that
+        # still carries the block is covered by its own test below.
         "completion_gate": ["A machine-checkable report exists."],
     }
 
@@ -510,6 +508,52 @@ class DispatchPlannerTests(unittest.TestCase):
         first = dispatch.select(copy.deepcopy(source))
         second = dispatch.select(copy.deepcopy(source))
         self.assertEqual(first["plan_sha256"], second["plan_sha256"])
+
+    # -- budgeting retirement ---------------------------------------------
+    # These pin the retirement in both directions: a task with no budget must
+    # validate, and a committed task that still carries one must keep working.
+    # Getting only the first right would break every queue already in the repo.
+
+    def test_task_without_budget_validates(self) -> None:
+        worker = task("ONE", 10)
+        self.assertNotIn("budget", worker["handoff"])
+        archive = archive_task("ARCHIVE", [worker])
+        dispatch.validate_queue(queue(worker, archive))
+
+    def test_legacy_budget_block_is_still_accepted(self) -> None:
+        worker = task("ONE", 10)
+        worker["handoff"]["budget"] = {
+            "wall_clock_seconds": 60, "memory_gb": 1, "maximum_runs": 1,
+        }
+        archive = archive_task("ARCHIVE", [worker])
+        dispatch.validate_queue(queue(worker, archive))
+
+    def test_retired_budget_values_are_not_enforced(self) -> None:
+        """Values that the old validator rejected no longer fail.
+
+        Zero and negative ceilings used to raise. Nothing reads them now, so
+        they are inert rather than invalid -- which is what lets a committed
+        queue keep validating without anyone editing an immutable record.
+        """
+        worker = task("ONE", 10)
+        worker["handoff"]["budget"] = {
+            "wall_clock_seconds": 0, "memory_gb": -1, "maximum_runs": 0,
+        }
+        archive = archive_task("ARCHIVE", [worker])
+        dispatch.validate_queue(queue(worker, archive))
+
+    def test_concurrency_cap_survives_the_retirement(self) -> None:
+        """max_concurrent is a write-scope guard, not a budget, and stays.
+
+        It is what stops two subagents writing the same paths in the shared
+        worktree, so retiring budgets must not have loosened it.
+        """
+        worker = task("ONE", 10)
+        archive = archive_task("ARCHIVE", [worker])
+        source = queue(worker, archive)
+        source["max_concurrent"] = 4
+        with self.assertRaisesRegex(dispatch.DispatchError, "max_concurrent"):
+            dispatch.validate_queue(source)
 
 
 if __name__ == "__main__":

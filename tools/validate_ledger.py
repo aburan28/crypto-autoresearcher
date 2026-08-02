@@ -90,13 +90,19 @@ REQUIRED = {
     "research_question": ["id", "title", "scope", "status", "owner"],
     "idea": ["id", "title", "class", "claim", "mechanism", "novelty_status"],
     "hypothesis": ["id", "question_id", "statement", "mechanism", "status"],
+    # `budget` was required on experiments and handoffs until the budgeting
+    # mechanism was retired. It is now optional everywhere: committed records
+    # keep the field and stay valid, new records may omit it, and nothing reads
+    # it as a cap. `metrics` and `success_criterion` stay required -- an
+    # experiment still has to say what it measures and what would count as
+    # success; only the spend ceiling is gone.
     "experiment": ["id", "hypothesis_id", "version", "status", "metrics",
-                   "budget", "success_criterion"],
+                   "success_criterion"],
     "evidence": ["id", "hypothesis_id", "run_ids", "direction", "strength",
                  "claim_tier", "proof_status", "proof_refs"],
     "coordinator_decision": ["id", "decision", "target_ids",
                              "knowledge_promotion", "decided_by"],
-    "handoff": ["id", "from", "to", "objective", "budget"],
+    "handoff": ["id", "from", "to", "objective"],
 }
 
 RUN_REQUIRED_TOP = ["id", "experiment_id", "status", "code", "environment",
@@ -486,12 +492,24 @@ def check_knowledge_entries(ctx: Ctx) -> None:
 
 
 GOAL_ID = re.compile(r"^GOAL-[A-Z0-9]+-\d{3}$")
-# `closed_at_budget` is a terminal status in active use. It asserts that the
-# campaign budget ran out WITHOUT a completion criterion being met, so it makes
-# no success claim and needs no quorum. Using it to retire a goal that did meet
-# a criterion, in order to avoid the quorum, is a contract violation.
+# `closed_at_budget` is RETIRED along with the budgeting mechanism: no campaign
+# budget exists to run out, so no new goal may take this status. It stays in the
+# accepted set because goals already carry it (GOAL-MLKEM-001) and records are
+# immutable -- dropping it would invalidate a committed record to tidy an enum.
+# Its meaning is unchanged where it appears: budget ran out WITHOUT a completion
+# criterion being met, so it asserts no success and needs no quorum.
+#
+# A goal that has run out of useful next steps is now `paused` with a concrete
+# resume action. That is a strictly better record: `closed_at_budget` said only
+# that a number was hit, while `paused` has to say what would restart the work.
 GOAL_STATUSES = {"draft", "active", "paused", "blocked", "completed",
                  "cancelled", "closed_at_budget"}
+RETIRED_GOAL_STATUSES = {"closed_at_budget"}
+# Goals that already hold a retired status. Grandfathered because the records
+# are immutable, not because the status is still available. Do not add to this
+# set: with no budget to exhaust, a new entry would be asserting something that
+# cannot have happened.
+CLOSED_AT_BUDGET_GOAL_IDS = {"GOAL-MLKEM-001"}
 GOAL_REQUIRED = ["id", "title", "objective", "question_ids", "status",
                  "completion_criteria", "pause_conditions", "next_action",
                  "owner"]
@@ -623,6 +641,13 @@ def check_goals(ctx: Ctx):
         status = str(goal.get("status", "")).strip()
         if status and status not in GOAL_STATUSES:
             ctx.err(path, f"invalid status {status!r}")
+
+        # The budgeting mechanism is retired, so no NEW goal can honestly claim
+        # a budget ran out. Existing holders are grandfathered because records
+        # are immutable; the set must not grow.
+        if status in RETIRED_GOAL_STATUSES and str(rec_id) not in CLOSED_AT_BUDGET_GOAL_IDS:
+            ctx.err(path, f"status {status!r} is retired with the budgeting "
+                          f"mechanism; use 'paused' with a concrete resume action")
 
         if status == "completed" and not grandfathered:
             check_goal_closure_quorum(path, goal, ctx)

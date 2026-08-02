@@ -5,9 +5,10 @@ trial goes through `orchestration.agent.runner.run_task` exactly as a dispatched
 research task does -- same resolution, same tool loop, same scope enforcement --
 only pointed at a throwaway sandbox.
 
-Failures are results. A trial that crashed, timed out, or exhausted its budget
-is recorded as such and counted against the arm; it is never dropped for being
-inconvenient.
+Failures are results. A trial that crashed or halted for any reason is recorded
+as such and counted against the arm; it is never dropped for being inconvenient.
+Budgets are retired, so no trial halts on a declared ceiling any more -- but a
+trial that stops short still counts against the arm rather than being excused.
 """
 from __future__ import annotations
 

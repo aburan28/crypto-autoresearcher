@@ -17,7 +17,7 @@ The project separates research into primary roles with separate authority:
 - make every experiment reproducible from an exact revision and command;
 - preserve failed and anomalous runs as research evidence;
 - distinguish infrastructure failure from negative empirical evidence;
-- scope conclusions to the tested curves, parameters, solver, and compute budget;
+- scope conclusions to the tested curves, parameters, solver, and the scope actually reached;
 - support iterative autonomous research without letting agents silently redefine success.
 
 ## Research direction
@@ -260,7 +260,7 @@ launcher driving `orchestration.agent` across a whole dispatch batch.
 
 The executable focus layer keeps the campaign on a few decision-changing
 experiments and enforces reproduce-before-expand. Queue v3 also emits an
-attention contract, reconciled stage budget, claim-by-claim verdict matrix,
+attention contract, critical-path stages, claim-by-claim verdict matrix,
 experiment/run DAG, scope deviations, and append-only corrections:
 
 ```sh

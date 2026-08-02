@@ -22,7 +22,8 @@ and ledger transition as committed evidence.
    request; otherwise create the next free goal record from
    `templates/research-records.md`. Bind it to one or more `RQ-*` records.
 3. State an explicit objective, completion criteria, pause conditions, campaign
-   budget, and exactly one next action. A negative result is not a completion
+   and exactly one next action. There is no campaign budget to state: goals do
+   not end because a batch count or a clock ran out. A negative result is not a completion
    criterion.
 4. If the host provides a durable goal API and the user explicitly asked to
    launch the goal, create or resume the matching runtime goal and store its
@@ -31,7 +32,7 @@ and ledger transition as committed evidence.
 5. Create the first bounded batch under
    `coordination/goals/GOAL-<AREA>-<NNN>/batches/BATCH-<NNN>/`, with committed
    handoff records and a dispatch queue. Each task names exact `artifact_paths`,
-   an exclusive `write_scope`, a budget, and an archival task. Commit the goal,
+   an exclusive `write_scope`, and an archival task (no budget — retired). Commit the goal,
    question, queue, and handoff records through a Coordinator snapshot archive
    before starting workers. Set the queue's top-level `goal_id` to the matching
    `GOAL-*` so every rendered plan remains bound to the persistent campaign.

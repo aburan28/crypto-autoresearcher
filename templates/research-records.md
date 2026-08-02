@@ -12,14 +12,17 @@ research_goal:
   question_ids: []
   active_hypothesis_ids: []
   status: draft | active | paused | blocked | completed | cancelled
-                                 | closed_at_budget
+                                 # `closed_at_budget` is RETIRED - do not use it
   runtime:
     provider: codex | none
     goal_id: null
-  campaign_budget:
-    maximum_batches: null
-    total_wall_clock_seconds: null
-    max_concurrent: 3
+  # No `campaign_budget`. Budgeting is retired: a campaign has no batch cap and
+  # no wall-clock total, and a goal never ends because a number was reached. It
+  # ends on a met completion criterion (plus the rule 13 quorum), on a declared
+  # pause condition, or when you say so. `max_concurrent` moved here because it
+  # is not a budget - it caps how many tasks may hold disjoint write scopes at
+  # once, which is a data-integrity guard on the shared worktree.
+  max_concurrent: 3
   current_batch_id: null
   dispatch_queue_path: null
   latest_verified_commit: null
@@ -56,8 +59,10 @@ Coordinator ledger archive commit.
 Three attestations that resolve to the same model are not a quorum, however many
 distinct policy aliases they requested — the validator compares
 `resolved_model_id`. A single `DISSENT` blocks closure rather than being
-outvoted. Statuses that assert no success (`paused`, `blocked`,
-`closed_at_budget`) need no quorum.
+outvoted. Statuses that assert no success (`paused`, `blocked`) need no quorum.
+`closed_at_budget` is retired with the budgeting mechanism and is rejected on
+any goal that does not already hold it; a goal with no useful next step is
+`paused` with a concrete resume action.
 
 ## Research question
 
@@ -154,7 +159,7 @@ hypothesis:
     instances: []
     parameters: {}
     implementation: null
-    budget: {}
+    scope_reached: null         # what the test actually covered, once run
   falsification_conditions: []
   interpretation_limits: []
   status: proposed
@@ -212,11 +217,11 @@ experiment:
   replication:
     seeds: []
     independent_instances: 0
-  budget:
-    wall_clock_seconds_per_run: null
-    total_cpu_hours: null
-    maximum_memory_gb: null
-    maximum_runs: null
+  # No `budget`. Nothing caps an experiment's time, memory, or run count.
+  # `stopping_rules` carries the whole weight now and is still required: say
+  # what ENDS the experiment in scientific terms (a criterion met, a control
+  # voided, a grid exhausted) and what a partial result means. "Ran out of
+  # time" is no longer an available stopping rule, and it never was a finding.
   stopping_rules: []
   invalidation_rules: []
   success_criterion: null

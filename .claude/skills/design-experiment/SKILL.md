@@ -25,7 +25,7 @@ specification, experiment design, approval, and handoff.
      distinguishable outcomes, saved to `ledger/hypotheses/H-<AREA>-<NNN>.yaml`;
    - draft the `experiment` contract with inputs, controls, independent
      variables, primary/secondary metrics, seeds and replication plan,
-     budget, stopping and invalidation rules, success and falsification
+     stopping and invalidation rules, success and falsification
      criteria, and required artifacts;
    - refuse approval while any of those fields is null (status stays
      `review_required`).
@@ -36,7 +36,8 @@ specification, experiment design, approval, and handoff.
    it `approved` with `approved_by: coordinator` — approval is the gate that
    authorizes execution and spends compute.
 5. On approval, write the `handoff` record to `ledger/handoffs/` targeting
-   the executor, with budget and completion gate filled in.
+   the executor, with the completion gate filled in. No budget: it is retired,
+   and the gate is what defines done.
 6. The Coordinator runs an isolated snapshot archive task that commits the
    selected proposal, hypothesis, frozen specification, and handoff by exact
    path. Do not dispatch the Executor until its post-commit receipt verifies.

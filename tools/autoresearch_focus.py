@@ -7,7 +7,6 @@ import argparse
 import copy
 import hashlib
 import json
-import math
 import os
 import sys
 from pathlib import Path
@@ -76,16 +75,6 @@ def require_text_list(record: dict[str, Any], field: str, location: str) -> None
         raise QueueError(f"{location}.{field} must be a text list")
 
 
-def require_positive_number(record: dict[str, Any], field: str, location: str) -> None:
-    value = record.get(field)
-    if (
-        not isinstance(value, (int, float))
-        or isinstance(value, bool)
-        or value <= 0
-    ):
-        raise QueueError(f"{location}.{field} must be a positive number")
-
-
 def validate_attention_contract(candidate: dict[str, Any], location: str) -> None:
     contract = candidate.get("attention_contract")
     if not isinstance(contract, dict):
@@ -112,17 +101,16 @@ def validate_resource_estimate(
     estimate = candidate.get("resource_estimate")
     if not isinstance(estimate, dict):
         raise QueueError(f"{location}.resource_estimate must be an object")
-    for field in ("wall_clock_seconds", "cpu_hours", "maximum_memory_gb"):
-        require_positive_number(estimate, field, f"{location}.resource_estimate")
-    maximum_runs = estimate.get("maximum_runs")
-    if (
-        not isinstance(maximum_runs, int)
-        or isinstance(maximum_runs, bool)
-        or maximum_runs < 1
-    ):
-        raise QueueError(
-            f"{location}.resource_estimate.maximum_runs must be a positive integer"
-        )
+    # Budgeting is retired, so the numeric ceilings here are no longer required
+    # and no longer reconciled: `wall_clock_seconds`, `cpu_hours`,
+    # `maximum_memory_gb` and `maximum_runs` may be present (committed queues
+    # carry them) but nothing is rejected for their absence or their size.
+    #
+    # The PROSE fields stay required, and that is the point of the change rather
+    # than an oversight. `dominant_cost`, `complexity_hypothesis`, `sharding_plan`
+    # and `stop_rule` are what made this record worth having: they say what makes
+    # the candidate expensive, why, and what ends it. A number of seconds never
+    # said any of that -- it only said when to give up.
     for field in (
         "dominant_cost",
         "complexity_hypothesis",
@@ -146,16 +134,14 @@ def validate_resource_estimate(
             raise QueueError(f"{stage_location} must be an object")
         for field in ("id", "purpose", "dominant_operation", "stop_rule"):
             require_text(stage, field, stage_location)
-        for field in ("wall_clock_seconds", "cpu_hours", "maximum_memory_gb"):
-            require_positive_number(stage, field, stage_location)
         parallel_shards = stage.get("parallel_shards")
-        if (
+        if parallel_shards is not None and (
             not isinstance(parallel_shards, int)
             or isinstance(parallel_shards, bool)
             or parallel_shards < 1
         ):
             raise QueueError(
-                f"{stage_location}.parallel_shards must be a positive integer"
+                f"{stage_location}.parallel_shards must be a positive integer when present"
             )
         stage_ids.append(stage["id"])
     if len(stage_ids) != len(set(stage_ids)):
@@ -165,25 +151,10 @@ def validate_resource_estimate(
             f"{location}.resource_estimate.dominant_stage_id is not a stage"
         )
 
-    stage_wall = sum(stage["wall_clock_seconds"] for stage in stages)
-    stage_cpu = sum(stage["cpu_hours"] for stage in stages)
-    stage_memory = max(stage["maximum_memory_gb"] for stage in stages)
-    if not math.isclose(
-        stage_wall, estimate["wall_clock_seconds"], rel_tol=1e-9, abs_tol=1e-9
-    ):
-        raise QueueError(
-            f"{location}.resource_estimate stage wall-clock total does not match"
-        )
-    if not math.isclose(
-        stage_cpu, estimate["cpu_hours"], rel_tol=1e-9, abs_tol=1e-9
-    ):
-        raise QueueError(
-            f"{location}.resource_estimate stage CPU total does not match"
-        )
-    if stage_memory > estimate["maximum_memory_gb"]:
-        raise QueueError(
-            f"{location}.resource_estimate stage memory exceeds the campaign maximum"
-        )
+    # The stage/total reconciliation went with the budgets it reconciled. There
+    # is no campaign maximum for a stage to exceed, and no total for stage sums
+    # to match. Stage identity and ordering checks above are kept: they describe
+    # the critical path, which is still real work-planning information.
 
 
 def validate_claims(

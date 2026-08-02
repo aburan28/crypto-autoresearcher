@@ -367,12 +367,15 @@ open literature — will not start here. Running them with a quietly reduced too
 surface would produce a novelty screen that silently never searched anything.
 `tools/check_runtime_bindings.py --list` shows the full matrix.
 
-**A budget stop is not a result.** The loop checks the step and wall-clock
-budget before each model call and exits with `step_budget_exhausted` or
-`wall_clock_budget_exhausted` recorded in the receipt. Rule 5 of `AGENTS.md`
-applies to this runtime like any other: an exhausted budget is infrastructure
+**A halted run is not a result.** Budgets are retired, so no wall-clock ceiling
+is derived from a task and `wall_clock_budget_exhausted` no longer fires from
+one. What remains is `step_budget_exhausted`, the runtime's runaway-loop
+backstop — a safety guard on the tool loop, not a research budget. It is checked
+before each model call and recorded in the receipt. Rule 5 of `AGENTS.md`
+applies to this runtime like any other: a run that halted is infrastructure
 signal, and a report that cannot distinguish it from a finished task is worse
-than no report.
+than no report. That is why the `stop_reason` plumbing outlived the budgets
+that used to feed it.
 
 **Long runs resume.** With `--checkpoint`, state is persisted after every node,
 keyed by task id, so an interrupted run continues from the last completed tool

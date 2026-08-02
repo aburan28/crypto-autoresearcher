@@ -24,7 +24,9 @@ validation.
    - validate the contract and refuse on missing fields;
    - implement the experiment (code lives under
      `experiments/<EXP-ID>/`, described in `implementation.md`);
-   - execute every planned run inside the budget (timeouts, memory caps),
+   - execute every planned run to completion; there are no timeouts or memory
+     caps to work inside, so stop only when a frozen stopping rule fires and
+     report exactly what was and was not covered if you stop for any other reason,
      one immutable directory per run:
      `runs/<RUN-ID>/{manifest.yaml,command.txt,environment.json,stdout.log,stderr.log,raw-result.json}`;
    - fill the run manifest per `docs/evidence-and-reproducibility.md`
