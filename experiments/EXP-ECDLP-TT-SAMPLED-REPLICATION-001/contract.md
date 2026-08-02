@@ -33,8 +33,8 @@ charged.
 - quotient rank is reported per family, preserving rank-deficient controls;
 - the verifier regenerates both fresh fixtures from their seeds and reruns
   direct rho certificate checks.
-- fixture serialization excludes runner wall-time metadata so regeneration
-  hashes bind mathematical inputs rather than incidental timing.
+- fixture serialization recursively excludes runner wall-time metadata so
+  regeneration hashes bind mathematical inputs rather than incidental timing.
 
 ## Success criterion
 

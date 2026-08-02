@@ -49,9 +49,17 @@ def _sha256(path: Path) -> str:
 
 def _canonical_fixture(value: dict[str, Any]) -> dict[str, Any]:
     # Wall time is runner metadata, not part of the deterministic fixture.
-    fixture = dict(value)
-    fixture.pop("total_wall_seconds", None)
-    return fixture
+    def normalize(item: Any) -> Any:
+        if isinstance(item, dict):
+            return {
+                key: normalize(child)
+                for key, child in item.items()
+                if key not in {"wall_seconds", "total_wall_seconds"}
+            }
+        if isinstance(item, list):
+            return [normalize(child) for child in item]
+        return item
+    return normalize(value)
 
 
 def _rho_for_fixture(fixture: dict[str, Any], relation_input: dict[str, Any]) -> dict[str, Any]:
