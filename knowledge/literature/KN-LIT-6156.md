@@ -1,9 +1,9 @@
 ---
 id: KN-LIT-6156
 type: literature
-title: "Rationality in the Full-Information Model"
+title: Rationality in the Full-Information Model
 authors:
-  - "Ronen Gradwohl"
+- Ronen Gradwohl
 year: null
 venue: null
 identifiers:
@@ -11,10 +11,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- game-theory
+- rationality
+- full-information-model
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

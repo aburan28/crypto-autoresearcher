@@ -1,20 +1,24 @@
 ---
 id: KN-LIT-1738
 type: literature
-title: "Modern Portfolio Theory in the Crypto-Wilderness Ivan Vynyavskyy #"
+title: 'Modern Portfolio Theory in the Crypto-Wilderness Ivan Vynyavskyy #'
 authors:
-  - "Complexity Science Hub & TU Wien"
+- Complexity Science Hub & TU Wien
 year: 2026
-venue: "IACR Cryptology ePrint Archive"
+venue: IACR Cryptology ePrint Archive
 identifiers:
-  eprint: "iacr:2026/999"
+  eprint: iacr:2026/999
   doi: null
   arxiv: null
-  url: "https://eprint.iacr.org/2026/999"
-tags: []
+  url: https://eprint.iacr.org/2026/999
+tags:
+- blockchain
+- economics
+- portfolio-theory
+- survey
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

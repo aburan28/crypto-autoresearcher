@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-3927
 type: literature
-title: "Formalizing Delayed Adaptive Corruptions and the Security of Flooding Networks"
+title: Formalizing Delayed Adaptive Corruptions and the Security of Flooding Networks
 authors:
-  - "Christian Matt"
-  - "Jesper Buus"
+- Christian Matt
+- Jesper Buus
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- uc-framework
+- adaptive-corruption
+- blockchain
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

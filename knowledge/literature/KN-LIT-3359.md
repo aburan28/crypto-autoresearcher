@@ -1,13 +1,13 @@
 ---
 id: KN-LIT-3359
 type: literature
-title: "Decentralized Anonymous Micropayments?"
+title: Decentralized Anonymous Micropayments?
 authors:
-  - "Alessandro Chiesa"
-  - "Matthew Green"
-  - "Jingcheng Liu"
-  - "Peihan Miao"
-  - "Ian Miers and"
+- Alessandro Chiesa
+- Matthew Green
+- Jingcheng Liu
+- Peihan Miao
+- Ian Miers and
 year: null
 venue: null
 identifiers:
@@ -15,10 +15,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- blockchain
+- micropayments
+- anonymity
+- protocol
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 
