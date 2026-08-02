@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import contextlib
 import dataclasses
 import gzip
 import hashlib
@@ -20,7 +21,7 @@ import math
 import os
 from pathlib import Path
 import resource
-import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -61,10 +62,33 @@ FINAL_PACK_CAP_BYTES = 1_500_000_000
 WORKTREE_RESERVATION_BYTES = 1_610_612_736
 COMMON_DIR_RESERVATION_BYTES = 5_297_483_648
 SAME_DEVICE_RESERVATION_BYTES = 6_908_096_384
+FULL_V2_FACTORING_SUBTOTAL = 79_536_128
+EXP_REL = Path("experiments/EXP-SMTH-PILOT-001")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+RUN_REL = EXP_REL / "runs" / RUN_ID
+RESULT_REL = EXP_REL / "results"
+CERT_REL = RESULT_REL / "certificates"
+RUN_FIXED_RELATIVE_PATHS = (
+    RUN_REL / "manifest.yaml",
+    RUN_REL / "command.txt",
+    RUN_REL / "environment.json",
+    RUN_REL / "stdout.log",
+    RUN_REL / "stderr.log",
+    RUN_REL / "raw-result.json",
+    RESULT_REL / "feasibility_report.json",
+    RESULT_REL / "seed_roster.json",
+    CERT_REL / "shard_manifest.json",
+)
+SHARD_RELATIVE_PATHS = tuple(
+    CERT_REL / f"shard-{index:03d}.jsonl.gz" for index in range(SHARD_COUNT)
+)
+RUN_EVIDENCE_ROSTER = RUN_FIXED_RELATIVE_PATHS + SHARD_RELATIVE_PATHS
+SEED_COUNT = 2_109_444
 
 assert RECORDS_PER_ARRAY == 130_816
 assert TOTAL_RECORDS == 4_186_112
 assert RECORDS_PER_SHARD * SHARD_COUNT == TOTAL_RECORDS
+assert len(RUN_EVIDENCE_ROSTER) == len(set(RUN_EVIDENCE_ROSTER)) == 137
 
 
 class IntegrityError(RuntimeError):
@@ -73,6 +97,246 @@ class IntegrityError(RuntimeError):
 
 class ResourceCapError(RuntimeError):
     """A frozen physical or computational ceiling was reached."""
+
+
+class NetworkBlockedError(RuntimeError):
+    """An attempted network-capable socket violates the frozen run guard."""
+
+
+def repository_path(relative: Path) -> Path:
+    if relative.is_absolute() or relative not in RUN_EVIDENCE_ROSTER:
+        raise IntegrityError(f"path is outside exact run roster: {relative}")
+    resolved = (REPO_ROOT / relative).resolve()
+    if not resolved.is_relative_to(REPO_ROOT.resolve()):
+        raise IntegrityError("repository path escaped checkout")
+    return resolved
+
+
+def validate_repository_binding() -> None:
+    expected = (REPO_ROOT / EXP_REL / "implementation" / "pilot_driver.py").resolve()
+    if Path(__file__).resolve() != expected:
+        raise IntegrityError("driver is not at its frozen repository path")
+    if len(RUN_EVIDENCE_ROSTER) != 137:
+        raise IntegrityError("run-evidence roster count mismatch")
+    for relative in RUN_EVIDENCE_ROSTER:
+        repository_path(relative)
+
+
+def validate_log_redirections() -> None:
+    for descriptor, relative in (
+        (1, RUN_REL / "stdout.log"),
+        (2, RUN_REL / "stderr.log"),
+    ):
+        target = REPO_ROOT / relative
+        try:
+            matches = os.path.samefile(f"/dev/fd/{descriptor}", target)
+        except OSError as exc:
+            raise IntegrityError(f"cannot verify exact log redirection: {relative}") from exc
+        if not matches:
+            raise IntegrityError(f"file descriptor is not redirected to {relative}")
+    OUTPUT_HANDLES.current = 2
+    OUTPUT_HANDLES.observed_maximum = max(OUTPUT_HANDLES.observed_maximum, 2)
+
+
+class OutputHandleBudget:
+    def __init__(self, maximum: int = 8):
+        self.maximum = maximum
+        self.current = 0
+        self.observed_maximum = 0
+
+    @contextlib.contextmanager
+    def opened(self) -> Iterator[None]:
+        self.current += 1
+        self.observed_maximum = max(self.observed_maximum, self.current)
+        if self.current > self.maximum:
+            self.current -= 1
+            raise ResourceCapError("process-output handle cap exceeded")
+        try:
+            yield
+        finally:
+            self.current -= 1
+
+
+OUTPUT_HANDLES = OutputHandleBudget()
+
+
+def _install_no_network_guard() -> tuple[object, object]:
+    original_socket = socket.socket
+    original_create_connection = socket.create_connection
+
+    class GuardedSocket(original_socket):  # type: ignore[misc, valid-type]
+        def __init__(self, family=socket.AF_INET, *args, **kwargs):
+            if family in (socket.AF_INET, socket.AF_INET6):
+                raise NetworkBlockedError("network socket creation blocked")
+            super().__init__(family, *args, **kwargs)
+
+    def blocked_create_connection(*_args, **_kwargs):
+        raise NetworkBlockedError("network connection blocked")
+
+    socket.socket = GuardedSocket
+    socket.create_connection = blocked_create_connection
+    return original_socket, original_create_connection
+
+
+@contextlib.contextmanager
+def no_network_guard() -> Iterator[None]:
+    originals = _install_no_network_guard()
+    try:
+        yield
+    finally:
+        socket.socket = originals[0]  # type: ignore[assignment]
+        socket.create_connection = originals[1]  # type: ignore[assignment]
+
+
+def _worker_no_network_guard() -> None:
+    _install_no_network_guard()
+
+
+def _parse_ps_cpu(value: str) -> float:
+    day_split = value.split("-")
+    days = int(day_split[0]) if len(day_split) == 2 else 0
+    clock = day_split[-1].split(":")
+    if len(clock) == 3:
+        hours, minutes, seconds = clock
+    else:
+        hours, minutes, seconds = "0", clock[0], clock[1]
+    return days * 86400 + int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+
+
+@dataclasses.dataclass
+class ProcessTreeMonitor:
+    started_wall: float = dataclasses.field(default_factory=time.monotonic)
+    peak_rss_bytes: int = 0
+    maximum_cpu_seconds: float = MAX_CPU_SECONDS
+    maximum_rss_bytes: int = MAX_RSS_BYTES
+
+    def __post_init__(self) -> None:
+        usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+        self._baseline_children_cpu = usage.ru_utime + usage.ru_stime
+        self._baseline_parent_cpu = time.process_time()
+        self._worker_cpu_seconds = 0.0
+        self._worker_peak_rss: dict[int, int] = {}
+
+    def observe_worker_record(
+        self, worker_pid: int, worker_cpu_seconds: float, worker_peak_rss_bytes: int
+    ) -> dict:
+        self._worker_cpu_seconds += worker_cpu_seconds
+        self._worker_peak_rss[worker_pid] = max(
+            self._worker_peak_rss.get(worker_pid, 0), worker_peak_rss_bytes
+        )
+        parent_usage = resource.getrusage(resource.RUSAGE_SELF)
+        parent_peak = parent_usage.ru_maxrss
+        if sys.platform != "darwin":
+            parent_peak *= 1024
+        cpu_seconds = (
+            time.process_time() - self._baseline_parent_cpu + self._worker_cpu_seconds
+        )
+        conservative_rss = parent_peak + sum(self._worker_peak_rss.values())
+        self.peak_rss_bytes = max(self.peak_rss_bytes, conservative_rss)
+        if cpu_seconds > self.maximum_cpu_seconds:
+            raise ResourceCapError("process-tree CPU cap exceeded")
+        if self.peak_rss_bytes > self.maximum_rss_bytes:
+            raise ResourceCapError("process-tree RSS cap exceeded")
+        return {
+            "cpu_seconds": cpu_seconds,
+            "peak_rss_bytes": self.peak_rss_bytes,
+        }
+
+    def sample(self) -> dict:
+        with OUTPUT_HANDLES.opened():
+            result = subprocess.run(
+                ["ps", "-axo", "pid=,ppid=,rss=,time="],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        rows: dict[int, tuple[int, int, float]] = {}
+        for line in result.stdout.splitlines():
+            fields = line.split()
+            if len(fields) != 4:
+                continue
+            pid, ppid, rss_kib = map(int, fields[:3])
+            rows[pid] = (ppid, rss_kib * 1024, _parse_ps_cpu(fields[3]))
+        selected = {os.getpid()}
+        changed = True
+        while changed:
+            changed = False
+            for pid, (ppid, _, _) in rows.items():
+                if ppid in selected and pid not in selected:
+                    selected.add(pid)
+                    changed = True
+        active_cpu = sum(rows[pid][2] for pid in selected if pid in rows)
+        active_rss = sum(rows[pid][1] for pid in selected if pid in rows)
+        child_usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+        waited_cpu = max(
+            0.0,
+            child_usage.ru_utime
+            + child_usage.ru_stime
+            - self._baseline_children_cpu,
+        )
+        observed_cpu = (
+            time.process_time() - self._baseline_parent_cpu + self._worker_cpu_seconds
+        )
+        cpu_seconds = max(active_cpu + waited_cpu, observed_cpu)
+        self.peak_rss_bytes = max(self.peak_rss_bytes, active_rss)
+        if cpu_seconds > self.maximum_cpu_seconds:
+            raise ResourceCapError("process-tree CPU cap exceeded")
+        if self.peak_rss_bytes > self.maximum_rss_bytes:
+            raise ResourceCapError("process-tree RSS cap exceeded")
+        return {
+            "cpu_seconds": cpu_seconds,
+            "current_rss_bytes": active_rss,
+            "peak_rss_bytes": self.peak_rss_bytes,
+            "process_count": len(selected),
+            "wall_seconds": time.monotonic() - self.started_wall,
+        }
+
+
+def _allocated_bytes(path: Path) -> int:
+    stat = path.stat()
+    return getattr(stat, "st_blocks", 0) * 512 or stat.st_size
+
+
+def measure_run_storage() -> dict:
+    shard_paths = set(SHARD_RELATIVE_PATHS)
+    shard_bytes = other_bytes = physical_bytes = 0
+    oversized_other = []
+    for relative in RUN_EVIDENCE_ROSTER:
+        path = REPO_ROOT / relative
+        if path.exists() and path.is_file():
+            size = path.stat().st_size
+            physical_bytes += _allocated_bytes(path)
+            if relative in shard_paths:
+                shard_bytes += size
+            else:
+                other_bytes += size
+                if size > MAX_OTHER_FILE_BYTES:
+                    oversized_other.append(str(relative))
+    for directory in (REPO_ROOT / RUN_REL, REPO_ROOT / CERT_REL):
+        if directory.exists():
+            for partial in directory.rglob("*.partial"):
+                physical_bytes += _allocated_bytes(partial)
+    tracked_bytes = shard_bytes + other_bytes
+    return {
+        "other_tracked_bytes": other_bytes,
+        "physical_run_bytes": physical_bytes,
+        "shard_tracked_bytes": shard_bytes,
+        "tracked_bytes": tracked_bytes,
+        "oversized_other_paths": oversized_other,
+    }
+
+
+def enforce_storage_caps(measurement: dict) -> None:
+    if measurement["physical_run_bytes"] > MAX_RUN_DISK_BYTES:
+        raise ResourceCapError("run-phase disk cap exceeded")
+    if measurement["shard_tracked_bytes"] > MAX_SHARD_AGGREGATE_BYTES:
+        raise ResourceCapError("aggregate shard cap exceeded")
+    if measurement["other_tracked_bytes"] > MAX_OTHER_AGGREGATE_BYTES:
+        raise ResourceCapError("aggregate other-artifact cap exceeded")
+    if measurement["tracked_bytes"] > MAX_TRACKED_BYTES:
+        raise ResourceCapError("aggregate tracked-byte cap exceeded")
+    if measurement.get("oversized_other_paths"):
+        raise ResourceCapError("individual other-artifact cap exceeded")
 
 
 def canonical_json_bytes(value: object) -> bytes:
@@ -101,16 +365,20 @@ def fsync_directory(path: Path) -> None:
 
 
 def atomic_json(path: Path, value: object) -> None:
-    payload = canonical_json_bytes(value) + b"\n"
+    atomic_bytes(path, canonical_json_bytes(value) + b"\n")
+
+
+def atomic_bytes(path: Path, payload: bytes) -> None:
     if len(payload) > MAX_OTHER_FILE_BYTES:
         raise ResourceCapError(f"other artifact exceeds cap: {path}")
     partial = path.with_name(path.name + ".partial")
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with partial.open("xb") as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
+        with OUTPUT_HANDLES.opened():
+            with partial.open("xb") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
         os.replace(partial, path)
         fsync_directory(path.parent)
     except BaseException:
@@ -126,6 +394,124 @@ def derived_seed(
         f"{DOMAIN}|{object_name}|{bits}|{fixture}|{replicate}|{draw}"
     ).encode("utf-8")
     return hashlib.sha256(material).digest()[:16]
+
+
+@dataclasses.dataclass(frozen=True, order=True)
+class SeedStreamDescriptor:
+    object_name: str
+    bits: int
+    fixture: int
+    replicate: int
+    first_draw: int
+    last_draw: int
+
+    @property
+    def seed_count(self) -> int:
+        return self.last_draw - self.first_draw + 1
+
+
+def seed_stream_descriptors() -> list[SeedStreamDescriptor]:
+    descriptors = []
+    for bits in BITS:
+        for fixture in range(FIXTURES_PER_BIT):
+            for replicate in range(REPLICATES):
+                descriptors.append(
+                    SeedStreamDescriptor(
+                        "NULL-IID-EDGE", bits, fixture, replicate, 0, 130815
+                    )
+                )
+                descriptors.append(
+                    SeedStreamDescriptor(
+                        "NULL-K512-ADD-A", bits, fixture, replicate, 0, 511
+                    )
+                )
+                descriptors.append(
+                    SeedStreamDescriptor(
+                        "NULL-K512-ADD-B", bits, fixture, replicate, 0, 511
+                    )
+                )
+    for bits in BITS:
+        for fixture in range(FIXTURES_PER_BIT):
+            descriptors.append(
+                SeedStreamDescriptor("prime", bits, fixture, 0, 0, 0)
+            )
+    descriptors.sort()
+    if len(descriptors) != 52 or sum(item.seed_count for item in descriptors) != SEED_COUNT:
+        raise IntegrityError("compact seed descriptor arithmetic mismatch")
+    return descriptors
+
+
+def build_seed_roster() -> dict:
+    exact_membership: set[bytes] = set()
+    all_digest = hashlib.sha256()
+    entries = []
+    collision_count = 0
+    inserted_count = 0
+    for descriptor in seed_stream_descriptors():
+        stream_digest = hashlib.sha256()
+        for draw in range(descriptor.first_draw, descriptor.last_draw + 1):
+            seed = derived_seed(
+                descriptor.object_name,
+                descriptor.bits,
+                descriptor.fixture,
+                descriptor.replicate,
+                draw,
+            )
+            inserted_count += 1
+            if seed in exact_membership:
+                collision_count += 1
+            exact_membership.add(seed)
+            stream_digest.update(seed)
+            all_digest.update(seed)
+        entries.append(
+            {
+                "bits": descriptor.bits,
+                "first_draw": descriptor.first_draw,
+                "fixture": descriptor.fixture,
+                "last_draw": descriptor.last_draw,
+                "object_name": descriptor.object_name,
+                "ordered_concatenated_seed_bytes_sha256": stream_digest.hexdigest(),
+                "replicate": descriptor.replicate,
+                "seed_count": descriptor.seed_count,
+            }
+        )
+    if inserted_count != SEED_COUNT or len(exact_membership) != SEED_COUNT or collision_count:
+        raise IntegrityError("exact seed collision membership failed")
+    payload = {
+        "collision_count": collision_count,
+        "derivation": {
+            "domain": DOMAIN,
+            "integer_encoding": "base-10 ASCII without sign, padding or whitespace",
+            "seed_bytes": "first 16 bytes of SHA-256 over the exact UTF-8 domain string",
+            "separator_hex": "7c",
+            "tuple_fields_in_order": [
+                "domain", "object_name", "bits", "fixture", "replicate", "draw"
+            ],
+        },
+        "distinct_count": len(exact_membership),
+        "inserted_count": inserted_count,
+        "ordered_all_seed_bytes_sha256": all_digest.hexdigest(),
+        "schema": "compact_mechanically_expandable_v1",
+        "stream_entries": entries,
+    }
+    roster = dict(payload)
+    roster["canonical_payload_sha256"] = hashlib.sha256(
+        canonical_json_bytes(payload)
+    ).hexdigest()
+    if len(canonical_json_bytes(roster)) + 1 > MAX_OTHER_FILE_BYTES:
+        raise ResourceCapError("compact seed roster exceeds frozen cap")
+    return roster
+
+
+def verify_seed_roster(roster: dict) -> bool:
+    if roster.get("canonical_payload_sha256") is None:
+        return False
+    payload = dict(roster)
+    claimed = payload.pop("canonical_payload_sha256")
+    if hashlib.sha256(canonical_json_bytes(payload)).hexdigest() != claimed:
+        return False
+    rebuilt = build_seed_roster()
+    return rebuilt == roster
 
 
 def deterministic_bytes(seed: bytes) -> Iterator[bytes]:
@@ -201,7 +587,7 @@ def array_descriptors() -> list[ArrayDescriptor]:
 def iter_array_values(
     descriptor: ArrayDescriptor,
 ) -> Iterator[tuple[int, int, bytes]]:
-    """Yield (draw index, N, draw seed) in the frozen i<j order."""
+    """Yield (draw index, N, seed-or-edge-commitment) in frozen order."""
     if descriptor.null_type == "NULL-IID-EDGE":
         for draw in range(RECORDS_PER_ARRAY):
             seed = derived_seed(
@@ -239,8 +625,9 @@ def iter_array_values(
     draw = 0
     for i in range(VERTICES):
         for j in range(i + 1, VERTICES):
-            # The edge seed commits to the two independently seeded endpoints.
-            edge_seed = hashlib.sha256(
+            # This is an edge commitment, never a tuple-derived seed and never
+            # part of exact collision membership under AMEND-008/009.
+            edge_commitment = hashlib.sha256(
                 b"NULL-K512-ADD-EDGE|" + seeds[i][0] + seeds[i][1]
                 + seeds[j][0] + seeds[j][1]
             ).digest()[:16]
@@ -249,7 +636,7 @@ def iter_array_values(
                 + ((b_values[i] + b_values[j]) % descriptor.p)
                 + 1
             )
-            yield draw, value, edge_seed
+            yield draw, value, edge_commitment
             draw += 1
     if draw != RECORDS_PER_ARRAY:
         raise IntegrityError("K512 edge count mismatch")
@@ -307,6 +694,16 @@ def factor_certificate(sequential_index: int, N: int) -> tuple[dict, int]:
     return record, primality_checks
 
 
+def measured_factor_certificate(
+    sequential_index: int, N: int
+) -> tuple[dict, int, int, float, int]:
+    started_cpu = time.process_time()
+    record, checks = factor_certificate(sequential_index, N)
+    usage = resource.getrusage(resource.RUSAGE_SELF)
+    rss_bytes = usage.ru_maxrss if sys.platform == "darwin" else usage.ru_maxrss * 1024
+    return record, checks, os.getpid(), time.process_time() - started_cpu, rss_bytes
+
+
 class CappedRawWriter(io.RawIOBase):
     """Raw writer that never writes a byte beyond its immutable cap."""
 
@@ -332,13 +729,30 @@ class CappedRawWriter(io.RawIOBase):
         return accepted
 
     def flush(self) -> None:
-        self.raw.flush()
+        if not self.raw.closed:
+            self.raw.flush()
 
 
 class CertificateShardWriter:
-    def __init__(self, certificate_dir: Path):
+    def __init__(
+        self,
+        certificate_dir: Path,
+        *,
+        checkpoint_callback: Callable[[list[dict], int], None] | None = None,
+        records_per_shard: int = RECORDS_PER_SHARD,
+        shard_count: int = SHARD_COUNT,
+        total_records_expected: int = TOTAL_RECORDS,
+        enforce_repository_paths: bool = False,
+    ):
         self.directory = certificate_dir
         self.directory.mkdir(parents=True, exist_ok=True)
+        if enforce_repository_paths and certificate_dir.resolve() != (REPO_ROOT / CERT_REL).resolve():
+            raise IntegrityError("certificate directory is not frozen repository path")
+        self.checkpoint_callback = checkpoint_callback
+        self.records_per_shard = records_per_shard
+        self.shard_count_expected = shard_count
+        self.total_records_expected = total_records_expected
+        self.enforce_repository_paths = enforce_repository_paths
         self.entries: list[dict] = []
         self.shard_index = -1
         self.record_count = 0
@@ -348,16 +762,59 @@ class CertificateShardWriter:
         self._capped: CappedRawWriter | None = None
         self._gzip: gzip.GzipFile | None = None
         self._partial: Path | None = None
+        self._output_context = None
+
+    def restore_verified(self, entries: Sequence[dict]) -> None:
+        if self.entries or self._gzip is not None:
+            raise IntegrityError("writer restore requires fresh state")
+        expected_first = 0
+        for expected_index, entry in enumerate(entries):
+            if entry["shard_index"] != expected_index:
+                raise IntegrityError("checkpoint shard index discontinuity")
+            if entry["first_record_index"] != expected_first:
+                raise IntegrityError("checkpoint record index discontinuity")
+            if entry["record_count"] != self.records_per_shard:
+                raise IntegrityError("checkpoint shard count mismatch")
+            relative = Path(entry["repository_relative_path"])
+            if self.enforce_repository_paths and relative != SHARD_RELATIVE_PATHS[expected_index]:
+                raise IntegrityError("checkpoint path mismatch")
+            path = REPO_ROOT / relative if self.enforce_repository_paths else self.directory / relative.name
+            if not path.is_file() or path.stat().st_size != entry["compressed_bytes"]:
+                raise IntegrityError("checkpoint shard missing or size mismatch")
+            if sha256_file(path) != entry["gzip_sha256"]:
+                raise IntegrityError("checkpoint shard hash mismatch")
+            if not verify_shard_boundaries(path, entry):
+                raise IntegrityError("checkpoint shard boundary reconstruction failed")
+            self.entries.append(dict(entry))
+            expected_first += entry["record_count"]
+        self.shard_index = len(self.entries) - 1
+        self.total_records = expected_first
+
+    def reconcile_to_verified(self) -> None:
+        verified = len(self.entries)
+        for partial in self.directory.glob("shard-*.jsonl.gz.partial"):
+            partial.unlink(missing_ok=True)
+        for final in self.directory.glob("shard-*.jsonl.gz"):
+            try:
+                index = int(final.name[6:9])
+            except ValueError as exc:
+                raise IntegrityError("unexpected shard filename") from exc
+            if index >= verified:
+                final.unlink()
+        self.total_records = sum(entry["record_count"] for entry in self.entries)
+        self.shard_index = len(self.entries) - 1
 
     def _open(self) -> None:
         if self._gzip is not None:
             raise IntegrityError("multiple shard handles")
         self.shard_index += 1
-        if self.shard_index >= SHARD_COUNT:
+        if self.shard_index >= self.shard_count_expected:
             raise IntegrityError("too many shards")
         final = self.directory / f"shard-{self.shard_index:03d}.jsonl.gz"
         partial = final.with_name(final.name + ".partial")
         partial.unlink(missing_ok=True)
+        self._output_context = OUTPUT_HANDLES.opened()
+        self._output_context.__enter__()
         self._raw = partial.open("xb")
         self._capped = CappedRawWriter(self._raw, SHARD_CAP_BYTES)
         self._gzip = gzip.GzipFile(
@@ -368,13 +825,13 @@ class CertificateShardWriter:
         self.logical_bytes = 0
 
     def write(self, record: dict) -> None:
-        if self._gzip is None:
-            self._open()
         if record["sequential_index"] != self.total_records:
             raise IntegrityError("non-sequential certificate record")
         payload = canonical_json_bytes(record) + b"\n"
         if len(payload) > RECORD_CAP_BYTES:
             raise IntegrityError("certificate logical record exceeds cap")
+        if self._gzip is None:
+            self._open()
         try:
             assert self._gzip is not None
             self._gzip.write(payload)
@@ -384,7 +841,7 @@ class CertificateShardWriter:
         self.record_count += 1
         self.total_records += 1
         self.logical_bytes += len(payload)
-        if self.record_count == RECORDS_PER_SHARD:
+        if self.record_count == self.records_per_shard:
             self.close_current()
 
     def close_current(self) -> None:
@@ -400,26 +857,43 @@ class CertificateShardWriter:
             raw.flush()
             os.fsync(raw.fileno())
             raw.close()
-            if self.record_count != RECORDS_PER_SHARD:
+            if self.record_count != self.records_per_shard:
                 raise IntegrityError("non-full certificate shard")
             compressed = partial.stat().st_size
             if compressed != capped.bytes_written or compressed > SHARD_CAP_BYTES:
                 raise ResourceCapError("shard byte accounting mismatch")
             os.replace(partial, final)
             fsync_directory(self.directory)
-            self.entries.append(
-                {
+            relative_path = (
+                str(final.relative_to(REPO_ROOT))
+                if self.enforce_repository_paths
+                else final.name
+            )
+            entry = {
                     "compressed_bytes": compressed,
                     "first_record_index": self.total_records - self.record_count,
                     "gzip_sha256": sha256_file(final),
                     "last_record_index": self.total_records - 1,
                     "logical_bytes": self.logical_bytes,
                     "record_count": self.record_count,
-                    "repository_relative_path": str(final),
+                    "repository_relative_path": relative_path,
                     "shard_index": self.shard_index,
                 }
-            )
+            if not verify_shard_boundaries(final, entry):
+                final.unlink(missing_ok=True)
+                raise IntegrityError("independent shard-boundary reconstruction failed")
+            self.entries.append(entry)
+            if self.checkpoint_callback is not None:
+                try:
+                    self.checkpoint_callback(list(self.entries), self.total_records)
+                except BaseException:
+                    self.entries.pop()
+                    final.unlink(missing_ok=True)
+                    fsync_directory(self.directory)
+                    raise
         except BaseException:
+            if not raw.closed:
+                raw.close()
             partial.unlink(missing_ok=True)
             raise
         finally:
@@ -427,9 +901,13 @@ class CertificateShardWriter:
             self._raw = None
             self._capped = None
             self._partial = None
+            if self._output_context is not None:
+                self._output_context.__exit__(None, None, None)
+                self._output_context = None
 
     def abort_current(self) -> None:
         gzip_handle, raw, partial = self._gzip, self._raw, self._partial
+        capped = self._capped
         self._gzip = None
         self._raw = None
         self._capped = None
@@ -441,17 +919,60 @@ class CertificateShardWriter:
                 pass
         if raw is not None and not raw.closed:
             raw.close()
+        if capped is not None and not capped.closed:
+            capped.close()
         if partial is not None:
             partial.unlink(missing_ok=True)
+        if self._output_context is not None:
+            self._output_context.__exit__(None, None, None)
+            self._output_context = None
 
     def finish(self) -> list[dict]:
         if self._gzip is not None:
             self.close_current()
-        if self.total_records != TOTAL_RECORDS or len(self.entries) != SHARD_COUNT:
+        if (
+            self.total_records != self.total_records_expected
+            or len(self.entries) != self.shard_count_expected
+        ):
             raise IntegrityError("final shard or record count mismatch")
         if sum(entry["compressed_bytes"] for entry in self.entries) > MAX_SHARD_AGGREGATE_BYTES:
             raise ResourceCapError("aggregate shard cap exceeded")
         return self.entries
+
+
+def verify_shard_entry(path: Path, entry: dict) -> bool:
+    return (
+        path.is_file()
+        and path.stat().st_size == entry["compressed_bytes"]
+        and sha256_file(path) == entry["gzip_sha256"]
+    )
+
+
+def verify_shard_boundaries(path: Path, entry: dict) -> bool:
+    first = last = None
+    count = 0
+    with gzip.open(path, "rb") as handle:
+        for line in handle:
+            record = json.loads(line)
+            if first is None:
+                first = record
+            last = record
+            count += 1
+    if first is None or last is None or count != entry["record_count"]:
+        return False
+    for record, expected_index in (
+        (first, entry["first_record_index"]),
+        (last, entry["last_record_index"]),
+    ):
+        if record["sequential_index"] != expected_index:
+            return False
+        if not verify_alleged_factors(record["N"], record["sorted_factors"]):
+            return False
+        if record["LPF"] != max(
+            (pair[0] for pair in record["sorted_factors"]), default=1
+        ):
+            return False
+    return True
 
 
 @dataclasses.dataclass(frozen=True)
@@ -589,6 +1110,44 @@ def evaluate_device_gate(
     )
 
 
+def _filesystem_identity(path: Path) -> dict:
+    with OUTPUT_HANDLES.opened():
+        result = subprocess.run(
+            ["df", "-P", str(path)], check=True, capture_output=True, text=True
+        )
+    fields = result.stdout.splitlines()[-1].split()
+    statvfs = os.statvfs(path)
+    return {
+        "device_id": path.stat().st_dev,
+        "free_bytes": statvfs.f_bavail * statvfs.f_frsize,
+        "mount_point": fields[-1],
+        "mount_source": fields[0],
+        "path": str(path),
+    }
+
+
+def measure_device_layout(*, enforce_gate: bool = True) -> dict:
+    with OUTPUT_HANDLES.opened():
+        common_text = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            cwd=REPO_ROOT, check=True, capture_output=True, text=True
+        ).stdout.strip()
+    worktree = _filesystem_identity(REPO_ROOT)
+    common = _filesystem_identity(Path(common_text))
+    gate = evaluate_device_gate(
+        worktree["device_id"], common["device_id"],
+        worktree["free_bytes"], common["free_bytes"]
+    )
+    measurement = {
+        "common_directory": common,
+        "gate": dataclasses.asdict(gate),
+        "worktree": worktree,
+    }
+    if enforce_gate and not gate.passed:
+        raise ResourceCapError("per-device free-space gate failed")
+    return measurement
+
+
 def _synthetic_producer(length: int, exit_status: int = 0) -> list[str]:
     code = (
         "import sys; n=int(sys.argv[1]); status=int(sys.argv[2]); "
@@ -598,10 +1157,12 @@ def _synthetic_producer(length: int, exit_status: int = 0) -> list[str]:
     return [sys.executable, "-c", code, str(length), str(exit_status)]
 
 
-def run_self_tests() -> dict:
+def run_self_tests(only: set[str] | None = None) -> dict:
     tests: list[dict] = []
 
     def check(name: str, function: Callable[[], None]) -> None:
+        if only and name not in only:
+            return
         started = time.monotonic()
         function()
         tests.append({"name": name, "status": "pass", "seconds": time.monotonic() - started})
@@ -638,10 +1199,24 @@ def run_self_tests() -> dict:
             record, checks = factor_certificate(0, 360)
             assert checks == 3 and record["LPF"] == 5
             assert verify_alleged_factors(360, record["sorted_factors"])
-            assert not verify_alleged_factors(12, [[2, 1], [6, 1]])
+            twelve_with_composite = [
+                [2, 1], [3, 1], [5, 1], [7, 1], [11, 1], [13, 1],
+                [17, 1], [19, 1], [23, 1], [29, 1], [31, 1], [35, 1],
+            ]
+            assert not verify_alleged_factors(math.prod(item[0] for item in twelve_with_composite), twelve_with_composite)
             oversized = dict(record)
             oversized["padding"] = "x" * 1025
-            assert len(canonical_json_bytes(oversized)) > RECORD_CAP_BYTES
+            writer = CertificateShardWriter(
+                root / "oversize", records_per_shard=1, shard_count=1,
+                total_records_expected=1
+            )
+            try:
+                writer.write(oversized)
+            except IntegrityError:
+                pass
+            else:
+                raise AssertionError("writer accepted 1025-byte record")
+            assert not list((root / "oversize").glob("*.partial"))
 
         def deterministic_nulls() -> None:
             p = deterministic_prime(16, 0)
@@ -654,24 +1229,171 @@ def run_self_tests() -> dict:
             assert 1 <= first[1] <= add.X
             assert len({derived_seed("probe", 16, 0, 0, i) for i in range(64)}) == 64
 
+        def exact_path_roster() -> None:
+            assert len(RUN_EVIDENCE_ROSTER) == len(set(RUN_EVIDENCE_ROSTER)) == 137
+            assert SHARD_RELATIVE_PATHS[0] == CERT_REL / "shard-000.jsonl.gz"
+            assert SHARD_RELATIVE_PATHS[-1] == CERT_REL / "shard-127.jsonl.gz"
+            try:
+                repository_path(Path("outside.json"))
+            except IntegrityError:
+                pass
+            else:
+                raise AssertionError("arbitrary output path accepted")
+
+        def resource_controls() -> None:
+            enforce_storage_caps({
+                "physical_run_bytes": MAX_RUN_DISK_BYTES,
+                "shard_tracked_bytes": MAX_SHARD_AGGREGATE_BYTES,
+                "other_tracked_bytes": MAX_OTHER_AGGREGATE_BYTES,
+                "tracked_bytes": MAX_TRACKED_BYTES,
+            })
+            over = {
+                "physical_run_bytes": MAX_RUN_DISK_BYTES + 1,
+                "shard_tracked_bytes": 0,
+                "other_tracked_bytes": 0,
+                "tracked_bytes": 0,
+            }
+            try:
+                enforce_storage_caps(over)
+            except ResourceCapError:
+                pass
+            else:
+                raise AssertionError("disk cap plus one accepted")
+            budget = OutputHandleBudget(maximum=1)
+            try:
+                with budget.opened():
+                    with budget.opened():
+                        pass
+            except ResourceCapError:
+                pass
+            else:
+                raise AssertionError("output handle cap plus one accepted")
+            with no_network_guard():
+                try:
+                    socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                except NetworkBlockedError:
+                    pass
+                else:
+                    raise AssertionError("network guard accepted AF_INET")
+            monitor = ProcessTreeMonitor(maximum_cpu_seconds=MAX_CPU_SECONDS, maximum_rss_bytes=MAX_RSS_BYTES)
+            sample = monitor.sample()
+            assert sample["process_count"] >= 1 and sample["peak_rss_bytes"] > 0
+            try:
+                ProcessTreeMonitor(maximum_rss_bytes=0).sample()
+            except ResourceCapError:
+                pass
+            else:
+                raise AssertionError("process-tree RSS cap plus one accepted")
+
+        def checkpoint_resume_and_cleanup() -> None:
+            checkpoint = root / "checkpoint.json"
+            events = []
+
+            def save(entries: list[dict], next_index: int) -> None:
+                payload = {"completed_shards": entries, "next_deterministic_index": next_index}
+                atomic_json(checkpoint, payload)
+                events.append(next_index)
+
+            directory = root / "resume-certificates"
+            first = CertificateShardWriter(
+                directory, checkpoint_callback=save, records_per_shard=2,
+                shard_count=2, total_records_expected=4
+            )
+            for index in range(2):
+                first.write({"LPF": 2, "N": 2, "reconstruction_ok": True, "sequential_index": index, "sorted_factors": [[2, 1]]})
+            saved = json.loads(checkpoint.read_text())
+            resumed = CertificateShardWriter(
+                directory, checkpoint_callback=save, records_per_shard=2,
+                shard_count=2, total_records_expected=4
+            )
+            resumed.restore_verified(saved["completed_shards"])
+            resumed.write({"LPF": 3, "N": 3, "reconstruction_ok": True, "sequential_index": 2, "sorted_factors": [[3, 1]]})
+            resumed.abort_current()
+            resumed.reconcile_to_verified()
+            assert not list(directory.glob("*.partial"))
+            assert (directory / "shard-000.jsonl.gz").exists()
+            assert not (directory / "shard-001.jsonl.gz").exists()
+            resumed.write({"LPF": 3, "N": 3, "reconstruction_ok": True, "sequential_index": 2, "sorted_factors": [[3, 1]]})
+            resumed.write({"LPF": 5, "N": 5, "reconstruction_ok": True, "sequential_index": 3, "sorted_factors": [[5, 1]]})
+            assert len(resumed.finish()) == 2 and events == [2, 4]
+
+        def shard_mutation_and_hash_controls() -> None:
+            path = root / "mutation.bin"
+            path.write_bytes(b"abcdef")
+            entry = {"compressed_bytes": 6, "gzip_sha256": sha256_file(path)}
+            assert verify_shard_entry(path, entry)
+            changed = bytearray(path.read_bytes())
+            changed[2] ^= 1
+            path.write_bytes(changed)
+            assert not verify_shard_entry(path, entry)
+            sample = {"schema": "test", "stream_entries": [], "inserted_count": 0}
+            wrapped = dict(sample)
+            wrapped["canonical_payload_sha256"] = hashlib.sha256(canonical_json_bytes(sample)).hexdigest()
+            claimed = wrapped.pop("canonical_payload_sha256")
+            assert hashlib.sha256(canonical_json_bytes(wrapped)).hexdigest() == claimed
+
+        def compact_seed_contract() -> None:
+            roster = build_seed_roster()
+            assert len(roster["stream_entries"]) == 52
+            assert roster["inserted_count"] == roster["distinct_count"] == SEED_COUNT
+            assert roster["collision_count"] == 0
+            assert roster["ordered_all_seed_bytes_sha256"] == "c3991b86bedce849dd8b13dee1550ae79405526d9b1467ff4ac30436bdc37fc6"
+            assert verify_seed_roster(roster)
+
+        def worker_and_resource_failure_cleanup() -> None:
+            directory = root / "worker-failure"
+            writer = CertificateShardWriter(
+                directory, records_per_shard=2, shard_count=1,
+                total_records_expected=2
+            )
+            try:
+                for record, _checks, _pid, _cpu, _rss in _bounded_ordered_factorizations([(0, 2), (1, 0)]):
+                    writer.write(record)
+            except IntegrityError:
+                writer.abort_current()
+                writer.reconcile_to_verified()
+            else:
+                raise AssertionError("synthetic worker failure was accepted")
+            assert not list(directory.glob("*.partial"))
+            assert not list(directory.glob("shard-*.jsonl.gz"))
+            writer = CertificateShardWriter(
+                directory, records_per_shard=2, shard_count=1,
+                total_records_expected=2
+            )
+            try:
+                writer.write({"LPF": 2, "N": 2, "reconstruction_ok": True, "sequential_index": 0, "sorted_factors": [[2, 1]]})
+                raise ResourceCapError("synthetic cap stop")
+            except ResourceCapError:
+                writer.abort_current()
+                writer.reconcile_to_verified()
+            assert not list(directory.glob("*.partial"))
+
         check("bounded-pack-exact-cap", exact_cap)
         check("bounded-pack-cap-plus-one", cap_plus_one)
         check("bounded-pack-producer-failure", producer_failure)
         check("split-device-accounting", split_device)
         check("factor-certificate-controls", certificate_controls)
         check("deterministic-null-plumbing", deterministic_nulls)
+        check("exact-137-path-roster", exact_path_roster)
+        check("process-tree-disk-handle-network-controls", resource_controls)
+        check("checkpoint-resume-interruption-cleanup", checkpoint_resume_and_cleanup)
+        check("one-byte-mutation-and-independent-hashes", shard_mutation_and_hash_controls)
+        check("compact-52-stream-2109444-seed-contract", compact_seed_contract)
+        check("worker-and-resource-failure-cleanup", worker_and_resource_failure_cleanup)
 
     return {"scientific_runs": 0, "status": "pass", "tests": tests}
 
 
 def _bounded_ordered_factorizations(
     indexed_values: Iterable[tuple[int, int]],
-) -> Iterator[tuple[dict, int]]:
-    with concurrent.futures.ProcessPoolExecutor(max_workers=WORKERS) as pool:
+) -> Iterator[tuple[dict, int, int, float, int]]:
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=WORKERS, initializer=_worker_no_network_guard
+    ) as pool:
         pending: dict[int, concurrent.futures.Future] = {}
         source = iter(indexed_values)
-        submit_index = 0
-        yield_index = 0
+        submit_index: int | None = None
+        yield_index: int | None = None
         exhausted = False
         while pending or not exhausted:
             while not exhausted and len(pending) < QUEUE_RECORDS:
@@ -680,11 +1402,13 @@ def _bounded_ordered_factorizations(
                 except StopIteration:
                     exhausted = True
                     break
+                if submit_index is None:
+                    submit_index = yield_index = index
                 if index != submit_index:
                     raise IntegrityError("input index discontinuity")
-                pending[index] = pool.submit(factor_certificate, index, value)
+                pending[index] = pool.submit(measured_factor_certificate, index, value)
                 submit_index += 1
-            if yield_index in pending:
+            if yield_index is not None and yield_index in pending:
                 yield pending.pop(yield_index).result()
                 yield_index += 1
 
@@ -716,119 +1440,379 @@ def _array_statistics(lpfs: Sequence[int], X: int, reference: Sequence[float]) -
     }
 
 
-def run_null_pilot(output_root: Path) -> dict:
-    """Run the one frozen null-only pilot. Caller must enforce authorization."""
-    started_wall = time.monotonic()
-    started_cpu = time.process_time()
-    certificates = output_root / "results" / "certificates"
-    writer = CertificateShardWriter(certificates)
+def _load_lpfs(first_index: int, last_index_exclusive: int) -> list[int]:
+    values = []
+    if first_index >= last_index_exclusive:
+        return values
+    first_shard = first_index // RECORDS_PER_SHARD
+    last_shard = (last_index_exclusive - 1) // RECORDS_PER_SHARD
+    for shard_index in range(first_shard, last_shard + 1):
+        path = REPO_ROOT / SHARD_RELATIVE_PATHS[shard_index]
+        with gzip.open(path, "rb") as handle:
+            for line in handle:
+                record = json.loads(line)
+                index = record["sequential_index"]
+                if first_index <= index < last_index_exclusive:
+                    if not verify_alleged_factors(record["N"], record["sorted_factors"]):
+                        raise IntegrityError("resume certificate reconstruction failed")
+                    values.append(record["LPF"])
+    if len(values) != last_index_exclusive - first_index:
+        raise IntegrityError("resume LPF reconstruction count mismatch")
+    return values
+
+
+def _write_provenance_files(resume: bool, device_layout: dict) -> dict:
+    import platform
+    import sympy
+
+    git_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, check=True,
+        capture_output=True, text=True
+    ).stdout.strip()
+    status_lines = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=REPO_ROOT, check=True,
+        capture_output=True, text=True
+    ).stdout.splitlines()
+    roster_strings = {str(path) for path in RUN_EVIDENCE_ROSTER}
+    dirty_outside_run_roster = []
+    for line in status_lines:
+        named = line[3:].split(" -> ")[-1]
+        if named not in roster_strings:
+            dirty_outside_run_roster.append(line)
+    environment = {
+        "git_commit": git_sha,
+        "git_dirty_outside_exact_run_roster": bool(dirty_outside_run_roster),
+        "git_status_outside_exact_run_roster": dirty_outside_run_roster,
+        "master_seed_provenance": MASTER_SEED,
+        "pre_run_device_layout": device_layout,
+        "platform": platform.platform(),
+        "python": sys.version,
+        "sympy_version": sympy.__version__,
+    }
+    atomic_bytes(
+        repository_path(RUN_REL / "command.txt"),
+        (f"python3 {EXP_REL}/implementation/pilot_driver.py run-null-pilot"
+         + (" --resume" if resume else "") + "\n").encode(),
+    )
+    atomic_json(repository_path(RUN_REL / "environment.json"), environment)
+    return environment
+
+
+def run_null_pilot(*, resume: bool = False) -> dict:
+    """Run the one frozen null-only pilot at its exact repository paths."""
+    validate_repository_binding()
+    manifest_path = repository_path(RUN_REL / "manifest.yaml")
+    certificate_dir = (REPO_ROOT / CERT_REL).resolve()
+    checkpoint_events: list[dict] = []
+    array_results: list[dict] = []
+    cell_resources: dict[str, dict] = {}
+    prior_wall = prior_cpu = 0.0
+    prior_peak_rss = 0
     primality_checks = 0
-    seed_seen: set[bytes] = set()
-    seed_collisions = 0
-    stream_roster = []
-    array_results = []
-    iid_references: dict[tuple[int, int], list[float]] = {}
-    global_index = 0
+    resume_count = 0
+    saved_entries: list[dict] = []
 
-    for descriptor in array_descriptors():
-        stream_hash = hashlib.sha256()
-        values: list[tuple[int, int]] = []
-        for _, value, seed in iter_array_values(descriptor):
-            stream_hash.update(seed)
-            if seed in seed_seen:
-                seed_collisions += 1
-            seed_seen.add(seed)
-            values.append((global_index + len(values), value))
-        stream_roster.append({
-            "bits": descriptor.bits,
-            "fixture": descriptor.fixture,
-            "null_type": descriptor.null_type,
-            "replicate": descriptor.replicate,
-            "draw_count": len(values),
-            "ordered_seed_stream_sha256": stream_hash.hexdigest(),
-        })
-        lpfs = []
-        for record, checks in _bounded_ordered_factorizations(values):
-            writer.write(record)
-            lpfs.append(record["LPF"])
-            primality_checks += checks
-            if primality_checks > MAX_PRIMALITY_CHECKS:
-                raise ResourceCapError("global primality-check cap exceeded")
-            if time.monotonic() - started_wall > MAX_WALL_SECONDS:
-                raise ResourceCapError("wall-clock cap exceeded")
-            if time.process_time() - started_cpu > MAX_CPU_SECONDS:
-                raise ResourceCapError("CPU cap exceeded")
-            rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-            rss_bytes = rss if sys.platform == "darwin" else rss * 1024
-            if rss_bytes > MAX_RSS_BYTES:
-                raise ResourceCapError("RSS cap exceeded")
-        key = (descriptor.bits, descriptor.fixture)
-        z_values = [math.log(max(1, value)) / math.log(descriptor.X) for value in lpfs]
-        if descriptor.null_type == "NULL-IID-EDGE" and descriptor.replicate == 0:
-            iid_references[key] = z_values
-        reference = iid_references.get(key)
-        if reference is None:
-            raise IntegrityError("first iid reference is unavailable")
-        array_results.append({
-            **dataclasses.asdict(descriptor),
-            "X": descriptor.X,
-            "statistics": _array_statistics(lpfs, descriptor.X, reference),
-        })
-        global_index += len(values)
+    if resume:
+        if not manifest_path.is_file():
+            raise IntegrityError("resume requested without checkpoint")
+        checkpoint = json.loads(manifest_path.read_text())
+        if checkpoint.get("status") not in (
+            "running_checkpoint", "failed_infrastructure_or_budget"
+        ):
+            raise IntegrityError("checkpoint status is not resumable")
+        if checkpoint.get("resume_count") != 0:
+            raise IntegrityError("exactly one resume already consumed")
+        saved_entries = checkpoint["completed_shards"]
+        primality_checks = checkpoint["primality_checks"]
+        prior_wall = checkpoint["wall_seconds"]
+        prior_cpu = checkpoint["cpu_seconds"]
+        prior_peak_rss = checkpoint["peak_rss_bytes"]
+        checkpoint_events = checkpoint.get("checkpoint_events", [])
+        array_results = checkpoint.get("array_results", [])
+        cell_resources = checkpoint.get("cell_resources", {})
+        resume_count = 1
+    else:
+        forbidden_existing = [
+            relative for relative in RUN_EVIDENCE_ROSTER
+            if (REPO_ROOT / relative).exists()
+            and relative not in (RUN_REL / "stdout.log", RUN_REL / "stderr.log")
+        ]
+        if forbidden_existing:
+            raise IntegrityError("fresh run would overwrite frozen evidence paths")
+        for log_relative in (RUN_REL / "stdout.log", RUN_REL / "stderr.log"):
+            log_path = REPO_ROOT / log_relative
+            if not log_path.is_file():
+                raise IntegrityError(
+                    f"runner must redirect exact log path before execution: {log_relative}"
+                )
 
-    entries = writer.finish()
-    if global_index != TOTAL_RECORDS or seed_collisions:
-        raise IntegrityError("record count or seed collision failure")
-    roster_without_hash = {
-        "collision_count": seed_collisions,
-        "domain": DOMAIN,
-        "master_seed_recorded": MASTER_SEED,
-        "seed_rule": "first_128_bits(SHA256(domain|object|bits|fixture|replicate|draw))",
-        "streams": stream_roster,
-    }
-    roster = dict(roster_without_hash)
-    roster["canonical_payload_sha256"] = hashlib.sha256(canonical_json_bytes(roster_without_hash)).hexdigest()
-    manifest = {
-        "aggregate_below_tracked_cap": sum(item["compressed_bytes"] for item in entries) <= MAX_SHARD_AGGREGATE_BYTES,
-        "entries": entries,
-        "every_object_below_github_limit": all(item["compressed_bytes"] <= SHARD_CAP_BYTES for item in entries),
-        "exact_path_roster_sha256": hashlib.sha256(canonical_json_bytes([item["repository_relative_path"] for item in entries])).hexdigest(),
-        "total_compressed_bytes": sum(item["compressed_bytes"] for item in entries),
-        "total_logical_bytes": sum(item["logical_bytes"] for item in entries),
-        "total_records": sum(item["record_count"] for item in entries),
-    }
-    atomic_json(output_root / "results" / "seed_roster.json", roster)
-    atomic_json(certificates / "shard_manifest.json", manifest)
-    result = {
-        "array_results": array_results,
-        "cpu_seconds": time.process_time() - started_cpu,
-        "experiment_id": EXPERIMENT_ID,
-        "factorization_calls": global_index,
-        "primality_checks": primality_checks,
-        "reconstructions": global_index,
-        "scientific_scope": "null-only feasibility; nondecisional",
-        "wall_seconds": time.monotonic() - started_wall,
-    }
-    atomic_json(output_root / "results" / "feasibility_report.json", result)
-    return result
+    validate_log_redirections()
+    device_layout = measure_device_layout()
+    environment = _write_provenance_files(resume, device_layout)
+    monitor = ProcessTreeMonitor(
+        maximum_cpu_seconds=max(0.0, MAX_CPU_SECONDS - prior_cpu),
+        maximum_rss_bytes=MAX_RSS_BYTES,
+    )
+    started = time.monotonic()
+    active_cell_key: str | None = None
+    last_cell_wall = time.monotonic()
+    last_cell_cpu = 0.0
+    writer: CertificateShardWriter | None = None
+
+    def checkpoint_callback(entries: list[dict], next_index: int) -> None:
+        nonlocal last_cell_wall, last_cell_cpu
+        resource_sample = monitor.sample()
+        cumulative_cpu = prior_cpu + resource_sample["cpu_seconds"]
+        cumulative_wall = prior_wall + time.monotonic() - started
+        if cumulative_wall > MAX_WALL_SECONDS:
+            raise ResourceCapError("wall-clock cap exceeded")
+        if active_cell_key is not None:
+            cell = cell_resources.setdefault(active_cell_key, {
+                "cpu_seconds": 0.0, "factorizations": 0,
+                "logical_certificate_bytes": 0, "compressed_certificate_bytes": 0,
+                "wall_seconds": 0.0,
+            })
+            cell["wall_seconds"] += time.monotonic() - last_cell_wall
+            cell["cpu_seconds"] += max(0.0, resource_sample["cpu_seconds"] - last_cell_cpu)
+            cell["factorizations"] = next_index - sum(
+                value["factorizations"] for key, value in cell_resources.items()
+                if key != active_cell_key
+            )
+            cell["compressed_certificate_bytes"] = sum(
+                entry["compressed_bytes"] for entry in entries
+                if _cell_key_for_shard(entry["shard_index"]) == active_cell_key
+            )
+            cell["logical_certificate_bytes"] = sum(
+                entry["logical_bytes"] for entry in entries
+                if _cell_key_for_shard(entry["shard_index"]) == active_cell_key
+            )
+            last_cell_wall = time.monotonic()
+            last_cell_cpu = resource_sample["cpu_seconds"]
+        storage = measure_run_storage()
+        enforce_storage_caps(storage)
+        event = {
+            "completed_shard_count": len(entries),
+            "cpu_seconds": cumulative_cpu,
+            "disk_bytes": storage,
+            "next_deterministic_index": next_index,
+            "no_network_guard_enforced": True,
+            "observed_maximum_process_output_handles": OUTPUT_HANDLES.observed_maximum,
+            "peak_rss_bytes": max(prior_peak_rss, resource_sample["peak_rss_bytes"]),
+            "wall_seconds": cumulative_wall,
+            "device_layout": measure_device_layout(enforce_gate=False),
+        }
+        checkpoint_events.append(event)
+        atomic_json(manifest_path, {
+            "array_results": array_results,
+            "cell_resources": cell_resources,
+            "checkpoint_events": checkpoint_events,
+            "completed_shards": entries,
+            "cpu_seconds": cumulative_cpu,
+            "experiment_id": EXPERIMENT_ID,
+            "next_deterministic_index": next_index,
+            "peak_rss_bytes": event["peak_rss_bytes"],
+            "primality_checks": primality_checks,
+            "resume_count": resume_count,
+            "run_id": RUN_ID,
+            "status": "running_checkpoint",
+            "wall_seconds": cumulative_wall,
+        })
+
+    try:
+        with no_network_guard():
+            seed_roster = build_seed_roster()
+            atomic_json(repository_path(RESULT_REL / "seed_roster.json"), seed_roster)
+            writer = CertificateShardWriter(
+                certificate_dir,
+                checkpoint_callback=checkpoint_callback,
+                enforce_repository_paths=True,
+            )
+            if saved_entries:
+                writer.restore_verified(saved_entries)
+                writer.reconcile_to_verified()
+            resume_index = writer.total_records
+            global_index = 0
+            iid_references: dict[tuple[int, int], list[float]] = {}
+
+            for descriptor in array_descriptors():
+                active_cell_key = f"{descriptor.bits}:{descriptor.null_type}"
+                last_cell_wall = time.monotonic()
+                last_cell_cpu = monitor.sample()["cpu_seconds"]
+                array_start = global_index
+                array_end = array_start + RECORDS_PER_ARRAY
+                completed_end = min(max(resume_index, array_start), array_end)
+                lpfs = _load_lpfs(array_start, completed_end)
+                indexed_values = []
+                for draw, value, _commitment in iter_array_values(descriptor):
+                    index = array_start + draw
+                    if index >= resume_index:
+                        indexed_values.append((index, value))
+                for record, checks, worker_pid, worker_cpu, worker_rss in _bounded_ordered_factorizations(indexed_values):
+                    monitor.observe_worker_record(
+                        worker_pid, worker_cpu, worker_rss
+                    )
+                    primality_checks += checks
+                    if primality_checks > MAX_PRIMALITY_CHECKS:
+                        raise ResourceCapError("global primality-check cap exceeded")
+                    writer.write(record)
+                    lpfs.append(record["LPF"])
+                if len(lpfs) != RECORDS_PER_ARRAY:
+                    raise IntegrityError("array reconstruction count mismatch")
+                key = (descriptor.bits, descriptor.fixture)
+                z_values = [
+                    math.log(max(1, value)) / math.log(descriptor.X) for value in lpfs
+                ]
+                if descriptor.null_type == "NULL-IID-EDGE" and descriptor.replicate == 0:
+                    iid_references[key] = z_values
+                reference = iid_references.get(key)
+                if reference is None:
+                    raise IntegrityError("first iid reference unavailable")
+                result = {
+                    **dataclasses.asdict(descriptor),
+                    "X": descriptor.X,
+                    "statistics": _array_statistics(lpfs, descriptor.X, reference),
+                }
+                if len(array_results) <= global_index // RECORDS_PER_ARRAY:
+                    array_results.append(result)
+                global_index = array_end
+
+            entries = writer.finish()
+            active_cell_key = None
+            if global_index != TOTAL_RECORDS or primality_checks > MAX_PRIMALITY_CHECKS:
+                raise IntegrityError("final count mismatch")
+            resource_sample = monitor.sample()
+            storage = measure_run_storage()
+            enforce_storage_caps(storage)
+            manifest = {
+                "aggregate_below_tracked_cap": sum(item["compressed_bytes"] for item in entries) <= MAX_SHARD_AGGREGATE_BYTES,
+                "entries": entries,
+                "every_object_below_github_limit": all(item["compressed_bytes"] <= SHARD_CAP_BYTES for item in entries),
+                "exact_path_roster_sha256": hashlib.sha256(canonical_json_bytes([str(path) for path in SHARD_RELATIVE_PATHS])).hexdigest(),
+                "total_compressed_bytes": sum(item["compressed_bytes"] for item in entries),
+                "total_logical_bytes": sum(item["logical_bytes"] for item in entries),
+                "total_records": sum(item["record_count"] for item in entries),
+            }
+            atomic_json(repository_path(CERT_REL / "shard_manifest.json"), manifest)
+            total_wall = prior_wall + time.monotonic() - started
+            total_cpu = prior_cpu + resource_sample["cpu_seconds"]
+            rates = {}
+            bytes_per_certificate = {}
+            for key, cell in sorted(cell_resources.items()):
+                rates[key] = {
+                    "per_cpu_second": cell["factorizations"] / cell["cpu_seconds"] if cell["cpu_seconds"] else None,
+                    "per_wall_second": cell["factorizations"] / cell["wall_seconds"] if cell["wall_seconds"] else None,
+                }
+                bytes_per_certificate[key] = {
+                    "compressed": cell["compressed_certificate_bytes"] / cell["factorizations"] if cell["factorizations"] else None,
+                    "logical": cell["logical_certificate_bytes"] / cell["factorizations"] if cell["factorizations"] else None,
+                }
+            multiplier = FULL_V2_FACTORING_SUBTOTAL / TOTAL_RECORDS
+            result = {
+                "array_results": array_results,
+                "certificate_bytes_per_factorization_by_bits_and_null_type": bytes_per_certificate,
+                "checkpoint_events": checkpoint_events,
+                "cpu_seconds": total_cpu,
+                "dependency_provenance": environment,
+                "disk_bytes_by_phase_and_total": {"run_phase_final": storage, "total_physical_bytes": storage["physical_run_bytes"]},
+                "experiment_id": EXPERIMENT_ID,
+                "factorization_calls": global_index,
+                "factorizations_per_second_by_bits_and_null_type": rates,
+                "peak_rss_bytes": max(prior_peak_rss, resource_sample["peak_rss_bytes"]),
+                "primality_checks": primality_checks,
+                "projected_v2_full_contract": {
+                    "factorization_count": FULL_V2_FACTORING_SUBTOTAL,
+                    "modeled_cpu_seconds": total_cpu * multiplier,
+                    "modeled_disk_bytes": storage["tracked_bytes"] * multiplier,
+                    "modeled_wall_seconds": total_wall * multiplier,
+                    "optimistic_linearity_caveat": "Linear scaling from this null-only pilot; excludes rejection draws, retries, orchestration and non-factorization full-contract costs.",
+                },
+                "reconstructions": global_index,
+                "resume_count": resume_count,
+                "no_network_guard_enforced": True,
+                "observed_maximum_process_output_handles": OUTPUT_HANDLES.observed_maximum,
+                "scientific_scope": "null-only feasibility; nondecisional",
+                "stops": [],
+                "sympy_version": environment["sympy_version"],
+                "wall_seconds": total_wall,
+            }
+            atomic_json(repository_path(RUN_REL / "raw-result.json"), result)
+            atomic_json(repository_path(RESULT_REL / "feasibility_report.json"), result)
+            final_manifest = json.loads(manifest_path.read_text())
+            final_manifest.update({"status": "completed_feasibility_only", "result_sha256": hashlib.sha256(canonical_json_bytes(result)).hexdigest()})
+            atomic_json(manifest_path, final_manifest)
+            missing = [
+                str(relative) for relative in RUN_EVIDENCE_ROSTER
+                if not (REPO_ROOT / relative).is_file()
+            ]
+            if missing:
+                raise IntegrityError(f"required run-evidence paths missing: {missing}")
+            # Reconcile reported disk totals after every final tracked artifact
+            # exists. A second serialization has bounded, deterministic size.
+            final_storage = measure_run_storage()
+            enforce_storage_caps(final_storage)
+            result["disk_bytes_by_phase_and_total"]["run_phase_final"] = final_storage
+            result["disk_bytes_by_phase_and_total"]["total_physical_bytes"] = final_storage["physical_run_bytes"]
+            result["projected_v2_full_contract"]["modeled_disk_bytes"] = final_storage["tracked_bytes"] * multiplier
+            atomic_json(repository_path(RUN_REL / "raw-result.json"), result)
+            atomic_json(repository_path(RESULT_REL / "feasibility_report.json"), result)
+            final_manifest["result_sha256"] = hashlib.sha256(canonical_json_bytes(result)).hexdigest()
+            final_manifest["final_storage"] = measure_run_storage()
+            enforce_storage_caps(final_manifest["final_storage"])
+            atomic_json(manifest_path, final_manifest)
+            return result
+    except BaseException as exc:
+        if writer is not None:
+            writer.abort_current()
+            writer.reconcile_to_verified()
+        failure = {}
+        if manifest_path.exists():
+            try:
+                failure = json.loads(manifest_path.read_text())
+            except (json.JSONDecodeError, OSError):
+                failure = {}
+        failure.update({
+            "completed_shards": list(writer.entries) if writer else saved_entries,
+            "error_class": type(exc).__name__,
+            "error_message": str(exc),
+            "experiment_id": EXPERIMENT_ID,
+            "next_deterministic_index": len(writer.entries if writer else saved_entries) * RECORDS_PER_SHARD,
+            "primality_checks": primality_checks,
+            "resume_count": resume_count,
+            "status": "failed_infrastructure_or_budget" if isinstance(exc, ResourceCapError) else "invalid_integrity",
+        })
+        try:
+            failed_sample = monitor.sample()
+        except BaseException:
+            failed_sample = {"cpu_seconds": 0.0, "peak_rss_bytes": 0}
+        failure.setdefault("cpu_seconds", prior_cpu + failed_sample["cpu_seconds"])
+        failure.setdefault("peak_rss_bytes", max(prior_peak_rss, failed_sample["peak_rss_bytes"]))
+        failure.setdefault("wall_seconds", prior_wall + time.monotonic() - started)
+        atomic_json(manifest_path, failure)
+        raise
+
+
+def _cell_key_for_shard(shard_index: int) -> str:
+    descriptor = array_descriptors()[shard_index // 4]
+    return f"{descriptor.bits}:{descriptor.null_type}"
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("self-test", help="run bounded synthetic tests only")
+    test = subparsers.add_parser("self-test", help="run bounded synthetic tests only")
+    test.add_argument("--only", action="append", default=[], help="run one named synthetic test")
     run = subparsers.add_parser("run-null-pilot", help="run the frozen null-only pilot")
-    run.add_argument("--output-root", type=Path, required=True)
+    run.add_argument("--resume", action="store_true", help="consume the single deterministic resume")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = build_parser().parse_args(argv)
     if arguments.command == "self-test":
-        print(json.dumps(run_self_tests(), sort_keys=True, indent=2))
+        print(json.dumps(run_self_tests(set(arguments.only) or None), sort_keys=True, indent=2))
         return 0
     if arguments.command == "run-null-pilot":
-        print(json.dumps(run_null_pilot(arguments.output_root), sort_keys=True, indent=2))
+        print(json.dumps(run_null_pilot(resume=arguments.resume), sort_keys=True, indent=2))
         return 0
     raise AssertionError("unreachable")
 

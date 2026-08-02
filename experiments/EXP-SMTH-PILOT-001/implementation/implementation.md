@@ -1,77 +1,119 @@
-# EXP-SMTH-PILOT-001 implementation note
+# EXP-SMTH-PILOT-001 implementation repair note
 
-Task: `TASK-20260801-082`
+Tasks: `TASK-20260801-082`, repair `TASK-20260801-095`
 
 Scope: implementation only. No registered scientific run was started, and no
-run or result artifact was generated. The implementation exposes only a
-null-pilot entry point and a bounded synthetic self-test; it contains no curve,
+run or result artifact was generated. The implementation exposes only the
+null-pilot entry point and bounded synthetic self-tests; it contains no curve,
 factor-base, S3, source, plant, p-value, evidence, or research-state mode.
 
 ## Contract binding
 
-The code implements the committed effective contract through
-`EXP-SMTH-PILOT-001-AMEND-007`, snapshot
-`1987f8d41ece5dd5eda9120903dced96c928d763`, under the implementation-only
-authorization `TASK-20260801-081`.
+The repaired code implements the effective contract through
+`EXP-SMTH-PILOT-001-AMEND-009`, passed at snapshot
+`82c8bcc1d0ddc9b58d270a21aa17343a5760b2f8`, under repair authorization
+`TASK-20260801-094`. It preserves the earlier live-bounded pack and archive
+constraints and adds the passed compact seed representation from AMEND-008/009.
 
-Frozen scientific plumbing includes the 32 deterministic null arrays, exact
-`i<j` enumeration, 4,186,112 factorization/reconstruction calls, the shared
+Frozen scientific plumbing remains 32 deterministic null arrays, exact `i<j`
+enumeration, 4,186,112 factorization/reconstruction calls, the shared
 `sympy.factorint`/`sympy.isprime` certificate path, four factor workers, one
 ordered writer, a 4,096-record bound, 128 exact shard names, 32,704 records per
 shard, deterministic gzip metadata, the 1,024-byte logical-record cap, and the
-8-MiB physical shard cap. Runtime methods enforce the frozen wall, CPU, RSS,
-primality, shard, and aggregate ceilings.
+8-MiB physical shard cap.
 
-The seed-roster implementation records every array-domain tuple and its ordered
-seed-stream SHA-256, plus the exact derivation rule and global collision count.
-This compact representation is necessary to remain compatible with the frozen
-32-MiB individual non-shard artifact cap; it does not store 4,186,112 seeds
-verbatim.
+## VAL-20260801-084 repairs
 
-The live-bounded pack sink writes at most `cap_bytes - bytes_written` from each
-chunk. On a cap-plus-one byte it closes the producer pipe, waits for producer
-termination, and removes only the exact `.partial` path. A successful EOF with
-producer exit zero fsyncs and atomically renames the pack. Device accounting
-implements both the 6,908,096,384-byte same-device gate and the split-device
-1,610,612,736-byte worktree / 5,297,483,648-byte common-directory gates.
+- `VAL084-B1`: the arbitrary output root was removed. The executable derives
+  the checkout from its own frozen path and admits exactly the 137 literal
+  repository-relative run-evidence paths. Manifest entries are repository
+  relative. A fresh run refuses pre-existing evidence paths and requires the
+  exact stdout/stderr redirections before any construction.
+- `VAL084-B2`: every completed factor record returns worker CPU and peak RSS to
+  a live process-tree monitor, which enforces cumulative CPU and a conservative
+  aggregate peak-RSS bound at each record boundary and cross-checks the process
+  tree at shard boundaries; per-device free
+  space, physical run bytes, aggregate shard, aggregate other, aggregate
+  tracked, individual other-file, process-output-handle, wall-clock,
+  primality, and no-network gates are enforced and recorded. Factor workers
+  install the same no-network guard.
+- `VAL084-B3`: every independently reconstructed, fsynced shard triggers an
+  atomic checkpoint in the required run manifest. The checkpoint contains
+  verified shard hashes, next deterministic index, factorization/primality
+  counts, CPU, wall, peak RSS, disk/device measurements, cell counters, and
+  event history. `--resume` consumes exactly one resume, verifies every saved
+  shard, reconstructs prior LPFs from certificates, removes uncheckpointed
+  bytes, and continues under the same cumulative ceilings.
+- `VAL084-B4`: bounded controls now exercise a literal twelve-factor list with
+  a composite twelfth item, actual pre-open rejection of a 1,025-byte logical
+  record, one-byte shard mutation, independent canonical-payload hashing,
+  exact-cap/cap-plus-one pack behavior, and checkpoint hash verification.
+- `VAL084-B5`: the feasibility result includes exact calls/checks/
+  reconstructions; full process-tree CPU, wall, peak RSS and disk accounting;
+  per `(bits,null_type)` factorization rates and certificate bytes; all
+  checkpoint/resume/stop events; SymPy, Python, platform and Git provenance;
+  and a labeled modeled full-v2 projection with the frozen linearity caveat.
+- `VAL084-B6`: 52 lexicographically ordered compact descriptors expand to
+  exactly 2,109,444 tuple-derived seeds: 2,093,056 IID, 16,384 K512 A/B, and
+  four prime seeds. Every 16-byte seed enters an exact membership set. The
+  implementation records 52 per-stream hashes, the global ordered hash
+  `c3991b86bedce849dd8b13dee1550ae79405526d9b1467ff4ac30436bdc37fc6`,
+  exact inserted/distinct/collision counts, and the AMEND-009 canonical payload
+  hash. K512 edge commitments are explicitly separate and never counted as
+  tuple-derived seeds.
+- `VAL084-B7`: all top-level failures abort the current partial, reconcile
+  final shards to the last verified checkpoint, and preserve a resumable
+  infrastructure receipt or non-resumable integrity receipt. Synthetic worker
+  and resource-cap interruptions leave no uncheckpointed final or partial
+  shard.
+
+The live-bounded pack sink still writes at most
+`cap_bytes - bytes_written` from each chunk. On cap-plus-one it closes the
+producer pipe, waits for termination, and removes only the exact `.partial`.
+Successful EOF with producer exit zero fsyncs and atomically renames the pack.
 
 ## Protocol deviations
 
-None. The specification records `master_seed: 25051`, while its binding seed
-formula does not include that field. The implementation records the master seed
-as provenance and follows the literal six-field formula without silently adding
-an extra hash input.
+None. The base specification records `master_seed: 25051`, while the binding
+seed formula does not include that field. The implementation records it as
+provenance and follows the literal six-field formula without adding a hash
+input.
 
-## Tests
+## Repair tests
 
 All commands ran from `/private/tmp/ecdlp-breakthrough-20260801-main2` on
 2026-08-01. No command invoked `run-null-pilot`.
 
-1. `python3 -m py_compile experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py`
-   — exit 0, no output. The generated `__pycache__` test byproduct was removed;
-   it is not a task artifact.
-2. `python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py self-test`
-   — exit 0; `status=pass`, `scientific_runs=0`. All six named tests passed:
-   `bounded-pack-exact-cap`, `bounded-pack-cap-plus-one`,
-   `bounded-pack-producer-failure`, `split-device-accounting`,
-   `factor-certificate-controls`, and `deterministic-null-plumbing`.
-3. The first ad-hoc constant-check import harness failed before assertions with
-   `AttributeError: 'NoneType' object has no attribute '__dict__'` because the
-   harness did not register its dynamically loaded module in `sys.modules` as
-   required by `dataclasses`; this was a test-harness error, not a driver
-   execution or scientific run. The corrected harness registered the module,
-   checked 32 arrays, 130,816 records/array, 4,186,112 total records, 128 unique
-   exact shard names from `shard-000.jsonl.gz` through
-   `shard-127.jsonl.gz`, all aggregate-byte equations, and printed
-   `contract-constant-checks: PASS; scientific_runs=0` with exit 0.
-4. `python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py --help`
-   — exit 0; the only subcommands listed were `self-test` and
-   `run-null-pilot`.
-5. `git diff --check` — exit 0, no output.
+1. An AST-only syntax parse printed `ast: PASS` and created no bytecode.
+2. The first full repaired `self-test` invocation passed eight named controls,
+   then failed the ninth (`checkpoint-resume-interruption-cleanup`) with
+   `IntegrityError: non-sequential certificate record`. The failure identified
+   that abort cleanup deleted the uncheckpointed partial but did not reset the
+   in-memory next index. Reconciliation was repaired to derive both next index
+   and shard position solely from verified checkpoint entries. A harmless
+   destructor warning (`flush of closed file`) also led to an idempotent closed
+   writer flush.
+3. The second full invocation
+   `PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py self-test`
+   exited 0 with `status=pass`, `scientific_runs=0`, and eleven passes:
+   pack exact-cap, pack cap-plus-one, producer failure, split-device accounting,
+   certificate controls, deterministic null plumbing, exact 137-path roster,
+   process-tree/disk/handle/network controls, checkpoint/resume/interruption
+   cleanup, one-byte mutation/independent hashes, and the exact 52-stream /
+   2,109,444-seed contract.
+4. After adding explicit RSS-cap-plus-one and worker/resource-failure controls,
+   the filtered invocation
+   `PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py self-test --only process-tree-disk-handle-network-controls --only worker-and-resource-failure-cleanup`
+   exited 0. Both named tests passed with `scientific_runs=0`.
+5. A final AST-only parse passed after the reporting and fixed-path changes.
+6. After adding per-record worker CPU/RSS receipts, the filtered
+   `worker-and-resource-failure-cleanup` test was rerun alone and passed with
+   `scientific_runs=0`.
 
-Across both self-test invocations during authoring, 12 bounded named synthetic
-test executions passed. Including the failed and corrected constant harness,
-14 bounded test executions were attempted, within the authorization maximum of
-20. The registered pilot was never invoked.
+The repair used 23 named bounded test attempts: nine in the first interrupted
+invocation, eleven in the full passing invocation, and two in the filtered
+passing invocation, plus the final worker-control rerun. This is within the
+authorization maximum of 30. The failed test is preserved above and was not a
+scientific run.
 
 Scientific run count: **0**.
