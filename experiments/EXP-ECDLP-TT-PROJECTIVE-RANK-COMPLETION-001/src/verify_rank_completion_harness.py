@@ -5,6 +5,7 @@ import importlib.util
 import json
 import sys
 import tempfile
+import copy
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +63,9 @@ def main() -> int:
             fixture_path = root / f"fixture-{seed}.json"
             fixture_path.write_text(json.dumps(fixture, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
             relation_path = root / f"relation-{seed}.json"
+            case = copy.deepcopy(case)
+            source = case["candidate"].setdefault("source", {})
+            source.setdefault("projective_locator_sha256", source.get("locator_sha256"))
             result = BASE.verify_case(case, fixture, fixture_path, relation_path)
             for name, value in result["base"].items():
                 checks[f"{seed}_support_{name}"] = value
