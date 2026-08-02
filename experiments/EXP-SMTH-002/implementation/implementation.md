@@ -1,7 +1,9 @@
 # EXP-SMTH-002 implementation repair note
 
-Tasks: `TASK-20260801-082`, repairs `TASK-20260801-095` and
-`TASK-20260801-100`
+Tasks: `TASK-20260801-082`, repairs `TASK-20260801-095`,
+`TASK-20260801-100`, `TASK-20260801-105`, `TASK-20260801-115`, and
+`TASK-20260801-136`; RSS epoch repair `TASK-20260801-149`; canonical rebind
+`TASK-20260801-156`
 
 Scope: implementation only. No registered scientific run was started, and no
 run or result artifact was generated. The implementation exposes only the
@@ -19,6 +21,39 @@ The narrow successor repair binds implementation snapshot
 `e4e253b7e62dfea878622f6dc9563ef3c9b75b85` and validation
 `VAL-20260801-097` under authorization `TASK-20260801-099`; it changes no
 scientific design, count, seed, path, cap, or research status.
+The final two-defect repair binds snapshot
+`badc73b3f395858ff9ca898aaaa1483cce27a25b` and validation
+`VAL-20260801-102` under authorization `TASK-20260801-104`.
+The descriptor-binding repair binds snapshot
+`5e78665ada170acd1be4fd2d1cb82f5d3bf4c1d9` and the preserved
+preconstruction failure `TASK-20260801-113` under authorization
+`TASK-20260801-114`. It changes only the platform-specific path verification
+and its bounded regression control; it does not alter the scientific protocol.
+
+Current canonical binding: after the merge-only reconciliation
+`EXP-SMTH-002-AMEND-012` and independent PASS `VAL-20260801-154`, committed
+handoff `TASK-20260801-156` rebinds new implementation output to experiment ID
+`EXP-SMTH-002`, storage prefix `experiments/EXP-SMTH-002`, and seed domain
+`EXP-SMTH-002/v1`. `RUN_ID` remains `RUN-SMTH-PILOT-002`. This rebind changes
+only the seven binding string nodes in the driver AST; the validated RSS epoch
+repair and every scientific, resource, checkpoint, failure, certificate, and
+storage algorithm remain unchanged. It supplies no execution authority and
+does not alter immutable RUN002 or result bytes.
+
+Historical provenance: the predecessor successor-binding repair was authorized
+by committed `TASK-20260801-135` at
+`5ed0a5408562331c5e0b77876f28a7f8e86cc90d`
+and binds the implementation to `EXP-SMTH-PILOT-001-AMEND-011`, whose
+committed-byte review `VAL-20260801-133` passed at amendment snapshot
+`98ed8c204f3607e63996c5ff5d73da4dc2a38c64`. Under that historical alias rule,
+then-future manifest fields used experiment ID `EXP-SMTHPILOT-001`, while the
+historical storage path remains `experiments/EXP-SMTH-PILOT-001` and the seed
+domain remains `EXP-SMTH-PILOT-001/v1`. The run binding and its exact six
+run-package sinks are now `RUN-SMTH-PILOT-002`. The terminal predecessor
+`RUN-SMTH-PILOT-001` stdout and stderr remain outside the successor roster,
+rejected by the repository sink guard, and bound to their immutable AMEND-011
+hashes. This is an identifier/path-only repair and changes no scientific
+logic, counts, seeds, objects, caps, outcomes, interpretation, or status.
 
 Frozen scientific plumbing remains 32 deterministic null arrays, exact `i<j`
 enumeration, 4,186,112 factorization/reconstruction calls, the shared
@@ -104,6 +139,26 @@ The two validator-noted fixture debts are also repaired: the oversized JSONL
 fixture is exactly 1,025 bytes including its newline, and the one-byte mutation
 control mutates a real deterministic gzip certificate shard.
 
+## VAL-20260801-102 repairs
+
+- `VAL102-B1`: the three real SymPy wrapper paths now translate caught
+  `ImportError`/`ModuleNotFoundError` into the dedicated
+  `DependencyInfrastructureError`, which `classify_failure` maps to
+  `failed_infrastructure_or_budget` / `infrastructure_error`. The bounded test
+  intercepts the actual Python import used by `factor_certificate`, observes
+  the dedicated exception, and verifies its durable classification; it does
+  not call the classifier directly with a fabricated dependency exception.
+- `VAL102-B2`: `main` no longer prints the full returned result after the run
+  protocol. The protocol itself writes and fsyncs one bounded constant-size
+  terminal stdout record before final accounting. It then iteratively writes
+  the identical raw/feasibility receipts and terminal manifest, remeasures the
+  completed fixed roster, cap-checks every observation, and stops only when the
+  embedded receipt equals the post-write physical and tracked-byte measurement.
+  No successful-path write follows that equality check; `main` returns without
+  additional stdout bytes. The bounded temporary-roster control independently
+  recomputes terminal stdout, both result files, and manifest bytes and matches
+  all three durable receipts exactly.
+
 The live-bounded pack sink still writes at most
 `cap_bytes - bytes_written` from each chunk. On cap-plus-one it closes the
 producer pipe, waits for termination, and removes only the exact `.partial`.
@@ -171,5 +226,150 @@ No command invoked `run-null-pilot`.
    rerun alone and passed with `scientific_runs=0`.
 
 This task used 15 of its authorized 20 bounded test attempts.
+
+## TASK-20260801-105 tests
+
+No command invoked `run-null-pilot` and no run/result path was created.
+
+1. An AST-only syntax parse passed without bytecode output.
+2. The single full invocation
+   `PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py self-test`
+   exited 0 with `status=pass`, `scientific_runs=0`, and all 15 named controls
+   passing. The new combined release-candidate control passed both the real
+   missing-SymPy wrapper classification and convergent terminal-storage receipt
+   equality after terminal stdout and manifest writes.
+
+This task used exactly 15 of its authorized 15 bounded test attempts.
+
+## TASK-20260801-115 descriptor-binding repair
+
+On macOS, `/dev/fd/1` and the opened target path can name distinct vnode
+identities even though descriptor 1 was opened on that exact path, so
+`os.path.samefile` rejected the valid archived redirection before scientific
+construction. The guard now asks the kernel for the descriptor's path with
+`fcntl.F_GETPATH`, resolves the expected path, and requires exact canonical
+path equality. Linux is the other supported platform for this guard and uses
+the kernel `/proc/self/fd/<n>` symlink as its reviewed exact-path fallback.
+Other platforms fail closed rather than substituting inode identity.
+
+No command invoked `run-null-pilot`, and the archived stdout/stderr files from
+`TASK-20260801-113` were not opened for writing.
+
+1. An AST-only syntax parse passed without bytecode output.
+2. The targeted invocation
+   `PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py self-test --only real-subprocess-descriptor-redirection`
+   launched a real child with stdout and stderr redirected to temporary exact
+   paths. On macOS the child observed the old `/dev/fd/1` `samefile` result as
+   false, passed the new `F_GETPATH` guard for both descriptors, and confirmed
+   that the new guard rejects a different existing path.
+
+This task used one of its authorized ten bounded test attempts.
+
+## TASK-20260801-136 canonical successor binding repair
+
+No command invoked `run-null-pilot`; no run or result artifact was created or
+modified. The predecessor logs were read only for their frozen SHA-256 checks.
+
+1. An AST-only syntax parse passed without bytecode output.
+2. The targeted `exact-137-path-roster` self-test exited 0 with `status=pass`
+   and `scientific_runs=0`. It verified the canonical manifest experiment ID,
+   historical storage and domain aliases, RUN002 binding, exact six RUN002
+   run-package sinks, predecessor-log exclusion from the 137-path roster,
+   repository sink rejection of both predecessor logs, and their unchanged
+   hashes.
+3. One full bounded `self-test` invocation exited 0 with `status=pass`,
+   `scientific_runs=0`, and all 16 named controls passing, including the
+   successor-binding regression and the unchanged deterministic-null,
+   certificate, seed, resource, checkpoint, failure, storage, and descriptor
+   controls.
+
+This task used two of its authorized fifteen bounded self-test invocations.
+The immutable predecessor hashes remained
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`
+for stdout and
+`fce9cbf8d3ceea7cea60ef8ff19d150e5f8e47ad61565eafcd273618bbce8919`
+for stderr before and after testing. `RUN-SMTH-PILOT-002` remained absent.
+
+## TASK-20260801-149 active-pool RSS epoch repair
+
+Committed authorization `TASK-20260801-148` at
+`f0553bd1bb6d7d5ba9be96f97ec7c11a882b8df4` permits only the implementation
+repair and the single `RT146-C1` synthetic control specified by
+`RT-20260801-146`. No command invoked `run-null-pilot`, and no run or result
+path was created or modified.
+
+`ProcessTreeMonitor` now assigns a monotone epoch to each descriptor-local
+process pool. Worker lifetime RSS maxima are retained only while that epoch is
+active and are cleared after its pool closes; a later pool therefore cannot
+sum retired PID peaks. Worker CPU seconds remain a separate cumulative sum
+across epochs. The frozen RSS cap is enforced against
+`attempt_peak_rss_bytes`, the maximum of ps-derived live-tree samples and
+parent-plus-active-worker conservative candidates. The compatibility
+`peak_rss_bytes` return remains equal to that attempt peak.
+
+Every resource checkpoint now carries separate `current_tree_rss_bytes`,
+`process_count`, `active_pool_epoch`, `active_worker_pids`, `active_pid_count`,
+`conservative_active_epoch_peak_rss_bytes`, and
+`attempt_peak_rss_bytes`. The same fields flow through checkpoint events and
+manifests, terminal result and manifest receipts, and failure/stop receipts.
+
+Bounded non-scientific checks:
+
+1. Three AST-only parses and `git diff --check` passed.
+2. Three ordinary `self-test` invocations passed with `scientific_runs=0`: a
+   three-control targeted run, the full 17-control suite, and a final
+   two-control targeted run. The added unit regression observed epoch reset,
+   exclusion of the retired synthetic PID, monotone epoch numbering, retained
+   cumulative CPU, and the active-only conservative RSS formula.
+3. The exact command
+   `PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py rt146-c1`
+   invoked `RT146-C1` once and exited 0 with `status=pass` and
+   `scientific_runs=0`. It observed disjoint four-worker PID sets
+   `[99033, 99034, 99036, 99037]`, `[99061, 99062, 99063, 99064]`, and
+   `[99079, 99080, 99081, 99082]`. Generation three recorded legacy accounting
+   of 678,789,120 bytes, live-PID-only accounting of 252,887,040 bytes, exact
+   retired contribution of 425,902,080 bytes, repaired attempt peak of
+   274,939,904 bytes, and separator cap of 476,864,512 bytes. All registered
+   invalid-condition flags were false and all pass assertions were true.
+
+The control receipt is
+`coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260801-149/rt146_c1_synthetic_receipt.json`.
+Its before/after protected inventory contains the same 60 files and the same
+canonical SHA-256
+`206cbb9c3d83b62cb8143ce704db429a7c996bd1841bd7bfc175132787dae07a`;
+`run_result_paths_modified` is empty. RT146-C1 invocation count: **1 of 1**.
+The final scope audit found one ignored generated
+`implementation/__pycache__/pilot_driver.cpython-313.pyc`; the exact cache file
+and its now-empty directory were removed, and no bytecode or other extra path
+remains in the worktree.
+
+## TASK-20260801-156 canonical location rebind
+
+This implementation-only task changed the seven current binding string nodes
+from the malformed historical aliases to `EXP-SMTH-002`,
+`experiments/EXP-SMTH-002`, and `EXP-SMTH-002/v1`. `RUN_ID` remains
+`RUN-SMTH-PILOT-002`. Historical task, amendment, command, receipt, and review
+passages above retain their literal provenance values.
+
+The driver parsed before and after the edit with 17,158 AST nodes. Its raw AST
+SHA-256 changed from
+`81e32a980cf147c89b72018a57394cc7070c9894e7f79995666f8a4a76044882`
+to `b82653008d3cfdd1a09842ae09e6ca566b243c98c41c61cd9f90333caaee2608`,
+while the binding-normalized non-binding AST SHA-256 remained
+`f304e6726adfed277794661aa13061713bf84124fb1e268ba0f6240c674d2389`.
+The exact seven nodes are the module description; `EXPERIMENT_ID`, `DOMAIN`,
+and `EXP_REL`; and the three corresponding `exact_path_roster` assertions.
+
+One of the two permitted ordinary self-test invocations ran:
+`PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-002/implementation/pilot_driver.py self-test --only exact-137-path-roster`.
+It exited 0 with `status=pass`, `scientific_runs=0`, and the canonical binding,
+RUN002 roster, predecessor-log exclusion, and fixed-path assertions passing.
+No second self-test was needed.
+
+The protected 60-file inventory under canonical `runs/` and `results/` had
+identical before/after SHA-256
+`2ff1a53a61aee9785a6d89d10277c8962e016b82ac9afb83ff3bddcf9ee8cb7b`.
+No `RT146-C1`, `run-null-pilot`, pilot, resume, or scientific command ran; no
+protected artifact changed; and no bytecode or undeclared artifact remained.
 
 Scientific run count: **0**.

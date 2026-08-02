@@ -10,18 +10,22 @@ must not be invoked without a successor execution authorization.
 from __future__ import annotations
 
 import argparse
+import builtins
 import concurrent.futures
 from concurrent.futures.process import BrokenProcessPool
 import contextlib
 import dataclasses
 from datetime import datetime, timezone
+import fcntl
 import gzip
 import hashlib
 import io
 import json
 import math
+import multiprocessing
 import os
 from pathlib import Path
+import platform
 import resource
 import socket
 import subprocess
@@ -32,7 +36,7 @@ from typing import BinaryIO, Callable, Iterable, Iterator, Sequence
 
 
 EXPERIMENT_ID = "EXP-SMTH-002"
-RUN_ID = "RUN-SMTH-PILOT-001"
+RUN_ID = "RUN-SMTH-PILOT-002"
 DOMAIN = "EXP-SMTH-002/v1"
 MASTER_SEED = 25051
 BITS = (16, 20)
@@ -68,6 +72,23 @@ FULL_V2_FACTORING_SUBTOTAL = 79_536_128
 EXP_REL = Path("experiments/EXP-SMTH-002")
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RUN_REL = EXP_REL / "runs" / RUN_ID
+PREDECESSOR_RUN_REL = EXP_REL / "runs" / "RUN-SMTH-PILOT-001"
+IMMUTABLE_PREDECESSOR_LOGS = (
+    PREDECESSOR_RUN_REL / "stdout.log",
+    PREDECESSOR_RUN_REL / "stderr.log",
+)
+IMMUTABLE_PREDECESSOR_LOG_SHA256 = {
+    PREDECESSOR_RUN_REL / "stdout.log": (
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    ),
+    PREDECESSOR_RUN_REL / "stderr.log": (
+        "fce9cbf8d3ceea7cea60ef8ff19d150e5f8e47ad61565eafcd273618bbce8919"
+    ),
+}
+RT146_C1_RECEIPT_REL = Path(
+    "coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/"
+    "TASK-20260801-149/rt146_c1_synthetic_receipt.json"
+)
 RESULT_REL = EXP_REL / "results"
 CERT_REL = RESULT_REL / "certificates"
 RUN_FIXED_RELATIVE_PATHS = (
@@ -91,6 +112,7 @@ assert RECORDS_PER_ARRAY == 130_816
 assert TOTAL_RECORDS == 4_186_112
 assert RECORDS_PER_SHARD * SHARD_COUNT == TOTAL_RECORDS
 assert len(RUN_EVIDENCE_ROSTER) == len(set(RUN_EVIDENCE_ROSTER)) == 137
+assert set(IMMUTABLE_PREDECESSOR_LOGS).isdisjoint(RUN_EVIDENCE_ROSTER)
 
 
 class IntegrityError(RuntimeError):
@@ -105,6 +127,10 @@ class NetworkBlockedError(RuntimeError):
     """An attempted network-capable socket violates the frozen run guard."""
 
 
+class DependencyInfrastructureError(RuntimeError):
+    """A required runtime dependency is unavailable."""
+
+
 def classify_failure(error: BaseException) -> tuple[str, str]:
     """Return (manifest status, failure class) without conflating integrity."""
     if isinstance(error, IntegrityError):
@@ -115,6 +141,7 @@ def classify_failure(error: BaseException) -> tuple[str, str]:
         error,
         (
             BrokenProcessPool,
+            DependencyInfrastructureError,
             ImportError,
             ModuleNotFoundError,
             OSError,
@@ -138,6 +165,24 @@ def cumulative_resources(
         "peak_rss_bytes": max(prior_peak_rss, attempt_sample["peak_rss_bytes"]),
         "wall_seconds": prior_wall + attempt_wall,
     }
+
+
+RSS_RECEIPT_FIELDS = (
+    "current_tree_rss_bytes",
+    "process_count",
+    "active_pool_epoch",
+    "active_worker_pids",
+    "active_pid_count",
+    "conservative_active_epoch_peak_rss_bytes",
+    "attempt_peak_rss_bytes",
+)
+
+
+def rss_receipt_fields(resource_sample: dict) -> dict:
+    missing = [field for field in RSS_RECEIPT_FIELDS if field not in resource_sample]
+    if missing:
+        raise IntegrityError(f"resource sample omits RSS receipt fields: {missing}")
+    return {field: resource_sample[field] for field in RSS_RECEIPT_FIELDS}
 
 
 def append_ordered_event(
@@ -172,18 +217,48 @@ def validate_repository_binding() -> None:
         repository_path(relative)
 
 
-def validate_log_redirections() -> None:
-    for descriptor, relative in (
-        (1, RUN_REL / "stdout.log"),
-        (2, RUN_REL / "stderr.log"),
-    ):
-        target = REPO_ROOT / relative
+def resolved_descriptor_path(descriptor: int) -> Path:
+    """Return the kernel-reported path for one regular-file descriptor."""
+    try:
+        if sys.platform == "darwin":
+            if not hasattr(fcntl, "F_GETPATH"):
+                raise IntegrityError("fcntl.F_GETPATH is unavailable on macOS")
+            raw = fcntl.fcntl(descriptor, fcntl.F_GETPATH, b"\0" * 1024)
+            path_bytes = raw.split(b"\0", 1)[0]
+            if not path_bytes:
+                raise IntegrityError(f"descriptor {descriptor} has no resolved path")
+            return Path(os.fsdecode(path_bytes)).resolve(strict=True)
+        if sys.platform.startswith("linux"):
+            return Path(f"/proc/self/fd/{descriptor}").resolve(strict=True)
+    except OSError as exc:
+        raise IntegrityError(
+            f"cannot resolve file descriptor {descriptor} to an exact path"
+        ) from exc
+    raise IntegrityError(
+        f"exact descriptor-path validation is unsupported on {sys.platform}"
+    )
+
+
+def validate_descriptor_paths(bindings: Sequence[tuple[int, Path]]) -> None:
+    for descriptor, target in bindings:
         try:
-            matches = os.path.samefile(f"/dev/fd/{descriptor}", target)
+            expected = target.resolve(strict=True)
         except OSError as exc:
-            raise IntegrityError(f"cannot verify exact log redirection: {relative}") from exc
-        if not matches:
-            raise IntegrityError(f"file descriptor is not redirected to {relative}")
+            raise IntegrityError(f"cannot resolve expected log path: {target}") from exc
+        actual = resolved_descriptor_path(descriptor)
+        if actual != expected:
+            raise IntegrityError(
+                f"file descriptor {descriptor} resolves to {actual}, not {expected}"
+            )
+
+
+def validate_log_redirections() -> None:
+    validate_descriptor_paths(
+        (
+            (1, REPO_ROOT / RUN_REL / "stdout.log"),
+            (2, REPO_ROOT / RUN_REL / "stderr.log"),
+        )
+    )
     OUTPUT_HANDLES.current = 2
     OUTPUT_HANDLES.observed_maximum = max(OUTPUT_HANDLES.observed_maximum, 2)
 
@@ -256,7 +331,7 @@ def _parse_ps_cpu(value: str) -> float:
 @dataclasses.dataclass
 class ProcessTreeMonitor:
     started_wall: float = dataclasses.field(default_factory=time.monotonic)
-    peak_rss_bytes: int = 0
+    attempt_peak_rss_bytes: int = 0
     maximum_cpu_seconds: float = MAX_CPU_SECONDS
     maximum_rss_bytes: int = MAX_RSS_BYTES
 
@@ -265,31 +340,89 @@ class ProcessTreeMonitor:
         self._baseline_children_cpu = usage.ru_utime + usage.ru_stime
         self._baseline_parent_cpu = time.process_time()
         self._worker_cpu_seconds = 0.0
-        self._worker_peak_rss: dict[int, int] = {}
+        self._next_pool_epoch = 1
+        self._active_pool_epoch: int | None = None
+        self._active_worker_peak_rss: dict[int, int] = {}
+        self._conservative_active_epoch_peak_rss_bytes = 0
+        self._last_current_parent_rss_bytes = 0
+        self._last_current_tree_rss_bytes = 0
+        self._last_live_tree_pids: list[int] = []
+        self._last_process_count = 0
+
+    def begin_pool_epoch(self) -> int:
+        if self._active_pool_epoch is not None:
+            raise IntegrityError("a process-pool epoch is already active")
+        epoch = self._next_pool_epoch
+        self._next_pool_epoch += 1
+        self._active_pool_epoch = epoch
+        self._active_worker_peak_rss = {}
+        self._conservative_active_epoch_peak_rss_bytes = 0
+        return epoch
+
+    def end_pool_epoch(self, epoch: int) -> None:
+        if self._active_pool_epoch != epoch:
+            raise IntegrityError("process-pool epoch close mismatch")
+        self._active_pool_epoch = None
+        self._active_worker_peak_rss = {}
+        self._conservative_active_epoch_peak_rss_bytes = 0
+
+    @staticmethod
+    def parent_peak_rss_bytes() -> int:
+        parent_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return parent_peak if sys.platform == "darwin" else parent_peak * 1024
+
+    def _rss_receipt(self) -> dict:
+        return {
+            "active_pid_count": len(self._active_worker_peak_rss),
+            "active_pool_epoch": self._active_pool_epoch,
+            "active_worker_pids": sorted(self._active_worker_peak_rss),
+            "attempt_peak_rss_bytes": self.attempt_peak_rss_bytes,
+            "conservative_active_epoch_peak_rss_bytes": (
+                self._conservative_active_epoch_peak_rss_bytes
+            ),
+            "current_parent_rss_bytes": self._last_current_parent_rss_bytes,
+            "current_rss_bytes": self._last_current_tree_rss_bytes,
+            "current_tree_rss_bytes": self._last_current_tree_rss_bytes,
+            "live_tree_pids": list(self._last_live_tree_pids),
+            "peak_rss_bytes": self.attempt_peak_rss_bytes,
+            "process_count": self._last_process_count,
+        }
 
     def observe_worker_record(
-        self, worker_pid: int, worker_cpu_seconds: float, worker_peak_rss_bytes: int
+        self,
+        pool_epoch: int,
+        worker_pid: int,
+        worker_cpu_seconds: float,
+        worker_peak_rss_bytes: int,
     ) -> dict:
+        if self._active_pool_epoch != pool_epoch:
+            raise IntegrityError("worker record is outside its active pool epoch")
         self._worker_cpu_seconds += worker_cpu_seconds
-        self._worker_peak_rss[worker_pid] = max(
-            self._worker_peak_rss.get(worker_pid, 0), worker_peak_rss_bytes
+        self._active_worker_peak_rss[worker_pid] = max(
+            self._active_worker_peak_rss.get(worker_pid, 0),
+            worker_peak_rss_bytes,
         )
-        parent_usage = resource.getrusage(resource.RUSAGE_SELF)
-        parent_peak = parent_usage.ru_maxrss
-        if sys.platform != "darwin":
-            parent_peak *= 1024
         cpu_seconds = (
             time.process_time() - self._baseline_parent_cpu + self._worker_cpu_seconds
         )
-        conservative_rss = parent_peak + sum(self._worker_peak_rss.values())
-        self.peak_rss_bytes = max(self.peak_rss_bytes, conservative_rss)
+        conservative_rss = self.parent_peak_rss_bytes() + sum(
+            self._active_worker_peak_rss.values()
+        )
+        self._conservative_active_epoch_peak_rss_bytes = max(
+            self._conservative_active_epoch_peak_rss_bytes,
+            conservative_rss,
+        )
+        self.attempt_peak_rss_bytes = max(
+            self.attempt_peak_rss_bytes,
+            self._conservative_active_epoch_peak_rss_bytes,
+        )
         if cpu_seconds > self.maximum_cpu_seconds:
             raise ResourceCapError("process-tree CPU cap exceeded")
-        if self.peak_rss_bytes > self.maximum_rss_bytes:
+        if self.attempt_peak_rss_bytes > self.maximum_rss_bytes:
             raise ResourceCapError("process-tree RSS cap exceeded")
         return {
             "cpu_seconds": cpu_seconds,
-            "peak_rss_bytes": self.peak_rss_bytes,
+            **self._rss_receipt(),
         }
 
     def sample(self, *, enforce: bool = True) -> dict:
@@ -317,6 +450,9 @@ class ProcessTreeMonitor:
                     changed = True
         active_cpu = sum(rows[pid][2] for pid in selected if pid in rows)
         active_rss = sum(rows[pid][1] for pid in selected if pid in rows)
+        self._last_current_parent_rss_bytes = rows.get(
+            os.getpid(), (0, 0, 0.0)
+        )[1]
         child_usage = resource.getrusage(resource.RUSAGE_CHILDREN)
         waited_cpu = max(
             0.0,
@@ -328,31 +464,36 @@ class ProcessTreeMonitor:
             time.process_time() - self._baseline_parent_cpu + self._worker_cpu_seconds
         )
         cpu_seconds = max(active_cpu + waited_cpu, observed_cpu)
-        self.peak_rss_bytes = max(self.peak_rss_bytes, active_rss)
+        self._last_current_tree_rss_bytes = active_rss
+        self._last_live_tree_pids = sorted(selected)
+        self._last_process_count = len(selected)
+        self.attempt_peak_rss_bytes = max(self.attempt_peak_rss_bytes, active_rss)
         if enforce:
             if cpu_seconds > self.maximum_cpu_seconds:
                 raise ResourceCapError("process-tree CPU cap exceeded")
-            if self.peak_rss_bytes > self.maximum_rss_bytes:
+            if self.attempt_peak_rss_bytes > self.maximum_rss_bytes:
                 raise ResourceCapError("process-tree RSS cap exceeded")
         return {
             "cpu_seconds": cpu_seconds,
-            "current_rss_bytes": active_rss,
-            "peak_rss_bytes": self.peak_rss_bytes,
-            "process_count": len(selected),
             "wall_seconds": time.monotonic() - self.started_wall,
+            **self._rss_receipt(),
         }
 
     def accounting_without_subprocess(self) -> dict:
-        parent_usage = resource.getrusage(resource.RUSAGE_SELF)
-        parent_peak = parent_usage.ru_maxrss
-        if sys.platform != "darwin":
-            parent_peak *= 1024
+        conservative_rss = self.parent_peak_rss_bytes()
+        if self._active_pool_epoch is not None:
+            conservative_rss += sum(self._active_worker_peak_rss.values())
+            self._conservative_active_epoch_peak_rss_bytes = max(
+                self._conservative_active_epoch_peak_rss_bytes,
+                conservative_rss,
+            )
+        self.attempt_peak_rss_bytes = max(
+            self.attempt_peak_rss_bytes,
+            conservative_rss,
+        )
         return {
             "cpu_seconds": time.process_time() - self._baseline_parent_cpu + self._worker_cpu_seconds,
-            "peak_rss_bytes": max(
-                self.peak_rss_bytes,
-                parent_peak + sum(self._worker_peak_rss.values()),
-            ),
+            **self._rss_receipt(),
         }
 
 
@@ -401,6 +542,49 @@ def enforce_storage_caps(measurement: dict) -> None:
         raise ResourceCapError("aggregate tracked-byte cap exceeded")
     if measurement.get("oversized_other_paths"):
         raise ResourceCapError("individual other-artifact cap exceeded")
+
+
+def finalize_stable_storage_receipt(
+    result: dict,
+    manifest: dict,
+    result_paths: Sequence[Path],
+    manifest_path: Path,
+    measure: Callable[[], dict],
+    enforce: Callable[[dict], None],
+    *,
+    maximum_iterations: int = 16,
+) -> dict:
+    """Converge self-accounting terminal JSON files without a later write."""
+    candidate = measure()
+    for iteration in range(maximum_iterations):
+        result["terminal_storage_receipt"] = candidate
+        if "disk_bytes_by_phase_and_total" in result:
+            result["disk_bytes_by_phase_and_total"]["run_phase_final"] = candidate
+            result["disk_bytes_by_phase_and_total"]["total_physical_bytes"] = candidate[
+                "physical_run_bytes"
+            ]
+        if "projected_v2_full_contract" in result:
+            result["projected_v2_full_contract"]["modeled_disk_bytes"] = (
+                candidate["tracked_bytes"]
+                * result["projected_v2_full_contract"]["factorization_count"]
+                / TOTAL_RECORDS
+            )
+        for path in result_paths:
+            atomic_json(path, result)
+        manifest["final_storage"] = candidate
+        manifest["storage_receipt_iteration"] = iteration
+        manifest["result_sha256"] = hashlib.sha256(
+            canonical_json_bytes(result)
+        ).hexdigest()
+        atomic_json(manifest_path, manifest)
+        observed = measure()
+        enforce(observed)
+        if observed == candidate:
+            # No write follows this equality check. The bytes just measured are
+            # the terminal bytes whose receipt is embedded in all three files.
+            return observed
+        candidate = observed
+    raise ResourceCapError("terminal storage receipt did not converge")
 
 
 def canonical_json_bytes(value: object) -> bytes:
@@ -608,7 +792,7 @@ def deterministic_prime(bits: int, fixture: int) -> int:
     try:
         from sympy import isprime
     except ImportError as exc:  # pragma: no cover - environment failure path
-        raise RuntimeError("sympy is required") from exc
+        raise DependencyInfrastructureError("sympy is required") from exc
     seed = int.from_bytes(derived_seed("prime", bits, fixture, 0, 0), "big")
     candidate = (1 << (bits - 1)) + seed % (1 << (bits - 2))
     if candidate % 2 == 0:
@@ -710,7 +894,7 @@ def verify_alleged_factors(N: int, factors: Sequence[Sequence[int]]) -> bool:
     try:
         from sympy import isprime
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("sympy is required") from exc
+        raise DependencyInfrastructureError("sympy is required") from exc
     if N < 1 or len(factors) > MAX_PRIMALITY_CHECKS_PER_INTEGER:
         return False
     reconstruction = 1
@@ -730,7 +914,7 @@ def factor_certificate(sequential_index: int, N: int) -> tuple[dict, int]:
     try:
         from sympy import factorint, isprime
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("sympy is required") from exc
+        raise DependencyInfrastructureError("sympy is required") from exc
     if N < 1:
         raise IntegrityError("N outside [1,X]")
     raw = factorint(N)
@@ -770,6 +954,417 @@ def measured_factor_certificate(
 
 def _synthetic_crash_worker() -> None:
     os._exit(17)
+
+
+RT146_C1_POOL_GENERATIONS = 3
+RT146_C1_WORKERS = 4
+RT146_C1_PAYLOAD_BYTES = 16_777_216
+RT146_C1_WALL_CAP_SECONDS = 60
+RT146_C1_RSS_CAP_BYTES = 1_073_741_824
+_RT146_RETAINED_PAYLOAD: bytearray | None = None
+_RT146_BARRIER = None
+
+
+def _rt146_worker_initializer(payload_bytes: int, barrier: object) -> None:
+    global _RT146_BARRIER, _RT146_RETAINED_PAYLOAD
+    _install_no_network_guard()
+    _RT146_BARRIER = barrier
+    _RT146_RETAINED_PAYLOAD = bytearray(payload_bytes)
+    for offset in range(0, payload_bytes, 4096):
+        _RT146_RETAINED_PAYLOAD[offset] = 1
+    _RT146_RETAINED_PAYLOAD[-1] = 1
+    barrier.wait(timeout=10)  # type: ignore[attr-defined]
+
+
+def _rt146_worker_probe(task_index: int) -> dict:
+    if _RT146_RETAINED_PAYLOAD is None or _RT146_BARRIER is None:
+        raise RuntimeError("RT146-C1 worker payload is not initialized")
+    started_cpu = time.process_time()
+    _RT146_BARRIER.wait(timeout=10)
+    time.sleep(0.05)
+    usage = resource.getrusage(resource.RUSAGE_SELF)
+    rss_bytes = usage.ru_maxrss if sys.platform == "darwin" else usage.ru_maxrss * 1024
+    return {
+        "cpu_seconds": time.process_time() - started_cpu,
+        "pid": os.getpid(),
+        "retained_payload_bytes": len(_RT146_RETAINED_PAYLOAD),
+        "task_index": task_index,
+        "worker_peak_rss_bytes": rss_bytes,
+    }
+
+
+def _protected_run_result_snapshot() -> dict:
+    entries = []
+    for root in (REPO_ROOT / EXP_REL / "runs", REPO_ROOT / EXP_REL / "results"):
+        if not root.exists():
+            continue
+        for path in sorted(root.rglob("*")):
+            if not path.is_file():
+                continue
+            stat = path.stat()
+            entries.append({
+                "mtime_ns": stat.st_mtime_ns,
+                "path": str(path.relative_to(REPO_ROOT)),
+                "sha256": sha256_file(path),
+                "size_bytes": stat.st_size,
+            })
+    return {
+        "canonical_inventory_sha256": hashlib.sha256(
+            canonical_json_bytes(entries)
+        ).hexdigest(),
+        "file_count": len(entries),
+        "files": entries,
+    }
+
+
+def _git_status_lines() -> list[str]:
+    return subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+
+
+def run_rt146_c1() -> dict:
+    """Run the single authorized RT146-C1 non-scientific lifecycle control."""
+    receipt_path = (REPO_ROOT / RT146_C1_RECEIPT_REL).resolve()
+    expected_path = (REPO_ROOT / RT146_C1_RECEIPT_REL).resolve()
+    if receipt_path != expected_path or receipt_path.exists():
+        raise IntegrityError("RT146-C1 receipt path is not a fresh exact sink")
+
+    command = (
+        "PYTHONDONTWRITEBYTECODE=1 python3 "
+        f"{EXP_REL}/implementation/pilot_driver.py rt146-c1"
+    )
+    started_utc = datetime.now(timezone.utc)
+    started_wall = time.monotonic()
+    protected_before = _protected_run_result_snapshot()
+    status_before = _git_status_lines()
+    monitor = ProcessTreeMonitor(
+        maximum_cpu_seconds=RT146_C1_WALL_CAP_SECONDS * RT146_C1_WORKERS,
+        maximum_rss_bytes=RT146_C1_RSS_CAP_BYTES,
+    )
+    legacy_worker_peaks: dict[int, int] = {}
+    generations: list[dict] = []
+    all_pid_sets: list[set[int]] = []
+    active_pid_missing_from_live_tree = False
+    closed_pid_still_live = False
+    missing_sample = False
+    failure: dict | None = None
+    pairwise_disjoint = False
+    fewer_than_four = True
+    exact_retired_equality = False
+    legacy_grows = False
+    active_excludes_retired = False
+    separator_exists = False
+    separator_cap: int | None = None
+    repaired_active_only = 0
+
+    try:
+        context = multiprocessing.get_context()
+        for generation_index in range(1, RT146_C1_POOL_GENERATIONS + 1):
+            generation_started = time.monotonic()
+            pool_epoch = monitor.begin_pool_epoch()
+            barrier = context.Barrier(RT146_C1_WORKERS)
+            worker_results: list[dict] = []
+            try:
+                with concurrent.futures.ProcessPoolExecutor(
+                    max_workers=RT146_C1_WORKERS,
+                    mp_context=context,
+                    initializer=_rt146_worker_initializer,
+                    initargs=(RT146_C1_PAYLOAD_BYTES, barrier),
+                ) as pool:
+                    futures = [
+                        pool.submit(_rt146_worker_probe, task_index)
+                        for task_index in range(RT146_C1_WORKERS)
+                    ]
+                    worker_results = [future.result(timeout=15) for future in futures]
+                    worker_peaks: dict[int, int] = {}
+                    for result in worker_results:
+                        pid = result["pid"]
+                        worker_peaks[pid] = max(
+                            worker_peaks.get(pid, 0),
+                            result["worker_peak_rss_bytes"],
+                        )
+                        legacy_worker_peaks[pid] = max(
+                            legacy_worker_peaks.get(pid, 0),
+                            result["worker_peak_rss_bytes"],
+                        )
+                        monitor.observe_worker_record(
+                            pool_epoch,
+                            pid,
+                            result["cpu_seconds"],
+                            result["worker_peak_rss_bytes"],
+                        )
+                    live_sample = monitor.sample()
+                    if not live_sample or "current_tree_rss_bytes" not in live_sample:
+                        missing_sample = True
+                    pid_set = set(worker_peaks)
+                    all_pid_sets.append(pid_set)
+                    missing_live_worker_pids = sorted(
+                        pid_set - set(live_sample.get("live_tree_pids", []))
+                    )
+                    active_pid_missing_from_live_tree = (
+                        active_pid_missing_from_live_tree
+                        or bool(missing_live_worker_pids)
+                    )
+                    parent_peak = monitor.parent_peak_rss_bytes()
+                    active_worker_sum = sum(worker_peaks.values())
+                    legacy_worker_sum = sum(legacy_worker_peaks.values())
+                    retired_contribution = legacy_worker_sum - active_worker_sum
+                    live_pid_only_sum = parent_peak + active_worker_sum
+                    legacy_all_pid_sum = parent_peak + legacy_worker_sum
+                    generation = {
+                        "active_only_sum_bytes": live_pid_only_sum,
+                        "active_pool_epoch": pool_epoch,
+                        "active_worker_peak_sum_bytes": active_worker_sum,
+                        "generation": generation_index,
+                        "legacy_all_pid_sum_bytes": legacy_all_pid_sum,
+                        "legacy_worker_peak_sum_bytes": legacy_worker_sum,
+                        "live_pid_only_sum_bytes": live_pid_only_sum,
+                        "live_tree_sample": live_sample,
+                        "observed_worker_pids_missing_from_live_tree": (
+                            missing_live_worker_pids
+                        ),
+                        "parent_peak_rss_bytes": parent_peak,
+                        "retired_contribution_bytes": retired_contribution,
+                        "wall_seconds_until_live_sample": (
+                            time.monotonic() - generation_started
+                        ),
+                        "worker_peaks_by_pid": {
+                            str(pid): worker_peaks[pid] for pid in sorted(worker_peaks)
+                        },
+                        "worker_pids": sorted(pid_set),
+                        "worker_results": sorted(
+                            worker_results, key=lambda item: item["pid"]
+                        ),
+                    }
+                monitor.end_pool_epoch(pool_epoch)
+            except BaseException:
+                if monitor._active_pool_epoch == pool_epoch:
+                    monitor.end_pool_epoch(pool_epoch)
+                raise
+            post_close_sample = monitor.sample()
+            if not post_close_sample or "current_tree_rss_bytes" not in post_close_sample:
+                missing_sample = True
+            still_live = sorted(set(generation["worker_pids"]) & set(
+                post_close_sample.get("live_tree_pids", [])
+            ))
+            closed_pid_still_live = closed_pid_still_live or bool(still_live)
+            generation.update({
+                "closed_worker_pids_still_live": still_live,
+                "generation_wall_seconds": time.monotonic() - generation_started,
+                "post_close_parent_only_current_rss_bytes": (
+                    post_close_sample["current_parent_rss_bytes"]
+                ),
+                "post_close_sample": post_close_sample,
+            })
+            generations.append(generation)
+
+        pairwise_disjoint = all(
+            left.isdisjoint(right)
+            for index, left in enumerate(all_pid_sets)
+            for right in all_pid_sets[index + 1 :]
+        )
+        fewer_than_four = any(len(pid_set) < RT146_C1_WORKERS for pid_set in all_pid_sets)
+        protected_after = _protected_run_result_snapshot()
+        run_result_paths_touched = protected_before != protected_after
+        final_generation = generations[-1]
+        final_legacy = final_generation["legacy_all_pid_sum_bytes"]
+        final_live_only = final_generation["live_pid_only_sum_bytes"]
+        final_retired = final_generation["retired_contribution_bytes"]
+        exact_retired_equality = final_legacy - final_live_only == final_retired
+        legacy_values = [item["legacy_all_pid_sum_bytes"] for item in generations]
+        legacy_grows = all(
+            later > earlier for earlier, later in zip(legacy_values, legacy_values[1:])
+        )
+        repaired_active_only = monitor.attempt_peak_rss_bytes
+        separator_exists = final_legacy - repaired_active_only >= 2
+        separator_cap = (
+            (final_legacy + repaired_active_only) // 2
+            if separator_exists else None
+        )
+        legacy_rejects = bool(separator_cap is not None and final_legacy > separator_cap)
+        repaired_accepts = bool(
+            separator_cap is not None and repaired_active_only < separator_cap
+        )
+        active_excludes_retired = all(
+            set(item["worker_pids"]).isdisjoint(
+                set().union(*all_pid_sets[: index]) if index else set()
+            )
+            for index, item in enumerate(generations)
+        )
+        elapsed = time.monotonic() - started_wall
+        invalid_conditions = {
+            "closed_generation_pid_remains_live_after_pool_shutdown": (
+                closed_pid_still_live
+            ),
+            "fewer_than_four_observed_workers_in_any_generation": fewer_than_four,
+            "missing_live_tree_or_post_close_sample": missing_sample,
+            "observed_active_worker_pid_missing_from_live_tree": (
+                active_pid_missing_from_live_tree
+            ),
+            "pid_reuse_between_generations": not pairwise_disjoint,
+            "scientific_entrypoint_or_run_result_path_touched": (
+                run_result_paths_touched
+            ),
+            "wall_cap_exceeded": elapsed > RT146_C1_WALL_CAP_SECONDS,
+        }
+        pass_assertions = {
+            "active_only_accounting_excludes_retired_workers": (
+                active_excludes_retired and final_retired > 0
+            ),
+            "legacy_all_pid_sum_minus_live_pid_only_sum_equals_exact_retired_contribution": (
+                exact_retired_equality
+            ),
+            "legacy_accounting_grows_across_generations": legacy_grows,
+            "legacy_rejects_midpoint_cap": legacy_rejects,
+            "midpoint_separator_cap_exists": separator_exists,
+            "repaired_active_only_accounting_accepts_midpoint_cap": repaired_accepts,
+        }
+        status = (
+            "pass"
+            if not any(invalid_conditions.values()) and all(pass_assertions.values())
+            else "invalid_or_failed"
+        )
+    except BaseException as exc:
+        protected_after = _protected_run_result_snapshot()
+        run_result_paths_touched = protected_before != protected_after
+        elapsed = time.monotonic() - started_wall
+        invalid_conditions = {
+            "closed_generation_pid_remains_live_after_pool_shutdown": (
+                closed_pid_still_live
+            ),
+            "fewer_than_four_observed_workers_in_any_generation": True,
+            "missing_live_tree_or_post_close_sample": missing_sample,
+            "observed_active_worker_pid_missing_from_live_tree": (
+                active_pid_missing_from_live_tree
+            ),
+            "pid_reuse_between_generations": False,
+            "scientific_entrypoint_or_run_result_path_touched": (
+                run_result_paths_touched
+            ),
+            "wall_cap_exceeded": elapsed > RT146_C1_WALL_CAP_SECONDS,
+        }
+        pass_assertions = {}
+        separator_cap = None
+        repaired_active_only = monitor.attempt_peak_rss_bytes
+        failure = {
+            "error_class": type(exc).__name__,
+            "error_message": str(exc),
+        }
+        status = "invalid_or_failed"
+
+    finished_utc = datetime.now(timezone.utc)
+    receipt = {
+        "control_id": "RT146-C1",
+        "task_id": "TASK-20260801-149",
+        "authorization_id": "TASK-20260801-148",
+        "experiment_id": EXPERIMENT_ID,
+        "run_under_interpretation": RUN_ID,
+        "kind": "bounded_non_scientific_synthetic_control",
+        "invocation_count": 1,
+        "scientific_runs": 0,
+        "status": status,
+        "command": command,
+        "started_utc": started_utc.isoformat(),
+        "finished_utc": finished_utc.isoformat(),
+        "wall_seconds": time.monotonic() - started_wall,
+        "limits": {
+            "maximum_invocations": 1,
+            "maximum_pool_generations": RT146_C1_POOL_GENERATIONS,
+            "maximum_simultaneous_synthetic_payload_bytes": (
+                RT146_C1_WORKERS * RT146_C1_PAYLOAD_BYTES
+            ),
+            "rss_cap_bytes": RT146_C1_RSS_CAP_BYTES,
+            "synthetic_worker_payload_bytes": RT146_C1_PAYLOAD_BYTES,
+            "wall_cap_seconds": RT146_C1_WALL_CAP_SECONDS,
+            "workers_per_generation": RT146_C1_WORKERS,
+        },
+        "environment": {
+            "cwd": str(REPO_ROOT),
+            "git_commit": subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, check=True,
+                capture_output=True, text=True
+            ).stdout.strip(),
+            "hostname": platform.node(),
+            "multiprocessing_start_method": multiprocessing.get_start_method(),
+            "platform": platform.platform(),
+            "python_executable": sys.executable,
+            "python_version": sys.version,
+            "pythondontwritebytecode": os.environ.get("PYTHONDONTWRITEBYTECODE"),
+        },
+        "generations": generations,
+        "invalid_conditions": invalid_conditions,
+        "pass_assertions": pass_assertions,
+        "preregistered_predictions": {
+            "RT146-H1_dead_pid_artifact": {
+                "closed_generation_pids_absent_from_live_tree": (
+                    not closed_pid_still_live
+                ),
+                "generation_pid_sets_pairwise_disjoint": pairwise_disjoint,
+                "legacy_minus_live_only_equals_retired_exactly": (
+                    exact_retired_equality
+                ),
+                "legacy_value_grows_per_generation": legacy_grows,
+                "midpoint_cap_separates_legacy_and_repaired": (
+                    separator_exists
+                    and pass_assertions.get("legacy_rejects_midpoint_cap", False)
+                    and pass_assertions.get(
+                        "repaired_active_only_accounting_accepts_midpoint_cap",
+                        False,
+                    )
+                ),
+            },
+            "RT146-H2_true_concurrent_growth": {
+                "dead_pid_only_explanation_falsified_by_no_separator": (
+                    not separator_exists
+                ),
+                "maximum_live_current_tree_rss_bytes": max(
+                    (
+                        item["live_tree_sample"]["current_tree_rss_bytes"]
+                        for item in generations
+                    ),
+                    default=None,
+                ),
+            },
+            "RT146-H3_parent_retention": {
+                "post_close_parent_current_rss_bytes_by_generation": [
+                    item["post_close_parent_only_current_rss_bytes"]
+                    for item in generations
+                ],
+            },
+        },
+        "separator": {
+            "legacy_generation_three_value_bytes": (
+                generations[-1]["legacy_all_pid_sum_bytes"] if generations else None
+            ),
+            "repaired_attempt_peak_rss_bytes": repaired_active_only,
+            "synthetic_midpoint_cap_bytes": separator_cap,
+        },
+        "failure": failure,
+        "touched_path_inventory": {
+            "authorized_task_write_scope": [
+                str(EXP_REL / "implementation" / "pilot_driver.py"),
+                str(EXP_REL / "implementation" / "implementation.md"),
+                str(RT146_C1_RECEIPT_REL),
+            ],
+            "control_created_paths": [str(RT146_C1_RECEIPT_REL)],
+            "git_status_before_control": status_before,
+            "protected_run_result_inventory_before": protected_before,
+            "protected_run_result_inventory_after": protected_after,
+            "run_result_paths_modified": [] if not run_result_paths_touched else [
+                "protected inventory changed"
+            ],
+        },
+    }
+    receipt_path.parent.mkdir(parents=True, exist_ok=False)
+    atomic_json(receipt_path, receipt)
+    if status != "pass":
+        raise IntegrityError("RT146-C1 did not satisfy its preregistered pass gate")
+    return receipt
 
 
 class CappedRawWriter(io.RawIOBase):
@@ -1303,8 +1898,39 @@ def run_self_tests(only: set[str] | None = None) -> dict:
 
         def exact_path_roster() -> None:
             assert len(RUN_EVIDENCE_ROSTER) == len(set(RUN_EVIDENCE_ROSTER)) == 137
+            assert EXPERIMENT_ID == "EXP-SMTH-002"
+            assert EXP_REL == Path("experiments/EXP-SMTH-002")
+            assert DOMAIN == "EXP-SMTH-002/v1"
+            assert RUN_ID == "RUN-SMTH-PILOT-002"
+            assert RUN_REL == EXP_REL / "runs" / "RUN-SMTH-PILOT-002"
+            assert RUN_FIXED_RELATIVE_PATHS[:6] == tuple(
+                RUN_REL / name
+                for name in (
+                    "manifest.yaml",
+                    "command.txt",
+                    "environment.json",
+                    "stdout.log",
+                    "stderr.log",
+                    "raw-result.json",
+                )
+            )
             assert SHARD_RELATIVE_PATHS[0] == CERT_REL / "shard-000.jsonl.gz"
             assert SHARD_RELATIVE_PATHS[-1] == CERT_REL / "shard-127.jsonl.gz"
+            assert set(IMMUTABLE_PREDECESSOR_LOGS).isdisjoint(
+                RUN_EVIDENCE_ROSTER
+            )
+            for predecessor_log in IMMUTABLE_PREDECESSOR_LOGS:
+                expected_sha256 = IMMUTABLE_PREDECESSOR_LOG_SHA256[predecessor_log]
+                assert sha256_file(REPO_ROOT / predecessor_log) == expected_sha256
+                try:
+                    repository_path(predecessor_log)
+                except IntegrityError:
+                    pass
+                else:
+                    raise AssertionError(
+                        "immutable predecessor log admitted as a writable sink"
+                    )
+                assert sha256_file(REPO_ROOT / predecessor_log) == expected_sha256
             try:
                 repository_path(Path("outside.json"))
             except IntegrityError:
@@ -1349,13 +1975,47 @@ def run_self_tests(only: set[str] | None = None) -> dict:
                     raise AssertionError("network guard accepted AF_INET")
             monitor = ProcessTreeMonitor(maximum_cpu_seconds=MAX_CPU_SECONDS, maximum_rss_bytes=MAX_RSS_BYTES)
             sample = monitor.sample()
-            assert sample["process_count"] >= 1 and sample["peak_rss_bytes"] > 0
+            assert sample["process_count"] >= 1
+            assert sample["attempt_peak_rss_bytes"] > 0
+            assert set(RSS_RECEIPT_FIELDS).issubset(sample)
             try:
                 ProcessTreeMonitor(maximum_rss_bytes=0).sample()
             except ResourceCapError:
                 pass
             else:
                 raise AssertionError("process-tree RSS cap plus one accepted")
+
+        def active_pool_epoch_accounting() -> None:
+            monitor = ProcessTreeMonitor(
+                maximum_cpu_seconds=MAX_CPU_SECONDS,
+                maximum_rss_bytes=MAX_RSS_BYTES,
+            )
+            first_epoch = monitor.begin_pool_epoch()
+            first = monitor.observe_worker_record(
+                first_epoch, 101_001, 0.25, 4096
+            )
+            assert first["active_worker_pids"] == [101_001]
+            assert first["active_pid_count"] == 1
+            first_cpu = first["cpu_seconds"]
+            first_attempt_peak = first["attempt_peak_rss_bytes"]
+            monitor.end_pool_epoch(first_epoch)
+            between = monitor.accounting_without_subprocess()
+            assert between["active_pool_epoch"] is None
+            assert between["active_worker_pids"] == []
+            assert between["conservative_active_epoch_peak_rss_bytes"] == 0
+            second_epoch = monitor.begin_pool_epoch()
+            second = monitor.observe_worker_record(
+                second_epoch, 202_002, 0.5, 8192
+            )
+            assert second_epoch == first_epoch + 1
+            assert second["active_worker_pids"] == [202_002]
+            assert 101_001 not in second["active_worker_pids"]
+            assert second["cpu_seconds"] >= first_cpu + 0.5
+            assert second["attempt_peak_rss_bytes"] >= first_attempt_peak
+            assert second["conservative_active_epoch_peak_rss_bytes"] == (
+                monitor.parent_peak_rss_bytes() + 8192
+            )
+            monitor.end_pool_epoch(second_epoch)
 
         def checkpoint_resume_and_cleanup() -> None:
             checkpoint = root / "checkpoint.json"
@@ -1419,12 +2079,17 @@ def run_self_tests(only: set[str] | None = None) -> dict:
 
         def integrity_and_resource_failure_cleanup() -> None:
             directory = root / "worker-failure"
+            failure_monitor = ProcessTreeMonitor()
             writer = CertificateShardWriter(
                 directory, records_per_shard=2, shard_count=1,
                 total_records_expected=2
             )
             try:
-                for record, _checks, _pid, _cpu, _rss in _bounded_ordered_factorizations([(0, 2), (1, 0)]):
+                for record, _checks, _pid, _cpu, _rss, _resources in (
+                    _bounded_ordered_factorizations(
+                        [(0, 2), (1, 0)], failure_monitor
+                    )
+                ):
                     writer.write(record)
             except IntegrityError:
                 writer.abort_current()
@@ -1522,6 +2187,143 @@ def run_self_tests(only: set[str] | None = None) -> dict:
             assert not list(directory.glob("*.partial"))
             assert classify_failure(ModuleNotFoundError("synthetic dependency"))[1] == "infrastructure_error"
 
+        def dependency_wrapper_and_terminal_storage() -> None:
+            original_import = builtins.__import__
+
+            def missing_sympy(name, *args, **kwargs):
+                if name == "sympy" or name.startswith("sympy."):
+                    raise ModuleNotFoundError("synthetic missing sympy")
+                return original_import(name, *args, **kwargs)
+
+            builtins.__import__ = missing_sympy
+            try:
+                try:
+                    factor_certificate(0, 2)
+                except DependencyInfrastructureError as error:
+                    status, failure_class = classify_failure(error)
+                else:
+                    raise AssertionError("real factor wrapper hid missing SymPy")
+            finally:
+                builtins.__import__ = original_import
+            assert status == "failed_infrastructure_or_budget"
+            assert failure_class == "infrastructure_error"
+
+            terminal_root = root / "terminal-storage"
+            terminal_root.mkdir()
+            stdout_path = terminal_root / "stdout.log"
+            raw_path = terminal_root / "raw-result.json"
+            report_path = terminal_root / "feasibility_report.json"
+            manifest_path = terminal_root / "manifest.yaml"
+            stdout_path.write_bytes(
+                b'{"terminal_record":"see manifest"}\n'
+            )
+            paths = (stdout_path, raw_path, report_path, manifest_path)
+
+            def measure_terminal() -> dict:
+                logical = sum(path.stat().st_size for path in paths if path.exists())
+                physical = sum(_allocated_bytes(path) for path in paths if path.exists())
+                return {
+                    "other_tracked_bytes": logical,
+                    "oversized_other_paths": [],
+                    "physical_run_bytes": physical,
+                    "shard_tracked_bytes": 0,
+                    "tracked_bytes": logical,
+                }
+
+            def enforce_terminal(value: dict) -> None:
+                assert value["tracked_bytes"] < 1_000_000
+                assert value["physical_run_bytes"] < 1_000_000
+
+            synthetic_result = {
+                "disk_bytes_by_phase_and_total": {},
+                "factorization_calls": 0,
+            }
+            synthetic_manifest = {"status": "completed_feasibility_only"}
+            receipt = finalize_stable_storage_receipt(
+                synthetic_result,
+                synthetic_manifest,
+                (raw_path, report_path),
+                manifest_path,
+                measure_terminal,
+                enforce_terminal,
+            )
+            assert receipt == measure_terminal()
+            assert json.loads(raw_path.read_text())["terminal_storage_receipt"] == receipt
+            assert json.loads(report_path.read_text())["terminal_storage_receipt"] == receipt
+            assert json.loads(manifest_path.read_text())["final_storage"] == receipt
+
+        def real_subprocess_descriptor_redirection() -> None:
+            descriptor_root = root / "descriptor-redirection"
+            descriptor_root.mkdir()
+            stdout_path = descriptor_root / "stdout.log"
+            stderr_path = descriptor_root / "stderr.log"
+            wrong_path = descriptor_root / "wrong.log"
+            receipt_path = descriptor_root / "receipt.json"
+            wrong_path.write_bytes(b"")
+            child_code = r'''
+import importlib.util
+import json
+import os
+from pathlib import Path
+import sys
+
+module_path, stdout_text, stderr_text, wrong_text, receipt_text = sys.argv[1:]
+spec = importlib.util.spec_from_file_location("smth_descriptor_child", module_path)
+if spec is None or spec.loader is None:
+    raise RuntimeError("cannot load pilot driver")
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+stdout_path = Path(stdout_text)
+stderr_path = Path(stderr_text)
+wrong_path = Path(wrong_text)
+old_samefile_matches = os.path.samefile("/dev/fd/1", stdout_path)
+if sys.platform == "darwin" and old_samefile_matches:
+    raise AssertionError("old /dev/fd samefile failure was not reproduced")
+module.validate_descriptor_paths(((1, stdout_path), (2, stderr_path)))
+try:
+    module.validate_descriptor_paths(((1, wrong_path),))
+except module.IntegrityError:
+    mismatch_rejected = True
+else:
+    mismatch_rejected = False
+if not mismatch_rejected:
+    raise AssertionError("exact-path guard accepted a wrong target")
+Path(receipt_text).write_text(json.dumps({
+    "mismatch_rejected": mismatch_rejected,
+    "new_guard_passed": True,
+    "old_samefile_matches": old_samefile_matches,
+    "platform": sys.platform,
+}) + "\n")
+'''
+            with stdout_path.open("wb") as stdout_handle, stderr_path.open("wb") as stderr_handle:
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        "-c",
+                        child_code,
+                        str(Path(__file__).resolve()),
+                        str(stdout_path.resolve()),
+                        str(stderr_path.resolve()),
+                        str(wrong_path.resolve()),
+                        str(receipt_path.resolve()),
+                    ],
+                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                    stdout=stdout_handle,
+                    stderr=stderr_handle,
+                    check=False,
+                )
+            if completed.returncode != 0:
+                raise AssertionError(
+                    "real descriptor-redirection child failed: "
+                    + stderr_path.read_text(errors="replace")
+                )
+            receipt = json.loads(receipt_path.read_text())
+            assert receipt["new_guard_passed"] is True
+            assert receipt["mismatch_rejected"] is True
+            if sys.platform == "darwin":
+                assert receipt["old_samefile_matches"] is False
+
         check("bounded-pack-exact-cap", exact_cap)
         check("bounded-pack-cap-plus-one", cap_plus_one)
         check("bounded-pack-producer-failure", producer_failure)
@@ -1530,43 +2332,69 @@ def run_self_tests(only: set[str] | None = None) -> dict:
         check("deterministic-null-plumbing", deterministic_nulls)
         check("exact-137-path-roster", exact_path_roster)
         check("process-tree-disk-handle-network-controls", resource_controls)
+        check("active-pool-epoch-rss-accounting", active_pool_epoch_accounting)
         check("checkpoint-resume-interruption-cleanup", checkpoint_resume_and_cleanup)
         check("one-byte-mutation-and-independent-hashes", shard_mutation_and_hash_controls)
         check("compact-52-stream-2109444-seed-contract", compact_seed_contract)
         check("integrity-and-resource-failure-cleanup", integrity_and_resource_failure_cleanup)
         check("cumulative-stop-resume-event-charging", cumulative_stop_resume_events)
         check("broken-worker-pool-infrastructure", broken_worker_pool_infrastructure)
+        check("dependency-wrapper-and-terminal-storage", dependency_wrapper_and_terminal_storage)
+        check("real-subprocess-descriptor-redirection", real_subprocess_descriptor_redirection)
 
     return {"scientific_runs": 0, "status": "pass", "tests": tests}
 
 
 def _bounded_ordered_factorizations(
     indexed_values: Iterable[tuple[int, int]],
-) -> Iterator[tuple[dict, int, int, float, int]]:
-    with concurrent.futures.ProcessPoolExecutor(
-        max_workers=WORKERS, initializer=_worker_no_network_guard
-    ) as pool:
-        pending: dict[int, concurrent.futures.Future] = {}
-        source = iter(indexed_values)
-        submit_index: int | None = None
-        yield_index: int | None = None
-        exhausted = False
-        while pending or not exhausted:
-            while not exhausted and len(pending) < QUEUE_RECORDS:
-                try:
-                    index, value = next(source)
-                except StopIteration:
-                    exhausted = True
-                    break
-                if submit_index is None:
-                    submit_index = yield_index = index
-                if index != submit_index:
-                    raise IntegrityError("input index discontinuity")
-                pending[index] = pool.submit(measured_factor_certificate, index, value)
-                submit_index += 1
-            if yield_index is not None and yield_index in pending:
-                yield pending.pop(yield_index).result()
-                yield_index += 1
+    monitor: ProcessTreeMonitor,
+) -> Iterator[tuple[dict, int, int, float, int, dict]]:
+    pool_epoch = monitor.begin_pool_epoch()
+    try:
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=WORKERS, initializer=_worker_no_network_guard
+        ) as pool:
+            pending: dict[int, concurrent.futures.Future] = {}
+            source = iter(indexed_values)
+            submit_index: int | None = None
+            yield_index: int | None = None
+            exhausted = False
+            while pending or not exhausted:
+                while not exhausted and len(pending) < QUEUE_RECORDS:
+                    try:
+                        index, value = next(source)
+                    except StopIteration:
+                        exhausted = True
+                        break
+                    if submit_index is None:
+                        submit_index = yield_index = index
+                    if index != submit_index:
+                        raise IntegrityError("input index discontinuity")
+                    pending[index] = pool.submit(
+                        measured_factor_certificate, index, value
+                    )
+                    submit_index += 1
+                if yield_index is not None and yield_index in pending:
+                    record, checks, worker_pid, worker_cpu, worker_rss = (
+                        pending.pop(yield_index).result()
+                    )
+                    resource_sample = monitor.observe_worker_record(
+                        pool_epoch,
+                        worker_pid,
+                        worker_cpu,
+                        worker_rss,
+                    )
+                    yield (
+                        record,
+                        checks,
+                        worker_pid,
+                        worker_cpu,
+                        worker_rss,
+                        resource_sample,
+                    )
+                    yield_index += 1
+    finally:
+        monitor.end_pool_epoch(pool_epoch)
 
 
 def _ks_two_sided(left: Sequence[float], right: Sequence[float]) -> float:
@@ -1736,6 +2564,7 @@ def run_null_pilot(*, resume: bool = False) -> dict:
     def checkpoint_callback(entries: list[dict], next_index: int) -> None:
         nonlocal last_cell_wall, last_cell_cpu
         resource_sample = monitor.sample()
+        checkpoint_rss = rss_receipt_fields(resource_sample)
         cumulative_cpu = prior_cpu + resource_sample["cpu_seconds"]
         cumulative_wall = prior_wall + time.monotonic() - started
         if cumulative_wall > MAX_WALL_SECONDS:
@@ -1778,6 +2607,7 @@ def run_null_pilot(*, resume: bool = False) -> dict:
             resume_count=resume_count,
             wall_seconds=cumulative_wall,
             device_layout=measure_device_layout(enforce_gate=False),
+            **checkpoint_rss,
         )
         atomic_json(manifest_path, {
             "array_results": array_results,
@@ -1796,6 +2626,7 @@ def run_null_pilot(*, resume: bool = False) -> dict:
             "run_id": RUN_ID,
             "status": "running_checkpoint",
             "wall_seconds": cumulative_wall,
+            **checkpoint_rss,
         })
 
     try:
@@ -1834,10 +2665,14 @@ def run_null_pilot(*, resume: bool = False) -> dict:
                     index = array_start + draw
                     if index >= resume_index:
                         indexed_values.append((index, value))
-                for record, checks, worker_pid, worker_cpu, worker_rss in _bounded_ordered_factorizations(indexed_values):
-                    record_sample = monitor.observe_worker_record(
-                        worker_pid, worker_cpu, worker_rss
-                    )
+                for (
+                    record,
+                    checks,
+                    worker_pid,
+                    worker_cpu,
+                    worker_rss,
+                    record_sample,
+                ) in _bounded_ordered_factorizations(indexed_values, monitor):
                     record_resources = cumulative_resources(
                         prior_cpu,
                         prior_wall,
@@ -1877,6 +2712,7 @@ def run_null_pilot(*, resume: bool = False) -> dict:
             if global_index != TOTAL_RECORDS or primality_checks > MAX_PRIMALITY_CHECKS:
                 raise IntegrityError("final count mismatch")
             resource_sample = monitor.sample()
+            terminal_rss = rss_receipt_fields(resource_sample)
             storage = measure_run_storage()
             enforce_storage_caps(storage)
             manifest = {
@@ -1902,6 +2738,7 @@ def run_null_pilot(*, resume: bool = False) -> dict:
                 ),
                 resume_count=resume_count,
                 wall_seconds=total_wall,
+                **terminal_rss,
             )
             rates = {}
             bytes_per_certificate = {}
@@ -1951,35 +2788,55 @@ def run_null_pilot(*, resume: bool = False) -> dict:
                 ],
                 "sympy_version": environment["sympy_version"],
                 "wall_seconds": total_wall,
+                **terminal_rss,
             }
-            atomic_json(repository_path(RUN_REL / "raw-result.json"), result)
-            atomic_json(repository_path(RESULT_REL / "feasibility_report.json"), result)
             final_manifest = json.loads(manifest_path.read_text())
             final_manifest.update({
                 "event_history": event_history,
+                "peak_rss_bytes": max(
+                    prior_peak_rss, resource_sample["peak_rss_bytes"]
+                ),
                 "status": "completed_feasibility_only",
-                "result_sha256": hashlib.sha256(canonical_json_bytes(result)).hexdigest(),
+                **terminal_rss,
             })
-            atomic_json(manifest_path, final_manifest)
+            result_paths = (
+                repository_path(RUN_REL / "raw-result.json"),
+                repository_path(RESULT_REL / "feasibility_report.json"),
+            )
+            preterminal_missing = [
+                str(relative) for relative in RUN_EVIDENCE_ROSTER
+                if not (REPO_ROOT / relative).is_file()
+                and relative not in (
+                    RUN_REL / "raw-result.json",
+                    RESULT_REL / "feasibility_report.json",
+                )
+            ]
+            if preterminal_missing:
+                raise IntegrityError(
+                    f"required preterminal paths missing: {preterminal_missing}"
+                )
+            terminal_message = canonical_json_bytes({
+                "experiment_id": EXPERIMENT_ID,
+                "run_id": RUN_ID,
+                "terminal_record": "see manifest",
+            }) + b"\n"
+            sys.stdout.buffer.write(terminal_message)
+            sys.stdout.buffer.flush()
+            os.fsync(sys.stdout.fileno())
+            finalize_stable_storage_receipt(
+                result,
+                final_manifest,
+                result_paths,
+                manifest_path,
+                measure_run_storage,
+                enforce_storage_caps,
+            )
             missing = [
                 str(relative) for relative in RUN_EVIDENCE_ROSTER
                 if not (REPO_ROOT / relative).is_file()
             ]
             if missing:
-                raise IntegrityError(f"required run-evidence paths missing: {missing}")
-            # Reconcile reported disk totals after every final tracked artifact
-            # exists. A second serialization has bounded, deterministic size.
-            final_storage = measure_run_storage()
-            enforce_storage_caps(final_storage)
-            result["disk_bytes_by_phase_and_total"]["run_phase_final"] = final_storage
-            result["disk_bytes_by_phase_and_total"]["total_physical_bytes"] = final_storage["physical_run_bytes"]
-            result["projected_v2_full_contract"]["modeled_disk_bytes"] = final_storage["tracked_bytes"] * multiplier
-            atomic_json(repository_path(RUN_REL / "raw-result.json"), result)
-            atomic_json(repository_path(RESULT_REL / "feasibility_report.json"), result)
-            final_manifest["result_sha256"] = hashlib.sha256(canonical_json_bytes(result)).hexdigest()
-            final_manifest["final_storage"] = measure_run_storage()
-            enforce_storage_caps(final_manifest["final_storage"])
-            atomic_json(manifest_path, final_manifest)
+                raise IntegrityError(f"terminal evidence paths missing: {missing}")
             return result
     except BaseException as exc:
         if writer is not None:
@@ -2003,6 +2860,7 @@ def run_null_pilot(*, resume: bool = False) -> dict:
             failed_sample,
             time.monotonic() - started,
         )
+        failure_rss = rss_receipt_fields(failed_sample)
         next_index = len(writer.entries if writer else saved_entries) * RECORDS_PER_SHARD
         append_ordered_event(
             event_history,
@@ -2015,6 +2873,7 @@ def run_null_pilot(*, resume: bool = False) -> dict:
             peak_rss_bytes=charged["peak_rss_bytes"],
             resume_count=resume_count,
             wall_seconds=charged["wall_seconds"],
+            **failure_rss,
         )
         failure.update({
             "completed_shards": list(writer.entries) if writer else saved_entries,
@@ -2033,6 +2892,7 @@ def run_null_pilot(*, resume: bool = False) -> dict:
                 item for item in event_history if item["event_type"] == "stop"
             ],
             "wall_seconds": charged["wall_seconds"],
+            **failure_rss,
         })
         atomic_json(manifest_path, failure)
         raise
@@ -2048,6 +2908,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     test = subparsers.add_parser("self-test", help="run bounded synthetic tests only")
     test.add_argument("--only", action="append", default=[], help="run one named synthetic test")
+    subparsers.add_parser(
+        "rt146-c1",
+        help="run the single authorized sequential-pool RSS lifecycle control",
+    )
     run = subparsers.add_parser("run-null-pilot", help="run the frozen null-only pilot")
     run.add_argument("--resume", action="store_true", help="consume the single deterministic resume")
     return parser
@@ -2058,8 +2922,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "self-test":
         print(json.dumps(run_self_tests(set(arguments.only) or None), sort_keys=True, indent=2))
         return 0
+    if arguments.command == "rt146-c1":
+        receipt = run_rt146_c1()
+        print(json.dumps({
+            "control_id": receipt["control_id"],
+            "invocation_count": receipt["invocation_count"],
+            "scientific_runs": receipt["scientific_runs"],
+            "status": receipt["status"],
+        }, sort_keys=True))
+        return 0
     if arguments.command == "run-null-pilot":
-        print(json.dumps(run_null_pilot(resume=arguments.resume), sort_keys=True, indent=2))
+        run_null_pilot(resume=arguments.resume)
         return 0
     raise AssertionError("unreachable")
 
