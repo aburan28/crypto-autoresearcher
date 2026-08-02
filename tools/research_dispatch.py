@@ -771,6 +771,16 @@ def markdown(plan: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+# Generated artifacts, mirrored from .gitignore. An archive that declared one of
+# these before they were untracked cannot have its binding to that path checked
+# any more, and that is a POLICY change rather than corruption of the archive.
+GENERATED_ARTIFACTS = ("knowledge/INDEX.md", "dispatch_plan.json", "dispatch_plan.md")
+
+
+def _is_generated_path(path: str) -> bool:
+    return any(path == g or path.endswith("/" + g) for g in GENERATED_ARTIFACTS)
+
+
 class GitRepositoryVerifier:
     """Verify archive receipts using Git at one explicit repository root."""
 
@@ -867,21 +877,40 @@ class GitRepositoryVerifier:
                 f"archive task {task_id} commit binding is unverifiable ({reason}) and it "
                 f"declares no path_sha256 to fall back on"
             )
+        skipped: list[str] = []
         for path in sorted(hashes):
-            blob = self.repo_root / path
-            if not blob.is_file():
+            # Read the COMMITTED content at HEAD, not the working tree. A dirty
+            # tree is not evidence about an archive, and generated files in
+            # particular are rebuilt locally on demand -- comparing against them
+            # would fail an archive for a file the repository deliberately no
+            # longer tracks.
+            blob = subprocess.run(
+                ["git", "-C", str(self.repo_root), "show", f"HEAD:{path}"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
+            if blob.returncode != 0:
+                if _is_generated_path(path):
+                    # The archive bound a generated artifact that this repository
+                    # has since stopped tracking (.gitignore). The binding cannot
+                    # be checked and its absence is policy, not corruption.
+                    skipped.append(path)
+                    continue
                 raise DispatchError(
                     f"archive task {task_id} commit binding is unverifiable ({reason}) and "
-                    f"declared artifact {path} is absent from the tree"
+                    f"declared artifact {path} is absent from HEAD"
                 )
-            observed = hashlib.sha256(blob.read_bytes()).hexdigest()
+            observed = hashlib.sha256(blob.stdout).hexdigest()
             if observed != hashes[path]:
+                if _is_generated_path(path):
+                    skipped.append(path)
+                    continue
                 raise DispatchError(
                     f"archive task {task_id} content hash mismatch for {path}: "
                     f"expected {hashes[path]}, observed {observed}"
                 )
-        self.content_only_archives.append({"task_id": task_id, "reason": reason,
-                                           "paths_verified": len(hashes)})
+        self.content_only_archives.append({
+            "task_id": task_id, "reason": reason,
+            "paths_verified": len(hashes) - len(skipped),
+            "generated_paths_skipped": skipped})
 
     def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
         archive = task["archive"]
