@@ -33,12 +33,12 @@ RUN003 observations.
 | Charged quantity | Exact/linear planning value | Conservative planning envelope | Binding cap |
 |---|---:|---:|---:|
 | Factorizations | 4,186,112 exact | 4,186,112 | 4,186,112 |
-| Reconstructions | 4,186,112 exact | 4,186,112 | 4,186,112 |
+| Reconstructions | 4,186,368 exact | 4,186,368 | 4,186,368 |
 | Primality checks | 13,810,243 projected | 27,620,486 (2x) | 33,554,496 |
 | Wall time | 964.99 s projected | 1,929.98 s (2x) | 7,200 s |
 | CPU time | 1,448.71 s projected | 2,897.42 s (2x) | 28,800 s |
-| Tracked disk | 86,749,726 B projected | 346,998,904 B (4x) | 34,359,738,368 B |
-| Physical disk | 90,268,279 B projected | 361,073,116 B (4x) | 34,359,738,368 B |
+| Tracked disk | 86,760,084 B projected | 347,040,336 B (4x) | 34,359,738,368 B |
+| Physical disk | 90,227,949 B projected | 360,911,796 B (4x) | 34,359,738,368 B |
 | Concurrent RSS | no defensible point estimate | measured attempt maximum | 4,294,967,296 B |
 | Workers | 4 | 4 | 4 |
 | Open output files | at most 4 | 4 | 4 |
@@ -54,14 +54,16 @@ The wall, CPU, RSS, disk and descriptor ledgers begin before dependency import
 and seed-roster generation. They include setup, deterministic object
 generation, factorization, every prime check, every reconstruction, statistic
 updates, JSON serialization, gzip compression, shard close/fsync/hash,
-checkpoint construction and verification, terminal verification, failure
-cleanup, and a permitted same-run infrastructure resume. Setup and verification
-are not free side channels.
+checkpoint construction and verification, terminal verification, and failure
+cleanup. Setup and verification are not free side channels. RUN003 permits one
+initial process launch and no resume or retry.
 
 The run must report phase-level and total counters. The fully charged total,
-not factorization-only throughput, controls feasibility. Per-attempt cost is
-not multiplied by an inverse success probability because exactly one
-invocation is authorized and feasibility has no probabilistic retry policy.
+not factorization-only throughput, controls feasibility. Reconstruction count
+is 4,186,112 in-pipeline checks plus 256 independent closed-shard boundary
+checks, for an exact cap of 4,186,368. Per-attempt cost is not multiplied by an
+inverse success probability because exactly one launch is authorized and
+feasibility has no retry policy.
 
 ## Controls before interpretation
 

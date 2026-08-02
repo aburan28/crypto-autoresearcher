@@ -83,9 +83,10 @@ run003_contract_design:
     run_prefix: experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-003
     result_prefix: experiments/EXP-SMTH-002/results/RUN-SMTH-PILOT-003
     absence_precondition: >-
-      Every declared RUN003 target must be absent before invocation. Any
-      pre-existing target is invalid_integrity and the program must exit before
-      constructing a seed, opening a result sink or starting a worker.
+      Every declared RUN003 target must be absent before the single initial
+      launch. Any pre-existing target is invalid_integrity and the launcher
+      must exit before constructing a seed, creating the run directory,
+      opening a result sink or starting a worker.
     forbidden_write_prefixes:
     - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001
     - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-002
@@ -165,9 +166,10 @@ run003_contract_design:
     scientific_interpretation: none
   - id: P-DISK
     prediction: >-
-      Linear tracked-byte estimate is 86,749,726 bytes and physical-byte
-      estimate is 90,268,279 bytes. A fourfold planning envelope remains below
-      361,073,116 bytes; the binding cap remains 34,359,738,368 bytes.
+      Linear tracked-byte estimate is 86,760,084 bytes and receipt-time
+      physical-byte estimate is 90,227,949 bytes. Fourfold planning envelopes
+      are 347,040,336 and 360,911,796 bytes respectively; the binding cap
+      remains 34,359,738,368 bytes.
     scientific_interpretation: none
   - id: P-PRIMALITY
     prediction: >-
@@ -203,16 +205,20 @@ run003_contract_design:
     - top-z means for k in [1, 8, 64, 512]
 
   fully_charged_budget:
-    maximum_invocations: 1
-    maximum_resume_count: 1
-    resume_boundary: >-
-      A single infrastructure resume may continue only RUN003 from its last
-      verified closed-shard checkpoint under the same cumulative ceilings. A
-      budget stop, integrity failure, alternate seed or scientific retry is
-      never resumable.
+    maximum_initial_launches: 1
+    maximum_process_launches: 1
+    maximum_resume_count: 0
+    interruption_boundary: >-
+      Any interruption terminates RUN003 as failed_infrastructure_or_budget.
+      It is not resumed, retried or appended. Further execution would require
+      a fresh run ID, contract and authorization.
     maximum_factorization_calls: 4186112
     maximum_primality_checks: 33554496
-    maximum_certificate_reconstructions: 4186112
+    maximum_certificate_reconstructions: 4186368
+    reconstruction_arithmetic: >-
+      4,186,112 in-pipeline certificate reconstructions plus two independent
+      closed-shard boundary reconstructions for each of 128 shards equals
+      4,186,368 fully charged reconstructions.
     maximum_wall_seconds: 7200
     maximum_cpu_seconds: 28800
     maximum_peak_rss_bytes: 4294967296
@@ -224,7 +230,7 @@ run003_contract_design:
       Setup, dependency import, seed roster, object generation, factorization,
       prime checks, reconstruction, statistics, serialization, compression,
       close/fsync/hash, checkpoint verification, final verification, failure
-      cleanup and any permitted resume all count inside the ceilings.
+      cleanup all count inside the ceilings. No resume or retry exists.
 
   stopping_rules:
   - Crossing one physical or count ceiling stops at the next record boundary and yields failed_infrastructure_or_budget.
