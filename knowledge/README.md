@@ -11,11 +11,27 @@ files, never replace them as the source of truth.
 ```text
 knowledge/
   INDEX.md            Generated index — one line per entry (derived, rebuildable)
+  SOURCES.md          Generated source index — provenance of external material
+  sources.json        Machine-readable twin of SOURCES.md (derived)
   literature/         KN-LIT-NNN.md   External papers, books, preprints
   techniques/         KN-TECH-NNN.md  Established algorithms and methods
   findings/           KN-FIND-NNN.md  Internal results promoted from evidence
   open-problems/      KN-OPEN-NNN.md  Precisely stated unknowns
 ```
+
+The two generated indexes answer different questions and neither substitutes
+for the other. `INDEX.md` lists what the corpus *believes* — one row per entry,
+with confidence and tags. `SOURCES.md` lists what it *read*: every `SRC-*`
+package, every recorded URL retrieval including the failed ones, every source
+artifact under `inputs/`, and every `KN-LIT-*` citation keyed by its external
+identifier. Rebuild it with `make sources`
+(`tools/build_source_index.py`).
+
+Its central column is whether the bytes are in the repository. A hash the tool
+recomputes is a receipt; a hash it merely relays is an assertion by whoever
+recorded it. `SOURCES.md` also carries the gap honestly — entries with no
+recorded identifier are listed as having none, never backfilled by title
+search — so the count of unreachable citations is visible rather than implied.
 
 ## Provenance classes
 
@@ -84,8 +100,14 @@ that lives only in an experiment directory is not yet knowledge.
 - IDs are immutable and never reused.
 - Corrections supersede: write a new entry, set `superseded_by` on the old
   one. Never silently rewrite substance (typo fixes excepted).
-- `INDEX.md` is derived — regenerate it after adding entries (see the
-  `/curate-knowledge` skill); never hand-maintain facts there.
+- `INDEX.md`, `SOURCES.md` and `sources.json` are derived — regenerate them
+  after adding entries or vendoring a source (see the `/curate-knowledge`
+  skill); never hand-maintain facts there. `make check-ledger` fails while
+  the source index is stale.
+- A literature entry names a retrievable source: fill `identifiers` with an
+  eprint, arXiv, DOI, ISBN or URL. An entry with none is not rejected, but it
+  lands in the gap table of `SOURCES.md` and stays there until someone finds
+  the identifier. Do not invent one to clear the row.
 - Confidence honesty: an abstract you skimmed is `reported`, not
   `established`.
 - Proof honesty: a finding's `proof_status` never exceeds its evidence
