@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-Close the GOAL-AES-003 BATCH-001 lifecycle over the reduced-round AES attack and distinguisher work that was ALREADY BUILT AND RUN in this batch's task directories. THE IRREGULARITY IS RECORDED RATHER THAN HIDDEN: the producer artifacts were written and committed in ad-hoc commits before this queue existed, so the four producer tasks below are entered at state `completed` and their receipts bind the raw artifacts by hash after the fact. What was genuinely missing, and what this queue supplies, is the part that makes the work official: an independent review by a session that did not produce it, a red-team pass on the cost model and the claim tiers, and a ledger archive minting EV-AES-005 and DEC-20260802-002. The single highest-value check in the batch is the matched random-permutation control on the mod-8 counting statistic: if a random permutation also reads 0 mod 8, the residue is an artifact of the counting rather than a distinguisher, and the batch's strongest claim collapses. That outcome is a legitimate and reportable result of this batch.
+Close the GOAL-AES-003 BATCH-001 lifecycle over the reduced-round AES attack and distinguisher work that was ALREADY BUILT AND RUN in this batch's task directories. THE IRREGULARITY IS RECORDED RATHER THAN HIDDEN: the producer artifacts were written and committed in ad-hoc commits before this queue existed, so the four producer tasks below are entered at state `completed` and their receipts bind the raw artifacts by hash after the fact. What was genuinely missing, and what this queue supplies, is the part that makes the work official: an independent review by a session that did not produce it, a red-team pass on the cost model and the claim tiers, and a ledger archive minting EV-AES-005 and DEC-20260802-007. The single highest-value check in the batch is the matched random-permutation control on the mod-8 counting statistic: if a random permutation also reads 0 mod 8, the residue is an artifact of the counting rather than a distinguisher, and the batch's strongest claim collapses. That outcome is a legitimate and reportable result of this batch.
 
 ## Ready Tasks
 
@@ -26,4 +26,4 @@ Close the GOAL-AES-003 BATCH-001 lifecycle over the reduced-round AES attack and
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `dd6cc03ba2165e2d45d7cdeb54fb5357017faa3d3218ff6b1743a3ae18435e65`
+Plan SHA-256: `4d42d51541ed42e23efcf2321d40c048c727bf10cbe9ab91716932544deff0dd`
