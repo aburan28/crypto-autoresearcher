@@ -66,12 +66,21 @@ class UnionScopeTests(unittest.TestCase):
     def test_refuses_an_id_taken_only_in_the_other_namespace(self) -> None:
         """The collision that nearly shipped inside the collision repair.
 
-        `DEC-20260727-003` is free in `ledger/decisions/` and taken at
+        `DEC-20260727-003` was free in `ledger/decisions/` and taken at
         `ledger/`. Globbing either half alone says "free"; the union says
         "taken". That difference is the whole point of this tool.
+
+        That particular pair no longer demonstrates it: the root-level
+        duplicates were relocated into canonical subdirectories, so
+        DEC-20260727-003 now resolves to one record and the union adds nothing.
+        The property under test is unchanged -- `occurrences` must see the root
+        namespace, not just `ledger/*/`. It is pinned here on a record that
+        still lives only at the root, so the test breaks if that half of the
+        union is ever dropped again.
         """
-        hits = ai.occurrences("DEC-20260727-003")
-        self.assertTrue(hits, "expected a hit in the root namespace")
+        root_only = "DEC-20260716-001"
+        hits = ai.occurrences(root_only)
+        self.assertTrue(hits, f"expected a hit for {root_only}")
         self.assertTrue(any(h.count("/") == 1 for h in hits),
                         f"expected a root-level ledger/*.yaml hit, got {hits}")
 
