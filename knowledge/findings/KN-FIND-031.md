@@ -19,7 +19,7 @@ tags:
 - kn-open-016
 - experiment-design
 - scoped-negative
-confidence: established
+confidence: unverified
 internal_refs:
 - EV-MLKEM-017
 - DEC-20260802-735e6a
@@ -36,7 +36,31 @@ proof_refs:
 claim_tier: theory
 added: 2026-08-02
 superseded_by: null
+status: WITHDRAWN_PENDING_RULE_12_REVIEW
+withdrawn_by: CORR-20260802-d8ba0e
+withdrawn_on: '2026-08-02'
 ---
+
+## WITHDRAWN — this entry is not official knowledge
+
+This entry was promoted by DEC-20260802-735e6a. It is **withdrawn** by
+CORR-20260802-d8ba0e and carries no official standing.
+
+An independent execution of the same batch reached the same arithmetic but
+declined to promote it, on grounds this session missed: the result supersedes
+coverage statistics carried by `KN-FIND-012` and `KN-FIND-014`, which makes it a
+**contradiction between validated evidence records**, and AGENTS.md rule 12 gates
+that behind an independent `review-breakthrough` review at `max` effort.
+Promoting it through an ordinary batch decision routed around that gate. The
+authoritative record for the batch is `EV-MLKEM-017` / `DEC-20260802-15cadd` on
+`origin/main`, whose `knowledge_promotion.not_warranted` states the gate.
+
+**Nothing below is retracted as arithmetic.** `log2(4000 · 241³) = 35.7045`
+against a recorded floor of `−35.70` is exact, and two independent red teams
+derived it separately. What is withdrawn is its promotion to official knowledge
+standing, and with it any authority to qualify `KN-FIND-012`'s or
+`KN-FIND-014`'s reading. Restoring this entry requires the rule-12 review, not a
+further batch decision.
 
 ## A note on how KN-FIND-012 and KN-OPEN-016 are cited here
 
