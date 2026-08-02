@@ -6,11 +6,11 @@ Snapshot, execute, and archive separate exact-session Validator and Red Team rev
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-996` | coordinator | queued | 100 | TASK-20260802-995 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-996/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-996 |
+| `TASK-20260802-998` | coordinator | queued | 100 | TASK-20260802-997 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-998/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-998 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-998`: archive_priority_deferred:TASK-20260802-996
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Snapshot, execute, and archive separate exact-session Validator and Red Team rev
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `d1683ffc67a43074523c34ecab0e01387f08bd155a9f0687564083a3cd396717`
+Plan SHA-256: `3172cdfff85fd106196edb55cc1ad022a0d2fe1b143c9892a9e3d153cb6136b3`
