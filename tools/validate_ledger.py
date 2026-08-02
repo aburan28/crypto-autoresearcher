@@ -103,6 +103,29 @@ REQUIRED = {
 RUN_REQUIRED_TOP = ["id", "experiment_id", "status", "code", "environment",
                     "inputs", "timing", "result"]
 
+# A control, instrument check or certification run legitimately bears on NO
+# hypothesis, and several records say so at length: "Naming a hypothesis here
+# would invite exactly the inference the run cannot support." Requiring the
+# field non-empty pushed those records toward naming a hypothesis they must not
+# name -- the rule inverted its own purpose. An explicit null is accepted, but
+# only when the record documents the choice in a sibling note, so a silent
+# omission is still an error and the reasoning stays on the record.
+DOCUMENTED_NULL_OK = {
+    "hypothesis_id": ("hypothesis_id_note", "hypothesis_note"),
+}
+
+
+def field_is_satisfied(body: dict, field: str) -> bool:
+    if body.get(field) not in (None, ""):
+        return True
+    if field not in body:
+        return False          # absent entirely: never excused
+    for note in DOCUMENTED_NULL_OK.get(field, ()):
+        if str(body.get(note) or "").strip():
+            return True
+    return False
+
+
 TIER_ORDER = {"toy": 0, "medium": 1, "crypto": 2}
 PROOF_STATUSES = {"certificate", "derivation", "empirical_only",
                   "not_applicable"}
@@ -193,7 +216,7 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
                     if field not in {"proof_status", "proof_refs",
                                      "knowledge_promotion"}]
     for field in required:
-        if body.get(field) in (None, ""):
+        if not field_is_satisfied(body, field):
             ctx.err(path, f"missing required field '{field}'")
     if rec_type == "evidence" and "proof_status" in body:
         if body["proof_status"] not in PROOF_STATUSES:
@@ -235,7 +258,7 @@ def check_experiment(path: str, ctx: Ctx):
         ctx.err(path, f"bad experiment id {rec_id!r}")
         return
     for field in REQUIRED["experiment"]:
-        if body.get(field) in (None, ""):
+        if not field_is_satisfied(body, field):
             ctx.err(path, f"missing required field '{field}'")
     # An approved contract must have no null approval fields.
     if body.get("status") == "approved":
