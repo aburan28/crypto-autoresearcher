@@ -6,13 +6,12 @@ Close the GOAL-AES-003 BATCH-001 lifecycle over the reduced-round AES attack and
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-906` | coordinator | queued | 80 | TASK-20260802-902, TASK-20260802-903, TASK-20260802-904, TASK-20260802-905 | coordination/goals/GOAL-AES-003/batches/BATCH-001/archives/TASK-20260802-906/snapshot-receipt.json | coordination/goals/GOAL-AES-003/batches/BATCH-001/archives/TASK-20260802-906 |
+| `TASK-20260802-907` | validator | running | 70 | TASK-20260802-902, TASK-20260802-903, TASK-20260802-904, TASK-20260802-905, TASK-20260802-906 | coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/TASK-VALIDATION-001/validation_report.yaml | coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/TASK-VALIDATION-001 |
+| `TASK-20260802-908` | red-team | queued | 69 | TASK-20260802-902, TASK-20260802-903, TASK-20260802-904, TASK-20260802-905, TASK-20260802-906 | coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/TASK-REDTEAM-001/red_team_report.yaml | coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/TASK-REDTEAM-001 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-907`: dependency_not_completed:TASK-20260802-906:queued
-- `TASK-20260802-908`: dependency_not_completed:TASK-20260802-906:queued
-- `TASK-20260802-909`: dependency_not_completed:TASK-20260802-907:queued, dependency_not_completed:TASK-20260802-908:queued
+- `TASK-20260802-909`: dependency_not_completed:TASK-20260802-907:running, dependency_not_completed:TASK-20260802-908:queued
 
 ## Dispatch Gates
 
@@ -27,4 +26,4 @@ Close the GOAL-AES-003 BATCH-001 lifecycle over the reduced-round AES attack and
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `ebeb66f2325af0f9dadade3b2bc5382aca8c623b63450cae0c74e614394dba5c`
+Plan SHA-256: `dd6cc03ba2165e2d45d7cdeb54fb5357017faa3d3218ff6b1743a3ae18435e65`
