@@ -6,7 +6,7 @@ Freeze the Coordinator-accepted RECON-20260802-001 conflict inventory and succes
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-951` | coordinator | queued | 100 | TASK-20260802-950 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-951/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-951 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `fd40c299cd3f299c8f0a6e0e359776f91bf50c41bb9cdd3e6449f418875e533b`
+Plan SHA-256: `8ace3208cb864c38865c78bdc0e3400979f7ea719e33f30689a5a95a06600b0e`
