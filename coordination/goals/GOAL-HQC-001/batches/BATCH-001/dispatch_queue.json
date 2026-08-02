@@ -89,7 +89,7 @@
       "id": "TASK-20260802-0100a5",
       "title": "Derive the memory-charged ISD costing convention shared by GOAL-HQC-001 and GOAL-SDITH-001",
       "role": "executor",
-      "state": "running",
+      "state": "completed",
       "priority": 90,
       "review_required": true,
       "depends_on": [],
@@ -165,17 +165,15 @@
     },
     {
       "id": "TASK-20260802-a3dc0a",
-      "title": "Snapshot archive: freeze the BATCH-001 producer artifacts before any review reads them",
+      "title": "Snapshot archive: freeze the TASK-20260802-0100a5 ISD costing convention before any review reads it",
       "role": "coordinator",
-      "state": "queued",
+      "state": "completed",
       "priority": 85,
       "review_required": false,
       "depends_on": [
-        "TASK-20260802-6344ed",
         "TASK-20260802-0100a5"
       ],
       "read_scope": [
-        "coordination/goals/GOAL-HQC-001/batches/BATCH-001/tasks/TASK-20260802-6344ed",
         "coordination/goals/GOAL-HQC-001/batches/BATCH-001/tasks/TASK-20260802-0100a5"
       ],
       "write_scope": [
@@ -185,7 +183,7 @@
         "coordination/goals/GOAL-HQC-001/batches/BATCH-001/archives/TASK-20260802-a3dc0a/snapshot-receipt.json"
       ],
       "handoff": {
-        "objective": "Commit the exact terminal artifacts of both producers, in one commit that also contains its own receipt, before any independent reviewer reads them.",
+        "objective": "Commit the exact terminal artifacts of TASK-20260802-0100a5, in one commit that also contains its own receipt, before any independent reviewer reads them.",
         "uncertainty_reduced": "Whether the reviewed object is fixed and hash-bound, or a working tree that could still move under the reviewer.",
         "inference": {
           "policy": "coordinator-orchestration-code",
@@ -198,7 +196,6 @@
           "A failed snapshot gate stops the review chain and is an evidence-integrity failure, never a negative result."
         ],
         "inputs": [
-          "The terminal artifacts of TASK-20260802-6344ed",
           "The terminal artifacts of TASK-20260802-0100a5"
         ],
         "deliverables": [
@@ -218,14 +215,93 @@
       "archive": {
         "kind": "snapshot",
         "source_task_ids": [
-          "TASK-20260802-6344ed",
           "TASK-20260802-0100a5"
+        ],
+        "commit_sha": "e6f20223285023d7ff75e3828955c32401bbbd73",
+        "parent_sha": "3ec55418c2129708d832b45cf8426e22daf0f11b",
+        "path_sha256": {
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-001/archives/TASK-20260802-a3dc0a/snapshot-receipt.json": "cccaa04061fab68c5ebc61defa8a8697091799701c400bd8aaaa23428966929a",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-001/tasks/TASK-20260802-0100a5/convention_provenance.yaml": "92bf8667a51e4a580c69b0146df290cac3609382d23281a1dedd2e597957a005",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-001/tasks/TASK-20260802-0100a5/isd_costing_convention.md": "0ff404555da8fdd76131259f19c021d75a668813e98166363727b5a7cec6d0f8"
+        },
+        "record_ids": []
+      },
+      "amendments": [
+        {
+          "amended_at": "2026-08-02",
+          "change": "The single BATCH-001 snapshot archive TASK-20260802-a3dc0a, which declared source_task_ids [TASK-20260802-6344ed, TASK-20260802-0100a5], is SPLIT into one snapshot per producer: TASK-20260802-a3dc0a now claims TASK-20260802-0100a5 only, and the new TASK-20260802-1f2e40 claims TASK-20260802-6344ed. Both independent reviews now depend on BOTH snapshots.",
+          "reason": "TASK-20260802-0100a5 reached a terminal result while TASK-20260802-6344ed was still running. Under the single-snapshot design its artifacts would have sat in a MUTABLE working tree, unfrozen and un-hash-bound, for the remainder of the sibling task's budget. docs/task-lifecycle.md 7a binds the snapshot to the moment A PRODUCER reaches a terminal outcome, not to the moment the slowest sibling does; coupling two independent producers to one freeze point was a defect in this queue's design, found by running it. Splitting also removes a failure mode this program has already recorded once: GOAL-HAWK-001 BATCH-001's known_defect is artifacts and their receipt landing in different commits. No producer artifact is committed outside an archive, and no already-committed path is re-claimed.",
+          "not_a_scope_change": "Neither producer's write_scope, artifact_paths, handoff, or completion gate is altered. The review duties are unchanged. Only WHICH archive task freezes WHICH producer changes, plus the reviews' depends_on edges that the dispatcher requires to follow it."
+        }
+      ]
+    },
+    {
+      "id": "TASK-20260802-1f2e40",
+      "title": "Snapshot archive: freeze the TASK-20260802-6344ed source package before any review reads it",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 84,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260802-6344ed"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-001/tasks/TASK-20260802-6344ed"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-001/archives/TASK-20260802-1f2e40"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-001/archives/TASK-20260802-1f2e40/snapshot-receipt.json"
+      ],
+      "handoff": {
+        "objective": "Commit the exact terminal artifacts of TASK-20260802-6344ed, in one commit that also contains its own receipt, before any independent reviewer reads them.",
+        "uncertainty_reduced": "Whether the reviewed object is fixed and hash-bound, or a working tree that could still move under the reviewer.",
+        "inference": {
+          "policy": "coordinator-orchestration-code",
+          "fallback_note": "Policy alias does not resolve under this harness; resolved model is the session model, fallback_used true."
+        },
+        "constraints": [
+          "Runs alone. No other task may hold the Git index concurrently.",
+          "The receipt is committed INSIDE the commit it describes and therefore carries commit_sha: null; the sha lives in this queue's archive block. Committing a receipt in a separate commit is the defect recorded as GOAL-HAWK-001 BATCH-001 known_defect and must not be repeated.",
+          "Stage the declared paths by exact pathspec. Do NOT use git add -A: dispatch_queue.json is dirty at this point and belongs to the ledger archive, and sweeping it in here would make the commit's actual paths exceed its declared paths.",
+          "A failed snapshot gate stops the review chain and is an evidence-integrity failure, never a negative result."
+        ],
+        "inputs": [
+          "The terminal artifacts of TASK-20260802-6344ed"
+        ],
+        "deliverables": [
+          "snapshot-receipt.json naming the parent, the declared paths, per-path sha256, and commit_sha: null"
+        ],
+        "completion_gate": [
+          "Commit is reachable from HEAD and has the declared parent",
+          "Commit changes exactly the declared paths, no more and no fewer",
+          "Recorded per-path sha256 values match the committed blobs"
+        ],
+        "budget": {
+          "wall_clock_seconds": 900,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        }
+      },
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": [
+          "TASK-20260802-6344ed"
         ],
         "commit_sha": null,
         "parent_sha": null,
         "path_sha256": {},
         "record_ids": []
-      }
+      },
+      "amendments": [
+        {
+          "amended_at": "2026-08-02",
+          "change": "Created by the split described here; this task did not exist when BATCH-001 opened.",
+          "reason": "TASK-20260802-0100a5 reached a terminal result while TASK-20260802-6344ed was still running. Under the single-snapshot design its artifacts would have sat in a MUTABLE working tree, unfrozen and un-hash-bound, for the remainder of the sibling task's budget. docs/task-lifecycle.md 7a binds the snapshot to the moment A PRODUCER reaches a terminal outcome, not to the moment the slowest sibling does; coupling two independent producers to one freeze point was a defect in this queue's design, found by running it. Splitting also removes a failure mode this program has already recorded once: GOAL-HAWK-001 BATCH-001's known_defect is artifacts and their receipt landing in different commits. No producer artifact is committed outside an archive, and no already-committed path is re-claimed.",
+          "not_a_scope_change": "Neither producer's write_scope, artifact_paths, handoff, or completion gate is altered. The review duties are unchanged. Only WHICH archive task freezes WHICH producer changes, plus the reviews' depends_on edges that the dispatcher requires to follow it."
+        }
+      ]
     },
     {
       "id": "TASK-20260802-b8d69f",
@@ -237,7 +313,8 @@
       "depends_on": [
         "TASK-20260802-6344ed",
         "TASK-20260802-0100a5",
-        "TASK-20260802-a3dc0a"
+        "TASK-20260802-a3dc0a",
+        "TASK-20260802-1f2e40"
       ],
       "read_scope": [
         "AGENTS.md",
@@ -249,7 +326,8 @@
         "ledger/questions/RQ-HQC-001.yaml",
         "knowledge/SEEDING.md",
         "knowledge/INDEX.md",
-        "knowledge/literature"
+        "knowledge/literature",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-001/archives/TASK-20260802-1f2e40"
       ],
       "write_scope": [
         "coordination/goals/GOAL-HQC-001/batches/BATCH-001/reviews/TASK-20260802-b8d69f"
@@ -307,7 +385,8 @@
       "depends_on": [
         "TASK-20260802-6344ed",
         "TASK-20260802-0100a5",
-        "TASK-20260802-a3dc0a"
+        "TASK-20260802-a3dc0a",
+        "TASK-20260802-1f2e40"
       ],
       "read_scope": [
         "AGENTS.md",
@@ -324,7 +403,8 @@
         "ledger/questions/RQ-HQC-001.yaml",
         "ledger/proposals/IDEA-20260801-011.yaml",
         "knowledge/literature/KN-LIT-2141.md",
-        "knowledge/literature/KN-LIT-7565.md"
+        "knowledge/literature/KN-LIT-7565.md",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-001/archives/TASK-20260802-1f2e40"
       ],
       "write_scope": [
         "coordination/goals/GOAL-HQC-001/batches/BATCH-001/reviews/TASK-20260802-73a352"
@@ -381,6 +461,7 @@
       "review_required": false,
       "depends_on": [
         "TASK-20260802-a3dc0a",
+        "TASK-20260802-1f2e40",
         "TASK-20260802-b8d69f",
         "TASK-20260802-73a352"
       ],
@@ -393,7 +474,8 @@
         "coordination/goals/GOAL-HQC-001/batches/BATCH-001/reviews/TASK-20260802-73a352",
         "coordination/goals/GOAL-HQC-001/batches/BATCH-001/archives/TASK-20260802-a3dc0a",
         "ledger/goals/GOAL-HQC-001.yaml",
-        "templates/research-records.md"
+        "templates/research-records.md",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-001/archives/TASK-20260802-1f2e40"
       ],
       "write_scope": [
         "ledger/evidence/EV-HQC-9906b9.yaml",
