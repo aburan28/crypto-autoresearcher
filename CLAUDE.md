@@ -66,6 +66,15 @@ deliverable. It binds the idea-generator, validator, and red-team subagents.
 Premature closure — declining to search because a target looks saturated — is
 treated as a failure mode symmetric with overclaiming.
 
+Section 8 of that protocol (`knowledge/techniques/KN-TECH-080.md`) adds the
+proof-architecture portfolio and binds the coordinator too: a proof-oriented
+proposal carries a `proof_search_map` — exact bottleneck and baseline
+reproduction, observation-collision search, quantifier order, method ceiling
+and nearby-object control — before the coordinator approves implementation or
+expensive experiments. These are cheap pre-compute falsification checks; a
+failed audit is often the useful result, and passing them all still claims
+nothing beyond rules 4 and 6.
+
 Direction and taste are anchored by `docs/target-result-profile.md`, whose
 canonical exemplar is Wesolowski's p^{1/3+o(1)} supersingular-isogeny result
 (full text: `inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`): exponent-moving
