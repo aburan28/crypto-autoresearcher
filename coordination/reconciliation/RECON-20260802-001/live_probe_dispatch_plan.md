@@ -6,7 +6,7 @@ Snapshot and execute one accepted exact-session Codex live compatibility probe, 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-987` | coordinator | queued | 100 | TASK-20260802-986 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-987/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-987 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `ef49be708db77d87fb9ee3ce9387b47b00fcbcae09707547d01ee12e75027de6`
+Plan SHA-256: `5b14081e2b73b1f09375e934706513bdc919d7fc32dfbb4f2c6b15d8ef21d4c3`
