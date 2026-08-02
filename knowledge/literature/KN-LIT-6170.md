@@ -1,9 +1,9 @@
 ---
 id: KN-LIT-6170
 type: literature
-title: "Recent Advances and Existing Research"
+title: Recent Advances and Existing Research
 authors:
-  - "Questions in Platform Security"
+- Questions in Platform Security
 year: null
 venue: null
 identifiers:
@@ -11,10 +11,11 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- survey
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

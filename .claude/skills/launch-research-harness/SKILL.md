@@ -164,18 +164,20 @@ Stop the harness when any of these hold:
 
 - User asks to stop or pause.
 - Goal reaches a declared `completion_criteria` via committed Coordinator
-  decision **and** the three-model closure quorum concurs → mark `completed`
-  only then. Three CONCUR attestations with pairwise-distinct
-  `resolved_model_id` (AGENTS.md rule 13). A criterion met without the quorum
-  does not close the goal; a quorum without a met criterion does not either.
+  decision → mark `completed`. The three-model closure quorum that also gated
+  this is **suspended** (AGENTS.md rule 13), so a met criterion now suffices;
+  a quorum without a met criterion still does not close a goal. The decision
+  record must name which criterion was met and cite the evidence for it.
 - A declared `pause_conditions` item triggers (archive
   verification failure, unresolved required model policy with
   `fallback_allowed: false`) → mark `paused` with a concrete resume action.
 - Required model policy cannot be honored without silent downgrade — refuse
-  and pause rather than substitute.
-- Three distinct models cannot be resolved for a closure quorum → leave the goal
-  `paused` and say closure was blocked on model availability, not on the
-  research. Never record a quorum you did not obtain.
+  and pause rather than substitute. This is unchanged by the quorum
+  suspension: it governs review policies such as `review-breakthrough`, which
+  is still `degradable: false`.
+- Attestations are optional but never fictional. If you record one it asserts a
+  review that happened; never record a quorum you did not obtain, and do not
+  present a single-model review as independent corroboration.
 
 A failed candidate, empty ready set, or timeout is scoped evidence, not goal
 completion: record it and set the next action.

@@ -1,11 +1,38 @@
 ---
 id: KN-FIND-003
-title: mu_3 supplies infinity-norm-1 MW relations on the frozen j=0 free-x family; polarisation Gram rank is not Shioda rank
 type: internal_finding
+title: mu_3 supplies infinity-norm-1 MW relations on the frozen j=0 free-x family; polarisation
+  Gram rank is not Shioda rank
+tags:
+- lifting
+- xedni
+- function-field
+- mu3
+- mordell-weil
+- coefficient-bound
+- methodology
+- toy-scale
+confidence: reported
 status: established
-tags: [lifting, xedni, function-field, mu3, mordell-weil, coefficient-bound, methodology, toy-scale]
-evidence: [EV-XEDN-002]
-decision: [DEC-20260724-009]
+internal_refs:
+- EV-XEDN-002
+- DEC-20260724-009
+- H-XEDN-002
+- EXP-XEDN-003
+proof_status: empirical_only
+proof_refs:
+- ledger/evidence/EV-XEDN-002.yaml
+- experiments/EXP-XEDN-003/execution-report.yaml
+- experiments/EXP-XEDN-003/analysis.md
+- experiments/EXP-XEDN-003/specification.yaml
+added: '2026-07-24'
+superseded_by: null
+schema_repair_note: 'Committed with `evidence:`/`decision:` keys, which the internal_finding
+  schema does not define, so its references were never cross-checked and its proof level was
+  never stated. Repaired 2026-08-02 under CORR-20260802-007: the same two records are carried
+  in internal_refs alongside the hypothesis and experiment the evidence itself names, and
+  proof_status is set to the conservative empirical_only. No claim, scope or strength in the
+  body text is changed.'
 ---
 
 # KN-FIND-003
