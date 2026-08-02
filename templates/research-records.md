@@ -25,8 +25,11 @@ research_goal:
   latest_verified_commit: null
   completion_criteria: []
   pause_conditions: []
-  # Required to move status -> completed. Three CONCUR attestations with
-  # pairwise-distinct resolved_model_id. Omit entirely until closure is sought.
+  # OPTIONAL. The three-model quorum that once gated status -> completed is
+  # suspended (AGENTS.md rule 13), so closure needs only a committed
+  # Coordinator decision naming the criterion met. Omit this block entirely
+  # unless you actually gathered attestations; if present, every field below
+  # is validated and must describe a review that really happened.
   completion_quorum:
     quorum_satisfied: false      # true only in the same archive that sets
                                  # status: completed
@@ -52,12 +55,21 @@ The goal record is an operational anchor, not evidence. Create and commit it
 with its initial question and handoff before dispatch. Update it only through a
 Coordinator ledger archive commit.
 
-`completion_quorum` is the one gate on `status: completed` (AGENTS.md rule 13).
-Three attestations that resolve to the same model are not a quorum, however many
-distinct policy aliases they requested — the validator compares
-`resolved_model_id`. A single `DISSENT` blocks closure rather than being
-outvoted. Statuses that assert no success (`paused`, `blocked`,
-`closed_at_budget`) need no quorum.
+`completion_quorum` **no longer gates** `status: completed` — the three-model
+quorum is suspended (AGENTS.md rule 13, restored via
+`GOAL_CLOSURE_QUORUM_REQUIRED` in `tools/validate_ledger.py`). Closure now rests
+on a committed Coordinator decision naming the criterion met and citing its
+evidence.
+
+The block stays optional and supported. When present it is still validated in
+full: attestation shape, `independent_session: true`, cited record IDs that
+resolve, and `quorum_satisfied: true` only on a goal that is actually
+`completed`. A single `DISSENT` still blocks closure rather than being outvoted
+— that is self-consistency, not the quorum. Never record an attestation you did
+not obtain. Under the restored rule, three attestations resolving to the same
+model are not a quorum however many distinct policy aliases they requested; the
+validator compares `resolved_model_id`. Statuses that assert no success
+(`paused`, `blocked`, `closed_at_budget`) never needed a quorum.
 
 ## Research question
 

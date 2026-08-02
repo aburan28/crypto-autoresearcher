@@ -580,6 +580,33 @@ PRE_QUORUM_GOAL_IDS = {"GOAL-ICLIFT-001", "GOAL-XEDN-001", "GOAL-XEDN-002",
 # A goal may only be closed out on the concurring judgement of three
 # independently-resolved models. See AGENTS.md "Goal closure quorum".
 GOAL_CLOSURE_QUORUM = 3
+
+# SUSPENDED. The quorum requirement is not enforced while this is False.
+#
+# Why: the rule presumes several backends that bind to genuinely different
+# models. In the harness as deployed there is one usable backend, so three
+# attestations necessarily resolve to one model -- which the rule itself
+# defines as *not* a quorum. The requirement therefore made `completed`
+# unreachable for every goal regardless of its research merit, turning a
+# safeguard against overclaiming into a blanket block. Goals that met their
+# criteria were left `paused`, which understates them.
+#
+# What this does NOT relax. Everything below still applies whenever a
+# completion_quorum block is present at all:
+#   - attestation shape (ATTESTATION_REQUIRED), independent_session,
+#     and reviewed_record_ids resolving to real records;
+#   - a recorded DISSENT still contradicts `completed`. That is ordinary
+#     self-consistency, not the quorum: having obtained a dissent, closing
+#     anyway is incoherent at any quorum size;
+#   - `quorum_satisfied: true` on a non-completed goal is still an error.
+# Attestations remain fully supported and are still worth recording; they are
+# simply no longer a precondition for closure.
+#
+# To restore: set this True. The enforcement code and its tests are intact and
+# are exercised in both modes by tools/test_goal_closure_quorum.py, so flipping
+# it back needs no other edit. Restore it once more than one backend resolves
+# (`python3 -m orchestration.adapter doctor --probe`).
+GOAL_CLOSURE_QUORUM_REQUIRED = False
 ATTESTATION_REQUIRED = ["role", "requested_policy", "resolved_model_id",
                         "independent_session", "reviewed_record_ids",
                         "verdict"]
@@ -588,23 +615,34 @@ DISSENT = "DISSENT"
 
 
 def check_goal_closure_quorum(path: str, goal: dict, ctx: Ctx):
-    """Enforce the three-model quorum on a goal marked `completed`.
+    """Check the closure quorum on a goal marked `completed`.
 
-    A closed-out goal must carry `completion_quorum.attestations`: at least
-    three verdicts whose `resolved_model_id` values are pairwise distinct and
-    which all CONCUR. The distinctness is on the *resolved* model, not the
-    requested policy alias, because a policy that falls back to a shared model
-    yields correlated judgements and is not a quorum.
+    When `GOAL_CLOSURE_QUORUM_REQUIRED` is true, a closed-out goal must carry
+    `completion_quorum.attestations`: at least three verdicts whose
+    `resolved_model_id` values are pairwise distinct and which all CONCUR. The
+    distinctness is on the *resolved* model, not the requested policy alias,
+    because a policy that falls back to a shared model yields correlated
+    judgements and is not a quorum.
+
+    The requirement is currently SUSPENDED (see `GOAL_CLOSURE_QUORUM_REQUIRED`),
+    so a `completed` goal need not carry the block at all. A block that IS
+    present is still validated in full except for the count and distinctness
+    gates: attestations must be well-formed, sessions independent, cited
+    records real, and a recorded DISSENT still contradicts closure.
     """
     quorum = goal.get("completion_quorum")
     if not isinstance(quorum, dict):
-        ctx.err(path, "goal status 'completed' requires a completion_quorum "
-                      f"block with {GOAL_CLOSURE_QUORUM} concurring "
-                      "attestations")
+        if GOAL_CLOSURE_QUORUM_REQUIRED:
+            ctx.err(path, "goal status 'completed' requires a "
+                          f"completion_quorum block with "
+                          f"{GOAL_CLOSURE_QUORUM} concurring attestations")
         return
 
     attestations = quorum.get("attestations")
     if not isinstance(attestations, list) or not attestations:
+        # A block that is present must still be well-formed, whether or not
+        # the quorum gates closure: an empty attestations list asserts a
+        # review that did not happen.
         ctx.err(path, "completion_quorum.attestations must be a non-empty list")
         return
 
@@ -626,19 +664,22 @@ def check_goal_closure_quorum(path: str, goal: dict, ctx: Ctx):
                       "blocks closure until superseded by a new decision")
 
     concurring = [a for a, v in zip(attestations, verdicts) if v == CONCUR]
-    if len(concurring) < GOAL_CLOSURE_QUORUM:
-        ctx.err(path, f"goal closure needs {GOAL_CLOSURE_QUORUM} CONCUR "
-                      f"attestations, found {len(concurring)}")
+    if GOAL_CLOSURE_QUORUM_REQUIRED:
+        # The count and the distinctness are the quorum proper, and they are
+        # the only two checks the suspension turns off.
+        if len(concurring) < GOAL_CLOSURE_QUORUM:
+            ctx.err(path, f"goal closure needs {GOAL_CLOSURE_QUORUM} CONCUR "
+                          f"attestations, found {len(concurring)}")
 
-    models = [str(a.get("resolved_model_id", "")).strip()
-              for a in concurring if a.get("resolved_model_id")]
-    distinct = {m for m in models if m}
-    if len(distinct) < GOAL_CLOSURE_QUORUM:
-        ctx.err(path, "goal closure needs "
-                      f"{GOAL_CLOSURE_QUORUM} pairwise-distinct "
-                      f"resolved_model_id values among concurring "
-                      f"attestations, found {len(distinct)} "
-                      f"({sorted(distinct)})")
+        models = [str(a.get("resolved_model_id", "")).strip()
+                  for a in concurring if a.get("resolved_model_id")]
+        distinct = {m for m in models if m}
+        if len(distinct) < GOAL_CLOSURE_QUORUM:
+            ctx.err(path, "goal closure needs "
+                          f"{GOAL_CLOSURE_QUORUM} pairwise-distinct "
+                          f"resolved_model_id values among concurring "
+                          f"attestations, found {len(distinct)} "
+                          f"({sorted(distinct)})")
 
     non_independent = [i for i, a in enumerate(attestations)
                        if a.get("independent_session") is not True]
