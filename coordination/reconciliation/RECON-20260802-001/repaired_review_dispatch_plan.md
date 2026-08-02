@@ -6,13 +6,12 @@ Snapshot, execute, and archive separate exact-session Validator and Red Team rev
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-915` | coordinator | queued | 100 | TASK-20260802-914 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-915/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-915 |
+| `TASK-20260802-995` | validator | queued | 100 | TASK-20260802-915 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-995/validation_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-995 |
+| `TASK-20260802-997` | red-team | queued | 100 | TASK-20260802-915 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-997/red_team_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-997 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-995`: dependency_not_completed:TASK-20260802-915:queued
 - `TASK-20260802-996`: dependency_not_completed:TASK-20260802-995:queued
-- `TASK-20260802-997`: dependency_not_completed:TASK-20260802-915:queued
 - `TASK-20260802-998`: dependency_not_completed:TASK-20260802-997:queued
 
 ## Dispatch Gates
@@ -28,4 +27,4 @@ Snapshot, execute, and archive separate exact-session Validator and Red Team rev
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `43fc92172875a2af43dbaf9bf8a905cc96e09e4a429079278664da8377db7869`
+Plan SHA-256: `ae5d879f7dfad5cb0f028d971b1e06f07066559e699e2291617580d253ef82e6`
