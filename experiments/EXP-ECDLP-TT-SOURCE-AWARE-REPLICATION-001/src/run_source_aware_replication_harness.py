@@ -106,7 +106,10 @@ def _run_candidate(relation_paths: list[Path], fixture_path: Path, fixture: dict
     })
     instance = fixture["instances"][0]
     candidate["selector_records"] = {
-        family: selector_orders[(len(next(item for item in instance["families"] if item["family"] == family)["factor_base"]["points"]), next(item for item in instance["families"] if item["family"] == family)["run_seed"])]
+        family: selector_orders[(
+            len(next(item for item in instance["families"] if item["family"] == family)["factor_base"]["points"]),
+            next(item for item in instance["families"] if item["family"] == family)["run_seed"] ^ 0x5A17C0DE,
+        )]
         for family in FAMILIES
     }
     return candidate
