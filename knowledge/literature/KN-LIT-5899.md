@@ -1,9 +1,9 @@
 ---
 id: KN-LIT-5899
 type: literature
-title: "Privacy-Enhancing Cryptography: From Theory"
+title: 'Privacy-Enhancing Cryptography: From Theory'
 authors:
-  - "Into Practice"
+- Into Practice
 year: null
 venue: null
 identifiers:
@@ -11,10 +11,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- privacy
+- survey
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

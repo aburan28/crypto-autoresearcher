@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-2854
 type: literature
-title: "CDs Have Fingerprints Too"
+title: CDs Have Fingerprints Too
 authors:
-  - "Ghaith Hammouri"
-  - "Aykutlu Dana"
-  - "Berk Sunar"
+- Ghaith Hammouri
+- Aykutlu Dana
+- Berk Sunar
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- forensics
+- fingerprinting
+- applied-security
+- hardware
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

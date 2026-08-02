@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-4014
 type: literature
-title: "Function-Private Functional Encryption in the Private-Key Setting"
+title: Function-Private Functional Encryption in the Private-Key Setting
 authors:
-  - "Zvika Brakerski⋆⋆"
-  - "Gil Segev⋆ ⋆ ⋆"
+- Zvika Brakerski⋆⋆
+- Gil Segev⋆ ⋆ ⋆
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- functional-encryption
+- function-privacy
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

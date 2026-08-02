@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-5194
 type: literature
-title: "Non-Interactive Timestamping in the Bounded Storage Model"
+title: Non-Interactive Timestamping in the Bounded Storage Model
 authors:
-  - "Tal Moran"
-  - "Ronen Shaltiel"
-  - "Amnon Ta-Shma"
+- Tal Moran
+- Ronen Shaltiel
+- Amnon Ta-Shma
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- timestamping
+- bounded-storage-model
+- foundations
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 
