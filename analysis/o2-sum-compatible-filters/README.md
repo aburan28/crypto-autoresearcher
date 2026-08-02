@@ -43,6 +43,7 @@ canonical.
 | `O2_fourier_obstruction.md` | **[F]** — Theorem A (`eps <= 1/M + Λ`, no factor `M`), Theorem B, exact identity. Carries a correction notice. |
 | `O2_composition_closure.md` | **The composition.** [D]'s Weil bound into [F]'s Theorem A ⇒ `j = 2` closes. |
 | `O2_quasigroup_gap.md` | **Theorem C** — the quasigroup escape, closed exactly; measured approximately. |
+| `O2_quasigroup_scaling.md` | The missing control, run. Jacobson-Matthews sampling to `M = 32`; the `M` loss does not materialize. |
 
 [D] and [F] were derived **independently and in parallel**, from the same parent
 commit, neither session seeing the other. They agree numerically to 3–4 decimals
@@ -56,6 +57,7 @@ cd analysis/o2-sum-compatible-filters
 python3 fourier_obstruction.py     # Theorems A/B verified to 1e-15, 18/18 configs
 python3 charfilter_decay.py        # Λ ~ p^-1/2 on family C, 125x range in p
 python3 quasigroup_gap.py          # exhaustive over all Latin squares, M = 3,4,5
+python3 quasigroup_scaling.py      # Jacobson-Matthews sampling, M = 4,8,16,32
 ```
 
 Pure `numpy`, a few minutes total. Every count is exact whole-group enumeration
@@ -73,14 +75,18 @@ Pure `numpy`, a few minutes total. Every count is exact whole-group enumeration
 
 1. **Approximate quasigroup combining.** Theorem C closes the exact case
    unconditionally; the approximate case is unrefuted but unrealized at every
-   `M` where exhaustive enumeration is feasible.
+   `M` where it can be measured — see `O2_quasigroup_scaling.md`, where the
+   exact worst case over all `f` stays ~160x below the `(star)` ceiling at
+   `M = 32`. No robust version of Theorem C is proved.
 2. **Interval / bit-window filters** (F1 families A, B, I, J) — additive-character
    completion is sketched in [D] §7.6, not carried out.
 3. **Arbitrary cheap `h`** — [D]'s Proposition 2 proves no group-theoretic
    argument can reach it. Only a definitional restriction closes it.
-4. **(H1)**: the Weil/Bombieri bound is **not re-verified by literature search**;
-   a `KN-LIT` entry is owed under `AGENTS.md` rule 9 and now gates a headline
-   closure. **(H3)**: the zero/pole count for `F_R` is asserted as `O(D)`, not
+4. **(H1)**: the Weil/Bombieri bound is now **partially verified** — see
+   `knowledge/literature/KN-LIT-7639.md`. Its form, its non-degeneracy
+   hypothesis and its validity regime (`g << sqrt(q)`; here `g = 1`) are
+   confirmed from a 2024 source; the explicit `(2g-2+2m)` constant and the
+   general-`k` curve statement remain untraced. **(H3)**: the zero/pole count for `F_R` is asserted as `O(D)`, not
    carried out.
 5. **Toy scale.** `N <= 65539` throughout. Under `AGENTS.md` rule 4 this is not
    crypto-scale validation of anything and is not offered as such. The theorems
