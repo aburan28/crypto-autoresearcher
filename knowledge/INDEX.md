@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7758 entries.
+7759 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7685,6 +7685,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-017 | Where does the enumeration/sieving crossover move once sieving memory is fully charged? | open_problem | reported | open | full-cost memory sieving enumeration crossover cost-model kissing-number wiener concrete-security open lattice cross-domain |
 | KN-OPEN-018 | Does lattice machinery bear on the plain ECDLP at all, outside the leakage model? | open_problem | reported | open | cross-domain lattice ecdlp hnp coppersmith index-calculus descent leakage genericity open |
 | KN-OPEN-019 | What object does each ECDLP attack family track, and is that enumeration closed? | open_problem | reported | open | ecdlp methodology tracked-object attack-families closure saturation index-calculus generic-group isogeny open |
+| KN-OPEN-020 | Universal algebraic-factor-base no-go for prime-field index calculus | open_problem | unverified | open | prime-field ecdlp index-calculus factor-base algebraic-description lower-bound open |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
 | KN-TECH-002 | Semaev summation polynomials | technique | established |  | semaev summation-polynomial point-decomposition index-calculus |
 | KN-TECH-003 | Point-decomposition index calculus for ECDLP | technique | established |  | index-calculus point-decomposition factor-base relations ecdlp |
