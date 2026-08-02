@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+from concurrent.futures.process import BrokenProcessPool
 import contextlib
 import dataclasses
+from datetime import datetime, timezone
 import gzip
 import hashlib
 import io
@@ -101,6 +103,54 @@ class ResourceCapError(RuntimeError):
 
 class NetworkBlockedError(RuntimeError):
     """An attempted network-capable socket violates the frozen run guard."""
+
+
+def classify_failure(error: BaseException) -> tuple[str, str]:
+    """Return (manifest status, failure class) without conflating integrity."""
+    if isinstance(error, IntegrityError):
+        return "invalid_integrity", "invalid_integrity"
+    if isinstance(error, ResourceCapError):
+        return "failed_infrastructure_or_budget", "resource_exhaustion"
+    if isinstance(
+        error,
+        (
+            BrokenProcessPool,
+            ImportError,
+            ModuleNotFoundError,
+            OSError,
+            subprocess.SubprocessError,
+            KeyboardInterrupt,
+        ),
+    ):
+        return "failed_infrastructure_or_budget", "infrastructure_error"
+    return "failed_implementation", "implementation_error"
+
+
+def cumulative_resources(
+    prior_cpu: float,
+    prior_wall: float,
+    prior_peak_rss: int,
+    attempt_sample: dict,
+    attempt_wall: float,
+) -> dict:
+    return {
+        "cpu_seconds": prior_cpu + attempt_sample["cpu_seconds"],
+        "peak_rss_bytes": max(prior_peak_rss, attempt_sample["peak_rss_bytes"]),
+        "wall_seconds": prior_wall + attempt_wall,
+    }
+
+
+def append_ordered_event(
+    history: list[dict], event_type: str, **fields: object
+) -> dict:
+    event = {
+        "event_type": event_type,
+        "sequence": len(history),
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        **fields,
+    }
+    history.append(event)
+    return event
 
 
 def repository_path(relative: Path) -> Path:
@@ -242,7 +292,7 @@ class ProcessTreeMonitor:
             "peak_rss_bytes": self.peak_rss_bytes,
         }
 
-    def sample(self) -> dict:
+    def sample(self, *, enforce: bool = True) -> dict:
         with OUTPUT_HANDLES.opened():
             result = subprocess.run(
                 ["ps", "-axo", "pid=,ppid=,rss=,time="],
@@ -279,16 +329,30 @@ class ProcessTreeMonitor:
         )
         cpu_seconds = max(active_cpu + waited_cpu, observed_cpu)
         self.peak_rss_bytes = max(self.peak_rss_bytes, active_rss)
-        if cpu_seconds > self.maximum_cpu_seconds:
-            raise ResourceCapError("process-tree CPU cap exceeded")
-        if self.peak_rss_bytes > self.maximum_rss_bytes:
-            raise ResourceCapError("process-tree RSS cap exceeded")
+        if enforce:
+            if cpu_seconds > self.maximum_cpu_seconds:
+                raise ResourceCapError("process-tree CPU cap exceeded")
+            if self.peak_rss_bytes > self.maximum_rss_bytes:
+                raise ResourceCapError("process-tree RSS cap exceeded")
         return {
             "cpu_seconds": cpu_seconds,
             "current_rss_bytes": active_rss,
             "peak_rss_bytes": self.peak_rss_bytes,
             "process_count": len(selected),
             "wall_seconds": time.monotonic() - self.started_wall,
+        }
+
+    def accounting_without_subprocess(self) -> dict:
+        parent_usage = resource.getrusage(resource.RUSAGE_SELF)
+        parent_peak = parent_usage.ru_maxrss
+        if sys.platform != "darwin":
+            parent_peak *= 1024
+        return {
+            "cpu_seconds": time.process_time() - self._baseline_parent_cpu + self._worker_cpu_seconds,
+            "peak_rss_bytes": max(
+                self.peak_rss_bytes,
+                parent_peak + sum(self._worker_peak_rss.values()),
+            ),
         }
 
 
@@ -702,6 +766,10 @@ def measured_factor_certificate(
     usage = resource.getrusage(resource.RUSAGE_SELF)
     rss_bytes = usage.ru_maxrss if sys.platform == "darwin" else usage.ru_maxrss * 1024
     return record, checks, os.getpid(), time.process_time() - started_cpu, rss_bytes
+
+
+def _synthetic_crash_worker() -> None:
+    os._exit(17)
 
 
 class CappedRawWriter(io.RawIOBase):
@@ -1205,7 +1273,11 @@ def run_self_tests(only: set[str] | None = None) -> dict:
             ]
             assert not verify_alleged_factors(math.prod(item[0] for item in twelve_with_composite), twelve_with_composite)
             oversized = dict(record)
-            oversized["padding"] = "x" * 1025
+            oversized["padding"] = ""
+            padding_bytes = 1025 - (len(canonical_json_bytes(oversized)) + 1)
+            assert padding_bytes > 0
+            oversized["padding"] = "x" * padding_bytes
+            assert len(canonical_json_bytes(oversized)) + 1 == 1025
             writer = CertificateShardWriter(
                 root / "oversize", records_per_shard=1, shard_count=1,
                 total_records_expected=1
@@ -1318,12 +1390,17 @@ def run_self_tests(only: set[str] | None = None) -> dict:
             assert len(resumed.finish()) == 2 and events == [2, 4]
 
         def shard_mutation_and_hash_controls() -> None:
-            path = root / "mutation.bin"
-            path.write_bytes(b"abcdef")
-            entry = {"compressed_bytes": 6, "gzip_sha256": sha256_file(path)}
+            directory = root / "mutation-shard"
+            writer = CertificateShardWriter(
+                directory, records_per_shard=1, shard_count=1,
+                total_records_expected=1
+            )
+            writer.write({"LPF": 2, "N": 2, "reconstruction_ok": True, "sequential_index": 0, "sorted_factors": [[2, 1]]})
+            entry = writer.finish()[0]
+            path = directory / "shard-000.jsonl.gz"
             assert verify_shard_entry(path, entry)
             changed = bytearray(path.read_bytes())
-            changed[2] ^= 1
+            changed[len(changed) // 2] ^= 1
             path.write_bytes(changed)
             assert not verify_shard_entry(path, entry)
             sample = {"schema": "test", "stream_entries": [], "inserted_count": 0}
@@ -1340,7 +1417,7 @@ def run_self_tests(only: set[str] | None = None) -> dict:
             assert roster["ordered_all_seed_bytes_sha256"] == "c3991b86bedce849dd8b13dee1550ae79405526d9b1467ff4ac30436bdc37fc6"
             assert verify_seed_roster(roster)
 
-        def worker_and_resource_failure_cleanup() -> None:
+        def integrity_and_resource_failure_cleanup() -> None:
             directory = root / "worker-failure"
             writer = CertificateShardWriter(
                 directory, records_per_shard=2, shard_count=1,
@@ -1356,6 +1433,9 @@ def run_self_tests(only: set[str] | None = None) -> dict:
                 raise AssertionError("synthetic worker failure was accepted")
             assert not list(directory.glob("*.partial"))
             assert not list(directory.glob("shard-*.jsonl.gz"))
+            assert classify_failure(IntegrityError("synthetic")) == (
+                "invalid_integrity", "invalid_integrity"
+            )
             writer = CertificateShardWriter(
                 directory, records_per_shard=2, shard_count=1,
                 total_records_expected=2
@@ -1367,6 +1447,80 @@ def run_self_tests(only: set[str] | None = None) -> dict:
                 writer.abort_current()
                 writer.reconcile_to_verified()
             assert not list(directory.glob("*.partial"))
+            assert classify_failure(ResourceCapError("synthetic")) == (
+                "failed_infrastructure_or_budget", "resource_exhaustion"
+            )
+
+        def cumulative_stop_resume_events() -> None:
+            history: list[dict] = []
+            append_ordered_event(
+                history, "checkpoint", cpu_seconds=2.0,
+                next_deterministic_index=2, outcome="running_checkpoint",
+                peak_rss_bytes=100, wall_seconds=3.0
+            )
+            stopped = cumulative_resources(
+                2.0, 3.0, 100,
+                {"cpu_seconds": 0.75, "peak_rss_bytes": 120}, 1.25
+            )
+            append_ordered_event(
+                history, "stop", **stopped,
+                next_deterministic_index=2,
+                outcome="failed_infrastructure_or_budget"
+            )
+            receipt = root / "event-checkpoint.json"
+            atomic_json(receipt, {"event_history": history, **stopped})
+            loaded = json.loads(receipt.read_text())
+            append_ordered_event(
+                loaded["event_history"], "resume",
+                cpu_seconds=loaded["cpu_seconds"],
+                next_deterministic_index=2, outcome="resume_started",
+                peak_rss_bytes=loaded["peak_rss_bytes"],
+                wall_seconds=loaded["wall_seconds"]
+            )
+            completed = cumulative_resources(
+                loaded["cpu_seconds"], loaded["wall_seconds"],
+                loaded["peak_rss_bytes"],
+                {"cpu_seconds": 0.5, "peak_rss_bytes": 110}, 0.5
+            )
+            append_ordered_event(
+                loaded["event_history"], "checkpoint", **completed,
+                next_deterministic_index=4, outcome="running_checkpoint"
+            )
+            assert completed == {
+                "cpu_seconds": 3.25,
+                "peak_rss_bytes": 120,
+                "wall_seconds": 4.75,
+            }
+            assert [item["event_type"] for item in loaded["event_history"]] == [
+                "checkpoint", "stop", "resume", "checkpoint"
+            ]
+            assert [item["sequence"] for item in loaded["event_history"]] == list(range(4))
+
+        def broken_worker_pool_infrastructure() -> None:
+            directory = root / "broken-pool"
+            checkpoints = []
+            writer = CertificateShardWriter(
+                directory,
+                checkpoint_callback=lambda entries, index: checkpoints.append((entries, index)),
+                records_per_shard=1, shard_count=2,
+                total_records_expected=2
+            )
+            writer.write({"LPF": 2, "N": 2, "reconstruction_ok": True, "sequential_index": 0, "sorted_factors": [[2, 1]]})
+            try:
+                with concurrent.futures.ProcessPoolExecutor(max_workers=1) as pool:
+                    pool.submit(_synthetic_crash_worker).result()
+            except BrokenProcessPool as error:
+                status, failure_class = classify_failure(error)
+                writer.abort_current()
+                writer.reconcile_to_verified()
+            else:
+                raise AssertionError("real worker exit did not break process pool")
+            assert status == "failed_infrastructure_or_budget"
+            assert failure_class == "infrastructure_error"
+            assert checkpoints[0][1] == 1
+            assert (directory / "shard-000.jsonl.gz").is_file()
+            assert not list(directory.glob("*.partial"))
+            assert classify_failure(ModuleNotFoundError("synthetic dependency"))[1] == "infrastructure_error"
 
         check("bounded-pack-exact-cap", exact_cap)
         check("bounded-pack-cap-plus-one", cap_plus_one)
@@ -1379,7 +1533,9 @@ def run_self_tests(only: set[str] | None = None) -> dict:
         check("checkpoint-resume-interruption-cleanup", checkpoint_resume_and_cleanup)
         check("one-byte-mutation-and-independent-hashes", shard_mutation_and_hash_controls)
         check("compact-52-stream-2109444-seed-contract", compact_seed_contract)
-        check("worker-and-resource-failure-cleanup", worker_and_resource_failure_cleanup)
+        check("integrity-and-resource-failure-cleanup", integrity_and_resource_failure_cleanup)
+        check("cumulative-stop-resume-event-charging", cumulative_stop_resume_events)
+        check("broken-worker-pool-infrastructure", broken_worker_pool_infrastructure)
 
     return {"scientific_runs": 0, "status": "pass", "tests": tests}
 
@@ -1503,7 +1659,7 @@ def run_null_pilot(*, resume: bool = False) -> dict:
     validate_repository_binding()
     manifest_path = repository_path(RUN_REL / "manifest.yaml")
     certificate_dir = (REPO_ROOT / CERT_REL).resolve()
-    checkpoint_events: list[dict] = []
+    event_history: list[dict] = []
     array_results: list[dict] = []
     cell_resources: dict[str, dict] = {}
     prior_wall = prior_cpu = 0.0
@@ -1527,7 +1683,9 @@ def run_null_pilot(*, resume: bool = False) -> dict:
         prior_wall = checkpoint["wall_seconds"]
         prior_cpu = checkpoint["cpu_seconds"]
         prior_peak_rss = checkpoint["peak_rss_bytes"]
-        checkpoint_events = checkpoint.get("checkpoint_events", [])
+        event_history = checkpoint.get(
+            "event_history", checkpoint.get("checkpoint_events", [])
+        )
         array_results = checkpoint.get("array_results", [])
         cell_resources = checkpoint.get("cell_resources", {})
         resume_count = 1
@@ -1548,7 +1706,7 @@ def run_null_pilot(*, resume: bool = False) -> dict:
 
     validate_log_redirections()
     device_layout = measure_device_layout()
-    environment = _write_provenance_files(resume, device_layout)
+    environment: dict = {}
     monitor = ProcessTreeMonitor(
         maximum_cpu_seconds=max(0.0, MAX_CPU_SECONDS - prior_cpu),
         maximum_rss_bytes=MAX_RSS_BYTES,
@@ -1558,6 +1716,22 @@ def run_null_pilot(*, resume: bool = False) -> dict:
     last_cell_wall = time.monotonic()
     last_cell_cpu = 0.0
     writer: CertificateShardWriter | None = None
+
+    if resume:
+        append_ordered_event(
+            event_history,
+            "resume",
+            cpu_seconds=prior_cpu,
+            next_deterministic_index=len(saved_entries) * RECORDS_PER_SHARD,
+            outcome="resume_started",
+            peak_rss_bytes=prior_peak_rss,
+            resume_count=resume_count,
+            wall_seconds=prior_wall,
+        )
+        checkpoint["event_history"] = event_history
+        checkpoint["resume_count"] = resume_count
+        checkpoint["status"] = "running_checkpoint"
+        atomic_json(manifest_path, checkpoint)
 
     def checkpoint_callback(entries: list[dict], next_index: int) -> None:
         nonlocal last_cell_wall, last_cell_cpu
@@ -1590,25 +1764,31 @@ def run_null_pilot(*, resume: bool = False) -> dict:
             last_cell_cpu = resource_sample["cpu_seconds"]
         storage = measure_run_storage()
         enforce_storage_caps(storage)
-        event = {
-            "completed_shard_count": len(entries),
-            "cpu_seconds": cumulative_cpu,
-            "disk_bytes": storage,
-            "next_deterministic_index": next_index,
-            "no_network_guard_enforced": True,
-            "observed_maximum_process_output_handles": OUTPUT_HANDLES.observed_maximum,
-            "peak_rss_bytes": max(prior_peak_rss, resource_sample["peak_rss_bytes"]),
-            "wall_seconds": cumulative_wall,
-            "device_layout": measure_device_layout(enforce_gate=False),
-        }
-        checkpoint_events.append(event)
+        event = append_ordered_event(
+            event_history,
+            "checkpoint",
+            completed_shard_count=len(entries),
+            cpu_seconds=cumulative_cpu,
+            disk_bytes=storage,
+            next_deterministic_index=next_index,
+            no_network_guard_enforced=True,
+            observed_maximum_process_output_handles=OUTPUT_HANDLES.observed_maximum,
+            outcome="running_checkpoint",
+            peak_rss_bytes=max(prior_peak_rss, resource_sample["peak_rss_bytes"]),
+            resume_count=resume_count,
+            wall_seconds=cumulative_wall,
+            device_layout=measure_device_layout(enforce_gate=False),
+        )
         atomic_json(manifest_path, {
             "array_results": array_results,
             "cell_resources": cell_resources,
-            "checkpoint_events": checkpoint_events,
+            "checkpoint_events": [
+                item for item in event_history if item["event_type"] == "checkpoint"
+            ],
             "completed_shards": entries,
             "cpu_seconds": cumulative_cpu,
             "experiment_id": EXPERIMENT_ID,
+            "event_history": event_history,
             "next_deterministic_index": next_index,
             "peak_rss_bytes": event["peak_rss_bytes"],
             "primality_checks": primality_checks,
@@ -1620,6 +1800,13 @@ def run_null_pilot(*, resume: bool = False) -> dict:
 
     try:
         with no_network_guard():
+            if (
+                prior_cpu >= MAX_CPU_SECONDS
+                or prior_wall >= MAX_WALL_SECONDS
+                or prior_peak_rss > MAX_RSS_BYTES
+            ):
+                raise ResourceCapError("cumulative resume budget already exhausted")
+            environment = _write_provenance_files(resume, device_layout)
             seed_roster = build_seed_roster()
             atomic_json(repository_path(RESULT_REL / "seed_roster.json"), seed_roster)
             writer = CertificateShardWriter(
@@ -1648,9 +1835,18 @@ def run_null_pilot(*, resume: bool = False) -> dict:
                     if index >= resume_index:
                         indexed_values.append((index, value))
                 for record, checks, worker_pid, worker_cpu, worker_rss in _bounded_ordered_factorizations(indexed_values):
-                    monitor.observe_worker_record(
+                    record_sample = monitor.observe_worker_record(
                         worker_pid, worker_cpu, worker_rss
                     )
+                    record_resources = cumulative_resources(
+                        prior_cpu,
+                        prior_wall,
+                        prior_peak_rss,
+                        record_sample,
+                        time.monotonic() - started,
+                    )
+                    if record_resources["wall_seconds"] > MAX_WALL_SECONDS:
+                        raise ResourceCapError("wall-clock cap exceeded")
                     primality_checks += checks
                     if primality_checks > MAX_PRIMALITY_CHECKS:
                         raise ResourceCapError("global primality-check cap exceeded")
@@ -1695,6 +1891,18 @@ def run_null_pilot(*, resume: bool = False) -> dict:
             atomic_json(repository_path(CERT_REL / "shard_manifest.json"), manifest)
             total_wall = prior_wall + time.monotonic() - started
             total_cpu = prior_cpu + resource_sample["cpu_seconds"]
+            append_ordered_event(
+                event_history,
+                "complete",
+                cpu_seconds=total_cpu,
+                next_deterministic_index=TOTAL_RECORDS,
+                outcome="completed_feasibility_only",
+                peak_rss_bytes=max(
+                    prior_peak_rss, resource_sample["peak_rss_bytes"]
+                ),
+                resume_count=resume_count,
+                wall_seconds=total_wall,
+            )
             rates = {}
             bytes_per_certificate = {}
             for key, cell in sorted(cell_resources.items()):
@@ -1710,11 +1918,15 @@ def run_null_pilot(*, resume: bool = False) -> dict:
             result = {
                 "array_results": array_results,
                 "certificate_bytes_per_factorization_by_bits_and_null_type": bytes_per_certificate,
-                "checkpoint_events": checkpoint_events,
+                "checkpoint_events": [
+                    item for item in event_history
+                    if item["event_type"] == "checkpoint"
+                ],
                 "cpu_seconds": total_cpu,
                 "dependency_provenance": environment,
                 "disk_bytes_by_phase_and_total": {"run_phase_final": storage, "total_physical_bytes": storage["physical_run_bytes"]},
                 "experiment_id": EXPERIMENT_ID,
+                "event_history": event_history,
                 "factorization_calls": global_index,
                 "factorizations_per_second_by_bits_and_null_type": rates,
                 "peak_rss_bytes": max(prior_peak_rss, resource_sample["peak_rss_bytes"]),
@@ -1731,14 +1943,23 @@ def run_null_pilot(*, resume: bool = False) -> dict:
                 "no_network_guard_enforced": True,
                 "observed_maximum_process_output_handles": OUTPUT_HANDLES.observed_maximum,
                 "scientific_scope": "null-only feasibility; nondecisional",
-                "stops": [],
+                "resume_events": [
+                    item for item in event_history if item["event_type"] == "resume"
+                ],
+                "stops": [
+                    item for item in event_history if item["event_type"] == "stop"
+                ],
                 "sympy_version": environment["sympy_version"],
                 "wall_seconds": total_wall,
             }
             atomic_json(repository_path(RUN_REL / "raw-result.json"), result)
             atomic_json(repository_path(RESULT_REL / "feasibility_report.json"), result)
             final_manifest = json.loads(manifest_path.read_text())
-            final_manifest.update({"status": "completed_feasibility_only", "result_sha256": hashlib.sha256(canonical_json_bytes(result)).hexdigest()})
+            final_manifest.update({
+                "event_history": event_history,
+                "status": "completed_feasibility_only",
+                "result_sha256": hashlib.sha256(canonical_json_bytes(result)).hexdigest(),
+            })
             atomic_json(manifest_path, final_manifest)
             missing = [
                 str(relative) for relative in RUN_EVIDENCE_ROSTER
@@ -1770,23 +1991,49 @@ def run_null_pilot(*, resume: bool = False) -> dict:
                 failure = json.loads(manifest_path.read_text())
             except (json.JSONDecodeError, OSError):
                 failure = {}
+        status, failure_class = classify_failure(exc)
+        try:
+            failed_sample = monitor.sample(enforce=False)
+        except BaseException:
+            failed_sample = monitor.accounting_without_subprocess()
+        charged = cumulative_resources(
+            prior_cpu,
+            prior_wall,
+            prior_peak_rss,
+            failed_sample,
+            time.monotonic() - started,
+        )
+        next_index = len(writer.entries if writer else saved_entries) * RECORDS_PER_SHARD
+        append_ordered_event(
+            event_history,
+            "stop",
+            cpu_seconds=charged["cpu_seconds"],
+            error_class=type(exc).__name__,
+            failure_class=failure_class,
+            next_deterministic_index=next_index,
+            outcome=status,
+            peak_rss_bytes=charged["peak_rss_bytes"],
+            resume_count=resume_count,
+            wall_seconds=charged["wall_seconds"],
+        )
         failure.update({
             "completed_shards": list(writer.entries) if writer else saved_entries,
+            "cpu_seconds": charged["cpu_seconds"],
             "error_class": type(exc).__name__,
             "error_message": str(exc),
+            "event_history": event_history,
             "experiment_id": EXPERIMENT_ID,
-            "next_deterministic_index": len(writer.entries if writer else saved_entries) * RECORDS_PER_SHARD,
+            "failure_class": failure_class,
+            "next_deterministic_index": next_index,
+            "peak_rss_bytes": charged["peak_rss_bytes"],
             "primality_checks": primality_checks,
             "resume_count": resume_count,
-            "status": "failed_infrastructure_or_budget" if isinstance(exc, ResourceCapError) else "invalid_integrity",
+            "status": status,
+            "stop_events": [
+                item for item in event_history if item["event_type"] == "stop"
+            ],
+            "wall_seconds": charged["wall_seconds"],
         })
-        try:
-            failed_sample = monitor.sample()
-        except BaseException:
-            failed_sample = {"cpu_seconds": 0.0, "peak_rss_bytes": 0}
-        failure.setdefault("cpu_seconds", prior_cpu + failed_sample["cpu_seconds"])
-        failure.setdefault("peak_rss_bytes", max(prior_peak_rss, failed_sample["peak_rss_bytes"]))
-        failure.setdefault("wall_seconds", prior_wall + time.monotonic() - started)
         atomic_json(manifest_path, failure)
         raise
 

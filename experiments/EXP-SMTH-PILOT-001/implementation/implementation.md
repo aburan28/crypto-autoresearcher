@@ -1,6 +1,7 @@
 # EXP-SMTH-PILOT-001 implementation repair note
 
-Tasks: `TASK-20260801-082`, repair `TASK-20260801-095`
+Tasks: `TASK-20260801-082`, repairs `TASK-20260801-095` and
+`TASK-20260801-100`
 
 Scope: implementation only. No registered scientific run was started, and no
 run or result artifact was generated. The implementation exposes only the
@@ -14,6 +15,10 @@ The repaired code implements the effective contract through
 `82c8bcc1d0ddc9b58d270a21aa17343a5760b2f8`, under repair authorization
 `TASK-20260801-094`. It preserves the earlier live-bounded pack and archive
 constraints and adds the passed compact seed representation from AMEND-008/009.
+The narrow successor repair binds implementation snapshot
+`e4e253b7e62dfea878622f6dc9563ef3c9b75b85` and validation
+`VAL-20260801-097` under authorization `TASK-20260801-099`; it changes no
+scientific design, count, seed, path, cap, or research status.
 
 Frozen scientific plumbing remains 32 deterministic null arrays, exact `i<j`
 enumeration, 4,186,112 factorization/reconstruction calls, the shared
@@ -67,6 +72,38 @@ shard, deterministic gzip metadata, the 1,024-byte logical-record cap, and the
   and resource-cap interruptions leave no uncheckpointed final or partial
   shard.
 
+## VAL-20260801-097 repairs
+
+- `VAL097-B1`: every returned factor record now updates the attempt's worker
+  CPU and conservative process-tree RSS receipt, constructs cumulative usage
+  by adding the prior stopped attempt, and checks the cumulative wall ceiling
+  before accepting the record. Failure handling overwrites the durable CPU,
+  wall and peak-RSS fields with the final attempt sample plus prior charged
+  usage; it no longer preserves a stale checkpoint value with `setdefault`.
+  Resume reloads those stopped totals, refuses an already exhausted budget,
+  and gives the monitor only the remaining CPU allowance.
+- `VAL097-B2`: `classify_failure` maps certificate, seed and hash
+  `IntegrityError` failures only to `invalid_integrity`; resource ceilings map
+  to resource exhaustion; `BrokenProcessPool`, missing dependencies, OS,
+  subprocess and interruption failures map to infrastructure; unexpected code
+  faults are separately labeled implementation errors. The committed control
+  creates a real child process, exits it with `os._exit(17)`, observes
+  `BrokenProcessPool`, preserves the checkpointed shard, and verifies the
+  infrastructure classification. The older N=0 control is honestly renamed as
+  an integrity fixture.
+- `VAL097-B3`: one append-only in-memory event history is atomically copied into
+  every manifest checkpoint. Each event has a monotone sequence, UTC timestamp,
+  type, checkpoint index, cumulative resources, resume count and outcome.
+  Failure appends and persists `stop`; resume reloads it, appends and immediately
+  persists `resume`; shard closure appends `checkpoint`; successful termination
+  appends `complete`. Final feasibility output carries the complete history and
+  typed stop, resume and checkpoint projections rather than an unconditional
+  empty stop list.
+
+The two validator-noted fixture debts are also repaired: the oversized JSONL
+fixture is exactly 1,025 bytes including its newline, and the one-byte mutation
+control mutates a real deterministic gzip certificate shard.
+
 The live-bounded pack sink still writes at most
 `cap_bytes - bytes_written` from each chunk. On cap-plus-one it closes the
 producer pipe, waits for termination, and removes only the exact `.partial`.
@@ -115,5 +152,24 @@ invocation, eleven in the full passing invocation, and two in the filtered
 passing invocation, plus the final worker-control rerun. This is within the
 authorization maximum of 30. The failed test is preserved above and was not a
 scientific run.
+
+## TASK-20260801-100 tests
+
+No command invoked `run-null-pilot`.
+
+1. An AST-only parse passed before execution of bounded controls.
+2. The single full bounded invocation
+   `PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py self-test`
+   exited 0 with `status=pass`, `scientific_runs=0`, and all 14 named tests
+   passing. In addition to the retained controls, it passed exact 1,025-byte
+   writer rejection, real gzip mutation, cumulative nonzero pre-stop and
+   post-resume charging with ordered `checkpoint,stop,resume,checkpoint`
+   durability, honest integrity/resource cleanup, and a real broken worker pool
+   classified as infrastructure while preserving its verified shard.
+3. After adding explicit classification assertions for integrity and resource
+   exhaustion, the filtered `integrity-and-resource-failure-cleanup` test was
+   rerun alone and passed with `scientific_runs=0`.
+
+This task used 15 of its authorized 20 bounded test attempts.
 
 Scientific run count: **0**.
