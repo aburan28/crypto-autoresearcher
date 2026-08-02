@@ -80,6 +80,7 @@ def locate(predicates: Any, target_index: int, skeleton: dict[str, Any], a_size:
 
 
 ORBIT.locate = locate
+ORBIT.BASE.locate = locate
 
 
 def run(relation_inputs: list[Path], fixture_path: Path, families: list[str], budget_labels: list[str]) -> dict[str, Any]:

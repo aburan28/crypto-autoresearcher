@@ -21,3 +21,7 @@ def test_selector_is_source_only_and_reduces_prefixes():
 
 def test_selector_order_is_deterministic():
     assert module.selected_prefixes(4, 4) == module.selected_prefixes(4, 4)
+
+
+def test_nested_runner_resolves_compressed_locator():
+    assert module.ORBIT.BASE.locate is module.locate

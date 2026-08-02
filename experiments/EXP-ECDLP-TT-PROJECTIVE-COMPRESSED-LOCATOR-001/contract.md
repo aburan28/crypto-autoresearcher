@@ -21,6 +21,8 @@ query reduction unusable; any arithmetic advantage is only a sub-cost.
 - orbit budgets: `96`, `full`
 - prefix selector: source-derived diagonal order, first `ceil(0.5 * |A|^3)` prefixes
 - target dependence: none; selection uses only public source indices
+- run budget: up to 12 receipts, including implementation-audit failures and
+  independent verifier attempts
 - predicate: corrected shared-Z projective `P+S/P-S` norm predicate
 - baseline: corrected streaming full-prefix locator and matched affine controls
 
