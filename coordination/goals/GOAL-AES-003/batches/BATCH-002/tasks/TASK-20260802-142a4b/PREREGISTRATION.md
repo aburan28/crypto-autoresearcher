@@ -249,3 +249,114 @@ inference:
   model_verified: false        # no adapter probe was run in this session
   standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
 ```
+
+---
+
+# CONTINUATION SECTION — SEGMENT 3 (appended 2026-08-02T20:18Z)
+
+Nothing above this line was edited. This section is appended, timestamped, and
+frozen in turn: it is written **before the M1 arm is executed** and before any
+M1 full-coset number exists.
+
+Segment 3 clock (C2): start `2026-08-02T20:17:01Z`, epoch `1785701821`,
+declared wall clock `1800 s`, computed binding stop `2026-08-02T20:47:01Z`
+(epoch `1785703621`). Memory ceiling 8 GB. Segment 1 and segment 2 stamps are
+untouched.
+
+## S3.1 Why this arm, stated in the reviewers' terms
+
+Both reviewers held that the M0 arms do not settle what D-DERIV-1 asserts.
+
+- Red team: `M0` has a single zero, at (0,0). For the one column `col = j0`
+  it relaxes exactly **one** of the four `i`-constraints; the other three
+  still force `f = 0`. So under `M0` the **conclusion** of fact 2 still holds
+  at every `j0`. `M0` falsifies the literal sentence "MC has no zero entry" as
+  a *necessary* condition, but it never exercises the exclusion fact 2
+  actually performs.
+- Validator: fact 2's `k = 1` class contributes `256^3 * N_ord/2`, a multiple
+  of `2^24` and hence of 8, so the mod-8 conclusion survives deleting fact 2
+  entirely; its ruling is that fact 2 is a TRUE statement about AES's MC that
+  is **non-minimal** rather than false, and that any supersession must be
+  **split by round count** — dropped at r=5, kept at r=4 where the paired
+  `M0_r4_j0_CRIT` / `M0_r4_j1_NONCRIT` arms show it is measurably
+  load-bearing.
+
+Both point at the same untested arm: `M1`, in which fact 2 fails **outright**.
+I accept both readings; they are sharper than the one I recorded, and the arm
+they name is the one my own R4-P4 already identified and I dropped on budget.
+
+## S3.2 The object
+
+`M1 = [[0,3,1,1],[1,2,3,0],[1,1,0,3],[3,0,1,2]]`, already in `matrices.json`:
+rank 4, det `0x14`, explicit inverse computed, `M1 * M1^{-1}` verified equal to
+the identity. Non-singular; not MDS (a zero entry precludes MDS).
+
+Its zeros sit at `(i, (-i) mod 4)` for `i = 0..3`. In the r=5 condition the
+term column `col` contributes to equation `i` through `M[i][t_i]` with
+`t_i = (col - j0 - i) mod 4`, so `M[i][t_i] = 0` for **all four** `i` exactly
+when `col = j0`. Hence for **every** `j0`, the column `col = j0` has
+`g_col == 0` identically: every pair differing only in that column satisfies
+the r=5 condition, whatever the S-box does. Fact 2 does not merely become
+unnecessary under `M1`, it is **false** under `M1`.
+
+Run: `./cnt soft 5 0 <K> <B> 00030101010203000101000303000102 16 1 4`
+with the frozen `K = 6fe52e2e9b3ea04085c370f9bc609245`,
+`B = e35f00e7631cdd862e59d126e72b8fc9`. uint16 counters over two windows of
+2^31 entries (4 GiB), honouring segment 1's VOID condition V6, which forbids a
+single 8 GiB allocation.
+
+## S3.3 PREDICTIONS, frozen before measurement
+
+- **S3-P1.** `n_5 mod 8 = 0`. The mod-8 property SURVIVES even though fact 2
+  is false for this matrix.
+- **S3-P2.** `n_5 >= 547608330240`, because the `k = 1` class alone
+  contributes `256^3 * C(256,2) = 16777216 * 32640 = 547608330240` exactly.
+  I expect `n_5` to be that value plus the ordinary `k >= 2` and coincidence
+  terms, i.e. of order `5.48e11 + ~2.1e9`.
+- **S3-P3.** `max_occ >= 256`, since each class of 256 states differing only
+  in column `j0` collides identically. I expect `max_occ` in roughly 256..300.
+- **S3-P4.** `n_5 mod 16 in {0, 8}`; not further predicted. The `k = 1` term
+  itself is `0 mod 16`.
+
+## S3.4 What would FALSIFY the "fact 2 is dispensable" analysis
+
+Stated now so it cannot be retro-fitted:
+
+1. **`n_5 mod 8 != 0` under `M1` falsifies it outright.** That is the decisive
+   reading. It would mean the analysis is wrong somewhere, that D-DERIV-1 must
+   be withdrawn rather than split, and that the exact r=4 hit sits next to an
+   r=5 error — precisely the transfer of belief the red team warned this
+   package leans on. I would record that plainly and against my own prior
+   claim.
+2. `n_5 < 547608330240` would falsify S3-P2 and with it my identification of
+   the `k = 1` contribution, even if the residue read 0. The residue could
+   then be right for a reason I have not established.
+3. `max_occ < 256` would likewise contradict the claimed structure of the
+   `k = 1` class.
+
+A reading of `0 mod 8` **with** `n >= 547608330240` **and** `max_occ >= 256`
+is the confirmation. Any of 1-3 is a refutation of my analysis, not a nuance.
+
+## S3.5 VOID conditions (unchanged, restated)
+
+Counter overflow (`max_occ >= 65535`, or the per-window integrity identity
+failing) makes the reading `invalid_measurement` and its `n` is NOT reported
+as a number. A timeout is resource exhaustion, never negative evidence. No
+claim about full-round or deployed AES; no comparison to published
+cryptanalysis in either direction.
+
+## S3.6 Corrections carried in from the reviewers, accepted
+
+- My "three exactness checks" are **two**. `n` and `n_alt` are both computed
+  from the same occupancy histogram `gh[]`, so `agree` is algebraically
+  equivalent to `sum_b b*gh[b] == N`, which the per-window
+  `if (wsum != inw)` integrity test already implies. It is arithmetic
+  self-consistency of one histogram, not independent corroboration, and
+  RESULTS.json will say so.
+- The `8^-2 = 1/64` figure I attached to my two M0 r=5 arms assumed an
+  independence I had not established: those arms are two projections of the
+  **same** 2^32 ciphertexts (same matrix, key and base, differing only in
+  `j0`). The honest 1/64 across two independent keys exists only because the
+  **validator** ran `M0_r5_j2_ALTKEY` on its own key
+  (`n = 2147227472`, `mod 8 = 0`). That is attributed to the validator, not
+  to my arms.
