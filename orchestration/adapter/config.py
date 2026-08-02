@@ -18,7 +18,7 @@ from typing import Any
 
 import yaml
 
-ADAPTER_VERSION = "1.0.0"
+ADAPTER_VERSION = "1.1.0"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 POLICIES_PATH = REPO_ROOT / "orchestration" / "model-policies.yaml"
