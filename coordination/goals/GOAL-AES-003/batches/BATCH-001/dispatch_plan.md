@@ -6,12 +6,11 @@ Close the GOAL-AES-003 BATCH-001 lifecycle over the reduced-round AES attack and
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-907` | validator | running | 70 | TASK-20260802-902, TASK-20260802-903, TASK-20260802-904, TASK-20260802-905, TASK-20260802-906 | coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/TASK-VALIDATION-001/validation_report.yaml | coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/TASK-VALIDATION-001 |
-| `TASK-20260802-908` | red-team | queued | 69 | TASK-20260802-902, TASK-20260802-903, TASK-20260802-904, TASK-20260802-905, TASK-20260802-906 | coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/TASK-REDTEAM-001/red_team_report.yaml | coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/TASK-REDTEAM-001 |
+| `TASK-20260802-909` | coordinator | queued | 60 | TASK-20260802-907, TASK-20260802-908 | coordination/goals/GOAL-AES-003/batches/BATCH-001/archives/TASK-20260802-909/ledger-receipt.json, ledger/decisions/DEC-20260802-007.yaml, ledger/evidence/EV-AES-005.yaml, ledger/goals/GOAL-AES-003.yaml | ledger/evidence/EV-AES-005.yaml, ledger/decisions/DEC-20260802-007.yaml, ledger/goals/GOAL-AES-003.yaml, coordination/goals/GOAL-AES-003/batches/BATCH-001/archives/TASK-20260802-909 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-909`: dependency_not_completed:TASK-20260802-907:running, dependency_not_completed:TASK-20260802-908:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Close the GOAL-AES-003 BATCH-001 lifecycle over the reduced-round AES attack and
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `4d42d51541ed42e23efcf2321d40c048c727bf10cbe9ab91716932544deff0dd`
+Plan SHA-256: `9e9218f60ef7f81ca741376d258942578d30ef54432ab2af188f15f0b95e4221`
