@@ -30,4 +30,4 @@ Settle the BATCH-028 calibration question with the two cheap arms both reviewers
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `2785590f0dc55fa2079732a9712882ab769323d5a5858dbffdfeafba6bbf9f66`
+Plan SHA-256: `199ebc317ac888b0b4faba3b22f56e82a4218fafe9f4b9001a993e542ea12117`
