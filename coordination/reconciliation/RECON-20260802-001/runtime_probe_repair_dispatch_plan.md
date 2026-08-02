@@ -6,11 +6,11 @@ Freeze, implement, snapshot, and independently revalidate the bounded repair for
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-974` | validator | queued | 100 | TASK-20260802-973 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-974/validation_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-974 |
+| `TASK-20260802-975` | coordinator | queued | 100 | TASK-20260802-974 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-975/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-975 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-975`: dependency_not_completed:TASK-20260802-974:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Freeze, implement, snapshot, and independently revalidate the bounded repair for
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a445c26ee4b815edb77555fdd2b728599e79b05a77037783edcd0c1430dd91bb`
+Plan SHA-256: `6952e4f64932b83649c6545b811d2a00a13ffef2f1ddbe1ba5c2ba7a3b13a233`
