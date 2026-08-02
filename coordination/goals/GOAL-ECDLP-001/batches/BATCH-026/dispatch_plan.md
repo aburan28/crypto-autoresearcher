@@ -6,16 +6,15 @@ BATCH-026 EXP-LPF-001 REPAIR AND MEASURE. Carry the RTB-054-1 mechanical repair 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-068` | reviewer | queued | 82 | TASK-20260801-067 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260801-068/contract_review.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260801-068/attainability_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260801-068/anti_tuning_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260801-068/alternative_class_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260801-068/perturbation_movement_check.md, coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260801-068/supersession_diff_check.md | coordination/goals/GOAL-ECDLP-001/batches/BATCH-026/reviews/TASK-20260801-068 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-069`: dependency_not_completed:TASK-20260801-068:queued
-- `TASK-20260801-070`: dependency_not_completed:TASK-20260801-069:queued
-- `TASK-20260801-071`: dependency_not_completed:TASK-20260801-070:queued
-- `TASK-20260801-072`: dependency_not_completed:TASK-20260801-071:queued, dependency_not_completed:TASK-20260801-070:queued
-- `TASK-20260801-073`: dependency_not_completed:TASK-20260801-071:queued, dependency_not_completed:TASK-20260801-070:queued
-- `TASK-20260801-074`: dependency_not_completed:TASK-20260801-071:queued, dependency_not_completed:TASK-20260801-072:queued, dependency_not_completed:TASK-20260801-073:queued
+- `TASK-20260801-070`: task_marked_blocked
+- `TASK-20260801-071`: task_marked_blocked
+- `TASK-20260801-072`: task_marked_blocked
+- `TASK-20260801-073`: task_marked_blocked
+- `TASK-20260801-074`: task_marked_blocked
 
 ## Dispatch Gates
 
@@ -30,4 +29,4 @@ BATCH-026 EXP-LPF-001 REPAIR AND MEASURE. Carry the RTB-054-1 mechanical repair 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `2629f112987bfdab012a7b0287c73b5afd432d7faceceea2e0e62af4ff38845b`
+Plan SHA-256: `85b751a253d8da926079bb9a078aab39b18e98ff50148265fa05ab73587e7509`
