@@ -7,6 +7,15 @@ new RUN id, never edited or removed. This checks a diff range for any
 modification (M) or deletion (D) touching run directories. New files (A) are
 allowed — that is how new runs are added.
 
+Rename detection is disabled deliberately: with it on, moving a run directory
+is reported as R and never reaches the M/D filter, so any rename would pass —
+including one that also edited content. Renames are instead permitted only
+when declared in tools/run_id_remaps.yaml, and only after every file in the
+directory is proved byte-identical to its base blob with the declared run id
+substituted. That exception exists because a duplicate RUN id is the one defect
+the append-only rule cannot repair: superseding under a fresh id leaves the
+collision standing. See CORR-20260802-004.
+
 Usage:
     python3 tools/check_run_immutability.py [BASE_REF] [HEAD_REF]
 
@@ -103,8 +112,15 @@ def main() -> int:
               f"immutability check")
         return 0
 
+    # --no-renames is load-bearing. With rename detection on, moving a run
+    # directory is reported as R and slips past --diff-filter=MD entirely, so
+    # the gate would permit any rename -- including one that edited content,
+    # as long as the files stayed similar enough to be paired. Disabling it
+    # makes a rename a deletion plus an addition, which this check sees; the
+    # declared, byte-verified remaps below are then the only way to move a run.
     diff = subprocess.run(
-        ["git", "diff", "--diff-filter=MD", "--name-only", base_sha, head],
+        ["git", "diff", "--no-renames", "--diff-filter=MD", "--name-only",
+         base_sha, head],
         capture_output=True, text=True)
     if diff.returncode != 0:
         print(f"NOTICE: git diff failed ({diff.stderr.strip()}); skipping")
@@ -119,19 +135,21 @@ def main() -> int:
     # once the whole directory is proved byte-identical modulo the run id.
     renames = load_renames()
     violations, allowed, unfaithful = [], 0, []
-    verified: set[str] = set()
+    bad_dirs: set[str] = set()
+    checked: set[str] = set()
     for path in touched:
         old_dir = next((d for d in renames if path.startswith(d + "/")), None)
         if old_dir is None:
             violations.append(path)
             continue
-        if old_dir not in verified:
-            verified.add(old_dir)
+        if old_dir not in checked:
+            checked.add(old_dir)
             reason = rename_is_faithful(base_sha, head, old_dir,
                                         renames[old_dir])
             if reason:
                 unfaithful.append(reason)
-        if old_dir in {r.split(":")[0] for r in unfaithful}:
+                bad_dirs.add(old_dir)
+        if old_dir in bad_dirs:
             violations.append(path)
         else:
             allowed += 1
