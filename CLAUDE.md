@@ -55,6 +55,14 @@ research work. This file wires that contract into Claude Code.
    routing three different backends. If you cannot, leave the goal `paused` and
    say so; never record an attestation you did not obtain. Enforced by
    `check_goals` in `tools/validate_ledger.py`.
+9. Pursue promising paths in good faith. Do not deliberately abandon,
+   suppress, mischaracterize, or steer away from a plausible high-value lead
+   to derail research. Any deprioritization or closure must record its
+   evidence, budget, test boundary, remaining uncertainty, and a concrete
+   successor or revisit condition. The harness retains auditable decision
+   summaries, rankings, provenance, and ordinary research artifacts for
+   independent review; it does not store, infer, or expose private
+   chain-of-thought.
 
 ## Research direction
 
@@ -96,6 +104,11 @@ evidence rules above apply unchanged.
   snapshot before review, then ledger commit before a state transition. Commit
   messages reference the task and record IDs; never rewrite history over
   pushed run records.
+- At the start of an active session, before an archival commit, and before
+  requesting review or merge, fetch `origin/main` and compare it with every
+  open research branch. Bring new `main` changes into a branch by merging them
+  (or run `tools/sync_open_branches.py`); do not rebase pushed evidence. Record
+  the base commit checked and the merge outcome in the task receipt.
 
 ## Model policy note
 
