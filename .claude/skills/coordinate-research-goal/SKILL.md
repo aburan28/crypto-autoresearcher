@@ -18,9 +18,13 @@ and ledger transition as committed evidence.
 
 1. Read `AGENTS.md`, `CLAUDE.md`, `docs/task-lifecycle.md`,
    `docs/dynamic-subagent-dispatch.md`, and the relevant ledger records.
-2. Reuse an active `ledger/goals/GOAL-<AREA>-<NNN>.yaml` when it matches the
-   request; otherwise create the next free goal record from
-   `templates/research-records.md`. Bind it to one or more `RQ-*` records.
+2. Reuse an active `ledger/goals/GOAL-<AREA>-*.yaml` when it matches the
+   request; otherwise create a new goal record from
+   `templates/research-records.md` with a RANDOM 6-hex suffix — `allocate_id.py
+   --next` has no `GOAL` type, so mint it directly and confirm with
+   `python3 tools/allocate_id.py --check GOAL-<AREA>-<suffix>`. Never allocate
+   as max+1: concurrent worktrees read one committed maximum and mint one ID
+   for two goals (CLAUDE.md). Bind it to one or more `RQ-*` records.
 3. State an explicit objective, completion criteria, pause conditions, campaign
    budget, and exactly one next action. A negative result is not a completion
    criterion.

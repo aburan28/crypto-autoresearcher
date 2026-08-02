@@ -17,7 +17,11 @@ step 2).
 1. Identify the target research question. If the user named an `RQ-*` ID,
    read it from `ledger/questions/`. If no research question record exists
    yet, create one first from the template in `templates/research-records.md`
-   and save it as `ledger/questions/RQ-<AREA>-<NNN>.yaml` (next free number).
+   and save it under `ledger/questions/`. Allocate the ID through the tool —
+   `python3 tools/allocate_id.py --next research_question --area <AREA>`,
+   then `--check` it before use. Never pick the next free number by grepping:
+   concurrent worktrees all read the same maximum and mint the same ID for
+   different questions (CLAUDE.md).
    Before generating, merge `origin/main` into the working branch (merge,
    never rebase) so ideation runs against current ledger state — see
    "Branch and PR hygiene" below.

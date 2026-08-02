@@ -58,7 +58,22 @@ promote it.
    Before curating, merge `origin/main` into the working branch (merge,
    never rebase) so the entry and index are built against current knowledge —
    see "Branch and PR hygiene" below.
-2. Pick the next free ID in that class (grep existing files).
+2. Mint the ID as a RANDOM 6-hex suffix, never as max+1. `allocate_id.py
+   --next` has no `KN` record type, so generate the suffix directly and
+   confirm it is free before writing the file:
+
+   ```sh
+   python3 -c "import secrets; print('KN-LIT-' + secrets.token_hex(3))"
+   python3 tools/allocate_id.py --check KN-LIT-<suffix>   # exit 0 = free
+   ```
+
+   Grepping for the highest existing number is the collision bug, not a
+   fallback (CLAUDE.md): every concurrent worktree asks the same committed
+   state for its maximum and gets the same answer, so two branches mint one ID
+   for two different entries, and the clash surfaces at merge — when both
+   records are already immutable and neither can be renamed. A random token
+   scans no state, so it cannot converge that way. Legacy `KN-LIT-001`-style
+   IDs stay valid forever; never mint a new one.
 3. Write the entry using the frontmatter schema from `knowledge/README.md`
    (id, type, title, tags, confidence, source/citation or internal refs,
    added date, superseded_by).

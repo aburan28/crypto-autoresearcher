@@ -53,8 +53,11 @@ Pick in this order:
 **Resume** an existing goal: use its `dispatch_queue_path` and
 `current_batch_id`; continue from `next_action`.
 
-**Start new**: only when the user asks for a new campaign. Create the next free
-`GOAL-<AREA>-<NNN>.yaml` from `templates/research-records.md`, bind `RQ-*`,
+**Start new**: only when the user asks for a new campaign. Create
+`GOAL-<AREA>-<random 6-hex>.yaml` from `templates/research-records.md` — mint
+the suffix randomly (`allocate_id.py --next` has no `GOAL` type) and confirm it
+with `allocate_id.py --check` before writing; never take max+1, which collides
+across concurrent worktrees (CLAUDE.md). Bind `RQ-*`,
 create `coordination/goals/GOAL-.../batches/BATCH-001/` with handoffs + queue
 (`goal_id` set), then follow `/coordinate-research-goal` launch steps.
 Snapshot-archive the goal/queue/handoffs before any worker runs.
