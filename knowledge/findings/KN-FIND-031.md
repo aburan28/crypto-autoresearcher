@@ -22,7 +22,7 @@ tags:
 confidence: established
 internal_refs:
 - EV-MLKEM-017
-- DEC-20260802-003
+- DEC-20260802-735e6a
 - EV-MLKEM-011
 - H-MLKEM-010
 proof_status: derivation
