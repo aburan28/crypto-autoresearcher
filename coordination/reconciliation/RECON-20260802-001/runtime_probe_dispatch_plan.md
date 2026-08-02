@@ -6,11 +6,11 @@ Snapshot the Coordinator-approved, session-scoped Codex runtime-provenance probe
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| none | - | - | - | - | - | - |
+| `TASK-20260802-966` | executor | queued | 100 | TASK-20260802-965 | orchestration/adapter/codex_runtime.py, orchestration/adapter/cli.py, orchestration/adapter/config.py, tests/test_codex_runtime_probe.py, docs/inference-backends.md, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-966/implementation_report.yaml | orchestration/adapter/codex_runtime.py, orchestration/adapter/cli.py, orchestration/adapter/config.py, tests/test_codex_runtime_probe.py, docs/inference-backends.md, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-966 |
 
 ## Deferred or Blocked
 
-None.
+- `TASK-20260802-967`: dependency_not_completed:TASK-20260802-966:queued
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `387750c8a2117f9e4aafd1a5356a59082a79300df8f65b12eec584d2bdc6a304`
+Plan SHA-256: `e72bc46b26d13afd1f337729751f16f6a501545f784e2586e7dc10fc827f9a0f`
