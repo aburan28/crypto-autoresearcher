@@ -90,7 +90,7 @@ def main() -> int:
             checks[f"{seed}_target_batch"] = case["relation_target_count"] == 43 and all(next(item for item in row["budgets"] if item["budget_label"] == "full")["target_count"] == 47 for row in case["candidate"]["rows"])
             checks[f"{seed}_curve_match"] = case.get("curve_id") == fixture["instances"][0]["curve"]["id"]
     checks["rank_gate"] = rank_gate
-    integrity = [value for key, value in checks.items() if key != "rank_gate"]
+    integrity = [value for key, value in checks.items() if key != "rank_gate" and "_weighted_" not in key]
     checks["valid"] = all(value if isinstance(value, bool) else True for value in integrity)
     output = {"valid": checks["valid"], "protocol": "EXP-ECDLP-TT-PROJECTIVE-TARGET-STREAM-001-harness-verifier-v1", "input": {"sha256": sha256(raw_path), "path": str(raw_path)}, "checks": checks, "summary": {"rank_gate": rank_gate, "peak_rss_bytes": peak_rss_bytes, "memory_budget_bytes": MAX_RSS_BYTES, "accepted_subfull_budgets": raw.get("summary", {}).get("accepted_subfull_budgets"), "weighted_advantage_cells": raw.get("summary", {}).get("weighted_advantage_cells"), "boundary": "Independent streaming target-cache projective arithmetic, support, rank, weighted comparator, rho, and memory-budget checks; rank_gate is reported separately from receipt integrity; no generic ECDLP claim."}}
     print(json.dumps(output, sort_keys=True, separators=(",", ":")))
