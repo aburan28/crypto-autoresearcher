@@ -62,9 +62,19 @@ promote it.
 3. Write the entry using the frontmatter schema from `knowledge/README.md`
    (id, type, title, tags, confidence, source/citation or internal refs,
    added date, superseded_by).
-4. Regenerate `knowledge/INDEX.md`: one line per entry — ID, title, type,
-   confidence, tags — sorted by ID. The index is derived; entries are the
-   source of truth.
+4. Regenerate both derived indexes — entries and `inputs/` are the source of
+   truth, the indexes are rebuilt from them:
+   - `knowledge/INDEX.md` (`tools/build_knowledge_index.py`): one line per
+     entry — ID, title, type, confidence, tags — sorted by ID.
+   - `knowledge/SOURCES.md` + `knowledge/sources.json` (`make sources`):
+     source provenance. Required whenever a `KN-LIT` entry is added or a
+     source is vendored under `inputs/`. It also re-hashes every vendored
+     source artifact, so a red run here is either a stale index or a
+     corrupted source — check which before regenerating.
+   A `KN-LIT` entry whose `identifiers` are all empty lands in the
+   `SOURCES.md` gap table. That is the correct outcome when the identifier is
+   genuinely unknown; never populate the field with a guess to clear the row
+   (AGENTS.md rule 5).
 5. The Coordinator creates an isolated snapshot or ledger archive commit for
    the exact entry, index, and any cited internal evidence/decision records.
    Report the item only after the post-commit verifier accepts its declared
@@ -81,8 +91,9 @@ pulls in `main` and surfaces the entry as a PR:
 
 - **Before curating:** `git fetch origin && git merge origin/main` — merge,
   never rebase. If the merge conflicts, stop and report; never resolve a
-  conflict by editing a record. Re-run `tools/validate_ledger.py` and
-  `tools/build_knowledge_index.py --check` after the merge.
+  conflict by editing a record. Re-run `tools/validate_ledger.py`,
+  `tools/build_knowledge_index.py --check` and
+  `tools/build_source_index.py --check` after the merge.
 - **After the archive commit:** `git push -u origin <branch>` then
   `gh pr create --base main --head <branch> --title "knowledge: <KN-ID>" --body "<KN-* IDs>"`
   (or `gh pr edit <number>` when a PR for the branch already exists).
