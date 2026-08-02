@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import glob
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -252,6 +253,17 @@ def check_run(path: str, ctx: Ctx):
     body = doc.get("run") if isinstance(doc, dict) else None
     if not isinstance(body, dict):
         ctx.err(path, "expected top-level key 'run'")
+        # A frozen legacy manifest predates the nested `run:` shape and records
+        # its id flat. ctx.err has already suppressed the shape complaint for
+        # it, but without registering the id nothing may cite the run -- every
+        # evidence record naming it fails instead, which is the schema debt
+        # reported as the record's own defect. Register it the way legacy
+        # ledger records register their filename stem: the run exists, it is
+        # frozen by hash, and it is simply not schema-checkable.
+        if os.path.abspath(path) in ctx.legacy_paths and isinstance(doc, dict):
+            legacy_id = doc.get("run_id") or doc.get("id")
+            if isinstance(legacy_id, str) and RUN_ID.match(legacy_id):
+                ctx.legacy_aliases.add(legacy_id)
         return
     rec_id = body.get("id")
     if not rec_id or not RUN_ID.match(str(rec_id)):
@@ -317,12 +329,17 @@ def check_cross_refs(ctx: Ctx):
             if h and h not in ctx.ids and h not in ctx.legacy_aliases:
                 ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                          f"hypothesis '{h}'")
+            # legacy_aliases is consulted here for the same reason the
+            # hypothesis and question checks above consult it: a frozen
+            # pre-schema record exists and may be cited, it just cannot be
+            # schema-checked. Omitting it here reported the citing record as
+            # defective for naming a run that is present and hash-frozen.
             for run_id in body.get("run_ids") or []:
-                if run_id not in ctx.ids:
+                if run_id not in ctx.ids and run_id not in ctx.legacy_aliases:
                     ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                              f"run '{run_id}'")
             for exp_id in body.get("experiment_ids") or []:
-                if exp_id not in ctx.ids:
+                if exp_id not in ctx.ids and exp_id not in ctx.legacy_aliases:
                     ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                              f"experiment '{exp_id}'")
             # Claim-tier ceiling.
@@ -384,6 +401,37 @@ def check_legacy_run_inventory(ctx: Ctx, inventory: dict[str, str]) -> None:
                 "frozen legacy run manifest hash changed; supersede it instead",
                 force=True,
             )
+
+
+def register_legacy_json_runs(ctx: Ctx, inventory: dict[str, str]) -> None:
+    """Register run ids of frozen legacy manifests serialized as JSON.
+
+    Some pre-canonical runs recorded their manifest as `manifest.json` rather
+    than `manifest.yaml`. The scan below only visits `manifest.yaml`, so those
+    runs were never seen at all: not schema-checked (correctly -- they predate
+    the schema) but also never registered, so every evidence record citing one
+    was reported as referencing an unknown run. The run is present and frozen
+    by hash in the inventory; only its serialization is old.
+
+    This registers the id as a legacy alias, exactly as a flat `manifest.yaml`
+    does. It deliberately does NOT register the body: nothing here becomes
+    schema-checkable, claim tiers are not derived from it, and a run with no
+    manifest of any kind stays unregistered, because no record of it exists.
+    """
+    for relative in sorted(inventory):
+        if not relative.endswith(".json"):
+            continue
+        path = os.path.join(REPO, relative)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError):
+            continue          # hash/presence is check_legacy_run_inventory's job
+        if not isinstance(doc, dict):
+            continue
+        legacy_id = doc.get("run_id") or doc.get("id")
+        if isinstance(legacy_id, str) and RUN_ID.match(legacy_id):
+            ctx.legacy_aliases.add(legacy_id)
 
 
 def check_legacy_ledger(
@@ -714,6 +762,7 @@ def main() -> int:
                                               "specification.yaml"))):
         check_experiment(path, ctx)
     check_legacy_run_inventory(ctx, legacy_run_inventory)
+    register_legacy_json_runs(ctx, legacy_run_inventory)
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
                                               "*", "manifest.yaml"))):
         check_run(path, ctx)

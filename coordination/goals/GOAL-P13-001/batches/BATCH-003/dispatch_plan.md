@@ -6,12 +6,11 @@ GOAL-P13-001 BATCH-003 repairs the two defects that independent review found in 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-8e00fe` | red-team | queued | 80 | TASK-20260802-63145a, TASK-20260802-18f85d | coordination/goals/GOAL-P13-001/batches/BATCH-003/reviews/TASK-20260802-8e00fe/red_team_report.yaml | coordination/goals/GOAL-P13-001/batches/BATCH-003/reviews/TASK-20260802-8e00fe |
-| `TASK-20260802-c50ea2` | validator | queued | 80 | TASK-20260802-63145a, TASK-20260802-18f85d | coordination/goals/GOAL-P13-001/batches/BATCH-003/reviews/TASK-20260802-c50ea2/validation_report.yaml | coordination/goals/GOAL-P13-001/batches/BATCH-003/reviews/TASK-20260802-c50ea2 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-c1f7c8`: dependency_not_completed:TASK-20260802-c50ea2:queued, dependency_not_completed:TASK-20260802-8e00fe:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ GOAL-P13-001 BATCH-003 repairs the two defects that independent review found in 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `566b6b358b7471fd90cca263e48128727ce08e5918e8d3a0e2dba350eb27d624`
+Plan SHA-256: `67c5b385216e6c3815d9a6e1cf9df99a2cec320547cd3a09fb833726da2c78b3`

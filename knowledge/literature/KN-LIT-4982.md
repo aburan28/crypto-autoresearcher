@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-4982
 type: literature
-title: "Multi-Designated Receiver Signed Public Key Encryption"
+title: Multi-Designated Receiver Signed Public Key Encryption
 authors:
-  - "Ueli Maurer"
-  - "Christopher Portmann"
-  - "Guilherme Rito"
+- Ueli Maurer
+- Christopher Portmann
+- Guilherme Rito
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- public-key
+- signature
+- multi-designated-receiver
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 
