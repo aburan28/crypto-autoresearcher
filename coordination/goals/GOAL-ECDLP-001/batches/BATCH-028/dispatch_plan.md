@@ -6,15 +6,12 @@ Perform OPEN-BATCH023-A, THE OWED DIRECT SMOOTHNESS MEASUREMENT OF HEUR-DS-1, wh
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-80f5e9` | executor | queued | 100 | - | experiments/EXP-SMTH-4403c4/specification.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-80f5e9/freeze_receipt.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-80f5e9/budget_stamps.jsonl | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-80f5e9, experiments/EXP-SMTH-4403c4 |
+| `TASK-20260802-0a1d4d` | validator | queued | 70 | TASK-20260802-80f5e9, TASK-20260802-6a39f8, TASK-20260802-d34ac4 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-0a1d4d/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-0a1d4d |
+| `TASK-20260802-411037` | red-team | queued | 70 | TASK-20260802-80f5e9, TASK-20260802-6a39f8, TASK-20260802-d34ac4 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-411037/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-411037 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-0a1d4d`: dependency_not_completed:TASK-20260802-80f5e9:queued, dependency_not_completed:TASK-20260802-6a39f8:queued, dependency_not_completed:TASK-20260802-d34ac4:queued
 - `TASK-20260802-268ec9`: dependency_not_completed:TASK-20260802-0a1d4d:queued, dependency_not_completed:TASK-20260802-411037:queued
-- `TASK-20260802-411037`: dependency_not_completed:TASK-20260802-80f5e9:queued, dependency_not_completed:TASK-20260802-6a39f8:queued, dependency_not_completed:TASK-20260802-d34ac4:queued
-- `TASK-20260802-6a39f8`: dependency_not_completed:TASK-20260802-80f5e9:queued
-- `TASK-20260802-d34ac4`: dependency_not_completed:TASK-20260802-80f5e9:queued, dependency_not_completed:TASK-20260802-6a39f8:queued
 
 ## Dispatch Gates
 
@@ -29,4 +26,4 @@ Perform OPEN-BATCH023-A, THE OWED DIRECT SMOOTHNESS MEASUREMENT OF HEUR-DS-1, wh
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `5ddc3cf79a5f1e45acaca4296e57c478e63e1593502c8ba78397557209defd23`
+Plan SHA-256: `224cf5adfc44f49bbab451d1c61148e358ebf98b38bc110fb221770d39d5a36b`
