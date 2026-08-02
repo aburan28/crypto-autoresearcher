@@ -6,11 +6,11 @@ Snapshot and mechanically validate the narrow generated-artifact prescription th
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-993` | executor | queued | 100 | TASK-20260802-992 | tools/check_reconciliation_generated_artifacts.py, tests/test_check_reconciliation_generated_artifacts.py, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-993/static_check_report.json, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-993/implementation_report.yaml | tools/check_reconciliation_generated_artifacts.py, tests/test_check_reconciliation_generated_artifacts.py, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-993 |
+| `TASK-20260802-994` | coordinator | queued | 100 | TASK-20260802-993 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-994/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-994 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-994`: dependency_not_completed:TASK-20260802-993:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Snapshot and mechanically validate the narrow generated-artifact prescription th
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b6dd13b6d6750d20be1e0105ceed97b06b9bef59c899272ddcbca54476497fda`
+Plan SHA-256: `6eeca6aeb7bbaf3810cec25f7184443801f802f20b36ff0fc1165b7536168f2c`
