@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-5782
 type: literature
-title: "Polling with Physical Envelopes: A Rigorous Analysis of a Human-Centric Protocol"
+title: 'Polling with Physical Envelopes: A Rigorous Analysis of a Human-Centric Protocol'
 authors:
-  - "Tal Moran"
-  - "Moni Naor⋆⋆"
+- Tal Moran
+- Moni Naor⋆⋆
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- protocol
+- human-centric
+- physical-assumption
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

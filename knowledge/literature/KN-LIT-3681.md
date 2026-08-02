@@ -1,12 +1,12 @@
 ---
 id: KN-LIT-3681
 type: literature
-title: "End-to-end Design of a PUF-based Privacy Preserving Authentication Protocol"
+title: End-to-end Design of a PUF-based Privacy Preserving Authentication Protocol
 authors:
-  - "Aydin Aysu"
-  - "Ege Gulcan"
-  - "Daisuke Moriyama"
-  - "Patrick Schaumont"
+- Aydin Aysu
+- Ege Gulcan
+- Daisuke Moriyama
+- Patrick Schaumont
 year: null
 venue: null
 identifiers:
@@ -14,10 +14,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- puf
+- authentication
+- privacy
+- implementation
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-2583
 type: literature
-title: "Asymmetric Group Message Franking: Definitions & Constructions"
+title: 'Asymmetric Group Message Franking: Definitions & Constructions'
 authors:
-  - "Junzuo Lai"
-  - "Gongxian Zeng( )"
-  - "Zhengan Huang("
+- Junzuo Lai
+- Gongxian Zeng( )
+- Zhengan Huang(
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- message-franking
+- messaging
+- provable-security
+- protocol
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

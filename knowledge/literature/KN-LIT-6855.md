@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-6855
 type: literature
-title: "Structured Encryption and Leakage Suppression"
+title: Structured Encryption and Leakage Suppression
 authors:
-  - "Seny Kamara"
-  - "Tarik Moataz"
-  - "Olya Ohrimenko"
+- Seny Kamara
+- Tarik Moataz
+- Olya Ohrimenko
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- structured-encryption
+- leakage
+- searchable-encryption
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 
