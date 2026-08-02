@@ -23,6 +23,66 @@ import sys
 
 RUN_PATH = os.path.join("experiments", "")  # prefix; refined below
 
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REMAP_PATH = os.path.join(REPO, "tools", "run_id_remaps.yaml")
+
+
+def load_renames() -> dict[str, str]:
+    """Declared duplicate-id repairs: old run directory -> new run directory.
+
+    A duplicate RUN id is the one defect the append-only rule cannot repair,
+    because superseding under a fresh id leaves the collision standing. Renames
+    listed in tools/run_id_remaps.yaml are therefore allowed -- but only after
+    `rename_is_faithful` proves the directory's bytes are unchanged apart from
+    the declared id. That keeps this an identifier repair, never a data edit.
+    """
+    try:
+        import yaml
+        with open(REMAP_PATH, encoding="utf-8") as fh:
+            doc = yaml.safe_load(fh) or {}
+    except (OSError, ImportError):
+        return {}
+    if doc.get("schema") != "run-id-remap-v1":
+        return {}
+    renames = {}
+    for entry in doc.get("renames") or []:
+        experiment = entry.get("experiment")
+        old, new = entry.get("from_run_id"), entry.get("to_run_id")
+        if not (experiment and old and new):
+            continue
+        base = f"experiments/{experiment}/runs"
+        renames[f"{base}/{old}"] = f"{base}/{new}"
+    return renames
+
+
+def blob(ref: str, path: str) -> bytes | None:
+    r = subprocess.run(["git", "show", f"{ref}:{path}"], capture_output=True)
+    return r.stdout if r.returncode == 0 else None
+
+
+def rename_is_faithful(base_sha: str, head: str, old_dir: str,
+                       new_dir: str) -> str | None:
+    """None if the rename only substituted the run id, else why it did not."""
+    old_id, new_id = os.path.basename(old_dir), os.path.basename(new_dir)
+    listing = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", base_sha, old_dir + "/"],
+        capture_output=True, text=True)
+    names = [p for p in listing.stdout.splitlines() if p]
+    if not names:
+        return f"{old_dir}: nothing at {base_sha} to rename"
+    for old_path in names:
+        new_path = new_dir + old_path[len(old_dir):]
+        before, after = blob(base_sha, old_path), blob(head, new_path)
+        if after is None:
+            return f"{new_path}: declared rename target is missing"
+        if before is None:
+            return f"{old_path}: unreadable at {base_sha}"
+        expected = before.replace(old_id.encode(), new_id.encode())
+        if after != expected:
+            return (f"{new_path}: content changed beyond the declared "
+                    f"{old_id} -> {new_id} substitution")
+    return None
+
 
 def resolve(ref: str) -> str | None:
     r = subprocess.run(["git", "rev-parse", "--verify", "--quiet", ref],
@@ -50,10 +110,41 @@ def main() -> int:
         print(f"NOTICE: git diff failed ({diff.stderr.strip()}); skipping")
         return 0
 
-    violations = [
+    touched = [
         line for line in diff.stdout.splitlines()
         if "/runs/" in line and line.startswith("experiments/")
     ]
+
+    # A declared rename shows up as D on every old path. Accept those only
+    # once the whole directory is proved byte-identical modulo the run id.
+    renames = load_renames()
+    violations, allowed, unfaithful = [], 0, []
+    verified: set[str] = set()
+    for path in touched:
+        old_dir = next((d for d in renames if path.startswith(d + "/")), None)
+        if old_dir is None:
+            violations.append(path)
+            continue
+        if old_dir not in verified:
+            verified.add(old_dir)
+            reason = rename_is_faithful(base_sha, head, old_dir,
+                                        renames[old_dir])
+            if reason:
+                unfaithful.append(reason)
+        if old_dir in {r.split(":")[0] for r in unfaithful}:
+            violations.append(path)
+        else:
+            allowed += 1
+
+    if unfaithful:
+        print("FAIL: declared run-id renames are not faithful:\n",
+              file=sys.stderr)
+        for reason in unfaithful:
+            print(f"  - {reason}", file=sys.stderr)
+        print("\nA declared rename may only substitute the run id. Any other "
+              "change to a committed run is forbidden.", file=sys.stderr)
+        return 1
+
     if violations:
         print("FAIL: immutable run artifacts were modified or deleted:\n",
               file=sys.stderr)
@@ -62,7 +153,12 @@ def main() -> int:
         print("\nRun records are append-only. Supersede with a new RUN id "
               "instead of editing.", file=sys.stderr)
         return 1
-    print("OK: no committed run artifacts were modified or deleted")
+    if allowed:
+        print(f"OK: no committed run artifacts were modified or deleted "
+              f"({allowed} path(s) moved by declared, verified run-id "
+              f"renames in tools/run_id_remaps.yaml)")
+    else:
+        print("OK: no committed run artifacts were modified or deleted")
     return 0
 
 
