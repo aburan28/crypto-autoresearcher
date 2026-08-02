@@ -7,7 +7,7 @@ BACKEND ?= $(AUTORESEARCH_BACKEND)
 TRIALS ?= 5
 
 .PHONY: help install doctor status check check-harness check-ledger test loop \
-        eval-dev eval-held-out baseline clean
+        eval-dev eval-held-out baseline sources clean
 
 help:
 	@echo "setup"
@@ -22,6 +22,9 @@ help:
 	@echo "                       (currently RED: some KN-LIT-* entries predating"
 	@echo "                        the tags requirement are missing 'tags')"
 	@echo "  make test            the full test suite"
+	@echo ""
+	@echo "curate (free, offline)"
+	@echo "  make sources         rebuild knowledge/SOURCES.md + sources.json"
 	@echo ""
 	@echo "measure (SPENDS TOKENS — set BACKEND=, TRIALS=)"
 	@echo "  make loop            dev suites + comparison against pinned baselines"
@@ -73,6 +76,13 @@ check-ledger: check-merge
 	$(PYTHON) tools/validate_ledger.py
 	$(PYTHON) tools/check_run_immutability.py
 	$(PYTHON) tools/port_autolab_experiments.py --verify
+	$(PYTHON) tools/build_source_index.py --check
+
+# Derived, like knowledge/INDEX.md: entries and inputs/ are the source of truth.
+# Regenerate after adding a KN-LIT entry or vendoring a source, and commit the
+# result -- `make check-ledger` fails while it is stale.
+sources:
+	$(PYTHON) tools/build_source_index.py
 
 # Absolute gate, and deliberately ordered first: conflict markers and
 # unparseable records make every check after this one meaningless. A record

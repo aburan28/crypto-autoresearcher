@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7807 entries.
+7809 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -37,6 +37,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-028 | AES supplies one element of order 4 in GL(4,GF(2^8)) on a column, so no GL/AGL transitivity argument kills column-local invariants; and byte-wise Inv preserves GF(2^8)-collinearity, so the obstruction at SubBytes is the affine layer L | internal_finding | established |  | aes mixcolumns subbytes gf256 collinearity transitivity burnside column-local scoped-negative argument-unavailability derivation toy-scale reduced-round |
 | KN-FIND-029 | Five false-green escapes across three repairs of one mutation control; coverage escapes are closable by construction, evasion escapes are not closable by an in-process instrument | internal_finding | reported |  | mutation-testing false-green coverage-escape observability trusting-trust harness-integrity instrument-design experiment-design methodology controls-before-belief scoped-negative aes toy-scale |
 | KN-FIND-030 | Directory-scan ID allocation is not concurrency-safe across branches; two campaigns against one main allocate the same next-free id, and the correction record documenting the first collision collided the same way | internal_finding | established |  | harness-integrity ledger id-allocation concurrency merge-conflict record-immutability process methodology infrastructure scoped-negative non-cryptographic |
+| KN-FIND-c41ea9 | The m=3 Semaev summation cover has cycle type governed by a quadratic character product, with monodromy S_2 for every non-singular curve; and on the factor-base locus the summation fibre splits completely at every m, so a generic-fibre Frobenius census measures a quantity that is constant where relation search operates | internal_finding | established |  | semaev-polynomial index-calculus monodromy galois chebotarev relation-rate ecdlp prime-field elliptic-curve scoped-negative toy-scale derivation |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
@@ -7471,8 +7472,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7670 | Cryptanalysis of HAWK: a Guessing Game | literature | reported | web | hawk lattice-isomorphism-problem module-lip nrd-pip principal-ideal-problem quaternion lenstra-silverberg subfield-attack heuristic key-recovery unverified-heuristic pqc cryptanalysis |
 | KN-LIT-7671 | Exploiting the complexity of Lattice Isomorphism Problem via Irreducible Decomposition | literature | reported | web | lattice-isomorphism-problem slip complexity am-coam polynomial-hierarchy np-hardness graph-isomorphism kz-basis orthogonal-decomposition svp foundational |
 | KN-LIT-7672 | Revisiting the Concrete Security of Falcon-type Signatures | literature | reported | web | falcon gpv ntru trapdoor concrete-security reduction-tightness provable-security strong-unforgeability random-oracle parameter-selection pqc lattice |
-| KN-LIT-7673 | HAWK: Having Automorphisms Weakens Key | literature | reported | read | hawk module-lip lattice-isomorphism-problem smlip automorphism galois-automorphism cyclotomic svp bkz root-hermite-factor omsvp signature pqc lattice heuristic |
-| KN-LIT-7674 | Cryptanalysis of HAWK: a Guessing Game | literature | reported | read | hawk lattice-isomorphism-problem module-lip nrd-pip principal-ideal-problem quaternion lenstra-silverberg subfield-attack heuristic retracted-claim super-polynomial key-recovery pqc cryptanalysis lattice |
+| KN-LIT-7675 | Revisiting the Security of Approximate FHE with Noise-Flooding Countermeasures | literature | unverified | web | fhe ckks approximate-fhe noise-flooding smudging ind-cpa-d key-recovery bootstrapping-failure-probability precision-loss countermeasure-gap unread-primary-source rq-fhe-001 |
 | KN-LIT-768 | From the Hardness of Detecting Superpositions to Cryptography: Quantum Public Key Encryption and Commitments | literature | reported | read | dlp pairing pqc provable-security |
 | KN-LIT-769 | Hardness of LWE on General Entropic Distributions? | literature | reported | read | fhe lattice pairing pqc provable-security quantum |
 | KN-LIT-770 | Hashing to elliptic curves of j “ 0 and Mordell–Weil groups | literature | reported | read | curve-arithmetic elliptic-curve finite-field pairing |
@@ -7505,6 +7505,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-797 | On some p-adic Galois representations and form class groups | literature | reported | read | class-group elliptic-curve extension-field isogeny number-theory pairing |
 | KN-LIT-798 | On the algebraic functional equation for the mixed signed Selmer group over multiple Zp-extensions | literature | reported | read | abelian-variety elliptic-curve number-theory pairing provable-security supersingular |
 | KN-LIT-799 | ON THE ANTICYCLOTOMIC IWASAWA THEORY OF RATIONAL ELLIPTIC | literature | reported | read | curve-arithmetic elliptic-curve isogeny number-theory pairing provable-security |
+| KN-LIT-7c2620 | Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE | literature | unverified | web | ring-lwe module-lwe hybrid-attack decoding-attack sparse-secret ternary-secret fhe-parameters lattice-estimator concrete-security 128-bit-security bootstrapping-cost unread-primary-source rq-fhe-001 |
 | KN-LIT-800 | On the distribution of orders of Frobenius action on `-torsion of abelian surfaces | literature | reported | read | abelian-variety curve-arithmetic elliptic-curve endomorphism factoring finite-field |
 | KN-LIT-801 | On the division fields of an elliptic curve and an effective bound to the hypotheses of the local-global divisibility | literature | reported | read | elliptic-curve number-theory pairing |
 | KN-LIT-802 | On the Role of Hash-based Signatures in Quantum-Safe Internet of Things: Current Solutions and Future Directions | literature | reported | read | cryptanalysis dlp ecdsa elliptic-curve lattice pairing pqc quantum rsa signature survey |
@@ -7658,6 +7659,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-950 | ALGEBRAIC INDEPENDENCE AND DIFFERENCE EQUATIONS OVER ELLIPTIC FUNCTION FIELDS | literature | reported | read | elliptic-curve endomorphism lattice mov-fr |
 | KN-LIT-951 | An attack on SIDH with arbitrary starting curve (draft) | literature | reported | read | cryptanalysis elliptic-curve endomorphism finite-field isogeny lattice pairing pqc protocol sidh-csidh supersingular |
 | KN-LIT-952 | Another Round of Breaking and Making Quantum Money: How to Not Build It from Lattices, and More | literature | reported | read | cryptanalysis curve-arithmetic elliptic-curve isogeny lattice pairing pqc provable-security quantum |
+| KN-LIT-95256d | Attacks Against the IND-CPA^D Security of Exact FHE Schemes | literature | unverified | web | fhe ind-cpa-d security-notion decryption-oracle exact-fhe bgv bfv tfhe ckks correctness-failure unread-primary-source rq-fhe-001 |
 | KN-LIT-953 | ASYMPTOTIC FERMAT FOR SIGNATURE (4, 2, p) OVER NUMBER FIELDS | literature | reported | read | elliptic-curve number-theory |
 | KN-LIT-954 | ASYMPTOTIC FORMULA FOR TATE–SHAFAREVICH GROUPS OF p-SUPERSINGULAR ELLIPTIC CURVES OVER ANTICYCLOTOMIC EXTENSIONS | literature | reported | read | abelian-variety elliptic-curve mov-fr number-theory pairing provable-security supersingular |
 | KN-LIT-955 | Attaining GOD Beyond Honest Majority With Friends and Foes | literature | reported | read | mpc pairing survey |

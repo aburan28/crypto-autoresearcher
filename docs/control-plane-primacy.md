@@ -102,6 +102,16 @@ rather than requested.
 
 ## Obtaining a closure quorum
 
+> **The quorum requirement is suspended** (AGENTS.md rule 13). Closure no longer
+> waits on this, precisely because of the arithmetic below: one usable backend
+> means a quorum is unobtainable, so the rule blocked every closure rather than
+> discriminating between them. This section stays because it still describes
+> what a *real* quorum would take, and it is the checklist for restoring the
+> requirement — set `GOAL_CLOSURE_QUORUM_REQUIRED = True` in
+> `tools/validate_ledger.py` once the matrix below reports three distinct
+> resolved models. Attestations remain supported and worth gathering
+> voluntarily; they are simply no longer a precondition.
+
 Rule 13 needs three CONCUR attestations whose `resolved_model_id` values are
 pairwise distinct. Distinctness is on the resolved model, so three policy
 aliases falling back to one model is not a quorum — which is what happens when
@@ -124,7 +134,8 @@ As of this writing that command reports one backend — `anthropic` — serving
 `DEGR` (GLM's binding ceiling is `high`, the policy floor is `xhigh`), and
 `fireworks`, `openai`, `openrouter`, and `local` unbound (`model: null`).
 
-**So a rule-13 quorum is not obtainable today**, and the runtime bindings are
+**So a rule-13 quorum is not obtainable today** — which is why the requirement
+is suspended rather than merely unmet — and the runtime bindings are
 not what stands in the way. The maximum number of distinct resolved models for
 the review policy is one without a recorded downgrade, two with one. Reaching
 three requires work in `orchestration/model-bindings.yaml`, not here:
