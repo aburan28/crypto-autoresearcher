@@ -715,9 +715,28 @@ def check_goal_closure_quorum(path: str, goal: dict, ctx: Ctx):
                               f"unknown record(s) {unknown}")
 
 
-def check_goals(ctx: Ctx):
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals",
-                                              "*.yaml"))):
+def load_goal_documents(ctx: Ctx):
+    """Yield (path, goal, expected_basename) for both goal record layouts.
+
+    FLAT:     ledger/goals/GOAL-X-001.yaml
+    SHARDED:  ledger/goals/GOAL-X-001/goal.yaml
+              ledger/goals/GOAL-X-001/checkpoints/BATCH-NNN.yaml   (write-once)
+
+    The sharded layout exists because a goal record is the one ledger file that
+    MANY campaigns write. GOAL-PATH-001 is edited by all eight of its children,
+    and two coordinators appending different entries to one `batch_checkpoints`
+    list conflict every single time -- a textual conflict in a place where there
+    is no semantic conflict at all, since the entries are independent and
+    append-only.
+
+    One file per checkpoint is conflict-free by construction, which is the same
+    move that fixed identifier collisions: stop requiring a writer to read shared
+    state it does not need. Both layouts are supported and NOTHING IS MIGRATED
+    AUTOMATICALLY -- a goal converts when its Coordinator next touches it, via
+    tools/shard_goal.py. Migrating all of them at once would land a rename in
+    every one of the open branches simultaneously.
+    """
+    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*.yaml"))):
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -725,14 +744,49 @@ def check_goals(ctx: Ctx):
         if not isinstance(goal, dict):
             ctx.err(path, "missing top-level 'research_goal' mapping")
             continue
+        yield path, goal, lambda rec_id: f"{rec_id}.yaml", os.path.basename(path)
 
+    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*",
+                                              "goal.yaml"))):
+        doc = load_yaml(path, ctx)
+        if doc is None:
+            continue
+        goal = doc.get("research_goal") if isinstance(doc, dict) else None
+        if not isinstance(goal, dict):
+            ctx.err(path, "missing top-level 'research_goal' mapping")
+            continue
+        directory = os.path.dirname(path)
+        shards = sorted(glob.glob(os.path.join(directory, "checkpoints", "*.yaml")))
+        merged = []
+        for shard in shards:
+            sdoc = load_yaml(shard, ctx)
+            if sdoc is None:
+                continue
+            entry = sdoc.get("batch_checkpoint") if isinstance(sdoc, dict) else None
+            if not isinstance(entry, dict):
+                ctx.err(shard, "missing top-level 'batch_checkpoint' mapping")
+                continue
+            merged.append(entry)
+        if merged:
+            existing = goal.get("batch_checkpoints") or []
+            if not isinstance(existing, list):
+                ctx.err(path, "batch_checkpoints must be a list")
+                existing = []
+            goal = dict(goal)
+            goal["batch_checkpoints"] = list(existing) + merged
+        yield path, goal, lambda rec_id: "goal.yaml", os.path.basename(directory)
+
+
+def check_goals(ctx: Ctx):
+    for path, goal, expected_name, identity in load_goal_documents(ctx):
         rec_id = goal.get("id")
         if not rec_id or not GOAL_ID.match(str(rec_id)):
             ctx.err(path, f"invalid goal id {rec_id!r}")
         else:
-            expected = f"{rec_id}.yaml"
-            if os.path.basename(path) != expected:
-                ctx.err(path, f"filename must match id ({expected})")
+            if os.path.basename(path) != expected_name(rec_id):
+                ctx.err(path, f"filename must match id ({expected_name(rec_id)})")
+            if identity != str(rec_id) and identity != f"{rec_id}.yaml":
+                ctx.err(path, f"goal directory must be named {rec_id}")
             ctx.register(str(rec_id), path, goal, "research_goal")
 
         grandfathered = str(rec_id) in PRE_QUORUM_GOAL_IDS
@@ -759,12 +813,17 @@ def check_goals(ctx: Ctx):
 
 
 def check_knowledge_index(ctx: Ctx):
+    # --verify-corpus, not --check. INDEX.md is generated and no longer
+    # committed (see build_knowledge_index.py), so there is no file to be stale
+    # against. What this check has always actually caught is the BUILDER
+    # CRASHING on a corrupt corpus, and building the index and discarding it
+    # catches that identically.
     rc = subprocess.run(
         [sys.executable, os.path.join(REPO, "tools", "build_knowledge_index.py"),
-         "--check"],
+         "--verify-corpus"],
         capture_output=True, text=True)
     if rc.returncode != 0:
-        msg = (rc.stderr or rc.stdout).strip() or "knowledge/INDEX.md is stale"
+        msg = (rc.stderr or rc.stdout).strip() or "knowledge corpus does not build"
         # Take the LAST line, not the first. When the index builder raises,
         # the first line is "Traceback (most recent call last):" -- which is
         # both uninformative and, worse, IDENTICAL for every possible cause.
