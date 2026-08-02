@@ -1325,10 +1325,16 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
         inventoried_paths = set(rules["repository_exact_paths"])
         for rule in rules["flat_directory_rules"]:
             directory = REPO_ROOT / rule["directory"]
+            # A flat rule sweeps a whole directory, so unrelated files landing
+            # there later would silently enlarge a frozen review surface.
+            # exclude_basenames pins the ones that are out of scope for this
+            # experiment by name, so adding one is a visible manifest edit.
+            excluded = frozenset(rule.get("exclude_basenames", ()))
             for path in directory.iterdir():
                 if (
                     path.name.startswith(rules["exclude_appledouble_prefix"])
                     or path.suffix != rule["suffix"]
+                    or path.name in excluded
                 ):
                     continue
                 inventoried_paths.add(path.relative_to(REPO_ROOT).as_posix())

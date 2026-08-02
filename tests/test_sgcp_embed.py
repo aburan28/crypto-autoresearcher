@@ -634,9 +634,34 @@ class SgcpEmbedVerifierTests(unittest.TestCase):
         generator_plan = plans["generator"]
         verifier_plan = plans["verifier"]
         run_id = generator_plan["run_id"]
+
+        # The plan's argv pins the absolute interpreter of the machine that
+        # froze the specification. Asserting that exact binary is the point of
+        # the check, so where it does not exist the claim is untestable rather
+        # than false -- skip instead of weakening the assertion.
+        pinned = Path(generator_plan["argv"][0])
+        if not pinned.exists():
+            self.skipTest(
+                f"specification pins interpreter {pinned}, absent on this host"
+            )
+
+        # This test writes fixture manifests into the plan's run directory and
+        # rmtree's it afterwards. It was written while RUN-SGCP-EMBED-001 was
+        # reserved for exactly that; the experiment has since been executed and
+        # its immutable artifacts now occupy the path, so running would destroy
+        # committed research data.
+        #
+        # It cannot be redirected elsewhere: sgcp_embed.require_locked_runner_
+        # runtime asserts cwd is the repository root, and the verifier's
+        # --input is pinned in the frozen plan. Skip rather than delete the run
+        # or weaken the locked-runner guard.
         run_dir = EXPERIMENT / "runs" / run_id
         if run_dir.exists():
-            self.fail(f"reserved test run directory already exists: {run_dir}")
+            self.skipTest(
+                f"{run_id} holds a committed run; this fixture test would "
+                f"delete it, and the locked runner cannot run outside the "
+                f"repository root"
+            )
         run_dir.mkdir(parents=True)
         self.addCleanup(shutil.rmtree, run_dir, True)
 
