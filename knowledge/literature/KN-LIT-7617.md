@@ -1,87 +1,68 @@
 ---
 id: KN-LIT-7617
 type: literature
-title: "Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE"
-authors: []
-year: 2026
-venue: "IACR Cryptology ePrint Archive"
+title: Assessing the Impact of a Variant of MATZOV's Dual Attack on Kyber
+authors: [Carrier Kevin, Meyer-Hilfiger Charles, Shen Yixin, Tillich Jean-Pierre]
+year: 2025
+venue: ePrint 2022/1750 (rev. 2025-06-11); CRYPTO 2025 line
 identifiers:
-  eprint: "iacr:2026/366"
+  eprint: iacr:2022/1750
   doi: null
-  arxiv: null
-  url: https://eprint.iacr.org/2026/366
-tags: [ring-lwe, module-lwe, hybrid-attack, decoding-attack, sparse-secret, ternary-secret, fhe-parameters, lattice-estimator, concrete-security, 128-bit-security, bootstrapping-cost, unread-primary-source, rq-fhe-001]
-confidence: unverified
-citation_verified: web
-added: "2026-08-01"
+  url: https://eprint.iacr.org/2022/1750
+tags: [dual-attack, polar-code, fft, lwe, kyber, ml-kem, matzov, repaired-heuristics, concrete-security, contested, lattice, nist]
+confidence: reported
+citation_verified: read
+added: 2026-07-31
 superseded_by: null
 ---
 
 ## Contribution
-As reported: an enhanced hybrid **decoding** attack against Module/Ring-LWE that
-exploits the **ring structure** to accelerate both the guessing and the decoding
-phases of the classical hybrid attack. The reported improvement is a factor of
-**O(N) in the sparse-secret setting** relative to the prior hybrid decoding attack,
-and **up to 13 bits** of complexity improvement over the best previously known
-attacks.
+A coding-theoretic repair of the MATZOV dual-attack template (KN-LIT-110)
+that replaces modulus switching with generalized polar decoding over Z_q and
+avoids the independence assumptions contested by Ducas–Pulles (KN-LIT-111).
+Claims experimental backup of the repaired analysis and concrete costs for
+Kyber-512/768/1024.
 
-The consequence reported for practice: applied to recent sparse Ring-LWE parameter
-sets used in FHE schemes, **12 of 16 examined parameter sets fall below their
-targeted 128-bit security level**. Parameter sources are referred to in the retrieved
-summary by the labels `JM22`, `CCKS23`, `BCKS24`, `CHKS25`, and `AKP25`; this program
-has **not** resolved those labels to citations and does not guess at them.
+## Key claims (as reported; read from ePrint PDF abstract + §5 / App. C)
+- Analysis does **not** use the flawed MATZOV independence assumptions
+  criticized in KN-LIT-111; polar-code decoding distortion is benchmarked.
+- Enumeration over a secret portion is replaced by iterating “assume that
+  portion is zero” over choices of the enumerated coordinates.
+- In the same nearest-neighbor cost model as the Kyber submission / MATZOV,
+  claimed attack costs put Kyber-512/768/1024 at **3.5 / 11.9 / 12.3 bits
+  below** the NIST classical requirements (143 / 207 / 272 bits).
+- Appendix C.1 lists attack parameters (m, β_bkz, β_sieve, n_enu, n_fft,
+  k_fft, n_lat, …) for three cost-model variants (C0 / CC / CN columns in
+  Table 5.1).
+- Authors state they are outside the Ducas–Pulles contradictory regime for
+  the chosen parameters.
 
 ## Relevance to this program
-This is the anchor entry for `RQ-FHE-001` and the reason that question exists.
+This is the leading **post-objection** dual-attack claim against Kyber /
+ML-KEM parameters. Settling whether its cost arithmetic and polar-decoding
+heuristics survive independent re-derivation and small-dimension experiments
+is exactly KN-OPEN-016’s residual question and the target lane of
+GOAL-MLKEM-003 / RQ-MLKEM-003.
 
-Three reasons it matters beyond FHE:
+## Local primary
+- HAL PDF: `experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf`
+  (hal-05406481; ePrint was CONNECT-403 from this harness).
+- Authors' optimizer pickle:
+  `experiments/EXP-MLKEM-010/vendor-lock/optimized_withExperimentalPolar.pkl`
+  from `kevin-carrier/CodedDualAttack` @ `9c1367f`.
 
-- **Sparse secrets are load-bearing, not incidental.** Small-Hamming-weight secrets
-  are chosen precisely to make bootstrapping affordable. A security loss that is
-  specific to the sparse regime therefore cannot be repaired by a free parameter
-  tweak — the repair is paid for in bootstrapping throughput. Any record citing
-  this entry must cost the repair, not just report the bit loss.
-- **It is adjacent to work this program already has open.** `RQ-MLKEM-001` lists
-  "hybrid and decoding attacks" and "module and ring structure exploitation" in
-  scope. The technique family is shared even though the target parameters are not:
-  ML-KEM does not use sparse secrets in the FHE sense, so a result here does **not**
-  transfer to ML-KEM, and no record may use this entry to argue about ML-KEM.
-- **The verification architecture transfers unmodified.** A recovered sparse secret
-  is checkable against the public samples by independent recomputation, exactly as a
-  claimed discrete log is checkable by recomputing `k*P`
-  (`docs/claims-and-verification.md`). Whatever this program does here, it can
-  certify.
-
-Context that makes the timing sharp, itself unverified and recorded only as
-motivation: the HomomorphicEncryption.org Standard v1.1 (2024) is reported to specify
-**no** concrete sparse-secret parameters, on the stated grounds that their security
-is not yet well understood, and ISO/IEC DIS 28033-1 is reported to be near
-publication. If both are true, there is no agreed sparse-secret parameter table for
-this attack to be measured against.
+## Program verification (EV-MLKEM-016 / KN-FIND-016)
+- Table 5.1 Algorithm-3.1 columns match the pickle within 0.05 bits (all nine
+  cells); Theorem 4.1 recomputed from pickle intermediates matches.
+- Abstract shortfalls 3.5/11.9/12.3 are exactly NIST−CC and are arithmetically
+  supported given those intermediates.
+- **Table C.2 erratum:** printed `log2(Tsample)=143.30` for CN/Kyber-512 is
+  inconsistent with pickle ≈134.30; digit transposition explains the
+  paper-only Thm-4.1 anomaly. Table 5.1 CN 134.5 is the consistent figure.
+- Polar-decoding / `Pwrong` heuristics were **not** validated here.
+  lattice-estimator MATZOV dual comparison is EV-MLKEM-015 / KN-FIND-015.
 
 ## Not verified here
-**The paper has not been read.** `eprint.iacr.org` is unreachable from this harness's
-network policy — proxy CONNECT returns 403, confirmed against
-`$HTTPS_PROXY/__agentproxy/status` on 2026-08-01 — so not even the abstract page was
-retrieved. Every claim above is relayed from **web-search result summaries**, which is
-one step weaker than the abstract-level `reported` provenance used elsewhere in this
-corpus. Hence `confidence: unverified`.
-
-NOT verified here, and not to be cited as established by any record:
-
-- **The author list is unknown to this program.** `authors` is deliberately empty
-  rather than guessed.
-- The O(N) sparse-secret speedup, the 13-bit figure, and the 12-of-16 count — none
-  has been checked against the paper, and the retrieved summary does not state the
-  ring degrees, moduli, Hamming weights, or memory model behind them.
-- Whether the 16 parameter sets are **shipped library defaults** or parameter sets
-  that appear only in papers. This distinction decides whether the result touches
-  deployed systems at all, and the summary does not settle it.
-- Whether any recovery was **demonstrated at any scale**, or the bit counts are
-  estimator output. An estimator recount and an executed attack are different claims;
-  this entry asserts neither.
-- Whether the work is peer-reviewed. It is recorded as an ePrint preprint with no
-  venue.
-
-Reading this paper is a blocking prerequisite for `RQ-FHE-001` and requires either a
-network-policy change permitting `eprint.iacr.org` or out-of-band delivery of the PDF.
+Full proofs of Lemmas 3.x–4.x were not re-derived. Polar decoder experiments
+were not reproduced. FIPS 203 text was not cross-checked (nist.gov blocked;
+Kyber Round-3 KN-LIT-7618 is the parameter primary).

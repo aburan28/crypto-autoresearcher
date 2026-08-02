@@ -176,3 +176,58 @@ converts a claimed speedup into an observed one.
   unchanged and is not in tension with §4. A closure names an obstruction
   within a stated scope and says what remains open; it does not declare a
   problem unsolvable.
+
+## 8. Proof-architecture portfolio
+
+Source: `KN-TECH-080`, abstracted from the ten-paper collection recorded in
+`KN-LIT-7640` and `SRC-OAI-TEN-PROOFS-2026`. The collection reports major
+mathematical results, but this intake did not independently verify them. What
+is adopted here is a set of falsifiable search transforms, not the truth of the
+source's theorem claims and not a claim that the transforms improve discovery
+rates.
+
+For any proof-oriented proposal, asymptotic claim, certificate family,
+reduction, or closure argument, fill `proof_search_map` before compute. Four
+cheap audits run by default:
+
+1. **Baseline reproduction.** Name the exact bottleneck and the parameter
+   slice that reproduces the best-known baseline. Verify the reproduction
+   symbolically or with a frozen fixture. A curve on a plot that looks similar
+   to the baseline is not an embedding.
+2. **Observation collision.** Name the observable, invariant, quotient,
+   transcript, functor, or certificate supporting the conclusion. Search for
+   distinct ground-truth objects with the same observable, preferably one on
+   each side of the claimed conclusion. A collision is a direct falsifier of
+   identifiability unless an additional condition separates it.
+3. **Quantifier order.** Rewrite the claim with explicit `forall` and `exists`
+   order. Check whether a witness is allowed to depend on an instance, family
+   member, characteristic, parameter, or seed in a way the claimed uniform
+   conclusion forbids.
+4. **Method ceiling and nearby-object control.** Bound what the proposed method
+   could prove under ideal tuning, then apply it to the closest object where
+   the hoped-for conclusion fails. A method that cannot distinguish the pair
+   has not identified the load-bearing structure.
+
+After those audits, select only constructive transforms whose prerequisites
+are present:
+
+- **baseline-as-boundary lift** - enlarge the certificate family and prove a
+  strict inward improvement, not merely feasibility;
+- **stronger compositional invariant** - preserve more state than the final
+  goal requires because that stronger state is what survives recursion;
+- **telescoping potential** - randomize the location of an unstable increment
+  and charge it to a global martingale, entropy, energy, or filtration budget;
+- **specialize-measure-pack** - build a problem-specific resource measure,
+  realize it by a specialization, and add charges only over proved-disjoint
+  blocks;
+- **representation/reduction chain** - move to a model where the hypothesis is
+  an exact equality, dimension, rank, or vanishing condition, with separate
+  encoding, completeness, soundness, transfer, and cost-loss obligations;
+- **observable-fiber counterexample** - hold the observable fixed, vary the
+  forgotten structure, and find an intrinsic invariant distinguishing the
+  resulting objects.
+
+No proposal must use every transform. A non-applicable audit records why it is
+non-applicable; it is not silently omitted. The full field schema lives in
+`templates/research-records.md`, and the detailed technique with ECDLP limits
+is `KN-TECH-080`.

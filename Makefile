@@ -72,6 +72,7 @@ check-harness:
 check-ledger: check-merge
 	$(PYTHON) tools/validate_ledger.py
 	$(PYTHON) tools/check_run_immutability.py
+	$(PYTHON) tools/port_autolab_experiments.py --verify
 
 # Absolute gate, and deliberately ordered first: conflict markers and
 # unparseable records make every check after this one meaningless. A record
