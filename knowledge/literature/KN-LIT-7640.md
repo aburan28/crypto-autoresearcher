@@ -4,15 +4,11 @@ type: literature
 title: Ten Advances in Mathematics and Theoretical Computer Science
 authors: [OpenAI]
 year: 2026
-<<<<<<< HEAD
 venue: >-
   OpenAI technical report; 249-page collection. Read from the PDF recorded in
   inputs/OAI-TEN-PROOFS-2026/source_record.yaml (SRC-OAI-TEN-PROOFS-2026).
   Unlike SRC-P13-WESOLOWSKI-2026, the artifact is NOT frozen in-repo, so no
   later session can re-read the source these summaries were taken from.
-=======
-venue: OpenAI technical report; 249-page collection
->>>>>>> origin/main
 identifiers:
   eprint: null
   doi: null
@@ -21,12 +17,8 @@ tags: [mathematics, theoretical-computer-science, proof-architecture, theorem-se
 confidence: reported
 citation_verified: read
 source_record: SRC-OAI-TEN-PROOFS-2026
-<<<<<<< HEAD
 added: "2026-08-01"
 supersedes: KN-LIT-7639
-=======
-added: 2026-08-01
->>>>>>> origin/main
 superseded_by: null
 ---
 
@@ -127,7 +119,6 @@ not as a list of domain facts:
 These patterns are operationalized in `KN-TECH-080` and
 `docs/inventor-protocol.md` section 8.
 
-<<<<<<< HEAD
 ## What this entry does not carry over from KN-LIT-7639
 
 `KN-LIT-7639` recorded the *announcement*; this entry records the *PDF*. They
@@ -151,8 +142,6 @@ here. The reverse also holds: where the two entries describe the same result
 differently, this entry governs, because `KN-LIT-7639`'s statements were
 relayed from search summaries.
 
-=======
->>>>>>> origin/main
 ## Relevance to this program
 
 The source does not discuss generic prime-field ECDLP and supplies no ECDLP
@@ -170,7 +159,6 @@ against its primary publication, and no computation was reproduced. The
 proper content status is therefore `reported`. In particular, the report's
 claims of resolving or disproving longstanding conjectures must not be cited as
 established results on the strength of this intake alone.
-<<<<<<< HEAD
 
 The intake is also not reproducible from this repository. The PDF was supplied
 as a conversation attachment and is not committed, so the sha256 in
@@ -180,5 +168,3 @@ comparison is `inputs/P13-WESOLOWSKI-2026/paper_fulltext.md`, where the frozen
 text makes exactly that check possible. Any later use of this entry that needs
 the source text should re-acquire the PDF, verify the recorded hash, and freeze
 the extracted text before relying on a specific statement.
-=======
->>>>>>> origin/main

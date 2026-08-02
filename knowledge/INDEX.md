@@ -3,11 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-<<<<<<< HEAD
-7758 entries.
-=======
 7796 entries.
->>>>>>> origin/main
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7435,8 +7431,6 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7639 | Ten advances in mathematics and theoretical computer science (OpenAI / Astra) | literature | reported | false | astra openai ai-for-mathematics autonomous-research machine-discovered-proof lean4 mathlib formal-verification proof-certificate verification-bottleneck closest-vector-problem cvp lattice hardness-of-approximation post-quantum sphere-packing coding-theory non-sofic-groups connes-rigidity operator-algebras arithmetic-circuit-complexity permanent parallel-repetition quantum-games ehrhart ramsey erdos-problems extremal-graph-theory premature-closure test-time-compute methodology program-level secondary-sourced |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | literature | reported | read | curve-arithmetic elliptic-curve finite-field isogeny pairing sidh-csidh |
 | KN-LIT-7640 | Ten Advances in Mathematics and Theoretical Computer Science | literature | reported | read | mathematics theoretical-computer-science proof-architecture theorem-search certificate counterexample invariant potential-method reduction methodology agentic-harness cross-domain |
-<<<<<<< HEAD
-=======
 | KN-LIT-7641 | The principal ideal problem for endomorphism rings of superspecial abelian varieties | literature | reported | web | principal-ideal-problem quaternion quaternion-algebra endomorphism-ring abelian-variety supersingular superspecial isogeny deuring number-theory cryptanalysis elliptic-curve |
 | KN-LIT-7642 | Efficient quaternion algorithms for the Deuring correspondence, and application to the evaluation of modular polynomials | literature | reported | web | deuring quaternion quaternion-algebra endomorphism-ring isogeny supersingular modular-polynomial implementation cost-model sqisign elliptic-curve number-theory |
 | KN-LIT-7643 | High-Order Galois Automorphisms for TNFS Linear Algebra | literature | reported | web | number-field-sieve tnfs dlp finite-field extension-field pairing galois automorphism index-calculus linear-algebra cost-model number-theory cryptanalysis |
@@ -7446,7 +7440,6 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7647 | SoliloQuat: Throwing Caution to the Wind | literature | reported | web | principal-ideal-problem quaternion quaternion-algebra lattice ideal-lattice lattice-isomorphism-problem pqc provable-security number-theory soliloquy hawk |
 | KN-LIT-7648 | Cryptanalysis of Definite and Indefinite Lattice Isomorphism Problems With Applications to DEFI | literature | reported | web | lattice-isomorphism-problem lattice-isomorphism quadratic-form genus spinor-genus cryptanalysis signature pqc number-theory group-action hawk key-recovery |
 | KN-LIT-7649 | Principal ideal problem and ideal shortest vector over rational primes in power-of-two cyclotomic fields | literature | reported | web | principal-ideal-problem ideal-lattice cyclotomic lattice number-theory ring-lwe decomposition-field minkowski shortest-vector pqc |
->>>>>>> origin/main
 | KN-LIT-765 | Finding Elliptic Curves With Many Integral Points arXiv:2012.06233v1 [math.NT] 11 Dec 2020 Benjamin Jones | literature | reported | read | elliptic-curve |
 | KN-LIT-7650 | Module Lattice Security (Part I): Unconditional Verification of Weber's Conjecture for k <= 12 | literature | reported | web | principal-ideal-problem cyclotomic class-group class-number ideal-lattice lattice iwasawa grh number-theory pqc extraordinary-claim |
 | KN-LIT-7651 | Cryptanalysis of Hecke-KE: A Linear-Algebra Attack via Hecke Eigenbasis Decomposition | literature | reported | web | hecke modular-forms cryptanalysis key-recovery number-theory commuting-operators broken-platform one-way-function unfixable sturm-bound |
@@ -7808,8 +7801,5 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-TECH-078 | Correlation and fast correlation attacks - linear cryptanalysis of stream ciphers as decoding | technique | established |  | correlation-attack fast-correlation-attack siegenthaler meier-staffelbach lfsr decoding parity-check ldpc correlation-immunity linear-cryptanalysis stream-cipher symmetric-cryptanalysis symmetric adjacent |
 | KN-TECH-079 | Structural meet-in-the-middle cryptanalysis - Demirci-Selcuk tables, bicliques, and differential meet-in-the-middle | technique | established |  | meet-in-the-middle demirci-selcuk biclique differential-mitm truncated-differential precomputation-table time-memory-data key-recovery aes automated-search symmetric-cryptanalysis symmetric adjacent |
 | KN-TECH-080 | Proof-architecture portfolio - boundary lifts, observation collisions, stronger invariants, telescoping potentials, and method ceilings | technique | reported |  | methodology proof-architecture theorem-search baseline-embedding identifiability observation-collision strengthened-invariant potential-method telescoping specialization quantifier-audit method-ceiling counterexample agentic-harness cross-domain |
-<<<<<<< HEAD
-=======
 | KN-TECH-081 | The principal ideal problem beyond commutative orders - quaternion orders, matrix rings, and the non-commutative gap | technique | reported |  | principal-ideal-problem quaternion quaternion-algebra endomorphism-ring order ideal-lattice lattice-isomorphism-problem class-group unit-group short-generator non-commutative superspecial abelian-variety number-theory lattice |
 | KN-TECH-082 | Hybrid attacks on LWE - guessing/MITM over sparse secrets, and ring-structure acceleration | technique | reported |  | hybrid-attack meet-in-the-middle sparse-secret ternary-secret lwe module-lwe ring-lwe fhe primal-attack dual-attack decoding coefficient-isometry independence-heuristic concrete-security lattice |
->>>>>>> origin/main
