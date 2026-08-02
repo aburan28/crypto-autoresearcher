@@ -6,15 +6,13 @@ GOAL-P13-001 BATCH-002 executes red-team next-control NC-2 (DEC-20260724-016), t
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-1f3aeb` | coordinator | queued | 100 | - | experiments/EXP-PEC-6be870/specification.yaml, inputs/P13-PANNY-POC/source_record.yaml, coordination/goals/GOAL-P13-001/batches/BATCH-002/tasks/TASK-20260802-1f3aeb/opening_report.md | experiments/EXP-PEC-6be870/specification.yaml, inputs/P13-PANNY-POC, coordination/goals/GOAL-P13-001/batches/BATCH-002/tasks/TASK-20260802-1f3aeb |
+| `TASK-20260802-b31c7f` | executor | queued | 90 | TASK-20260802-df7df5 | experiments/EXP-PEC-6be870/implementation/per_entry_cost.py, experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/manifest.yaml, experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/raw-result.json, experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/execution_report.yaml, experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/stdout.txt, experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/stderr.txt | experiments/EXP-PEC-6be870/implementation, experiments/EXP-PEC-6be870/runs, coordination/goals/GOAL-P13-001/batches/BATCH-002/tasks/TASK-20260802-b31c7f |
 
 ## Deferred or Blocked
 
 - `TASK-20260802-96d908`: dependency_not_completed:TASK-20260802-b31c7f:queued, dependency_not_completed:TASK-20260802-ca5bdc:queued
 - `TASK-20260802-9ade2e`: dependency_not_completed:TASK-20260802-b31c7f:queued, dependency_not_completed:TASK-20260802-ca5bdc:queued
-- `TASK-20260802-b31c7f`: dependency_not_completed:TASK-20260802-df7df5:queued
 - `TASK-20260802-ca5bdc`: dependency_not_completed:TASK-20260802-b31c7f:queued
-- `TASK-20260802-df7df5`: dependency_not_completed:TASK-20260802-1f3aeb:queued
 - `TASK-20260802-e804d1`: dependency_not_completed:TASK-20260802-9ade2e:queued, dependency_not_completed:TASK-20260802-96d908:queued
 
 ## Dispatch Gates
@@ -30,4 +28,4 @@ GOAL-P13-001 BATCH-002 executes red-team next-control NC-2 (DEC-20260724-016), t
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `049b76ff648411b11ad456976c77dfed3373fb348fbb93be378a85865f612b65`
+Plan SHA-256: `07fcf15c88968e2cef45401cdf0a90692917a2f236def64981cbba9503e0088c`
