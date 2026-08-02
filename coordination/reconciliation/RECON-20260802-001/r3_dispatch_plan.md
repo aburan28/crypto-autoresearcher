@@ -6,11 +6,11 @@ Snapshot and execute the exact-session R3 pre-merge Validator review for RECON-2
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-952` | validator | queued | 100 | TASK-20260802-989 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-952/validation_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-952 |
+| `TASK-20260802-990` | coordinator | queued | 100 | TASK-20260802-952 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-990/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-990 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-990`: dependency_not_completed:TASK-20260802-952:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Snapshot and execute the exact-session R3 pre-merge Validator review for RECON-2
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a71550617dcdc317f04325098f9276142374577d289a00c8d118c0066d861cd8`
+Plan SHA-256: `f64fe8e7bc7176014aa853cfb518f00b51de36a4dc3d91af05dd5ef16f5ce6e1`
