@@ -46,10 +46,14 @@ static uint32_t cnt[1<<16];
 int main(int argc,char**argv){
   int r=atoi(argv[1]); int j0=atoi(argv[2]); uint64_t seed=strtoull(argv[3],0,10);
   int randsbox=atoi(argv[4]); int trials=atoi(argv[5]);
+  int nfree = (argc>6)?atoi(argv[6]):4;      /* free diagonal cells: 4 = full coset */
+  int mczero = (argc>7)?atoi(argv[7]):0;      /* 1 = put a ZERO entry in MixColumns */
   rs=seed?seed:88172645463325252ull;
   /* AES-shaped circulant [2,3,1,1] over GF(2^4): no zero entries */
   uint8_t row[4]={2,3,1,1};
+  /* mczero handled after MCM build */
   for(int i=0;i<4;i++) for(int t=0;t<4;t++) MCM[i][t]=row[(t-i+4)&3];
+  if(mczero){ uint8_t r2[4]={2,3,0,1}; for(int i=0;i<4;i++) for(int t=0;t<4;t++) MCM[i][t]=r2[(t-i+4)&3]; }
   /* verify invertible by brute force on the 4x4 GF(16) matrix (det via Gauss) */
   {
     uint8_t M[4][4]; memcpy(M,MCM,16); int sing=0;
@@ -74,20 +78,21 @@ int main(int argc,char**argv){
     uint8_t base[16]; for(int k=0;k<16;k++) base[k]=rnd()&0xf;
     memset(cnt,0,sizeof cnt);
     int dcell[4]={0,5,10,15};
-    for(uint32_t x=0;x<65536;x++){
+    uint32_t LIM = 1u<<(4*nfree);
+    for(uint32_t x=0;x<LIM;x++){
       uint8_t s[16]; memcpy(s,base,16);
-      for(int t=0;t<4;t++) s[dcell[t]]=(x>>(4*t))&0xf;
+      for(int t=0;t<nfree;t++) s[dcell[t]]=(x>>(4*t))&0xf;
       enc(s,r);
       uint32_t v=0; for(int t=0;t<4;t++) v|=(uint32_t)s[pidx[t]]<<(4*t);
       cnt[v]++;
     }
     unsigned long long n=0,N=0;
     for(uint32_t v=0;v<65536;v++){ N+=cnt[v]; n+=(unsigned long long)cnt[v]*(cnt[v]-1)/2; }
-    if(N!=65536){printf("{\"error\":\"N\"}\n");return 1;}
+    if(N!=LIM){printf("{\"error\":\"N\"}\n");return 1;}
     ntot++; if(n%8==0) n0mod8++; if(n!=0) nz++;
     if(tr<6) printf("  trial %d: n=%llu  n_mod8=%llu  n_mod16=%llu\n",tr,n,n%8,n%16);
   }
-  printf("{\"r\":%d,\"j0\":%d,\"rand_sbox\":%d,\"trials\":%d,\"trials_n_eq_0\":%d,\"trials_n_0mod8\":%d}\n",
-     r,j0,randsbox,ntot,ntot-nz,n0mod8);
+  printf("{\"r\":%d,\"j0\":%d,\"rand_sbox\":%d,\"nfree\":%d,\"mczero\":%d,\"trials\":%d,\"trials_n_eq_0\":%d,\"trials_n_0mod8\":%d}\n",
+     r,j0,randsbox,nfree,mczero,ntot,ntot-nz,n0mod8);
   return 0;
 }
