@@ -262,9 +262,10 @@ def _valid_thread_id(value: Any) -> bool:
     return True
 
 
-def _parse_launch_stdout(stdout: bytes) -> tuple[str, int, bool, datetime | None]:
+def _parse_launch_stdout(stdout: bytes) -> tuple[str | None, int, bool, datetime | None]:
     ids: list[str] = []
     messages: list[str] = []
+    thread_events = 0
     thread_time: datetime | None = None
     for raw_line in stdout.splitlines(keepends=True):
         if not raw_line.strip():
@@ -276,6 +277,7 @@ def _parse_launch_stdout(stdout: bytes) -> tuple[str, int, bool, datetime | None
         if not isinstance(event, dict) or not isinstance(event.get("type"), str):
             raise _ProbeFailure("metadata_schema_unsupported")
         if event["type"] == "thread.started":
+            thread_events += 1
             thread_id = event.get("thread_id")
             if _valid_thread_id(thread_id):
                 ids.append(thread_id)
@@ -285,12 +287,12 @@ def _parse_launch_stdout(stdout: bytes) -> tuple[str, int, bool, datetime | None
             item = event.get("item")
             if isinstance(item, dict) and item.get("type") == "agent_message" and isinstance(item.get("text"), str):
                 messages.append(item["text"])
-    if not ids:
-        raise _ProbeFailure("thread_id_missing")
-    if len(ids) != 1:
-        raise _ProbeFailure("thread_id_ambiguous")
     normalized = "\n".join(messages).strip()
-    return ids[0], len(ids), normalized == PROBE_OUTPUT, thread_time
+    # Event cardinality is intentionally independent of identifier validity:
+    # accepting a valid ID after any malformed second thread event would make
+    # the session identity ambiguous.
+    return (ids[0] if len(ids) == 1 else None, thread_events,
+            normalized == PROBE_OUTPUT, thread_time)
 
 
 def _query_state_row(state_db: Path, thread_id: str) -> dict[str, Any]:
@@ -443,7 +445,8 @@ def _cross_checks(*, receipt: dict[str, Any], request_model: str,
                   thread_time: datetime | None, row: dict[str, Any],
                   session: dict[str, Any], turn: dict[str, Any],
                   cli_version: str, launch_start: datetime,
-                  launch_end: datetime, recorded_at: datetime) -> list[str]:
+                  launch_end: datetime, binding_start: datetime,
+                  binding_end: datetime, recorded_at: datetime) -> list[str]:
     verification = receipt["runtime_session_receipt"]["verification"]
     normalized_row_model = row["model"].strip() if isinstance(row["model"], str) else None
     normalized_turn_model = turn["model"].strip() if isinstance(turn["model"], str) else None
@@ -481,7 +484,7 @@ def _cross_checks(*, receipt: dict[str, Any], request_model: str,
         session_time = session["_event_time"]
         turn_time = turn["_event_time"]
         ordered = (
-            launch_start <= launch_end <= recorded_at and
+            launch_start <= launch_end <= binding_start <= binding_end <= recorded_at and
             row_created <= row_updated and session_time <= turn_time and
             all(_within(value, launch_start, launch_end) for value in
                 (row_created, row_updated, session_time, turn_time)) and
@@ -575,7 +578,10 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
                 not policy or effort not in cfg.effort_order or
                 not isinstance(timeout_seconds, int) or timeout_seconds <= 0):
             raise _ProbeFailure("invalid_argument")
-        canonical_policy = cfg.canonical_policy(policy)
+        try:
+            canonical_policy = cfg.canonical_policy(policy)
+        except config_module.ConfigError:
+            raise _ProbeFailure("invalid_argument") from None
         canonical_workdir = _existing_path(workdir, kind="dir")
         canonical_state_db = _existing_path(state_db, kind="file")
         binary = _existing_path(codex_bin, kind="file")
@@ -639,6 +645,11 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
         thread_id, thread_count, output_matches, thread_time = _parse_launch_stdout(stdout)
         body["launch"]["thread_started_event_count"] = thread_count
         body["launch"]["probe_output_matches"] = output_matches
+        if thread_count == 0 or (thread_id is None and thread_count == 1):
+            raise _ProbeFailure("thread_id_missing")
+        if thread_count != 1:
+            raise _ProbeFailure("thread_id_ambiguous")
+        assert thread_id is not None
         body["identity"]["independent_session_id"] = thread_id
         if not output_matches:
             raise _ProbeFailure("probe_output_mismatch")
@@ -660,17 +671,20 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
         })
         provider = row["model_provider"].strip() if isinstance(row["model_provider"], str) else ""
         body["runtime"]["provider"] = provider or None
-        recorded_at = clock()
-        body["identity"]["recorded_at"] = _iso(recorded_at)
+        # Preserve the runtime-bindings gate: all request/state/rollout checks
+        # must fail closed before invoking the checker.  These placeholder
+        # values consume no clock reading and are only a preliminary metadata
+        # check; the exact persisted final timestamp is checked below using the
+        # real binding interval.
         failures = _cross_checks(
             receipt=result, request_model=model, request_effort=effort,
             request_workdir=canonical_workdir, thread_id=thread_id,
             thread_time=thread_time, row=row, session=session, turn=turn,
             cli_version=cli_version, launch_start=launch_start,
-            launch_end=launch_end, recorded_at=recorded_at)
+            launch_end=launch_end, binding_start=launch_end,
+            binding_end=launch_end, recorded_at=launch_end)
         if failures:
             raise _ProbeFailure(*failures)
-
         binding_argv = ["python3", "tools/check_runtime_bindings.py"]
         binding_start = clock()
         try:
@@ -683,7 +697,20 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
             binding_argv, binding_start, binding_end, binding_process)
         if binding_process.returncode != 0:
             raise _ProbeFailure("runtime_bindings_check_failed")
-        body["identity"]["recorded_at"] = _iso(clock())
+        # This is the receipt's final timestamp.  Validate precisely this
+        # value after every subprocess has finished, and do not mutate it
+        # after the timestamp-order check succeeds.
+        recorded_at = clock()
+        body["identity"]["recorded_at"] = _iso(recorded_at)
+        failures = _cross_checks(
+            receipt=result, request_model=model, request_effort=effort,
+            request_workdir=canonical_workdir, thread_id=thread_id,
+            thread_time=thread_time, row=row, session=session, turn=turn,
+            cli_version=cli_version, launch_start=launch_start,
+            launch_end=launch_end, binding_start=binding_start,
+            binding_end=binding_end, recorded_at=recorded_at)
+        if failures:
+            raise _ProbeFailure(*failures)
         body["verification"].update({
             "status": "verified",
             "runtime_resolution_verified": True,

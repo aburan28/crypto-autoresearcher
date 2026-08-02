@@ -29,6 +29,17 @@ class TickClock:
         return value
 
 
+class SequenceClock:
+    def __init__(self, offsets):
+        self.values = [BASE + timedelta(seconds=value) for value in offsets]
+        self.index = 0
+
+    def __call__(self):
+        value = self.values[self.index]
+        self.index += 1
+        return value
+
+
 def _iso(seconds: float) -> str:
     return (BASE + timedelta(seconds=seconds)).isoformat().replace("+00:00", "Z")
 
@@ -97,7 +108,7 @@ def _bindings_ok(argv, **kwargs):
 def _case(tmp_path: Path, *, exec_events=None, exit_code=0, rows=1,
           row_changes=None, rollout_events=None, rollout_value=None,
           version="0.144.6", workdir_name="repo", bindings_runner=_bindings_ok,
-          process_runner=subprocess.run):
+          process_runner=subprocess.run, clock=None):
     cfg = config_module.load()
     workdir = tmp_path / workdir_name
     workdir.mkdir()
@@ -149,7 +160,7 @@ def _case(tmp_path: Path, *, exec_events=None, exit_code=0, rows=1,
         policy="review-xhigh", role="validator", task_id="TASK-FIXTURE",
         receipt=str(receipt), independent_session=True, timeout_seconds=10,
         process_runner=process_runner, bindings_runner=bindings_runner,
-        clock=TickClock(),
+        clock=TickClock() if clock is None else clock,
     )
     return arguments, receipt, row, session, turn, rollout
 
@@ -174,6 +185,7 @@ def test_happy_path_writes_exact_session_receipt(tmp_path):
     assert body["schema"] == codex_runtime.SCHEMA
     assert body["identity"]["independent_session_id"] == THREAD_ID
     assert body["identity"]["independent_session"] is True
+    assert body["identity"]["recorded_at"] == _iso(6)
     assert body["requested"]["canonical_policy"] == "review-adversarial"
     assert body["runtime"]["provider"] == "openai"
     assert body["runtime"]["cli_version"] == "0.144.6"
@@ -200,6 +212,39 @@ def test_happy_path_writes_exact_session_receipt(tmp_path):
 def test_thread_and_probe_output_failures(tmp_path, events, code):
     arguments, receipt, *_ = _case(tmp_path, exec_events=events)
     _failed(arguments, receipt, code)
+
+
+def test_invalid_plus_valid_thread_events_are_ambiguous_before_state_lookup(tmp_path, monkeypatch):
+    invalid_id = "not-a-uuid"
+    arguments, receipt, *_ = _case(
+        tmp_path, exec_events=_events(thread_ids=(invalid_id, THREAD_ID)))
+
+    def forbidden_state_lookup(*args, **kwargs):
+        raise AssertionError("state lookup must not run for ambiguous stream")
+
+    monkeypatch.setattr(codex_runtime, "_query_state_row", forbidden_state_lookup)
+    body = _failed(arguments, receipt, "thread_id_ambiguous")
+    assert body["launch"]["thread_started_event_count"] == 2
+    assert body["identity"]["independent_session_id"] is None
+
+
+def test_single_malformed_thread_id_fails_before_state_lookup(tmp_path, monkeypatch):
+    arguments, receipt, *_ = _case(
+        tmp_path, exec_events=_events(thread_ids=("not-a-uuid",)))
+
+    def forbidden_state_lookup(*args, **kwargs):
+        raise AssertionError("state lookup must not run for malformed ID")
+
+    monkeypatch.setattr(codex_runtime, "_query_state_row", forbidden_state_lookup)
+    body = _failed(arguments, receipt, "thread_id_missing")
+    assert body["launch"]["thread_started_event_count"] == 1
+
+
+def test_two_valid_thread_events_remain_ambiguous(tmp_path):
+    arguments, receipt, *_ = _case(
+        tmp_path, exec_events=_events(thread_ids=(THREAD_ID, OTHER_ID)))
+    body = _failed(arguments, receipt, "thread_id_ambiguous")
+    assert body["launch"]["thread_started_event_count"] == 2
 
 
 def test_nonzero_launch_is_preserved_as_failed_receipt(tmp_path):
@@ -288,6 +333,20 @@ def test_each_runtime_cross_check_fails_closed(tmp_path, location, field, value,
     _failed(arguments, receipt, code)
 
 
+def test_metadata_mismatch_prevents_runtime_bindings_check(tmp_path):
+    calls = []
+
+    def forbidden_bindings_runner(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("metadata mismatch must prevent bindings check")
+
+    arguments, receipt, *_ = _case(
+        tmp_path, row_changes={"model": "other-model"},
+        bindings_runner=forbidden_bindings_runner)
+    _failed(arguments, receipt, "model_mismatch")
+    assert calls == []
+
+
 def test_workdir_mismatch_requires_canonical_existing_path(tmp_path):
     other = tmp_path / "other"
     other.mkdir()
@@ -361,6 +420,22 @@ def test_runtime_binding_failure_prevents_verification(tmp_path):
     check = body["verification"]["runtime_bindings_check"]
     assert check["exit_code"] == 1
     assert "fixture failure" not in json.dumps(body)
+
+
+def test_final_timestamp_before_launch_fails_timestamp_invalid(tmp_path):
+    clock = SequenceClock((0, 1, 2, 3, 4, 5, 1))
+    arguments, receipt, *_ = _case(tmp_path, clock=clock)
+    body = _failed(arguments, receipt, "timestamp_invalid")
+    assert body["identity"]["recorded_at"] == _iso(1)
+    assert body["verification"]["timestamp_order_valid"] is False
+
+
+def test_reversed_binding_interval_fails_timestamp_invalid(tmp_path):
+    clock = SequenceClock((0, 1, 2, 3, 5, 4, 6))
+    arguments, receipt, *_ = _case(tmp_path, clock=clock)
+    body = _failed(arguments, receipt, "timestamp_invalid")
+    assert body["identity"]["recorded_at"] == _iso(6)
+    assert body["verification"]["timestamp_order_valid"] is False
 
 
 def test_receipt_privacy_and_hash_only_retention(tmp_path):
@@ -444,6 +519,25 @@ def test_invalid_argument_writes_failed_receipt_without_launch(tmp_path):
     body = _failed(arguments, receipt, "invalid_argument")
     assert body["identity"]["independent_session"] is False
     assert calls == []
+
+
+def test_unknown_policy_writes_immutable_invalid_argument_receipt_without_launch(tmp_path):
+    calls = []
+
+    def forbidden(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("no subprocess may launch for unknown policy")
+
+    arguments, receipt, *_ = _case(tmp_path, process_runner=forbidden)
+    arguments["policy"] = "unknown-policy"
+    body = _failed(arguments, receipt, "invalid_argument")
+    original = receipt.read_bytes()
+    assert calls == []
+    assert body["requested"]["canonical_policy"] is None
+    with pytest.raises(codex_runtime.CodexRuntimeProbeError) as excinfo:
+        codex_runtime.probe_codex_session(**arguments)
+    assert excinfo.value.codes == ("receipt_exists",)
+    assert receipt.read_bytes() == original
 
 
 def test_cli_help_states_session_only_scope():
