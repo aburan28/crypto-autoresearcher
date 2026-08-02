@@ -29,7 +29,7 @@ superseded_by: null
 > and unchanged since before that entry was written (OAI datestamp `2026-07-05`).
 > The truncation was introduced by a **1600-character display cap in this
 > program's own extraction script**, and was then recorded as a property of the
-> source. See `ledger/corrections/CORR-20260802-001.yaml`.
+> source. See `ledger/corrections/CORR-20260802-004.yaml`.
 >
 > The omitted text is decision-critical: it contains the authors' withdrawal of
 > the polynomial-time claim. It is transcribed in full below.

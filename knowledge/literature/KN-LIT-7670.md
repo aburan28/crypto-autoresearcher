@@ -31,7 +31,7 @@ superseded_by: KN-LIT-7674
 > **super-polynomial time**", names the cause (fractional ideals omitted from a
 > count of ideals of norm `q'` in `O_F`), and adds that **Heuristics 1-3 have been
 > independently experimentally verified**. Cite KN-LIT-7674. Body left unedited per
-> the immutability rule; see `ledger/corrections/CORR-20260802-001.yaml`.
+> the immutability rule; see `ledger/corrections/CORR-20260802-004.yaml`.
 
 ## Contribution
 A **classical algorithm claimed to recover the HAWK secret key in probabilistic
