@@ -29,4 +29,4 @@ Perform OPEN-BATCH023-A, THE OWED DIRECT SMOOTHNESS MEASUREMENT OF HEUR-DS-1, wh
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `c6af638c59448dab92a95ab654b7d0f83a4891933e1a7f3181e252e936ce216d`
+Plan SHA-256: `5ddc3cf79a5f1e45acaca4296e57c478e63e1593502c8ba78397557209defd23`
