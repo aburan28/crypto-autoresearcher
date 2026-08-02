@@ -6,12 +6,11 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-044` | validator | queued | 92 | TASK-20260801-042, TASK-20260801-043 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-044/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-044 |
-| `TASK-20260801-045` | red-team | queued | 91 | TASK-20260801-042, TASK-20260801-043 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-045/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-045 |
+| `TASK-20260801-046` | coordinator | queued | 100 | TASK-20260801-037, TASK-20260801-043, TASK-20260801-044, TASK-20260801-045 | ledger/evidence/EV-DEP-001.yaml, ledger/decisions/DEC-20260801-011.yaml, ledger/hypotheses/H-DEP-001.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-046/ledger_commit_receipt.json | ledger/evidence/EV-DEP-001.yaml, ledger/decisions/DEC-20260801-011.yaml, ledger/hypotheses/H-DEP-001.yaml, ledger/goals/GOAL-ECDLP-001.yaml, coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-046 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-046`: dependency_not_completed:TASK-20260801-044:queued, dependency_not_completed:TASK-20260801-045:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `4d0e44e494e710cad7cb4a70f52af3926344fa6d2b357ca4ed4f47ef897fdb2d`
+Plan SHA-256: `f26fc9f1493dc6405c9c22573426234ecd9b7ae4fa2d3a2f523c1908c205fc37`
