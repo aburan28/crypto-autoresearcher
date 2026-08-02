@@ -104,6 +104,11 @@ evidence rules above apply unchanged.
   snapshot before review, then ledger commit before a state transition. Commit
   messages reference the task and record IDs; never rewrite history over
   pushed run records.
+- At the start of an active session, before an archival commit, and before
+  requesting review or merge, fetch `origin/main` and compare it with every
+  open research branch. Bring new `main` changes into a branch by merging them
+  (or run `tools/sync_open_branches.py`); do not rebase pushed evidence. Record
+  the base commit checked and the merge outcome in the task receipt.
 
 ## Model policy note
 
