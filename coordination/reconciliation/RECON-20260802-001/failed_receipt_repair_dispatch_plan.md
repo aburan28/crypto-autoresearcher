@@ -6,11 +6,11 @@ Repair and independently validate F-974-001 without live probing or research-sta
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-979` | coordinator | queued | 100 | TASK-20260802-978 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-979/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-979 |
+| `TASK-20260802-980` | validator | queued | 100 | TASK-20260802-979 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-980/validation_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-980 |
 
 ## Deferred or Blocked
 
-None.
+- `TASK-20260802-981`: dependency_not_completed:TASK-20260802-980:queued
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `2d4d0a3af20c3f7a8a455253e2e288e92640a23784f9fc6b2e3e5159872cbf89`
+Plan SHA-256: `9d2f146945e7a6ed0e455b982a48e79adac96a56c53004779e1f6d0f73bfc2d7`
