@@ -6,7 +6,7 @@ Snapshot, execute, and archive separate exact-session Validator and Red Team rev
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-998` | coordinator | queued | 100 | TASK-20260802-997 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-998/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-998 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `3172cdfff85fd106196edb55cc1ad022a0d2fe1b143c9892a9e3d153cb6136b3`
+Plan SHA-256: `a23c71145b45fb34fa28836cc7bdc20e2cc4d4d507c9b60c7548e94053be3f08`
