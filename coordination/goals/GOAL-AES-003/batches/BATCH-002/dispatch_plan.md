@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-Execute GOAL-AES-003 BATCH-002 in the rank order DEC-20260802-007 fixed. RANK 1 IS THE POINT OF THE BATCH: the wrong-hint null, the cheapest decisive measurement remaining, testing the one thing neither BATCH-001 reviewer could rule on -- whether the hinted r=6 and r=7 constructions isolate the CORRECT byte or merely A byte. If wrong hints also yield a unique survivor, EV-AES-005's r=6 and r=7 statements are superseded by CORR records minted in this batch's ledger commit, and that is a legitimate result of the batch rather than a failure of it. Rank 2 characterises the null residue distribution instead of merely refuting forcing; rank 4 tests the derivation's asserted no-zero-entry dependence by building a non-singular mixing layer that has a zero entry; rank 3 re-executes the yoyo objects from scratch, the highest remaining value among the unvalidated. The batch carries BATCH-001's relabelling forward unhedged: the r=4 and r=5 properties are NOT AES-S-box-specific, they follow from round geometry, and the validator reproduced both with uniformly random bijective S-boxes at 120/120.
+Execute GOAL-AES-003 BATCH-002 in the rank order DEC-20260802-9bda5c fixed. RANK 1 IS THE POINT OF THE BATCH: the wrong-hint null, the cheapest decisive measurement remaining, testing the one thing neither BATCH-001 reviewer could rule on -- whether the hinted r=6 and r=7 constructions isolate the CORRECT byte or merely A byte. If wrong hints also yield a unique survivor, EV-AES-005's r=6 and r=7 statements are superseded by CORR records minted in this batch's ledger commit, and that is a legitimate result of the batch rather than a failure of it. Rank 2 characterises the null residue distribution instead of merely refuting forcing; rank 4 tests the derivation's asserted no-zero-entry dependence by building a non-singular mixing layer that has a zero entry; rank 3 re-executes the yoyo objects from scratch, the highest remaining value among the unvalidated. The batch carries BATCH-001's relabelling forward unhedged: the r=4 and r=5 properties are NOT AES-S-box-specific, they follow from round geometry, and the validator reproduced both with uniformly random bijective S-boxes at 120/120.
 
 ## Ready Tasks
 
@@ -30,4 +30,4 @@ Execute GOAL-AES-003 BATCH-002 in the rank order DEC-20260802-007 fixed. RANK 1 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b09c7ded2d13de87fa96bbd8001f03c37e1b82aecd9eb15ddc9a12bfec91f8d2`
+Plan SHA-256: `ba86406d7ab14fc282ac0a56d9a7f57761184dc50fb9681f77cc44820f2c1bc8`
