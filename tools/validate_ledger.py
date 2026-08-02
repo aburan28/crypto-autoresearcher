@@ -110,8 +110,18 @@ RUN_REQUIRED_TOP = ["id", "experiment_id", "status", "code", "environment",
 # name -- the rule inverted its own purpose. An explicit null is accepted, but
 # only when the record documents the choice in a sibling note, so a silent
 # omission is still an error and the reasoning stays on the record.
+#
+# Likewise an observation-only contract has no criterion to succeed or fail on.
+# EXP-YIELD-003 spells the intent out: "The schema field is present and
+# explicitly null rather than absent, so that a reader cannot mistake an omitted
+# field for an overlooked one" -- exactly the distinction enforced here.
+#
+# approved_by is deliberately NOT nullable: AGENTS.md rule 1 gives it exactly
+# one legitimate value.
 DOCUMENTED_NULL_OK = {
     "hypothesis_id": ("hypothesis_id_note", "hypothesis_note"),
+    "success_criterion": ("success_criterion_note",),
+    "falsification_criterion": ("falsification_criterion_note",),
 }
 
 
@@ -264,7 +274,7 @@ def check_experiment(path: str, ctx: Ctx):
     if body.get("status") == "approved":
         for field in ("success_criterion", "falsification_criterion",
                       "approved_by"):
-            if body.get(field) in (None, ""):
+            if not field_is_satisfied(body, field):
                 ctx.err(path, f"approved experiment has null '{field}'")
     ctx.register(str(rec_id), path, body, "experiment")
 
