@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7796 entries.
+7800 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -34,6 +34,9 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-025 | Scoped finding from EV-SIG-003 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
 | KN-FIND-026 | Scoped finding from EV-SIG-004 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
 | KN-FIND-027 | Scoped finding from EV-SIG-005 | internal_finding | reported |  | ecdlp prime-field toy internal-finding |
+| KN-FIND-028 | AES supplies one element of order 4 in GL(4,GF(2^8)) on a column, so no GL/AGL transitivity argument kills column-local invariants; and byte-wise Inv preserves GF(2^8)-collinearity, so the obstruction at SubBytes is the affine layer L | internal_finding | established |  | aes mixcolumns subbytes gf256 collinearity transitivity burnside column-local scoped-negative argument-unavailability derivation toy-scale reduced-round |
+| KN-FIND-029 | Five false-green escapes across three repairs of one mutation control; coverage escapes are closable by construction, evasion escapes are not closable by an in-process instrument | internal_finding | reported |  | mutation-testing false-green coverage-escape observability trusting-trust harness-integrity instrument-design experiment-design methodology controls-before-belief scoped-negative aes toy-scale |
+| KN-FIND-030 | Directory-scan ID allocation is not concurrency-safe across branches; two campaigns against one main allocate the same next-free id, and the correction record documenting the first collision collided the same way | internal_finding | established |  | harness-integrity ledger id-allocation concurrency merge-conflict record-immutability process methodology infrastructure scoped-negative non-cryptographic |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
@@ -7717,6 +7720,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-017 | Where does the enumeration/sieving crossover move once sieving memory is fully charged? | open_problem | reported | open | full-cost memory sieving enumeration crossover cost-model kissing-number wiener concrete-security open lattice cross-domain |
 | KN-OPEN-018 | Does lattice machinery bear on the plain ECDLP at all, outside the leakage model? | open_problem | reported | open | cross-domain lattice ecdlp hnp coppersmith index-calculus descent leakage genericity open |
 | KN-OPEN-019 | What object does each ECDLP attack family track, and is that enumeration closed? | open_problem | reported | open | ecdlp methodology tracked-object attack-families closure saturation index-calculus generic-group isogeny open |
+| KN-OPEN-020 | Universal algebraic-factor-base no-go for prime-field index calculus | open_problem | unverified | open | prime-field ecdlp index-calculus factor-base algebraic-description lower-bound open |
 | KN-OPEN-024 | Does the rank-1 (quaternion-order) principal ideal problem inherit the tractability now shown for matrix rings M_g(O), g >= 2? | open_problem | reported | open | principal-ideal-problem quaternion quaternion-algebra order short-generator unit-group endomorphism-ring superspecial abelian-variety lattice-isomorphism-problem non-commutative open |
 | KN-OPEN-025 | For which automorphism orders k can Galois symmetry accelerate the TNFS linear-algebra step, and what is the end-to-end gain? | open_problem | reported | open | number-field-sieve tnfs galois automorphism symmetry linear-algebra dlp finite-field extension-field pairing cost-model open |
 | KN-OPEN-026 | How large is the concrete security discount from module/ring structure, and does it grow with better techniques? | open_problem | reported | open | module-lwe ring-lwe lwe structure hybrid-attack coefficient-isometry sparse-secret fhe kyber ml-kem concrete-security cost-model symmetry open lattice |
