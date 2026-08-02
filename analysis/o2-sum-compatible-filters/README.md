@@ -60,8 +60,12 @@ python3 quasigroup_gap.py          # exhaustive over all Latin squares, M = 3,4,
 python3 quasigroup_scaling.py      # Jacobson-Matthews sampling, M = 4,8,16,32
 ```
 
-Pure `numpy`, a few minutes total. Every count is exact whole-group enumeration
-— no sampling anywhere.
+Pure `numpy`, a few minutes total. **Every count is exact whole-group
+enumeration over all `N²` pairs — no sampled statistics anywhere.** The one
+sampled quantity in the whole directory is the *search* over Latin squares in
+`quasigroup_scaling.py` at `M > 5`, where exhaustive enumeration is infeasible;
+that column is a typical-case statement and is labelled as such. The
+worst-case-over-all-`f` column beside it is exact.
 
 ## The result
 
