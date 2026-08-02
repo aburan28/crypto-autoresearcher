@@ -45,14 +45,35 @@ LEGACY_RUN_INVENTORY = os.path.join(
     REPO, "tools", "legacy_run_inventory.yaml"
 )
 
+# Identifier suffixes. TWO FORMS ARE VALID AND THE RANDOM ONE IS PREFERRED.
+#
+#   SUFFIX_LEGACY  \d{3}        sequential, allocated max+1. Every record minted
+#                               before 2026-08-01 uses it. STILL VALID FOREVER --
+#                               those records are immutable and must keep
+#                               validating -- but NEVER MINT A NEW ONE.
+#   SUFFIX_RANDOM  [0-9a-f]{6}  a random 24-bit token. This is the form new
+#                               records use.
+#
+# Why the change: sequential allocation requires scanning committed state for a
+# maximum, and CONCURRENT WORKTREES ALL SCAN THE SAME STATE AND GET THE SAME
+# ANSWER. They then mint the same identifier for different records, and the
+# collision is only discovered at merge time, when both records are already
+# committed and immutable and neither can be renamed without breaking whatever
+# archive binds it. The random token needs no scan at all, so two worktrees
+# cannot converge by construction. Cost of the change: identifiers no longer
+# sort into creation order. Nothing in this repository ordered by them.
+SUFFIX_LEGACY = r"\d{3}"
+SUFFIX_RANDOM = r"[0-9a-f]{6}"
+SUFFIX = rf"(?:{SUFFIX_LEGACY}|{SUFFIX_RANDOM})"
+
 ID_PATTERNS = {
-    "research_question": re.compile(r"^RQ-[A-Z]+-\d{3}$"),
-    "idea": re.compile(r"^IDEA-\d{8}-\d{3}$"),
-    "hypothesis": re.compile(r"^H-[A-Z]+-\d{3}$"),
-    "experiment": re.compile(r"^EXP-[A-Z]+-\d{3}$"),
-    "evidence": re.compile(r"^EV-[A-Z]+-\d{3}$"),
-    "coordinator_decision": re.compile(r"^DEC-\d{8}-\d{3}$"),
-    "handoff": re.compile(r"^TASK-\d{8}-\d{3}$"),
+    "research_question": re.compile(rf"^RQ-[A-Z]+-{SUFFIX}$"),
+    "idea": re.compile(rf"^IDEA-\d{{8}}-{SUFFIX}$"),
+    "hypothesis": re.compile(rf"^H-[A-Z]+-{SUFFIX}$"),
+    "experiment": re.compile(rf"^EXP-[A-Z]+-{SUFFIX}$"),
+    "evidence": re.compile(rf"^EV-[A-Z]+-{SUFFIX}$"),
+    "coordinator_decision": re.compile(rf"^DEC-\d{{8}}-{SUFFIX}$"),
+    "handoff": re.compile(rf"^TASK-\d{{8}}-{SUFFIX}$"),
 }
 RUN_ID = re.compile(r"^RUN-[A-Za-z0-9._-]+$")
 

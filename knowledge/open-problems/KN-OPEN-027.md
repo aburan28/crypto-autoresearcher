@@ -7,8 +7,16 @@ confidence: reported
 status: open
 source_refs: [KN-LIT-7670, KN-LIT-7647, KN-LIT-7648, KN-LIT-7671, KN-LIT-7641, KN-OPEN-024, KN-TECH-081]
 added: 2026-08-01
-superseded_by: null
+superseded_by: KN-OPEN-028
 ---
+
+> **Superseded 2026-08-02 by [[KN-OPEN-028]].** This entry asks "do the heuristics
+> hold?" as an open question. It is substantially answered by the paper's own 30/06
+> update, which this entry did not have because the abstract had been recorded as
+> truncated when it never was: **Heuristics 1-3 are independently experimentally
+> verified and Heuristic 4 failed**, making the algorithm super-polynomial. Body left
+> unedited per the immutability rule; cite KN-OPEN-028. See
+> `ledger/corrections/CORR-20260802-008.yaml`.
 
 ## Statement
 

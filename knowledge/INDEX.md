@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7800 entries.
+7804 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7385,7 +7385,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-759 | Explicit description of isogeny and isomorphism classes of Drinfeld modules over finite field | literature | reported | read | abelian-variety elliptic-curve endomorphism finite-field isogeny number-theory pairing |
 | KN-LIT-7590 | Degenerating Discriminants | literature | reported | web | groebner-degeneration discriminant dual-variety conormal-variety whitney-stratification mixed-discriminant polynomial-system elimination algebraic-geometry proof-technique |
 | KN-LIT-7591 | Lower bounds for the CNOT-complexity of linear reversible operators | literature | reported | web | quantum circuit-complexity cnot-count lower-bound linear-reversible additive-complexity error-correcting-codes resource-estimation cost-model explicit-construction |
-| KN-LIT-7592 | HAWK-n Key Recovery Reduces to SVP in Dimension n/2 + 1 | literature | reported | web | hawk lattice-isomorphism-problem module-lip cyclotomic galois-automorphism key-recovery svp nist-pqc post-quantum signature llm-assisted-discovery gate-count cost-model |
+| KN-LIT-7592 | HAWK-n Key Recovery Reduces to SVP in Dimension n/2 + 1 | literature | reported | read | hawk lattice-isomorphism-problem module-lip cyclotomic galois-automorphism key-recovery svp nist-pqc post-quantum signature llm-assisted-discovery gate-count cost-model |
 | KN-LIT-7593 | Cryptanalysis of 7-Round AES via the Algebraic Structure of its S-box | literature | reported | web | aes s-box mobius-bridge meet-in-the-middle demirci-selcuk differential-enumeration invariant fingerprint round-reduced llm-autonomous-discovery verification-methodology scaled-down-cipher cost-accounting |
 | KN-LIT-7594 | Discovering cryptographic weaknesses with Claude | literature | reported | web | llm-cryptanalysis autonomous-research agentic-harness hawk aes lea serpent salsa20 poseidon sha-1 cryptanalysisbench responsible-disclosure verification-bottleneck methodology program-level |
 | KN-LIT-7595 | Mythos Preview's Chain of Thought in Discovering the AES Möbius Bridge | literature | reported | web | research-methodology agentic-harness inventor-protocol tracked-object negative-closure control-experiment pareto-domination sota-honesty deliverable-schema prior-art-triage cross-ratio pgl2 aes s-box primary-methodology-source |
@@ -7470,6 +7470,8 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7670 | Cryptanalysis of HAWK: a Guessing Game | literature | reported | web | hawk lattice-isomorphism-problem module-lip nrd-pip principal-ideal-problem quaternion lenstra-silverberg subfield-attack heuristic key-recovery unverified-heuristic pqc cryptanalysis |
 | KN-LIT-7671 | Exploiting the complexity of Lattice Isomorphism Problem via Irreducible Decomposition | literature | reported | web | lattice-isomorphism-problem slip complexity am-coam polynomial-hierarchy np-hardness graph-isomorphism kz-basis orthogonal-decomposition svp foundational |
 | KN-LIT-7672 | Revisiting the Concrete Security of Falcon-type Signatures | literature | reported | web | falcon gpv ntru trapdoor concrete-security reduction-tightness provable-security strong-unforgeability random-oracle parameter-selection pqc lattice |
+| KN-LIT-7673 | HAWK: Having Automorphisms Weakens Key | literature | reported | read | hawk module-lip lattice-isomorphism-problem smlip automorphism galois-automorphism cyclotomic svp bkz root-hermite-factor omsvp signature pqc lattice heuristic |
+| KN-LIT-7674 | Cryptanalysis of HAWK: a Guessing Game | literature | reported | read | hawk lattice-isomorphism-problem module-lip nrd-pip principal-ideal-problem quaternion lenstra-silverberg subfield-attack heuristic retracted-claim super-polynomial key-recovery pqc cryptanalysis lattice |
 | KN-LIT-768 | From the Hardness of Detecting Superpositions to Cryptography: Quantum Public Key Encryption and Commitments | literature | reported | read | dlp pairing pqc provable-security |
 | KN-LIT-769 | Hardness of LWE on General Entropic Distributions? | literature | reported | read | fhe lattice pairing pqc provable-security quantum |
 | KN-LIT-770 | Hashing to elliptic curves of j “ 0 and Mordell–Weil groups | literature | reported | read | curve-arithmetic elliptic-curve finite-field pairing |
@@ -7721,10 +7723,12 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-017 | Where does the enumeration/sieving crossover move once sieving memory is fully charged? | open_problem | reported | open | full-cost memory sieving enumeration crossover cost-model kissing-number wiener concrete-security open lattice cross-domain |
 | KN-OPEN-018 | Does lattice machinery bear on the plain ECDLP at all, outside the leakage model? | open_problem | reported | open | cross-domain lattice ecdlp hnp coppersmith index-calculus descent leakage genericity open |
 | KN-OPEN-019 | What object does each ECDLP attack family track, and is that enumeration closed? | open_problem | reported | open | ecdlp methodology tracked-object attack-families closure saturation index-calculus generic-group isogeny open |
+| KN-OPEN-020 | Universal algebraic-factor-base no-go for prime-field index calculus | open_problem | unverified | open | prime-field ecdlp index-calculus factor-base algebraic-description lower-bound open |
 | KN-OPEN-024 | Does the rank-1 (quaternion-order) principal ideal problem inherit the tractability now shown for matrix rings M_g(O), g >= 2? | open_problem | reported | open | principal-ideal-problem quaternion quaternion-algebra order short-generator unit-group endomorphism-ring superspecial abelian-variety lattice-isomorphism-problem non-commutative open |
 | KN-OPEN-025 | For which automorphism orders k can Galois symmetry accelerate the TNFS linear-algebra step, and what is the end-to-end gain? | open_problem | reported | open | number-field-sieve tnfs galois automorphism symmetry linear-algebra dlp finite-field extension-field pairing cost-model open |
 | KN-OPEN-026 | How large is the concrete security discount from module/ring structure, and does it grow with better techniques? | open_problem | reported | open | module-lwe ring-lwe lwe structure hybrid-attack coefficient-isometry sparse-secret fhe kyber ml-kem concrete-security cost-model symmetry open lattice |
 | KN-OPEN-027 | Is HAWK's module-LIP assumption reachable through nrd-PIP, and do the four heuristics hold? | open_problem | reported | open | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg heuristic unverified-heuristic pqc concrete-security open lattice |
+| KN-OPEN-028 | What is the corrected cost of the nrd-PIP route against HAWK, now that Heuristic 4 has failed and 1-3 are verified? | open_problem | reported | open | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg super-polynomial fractional-ideals heuristic retracted-claim pqc open lattice |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
 | KN-TECH-002 | Semaev summation polynomials | technique | established |  | semaev summation-polynomial point-decomposition index-calculus |
 | KN-TECH-003 | Point-decomposition index calculus for ECDLP | technique | established |  | index-calculus point-decomposition factor-base relations ecdlp |

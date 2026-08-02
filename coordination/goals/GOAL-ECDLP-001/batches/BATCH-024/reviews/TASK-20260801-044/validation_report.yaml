@@ -1,0 +1,146 @@
+validation_report:
+  id: VAL-20260801-006
+  task_id: TASK-20260801-044
+  role: validator
+  independent_session: true
+  requested_policy: review-adversarial
+  run_ids: []
+  cancelled_run_id: RUN-DEP-001-measure
+  snapshot_under_review:
+    task_id: TASK-20260801-043
+    commit_sha: 9dbbeaf74e56f23c8a3b0f0055aa2ebb99e45c48
+    parent_sha: 558208d09d197014fe5c8600dc81b8c2f5c4cae2
+    reachable_from_head: true
+    queue_amendment: QUEUE-AMEND-20260801-004
+  artifact_checks:
+    - check: approval gate is committed and denies measurement authorization
+      result: passed
+      evidence: >-
+        TASK-20260801-041 is commit
+        80aaf9c6d709dc824549c865052e3dfbbe47e325 with parent
+        6a719e72a71ec6248d41e444ae07cfdbe4170022. Its committed receipt has
+        APPROVAL_DETERMINATION REVISE, measurement_authorized false,
+        HYPOTHESIS_STATUS_DETERMINATION specified, and says
+        RUN-DEP-001-measure must not execute. The commit changes exactly the
+        four TASK-20260801-040 review files and its archive receipt.
+    - check: cancellation snapshot changes exactly its two declared paths
+      result: passed
+      evidence: >-
+        git diff-tree for
+        9dbbeaf74e56f23c8a3b0f0055aa2ebb99e45c48 lists only
+        coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/tasks/TASK-20260801-042/execution_report.yaml
+        and
+        coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-043/snapshot_commit_receipt.json.
+        This equals declared_commit_sets.TASK-20260801-043_snapshot.
+    - check: cancellation snapshot parent and reachability
+      result: passed
+      evidence: >-
+        git rev-parse 9dbbeaf74^ returned
+        558208d09d197014fe5c8600dc81b8c2f5c4cae2, equal to the queue-bound
+        parent_sha, and git merge-base --is-ancestor 9dbbeaf74 HEAD exited 0.
+    - check: cancellation snapshot path hashes
+      result: passed
+      evidence: >-
+        SHA-256 of execution_report.yaml at the snapshot and current HEAD is
+        33a36bd9a03e0e587403158f37873171e589e1528264d25ba536c7e4c66d95a6.
+        SHA-256 of snapshot_commit_receipt.json at the snapshot and current
+        HEAD is cc1a0d4b836245794f5dd0b8fa34fb64225b3de763572c739b15f97459105a4e.
+        Both equal dispatch_queue.json archive.path_sha256 for
+        TASK-20260801-043. No later commit changed either file.
+    - check: cancellation report records zero execution
+      result: passed
+      evidence: >-
+        The committed TASK-20260801-042 report records terminal_status
+        cancelled_pre_execution, cancellation_reason
+        authorization_gate_revise, driver_invoked false, measurement_started
+        false, attempts 0, no completed, invalid, or failed runs, and only the
+        cancelled run id RUN-DEP-001-measure.
+    - check: measurement run and result directories are absent
+      result: passed
+      evidence: >-
+        Both filesystem existence checks and git ls-tree at the TASK-20260801-043
+        snapshot and at HEAD returned no
+        experiments/EXP-DEP-001/runs/RUN-DEP-001-measure directory and no
+        experiments/EXP-DEP-001/results/measure directory.
+    - check: every originally declared measurement deliverable is absent
+      result: passed
+      evidence: >-
+        All twelve run/result deliverables named by the frozen TASK-20260801-042
+        handoff are absent: manifest.yaml, raw-result.json, command.txt,
+        environment.json, stdout.log, stderr.log, git_status_prerun.txt,
+        DEP_report.json, dependence_power_curve.json,
+        detection_floor_certificate.json,
+        maximal_deviation_certificate.json, and
+        duplicate_decomposition.json. Only the cancellation execution report
+        exists, as narrowed by QUEUE-AMEND-20260801-004.
+    - check: no experiment artifact changed after the REVISE gate
+      result: passed
+      evidence: >-
+        git diff --name-status 80aaf9c6d..HEAD --
+        experiments/EXP-DEP-001 returned no paths. Repository evidence is
+        therefore consistent with the archived statement that the measurement
+        driver was not invoked and no measurement output was written.
+  metric_recomputations:
+    - check: measurement statistics, detection rates, and binomial intervals
+      result: not_applicable
+      reason: >-
+        No measurement run, manifest, raw result, summary, ladder arm, or
+        certificate exists. Substituting an estimate or calibration datum for
+        the absent measurement is prohibited.
+    - check: tools/validate_ledger.py check_run
+      result: not_applicable
+      error_list: []
+      reason: >-
+        There is no RUN-DEP-001-measure manifest on which check_run can operate;
+        the amended branch is a pre-execution cancellation, not a malformed
+        completed run.
+  control_checks:
+    - check: CTRL-DEP-MARG reconstruction
+      result: not_applicable
+      reason: no measurement plant arm exists
+    - check: maximal-deviation certificate reconstruction
+      result: not_applicable
+      reason: no measurement certificate or topmost-rung object exists
+    - check: driver-hash equality at measurement startup
+      result: not_applicable
+      reason: startup did not occur and the receipt records a null comparison
+    - check: CTRL-DEP-EQDHASH at measurement startup
+      result: not_applicable
+      reason: startup did not occur
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+  defects:
+    - >-
+      There is no measurement package to admit or reject. The original
+      measurement-validation completion gate cannot be performed and must not
+      be represented as a failed mathematical test.
+  verdict: NOT_APPLICABLE_NO_MEASUREMENT
+  limitations:
+    - >-
+      Repository artifacts cannot forensically prove that a process was never
+      invoked if it produced no writes. The committed gate, zero-attempt
+      execution report, absent run/result trees, absence of every declared
+      measurement deliverable, and zero EXP-DEP-001 diffs after the gate are
+      mutually consistent evidence of non-invocation; no contrary repository
+      evidence was found.
+    - >-
+      snapshot_commit_receipt.json carries commit_sha null internally. The
+      immutable binding to commit 9dbbeaf74e56f23c8a3b0f0055aa2ebb99e45c48,
+      its parent, exact path set, and both path hashes is recorded in the
+      later Coordinator control-plane dispatch_queue.json and independently
+      verified above.
+    - >-
+      QUEUE-AMEND-20260801-004 says TASK-20260801-044 was cancelled before
+      dispatch, while the current dispatch queue marks it queued. This report
+      follows the Coordinator's explicit independent-validation handoff and
+      validates only the committed non-execution snapshot; it does not restore
+      or imply a measurement review.
+  mathematical_interpretation: none
+  claim_boundary: >-
+    No observation exists about H-DEP-001, H-EQD-001, HEUR-DS-1,
+    generic-prime ECDLP complexity, or any curve instance. This report checks
+    only the integrity of the approval-gate cancellation and the absence of a
+    measurement package.
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-044/validation_report.yaml
