@@ -86,6 +86,23 @@ def tracked_files() -> list[str]:
             if p and not os.path.basename(p).startswith("._")]
 
 
+def touched_files(base: str) -> list[str] | None:
+    """Tracked files this branch adds or modifies relative to `base`.
+
+    Returns None when `base` cannot be resolved, so the caller falls back to the
+    absolute sweep rather than silently checking nothing.
+    """
+    if _run("git", "rev-parse", "--verify", "--quiet", base + "^{commit}").returncode:
+        return None
+    merge_base = _run("git", "merge-base", "HEAD", base).stdout.strip()
+    if not merge_base:
+        return None
+    out = _run("git", "diff", "--name-only", "--diff-filter=ACMR", "-z",
+               merge_base, "HEAD").stdout
+    touched = {p for p in out.split("\0") if p}
+    return [p for p in tracked_files() if p in touched]
+
+
 def check_markers(paths: list[str]) -> list[str]:
     """Any tracked text file carrying an unresolved conflict marker."""
     bad = []
@@ -133,11 +150,18 @@ def _baseline() -> set[str]:
         return set()
 
 
-def check_parses(paths: list[str]) -> list[str]:
+def check_parses(paths: list[str], *, report_stale: bool = True) -> list[str]:
     """Every ledger/experiment/coordination record must actually load.
 
     Pre-existing failures are grandfathered by path. Anything else -- a file
     this branch broke, or a new record that never parsed -- is fatal.
+
+    `report_stale` must be False whenever `paths` is a SUBSET of the tracked
+    files. A baselined record that simply was not looked at is indistinguishable,
+    from inside this function, from one that has been repaired -- so a scoped run
+    that reported staleness would advise deleting baseline lines for files it
+    never opened, and the baseline is append-forbidden precisely so that it can
+    only ever shrink for real reasons.
     """
     import yaml
     grandfathered = _baseline()
@@ -159,9 +183,10 @@ def check_parses(paths: list[str]) -> list[str]:
                 stale.discard(rel)
                 continue
             bad.append(f"{rel}: does not parse: {first}")
-    for rel in sorted(stale):
-        print(f"note: {rel} now parses; drop it from "
-              f"tools/merge_hygiene_baseline.txt", file=sys.stderr)
+    if report_stale:
+        for rel in sorted(stale):
+            print(f"note: {rel} now parses; drop it from "
+                  f"tools/merge_hygiene_baseline.txt", file=sys.stderr)
     return bad
 
 
@@ -211,13 +236,47 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--base", metavar="REF",
                     help="ref to check identifier collisions against, "
-                         "e.g. origin/main")
+                         "e.g. origin/main. Also scopes the conflict-marker and "
+                         "parseability sweeps to the files this branch touched, "
+                         "unless --absolute is given.")
+    ap.add_argument("--absolute", action="store_true",
+                    help="sweep every tracked file even when --base is given. "
+                         "Used on main and by the scheduled health job, where a "
+                         "pre-existing defect is the point rather than noise.")
     args = ap.parse_args()
 
     paths = tracked_files()
+
+    # SCOPE. The absolute sweep is right on `main` and wrong on a pull request.
+    #
+    # Parseability must stay absolute SOMEWHERE, for the reason in defect 2 of
+    # this file's header: a record that does not parse cannot be schema-checked,
+    # so breaking one REMOVES errors and reads as an improvement under the
+    # diffed validator. That argument is about a branch MASKING ITS OWN damage,
+    # and scoping to the files a branch touched preserves it exactly -- if you
+    # broke a record, you changed it, and you are still caught.
+    #
+    # What the absolute sweep additionally caught was breakage that was ALREADY
+    # ON MAIN, and making that every unrelated campaign's problem is a real cost
+    # rather than a benefit: six truncated JSON run records from one AES batch
+    # red-lighted every other campaign's PR, including one whose diff touched
+    # none of them and which could not have repaired them without fabricating
+    # run output. With 115 open branches that coupling is the dominant failure.
+    #
+    # So: PR-scoped here, absolute on push to main (.github/workflows/validate.yml)
+    # and on a schedule (.github/workflows/main-health.yml), where the failure
+    # reaches the campaign that owns the artifact instead of everyone else.
+    scoped = touched_files(args.base) if args.base and not args.absolute else None
+    parse_paths = paths if scoped is None else scoped
+    if scoped is not None:
+        print(f"note: parseability scoped to {len(scoped)} file(s) this branch "
+              f"adds or modifies vs {args.base}; the absolute sweep runs on main",
+              file=sys.stderr)
+
     groups = [
-        ("unresolved conflict markers", check_markers(paths)),
-        ("unparseable records", check_parses(paths)),
+        ("unresolved conflict markers", check_markers(parse_paths)),
+        ("unparseable records", check_parses(parse_paths,
+                                             report_stale=scoped is None)),
     ]
     if args.base:
         groups.append(("identifier collisions", check_collisions(args.base)))
