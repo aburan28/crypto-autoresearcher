@@ -14,10 +14,30 @@ identifiers:
   url: https://anthropic.com/document/hawk_key_recovery.pdf
 tags: [hawk, lattice-isomorphism-problem, module-lip, cyclotomic, galois-automorphism, key-recovery, svp, nist-pqc, post-quantum, signature, llm-assisted-discovery, gate-count, cost-model]
 confidence: reported
-citation_verified: web
+citation_verified: read
 added: "2026-07-28"
 superseded_by: null
 ---
+
+> **`citation_verified` upgraded `web` → `read` on 2026-08-02** by
+> TASK-20260802-004 (GOAL-HAWK-001 / BATCH-001), per the maintenance rule in
+> `knowledge/SEEDING.md`. The full text was obtained from
+> `https://anthropic.com/document/hawk_key_recovery.pdf`,
+> `sha256:056faead316ea9a8eb01000cb9c548e79e21ad09a0684c3d52bbc1093183ac89`
+> (748154 bytes), and read. **No claim below is edited** — the entry's existing
+> body was checked against the full text and its characterization of the result
+> as unconditional and heuristic-free is confirmed by a regex census
+> (`Heuristic` ×0, `Conjecture` ×0; the single `Assumption` conditions the
+> cost-comparison table on HAWK's own `[HAWK25, Table 8]` model, not the
+> reduction).
+>
+> One fact the body does **not** carry, added by supersession-free annotation
+> rather than by editing a claim: the paper states that proving the relevant
+> lattice *exactly* near-hypercubic "upgrades the endgame from the heuristic
+> pricing of [GP25, Thm. 1] to the unconditional accounting of Theorem 6.1" —
+> i.e. it does not merely reuse van Gent–Pulles's descent ([[KN-LIT-7673]]), it
+> **discharges that paper's Heuristic 1**. See
+> `coordination/goals/GOAL-HAWK-001/batches/BATCH-001/tasks/TASK-20260802-004/disclosed_attack_transcription.md`.
 
 ## Contribution
 An unconditional, deterministic polynomial-time reduction from HAWK-`n` key recovery
