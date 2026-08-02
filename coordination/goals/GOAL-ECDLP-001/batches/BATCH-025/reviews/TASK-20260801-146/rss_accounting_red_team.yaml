@@ -1,0 +1,384 @@
+red_team_report:
+  id: RT-20260801-146
+  task_id: TASK-20260801-146
+  role: red-team
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-025
+  experiment_id: EXP-SMTHPILOT-001
+  run_id: RUN-SMTH-PILOT-002
+  reviewed_on: '2026-08-01'
+  independent_session: true
+  author_of_reviewed_artifacts: false
+  disposition: REVISE
+  verdict: revise_concurrent_rss_interpretation
+  disposition_authority: coordinator_only
+
+  claim_under_review: >-
+    The RUN-SMTH-PILOT-002 stop value 4,310,335,488 bytes represents a true
+    concurrent process-tree peak-RSS exhaustion of the frozen 4-GiB ceiling.
+
+  review_boundary:
+    evidence_commit: 34cf4ce49fc4c0be794bd0b235dcd6884d960962
+    validation_commit: 123cebdcfdc1af2bf724b591a3914dedd0972bb4
+    implementation_snapshot: 99e49546dcef47a4d5fb0d83f69d20b83a2bdb7a
+    implementation_blob_unchanged_at_review_head: true
+    implementation_blob: 28eded1f4e862c81b81f2308a6ffb97def0cb6e3
+    scientific_or_synthetic_runs_executed: 0
+    exact_scope: committed-byte interpretation and cost-accounting challenge only
+
+  disposition_summary: >-
+    REVISE the memory interpretation, while preserving the immutable failed-run
+    record. The committed traceback proves that the implementation's RSS guard
+    fired in ProcessTreeMonitor.observe_worker_record; it does not prove that
+    4,310,335,488 bytes were resident concurrently. The code creates a fresh
+    four-worker ProcessPoolExecutor for each 130,816-record descriptor, exactly
+    four shards, but retains every prior worker PID's lifetime ru_maxrss in one
+    monitor-wide dictionary. Dead worker peaks are therefore summed with the
+    current pool. The 52-checkpoint staircase matches that lifecycle at every
+    boundary. Because current_rss_bytes, process_count and PID history were not
+    persisted, exact historical live-tree RSS cannot be recovered from committed
+    bytes. The safest classification is an implementation/resource-accounting
+    cap stop, not demonstrated concurrent or host-memory exhaustion.
+
+  observations:
+  - id: RT146-O1
+    statement: >-
+      measured_factor_certificate returns os.getpid() and that worker's lifetime
+      RUSAGE_SELF ru_maxrss on every completed factorization.
+    evidence:
+    - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py@99e49546d:855-862
+  - id: RT146-O2
+    statement: >-
+      ProcessTreeMonitor.observe_worker_record retains a maximum for each PID in
+      _worker_peak_rss, never deletes an entry, sums all dictionary values with
+      the parent's lifetime peak, and enforces the cap against that sum.
+    evidence:
+    - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py@99e49546d:314-340
+  - id: RT146-O3
+    statement: >-
+      ProcessTreeMonitor.sample independently computes current live-tree RSS from
+      ps over the parent and recursively selected descendants, but returns it as
+      current_rss_bytes while preserving the larger prior accumulator as
+      peak_rss_bytes.
+    evidence:
+    - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py@99e49546d:346-394
+  - id: RT146-O4
+    statement: >-
+      checkpoint_callback persists only peak_rss_bytes. It discards the sampled
+      current_rss_bytes and process_count, and the manifest contains no worker
+      PID or pool-epoch history.
+    evidence:
+    - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py@99e49546d:2000-2063
+    - experiments/EXP-SMTH-PILOT-001/runs/RUN-SMTH-PILOT-002/manifest.yaml@34cf4ce49
+  - id: RT146-O5
+    statement: >-
+      _bounded_ordered_factorizations owns a ProcessPoolExecutor context, and
+      run_null_pilot calls it once per array descriptor. Each descriptor has
+      130,816 records, equal to four 32,704-record shards, so every four-shard
+      boundary closes one pool and the next descriptor creates another.
+    evidence:
+    - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py@99e49546d:45-53
+    - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py@99e49546d:730-742
+    - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py@99e49546d:1807-1833
+    - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py@99e49546d:2088-2137
+  - id: RT146-O6
+    statement: >-
+      The traceback terminates at observe_worker_record line 340, before the
+      next record's checks are charged or its certificate is written.
+    evidence:
+    - experiments/EXP-SMTH-PILOT-001/runs/RUN-SMTH-PILOT-002/stderr.log@34cf4ce49:8-14
+    - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py@99e49546d:2101-2118
+
+  rss_accumulator_trace:
+  - stage: worker_measurement
+    value: worker lifetime ru_maxrss in bytes on macOS
+    lifetime: one worker process within one descriptor-local pool
+  - stage: monitor_pid_map
+    value: maximum returned ru_maxrss for every PID ever observed in the attempt
+    lifetime: entire run attempt; no pool-close eviction exists
+  - stage: record_boundary_candidate
+    value: parent lifetime ru_maxrss plus sum of all retained PID maxima
+    defect: includes dead workers from every completed descriptor pool
+  - stage: monitor_peak
+    value: maximum of all record-boundary candidates and sampled active ps RSS
+    defect: once contaminated, a later current-tree sample cannot lower it
+  - stage: checkpoint
+    value: maximum of prior-attempt peak and contaminated monitor peak
+    retained_gap: current_rss_bytes, process_count, active PIDs and retired PIDs omitted
+  - stage: stop_handler
+    value: failure sample passed through cumulative_resources and persisted
+    defect: both sample and accounting_without_subprocess retain the same dead-PID sum
+  - stage: resume
+    value: prior_peak_rss reloaded and rejected when already above the unchanged cap
+    consequence: RUN002 cannot safely distinguish or repair its own metric by resume
+
+  process_lifecycle_accounting:
+    completed_shards: 52
+    records_per_shard: 32704
+    records_per_descriptor: 130816
+    completed_descriptor_epochs: 13
+    workers_per_epoch: 4
+    next_epoch_entered_before_stop: 14
+    production_pid_history_retained: false
+    exact_pid_distinctness_provable_from_committed_bytes: false
+    inference: >-
+      The staircase requires new retained PID keys across epochs; PID reuse would
+      suppress, not create, the observed additions. Exact PID identities were not
+      archived, so the number of distinct PIDs remains an inference rather than
+      a receipt-level fact.
+
+  quantitative_checkpoint_test:
+    first_epoch_last_checkpoint_peak_rss_bytes: 623460352
+    later_epoch_boundary_count: 12
+    later_epoch_boundary_shards: [5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49]
+    boundary_increment_min_bytes: 281870336
+    boundary_increment_max_bytes: 284868608
+    boundary_increment_mean_bytes: 283353088
+    within_epoch_increment_count: 39
+    within_epoch_increment_max_bytes: 311296
+    within_epoch_increment_mean_bytes: 147456
+    last_checkpoint_peak_rss_bytes: 4028891136
+    terminal_increment_on_epoch_14_bytes: 281444352
+    terminal_peak_rss_bytes: 4310335488
+    frozen_cap_bytes: 4294967296
+    recorded_exceedance_bytes: 15368192
+    alignment_result: >-
+      All twelve large post-first checkpoint jumps occur on the first shard of a
+      new four-shard descriptor epoch, and the terminal crossing adds one more
+      same-scale pool epoch contribution. No large jump occurs within an epoch.
+    cpu_and_wall_comparison: >-
+      CPU and wall counters rise approximately with completed work rather than in
+      four-shard RSS steps. This is consistent with cumulative CPU charging and
+      supplies no independent evidence of a concurrent memory crisis.
+
+  objections:
+  - id: RT146-B1
+    severity: blocker_interpretation
+    finding: >-
+      The 4,310,335,488-byte field is not an admissible measurement of concurrent
+      process-tree RSS. It is a monitor-wide sum of lifetime maxima from live and
+      dead worker processes plus a parent lifetime maximum.
+    required_revision: >-
+      Replace "process-tree RSS exhausted" or "true 4-GiB memory exhaustion"
+      with "the implementation's cumulative worker-peak accumulator crossed the
+      cap and raised ResourceCapError." Preserve the frozen numeric observation.
+  - id: RT146-B2
+    severity: blocker_evidence_gap
+    finding: >-
+      The implementation computed current live-tree RSS at checkpoints but did
+      not persist it, process_count or PID/epoch membership. Committed bytes
+      therefore cannot prove or reconstruct the true maximum concurrent RSS.
+    required_revision: >-
+      Treat genuine current-tree exhaustion as unresolved. Do not infer host OOM,
+      a 4-GiB hardware requirement, or a full-run memory projection from RUN002.
+  - id: RT146-B3
+    severity: blocker_control_gap
+    finding: >-
+      The accepted resource self-test sampled one monitor without cycling worker
+      pools and never exercised observe_worker_record across retired PID epochs.
+      Prior PASSes therefore did not test the failing lifecycle.
+    evidence:
+    - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py@99e49546d:1440-1483
+    required_revision: Add the sequential-pool lifecycle control below before any retry.
+  - id: RT146-B4
+    severity: cost_model_blocker
+    finding: >-
+      RUN002 has no admissible peak-current-RSS datum and stopped at 40.625 percent.
+      It cannot support terminal feasibility or end-to-end memory/cost claims.
+    required_revision: >-
+      Fully charge RUN002 as sunk infrastructure/accounting work and separately
+      charge any repair, validation and fresh successor. Do not backfill the
+      missing metric or extrapolate 4.31 GB.
+
+  alternative_explanations:
+  - id: RT146-H1
+    explanation: cumulative dead-worker PID peak summation across pool epochs
+    status: strongly_supported_inference
+    support: >-
+      Exact code path plus perfect four-shard boundary alignment and stable
+      approximately 283-MB epoch additions.
+    proof_limit: Exact production PID identities and current RSS were not retained.
+  - id: RT146-H2
+    explanation: genuine concurrent parent plus current four-worker RSS exceeded 4 GiB
+    status: unsupported_and_unresolved
+    challenge: >-
+      The only code path that crossed used the lifetime-PID sum, while the live ps
+      value was discarded. The staircase is tied to retired pool count, not the
+      fixed concurrent worker count.
+    falsification_route: >-
+      A corrected active-epoch monitor or retained live-tree sampler independently
+      exceeding 4 GiB at a record boundary would falsify the artifact-only account.
+  - id: RT146-H3
+    explanation: parent-retained arrays or allocator high-water growth
+    status: possible_secondary_not_sufficient
+    retained_structures: >-
+      One current indexed_values list, one current lpfs list, array_results, and
+      iid_references for first-IID arrays can remain in the parent; parent
+      ru_maxrss is also a lifetime high-water mark.
+    challenge: >-
+      The parent peak is included once, not once per pool. These structures do
+      not explain twelve approximately equal jumps exactly at pool replacement.
+    falsification_route: Persist parent current RSS immediately after each pool shutdown.
+  - id: RT146-H4
+    explanation: current process-tree RSS equals unique host physical memory
+    status: false_equivalence
+    challenge: >-
+      Even a correct sum of live per-process RSS may count shared pages in more
+      than one process. A process-tree RSS budget is defensible, but it is not by
+      itself proof that the host exhausted unique resident memory.
+
+  required_controls:
+  - id: RT146-C1
+    name: sequential-pool-rss-lifecycle
+    authorization_state: proposed_not_authorized_or_executed
+    kind: implementation-only bounded synthetic self-test
+    maximum_invocations: 1
+    scientific_runs: 0
+    maximum_pool_generations: 3
+    workers_per_generation: 4
+    synthetic_worker_payload_bytes: 16777216
+    maximum_simultaneous_synthetic_payload_bytes: 67108864
+    suggested_wall_cap_seconds: 60
+    suggested_rss_cap_bytes: 1073741824
+    procedure:
+    - >-
+      For each of three sequential ProcessPoolExecutor contexts, submit enough
+      tiny tasks to observe exactly four worker PIDs. Each worker retains one
+      16-MiB bytearray until that pool closes and returns PID plus ru_maxrss.
+    - >-
+      While each pool is alive, record ps-derived current_rss_bytes, process_count,
+      the active PID set, parent ru_maxrss, the active-generation peak sum, and
+      the legacy all-PID dictionary sum. After pool close, record parent-only
+      current RSS and prove the closed generation PIDs are no longer live.
+    - >-
+      At generation three compute retired_contribution as the exact sum of
+      retained maxima for generation-one and generation-two PIDs. Require
+      legacy_all_pid_sum minus live_pid_only_sum to equal retired_contribution.
+    - >-
+      If max live current RSS is below the legacy generation-three value, define
+      a synthetic separator cap as their integer midpoint. Demonstrate by pure
+      accounting assertions that legacy logic rejects while active-only logic
+      accepts; do not invoke run-null-pilot or write run/result paths.
+    preregistered_predictions:
+      RT146-H1_dead_pid_artifact:
+      - Generation PID sets are pairwise disjoint; otherwise the control is invalid, not negative.
+      - Closed-generation PIDs are absent from the live ps tree.
+      - legacy_all_pid_sum - live_pid_only_sum equals retired_contribution exactly.
+      - The legacy value grows once per generation while active current RSS remains one parent plus four workers.
+      - A midpoint cap separates legacy rejection from active-only acceptance.
+      RT146-H2_true_concurrent_growth:
+      - >-
+        If no separator cap exists because ps-derived live current RSS rises with
+        the legacy value despite retired PIDs being absent, the dead-PID-only
+        explanation is falsified and parent retention must be investigated.
+      RT146-H3_parent_retention:
+      - >-
+        Parent-only current RSS after each pool closes is the discriminator. A
+        monotone increase comparable to retired_contribution supports hidden
+        retained parent state; a bounded parent-only series while the legacy sum
+        grows rejects it as the primary cause.
+    pass_gate: >-
+      Record exact values and PID membership; reproduce the production bug under
+      the legacy formula; prove retired contributions are excluded by the repair;
+      and independently validate the committed synthetic receipt.
+    invalid_conditions:
+    - fewer than four observed workers in any generation
+    - PID reuse between generations
+    - missing live-tree or post-close sample
+    - scientific entry point or run/result path touched
+
+  cheapest_control: RT146-C1
+  cheapest_control_rationale: >-
+    Three tiny pool generations reproduce the exact lifecycle defect without
+    factorization, certificates, seeds, a pilot, or a retry. The decisive equality
+    is structural and requires neither a 4-GiB allocation nor long runtime.
+
+  repair_constraints:
+  - Preserve RUN-SMTH-PILOT-002, all 52 shards, manifest, logs, seed roster, validation and receipts byte-for-byte.
+  - Do not relabel the frozen RUN002 numeric field; revise only its interpretation in a new record.
+  - >-
+    Scope worker peaks to the currently live pool epoch, or use one long-lived
+    four-worker pool. Retired PID maxima must never be summed into a concurrent
+    RSS candidate.
+  - >-
+    Persist separately at every checkpoint: ps-derived current_tree_rss_bytes,
+    process_count, active pool epoch, active PID count, conservative active-epoch
+    peak and the attempt maximum. State which metric enforces the frozen cap.
+  - Exercise pool closure and replacement in a targeted synthetic control; the existing cap-plus-one sampler is insufficient.
+  - Keep cumulative CPU accounting separate; sequential worker CPU is legitimately additive while sequential worker RSS is not.
+  - >-
+    A RUN002 resume is unsafe and unauthorized: its prior_peak_rss already exceeds
+    the cap and encodes the defective accumulator. Any science requires a fresh
+    run ID and fresh non-overwriting result namespace after repair snapshot,
+    independent review and Coordinator authorization.
+  - >-
+    Prefer a clean from-index-zero successor. Importing the 52 old shards into a
+    new run would mix implementations and requires a separately specified,
+    independently validated cross-run provenance and cost rule.
+
+  cost_model_challenges:
+  - id: RT146-COST1
+    finding: >-
+      RUN002 sunk cost remains 588.538158 CPU seconds, 392.025812375 wall seconds,
+      5,610,411 charged primality checks, 1,700,608 checkpointed records and
+      35,246,284 tracked bytes. The RSS value is retained as a legacy accumulator,
+      not converted to current-tree RSS.
+  - id: RT146-COST2
+    finding: >-
+      A clean successor repeats all 4,186,112 records. A simple 32/13 linear
+      projection from RUN002 is approximately 1,448.709312 CPU seconds,
+      964.986615 wall seconds and 13,810,242 primality checks, before repair,
+      validation, orchestration, archive and retry overhead. These are planning
+      estimates only, not completed-feasibility evidence.
+  - id: RT146-COST3
+    finding: >-
+      Fully charged program totals would include, at minimum, the RUN002 sunk
+      588.538158 CPU and 392.025812 wall seconds plus every measured repair/control/
+      validation cost and the fresh successor's actual cost. No old work is
+      subtracted merely because its stop was an accounting artifact.
+
+  baseline_comparison: >-
+    Not a cryptanalytic-baseline question. RUN002 is a null-only incomplete
+    feasibility attempt and supplies no Pollard-rho, BSGS, specialized-algorithm,
+    asymptotic or end-to-end ECDLP comparison.
+  heuristic_challenges:
+  - HEUR-DS-1 remains untested; partial null arrays and this accounting diagnosis are nondecisional.
+  reduction_and_scope_challenges: []
+  proof_architecture_challenges: []
+
+  claim_ceiling:
+    supported: >-
+      At the committed RUN002 bytes, the implementation's monitor-wide
+      parent-plus-ever-seen-worker-peak accumulator reached 4,310,335,488 bytes,
+      crossed its 4,294,967,296-byte configured threshold and raised
+      ResourceCapError, leaving an integrity-validated 52-shard failed checkpoint.
+    not_supported:
+    - 4,310,335,488 bytes were concurrently resident in the live process tree.
+    - the host exhausted 4 GiB of unique physical memory or experienced OOM.
+    - a corrected run needs more than 4 GiB RSS.
+    - completed null feasibility or any full-contract cost projection.
+    - evidence for or against HEUR-DS-1, H-SMTH-001, ECDLP or a breakthrough.
+
+  narrowest_supported_statement: >-
+    RUN-SMTH-PILOT-002 remains an immutable, integrity-validated failed checkpoint,
+    but its RSS stop is an implementation/resource-accounting failure. The exact
+    4,310,335,488-byte value is a cumulative upper-bound accumulator that includes
+    retired worker epochs, not a proven concurrent process-tree peak. Exact
+    historical live-tree RSS is unknowable from the retained bytes. No scientific,
+    heuristic, algorithmic, asymptotic, ECDLP or research-state conclusion follows.
+
+  next_concrete_action: >-
+    Coordinator may archive this REVISE under TASK-20260801-147. If further work
+    is desired, authorize a repair-only implementation task and exactly one
+    RT146-C1 synthetic invocation, then obtain independent committed-byte review.
+    Only after those gates may a separately budgeted, fresh-ID null-only successor
+    be considered. Do not resume or retry RUN002 and do not authorize any
+    scientific execution from this report.
+
+  artifact_paths:
+  - coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-146/rss_accounting_red_team.yaml
+
+  explicit_non_actions:
+  - No experiment, pilot, retry, resume, self-test or synthetic control was executed.
+  - No implementation, protocol, authorization, run, result, validation, receipt, ledger, hypothesis, experiment, goal or status artifact was edited.
+  - No commit, push, merge, rebase, archive promotion or research-state transition was created.
