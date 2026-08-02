@@ -6,13 +6,12 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-043` | coordinator | queued | 95 | TASK-20260801-042 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-043/snapshot_commit_receipt.json | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/archives/TASK-20260801-043 |
+| `TASK-20260801-044` | validator | queued | 92 | TASK-20260801-042, TASK-20260801-043 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-044/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-044 |
+| `TASK-20260801-045` | red-team | queued | 91 | TASK-20260801-042, TASK-20260801-043 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-045/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-024/reviews/TASK-20260801-045 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-044`: dependency_not_completed:TASK-20260801-043:queued
-- `TASK-20260801-045`: dependency_not_completed:TASK-20260801-043:queued
-- `TASK-20260801-046`: dependency_not_completed:TASK-20260801-043:queued, dependency_not_completed:TASK-20260801-044:queued, dependency_not_completed:TASK-20260801-045:queued
+- `TASK-20260801-046`: dependency_not_completed:TASK-20260801-044:queued, dependency_not_completed:TASK-20260801-045:queued
 
 ## Dispatch Gates
 
@@ -27,4 +26,4 @@ BATCH-024 EXP-DEP-001 (RT049-CTRL-1): measure the DETECTION POWER of the exact s
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `833b5ebc0e1d83b4adeb3c2c142e0ecdce5381eb1ea9a4b136bf5645311d115c`
+Plan SHA-256: `4d0e44e494e710cad7cb4a70f52af3926344fa6d2b357ca4ed4f47ef897fdb2d`
