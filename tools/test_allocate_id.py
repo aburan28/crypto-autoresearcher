@@ -121,6 +121,35 @@ class AllocationTests(unittest.TestCase):
         b = random.Random(11).choice(list(range(25, ai.CEILING + 1)))
         self.assertEqual(a, b)
 
+    def test_random_token_is_the_default_allocation(self) -> None:
+        """Sequential/numeric both scan state; only the token cannot converge."""
+        self.assertEqual(ai.TOKEN_WIDTH, 6)
+        rng = random.Random(3)
+        tok = ai.random_token(rng)
+        self.assertRegex(tok, r"^[0-9a-f]{6}$")
+
+    def test_token_ids_validate_against_the_build_gate(self) -> None:
+        for rec_id in ("DEC-20260801-a3f9c2", "EV-DS-4fac95",
+                       "TASK-20260801-00ff11", "H-SUBRES-deadbe"):
+            ok, why = ai.well_formed(rec_id)
+            self.assertTrue(ok, f"{rec_id} rejected: {why}")
+
+    def test_legacy_numeric_ids_still_validate_forever(self) -> None:
+        """Pre-2026-08-01 records are immutable; they must keep validating."""
+        for rec_id in ("DEC-20260731-019", "EV-DS-002", "TASK-20260731-044"):
+            ok, why = ai.well_formed(rec_id)
+            self.assertTrue(ok, f"legacy {rec_id} rejected: {why}")
+
+    def test_malformed_tokens_are_still_refused(self) -> None:
+        for rec_id in ("DEC-20260801-ZZZZZZ", "DEC-20260801-abcd",
+                       "DEC-20260801-abcdefg", "EV-DS-XYZ"):
+            ok, _ = ai.well_formed(rec_id)
+            self.assertFalse(ok, f"{rec_id} should not be well-formed")
+
+    def test_token_space_is_large_enough_to_matter(self) -> None:
+        """A 3-digit space made collisions routine; 24 bits makes them rare."""
+        self.assertGreater(16 ** ai.TOKEN_WIDTH, 1_000_000)
+
     def test_audit_returns_nonzero_while_defects_remain(self) -> None:
         """The repo currently carries pre-existing malformed and duplicated ids."""
         self.assertEqual(ai.audit(), 1)

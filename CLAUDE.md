@@ -81,21 +81,30 @@ evidence rules above apply unchanged.
   `EXP-<AREA>-NNN`, `RUN-*`, `EV-<AREA>-NNN`, `DEC-YYYYMMDD-NNN`,
   `TASK-YYYYMMDD-NNN`, `KN-{LIT,TECH,FIND,OPEN}-NNN`. Immutable, never
   reused, and **never allocated by grepping for max+1**.
-- **Allocate the `NNN` suffix RANDOMLY, and always through the tool:**
+- **Suffixes are RANDOM 6-hex tokens, minted through the tool:**
 
   ```sh
   python3 tools/allocate_id.py --next coordinator_decision --date 20260801
-  python3 tools/allocate_id.py --check DEC-20260801-129   # confirm before use
+  #   -> DEC-20260801-2fd115
+  python3 tools/allocate_id.py --check DEC-20260801-2fd115   # confirm before use
   ```
 
-  The tool picks uniformly from the free tail above the current maximum, so it
-  never fills a gap. **Sequential allocation is the collision bug, not a
-  fallback.** Several worktrees generate records against this repository
-  concurrently; each computes the same `max+1` from the same committed state and
-  mints the SAME identifier for a DIFFERENT record. The collision surfaces at
-  merge time, when both records are already committed and immutable and neither
-  can simply be renamed. `--sequential` exists only for a genuinely single
-  worktree and must never mint a record that will be merged.
+  Two suffix forms validate. `[0-9a-f]{6}` is what new records use. The legacy
+  `\d{3}` form stays valid **forever** — every record minted before 2026-08-01
+  uses it and those records are immutable — but **never mint a new one**.
+
+  **Sequential allocation is the collision bug, not a fallback.** It asks "what
+  is the maximum, plus one", and every concurrent worktree asks that of the same
+  committed state and gets the same answer, so they mint the SAME identifier for
+  DIFFERENT records. The collision surfaces at merge time, when both records are
+  already immutable and neither can be renamed. **A random token asks no such
+  question — it scans no state, so two worktrees cannot converge by
+  construction.** `--numeric` (random 3-digit) and `--sequential` (max+1) remain
+  for legacy work only and must never mint a record that will be merged.
+
+  Cost of the change, stated plainly: identifiers no longer sort into creation
+  order. Nothing in this repository ordered by them; use `added`/`recorded_at`
+  or git history for chronology.
 - **A rename is not a cheap repair.** Remapping an ID that a completed archive
   names in its binding fields breaks that archive **permanently**: the commit is
   immutable, so its declared path set and the live tree can never agree again.
