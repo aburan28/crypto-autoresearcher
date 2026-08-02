@@ -2,7 +2,7 @@
 
 Tasks: `TASK-20260801-082`, repairs `TASK-20260801-095`,
 `TASK-20260801-100`, `TASK-20260801-105`, `TASK-20260801-115`, and
-`TASK-20260801-136`
+`TASK-20260801-136`; RSS epoch repair `TASK-20260801-149`
 
 Scope: implementation only. No registered scientific run was started, and no
 run or result artifact was generated. The implementation exposes only the
@@ -277,5 +277,58 @@ The immutable predecessor hashes remained
 for stdout and
 `fce9cbf8d3ceea7cea60ef8ff19d150e5f8e47ad61565eafcd273618bbce8919`
 for stderr before and after testing. `RUN-SMTH-PILOT-002` remained absent.
+
+## TASK-20260801-149 active-pool RSS epoch repair
+
+Committed authorization `TASK-20260801-148` at
+`f0553bd1bb6d7d5ba9be96f97ec7c11a882b8df4` permits only the implementation
+repair and the single `RT146-C1` synthetic control specified by
+`RT-20260801-146`. No command invoked `run-null-pilot`, and no run or result
+path was created or modified.
+
+`ProcessTreeMonitor` now assigns a monotone epoch to each descriptor-local
+process pool. Worker lifetime RSS maxima are retained only while that epoch is
+active and are cleared after its pool closes; a later pool therefore cannot
+sum retired PID peaks. Worker CPU seconds remain a separate cumulative sum
+across epochs. The frozen RSS cap is enforced against
+`attempt_peak_rss_bytes`, the maximum of ps-derived live-tree samples and
+parent-plus-active-worker conservative candidates. The compatibility
+`peak_rss_bytes` return remains equal to that attempt peak.
+
+Every resource checkpoint now carries separate `current_tree_rss_bytes`,
+`process_count`, `active_pool_epoch`, `active_worker_pids`, `active_pid_count`,
+`conservative_active_epoch_peak_rss_bytes`, and
+`attempt_peak_rss_bytes`. The same fields flow through checkpoint events and
+manifests, terminal result and manifest receipts, and failure/stop receipts.
+
+Bounded non-scientific checks:
+
+1. Three AST-only parses and `git diff --check` passed.
+2. Three ordinary `self-test` invocations passed with `scientific_runs=0`: a
+   three-control targeted run, the full 17-control suite, and a final
+   two-control targeted run. The added unit regression observed epoch reset,
+   exclusion of the retired synthetic PID, monotone epoch numbering, retained
+   cumulative CPU, and the active-only conservative RSS formula.
+3. The exact command
+   `PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py rt146-c1`
+   invoked `RT146-C1` once and exited 0 with `status=pass` and
+   `scientific_runs=0`. It observed disjoint four-worker PID sets
+   `[99033, 99034, 99036, 99037]`, `[99061, 99062, 99063, 99064]`, and
+   `[99079, 99080, 99081, 99082]`. Generation three recorded legacy accounting
+   of 678,789,120 bytes, live-PID-only accounting of 252,887,040 bytes, exact
+   retired contribution of 425,902,080 bytes, repaired attempt peak of
+   274,939,904 bytes, and separator cap of 476,864,512 bytes. All registered
+   invalid-condition flags were false and all pass assertions were true.
+
+The control receipt is
+`coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260801-149/rt146_c1_synthetic_receipt.json`.
+Its before/after protected inventory contains the same 60 files and the same
+canonical SHA-256
+`206cbb9c3d83b62cb8143ce704db429a7c996bd1841bd7bfc175132787dae07a`;
+`run_result_paths_modified` is empty. RT146-C1 invocation count: **1 of 1**.
+The final scope audit found one ignored generated
+`implementation/__pycache__/pilot_driver.cpython-313.pyc`; the exact cache file
+and its now-empty directory were removed, and no bytecode or other extra path
+remains in the worktree.
 
 Scientific run count: **0**.
