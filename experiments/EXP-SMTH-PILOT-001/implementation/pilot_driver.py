@@ -16,6 +16,7 @@ from concurrent.futures.process import BrokenProcessPool
 import contextlib
 import dataclasses
 from datetime import datetime, timezone
+import fcntl
 import gzip
 import hashlib
 import io
@@ -178,18 +179,48 @@ def validate_repository_binding() -> None:
         repository_path(relative)
 
 
-def validate_log_redirections() -> None:
-    for descriptor, relative in (
-        (1, RUN_REL / "stdout.log"),
-        (2, RUN_REL / "stderr.log"),
-    ):
-        target = REPO_ROOT / relative
+def resolved_descriptor_path(descriptor: int) -> Path:
+    """Return the kernel-reported path for one regular-file descriptor."""
+    try:
+        if sys.platform == "darwin":
+            if not hasattr(fcntl, "F_GETPATH"):
+                raise IntegrityError("fcntl.F_GETPATH is unavailable on macOS")
+            raw = fcntl.fcntl(descriptor, fcntl.F_GETPATH, b"\0" * 1024)
+            path_bytes = raw.split(b"\0", 1)[0]
+            if not path_bytes:
+                raise IntegrityError(f"descriptor {descriptor} has no resolved path")
+            return Path(os.fsdecode(path_bytes)).resolve(strict=True)
+        if sys.platform.startswith("linux"):
+            return Path(f"/proc/self/fd/{descriptor}").resolve(strict=True)
+    except OSError as exc:
+        raise IntegrityError(
+            f"cannot resolve file descriptor {descriptor} to an exact path"
+        ) from exc
+    raise IntegrityError(
+        f"exact descriptor-path validation is unsupported on {sys.platform}"
+    )
+
+
+def validate_descriptor_paths(bindings: Sequence[tuple[int, Path]]) -> None:
+    for descriptor, target in bindings:
         try:
-            matches = os.path.samefile(f"/dev/fd/{descriptor}", target)
+            expected = target.resolve(strict=True)
         except OSError as exc:
-            raise IntegrityError(f"cannot verify exact log redirection: {relative}") from exc
-        if not matches:
-            raise IntegrityError(f"file descriptor is not redirected to {relative}")
+            raise IntegrityError(f"cannot resolve expected log path: {target}") from exc
+        actual = resolved_descriptor_path(descriptor)
+        if actual != expected:
+            raise IntegrityError(
+                f"file descriptor {descriptor} resolves to {actual}, not {expected}"
+            )
+
+
+def validate_log_redirections() -> None:
+    validate_descriptor_paths(
+        (
+            (1, REPO_ROOT / RUN_REL / "stdout.log"),
+            (2, REPO_ROOT / RUN_REL / "stderr.log"),
+        )
+    )
     OUTPUT_HANDLES.current = 2
     OUTPUT_HANDLES.observed_maximum = max(OUTPUT_HANDLES.observed_maximum, 2)
 
@@ -1636,6 +1667,78 @@ def run_self_tests(only: set[str] | None = None) -> dict:
             assert json.loads(report_path.read_text())["terminal_storage_receipt"] == receipt
             assert json.loads(manifest_path.read_text())["final_storage"] == receipt
 
+        def real_subprocess_descriptor_redirection() -> None:
+            descriptor_root = root / "descriptor-redirection"
+            descriptor_root.mkdir()
+            stdout_path = descriptor_root / "stdout.log"
+            stderr_path = descriptor_root / "stderr.log"
+            wrong_path = descriptor_root / "wrong.log"
+            receipt_path = descriptor_root / "receipt.json"
+            wrong_path.write_bytes(b"")
+            child_code = r'''
+import importlib.util
+import json
+import os
+from pathlib import Path
+import sys
+
+module_path, stdout_text, stderr_text, wrong_text, receipt_text = sys.argv[1:]
+spec = importlib.util.spec_from_file_location("smth_descriptor_child", module_path)
+if spec is None or spec.loader is None:
+    raise RuntimeError("cannot load pilot driver")
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+stdout_path = Path(stdout_text)
+stderr_path = Path(stderr_text)
+wrong_path = Path(wrong_text)
+old_samefile_matches = os.path.samefile("/dev/fd/1", stdout_path)
+if sys.platform == "darwin" and old_samefile_matches:
+    raise AssertionError("old /dev/fd samefile failure was not reproduced")
+module.validate_descriptor_paths(((1, stdout_path), (2, stderr_path)))
+try:
+    module.validate_descriptor_paths(((1, wrong_path),))
+except module.IntegrityError:
+    mismatch_rejected = True
+else:
+    mismatch_rejected = False
+if not mismatch_rejected:
+    raise AssertionError("exact-path guard accepted a wrong target")
+Path(receipt_text).write_text(json.dumps({
+    "mismatch_rejected": mismatch_rejected,
+    "new_guard_passed": True,
+    "old_samefile_matches": old_samefile_matches,
+    "platform": sys.platform,
+}) + "\n")
+'''
+            with stdout_path.open("wb") as stdout_handle, stderr_path.open("wb") as stderr_handle:
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        "-c",
+                        child_code,
+                        str(Path(__file__).resolve()),
+                        str(stdout_path.resolve()),
+                        str(stderr_path.resolve()),
+                        str(wrong_path.resolve()),
+                        str(receipt_path.resolve()),
+                    ],
+                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                    stdout=stdout_handle,
+                    stderr=stderr_handle,
+                    check=False,
+                )
+            if completed.returncode != 0:
+                raise AssertionError(
+                    "real descriptor-redirection child failed: "
+                    + stderr_path.read_text(errors="replace")
+                )
+            receipt = json.loads(receipt_path.read_text())
+            assert receipt["new_guard_passed"] is True
+            assert receipt["mismatch_rejected"] is True
+            if sys.platform == "darwin":
+                assert receipt["old_samefile_matches"] is False
+
         check("bounded-pack-exact-cap", exact_cap)
         check("bounded-pack-cap-plus-one", cap_plus_one)
         check("bounded-pack-producer-failure", producer_failure)
@@ -1651,6 +1754,7 @@ def run_self_tests(only: set[str] | None = None) -> dict:
         check("cumulative-stop-resume-event-charging", cumulative_stop_resume_events)
         check("broken-worker-pool-infrastructure", broken_worker_pool_infrastructure)
         check("dependency-wrapper-and-terminal-storage", dependency_wrapper_and_terminal_storage)
+        check("real-subprocess-descriptor-redirection", real_subprocess_descriptor_redirection)
 
     return {"scientific_runs": 0, "status": "pass", "tests": tests}
 

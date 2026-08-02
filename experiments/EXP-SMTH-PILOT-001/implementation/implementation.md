@@ -1,7 +1,7 @@
 # EXP-SMTH-PILOT-001 implementation repair note
 
 Tasks: `TASK-20260801-082`, repairs `TASK-20260801-095`,
-`TASK-20260801-100`, and `TASK-20260801-105`
+`TASK-20260801-100`, `TASK-20260801-105`, and `TASK-20260801-115`
 
 Scope: implementation only. No registered scientific run was started, and no
 run or result artifact was generated. The implementation exposes only the
@@ -22,6 +22,11 @@ scientific design, count, seed, path, cap, or research status.
 The final two-defect repair binds snapshot
 `badc73b3f395858ff9ca898aaaa1483cce27a25b` and validation
 `VAL-20260801-102` under authorization `TASK-20260801-104`.
+The descriptor-binding repair binds snapshot
+`5e78665ada170acd1be4fd2d1cb82f5d3bf4c1d9` and the preserved
+preconstruction failure `TASK-20260801-113` under authorization
+`TASK-20260801-114`. It changes only the platform-specific path verification
+and its bounded regression control; it does not alter the scientific protocol.
 
 Frozen scientific plumbing remains 32 deterministic null arrays, exact `i<j`
 enumeration, 4,186,112 factorization/reconstruction calls, the shared
@@ -208,5 +213,29 @@ No command invoked `run-null-pilot` and no run/result path was created.
    equality after terminal stdout and manifest writes.
 
 This task used exactly 15 of its authorized 15 bounded test attempts.
+
+## TASK-20260801-115 descriptor-binding repair
+
+On macOS, `/dev/fd/1` and the opened target path can name distinct vnode
+identities even though descriptor 1 was opened on that exact path, so
+`os.path.samefile` rejected the valid archived redirection before scientific
+construction. The guard now asks the kernel for the descriptor's path with
+`fcntl.F_GETPATH`, resolves the expected path, and requires exact canonical
+path equality. Linux is the other supported platform for this guard and uses
+the kernel `/proc/self/fd/<n>` symlink as its reviewed exact-path fallback.
+Other platforms fail closed rather than substituting inode identity.
+
+No command invoked `run-null-pilot`, and the archived stdout/stderr files from
+`TASK-20260801-113` were not opened for writing.
+
+1. An AST-only syntax parse passed without bytecode output.
+2. The targeted invocation
+   `PYTHONDONTWRITEBYTECODE=1 python3 experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py self-test --only real-subprocess-descriptor-redirection`
+   launched a real child with stdout and stderr redirected to temporary exact
+   paths. On macOS the child observed the old `/dev/fd/1` `samefile` result as
+   false, passed the new `F_GETPATH` guard for both descriptors, and confirmed
+   that the new guard rejects a different existing path.
+
+This task used one of its authorized ten bounded test attempts.
 
 Scientific run count: **0**.
