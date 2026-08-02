@@ -6,11 +6,10 @@ Create, snapshot, and independently validate two sequential fresh exact sessions
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-904` | executor | queued | 100 | TASK-20260802-903 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-904/runtime_session_receipt.json, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-904/execution_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-904 |
+| `TASK-20260802-905` | coordinator | queued | 100 | TASK-20260802-904 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-905/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-905 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-905`: dependency_not_completed:TASK-20260802-904:queued
 - `TASK-20260802-908`: dependency_not_completed:TASK-20260802-905:queued
 - `TASK-20260802-909`: dependency_not_completed:TASK-20260802-908:queued
 - `TASK-20260802-912`: dependency_not_completed:TASK-20260802-905:queued, dependency_not_completed:TASK-20260802-909:queued
@@ -29,4 +28,4 @@ Create, snapshot, and independently validate two sequential fresh exact sessions
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9b3593074c9371833d4f68dc277493d70f94cba21d9a770fee2ddac5fab5755f`
+Plan SHA-256: `0256636cbee6d052ad3043171a9edc4e8d07807f1e6db47b2467a268a141a757`
