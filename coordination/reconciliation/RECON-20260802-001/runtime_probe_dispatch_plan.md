@@ -1,16 +1,16 @@
 # Dynamic Subagent Dispatch Plan
 
-Snapshot the Coordinator-approved, session-scoped Codex runtime-provenance probe protocol before any implementation begins. This is harness tooling, not ECDLP evidence or an inference amendment.
+Implement, snapshot, and independently validate the Coordinator-approved, session-scoped Codex runtime-provenance probe before any downstream R3/R4 review. This is harness tooling, not ECDLP evidence or an inference amendment.
 
 ## Ready Tasks
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| none | - | - | - | - | - | - |
+| `TASK-20260802-968` | validator | queued | 100 | TASK-20260802-967 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-968/validation_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-968 |
 
 ## Deferred or Blocked
 
-None.
+- `TASK-20260802-969`: dependency_not_completed:TASK-20260802-968:queued
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `5808a2827bf8cb0800931e37ce78da2030653c2272f775d22b71e6ac98961471`
+Plan SHA-256: `0d238ea6891eb15f716fcc2e4a1db823708aeb07d7a91f8c376d06bbef915068`
