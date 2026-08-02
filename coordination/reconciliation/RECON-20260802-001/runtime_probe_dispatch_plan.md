@@ -6,11 +6,11 @@ Snapshot the Coordinator-approved, session-scoped Codex runtime-provenance probe
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-966` | executor | queued | 100 | TASK-20260802-965 | orchestration/adapter/codex_runtime.py, orchestration/adapter/cli.py, orchestration/adapter/config.py, tests/test_codex_runtime_probe.py, docs/inference-backends.md, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-966/implementation_report.yaml | orchestration/adapter/codex_runtime.py, orchestration/adapter/cli.py, orchestration/adapter/config.py, tests/test_codex_runtime_probe.py, docs/inference-backends.md, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-966 |
+| `TASK-20260802-967` | coordinator | queued | 100 | TASK-20260802-966 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-967/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-967 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-967`: dependency_not_completed:TASK-20260802-966:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Snapshot the Coordinator-approved, session-scoped Codex runtime-provenance probe
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e72bc46b26d13afd1f337729751f16f6a501545f784e2586e7dc10fc827f9a0f`
+Plan SHA-256: `615634396b58d567a7a2ce190fd8a08c52157fc8a68960d3c3be308119be6501`
