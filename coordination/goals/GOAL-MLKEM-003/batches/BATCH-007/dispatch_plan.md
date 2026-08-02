@@ -6,12 +6,11 @@ Network access to primary sources is restored. Vendor, with recorded provenance,
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-103` | validator | queued | 85 | TASK-20260802-101, TASK-20260802-102 | coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-103/validation_report.yaml, coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-103/validation_notes.md | coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-103 |
-| `TASK-20260802-104` | red-team | queued | 85 | TASK-20260802-101, TASK-20260802-102 | coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-104/red_team_report.yaml, coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-104/objections.md | coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-104 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-105`: dependency_not_completed:TASK-20260802-103:queued, dependency_not_completed:TASK-20260802-104:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Network access to primary sources is restored. Vendor, with recorded provenance,
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9662256162c287b74ad5f1589f6e6472dc1ed56b55cb46d0060be6fdd5c8a335`
+Plan SHA-256: `726701a727bf9aa9eb715209c7e7363e8034fc98c3467194a0815a03aa1fd63c`
