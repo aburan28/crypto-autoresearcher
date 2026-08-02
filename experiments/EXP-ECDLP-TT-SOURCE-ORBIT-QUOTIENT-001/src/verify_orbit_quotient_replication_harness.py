@@ -53,6 +53,61 @@ def canonical_fixture(value: dict[str, Any]) -> dict[str, Any]:
     return normalize(value)
 
 
+def independent_add(curve: dict[str, Any], left: tuple[int, int] | None, right: tuple[int, int] | None) -> tuple[int, int] | None:
+    p = int(curve["p"])
+    a = int(curve["a"]) % p
+    if left is None:
+        return right
+    if right is None:
+        return left
+    x1, y1 = left
+    x2, y2 = right
+    if x1 == x2 and (y1 + y2) % p == 0:
+        return None
+    if left == right:
+        if y1 % p == 0:
+            return None
+        numerator = (3 * x1 * x1 + a) % p
+        denominator = (2 * y1) % p
+    else:
+        numerator = (y2 - y1) % p
+        denominator = (x2 - x1) % p
+    slope = numerator * pow(denominator, -1, p) % p
+    x3 = (slope * slope - x1 - x2) % p
+    return x3, (slope * (x1 - x3) - y1) % p
+
+
+def independent_classes(curve: dict[str, Any], family: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[tuple[int, int], int]]:
+    points = [None if value is None else (int(value[0]), int(value[1])) for value in family["factor_base"]["points"]]
+    grouped: dict[int | None, list[tuple[int, int]]] = {}
+    for left in range(len(points)):
+        for right in range(len(points)):
+            source = independent_add(curve, points[left], points[right])
+            key = None if source is None else source[0]
+            grouped.setdefault(key, []).append((left, right))
+    classes = []
+    pair_to_class: dict[tuple[int, int], int] = {}
+    for index, key in enumerate(sorted(grouped, key=lambda value: (-1 if value is None else value))):
+        members = sorted(grouped[key])
+        representative = members[0]
+        source = independent_add(curve, points[representative[0]], points[representative[1]])
+        classes.append({
+            "class_index": index,
+            "x_orbit_key": key,
+            "representative": list(representative),
+            "members": [list(item) for item in members],
+            "member_count": len(members),
+            "representative_point": None if source is None else list(source),
+        })
+        for pair in members:
+            pair_to_class[pair] = index
+    return classes, pair_to_class
+
+
+def canonical_digest(value: Any) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")).hexdigest()
+
+
 def verify_case(case: dict[str, Any], fixture: dict[str, Any], fixture_path: Path, relation_path: Path) -> dict[str, bool]:
     candidate = case["candidate"]
     curve_id = fixture["instances"][0]["curve"]["id"]
@@ -78,10 +133,14 @@ def verify_case(case: dict[str, Any], fixture: dict[str, Any], fixture_path: Pat
     curve = LOCATOR.TF.Curve(curve_record["p"], curve_record["a"], curve_record["b"])
     for row in candidate.get("rows", []):
         family = row["family"]
+        classes, pair_to_class = independent_classes(curve_record, families[family])
+        class_digest = canonical_digest(classes)
         a_points = [LOCATOR.TF.point_from_json(value) for value in families[family]["progression"]["points"]]
         r_points = [LOCATOR.TF.point_from_json(value) for value in families[family]["factor_base"]["points"]]
         for budget in row.get("budgets", []):
-            checks["support_and_witnesses"] = checks["support_and_witnesses"] and budget.get("total_false_positives") == 0 and budget.get("total_lift_false_quotient_zeros") >= 0
+            summary = budget.get("quotient_class_summary", {})
+            checks["support_and_witnesses"] = checks["support_and_witnesses"] and budget.get("total_false_positives") == 0 and budget.get("total_lift_false_quotient_zeros") >= 0 and budget.get("quotient_class_digest") == class_digest and summary.get("class_count") == len(classes) and summary.get("suffix_pair_count") == len(r_points) ** 2 and budget.get("full_quotient_entries") == len(record_targets := transcripts[family]) * len(a_points) * len(r_points) ** 2 * len(classes) and budget.get("full_original_entries") == len(record_targets) * len(a_points) * len(r_points) ** 4
+            checks["support_and_witnesses"] = checks["support_and_witnesses"] and all(0 <= int(value) < len(classes) for value in budget.get("sample_classes", []))
             for target_index, record in enumerate(budget.get("target_records", [])):
                 hits = {tuple(int(value) for value in item["indices"]) for item in record.get("candidate_hits", [])}
                 expected_a = {int(item["a_index"]) for item in transcripts[family][target_index]["baseline_hits"]}
@@ -89,6 +148,7 @@ def verify_case(case: dict[str, Any], fixture: dict[str, Any], fixture_path: Pat
                     checks["support_and_witnesses"] = checks["support_and_witnesses"] and {item[0] for item in hits} == expected_a
                 target = tuple(record["target"])
                 checks["support_and_witnesses"] = checks["support_and_witnesses"] and all(LOCATOR.valid_witness(curve, a_points, r_points, indices, target, LOCATOR.TF.Ops()) for indices in hits)
+                checks["support_and_witnesses"] = checks["support_and_witnesses"] and all(pair_to_class[tuple(indices[3:])] == int(item["suffix_class"]) for item in record.get("candidate_hits", []) for indices in [tuple(int(value) for value in item["indices"])])
     return checks
 
 
