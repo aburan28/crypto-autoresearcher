@@ -6,14 +6,12 @@ BATCH-027 RUN THE MEASUREMENT. Everything the measurement needs already exists, 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260801-079` | executor | queued | 88 | TASK-20260801-078 | experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/manifest.yaml, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/raw-result.json, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/command.txt, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/environment.json, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/stdout.log, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/stderr.log, experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/git_status_prerun.txt, experiments/EXP-LPF-001/results/measure/LPF_report.json, experiments/EXP-LPF-001/results/measure/absolute_comparison.json, experiments/EXP-LPF-001/results/measure/relative_band_comparison.json, experiments/EXP-LPF-001/results/measure/deviation_certificate.json, experiments/EXP-LPF-001/results/measure/factorization_verification.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/tasks/TASK-20260801-079/execution_report.yaml | experiments/EXP-LPF-001/runs/RUN-LPF-001-measure, experiments/EXP-LPF-001/results/measure, coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/tasks/TASK-20260801-079 |
+| `TASK-20260801-081` | validator | queued | 84 | TASK-20260801-080, TASK-20260801-079 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-081/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-081 |
+| `TASK-20260801-082` | red-team | queued | 82 | TASK-20260801-080, TASK-20260801-079 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-082/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-027/reviews/TASK-20260801-082 |
 
 ## Deferred or Blocked
 
-- `TASK-20260801-080`: dependency_not_completed:TASK-20260801-079:queued
-- `TASK-20260801-081`: dependency_not_completed:TASK-20260801-080:queued, dependency_not_completed:TASK-20260801-079:queued
-- `TASK-20260801-082`: dependency_not_completed:TASK-20260801-080:queued, dependency_not_completed:TASK-20260801-079:queued
-- `TASK-20260801-083`: dependency_not_completed:TASK-20260801-080:queued, dependency_not_completed:TASK-20260801-081:queued, dependency_not_completed:TASK-20260801-082:queued
+- `TASK-20260801-083`: dependency_not_completed:TASK-20260801-081:queued, dependency_not_completed:TASK-20260801-082:queued
 
 ## Dispatch Gates
 
@@ -28,4 +26,4 @@ BATCH-027 RUN THE MEASUREMENT. Everything the measurement needs already exists, 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a1cdc219f8f20d50f62a6df8b25f367cf9c69ac925f4ef66100e597c4530dc12`
+Plan SHA-256: `abde4f71bd3dc2c8b97dbe3e7bd97b609090c37d11e54db29e735bc16931463c`
