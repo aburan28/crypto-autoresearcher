@@ -138,6 +138,13 @@ def run_mode(
             witness_valid(curve, a_points, r_points, tuple(item["indices"]), target_point, witness_ops)
             for item in located["hits"]
         )
+        expected = baseline_targets[target_index].get("expected_witness")
+        expected_witness_valid = True
+        candidate_contains_expected_witness = True
+        if expected is not None:
+            expected_indices = (int(expected["a_index"]), *[int(value) for value in expected["r_witness"]])
+            expected_witness_valid = witness_valid(curve, a_points, r_points, expected_indices, target_point, witness_ops)
+            candidate_contains_expected_witness = any(tuple(item["indices"]) == expected_indices for item in located["hits"])
         direct_mismatches, reference_queries = reference_mismatches(
             curve_record, family, target, predicates.caches[target_index]
         )
@@ -165,6 +172,11 @@ def run_mode(
             "target_index": target_index,
             "scalar": baseline_targets[target_index]["scalar"],
             "target": list(target),
+            "label": baseline_targets[target_index].get("label", f"relation_{target_index}"),
+            "held_out_supported": baseline_targets[target_index].get("held_out_supported", False),
+            "expected_witness": baseline_targets[target_index].get("expected_witness"),
+            "expected_witness_valid": expected_witness_valid,
+            "candidate_contains_expected_witness": candidate_contains_expected_witness,
             "candidate_hits": located["hits"],
             "baseline_hits": baseline_hits,
             "candidate_witnesses_valid": valid,
@@ -192,6 +204,7 @@ def run_mode(
         "candidate_rank": matrix.rank,
         "candidate_full_rank": matrix.rank == width,
         "candidate_solution": solution,
+        "diagnostic_solution_digest": digest(solution) if solution is not None else None,
         "candidate_source_ops": dict(source.ops),
         "candidate_source_snapshots": source_snapshots,
         "candidate_predicate_ops": [dict(item) for item in predicates.ops],
@@ -211,6 +224,10 @@ def run_mode(
         "transcripts": transcripts,
         "all_candidate_witnesses_valid": all(item["candidate_witnesses_valid"] for item in transcripts),
         "all_supports_match": all(item["support_match"] for item in transcripts),
+        "all_held_out_supported_coverage": all(
+            not item["held_out_supported"] or (item["support_match"] and item["candidate_witnesses_valid"] and item["expected_witness_valid"] and item["candidate_contains_expected_witness"])
+            for item in transcripts
+        ),
         "all_direct_reference_exact": reference_mismatch_total == 0,
         "direct_reference_mismatches": reference_mismatch_total,
         "direct_reference_queries": reference_query_total,
@@ -240,8 +257,31 @@ def run_row(curve_record: dict[str, Any], family: dict[str, Any]) -> dict[str, A
         target = curve.mul(scalar, generator, target_ops)
         target_json = TF.point_json(target)
         baseline = TF.query_d4_all(curve, a_points, r_points, materialized["d4_internal"], target)
-        baseline_targets.append({"scalar": scalar, "target": target_json, "hits": baseline["hits"], "ops": baseline["ops"]})
+        baseline_targets.append({"label": f"relation_{index}", "scalar": scalar, "target": target_json, "hits": baseline["hits"], "ops": baseline["ops"], "held_out_supported": False, "expected_witness": None})
         targets.append((int(target_json[0]), int(target_json[1])))
+    seen_targets = set(targets)
+    held_out_added = 0
+    for item in family["held_out_descent"]["transcript"]:
+        if held_out_added == 4 or not (item["materialized_d4"]["success"] and item["r_scan_plus_d3"]["success"]):
+            continue
+        target_json = item["target"]
+        target_tuple = (int(target_json[0]), int(target_json[1]))
+        if target_tuple in seen_targets:
+            continue
+        target = TF.point_from_json(target_json)
+        baseline = TF.query_d4_all(curve, a_points, r_points, materialized["d4_internal"], target)
+        baseline_targets.append({
+            "label": f"held_out_supported_{held_out_added}",
+            "scalar": int(item["scalar"]),
+            "target": target_json,
+            "hits": baseline["hits"],
+            "ops": baseline["ops"],
+            "held_out_supported": True,
+            "expected_witness": {"a_index": item["r_scan_plus_d3"]["a_index"], "r_witness": item["r_scan_plus_d3"]["r_witness"]},
+        })
+        targets.append(target_tuple)
+        seen_targets.add(target_tuple)
+        held_out_added += 1
     separated = run_mode(curve_record, family, targets, baseline_targets, materialized, "target_separated_control")
     shared = run_mode(curve_record, family, targets, baseline_targets, materialized, "shared_source_sums")
     baseline_query_ops = TF.Ops()
@@ -268,6 +308,9 @@ def run_row(curve_record: dict[str, Any], family: dict[str, Any]) -> dict[str, A
         "same_rowspace_rank": separated["rowspace_rank"] == shared["rowspace_rank"],
         "same_relation_rank": separated["candidate_rank"] == shared["candidate_rank"],
         "same_support": separated["all_supports_match"] and shared["all_supports_match"],
+        "diagnostic_solution_digest": family["diagnostic"]["expected_solution_digest"],
+        "shared_diagnostic_solution_match": shared["diagnostic_solution_digest"] == family["diagnostic"]["expected_solution_digest"],
+        "control_diagnostic_solution_match": separated["diagnostic_solution_digest"] == family["diagnostic"]["expected_solution_digest"],
         "strict_source_add_saving": shared["candidate_source_ops"]["point_add_calls"] < separated["candidate_source_ops"]["point_add_calls"],
         "row_digest": digest({"curve_id": curve_record["id"], "family": family["family"], "separated": separated["row_digest"], "shared": shared["row_digest"]}),
     }
@@ -309,9 +352,11 @@ def run(input_path: Path, families: list[str], curve_id: str | None = None) -> d
             "rows": len(rows),
             "all_witnesses_valid": all(row["shared_candidate"]["all_candidate_witnesses_valid"] and row["target_separated_control"]["all_candidate_witnesses_valid"] for row in rows),
             "all_supports_match": all(row["same_support"] for row in rows),
+            "all_held_out_supported_coverage": all(row["shared_candidate"]["all_held_out_supported_coverage"] and row["target_separated_control"]["all_held_out_supported_coverage"] for row in rows),
             "all_direct_reference_exact": all(row["shared_candidate"]["all_direct_reference_exact"] and row["target_separated_control"]["all_direct_reference_exact"] for row in rows),
             "all_same_rowspace_rank": all(row["same_rowspace_rank"] for row in rows),
             "all_same_relation_rank": all(row["same_relation_rank"] for row in rows),
+            "all_diagnostic_solution_matches": all(row["shared_diagnostic_solution_match"] and row["control_diagnostic_solution_match"] for row in rows),
             "all_candidate_full_rank": all(row["shared_candidate"]["candidate_full_rank"] for row in rows),
             "all_strict_source_add_saving": all(row["strict_source_add_saving"] for row in rows),
             "breakthrough_claim": False,

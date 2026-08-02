@@ -17,8 +17,10 @@ class TTBatchedRelationTranscriptTests(unittest.TestCase):
         self.assertTrue(raw["summary"]["all_witnesses_valid"])
         self.assertTrue(raw["summary"]["all_supports_match"])
         self.assertTrue(raw["summary"]["all_same_relation_rank"])
+        self.assertTrue(raw["summary"]["all_held_out_supported_coverage"])
+        self.assertTrue(raw["summary"]["all_diagnostic_solution_matches"])
         self.assertTrue(raw["summary"]["all_strict_source_add_saving"])
-        self.assertFalse(raw["summary"]["all_candidate_full_rank"])
+        self.assertTrue(raw["summary"]["all_candidate_full_rank"])
 
     def test_all_four_public_families_are_present(self) -> None:
         raw = json.loads((EXP_ROOT / "development" / "TYPED-TT-BATCHED-RELATION-TRANSCRIPT-V1" / "RUN-001" / "raw-result.json").read_text(encoding="utf-8"))

@@ -45,6 +45,8 @@ def verify(raw_path: Path, output_path: Path, input_path: Path) -> dict[str, Any
         "direct_exact": raw.get("summary", {}).get("all_direct_reference_exact") is True,
         "rowspace_rank": raw.get("summary", {}).get("all_same_rowspace_rank") is True,
         "relation_rank": raw.get("summary", {}).get("all_same_relation_rank") is True,
+        "held_out_coverage": raw.get("summary", {}).get("all_held_out_supported_coverage") is True,
+        "diagnostic_solution": raw.get("summary", {}).get("all_diagnostic_solution_matches") is True,
         "source_saving": raw.get("summary", {}).get("all_strict_source_add_saving") is True,
         "no_promotion": raw.get("summary", {}).get("breakthrough_claim") is False and raw.get("summary", {}).get("algorithm_promotion_gate") is False,
         "result_digest": False,
@@ -58,7 +60,8 @@ def verify(raw_path: Path, output_path: Path, input_path: Path) -> dict[str, Any
         checks["row_controls"] = checks["row_controls"] and shared.get("all_candidate_witnesses_valid") is True and control.get("all_candidate_witnesses_valid") is True
         checks["row_controls"] = checks["row_controls"] and shared.get("all_supports_match") is True and control.get("all_supports_match") is True
         checks["row_controls"] = checks["row_controls"] and row.get("same_relation_rank") is True
-        checks["row_controls"] = checks["row_controls"] and shared.get("candidate_full_rank") is False
+        checks["row_controls"] = checks["row_controls"] and shared.get("candidate_full_rank") is True
+        checks["row_controls"] = checks["row_controls"] and row.get("shared_diagnostic_solution_match") is True and row.get("control_diagnostic_solution_match") is True
     checks["valid"] = all(checks.values())
     receipt = {
         "protocol": "EXP-ECDLP-COORD-EXPANSION-001-typed-tt-batched-relation-transcript-v1-verifier",

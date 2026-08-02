@@ -29,12 +29,13 @@ OBSERVATION, TOY-EVIDENCE, MODEL-BOUND
 - Four coordinate families all pass direct predicate-reference checks, exact
   candidate witness replay, and candidate-versus-D4 `a_index` support equality.
 - Shared and target-separated row-space ranks agree at 15 in all four rows.
-- Shared and target-separated quotient relation ranks agree: `2` for
-  `random_x`, `1` for `source_prf_x`, `2` for `x_interval`, and `4` for
-  `rational_union`.
-- Width `B+1=6` source point additions fall from `18,040-18,060` in the
+- The six generated relation targets plus four supported held-out targets
+  reach quotient rank `6/6` in all four rows, and the recovered solution
+  digests match the fixture's independent post-hoc diagnostic solution digest.
+- Every held-out expected witness replays and appears in the candidate hit set.
+- Width ten source point additions fall from `29,940-29,960` in the
   target-separated control to `3,165-3,185` with shared source sums, a ratio
-  of `0.1754-0.1764`.
+  of `0.1057-0.1063`.
 - The shared cache retains `2,815-2,835` source sums, `11,260-11,340`
   logical point-payload bytes, and `647,060-654,344` measured Python bytes.
 - The candidate predicts `26,250` suffix entries per row across the six target
@@ -44,8 +45,9 @@ OBSERVATION, TOY-EVIDENCE, MODEL-BOUND
 
 ### Failure modes
 
-- The relation matrix is rank-deficient on all four rows, so no individual-log
-  recovery or relation-system solution is claimed.
+- The full quotient rank here is a small toy rank on one 10-bit curve. The
+  solution digest is matched to a post-hoc diagnostic census record, not
+  presented as a deployed-key recovery or an independent logarithm attack.
 - Source point-addition savings are not total attack savings: target predicate,
   row-space reconstruction, matrix, target descent, cache bandwidth, and
   materialized-baseline costs remain separate.
@@ -57,12 +59,12 @@ OBSERVATION, TOY-EVIDENCE, MODEL-BOUND
 
 ### Interpretation
 
-The fixed-curve batching signal survives the witness and relation layers for
-the smallest committed curve: source sums can be reused without changing
-support or the observed quotient rank. The experiment also exposes the real
-next gate. The method must supply substantially more independent relation rows
-and compress the predicted suffix operator before any ECDLP relevance can be
-assessed.
+The fixed-curve batching signal survives the witness, held-out coverage, and
+small quotient-relation layers for the smallest committed curve: source sums
+can be reused without changing support, diagnostic solution, or rank. The
+experiment still exposes the real next gate. The method must accumulate rank
+on fresh larger curves without proportional source work and compress the
+predicted suffix operator before any ECDLP relevance can be assessed.
 
 ### Next concrete action
 

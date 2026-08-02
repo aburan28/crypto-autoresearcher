@@ -19,7 +19,8 @@ costs are charged.
 - curve: the smallest committed ordinary prime-order fixture,
   `recursive-toy-p947-a659-b11-q971`;
 - coordinate families: `random_x`, `source_prf_x`, `x_interval`, `rational_union`;
-- target stream: `family.run_seed xor 0x13198A2E`, with `B+1` targets per row;
+- target stream: six `family.run_seed xor 0x13198A2E` relation targets plus up
+  to four supported held-out targets from the fixture;
 - row-space: adaptive cut-3 dependent-prefix construction, with no imported
   rank target;
 - locator: all predicted suffix columns, with direct source queries only at
@@ -42,8 +43,9 @@ costs are charged.
 ## Positive control
 
 The exact small-curve row-space fixture has already passed full support and
-witness replay. The shared cache should preserve those exact witnesses while
-reducing repeated target-independent source additions.
+witness replay. The shared cache should preserve those exact witnesses and the
+recorded held-out witnesses while reducing repeated target-independent source
+additions.
 
 ## Negative controls
 
