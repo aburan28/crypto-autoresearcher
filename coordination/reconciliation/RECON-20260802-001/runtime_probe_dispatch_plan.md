@@ -6,7 +6,7 @@ Snapshot the Coordinator-approved, session-scoped Codex runtime-provenance probe
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-967` | coordinator | queued | 100 | TASK-20260802-966 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-967/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-967 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `615634396b58d567a7a2ce190fd8a08c52157fc8a68960d3c3be308119be6501`
+Plan SHA-256: `5808a2827bf8cb0800931e37ce78da2030653c2272f775d22b71e6ac98961471`
