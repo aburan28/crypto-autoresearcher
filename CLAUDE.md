@@ -140,6 +140,50 @@ evidence rules above apply unchanged.
   (or run `tools/sync_open_branches.py`); do not rebase pushed evidence. Record
   the base commit checked and the merge outcome in the task receipt.
 
+## Concurrency: many agents, many worktrees
+
+This repository is worked by many agents at once, in separate worktrees and
+harnesses. **Every rule below exists because a writer was made to read shared
+state it had no reason to read.** That is the single failure mode; identifier
+collisions were the first instance of it and are already fixed the same way.
+
+- **Generated artifacts are never committed.** `knowledge/INDEX.md` and
+  `coordination/**/dispatch_plan.{json,md}` are `.gitignore`d and rebuilt on
+  demand. They were in the top five conflict paths while tracked, and they carry
+  no information their sources do not. CI rebuilds both and fails if the corpus
+  or a queue stops building.
+- **`main` uses MERGE COMMITS, NEVER SQUASH.** This is not a style preference.
+  Every archive receipt records a branch `commit_sha`, and a squash merge
+  replaces the branch with one new commit — so every recorded sha becomes
+  unreachable and every recorded parent becomes wrong. Five goals carried
+  unresolvable `latest_verified_commit` values from exactly this
+  (`CORR-20260802-a1f151`). Enforce it in repository settings: **Settings →
+  General → Pull Requests → allow merge commits only**, with squash and rebase
+  merging disabled.
+- **Archive receipts bind to CONTENT first.** `research_dispatch.py` verifies
+  `path_sha256` and treats commit reachability as advisory: when a commit cannot
+  be reached it verifies the declared hashes against the tree and reports the
+  archive as content-verified in the dispatch plan. A content mismatch is still
+  fatal. This makes an archive's validity independent of the repository's merge
+  strategy, which is what N concurrent worktrees require.
+- **Goal checkpoints are one file per batch.** `tools/shard_goal.py` converts
+  `ledger/goals/GOAL-X.yaml` to `ledger/goals/GOAL-X/{goal.yaml,checkpoints/*.yaml}`.
+  A goal record is the one ledger file many campaigns write, and appending to a
+  shared YAML list conflicts every time where there is no semantic conflict at
+  all. Shards are **write-once**. Both layouts validate; convert a goal when you
+  next have it open, and never in bulk.
+- **Parseability is PR-scoped and absolute on `main`.** `check_merge_hygiene.py`
+  checks the files a branch touched; `.github/workflows/main-health.yml` sweeps
+  everything hourly and files an issue against the owning campaign. A branch
+  that breaks a record still changed it and is still caught — what is no longer
+  every campaign's problem is breakage that was already on `main`.
+- **Branch drift is a scheduled job, not your job.**
+  `.github/workflows/sync-branches.yml` runs `tools/sync_open_branches.py` every
+  six hours. It refuses any branch committed to within `--idle-minutes` (default
+  120), merges rather than rebases, requires no new validation errors, and
+  reports branches past `--fork-threshold` as needing a human decision rather
+  than a sync.
+
 ## Model policy note
 
 `orchestration/model-policies.yaml` defines role→model routing (GPT-5.6
