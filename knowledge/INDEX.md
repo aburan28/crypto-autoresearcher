@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7804 entries.
+7807 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -1236,6 +1236,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-1997 | A Bit-Vector Differential Model for the Modular Addition by a Constant | literature | reported | read | cryptanalysis hash implementation symmetric |
 | KN-LIT-1998 | A Black-Box Approach to Post-Quantum Zero-Knowledge in Constant Rounds | literature | reported | read | fhe hash implementation lattice pairing pqc provable-security zk-proof |
 | KN-LIT-1999 | A Black-Box Construction of Fully-Simulatable, Round-Optimal Oblivious Transfer from Strongly Uniform Key Agreement | literature | reported | read | lattice mpc provable-security quantum rsa zk-proof |
+| KN-LIT-1c9474 | HQC-RMRS, an instantiation of the HQC encryption framework with a more efficient auxiliary error-correcting code | literature | reported | read | hqc hqc-rmrs code-based kem decoding-failure-rate dfr reed-muller reed-solomon concatenated-code shortened-reed-solomon binary-symmetric-channel quasi-cyclic primary-source pqc |
 | KN-LIT-200 | Ordinary elliptic curves of high rank over Fp (x) with constant j-invariant II | literature | reported | read | abelian-variety elliptic-curve hyperelliptic isogeny jacobian pairing supersingular |
 | KN-LIT-2000 | A Block-Cipher Mode of Operation for Parallelizable Message Authentication | literature | reported | read | hash pairing provable-security quantum symmetric |
 | KN-LIT-2001 | A Chosen Ciphertext Attack on RSA Optimal Asymmetric Encryption Padding (OAEP) as Standardized in PKCS #1 v2.0 | literature | reported | read | cryptanalysis factoring rsa |
@@ -4536,6 +4537,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4997 | Multi-Key FHE from LWE, Revisited | literature | reported | read | fhe lattice mpc |
 | KN-LIT-4998 | Multi-key Fully-Homomorphic Encryption in the Plain Model | literature | reported | read | fhe lattice mpc pairing quantum |
 | KN-LIT-4999 | Multi-Key Homomophic Encryption from TFHE | literature | reported | read | fhe lattice mpc |
+| KN-LIT-4c1133 | Compact HQC with new (un)balance | literature | reported | web | hqc uhqc code-based kem decryption-failure decoding-failure-rate dfr information-set-decoding unbalanced-errors parameter-selection quasi-cyclic syndrome-decoding pqc adjacent out-of-declared-scope |
 | KN-LIT-500 | ELLIPTIC CURVES IN ISOGENY CLASSES | literature | reported | read | complexity-theory elliptic-curve isogeny pairing quantum |
 | KN-LIT-5000 | Multi-Key Homomorphic Authenticators | literature | reported | read | fhe lattice quantum |
 | KN-LIT-5001 | Multi-Key Homomorphic Signatures Unforgeable under Insider Corruption? | literature | reported | read | lattice mpc signature zk-proof |
@@ -7703,6 +7705,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-997 | ISOGENY GRAPHS ON SUPERSPECIAL ABELIAN VARIETIES: | literature | reported | read | abelian-variety complexity-theory elliptic-curve finite-field hash isogeny lattice number-theory quantum |
 | KN-LIT-998 | Key Structures: Improved Related-Key Boomerang Attack against the Full AES-256 | literature | reported | read | cryptanalysis hash symmetric |
 | KN-LIT-999 | Local inversion of maps: A new attack on | literature | reported | read | binary-field cryptanalysis dlp ecdlp elliptic-curve finite-field rsa |
+| KN-LIT-b9e1a8 | Hamming Quasi-Cyclic (HQC) | literature | reported | read | hqc code-based kem quasi-cyclic syndrome-decoding qcsd decoding-failure-rate dfr reed-muller reed-solomon concatenated-code shortened-reed-solomon binary-symmetric-channel fujisaki-okamoto ind-cca2 information-set-decoding specification primary-source pqc |
 | KN-OPEN-001 | Does index calculus beat Pollard rho for prime-field ECDLP? | open_problem | reported | open | prime-field index-calculus pollard-rho baseline ecdlp open |
 | KN-OPEN-002 | Growth of Groebner solving degree for prime-field summation-polynomial systems | open_problem | reported | open | prime-field groebner first-fall-degree degree-of-regularity summation-polynomial open |
 | KN-OPEN-003 | Do curve representations/symmetries reduce decomposition cost over prime fields? | open_problem | reported | open | representation symmetry edwards prime-field index-calculus groebner open |
