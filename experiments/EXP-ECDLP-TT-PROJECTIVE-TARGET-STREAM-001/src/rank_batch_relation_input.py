@@ -64,7 +64,7 @@ def target_transcript(curve_record: dict[str, Any], family: dict[str, Any], rela
     return targets
 
 
-def write_fixture_record(output_path: Path, fixture_path: Path, curve_id: str, families: list[str], relation_target_count: int = 29) -> dict[str, Any]:
+def write_fixture_record(output_path: Path, fixture_path: Path, curve_id: str, families: list[str], relation_target_count: int = 43) -> dict[str, Any]:
     fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
     instance = next(item for item in fixture["instances"] if item["curve"]["id"] == curve_id)
     by_family = {item["family"]: item for item in instance["families"]}
