@@ -1291,9 +1291,13 @@ class SgcpEmbedFamilyTests(unittest.TestCase):
             contract_title,
             "# Experiment Contract: EXP-SGCP-EMBED-002, version 18",
         )
-        self.assertIn("## Handoff: SGCP V18 no-run CLI and Git-entry repair", handoff)
+        # Both documents moved on at d2bb685bb ("Close SGCP V18 review with
+        # scoped GO"), the commit directly after the one that added this test.
+        # The V18 repair is no longer awaiting review; the review closed GO and
+        # authorized separate launch-plan design only. Assert the closed state.
+        self.assertIn("## Handoff: SGCP V18 exact-commit review closeout", handoff)
         self.assertIn(
-            "validated V18 no-run repair awaits exact-commit review",
+            "ready for separate non-executing launch-plan design",
             research_ledger,
         )
         for document in (revision_response, test_log):
