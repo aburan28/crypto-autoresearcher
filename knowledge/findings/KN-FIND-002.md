@@ -1,6 +1,6 @@
 ---
 id: KN-FIND-002
-type: finding
+type: internal_finding
 title: >-
   Jet and endomorphism ECDLP oracles are GGM-simulable with O(1) overhead,
   closing their candidate families at exponent 1/2; elliptic-net and incidence

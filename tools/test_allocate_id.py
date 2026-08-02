@@ -17,9 +17,13 @@ If either regresses, this tool is decorative.
 """
 from __future__ import annotations
 
+import glob
+import os
 import sys
 import unittest
 from pathlib import Path
+
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import allocate_id as ai
@@ -66,14 +70,40 @@ class UnionScopeTests(unittest.TestCase):
     def test_refuses_an_id_taken_only_in_the_other_namespace(self) -> None:
         """The collision that nearly shipped inside the collision repair.
 
-        `DEC-20260727-003` is free in `ledger/decisions/` and taken at
-        `ledger/`. Globbing either half alone says "free"; the union says
-        "taken". That difference is the whole point of this tool.
+        An id can be free in `ledger/decisions/` and taken at `ledger/`.
+        Globbing either half alone says "free"; the union says "taken". That
+        difference is the whole point of this tool.
+
+        The fixture is drawn from `tools/legacy_ledger_inventory.yaml` rather
+        than named literally. This test previously pinned DEC-20260727-003,
+        which was a live root-level record until DEC-20260802-001 relocated it
+        to a typed subdirectory -- so a legitimate, authorized ledger move
+        broke a test of an unrelated tool. The frozen inventory is the right
+        anchor precisely because
+        `test_legacy_inventory_covers_and_freezes_every_root_record` holds its
+        contents in place by hash.
         """
-        hits = ai.occurrences("DEC-20260727-003")
-        self.assertTrue(hits, "expected a hit in the root namespace")
-        self.assertTrue(any(h.count("/") == 1 for h in hits),
-                        f"expected a root-level ledger/*.yaml hit, got {hits}")
+        subdirectory_names = {
+            os.path.basename(path) for path in glob.glob(
+                os.path.join(ai.REPO, "ledger", "*", "*.yaml"))
+        }
+        inventory = yaml.safe_load(
+            (Path(ai.REPO) / "tools" / "legacy_ledger_inventory.yaml")
+            .read_text(encoding="utf-8"))["records"]
+        root_only = sorted(
+            os.path.basename(path)[:-len(".yaml")] for path in inventory
+            if os.path.basename(path) not in subdirectory_names)
+        self.assertTrue(root_only, "no frozen root-only record to test with")
+
+        rec_id = root_only[0]
+        hits = ai.occurrences(rec_id)
+        self.assertTrue(hits, f"expected a hit for {rec_id}")
+        self.assertTrue(
+            any(h.count("/") == 1 for h in hits),
+            f"expected a root-level ledger/*.yaml hit for {rec_id}, got {hits}")
+        self.assertFalse(
+            any(h.count("/") == 2 for h in hits),
+            f"{rec_id} was supposed to be root-only, got {hits}")
 
     def test_a_genuinely_free_id_reports_no_occurrences(self) -> None:
         self.assertEqual(ai.occurrences("EXP-NOSUCHAREA-999"), [])

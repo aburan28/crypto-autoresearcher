@@ -44,6 +44,29 @@ LEGACY_LEDGER_INVENTORY = os.path.join(
 LEGACY_RUN_INVENTORY = os.path.join(
     REPO, "tools", "legacy_run_inventory.yaml"
 )
+DUPLICATE_RUN_IDS = os.path.join(REPO, "tools", "duplicate_run_ids.yaml")
+
+
+def _load_duplicate_run_owners() -> dict[str, set[str]]:
+    """run id -> the experiments it occurs under, for ids that collide.
+
+    Frozen by tools/build_duplicate_run_ids.py and held to never grow by
+    tools/test_duplicate_run_ids.py. Read here so a citation of a colliding id
+    can be required to say which experiment it means. Absent file is not fatal:
+    the check simply does not fire, and the must-not-grow test is what notices.
+    """
+    try:
+        document = yaml.safe_load(open(DUPLICATE_RUN_IDS, encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return {}
+    records = (document or {}).get("records") or {}
+    return {
+        rec_id: {o.get("experiment_id") for o in entry.get("occurrences") or []}
+        for rec_id, entry in records.items()
+    }
+
+
+DUPLICATE_RUN_OWNERS = _load_duplicate_run_owners()
 
 ID_PATTERNS = {
     "research_question": re.compile(r"^RQ-[A-Z]+-\d{3}$"),
@@ -304,6 +327,25 @@ def check_cross_refs(ctx: Ctx):
                 if exp_id not in ctx.ids:
                     ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                              f"experiment '{exp_id}'")
+            # Citing a run id that exists under more than one experiment is
+            # ambiguous unless the record also names which one it means. The
+            # collisions themselves are frozen and disclosed in
+            # tools/duplicate_run_ids.yaml -- they cannot be repaired, because
+            # renumbering rewrites committed manifests. What is NOT tolerable
+            # is a citation nobody can resolve: the claim-tier ceiling below
+            # reads ctx.run_params, which holds whichever colliding manifest
+            # was globbed LAST, so an unqualified citation is checked against a
+            # run the record may never have meant.
+            for run_id in body.get("run_ids") or []:
+                owners = DUPLICATE_RUN_OWNERS.get(run_id)
+                if not owners:
+                    continue
+                named = owners & set(body.get("experiment_ids") or [])
+                if len(named) != 1:
+                    ctx.err(ctx.ids[rec_id],
+                            f"cites run '{run_id}', which exists under "
+                            f"{sorted(owners)}; experiment_ids must name "
+                            f"exactly one of them to resolve the citation")
             # Claim-tier ceiling.
             declared = TIER_ORDER.get(body.get("claim_tier"))
             run_tiers = [tier_of_run(ctx.run_params.get(r, {}))
