@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7796 entries.
+7797 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7381,7 +7381,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-759 | Explicit description of isogeny and isomorphism classes of Drinfeld modules over finite field | literature | reported | read | abelian-variety elliptic-curve endomorphism finite-field isogeny number-theory pairing |
 | KN-LIT-7590 | Degenerating Discriminants | literature | reported | web | groebner-degeneration discriminant dual-variety conormal-variety whitney-stratification mixed-discriminant polynomial-system elimination algebraic-geometry proof-technique |
 | KN-LIT-7591 | Lower bounds for the CNOT-complexity of linear reversible operators | literature | reported | web | quantum circuit-complexity cnot-count lower-bound linear-reversible additive-complexity error-correcting-codes resource-estimation cost-model explicit-construction |
-| KN-LIT-7592 | HAWK-n Key Recovery Reduces to SVP in Dimension n/2 + 1 | literature | reported | web | hawk lattice-isomorphism-problem module-lip cyclotomic galois-automorphism key-recovery svp nist-pqc post-quantum signature llm-assisted-discovery gate-count cost-model |
+| KN-LIT-7592 | HAWK-n Key Recovery Reduces to SVP in Dimension n/2 + 1 | literature | reported | read | hawk lattice-isomorphism-problem module-lip cyclotomic galois-automorphism key-recovery svp nist-pqc post-quantum signature llm-assisted-discovery gate-count cost-model |
 | KN-LIT-7593 | Cryptanalysis of 7-Round AES via the Algebraic Structure of its S-box | literature | reported | web | aes s-box mobius-bridge meet-in-the-middle demirci-selcuk differential-enumeration invariant fingerprint round-reduced llm-autonomous-discovery verification-methodology scaled-down-cipher cost-accounting |
 | KN-LIT-7594 | Discovering cryptographic weaknesses with Claude | literature | reported | web | llm-cryptanalysis autonomous-research agentic-harness hawk aes lea serpent salsa20 poseidon sha-1 cryptanalysisbench responsible-disclosure verification-bottleneck methodology program-level |
 | KN-LIT-7595 | Mythos Preview's Chain of Thought in Discovering the AES Möbius Bridge | literature | reported | web | research-methodology agentic-harness inventor-protocol tracked-object negative-closure control-experiment pareto-domination sota-honesty deliverable-schema prior-art-triage cross-ratio pgl2 aes s-box primary-methodology-source |
@@ -7466,6 +7466,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7670 | Cryptanalysis of HAWK: a Guessing Game | literature | reported | web | hawk lattice-isomorphism-problem module-lip nrd-pip principal-ideal-problem quaternion lenstra-silverberg subfield-attack heuristic key-recovery unverified-heuristic pqc cryptanalysis |
 | KN-LIT-7671 | Exploiting the complexity of Lattice Isomorphism Problem via Irreducible Decomposition | literature | reported | web | lattice-isomorphism-problem slip complexity am-coam polynomial-hierarchy np-hardness graph-isomorphism kz-basis orthogonal-decomposition svp foundational |
 | KN-LIT-7672 | Revisiting the Concrete Security of Falcon-type Signatures | literature | reported | web | falcon gpv ntru trapdoor concrete-security reduction-tightness provable-security strong-unforgeability random-oracle parameter-selection pqc lattice |
+| KN-LIT-7673 | HAWK: Having Automorphisms Weakens Key | literature | reported | read | hawk module-lip lattice-isomorphism-problem smlip automorphism galois-automorphism cyclotomic svp bkz root-hermite-factor omsvp signature pqc lattice heuristic |
 | KN-LIT-768 | From the Hardness of Detecting Superpositions to Cryptography: Quantum Public Key Encryption and Commitments | literature | reported | read | dlp pairing pqc provable-security |
 | KN-LIT-769 | Hardness of LWE on General Entropic Distributions? | literature | reported | read | fhe lattice pairing pqc provable-security quantum |
 | KN-LIT-770 | Hashing to elliptic curves of j “ 0 and Mordell–Weil groups | literature | reported | read | curve-arithmetic elliptic-curve finite-field pairing |
