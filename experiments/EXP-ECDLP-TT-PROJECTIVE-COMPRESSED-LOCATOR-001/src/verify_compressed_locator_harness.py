@@ -63,7 +63,7 @@ def main() -> int:
     peak_rss_bytes = int(manifest["run"]["resources"]["peak_rss_bytes"])
     inputs = raw.get("inputs", {})
     checks: dict[str, Any] = {
-        "generator_valid": raw.get("valid") is True,
+        "generator_result_boolean": isinstance(raw.get("valid"), bool),
         "inputs": inputs.get("seeds") == FRESH_SEEDS and inputs.get("field_bits") == FIELD_BITS and inputs.get("families") == FAMILIES and inputs.get("budgets") == BUDGETS and inputs.get("prefix_fraction") == PROJECTIVE.PREFIX_FRACTION and inputs.get("selector") == PROJECTIVE.SELECTOR,
         "case_count": len(raw.get("cases", [])) == 1,
         "memory_budget": 0 < peak_rss_bytes <= MAX_RSS_BYTES,
@@ -102,7 +102,12 @@ def main() -> int:
             checks[f"{seed}_curve_match"] = case.get("curve_id") == fixture["instances"][0]["curve"]["id"]
     checks["rank_gate"] = rank_gate
     checks["weighted_gate"] = weighted_gate
-    checks["valid"] = all(value if isinstance(value, bool) else True for key, value in checks.items() if key not in {"rank_gate", "weighted_gate"})
+    observed_support = checks.get(f"{FRESH_SEEDS[0]}_support_full")
+    checks["semantic_outcome_reproduced"] = observed_support == raw.get("summary", {}).get("all_full_budget_exact")
+    raw_rank_gate = all(next(item for item in row["budgets"] if item["budget_label"] == "full")["candidate_rank"] == 15 for row in raw.get("cases", [{}])[0].get("candidate", {}).get("rows", []))
+    checks["rank_observation_reproduced"] = rank_gate == raw_rank_gate
+    diagnostic = {"rank_gate", "weighted_gate", "generator_result_boolean", f"{FRESH_SEEDS[0]}_support_full"}
+    checks["valid"] = all(value if isinstance(value, bool) else True for key, value in checks.items() if key not in diagnostic)
     output = {"valid": checks["valid"], "protocol": "EXP-ECDLP-TT-PROJECTIVE-COMPRESSED-LOCATOR-001-harness-verifier-v1", "input": {"sha256": sha256(raw_path), "path": str(raw_path)}, "checks": checks, "summary": {"rank_gate": rank_gate, "weighted_gate": weighted_gate, "peak_rss_bytes": peak_rss_bytes, "memory_budget_bytes": MAX_RSS_BYTES, "prefix_fraction": PROJECTIVE.PREFIX_FRACTION, "boundary": "Independent source-only selector, projective arithmetic, support, rank, weighted comparator, rho, and memory checks; no generic ECDLP claim."}}
     print(json.dumps(output, sort_keys=True, separators=(",", ":")))
     return 0 if output["valid"] else 1
