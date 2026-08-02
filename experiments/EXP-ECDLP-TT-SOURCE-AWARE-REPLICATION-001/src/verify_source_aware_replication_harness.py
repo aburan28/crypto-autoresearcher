@@ -143,7 +143,26 @@ def _verify_candidate(case: dict[str, Any], fixture_path: Path, relation_path: P
 
 
 def _verify_rho(case: dict[str, Any], fixture: dict[str, Any], relation_input: dict[str, Any]) -> dict[str, bool]:
-    return BASE._verify_rho(case, fixture, relation_input)
+    curve_record = fixture["instances"][0]["curve"]
+    curve = LOCATOR.TF.Curve(curve_record["p"], curve_record["a"], curve_record["b"])
+    generator = LOCATOR.TF.point_from_json(curve_record["generator"])
+    by_family = {row["family"]: row for row in case["rho"].get("by_family", [])}
+    inputs = {row["family"]: row for row in relation_input["rows"]}
+    checks = {
+        "families": set(by_family) == set(FAMILIES),
+        "counts": True,
+        "certificates": True,
+        "all_solved": case["rho"].get("all_solved") is True,
+    }
+    for family in FAMILIES:
+        expected = inputs[family]["shared_candidate"]["transcripts"]
+        observed = by_family.get(family, {}).get("targets", [])
+        checks["counts"] = checks["counts"] and len(expected) == len(observed)
+        for target, result in zip(expected, observed):
+            recovered = result.get("recovered_k")
+            checks["certificates"] = checks["certificates"] and isinstance(recovered, int) and curve.mul(recovered, generator) == tuple(target["target"])
+            checks["certificates"] = checks["certificates"] and result.get("direct_certificate_valid") is True
+    return checks
 
 
 def main() -> int:
@@ -194,4 +213,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
