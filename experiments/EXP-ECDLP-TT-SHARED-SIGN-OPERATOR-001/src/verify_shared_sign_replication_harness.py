@@ -62,8 +62,10 @@ def main() -> int:
     checks = {"generator_valid": raw.get("valid") is True, "inputs": raw.get("inputs", {}).get("seeds") == FRESH_SEEDS and raw.get("inputs", {}).get("budgets") == BUDGETS and raw.get("inputs", {}).get("families") == FAMILIES, "case_count": len(raw.get("cases", [])) == len(FRESH_SEEDS)}
     old_generator = VERIFY.GENERATOR_SOURCE
     old_locator = VERIFY.LOCATOR_SOURCE
+    old_budgets = VERIFY.BUDGETS
     VERIFY.GENERATOR_SOURCE = GENERATOR_SOURCE
     VERIFY.LOCATOR_SOURCE = LOCATOR_SOURCE
+    VERIFY.BUDGETS = BUDGETS
     with tempfile.TemporaryDirectory(prefix="tt-shared-sign-verify-") as temp:
         root = Path(temp)
         for seed, case in zip(FRESH_SEEDS, raw.get("cases", [])):
@@ -72,13 +74,23 @@ def main() -> int:
             fixture_path.write_text(json.dumps(fixture, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
             relation_path = root / f"relation-{seed}.json"
             transformed = copy.deepcopy(case)
-            transformed["candidate"]["protocol"] = "EXP-ECDLP-TT-SOURCE-AWARE-REPLICATION-001-candidate-v1"
+            transformed["candidate"]["protocol"] = "EXP-ECDLP-TT-SOURCE-ORBIT-QUOTIENT-001-candidate-v1"
             result = VERIFY.verify_case(transformed, fixture, fixture_path, relation_path)
             for name, value in result.items():
                 checks[f"{seed}_{name}"] = value
             checks[f"{seed}_curve_match"] = case.get("curve_id") == fixture["instances"][0]["curve"]["id"]
+            for row in case.get("candidate", {}).get("rows", []):
+                for budget in row.get("budgets", []):
+                    ops = budget.get("candidate_quotient_ops", {})
+                    advice = budget.get("candidate_advice", {})
+                    accounting = (
+                        int(ops.get("paired_source_calls", -1)) == int(advice.get("source_orbit_cache_entries", -2))
+                        and int(ops.get("paired_source_calls", -1)) == int(ops.get("paired_shared_inversions", 0)) + int(ops.get("paired_fallback_calls", 0)) + int(ops.get("paired_identity_calls", 0))
+                    )
+                    checks[f"{seed}_{row.get('family')}_{budget.get('budget_label')}_paired_accounting"] = accounting
     VERIFY.GENERATOR_SOURCE = old_generator
     VERIFY.LOCATOR_SOURCE = old_locator
+    VERIFY.BUDGETS = old_budgets
     checks["valid"] = all(checks.values())
     output = {"valid": checks["valid"], "protocol": "EXP-ECDLP-TT-SHARED-SIGN-OPERATOR-001-harness-verifier-v1", "input": {"sha256": sha256(raw_path), "path": str(raw_path)}, "checks": checks, "summary": {"accepted_subfull_budgets": raw.get("summary", {}).get("accepted_subfull_budgets"), "boundary": "Independent fixture and orbit partition regeneration, lifted witness checks, paired-operator hash checks, and matched rho certificates; no generic ECDLP or exponent claim."}}
     print(json.dumps(output, sort_keys=True, separators=(",", ":")))

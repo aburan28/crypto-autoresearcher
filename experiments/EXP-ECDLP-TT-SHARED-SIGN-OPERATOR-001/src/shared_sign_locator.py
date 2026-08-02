@@ -32,8 +32,10 @@ def paired_affine_add(curve: Any, left: tuple[int, int] | None, right: tuple[int
     """Compute left+right and left-right with one inversion off the diagonal."""
     ops["paired_source_calls"] = ops.get("paired_source_calls", 0) + 1
     if left is None:
+        ops["paired_identity_calls"] = ops.get("paired_identity_calls", 0) + 1
         return right, right
     if right is None:
+        ops["paired_identity_calls"] = ops.get("paired_identity_calls", 0) + 1
         return left, left
     p = curve.p
     x1, y1 = left
