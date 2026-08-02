@@ -6,11 +6,11 @@ Adjudicate red-team objection 2 from BATCH-007: whether the archived Carrier Pwr
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-de2957` | reviewer | queued | 95 | - | coordination/goals/GOAL-MLKEM-003/batches/BATCH-008/tasks/TASK-20260802-de2957/contradiction_review.yaml, coordination/goals/GOAL-MLKEM-003/batches/BATCH-008/tasks/TASK-20260802-de2957/review_notes.md | coordination/goals/GOAL-MLKEM-003/batches/BATCH-008/tasks/TASK-20260802-de2957 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-9abae7`: dependency_not_completed:TASK-20260802-de2957:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Adjudicate red-team objection 2 from BATCH-007: whether the archived Carrier Pwr
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `72cc46957495c99ce12f263099a8ad0e2c613d7bfda5842f3d1b2e64f5365e25`
+Plan SHA-256: `a7253e6071e461e043c0927a940502a8fff2e19593499ae1423e821305c88b1c`
