@@ -49,6 +49,20 @@ BASE.INPUT = INPUT
 BASE.VERIFY.FAMILIES = FAMILIES
 BASE.VERIFY.INPUT = INPUT
 
+_ORIGINAL_WRITE_FIXTURE_RECORD = INPUT.write_fixture_record
+
+
+def write_fixture_record_dynamic(output_path: Path, fixture_path: Path, curve_id: str, families: list[str], relation_target_count: int | None = None) -> dict[str, Any]:
+    if relation_target_count is None:
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        instance = next(item for item in fixture["instances"] if item["curve"]["id"] == curve_id)
+        factor_size = len(next(item for item in instance["families"] if item["family"] == families[0])["factor_base"]["points"])
+        relation_target_count = 3 * factor_size + 1
+    return _ORIGINAL_WRITE_FIXTURE_RECORD(output_path, fixture_path, curve_id, families, relation_target_count)
+
+
+INPUT.write_fixture_record = write_fixture_record_dynamic
+
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -62,9 +76,15 @@ def main() -> int:
     manifest = json.loads((raw_path.parent / "manifest.json").read_text(encoding="utf-8"))
     peak_rss_bytes = int(manifest["run"]["resources"]["peak_rss_bytes"])
     inputs = raw.get("inputs", {})
+    field_bits = inputs.get("field_bits")
+    selector = inputs.get("selector")
+    allowed_selectors = {"source-derived-diagonal-prefix", "interleaved-diagonal-prefix", "source-hash-ranked-prefix"}
+    if selector not in allowed_selectors:
+        raise SystemExit(f"unsupported selector in generator receipt: {selector!r}")
+    PROJECTIVE.SELECTOR = selector
     checks: dict[str, Any] = {
         "generator_result_boolean": isinstance(raw.get("valid"), bool),
-        "inputs": inputs.get("seeds") == FRESH_SEEDS and inputs.get("field_bits") == FIELD_BITS and inputs.get("families") == FAMILIES and inputs.get("budgets") == BUDGETS and inputs.get("prefix_fraction") == PROJECTIVE.PREFIX_FRACTION and inputs.get("selector") == PROJECTIVE.SELECTOR,
+        "inputs": inputs.get("seeds") == FRESH_SEEDS and field_bits in {8, 16} and inputs.get("families") == FAMILIES and inputs.get("budgets") == BUDGETS and inputs.get("prefix_fraction") == PROJECTIVE.PREFIX_FRACTION and inputs.get("selector") == PROJECTIVE.SELECTOR,
         "case_count": len(raw.get("cases", [])) == 1,
         "memory_budget": 0 < peak_rss_bytes <= MAX_RSS_BYTES,
         "generator_hash": raw.get("cases", [{}])[0].get("candidate", {}).get("source", {}).get("harness_source_sha256") == sha256(GENERATOR_SOURCE),
@@ -75,7 +95,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="tt-projective-compressed-verify-") as temp:
         root = Path(temp)
         for seed, case in zip(FRESH_SEEDS, raw.get("cases", [])):
-            fixture = BASE.canonical_fixture(BASE.FRESH.run_experiment([FIELD_BITS], seed, FAMILIES, 0.5, 32))
+            fixture = BASE.canonical_fixture(BASE.FRESH.run_experiment([field_bits], seed, FAMILIES, 0.5, 32))
             fixture_path = root / f"fixture-{seed}.json"
             fixture_path.write_text(json.dumps(fixture, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
             relation_path = root / f"relation-{seed}.json"
@@ -93,12 +113,17 @@ def main() -> int:
                 full = next(item for item in row["budgets"] if item["budget_label"] == "full")
                 rank_gate = rank_gate and full["candidate_rank"] == 15
                 checks[f"{seed}_{family}_candidate_projective_ops"] = full["candidate_quotient_ops"].get("projective_predicate_field_multiplications", 0) > 0 and full["candidate_quotient_ops"].get("paired_projective_calls", 0) > 0
-                checks[f"{seed}_{family}_prefix_selector"] = full.get("selected_prefix_count") == 1372 and full.get("full_prefix_count") == 2744 and full.get("prefix_fraction") == PROJECTIVE.PREFIX_FRACTION
+                expected_full_prefixes = int(full["dimensions"][0]) ** 3
+                expected_selected_prefixes = max(1, int((PROJECTIVE.PREFIX_FRACTION * expected_full_prefixes) + 0.999999999))
+                checks[f"{seed}_{family}_prefix_selector"] = full.get("selected_prefix_count") == expected_selected_prefixes and full.get("full_prefix_count") == expected_full_prefixes and full.get("prefix_fraction") == PROJECTIVE.PREFIX_FRACTION and case["candidate"].get("config", {}).get("selector") == selector
                 for weight in [10, 50, 100, 200]:
                     weighted = case["weighted_costs"][family][str(weight)]
                     weighted_gate = weighted_gate and weighted["compressed"] < weighted["naive_orbit"] and weighted["compressed"] < weighted["original_affine"]
                 checks[f"{seed}_{family}_downstream"] = all(item["candidate_rank"] >= 0 and item["relation_equation_count"] >= 0 for item in case["downstream"][family])
-            checks[f"{seed}_target_batch"] = case["relation_target_count"] == 43 and all(next(item for item in row["budgets"] if item["budget_label"] == "full")["target_count"] == 47 for row in case["candidate"]["rows"])
+            dimension = int(case["candidate"]["rows"][0]["budgets"][0]["dimensions"][1])
+            expected_relation_targets = 3 * dimension + 1
+            expected_total_targets = expected_relation_targets + 4
+            checks[f"{seed}_target_batch"] = case["relation_target_count"] == expected_relation_targets and all(next(item for item in row["budgets"] if item["budget_label"] == "full")["target_count"] == expected_total_targets for row in case["candidate"]["rows"])
             checks[f"{seed}_curve_match"] = case.get("curve_id") == fixture["instances"][0]["curve"]["id"]
     checks["rank_gate"] = rank_gate
     checks["weighted_gate"] = weighted_gate

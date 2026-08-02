@@ -25,3 +25,16 @@ def test_selector_order_is_deterministic():
 
 def test_nested_runner_resolves_compressed_locator():
     assert module.ORBIT.BASE.locate is module.locate
+
+
+def test_stratified_selectors_are_source_only_and_balanced():
+    original = module.SELECTOR
+    try:
+        module.SELECTOR = "interleaved-diagonal-prefix"
+        interleaved = module.selected_prefixes(4, 4)
+        module.SELECTOR = "source-hash-ranked-prefix"
+        hashed = module.selected_prefixes(4, 4)
+        assert len(interleaved) == len(hashed) == 32
+        assert interleaved != hashed
+    finally:
+        module.SELECTOR = original

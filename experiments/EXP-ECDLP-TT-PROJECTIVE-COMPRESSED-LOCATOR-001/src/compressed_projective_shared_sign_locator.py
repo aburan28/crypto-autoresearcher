@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import math
+import os
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,7 @@ def load(name: str, path: Path) -> Any:
 STREAM = load("compressed_projective_stream_base", STREAM_SOURCE)
 ORBIT = STREAM.ORBIT
 PREFIX_FRACTION = 0.5
-SELECTOR = "source-derived-diagonal-prefix"
+SELECTOR = os.environ.get("PREFIX_SELECTOR", "source-derived-diagonal-prefix")
 
 
 def sha256_file(path: Path) -> str:
@@ -36,7 +37,14 @@ def selected_prefixes(a_size: int, b_size: int) -> list[tuple[int, int, int]]:
     """Select a source-only prefix subset; target values never enter this order."""
     full = ORBIT.ADAPTIVE.SOURCE_AWARE.prefix_order(a_size, b_size)
     count = max(1, math.ceil(PREFIX_FRACTION * len(full)))
-    return full[:count]
+    if SELECTOR == "source-derived-diagonal-prefix":
+        return full[:count]
+    if SELECTOR == "interleaved-diagonal-prefix":
+        return full[::2][:count]
+    if SELECTOR == "source-hash-ranked-prefix":
+        ranked = sorted(full, key=lambda prefix: hashlib.sha256(("prefix:" + ",".join(str(value) for value in prefix)).encode("ascii")).digest())
+        return ranked[:count]
+    raise ValueError(f"unknown source-only prefix selector: {SELECTOR}")
 
 
 def locate(predicates: Any, target_index: int, skeleton: dict[str, Any], a_size: int, b_size: int, classes: list[dict[str, Any]], columns: list[int]) -> dict[str, Any]:

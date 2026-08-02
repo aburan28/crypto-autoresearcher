@@ -2,9 +2,9 @@
 
 ## Hypothesis
 
-A target-independent source-prefix selector can evaluate only one half of the
-projective target rows while preserving enough exact support and relation rank
-to be useful as a compressed locator.
+A target-independent, stratified source-prefix selector can evaluate only one
+half of the projective target rows while preserving more exact support and
+relation rank than contiguous prefix truncation.
 
 ## Null hypothesis
 
@@ -20,8 +20,10 @@ query reduction unusable; any arithmetic advantage is only a sub-cost.
 - generated targets: `3B+1 = 43`, plus up to four held-out targets
 - orbit budgets: `96`, `full`
 - prefix selector: source-derived diagonal order, first `ceil(0.5 * |A|^3)` prefixes
+- successor selectors: interleaved diagonal order and deterministic
+  source-hash-ranked order at the same prefix fraction
 - target dependence: none; selection uses only public source indices
-- run budget: up to 12 receipts, including implementation-audit failures and
+- run budget: up to 24 receipts, including implementation-audit failures and
   independent verifier attempts
 - predicate: corrected shared-Z projective `P+S/P-S` norm predicate
 - baseline: corrected streaming full-prefix locator and matched affine controls

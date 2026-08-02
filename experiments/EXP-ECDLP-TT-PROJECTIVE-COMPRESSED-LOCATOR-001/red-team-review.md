@@ -34,6 +34,13 @@ candidate subproblem, but exact relation support fails at both smoke and
 5. The earlier full-scan receipts are retained for audit but excluded from the
    selector claim because their delegated-run binding was incomplete.
 
+## Schedule follow-up disposition
+
+At 8 bits, interleaving improves the candidate family to exact full support,
+but misses two randomized-control relations and has no held-out gate. A
+source-hash permutation misses support in both families. These are useful
+control results, not a generic positive signal.
+
 ## Required next gate
 
 Compare three source-only schedules at equal prefix budget: first-half

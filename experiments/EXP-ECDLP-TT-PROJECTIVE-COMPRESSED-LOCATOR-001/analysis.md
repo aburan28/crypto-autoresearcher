@@ -65,6 +65,23 @@ permutation across the three prefix indices. Each must be compared against the
 full oracle on fresh 8-, 12-, and 16-bit curves, with exact support, held-out
 coverage, rank, memory, bandwidth, matrix, descent, and rho all charged.
 
+### 8-bit schedule follow-up
+
+The first follow-up is complete on the same 8-bit fixture:
+
+| selector | `source_prf_x` | `random_x` | interpretation |
+|---|---:|---:|---|
+| first-half diagonal | misses 1 | exact | original contiguous-prefix negative |
+| interleaved diagonal | exact full support, no held-out gate | misses 2 | candidate-family signal only |
+| source-hash-ranked | misses 1 | misses 2 | no generic support signal |
+
+The interleaved and hash-ranked generator receipts are independently checked
+by `RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-022` and
+`RUN-TT-PROJECTIVE-COMPRESSED-LOCATOR-023`, both with valid integrity
+receipts. The interleaved result is worth preserving as a source-family
+diagnostic, but the randomized control prevents promotion to a generic
+coordinate locator.
+
 ## Claim boundary
 
 No generic prime-field ECDLP break, asymptotic improvement, fixed-curve
