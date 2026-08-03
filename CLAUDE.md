@@ -1,8 +1,12 @@
 # CLAUDE.md
 
-Claude Code harness for autonomous, reproducible ECDLP research. The
-binding inter-agent contract is `AGENTS.md` — read it before doing any
-research work. This file wires that contract into Claude Code.
+Claude Code **runtime binding** for the autonomous, reproducible ECDLP
+research program. The program itself is runtime-neutral: the binding
+inter-agent contract is `AGENTS.md`, the role contracts are `agents/*.md`
+and `orchestration/roles.yaml`, and Claude Code is one of several runtimes
+that can execute them (see `docs/inference-backends.md`). Read `AGENTS.md`
+before doing any research work. This file wires that contract into Claude
+Code specifically.
 
 ## Harness layout
 
@@ -181,14 +185,31 @@ collisions were the first instance of it and are already fixed the same way.
 
 ## Model policy note
 
-`orchestration/model-policies.yaml` defines role→model routing (GPT-5.6
-family policy aliases) for the future runtime adapter described in
-AGENTS.md and the roadmap. Claude Code cannot resolve those identifiers:
-subagent frontmatter in `.claude/agents/` supports only Claude models, so
-all three subagents use `model: inherit` here. When running under this
-harness, record `requested_policy` from the handoff and the actual
-resolved model in each run manifest's `inference` block, with
-`fallback_used: true` if they differ — never silently substitute.
+Policies are vendor-neutral capability contracts
+(`orchestration/model-policies.yaml`); the model that serves one is chosen
+per backend in `orchestration/model-bindings.yaml` and resolved by
+`orchestration/adapter/`. Subagent frontmatter in `.claude/agents/` cannot
+express a policy, so per-role model selection under this runtime is
+process-level: launch the session with the resolved environment rather
+than mixing policies in one session, and keep `model: inherit` in the
+frontmatter.
+
+```sh
+# resolve a role's policy and see exactly what would answer
+python3 -m orchestration.adapter resolve --role coordinator
+# run this runtime against a different backend entirely (e.g. GLM)
+eval "$(python3 -m orchestration.adapter env \
+          --runtime claude_code --backend zai-anthropic --role coordinator)"
+```
+
+That `env` output also sets `AUTORESEARCH_POLICY` and
+`AUTORESEARCH_BACKEND`, which is how `harness/runner.py` records the exact
+resolved model in each run manifest's `inference` block. Record
+`requested_policy` from the handoff alongside it, with `fallback_used:
+true` and a reason if they differ — never silently substitute. Do not edit
+`.claude/agents/*.md` tool lists directly: authority and tool surface come
+from `orchestration/roles.yaml`, and `tools/check_runtime_bindings.py`
+fails the build if the two disagree.
 
 ## Typical loop
 
