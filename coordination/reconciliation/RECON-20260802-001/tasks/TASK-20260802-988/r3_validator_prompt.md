@@ -1,0 +1,7 @@
+Act as the independent Validator for repository harness task TASK-20260802-952.
+
+Read and obey AGENTS.md, agents/validator.md, and ledger/handoffs/TASK-20260802-952.yaml completely. Review only the immutable inputs named in that handoff. This is R3 of RECON-20260802-001. Do not merge, edit repository files, stage, commit, access the network, run research experiments, change research state, or authorize BATCH-031.
+
+Use read-only shell and Git checks to independently recompute every required graph, path, blob, package-closure, hash, ID-reservation, treatment, scope, and PRE-gate fact. Challenge the Coordinator determination rather than echoing it. A timeout, unavailable check, or missing artifact is INCONCLUSIVE or blocking, not an inferred pass. Do not expose private chain-of-thought; record only concise findings, commands, ordinary evidence, and decision rationale.
+
+Your final response must be exactly one valid YAML document with no Markdown fence or surrounding prose. Its top-level key must be `validation_report`. Include: schema, id `VAL-20260802-952`, task_id, reconciliation_id, role, reviewed snapshot and exact-session receipt bindings, execution boundary, artifact checks, metric recomputations, ID audit, treatment and scope checks, PRE-01 through PRE-09 dispositions, findings, cheapest missing control, maximum defensible next action, commands with exit codes and concise outputs, limitations, inference provenance, artifact_paths, and verdict `ACCEPT`, `REJECT`, or `INCONCLUSIVE`. State explicitly that you made no merge or research-state decision.
