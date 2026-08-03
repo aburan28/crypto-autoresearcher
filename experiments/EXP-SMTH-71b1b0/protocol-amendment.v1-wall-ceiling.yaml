@@ -1,0 +1,121 @@
+protocol_operations:
+  id: EXP-SMTH-71b1b0-AMEND-001
+  task_id: TASK-20260803-e50765
+  batch_id: BATCH-4e8538
+  goal_id: GOAL-ECDLP-001
+  experiment_id: EXP-SMTH-71b1b0
+  recorded_at: '2026-08-03'
+
+  base_contract: >-
+    Materialize experiments/EXP-SMTH-71b1b0/specification.yaml at SHA-256
+    e193a1966b264804b17976c1575f7bded858936005cab393f31763fef8a0e432, then
+    apply these operations. The specification file is NOT edited by this
+    amendment and remains byte-identical at that digest.
+
+  operation_semantics: >-
+    `replace` requires an existing target; `add` requires an absent target.
+    Target paths are JSON pointers into the parsed document. Any failed
+    precondition is invalid_integrity; no implicit merge applies.
+
+  status: authorized
+  execution_authorized: false
+  scientific_design_unchanged: true
+
+  authority: >-
+    Explicit user direction of 2026-08-03 to extend the 5400 s wall ceiling.
+    THE AUTHORIZATION IS THE USER'S AND IT IS NOT A COORDINATOR SELF-GRANT.
+
+  why_an_amendment_and_not_a_new_experiment_id: >-
+    docs/task-lifecycle.md's protocol_amendment answers "why the original
+    protocol cannot proceed unchanged" while keeping the SAME experiment -- same
+    measured quantity, same objective, same hypothesis binding. All three hold
+    here: this changes two budget ceilings and nothing else. EXP-EQD-001's
+    specification sets out the opposite case, where a NEW id was the honest
+    filing BECAUSE THE MEASURED QUANTITY CHANGED. It does not change here, so a
+    third contract id in this lineage would be churn, and would present a
+    budget bump as a change of question.
+
+  # -------------------------------------------------------------------------
+  operations:
+  - op: replace
+    target_path: /experiment/budget/maximum_wall_seconds
+    prior_value: 5400
+    literal_value: 14400
+  - op: replace
+    target_path: /experiment/budget/maximum_cpu_seconds
+    prior_value: 21600
+    literal_value: 57600
+
+  # -------------------------------------------------------------------------
+  WHY_THE_CPU_CEILING_MOVES_TOO:
+    finding: >-
+      RAISING THE WALL CEILING ALONE WOULD HAVE BEEN A NO-OP. The frozen budget
+      is maximum_wall_seconds 5400, maximum_cpu_seconds 21600, maximum_workers
+      4. At full parallelism the CPU ceiling permits 21600 / 4 = 5400 seconds
+      of wall clock -- exactly the wall ceiling. The two are matched, so CPU
+      binds at the same instant wall does.
+    consequence_if_only_wall_had_moved: >-
+      A run would still have halted at 5400 s of wall, now reporting a CPU-cap
+      stop instead of a wall-cap stop, and the extension would have bought
+      nothing while appearing to. Recorded because that outcome would have been
+      easy to misread as "the extension did not help" rather than "the
+      extension was never applied to the binding constraint".
+    what_is_done: >-
+      Both ceilings scale together, preserving the 4-worker relationship:
+      14400 s wall and 14400 * 4 = 57600 s CPU.
+    what_is_NOT_done: >-
+      maximum_peak_rss_bytes is NOT raised and stays at 4294967296. RSS is the
+      ceiling that actually killed RUN-SMTH-PILOT-002, by 0.3578 percent at
+      40.625 percent completion, and the contract's answer to that is the
+      bounded-working-set requirement plus a pre-flight probe -- not a bigger
+      cap. Raising it would convert a sharp signal into a licence to grow.
+      maximum_total_disk_bytes, maximum_workers and no_network are likewise
+      unchanged.
+
+  scope:
+    changes: two budget ceilings
+    does_not_change:
+      - the measured quantity, the enumeration, or n = 130816
+      - any pre-registered threshold, band or decision rule
+      - the measured-null-primary calibration or the null-before-treatment ordering
+      - any control, blocking or advisory
+      - the toy claim ceiling
+      - the hypothesis binding H-SMTH-001
+    claim_effect: >-
+      NONE. A larger time budget cannot make a result stronger, wider in scope,
+      or higher in tier. Every outcome remains scoped exactly as the frozen
+      contract states, and a budget halt remains failed_infrastructure_or_budget
+      and NOT evidence about mathematics (AGENTS.md rule 3).
+
+  DEFECT_FOUND_WHILE_WRITING_THIS:
+    what: >-
+      EXP-SMTH-71b1b0's specification declares `frozen: true` and says "its
+      sha256 is recorded in freeze_receipt.json", but NO FREEZE RECEIPT FOR IT
+      IS COMMITTED ANYWHERE. `git ls-files | grep freeze_receipt` returns
+      nothing. The only receipt this session wrote covers the SUPERSEDED
+      EXP-SMTH-4403c4 and sits in a gitignored directory belonging to a batch
+      that no longer exists.
+    consequence: >-
+      The contract's freeze is ASSERTED BUT NOT BOUND. The executor card
+      instructs the measurement task to "re-hash the contract and HALT unless
+      the sha256 matches the freeze" -- and there is no committed digest to
+      match against. That check cannot currently be performed.
+    what_this_amendment_does_about_it: >-
+      It states the digest
+      e193a1966b264804b17976c1575f7bded858936005cab393f31763fef8a0e432 in
+      `base_contract` above, in a committed file. That is now the binding the
+      executor re-hashes against, so the halt check becomes performable. It is
+      recorded as a defect rather than presented as a design, because the
+      binding should have existed before this amendment needed to supply it.
+
+  inference:
+    policy: coordinator-orchestration-code
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    fallback_used: true
+    fallback_reason: >-
+      Run under the Claude Code harness, which cannot resolve the GPT-5.6
+      family policy aliases in orchestration/model-policies.yaml; the actual
+      resolved model is recorded directly per the CLAUDE.md model policy note.
+    model_verified: false
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
