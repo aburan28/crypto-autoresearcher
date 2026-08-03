@@ -10,8 +10,11 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/iso_ascending_prime_power_consensus_v11_contract.md`
 - `source/iso_ascending_prime_power_consensus_v11_result.json`
+- `source/iso_ascending_prime_power_consensus_v11_contract.md`
+- `source/iso_ascending_prime_power_consensus_v11.sage.py`
+- `source/iso_ascending_prime_power_consensus_v11_constructor.sage.py`
+- `source/iso_ascending_prime_power_consensus_v11_verifier.sage.py`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

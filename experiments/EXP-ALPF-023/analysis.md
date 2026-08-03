@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round012_exp028_theta_kummer_surface
 
 ## Observation
-**The last un-probed H14 intrinsic representation** (round-10 high-risk direction).
+failed
 
 Source excerpt / raw summary:
 

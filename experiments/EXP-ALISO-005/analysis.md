@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_frobenius_midpoint_verify
 
 ## Observation
-INDEPENDENTLY-REPLAYED TOY EVIDENCE / MODEL-BOUND / NO GENERAL COMPLEXITY CLAIM
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 

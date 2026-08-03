@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round002_exp002_m3_firstfall
 
 ## Observation
-**Seed:** 42 **Date:** 2026-05-30 20:14 **Verdict:** FAILED (NEGATIVE RESULT)
+failed
 
 Source excerpt / raw summary:
 

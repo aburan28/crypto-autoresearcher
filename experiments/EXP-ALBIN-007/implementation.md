@@ -11,8 +11,8 @@ Historical Autolab port (no re-execution).
 
 ## Copied artifacts
 - `source/bin_exp007_result.md`
-- `source/bin_exp007_wdsat.log`
 - `source/bin_exp007_wdsat.sage`
+- `source/bin_exp007_wdsat.log`
 - `source/bin_exp007b_extra.log`
 
 ## Deviations from live harness execution
