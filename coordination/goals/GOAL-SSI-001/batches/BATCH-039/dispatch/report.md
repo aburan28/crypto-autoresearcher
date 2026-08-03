@@ -6,12 +6,10 @@ BATCH-039: instantiate exactly ONE substantive numeric gate (primary A: composit
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-127` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/instantiation_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/protocol_spec.md, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/instantiation_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/instantiation_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/instantiation_harness/ledger_checks.py, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/instantiation_harness/test_instantiation.py, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/instantiation_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127/instantiation_harness/harness_receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-127 |
+| `TASK-20260730-129` | red-team | queued | 80 | TASK-20260730-127, TASK-20260730-128 | coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-129/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-129/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-129 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-128`: dependency_not_completed:TASK-20260730-127:queued
-- `TASK-20260730-129`: dependency_not_completed:TASK-20260730-127:queued, dependency_not_completed:TASK-20260730-128:queued
 - `TASK-20260730-130`: dependency_not_completed:TASK-20260730-129:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-039: instantiate exactly ONE substantive numeric gate (primary A: composit
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `33e89f3b797c7416c4e770bff88ceb95b64cfec5d707d0cd7407c184095a81d8`
+Plan SHA-256: `9766b1049a797fd98d1d21b25a4fc90cf15da4b9d1d470354d5ae9e517c409da`
