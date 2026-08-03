@@ -18,6 +18,9 @@ step 2).
    read it from `ledger/questions/`. If no research question record exists
    yet, create one first from the template in `templates/research-records.md`
    and save it as `ledger/questions/RQ-<AREA>-<NNN>.yaml` (next free number).
+   Before generating, merge `origin/main` into the working branch (merge,
+   never rebase) so ideation runs against current ledger state — see
+   "Branch and PR hygiene" below.
 2. Gather context for the prompt: the research question record, relevant
    entries from `knowledge/` (grep by area tags), existing hypotheses in
    `ledger/hypotheses/`, and existing proposals in `ledger/proposals/` so
@@ -44,8 +47,24 @@ step 2).
    the exact research-question, proposal, and any literature-note paths before
    treating the ideas as filed. The task must pass the dispatcher's post-commit
    verification.
-6. Report to the user: one-line summary per idea (ID, class, claim,
+6. Push the branch and open or refresh a PR against `main` naming the new
+   `RQ-*`/`IDEA-*` records (see "Branch and PR hygiene"). A filed idea that
+   exists only in a local commit is not a proposal the program can use.
+7. Report to the user: one-line summary per idea (ID, class, claim,
    novelty status, cost) plus the generator's recommended first test.
+
+## Branch and PR hygiene
+
+Ideation generates shared research records, so every run of this skill also
+pulls in `main` and surfaces the new proposals as a PR:
+
+- **Before generating:** `git fetch origin && git merge origin/main` — merge,
+  never rebase. If the merge conflicts, stop and report; never resolve a
+  conflict by editing a record (corrections supersede, per AGENTS.md rule 4).
+  Re-run `tools/validate_ledger.py` after the merge.
+- **After the snapshot archive:** `git push -u origin <branch>` then
+  `gh pr create --base main --head <branch> --title "ideas: <summary>" --body "<RQ-*/IDEA-* IDs>"`
+  (or `gh pr edit <number>` when a PR for the branch already exists).
 
 ## Rules
 

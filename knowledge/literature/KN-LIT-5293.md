@@ -1,9 +1,9 @@
 ---
 id: KN-LIT-5293
 type: literature
-title: "Ofelimos: Combinatorial Optimization via Proof-of-Useful-Work"
+title: 'Ofelimos: Combinatorial Optimization via Proof-of-Useful-Work'
 authors:
-  - "A Provably Secure Blockchain Protocol"
+- A Provably Secure Blockchain Protocol
 year: null
 venue: null
 identifiers:
@@ -11,10 +11,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- blockchain
+- proof-of-work
+- combinatorial-optimization
+- protocol
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

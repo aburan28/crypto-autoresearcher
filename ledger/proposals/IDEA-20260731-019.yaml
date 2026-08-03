@@ -1,0 +1,291 @@
+idea:
+  id: IDEA-20260731-019
+  title: "VOLEitH consistency-check soundness: is the deployed-field Schwartz–Zippel bound tight, and does the AES degree-3 constraint structure admit error vectors that beat it?"
+  class: measurement
+  claim: >-
+    At the field sizes FAEST v2.0 actually deploys, the VOLEitH
+    consistency-check soundness error term eps_cc — the maximum
+    probability, over nonzero witness-error vectors, that a cheating
+    prover's response passes the random linear consistency check — equals
+    the Schwartz–Zippel-type bound the security analysis claims (pass
+    probability <= deg(p)/|F| for the check polynomial p, deg <= 3 per the
+    degree-3 AES constraint system), AND no error-vector class supported on
+    the AES constraint structure passes with probability strictly above the
+    bound. In other words: the consistency-check link of FAEST's soundness
+    chain is tight at the deployed field sizes; the link is not the source
+    of a forgery cheaper than the matched AES baseline. This is a
+    verification/barrier lane, not an attack: a confirmation produces the
+    GOAL-FAEST-001 "scoped barrier" deliverable for exactly this link; a
+    structured error class beating the bound is a scoped soundness finding
+    that would immediately feed the multi-round forgery model
+    (IDEA-20260731-002).
+  mechanism: >-
+    Exact attack object: the VOLEitH consistency-check error term eps_cc at
+    the deployed field, i.e. the quantity Pr[check(r, e) = 0] maximized over
+    nonzero error vectors e = w' - w, where w is the honest witness
+    commitment, w' the cheating one, and r the verifier's random challenge.
+    In VOLEitH the verifier's check is a random linear combination of
+    committed values verified against the VOLE correlation; because FAEST
+    v2.0 proves AES via degree-3 constraints (KN-LIT-7637), the check
+    polynomial p(r, w) has total degree 3 in the witness variables, and the
+    standard bound is Schwartz–Zippel: for a nonzero p, Pr[pass] <= 3/|F|
+    (or the spec's claimed variant, e.g. 2/|F| or |F|^{-1} with an
+    additional commitment term). The mechanism under test: whether the
+    maximum over *structured* error vectors — e supported on one toy S-box
+    constraint, e of low Hamming weight, e that is a perturbation of a
+    valid witness, e vanishing on the opened positions — saturates at the
+    bound or exceeds it. A class exceeding the bound exists exactly when
+    the check matrix (or the degree-3 form) has structured kernel elements
+    that generic analysis misses. The re-derivation component fixes the
+    exact check equation and the claimed bound from the primary sources
+    (eprint 2023/996 full text, which this program has NOT yet read, plus
+    spec v2.0 §security), and the toy-scale component measures the max pass
+    probability at small |F| against the bound, with a field-size scaling
+    control: a pass probability that fails to decay as 1/|F| as |F| grows
+    is the canonical artifact tell (inventor-protocol §3).
+  novelty_status: adaptation
+  assumptions:
+    - >-
+      FAEST v2.0's deployed field size, repetition count tau, grinding
+      exponent kappa, and the exact consistency-check equation are UNVERIFIED
+      placeholders until the spec v2.0 PDF text and the eprint 2023/996 full
+      text are read (KN-LIT-7637 limit; PDF body text was not extractable in
+      the sources task). No experiment may be designed before those sources
+      are filed/read (RQ-FAEST-001 constraint).
+    - >-
+      The check polynomial has total degree 3 in the witness variables,
+      because FAEST v2.0 proves AES with degree-3 constraints (reported in
+      KN-LIT-7637 from the official resources page). The re-derivation must
+      confirm this degree before the Schwartz–Zippel comparison is valid.
+    - >-
+      Soundness error of the protocol also contains non-check terms
+      (commitment binding, opening consistency, Fiat-Shamir/grinding terms).
+      This record isolates ONLY the consistency-check term; the other links
+      are the objects of IDEA-20260731-002 (grinding/Fiat-Shamir) and
+      IDEA-20260731-003 (LeafCommit/bAVC binding).
+  predictions:
+    - metric: max_cheating_probability_over_all_error_vectors_ratio_to_claimed_bound
+      direction: different
+      minimum_effect: >-
+        Measured max Pr[pass] over the enumerated/sampled error-vector
+        classes divided by the claimed bound lies within [1/4, 4] at toy
+        scale (|F| <= 2^16). A ratio strictly above 1 for any structured
+        class is the falsification trigger; a ratio far below 1 would
+        indicate the bound is loose (also a finding, in the other
+        direction).
+    - metric: structured_error_class_excess
+      direction: higher
+      minimum_effect: >-
+        The fraction of sampled error-vector classes whose empirical pass
+        probability respects the claimed bound is >= 0.99; equivalently, no
+        structured class (S-box-supported, low-weight, witness-perturbation)
+        is observed to pass more often than the bound with statistical
+        significance at toy scale.
+    - metric: pass_probability_scaling_in_field_size
+      direction: lower
+      minimum_effect: >-
+        For the classes that respect the bound, measured Pr[pass] decays as
+        |F|^{-1} when |F| doubles (at least one full doubling step tested).
+        A pass probability that stays constant as |F| grows is the artifact
+        tell that invalidates the measurement (inventor-protocol §3).
+  minimal_test:
+    design: >-
+      Two components. (1) RE-DERIVATION (derivation artifact, not a run):
+      from eprint 2023/996 full text and spec v2.0, fix the exact
+      consistency-check equation, the check polynomial's total degree, the
+      deployed field, and the claimed soundness bound; verify the algebra of
+      the bound step by step. (2) TOY MEASUREMENT: at toy fields GF(2^8) and
+      GF(q), q ~ 2^8..2^16, witness dimension n ~ 8..64, instantiate the
+      FAEST-shaped check (the re-derived linear/degree-3 form reduced to toy
+      scale, including a toy 3- or 4-bit S-box constraint structure). For
+      each of the error-vector classes (a) arbitrary nonzero e, (b) e
+      supported on one toy S-box constraint, (c) e of Hamming weight 1..4,
+      (d) e = perturbation of a valid witness, compute Pr[pass] exactly by
+      enumerating all r in F (feasible for |F| <= 2^16), recording the max
+      per class; then repeat at the next field size to check 1/|F| scaling.
+    controls:
+      - >-
+        Unstructured control: the class of ALL nonzero error vectors. Its
+        max pass probability must equal the Schwartz–Zippel value exactly,
+        confirming the harness measures what it claims before any structured
+        class is interpreted.
+      - >-
+        Null-object control (inventor-protocol §3): the identical
+        measurement against a random linear check matrix with no AES/S-box
+        structure. Structured classes must not beat the bound there; if they
+        do, the harness is measuring an artifact.
+      - >-
+        Field-scaling control: doubling |F| must halve the pass probability
+        of every bound-respecting class. A constant probability across
+        field sizes invalidates the test.
+    required_metrics:
+      - exact check equation and claimed bound from the re-derivation (recorded as derivation artifact)
+      - max Pr[pass] per error-vector class per field size
+      - ratio of each class max to the claimed bound
+      - pass-probability ratio across the field-doubling step
+      - total degree of the re-derived check polynomial
+  falsification_conditions:
+    - >-
+      A structured error-vector class (S-box-supported, low-weight, or
+      witness-perturbation) whose empirical max pass probability exceeds the
+      claimed bound by a statistically significant margin at toy scale —
+      a scoped soundness finding on the consistency-check term that must be
+      re-derived at deployed parameters and fed to IDEA-20260731-002's
+      forgery model before any further claim.
+    - >-
+      A re-derivation showing the spec's claimed bound uses an incorrect
+      degree, field size, or check equation (algebra error in the soundness
+      analysis) — a proof-gap finding, scoped to the exact equation re-derived.
+    - >-
+      The unstructured control failing to saturate at the Schwartz–Zippel
+      value, or the null-object control also showing an excess — harness
+      artifact; the test is invalid, not the bound.
+  confounders:
+    - >-
+      The exact deployed check form is unverified (spec PDF text not read).
+      If the toy check form is not isomorphic to the deployed one, the
+      measurement is of the wrong object. The re-derivation must precede and
+      pin the toy form.
+    - >-
+      The degree-3 AES constraint structure is v2.0-specific; substituting a
+      generic degree-3 system would miss structure the deployed constraints
+      have. The toy S-box/constraint reduction must mirror the v2.0
+      constraint family, not an arbitrary one.
+    - >-
+      Pr[pass] alone does not bound the protocol's soundness: the commitment
+      and opening terms contribute additively. A finding on this term must
+      not be conflated with a finding on the whole protocol.
+    - >-
+      Toy fields (|F| <= 2^16) are not the deployed field; per AGENTS.md
+      rule 7, toy-scale saturation of the bound is not evidence about the
+      deployed field size. The re-derivation carries the deployed-scale
+      statement; the toy cells are a correctness check on it.
+  interpretation_limits:
+    - >-
+      Confirmation closes exactly the consistency-check link, at exactly the
+      tested (toy) field sizes plus the re-derived deployed-scale bound. It
+      is a scoped barrier statement, not a statement about the whole
+      soundness chain, and not an attack.
+    - >-
+      A structured-class excess at toy scale is toy-tier only: it must be
+      re-derived at deployed parameters and validated via a forgery
+      certificate before it is a claim about FAEST (claim_tier_ceiling of
+      RQ-FAEST-001).
+    - >-
+      This record creates no hypothesis, experiment, evidence, or decision
+      record; it is a proposal whose minimal test, if approved, would be
+      specified and executed under later tasks.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The deployed consistency check is a random linear combination of
+        degree-3-constrained witness polynomials over the deployed field F,
+        so for any nonzero error vector the pass probability is at most
+        deg(p)/|F| with deg(p) <= 3 (Schwartz–Zippel), and this is the term
+        the spec's bound charges.
+      rigorous_support: >-
+        Schwartz–Zippel lemma: a nonzero polynomial of total degree d over F
+        vanishes at a uniformly random point with probability <= d/|F|. The
+        degree-3 constraint claim is reported (not yet verified) from
+        KN-LIT-7637.
+      validation_plan: >-
+        Re-derive the check equations from eprint 2023/996 full text + spec
+        v2.0; compute the actual total degree of the check polynomial at toy
+        scale and confirm d = 3; verify the bound's algebra.
+    - id: H2
+      statement: >-
+        No structured error-vector class (supported on the AES constraint
+        structure) passes the check with probability exceeding the
+        Schwartz–Zippel value — i.e., the check matrix and degree-3 form
+        have no structured kernel elements beyond generic ones.
+      rigorous_support: >-
+        None beyond H1; this is the assumption under test (the "no hidden
+        algebraic relation" hypothesis, cf. the collision-entropy probe of
+        KN-LIT-7593 §5.1).
+      validation_plan: >-
+        Toy-scale enumeration of structured error classes at |F| <= 2^16
+        with the exact pass-probability computation and the 1/|F| scaling
+        control; a null-object control on a random check matrix; any excess
+        re-derived at deployed parameters.
+    - id: H3
+      statement: >-
+        The deployed per-round soundness error satisfies
+        eps_cc^tau * 2^{kappa} >= 2^{-lambda} at the category-1 parameter
+        sets (lambda = 128), so the consistency-check term is not, by
+        itself, a forgery path below the matched AES baseline.
+      rigorous_support: >-
+        Placeholder: the deployed tau, kappa, |F|, and the scheme's claimed
+        security category are UNVERIFIED — spec v2.0 PDF text has not been
+        read by this program (KN-LIT-7637 limit).
+      validation_plan: >-
+        Read spec v2.0 §security and eprint 2023/996 soundness section;
+        substitute the deployed numbers into the re-derived bound; the
+        multi-round forgery model of IDEA-20260731-002 then checks the
+        inequality with all terms charged.
+  matched_baseline:
+    parameter_set: >-
+      faest_128f / faest_128s (spec v2.0, category-1, AES-128). Deployed
+      tau, kappa, field size, and digest lengths are UNVERIFIED placeholders:
+      the spec PDF body text was not extractable by the sources task
+      (KN-LIT-7637 limit) and must be pinned from spec v2.0 + eprint
+      2023/996 full text before any experiment (RQ-FAEST-001 constraint).
+    convention: >-
+      Serial classical cost in AES-128-equivalent evaluations (one AES-128
+      encryption = 1 unit); hash calls converted at the deployed hash's
+      per-call AES count; memory in bits charged separately; data charged;
+      quantum baselines stated separately under a depth-limited (MAXDEPTH)
+      convention. The same convention must appear on both sides of every
+      comparison (KN-TECH-040: the convention is part of the claim).
+    aes_key_recovery: >-
+      Best known AES-128 key recovery (full 10-round, single-key, known
+      plaintext-ciphertext pair): 2^126.1 time, biclique attack
+      (Bogdanov–Khovratovich–Rechberger; KN-LIT-2701, archived, confidence
+      reported). Data ~2^88 chosen plaintexts and ~2^8 memory (detail from
+      memory of the paper, NOT stated in the archived entry — UNVERIFIED
+      in-repo). Reduced-round context: 7-round AES-128 MitM at
+      2^89.3–2^91.4 (KN-LIT-7593) does not reach the full cipher. Quantum:
+      Grover key search ~2^64 sequential AES evaluations (O(2^{k/2}) cipher
+      queries; KN-LIT-679, archived); depth-limited charged estimates
+      ~2^85.8 (Jaques–Schrottenloher — NOT archived, UNVERIFIED in-repo);
+      NIST gate-count estimate ~2^143 (UNVERIFIED in-repo). FAEST's
+      one-wayness assumption applies to the AES-based one-way function
+      f(k) = AES_k(x) for fixed public x (KN-LIT-7637 landing page), i.e.
+      inverting f is exactly key recovery from one known pair — the biclique
+      attack is the matched baseline. The Even-Mansour variants
+      (faest_em_*) use a different (2n-bit-key) OWF; their matched baseline
+      is NOT established in-repo and is out of this idea's primary scope.
+    voleith_fs_soundness: >-
+      Best known attack on the VOLEitH/Fiat-Shamir layer: the generic
+      multi-round transcript forgery, expected cost 2^{kappa} * eps_cc^{-tau}
+      * C_transcript (grinding kappa bits, tau rounds, per-round
+      consistency-check error eps_cc, C_transcript the fully charged
+      per-transcript commitment+hash cost). No structural attack on the
+      consistency-check term is published to this program's knowledge
+      (prior-art grep of knowledge/ and ledger/ found no FAEST-specific
+      soundness attack record); the deployed (kappa, tau, eps_cc) values are
+      UNVERIFIED placeholders to be pinned from the spec. The scheme's own
+      claimed forgery cost at category-1 is >= 2^128 in its analysis
+      (UNVERIFIED — spec text unread).
+  target_complexity:
+    time_exponent: >-
+      n/a — verification/barrier lane, no attack claimed. The quantity under
+      test is the exponent of the per-round soundness error, log2(eps_cc) ~
+      -log2(|F|), against the claimed bound; the chain-level target is
+      eps_cc^tau * 2^{kappa} >= 2^{-128} at category-1.
+    memory_exponent: >-
+      Negligible at toy scale (exhaustive r enumeration needs |F| field
+      elements, |F| <= 2^16); the deployed-scale re-derivation charges no
+      memory beyond the spec's own analysis.
+    best_known: >-
+      2^126.1 AES-128 key recovery (KN-LIT-2701); generic transcript forgery
+      2^{kappa}*eps_cc^{-tau}*C_transcript (deployed values unverified).
+    hidden_overhead: >-
+      The toy enumeration cost is dominated by |F| evaluations per class;
+      no asymptotic claim is made and nothing hides in an o(1) term.
+    tradeoff_note: >-
+      No time–memory tradeoff in this lane; the field-size scaling control
+      is the relevant "parameter that should destroy the quantity" check.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high

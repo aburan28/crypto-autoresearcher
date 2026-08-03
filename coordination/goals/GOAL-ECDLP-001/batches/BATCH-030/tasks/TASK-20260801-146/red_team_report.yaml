@@ -1,0 +1,495 @@
+red_team_report:
+  id: RT-20260801-146
+  task_id: TASK-20260801-146
+  batch_id: BATCH-030
+  goal_id: GOAL-ECDLP-001
+  claim_under_review: >-
+    Executor claim (TASK-20260801-143) that RUN-IT-001-rerun is a
+    completed_valid measurement under EXP-IT-001 v3 + repair overlay
+    PA-IT-001-v3-rc30-repair-1-to-7, with FIX-1..FIX-7 PASS,
+    planted_path_recovered=true, plant_detected=true, R_xfer=0.1107 on the
+    planted path, n_unplanted=21, rate_iso_1_fraction_R_ge_1=0.0,
+    rho_special_by_bits all 0.0.
+  reviewer_role: red-team
+  independent_session: true
+  reviewed_record_ids:
+    - experiments/EXP-IT-001/specification.v3.yaml
+    - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc30-repair-1-to-7.yaml
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/manifest.json
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/raw-result.json
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/command.txt
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/environment.json
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/stdout.log
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/stderr.log
+    - experiments/EXP-IT-001/results/HEUR_ISO_1_report.json
+    - experiments/EXP-IT-001/results/HEUR_ISO_1_report.freeze.json
+    - experiments/EXP-IT-001/results/transfer_gate_report.json
+    - experiments/EXP-IT-001/results/null_it_isogeny_transfer_report.json
+    - experiments/EXP-IT-001/results/concrete_cost_table.json
+    - experiments/EXP-IT-001/results/summary.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-030/tasks/TASK-20260801-143/execution_report.yaml
+    - ledger/evidence/EV-IT-001.yaml
+    - ledger/decisions/DEC-20260731-036.yaml
+    - ledger/decisions/DEC-20260801-001.yaml
+    - experiments/EXP-IT-001/implementation/run_bounded_toy.py
+    - experiments/EXP-IT-001/implementation/it001_pure.py
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: opencode/deepseek-v4-flash-free
+    model_verified: false
+    reasoning_effort: null
+    independent_session_required: true
+    note: >-
+      Same disclosure pattern as every other BATCH-030 role: this backend
+      serves opencode/deepseek-v4-flash-free; review-adversarial is not
+      attainable here and model_verified=false is recorded rather than
+      asserted. This does not change the objections, which are arithmetic and
+      code-level.
+
+  executive_summary: >-
+    The rerun is a real run with real numbers and honest labeling (measured vs
+    modeled, censorship_lower_bound, deterministic-only declaration), and the
+    Executor's own summary.json correctly refuses a support conclusion
+    (observations_only, no_support_reject_conclusion). However, the two
+    controls that would make it a *valid measurement of the transfer gate*
+    do not hold up: (1) planted_path_recovered=true is produced only because
+    the Executor replaced the frozen v3 C_special_MOV cost formula
+    (ceil(0.886*sqrt(p^k)) = 1284 ops) with an unamended calibrated formula
+    (ceil(k*log2(p)) = 22 ops) applied to an embedding-degree-1 endpoint
+    (NOT an anomalous curve, the only family FIX-4 scoped), and because the
+    recovery certificate is a direct BSGS solve of the instance with no
+    isogeny evaluated ("toy pullback = direct solve; no isogeny evaluation at
+    toy scale" — the run's own note). Under the frozen ledger the planted
+    control FAILS (R_xfer = (9+1284+40)/641.6 = 2.08 >= 0.7), which triggers
+    falsification F2 (harness void). (2) plant_detected=true is a packaging-
+    arithmetic check over an EMPTY edge_ledger on a cell whose "honest cost"
+    is a censorship search count, not a transfer-path cost, and the null
+    object (CTRL-NULL-PACKAGING-GATE, the discriminator between a real
+    sub-rho signal and a packaging artifact) was never run on any cell
+    (R_null = null on all 21). The density result rho_special=0 at 20/24/28
+    bits is the only substantive empirical content, and it licenses only
+    toy-tier density upper bounds for the three fixed p_bits fields — not a
+    transfer-gate negative, not HEUR-ISO-1 adjudication, not any crypto-scale
+    statement.
+
+  objections:
+    - id: RT-146-O1
+      severity: critical
+      title: >-
+        Planted-path positive control passes only because the frozen v3
+        C_special_MOV cost formula was substituted in code without an
+        amendment, and applied to the wrong family; under the frozen ledger
+        the control FAILS and the harness is void (F2).
+      evidence: >-
+        spec.v3 cost_ledger freezes C_special_MOV = ceil(0.886 * sqrt(p**k))
+        (lines 273-282). it001_pure.py lines 88-115 replace it with
+        max(1, ceil(1.0 * k * log2(p))) under a comment claiming FIX-4
+        "applies the same calibration to the MOV family". The repair overlay
+        PA-IT-001-v3-rc30-repair-1-to-7.yaml FIX-4 scopes the calibration to
+        the ANOMALOUS family ("so the anomalous-family planted control
+        PASSES"; acceptance criterion: "The anomalous-family planted control
+        evaluates to PASS (R_xfer < 0.7) at the calibrated cost"), and no
+        amendment authorizes a change to the MOV formula. The executed planted
+        endpoint is NOT anomalous (raw-result planted_path_control.start_det:
+        anomalous_trace_eq_1=false; family =
+        embedding_degree_leq_threshold, embedding_degree=1). With the frozen
+        formula at k=1, p~2^21: C_special = 1284 (the run itself persists
+        this as mov_modeled_value_before_fix), giving
+        R_xfer = (9+1284+40)/641.6 = 2.08 >= 0.7, so recovered=false and
+        F2 (harness void) fires. The reported 0.1107 uses C_special=22.
+      analysis: >-
+        The substitution is also scientifically wrong, in the same
+        model-inversion class as RT-130-O4 that FIX-4 was supposed to fix:
+        ceil(k*log2(p)) charges only the Miller-loop (pairing EVALUATION)
+        cost of the MOV reduction. The attack's dominant term is the DLP
+        solve in F_{p^k}^* — at k=1 in the subgroup of order N*~2^19 this is
+        ~2*sqrt(N*) ~ 1448 ops (BSGS) or index calculus ~10^3 at toy — i.e.,
+        the frozen formula's order of magnitude. Charging 22 ops for a
+        k=1 MOV endpoint is like charging one rho step for the whole rho
+        solve. The transfer_gate_report's own sensitivity note admits the
+        control flips at ~1284 ops. A control whose pass/fail is decided by
+        an unamended constant substitution is overfitting the control, not
+        validating the harness.
+      falsification_route: >-
+        Zero-new-data arithmetic falsification (cheapest): recompute the
+        planted cell's R_xfer with the FROZEN v3 formula
+        ceil(0.886*sqrt(p^k)) = 1284 (value already persisted in
+        transfer_gate_report.json c_special_calibration.mov_modeled_value_before_fix):
+        R_xfer = 2.08 >= 0.7 -> planted_path_recovered=false -> F2 -> harness
+        void for every sub-rho reading in this run. Independent experiment:
+        re-run the same planted protocol on an actually ANOMALOUS (trace-1)
+        curve and verify the control still passes at C_special_anomalous =
+        ceil(log2(N)) ~ 20 ops; it should, but it must not be the same cell.
+
+    - id: RT-146-O2
+      severity: critical
+      title: >-
+        The recovery certificate is a direct BSGS solve of the instance; no
+        isogeny transfer is ever evaluated, and the planted 2-hop walk
+        returned to the special start — the control is trivially passable on
+        ANY graph and does not discriminate transfer capability.
+      evidence: >-
+        run_bounded_toy.py: line 1161 inst = make_ecdld_instance(E, ...) on
+        the PLANTED WALK ENDPOINT; line 1189/1241 k_rec =
+        solve_by_bsgs_toy(E, P, Q, N_star) = P.discrete_log(Q) (line 665) —
+        a direct DLP solve of the instance; lines 1192-1194/1242-1244
+        independent_verify_dl checks k*P == Q on that same instance. The
+        run's own note states "toy pullback = direct solve; no isogeny
+        evaluation at toy scale". raw-result planted_path_control:
+        n_hops_planted=2, start_special_j=1416, and endpoint_j=1416 (code
+        line 1265 records planted["j"] = the walk's final curve = 1416): the
+        "random" 2-hop walk returned to the special start, so the instance
+        being "solved" is itself special. The recovered best path
+        [1416 -> 480976] is a 1-hop edge between two special curves found by
+        BFS from a special instance (min_hops=1 skips only the depth-0
+        self-hit, code lines 1164-1168).
+      analysis: >-
+        The control was designed to show the harness finds a cheap reverse
+        path from a GENERIC instance that is 1-4 hops from a special curve.
+        As executed it shows: (a) an instance that is itself special has an
+        adjacent special curve; (b) a 20-bit DLP instance can be solved
+        directly in milliseconds. The certificate proves neither a transfer
+        path nor a pulled-back scalar. Any graph with two adjacent special
+        vertices — including the XOR-3-regular NULL-IT object, which has no
+        isogeny structure at all — reproduces planted_path_recovered=true
+        with R_xfer < 0.7 given the same direct-solve certificate and the
+        same substituted C_special. The control is therefore a false-positive
+        candidate by construction; it cannot be read as evidence that the
+        harness detects transfers.
+      falsification_route: >-
+        Run the identical recovery protocol on the NULL-IT-ISOGENY-TRANSFER
+        XOR graph with two adjacent Bernoulli-marked special vertices
+        (rho>0) and the same direct-solve certificate: it returns
+        planted_path_recovered=true with R_xfer < 0.7 identically,
+        demonstrating zero isogeny-structure discrimination. Cheaper still:
+        force the planted walk's endpoint to a NON-special j (walk from the
+        special start, then one extra hop chosen to leave the special set,
+        or use a non-special start) and show recovery then fails or exceeds
+        hops_max — proving the current pass depends entirely on the endpoint
+        being special.
+
+    - id: RT-146-O3
+      severity: major
+      title: >-
+        The null-object gate (the only discriminator between a real sub-rho
+        signal and a packaging artifact) was never executed, and
+        plant_detected=true is a packaging check over an empty edge ledger
+        with a censorship count as "honest cost".
+      evidence: >-
+        null_it_isogeny_transfer_report.json: every per_curve row has
+        null.skipped=true (reason "R_xfer>=0.7_or_no_certificate"),
+        R_null=null, null_gate_pass=null — CTRL-NULL-PACKAGING-GATE never ran
+        on any unplanted claim (correctly so, per the gate rule: no cell had
+        a certificate-bearing R_xfer < 0.7 claim; but it means the gate is
+        vacuous, not passed). CTRL_NULL_IT_PLANT: C_path_honest=729,
+        C_path_recomputed=729, C_path_reported=182, but edge_ledger=[] —
+        empty — while spec.v3 requires "Persist raw edge ledger fields
+        sufficient to recompute C_path"; the independence of the
+        recomputation is unverifiable from the artifacts. The cell's
+        "honest cost" 729 is C_search for a cell with n_special_paths_found=0
+        (a censorship BFS count, not a transfer-path ledger), so the plant
+        exercises packaging arithmetic on a search counter, not the
+        certificate-path cost ledger.
+      analysis: >-
+        plant_detected=true (C_path_reported=182 <= floor(729/4)=182) proves
+        the report writer can be caught if it cuts a number by 4x, IF the
+        recomputed value is independent — and the empty edge_ledger leaves
+        that independence unshown. The 0.7 threshold is not part of this
+        control (it uses a 4x cut), so "0.7 is arbitrary" is not the right
+        charge here; the right charge is that the plant control and the null
+        gate together never validated the transfer cost path: the null gate
+        was skipped everywhere and the plant never touched a certificate
+        path.
+      falsification_route: >-
+        Require the plant cell to be one WITH a certificate-bearing transfer
+        path (e.g., the planted-path control cell itself) and require the raw
+        edge ledger (per-edge ell, c_iso) to be persisted and independently
+        recomputed; re-run CTRL-NULL-IT-PLANT. Also force one synthetic
+        sub-0.7 certificate-bearing claim through the null arm to confirm
+        R_null >= 0.95 discrimination actually fires (currently unexercised).
+
+    - id: RT-146-O4
+      severity: major
+      title: >-
+        Cost model is not end-to-end: sieve/construction cost absent,
+        per-attempt x inverse-success only handled by disclaiming expected
+        cost, the MOV field-DLP term omitted, memory/tradeoff undisclosed;
+        and no sota_delta / dominated_by anywhere (inventor-protocol Pareto
+        honesty failure). Honest quantification is NEGATIVE: the transfer
+        idea is dominated by rho at every row of the toy frontier.
+      evidence: >-
+        concrete_cost_table.json contains only per-target BFS costs and
+        modeled baselines (R_xfer_mean 0.30/0.21/0.11 are all
+        censorship_lower_bound rows; H_min_uncensored=[] for every bit; the
+        only complete accounting is the planted cell at the substituted
+        C_special). No rational-torsion-sieve / special-curve construction
+        cost appears anywhere (the "subgroup G_special" of the sub-rho idea
+        is represented by special endpoints; the cost of their existence is
+        carried in rho_special and F_hit, which correctly enters only through
+        the F_hit(hops_max)=0.0 p_success in transfer_gate_report
+        expected_cost_bookkeeping — that block is honest: mode
+        deterministic_only, p_success=0.0, expected cost unbounded, no
+        expected-cost comparison claimed). The MOV attack cost omits the
+        field-DLP term (see O1). matched_rho (0.886*sqrt(N)) and matched_BSGS
+        (2*sqrt(N)) are modeled, not measured; the "measured" rho calibration
+        is a proxy (1/8 BSGS baby table scaled x8) whose ratio is constant
+        ~1.128 across all 21 cells by construction — it calibrates nothing.
+        No dominated_by field and no quantitative sota_delta exist in any
+        deliverable (summary.json, concrete_cost_table.json,
+        transfer_gate_report.json, HEUR_ISO_1_report.json,
+        execution_report.yaml). Memory: only peak_rss_bytes (1.31 GB, Sage
+        overhead); no algorithmic memory for BFS frontier / MITM (mitm_tables:
+        not_used), no time-memory tradeoff row.
+      analysis: >-
+        Correct bookkeeping for the sub-rho idea is: total expected cost =
+        (sieve/construction of G_special, amortized or per-instance) +
+        per-attempt BFS cost x 1/F_hit(hops_max) + C_special (DLP in the
+        special subgroup of order q_special ~ N*) + C_pullback. With
+        rho_special=0 the expected cost is unbounded (the report says this).
+        With the only family actually found (k=1 MOV), C_special >= 2*sqrt(N*)
+        ~ matched rho, so R_xfer >= 1 even at C_path=C_pullback=0: the
+        shortcut is mathematically a no-win for k=1 regardless of the toy
+        data — the honest sota_delta vs rho is 0 (parity at best) and vs
+        BSGS is negative (BSGS wins on memory? no — rho wins time, BSGS wins
+        nothing here; the frontier is dominated by rho in time, with rho also
+        at O(1) memory vs BSGS O(sqrt N) memory). A silently-absent
+        dominated_by is a fabrication under AGENTS.md rule 5 / inventor
+        protocol; the materials neither state it nor give the sota_delta.
+      falsification_route: >-
+        Cheapest: add the two missing rows to the cost table from values
+        already in the artifacts — (a) honest C_special_MOV at k=1 (1284 or
+        2*sqrt(N*)=1448) on the planted cell: R_xfer=2.08, and (b) the
+        expected-cost row per_attempt/0.0 = unbounded. Both flip every
+        sub-rho-friendly reading. Then state dominated_by (rho in time, rho
+        in memory at O(1)) and the quantitative sota_delta (<= 1.0 vs rho at
+        toy; unbounded expected cost), per inventor protocol.
+
+    - id: RT-146-O5
+      severity: major
+      title: >-
+        Scope: rho_special=0 is a fixed-p, Poisson-scale upper bound, not an
+        impossibility, and the run cannot adjudicate HEUR-ISO-1 in either
+        direction; a positive signal requires a different parameter regime
+        that the current p-selection structurally excludes.
+      evidence: >-
+        HEUR_ISO_1_report.json: rho_special = 0.0 at 20/24/28 with estimator
+        exhaustive / exhaustive / sample_estimate (50,000 of ~268.5M classes;
+        ~847k j scanned). p_bits is FIXED per bit size by the "smallest p"
+        rule, and the universe is over j for that one p — not over primes.
+        All 21 unplanted cells are H_min_censored (censored_fraction 1.0 at
+        every bit), ks_stat/tail_pass null (0 uncensored samples; the KS rule
+        requires n >= 20), F_hit is identically 0 (degenerate CDF), and
+        rate_iso_1_pass=false (fraction 0.0).
+      analysis: >-
+        (a) At 20/24 bits the 0 is exact only for p=2097169 / p=33554467
+        under N_MAP-IT-001-v3. Embedding degree <= 6 requires N* | p^k - 1,
+        k <= 6 — a p-specific multiplicative condition; the smallest-p rule
+        makes the outcome a property of one chosen prime. A random-model
+        expectation for embedding-degree hits at 20 bits is O(1)-scale
+        (Poisson), so 0 is consistent but licenses an upper bound, not a
+        law. (b) At 28 bits the 0 is a 50k sample: 95% CI upper bound ~ 3/50000
+        ~ 6e-5, NOT exact zero — DEC-20260731-036 already flagged the ~0.16%
+        sample; the freeze file and report must not quote it as an exact
+        density. (c) HEUR-ISO-1 is UNMEASURED: F_hit=0 predicts zero hits and
+        zero hits are observed — a degenerate, vacuous consistency; KS/TAIL
+        are not evaluable, and per the F3_trigger a vacuous outcome is not a
+        FAIL (nor a PASS). (d) The 21 zero-transfer cells are not negative
+        evidence: with no special target in the component, a transfer cannot
+        exist at these sizes — that is a density statement, not a gate
+        measurement. RATE-ISO-1 fails by the letter, so success criterion S1
+        is NOT met; the materials must record S1 not-met, never as a
+        HEUR/H-DS-001 negative (RT-130-O3 discipline).
+      falsification_route: >-
+        The smallest regime where a positive signal would be meaningful: a
+        bits window whose p_bits is chosen so that N* | p^k - 1 (k >= 2) or a
+        trace-1 class exists WITHIN the retained universe (e.g., select p
+        with a large prime factor of p-1 or p^2-1, or relax h_max and the
+        smallest-p rule), then verify uncensored H_min samples and a
+        non-degenerate F_hit. Cheapest check that the current zero is
+        selection-driven: scan the 20-bit window for ANY prime p in
+        (2^21, 2^22) whose p-1 or p^2-1 has a prime factor of bitlength 20-22
+        (the planted control's own bits_window_mov_search proves such primes
+        exist — the density freeze just never sampled them).
+
+    - id: RT-146-O6
+      severity: minor
+      title: >-
+        H_min_heur=1 in the planted control does not match n_hops_planted=2,
+        and top-level endpoint_j=1416 equals start_special_j=1416, so the
+        "recovery" is not the reverse of the planted walk.
+      evidence: >-
+        raw-result planted_path_control: n_hops_planted=2, H_min_heur=1,
+        best.path_edges has ONE edge (1416 -> 480976), best.endpoint_j=480976,
+        top-level endpoint_j=1416 = start_special_j. Code line 1265 writes
+        endpoint_j := planted["j"] (the walk's final curve), confirming the
+        walk ended at j=1416.
+      analysis: >-
+        FIX-3's letter (H_min >= 1, non-empty path_edges, endpoint != start)
+        is met only by the "best" record; the walk itself returned to the
+        start, so the planted structure (a generic curve 2 hops from special)
+        never existed. The control is internally inconsistent (two endpoint_j
+        values with opposite meanings in one record) and this inconsistency
+        is the trace of the degenerate construction described in O2.
+      falsification_route: >-
+        Assert in the control record that the recovered path is a valid
+        reverse of the planted walk (path length == n_hops_planted, edges
+        reversed) and that the instance j differs from start_special_j; the
+        current run fails that assertion by inspection of its own artifacts.
+
+    - id: RT-146-O7
+      severity: informational
+      title: >-
+        Baseline calibration is proxy, not measurement; and run provenance
+        (dirty tree, 4740 dirty entries) is a reproducibility caveat.
+      evidence: >-
+        Every rho_calibration record: "proxy calibration: 1/8 BSGS baby table
+        scaled x8; not a full rho solve", rho_calib_ratio constant ~1.1285
+        across all 21 cells and all bit sizes (formula-derived, calibrates
+        nothing independent). manifest.json: git dirty=true with 4740 dirty
+        entries at commit 86d5f0a4.
+      analysis: >-
+        The matched-rho baseline is a model constant 0.886*sqrt(N) with no
+        independent measurement; the proxy ratio is a tautology. This weakens
+        the absolute scaling of every R_xfer but does not change the
+        relative verdicts above. The dirty tree is the Validator's domain but
+        affects reproducibility claims.
+      falsification_route: >-
+        Run one honest negation-rho solve at 20 bits on a single cell and
+        compare ops to 0.886*sqrt(N); expect ratio within +-0.15 per
+        CTRL-NULL-IT-RHO (currently unmeasured).
+
+  required_controls:
+    - id: CTRL-FROZEN-LEDGER-REWRITE
+      description: >-
+        Recompute the planted cell R_xfer under the frozen v3 C_special_MOV
+        formula (ceil(0.886*sqrt(p^k)) = 1284): expect 2.08 >= 0.7 -> control
+        FAIL -> F2 harness void. This alone invalidates the completed_valid
+        claim for any sub-rho reading. Zero new data.
+    - id: CTRL-NULL-GRAPH-PLANTED
+      description: >-
+        Identical planted-path protocol on the NULL-IT XOR graph with two
+        adjacent special marks + direct-solve certificate: expect
+        planted_path_recovered=true with R_xfer < 0.7, demonstrating the
+        control has no isogeny-structure discrimination.
+    - id: CTRL-NONSELF-PLANT
+      description: >-
+        Planted walk forced to end at a non-special j (or start from a
+        non-special curve): recovery should fail or exceed hops_max,
+        proving the current pass requires a special instance.
+    - id: CTRL-NULL-GATE-LIVE
+      description: >-
+        Push one synthetic certificate-bearing R_xfer < 0.7 claim through the
+        null arm; verify R_null >= 0.95 discrimination fires (currently the
+        null gate has never run: R_null=null on all 21 cells).
+    - id: CTRL-PLANT-REAL-LEDGER
+      description: >-
+        Re-run CTRL-NULL-IT-PLANT on a cell WITH a certificate-bearing
+        transfer path and a persisted per-edge raw ledger; verify
+        C_path_recomputed independence (current edge_ledger=[]).
+  counterexample_or_mutation: >-
+    Mutation: keep every artifact identical but set
+    C_special_MOV back to the frozen ceil(0.886*sqrt(p^k)). The planted
+    control flips to FAIL (R_xfer 2.08), planted_path_recovered=false, F2
+    fires, and the run's completed_valid / FIX-3 PASS collapses. This is the
+    decisive mutation and it requires no code execution beyond the persisted
+    numbers.
+  baseline_comparison: >-
+    At the toy frontier (time x memory): matched rho (0.886*sqrt(N) time,
+    O(1) memory, modeled) dominates matched BSGS (2*sqrt(N) time, O(sqrt N)
+    memory) and dominates every transfer reading (all unplanted R_xfer are
+    censorship lower bounds; the planted 0.1107 requires the substituted
+    cost). For the only special family actually found (embedding degree 1),
+    the honest C_special (field DLP ~ 1284-1448 ops) alone makes R_xfer >=
+    2.0 vs 0.886*sqrt(N): the transfer cannot beat rho for k=1 by
+    construction. sota_delta vs rho at toy: <= 1.0 (no win anywhere),
+    expected cost unbounded; vs BSGS: rho wins time and memory.
+  heuristic_challenges:
+    - >-
+      HEUR-ISO-1 is unadjudicated: F_hit identically 0 makes the CDF
+      degenerate; 0 uncensored H_min samples (n=0 < 20 required); the
+      observed zero hits are predicted exactly by rho=0, so the run provides
+      no distributional evidence for or against the random-regular
+      hitting-time model. No KS, no TAIL, no RATE pass; F3 not triggered
+      (vacuous, not fail). No crypto-scale validation and no correspondence
+      argument exists (scale_relevance.correspondence = null).
+    - >-
+      The random-model transfer (independent-marking tree F_hit) was never
+      testable because the special set is empty; the density freeze itself
+      conflates "no special curves in this fixed-p universe" with a density
+      law, when the p-selection rule (smallest p with a retained class) and
+      the h_max=256 / unique-N* filters structurally shape the outcome.
+  cost_model_challenges:
+    - >-
+      C_special_MOV substitution (O1): Miller-loop length is the pairing
+      EVALUATION cost; the MOV attack's dominant term is the field DLP, which
+      the frozen formula modeled. Under the frozen ledger the planted control
+      fails.
+    - >-
+      No sieve/construction cost for G_special anywhere; the sub-rho total
+      expected cost is (sieve + per-attempt x 1/p_success + C_special +
+      C_pullback), and only the per-attempt term is measured (BFS edges).
+    - >-
+      p_success handling is honest but degenerate: F_hit(hops_max)=0.0 ->
+      expected cost unbounded, so no expected-cost comparison to matched rho
+      is claimed (FIX-6 satisfied in letter). No time-memory tradeoff row;
+      MITM never used; memory reported only as process RSS.
+  reduction_and_scope_challenges:
+    - >-
+      Toy tier only; no correspondence to crypto-scale densities (AGENTS
+      rule 7). rho_special=0 at 28 bits is a 50k-sample estimate with a 95%
+      CI upper bound ~6e-5, not an exact zero; at 20/24 bits it is exact only
+      for the two chosen p_bits primes.
+    - >-
+      rate_iso_1_pass=false / fraction 0.0 must not be laundered into
+      HEUR-ISO-1 or H-DS-001 negative evidence (RT-130-O3 discipline);
+      summary.json's observations_only/no_support_reject_conclusion is
+      correct and must be preserved in EV-IT-002/DEC-20260801-002.
+    - >-
+      No affected-vs-safe claim beyond the toy cells is licensed; the safe
+      list (structured CM / pairing-friendly out of claim) is fine only
+      because it is out of claim, not because it was tested.
+  narrowest_supported_statement: >-
+    Under N_MAP-IT-001-v3 with the three frozen detectors and the chosen
+    p_bits fields, the toy universes contain zero special classes at 20/24
+    bits (exhaustive over j) and at most ~6e-5 density at 28 bits (50k
+    sample, 95% CI). Consequently no transfer path to a special family
+    exists within the reachable 2-isogeny components of the 21 sampled
+    instances, all R_xfer values are censorship lower bounds, RATE-ISO-1
+    fails, and S1 is not met. HEUR-ISO-1 is unmeasured. This licenses no
+    sub-rho existence/non-existence claim, no generic safety claim, no
+    H-IT-001/H-DS-001 support, and no asymptotic statement.
+  next_concrete_action: >-
+    Coordinator: do not accept planted_path_recovered=true / plant_detected=
+    true as validating controls. Require (1) the frozen-ledger recomputation
+    (O1, zero data) to be recorded as F2 harness-void OR an approved
+    amendment that formally recalibrates C_special_MOV with a correct
+    field-DLP-inclusive cost and re-derives the control; (2) a genuine
+    certificate-bearing transfer control on a non-special instance with the
+    isogeny pullback actually evaluated (or a declared direct-solve proxy
+    labeled as non-transfer); (3) one live null-gate run (O3); (4) the
+    Pareto fields dominated_by + quantitative sota_delta (O4); (5) a
+    density scan over a bits window with p chosen to admit embedding-degree
+    factors, plus CI bounds on the 28-bit estimate (O5). H-IT-001 stays
+    `specified`; EV-IT-002 / DEC-20260801-002 must reflect the control
+    failures above, not a clean gate.
+  interpretation_caution: >-
+    BATCH-030 evidence can support: toy-tier density upper bounds
+    (rho_special=0 exact for two fixed primes at 20/24 bits; ~<6e-5 sample
+    bound at 28 bits), the fact that no transfer path was found because no
+    special target exists in the sampled components, and the observation that
+    RATE-ISO-1 fails (S1 not met). BATCH-030 evidence CANNOT support:
+    planted-path recovery as a transfer-capability demonstration (the
+    certificate is a direct solve, the instance is itself special, and the
+    pass depends on an unamended cost-formula substitution — under the frozen
+    ledger the control fails and F2 voids the harness); plant_detected=true
+    as validation of the transfer cost ledger (empty edge ledger, censorship
+    count as honest cost, null gate never run); any HEUR-ISO-1 adjudication
+    in either direction; any sub-rho shortcut existence, non-existence, or
+    safety claim at any size beyond the tested toy cells; any
+    H-IT-001/H-DS-001 support; any asymptotic or crypto-scale statement; and
+    any Pareto claim, since dominated_by and sota_delta are absent and the
+    honest values are negative for the transfer idea. The run is a
+    density-measurement package with two non-validating controls, not an
+    admissible transfer-gate measurement.
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-030/tasks/TASK-20260801-146/red_team_report.yaml

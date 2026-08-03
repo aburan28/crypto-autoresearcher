@@ -50,7 +50,7 @@ hashes establish the reviewed snapshot anyway.
 
 ## Why CONFIRM rather than REVISE
 
-The gate does what DEC-20260730-014 / EV-SSI-016 / RT-20260730-035 required:
+The gate does what DEC-20260803-5d30b6 / EV-SSI-016 / RT-20260730-035 required:
 execute the separate recovery/lifetime residual-gap map without inventing
 implementation. Residual issues are non-blocking wording qualifications
 (receipt pending fields; do not compress "gate executed" into "blocker

@@ -1,0 +1,73 @@
+correction:
+  id: CORR-20260802-005
+  recorded_at: '2026-08-02'
+  record_type: serialization
+  record_id: UNPARSEABLE-LEDGER-AND-CONTRACT-RECORDS-REPAIR
+  field: yaml_serialization_of_seven_records
+  reason: >-
+    Seven records were committed as .yaml but never parsed. An unparseable
+    record is worse than a malformed one: tools/validate_ledger.py cannot
+    schema-check what it cannot load, so every field rule on these records was
+    silently skipped, and tools/check_merge_hygiene.py had them grandfathered
+    in merge_hygiene_baseline.txt whose header states such lines may only ever
+    be removed as records are repaired. This is that repair.
+  defect_classes:
+    plain_scalar_with_colon_space: >-
+      A block-sequence item written as a plain scalar containing ": " is read
+      by YAML as a mapping key/value pair, so the item is malformed and the
+      enclosing document fails to load. This is the same defect class recorded
+      in CORR-20260801-002. Repaired by making each item an explicit folded
+      block scalar (- >-); the text is unchanged.
+    misindented_block_scalar_continuation: >-
+      One continuation line sat one column short of its block scalar.
+    mapping_key_inside_a_sequence: >-
+      A mapping key written at the indent of the sequence items preceding it,
+      rather than at its parent's indent.
+    prose_committed_as_yaml: >-
+      One approved contract was written as Markdown prose in a .yaml file.
+  repairs:
+    - path: ledger/evidence/EV-FCP-003.yaml
+      defect: plain_scalar_with_colon_space
+      items_converted: 1
+    - path: ledger/evidence/EV-IC-002.yaml
+      defect: mapping_key_inside_a_sequence
+      detail: >-
+        replication_map.derived_by was indented into the
+        quadruple_derivation_agreeing sequence. Dedented to its correct place
+        as a sibling of the other replication_map keys.
+    - path: ledger/handoffs/TASK-20260724-242.yaml
+      defect: plain_scalar_with_colon_space
+      items_converted: 1
+    - path: ledger/handoffs/TASK-20260725-004.yaml
+      defect: misindented_block_scalar_continuation
+      items_converted: 1
+    - path: experiments/EXP-DREG-004/specification.yaml
+      defect: plain_scalar_with_colon_space
+      items_converted: 1
+    - path: experiments/EXP-SIG-007/specification.yaml
+      defect: plain_scalar_with_colon_space
+      items_converted: 9
+    - path: experiments/EXP-SIG-008/specification.yaml
+      defect: prose_committed_as_yaml
+      detail: >-
+        The approved contract (TASK-20260724-006) was Markdown. Transcribed
+        into the frozen experiment schema with the approved text preserved
+        verbatim in the fields and reproduced in full under as_approved_text.
+        No parameter, gate, control, budget, artifact or falsification
+        criterion was added, removed or reinterpreted.
+  substantive_delta: >-
+    None. Every repair is a serialization fix. No measurement, parameter,
+    threshold, verdict, direction, strength or claim tier was altered in any of
+    the seven records.
+  status_effects:
+    hypothesis_status_changed: false
+    note: >-
+      Serialization only. Note that these records now enter schema validation
+      for the first time, so genuine schema gaps they always had may surface as
+      new, separately-recorded findings. That is the point of the repair.
+  baseline_effect: >-
+    The seven paths are removed from tools/merge_hygiene_baseline.txt, which
+    shrinks from 33 to 26 entries. The baseline is prune-only and was not added
+    to.
+  supersedes: null
+  superseded_by: null

@@ -1,0 +1,171 @@
+handoff:
+  id: TASK-20260726-DREG-CTRLB-VAL
+  from: coordinator
+  to: validator
+  goal_id: GOAL-DREG-001
+  batch_id: BATCH-003
+  question_id: RQ-DREG-001
+  objective: >-
+    Independently verify that RUN-DREG-001-CTRLB-N12-D6, as committed by the snapshot
+    archive, is admissible evidence: receipt integrity; that the restricted column set is
+    EXACTLY sem's 174035-column support and the deleted set is EXACTLY the 16016-column
+    degree-6 complement; instrument determinism across the chunked/resumed column loop;
+    resource and timing honesty; and that the measured rank lands inside the
+    pre-registered bracket [140504, 156520] (deficit_genuine inside [1931, 17947]).
+    Issue one terminal verdict: PASS | PASS-WITH-CAVEATS | INVALID | INCOMPLETE.
+  uncertainty_reduced: >-
+    Whether the single integer CTRL-B produced is a rank of the intended matrix -- the
+    null degree-6 Macaulay matrix over sem's own column space -- rather than an artifact
+    of a mis-specified column restriction, a resume defect, or a broken identity binding.
+    Until this is settled the number is not evidence and cannot enter any decision.
+  inputs:
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/
+      # review the COMMITTED snapshot, not the working tree.
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-003/snapshot/snapshot_commit_receipt.json
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-003/handoffs/TASK-20260726-DREG-CTRLB-P1.yaml
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-003/dispatch_queue.yaml
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/d6-sem/manifest.yaml
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/d6-null/manifest.yaml
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control/support_confound_probe.py
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control/support_confound_probe.json
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/VAL-N12D6.md
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/RT-N12D6.md
+    - src/h012c_block_m4ri.py
+  checks_required:
+    - id: VC-1-receipt-integrity
+      what: >-
+        Every required artifact exists and is schema-complete per the AGENTS.md artifact
+        policy: exact command, git commit and dirty-tree state, environment and dependency
+        versions, input parameters and seed, stdout and stderr, raw machine-readable
+        result, validity status and reason, timestamps and resource measurements. Recorded
+        sha256 values reproduce over the committed bytes. The inference block records
+        requested_policy (executor-terra), the exact resolved_model, reasoning_effort, and
+        fallback_used: true. A missing or self-contradictory inference block is a defect.
+    - id: VC-2-identity-binding
+      what: >-
+        The cell is n=12, t=3, ti=0, seed=2026, D=6, nb=24. The reused adjacency pickle's
+        embedded system_hash is f2f610730a7155933be2afe2d979c8535e1f35f5c0c5ddb246fabe717b147344
+        with ncols 190051 and nrows 183312, and its recorded file sha256 reproduces.
+        monosets hashes match the committed
+        sem c47d17c3fd70d5d81127e8d37e21441883f720ca10187f57a3aeb47bfe3ba818 and
+        null f2f610730a7155933be2afe2d979c8535e1f35f5c0c5ddb246fabe717b147344.
+    - id: VC-3-column-set-independently-recomputed
+      what: >-
+        Do NOT trust column-audit.json. Independently rebuild both colidx maps via
+        build_system(12, 3, 0, 2026), boolean_null on the SAME returned rng state, and
+        macaulay_rows(monosets, nb, 6) -- the pattern in support_confound_probe.py, which
+        ran in 12.8 s at 3.6 GB peak RSS -- then re-derive: |sem support| == 174035,
+        |null support| == 190051, sem support is a strict subset of null support, the set
+        difference has 16016 elements, and its degree histogram is {6: 16016} with degrees
+        0..5 identical between the arms. Confirm the columns the producer KEPT are exactly
+        the sem-support set (not merely the same cardinality).
+    - id: VC-4-instrument-determinism
+      what: >-
+        The chunked column loop covers [0, 174035) exactly once: reconstruct the
+        [j0, j1) intervals from the unit log, confirm they partition the range with no
+        gap, overlap, or double-count; confirm rank_acc is the sum of per-unit k; confirm
+        every checkpoint resume passed the instrument's identity check (resume identity
+        mismatch raises, so a silent mismatch is impossible only if the log shows the
+        check ran); confirm no partial rank_acc was reported as a rank.
+    - id: VC-5-resource-and-timing-honesty
+      what: >-
+        Reported wall seconds, reduce seconds, unit count, and peak RSS are mutually
+        consistent and consistent with the committed full-null baseline (2284.76 s wall,
+        1692.1 s over 16 units, 7677116416 B peak RSS, chunk_force 12000, 190051 columns).
+        A restricted run at 174035 columns and identical row count that reports a wildly
+        cheaper or costlier profile is a flag, not a bonus. Confirm the aggregate budget
+        (2700 s, 12 GB, 3 invocations) was respected and that TMPDIR/SAGE_TMP were on
+        /Volumes/Volume/sage-scratch-dreg (never the root volume).
+    - id: VC-6-preregistered-bracket
+      what: >-
+        rank(null|_sem-support) lies in [140504, 156520] and
+        deficit_genuine = rank - 138573 lies in [1931, 17947]. Re-derive the arithmetic
+        yourself from the committed 156520, 16016, and 138573. An out-of-bracket value is
+        an INVALID verdict with an integrity-failure reason, never a finding.
+    - id: VC-7-raw-summary-agreement
+      what: >-
+        raw-result.json, column-audit.json, manifest.yaml, and stdout.log agree on every
+        shared number (rank, deficit_genuine, kept/deleted counts, secs, units, peak RSS).
+        Any disagreement is reported verbatim rather than reconciled by the validator.
+    - id: VC-8-admissibility
+      what: >-
+        Confirm CTRL-B is not the prohibited subset-column measurement: the restriction is
+        applied to the NULL arm to reach sem's own column space, while sem's 138573
+        remains its committed FULL-column rank and was NOT recomputed or restricted. Also
+        confirm certificate.kind is none (pure rank; no solve, no relation claimed).
+  constraints:
+    - >-
+      Independent session, and an agent that did not originate the CTRL-B claim
+      (AGENTS rule 12; review-xhigh policy class).
+    - >-
+      Do NOT edit, move, re-run, or repair any producer artifact, and do not write
+      anywhere except coordination/goals/GOAL-DREG-001/batches/BATCH-003/reviews/VAL-CTRLB.md.
+      Any script or scratch you need goes OUTSIDE the repository under
+      /Volumes/Volume/sage-scratch-dreg/ (never the root volume); inline the exact command
+      and the genuine output excerpt in VAL-CTRLB.md. Do not write controls into the
+      producer run directory -- BATCH-002's red team did that and it had to be recorded as
+      a scope deviation in the batch decision.
+    - >-
+      Sage must run with TMPDIR=SAGE_TMP=/Volumes/Volume/sage-scratch-dreg.
+    - >-
+      A full distinct-engine re-rank is NOT required by this task. If you do not run one,
+      say so explicitly and INHERIT the BATCH-002 Validator CAVEAT-2: the integer is
+      internally consistent and hash-bound but NOT independently reproduced. Never upgrade
+      "internally consistent" to "independently reproduced".
+    - >-
+      Report missing evidence as missing. Never estimate, repair, or infer a value the
+      artifacts do not contain, and never fabricate a command, timing, or statistic.
+    - >-
+      A timeout, OOM, or crash in your own checks is failed_infrastructure for the check
+      and must be reported as an unverified item, not as a defect in the producer's work.
+    - >-
+      Do not interpret the deficit, change any status, or comment on H-DREG-001's fate;
+      integrity is your scope, interpretation is the red team's and the coordinator's.
+  deliverables:
+    - >-
+      coordination/goals/GOAL-DREG-001/batches/BATCH-003/reviews/VAL-CTRLB.md containing a
+      machine-readable YAML block with: id, task_id, snapshot commit reviewed, one terminal
+      verdict (PASS | PASS-WITH-CAVEATS | INVALID | INCOMPLETE), a per-check result for
+      VC-1..VC-8 with the numbers you independently recomputed, an explicit caveat list, an
+      explicit statement of what was NOT verified, and an inference block
+      (requested_policy: review-xhigh, resolved_model, reasoning_effort, fallback_used: true).
+  artifact_paths:
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-003/reviews/VAL-CTRLB.md
+  write_scope:
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-003/reviews/VAL-CTRLB.md
+  archived_by: TASK-20260726-DREG-CTRLB-LEDGER
+  inference:
+    policy: review-xhigh
+    fallback_allowed: true
+    independent_session_required: true
+    requires_recorded_resolution: true
+    note: >-
+      Claude Code cannot resolve GPT-5.6 policy aliases (CLAUDE.md model policy note).
+      Record requested_policy: review-xhigh, the exact resolved_model, reasoning_effort,
+      and fallback_used: true in VAL-CTRLB.md. Never silently substitute.
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 12
+    maximum_runs: 4
+    note: >-
+      The support/identity audit is seconds-scale (the BATCH-002 CTRL-A probe rebuilt both
+      arms' colidx maps in 12.8 s at 3.6 GB). The budget leaves room for bounded spot
+      checks; it does NOT fund a full distinct-engine D6 re-rank (~2300 s, ~7.7 GB), which
+      is out of scope for this task.
+  completion_gate:
+    - VAL-CTRLB.md exists at the declared path with exactly one terminal verdict.
+    - Each of VC-1..VC-8 is answered with a concrete result or an explicit "not verified" reason.
+    - >-
+      The independently recomputed kept/deleted column counts (174035 / 16016) and the
+      deleted-set degree histogram are stated as numbers you derived, not quoted from the
+      producer.
+    - >-
+      The bracket check is answered explicitly with the measured rank and deficit_genuine,
+      and the arithmetic re-derived from 156520, 16016, and 138573.
+    - The report states what was NOT verified and inherits any standing caveat by name.
+    - The report carries its inference block with fallback_used: true.
+  return_format: >-
+    A single markdown file with an embedded YAML validation_report block. Integrity
+    findings only; no interpretation of the mathematics and no status change.
+  assigned_at: "2026-07-26"
+  assigned_by: coordinator
