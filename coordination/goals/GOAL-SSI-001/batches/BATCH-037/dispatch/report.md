@@ -6,11 +6,11 @@ BATCH-037: construct a checkable symbolic global FC0 memory-bound obligation sch
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-121` | red-team | queued | 80 | TASK-20260730-119, TASK-20260730-120 | coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-121/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-121/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-121 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-122`: dependency_not_completed:TASK-20260730-121:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-037: construct a checkable symbolic global FC0 memory-bound obligation sch
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e41ec9d6be45f5fa50677c5c368c5b09fe7472e00a536c2b32afe6acd3c26190`
+Plan SHA-256: `93fedcc1318e9a0f96f2d3dd8d6bb2c92f77383c92002e721cbbd0f32d0c7860`
