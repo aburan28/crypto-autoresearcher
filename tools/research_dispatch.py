@@ -29,10 +29,73 @@ STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
 ARCHIVE_KINDS = {"snapshot", "ledger"}
 SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+NONAUTHORITATIVE_ERROR = "POLICY_NONAUTHORITATIVE"
+RECONCILIATION_ID = "RECON-20260802-001"
+RECONCILIATION_HISTORY_SCHEMAS = {
+    "crypto.autoresearch.reconciliation_history_index.v1",
+    "crypto.autoresearch.reconciliation_history_view.v1",
+}
+RECONCILIATION_VARIANT_ROOTS = (
+    "coordination/reconciliation/RECON-20260802-001/variants/local-a9664afb",
+    "coordination/reconciliation/RECON-20260802-001/variants/reanchor-717d932c",
+)
+RECONCILIATION_PROTECTED_QUEUES = tuple(
+    f"coordination/goals/GOAL-ECDLP-001/batches/BATCH-{number:03d}/dispatch_queue.json"
+    for number in range(20, 25)
+)
 
 
 class DispatchError(ValueError):
     """Raised when a dispatch queue cannot be safely scheduled."""
+
+
+def _relative_to_repository(path: Path, repo_root: Path) -> str | None:
+    """Return a canonical repository-relative path, or ``None`` if outside."""
+
+    try:
+        return path.relative_to(repo_root).as_posix()
+    except ValueError:
+        return None
+
+
+def enforce_reconciliation_queue_authority(queue_path: Path, repo_root: Path) -> None:
+    """Reject preserved and inherited RECON-20260802-001 queues before parsing.
+
+    Both the lexical path and the resolved target are checked so absolute,
+    relative, and symlink aliases cannot reach readiness evaluation.
+    """
+
+    root = repo_root.resolve()
+    lexical = queue_path if queue_path.is_absolute() else Path.cwd() / queue_path
+    candidates = {lexical.absolute(), lexical.resolve(strict=False)}
+    for candidate in candidates:
+        relative = _relative_to_repository(candidate, root)
+        if relative is None:
+            continue
+        if relative in RECONCILIATION_PROTECTED_QUEUES or any(
+            relative == variant or relative.startswith(variant + "/")
+            for variant in RECONCILIATION_VARIANT_ROOTS
+        ):
+            raise DispatchError(
+                f"{NONAUTHORITATIVE_ERROR}: {relative} is historical reconciliation material"
+            )
+
+
+def enforce_reconciliation_document_authority(queue: Any) -> None:
+    """Reject non-authorizing reconciliation envelopes before validation."""
+
+    if not isinstance(queue, dict):
+        return
+    authority = queue.get("authority")
+    nonauthorizing = isinstance(authority, dict) and (
+        authority.get("code") == "NONAUT"
+        or authority.get("dispatch_authority") == "NONAUT"
+        or authority.get("live_dispatch_semantics") == "none"
+    )
+    if queue.get("schema") in RECONCILIATION_HISTORY_SCHEMAS or nonauthorizing:
+        raise DispatchError(
+            f"{NONAUTHORITATIVE_ERROR}: reconciliation history indexes have no live dispatch semantics"
+        )
 
 
 class RepositoryVerifier(Protocol):
@@ -941,8 +1004,10 @@ def main() -> int:
     )
     args = parser.parse_args()
     try:
-        queue = json.loads(args.queue.read_text(encoding="utf-8"))
         repo_root = args.repo_root.resolve() if args.repo_root else discover_repository_root(args.queue.parent)
+        enforce_reconciliation_queue_authority(args.queue, repo_root)
+        queue = json.loads(args.queue.read_text(encoding="utf-8"))
+        enforce_reconciliation_document_authority(queue)
         plan = select(queue, repository_verifier=GitRepositoryVerifier(repo_root))
     except (OSError, json.JSONDecodeError, DispatchError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)

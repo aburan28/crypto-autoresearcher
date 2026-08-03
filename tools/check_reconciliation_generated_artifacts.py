@@ -1,179 +1,199 @@
 #!/usr/bin/env python3
-"""Fail-closed static validation for RECON-20260802-001 generated artifacts."""
+"""Fail-closed verification for RECON-20260802-001 history artifacts."""
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
-import subprocess
+import stat
 import sys
 from pathlib import Path
+from typing import Any
 
-try:
-    import yaml
-except ImportError:  # pragma: no cover
-    yaml = None
-
-RECON = "RECON-20260802-001"
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PHASE = ROOT / "coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-991/generated_artifact_phase_table.yaml"
-DEFAULT_INVENTORY = ROOT / "coordination/reconciliation/RECON-20260802-001/reported_conflict_inventory.draft.yaml"
-DEFAULT_SUCCESSOR = ROOT / "coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-950/successor_map.yaml"
-KINDS = {"queue_json", "plan_json", "plan_markdown"}
-PHASES = ["preserve_local_parent_blob", "preserve_reanchor_parent_blob",
-          "resolve_inherited_path_to_reanchor_intermediate",
-          "record_parent_variants_non_authorizing",
-          "regenerate_one_final_output_in_place", "validate_regenerated_trio"]
-MARKER_STORAGE = "coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-955/generated_artifact_phase_manifest.yaml"
-SCOPE_ADDITIONS = [MARKER_STORAGE,
-                   "coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-955/generated_artifact_static_check.json"]
-EXPECTED_BATCHES = {f"BATCH-0{number}" for number in range(20, 25)}
-KIND_PATHS = {"queue_json": "dispatch_queue.json", "plan_json": "dispatch_plan.json",
-              "plan_markdown": "dispatch_plan.md"}
-FINAL_VALIDATION = [
-    "every batch has exactly one queue, one JSON plan, and one Markdown plan",
-    "each regenerated plan is derived from its regenerated queue",
-    "each final output is inside TASK-20260802-955 exact write scope",
-    "no final output equals a preservation target",
-    "both parent variants remain byte-exact and non-authorizing",
-    "regenerated queues and plans cite only reconciled receipt or successor IDs",
-]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from tools.author_reconciliation_history import (
+    AUTHORITY_CODE,
+    CONTRACT_PATH,
+    CONTRACT_SHA256,
+    SNAPSHOT_COMMIT,
+    Compilation,
+    HistoryCompilerError,
+    build_compilation,
+    pretty_json,
+)
 
 
-def load(path: Path):
-    if yaml is None:
-        raise ValueError("PyYAML unavailable")
-    value = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(value, dict):
-        raise ValueError(f"not a mapping: {path}")
-    return value
+TASK_ROOT = ROOT / "coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003"
+DEFAULT_SOURCE_TABLE = TASK_ROOT / "source_occurrence_table.json"
+DEFAULT_REFERENCE_TABLE = TASK_ROOT / "reference_occurrence_table.json"
+IMPLEMENTATION_PATHS = {
+    "compiler_sha256": "tools/author_reconciliation_history.py",
+    "checker_sha256": "tools/check_reconciliation_generated_artifacts.py",
+    "dispatcher_sha256": "tools/research_dispatch.py",
+}
 
 
-def blob(parent: str, path: str, runner=subprocess.run) -> str:
-    process = runner(["git", "rev-parse", f"{parent}:{path}"], cwd=ROOT,
-                     check=False, capture_output=True, text=True)
-    if process.returncode:
-        raise ValueError(f"unavailable parent object: {parent}:{path}")
-    return process.stdout.strip()
+def _sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
-def object_type(parent: str, path: str, runner=subprocess.run) -> str:
-    process = runner(["git", "cat-file", "-t", f"{parent}:{path}"], cwd=ROOT,
-                     check=False, capture_output=True, text=True)
-    if process.returncode:
-        raise ValueError(f"unavailable parent object: {parent}:{path}")
-    return process.stdout.strip()
-
-
-def scope_overlaps(path: str, scope: str) -> bool:
-    return path == scope or (scope.endswith("/**") and path.startswith(scope[:-3]))
-
-
-def check(phase_path=DEFAULT_PHASE, inventory_path=DEFAULT_INVENTORY,
-          successor_path=DEFAULT_SUCCESSOR, runner=subprocess.run):
-    findings = []
-    def fail(code, detail):
-        findings.append({"code": code, "detail": detail})
+def _regular_file_bytes(path: Path, code: str) -> bytes:
     try:
-        phase, inventory, successor = map(load, (Path(phase_path), Path(inventory_path), Path(successor_path)))
-    except (OSError, ValueError) as exc:
-        return {"schema": "crypto.autoresearch.generated_artifact_static_check.v1", "pass": False,
-                "findings": [{"code": "input_invalid", "detail": str(exc)}]}
-    rows = phase.get("rows") if isinstance(phase.get("rows"), list) else []
-    envelope = {"schema": "crypto.autoresearch.reconciliation_generated_artifact_phase_table.v1",
-                "reconciliation_id": RECON, "task_id": "TASK-20260802-991",
-                "status": "coordinator_approved_for_snapshot",
-                "authoritative_research_evidence": False, "merge_authorized": False}
-    for key, value in envelope.items():
-        if phase.get(key) != value: fail("phase_envelope_mismatch", key)
-    expected = {x.get("path"): x for x in inventory.get("conflicts", [])
-                if isinstance(x, dict) and x.get("class") == "dispatch_artifact_collision"}
-    actual = {x.get("inherited_path"): x for x in rows if isinstance(x, dict)}
-    if set(actual) != set(expected): fail("generated_path_set_mismatch", "missing or extra generated path")
-    if len(rows) != 15 or len(actual) != 15: fail("generated_path_cardinality", "expected exactly 15 unique rows")
-    parents = inventory.get("heads", {})
-    local_parent = parents.get("local_ecdlp", {}).get("commit")
-    reanchor_parent = parents.get("audited_reanchor", {}).get("commit")
-    roots = phase.get("roots", {})
-    preservation = successor.get("preservation_namespaces", {})
-    if roots.get("local") != preservation.get("local_root") or roots.get("reanchor") != preservation.get("reanchor_root"):
-        fail("preservation_root_mismatch", "phase roots must bind successor namespaces")
-    contract = phase.get("phase_contract", {})
-    exact_contract = {
-        "ordered_phases": PHASES, "inherited_reanchor_equality": "intermediate_only",
-        "final_action_cardinality_per_path": 1, "final_action": "regenerate_in_place",
-        "final_output_rule": "final_output_path_must_equal_inherited_path",
-        "preservation_rule": "preserved_bytes_must_equal_named_parent_blobs",
-        "marker_storage": MARKER_STORAGE, "marker_mutates_preserved_blob": False,
-        "queue_regenerator": "coordinator_authors_reconciled_queue_from_preserved_receipts_and_reference_rewrite_manifest",
-        "plan_regenerator": "python3 tools/research_dispatch.py <queue_path> --output <plan_json_path> --report <plan_md_path>",
-        "final_validation": FINAL_VALIDATION,
+        mode = path.lstat().st_mode
+    except OSError as error:
+        raise HistoryCompilerError(code, f"{path}: {error}") from error
+    if path.is_symlink() or not stat.S_ISREG(mode):
+        raise HistoryCompilerError(code, f"{path} is not a regular non-symlink file")
+    return path.read_bytes()
+
+
+def validate_candidate(compilation: Compilation, candidate_root: Path) -> dict[str, int]:
+    """Verify a materialized candidate without mutating it."""
+
+    root = candidate_root.resolve()
+    copies = absences = outputs = 0
+    for row in compilation.preservation_mappings:
+        target = root.joinpath(*Path(row["target_path"]).parts)
+        try:
+            target.resolve(strict=False).relative_to(root)
+        except ValueError as error:
+            raise HistoryCompilerError("CANDIDATE_PATH_ESCAPE", row["target_path"]) from error
+        if row["disposition"] == "absence_attestation":
+            if target.exists() or target.is_symlink():
+                raise HistoryCompilerError("ABSENCE_MATERIALIZED", row["target_path"])
+            absences += 1
+            continue
+        content = _regular_file_bytes(target, "PRESERVATION_TARGET_INVALID")
+        if _sha256(content) != row["source_sha256"]:
+            raise HistoryCompilerError("PRESERVATION_TARGET_HASH_MISMATCH", row["target_path"])
+        copies += 1
+    for relative, expected in compilation.generated_outputs.items():
+        target = root.joinpath(*Path(relative).parts)
+        content = _regular_file_bytes(target, "GENERATED_OUTPUT_INVALID")
+        if content != expected:
+            raise HistoryCompilerError("GENERATED_OUTPUT_MISMATCH", relative)
+        outputs += 1
+    return {"blob_copies": copies, "absence_attestations": absences, "history_outputs": outputs}
+
+
+def _verify_table(path: Path, expected: bytes, code: str) -> str:
+    observed = _regular_file_bytes(path, code)
+    if observed != expected:
+        raise HistoryCompilerError(code, f"byte mismatch: {path}")
+    return _sha256(observed)
+
+
+def check(
+    repo_root: Path = ROOT,
+    source_table: Path = DEFAULT_SOURCE_TABLE,
+    reference_table: Path = DEFAULT_REFERENCE_TABLE,
+    candidate_root: Path | None = None,
+) -> dict[str, Any]:
+    findings: list[dict[str, str]] = []
+    compilation: Compilation | None = None
+    candidate_counts: dict[str, int] | None = None
+    source_sha = reference_sha = None
+    try:
+        compilation = build_compilation(repo_root)
+        source_sha = _verify_table(
+            source_table,
+            pretty_json(compilation.source_occurrences),
+            "SOURCE_TABLE_BINDING_MISMATCH",
+        )
+        reference_sha = _verify_table(
+            reference_table,
+            pretty_json(compilation.reference_occurrences),
+            "REFERENCE_TABLE_BINDING_MISMATCH",
+        )
+        if candidate_root is not None:
+            candidate_counts = validate_candidate(compilation, candidate_root)
+    except (OSError, HistoryCompilerError) as error:
+        code = error.code if isinstance(error, HistoryCompilerError) else "INPUT_INVALID"
+        findings.append({"code": code, "detail": str(error)})
+
+    summary = compilation.summary() if compilation is not None else {}
+    source_summary = (
+        compilation.source_occurrences.get("summary", {})
+        if compilation is not None
+        else {}
+    )
+    reference_summary = (
+        compilation.reference_occurrences.get("summary", {})
+        if compilation is not None
+        else {}
+    )
+    implementation_bindings: dict[str, str | None] = {}
+    for key, relative in IMPLEMENTATION_PATHS.items():
+        try:
+            implementation_bindings[key] = _sha256(
+                _regular_file_bytes(repo_root / relative, "IMPLEMENTATION_BINDING_INVALID")
+            )
+        except (OSError, HistoryCompilerError) as error:
+            code = error.code if isinstance(error, HistoryCompilerError) else "INPUT_INVALID"
+            findings.append({"code": code, "detail": str(error)})
+            implementation_bindings[key] = None
+    return {
+        "schema": "crypto.autoresearch.reconciliation_history_static_check.v1",
+        "reconciliation_id": "RECON-20260802-001",
+        "task_id": "TASK-20260803-003",
+        "pass": not findings,
+        "authority": AUTHORITY_CODE,
+        "input_bindings": {
+            "contract_snapshot_commit": SNAPSHOT_COMMIT,
+            "contract_path": CONTRACT_PATH,
+            "contract_sha256": CONTRACT_SHA256,
+            "source_table_sha256": source_sha,
+            "reference_table_sha256": reference_sha,
+        },
+        "implementation_bindings": implementation_bindings,
+        "counts": {
+            "source_occurrences": summary.get("source_occurrence_rows"),
+            "original_ids": source_summary.get("original_id_count"),
+            "identity_id_counts": source_summary.get("identity_id_counts"),
+            "source_state_counts": source_summary.get("state_counts"),
+            "archive_entries": source_summary.get("archive_entry_count"),
+            "archive_hash_bound": source_summary.get("archive_hash_bound_count"),
+            "archive_unbound": source_summary.get("archive_unbound_count"),
+            "archive_source_history_unreachable": source_summary.get(
+                "archive_source_history_unreachable_count"
+            ),
+            "reference_occurrences": summary.get("reference_occurrence_rows"),
+            "reference_queue_occurrences": reference_summary.get("queue_row_count"),
+            "preservation_mappings": summary.get("preservation_mapping_rows"),
+            "preservation_blob_copies": summary.get("preservation_blob_copies"),
+            "preservation_absence_attestations": summary.get(
+                "preservation_absence_attestations"
+            ),
+            "generated_history_outputs": summary.get("generated_history_outputs"),
+        },
+        "candidate_counts": candidate_counts,
+        "findings": findings,
     }
-    for key, value in exact_contract.items():
-        if contract.get(key) != value: fail("phase_contract_mismatch", key)
-    additions = phase.get("task_955_scope_additions")
-    if additions != SCOPE_ADDITIONS: fail("task_955_scope_additions_mismatch", "exact additions required")
-    for task, task_data in successor.get("task_scope_map", {}).items():
-        if task == "TASK-20260802-955" or not isinstance(task_data, dict): continue
-        for addition in SCOPE_ADDITIONS:
-            if any(scope_overlaps(addition, candidate) for candidate in task_data.get("write_scope", [])):
-                fail("task_955_scope_additions_overlap", f"{task}:{addition}")
-    scope = successor.get("task_scope_map", {}).get("TASK-20260802-955", {}).get("write_scope", [])
-    marker_seen = set(); final_seen = set(); batches = {}
-    blob_checks = 0; object_type_checks = 0
-    for row in rows:
-        path = row.get("inherited_path"); expected_row = expected.get(path, {})
-        if row.get("local_blob") != expected_row.get("local_blob") or row.get("reanchor_blob") != expected_row.get("reanchor_blob"):
-            fail("parent_blob_or_preservation_mismatch", str(path))
-        for side, parent in (("local", local_parent), ("reanchor", reanchor_parent)):
-            target = row.get(f"{side}_preservation_target")
-            required = f"{roots.get(side, '')}/{path}"
-            if target != required: fail("parent_blob_or_preservation_mismatch", f"{side} target {path}")
-            try:
-                observed = blob(parent, path, runner)
-                blob_checks += 1
-                if observed != row.get(f"{side}_blob"): fail("parent_blob_or_preservation_mismatch", f"{side} blob {path}")
-                if object_type(parent, path, runner) != "blob": fail("parent_object_type_invalid", f"{side} {path}")
-                object_type_checks += 1
-            except ValueError as exc: fail("parent_object_unavailable", str(exc))
-            marker = row.get(f"{side}_non_authorizing_marker")
-            required_marker = f"{RECON}:NONAUT:{roots.get(side, '').rsplit('/', 1)[-1]}:{path}"
-            if marker != required_marker or marker in marker_seen: fail("marker_mismatch_or_duplicate", f"{side} {path}")
-            marker_seen.add(marker)
-        if row.get("intermediate_action") != "retain_reanchor_blob_at_inherited_path" or contract.get("inherited_reanchor_equality") != "intermediate_only":
-            fail("non_intermediate_reanchor_equality", str(path))
-        if row.get("final_action") != "regenerate_in_place": fail("final_action_cardinality", str(path))
-        output = row.get("final_output_path")
-        if output in final_seen: fail("final_action_cardinality", f"duplicate {output}")
-        final_seen.add(output)
-        if output != path or output not in scope: fail("final_output_outside_task_955_scope", str(path))
-        if output in (row.get("local_preservation_target"), row.get("reanchor_preservation_target")):
-            fail("final_output_equals_preservation_target", str(path))
-        expected_suffix = KIND_PATHS.get(row.get("artifact_kind"))
-        if not expected_suffix or not path.endswith(f"/{row.get('batch')}/{expected_suffix}"):
-            fail("artifact_kind_path_mismatch", str(path))
-        batches.setdefault(row.get("batch"), set()).add(row.get("artifact_kind"))
-    if len(final_seen) != len(rows): fail("final_action_cardinality", "zero or multiple final actions")
-    for batch, kinds in batches.items():
-        if kinds != KINDS: fail("incomplete_batch_trio", str(batch))
-    if set(batches) != EXPECTED_BATCHES: fail("batch_id_set_mismatch", "expected BATCH-020 through BATCH-024")
-    if len(batches) != 5: fail("incomplete_batch_trio", "expected five batches")
-    return {"schema": "crypto.autoresearch.generated_artifact_static_check.v1", "reconciliation_id": RECON,
-            "pass": not findings, "row_count": len(rows), "blob_check_count": blob_checks,
-            "object_type_check_count": object_type_checks,
-            "batch_trio_count": sum(k == KINDS for k in batches.values()), "findings": findings}
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--phase", type=Path, default=DEFAULT_PHASE)
-    parser.add_argument("--inventory", type=Path, default=DEFAULT_INVENTORY)
-    parser.add_argument("--successor-map", type=Path, default=DEFAULT_SUCCESSOR)
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo-root", type=Path, default=ROOT)
+    parser.add_argument("--source-table", type=Path, default=DEFAULT_SOURCE_TABLE)
+    parser.add_argument("--reference-table", type=Path, default=DEFAULT_REFERENCE_TABLE)
+    parser.add_argument("--candidate-root", type=Path)
     parser.add_argument("--report", type=Path)
     args = parser.parse_args(argv)
-    report = check(args.phase, args.inventory, args.successor_map)
+    report = check(
+        args.repo_root,
+        args.source_table,
+        args.reference_table,
+        args.candidate_root,
+    )
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
-    if args.report: args.report.write_text(encoded, encoding="utf-8")
-    else: sys.stdout.write(encoded)
+    if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(encoded, encoding="utf-8")
+    else:
+        sys.stdout.write(encoded)
     return 0 if report["pass"] else 1
 
 

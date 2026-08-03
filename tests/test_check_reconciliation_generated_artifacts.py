@@ -1,81 +1,94 @@
-"""Mutation coverage for the generated-artifact static checker."""
 from __future__ import annotations
+
 from pathlib import Path
-import yaml
+
+from tools import author_reconciliation_history as history
 from tools import check_reconciliation_generated_artifacts as checker
 
+
 ROOT = Path(__file__).resolve().parents[1]
-PHASE = ROOT / "coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-991/generated_artifact_phase_table.yaml"
-INV = ROOT / "coordination/reconciliation/RECON-20260802-001/reported_conflict_inventory.draft.yaml"
-SUC = ROOT / "coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-950/successor_map.yaml"
 
-def fake_git(argv, **kwargs):
-    parent, path = argv[-1].split(":", 1)
-    inv = yaml.safe_load(INV.read_text())
-    side = "local_blob" if parent == inv["heads"]["local_ecdlp"]["commit"] else "reanchor_blob"
-    if argv[1:4] == ["cat-file", "-t", argv[-1]]:
-        return type("P", (), {"returncode": 0, "stdout": "blob\n"})()
-    value = next(x[side] for x in inv["conflicts"] if x["path"] == path)
-    return type("P", (), {"returncode": 0, "stdout": value + "\n"})()
 
-def base(): return yaml.safe_load(PHASE.read_text())
-def run(tmp_path, phase, successor=None, runner=fake_git):
-    p = tmp_path / "phase.yaml"; p.write_text(yaml.safe_dump(phase))
-    s = SUC
-    if successor is not None:
-        s = tmp_path / "successor.yaml"; s.write_text(yaml.safe_dump(successor))
-    return checker.check(p, INV, s, runner)
+def test_static_check_binds_exact_tables_and_counts():
+    report = checker.check()
+    assert report["pass"] and report["findings"] == []
+    assert set(report["implementation_bindings"]) == {
+        "checker_sha256",
+        "compiler_sha256",
+        "dispatcher_sha256",
+    }
+    assert all(
+        len(digest) == 64 for digest in report["implementation_bindings"].values()
+    )
+    assert report["counts"]["source_occurrences"] == 100
+    assert report["counts"]["reference_occurrences"] == 623
+    assert report["counts"]["preservation_mappings"] == 128
+    assert report["counts"]["generated_history_outputs"] == 15
+    assert report["counts"]["archive_source_history_unreachable"] == 17
 
-def test_immutable_inputs_pass_with_thirty_blob_checks():
-    report = checker.check(PHASE, INV, SUC, fake_git)
-    assert report["pass"] and report["row_count"] == 15 and report["blob_check_count"] == 30 and report["object_type_check_count"] == 30 and report["batch_trio_count"] == 5
 
-def test_missing_or_extra_generated_path_fails(tmp_path):
-    phase = base(); phase["rows"].pop(); assert "generated_path_set_mismatch" in {x["code"] for x in run(tmp_path, phase)["findings"]}
+def test_mutated_source_and_reference_tables_fail(tmp_path):
+    source = tmp_path / "source.json"
+    source.write_bytes(checker.DEFAULT_SOURCE_TABLE.read_bytes() + b" ")
+    report = checker.check(source_table=source)
+    assert not report["pass"]
+    assert report["findings"][0]["code"] == "SOURCE_TABLE_BINDING_MISMATCH"
 
-def test_wrong_parent_blob_or_preservation_target_fails(tmp_path):
-    phase = base(); phase["rows"][0]["local_blob"] = "0" * 40; assert "parent_blob_or_preservation_mismatch" in {x["code"] for x in run(tmp_path, phase)["findings"]}
+    reference = tmp_path / "reference.json"
+    reference.write_bytes(checker.DEFAULT_REFERENCE_TABLE.read_bytes() + b" ")
+    report = checker.check(reference_table=reference)
+    assert not report["pass"]
+    assert report["findings"][0]["code"] == "REFERENCE_TABLE_BINDING_MISMATCH"
 
-def test_coordinated_preservation_root_drift_fails(tmp_path):
-    phase = base(); phase["roots"]["local"] = "coordinated-drift"
-    phase["rows"][0]["local_preservation_target"] = "coordinated-drift/" + phase["rows"][0]["inherited_path"]
-    phase["rows"][0]["local_non_authorizing_marker"] = "RECON-20260802-001:NONAUT:coordinated-drift:" + phase["rows"][0]["inherited_path"]
-    assert "preservation_root_mismatch" in {x["code"] for x in run(tmp_path, phase)["findings"]}
 
-def test_marker_mismatch_or_duplicate_fails(tmp_path):
-    phase = base(); phase["rows"][0]["local_non_authorizing_marker"] = "bad"; assert "marker_mismatch_or_duplicate" in {x["code"] for x in run(tmp_path, phase)["findings"]}
+def test_candidate_positive_and_corruption_controls(tmp_path):
+    compilation = history.build_compilation(ROOT)
+    history.materialize_compilation(compilation, tmp_path, ROOT)
+    report = checker.check(candidate_root=tmp_path)
+    assert report["pass"]
+    assert report["candidate_counts"] == {
+        "blob_copies": 126,
+        "absence_attestations": 2,
+        "history_outputs": 15,
+    }
+    first = next(
+        row for row in compilation.preservation_mappings
+        if row["disposition"] == "copy_blob_verbatim"
+    )
+    target = tmp_path.joinpath(*Path(first["target_path"]).parts)
+    target.write_bytes(target.read_bytes() + b"corruption")
+    report = checker.check(candidate_root=tmp_path)
+    assert not report["pass"]
+    assert report["findings"][0]["code"] == "PRESERVATION_TARGET_HASH_MISMATCH"
 
-def test_zero_or_multiple_final_actions_fails(tmp_path):
-    phase = base(); phase["rows"][1]["final_output_path"] = phase["rows"][0]["final_output_path"]; assert "final_action_cardinality" in {x["code"] for x in run(tmp_path, phase)["findings"]}
 
-def test_final_output_outside_task_955_scope_fails(tmp_path):
-    phase = base(); phase["rows"][0]["final_output_path"] = "elsewhere"; assert "final_output_outside_task_955_scope" in {x["code"] for x in run(tmp_path, phase)["findings"]}
+def test_candidate_absence_empty_file_is_not_an_attestation(tmp_path):
+    compilation = history.build_compilation(ROOT)
+    history.materialize_compilation(compilation, tmp_path, ROOT)
+    absence = next(
+        row for row in compilation.preservation_mappings
+        if row["disposition"] == "absence_attestation"
+    )
+    target = tmp_path.joinpath(*Path(absence["target_path"]).parts)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"")
+    report = checker.check(candidate_root=tmp_path)
+    assert not report["pass"]
+    assert report["findings"][0]["code"] == "ABSENCE_MATERIALIZED"
 
-def test_non_intermediate_reanchor_equality_fails(tmp_path):
-    phase = base(); phase["phase_contract"]["inherited_reanchor_equality"] = "final"; assert "non_intermediate_reanchor_equality" in {x["code"] for x in run(tmp_path, phase)["findings"]}
 
-def test_incomplete_batch_trio_fails(tmp_path):
-    phase = base(); phase["rows"][0]["artifact_kind"] = "wrong"; assert "incomplete_batch_trio" in {x["code"] for x in run(tmp_path, phase)["findings"]}
-
-def test_phase_contract_mismatch_fails(tmp_path):
-    phase = base(); phase["phase_contract"]["marker_mutates_preserved_blob"] = True; assert "phase_contract_mismatch" in {x["code"] for x in run(tmp_path, phase)["findings"]}
-
-def test_phase_envelope_and_final_validation_drift_fail(tmp_path):
-    phase = base(); phase["status"] = "wrong"; assert "phase_envelope_mismatch" in {x["code"] for x in run(tmp_path, phase)["findings"]}
-    phase = base(); phase["phase_contract"]["final_validation"].pop(); assert "phase_contract_mismatch" in {x["code"] for x in run(tmp_path, phase)["findings"]}
-
-def test_scope_addition_mismatch_and_overlap_fail(tmp_path):
-    phase = base(); phase["task_955_scope_additions"] = ["wrong"]; assert "task_955_scope_additions_mismatch" in {x["code"] for x in run(tmp_path, phase)["findings"]}
-
-    phase = base(); successor = yaml.safe_load(SUC.read_text())
-    successor["task_scope_map"]["TASK-20260802-951"]["write_scope"].append(
-        "coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-955/**")
-    assert "task_955_scope_additions_overlap" in {x["code"] for x in run(tmp_path, phase, successor)["findings"]}
-
-def test_non_blob_parent_object_type_fails(tmp_path):
-    def tree_git(argv, **kwargs):
-        result = fake_git(argv, **kwargs)
-        if argv[1:3] == ["cat-file", "-t"]:
-            return type("P", (), {"returncode": 0, "stdout": "tree\n"})()
-        return result
-    assert "parent_object_type_invalid" in {x["code"] for x in run(tmp_path, base(), runner=tree_git)["findings"]}
+def test_candidate_symlink_cannot_substitute_for_preserved_blob(tmp_path):
+    compilation = history.build_compilation(ROOT)
+    history.materialize_compilation(compilation, tmp_path, ROOT)
+    first = next(
+        row for row in compilation.preservation_mappings
+        if row["disposition"] == "copy_blob_verbatim"
+    )
+    target = tmp_path.joinpath(*Path(first["target_path"]).parts)
+    substitute = tmp_path / "substitute"
+    substitute.write_bytes(target.read_bytes())
+    target.unlink()
+    target.symlink_to(substitute)
+    report = checker.check(candidate_root=tmp_path)
+    assert not report["pass"]
+    assert report["findings"][0]["code"] == "PRESERVATION_TARGET_INVALID"
