@@ -6,12 +6,10 @@ BATCH-041: one bounded zero-compute batch that attempts the QM-STOPPING §6 item
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-135` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/host_independence_reduction.md, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/reduction_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/falsifiable_criteria.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/reduction_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/reduction_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/reduction_harness/ledger_checks.py, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/reduction_harness/test_reduction.py, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/reduction_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135/reduction_harness/harness_receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-135 |
+| `TASK-20260730-137` | red-team | queued | 80 | TASK-20260730-135, TASK-20260730-136 | coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-137/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-137/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-137 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-136`: dependency_not_completed:TASK-20260730-135:queued
-- `TASK-20260730-137`: dependency_not_completed:TASK-20260730-135:queued, dependency_not_completed:TASK-20260730-136:queued
 - `TASK-20260730-138`: dependency_not_completed:TASK-20260730-137:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-041: one bounded zero-compute batch that attempts the QM-STOPPING §6 item
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b60e7d29c4008d24b39aeedb0dd208b271e46302710ebbbea0c195481b025c2f`
+Plan SHA-256: `33af99c60e43fad4de09da48302dab7712b3a2fdddc7480a0c1c3f3e1901d26c`
