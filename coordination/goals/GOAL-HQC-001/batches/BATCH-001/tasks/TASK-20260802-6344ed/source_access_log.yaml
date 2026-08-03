@@ -1,0 +1,744 @@
+# TASK-20260802-6344ed -- source access log
+#
+# NAMED DUTY 3 (source-route honesty): the route order in `declared_access_order`
+# below was written to disk BEFORE any network attempt was made, at the timestamp
+# in `declaration.declared_at`. Every attempt afterwards is appended to
+# `attempts` with its URL, method, timestamp, status, and outcome. A blocked
+# route is a recorded outcome, not a failure of the task.
+#
+# THIS FILE IS COMPLETED IN TWO PASSES. Pass 1 wrote everything down to and
+# including `declared_access_order`. Pass 2 appended `attempts`, `sources_sought`
+# outcomes, `artifacts`, and `summary`. The declaration was not edited afterwards.
+
+task_id: TASK-20260802-6344ed
+goal_id: GOAL-HQC-001
+question_id: RQ-HQC-001
+batch_id: BATCH-001
+role: executor
+branch: claude/goal-target-hqc-launch-vndegi
+git_commit_at_start: 47a684f24a51771cad8336509d28ec025755501b
+git_dirty_at_start: false
+
+inference:
+  requested_policy: executor-implementation
+  resolved_model_id: claude-opus-5
+  fallback_used: true
+  fallback_reason: >-
+    The policy aliases in orchestration/model-policies.yaml do not resolve under
+    this Claude Code harness. Subagent frontmatter in .claude/agents/ supports
+    only Claude models, so all subagents run `model: inherit` and execute on the
+    session model. The requested policy executor-implementation was therefore
+    served by claude-opus-5. Recorded rather than silently substituted, per
+    AGENTS.md "Model policy" and CLAUDE.md "Model policy note".
+  model_verified: false
+  model_verified_note: >-
+    `python3 -m orchestration.adapter doctor --probe` was not run by this task;
+    the adapter is not the runtime here. The resolved model id is the harness's
+    own report, not a probe result.
+  reasoning_effort: null
+  independent_session: true
+  degraded_allowed: false
+  degraded_requirements: []
+
+declaration:
+  declared_at: '2026-08-02T21:22:05Z'
+  declared_before_first_attempt: true
+  note: >-
+    Written to disk in a single Write call at the timestamp above. The first
+    network attempt (attempts[1]) carries a later timestamp. No route below was
+    added or reordered after attempts began; routes that were never reached are
+    marked reached: false rather than deleted.
+
+# ---------------------------------------------------------------------------
+# What is being sought, declared before searching so that a source found later
+# cannot be retro-fitted into the target list.
+# ---------------------------------------------------------------------------
+sources_sought:
+  - key: S1
+    what: >-
+      The HQC specification document itself (the current specification of
+      Hamming Quasi-Cyclic as submitted to / selected by NIST), because it is
+      the primary carrier of the analytic decoding-failure-rate model for the
+      concatenated Reed-Muller / Reed-Solomon decoder.
+    why_load_bearing: >-
+      GOAL-HQC-001's whole first lane is "independently re-derive its analytic
+      decoding-failure-rate model". RQ-HQC-001.constraints forbid designing an
+      experiment until the primary sources are filed. BATCH-001-OPENING.md
+      section 3 records that the specification is absent from the corpus.
+  - key: S2
+    what: >-
+      The primary DFR-analysis literature for HQC's concatenated RM/RS decoder
+      -- whichever paper(s) the specification itself derives its DFR bound
+      from, identified from the specification rather than from memory.
+    why_load_bearing: >-
+      The specification may state the model and cite its derivation elsewhere.
+      A transcription that stops at the specification's statement and does not
+      name the derivation source would leave the assumption list incomplete.
+  - key: S3
+    what: >-
+      Guo-Johansson, "A New Decryption Failure Attack against HQC" -- already
+      in the corpus as KN-LIT-2141 with year/venue/identifiers/url all null.
+    why_load_bearing: >-
+      Named in the handoff's DEDUP duty. This is the DFR-attack lane's existing
+      weak record; the acquisition target here is bibliographic repair, not a
+      new entry.
+  - key: S4
+    what: >-
+      Carrier-Hatey-Luzzi-Tillich, iacr:2026/1498 -- already in the corpus as
+      KN-LIT-7565 at citation_verified: web (abstract only).
+    why_load_bearing: >-
+      Named in the handoff's DEDUP duty; the ISD lane's existing record. In
+      scope for this task only to the extent of recording a dedup verdict; the
+      ISD costing convention itself belongs to TASK-20260802-0100a5.
+
+# ---------------------------------------------------------------------------
+# DECLARED ACCESS ORDER -- written before the first attempt.
+# ---------------------------------------------------------------------------
+declared_access_order:
+  - rank: 1
+    route: local-repository-state
+    detail: >-
+      Search committed repository state (inputs/, knowledge/, research/,
+      research_digest/, notes/) for any already-present HQC specification text,
+      DFR-model text, or local PDF copy. Zero network cost; also discharges the
+      DEDUP-BEFORE-ACQUIRE duty, which must run first regardless.
+    rationale: Cheapest route and the one the handoff orders first.
+  - rank: 2
+    route: pqc-hqc.org
+    detail: >-
+      The HQC project's own site is the canonical publication point for the
+      specification document. Try the site root and any specification PDF it
+      links, over curl through the configured proxy.
+    rationale: >-
+      Primary source, author-published, not behind a publisher paywall, and not
+      on the nist.gov domain that RQ-HQC-001.provenance records as blocked.
+  - rank: 3
+    route: arxiv.org
+    detail: >-
+      arXiv listing/search API and abs/pdf endpoints for HQC DFR material.
+    rationale: >-
+      Recorded as responsive to this program in GOAL-HAWK-001 BATCH-002, so it
+      is the highest-confidence network route available.
+  - rank: 4
+    route: hal.science
+    detail: >-
+      HAL, the French open repository. Much of the HQC team is at Inria /
+      Limoges / Bordeaux / Telecom Paris, so HQC papers are plausibly deposited
+      there. Open repository, acceptable for citation_verified: web under
+      knowledge/SEEDING.md.
+    rationale: Open-access mirror route that avoids publisher paywalls.
+  - rank: 5
+    route: dblp.org
+    detail: >-
+      Bibliographic metadata only (author/title/venue/year/DOI). No fulltext.
+    rationale: >-
+      knowledge/SEEDING.md names DBLP as a primary index sufficient for
+      citation_verified: web. This is the route that can repair KN-LIT-2141's
+      null year/venue/identifiers without any fulltext access.
+  - rank: 6
+    route: eprint.iacr.org
+    detail: >-
+      IACR ePrint abstract pages and PDFs. ATTEMPT ONCE PER TARGET, RECORD THE
+      OUTCOME, AND STOP. If a Cloudflare or other bot-protection challenge is
+      returned, that is the recorded outcome; no circumvention is attempted,
+      per the handoff constraint.
+    rationale: >-
+      Where most of this literature actually lives, but it returned Cloudflare
+      challenges to this program in GOAL-HAWK-001 BATCH-002, so it is ranked
+      below routes with a better recorded record rather than first.
+  - rank: 7
+    route: publisher-doi-landing
+    detail: >-
+      IEEE Xplore / Springer / ACM landing pages for bibliographic metadata
+      only. Fulltext is expected to be paywalled and no paywall is circumvented.
+    rationale: Venue/year confirmation of last resort for S3.
+  - rank: 8
+    route: csrc.nist.gov-and-nist.gov
+    detail: >-
+      One attempt, to confirm whether the block recorded in
+      RQ-HQC-001.provenance still holds under the current network policy.
+      Recorded either way.
+    rationale: >-
+      Recorded as blocked (proxy CONNECT 403). Ranked last because it is
+      expected to fail, but attempted because "treat the network notes as
+      starting facts to verify, not as excuses" is an explicit instruction.
+  - rank: 9
+    route: websearch-webfetch-tools
+    detail: >-
+      The harness's WebSearch / WebFetch tools, used for discovery of exact
+      identifiers and as a fetch path where curl is blocked but the tool is not.
+    rationale: >-
+      Different transport from curl, so it can succeed where curl fails; but it
+      returns rendered/summarized text, so anything obtained through it is
+      marked with its transport and is not treated as byte-level primary text
+      unless a sha256 was computed over a downloaded file.
+
+routes_explicitly_excluded:
+  - route: author-correspondence
+    reason: >-
+      The handoff forbids outward-facing correspondence to authors; it needs
+      explicit user authorization that this campaign does not grant.
+  - route: bot-protection-circumvention
+    reason: >-
+      Explicitly forbidden. A Cloudflare or CAPTCHA challenge is logged as the
+      route's outcome and the route stops there. No user-agent spoofing beyond
+      a plain identifying agent string, no challenge solving, no proxy evasion.
+  - route: paywall-circumvention-or-shadow-libraries
+    reason: Out of bounds; also a copyright violation.
+  - route: disable-tls-or-unset-HTTPS_PROXY
+    reason: Forbidden by the environment contract.
+
+third_party_pdf_policy: >-
+  No third-party PDF is committed to this repository. Downloads live only under
+  the session scratchpad. For each, this log records the URL, the byte count,
+  and the sha256 so that a reviewer can re-acquire the file and verify
+  byte-identity independently.
+
+# ---------------------------------------------------------------------------
+# PASS 2 -- appended after the declaration above.
+# ---------------------------------------------------------------------------
+
+environment:
+  os: Linux 6.18.5 x86_64
+  python: 3.11.15
+  http_client: curl (system), through the configured HTTPS proxy
+  pdf_toolchain: >-
+    PyMuPDF 1.28.0, installed from PyPI during this task (pypi.org is in the
+    proxy's noProxy list). No pdftotext, pypdf, or pdfminer was available in the
+    image; this was checked before installing.
+  proxy_status_probe:
+    at: '2026-08-02T21:21:19Z'
+    command: curl -sS "$HTTPS_PROXY/__agentproxy/status"
+    result: >-
+      enabled: true, port 38837, caBundlePath /root/.ccr/ca-bundle.crt,
+      selective false, standalone false, toolScoped false,
+      recentRelayFailures: [] (empty).
+  tls_note: >-
+    TLS verification was never disabled and HTTPS_PROXY was never unset. No
+    request needed a workaround from /root/.ccr/README.md, because no request
+    returned 403/405/407 or a TLS error.
+  git_commands_run: >-
+    `git rev-parse HEAD` and `git status --porcelain` only. NO state-mutating
+    git command was run: no add, commit, checkout, stash, branch, push, or merge.
+  harness_tools_used:
+    websearch: false
+    webfetch: false
+    note: >-
+      WebSearch/WebFetch were available via ToolSearch and were NOT used.
+      Declared route rank 9 was never reached because curl succeeded on every
+      route that was attempted. Recorded because "log what you used" cuts both
+      ways: an unused capability is an unused capability, not a silent fallback.
+
+# ---------------------------------------------------------------------------
+# ATTEMPTS -- in execution order. Times are UTC, from `date -u`.
+# ---------------------------------------------------------------------------
+attempts:
+
+  - n: 1
+    route_rank: 1
+    route: local-repository-state
+    method: >-
+      grep/ls/find over the working tree at 47a684f2 (read-only). Commands are
+      reproduced verbatim in corpus_dedup_report.md section 1.
+    window_utc: ['2026-08-02T21:22:05Z', '2026-08-02T21:23:10Z']
+    status: n/a (local filesystem)
+    outcome: >-
+      NEGATIVE FOR ACQUISITION, POSITIVE FOR DEDUP. No HQC specification, no DFR
+      model text, and no local PDF of either is present in the repository.
+      `grep -ril "hqc" knowledge/` returns exactly the six census records plus
+      INDEX.md, reproducing BATCH-001-OPENING.md section 3 exactly. Repository
+      PDFs exist only under experiments/EXP-MLKEM-*/vendor-lock/,
+      coordination/goals/GOAL-SSI-001/..., coordination/tasks/..., and
+      inputs/ECTD-TESKE-20260731/sources/ -- none HQC-related.
+    incidental_finding: >-
+      KN-LIT-2141, KN-LIT-1798, KN-LIT-2083, KN-LIT-3859 and KN-LIT-2541 each
+      cite "Local copies" under a `downloads/` directory. NO SUCH DIRECTORY
+      EXISTS in this repository and `downloads` is not in .gitignore. Recorded
+      because those records carry citation_verified: read on the strength of
+      artifacts a reviewer cannot open. Disposition is not this task's to make.
+
+  - n: 2
+    route_rank: 2
+    route: pqc-hqc.org
+    url: https://pqc-hqc.org/
+    method: curl -sS -L --max-time 60
+    at_utc: '2026-08-02T21:23:18Z'
+    status: 'HTTP 200'
+    bytes: 3351
+    sha256: 9bb6f3aab969434c88cd1e3f057000b01a6ee09057a8b28f00c94b3c79a55bf9
+    outcome: >-
+      SUCCESS. Real project page (HQC overview + sizes/performance table), not a
+      challenge or interstitial. Links to resources.html.
+
+  - n: 3
+    route_rank: 2
+    route: pqc-hqc.org
+    url: https://pqc-hqc.org/resources.html
+    method: curl -sS -L --max-time 60
+    at_utc: '2026-08-02T21:23:33Z'
+    status: 'HTTP 200'
+    bytes: 1980
+    sha256: 53721737ae42aed038c3d9a86ad93cd3542d329efbd908a36d563647a2c1761d
+    outcome: >-
+      SUCCESS. Names exactly one specification document:
+      ./doc/hqc_specifications_2025_08_22.pdf, labelled "HQC specifications -
+      [pdf] (2025-08-22)". Also links a gitlab code repo and two archive zips
+      (NIST submission packages, NIST PQC conference presentations), neither of
+      which was downloaded -- out of this task's objective.
+
+  - n: 4
+    route_rank: 2
+    route: pqc-hqc.org
+    url: https://pqc-hqc.org/doc/hqc_specifications_2025_08_22.pdf
+    method: curl -sS -L --max-time 180
+    at_utc: '2026-08-02T21:23:43Z'
+    completed_utc: '2026-08-02T21:23:45Z'
+    status: 'HTTP 200, content-type application/pdf, 1.66 s'
+    bytes: 876126
+    sha256: 174186cb5fdc0108aad914391360c222f52ea533bfb406146fac124b3a25406d
+    outcome: >-
+      SUCCESS -- PRIMARY OBJECTIVE MET. PDF 1.5, 51 pages, produced by
+      pdfTeX-1.40.26, creationDate D:20250822133716Z. Bookmark tree includes
+      "Decoding Failure Rate analysis" (p.32) and "Concatenated Reed-Muller and
+      Reed-Solomon codes" (p.17). This is source S1.
+    stored_at: scratchpad only; NOT committed (third-party PDF policy).
+
+  - n: 5
+    route_rank: 3
+    route: arxiv.org
+    url: https://arxiv.org/abs/2005.10741
+    method: curl -sS -L --max-time 60
+    at_utc: '2026-08-02T21:25:29Z'
+    status: 'HTTP 200'
+    bytes: 42908
+    sha256: 64a4148e5b102b456f67a0bac9975d8f67b6394e3c9e1654d30d19314cdbd052
+    outcome: >-
+      SUCCESS. citation_title / citation_author / citation_date / citation_arxiv_id
+      meta tags confirm: "HQC-RMRS, an instantiation of the HQC encryption
+      framework with a more efficient auxiliary error-correcting code"; Aragon
+      Nicolas, Gaborit Philippe, Zemor Gilles; 2020/05/21; 2005.10741.
+    why_this_url: >-
+      NOT guessed and NOT recalled. Read out of the specification's own
+      reference list: SPEC section 6.1.1 says "following [4]" and SPEC
+      reference [4] is this arXiv identifier. Recorded because the difference
+      between "the derivation source the primary text names" and "a paper I
+      remembered" is the whole point of this task.
+
+  - n: 6
+    route_rank: 3
+    route: arxiv.org
+    url: https://arxiv.org/pdf/2005.10741
+    method: curl -sS -L --max-time 180
+    at_utc: '2026-08-02T21:25:29Z'
+    completed_utc: '2026-08-02T21:25:30Z'
+    status: 'HTTP 200, content-type application/pdf'
+    bytes: 525223
+    sha256: cbb7dbd670f27cdcf602438018df52745c0af495050aedb3b83a0b00986f5446
+    outcome: >-
+      SUCCESS -- source S2 obtained. PDF 1.4, 14 pages, pdfTeX-1.40.17,
+      creationDate D:20200522002924Z.
+    stored_at: scratchpad only; NOT committed.
+
+  - n: 7
+    route_rank: 5
+    route: dblp.org
+    url: 'https://dblp.org/search/publ/api?q=decryption+failure+attack+HQC&format=json&h=20'
+    method: curl -sS -G --max-time 60
+    at_utc: '2026-08-02T21:27:55Z'
+    status: 'HTTP 200'
+    bytes: 917
+    sha256: 7750616728a5e492381c3939900ed6ae5833ee5f0152e56199325f404212ce9a
+    outcome: >-
+      SUCCESS, exactly 1 hit. "A New Decryption Failure Attack Against HQC",
+      Qian Guo 0001 and Thomas Johansson 0001, ASIACRYPT 2020, pages 353-382,
+      doi 10.1007/978-3-030-64837-4_12, dblp key conf/asiacrypt/Guo020,
+      access: closed. This is the bibliographic repair for KN-LIT-2141
+      (source S3), whose year/venue/identifiers/url are all null.
+
+  - n: 8
+    route_rank: 5
+    route: dblp.org
+    url: https://dblp.org/rec/conf/asiacrypt/Guo020.bib
+    method: curl -sS -L --max-time 60
+    at_utc: '2026-08-02T21:28:15Z'
+    window_end_utc: '2026-08-02T21:28:34Z'
+    status: 'HTTP 200'
+    bytes: 984
+    sha256: ff43877dd601c405b6658da97d114998f3d69699f2b1e93369eef80f5d42170d
+    outcome: >-
+      SUCCESS. Adds series "Lecture Notes in Computer Science", volume 12491,
+      publisher Springer, editors Moriai and Wang, and the full proceedings
+      title (26th Int. Conf., Daejeon, South Korea, December 7-11, 2020,
+      Proceedings, Part I).
+
+  - n: 9
+    route_rank: 6
+    route: eprint.iacr.org
+    url: https://eprint.iacr.org/2026/1498
+    method: curl -sS -L --max-time 60
+    at_utc: '2026-08-02T21:28:15Z'
+    window_end_utc: '2026-08-02T21:28:34Z'
+    status: 'HTTP 200'
+    bytes: 18045
+    sha256: 71ff67f9bc0b039a5053c1797d37992d287751e1438f3a2ae23f1e6ea789ec29
+    outcome: >-
+      SUCCESS, AND A PROGRAM-STATE FACT DID NOT REPRODUCE. Real abstract page
+      (title, four authors with affiliations, full abstract), NOT a Cloudflare
+      interstitial. The handoff records that eprint.iacr.org returned Cloudflare
+      challenges to this program in GOAL-HAWK-001 BATCH-002; that did not happen
+      today. See `program_state_facts_that_did_not_reproduce` below.
+      Content matches KN-LIT-7565 (source S4) at its filed `web` level.
+
+  - n: 10
+    route_rank: 8
+    route: csrc.nist.gov
+    url: https://csrc.nist.gov/projects/post-quantum-cryptography
+    method: curl -sS -L --max-time 45 (HEAD-equivalent, body discarded)
+    at_utc: '2026-08-02T21:28:15Z'
+    window_end_utc: '2026-08-02T21:28:34Z'
+    status: 'HTTP 200'
+    outcome: >-
+      REACHABLE -- CONTRADICTS THE RECORDED BLOCK. RQ-HQC-001.provenance states
+      that csrc.nist.gov and nist.gov are unreachable under this network policy
+      (proxy CONNECT 403). No 403 was observed. Re-run at attempt 11 with the
+      body retained to rule out a redirect-to-error-page.
+
+  - n: 11
+    route_rank: 8
+    route: csrc.nist.gov
+    url: https://csrc.nist.gov/projects/post-quantum-cryptography
+    method: curl -sS -L --max-time 60 (body retained)
+    at_utc: '2026-08-02T21:28:45Z'
+    status: 'HTTP 200, final URL unchanged'
+    bytes: 60700
+    sha256: ddc1524aa1efe237cde54345a0cc10f876bc806a3ddfc4dd5a1af150f865ca7e
+    outcome: >-
+      REACHABLE, REAL CONTENT. The page is the genuine CSRC PQC project page
+      and contains, verbatim: "In addition to the three algorithms specified in
+      the initial FIPS standards, the Falcon digital signature algorithm and HQC
+      key encapsulation mechanism were selected for ongoing standardization;
+      that process is underway."
+      SCOPE DISCIPLINE: no further NIST content was pursued. This task's
+      objective is the specification and the DFR literature, and the
+      specification was already obtained from the canonical project site. The
+      quoted sentence is recorded only as corroboration of HQC's selection
+      status, which RQ-HQC-001.provenance currently sources to secondary
+      reporting. NO FIPS TEXT WAS READ.
+
+  - n: 12
+    route_rank: 6
+    route: eprint.iacr.org
+    url: 'https://eprint.iacr.org/search?q=A+New+Decryption+Failure+Attack+Against+HQC'
+    method: curl -sS -G --max-time 60
+    at_utc: '2026-08-02T21:29:29Z'
+    status: 'HTTP 200'
+    bytes: 22734
+    outcome: >-
+      SUCCESS, NEGATIVE FOR THE TARGET. 4 results, none of them the
+      Guo-Johansson paper: 2026/461 "Compact HQC with new (un)balance";
+      2026/071 "Codeword Masking Can Be Harmful Under Replay Attacks on HQC";
+      2025/1608 "Multi-Value Plaintext-Checking and Full-Decryption
+      Oracle-Based Attacks on HQC from Offline Templates"; 2019/155
+      "Constant-time BCH Error-Correcting Code". CONCLUSION RECORDED AT ITS
+      HONEST STRENGTH: no ePrint version of the Guo-Johansson paper was located
+      by this search. That is not the same as "none exists", and no eprint
+      identifier is invented for KN-LIT-2141.
+
+  - n: 13
+    route_rank: 6
+    route: eprint.iacr.org
+    url: https://eprint.iacr.org/2026/461
+    method: curl -sS -L --max-time 60
+    at_utc: '2026-08-02T21:30:13Z'
+    status: 'HTTP 200'
+    bytes: 18845
+    sha256: b325dd2bac7131a814ae0469010bc0637527953d98a7cd63f24295f0f46e0f8b
+    outcome: >-
+      SUCCESS, abstract level only. "Compact HQC with new (un)balance", 8
+      authors, Preprint, last updated 2026-03-05. NOT IN THE DECLARED
+      sources_sought LIST -- see `undeclared_discoveries` below. PDF not
+      fetched.
+
+  - n: 14
+    route_rank: 4
+    route: hal.science
+    url: 'https://api.archives-ouvertes.fr/search/?q=title_t:"decryption failure attack" AND title_t:HQC'
+    method: curl -sS -G --max-time 60
+    at_utc: '2026-08-02T21:30:31Z'
+    status: 'HTTP 200'
+    bytes: 116
+    outcome: 'REACHABLE, ZERO HITS (numFound: 0). No open-access copy located via HAL.'
+
+  - n: 15
+    route_rank: 4
+    route: hal.science
+    url: 'https://api.archives-ouvertes.fr/search/?q=title_t:"HQC-RMRS"'
+    method: curl -sS -G --max-time 60
+    at_utc: '2026-08-02T21:30:31Z'
+    status: 'HTTP 200'
+    bytes: 116
+    outcome: >-
+      REACHABLE, ZERO HITS (numFound: 0). Moot for acquisition -- S2 was
+      already obtained from arXiv at attempt 6 -- but recorded because the
+      route was declared and a declared route with no recorded outcome is the
+      failure mode this log exists to prevent.
+
+  - n: 16
+    route_rank: 7
+    route: publisher-doi-landing
+    url: https://doi.org/10.1007/978-3-030-64837-4_12
+    method: curl -sS -L --max-time 60
+    at_utc: '2026-08-02T21:30:36Z'
+    status: >-
+      HTTP 200, redirected to
+      link.springer.com/chapter/10.1007/978-3-030-64837-4_12?error=cookies_not_supported&code=...
+    bytes: 446773
+    sha256: dc74438dcfd1468208047f5851f5b41585e357536e04f2262ebae20420e6290e
+    outcome: >-
+      SUCCESS AT METADATA + ABSTRACT LEVEL. Confirms citation_title,
+      citation_inbook_title "Advances in Cryptology - ASIACRYPT 2020",
+      citation_publication_date 2020, citation_firstpage 353,
+      citation_lastpage 382, citation_doi, citation_isbn 978-3-030-64837-4, and
+      authors Guo Qian / Johansson Thomas -- independently corroborating DBLP.
+      The full abstract is present in the landing page and was read. FULL TEXT
+      IS PAYWALLED AND WAS NOT OBTAINED; no paywall circumvention was
+      attempted. This is why the KN-LIT-2141 proposal is a bibliographic +
+      abstract-level upgrade and not a `read` upgrade.
+
+# ---------------------------------------------------------------------------
+# Routes declared but never reached
+# ---------------------------------------------------------------------------
+routes_not_reached:
+  - rank: 9
+    route: websearch-webfetch-tools
+    reached: false
+    why: >-
+      Every route attempted above succeeded over curl, including the two that
+      committed program state predicted would fail. There was no request for
+      which a second transport was needed. Recorded rather than omitted.
+
+# ---------------------------------------------------------------------------
+# Outcomes per declared source
+# ---------------------------------------------------------------------------
+sources_sought_outcomes:
+  - key: S1
+    what: HQC specification
+    obtained: true
+    level: full text read (51 pp.)
+    via: attempts 2-4 (route rank 2, pqc-hqc.org)
+    sha256: 174186cb5fdc0108aad914391360c222f52ea533bfb406146fac124b3a25406d
+    dedup_verdict: NEW -- absent from the corpus
+  - key: S2
+    what: the DFR model's derivation source, as named by the specification
+    obtained: true
+    level: full text read (14 pp.)
+    via: attempts 5-6 (route rank 3, arXiv)
+    identified_as: >-
+      Aragon, Gaborit, Zemor, "HQC-RMRS, an instantiation of the HQC encryption
+      framework with a more efficient auxiliary error-correcting code",
+      arXiv:2005.10741 -- SPEC reference [4], which SPEC section 6.1.1 says it
+      follows.
+    sha256: cbb7dbd670f27cdcf602438018df52745c0af495050aedb3b83a0b00986f5446
+    dedup_verdict: NEW -- absent from the corpus
+  - key: S3
+    what: Guo-Johansson, "A New Decryption Failure Attack Against HQC"
+    obtained: partially
+    level: >-
+      bibliography verified against DBLP (a primary index per
+      knowledge/SEEDING.md) and independently against the Springer DOI landing
+      page; publisher abstract read. FULL TEXT NOT OBTAINED (paywalled;
+      no ePrint version located).
+    via: attempts 7, 8, 12, 16
+    dedup_verdict: >-
+      ALREADY FILED as KN-LIT-2141 -> UPGRADE PROPOSED, no new record.
+  - key: S4
+    what: Carrier-Hatey-Luzzi-Tillich, iacr:2026/1498
+    obtained: true
+    level: ePrint abstract page read
+    via: attempt 9
+    dedup_verdict: >-
+      ALREADY FILED as KN-LIT-7565, accurate at its declared `web` level. No
+      change proposed. A web -> read upgrade was NOT attempted: it is outside
+      this task's objective and the ISD lane belongs to TASK-20260802-0100a5.
+
+undeclared_discoveries:
+  - key: S5
+    what: eprint 2026/461, "Compact HQC with new (un)balance" (Guan et al., 8 authors)
+    how_found: surfaced in the ePrint title search run for S3 (attempt 12)
+    declared_in_advance: false
+    obtained: true
+    level: abstract only (PDF not fetched)
+    dedup_verdict: NEW -- zero corpus hits for 2026/461, "Compact HQC", "Unbalanced HQC", "UHQC", "Chaofeng"
+    handling: >-
+      Proposed as PROP-S5 at citation_verified: web and flagged in BOTH
+      corpus_dedup_report.md and proposed_kn_lit_entries.md as an
+      out-of-declared-scope discovery. It is NOT retro-fitted into
+      sources_sought, because a target list that grows to match what was found
+      is not a target list.
+
+# ---------------------------------------------------------------------------
+# Committed program state that did not reproduce today
+# ---------------------------------------------------------------------------
+# Recorded because the handoff says to treat the network notes as starting
+# facts to VERIFY, not as excuses. These are observations about the network
+# policy as measured on 2026-08-02 between 21:28Z and 21:30Z. They are NOT a
+# claim that the earlier records were wrong when they were written, and they
+# are NOT mathematical evidence about anything (AGENTS.md rule 5).
+program_state_facts_that_did_not_reproduce:
+  - record: RQ-HQC-001.provenance
+    says: >-
+      "csrc.nist.gov and nist.gov are unreachable from this harness's network
+      policy (proxy CONNECT 403)"
+    measured_today: >-
+      https://csrc.nist.gov/projects/post-quantum-cryptography returned HTTP 200
+      with 60 700 bytes of genuine page content at 2026-08-02T21:28:45Z (two
+      independent attempts, 10 and 11). No CONNECT 403 was seen.
+    scope_of_this_observation: >-
+      One URL, one host, one time window, from this session. nist.gov itself
+      was not tested. This does not establish that the whole domain is
+      reachable, nor that it will be at any later time.
+    disposition: >-
+      NOT REPAIRED HERE. RQ-HQC-001 is an immutable ledger record outside this
+      task's write scope. Surfaced for the Coordinator; a correction is a
+      superseding record, not an edit.
+  - record: TASK-20260802-6344ed handoff / GOAL-HAWK-001 BATCH-002 experience
+    says: >-
+      "eprint.iacr.org has returned Cloudflare challenges to this program
+      before"
+    measured_today: >-
+      Three eprint.iacr.org requests (attempts 9, 12, 13) all returned HTTP 200
+      with real content -- a paper abstract page, a search-results page, and a
+      second abstract page. No challenge page, no CAPTCHA, no interstitial.
+    disposition: >-
+      Recorded as an observation. No circumvention was attempted or needed;
+      the prohibition was never engaged.
+
+# ---------------------------------------------------------------------------
+# Prohibitions: positive confirmation, not silence
+# ---------------------------------------------------------------------------
+prohibitions_observed:
+  bot_protection_circumvention_attempted: false
+  bot_protection_challenge_encountered: false
+  paywall_circumvention_attempted: false
+  author_or_outward_correspondence_sent: false
+  third_party_pdf_committed: false
+  writes_outside_task_directory: false
+  knowledge_dir_touched: false
+  ledger_dir_touched: false
+  index_md_touched: false
+  state_mutating_git_command_run: false
+  tls_verification_disabled: false
+  https_proxy_unset: false
+  experiment_or_decoding_trial_run: false
+  hypothesis_or_security_assessment_made: false
+  model_reconstructed_from_memory: false
+
+# ---------------------------------------------------------------------------
+# Deliverables
+# ---------------------------------------------------------------------------
+artifacts:
+  - path: coordination/goals/GOAL-HQC-001/batches/BATCH-001/tasks/TASK-20260802-6344ed/source_access_log.yaml
+    description: this file
+  - path: coordination/goals/GOAL-HQC-001/batches/BATCH-001/tasks/TASK-20260802-6344ed/dfr_model_transcription.md
+    description: >-
+      Verbatim transcription of HQC's analytic DFR model (SPEC sections 6.1.1,
+      6.1.2, 6.1.3 and the section 6.2.2 IND-CCA2 join), with assumptions
+      numbered A1-A23, source hedges H1-H11, and published-text anomalies
+      X1-X10. Every displayed formula in sections 3, 4 and 5.1 is
+      IMAGE-VERIFIED against a rendered page; exactly one rendering (SPEC
+      Equation 13) is marked [EXTRACTION-DAMAGED] and carries no claim.
+  - path: coordination/goals/GOAL-HQC-001/batches/BATCH-001/tasks/TASK-20260802-6344ed/corpus_dedup_report.md
+    description: per-source already-filed / upgrade / new verdicts against the six census records
+  - path: coordination/goals/GOAL-HQC-001/batches/BATCH-001/tasks/TASK-20260802-6344ed/proposed_kn_lit_entries.md
+    description: proposed entries at honest citation_verified levels; nothing filed
+
+non_committed_downloads:
+  note: >-
+    Held in the session scratchpad only, deliberately not committed. Re-acquire
+    from the URL and compare sha256 to verify byte-identity.
+  files:
+    - url: https://pqc-hqc.org/doc/hqc_specifications_2025_08_22.pdf
+      bytes: 876126
+      sha256: 174186cb5fdc0108aad914391360c222f52ea533bfb406146fac124b3a25406d
+    - url: https://arxiv.org/pdf/2005.10741
+      bytes: 525223
+      sha256: cbb7dbd670f27cdcf602438018df52745c0af495050aedb3b83a0b00986f5446
+    - url: https://pqc-hqc.org/
+      bytes: 3351
+      sha256: 9bb6f3aab969434c88cd1e3f057000b01a6ee09057a8b28f00c94b3c79a55bf9
+    - url: https://pqc-hqc.org/resources.html
+      bytes: 1980
+      sha256: 53721737ae42aed038c3d9a86ad93cd3542d329efbd908a36d563647a2c1761d
+    - url: https://arxiv.org/abs/2005.10741
+      bytes: 42908
+      sha256: 64a4148e5b102b456f67a0bac9975d8f67b6394e3c9e1654d30d19314cdbd052
+    - url: 'https://dblp.org/search/publ/api?q=decryption+failure+attack+HQC&format=json&h=20'
+      bytes: 917
+      sha256: 7750616728a5e492381c3939900ed6ae5833ee5f0152e56199325f404212ce9a
+    - url: https://dblp.org/rec/conf/asiacrypt/Guo020.bib
+      bytes: 984
+      sha256: ff43877dd601c405b6658da97d114998f3d69699f2b1e93369eef80f5d42170d
+    - url: https://eprint.iacr.org/2026/1498
+      bytes: 18045
+      sha256: 71ff67f9bc0b039a5053c1797d37992d287751e1438f3a2ae23f1e6ea789ec29
+    - url: https://eprint.iacr.org/2026/461
+      bytes: 18845
+      sha256: b325dd2bac7131a814ae0469010bc0637527953d98a7cd63f24295f0f46e0f8b
+    - url: https://doi.org/10.1007/978-3-030-64837-4_12
+      bytes: 446773
+      sha256: dc74438dcfd1468208047f5851f5b41585e357536e04f2262ebae20420e6290e
+    - url: https://csrc.nist.gov/projects/post-quantum-cryptography
+      bytes: 60700
+      sha256: ddc1524aa1efe237cde54345a0cc10f876bc806a3ddfc4dd5a1af150f865ca7e
+  reproducibility_caveat: >-
+    The four HTML pages (eprint x2, springer, csrc) are dynamically served and
+    their sha256 will NOT be stable over time; those hashes pin what THIS
+    session received, not what a later fetch will return. The two PDFs and the
+    two static pqc-hqc.org pages are expected to be byte-stable while the
+    publishers leave them in place.
+
+# ---------------------------------------------------------------------------
+# Completion gate, checked item by item
+# ---------------------------------------------------------------------------
+completion_gate:
+  - gate: Every declared source has a recorded outcome against a declared access order
+    met: true
+    how: >-
+      S1-S4 each have an entry in sources_sought_outcomes tied to numbered
+      attempts; every attempt names its declared route rank. Route rank 9 was
+      never reached and says so in routes_not_reached. The one source found
+      outside the declared list (S5) is segregated in undeclared_discoveries.
+  - gate: Every obtained source has an explicit already-filed / upgrade / new verdict against the six census records
+    met: true
+    how: corpus_dedup_report.md sections 3 and 4 -- S1 NEW, S2 NEW, S3 UPGRADE (KN-LIT-2141), S4 ALREADY FILED (KN-LIT-7565, no change), S5 NEW (lead).
+  - gate: The DFR model is either transcribed with numbered assumptions or explicitly recorded as not obtained, with routes tried
+    met: true
+    how: >-
+      TRANSCRIBED. dfr_model_transcription.md sections 3-5, assumptions A1-A23,
+      hedges H1-H11.
+  - gate: Every damaged formula rendering is marked EXTRACTION-DAMAGED and carries no claim
+    met: true
+    how: >-
+      Exactly one: SPEC Equation (13) in section 5.3 of the transcription. It is
+      marked and explicitly stated to carry no claim. All other displayed
+      formulas were verified against rendered page images (SPEC pp. 18, 29, 32,
+      33, 35, 36, 37, 38, 39) rather than trusted from the text layer.
+
+budget:
+  wall_clock_seconds_authorized: 3600
+  wall_clock_seconds_used_approx: 900
+  runs_authorized: 0
+  runs_executed: 0
+  note: >-
+    No experiment, no decoding trial, no measurement. runs_authorized was 0 in
+    the queue entry (the handoff's budget block says maximum_runs 1); either
+    way, zero were executed, so the two do not need reconciling here.
+
+pause_conditions_status:
+  GOAL-HQC-001.pause_conditions[1]: NOT TRIGGERED -- both the specification and the primary DFR-analysis source were obtained.
+
+closing_note: >-
+  This task recorded observations and produced a transcription. It states no
+  conclusion about HQC, does not move RQ-HQC-001's toy claim-tier ceiling, and
+  is not admissible toward the AGENTS.md rule 13 closure quorum.
+

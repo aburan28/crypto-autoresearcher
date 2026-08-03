@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round007_exp014_binary_fppr_corrected
 
 ## Observation
-Binary FPPR gated meter fires: d_ff<D_reg AND gate passes (firing syzygy involves S3 leading form) in at least one cell with verified-correct S3 and consistent ideal. PO-002 met.
+survived
 
 Source excerpt / raw summary:
 

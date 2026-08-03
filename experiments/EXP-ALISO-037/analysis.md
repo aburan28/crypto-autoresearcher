@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_hecke_degree_pair_support_verify_result_v3
 
 ## Observation
-No narrative finding recorded in the source result artifacts.
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 

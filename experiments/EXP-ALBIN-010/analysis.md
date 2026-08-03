@@ -1,7 +1,7 @@
 # Analysis — Autolab binary-field BIN-EXP-010: m=5 diagonal
 
 ## Observation
-Get the third diagonal point D_solv(m=5) to test the BIN-OBS-007 law D_solv ≈ m(m−1)+O(1) (predicting ≈20 at m=5). Enabled by the validated resultant Semaev evaluator (computes S₆ without building it symbolically; verified arity 3–6 vanish on real summing tuples).
+**Date:** 2026-06-01. Script: `bin_exp010_m5_diagonal.sage` (resultant Semaev evaluator through S₆ + eval-descent + msolve). Log: `bin_exp010_m5_diagonal.log`.
 
 Source excerpt / raw summary:
 

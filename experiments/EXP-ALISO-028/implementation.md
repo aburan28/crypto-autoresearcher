@@ -11,6 +11,8 @@ Historical Autolab port (no re-execution).
 
 ## Copied artifacts
 - `source/iso_genus_filtered_crater_ancestor_result.json`
+- `source/iso_genus_filtered_crater_ancestor.sage.py`
+- `source/iso_genus_filtered_crater_ancestor_verify.sage.py`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.
