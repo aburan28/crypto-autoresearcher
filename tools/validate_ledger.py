@@ -111,42 +111,6 @@ def _load_duplicate_run_owners() -> dict[str, set[str]]:
 
 DUPLICATE_RUN_OWNERS = _load_duplicate_run_owners()
 
-RUN_SUPERSESSION_REGISTRY = os.path.join(
-    REPO, "tools", "run_supersession_registry.yaml"
-)
-RUN_SUPERSESSION_SCHEMA = "run-supersession-registry-v1"
-RUN_SUPERSESSION_REQUIRED = ["run_id", "superseded_path", "superseded_sha256",
-                             "superseding_path", "superseding_sha256",
-                             "defect", "registered"]
-# The exact shape check_run() discovers by glob. A superseded record must match
-# it (otherwise the entry would never be consulted and would only mislead), and
-# a superseding record must NOT match it (otherwise the glob would find it too
-# and register the same run id twice, weakening the duplicate-ID check).
-RUN_MANIFEST_PATH = re.compile(
-    r"^experiments/[^/]+/runs/[^/]+/manifest\.yaml$")
-SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
-
-# Identifier suffixes. TWO FORMS ARE VALID AND THE RANDOM ONE IS PREFERRED.
-#
-#   SUFFIX_LEGACY  \d{3}        sequential, allocated max+1. Every record minted
-#                               before 2026-08-01 uses it. STILL VALID FOREVER --
-#                               those records are immutable and must keep
-#                               validating -- but NEVER MINT A NEW ONE.
-#   SUFFIX_RANDOM  [0-9a-f]{6}  a random 24-bit token. This is the form new
-#                               records use.
-#
-# Why the change: sequential allocation requires scanning committed state for a
-# maximum, and CONCURRENT WORKTREES ALL SCAN THE SAME STATE AND GET THE SAME
-# ANSWER. They then mint the same identifier for different records, and the
-# collision is only discovered at merge time, when both records are already
-# committed and immutable and neither can be renamed without breaking whatever
-# archive binds it. The random token needs no scan at all, so two worktrees
-# cannot converge by construction. Cost of the change: identifiers no longer
-# sort into creation order. Nothing in this repository ordered by them.
-SUFFIX_LEGACY = r"\d{3}"
-SUFFIX_RANDOM = r"[0-9a-f]{6}"
-SUFFIX = rf"(?:{SUFFIX_LEGACY}|{SUFFIX_RANDOM})"
-
 ID_PATTERNS = {
     "research_question": re.compile(rf"^RQ-[A-Z]+-{SUFFIX}$"),
     "idea": re.compile(rf"^IDEA-\d{{8}}-{SUFFIX}$"),
