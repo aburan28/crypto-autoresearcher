@@ -1,9 +1,9 @@
 ---
 id: KN-LIT-7455
 type: literature
-title: "Verifiable Predicate Encryption and"
+title: Verifiable Predicate Encryption and
 authors:
-  - "Applications to CCA Security"
+- Applications to CCA Security
 year: null
 venue: null
 identifiers:
@@ -11,10 +11,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- predicate-encryption
+- verifiability
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

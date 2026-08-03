@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_hecke_degree_pair_support_verify
 
 ## Observation
-Historical Autolab experiment with retained result artifacts.
+TOY-EVIDENCE / EXACT SUPPORT ENUMERATION / MODEL-BOUND / INDEPENDENT VERIFICATION
 
 Source excerpt / raw summary:
 

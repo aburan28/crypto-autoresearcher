@@ -10,10 +10,8 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/p1486_frobenius_midpoint_sweep_result.json`
 - `source/p1486_frobenius_midpoint_sweep_contract_20260728.md`
-- `source/p1486_frobenius_midpoint_sweep.sage.py`
-- `source/p1486_frobenius_midpoint_sweep_verify.sage.py`
+- `source/p1486_frobenius_midpoint_sweep_result.json`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

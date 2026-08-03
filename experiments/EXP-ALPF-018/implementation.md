@@ -10,11 +10,10 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
+- `source/round009_exp017_abelian_surface.log`
+- `source/round009_exp017_abelian_surface.sage`
 - `source/round009_exp017_abelian_surface_result.json`
 - `source/round009_exp017_abelian_surface_result.md`
-- `source/round009_exp017_abelian_surface.sage`
-- `source/round009_exp017_abelian_surface.sage.py`
-- `source/round009_exp017_abelian_surface.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

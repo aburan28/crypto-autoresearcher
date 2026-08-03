@@ -1,20 +1,24 @@
 ---
 id: KN-LIT-1725
 type: literature
-title: "LymphNode: A Plug-and-Play Access Control Method for Deep Neural Networks"
+title: 'LymphNode: A Plug-and-Play Access Control Method for Deep Neural Networks'
 authors:
-  - "Hanyu Pei"
+- Hanyu Pei
 year: 2026
-venue: "arXiv preprint"
+venue: arXiv preprint
 identifiers:
   eprint: null
   doi: null
-  arxiv: "2605.16227"
-  url: "https://arxiv.org/abs/2605.16227"
-tags: []
+  arxiv: '2605.16227'
+  url: https://arxiv.org/abs/2605.16227
+tags:
+- machine-learning
+- access-control
+- model-protection
+- applied-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

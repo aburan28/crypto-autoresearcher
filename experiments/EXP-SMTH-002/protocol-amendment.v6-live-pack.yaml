@@ -1,0 +1,151 @@
+protocol_operations:
+  id: EXP-SMTH-002-AMEND-006
+  task_id: TASK-20260801-073
+  base_contract: >-
+    Materialize the exact chain frozen by EXP-SMTH-002-AMEND-005, then
+    apply this operation list. The AMEND-005 source digest is
+    10e8a48dc6eef68f7bf2ccf6f8a98df3e2af0b0b2dc8726f7734f0948de21778.
+  operation_semantics: >-
+    Replace requires the target to exist and replaces its entire value. Any
+    failed precondition is invalid_integrity. No implicit merge applies.
+  status: draft_review_required
+  execution_authorized: false
+  scientific_design_unchanged: true
+
+  operations:
+  - op: replace
+    target_path: /archive_phase
+    literal_value:
+      authorization_binding_required:
+      - remote_name
+      - remote_branch
+      - pack_exclusion_ancestor_sha
+      - authorized_snapshot_sha
+      binding_rule: >-
+        pack_exclusion_ancestor_sha must equal authorized_snapshot_sha, and both
+        must equal the committed snapshot that receives the fresh independent
+        PASS. Before implementation, fetch the named remote branch, require the
+        bound SHA to be its ancestor, require clean local HEAD to equal fetched
+        branch head, and record that head as execution_remote_head_sha.
+      filesystem_resolution:
+        worktree_path_command: git rev-parse --show-toplevel
+        git_common_dir_command: git rev-parse --path-format=absolute --git-common-dir
+        device_identity: stat device number plus df mount source and mount point
+        preflight_temp_location: >-
+          A fresh task-specific directory beneath the resolved Git common
+          directory. Set TMPDIR to this directory for pack preflight and push.
+        same_device_gate: >-
+          If worktree and Git common directory device numbers match, require at
+          least 6908096384 free bytes on that device before the run.
+        split_device_gate: >-
+          If device numbers differ, require at least 1610612736 free bytes on
+          the worktree device and at least 5297483648 free bytes on the Git
+          common-directory device before the run.
+        measurement_rule: >-
+          Record device ids, mount sources, mount points, free bytes before and
+          after every phase, and incremental bytes by assigned path. Crossing a
+          per-device reservation is failed_infrastructure_or_archive.
+      per_device_reservations:
+        worktree_run_artifacts_and_temporary_bytes: 1610612736
+        common_loose_git_objects_bytes: 1610612736
+        common_baseline_pack_bytes: 150000000
+        common_final_preflight_pack_bytes: 1500000000
+        common_push_stream_or_second_pack_bytes: 1500000000
+        common_index_tree_commit_logs_and_measurement_bytes: 536870912
+        common_exact_sum_bytes: 5297483648
+        combined_exact_sum_bytes: 6908096384
+        combined_archive_cap_bytes: 8589934592
+        combined_headroom_bytes: 1681838208
+      bounded_pack_sink:
+        implementation_gate: >-
+          Before any scientific run, snapshot and independently validate the
+          sink implementation and its tests. The authorization does not permit
+          use of an unreviewed sink.
+        input: stdout bytes from git pack-objects --stdout --revs
+        partial_path_rule: exact final preflight path plus .partial
+        write_rule: >-
+          Maintain an integer bytes_written. For each input chunk, write at most
+          cap_bytes minus bytes_written. If the chunk has any remaining byte,
+          close the read pipe immediately, wait for pack-objects to terminate,
+          close the partial file, delete only that exact partial path, and return
+          overflow without writing the remaining byte. Thus the partial file is
+          never larger than cap_bytes.
+        success_rule: >-
+          Only EOF with pack-objects exit zero and bytes_written at most cap_bytes
+          may fsync and atomically rename the partial file. Record exact bytes,
+          SHA-256, revisions, Git version, command and exit status.
+        failure_interpretation: failed_infrastructure_or_archive; never evidence
+        mandatory_tests:
+        - A synthetic stream exactly at cap succeeds.
+        - A synthetic stream one byte above cap aborts with partial file absent.
+        - A pack-objects nonzero exit removes the partial file and cannot succeed.
+      pre_run_baseline_gate:
+        revisions: >-
+          execution_remote_head_sha followed by caret-prefixed
+          pack_exclusion_ancestor_sha, each newline-terminated.
+        live_cap_bytes: 150000000
+        maximum_future_evidence_pack_allowance_bytes: 1350000000
+        future_allowance_derivation:
+          maximum_tracked_evidence_bytes: 1207959552
+          maximum_archive_receipt_bytes: 1048576
+          reserved_blob_framing_tree_commit_and_pack_bytes: 140991872
+          exact_sum_bytes: 1350000000
+          exact_evidence_scope: >-
+            One evidence commit changes exactly the 139 frozen required paths
+            plus one archive receipt. All implementation/control commits must
+            already be ancestors of execution_remote_head_sha.
+        capacity_equation: >-
+          measured baseline pack bytes plus 1350000000 must be at most
+          1500000000. Otherwise no implementation or run begins.
+        cleanup: Delete only the exact recorded baseline pack after its receipt is fsynced.
+      final_preflight_gate:
+        remote_stability: >-
+          Fetch immediately before packing and require remote branch head still
+          equals execution_remote_head_sha.
+        revisions: >-
+          evidence_commit followed by caret-prefixed pack_exclusion_ancestor_sha,
+          each newline-terminated.
+        live_cap_bytes: 1500000000
+        remote_limit_bytes: 2000000000
+        transport_headroom_bytes: 500000000
+        action: >-
+          Push only after bounded-sink success. Any preflight or push failure is
+          failed_infrastructure_or_archive and has no mathematical interpretation.
+      concurrency: implementation, run and archive tasks each run alone
+      lfs_used: false
+  - op: replace
+    target_path: /controls
+    literal_value:
+    - First and last record of every shard are independently reconstructed.
+    - Every certificate reconstruction result is true before shard acceptance.
+    - Exact total and per-object counts match the frozen design.
+    - Seed roster regeneration reproduces every stream hash with zero collisions.
+    - An injected composite-as-prime certificate is rejected.
+    - An injected one-byte shard mutation fails SHA-256.
+    - Process output handles never exceed eight and certificate shards never exceed one.
+    - A synthetic twelve-factor certificate is rejected if any alleged factor is composite.
+    - A 1025-byte logical record is rejected before the writer.
+    - Every shard is at most 8388608 bytes and has the exact frozen filename.
+    - Aggregate shard bytes are at most 1073741824.
+    - Every other artifact is at most 33554432 bytes and their aggregate is at most 134217728.
+    - Total tracked pilot bytes are at most 1207959552 before staging.
+    - Canonical seed-roster and shard-manifest SHA-256 values are independently reproduced.
+    - Exclusion ancestor equals the independently passed authorized snapshot.
+    - The capped baseline pack passes the capacity equation before implementation.
+    - The bounded sink never writes beyond either live cap and removes overflow partials.
+    - Per-device free-space and incremental-use gates pass for the resolved checkout layout.
+    - The complete final remote-relative preflight pack is at most 1500000000 bytes.
+
+  effective_contract_checks:
+  - Required artifacts remain 139 paths with the same 128 shard paths.
+  - Scientific counts remain 32 arrays and 4186112 factorizations.
+  - 1610612736 plus 5297483648 equals 6908096384 bytes across devices.
+  - 8589934592 minus 6908096384 equals 1681838208 bytes combined headroom.
+  - Baseline 150000000 plus future allowance 1350000000 equals final cap 1500000000.
+  - The final cap leaves 500000000 below the 2000000000 remote limit.
+  - No curve, factor base, S3, source, plant, p-value, evidence or state mode exists.
+
+  release_condition: >-
+    Fresh independent committed-byte PASS, then a successor authorization
+    freezing the passed snapshot and exact remote binding, then separately
+    snapshotted and independently validated sink implementation and tests.

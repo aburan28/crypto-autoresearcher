@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round013_exp029b_bsmooth_psin_fb
 
 ## Observation
-failed
+FB non-empty (escapes NR-021 cardinality barrier) but the subgroup-information barrier holds: n-torsion DLogs are all multiples of n*L (PROVED algebraically), so A+B+C=Q from E[n] requires L|k (probability 1/L for random k). Relations carry zero info about k mod L beyond a 1-bit test. PH dominates on both parts. Bankable empirical+algebraic NEGATIVE RESULT.
 
 Source excerpt / raw summary:
 

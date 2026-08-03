@@ -35,6 +35,15 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
   snapshot archives alone before independent review, then ledger archives alone
   after review. Stage only declared paths; the post-commit verifier must accept
   the commit before a result is treated as durable or official.
+- Every archive that adds new records (`GOAL-*`, `RQ-*`, `IDEA-*`, `H-*`,
+  `EXP-*`, `EV-*`, `DEC-*`, `TASK-*`, `KN-*`) must be pushed to a branch that
+  has an open PR against `main`. Before generating, merge `origin/main` into
+  the working branch (merge, never rebase); after each snapshot/ledger archive,
+  push the branch and open or refresh the PR naming the records. Never resolve
+  a sync conflict by editing a record — stop and create a superseding record.
+  The session driving you runs the git commands (`git fetch/merge/push`,
+  `gh pr create/edit`); a record that exists only in a local commit is
+  unpublished, not durable evidence.
 - Before interpreting any Executor result, verify validity: expected run
   count, schema-complete manifests, seed integrity, raw/summary agreement,
   and control comparability. An invalid or incomplete run set goes back to the

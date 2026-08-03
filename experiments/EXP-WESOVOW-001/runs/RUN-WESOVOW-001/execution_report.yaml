@@ -1,0 +1,67 @@
+execution_report: RUN-WESOVOW-001
+experiment_id: EXP-WESOVOW-001
+task_id: TASK-20260724-P13-COST
+nature: observations only — no claim promotion, weakening, or rejection
+frozen_source: inputs/P13-WESOLOWSKI-2026/paper_fulltext.md (Section 4.1 model)
+
+headline_numbers:
+  full_memory_regime:
+    note: "optimized B on grid log2B in [1.0, 60.0] step 0.1; cost unit = F_{p^2}-operations; memory unit = table entries"
+    table:
+      log2p=256: {log2B_opt: 14.20, B_opt: 18820,   log2X: 49.60,  w: 3.49, u: 5.99, log2M: 93.28,  log2P0: -15.45, log2T_full: 108.73}
+      log2p=384: {log2B_opt: 17.80, B_opt: 228210,  log2X: 72.73,  w: 4.09, u: 7.17, log2M: 137.49, log2P0: -20.39, log2T_full: 157.87}
+      log2p=512: {log2B_opt: 20.90, B_opt: 1956712, log2X: 95.62,  w: 4.57, u: 8.15, log2M: 181.44, log2P0: -24.67, log2T_full: 206.10}
+      log2p=576: {log2B_opt: 22.30, B_opt: 5163794, log2X: 106.98, w: 4.80, u: 8.59, log2M: 203.31, log2P0: -26.67, log2T_full: 229.98}
+      log2p=768: {log2B_opt: 26.10, B_opt: 71925500, log2X: 140.88, w: 5.40, u: 9.80, log2M: 268.69, log2P0: -32.25, log2T_full: 300.94}
+
+deviations_from_paper_pairs:
+  tolerance_prestated: "+/- 0.75 bit on time and memory (control C1)"
+  observed:
+    log2p=256: {time: "+2.23 bits (108.73 vs 106.5)", memory: "+0.78 bits (93.28 vs 92.5)"}
+    log2p=384: {time: "+0.37 bits (157.87 vs 157.5)", memory: "-1.11 bits (137.49 vs 138.6)"}
+    log2p=512: {time: "+1.90 bits (206.10 vs 204.2)", memory: "+0.14 bits (181.44 vs 181.3)"}
+    log2p=576: {time: "-0.92 bits (229.98 vs 230.9)", memory: "-2.69 bits (203.31 vs 206.0)"}
+    log2p=768: {time: "-1.46 bits (300.94 vs 302.4)", memory: "-3.51 bits (268.69 vs 272.2)"}
+  verdict: "C1 partially violated: 384/512 time and 256/512 memory within tolerance; the rest outside, up to 3.51 bits"
+  interpretation_observations:
+    - "deviations are <= 1.3% of the respective exponents; the paper itself labels these figures 'rough' underestimates with offsetting error sources (Sec. 4.1 final paragraph)"
+    - "no sign pattern: time deviations are positive for small p and negative for large p; memory deviations trend negative with growing p"
+    - "variant analysis (sensitivity run, not archived as a separate run): replacing rho(w) by w^{-w} for Psi, or rho(u) for P0, shifts results by <= ~0.4 bit on time and <= ~1.3 bits on memory and does not systematically close the gap; the residual deviation is consistent with the paper having used a slightly different optimization grid/rounding or rho evaluation, which the frozen text does not specify"
+    - "Dickman implementation validated: rho(2) rel err 1.74e-3 vs exact 1-ln2; max |delta log2 rho| = 0.00251 bits vs independent du=1e-5 DDE marching over u=2..8; so the deviations are NOT attributable to rho evaluation error (which is < 0.003 bit)"
+
+middle_memory_regime_vow:
+  model: "T(w) = T_full / sqrt(min(w, M)) F_{p^2}-ops; baseline T_DG = p^{1/2}"
+  observations:
+    - "with zero hidden overhead (c=0), the attack beats Delfs-Galbraith at every tested memory budget w = 2^30..2^80 for all five field sizes; speedup at w=2^30 ranges from 2^34.3 (p=256) to 2^98.1 (p=768), growing to 2^59.3..2^123.1 at w=2^80"
+    - "analytic crossover log2(w*) with c=0 is negative for all five fields (i.e., the attack wins at any memory budget in the model), e.g. -38.5 for p=256 and -166.1 for p=768"
+    - "overhead multiplier 2^{c*sqrt(log2 p)} shifts crossovers by 2c*sqrt(log2 p) bits: for p=256, c=2.0 moves log2(w*) to +25.5 (crossover inside the tested budget range); for p>=512 even c=2.0 leaves log2(w*) < 0 (attack still wins at any w in the model)"
+    - "overhead cost in bits: c*sqrt(log2 p) = 8.0/16.0/32.0 bits (p=256) up to 13.9/27.7/55.4 bits (p=768) for c=0.5/1/2; the superpolynomial overhead grows with p, eroding but not eliminating the advantage at these sizes"
+  memory_bytes:
+    - "full-memory table at 64 B/entry: 2^99.3 (p=256) .. 2^274.7 (p=768) bytes; at 256 B/entry: 2^101.3 .. 2^276.7 bytes"
+    - "a w=2^60 budget is 2^66 bytes @64B = 64 EiB, already far beyond any plausible storage; the practical regime is w <= ~2^50 (2^56 B @64B = 64 PiB)"
+
+sensitivity_notes:
+  - "B optimization is worth 11.5-24.1 bits of time vs the paper's asymptotic choice B = exp(sqrt(ln(p/2))/3) (e.g. 108.73 vs 120.21 at p=256; 300.94 vs 324.98 at p=768); the paper's Sec. 4.1 numbers are consistent with an optimized B, not the asymptotic one"
+  - "optimal w = log(X)/log(B) lies in [3.5, 5.4], deep inside the Dickman grid's high-accuracy region; grid-boundary effects are absent"
+  - "the B grid step of 0.1 bit bounds optimizer resolution error to ~0.05 bit in log2T (observed smooth minima)"
+  - "results are conditional on the paper's own conservative conventions (1 F_{p^2}-op per table entry; M = Psi(X,B)*X; P0 = u^{-u} tight); they are model outputs, not measurements of a real attack"
+
+controls:
+  C1_sanity_paper_pairs: "PARTIAL FAIL - deviations 0.05..3.51 bits vs prestated +/-0.75 bit tolerance; recorded, not tuned (see deviations_from_paper_pairs)"
+  C2_baseline_consistency: "PASS - log2(T_DG) = log2(p)/2 reproduces the paper's previous-methods figures 128/192/256/288/384 exactly"
+  C3_monotonicity: "PASS - T(w) non-increasing in w in all (p, c) scenarios (verified in raw-result.json)"
+  C4_vow_asymptote: "PASS (by construction) - T(w) = T_full * min(1, sqrt(M/w)); cap formula verified; note all tested budgets 2^30..2^80 are below M (>= 2^93.3), so the cap branch is not exercised by the tested grid"
+
+unexpected_observations:
+  - "first implementation attempt: naive trapezoidal marching of the Dickman DDE rho'(u) = -rho(u-1)/u silently lost all relative accuracy beyond u ~ 8 (rho collapsed to a 1e-300 floor), producing a spurious optimizer optimum with log2T ~ -850; caught because sanity pair deviations were ~1000 bits. Root cause: fresh truncation error scales with rho(u-1) while rho decays superexponentially, so relative error amplifies like ~1/rho(u). Fixed by switching to Laplace inversion through the saddle point. Recorded per AGENTS.md rule 8."
+
+limitations:
+  - "C1 disagreement of up to 3.5 bits with the paper's five pairs is unresolved: the frozen text does not specify the paper's exact B grid, rho evaluation, or rounding, so the source cannot be determined from the available record"
+  - "model excludes: modular-polynomial root-finding costs (B+log p)^{O(1)} per entry, the (log X + 2) cofactor of Lemma 3.2, random-walk re-randomization cost O(log p) per attempt, parallelization, and the vOW constant factors of [43]; results are lower-bound-flavored in the same sense as the paper's Sec. 4.1"
+  - "P0 uses the paper's u^{-u} convention rather than rho(u); variant checked, shifts time by <= ~0.4 bit"
+
+inference:
+  requested_policy: executor-terra
+  resolved_model: "kimi-work subagent (exact model identifier not exposed by runtime)"
+  fallback_used: true
+  fallback_reason: "GPT-5.6 policy aliases not resolvable in the Kimi Work harness; recorded explicitly per AGENTS.md rule 11."

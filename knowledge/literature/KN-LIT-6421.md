@@ -1,9 +1,9 @@
 ---
 id: KN-LIT-6421
 type: literature
-title: "Secure Computation for Big Data"
+title: Secure Computation for Big Data
 authors:
-  - "Tal Malkin"
+- Tal Malkin
 year: null
 venue: null
 identifiers:
@@ -11,10 +11,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- mpc
+- big-data
+- survey
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

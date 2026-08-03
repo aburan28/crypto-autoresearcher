@@ -1,7 +1,7 @@
 # Analysis — Autolab binary-field BIN-EXP-005: Cost balance
 
 ## Observation
-**Date:** 2026-05-31. Script: `bin_exp005_cost_balance.sage`. Log: `bin_exp005_cost_balance.log` (RC=0, 12/12 cells, RESULTS_JSON present, byte-verified). This is the **binary analog of the prime-field NR-026 capstone**.
+For each n, build an ordinary E/F_{2^n}, **measure the EXACT factor-base size** |FB| = #{points with x-coordinate in an F₂-subspace V of dim ℓ} (enumerate the 2^ℓ subspace, `E.is_x_coord`), sweep ℓ around n/m to pick the cost-optimal cell, and report the index-calculus pipeline exponents vs Pollard rho:
 
 Source excerpt / raw summary:
 

@@ -21,7 +21,7 @@ superseded_by: null
 ## What this is
 
 The official **FAEST reference implementation** ("faest-ref"), maintained by
-the faest-sign GitHub organization (the FAEST team; see KN-LIT-7617 for the
+the faest-sign GitHub organization (the FAEST team; see KN-LIT-7637 for the
 12-member roster). Its README (fetched 2026-07-31) describes it as the
 implementation "mapped from the specification", aiming to be efficient but
 not the primary performance vehicle; benchmarking and comparisons are

@@ -1,20 +1,25 @@
 ---
 id: KN-LIT-142
 type: literature
-title: "A Note on Negligible Functions"
+title: A Note on Negligible Functions
 authors:
-  - "Mihir Bellare∗"
+- Mihir Bellare∗
 year: 1997
-venue: "IACR Cryptology ePrint Archive"
+venue: IACR Cryptology ePrint Archive
 identifiers:
-  eprint: "iacr:1997/004"
+  eprint: iacr:1997/004
   doi: null
   arxiv: null
-  url: "https://eprint.iacr.org/1997/004"
-tags: []
+  url: https://eprint.iacr.org/1997/004
+tags:
+- provable-security
+- foundations
+- definitions
+- negligible-function
+- complexity-theory
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

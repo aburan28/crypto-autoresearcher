@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_parity_center_smoothness_probe
 
 ## Observation
-Historical Autolab experiment with retained result artifacts.
+HEURISTIC DISTRIBUTION EVIDENCE / TOY / MODEL-BOUND / NO GENERAL COMPLEXITY CLAIM
 
 Source excerpt / raw summary:
 

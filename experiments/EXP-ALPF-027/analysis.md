@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round015_exp032_symbolic_s5_ering
 
 ## Observation
-inconclusive
+- POS-A: {'fires': False, 'gate_meaningful': False, 'd_ff': None, 'D_reg': 4, 'expect_fire': True, 'expect_gate_meaningful': True, 'ok': False}
 
 Source excerpt / raw summary:
 

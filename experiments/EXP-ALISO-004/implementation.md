@@ -11,7 +11,6 @@ Historical Autolab port (no re-execution).
 
 ## Copied artifacts
 - `source/p1486_frobenius_midpoint_sweep_verify_result.json`
-- `source/p1486_frobenius_midpoint_sweep_verify.sage.py`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

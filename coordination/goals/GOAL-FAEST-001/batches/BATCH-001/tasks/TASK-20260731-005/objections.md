@@ -1,12 +1,12 @@
 # Red-team objections — TASK-20260731-005 (GOAL-FAEST-001, BATCH-001)
 
 Independent adversarial review. Session shares no lineage with the producers of
-TASK-20260731-001/002 (sources) or TASK-20260731-003/004 (ideation). All
+TASK-20260731-012/002 (sources) or TASK-20260731-014/004 (ideation). All
 artifacts were read post-hoc from their archived commits. Structured findings
 are in `review_report.yaml`; this file carries the strongest objections and the
 cheapest falsification routes for the admitted ideas.
 
-Verdicts: **IDEA-20260731-001 admit**, **IDEA-20260731-002 admit**,
+Verdicts: **IDEA-20260731-019 admit**, **IDEA-20260731-002 admit**,
 **IDEA-20260731-003 admit** — all with the required scope fixes below. No fatal
 objections; no idea is rejected or required to be redesigned.
 
@@ -45,7 +45,7 @@ The forgery formula `2^kappa * eps_cc^{-tau} * C_transcript` charges the
 condition — the challenge digest must begin with kappa zero bits — binds a
 forger exactly as it binds the honest prover. This is plausibly true for FAEST
 (the verifier checks the salt), but it has not been read from the spec (the
-PDF body text was unextractable, KN-LIT-7617 limit). If grinding is instead a
+PDF body text was unextractable, KN-LIT-7637 limit). If grinding is instead a
 prover-side signature-size lever, the forger's cost drops by a factor 2^kappa
 and the entire comparison shifts downward by that amount.
 

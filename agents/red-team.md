@@ -19,6 +19,31 @@ research capacity on it.
 6. Review only a Coordinator-committed snapshot and return the report to the
    Coordinator's ledger archive task for durable commit.
 
+## Proof-architecture attacks
+
+For proof-oriented claims, apply `docs/inventor-protocol.md` section 8 and
+`KN-TECH-080` before spending effort on constant factors:
+
+1. **Observation-fiber attack.** Hold the claimed invariant, certificate,
+   quotient, transcript, or functor fixed and vary the underlying object. Try
+   to place one preimage on each side of the conclusion. If successful, name
+   the missing separator.
+2. **Quantifier-order attack.** Rewrite the theorem with explicit quantifiers
+   and test whether the construction silently chooses a witness after seeing
+   an instance, family member, characteristic, parameter, seed, or outcome.
+3. **Boundary and strictness attack.** Verify that the old method is genuinely
+   embedded as the stated boundary and that the proposed perturbation is
+   strictly better, not merely feasible or numerically preferred on a grid.
+4. **Method-ceiling attack.** Derive the largest claim the resource measure can
+   support under ideal tuning. If that ceiling does not reach the headline,
+   the headline fails before implementation.
+5. **Nearby-object attack.** Apply the same reasoning to the closest object for
+   which the desired conclusion is false. Failure to distinguish it identifies
+   a missing problem-specific ingredient.
+6. **Compositional-invariant attack.** Delete or mutate one component of any
+   strengthened invariant and find the first recursion or reduction step that
+   fails. Check separately that the strong invariant implies the final target.
+
 ## Exemplar-style claim challenges
 
 When a claim follows the exemplar profile of `docs/target-result-profile.md`
@@ -96,6 +121,7 @@ red_team_report:
   heuristic_challenges: []
   cost_model_challenges: []
   reduction_and_scope_challenges: []
+  proof_architecture_challenges: []
   narrowest_supported_statement: null
   next_concrete_action: null
   artifact_paths: []

@@ -3,7 +3,7 @@
 **Report:** `RT-20260731-042` (path + task id).
 **Reviewed snapshot:** `cac4d8b459a44f1561d3f47835562824f7767765` (TASK-20260731-041).
 **Parent contract:** `experiments/EXP-DS-001/specification.v2.yaml` (immutable; sha256 `898304bf…a5636a`).
-**Prior disposition:** DEC-20260731-009 inconclusive; RT-20260731-038; next_action CTRL-RT025-UNPLANTED (+ live plant).
+**Prior disposition:** DEC-20260731-018 inconclusive; RT-20260731-038; next_action CTRL-RT025-UNPLANTED (+ live plant).
 **Question:** Is the control addendum falsifiable, decidable, v2-bound, and free of claim-ceiling / science-metric leaks so TASK-043 may APPROVE?
 
 ## Verdict
@@ -16,7 +16,7 @@
 |---|---|---|
 | `experiments/EXP-DS-001/amendments/v2_ctrl_unplanted.yaml` | `2c9ab2e1422185b5e1426380e9d4142d09b6f3c57611156127dbf18184827ea0` | PA-DS-001-v2-ctrl-unplanted |
 | `experiments/EXP-DS-001/controls/CTRL-RT025-UNPLANTED.yaml` | `c85cc14cf4d5f1a2a693b84756b28fa0abc08f0e8a5a246701f442e97fda060c` | control protocol |
-| `ledger/decisions/DEC-20260731-010.yaml` | `b76b7f915cf5625ada84e9e933bfd9919c592e9cd2eb1ec0f4d563820097189e` | opens BATCH-020 |
+| `ledger/decisions/DEC-20260731-019.yaml` | `b76b7f915cf5625ada84e9e933bfd9919c592e9cd2eb1ec0f4d563820097189e` | opens BATCH-020 |
 | `experiments/EXP-DS-001/specification.v2.yaml` | `898304bfc9225062e68c5d7977d1490cad95957e856847676ef7ae1423a5636a` | **not** in snapshot commit; parent pin matches |
 
 `git merge-base --is-ancestor cac4d8b4 HEAD` succeeds. Snapshot path list excludes all specification*.yaml blobs.

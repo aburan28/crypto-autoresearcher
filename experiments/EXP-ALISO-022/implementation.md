@@ -11,7 +11,6 @@ Historical Autolab port (no re-execution).
 
 ## Copied artifacts
 - `source/p1243_ordinary_transverse_field_probe_result.json`
-- `source/p1243_ordinary_transverse_field_probe.sage.py`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

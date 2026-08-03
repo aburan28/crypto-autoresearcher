@@ -10,11 +10,10 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
+- `source/round004_exp005_validated_firstfall.log`
+- `source/round004_exp005_validated_firstfall.sage`
 - `source/round004_exp005_validated_firstfall_result.json`
 - `source/round004_exp005_validated_firstfall_result.md`
-- `source/round004_exp005_validated_firstfall.sage`
-- `source/round004_exp005_validated_firstfall.sage.py`
-- `source/round004_exp005_validated_firstfall.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

@@ -8,7 +8,7 @@
 ## Inputs bound
 
 - IDEA-20260731-007 .. IDEA-20260731-011 (archived)
-- EV-STR-004 / DEC-20260730-001 (BATCH-015: EXP-STR-004 inconclusive; H-STR-002 remains weakened)
+- EV-STR-004 / DEC-20260730-014 (BATCH-015: EXP-STR-004 inconclusive; H-STR-002 remains weakened)
 - docs/target-result-profile.md, docs/inventor-protocol.md
 - Prior ledger: H-STR-002 weakened, H-IC-001 weakened, H-ENDO-001 approved, H-YIELD-001 / H-GGM-001 specified, H-FCP-001 analyzed; IDEA-20260727-001..008
 
@@ -24,7 +24,7 @@
 
 ### Rejected as primary this batch
 
-- Any STR / `phi_alpha` / displacement-rank instrument ablation: blocked by DEC-20260730-001 inconclusive close and BATCH-016 opening constraint (no new mechanism named for STR).
+- Any STR / `phi_alpha` / displacement-rank instrument ablation: blocked by DEC-20260730-014 inconclusive close and BATCH-016 opening constraint (no new mechanism named for STR).
 - Selecting 008/009/010 first: lower exponent-search value than 007 under the target profile (gate / measurement / amortization vs bottleneck rewrite).
 
 ## Sub-goal decomposition (durable)

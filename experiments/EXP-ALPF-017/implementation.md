@@ -10,11 +10,10 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
+- `source/round008_exp016_efp_fixeddeg_fb.log`
+- `source/round008_exp016_efp_fixeddeg_fb.sage`
 - `source/round008_exp016_efp_fixeddeg_fb_result.json`
 - `source/round008_exp016_efp_fixeddeg_fb_result.md`
-- `source/round008_exp016_efp_fixeddeg_fb.sage`
-- `source/round008_exp016_efp_fixeddeg_fb.sage.py`
-- `source/round008_exp016_efp_fixeddeg_fb.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

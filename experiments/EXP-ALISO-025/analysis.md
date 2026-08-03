@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1243_parity_repaired_kani_probe
 
 ## Observation
-Historical Autolab experiment with retained result artifacts.
+ARITHMETIC LEMMA EVIDENCE / HEURISTIC SMOOTH SEARCH / NO KANI OR TRANSVERSE-ISOGENY IMPLEMENTATION
 
 Source excerpt / raw summary:
 

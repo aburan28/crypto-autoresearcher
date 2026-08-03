@@ -11,8 +11,8 @@ Historical Autolab port (no re-execution).
 
 ## Copied artifacts
 - `source/bin_exp001_result.md`
-- `source/bin_exp001_weil_descent_gate.sage`
 - `source/bin_exp001_weil_descent_gate.log`
+- `source/bin_exp001_weil_descent_gate.sage`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

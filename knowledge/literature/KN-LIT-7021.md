@@ -1,9 +1,9 @@
 ---
 id: KN-LIT-7021
 type: literature
-title: "The Moral Character of Cryptographic Work"
+title: The Moral Character of Cryptographic Work
 authors:
-  - "Phillip Rogaway"
+- Phillip Rogaway
 year: null
 venue: null
 identifiers:
@@ -11,10 +11,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- ethics
+- survey
+- policy
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 
