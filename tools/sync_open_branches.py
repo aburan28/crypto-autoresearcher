@@ -79,6 +79,32 @@ def remote_branches() -> list[str]:
     return [b for b in out if not b.startswith(SKIP_PREFIXES)]
 
 
+def branch_digest(branch: str, base: str) -> dict | None:
+    """What changed on `base` since this branch last shared history with it.
+
+    This is the per-branch half of the merge feed. The feed under
+    coordination/events/main/ answers "what landed"; this answers "what landed
+    THAT MATTERS TO YOU" -- which of your goals moved, and whether the shared
+    contract changed under you while you were away.
+    """
+    merge_base = run("git", "merge-base", branch, base).stdout.strip()
+    if not merge_base:
+        return None
+    out = run(sys.executable, "tools/merge_digest.py", "--since", merge_base,
+              "--until", base, "--json")
+    try:
+        body = json.loads(out.stdout)["merge_event"]
+    except (json.JSONDecodeError, KeyError):
+        return None
+    return {
+        "since": merge_base[:12],
+        "goal_transitions": body.get("goal_transitions") or [],
+        "contract_changed": body.get("contract_changed") or [],
+        "records_added": {k: v.get("added", []) for k, v in
+                          (body.get("records") or {}).items() if v.get("added")},
+    }
+
+
 def branch_state(branch: str, base: str) -> dict:
     behind = run("git", "rev-list", "--count", f"{branch}..{base}").stdout.strip()
     ahead = run("git", "rev-list", "--count", f"{base}..{branch}").stdout.strip()
@@ -196,6 +222,10 @@ def main() -> int:
                     help="restrict to branches containing this substring")
     ap.add_argument("--limit", type=int, help="process at most N candidate branches")
     ap.add_argument("--json", metavar="PATH", help="write the full report as JSON")
+    ap.add_argument("--digest", action="store_true",
+                    help="for each out-of-date branch, summarise what changed on "
+                         "the base since it last shared history: goal transitions, "
+                         "new records, and whether the shared contract moved")
     args = ap.parse_args()
 
     run("git", "fetch", "--quiet", "origin")
@@ -210,6 +240,8 @@ def main() -> int:
             continue
         state = branch_state(branch, args.base)
         state["status"] = classify(state, args.fork_threshold)
+        if args.digest and state["status"] in ("behind", "fork"):
+            state["digest"] = branch_digest(branch, args.base)
         rows.append(state)
 
     candidates = [r for r in rows if r["status"] == "behind"]
@@ -244,6 +276,25 @@ def main() -> int:
         for r in sorted(group, key=lambda x: -(x["behind"] or 0))[:40]:
             line = (f"  behind={r['behind']:<5} ahead={r['ahead']:<4} "
                     f"idle={r['idle_minutes']}m  {r['branch']}")
+            dig = r.get("digest")
+            if dig:
+                if dig["contract_changed"]:
+                    line += (f"\n      !! shared contract moved under this branch: "
+                             f"{len(dig['contract_changed'])} file(s) incl. "
+                             f"{', '.join(dig['contract_changed'][:3])}")
+                for t in dig["goal_transitions"][:4]:
+                    if t.get("new_goal"):
+                        line += f"\n      + {t['goal_id']}: new goal ({t.get('status')})"
+                        continue
+                    bits = []
+                    if "status" in t:
+                        bits.append(f"status {t['status']['from']} -> {t['status']['to']}")
+                    if t.get("next_action_changed"):
+                        bits.append("next_action changed")
+                    if "latest_verified_commit" in t:
+                        bits.append("provenance rebound")
+                    if bits:
+                        line += f"\n      ~ {t['goal_id']}: {'; '.join(bits)}"
             act = r.get("action")
             if act:
                 line += f"\n      -> {act['note']}"

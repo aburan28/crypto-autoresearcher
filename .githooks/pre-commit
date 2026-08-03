@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+# Reject macOS AppleDouble sidecars and other Finder metadata.
+#
+# .gitignore cannot do this on its own: `git add -f` bypasses it, and a file
+# that is already tracked is never consulted against it again. This hook is the
+# actual enforcement point, and it inspects the INDEX, so it catches force-adds.
+#
+# Enable per clone (hooks are not themselves version-controlled):
+#   git config core.hooksPath .githooks
+#
+# Deliberate override, if you ever genuinely need one:
+#   ALLOW_APPLEDOUBLE=1 git commit ...
+#
+# `git commit --no-verify` also skips this hook. That is a property of git, not
+# a gap here; add a CI check if you want a backstop that cannot be skipped.
+#
+# POSIX sh on purpose: macOS ships bash 3.2, so mapfile/readarray are absent.
+
+if [ "${ALLOW_APPLEDOUBLE:-0}" = "1" ]; then
+    echo "pre-commit: ALLOW_APPLEDOUBLE=1 set - skipping the macOS metadata check." >&2
+    exit 0
+fi
+
+# Added/copied/modified/renamed paths in the index, NUL-delimited so that paths
+# containing spaces or newlines are handled correctly.
+offenders=$(
+    git diff --cached --name-only --diff-filter=ACMR -z |
+    tr '\0' '\n' |
+    grep -E '(^|/)\._|(^|/)\.DS_Store$|(^|/)\.AppleDouble(/|$)|(^|/)\.LSOverride$|(^|/)\.Spotlight-V100(/|$)|(^|/)\.Trashes(/|$)|(^|/)\.TemporaryItems(/|$)|(^|/)\.fseventsd(/|$)|(^|/)\.DocumentRevisions-V100(/|$)|(^|/)__MACOSX/'
+) || true
+
+if [ -z "$offenders" ]; then
+    exit 0
+fi
+
+count=$(printf '%s\n' "$offenders" | wc -l | tr -d ' ')
+
+{
+    echo
+    echo "pre-commit: refusing to commit $count macOS metadata file(s):"
+    printf '  %s\n' $offenders
+    cat <<'EOF'
+
+These are Finder sidecars, not project content. AppleDouble files ("._name")
+begin with the magic bytes 00 05 16 07 and are recreated automatically on
+exFAT/FAT/SMB volumes; committing them adds noise to every diff, and inside
+.git they cause "non-monotonic index" errors.
+
+To unstage and remove them:
+
+  git diff --cached --name-only --diff-filter=ACMR -z \
+    | tr '\0' '\n' | grep -E '(^|/)\._|(^|/)\.DS_Store$' \
+    | tr '\n' '\0' | xargs -0 -r git rm --cached --quiet --
+  dot_clean .
+
+If you are certain you want them tracked:
+
+  ALLOW_APPLEDOUBLE=1 git commit ...
+
+EOF
+} >&2
+
+exit 1
