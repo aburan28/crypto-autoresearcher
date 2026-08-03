@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-040: one bounded zero-compute batch that (1) specifies the host-integration width contract for CollimationSieve@6f9188e4 / BATCH-022 hooks without inventing any value, with a pre-registered real-width validation/falsification plan, AND (2) begins QM-STOPPING obstruction analysis to the inventor-protocol §4 closure standard (unverified if no obstruction can be named); no toy width iteration; no fake-τ gate B; no EXP-SSI-001; no clearance/breakthrough creep.
+BATCH-041: one bounded zero-compute batch that attempts the QM-STOPPING §6 item-1 HOST-INDEPENDENCE REDUCTION — whether τ's finiteness reduces to a host-INDEPENDENT mixing-time / re-randomization / collision-distribution property of the sieve, statable WITHOUT the full Verify body, with an explicit falsifiable criterion. Honest outcomes: (i) reduction exists → refute Verify-relativity candidate; (ii) dependence essential in stated scope → earn named §4 obstruction; (iii) neither → PAUSE QM-STOPPING lane with revisit condition. No toy width iteration; no fake-τ gate B; no EXP-SSI-001; no clearance/breakthrough creep.
 
 ## Ready Tasks
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `ecc360aa4f5c428711b754e3edb004e7c794aebce8f8c5df35a6e038f29def52`
+Plan SHA-256: `a8451dc037c79e14fe3b1ab020a36871a1323f9d5ff3fabb930cd15d95ba52b5`
