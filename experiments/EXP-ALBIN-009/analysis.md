@@ -1,7 +1,7 @@
 # Analysis — Autolab binary-field BIN-EXP-009: m=4 diagonal
 
 ## Observation
-m=4 D_solv was blocked in BIN-EXP-008 by the `S5.subs` symbolic-descent explosion (S₅ = degree 32, per-variable degree 8). **Unblocked here by a substitution-free EVALUATION descent**: build each F₂-component of Φ = S₅(x₁,…,x₄,xR) by evaluating S₅ over all 2^nvars boolean c-assignments and Möbius-transforming each F₂-coordinate into a boolean polynomial. **Validated byte-identical to the symbolic descent at m=3, n=11** (component sets equal). (Fixed a Sage `^`-vs-`^^` XOR-preparse bug in the Möb
+**Date:** 2026-06-01. Script: `bin_exp009_m4_diagonal.sage` + `msolve` 0.9.5. Log: `bin_exp009_m4_diagonal.log`.
 
 Source excerpt / raw summary:
 

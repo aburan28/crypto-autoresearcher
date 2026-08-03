@@ -1,7 +1,7 @@
 # Analysis — Autolab binary-field BIN-EXP-007: WDSat
 
 ## Observation
-A working, validated WDSat-style SAT harness for binary Semaev point decomposition:
+**Date:** 2026-05-31. Script: `bin_exp007_wdsat.sage` (+ extra cells `bin_exp007b_extra.log`). Solver: CryptoMiniSat via `pycryptosat` (native `add_xor_clause` — the WDSat-defining feature).
 
 Source excerpt / raw summary:
 

@@ -10,9 +10,10 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/round019_PO009prime.log`
-- `source/round019_PO009prime_flat_volcano_m3.sage`
 - `source/round019_PO009prime_result.json`
+- `source/round019_PO009prime_flat_volcano_m3.sage`
+- `source/round019_PO009prime_flat_volcano_m3.sage.py`
+- `source/round019_PO009prime.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

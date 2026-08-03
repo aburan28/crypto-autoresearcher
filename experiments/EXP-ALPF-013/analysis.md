@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round007_exp012_localization_gate
 
 ## Observation
-Claim label: RESTRICTED THEOREM (gate is a correct, discriminating localization test
+{'base_meter_loaded': True, 'base_self_valid': False, 'ering_powersum_fail_gate': True, 'posc_passes_gate': True, 'synthetic_gate_POS_passes': False, 'gate_discriminating': False}
 
 Source excerpt / raw summary:
 

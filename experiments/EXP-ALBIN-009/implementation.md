@@ -10,9 +10,9 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/bin_exp009_m4_diagonal.log`
-- `source/bin_exp009_m4_diagonal.sage`
 - `source/bin_exp009_result.md`
+- `source/bin_exp009_m4_diagonal.sage`
+- `source/bin_exp009_m4_diagonal.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

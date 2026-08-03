@@ -1,7 +1,7 @@
 # Analysis — Autolab binary-field BIN-EXP-011: Petit–Quisquater diagonal cost capstone
 
 ## Observation
-BIN-NR-003 measured the IC/rho cost gap at FIXED m=3 (gap grows ~n/6) — but BIN-OBS-009 showed that misrepresents the Petit–Quisquater diagonal. This experiment measures the TOTAL IC cost along the ACTUAL diagonal **m = round(n^{1/3})**, combining: measured |FB| (subspace enumeration), relation-generation exponent, sparse-LA exponent (2 log₂|FB| + log₂ m), and the per-relation **solve** exponent ω·log₂(Σ_{i≤D} C(N,i)) with D = D_solv = m(m−1)+c (the BIN-OBS-007 measured law; c swept in {0,1,2} t
+**Date:** 2026-06-01. Script: `bin_exp011_diagonal_capstone.sage`. Log: `bin_exp011_diagonal_capstone.log`.
 
 Source excerpt / raw summary:
 

@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_hecke_support_cost_probe
 
 ## Observation
-ANALYTIC QUERY SIGNAL / STANDARD-CIRCUIT SCOPED NEGATIVE / TOY OPERATION PROXIES
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 
