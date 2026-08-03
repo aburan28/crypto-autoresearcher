@@ -6,15 +6,14 @@ GOAL-P13-001 BATCH-004, the first UNCAPPED batch (DEC-20260802-fa3b26). Its prim
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260803-4946a5` | executor | queued | 95 | TASK-20260802-56524a | experiments/EXP-HEUR-d640d9/implementation/heuristic_tail.py, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/manifest.yaml, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/raw-result.json, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/execution_report.yaml, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/stdout.txt, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/stderr.txt, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/stdout.log, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/stderr.log, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/command.txt, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/environment.json | experiments/EXP-HEUR-d640d9/implementation, experiments/EXP-HEUR-d640d9/runs, coordination/goals/GOAL-P13-001/batches/BATCH-004/tasks/TASK-20260803-4946a5 |
-| `TASK-20260803-d164ba` | executor | queued | 90 | TASK-20260802-56524a | experiments/EXP-PEC-d7979c/implementation/closeout.py, experiments/EXP-PEC-d7979c/runs/RUN-PEC-d7979c-b/manifest.yaml, experiments/EXP-PEC-d7979c/runs/RUN-PEC-d7979c-b/raw-result.json, experiments/EXP-PEC-d7979c/runs/RUN-PEC-d7979c-b/execution_report.yaml, experiments/EXP-PEC-d7979c/runs/RUN-PEC-d7979c-b/stdout.txt, experiments/EXP-PEC-d7979c/runs/RUN-PEC-d7979c-b/stderr.txt, experiments/EXP-PEC-d7979c/runs/RUN-PEC-d7979c-b/stdout.log, experiments/EXP-PEC-d7979c/runs/RUN-PEC-d7979c-b/stderr.log, experiments/EXP-PEC-d7979c/runs/RUN-PEC-d7979c-b/command.txt, experiments/EXP-PEC-d7979c/runs/RUN-PEC-d7979c-b/environment.json | experiments/EXP-PEC-d7979c/implementation, experiments/EXP-PEC-d7979c/runs, coordination/goals/GOAL-P13-001/batches/BATCH-004/tasks/TASK-20260803-d164ba |
+| `TASK-20260803-4946a5` | executor | running | 95 | TASK-20260802-56524a | experiments/EXP-HEUR-d640d9/implementation/heuristic_tail.py, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/manifest.yaml, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/raw-result.json, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/execution_report.yaml, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/stdout.txt, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/stderr.txt, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/stdout.log, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/stderr.log, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/command.txt, experiments/EXP-HEUR-d640d9/runs/RUN-HEUR-d640d9-a/environment.json | experiments/EXP-HEUR-d640d9/implementation, experiments/EXP-HEUR-d640d9/runs, coordination/goals/GOAL-P13-001/batches/BATCH-004/tasks/TASK-20260803-4946a5 |
 
 ## Deferred or Blocked
 
 - `TASK-20260802-375cd8`: dependency_not_completed:TASK-20260802-cd08cd:queued, dependency_not_completed:TASK-20260802-44c6a2:queued
-- `TASK-20260802-44c6a2`: dependency_not_completed:TASK-20260802-e83f4d:queued, dependency_not_completed:TASK-20260803-4946a5:queued, dependency_not_completed:TASK-20260803-d164ba:queued
-- `TASK-20260802-cd08cd`: dependency_not_completed:TASK-20260802-e83f4d:queued, dependency_not_completed:TASK-20260803-4946a5:queued, dependency_not_completed:TASK-20260803-d164ba:queued
-- `TASK-20260802-e83f4d`: dependency_not_completed:TASK-20260802-459b18:failed, dependency_not_completed:TASK-20260802-4bd310:failed, dependency_not_completed:TASK-20260803-4946a5:queued, dependency_not_completed:TASK-20260803-d164ba:queued
+- `TASK-20260802-44c6a2`: dependency_not_completed:TASK-20260803-4946a5:running, dependency_not_completed:TASK-20260803-cdc4bd:queued
+- `TASK-20260802-cd08cd`: dependency_not_completed:TASK-20260803-4946a5:running, dependency_not_completed:TASK-20260803-cdc4bd:queued
+- `TASK-20260803-cdc4bd`: dependency_not_completed:TASK-20260803-4946a5:running
 
 ## Dispatch Gates
 
@@ -29,4 +28,4 @@ GOAL-P13-001 BATCH-004, the first UNCAPPED batch (DEC-20260802-fa3b26). Its prim
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `5a53ccba7b8ff2c0490e67b33191d405c7cfd6524535194ccbbd5ba65cc897bb`
+Plan SHA-256: `e39f8c3f8ab3b2c7d99be88f28e4ad54188cc99cf847e28fe2048748809a4a80`
