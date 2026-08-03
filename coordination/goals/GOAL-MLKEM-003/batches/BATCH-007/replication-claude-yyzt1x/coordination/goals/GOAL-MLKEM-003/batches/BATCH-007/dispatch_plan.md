@@ -25,8 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-<<<<<<< HEAD:coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/replication-claude-yyzt1x/coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/dispatch_plan.md
 Plan SHA-256: `f6b5081de197cb005a36d56f59ab113ba487a2142b9b205c594206698b0a73a8`
-=======
-Plan SHA-256: `726701a727bf9aa9eb715209c7e7363e8034fc98c3467194a0815a03aa1fd63c`
->>>>>>> origin/main:coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/dispatch_plan.md
