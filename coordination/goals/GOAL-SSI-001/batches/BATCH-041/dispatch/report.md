@@ -6,11 +6,11 @@ BATCH-041: one bounded zero-compute batch that attempts the QM-STOPPING §6 item
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-137` | red-team | queued | 80 | TASK-20260730-135, TASK-20260730-136 | coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-137/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-137/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-041/tasks/TASK-20260730-137 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-138`: dependency_not_completed:TASK-20260730-137:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-041: one bounded zero-compute batch that attempts the QM-STOPPING §6 item
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `33af99c60e43fad4de09da48302dab7712b3a2fdddc7480a0c1c3f3e1901d26c`
+Plan SHA-256: `a8451dc037c79e14fe3b1ab020a36871a1323f9d5ff3fabb930cd15d95ba52b5`
