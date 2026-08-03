@@ -6,12 +6,10 @@ BATCH-040: one bounded zero-compute batch that (1) specifies the host-integratio
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-131` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/host_width_contract.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/validation_falsification_plan.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/stopping_obstruction_analysis.md, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/contract_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/contract_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/contract_harness/ledger_checks.py, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/contract_harness/test_contract.py, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/contract_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131/contract_harness/harness_receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-131 |
+| `TASK-20260730-133` | red-team | queued | 80 | TASK-20260730-131, TASK-20260730-132 | coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-133/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-133/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-133 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-132`: dependency_not_completed:TASK-20260730-131:queued
-- `TASK-20260730-133`: dependency_not_completed:TASK-20260730-131:queued, dependency_not_completed:TASK-20260730-132:queued
 - `TASK-20260730-134`: dependency_not_completed:TASK-20260730-133:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-040: one bounded zero-compute batch that (1) specifies the host-integratio
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `86729a59acd3a78795c0efab7ce2df4e98473e676c1dbf24005872ade48f208a`
+Plan SHA-256: `50c8bfb9e60544578a375752d5542fcdbfd46749d331f78bd12757540520beeb`
