@@ -6,12 +6,10 @@ BATCH-038: construct a checkable symbolic global-bound composition-law / peak-ag
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-123` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_schema_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_harness/ledger_checks.py, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_harness/test_composition_aggregation.py, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_harness/harness_receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123 |
+| `TASK-20260730-125` | red-team | queued | 80 | TASK-20260730-123, TASK-20260730-124 | coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-125/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-125/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-125 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-124`: dependency_not_completed:TASK-20260730-123:queued
-- `TASK-20260730-125`: dependency_not_completed:TASK-20260730-123:queued, dependency_not_completed:TASK-20260730-124:queued
 - `TASK-20260730-126`: dependency_not_completed:TASK-20260730-125:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-038: construct a checkable symbolic global-bound composition-law / peak-ag
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `aae40b86c34f24a0e2b33201df7b4a9a45189dfb71facea71e4fbac218df5c47`
+Plan SHA-256: `d620cb4a5051636061879ddc2e0701b325205d083bf3e941e9e90e1e622f9729`
