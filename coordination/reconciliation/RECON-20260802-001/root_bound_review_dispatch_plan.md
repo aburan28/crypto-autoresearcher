@@ -6,13 +6,12 @@ Freeze, snapshot, execute, and separately archive fresh Validator and Red Team r
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260803-012` | coordinator | queued | 100 | TASK-20260803-011 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-012/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-012 |
+| `TASK-20260803-005` | validator | queued | 100 | TASK-20260803-012 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-005/validation_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-005 |
+| `TASK-20260803-007` | red-team | queued | 100 | TASK-20260803-012 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-007/red_team_report.yaml | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-007 |
 
 ## Deferred or Blocked
 
-- `TASK-20260803-005`: dependency_not_completed:TASK-20260803-012:queued
 - `TASK-20260803-006`: dependency_not_completed:TASK-20260803-005:queued
-- `TASK-20260803-007`: dependency_not_completed:TASK-20260803-012:queued
 - `TASK-20260803-008`: dependency_not_completed:TASK-20260803-007:queued
 - `TASK-20260803-009`: dependency_not_completed:TASK-20260803-006:queued, dependency_not_completed:TASK-20260803-008:queued
 - `TASK-20260803-010`: dependency_not_completed:TASK-20260803-009:queued
@@ -30,4 +29,4 @@ Freeze, snapshot, execute, and separately archive fresh Validator and Red Team r
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `def05f0df44855cae6340e97068c7c32888a97cd6ca3a3915efcf29b5e469933`
+Plan SHA-256: `a3ad78385822be4567e93260a03fd4158e569a2341be8e29c7b6e2f7e4df9488`
