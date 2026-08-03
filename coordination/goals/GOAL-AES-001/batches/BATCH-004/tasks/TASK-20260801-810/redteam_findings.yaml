@@ -1,0 +1,683 @@
+red_team_report:
+  task_id: TASK-20260801-810
+  goal_id: GOAL-AES-001
+  batch_id: BATCH-004
+  role: red-team
+  reviewed_snapshot: cc660597e3bcc616521bce443b9a17eafa4393c2
+  binding_receipt_commit: db4b321aeb  # snapshot receipt bind commit db4b321a
+  reviewed_artifacts:
+    - tasks/TASK-20260801-806/prescreen_od4.json
+    - tasks/TASK-20260801-806/od4_branching.py
+    - tasks/TASK-20260801-806/od4_results.json
+    - tasks/TASK-20260801-806/od4_branching_bound_report.md
+    - tasks/TASK-20260801-807/prescreen_od3.json
+    - tasks/TASK-20260801-807/od3_and_hole_ii_report.md
+  artifacts_read_but_not_re_executed:
+    - tasks/TASK-20260801-807/od3_quantifier.py
+    - tasks/TASK-20260801-807/od3_results.json
+
+  evidence_integrity:
+    status: CONFIRMED
+    method: >-
+      All eight source paths in the TASK-20260801-808 receipt re-hashed from the
+      committed tree via `git show cc660597:<path> | sha256sum`. All eight match
+      source_path_sha256 exactly. Parent 3e6b8b73 confirmed via git log.
+    result: no_integrity_failure
+
+  branch:
+    taken: A
+    also_run: B
+    basis: >-
+      The package contains cost and asymptotic statements at multiple strengths:
+      Proposition 806-1 (B >= q = 256), Corollary 806-2 (L + Y <= 24), and the
+      §5.3 cost table in n with per-attempt-cost x inverse-success-probability
+      product, memory, MITM and parallelization. The handoff mandates BRANCH A if
+      any such statement exists at any strength. The dispatching card additionally
+      declares BRANCH B live; both were run.
+
+  independence:
+    session_independent: true
+    model_independent: false
+    statement: >-
+      Under inference-amendment 0137a051eb5828789eb267fa83c8278086578d4c this
+      session supplies independence in SESSION and NOT in MODEL. It resolves to
+      claude-opus-5, the same model as both producers, the TASK-20260801-809
+      validator and the Coordinator. Agreement between this report and the
+      validator is CORRELATED, not independent, confirmation. Nothing here may be
+      treated as a closure attestation under CLAUDE.md rule 8.
+
+  inference:
+    policy: red-team-adversarial
+    requested_policy: red-team-adversarial
+    resolved_model_id: claude-opus-5
+    fallback_used: true
+    fallback_reason: >-
+      orchestration/model-policies.yaml routes red-team-adversarial to a
+      GPT-5.6-family policy alias Claude Code cannot resolve; per CLAUDE.md's
+      model policy note this harness's subagents run `model: inherit`.
+    reasoning_effort: null
+    degraded_allowed: false
+    model_verified: false
+    model_verified_reason: >-
+      `python3 -m orchestration.adapter doctor --probe` was NOT run in this task;
+      the resolved model identifier is unprobed configuration from the runtime's
+      self-report.
+    independent_session: true
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+
+  state_assertions:
+    hypothesis_status_change: none
+    evidence_strength_assigned: none
+    promotion_recommended: none
+    promotion_recommended_against: >-
+      Yes. Any promotion resting on gate (4) being satisfied by TASK-20260801-809
+      plus TASK-20260801-810 is recommended AGAINST, on the model-correlation
+      ground of finding RT-13 and independently on the merits of RT-1/RT-2/RT-3.
+    ledger_records_created: none
+    knowledge_promoted: none
+    producer_artifacts_modified: none
+    aes_security_claims: none
+
+  objections:
+
+    - id: RT-1
+      severity: MAJOR
+      label: DEMONSTRATED
+      addresses: R-1, R-2
+      title: >-
+        A GF(2^8) kernel with joint branching J = 2^24 exists, strictly below the
+        2^32 the cost table's central column uses.
+      argument: >-
+        For dim K = 1 the four joint-branching generators form a circulant over
+        c_i = v_i m_i mod K; identifying them with F[x]/(x^4+1) = F[x]/(x+1)^4
+        (local ring, char 2), rank <= 3 iff every component of c is a non-unit iff
+        sum_i c_i = 0 in F^4/K iff Mv in span(v), i.e. v is an eigenvector of
+        MixColumns. M's only eigenvalue is c(1) = 0x01 and (c+1)(1) = 0, so M + I
+        is singular and ker(M+I) is nonzero.
+      reproduction: >-
+        Extract od4_branching.py from cc660597; exec everything above `def main()`;
+        call joint_branching(GF256, [[2,3,1,1],[1,2,3,1],[1,1,2,3],[3,1,1,2]],
+        [[1,1,1,1]]). Measured with the producer's unmodified code:
+        ker(M+I) = span(0x1,0x1,0x1,0x1); J = 2^24, per-word B = 2^24.
+        Producer witnesses span(e0) and span(m0) both read J = 2^32.
+        Sub-second runtime.
+      why_producer_witnesses_missed_it: >-
+        I additionally scanned all 1534 dim-1 kernels of support <= 2 and 3000
+        random full-support dim-1 kernels with the same code: EVERY one reads
+        J = 2^32. The low-J kernel is the unique (up to scalar) eigenvector, a
+        measure-zero object. The producer's witnesses were structured along
+        SUPPORT; the discriminating axis is EIGENVECTOR-NESS.
+      consequence: >-
+        With J = 2^24 the central column crosses the 2^128 baseline at n ~ 5.33,
+        not n = 4, and the n = 7 MITM entry becomes 2^84, not 2^112. Every
+        barrier-relevant number in the table moves.
+      honesty_against_self: >-
+        This CONFIRMS rather than falsifies HEUR-806-1, whose formal statement
+        predicts min J = q^3 = 2^24 over GF(2^8) and which the producer listed as
+        unvalidated there. I did NOT establish 2^24 as the global minimum; a
+        kernel with J < 2^24 is UNRESOLVED.
+      settling_control: CTRL-810-A secondary leg (HEUR-806-1's own GF(2^8) census).
+
+    - id: RT-2
+      severity: MAJOR
+      label: DEMONSTRATED
+      addresses: R-1, R-2
+      title: >-
+        Column 3 exceeds its own object's frontier ceiling at n >= 2; both the
+        barrier reading (2^128 at n=4) and the producer's own MITM weakening
+        (2^112 at n=7) are computed above the ceiling.
+      argument: >-
+        The n-interface frontier lives in X^4 = (F^4/K)^4, of F-dimension
+        4(4 - dim K), so it is capped at q^{4(4-dim K)} unconditionally at every n:
+        2^96 at dim K = 1 (L=8), 2^64 at dim K = 2 (L=16), 2^32 at dim K = 3
+        (L=24). Column 3's 2^{32n} first exceeds the ceiling at n = 4, 3 and 2
+        respectively. The three witnesses generating J = 2^32 are exactly the
+        dim K = 1, 2, 3 minimising witnesses, so for every one of them the n = 7
+        entry 2^224 and the MITM entry 2^112 are above the largest ceiling (2^96)
+        and are not attainable frontier sizes.
+      producer_partial_awareness: >-
+        HEUR-806-2's status does record saturation ("believed FALSE for large n").
+        The flag was not carried into the numbers it invalidates: column 4's cap is
+        computed at L = 16 while column 3's J = 2^32 spans dim K = 1..3, so a cap
+        for one kernel dimension sits beside an uncapped count for another; and
+        §5.5's "weakly pressured at L = 16 across n >= 4" names a window that is
+        past saturation (ceiling reached at n = 2).
+      narrowest_valid_conclusion: >-
+        No column-3 entry with n >= 2 survives its own object's ceiling except
+        where it coincides with it. Nothing in the table supports "the cost crosses
+        2^128 at n = 4".
+      settling_control: CTRL-810-A.
+
+    - id: RT-3
+      severity: MAJOR
+      label: DEMONSTRATED_OMISSION
+      addresses: R-1, R-2 (the requested UNNUMBERED conditional dependence)
+      title: >-
+        UNNUMBERED CONDITIONAL DEPENDENCE #1 - the nonlinear layer between
+        consecutive interfaces is nowhere modelled, and the whole n-axis rests on
+        which of two unstated alternatives holds.
+      argument: >-
+        Phi = ARK.MC.SR is purely affine and Proposition 806-1 / LEM-806-2 /
+        LEM-806-3 are proved for ONE such Phi. §5 multiplies the per-interface
+        factor across n consecutive super-box interfaces. "SubBytes", "S-box",
+        "sbox" and "nonlinear" appear ZERO times in od4_branching_bound_report.md
+        (verified by grep over committed bytes). Either (a) no nonlinear layer is
+        present, in which case Phi^n is a single affine map whose branching
+        saturates at the RT-2 ceiling and is not J^n; or (b) one is present, in
+        which case pi.SB is not F-linear and Proposition 806-1 governs NO interface
+        after the first, since its proof uses F-linearity at LEM-806-2 and
+        LEM-806-3. Neither alternative is stated. HEUR-806-2 numbers only
+        multiplicativity/saturation, not the class assumption alternative (b)
+        destroys.
+      not_absorbed_by: >-
+        The §0 disclaimer and residual R806-2 ("every multi-interface number in §5
+        is a cost model, not a derivation") absorb some exposure but not this: the
+        defect is not "this is a model", it is "the model's per-step factor is
+        derived in a class the model's own composition leaves".
+      settling_control: CTRL-810-A, model M-nonlinear leg.
+
+    - id: RT-4
+      severity: MODERATE
+      label: DEMONSTRATED_OMISSION
+      addresses: R-1
+      title: >-
+        UNNUMBERED CONDITIONAL DEPENDENCE #2 - round-key obliviousness is never
+        charged, and the success probability p = 1 depends on it.
+      argument: >-
+        LEM-806-2 disposes of ARK with "contributes a fixed translation and does
+        not change any cardinality" - correct for CARDINALITY at one interface with
+        a fixed key. §5 then costs an attacker-style traversal (attempt,
+        per-attempt cost, success probability, against a 2^128 enumeration
+        baseline) that must evaluate R_j at each node. The SET R_j(x) =
+        pi(W_S + const) is a coset whose representative depends on the round key;
+        only its size is key-independent. Traversing n interfaces requires either
+        knowledge of n round-key contributions - not charged, and not assumed by
+        the key-free 2^128 baseline - or a union over key hypotheses, which
+        multiplies the frontier. "round key" and "key schedule" appear nowhere in
+        the report outside that one LEM-806-2 sentence.
+      product_defect: >-
+        p = 1 is asserted "by the definition of the object", which holds only if
+        the relation is KNOWN; knowing it is not free.
+      settling_control: >-
+        Specify the downstream use (this is also HEUR-806-4's blocker) and state
+        explicitly whether the traversal is key-aware; if key-aware, re-derive the
+        baseline as a key-aware baseline so the comparison is like-for-like.
+
+    - id: RT-5
+      severity: MODERATE
+      label: UNRESOLVED
+      addresses: R-1
+      title: >-
+        UNNUMBERED CONDITIONAL DEPENDENCE #3 - intermediate-profile reachability.
+      argument: >-
+        J^n counts paths in a product structure, assuming every profile in the
+        frontier at interface i is a REALIZABLE input profile at interface i+1.
+        Consistency/reachability of intermediate profiles is nowhere asserted.
+        HEUR-806-2's tail check addresses the neighbouring x-independence question,
+        not this one.
+      why_unresolved: >-
+        Settling it requires the direct composition CTRL-810-A specifies, which was
+        not run within budget. Not refuted; not confirmed.
+      settling_control: CTRL-810-A.
+
+    - id: RT-6
+      severity: MODERATE
+      label: DEMONSTRATED
+      addresses: R-2
+      title: >-
+        HEUR-806-1 is numbered in the direction the cost model does NOT use.
+      argument: >-
+        HEUR-806-1 asserts min J = q^3 = 2^24; column 3 uses 2^32. The table is
+        therefore conditional not on HEUR-806-1 being TRUE but on it being FALSE at
+        the witnesses - a different and unstated proposition. RT-1 shows the
+        heuristic's own direction is the correct one at an exhibitable kernel, so
+        the unstated proposition is refuted at that kernel.
+      credit_where_due: >-
+        HEUR-806-1's validation experiment CAN falsify ("any kernel with
+        J(K) < 2^24, or J(K) not in {2^24, 2^32}") and is well specified. It is not
+        a confirmation exercise.
+
+    - id: RT-7
+      severity: MODERATE
+      label: DEMONSTRATED
+      addresses: R-2
+      title: >-
+        HEUR-806-2's validation experiment cannot falsify the use column 3 makes of
+        it.
+      argument: >-
+        The experiment's falsifier is stated against min(J^n, |X|^4) - the
+        SATURATED form - and is scheduled in the GF(2^4) analogue only. Column 3
+        uses the UNSATURATED form. An experiment whose predicted value already
+        incorporates the cap cannot expose the column that ignores the cap. Further,
+        HEUR-806-2 is weaker than what §5 needs: §5 needs multiplicativity AND
+        F-linearity preserved across the composition (RT-3) AND intermediate-profile
+        reachability (RT-5); only the first is numbered.
+
+    - id: RT-8
+      severity: MAJOR
+      label: DEMONSTRATED
+      addresses: R-4(ii), R-5
+      title: >-
+        The two sibling pre-screens assign n = 30 and n = 1 to the same structural
+        object, and the inconsistency killed the one candidate that attacked OD-4's
+        actual question.
+      argument: >-
+        prescreen_od3.json freezes, before any work, that for a ROUND-INDEPENDENT pi
+        every (lambda,k)-graph step "happens AT THE SAME SINGLE INTERFACE with the
+        SAME pi ... Its interface constant is therefore n = 1, not 32", attributing
+        Proposition 801-1's 32 specifically to LAYER-DEPENDENCE. prescreen_od4.json
+        kills CAND-806-A ("re-run Steps 1-3 with B-confinement, close under the
+        group") at n = 30 by reading the graph's forward diameter as an interface
+        count. But OD-4's object is EXPLICITLY round-independent (806 report §2:
+        "round-independent (the same pi before and after the interface)"). By 807's
+        own frozen rule CAND-806-A's constant is 1 and it should have been PURSUED.
+        Same for CAND-806-E.
+      which_screen_is_right: >-
+        807's. The screen's own question_c defines n as the number of consecutive
+        SUPER-BOX INTERFACES the tracked object must survive. For round-independent
+        pi, Steps 1-3 iterate over the invariance group of translations, not over
+        successive applications of Phi. 806's n = 30 reads a graph diameter as an
+        interface count - a category error, correct for Proposition 801-1 ONLY
+        because that pi was layer-dependent.
+      materiality: >-
+        CAND-806-A is the route to OD-4's hoped-for inequality. Partly moot, since
+        806 §3 recovers its content by showing the induction breaks under B > 1 -
+        but not wholly: 806 §3.3 route 2, "a bounded-index subgroup statement
+        replacing the group closure", is precisely CAND-806-A's remaining content,
+        is explicitly left as "a genuine open question ... not answered here", and
+        was screened out at a constant its sibling says is 1.
+      settling_control: >-
+        Coordinator-level: reconcile the two frozen screens by adopting one
+        interface-counting rule for round-independent pi, and re-run the OD-4 screen
+        under it. If 807's rule stands, schedule CAND-806-A's residual (the
+        bounded-index subgroup question) as a BATCH-005 candidate rather than as a
+        kill.
+
+    - id: RT-9
+      severity: MAJOR
+      label: DEMONSTRATED
+      addresses: R-4 (the "failing to exhibit an upper bound" rule)
+      title: >-
+        The "no upper bound exhibited" kill rule is defensible as budget triage and
+        NOT defensible as an IN_SCOPE_VACUOUS verdict.
+      argument: >-
+        CAND-806-E and CAND-B4 were killed on this rule. IN_SCOPE_VACUOUS is a
+        predicate on the CANDIDATE - it asserts the argument needs more interfaces
+        than the scope affords. "No upper bound exhibited" asserts only that the
+        PRODUCER, in the time it had, could not bound it. The screen records the
+        second under the label of the first. Per docs/inventor-protocol.md §4 a
+        closure needs a NAMED OBSTRUCTION; "I could not bound n" names none. In the
+        protocol's own language it is a FATIGUE REPORT ABOUT THE SEARCH, not a
+        statement about the problem, and should be said in those terms.
+      mitigations_credited: >-
+        CAND-806-E's entry hedges toward the defensible form (IN_SCOPE_VACUOUS "on
+        BOTH grounds", the other being a lower bound of 30). CAND-B4 was killed on
+        the unbounded ground alone, but 807 carries it forward as a named residual
+        (§4.4) rather than as a closure. Both mitigations are real.
+      recommendation_not_enacted: >-
+        A distinct verdict value, e.g. DEFERRED_UNBOUNDED, kept out of any count of
+        candidates the screen has RULED vacuous. As things stand "3 of 7 killed" and
+        "2 of 6 killed" are counts that mix a ruling with an abstention.
+
+    - id: RT-10
+      severity: MODERATE
+      label: DEMONSTRATED
+      addresses: R-4(i) (the ~7 threshold and its interface-per-round basis)
+      title: >-
+        The ~7 threshold bounds the wrong quantity, and RT-8 proves the two
+        quantities differ.
+      argument: >-
+        prescreen_od4.json asserts "No conversion known to this task makes MORE than
+        7 interfaces available inside RQ-AES-001's round scope" - a claim about
+        AVAILABLE CIPHER INTERFACES. The screen applies the number to the ARGUMENT'S
+        ITERATION COUNT. 807's own n = 1 rule proves these are not the same
+        quantity: an argument can iterate arbitrarily many times at one interface.
+        A bound on the first is not a bound on the second. The threshold is unsound
+        not because 7 is the wrong number but because it bounds a resource the
+        screen is not measuring.
+      knowable_direction_of_error: >-
+        If residual R5's one-interface-per-round convention is wrong in the
+        direction that a super-box spans two rounds, the in-scope budget is 3 and
+        the screen is TOO PERMISSIVE, not too strict. Every current PURSUE sits at
+        n = 1 and survives, so no verdict flips - but the advertised margins (e.g.
+        "margin 23" for CAND-806-A) are computed against 7 and are overstated by
+        more than a factor of two under the tighter conversion.
+      credited: >-
+        Both screens do check the tighter conversion explicitly and record the
+        result per candidate. That check is sound.
+
+    - id: RT-11
+      severity: MODERATE
+      label: DEMONSTRATED
+      addresses: R-4(iii) dodgeability, R-4(iv) overbreadth
+      title: >-
+        The screen is dodgeable in principle; its real discriminating variable is
+        layer-dependence, not iteration count.
+      argument: >-
+        By 807's rule ANY candidate can be re-posed with a round-independent pi and
+        thereby obtain n = 1, however many graph steps it takes. The screen
+        therefore does not filter on iteration count, which is what its
+        anti_relabelling_clause advertises; it filters on layer-dependence. Every
+        IN_SCOPE_VACUOUS verdict across both tasks tracks layer-dependence or
+        unboundedness, and no candidate was ever killed for taking many steps at one
+        interface.
+      did_a_producer_dodge: >-
+        NOT CULPABLY, and this is stated explicitly. 807 froze the n = 1 distinction
+        in prescreen_od3.json BEFORE any derivation and BEFORE any code, with the
+        written justification "stated here, before any work, so that it cannot be
+        constructed afterwards to dodge the screen", anchored by a committed SHA-256
+        rather than an mtime (the V-804-2 response). I confirmed the ordering claim
+        is anchored in committed bytes. The pre-registration holds. The defect is in
+        the RULE, not in its author's conduct.
+      recommendation_not_enacted: >-
+        Rename the instrument for what it does: a LAYER-DEPENDENCE screen.
+
+    - id: RT-12
+      severity: MINOR
+      label: DEMONSTRATED
+      addresses: R-4(v) (the "different machine" escape)
+      title: >-
+        The escape is substantive for CAND-806-B/C/F and weakest exactly where it
+        mattered most, CAND-806-D.
+      argument: >-
+        For B/C/F the escape is real: §4's proof demonstrably uses support/minor
+        algebra and never the (lambda,k) graph, and §7's controls target the support
+        property, not the graph. For CAND-806-D ("routes through arithmetic on a
+        cost model; n is a free parameter of the table, not a constant that must be
+        reached") the escape is close to circular, since a cost table in n is
+        precisely an object whose content is n-many interfaces. Given RT-2 and RT-3,
+        CAND-806-D is the candidate whose escape deserved scrutiny and got the least.
+
+    - id: RT-13
+      severity: MAJOR
+      label: DEMONSTRATED
+      addresses: R-3 (gate 4 satisfiability)
+      title: >-
+        Gate (4) is satisfiable only in its mechanical and session halves; its
+        independent-confirmation half is unsatisfiable under this harness.
+      what_gate_4_can_certify:
+        - Evidence integrity - the reviewed bytes are the committed bytes (model-free; eight digests verified).
+        - >-
+          Mechanical reproducibility - and this is not vacuous: RT-1 was obtained by
+          re-executing the producer's own code on an input the producer did not try
+          and returned a number contradicting the producer's table. A re-execution
+          that CHANGES A HEADLINE NUMBER is real evidence regardless of who ran it.
+        - Session independence - a reviewer without the producer's reasoning trace still reaches the defects. Excludes carry-over of one specific chain of thought.
+        - Adversarial coverage - that a named list of attacks was attempted, with outcomes recorded for the ones that found nothing.
+      what_gate_4_cannot_certify:
+        - >-
+          Absence of correlated blind spots. Producer, validator and red team share
+          a model prior; a defect all three miss because of it is invisible to the
+          gate BY CONSTRUCTION. RT-3 (SubBytes unmentioned in a report about n
+          chained AES super-box interfaces) is exactly that shape. That I caught it
+          is weak counter-evidence at best; a single instance does not measure the
+          correlation.
+        - >-
+          Independent confirmation. A validator CONCUR plus a red-team CONCUR is ONE
+          DRAW FROM A CORRELATED PAIR, not two draws. Any promotion argument of the
+          form "two reviewers agreed" is invalid here.
+        - Any closure quorum. CLAUDE.md rule 8 forbids it; distinctness is on the resolved model, and there is one.
+      consequence_for_DEC_20260731_014: >-
+        Gate (4) cannot be marked satisfied by 809 + 810. Three honest options,
+        named without choosing: (a) re-scope gate (4) to "session-independent
+        adversarial recomputation with named attack coverage" and record explicitly
+        that model independence is NOT obtained, so no asymptotic promotion rests on
+        reviewer agreement; (b) hold asymptotic promotion until a genuinely
+        different backend is routed for at least one reviewer; (c) leave the gate
+        not_addressed and say why. What may NOT be done is treating this report plus
+        the validator's as two independent confirmations.
+
+  r5_ruling:
+    question: >-
+      Is TASK-20260801-807's claim that a round-independent pi traversing the
+      (lambda,k) graph has n = 1 the RELABELLING the anti-relabelling clause
+      forbids?
+    ruling: >-
+      NO. The n = 1 claim is CORRECT, and the asymmetry with Proposition 801-1's
+      n = 32 is LEGITIMATE.
+    why_not_a_relabelling: >-
+      The clause forbids repackaging n steps as one lemma. 807 does not repackage
+      steps; it observes the steps were never interface-steps. The screen's own
+      question_c measures consecutive SUPER-BOX INTERFACES over which the tracked
+      object must survive. For round-independent pi, Steps 1/2/3 quantify over
+      translations t in F^4 and over states s, all evaluated against ONE map Phi
+      with ONE pi. The (lambda,k) graph is a graph on the invariance group, not a
+      time axis. No sequence of distinct cipher interfaces is consumed.
+    why_the_801_asymmetry_is_legitimate: >-
+      There pi is LAYER-DEPENDENT: pi^(l) and pi^(l+1) are different maps, so
+      relating them across a graph step genuinely requires traversing fresh cipher
+      interfaces, and 2 + 2n* = 32 counts real interfaces. The asymmetry is not two
+      treatments of the same object; it is the difference between an index over a
+      GROUP and an index over TIME. The legitimising feature is layer-dependence and
+      it is the right feature.
+    qualifications:
+      - >-
+        The illegitimate asymmetry is 806-vs-807, not 807-vs-801. By this ruling
+        806's n = 30 for round-independent CAND-806-A is WRONG (RT-8). 807 is right
+        and 806 is wrong, on the same day, under screens declared identical.
+      - >-
+        The screen's advertised variable and its operative variable have come apart
+        (RT-11). If n = 1 is right, interface count is nearly always 1 for this
+        campaign's round-independent objects and the screen decides almost nothing
+        for them.
+      - >-
+        n = 1 is NOT a licence. An argument taking 30 group-traversal steps at one
+        interface is not thereby cheap, tractable or in scope - only not
+        INTERFACE-vacuous. The screen was never a proxy for tractability and must
+        not be read as one now that its threshold binds on almost nothing.
+
+  r2_ruling:
+    question: >-
+      Does the §5 cost table support ANY barrier reading while HEUR-806-3 and
+      HEUR-806-4 remain open?
+    ruling: NO - not any reading, at any strength, in either direction.
+    reasoning:
+      - >-
+        HEUR-806-4 open => the correct column may be column 2 (J = 2^8), maximum
+        entry 2^56 at n = 7. A cost model that cannot distinguish 2^56 from 2^224 at
+        its own headline parameter is not a cost model, it is a range.
+      - HEUR-806-3 open => there is no baseline to be above or below, and the one named is known-generous by the producer's own statement.
+      - Independently of both, RT-2 and RT-1 void the column that would carry a barrier.
+    producer_self_assessment: >-
+      The producer states points 1-2 itself ("Until those exist, §5's cost table may
+      not be read as a barrier") and self-marks gate (3) partially_addressed. I
+      CONCUR with that self-assessment and go further: with RT-1 and RT-2 the table
+      would not support a barrier reading even if HEUR-806-3 and -4 were closed
+      tomorrow. The MITM row the producer volunteered is not the only thing
+      weakening the barrier; it is the mildest.
+
+  attempt_to_break_the_negative_closure:
+    target: >-
+      806 §6.2 - a single GF(2)-linear functional gives |X| = 2, L = 31, B = 2,
+      hence B <= |X| = 2^(32-L) always, hence no f(L,n) increasing in L can lower
+      bound B.
+    outcome: COULD_NOT_WALK_PAST_IT
+    finding: >-
+      The core inequality B <= |X| is not a modelling step - B is a cardinality of a
+      subset of X, so it is an identity of the definition and no choice of object
+      class evades it. The derivation is SOUND and CORRECTLY SCOPED, and it is a
+      genuine named obstruction rather than a fatigue report. It meets the
+      inventor-protocol §4 closure standard: named obstruction (the trivial
+      ceiling), argument (one line, checkable), forward guidance (re-pose in the
+      yield Y). This is the one closure in the package I attempted to break and
+      could not, and I report that as a result rather than as agreement I did not
+      test.
+    boundary_remarks:
+      - >-
+        §6.2's witness has L + Y = 31 > 24, so it is simultaneously a witness that
+        Corollary 806-2 does NOT extend past the F-linear class. The producer says
+        this in §5.5(ii); the two statements should be read together.
+      - >-
+        The closure rules out f increasing in L GLOBALLY. It does not rule out a
+        bound increasing in L on a restricted range, nor any bound in Y, and 806
+        does not claim otherwise.
+
+  analogue_transfer_attack:
+    verdict: >-
+      Field-analogue handling is to a standard I could not fault and attempted to.
+      GF(2^4)/GF(2^2) are labelled analogues repeatedly and in bold; GF(2^2) is
+      disclosed as NOT MDS; the one load-bearing transfer (GF(2^4) exhaustive
+      minimum q^3 -> GF(2^8)) is numbered as HEUR-806-1 rather than smuggled.
+    the_unargued_transfer: >-
+      RT-3: from a single affine interface to n chained interfaces. Not a transfer
+      of fields but a transfer of CLASS along the composition, and it is unargued.
+    my_own_exposure: >-
+      RT-1's witness is in GF(2^8), not an analogue, and is therefore not exposed to
+      this objection.
+
+  honest_accounting_check:
+    dominated_by: >-
+      Not filled anywhere in the package, and declared unavailable with a stated
+      reason (no literature reachable; DEC-20260731-011's strikes stand). Under
+      AGENTS rule 5 an unchecked null is a fabrication; here it is not null but
+      declared-unavailable, which is the correct handling. No smuggled comparison
+      found.
+    sota_delta: Same handling, same finding.
+    residual_exposure: >-
+      The 2^128 baseline (HEUR-806-3) FUNCTIONS as a Pareto comparator while being
+      explicitly a modelling choice known to be generous. Not the
+      recalled-literature fabrication error; the weaker error of comparing against a
+      self-chosen baseline. Correctly numbered by the producer.
+    recalled_numbers_used_as_read: >-
+      Exactly one recollection found (R806-7, "MDS matrices are standard in
+      wide-trail designs"), marked unverified-from-memory, recall confidence LOW,
+      explicitly non-load-bearing, with M's MDS property RECOMPUTED rather than
+      recalled. Correct handling. I make no literature comparison of my own and
+      offer no counter-recollection; every literature statement in this campaign is
+      unverified-from-memory and novelty is unresolvable in this environment.
+    eliminated_dimension_charged: >-
+      §4's closed form B = q^(s - dim(W_S ^ K)) eliminates a search dimension via the
+      measured max(0, 2s-4) table. The cost of computing that invariant IS charged:
+      exhaustive over all 16 subsets, minors recomputed, 67 s total runtime
+      reported. No uncharged elimination found (KN-LIT-7593 pattern clear).
+
+  settling_control:
+    id: CTRL-810-A
+    settles: RT-2 (primary), RT-1 (secondary leg), RT-3, RT-5
+    name: The saturating frontier census
+    what_to_compute: >-
+      Compute the ACTUAL composed relation size |R^(n)(x)| for n = 1..5 by direct
+      composition, under TWO explicitly separated composition models: (M-affine)
+      Phi composed with itself, no nonlinear layer; (M-nonlinear) Phi . SB composed,
+      with the real AES S-box. Report |R^(n)| against both J^n and the ceiling
+      q^(4(4-dim K)).
+    scale: >-
+      GF(2^4) exhaustive over all 78 901 subspaces (the enumeration the producer
+      already ran) times 5 values of n; GF(2^8) over a named list = the six producer
+      witnesses PLUS ker(M+I) = span(1,1,1,1) PLUS a seeded sample of 10^3 kernels
+      per dimension.
+    cost_and_blocker: >-
+      Pure Python adequate for GF(2^4); GF(2^8) needs numpy or a small C program,
+      NEITHER INSTALLED in this environment. That is an infrastructure constraint,
+      not a mathematical one. Estimated well inside one producer slot.
+    outcome_i: >-
+      |R^(n)| = min(J^n, ceiling) in M-affine and M-nonlinear differs => RT-2
+      confirmed (column 3 must be replaced by the capped column throughout) AND RT-3
+      confirmed material (the two composition models are not interchangeable, so
+      §5's n-axis needs an explicit class statement before it means anything).
+    outcome_ii_falsifies_my_own_objection: >-
+      |R^(n)| agrees with the UNCAPPED J^n anywhere with n >= 2 => my dimension
+      count is wrong somewhere and RT-2 IS FALSIFIED. I would withdraw it. Named
+      deliberately.
+    outcome_iii: >-
+      M-nonlinear tracks M-affine closely => RT-3 materially weakened (though still
+      an unstated dependence that should be numbered) and the n-axis survives with a
+      stated class caveat.
+    secondary_leg: >-
+      Run HEUR-806-1's own already-specified GF(2^8) census. RT-1 predicts the
+      minimum is 2^24, attained exactly on ker(M+I) in dimension 1. Any kernel with
+      J < 2^24 falsifies HEUR-806-1 and makes RT-1's "confirms the heuristic"
+      framing wrong.
+
+  scope_limits:
+    - Nothing here asserts anything about AES security at any round count.
+    - >-
+      Every finding is scoped to the committed snapshot cc660597, the object classes
+      as defined in the reviewed artifacts, the fields explicitly named, and the
+      computations actually run and reported here.
+    - >-
+      RT-1 is a witness, not a minimum. RT-2 is a dimension count, not a
+      measurement. RT-3/RT-4 are omissions, not demonstrated falsehoods. RT-5 is
+      unresolved.
+    - >-
+      No scoped result of the producers is broadened into an impossibility by this
+      report, and the one negative closure I attacked (806 §6.2) I could not break
+      and report as standing.
+
+  attacks_not_run:
+    - id: NR-1
+      attack: Exhaustive GF(2^8) J-census over all 16 843 009 dim-1 kernels.
+      why: Pure Python, no numpy, exceeds budget. Ran a criterion-based dim-1 argument plus 4 534 explicit kernels instead.
+      status: A kernel with J < 2^24 is UNRESOLVED.
+    - id: NR-2
+      attack: dim K = 2 and dim K = 3 J-minimisation over GF(2^8).
+      why: Budget. Only the 1 020 dim-2 kernels containing (1,1,1,1) were run (all read 2^56).
+      status: Unexamined.
+    - id: NR-3
+      attack: Direct composition of R^(n) for n >= 2 at any scale.
+      why: Budget; needs numpy or C for GF(2^8). RT-2 is arithmetic against the table's own entries, not an experiment.
+      status: This is exactly the gap CTRL-810-A fills.
+    - id: NR-4
+      attack: Re-execution of od3_quantifier.py.
+      why: Budget; branch priority went to the cost model and the screens.
+      status: >-
+        EVERY group-(b) and group-(a) measurement of TASK-20260801-807 §2.2-§2.5 is
+        UNCHECKED BY ME, including the {1,16} dichotomy, the count 57, the P_b7
+        double disagreement, and the null_1/2/3 isolation claim. My 807 findings are
+        confined to its pre-screen.
+    - id: NR-5
+      attack: Re-execution of the GF(2^4)/GF(2^2) exhaustive minimisations and CTRL-NULL-1/2/3, CTRL-POS.
+      why: Budget.
+      status: PRED-1 through PRED-10 are unverified by me.
+    - id: NR-6
+      attack: Attack on Proposition 806-1's proof itself (LEM-806-1..4 and the Assembly).
+      why: Not attempted beyond reading; I re-derived and re-ran only the JOINT branching.
+      status: The per-word bound B >= q is UNCHALLENGED BY ME. That is an absence of attack, not a clearance.
+    - id: NR-7
+      attack: The branching_from_definition cross-check and the P3 min_over_all_S = 1 caveat.
+      why: Budget.
+      status: Not independently re-run.
+    - id: NR-8
+      attack: prescreen_od3.json group-(a) candidates CAND-A1/A2/A3 on their merits.
+      why: Budget.
+      status: Only their interface constants were examined.
+    - id: NR-9
+      attack: Full reading of DEC-20260731-016, KN-FIND-018 and EV-AES-003.
+      why: Budget.
+      status: >-
+        My pre-screen ruling rests on prescreen_od4.json, prescreen_od3.json,
+        DEC-20260731-014's basis as quoted inside them, and inventor-protocol §4. If
+        those records contain a basis for the n = 30 reading of a round-independent
+        traversal that the screens do not quote, RT-8 would need revisiting. Flagged
+        rather than concealed.
+
+  next_concrete_action: >-
+    Schedule CTRL-810-A (the saturating frontier census, both composition models,
+    with ker(M+I) added to the GF(2^8) witness list) as the first BATCH-005 producer
+    item, and BEFORE that, have the Coordinator reconcile the two frozen pre-screens
+    on one interface-counting rule for round-independent pi (RT-8), since that
+    reconciliation determines whether CAND-806-A's residual re-enters the queue.
+
+  timing:
+    start_utc: 2026-08-01T16:04:49Z
+    budget_wall_clock_seconds: 1000
+    binding_stop_utc: 2026-08-01T16:21:29Z
+    stamps:
+      - {utc: 2026-08-01T16:04:49Z, elapsed_s: 0, marker: start / receipt verification}
+      - {utc: 2026-08-01T16:05:16Z, elapsed_s: 27, marker: eight digests confirmed, branch determined A}
+      - {utc: 2026-08-01T16:07:41Z, elapsed_s: 172, marker: RT-1 confirmed by re-execution}
+      - {utc: 2026-08-01T16:09:20Z, elapsed_s: 271, marker: attacks complete, writing begins}
+      - {utc: 2026-08-01T16:13:20Z, elapsed_s: 511, marker: report written, findings begin}
+    halted_on: completion
+    halted_on_budget: false
+    campaign_first_datum_note: >-
+      No red-team task had run under GOAL-AES-001, so this is the campaign's first
+      measured red-team duration. It came in well under the declared 1000 s and
+      under the measured validator range (1071/1375/1046 s). ONE TASK IS NOT A
+      DISTRIBUTION: a run that found a live counter-witness early is not evidence
+      that the next red-team pass will be cheap, and this figure should be recorded
+      as a single observation, not a norm.
+
+  files_written:
+    - coordination/goals/GOAL-AES-001/batches/BATCH-004/tasks/TASK-20260801-810/redteam_report.md
+    - coordination/goals/GOAL-AES-001/batches/BATCH-004/tasks/TASK-20260801-810/redteam_findings.yaml

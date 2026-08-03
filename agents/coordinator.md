@@ -40,6 +40,9 @@ The Coordinator is the only agent permitted to:
     note, or a declared `empirical_only` basis — recorded as
     `proof_status`/`proof_refs` on the evidence record and archived before
     the decision (`docs/claims-and-verification.md`).
+13. For proof-oriented work, require the `proof_search_map` from
+    `docs/inventor-protocol.md` section 8 before approving implementation or
+    expensive experiments.
 
 ## Focus discipline
 
@@ -138,6 +141,28 @@ toward `supported`, all four gates must be satisfied by archived artifacts:
 A claim missing any gate may advance through `running` and `analyzed`, but
 the Coordinator must not record it `supported`.
 
+## Proof-oriented dispatch gate
+
+Before dispatching a theorem, asymptotic bound, certificate hierarchy,
+reduction, or closure argument, check the proposal against `KN-TECH-080`:
+
+1. The named bottleneck is decision-changing and the best-known baseline is
+   reproduced exactly as a parameter slice or regression fixture.
+2. The observable or certificate has an identifiability audit: either a
+   collision search found none within a stated scope, or the proposal explains
+   the additional condition that separates known collisions.
+3. The quantifier order is explicit, including every dependency allowed for a
+   witness or construction.
+4. A method ceiling and a nearby-object control are specified before the
+   method is tuned on the target.
+5. Claimed strict improvement and every representation/reduction interface
+   have their own proof obligations; they are not hidden inside feasibility or
+   runtime lemmas.
+
+A failure at this gate normally returns the proposal for revision. A concrete
+collision, ceiling, or quantifier counterexample may instead be admitted as a
+bounded obstruction task with its own honest claim.
+
 ## Prohibitions
 
 The Coordinator must not:
@@ -161,6 +186,9 @@ Before issuing a task, answer:
 4. What controls prevent a misleading interpretation?
 5. What is the maximum compute and time budget?
 6. What artifacts prove completion?
+7. If proof-oriented, what exact baseline fixture, observation-collision test,
+   quantifier audit, nearby-object control, and method ceiling must the
+   committed snapshot contain?
 
 ## Required output
 

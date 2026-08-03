@@ -128,36 +128,47 @@ must name the missing gates instead of requesting promotion.
 ## Completion and pause
 
 Mark the persistent goal `completed` only when a committed Coordinator decision
-shows that a declared completion criterion was met **and** the three-model
-closure quorum is satisfied. Mark it `paused` only when the user requests it or
+shows that a declared completion criterion was met. (The three-model closure
+quorum that also gated this is **suspended** — see below.) Mark it `paused`
+only when the user requests it or
 a committed decision records the stated scoped pause condition. A failed
 candidate, empty queue, timeout, or temporary lack of a promising idea does not
 complete the goal: record the narrowest result and add the next concrete action
 instead.
 
-### Closure quorum (AGENTS.md rule 13)
+### Closure quorum (AGENTS.md rule 13) — SUSPENDED
 
-Before any `status: completed` transition, collect **three** independent
-attestations into `completion_quorum.attestations`:
+The three-model quorum is **not currently required**. Close a goal on the
+committed Coordinator decision alone; `completion_quorum` is optional. It was
+suspended because every policy alias in this harness resolves to one model, so
+the quorum blocked all closures rather than distinguishing good ones.
 
-1. Dispatch three review sessions on three **different** models. Distinctness is
-   judged on `resolved_model_id`, not the requested policy alias — if the
-   backend falls back and all three resolve to the same model, you do not have a
-   quorum and must say so rather than record one.
-2. Each session reads the committed evidence and decision records for itself,
-   sets `independent_session: true`, cites the exact record IDs it reviewed, and
-   returns `CONCUR` or `DISSENT` with a rationale.
-3. All three must `CONCUR`. A single `DISSENT` blocks closure and stands until a
-   new Coordinator decision supersedes it on the merits — do not outvote it, and
-   do not re-roll for a friendlier verdict.
-4. The ledger archive that sets `status: completed` also sets
-   `quorum_satisfied: true` and commits the attestations in the same commit.
+That makes the closing decision carry the full weight. Before setting
+`status: completed`, satisfy yourself that:
 
-If three distinct models cannot be resolved, **do not close the goal**. Leave it
-`paused` with a concrete resume action and state plainly that closure was
-blocked on model availability, not on the research. `tools/validate_ledger.py`
-rejects a `completed` goal whose quorum is missing, short, correlated, or
-dissenting.
+1. a declared `completion_criteria` item is actually met — not approximately,
+   not in spirit — and the decision record names which one and cites the
+   evidence IDs establishing it;
+2. the claim is scoped to what was tested, at the tier the runs support;
+3. no unresolved `DISSENT` sits in a `completion_quorum` block. A recorded
+   dissent still blocks closure and stands until a new Coordinator decision
+   supersedes it on the merits — do not outvote it, and do not re-roll for a
+   friendlier verdict.
+
+Attestations remain supported and are worth gathering when you can, especially
+for a high-impact closure. If you record one it asserts that a review happened,
+so it must be real: **never record an attestation you did not obtain**, and do
+not describe a single-model review as independent corroboration. Whenever a
+`completion_quorum` block is present, `tools/validate_ledger.py` still checks
+attestation shape, `independent_session: true`, cited record IDs, and
+`quorum_satisfied` consistency.
+
+**To restore the requirement**, set `GOAL_CLOSURE_QUORUM_REQUIRED = True` in
+`tools/validate_ledger.py`. The enforcing behaviour is unchanged and still
+tested. Under it: three sessions on three **different** models (distinctness
+judged on `resolved_model_id`, not the policy alias), all `CONCUR`, committed
+with `quorum_satisfied: true` in the archive that performs the transition; if
+three distinct models cannot be resolved, the goal does not close.
 
 ## Output after each batch
 

@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-4311
 type: literature
-title: "How to Use Bitcoin to Design Fair Protocols"
+title: How to Use Bitcoin to Design Fair Protocols
 authors:
-  - "Iddo Bentov"
-  - "Ranjit Kumaresan"
+- Iddo Bentov
+- Ranjit Kumaresan
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- blockchain
+- fairness
+- mpc
+- protocol
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

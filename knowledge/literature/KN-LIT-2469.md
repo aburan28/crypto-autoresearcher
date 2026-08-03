@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-2469
 type: literature
-title: "An Asymptotically Optimal Method for Converting Bit Encryption to Multi-Bit Encryption"
+title: An Asymptotically Optimal Method for Converting Bit Encryption to Multi-Bit Encryption
 authors:
-  - "Takahiro Matsuda"
-  - "Goichiro Hanaoka"
+- Takahiro Matsuda
+- Goichiro Hanaoka
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- public-key
+- provable-security
+- key-encapsulation
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

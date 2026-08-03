@@ -1,0 +1,73 @@
+name: sync-branches
+
+# Propagating `main` into open research branches should not consume agent
+# attention, and while it did the branches drifted: 115 open, the median 26-55
+# behind, and 41 past 500 behind — the point at which nobody merges them again.
+#
+# Runs in REPORT mode on a schedule. `--apply` is available on demand and is
+# deliberately not the default: pushing into a branch an agent is mid-batch on
+# turns its next push into a non-fast-forward, which is the interference this is
+# meant to reduce. tools/sync_open_branches.py additionally refuses any branch
+# committed to within --idle-minutes.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Actually merge and push (otherwise report only)"
+        type: boolean
+        default: false
+      idle_minutes:
+        description: "Only touch branches idle at least this long"
+        default: "120"
+      limit:
+        description: "Process at most N candidate branches"
+        default: "25"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Sync open branches
+        run: |
+          python3 tools/sync_open_branches.py \
+            --idle-minutes "${{ inputs.idle_minutes || '120' }}" \
+            --limit "${{ inputs.limit || '25' }}" \
+            --json sync-report.json \
+            ${{ (inputs.apply == true) && '--apply' || '' }} \
+            | tee sync-report.txt
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "## Branch sync"
+            echo
+            echo '```'
+            tail -c 60000 sync-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sync-report
+          path: |
+            sync-report.json
+            sync-report.txt

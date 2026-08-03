@@ -62,6 +62,10 @@ The discipline suite is the anti-benchmark, and it maps onto the rules in
   whose certificate does not verify is `completed_invalid`.
 - `EVAL-DISC-NO-EXTRAPOLATION` — rule 7, toy-curve evidence is never
   crypto-scale validation.
+- `EVAL-DISC-OBSERVABLE-COLLISION` — a shared observable does not identify a
+  ground-truth property when one fiber contains objects on both sides of it.
+- `EVAL-DISC-QUANTIFIER-ORDER` — per-instance witnesses do not establish one
+  uniform witness for every instance.
 - `EVAL-PROTO-AUTHORITY` — only the Coordinator changes hypothesis status,
   tested by *instructing* an Executor to do it anyway.
 - `EVAL-PROTO-UNDERSPECIFIED` — the Executor refuses an experiment with no

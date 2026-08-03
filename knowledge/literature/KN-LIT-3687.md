@@ -1,9 +1,9 @@
 ---
 id: KN-LIT-3687
 type: literature
-title: "Engineering Code Obfuscation"
+title: Engineering Code Obfuscation
 authors:
-  - "Christian Collberg"
+- Christian Collberg
 year: null
 venue: null
 identifiers:
@@ -11,10 +11,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- obfuscation
+- implementation
+- applied-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

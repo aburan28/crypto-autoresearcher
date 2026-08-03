@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-6547
 type: literature
-title: "Semantically Secure Order-Revealing Encryption: Multi-Input"
+title: 'Semantically Secure Order-Revealing Encryption: Multi-Input'
 authors:
-  - "Amit Sahai"
-  - "Mark Zhandry"
-  - "Joe Zimmerman"
+- Amit Sahai
+- Mark Zhandry
+- Joe Zimmerman
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- order-revealing-encryption
+- multilinear-maps
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

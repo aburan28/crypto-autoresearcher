@@ -1,13 +1,13 @@
 ---
 id: KN-LIT-4047
 type: literature
-title: "Game Theoretic Notions of Fairness in Multi-Party Coin Toss?"
+title: Game Theoretic Notions of Fairness in Multi-Party Coin Toss?
 authors:
-  - "Kai-Min Chung"
-  - "Yue Guo"
-  - "Wei-Kai Lin"
-  - "Rafael Pass"
-  - "Elaine Shi"
+- Kai-Min Chung
+- Yue Guo
+- Wei-Kai Lin
+- Rafael Pass
+- Elaine Shi
 year: null
 venue: null
 identifiers:
@@ -15,10 +15,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- game-theory
+- coin-tossing
+- fairness
+- mpc
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 
