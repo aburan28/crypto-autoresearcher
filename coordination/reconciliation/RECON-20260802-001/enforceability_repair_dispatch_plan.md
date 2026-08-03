@@ -6,7 +6,7 @@ Snapshot and implement the externally bound, non-authorizing historical-index re
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260803-004` | coordinator | queued | 100 | TASK-20260803-003 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-004/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-004 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `4a4937ce98bc8a052738036fbd0e94fa5182a62fb98adb6ddaef17ef9899775f`
+Plan SHA-256: `ed7340a4a871a2152afc067c662d30a2bb252b5858ad9e7111998e3390ce39eb`
