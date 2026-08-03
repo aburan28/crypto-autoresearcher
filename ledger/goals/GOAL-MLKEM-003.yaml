@@ -20,38 +20,67 @@ research_goal:
     provider: none
     goal_id: null
   campaign_budget:
-    maximum_batches: 10
+    maximum_batches: 12
     total_wall_clock_seconds: 10800
     max_concurrent: 3
-    budget_state: exhausted
+    budget_state: extended
     budget_state_note: >-
-      BATCH-008 is batch 8 of 8. DEC-20260802-002 extended the campaign from 6 to
-      8 batches and authorized exactly two batches, "after which the campaign
-      returns to a pause decision unless extended again". BATCH-007 and BATCH-008
-      are those two. Resumption requires a new Coordinator decision naming the
-      number of batches granted.
-  current_batch_id: BATCH-009
-  dispatch_queue_path: coordination/goals/GOAL-MLKEM-003/batches/BATCH-008/dispatch_queue.json
-  latest_verified_commit: 4df3c88858d904e372874d5420f728b21128b8de
+      BATCH-010 was batch 10 of 10, so the pause condition
+      `campaign_budget_maximum_batches_exhausted` WAS met - and it is cleared in
+      the same decision that records it. Extension chain: DEC-20260722 era 6
+      batches; DEC-20260802-002 6 -> 8 (BATCH-007, BATCH-008);
+      DEC-20260802-56cc4b 8 -> 10 on a user-directed resumption (BATCH-009,
+      BATCH-010); DEC-20260803-c7a1a3 10 -> 12 on direct user instruction that
+      this goal may not be paused, treated as the budget extension exactly as
+      DEC-20260802-56cc4b treated the earlier unpause instruction. BOUNDED: two
+      batches, BATCH-011 and BATCH-012, after which the campaign returns to a
+      decision point unless extended again. `max_concurrent` and the per-batch
+      wall-clock allowance are unchanged.
+  current_batch_id: BATCH-011
+  dispatch_queue_path: coordination/goals/GOAL-MLKEM-003/batches/BATCH-010/dispatch_queue.json
+  dispatch_queue_path_note: >-
+    Points at the last queue that exists. BATCH-011's queue is not yet written;
+    it is the first thing the next dispatch produces from `next_action`.
+  latest_verified_commit: PENDING_LEDGER_COMMIT
   latest_verified_commit_note: >-
-    4df3c88858d904e372874d5420f728b21128b8de is a placeholder written by TASK-20260802-9abae7 and
-    replaced by the committing session with the BATCH-008 ledger commit SHA once
-    the post-commit verifier accepts it. Until then this checkpoint is
-    uncommitted and no downstream transition may rest on it. The last verified
-    commit was 1b2b72497523de3c4889ab45216c1f5f3258bf97 (BATCH-007).
-  paused_by_decision: DEC-20260802-937ba9
-  pause_conditions_met:
-    - campaign_budget_maximum_batches_exhausted
-    - >-
-      rule_12_review_breakthrough_at_max_cannot_be_served_by_any_backend
-      (dependency blocker on the next approved task)
+    PENDING_LEDGER_COMMIT is a literal placeholder written by TASK-20260803-341aad.
+    The committing session replaces it with the BATCH-010 ledger commit SHA once
+    the post-commit verifier accepts that commit. Until then this checkpoint is
+    UNCOMMITTED and no downstream transition may rest on it. Prior checkpoints:
+    BATCH-008 recorded 4df3c88858d904e372874d5420f728b21128b8de (itself written
+    as a placeholder), and the last commit this record names as verified is
+    1b2b72497523de3c4889ab45216c1f5f3258bf97 (BATCH-007). BATCH-009 never reached
+    a ledger archive at all - see `batch_log` and `outstanding_work`.
+  extended_by_decision: DEC-20260803-c7a1a3
+  pause_conditions_met_and_cleared:
+    - condition: campaign_budget_maximum_batches_exhausted
+      state: >-
+        MET at batch 10 of 10 and CLEARED in the same decision by the 10 -> 12
+        extension authorized by direct user instruction. Recorded rather than
+        elided: the budget really did run out, and an extension is what moved
+        the goal past it.
+  standing_blocker_not_a_pause_condition:
+    - blocker: rule_12_review_breakthrough_at_max_still_unserved_and_unwaived
+      state: >-
+        UNMET and UNWAIVED. It blocks the KN-FIND-012 restatement, the
+        KN-FIND-014 withdrawal successor and the KN-OPEN-016 amendment, which
+        remain owed. It did NOT block BATCH-010 and does not block BATCH-011:
+        both are chosen as work independent of it. EV-MLKEM-011, EV-MLKEM-013,
+        EV-MLKEM-015, EV-MLKEM-017, EV-MLKEM-018 and every KN-* entry keep their
+        status and may not be treated as corrected.
   closure_quorum_status: >-
-    Not sought and not asserted. `paused` asserts no success and needs no quorum
-    (AGENTS.md rule 13). The completion criteria are NOT met: no independently
-    re-derived FIPS 203 estimate under a memory-charged cost model calibrated by
-    measured sieve behaviour exists, and no Validator/Red Team admission of such
-    a package exists. No `completion_quorum` block is present and no attestation
-    was obtained or recorded.
+    Not sought and not asserted, and the rule-13 suspension is irrelevant here
+    because nothing is being closed. `active` asserts no success either. No
+    `completion_quorum` block is present and no attestation was obtained or
+    recorded. The completion criteria are NOT met: criterion 1
+    requires an independently re-derived FIPS 203 estimate under a memory-charged
+    cost model CALIBRATED BY MEASURED SIEVE BEHAVIOUR at reduced dimensions, and
+    no measurement of sieve behaviour exists anywhere in this campaign -
+    BATCH-010 charged a memory model assembled from an estimator literal in a
+    function the attack never invokes, which is the opposite of calibration.
+    Criterion 2's Validator and Red Team admissions exist for the BATCH-010
+    package (ADMISSIBLE_WITH_DEFECTS, pass_with_constraints) but not for a
+    calibrated one.
   related_goals: [GOAL-MLKEM-001, GOAL-MLKEM-002]
   scheme_context:
     scheme: "ML-KEM (FIPS 203, formerly CRYSTALS-Kyber)"
@@ -87,35 +116,70 @@ research_goal:
       cheaper falsification gates are exhausted.
     - A definitive infrastructure, authentication, or dependency blocker prevents the next approved task.
   next_action: >-
-    BATCH-009 authorized by DEC-20260802-56cc4b, which resumed this goal from
-    the DEC-20260802-937ba9 pause on a user-directed budget extension
-    (maximum_batches 8 -> 10) and on the explicit Coordinator decision to
-    proceed without the unserved rule-12 review. Execute TASK-20260802-8bae8e
-    (F1): recompute Approximation 4.9's predicted Pwrong survival curve from the
-    archived Carrier text and compare it, point by point, against the archived
-    measurement over the band the instrument actually resolved -- Pwrong in
-    [2^-35.70, 2^-1], scores 0..1802 for the q=241/m=40/n=43 file -- reporting
-    where prediction and measurement agree and where they diverge, with the
-    comparison confined to the resolved band and no extrapolation past the
-    counting floor. Then the independent review TASK-20260802-08f428, then the
-    ledger archive TASK-20260802-43e5e4 carrying EV-MLKEM-019 and its decision.
-    The rule-12 gate stays unmet and unwaived: EV-MLKEM-011, EV-MLKEM-013 and
-    EV-MLKEM-017 keep their status, and the KN-FIND-012 restatement and
-    KN-FIND-014 withdrawal remain owed and pending, not cancelled. Authorize no
-    G6K run, no new sampling, no cost-model revision. COST-MLKEM-001 is still
-    the conditional envelope; KN-OPEN-016 is still open; no ML-KEM break claim.
+    BATCH-011 is authorized by DEC-20260803-c7a1a3 (budget 10 -> 12, bounded at
+    two batches). Its FIRST AND PRODUCING TASK is ranking candidate A: DERIVE A
+    MEMORY FIGURE THAT primal_bdd ACTUALLY IMPLIES, instead of the borrowed one.
+    The red team established that `grep -n "mem" estimator/lwe_primal.py` returns
+    nothing and that lwe_primal never calls `short_vectors`, so the instrument
+    supplies NO memory figure for this attack: H4's 0.2075 literals live in a
+    function primal_bdd does not invoke, annotated "# pick something" by the
+    estimator's own authors, and H5's unit convention is borrowed from
+    lwe_dual.py, a different module serving a different attack. Every c* in
+    EV-MLKEM-020 divides by that borrowed denominator. The task must (i) state
+    what the MATZOV/AGPS20 gate count charged for primal_bdd's two sieve calls
+    implies about the database those calls hold, sourcing it from retrievable
+    primary or archived text rather than from an uncalled function, and report
+    honestly if it cannot be sourced -- a declared "the instrument cannot supply
+    it and no retrievable source does" is a usable result and the expected one;
+    (ii) recompute c* against whatever figure that yields, beside the borrowed
+    one, and report whether the inequality c* < 1/3 survives the substitution;
+    and (iii) carry, in the same script because it rebuilds the same artifact,
+    the two cheap corrections both reviews named: fix
+    memory_charged_derivation.py:151, which adds log2_q where log2(log2 q)
+    belongs and overstates one memory unit by 8.152329 bits in the direction of
+    the conclusion (RC-2, also restating the "15% across units" claim), and
+    replace the vacuous CTRL-5 with the two real nulls of the same shape the red
+    team already specified and ran (RC-1: the sign null and the denominator
+    null). The deliverable is FRAMED AROUND THE ROBUSTNESS OF THE INEQUALITY,
+    with c* reported to at most two significant figures and stated as the
+    identity margin / log2 M in its first sentence. Then an independent
+    review-adversarial pass in a separate session, then a ledger archive. Budget:
+    one producing run, <= 1800 s. Authorize no G6K run and no new sampling. Rule
+    12 stays unmet and unwaived; nothing in BATCH-011 may treat EV-MLKEM-011,
+    EV-MLKEM-013, EV-MLKEM-015, EV-MLKEM-017, EV-MLKEM-018, KN-FIND-012 or
+    KN-FIND-014 as corrected. COST-MLKEM-001 remains the conditional envelope;
+    KN-OPEN-016 and KN-OPEN-017 remain open; no ML-KEM break claim and no
+    security proof. IDENTIFIERS FOR BATCH-011 MUST BE MINTED WITH
+    `python3 tools/allocate_id.py --next <type>` random 6-hex tokens, whatever
+    origin/main's CLAUDE.md currently says -- see
+    DEC-20260803-c7a1a3.repository_state_observation.
   prior_next_action_ref: >-
-    The BATCH-007 next_action this one replaces is preserved verbatim in
-    DEC-20260802-15cadd.next_actions and in git history. BATCH-008 executed its
-    review half (the rule-12-shaped contradiction review, run under
-    `review-adversarial` and explicitly NOT a rule-12 pass) and did NOT execute
-    its producer half: the Ducas-Pulles mining task and the KN-LIT-111 upgrade
-    were not dispatched, and are recorded as outstanding in
-    DEC-20260802-937ba9.ranking_rationale candidate D.
-  updated_by_decision: DEC-20260802-56cc4b
+    The BATCH-009 next_action this one replaces is preserved verbatim in
+    DEC-20260802-56cc4b.next_actions and in git history. Its BATCH-007
+    predecessor is preserved in DEC-20260802-15cadd.next_actions. Two items from
+    those earlier actions remain OUTSTANDING and are not cancelled: the
+    Ducas-Pulles mining task with the KN-LIT-111 upgrade
+    (DEC-20260802-937ba9.ranking_rationale candidate D), and the whole BATCH-009
+    F1 review-and-archive half.
+  outstanding_work: >-
+    Recorded so no reader mistakes a gap for a completion. (1) BATCH-009's
+    producer package (TASK-20260802-8bae8e, the F1 comparison) is committed and
+    hash-pinned but has NO independent review, therefore no evidence record and
+    no claim status: its validator session terminated on a provider session limit
+    before writing a verdict, EV-MLKEM-019 and DEC-20260802-359eca were never
+    written, and the ledger archive TASK-20260802-43e5e4 remains BLOCKED. That is
+    infrastructure signal and never a mathematical result (AGENTS.md rule 5); the
+    receipt is at
+    coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260802-08f428/infra_failure_receipt.yaml.
+    (2) The rule-12-gated transitions (KN-FIND-012 restatement, KN-FIND-014
+    withdrawal successor, KN-OPEN-016 amendment) are still owed.
+    (3) tools/sage_free_estimator was modified outside any declared write_scope
+    during BATCH-010 and is pinned by no receipt in it (EV-MLKEM-020 EI-2); it
+    needs its own archival task.
+  updated_by_decision: DEC-20260803-c7a1a3
   owner: coordinator
   created_at: '2026-07-29'
-  updated_at: '2026-08-02'
+  updated_at: '2026-08-03'
   batch_log:
     - batch_id: BATCH-001
       decision_id: DEC-20260731-007
@@ -200,3 +264,55 @@ research_goal:
         H-MLKEM-011 / H-MLKEM-013 and NO knowledge promotion or supersession:
         rule 12 unserved. Goal paused at exhausted budget (batch 8 of 8); no
         closure quorum asserted or sought; no ML-KEM claim.
+    - batch_id: BATCH-009
+      decision_id: null
+      evidence_id: null
+      summary: >-
+        INCOMPLETE - NO LEDGER ARCHIVE, NO EVIDENCE RECORD. Authorized by
+        DEC-20260802-56cc4b to run F1 (recompute Approximation 4.9's predicted
+        Pwrong survival curve and compare it pointwise against the archived
+        measurement over the resolved band). The producer half ran and was
+        snapshot-archived (TASK-20260802-8bae8e, snapshot TASK-20260802-7c4aee,
+        commit d0f2bf7f1770); the independent validation TASK-20260802-08f428
+        terminated on a provider session limit before writing its verdict, so its
+        completion gate is unmet and its preserved notes are NOT a verdict and may
+        not be cited as one. The ledger archive TASK-20260802-43e5e4 stayed
+        BLOCKED and EV-MLKEM-019 / DEC-20260802-359eca were never written. This
+        entry carries nulls because there is nothing to name, not because
+        anything is pending publication. Infrastructure failure is never
+        mathematical evidence (AGENTS.md rule 5): the F1 numbers assert nothing
+        at this point. The repair is OWED and ranked as DEC-20260803-c7a1a3
+        candidate C, behind the two BATCH-011 candidates that bear on the
+        BATCH-010 result itself.
+    - batch_id: BATCH-010
+      decision_id: DEC-20260803-c7a1a3
+      evidence_id: EV-MLKEM-020
+      summary: >-
+        Memory-charged re-derivation of the FIPS 203 NIST margin under RC.MATZOV
+        (VAL ADMISSIBLE_WITH_DEFECTS, 8 defects; RT pass_with_constraints, 11
+        objections). Disposition `revise` (refine): the finding is real and its
+        framing was wrong. WHAT SURVIVES is a robustness statement, not a
+        magnitude - the charge that erases EV-MLKEM-015's undercut is
+        c* = 0.03164649 / 0.04588645 / 0.00705473 (Model A, Z_q units) and the
+        INEQUALITY c* < 1/3 is invariant to the sieve-memory exponent across
+        [0.05, 0.40], to every memory unit, to both charge models, to the
+        BKZ-vs-SVP sieve dimension (+3.98..+8.25%), to within-RC.MATZOV
+        re-optimisation (recovers 0.46 bits of the 26.70 needed), and to the
+        polynomial-memory enumeration falsifier the red team named and the
+        Coordinator ran (18/18 combinations above cutoff, smallest excess +76.04
+        bits). WHAT DOES NOT SURVIVE: c* is the identity margin / log2 M in two
+        pre-existing numbers, so its value is forced and its eight significant
+        figures contradict H11 (a one-bit cutoff error moves Kyber-1024's c* by
+        78% of it); the memory model is BORROWED, since lwe_primal supplies no
+        memory figure at all; CTRL-5 cannot fail, so controls-before-belief is
+        formally unmet; and an 8.152329-bit arithmetic error at
+        memory_charged_derivation.py:151 feeds a c* row in the direction of the
+        conclusion. A Coordinator overclaim in the immutable BATCH-010 snapshot
+        commit message is recorded and corrected in DEC-20260803-c7a1a3. NO
+        status change anywhere, NO knowledge promotion (concrete reason and
+        successor recorded), NO ML-KEM break and no security proof, no FIPS 203
+        parameter set affected or cleared, EV-MLKEM-015 not contradicted. Rule 12
+        remains unmet and unwaived. The batch-10-of-10 budget exhaustion was met
+        and CLEARED in the same decision by a 10 -> 12 extension on direct user
+        instruction, so the goal stays `active` and is NOT paused; no closure
+        quorum is sought or asserted, and `active` asserts no success either.
