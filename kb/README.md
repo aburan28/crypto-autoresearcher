@@ -100,6 +100,36 @@ Superseded material is excluded from retrieval by default and never deleted.
 A sidecar marked `provenance_class: model-suggested` has its authoritative
 fields dropped with a warning; only `topics` survives.
 
+### Retrieved passages are screened, and flagged rather than dropped
+
+`inputs/` holds vendored external papers and `knowledge/literature/` holds
+notes on other people's work; both reach an agent's context through
+`search_knowledge`. Returned passages are checked for text shaped like
+instructions to the reading agent — instruction overrides, role reassignment,
+forged prompt boundaries, exfiltration, tool directives, and conclusion
+steering — and flagged with a verdict the agent can see.
+
+**Flagged passages are still returned.** That is the design decision, and it
+goes the other way from most guardrail layers for a reason specific to this
+corpus: mathematical prose is full of imperatives. "Ignore the lower-order
+terms", "disregard the degenerate case", "assume the curve is generic" — a
+screener aggressive enough to catch a real injection catches those too, and
+silently dropping them removes exactly the assumption and boundary statements
+a conclusion must be scoped by. A false positive that deletes a theorem's
+hypothesis is worse than a flagged passage the reader was warned about.
+
+Measured on the 1,518-chunk evaluation corpus: **0 false positives.** The
+first version flagged 5, all `conclusion-steering`, and all 5 were this
+program's own governance prose ("never by editing a committed record", "Never
+record an attestation you did not obtain"). That category is now scoped to
+external sources — the risk is a vendored paper steering our conclusions, not
+our ledger doing its job. The generic injection categories still fire
+everywhere. `screening_action = "drop"` is available and off by default; even
+then it filters at read time and never touches the index.
+
+It is a heuristic, not a security boundary. The boundary is that agents cannot
+write to the index at all.
+
 ### Hybrid retrieval, and why
 
 Half the queries this corpus must answer are exact lookups — `EXP-GGM-001`,
@@ -281,8 +311,15 @@ Also not built: the remote MCP deployment. `infra/terraform/` manages the
 corpus notifications, the queue, and the two asymmetric IAM roles, and runs on
 HCP Terraform (`infra/terraform/README.md` is the runbook — organization,
 workspaces, dynamic credentials). What is *not* written is the ECS cluster and
-task definitions, and the TLS termination, bearer authentication, per-client
-identity, and rate limiting the plan calls for. The server today is stdio-only.
-Do not expose it over a network as it stands.
+task definitions, and the TLS termination, bearer authentication, and rate
+limiting the plan calls for. The server today is stdio-only. Do not expose it
+over a network as it stands.
+
+Audit *is* implemented — every tool, every outcome including refusals, with
+caller attribution and without response bodies. Authorization is not, because
+over stdio the caller already runs with the user's authority and a policy
+layer under that would be theatre. `docs/remote-access.md` is the design note:
+threat model, the per-tool permission table, and what has to be true before
+the transport changes.
 
 Nothing has been applied: the Terraform is validated, not deployed.

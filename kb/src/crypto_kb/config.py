@@ -88,6 +88,18 @@ class Settings(BaseSettings):
     max_chunks_per_parent: int = 3
     rerank_backend: str = "none"
     rerank_model_name: str | None = None
+
+    # -- passage screening -------------------------------------------------
+    #: Screen returned passages for instructions aimed at the reading agent.
+    #: See retrieval/screening.py for why the default action is to annotate
+    #: rather than drop: this corpus is full of imperatives addressed to a
+    #: human reader, and dropping them loses assumptions and boundaries.
+    screening_enabled: bool = True
+    screening_backend: str = "heuristic"
+    #: "annotate" (default) or "drop".
+    screening_action: str = "annotate"
+    #: Comma-separated categories to ignore, e.g. "conclusion-steering".
+    screening_muted_categories: str = ""
     #: Hard cap on characters returned per passage, so one pathological chunk
     #: cannot blow an agent's context window.
     max_chars_per_result: int = 4000

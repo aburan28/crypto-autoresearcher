@@ -332,6 +332,12 @@ class SearchResult(BaseModel):
     git_commit: str | None = None
     content_hash: str
     parent_id: str | None = None
+    #: Set when passage screening flagged this text as containing instructions
+    #: aimed at the reading agent rather than at a human reader. The passage is
+    #: still returned -- see retrieval/screening.py -- so the agent decides.
+    #: Shape: {"flagged": bool, "categories": [...], "excerpts": [...],
+    #: "external_source": bool}.
+    screening: dict[str, Any] | None = None
 
 
 class SearchResponse(BaseModel):

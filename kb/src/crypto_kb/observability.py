@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -142,5 +143,54 @@ class QueryLog:
             "latency_ms": latency_ms,
             "notes": notes or [],
         }
+        self._write(entry)
+
+    def record_tool(
+        self,
+        *,
+        tool: str,
+        caller: dict[str, Any],
+        arguments: dict[str, Any],
+        outcome: str,
+        latency_ms: int,
+        result_count: int = 0,
+        flagged_count: int = 0,
+        error: str | None = None,
+        query_id: str | None = None,
+    ) -> None:
+        """Audit one MCP tool invocation.
+
+        Written for every tool and every outcome, not only successful searches.
+        A log that records only what succeeded cannot answer the question an
+        audit is for -- what was attempted -- and a rejected call is the more
+        interesting half of that.
+
+        ``arguments`` is recorded as given; the tools take no secrets. Response
+        bodies are not recorded: they would duplicate the corpus into a log.
+        """
+        if not self.path:
+            return
+        self._write(
+            {
+                "type": "tool_invocation",
+                "query_id": query_id or self.new_query_id(),
+                "tool": tool,
+                "caller": caller,
+                "arguments": arguments,
+                "outcome": outcome,
+                "result_count": result_count,
+                "flagged_count": flagged_count,
+                "error": error,
+                "latency_ms": latency_ms,
+                "recorded_at": datetime.now(timezone.utc)
+                .replace(microsecond=0)
+                .isoformat()
+                .replace("+00:00", "Z"),
+            }
+        )
+
+    def _write(self, entry: dict[str, Any]) -> None:
+        if not self.path:
+            return
         with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            handle.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
