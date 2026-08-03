@@ -85,10 +85,22 @@ evidence rules above apply unchanged.
 
 ## Conventions
 
-- IDs: `RQ-<AREA>-NNN`, `IDEA-YYYYMMDD-NNN`, `H-<AREA>-NNN`,
-  `EXP-<AREA>-NNN`, `RUN-*`, `EV-<AREA>-NNN`, `DEC-YYYYMMDD-NNN`,
-  `TASK-YYYYMMDD-NNN`, `KN-{LIT,TECH,FIND,OPEN}-NNN`. Immutable, never
-  reused. Find the next free number by grepping the relevant directory.
+- IDs: `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
+  `EXP-<AREA>-<tok>`, `RUN-*`, `EV-<AREA>-<tok>`, `DEC-YYYYMMDD-<tok>`,
+  `TASK-YYYYMMDD-<tok>`, `BATCH-<tok>`, `KN-{LIT,TECH,FIND,OPEN}-<tok>`, where
+  `<tok>` is a random 6-hex token. Immutable, never reused.
+  **Do not grep for "the next free number".** That question is the bug: every
+  concurrent worktree asks it of the same committed state, gets the same
+  answer, and mints the same identifier for different records — discovered only
+  at merge time, when both are immutable and neither can be renamed without
+  breaking whatever archive binds it. Mint with
+  `python3 tools/allocate_id.py --next <type> [--area X | --date YYYYMMDD]`,
+  which draws a token **without scanning state**, then `--check` it before use.
+  `BATCH-<tok>` takes neither `--area` nor `--date`: `--next batch`.
+  The legacy three-digit form stays valid forever — existing records and batch
+  directories are immutable and must not be renamed. Cost, stated plainly: IDs
+  no longer sort into creation order; read `added`/`recorded_at` or git history
+  for chronology.
 - Record schemas live in `templates/research-records.md`; copy, don't
   invent fields.
 - The Coordinator alone stages declared research paths in the shared worktree:
