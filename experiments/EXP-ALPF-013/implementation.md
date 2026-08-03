@@ -10,10 +10,11 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/round007_exp012_localization_gate.log`
-- `source/round007_exp012_localization_gate.sage`
 - `source/round007_exp012_localization_gate_result.json`
 - `source/round007_exp012_localization_gate_result.md`
+- `source/round007_exp012_localization_gate.sage`
+- `source/round007_exp012_localization_gate.sage.py`
+- `source/round007_exp012_localization_gate.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

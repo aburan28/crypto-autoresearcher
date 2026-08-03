@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round003_exp003b_multitarget
 
 ## Observation
-8 AMORTIZATION (not an ECDLP exponent break)
+INCONCLUSIVE
 
 Source excerpt / raw summary:
 

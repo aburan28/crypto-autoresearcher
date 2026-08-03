@@ -1,37 +1,11 @@
 ---
 id: KN-FIND-010
+title: Joint deg-x≤3 / deg-b=10 non-isotrivial free-x still admit inf-norm-1 MW relations at p≤19; p=31 density-blocked
 type: internal_finding
-title: Joint deg-x≤3 / deg-b=10 non-isotrivial free-x still admit inf-norm-1 MW relations
-  at p≤19; p=31 density-blocked
-tags:
-- lifting
-- xedni
-- function-field
-- non-isotrivial
-- mordell-weil
-- coefficient-bound
-- methodology
-- toy-scale
-confidence: reported
 status: established
-internal_refs:
-- EV-XEDN-005
-- DEC-20260730-001
-- H-XEDN-005
-- EXP-XEDN-006
-proof_status: empirical_only
-proof_refs:
-- ledger/evidence/EV-XEDN-005.yaml
-- experiments/EXP-XEDN-006/execution_report.md
-- experiments/EXP-XEDN-006/specification.yaml
-added: '2026-07-30'
-superseded_by: null
-schema_repair_note: 'Committed with `evidence:`/`decision:` keys, which the internal_finding
-  schema does not define, so its references were never cross-checked and its proof level was
-  never stated. Repaired 2026-08-02 under CORR-20260802-007: the same two records are carried
-  in internal_refs alongside the hypothesis and experiment the evidence itself names, and
-  proof_status is set to the conservative empirical_only. No claim, scope or strength in the
-  body text is changed.'
+tags: [lifting, xedni, function-field, non-isotrivial, mordell-weil, coefficient-bound, methodology, toy-scale]
+evidence: [EV-XEDN-005]
+decision: [DEC-20260730-001]
 ---
 
 # KN-FIND-010

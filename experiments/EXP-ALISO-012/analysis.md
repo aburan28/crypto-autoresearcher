@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_quantum_aggregate_oracle_probe
 
 ## Observation
-TOY ORACLE-REDUCTION EVIDENCE / NOT A QUANTUM SIMULATION / NO GATE-COMPLEXITY CLAIM
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 

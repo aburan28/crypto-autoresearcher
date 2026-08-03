@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_frobenius_midpoint_sweep
 
 ## Observation
-RESTRICTED-THEOREM FAMILY EVIDENCE / TOY / MODEL-BOUND / NO GENERAL COMPLEXITY CLAIM
+Date: 2026-07-28
 
 Source excerpt / raw summary:
 

@@ -11,6 +11,7 @@ Historical Autolab port (no re-execution).
 
 ## Copied artifacts
 - `source/p1486_quantum_aggregate_oracle_probe_result.json`
+- `source/p1486_quantum_aggregate_oracle_probe.sage.py`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.
