@@ -109,6 +109,39 @@ def main():
         if b.get("status") == "COMPLETED":
             b["timing"] = timing.get(b["arm"])
 
+    r6 = [
+        arm_block("Y-AES-main-r6", "decay_control_r6",
+                  "real AES S-box, r=6, A={0}, S={0} -- SAME seed/armid as Y-AES-main, so same key and same trial stream; rounds is the only variable changed"),
+        arm_block("Y-R1-main-r6", "decay_control_r6",
+                  "random S-box R1, r=6, A={0}, S={0} -- paired with Y-R1-main on key and stream"),
+        arm_block("Y-R2-main-r6", "decay_control_r6",
+                  "random S-box R2, r=6, A={0}, S={0} -- paired with Y-R2-main on key and stream; the coordinator named this the single most important arm"),
+    ]
+    for b in r6:
+        if b.get("status") == "COMPLETED":
+            b["timing"] = timing.get(b["arm"])
+    pairs = []
+    for m, s6 in zip(mains, r6):
+        if m.get("status") == "COMPLETED" and s6.get("status") == "COMPLETED":
+            pairs.append({
+                "sbox": m["sbox_spec"],
+                "same_key_as_r5_pair": m["key_hex"] == s6["key_hex"],
+                "same_thread_seeds_as_r5_pair": m["thread_seeds"] == s6["thread_seeds"],
+                "r5_W_ge1": m["MEASURED_W_ge1"], "r5_excess": m["EXCESS_FACTOR"],
+                "r6_W_ge1": s6["MEASURED_W_ge1"], "r6_excess": s6["EXCESS_FACTOR"],
+                "r6_verdict": s6["frozen_decision_rule_verdict"],
+                "P4.2_r6_at_most_quarter_of_r5": s6["MEASURED_W_ge1"] <= m["MEASURED_W_ge1"] / 4.0,
+            })
+    r6verd = [b.get("frozen_decision_rule_verdict") for b in r6 if b.get("status") == "COMPLETED"]
+    if r6verd and all(v == "DEAD" for v in r6verd) and len(r6verd) == 3:
+        decay = "DECAY_CONTROL_PASSED"
+    elif any(v == "ALIVE" for v in r6verd):
+        decay = "NOT_ROUND_LIMITED_READING_COLLAPSED"
+    elif not r6verd:
+        decay = "DECAY_CONTROL_DID_NOT_RUN"
+    else:
+        decay = "DECAY_CONTROL_PARTIAL"
+
     verdicts = {b["arm"]: b.get("frozen_decision_rule_verdict") for b in mains}
     ref = verdicts.get("Y-AES-main")
     rnd = [verdicts.get("Y-R1-main"), verdicts.get("Y-R2-main")]
@@ -118,6 +151,8 @@ def main():
         reading = "S-BOX-DEPENDENT"
     else:
         reading = "MIXED / INDETERMINATE"
+    if decay == "NOT_ROUND_LIMITED_READING_COLLAPSED":
+        reading = "COLLAPSED BY THE r=6 DECAY CONTROL"
 
     # ---- rank 2 ----
     pc_path = os.path.join(R, "PC-TRUE.json")
@@ -199,6 +234,9 @@ def main():
             "RANK_3_reference_arm_verdict": ref,
             "RANK_3_random_sbox_verdicts": {"R1": rnd[0], "R2": rnd[1]},
             "RANK_2_positive_control": rank2.get("FINDING", rank2.get("reason")),
+            "RANK_3_decay_control_outcome": decay,
+            "RANK_3_decay_control_statement": DECAY_TEXT[decay],
+            "WHAT_CHANGED_IN_SEGMENT_2": WHAT_CHANGED[decay],
         },
         "rank_3_sbox_arm": {
             "object": OBJECT,
@@ -215,6 +253,31 @@ def main():
             },
             "main_arms": mains,
             "structure_destroyed_controls": sds,
+            "r6_decay_controls_ADDED_IN_SEGMENT_2": {
+                "why_added": (
+                    "In segment 1 I listed the r=6 arms in checks_that_did_not_run with the reason "
+                    "'budget; out of scope'. The red team objected that this is structurally the same "
+                    "defect BATCH-003's red team found for the zero-entry matrices -- a signal claim with "
+                    "no decay control -- reproduced inside the batch convened to repair it. The objection "
+                    "is correct and the arms were run. Nothing in segment 1 was edited or rescored."),
+                "design": (
+                    "Same binary (sha256 in runs/yoyo_sbox_binary_sha256_segment2.txt), same geometry, "
+                    "same 2^31 trials, same amask/smask, same analytic null and the same frozen "
+                    "ALIVE/DEAD rule. PAIRED: each r=6 arm reuses the seed and arm id of its r=5 "
+                    "counterpart, so key and trial stream are identical and rounds is the only variable "
+                    "that changes. BATCH-002's r=6 arms used a different key, so this pairing is a "
+                    "stronger decay comparison than the prior batch's."),
+                "frozen_falsification_rule": (
+                    "any r=6 arm ALIVE => the statistic is NOT round-limited, is therefore not the yoyo "
+                    "object, and the S-BOX-INDEPENDENT reading is COLLAPSED, not weakened"),
+                "arms": r6,
+                "paired_r5_vs_r6": pairs,
+                "DECAY_OUTCOME": decay,
+                "comparison_to_BATCH-002": (
+                    "BATCH-002 measured r=6 under the real AES S-box at 1.50x (2^32 trials, arm A2) and "
+                    "0.875x (2^33, arm A2b), i.e. already at the null. This is a cross-batch comparison "
+                    "of the same toy object, not a comparison to published cryptanalysis."),
+            },
             "declared_power_limitation": (
                 "Mains at 2^31 trials (analytic null 2.0); structure-destroyed controls at 2^30 (null 1.0). "
                 "BATCH-002's structure-destroyed arm A4 ran at 2^32. These controls therefore have LESS "
@@ -255,6 +318,8 @@ def main():
                     if sds[2].get("EXCESS_FACTOR", 0) > 2.5 else "none"),
             },
         },
+        "absolute_anchor_for_the_random_sbox_path": ANCHOR,
+        "confounding_and_arm_level_limits": CONFOUND,
         "calibration_run": CAL,
         "pins": PINS,
         "commands": COMMANDS,
@@ -275,6 +340,43 @@ def main():
     json.load(open(os.path.join(D, "RESULTS.json")))
     print("RESULTS.json written and re-parsed OK; reading =", reading)
 
+
+DECAY_TEXT = {
+    "DECAY_CONTROL_PASSED":
+        "All three r=6 arms are DEAD under the frozen rule. The signal is round-limited under the real "
+        "AES S-box AND under both random S-boxes, which is what a yoyo signal must be, so the object "
+        "measured at r=5 is the BATCH-002 object and not a non-decaying artifact. The r=6 arms are "
+        "paired with the r=5 arms on key and trial stream, so rounds is the only variable that changed. "
+        "This removes an objection; it adds no strength to anything.",
+    "NOT_ROUND_LIMITED_READING_COLLAPSED":
+        "At least one r=6 arm is ALIVE. The statistic does NOT decay with rounds, so it is not a yoyo "
+        "signal, the segment-1 S-BOX-INDEPENDENT reading is COLLAPSED rather than weakened, an "
+        "arm-level offset in this software probe is on the table, and this disagrees with BATCH-002's "
+        "r=6 measurement of the same toy object.",
+    "DECAY_CONTROL_PARTIAL":
+        "The r=6 arms did not all fall on the same side of the frozen rule. No clean decay reading is "
+        "asserted; the raw counts and both Poisson tails are reported per arm.",
+    "DECAY_CONTROL_DID_NOT_RUN":
+        "The r=6 decay controls did not run. The segment-1 reading therefore still carries the defect "
+        "the red team named: a signal claim with no decay control.",
+}
+
+WHAT_CHANGED = {
+    "DECAY_CONTROL_PASSED":
+        "The segment-1 S-BOX-INDEPENDENT reading STANDS EXACTLY AS RECORDED, with no upgrade in "
+        "strength. What changed is that a named defect is closed: the r=6 decay control that segment 1 "
+        "listed under checks_that_did_not_run has now been run for all three S-boxes and passed, and "
+        "the random-S-box arms have gained an absolute per-round anchor they previously lacked. No "
+        "segment-1 number was edited or rescored.",
+    "NOT_ROUND_LIMITED_READING_COLLAPSED":
+        "The segment-1 S-BOX-INDEPENDENT reading is WITHDRAWN. It is left in this file exactly as it "
+        "was recorded, with the collapse stated beside it; it is not deleted and not rewritten.",
+    "DECAY_CONTROL_PARTIAL":
+        "The segment-1 reading is left as recorded and is now qualified by a decay control that did not "
+        "resolve cleanly.",
+    "DECAY_CONTROL_DID_NOT_RUN":
+        "Nothing changed; the decay control did not run and the defect stands.",
+}
 
 READING_TEXT = {
     "S-BOX-INDEPENDENT":
@@ -367,6 +469,9 @@ CANNOT = [
     "A timeout or resource cap is resource exhaustion and is never negative mathematical evidence.",
 ]
 
+ANCHOR = None      # filled in __main__
+CONFOUND = None    # filled in __main__
+
 if __name__ == "__main__":
     GIT = json.load(open(os.path.join(R, "git_state.json")))
     ENV = json.load(open(os.path.join(R, "environment.json")))
@@ -377,4 +482,6 @@ if __name__ == "__main__":
     DEVIATIONS = json.load(open(os.path.join(R, "deviations.json")))
     BUDGET = json.load(open(os.path.join(R, "budget.json")))
     PC_DROP_REASON = json.load(open(os.path.join(R, "pc_drop.json")))["reason"]
+    ANCHOR = json.load(open(os.path.join(R, "anchor.json")))
+    CONFOUND = json.load(open(os.path.join(R, "confound.json")))
     main()

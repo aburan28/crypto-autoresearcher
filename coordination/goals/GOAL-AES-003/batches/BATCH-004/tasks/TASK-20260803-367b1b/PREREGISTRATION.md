@@ -271,3 +271,114 @@ first and RANK 2 is dropped and named.
 
 RESULTS.json will be parsed with a JSON parser before this task finishes and
 the check will be recorded inside the artifact.
+
+---
+
+# CONTINUATION SEGMENT 2 — the r=6 decay control (frozen 2026-08-03T02:20:02Z)
+
+**Nothing above this line is edited.** Every number, prediction and decision
+rule frozen in the first segment stands exactly as recorded, including the
+predictions the r=5 data has already scored. This section is appended, and it
+is frozen *before* any r=6 arm was run.
+
+## Why this segment exists
+
+I listed `"r=6 yoyo arms under the random S-boxes (the decay direction)"` in
+`checks_that_did_not_run` with the reason `"budget; out of scope"`. The red
+team's objection, which I accept: that is structurally the same defect
+BATCH-003's red team found for the zero-entry matrices — a signal claim with no
+decay control — reproduced inside the batch convened to repair it. A signal
+that does not decay with rounds is not a yoyo signal at all.
+
+## Design
+
+Same binary (`yoyo_sbox`, unchanged and unrebuilt), same geometry, same trial
+counts as the r=5 mains (2^31), same amask=1 / smask=1, same analytic null
+(`nontrivial_trials * 2^-30`), same frozen ALIVE/DEAD decision rule with the
+same 15.63 baseline.
+
+**Paired design, declared deliberately**: each r=6 arm reuses the *same seed
+and the same arm id* as its r=5 counterpart, so the derived key and the entire
+trial stream are identical and **the round count is the only variable that
+changes**. This is a stronger comparison than BATCH-002's, which used a
+different key at r=6, and it is the one that can actually isolate decay.
+
+| arm | S-box | r | amask | smask | log2N | seed | armid | pairs with |
+|---|---|---|---|---|---|---|---|---|
+| Y-AES-main-r6 | aes | 6 | 1 | 1 | 31 | 431001 | 1 | Y-AES-main |
+| Y-R1-main-r6 | rand:20260803001 | 6 | 1 | 1 | 31 | 431002 | 2 | Y-R1-main |
+| Y-R2-main-r6 | rand:20260803002 | 6 | 1 | 1 | 31 | 431003 | 3 | Y-R2-main |
+
+Run order: **R2 first**, because the coordinator named it the single most
+important arm if budget forces a cut, then AES, then R1. Expected cost
+~310 s each, ~930 s of an 1800 s segment.
+
+## Predictions (frozen before measuring, not retro-fitted)
+
+**P4.1**: all three r=6 arms are **DEAD** under the frozen rule, i.e. excess
+<= 2.5x. Point expectation ~1x, i.e. ~2 hits against a null of 2.0.
+Reasoning stated in advance: BATCH-002 measured r=6 under the AES S-box at
+1.50x (2^32) and 0.875x (2^33), and its r=10 measured-PRP nulls sat at 0.63x
+and 0.88x, so r=6 was already at the null there. I expect the same, and if the
+r=5 signal is geometric rather than S-box-derived — which is what the r=5 arms
+in the first segment read — I expect the decay to be geometric too and
+therefore to hold for R1 and R2 as well.
+
+**P4.2**: the paired r=5 -> r=6 drop is large for every S-box: r=6 count at
+most one quarter of the paired r=5 count.
+
+## Falsification rule (frozen)
+
+- If **any** r=6 arm is **ALIVE** under the frozen rule (excess >= 5x and
+  `P(K >= X | lambda = null) < 1e-6`), the signal is **NOT ROUND-LIMITED**. In
+  that case it is not a yoyo signal, my first-segment S-BOX-INDEPENDENT reading
+  is **COLLAPSED, not weakened**, and I will say so directly: the reading
+  presupposes that what is being measured is the BATCH-002 object, and a
+  non-decaying statistic is not that object. I would then also have to report
+  that this contradicts BATCH-002's r=6 measurement, that an arm-level offset
+  in this software probe is on the table as the explanation, and that such an
+  offset would also explain the Y-R2-sd control breach recorded in segment 1.
+- If the **AES** r=6 arm is ALIVE while the random ones are DEAD, the probe
+  disagrees with BATCH-002 on the arm where BATCH-002 has data, and no reading
+  survives; I report the disagreement as the finding.
+- If **all three** are DEAD, the decay control is passed for all three S-boxes,
+  the signal is round-limited as a yoyo signal must be, and the first-segment
+  reading stands **as recorded, with no upgrade** — passing a control that was
+  missing removes an objection, it does not add strength.
+- INDETERMINATE arms are reported as INDETERMINATE and no reading is asserted
+  from them either way.
+
+I hold no preference. A collapse here is a legitimate and valuable outcome and
+I will not soften it if it happens.
+
+## Two further items from the same review
+
+**(a) Absolute anchor for the random-S-box path.** The first-segment pin
+applies the FIPS-197 C.1 known-answer vector at ten rounds only, and for R1/R2
+`fips197_c1_kat_applicable` is false, so those arms currently rest on the
+encrypt/decrypt round-trip invariant alone — which is invariant under any
+conjugation that `enc_r` and `dec_r` share. Planned repair, budget permitting:
+an **independent Python reference implementation** of the same
+S-box-parameterized cipher, written plainly (byte-wise SubBytes / ShiftRows /
+MixColumns, no T-tables, no shared code path with the C probe), compared
+against the C binary's `enc_r` output **for every round count r = 1..10** on
+fixed vectors under the AES S-box and under both random S-boxes. This is an
+absolute per-round anchor and is not invariant under conjugation. If it does
+not run, RESULTS.json will state plainly that the random-S-box arms rest on the
+round-trip invariant alone.
+
+**(b) Confounding.** S-box, key and trial stream are confounded across the
+first-segment arms: each arm derives its own key from its own seed, so the
+three main arms carry three distinct `key_hex`. R1=22 vs R2=41 differ at
+roughly p=0.023 by a two-sided Poisson comparison, and this design **cannot**
+assign that difference to the S-box rather than to key or stream. This will be
+recorded as a limit on the arms, not resolved by them. The r=6 arms are paired
+on key and stream with their r=5 counterparts, so the r=5-to-r=6 comparison is
+free of this particular confound; the S-box-to-S-box comparison is not.
+
+## Budget
+
+1800 s fresh for this segment, 8 GB, at most 2 threads (a validator runs
+concurrently), computed `binding_stop_utc` recorded in `budget_stamps.jsonl`
+without overwriting the earlier stamps. RESULTS.json is re-parsed after
+editing.
