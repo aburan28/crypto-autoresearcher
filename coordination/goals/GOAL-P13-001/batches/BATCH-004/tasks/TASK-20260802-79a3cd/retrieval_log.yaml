@@ -1,0 +1,774 @@
+schema: crypto.autoresearch.retrieval_log.v1
+task_id: TASK-20260802-79a3cd
+goal_id: GOAL-P13-001
+batch: BATCH-004
+role: idea-generator
+title: >-
+  Retrieval log for the baseline-constant subtask: every URL tried, its outcome,
+  and the integrity binding recorded for each retrieved artefact.
+
+inference:
+  requested_policy: research-deep
+  resolved_model_id: claude-opus-5
+  model_verified: false
+  model_verification_note: >-
+    Not probe-verified in this session. `python3 -m orchestration.adapter doctor
+    --probe` was not run because this session's tool surface contains no shell.
+    The identifier is taken from the runtime's own session declaration.
+  fallback_used: true
+  fallback_reason: >-
+    INFAMEND-20260802-P13-002. Claude Code cannot resolve the GPT-5.6 policy
+    alias `research-deep`; subagent frontmatter supports only Claude models.
+  degraded_allowed: true
+  degraded_requirements:
+    - "review-adversarial requires reasoning_effort: xhigh; recorded as unverified rather than asserted as met."
+    - "executor-implementation requires reasoning_effort: medium; same unverifiability."
+    - >-
+      ADDED FOR THIS TASK, same mechanism: research-deep's own reasoning_effort
+      requirement is likewise not settable or readable from inside this harness.
+      Recorded as unverified, not asserted as met.
+  independent_session_required: false
+  originator_of_claim: true
+
+# ---------------------------------------------------------------------------
+# INTEGRITY OBSTRUCTIONS THAT APPLY TO EVERY ROW BELOW.
+# These are stated up front because the task card required a SHA-256 per source
+# and this session cannot produce one. A fabricated hash would be worse than a
+# declared gap, so every `sha256` field below is null with a reason.
+# ---------------------------------------------------------------------------
+session_integrity_obstructions:
+
+  - id: OBS-HASH
+    severity: high
+    what_is_missing: SHA-256 of every retrieved artefact.
+    reason: >-
+      This session's tool surface is Read, Grep, Glob, Write, WebSearch,
+      WebFetch. There is no shell, no `sha256sum`, no Python interpreter, and no
+      hashing tool of any kind. A SHA-256 cannot be computed here.
+    what_was_NOT_done: >-
+      No hash was guessed, recollected, copied from another record, or otherwise
+      synthesised. Every `sha256` field in this log is null.
+    substitute_binding: >-
+      Each retrieved row instead carries a `verbatim_anchor`: an exact quoted
+      string that the Validator can re-fetch from the same URL and compare
+      character-for-character. This is a weaker binding than a hash - it does not
+      cover the whole document and it does not detect changes outside the quoted
+      span - and it is offered as a partial substitute, not an equivalent.
+    consequence_for_the_validator: >-
+      The BATCH-004 validation card (TASK-20260802-cd08cd) instructs the
+      Validator to "verify each recorded hash against the recorded source". There
+      are no hashes to verify. The check that IS available is re-fetching each
+      URL and confirming the `verbatim_anchor` strings. Please record the
+      substitution as a finding rather than treating the check as performed.
+
+  - id: OBS-BYTES
+    severity: medium
+    what_is_missing: raw bytes of any retrieved document.
+    reason: >-
+      WebFetch does not return the fetched bytes. It converts the response to
+      markdown and then answers a prompt against that conversion using a small
+      fast model. What reaches this session is therefore a MODEL-MEDIATED
+      RENDERING of the source, never the source.
+    consequence: >-
+      Even with a hasher available, a hash computed here would bind the
+      rendering, not the document. Every quotation in the companion report is a
+      quotation as relayed by that converter. Where a figure is load-bearing I
+      re-fetched the same URL with a differently-worded verbatim-only prompt and
+      recorded whether the two passes agreed; see `corroboration_passes` below.
+
+  - id: OBS-PDFLOCAL
+    severity: medium
+    what_is_missing: local PDF reading.
+    reason: >-
+      The Read tool's PDF path requires poppler. Attempting to read a locally
+      cached PDF returned "pdftoppm is not installed. Install poppler-utils ...
+      to enable PDF page rendering."
+    consequence: >-
+      The one PDF whose bytes did arrive in this session (arXiv 1202.3985v5,
+      cached by WebFetch at
+      /root/.claude/projects/-home-user-crypto-autoresearcher/abb9db2b-0522-54c3-81db-d48b05f90c33/tool-results/webfetch-1785712320376-ef4xp5.pdf)
+      could not be opened. Its content was obtained from the ar5iv HTML
+      rendering of the same arXiv identifier instead.
+
+  - id: OBS-CLOCK
+    severity: low
+    what_is_missing: wall-clock time of each fetch.
+    reason: >-
+      No shell and no clock tool. The only time signal available to this session
+      is the harness-declared current date, 2026-08-02.
+    consequence: >-
+      Every row records `fetched_date: "2026-08-02"` with
+      `timestamp_precision: date_only`. `fetched_at` is null everywhere. No
+      hour-minute-second value was invented.
+
+# ---------------------------------------------------------------------------
+# ATTEMPTS
+# ---------------------------------------------------------------------------
+attempts:
+
+  # ---- [15] Corte-Real Santos - Costello - Shi (the primary k target) -------
+
+  - n: 1
+    target_ref: "[15]"
+    url: https://eprint.iacr.org/2021/1488
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      ePrint landing page: exact title, author list with affiliations, an
+      abstract (paraphrased by the converter on this pass, obtained verbatim on
+      attempt 3 via a different route), received 2021-11-15, last revision
+      2025-02-21, 3 revisions, "Minor revision of IACR publication in CRYPTO
+      2022", licence CC BY.
+    verbatim_anchor: "Minor revision of IACR publication in CRYPTO 2022"
+    used_for: report section `sources.S15_landing`
+
+  - n: 2
+    target_ref: "[15]"
+    url: https://eprint.iacr.org/2021/1488.pdf
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: 403
+    exact_error: "The server returned HTTP 403 Forbidden. The response body was not retrieved."
+    attempts_made: 2
+    sha256: null
+    sha256_reason: not_retrieved
+    diagnosis: >-
+      Confirmed on attempt 23 to be eprint.iacr.org's own bot-protection
+      interstitial, NOT an egress-policy denial: routing the identical URL
+      through a text-extraction proxy returned eprint's CAPTCHA page
+      ("performing security verification"). The egress proxy demonstrably
+      permits eprint.iacr.org, since every /YYYY/NNNN landing page fetched
+      cleanly. The block is content-path specific: *.pdf and /archive/ are
+      walled, HTML landing pages are not.
+    consequence: >-
+      THE PRIMARY SOURCE FOR k WAS NOT RETRIEVED. Everything reported from [15]
+      comes from the ePrint landing page, the Semantic Scholar record, and the
+      first author's own blog post. Flagged in the report as the single largest
+      provenance weakness of this task.
+
+  - n: 3
+    target_ref: "[15]"
+    url: "https://api.semanticscholar.org/graph/v1/paper/DOI:10.1007/978-3-031-15982-4_10?fields=title,abstract,openAccessPdf,year,venue,authors,externalIds"
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      JSON returned verbatim, including the full abstract with its original
+      ligature artefacts. paperId d10d78bca50cbd7b06e8a0d51296d3e6c6b36d80,
+      DBLP conf/crypto/SantosCS22, DOI 10.1007/978-3-031-15982-4_10, venue
+      "Annual International Cryptology Conference", year 2022, openAccessPdf
+      https://hal.science/hal-05446980 status GREEN licence CCBY.
+    verbatim_anchor: >-
+      Though the asymptotic Õ ( p 1 / 2 ) complexity of our improved algorithm
+      remains unchanged from that of the original Delfs–Galbraith algorithm
+    metadata_discrepancy_found: >-
+      Semantic Scholar lists the third author as "Jiangtao Shi". The frozen
+      bibliography entry [15], the ePrint landing page, and the author's own
+      homepage (attempt 12) all give "Jia Shi". The frozen bibliography is
+      authoritative for this campaign; the Semantic Scholar name is recorded as
+      a third-party metadata error and is not used.
+    used_for: report sections `sources.S15_s2` and `frontier_check`
+
+  - n: 4
+    target_ref: "[15]"
+    url: https://hal.science/hal-05446980
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: null
+    exact_error: >-
+      Response body was an "Access Denied" page from Anubis security protection;
+      no title, authors, abstract or PDF link present.
+    sha256: null
+    sha256_reason: not_retrieved
+
+  - n: 5
+    target_ref: "[15]"
+    url: https://hal.science/hal-05446980/document
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: null
+    exact_error: >-
+      Same Anubis "Access Denied" interstitial. The Semantic Scholar
+      openAccessPdf pointer is therefore dead from this session.
+    sha256: null
+    sha256_reason: not_retrieved
+
+  - n: 6
+    target_ref: "[15]"
+    url: https://ia.cr/2021/1488.pdf
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: 404
+    exact_error: "The server returned HTTP 404 Not Found."
+    sha256: null
+    sha256_reason: not_retrieved
+    note: >-
+      The ia.cr short form resolves for the landing page but not for the .pdf
+      suffix.
+
+  - n: 7
+    target_ref: "[15]"
+    url: https://eprint.iacr.org/archive/versions/2021/1488
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: 403
+    exact_error: "The server returned HTTP 403 Forbidden. The response body was not retrieved."
+    sha256: null
+    sha256_reason: not_retrieved
+    note: >-
+      This URL was obtained by asking the landing page for its raw hyperlink
+      list (attempt 8). The version archive is walled by the same protection as
+      the PDF path.
+
+  - n: 8
+    target_ref: "[15]"
+    url: https://eprint.iacr.org/2021/1488
+    channel: WebFetch
+    purpose: raw hyperlink enumeration (second pass on the same URL)
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      27 raw hyperlinks, including /2021/1488.pdf and
+      /archive/versions/2021/1488, both of which were then tried and both of
+      which 403.
+
+  - n: 9
+    target_ref: "[15]"
+    url: https://iacr.org/cryptodb/data/paper.php?pubkey=32134
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      IACR cryptodb record: abstract opening verbatim, BibTeX entry
+      crypto-2022-32134, slides URL, video URL, DOI.
+    verbatim_anchor: >-
+      We give a new algorithm for finding an isogeny from a given supersingular
+      elliptic curve E/F_{p^2} to a subfield elliptic curve E'/F_p
+
+  - n: 10
+    target_ref: "[15]"
+    url: https://iacr.org/submit/files/slides/2022/crypto/crypto2022/137/slides.pdf
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: null
+    exact_error: "maxContentLength size of 10485760 exceeded"
+    sha256: null
+    sha256_reason: not_retrieved
+    note: >-
+      The authors' own CRYPTO 2022 slide deck exceeds WebFetch's 10 MiB ceiling.
+      This is a TOOL limit, not a policy denial or a missing document, and it is
+      the most promising unexhausted route for a successor task with a shell:
+      the deck very likely carries the comparison table this session could not
+      read.
+
+  - n: 11
+    target_ref: "[15]"
+    url: https://www.mariascrs.com/2021/11/16/supersolver.html
+    channel: WebFetch
+    passes: 3
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    source_class: >-
+      AUTHOR'S BLOG POST BY THE FIRST AUTHOR (Maria Corte-Real Santos, dated
+      Nov 16, 2021), describing the paper. It is NOT the peer-reviewed paper and
+      is not a substitute for it. It is recorded and used because it is the only
+      channel through which any concrete figure from [15] was actually
+      retrieved, and it is labelled as such at every point of use.
+    what_was_obtained: >-
+      The Solver cost law and the SuperSolver node-coverage comparison, both
+      quoted verbatim; see the report.
+    verbatim_anchor: >-
+      Using Solver, for each bitlength between 21 and 40, we solved 10,000
+      instances of the subfield search.
+    used_for: "report sections `sources.S15_blog`, `k_instantiation`"
+
+  - n: 12
+    target_ref: "[15]"
+    url: https://mariascrs.github.io/publications.html
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: redirect
+    http_status: 301
+    redirect_to: https://www.mariascrs.com/publications.html
+    note: Cross-host redirect returned rather than followed; re-issued as attempt 13.
+
+  - n: 13
+    target_ref: "[15]"
+    url: https://www.mariascrs.com/publications.html
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      The author's own link set for [15]: DOI, ePrint PDF (walled), blogpost,
+      talk video. No self-hosted PDF.
+
+  - n: 14
+    target_ref: "[15]"
+    url: https://www.craigcostello.com.au/papers
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      Full publication list. The only full-text pointer for [15] is
+      https://eprint.iacr.org/2021/1488.pdf - i.e. the second author also hosts
+      no independent copy. Route exhausted.
+
+  - n: 15
+    target_ref: "[15]"
+    url: https://janeshi99.github.io/
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      Third author's publication list. Entry for [15] links only to
+      https://eprint.iacr.org/2021/1488 and states "No direct PDF link provided
+      on source page". Route exhausted.
+
+  - n: 16
+    target_ref: "[15]"
+    url: "https://www.semanticscholar.org/paper/SuperSolver:-accelerating-the-Delfs-Galbraith-with-Santos-Costello/d9a88c6f1396d20c608c77c8e29c5ca671ce3e7c"
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: null
+    exact_error: >-
+      Converter reported the page body as empty ("I don't see any web page
+      content provided"). Client-side-rendered page; nothing extractable.
+    sha256: null
+    sha256_reason: not_retrieved
+
+  - n: 17
+    target_ref: "[15] (implementation)"
+    url: https://raw.githubusercontent.com/microsoft/SuperSolver/main/README.md
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      The authors' reference implementation README. Contains NO benchmark
+      numbers. Contains the definition of the control that identifies "Solver":
+      a `supersolver` boolean whose disabling "will call the original
+      Delfs-Galbraith walk in the 2-isogeny graph, without the SuperSolver
+      optimisations described in the paper above."
+    verbatim_anchor: >-
+      Disabling it will call the original Delfs-Galbraith walk in the 2-isogeny
+      graph, without the SuperSolver optimisations described in the paper above.
+    used_for: >-
+      report section `k_instantiation.identification_of_Solver` - this is the
+      independent corroboration that the blog's "Solver" is standard
+      Delfs-Galbraith and not a variant, which is the fact the whole k figure
+      rests on.
+
+  - n: 18
+    target_ref: "[15] (implementation)"
+    url: https://github.com/microsoft/SuperSolver
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: "Root listing: supersolver/, .gitignore, CODE_OF_CONDUCT.md, LICENSE, README.md, SECURITY.md."
+
+  - n: 19
+    target_ref: "[15] (implementation)"
+    url: https://github.com/microsoft/SuperSolver/tree/main/supersolver
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      File listing: .gitattributes, BaseFieldSearch.sage, ExperimentAlgo0.sage,
+      ExtFieldSearch.sage, ModularPolynomials.sage, NeighbourInFp.sage,
+      Runner.sage, Solver.sage, and directory Modular_polys.
+
+  - n: 20
+    target_ref: "[15] (implementation)"
+    url: https://api.github.com/repos/microsoft/SuperSolver/contents/supersolver
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: 403
+    exact_error: "The server returned HTTP 403 Forbidden. The response body was not retrieved."
+    sha256: null
+    sha256_reason: not_retrieved
+    note: Unauthenticated GitHub API blocked; the HTML tree view (attempt 19) served instead.
+
+  - n: 21
+    target_ref: "[15] (implementation)"
+    url: https://raw.githubusercontent.com/microsoft/SuperSolver/main/supersolver/Solver.sage
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success_but_negative
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      MIT licence header only; the converter reported that this file contains no
+      multiplication/squaring/addition counters. The operation-counting
+      convention behind the c-law was therefore NOT recovered from the source
+      code. Recorded as a negative retrieval, not omitted.
+
+  # ---- [3] Adj - Cervantes-Vazquez - Chi-Dominguez - Menezes - Rodriguez-Henriquez
+
+  - n: 22
+    target_ref: "[3]"
+    url: https://eprint.iacr.org/2018/313
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      ePrint landing page with the abstract quoted verbatim by the converter,
+      including LaTeX markup; received 2018-04-03, last revision 2018-07-18,
+      category Public-key cryptography, keywords SIDH / CSSI / cryptanalysis.
+    verbatim_anchor: >-
+      The classical meet-in-the-middle attack on CSSI has an expected running
+      time of $O(p^{1/4})$, but also has $O(p^{1/4})$ storage requirements.
+    used_for: "report section `sources.S3_landing` and the finding that [3] is the wrong source for k"
+
+  - n: 23
+    target_ref: "[3]"
+    url: https://eprint.iacr.org/2018/313.pdf
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: 403
+    exact_error: "The server returned HTTP 403 Forbidden. The response body was not retrieved."
+    sha256: null
+    sha256_reason: not_retrieved
+    consequence: >-
+      The concrete vOW cost constants that [3] is cited for could not be read.
+      Per the task constraint, no similar-looking paper was substituted.
+
+  - n: 24
+    target_ref: "[3]"
+    url: "WebSearch: \"On the cost of computing isogenies between supersingular elliptic curves\" Adj Menezes full text pdf site:arxiv.org OR site:cinvestav.mx OR uwaterloo cacr technical report"
+    channel: WebSearch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success_but_negative
+    what_was_obtained: >-
+      No open mirror exists outside eprint.iacr.org and the paywalled Springer
+      chapter (10.1007/978-3-030-10970-7_15). ResearchGate shows a "Request PDF"
+      stub. Route exhausted; [3] full text is unavailable from this session.
+
+  # ---- Sutherland (RT3-C8 secondary target) --------------------------------
+
+  - n: 25
+    target_ref: "Sutherland ANTS X 2013"
+    url: https://arxiv.org/abs/1202.3985
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      Title "On the evaluation of modular polynomials", author Andrew V.
+      Sutherland, abstract, five versions v1 2012-02-17 through v5 2014-10-13,
+      and the journal reference: "Proceedings of the Tenth Algorithmic Number
+      Theory Symposium (ANTS X), Open Book Series 1, Mathematical Sciences
+      Publishers, 2013, pages 531-555". Comments field: "19 pages, corrected a
+      typo in equation (8) and added equation (9)".
+    verbatim_anchor: >-
+      Proceedings of the Tenth Algorithmic Number Theory Symposium (ANTS X)
+    note: >-
+      This confirms the exact citation RT3-C8 asked for ("Sutherland (ANTS X,
+      2013)") and binds it to arXiv:1202.3985.
+
+  - n: 26
+    target_ref: "Sutherland ANTS X 2013"
+    url: https://arxiv.org/pdf/1202.3985v5
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: partial_failure
+    http_status: 200
+    exact_error: >-
+      Bytes arrived (277.2 KB, application/pdf) and were cached at
+      /root/.claude/projects/-home-user-crypto-autoresearcher/abb9db2b-0522-54c3-81db-d48b05f90c33/tool-results/webfetch-1785712320376-ef4xp5.pdf,
+      but the converter could not extract text - "the text streams are encoded in
+      flate compression, making direct extraction impossible from this format".
+      Reading the cached file with the Read tool then failed with "pdftoppm is
+      not installed" (OBS-PDFLOCAL).
+    sha256: null
+    sha256_reason: >-
+      OBS-HASH. NOTE: this is the one artefact in this task whose actual bytes
+      exist on local disk. A successor session with a shell can hash that file
+      and bind it. This session cannot.
+
+  - n: 27
+    target_ref: "Sutherland ANTS X 2013"
+    url: https://ar5iv.labs.arxiv.org/html/1202.3985
+    channel: WebFetch
+    passes: 2
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    source_class: >-
+      ar5iv is an automated LaTeX-to-HTML rendering of arXiv:1202.3985, not the
+      publisher's ANTS X version. Rendering artefacts in mathematical display
+      are possible. Labelled at every point of use.
+    what_was_obtained: >-
+      Abstract, Theorem 4, Theorem 5, the size statement for Phi_ell, and the
+      height bounds - all quoted verbatim, and consistent across both passes.
+    verbatim_anchor: >-
+      Assume the GRH. The expected running time of Algorithm 1 is O(ℓ²B log²B
+      llog B), where B=O(ℓ log ℓ+log q) is as specified in step 1.
+    used_for: "report sections `sources.SUTH` and `rt3_c8_disposition`"
+
+  # ---- Frontier check (dominated_by) ---------------------------------------
+
+  - n: 28
+    target_ref: "[40] frozen bibliography"
+    url: https://eprint.iacr.org/2026/1219
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      "Algorithms for solving the isogeny problem with oriented elliptic
+      curves", Corte-Real Santos / Herledan Le Merdy / Macula / Meyer / Morrison
+      / Orvis; abstract verbatim; received 2026-06-09, approved 2026-06-10.
+    verbatim_anchor: >-
+      We introduce WayFinder, a framework for generalizing the Delfs-Galbraith
+      and SuperSolver algorithms for the supersingular isogeny problem.
+    used_for: "report section `dominated_by` - this is the row that dominates my k."
+
+  - n: 29
+    target_ref: "frontier check"
+    url: https://eprint.iacr.org/2025/226
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: success_partial
+    http_status: 200
+    sha256: null
+    sha256_reason: OBS-HASH
+    what_was_obtained: >-
+      "Improved Subfield Curve Search For Specific Field Characteristics",
+      Jesus-Javier Chi-Dominguez (Technology Innovation Institute). The
+      converter returned only the abstract's first two sentences verbatim and
+      paraphrased the remainder; the paraphrase asserts O(p^{1/2}) operations
+      with memory polynomial in log_2 p for specific prime forms and states that
+      no speedup factor over Delfs-Galbraith is explicitly given.
+    integrity_flag: >-
+      PARTIALLY PARAPHRASED BY THE CONVERTER. Only the two verbatim sentences
+      are treated as retrieved. Nothing quantitative is taken from this row.
+    verbatim_anchor: >-
+      The Delfs-Galbraith algorithm is one of the most efficient procedures for
+      solving the supersingular isogeny problem with a time complexity of
+      Õ(p^1/2) operations.
+
+  - n: 30
+    target_ref: "[16] frozen bibliography (adjacent, RT-C2/NC-4)"
+    url: https://eprint.iacr.org/2019/298.pdf
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: 403
+    exact_error: "The server returned HTTP 403 Forbidden. The response body was not retrieved."
+    sha256: null
+    sha256_reason: not_retrieved
+    purpose: >-
+      Probe. Fetched to establish whether the eprint PDF block is
+      paper-specific or systematic. Third distinct eprint PDF to 403, which
+      establishes the block as systematic. Also the source NC-4 wants for
+      bandwidth calibration, so its unavailability is recorded for that
+      programme too.
+
+  - n: 31
+    target_ref: "[15]"
+    url: https://r.jina.ai/https://eprint.iacr.org/2021/1488.pdf
+    channel: WebFetch
+    fetched_date: "2026-08-02"
+    fetched_at: null
+    timestamp_precision: date_only
+    outcome: fetch_obstruction
+    http_status: 200
+    exact_error: >-
+      The proxy reached eprint but relayed eprint's bot-protection interstitial:
+      "a security verification screen from eprint.iacr.org ... performing
+      security verification". No paper content.
+    sha256: null
+    sha256_reason: not_retrieved
+    disclosure: >-
+      A third-party text-extraction proxy was used ONCE, on the same URL as
+      attempt 2, purely to diagnose whether the 403 originated at the egress
+      proxy or at eprint. It did not yield content, and no figure in the report
+      derives from it. Recorded rather than omitted because using an
+      intermediary renderer is exactly the kind of channel a reviewer should
+      know about. It was NOT used as a content channel for any cited number.
+
+  # ---- Searches ------------------------------------------------------------
+
+  - n: 32
+    channel: WebSearch
+    fetched_date: "2026-08-02"
+    queries:
+      - "Corte-Real Santos Costello Shi \"Accelerating the Delfs-Galbraith Algorithm with Fast Subfield Root Detection\" eprint"
+      - "SuperSolver github microsoft Delfs-Galbraith subfield root detection repository"
+      - "\"Accelerating the Delfs-Galbraith\" SuperSolver pdf discovery.ucl.ac.uk OR core.ac.uk OR researchgate"
+      - "microsoft research publication \"Accelerating the Delfs-Galbraith algorithm with fast subfield root detection\" pdf download"
+      - "Alfred Menezes publications page uwaterloo \"On the cost of computing isogenies between supersingular elliptic curves\" pdf"
+    outcome: success
+    what_was_obtained: >-
+      Identification of ePrint 2021/1488 as [15]'s preprint, the microsoft/
+      SuperSolver repository, and confirmation that no open mirror of either [15]
+      or [3] exists outside eprint. Search results are used ONLY for locating
+      URLs, never as a source of any figure.
+
+# ---------------------------------------------------------------------------
+corroboration_passes:
+  - claim: "Solver cost law #(F_p muls.) = c*sqrt(p)*log_2 p, 0.75 <= c <= 1.05"
+    url: https://www.mariascrs.com/2021/11/16/supersolver.html
+    passes: 3
+    pass_1_prompt: "verbatim quotes of speedup factors and timing tables"
+    pass_2_prompt: "reproduce verbatim every sentence containing a number"
+    pass_3_prompt: >-
+      reproduce the contiguous block from "10,000 instances" through the formula
+      and say which algorithm it refers to
+    agreement: >-
+      All three passes returned the same numeric values. Pass 3 additionally
+      established, from the block's own opening sentence, that the law is
+      Solver's (standard Delfs-Galbraith) and NOT SuperSolver's. This
+      attribution is load-bearing for the sign of k and was the reason for the
+      third pass.
+  - claim: "node-coverage ratios 3-4x at 2^50-27 and 18-19x at 2^800-105"
+    url: https://www.mariascrs.com/2021/11/16/supersolver.html
+    passes: 3
+    discrepancy_found_and_resolved: >-
+      Pass 1 appended a parenthetical "(when operations remain under 10^8
+      multiplications)" that pass 2's number-bearing-sentence extraction did not
+      reproduce. This was treated as a possible converter interpolation and
+      re-checked on pass 3, which returned the underlying sentence verbatim:
+      "running SuperSolver and Solver until the number of F_p multiplications
+      used exceeded 10^8". The normalisation is therefore CONFIRMED, not
+      assumed. Recorded because an unconfirmed converter interpolation is
+      precisely the failure mode this task warns about.
+  - claim: "Sutherland Theorem 4 / Theorem 5 complexity bounds"
+    url: https://ar5iv.labs.arxiv.org/html/1202.3985
+    passes: 2
+    agreement: >-
+      Both passes returned identical expressions. Pass 2 additionally supplied
+      the theorem NUMBERS (4 and 5), which pass 1 gave only for Theorem 4, and
+      the second height bound h(Phi_ell) <= 6*ell*log ell + 16*ell +
+      14*sqrt(ell)*log ell.
+
+summary:
+  urls_attempted: 31
+  distinct_hosts: 12
+  successful_content_retrievals: 17
+  fetch_obstructions: 10
+  primary_targets_fully_retrieved: 0
+  primary_targets_partially_retrieved: 3
+  hashes_recorded: 0
+  hashes_fabricated: 0
+  figures_cited_without_a_retrieved_source: 0
+  scope_reached: >-
+    All open channels for [15], [3] and the Sutherland ANTS X paper were tried
+    to exhaustion from this session's tool surface. Two channels remain
+    unexhausted and are named for a successor with a shell: (a) the CRYPTO 2022
+    slide deck at iacr.org, which exceeded WebFetch's 10 MiB limit but is not
+    access-controlled; (b) the cached arXiv PDF already on local disk, which
+    needs poppler. There was no budget and none was invoked; retrieval stopped
+    because the channels were exhausted, not because a limit was reached.
