@@ -11,6 +11,7 @@ Archive tree SHA-256: `be7c43abb7b4786a08081c795d54f7bcf0d7f42566f2eb41b24086532
 - Source dirty state is explicit. The Git commit identifies the tracked base; per-file SHA-256 values bind tracked and untracked bytes.
 - Excluded: AppleDouble metadata, `.DS_Store`, Python bytecode/cache directories, Git internals, and api_direct checkpoint state.
 - `CORR-ALMIG-001` records and repairs the first run's omission of three directory-symlink fixture aliases.
+- The 48 GB `inputs/refs` mirror is a local working-tree archive and is not carried in this GitHub PR; the portable Git records are the content manifests, catalog, and harness receipts.
 - This is archival migration evidence only. It does not re-run tasks, validate scientific claims, or upgrade any claim tier.
 
 ## Harness bindings
@@ -20,6 +21,22 @@ Archive tree SHA-256: `be7c43abb7b4786a08081c795d54f7bcf0d7f42566f2eb41b24086532
 - File manifest: `inputs/archive_from_autolab/autolab-migration-20260802-r1/file_manifest.jsonl`
 - Task catalog: `inputs/archive_from_autolab/autolab-migration-20260802-r1/task_catalog.json`
 - Summary: `inputs/archive_from_autolab/autolab-migration-20260802-r1/migration_summary.json`
+
+## Materialize the local byte mirror
+
+The source was dirty, so reproducing the exact tree requires the same source
+worktree, not only its recorded base commit. Populate `inputs/refs` without
+overwriting the immutable canonical receipt:
+
+```bash
+python3 tools/migrate_autolab_archive.py --source /path/to/autolab \
+  --no-harness-output \
+  --metadata-dir /tmp/autolab-migration-20260802-r1-materialize
+```
+
+The command copies only missing or differing entries, then SHA-256 checks every
+selected destination entry. Compare its temporary summary and tree hash with
+the canonical `autolab-migration-20260802-r1` records before relying on it.
 
 ## Structured historical experiment packages
 
@@ -71,6 +88,7 @@ migration does not promote them.
 
 ```bash
 python3 tools/migrate_autolab_archive.py --verify-only --no-harness-output \
+  --source /path/to/autolab \
   --metadata-dir /tmp/autolab-migration-20260802-r1-verify
 python3 tools/validate_ledger.py
 ```

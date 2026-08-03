@@ -1,8 +1,10 @@
 # Crypto Autoresearcher
 
-Historical Autolab task packages and results are mirrored under `inputs/refs/`
-and bound to the current harness by `EXP-ALMIG-001`. See
-`docs/autolab-migration-20260802.md`; verify the mirror without changing the
+A content-addressed migration of the historical Autolab task and result corpus
+is bound to the harness by `EXP-ALMIG-001`. The 48 GB byte mirror is a local
+working-tree archive rather than GitHub content; the repository carries its
+SHA-256 manifests, task catalog, receipts, and materialization tool. See
+`docs/autolab-migration-20260802.md`. Verify a local mirror without changing the
 canonical receipt with
 `python3 tools/migrate_autolab_archive.py --verify-only --no-harness-output
 --metadata-dir /tmp/autolab-migration-20260802-r1-verify`.

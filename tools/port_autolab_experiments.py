@@ -21,6 +21,19 @@ Also writes:
 Historical Autolab runs are archived as completed_valid empirical imports.
 Certificates are kind=none (claims are not re-verified here). Discrete-log
 solve claims in source JSON remain toy-scale observations only.
+
+Two modes need no Autolab checkout and work from a fresh clone:
+
+  --verify     recompute every ported package's artifact list, artifact count
+               and per-file sha256 from the files it actually ships, and check
+               them against implementation.md, manifest.yaml, raw-result.json
+               and the port manifest. Exits 1 on any mismatch.
+  --reconcile  with --verify, first rewrite those derived fields (and any
+               degenerate finding text) to match the archive. Never touches an
+               archived source artifact.
+
+Porting itself needs the source tree, via $AUTOLAB_ROOT or a local checkout;
+it refuses to run against a partial one rather than emit a partial port.
 """
 from __future__ import annotations
 
@@ -30,8 +43,8 @@ import os
 import re
 import shutil
 import subprocess
-import textwrap
 from datetime import datetime, timezone
+from fnmatch import fnmatch
 from pathlib import Path
 
 import yaml
@@ -42,21 +55,34 @@ PORT_DATE = "2026-07-31"
 PORT_TAG = "autolab-port-20260731"
 
 
+AUTOLAB_CANDIDATES = (
+    Path("/Volumes/SSD990/autolab"),
+    Path("/Volumes/Volume/autolab"),
+    Path("/Volumes/SSD990/Volume/autolab"),
+)
+
+
+def has_portable_content(root: Path) -> bool:
+    """Does this root hold result artifacts, or only the docs mirror?
+
+    `inputs/refs` satisfies a bare "does experiments/ecdlp_prime_field exist"
+    probe while holding no `*_result.json` at all, so that probe silently
+    selected an empty source and the port emitted records whose `source_repo`
+    disagreed with the packages it had already written.
+    """
+    prime = root / "experiments" / "ecdlp_prime_field"
+    return prime.is_dir() and any(prime.glob("*_result.json"))
+
+
 def resolve_autolab() -> Path:
-    """Prefer the SSD990-local refs mirror; fall back to Volume/autolab."""
+    """The Autolab checkout to port from. $AUTOLAB_ROOT wins when set."""
     env = os.environ.get("AUTOLAB_ROOT")
     if env:
         return Path(env)
-    candidates = [
-        REPO / "inputs" / "refs",
-        Path("/Volumes/SSD990/autolab"),
-        Path("/Volumes/Volume/autolab"),
-        Path("/Volumes/SSD990/Volume/autolab"),
-    ]
-    for candidate in candidates:
-        if (candidate / "experiments" / "ecdlp_prime_field").exists():
+    for candidate in (REPO / "inputs" / "refs", *AUTOLAB_CANDIDATES):
+        if has_portable_content(candidate):
             return candidate
-    return candidates[0]
+    return AUTOLAB_CANDIDATES[0]
 
 
 def resolve_ecdsafail_root() -> Path:
@@ -114,13 +140,6 @@ def read_text(path: Path, limit: int = 200_000) -> str:
     return data[:limit]
 
 
-def first_existing(paths: list[Path]) -> Path | None:
-    for p in paths:
-        if p.exists():
-            return p
-    return None
-
-
 def summarize_json(obj, max_chars: int = 1200) -> str:
     try:
         s = json.dumps(obj, indent=2, default=str)
@@ -136,6 +155,61 @@ def is_appledouble(path: Path) -> bool:
     return name.startswith("._") or name == ".DS_Store"
 
 
+# Fallback for the ignore test when git is unavailable. Kept deliberately
+# narrow: it only has to cover patterns that can match a *copied artifact*,
+# and tests/test_port_autolab_experiments.py asserts these stay a subset of
+# the real .gitignore.
+_FALLBACK_IGNORED = ("*.sage.py", "._*", ".DS_Store", "*.pyc", "*.pkl", "*.raw",
+                     "*.so", "*.dylib")
+
+
+def _git_ignores(paths: list[Path]) -> set[Path]:
+    """Which of `paths` would .gitignore keep out of the repo?
+
+    An artifact that git refuses to track cannot be archived, so it must not
+    appear in any provenance record either. Asking git directly keeps this in
+    sync with .gitignore instead of duplicating its rules here.
+    """
+    if not paths:
+        return set()
+    try:
+        proc = subprocess.run(
+            ["git", "check-ignore", "--stdin"],
+            cwd=REPO,
+            input="\n".join(str(p) for p in paths),
+            capture_output=True,
+            text=True,
+        )
+        # 0 = some ignored, 1 = none ignored; anything else means git could
+        # not answer and we must not treat silence as "nothing is ignored".
+        if proc.returncode in (0, 1):
+            return {Path(line) for line in proc.stdout.splitlines() if line}
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return {p for p in paths if any(fnmatch(p.name, pat) for pat in _FALLBACK_IGNORED)}
+
+
+def archivable(src_dir: Path, candidates: list[Path]) -> list[Path]:
+    """Source files that will actually survive into the committed archive.
+
+    Provenance records are written from this list, so a file dropped here is
+    a file no record claims. The alternative -- recording what was copied on
+    the porting machine -- produces manifests that cite artifacts a reader
+    cannot find.
+    """
+    kept, dests = [], []
+    for p in candidates:
+        if p is None:
+            continue
+        p = Path(p)
+        if not p.exists() or is_appledouble(p):
+            continue
+        kept.append(p)
+        dests.append(src_dir / p.name)
+    ignored = _git_ignores(dests)
+    return [p for p, d in zip(kept, dests) if d not in ignored]
+
+
 def sanitize_text(text: str, limit: int = 500) -> str:
     cleaned = "".join(
         ch if (ch in "\t\n\r" or 32 <= ord(ch) < 127 or ord(ch) >= 160) else " "
@@ -145,30 +219,108 @@ def sanitize_text(text: str, limit: int = 500) -> str:
     return cleaned[:limit]
 
 
+# Values that answer "did it pass?" but state no finding. Copying one into a
+# hypothesis statement yields "Source finding: failed", which reads as a
+# scientific result and is not one.
+_STATUS_TOKENS = {
+    "failed", "fail", "survived", "passed", "pass", "ok", "done", "error",
+    "inconclusive", "unknown", "n/a", "none", "null", "true", "false",
+    "complete", "completed", "success", "aborted", "skipped",
+}
+
+# Ordered by how much interpretation the source author put into the field:
+# a written verdict beats a machine status flag.
+# `hypothesis*` sits last on purpose: it states what was tested, not what was
+# found, so it is only a fallback when the source recorded no verdict at all.
+_NARRATIVE_KEYS = ("finding", "claim", "claim_status", "summary",
+                   "interpretation", "verdict", "verdict_reason", "conclusion",
+                   "category", "hypothesis_H1", "hypothesis")
+
+
+# Run bookkeeping. A line made only of these answers "which run was it?", not
+# "what was found?", and several result files open with exactly such a header.
+_METADATA_KEYS = {
+    "date", "seed", "seed base", "script", "scripts", "log", "logs", "solver",
+    "time", "timestamp", "commit", "runtime", "host", "rc", "author", "m",
+    "experiment", "round", "duration",
+}
+
+
+def _labelled_keys(text: str) -> list[str]:
+    keys = re.findall(r"\*\*\s*([^:*]{1,20}?)\s*:\*\*", text)
+    if not keys:
+        keys = re.findall(r"(?:^|[.;]\s+)([A-Z][A-Za-z ]{0,18}?):\s", text)
+    return [k.strip().lower() for k in keys]
+
+
+def _is_metadata_line(text: str) -> bool:
+    keys = _labelled_keys(text)
+    return bool(keys) and all(k in _METADATA_KEYS for k in keys)
+
+
+def _is_narrative(text: str) -> bool:
+    """Does this read as a stated finding rather than a status flag?"""
+    stripped = text.strip().strip(".").strip()
+    if not stripped or stripped.lower() in _STATUS_TOKENS:
+        return False
+    # A serialized container is data, not prose: it must never be presented
+    # as the source's finding.
+    if stripped[0] in "{[" or stripped.startswith("OrderedDict"):
+        return False
+    if _is_metadata_line(stripped):
+        return False
+    return len(stripped.split()) >= 3
+
+
 def extract_finding(result_obj, result_md: str) -> str:
+    """A one-line finding for the derived records, or an honest statement that
+    the source recorded none.
+
+    Never dresses a status flag or a serialized dict up as a result: the text
+    this returns is copied verbatim into a hypothesis statement, an experiment
+    objective and the inventory table.
+    """
+    status_note = ""
     if isinstance(result_obj, dict):
-        for key in (
-            "finding",
-            "claim",
-            "summary",
-            "interpretation",
-            "hypothesis_H1",
-            "status",
-            "verdict",
-        ):
-            if key in result_obj and result_obj[key]:
-                return sanitize_text(str(result_obj[key]))
-        if "results" in result_obj and isinstance(result_obj["results"], list):
-            return f"Banked {len(result_obj['results'])} result rows from Autolab."
+        for key in _NARRATIVE_KEYS:
+            value = result_obj.get(key)
+            if isinstance(value, str) and _is_narrative(sanitize_text(value)):
+                return sanitize_text(value)
+        for key in ("status", "verdict", "outcome"):
+            value = result_obj.get(key)
+            if isinstance(value, (str, bool)):
+                token = sanitize_text(str(value))
+                if token:
+                    status_note = (
+                        f"Source recorded outcome flag `{token}` and no narrative "
+                        f"finding; see source/ artifacts for the scoped reading."
+                    )
+                    break
+
     if result_md:
         for line in result_md.splitlines():
             if line.strip().startswith("#"):
                 continue
-            if line.strip():
-                cleaned = sanitize_text(line)
-                if cleaned:
-                    return cleaned
-    return "Historical Autolab experiment with retained result artifacts."
+            cleaned = sanitize_text(line)
+            if cleaned and _is_narrative(cleaned):
+                return cleaned
+
+    if status_note:
+        return status_note
+
+    if isinstance(result_obj, dict):
+        if isinstance(result_obj.get("results"), list):
+            return (
+                f"No narrative finding recorded; source result artifact banks "
+                f"{len(result_obj['results'])} result rows."
+            )
+        keys = ", ".join(sorted(str(k) for k in result_obj)[:8])
+        if keys:
+            return (
+                f"No narrative finding recorded; source result artifact carries "
+                f"fields: {keys}."
+            )
+    return "No narrative finding recorded in the source result artifacts."
 
 
 # ---------------------------------------------------------------------------
@@ -258,6 +410,8 @@ def catalog_binary() -> list[dict]:
         10: "m=5 diagonal",
         11: "Petit–Quisquater diagonal cost capstone",
     }
+    if not root.is_dir():
+        return items
     for n in range(1, 12):
         prefix = f"bin_exp{n:03d}"
         result_md = root / f"{prefix}_result.md"
@@ -706,9 +860,10 @@ Source excerpt / raw summary:
 ```
 
 ## Comparison
-Compared against Autolab's stated baseline (typically Pollard rho / VW / Wesolowski-class
-isogeny cost, depending on topic). This import does not recompute those baselines inside
-crypto-autoresearcher.
+No baseline was computed for this record. Whatever baseline Autolab used stays in the
+`source/` artifacts under its own assumptions; this import neither recomputes it nor
+restates it, so nothing here may be read as a measured margin over rho, VW, or a
+Wesolowski-class isogeny cost.
 
 ## Inference
 `OBSERVATION` / `TOY-EVIDENCE` (or Autolab's original label if stronger, still not upgraded):
@@ -778,12 +933,7 @@ def write_run(
 
     commit = git_commit(REPO)
     now = datetime.now(timezone.utc).isoformat()
-    metrics = {
-        "import_complete": 1,
-        "source_result_present": 1 if (result_obj is not None or result_md) else 0,
-        "source_script_present": 1 if item.get("code") else 0,
-        "copied_artifact_count": len(copied_hashes),
-    }
+    metrics = archive_metrics(copied_hashes)
     # Surface a few numeric fields when present.
     if isinstance(result_obj, dict):
         if "score" in result_obj:
@@ -854,37 +1004,320 @@ def write_run(
     return run_id
 
 
+def candidate_sources(item: dict) -> list[Path]:
+    return [
+        Path(p)
+        for p in (
+            ([item["result_json"]] if item.get("result_json") else [])
+            + ([item["result_md"]] if item.get("result_md") else [])
+            + ([item["contract"]] if item.get("contract") else [])
+            + list(item.get("code") or [])
+            + list(item.get("logs") or [])
+            + list(item.get("extras") or [])
+        )
+        if p is not None
+    ]
+
+
 def copy_sources(exp_dir: Path, item: dict) -> dict[str, str]:
     src_dir = exp_dir / "source"
     src_dir.mkdir(parents=True, exist_ok=True)
     hashes: dict[str, str] = {}
-    for p in (
-        ([item["result_json"]] if item.get("result_json") else [])
-        + ([item["result_md"]] if item.get("result_md") else [])
-        + ([item["contract"]] if item.get("contract") else [])
-        + list(item.get("code") or [])
-        + list(item.get("logs") or [])
-        + list(item.get("extras") or [])
-    ):
-        if p is None or not Path(p).exists():
-            continue
-        p = Path(p)
-        if is_appledouble(p):
-            continue
+    for p in archivable(src_dir, candidate_sources(item)):
         dest = src_dir / p.name
         if not dest.exists():
             shutil.copy2(p, dest)
-        rel = f"source/{p.name}"
-        hashes[rel] = sha256_file(dest)
+        hashes[f"source/{p.name}"] = sha256_file(dest)
     return hashes
 
 
-def port_item(item: dict, index: int) -> dict:
+def archive_metrics(hashes: dict[str, str]) -> dict[str, int]:
+    """Derive the run metrics from the archive itself.
+
+    These used to be computed from the porting machine's candidate list, so a
+    package could report source_script_present: 1 while shipping no script.
+    """
+    names = [Path(k).name for k in hashes]
+    return {
+        "import_complete": 1 if names else 0,
+        "source_result_present": int(any(
+            "result" in n and n.endswith((".json", ".md")) for n in names)),
+        "source_script_present": int(any(
+            n.endswith((".sage", ".py", ".c")) for n in names)),
+        "copied_artifact_count": len(hashes),
+    }
+
+
+def archived_artifacts(exp_dir: Path) -> dict[str, str]:
+    """`source/<name> -> sha256` for the files this package actually ships.
+
+    Reads the committed tree, not the porting machine, so `--verify` means the
+    same thing for a reviewer with a fresh clone and no Autolab checkout.
+    """
+    src_dir = exp_dir / "source"
+    if not src_dir.is_dir():
+        return {}
+    present = sorted(p for p in src_dir.iterdir() if p.is_file())
+    kept = archivable(src_dir, present)
+    return {f"source/{p.name}": sha256_file(p) for p in sorted(kept)}
+
+
+def _replace_section(text: str, heading: str, body: list[str]) -> str:
+    lines = text.splitlines()
+    try:
+        start = lines.index(heading)
+    except ValueError:
+        return text
+    end = next((i for i in range(start + 1, len(lines))
+                if lines[i].startswith("## ")), len(lines))
+    trailing = [""] if end < len(lines) else []
+    return "\n".join(lines[:start + 1] + body + trailing + lines[end:]) + "\n"
+
+
+def package_discrepancies(exp_dir: Path) -> list[str]:
+    """Every provenance claim in the package that the archive does not back."""
+    problems: list[str] = []
+    truth = archived_artifacts(exp_dir)
+
+    impl = exp_dir / "implementation.md"
+    if impl.exists():
+        listed = set(re.findall(r"^- `(source/[^`]+)`", impl.read_text(), re.M))
+        for missing in sorted(listed - set(truth)):
+            problems.append(f"implementation.md lists `{missing}`, which is not archived")
+        for unlisted in sorted(set(truth) - listed):
+            problems.append(f"implementation.md omits archived `{unlisted}`")
+
+    for manifest in sorted((exp_dir / "runs").glob("*/manifest.yaml")):
+        run = (yaml.safe_load(manifest.read_text()) or {}).get("run", {})
+        metrics = run.get("result", {}).get("metrics", {})
+        for key, want in archive_metrics(truth).items():
+            got = metrics.get(key)
+            if got is not None and got != want:
+                problems.append(
+                    f"{manifest.parent.name}/manifest.yaml {key}={got}, archive has {want}")
+        raw_path = manifest.parent / "raw-result.json"
+        if raw_path.exists():
+            try:
+                raw = json.loads(raw_path.read_text())
+            except json.JSONDecodeError:
+                problems.append(f"{manifest.parent.name}/raw-result.json is unparseable")
+                continue
+            recorded = raw.get("copied_artifact_sha256") or {}
+            for rel, digest in sorted(recorded.items()):
+                if rel not in truth:
+                    problems.append(
+                        f"{manifest.parent.name}/raw-result.json hashes unarchived `{rel}`")
+                elif truth[rel] != digest:
+                    problems.append(
+                        f"{manifest.parent.name}/raw-result.json sha256 mismatch for `{rel}`")
+            for rel in sorted(set(truth) - set(recorded)):
+                problems.append(
+                    f"{manifest.parent.name}/raw-result.json omits archived `{rel}`")
+    return problems
+
+
+_OLD_FALLBACK = "Historical Autolab experiment with retained result artifacts."
+
+
+def finding_is_degenerate(text: str) -> bool:
+    """Is this 'finding' a status flag, a serialized dict, or a placeholder?
+
+    Such text was copied verbatim into hypothesis statements and experiment
+    objectives, where "Source finding: failed" reads as a scientific result.
+    """
+    stripped = (text or "").strip().rstrip(".").strip()
+    return (not stripped
+            or stripped == _OLD_FALLBACK.rstrip(".")
+            or stripped.lower() in _STATUS_TOKENS
+            or stripped[0] in "{["
+            or _is_metadata_line(stripped))
+
+
+def archived_result(exp_dir: Path) -> tuple[object, str]:
+    """The result artifacts this package ships, for recomputing derived text."""
+    src_dir = exp_dir / "source"
+    if not src_dir.is_dir():
+        return None, ""
+    files = sorted(p for p in src_dir.iterdir() if p.is_file())
+    obj = None
+    for p in files:
+        if p.name.endswith("_result.json") or p.name == "score.json":
+            try:
+                obj = json.loads(p.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                obj = None
+            break
+    md = ""
+    for p in files:
+        if p.suffix == ".md" and ("result" in p.name.lower() or p.name == "README.md"):
+            md = read_text(p)
+            break
+    return obj, md
+
+
+def _rewrite_finding(path: Path, old: str, new: str) -> bool:
+    """Replace a finding inside a YAML scalar without reflowing the document."""
+    if not path.exists():
+        return False
+    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    body = next(iter(doc.values()))
+    changed = False
+    for key in ("statement", "objective"):
+        value = body.get(key)
+        if isinstance(value, str) and old in value:
+            body[key] = value.replace(old, new)
+            changed = True
+    if changed:
+        dump_yaml(path, doc)
+    return changed
+
+
+def reconcile_findings(exp_dir: Path) -> str | None:
+    """Refresh a package's derived finding text when the recorded one is
+    degenerate. Returns the replacement, or None if nothing needed changing."""
+    spec_path = exp_dir / "specification.yaml"
+    if not spec_path.exists():
+        return None
+    spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))["experiment"]
+    objective = spec.get("objective") or ""
+    marker = "Source finding: "
+    if marker not in objective:
+        return None
+    old = objective.split(marker, 1)[1].strip()
+    if not finding_is_degenerate(old):
+        return None
+
+    new = extract_finding(*archived_result(exp_dir))
+    if new.strip().rstrip(".") == old.strip().rstrip("."):
+        return None
+
+    _rewrite_finding(spec_path, old, new)
+    h_id = spec.get("hypothesis_id")
+    if h_id:
+        _rewrite_finding(REPO / "ledger" / "hypotheses" / f"{h_id}.yaml", old, new)
+
+    # Only the observation line is derived from the finding; the source excerpt
+    # below it is archived content and must survive untouched.
+    analysis = exp_dir / "analysis.md"
+    if analysis.exists():
+        lines = analysis.read_text(encoding="utf-8").splitlines()
+        if "## Observation" in lines:
+            i = lines.index("## Observation") + 1
+            if i < len(lines) and lines[i].strip() == old:
+                lines[i] = new
+                analysis.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return new
+
+
+def reconcile_package(exp_dir: Path) -> bool:
+    """Rewrite the derived provenance fields to match the archive.
+
+    Only touches values that are a *function of* the archived files. Source
+    artifacts, findings, and every hand-written field are left alone.
+    """
+    truth = archived_artifacts(exp_dir)
+    metrics = archive_metrics(truth)
+    changed = False
+
+    impl = exp_dir / "implementation.md"
+    if impl.exists():
+        before = impl.read_text()
+        body = [f"- `{rel}`" for rel in sorted(truth)] or [
+            "- (no archivable source artifact)"]
+        after = _replace_section(before, "## Copied artifacts", body)
+        if after != before:
+            impl.write_text(after, encoding="utf-8")
+            changed = True
+
+    for manifest in sorted((exp_dir / "runs").glob("*/manifest.yaml")):
+        doc = yaml.safe_load(manifest.read_text())
+        recorded = doc["run"]["result"]["metrics"]
+        for key, want in metrics.items():
+            if key in recorded and recorded[key] != want:
+                recorded[key] = want
+                changed = True
+        raw_path = manifest.parent / "raw-result.json"
+        if raw_path.exists():
+            raw = json.loads(raw_path.read_text())
+            if raw.get("copied_artifact_sha256") != truth:
+                raw["copied_artifact_sha256"] = truth
+                raw_path.write_text(
+                    json.dumps(raw, indent=2, default=str) + "\n", encoding="utf-8")
+                changed = True
+        dump_yaml(manifest, doc)
+    return changed
+
+
+def describe_package(exp_dir: Path) -> dict | None:
+    """Reconstruct a manifest row from the committed package alone."""
+    spec_path = exp_dir / "specification.yaml"
+    if not spec_path.exists():
+        return None
+    spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))["experiment"]
+    inputs = spec.get("inputs") or {}
+    objective = spec.get("objective") or ""
+    finding = (objective.split("Source finding: ", 1)[1].strip()
+               if "Source finding: " in objective else "")
+    runs = sorted(d.name for d in (exp_dir / "runs").glob("*") if d.is_dir())
+    topic = ""
+    for manifest in sorted((exp_dir / "runs").glob("*/manifest.yaml")):
+        run = (yaml.safe_load(manifest.read_text()) or {}).get("run", {})
+        topic = (run.get("inputs", {}).get("parameters", {}) or {}).get("topic", "")
+        break
+    return {
+        "experiment_id": spec["id"],
+        "hypothesis_id": spec.get("hypothesis_id"),
+        "run_id": runs[0] if runs else None,
+        "source_id": inputs.get("source_id"),
+        "area": spec["id"].split("-")[1],
+        "topic": topic,
+        "finding": finding,
+        "artifact_count": len(archived_artifacts(exp_dir)),
+    }
+
+
+def reconcile_inventory() -> bool:
+    """Rebuild the port manifest and inventory doc from the committed packages.
+
+    Both were regenerated after the packages were written, against a different
+    resolved source root, so they disagreed with all 84 specifications about
+    where the artifacts came from and how many there were.
+    """
+    ports = [row for row in (describe_package(d) for d in package_dirs()) if row]
+    if not ports:
+        return False
+    manifest_path = REPO / "inputs" / f"autolab_port_manifest_{PORT_DATE.replace('-', '')}.yaml"
+    doc_path = REPO / "docs" / f"autolab-port-inventory-{PORT_DATE.replace('-', '')}.md"
+    before = (manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else "",
+              doc_path.read_text(encoding="utf-8") if doc_path.exists() else "")
+    existing = yaml.safe_load(before[0]) if before[0] else {}
+    write_inventory(ports, existing.get("deferred") or deferred_inventory(),
+                    target_commit=existing.get("target_commit_at_port"),
+                    target_repo=existing.get("target_repo"))
+    return before != (manifest_path.read_text(encoding="utf-8"),
+                      doc_path.read_text(encoding="utf-8"))
+
+
+def package_dirs() -> list[Path]:
+    root = REPO / "experiments"
+    return sorted(
+        d for area in AREA_META for d in root.glob(f"EXP-{area}-*") if d.is_dir())
+
+
+def port_item(item: dict, index: int) -> dict | None:
     area = item["area"]
     nnn = f"{index:03d}"
     exp_id = f"EXP-{area}-{nnn}"
     h_id = f"H-{area}-{nnn}"
     rq_id = AREA_META[area]["rq_id"]
+
+    # Fail closed BEFORE anything is written. An import that archives no source
+    # artifact has nothing to archive, and emitting it anyway produced runs
+    # marked completed_valid / import_complete: 1 over an empty source/ dir --
+    # a receipt for work that did not happen.
+    exp_dir = REPO / "experiments" / exp_id
+    if not archivable(exp_dir / "source", candidate_sources(item)):
+        return None
 
     result_obj = None
     if item.get("result_json") and Path(item["result_json"]).exists():
@@ -904,7 +1337,6 @@ def port_item(item: dict, index: int) -> dict:
     write_hypothesis(h_id, rq_id, item, finding)
     write_experiment_spec(exp_id, h_id, item, finding)
 
-    exp_dir = REPO / "experiments" / exp_id
     hashes = copy_sources(exp_dir, item)
     write_implementation(exp_dir, item, list(hashes))
     write_analysis(exp_dir, item, finding, result_obj, result_md)
@@ -941,19 +1373,35 @@ def write_evidence(area: str, ports: list[dict]) -> str:
         {
             "evidence": {
                 "id": ev_id,
+                # The schema carries one hypothesis_id, but this record spans
+                # every hypothesis in the area. The scalar names the first and
+                # `hypothesis_ids` carries the real, complete linkage.
                 "hypothesis_id": ports[0]["hypothesis_id"],
+                "hypothesis_ids": [p["hypothesis_id"] for p in ports],
+                "hypothesis_id_note": (
+                    f"Scalar `hypothesis_id` is a schema artifact: this record "
+                    f"covers all {len(ports)} {area} import hypotheses listed in "
+                    f"`hypothesis_ids`, one per experiment."
+                ),
                 "experiment_ids": [p["experiment_id"] for p in ports],
                 "run_ids": [p["run_id"] for p in ports],
+                "type": "empirical",
                 "direction": "neutral",
                 "strength": "preliminary",
                 "claim_tier": "toy",
+                "certificate_refs": [],
+                "certificate_refs_note": (
+                    "Empty by construction: every imported run carries "
+                    "`certificate.kind: none`, so there is no verified solve or "
+                    "relation for this record to cite."
+                ),
                 "proof_status": "empirical_only",
                 "proof_refs": [],
                 "observations": [
                     f"Imported {len(ports)} Autolab packages into harness EXP/RUN layout.",
                     *[
                         f"{p['experiment_id']}: {p['source_id']} — {p['finding'][:180]}"
-                        for p in ports[:12]
+                        for p in ports
                     ],
                 ],
                 "inference": (
@@ -977,15 +1425,19 @@ def write_evidence(area: str, ports: list[dict]) -> str:
     return ev_id
 
 
-def write_inventory(all_ports: list[dict], deferred: list[dict]) -> None:
+def write_inventory(all_ports: list[dict], deferred: list[dict],
+                    target_commit: str | None = None,
+                    target_repo: str | None = None) -> None:
     manifest = {
         "schema": "autolab-port-manifest-v1",
         "port_tag": PORT_TAG,
         "ported_at": PORT_DATE,
         "source_repo": str(AUTOLAB),
         "source_commit": AUTOLAB_COMMIT,
-        "target_repo": str(REPO),
-        "target_commit_at_port": git_commit(REPO),
+        # Both record where and when the port ran, so a later rebuild of this
+        # index must not overwrite them with today's checkout and HEAD.
+        "target_repo": target_repo or str(REPO),
+        "target_commit_at_port": target_commit or git_commit(REPO),
         "counts": {
             "ported": len(all_ports),
             "deferred": len(deferred),
@@ -1046,10 +1498,28 @@ def write_inventory(all_ports: list[dict], deferred: list[dict]) -> None:
         "- `258d`: ~550 unique root JSON/md probe dumps (P1553/torus/divisor ledgers) not "
         "present on Autolab main; inventoried as deferred curation, not auto-ported.",
         "",
-        "## How to extend",
+        "## Verifying this port",
+        "",
+        "Needs no Autolab checkout. Recomputes each package's artifact list, count",
+        "and per-file sha256 from the files it ships, and compares them against",
+        "`implementation.md`, `manifest.yaml`, `raw-result.json` and this manifest:",
         "",
         "```bash",
-        "python3 tools/port_autolab_experiments.py",
+        "python3 tools/port_autolab_experiments.py --verify",
+        "```",
+        "",
+        "`--verify --reconcile` rewrites those derived fields from the archive.",
+        "It never edits an archived source artifact.",
+        "",
+        "## How to extend",
+        "",
+        "Porting needs the source tree. `inputs/refs` is a documentation mirror and",
+        "holds no result artifacts, so point `AUTOLAB_ROOT` at a full checkout at the",
+        "pinned commit; the tool refuses to run against a partial source.",
+        "",
+        "```bash",
+        "AUTOLAB_ROOT=/path/to/autolab python3 tools/port_autolab_experiments.py",
+        "python3 tools/port_autolab_experiments.py --verify",
         "python3 tools/validate_ledger.py",
         "```",
         "",
@@ -1105,8 +1575,16 @@ def deferred_inventory() -> list[dict]:
 
 
 def main(only: str | None = None) -> None:
-    if not AUTOLAB.exists():
-        raise SystemExit(f"Autolab source missing: {AUTOLAB}")
+    # A partial source produces a partial port that still looks complete, so
+    # refuse rather than emit one. `--verify` is the mode that needs no
+    # Autolab checkout; porting genuinely does.
+    if not has_portable_content(AUTOLAB):
+        raise SystemExit(
+            f"Autolab source has no portable content: {AUTOLAB}\n"
+            f"Expected {AUTOLAB}/experiments/ecdlp_prime_field/*_result.json.\n"
+            f"Set AUTOLAB_ROOT to a full Autolab checkout at {AUTOLAB_COMMIT}, "
+            f"or use --verify to check the already-ported packages."
+        )
 
     write_questions()
 
@@ -1118,11 +1596,17 @@ def main(only: str | None = None) -> None:
     }
 
     all_ports: list[dict] = []
+    skipped: list[dict] = []
     for area, items in catalogs.items():
         for i, item in enumerate(items, start=1):
             if only and item["source_id"] != only and only not in item["source_id"]:
                 continue
             ported = port_item(item, i)
+            if ported is None:
+                skipped.append({"area": area, "source_id": item["source_id"]})
+                print(f"skipped {area}-{i:03d} <- {item['source_id']} "
+                      f"(no archivable source artifact)")
+                continue
             all_ports.append(ported)
             print(f"ported {ported['experiment_id']} <- {ported['source_id']}")
 
@@ -1137,10 +1621,79 @@ def main(only: str | None = None) -> None:
     print(f"done: {len(all_ports)} experiments ported")
 
 
+def verify(fix: bool = False) -> int:
+    """Re-check every ported package's provenance against what it ships."""
+    dirs = package_dirs()
+    if not dirs:
+        print("no EXP-AL* packages found")
+        return 0
+    if fix:
+        touched = [d.name for d in dirs if reconcile_package(d)]
+        print(f"reconciled provenance for {len(touched)} of {len(dirs)} package(s)")
+        refreshed = [d.name for d in dirs if reconcile_findings(d)]
+        print(f"refreshed degenerate findings for {len(refreshed)} package(s)")
+        for name in refreshed:
+            print(f"  {name}")
+        if reconcile_inventory():
+            print("rebuilt the port manifest and inventory doc")
+
+    failures = 0
+    for exp_dir in dirs:
+        problems = package_discrepancies(exp_dir)
+        if problems:
+            failures += 1
+            print(f"FAIL {exp_dir.name}")
+            for problem in problems:
+                print(f"  - {problem}")
+    manifest_path = REPO / "inputs" / f"autolab_port_manifest_{PORT_DATE.replace('-', '')}.yaml"
+    if manifest_path.exists():
+        recorded = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+        rows = {r.get("experiment_id"): r for r in recorded.get("ported") or []}
+        truth = {r["experiment_id"]: r for r in
+                 (describe_package(d) for d in dirs) if r}
+        # Compared against the specifications, not against whatever root this
+        # machine resolves, so the check means the same thing in CI as it does
+        # on the porting machine.
+        declared = {
+            (yaml.safe_load(d.joinpath("specification.yaml").read_text())
+             ["experiment"].get("inputs") or {}).get("source_repo")
+            for d in dirs if d.joinpath("specification.yaml").exists()
+        }
+        if len(declared) > 1:
+            failures += 1
+            print(f"FAIL: experiment specifications disagree on source_repo: "
+                  f"{sorted(map(str, declared))}")
+        elif declared and recorded.get("source_repo") != next(iter(declared)):
+            failures += 1
+            print(f"FAIL {manifest_path.name}: source_repo "
+                  f"{recorded.get('source_repo')!r} != "
+                  f"{next(iter(declared))!r} recorded in every specification")
+        for exp_id in sorted(set(rows) | set(truth)):
+            if rows.get(exp_id) != truth.get(exp_id):
+                failures += 1
+                print(f"FAIL {manifest_path.name}: {exp_id} row is stale")
+
+    if failures:
+        print(f"\nFAIL: {failures} provenance mismatch(es); "
+              f"rerun with --reconcile to rebuild from the archive")
+        return 1
+    print(f"PASS: {len(dirs)} package(s) match their archived source artifacts")
+    return 0
+
+
 if __name__ == "__main__":
     import argparse
+    import sys
 
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--only", default=None, help="Port only matching source_id substring")
+    ap.add_argument("--verify", action="store_true",
+                    help="Check committed packages against their archived source/ "
+                         "files instead of porting; exits 1 on any mismatch")
+    ap.add_argument("--reconcile", action="store_true",
+                    help="With --verify: first rewrite derived provenance fields "
+                         "(artifact lists, counts, hashes) to match the archive")
     args = ap.parse_args()
+    if args.verify or args.reconcile:
+        sys.exit(verify(fix=args.reconcile))
     main(only=args.only)
