@@ -10,9 +10,10 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/round018_T2_isogeny_gatedmeter.log`
-- `source/round018_T2_isogeny_gatedmeter.sage`
 - `source/round018_T2_isogeny_gatedmeter_result.json`
+- `source/round018_T2_isogeny_gatedmeter.sage`
+- `source/round018_T2_isogeny_gatedmeter.sage.py`
+- `source/round018_T2_isogeny_gatedmeter.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

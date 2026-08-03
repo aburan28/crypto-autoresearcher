@@ -1,40 +1,11 @@
 ---
 id: KN-FIND-011
+title: Full-enum densification recovers inf-norm-1 free-x MW relations at p=31 on joint deg-x≤3 / deg-b=10 family
 type: internal_finding
-title: Full-enum densification recovers inf-norm-1 free-x MW relations at p=31 on joint deg-x≤3
-  / deg-b=10 family
-tags:
-- lifting
-- xedni
-- function-field
-- non-isotrivial
-- mordell-weil
-- coefficient-bound
-- methodology
-- toy-scale
-confidence: reported
 status: established
-internal_refs:
-- EV-XEDN-006
-- DEC-20260730-002
-- H-XEDN-005
-- EXP-XEDN-006
-- EXP-XEDN-007
-proof_status: empirical_only
-proof_refs:
-- ledger/evidence/EV-XEDN-006.yaml
-- experiments/EXP-XEDN-006/execution_report.md
-- experiments/EXP-XEDN-006/specification.yaml
-- experiments/EXP-XEDN-007/execution_report.md
-- experiments/EXP-XEDN-007/specification.yaml
-added: '2026-07-30'
-superseded_by: null
-schema_repair_note: 'Committed with `evidence:`/`decision:` keys, which the internal_finding
-  schema does not define, so its references were never cross-checked and its proof level was
-  never stated. Repaired 2026-08-02 under CORR-20260802-007: the same two records are carried
-  in internal_refs alongside the hypothesis and experiment the evidence itself names, and
-  proof_status is set to the conservative empirical_only. No claim, scope or strength in the
-  body text is changed.'
+tags: [lifting, xedni, function-field, non-isotrivial, mordell-weil, coefficient-bound, methodology, toy-scale]
+evidence: [EV-XEDN-006]
+decision: [DEC-20260730-002]
 ---
 
 # KN-FIND-011

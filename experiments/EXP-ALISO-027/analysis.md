@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1243_transverse_auxiliary_probe
 
 ## Observation
-TOY GEOMETRIC EVIDENCE / FULL RATIONAL TORSION / NO KANI RECONSTRUCTION
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 
