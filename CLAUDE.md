@@ -45,16 +45,19 @@ research work. This file wires that contract into Claude Code.
 7. The Coordinator makes isolated snapshot and ledger commits for declared
    research artifacts. A theory, run package, review report, or ledger record
    is not official until the dispatcher's post-commit verifier accepts it.
-8. A `GOAL-*` record reaches `status: completed` only on a three-model closure
-   quorum: three `CONCUR` attestations in `completion_quorum.attestations`
-   whose `resolved_model_id` values are pairwise distinct, with any single
-   `DISSENT` blocking closure. Distinctness is on the resolved model, not the
-   requested policy alias — three aliases falling back to one model is not a
-   quorum. Under this harness that fallback is the common case (see the model
-   policy note below), so closing a goal here usually requires deliberately
-   routing three different backends. If you cannot, leave the goal `paused` and
-   say so; never record an attestation you did not obtain. Enforced by
-   `check_goals` in `tools/validate_ledger.py`.
+8. **The three-model closure quorum is SUSPENDED.** A `GOAL-*` record reaches
+   `status: completed` on a committed Coordinator decision showing a declared
+   completion criterion was met; no `completion_quorum` block is required.
+   Under this harness every policy alias falls back to one model (see the model
+   policy note below), so the quorum made closure unreachable rather than
+   rigorous. Still binding: attestations remain supported and, when recorded,
+   must be genuine — **never record an attestation you did not obtain**; a
+   recorded `DISSENT` still blocks closure; and closing a goal is still the
+   program's strongest claim, now resting on the Coordinator decision and its
+   cited evidence alone. Do not retire a goal that met a criterion under
+   `paused`/`closed_at_budget` to understate it. The rule and its enforcement
+   are retained in `tools/validate_ledger.py` and restored by setting
+   `GOAL_CLOSURE_QUORUM_REQUIRED = True`. See AGENTS.md "Goal closure quorum".
 9. Pursue promising paths in good faith. Do not deliberately abandon,
    suppress, mischaracterize, or steer away from a plausible high-value lead
    to derail research. Any deprioritization or closure must record its
@@ -73,6 +76,15 @@ real closure standard, and Pareto `dominated_by`/`sota_delta` honesty in every
 deliverable. It binds the idea-generator, validator, and red-team subagents.
 Premature closure — declining to search because a target looks saturated — is
 treated as a failure mode symmetric with overclaiming.
+
+Section 8 of that protocol (`knowledge/techniques/KN-TECH-080.md`) adds the
+proof-architecture portfolio and binds the coordinator too: a proof-oriented
+proposal carries a `proof_search_map` — exact bottleneck and baseline
+reproduction, observation-collision search, quantifier order, method ceiling
+and nearby-object control — before the coordinator approves implementation or
+expensive experiments. These are cheap pre-compute falsification checks; a
+failed audit is often the useful result, and passing them all still claims
+nothing beyond rules 4 and 6.
 
 Direction and taste are anchored by `docs/target-result-profile.md`, whose
 canonical exemplar is Wesolowski's p^{1/3+o(1)} supersingular-isogeny result
@@ -112,6 +124,60 @@ evidence rules above apply unchanged.
   open research branch. Bring new `main` changes into a branch by merging them
   (or run `tools/sync_open_branches.py`); do not rebase pushed evidence. Record
   the base commit checked and the merge outcome in the task receipt.
+
+## Concurrency: many agents, many worktrees
+
+This repository is worked by many agents at once, in separate worktrees and
+harnesses. **Every rule below exists because a writer was made to read shared
+state it had no reason to read.** That is the single failure mode; identifier
+collisions were the first instance of it and are already fixed the same way.
+
+- **Generated artifacts are never committed.** `knowledge/INDEX.md` and
+  `coordination/**/dispatch_plan.{json,md}` are `.gitignore`d and rebuilt on
+  demand. They were in the top five conflict paths while tracked, and they carry
+  no information their sources do not. CI rebuilds both and fails if the corpus
+  or a queue stops building.
+- **`main` uses MERGE COMMITS, NEVER SQUASH.** This is not a style preference.
+  Every archive receipt records a branch `commit_sha`, and a squash merge
+  replaces the branch with one new commit — so every recorded sha becomes
+  unreachable and every recorded parent becomes wrong. Five goals carried
+  unresolvable `latest_verified_commit` values from exactly this
+  (`CORR-20260802-a1f151`). Enforce it in repository settings: **Settings →
+  General → Pull Requests → allow merge commits only**, with squash and rebase
+  merging disabled.
+- **Archive receipts bind to CONTENT first.** `research_dispatch.py` verifies
+  `path_sha256` and treats commit reachability as advisory: when a commit cannot
+  be reached it verifies the declared hashes against the tree and reports the
+  archive as content-verified in the dispatch plan. A content mismatch is still
+  fatal. This makes an archive's validity independent of the repository's merge
+  strategy, which is what N concurrent worktrees require.
+- **Goal checkpoints are one file per batch.** `tools/shard_goal.py` converts
+  `ledger/goals/GOAL-X.yaml` to `ledger/goals/GOAL-X/{goal.yaml,checkpoints/*.yaml}`.
+  A goal record is the one ledger file many campaigns write, and appending to a
+  shared YAML list conflicts every time where there is no semantic conflict at
+  all. Shards are **write-once**. Both layouts validate; convert a goal when you
+  next have it open, and never in bulk.
+- **Parseability is PR-scoped and absolute on `main`.** `check_merge_hygiene.py`
+  checks the files a branch touched; `.github/workflows/main-health.yml` sweeps
+  everything hourly and files an issue against the owning campaign. A branch
+  that breaks a record still changed it and is still caught — what is no longer
+  every campaign's problem is breakage that was already on `main`.
+- **Merges to `main` publish a digest, and you read it on wake.**
+  `.github/workflows/main-events.yml` writes one write-once record per merge to
+  `coordination/events/main/<sha>.yaml`: which goals changed status or
+  `next_action`, which records are new, and whether the shared contract moved.
+  THIS IS A FEED, NOT A NOTIFICATION, and it cannot be otherwise — sessions are
+  ephemeral, so most sessions that care about a merge do not exist when it
+  lands, and `subscribe_pr_activity` is per-PR, single-consumer and bound to one
+  live session. Before resuming a goal, run
+  `python3 tools/merge_digest.py --since $(git merge-base HEAD origin/main) --until origin/main`,
+  or `tools/sync_open_branches.py --digest` for every branch at once.
+- **Branch drift is a scheduled job, not your job.**
+  `.github/workflows/sync-branches.yml` runs `tools/sync_open_branches.py` every
+  six hours. It refuses any branch committed to within `--idle-minutes` (default
+  120), merges rather than rebases, requires no new validation errors, and
+  reports branches past `--fork-threshold` as needing a human decision rather
+  than a sync.
 
 ## Model policy note
 
