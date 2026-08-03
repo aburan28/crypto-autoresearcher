@@ -19,7 +19,7 @@ TASK-20260802-df7df5.
 ## 1. Batch objective and why this control exists
 
 BATCH-001 closed with the concrete NIST-I question **INCONCLUSIVE**
-(`DEC-20260724-016`, `H-P13-001.adjudicated_positions.concrete_threat_nist1`):
+(`DEC-20260724-016`, `H-WESO-001.adjudicated_positions.concrete_threat_nist1`):
 at zero hidden overhead the vOW middle regime beats Delfs–Galbraith at every
 tested budget, but the red team's defensible per-entry calibration (c ~ 1.8)
 shrinks the NIST-I margin to ~2.3 bits — inside the cost model's own
@@ -110,7 +110,7 @@ bit, R² ≥ 0.98 on W-MID, and all controls passing; violation caps the achieva
 evidence strength at `preliminary` and is never repaired by tuning.
 
 **Pre-registered extrapolation law.** `c = gamma · log2(B_opt) / sqrt(log2 p)`,
-with `B_opt` quoted from `RUN-P13VOW-001` (`per_field.<key>.optimal.log2B`):
+with `B_opt` quoted from `RUN-WESOVOW-001` (`per_field.<key>.optimal.log2B`):
 14.2 / 17.8 / 20.9 / 22.3 / 26.1 at `log2 p` = 256 / 384 / 512 / 576 / 768. At
 `gamma = 2` this reproduces RT-C1's own numbers (`2·14.2/16 = 1.78`,
 `2·26.1/27.7 = 1.88`), which is the check that the law is the red team's law and
@@ -119,7 +119,7 @@ measurement**, with four numbered assumptions: L1 (power-law extension across
 ~7.5 octaves at NIST-I, ~18 at `log2 p = 768`, and the measured range never even
 reaches `ell >> log2(p²) = 80`); L2 (charging at `ell = B_opt` makes `c` an upper
 bound *within* the law — attack-unfavourable); L3 (the inherited ±3.51-bit
-irreproducibility band of `RUN-P13VOW-001`); L4 (an unoptimised implementation
+irreproducibility band of `RUN-WESOVOW-001`); L4 (an unoptimised implementation
 gives an upper bound on the achievable exponent — batched Sutherland-type
 evaluation, credited to Damien Robert in the paper's own footnote, is not
 implemented and could collapse it).
@@ -233,10 +233,10 @@ audits are addressed inline in the contract
    an unoptimised implementation's per-entry exponent; it can never establish a
    lower bound on an optimal one.
 
-**Related, noted, not actioned:** whether `H-P13-001` itself should carry a
+**Related, noted, not actioned:** whether `H-WESO-001` itself should carry a
 `proof_search_map` is a separate question. It assesses an *external* claim rather
 than proposing a proof of this program's own, so §8's trigger is at best
-indirect; in any case `ledger/hypotheses/H-P13-001.yaml` is outside this task's
+indirect; in any case `ledger/hypotheses/H-WESO-001.yaml` is outside this task's
 write scope and I did not touch it. Flagged here for the ledger-archive task.
 
 ## 6. Approval, inference, and scope of this task
