@@ -64,6 +64,11 @@ jobs:
             python3 tools/check_merge_hygiene.py --absolute
           fi
 
+      # Installed separately so the step above proves the core toolchain still
+      # works without the agent runtime's dependency tree.
+      - name: Install api_direct runtime dependencies
+        run: pip install -r requirements-agent.txt
+
       - name: Validate ledger, experiments, and run records
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -149,6 +154,12 @@ jobs:
           for suite in evals/suites/*.yaml; do
             python3 -m orchestration.eval validate --suite "$suite"
           done
+
+      - name: Validate inference configuration (offline)
+        run: python3 -m orchestration.adapter doctor
+
+      - name: Check runtime role bindings have not drifted
+        run: python3 tools/check_runtime_bindings.py
 
       - name: Validate live research dispatch queue
         run: |

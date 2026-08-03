@@ -1,0 +1,70 @@
+correction:
+  id: CORR-20260801-502
+  recorded_at: '2026-08-01'
+  record_type: run_package
+  record_id: RUN-DS-001-ctrl-unplanted
+  field: missing_canonical_run_manifest
+  prior_value:
+    files_in_the_committed_run_package:
+      - command.txt
+      - environment.json
+      - manifest.json
+      - raw-result.json
+      - stderr.txt
+      - stdout.txt
+    note: >-
+      No manifest.yaml. Every other run of EXP-DS-001 - RUN-DS-001-impl,
+      -measure, -heur - carries BOTH manifest.json and manifest.yaml.
+  corrected_value:
+    determination: >-
+      THE DEFECT IS RECORDED AND DELIBERATELY LEFT UNREPAIRED IN THIS COMMIT. The
+      missing manifest.yaml is NOT manufactured after the fact.
+  the_symptom: >-
+    tools/validate_ledger.py now reports one NEW error,
+    "ledger/evidence/EV-DS-648.yaml: evidence references unknown run
+    'RUN-DS-001-ctrl-unplanted'", taking the count from 1167 to 1168. The
+    validator indexes runs by globbing experiments/*/runs/*/manifest.yaml
+    (validate_ledger.py:697). With no manifest.yaml the run is not indexed, so any
+    record citing it fails reference resolution. EV-DS-648 is the first record to
+    cite it, which is why the error appears only now.
+  the_cause: >-
+    A QUEUE DRAFTING DEFECT, NOT AN EXECUTOR DEFECT. BATCH-020's
+    TASK-20260731-044 declared manifest.json in its artifact_paths and did not
+    declare manifest.yaml. The executor wrote exactly what was declared and was
+    right to. This is the same family as CORR-20260731-463, where the queue
+    authorized writing the instrument but failed to declare it.
+  why_it_is_not_silenced_here: >-
+    THE ERROR IS TRUE AND IT SHOULD KEEP FIRING. The run genuinely is not
+    indexable as a run under this repository's own convention. Three ways to make
+    the number go down were considered and rejected:
+    (1) WRITING THE MISSING manifest.yaml NOW. This would add an undeclared
+        producer artifact to an ARCHIVED, IMMUTABLE run package, authored by the
+        Coordinator rather than the producer, after the snapshot at 61cd5262 and
+        outside every declared path set. That is precisely the discipline this
+        program exists to keep, and BATCH-021 closed a batch for a related failure
+        of exactly this kind.
+    (2) REMOVING run_ids FROM EV-DS-648. Dishonest: the evidence IS about that run.
+    (3) ADDING A LINE TO tools/validate_ledger_baseline.txt. FORBIDDEN IN TERMS by
+        that file's own header - "Lines may only ever be REMOVED ... never add a
+        line to absorb a new violation."
+  the_repair_and_who_owns_it: >-
+    The Executor, in a batch whose queue DECLARES the path, writes
+    experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/manifest.yaml derived
+    faithfully from the committed manifest.json, and an archive task commits it in
+    a declared set. The repair is carried in GOAL-ECDLP-001's next_action alongside
+    the four control repairs from DEC-20260801-629. UNTIL THEN THE ERROR STANDS AND
+    THE VALIDATOR COUNT IS 1168, NOT 1167.
+  generalization_for_the_coordinator: >-
+    A RUN IS NOT ARCHIVED MERELY BECAUSE ITS FILES ARE COMMITTED. It must also be
+    DISCOVERABLE by the tools that resolve references to it. Any future queue that
+    declares a run package's artifact_paths should declare manifest.yaml
+    explicitly, or the run will commit cleanly and then fail every reference made
+    to it afterwards - silently, until something cites it.
+  what_this_does_NOT_do:
+    - Changes no evidence, decision, hypothesis, goal status or claim tier.
+    - Does not weaken EV-DS-648 or DEC-20260801-629; the harness-void disposition stands on its own grounds.
+    - Modifies no file inside the committed run package.
+  evidence_artifacts:
+    - ledger/evidence/EV-DS-648.yaml
+    - tools/validate_ledger.py
+    - tools/validate_ledger_baseline.txt

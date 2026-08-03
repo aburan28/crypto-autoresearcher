@@ -10,10 +10,11 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/round011_exp022_solvegate_ic_vs_rho.log`
-- `source/round011_exp022_solvegate_ic_vs_rho.sage`
 - `source/round011_exp022_solvegate_ic_vs_rho_result.json`
 - `source/round011_exp022_solvegate_ic_vs_rho_result.md`
+- `source/round011_exp022_solvegate_ic_vs_rho.sage`
+- `source/round011_exp022_solvegate_ic_vs_rho.sage.py`
+- `source/round011_exp022_solvegate_ic_vs_rho.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

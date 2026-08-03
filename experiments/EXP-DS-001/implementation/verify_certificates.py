@@ -83,18 +83,36 @@ def verify_run_dir(run_dir: Path) -> dict:
         out["checks"].append({"kind": "none", "verified": True})
         return out
     if kind == "discrete_log":
-        # Recover instance from impl cell if present
+        # Recover instance from whatever cell layout this mode wrote.
         cell = raw.get("cell") or {}
+        if not cell and raw.get("reported_cell"):
+            cell = dict(raw["reported_cell"])
+        if not cell and raw.get("selected_cell"):
+            cell = dict(raw["selected_cell"])
+        if not cell:
+            records = raw.get("cell_records") or raw.get("cell_or_ladder_search_record") or []
+            if records:
+                first = records[0]
+                cell = dict(first.get("cell_record") or first)
         seed = cell.get("seed", 101)
         bits = cell.get("bits", 16)
         inst = generate_instance(seed, bits)
         k = cert.get("k")
         if k is None and cell.get("rho"):
             k = cell["rho"].get("k")
+        if k is None and isinstance(raw.get("selected_cell"), dict):
+            rho = (raw["selected_cell"] or {}).get("rho") or {}
+            k = rho.get("k")
         ok = False
         if k is not None:
             ok = inst.curve().mul(int(k), inst.P) == inst.Q
-        out["checks"].append({"kind": "discrete_log", "verified": ok, "k": k})
+        out["checks"].append({
+            "kind": "discrete_log",
+            "verified": ok,
+            "k": k,
+            "bits": bits,
+            "seed": seed,
+        })
         out["ok"] = bool(ok)
         return out
     if kind == "decomposition":

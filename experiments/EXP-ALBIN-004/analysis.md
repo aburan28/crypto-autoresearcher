@@ -1,7 +1,7 @@
 # Analysis — Autolab binary-field BIN-EXP-004: Larger n sweep
 
 ## Observation
-| n | nvars | \|FB\| | descended deg | genuine solving degree | consistent | real_sol_satisfies | GB secs | status |
+**Date:** 2026-05-31. Script: `bin_exp004_larger_n.sage`. Log: `bin_exp004_larger_n.log`. Per-cell 240s hard timeout.
 
 Source excerpt / raw summary:
 

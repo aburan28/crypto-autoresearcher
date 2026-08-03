@@ -10,9 +10,10 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/round007_exp014_binary_fppr_corrected.sage`
 - `source/round007_exp014_binary_fppr_corrected_result.json`
 - `source/round007_exp014_binary_fppr_corrected_result.md`
+- `source/round007_exp014_binary_fppr_corrected.sage`
+- `source/round007_exp014_binary_fppr_corrected.sage.py`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

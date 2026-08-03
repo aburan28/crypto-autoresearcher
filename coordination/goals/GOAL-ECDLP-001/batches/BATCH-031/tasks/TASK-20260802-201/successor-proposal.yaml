@@ -1,0 +1,328 @@
+schema_version: "1.0"
+idea_id: IDEA-20260802-201-01
+task_id: TASK-20260802-201
+title: "Certified isogeny-orbit quotient rho"
+status: proposed_idea_only
+claim_kind: exponent_first
+official_status_change: false
+breakthrough_claim: false
+
+redirection_from_obstruction: >-
+  Do not search an isogeny class for anomalous, low-embedding-degree, or
+  subfield properties that are invariant under the frozen path. Instead test
+  whether many certified isogenous representations of the same subgroup
+  element can be quotiented into one collision-search state, reducing the
+  effective rho state space without invoking a field DLP.
+
+target_boundary:
+  source: "ordinary E/F_p with a prime-order subgroup G of order N"
+  source_class: "generic non-special prime-field instances"
+  allowed_structure:
+    - "small-degree F_p-rational isogeny edges of degree coprime to N"
+    - "evaluated point transport"
+    - "succinct independently checkable path certificates"
+  excluded:
+    - anomalous_solver
+    - pairing_or_field_DLP
+    - subfield_descent
+    - unverified_oracle_maps
+    - structured_curve_result_presented_as_generic
+  conclusion_boundary: >-
+    Toy results can test correctness, null separation, and scaling tendencies
+    only. They cannot establish a cryptographic-scale exponent.
+
+mechanism:
+  label: conjecture
+  summary: >-
+    Construct a collision walk whose logical state is an equivalence class of
+    certified representations (E_i, R_i), where R_i is the image of the same
+    affine combination aP+bQ under known coprime-degree isogeny paths. Seek a
+    transport-invariant fingerprint and succinct path accumulator that
+    canonicalize M=N^delta such representations without enumerating the full
+    orbit. If canonicalization costs N^gamma per logical step, rho runs on an
+    effective space of size N/M.
+  structural_ingredient: >-
+    A locally computable canonical quotient for the ordinary isogeny groupoid:
+    certified path composition must preserve the affine DLP labels, while the
+    fingerprint must identify transported copies of the same logical group
+    element across curves. The key unknown is whether this quotient can be
+    evaluated without orbit enumeration or an operation equivalent to solving
+    the original DLP.
+  certificate_semantics:
+    proves:
+      - every_isogeny_edge_and_kernel_is_valid
+      - every_edge_degree_is_coprime_to_N
+      - point_images_follow_the_certified_path
+      - affine_labels_a_b_are_preserved_under_transport
+      - a_cross_curve_collision_is_genuine
+      - recovered_k_verifies_as_Q_equals_kP_on_the_original_curve
+    does_not_prove:
+      - asymptotic_speedup
+      - genericity_beyond_test_distribution
+      - cryptographic_scale_feasibility
+
+cost_model:
+  parameters:
+    N: subgroup_order
+    M: "N^delta certified representations per logical equivalence class"
+    gamma: "power exponent of fingerprint/canonicalization cost per logical step"
+    pi: "power exponent of preprocessing time"
+    mu: "power exponent of working memory"
+    d: "power exponent of external data/oracle queries"
+    s: "per-attempt success probability"
+    nu: "power exponent of certificate generation plus verification"
+  per_attempt:
+    logical_steps: "Theta(sqrt(N/M)) = N^((1-delta)/2+o(1))"
+    step_cost: "N^(gamma+o(1))"
+    time: "N^(gamma+(1-delta)/2+o(1))"
+  expected_total:
+    expression: >-
+      N^(pi+o(1)) +
+      [N^(gamma+(1-delta)/2+o(1)) +
+       N^(nu+o(1))] / s
+    requirement: "s is bounded below by a positive constant after matching rho's success target"
+  memory: "N^(mu+o(1))"
+  data_queries: "N^(d+o(1))"
+  hidden_terms_to_charge:
+    - curve_and_kernel_construction
+    - every_point_map_evaluation
+    - fingerprint_and_canonicalization
+    - path_accumulator_growth
+    - collision_transport_to_a_common_curve
+    - certificate_generation_and_verification
+    - retries_and_invalid_paths
+    - preprocessing_and_amortization
+    - memory_and_external_data
+    - parallel_coordination
+
+target_inequalities:
+  beat_rho_time: "max(pi, nu, gamma+(1-delta)/2) < 1/2"
+  equivalent_online_condition: "delta > 2*gamma"
+  success: "s=Omega(1) at the matched target"
+  memory: "mu=0 for an O(1)-state online walk"
+  data_queries: "d=0 for polylogarithmic public data/query use"
+  concrete_exponent_target:
+    delta: "1/3"
+    gamma_max: "1/24"
+    pi_max: "3/8"
+    nu_max: "3/8"
+    mu: "0"
+    d: "0"
+    resulting_time_exponent_max: "3/8"
+    delta_alpha_vs_rho: "1/2-3/8=1/8"
+  interpretation: >-
+    These are falsifiable design targets, not measured values. Failure to
+    obtain a local canonicalizer with delta>2*gamma leaves the mechanism
+    dominated by rho.
+
+predictions:
+  - id: P1_correct_transport
+    label: derivation_conditional_on_implementation
+    statement: >-
+      Every accepted cross-curve collision yields a scalar k that passes
+      Q=[k]P on the original curve, and independent certificate verification
+      reproduces every transported point.
+    falsification: >-
+      Any accepted collision whose path or final scalar fails independent
+      verification invalidates the implementation; it is not mathematical
+      evidence about the mechanism.
+
+  - id: P2_quotient_collision_gain
+    label: conjecture
+    statement: >-
+      Holding N and all resources fixed, median logical collision work after
+      full charging scales as M^(-1/2) relative to the M=1 engine, up to the
+      measured N^gamma canonicalization factor.
+    quantitative_test: >-
+      The fitted log2(work) versus log2(M) slope must have a one-sided 95%
+      upper confidence bound below -0.25 in the bounded discriminator, with
+      point estimate approaching -0.5.
+    falsification: >-
+      Falsified in the tested boundary if the valid-run upper confidence bound
+      is at least -0.25 or if charged canonicalization gives gamma>=delta/2.
+
+  - id: P3_real_exceeds_identical_shape_null
+    label: conjecture
+    statement: >-
+      Valid transport-invariant collisions occur in the real engine at a rate
+      exceeding the identical-shape null after conditioning on identical graph
+      shape, path lengths, hashes, memory, and query counts.
+    falsification: >-
+      Falsified in the tested boundary if the real-minus-null excess has a
+      one-sided 95% lower confidence bound at or below zero.
+
+  - id: P4_destruction_decay
+    label: conjecture
+    statement: >-
+      If each path edge is independently replaced by a shape-matched
+      coherence-destroying pseudorandom bijection with probability theta, the
+      excess valid-collision signal for a path of length L decays on the scale
+      (1-theta)^L.
+    falsification: >-
+      Falsified as a signal mechanism if the excess does not decrease
+      monotonically, or if at theta chosen so (1-theta)^L<=1/4 its one-sided
+      95% upper bound remains above one half of the theta=0 signal.
+
+  - id: P5_exponent_gate
+    label: conjecture
+    statement: >-
+      Across increasing N, the jointly fitted exponents satisfy delta>2*gamma,
+      max(pi,nu,gamma+(1-delta)/2)<1/2, mu=0, and d=0.
+    falsification: >-
+      Do not advance the exponent claim if any inequality fails on two
+      successive size increases or if confidence intervals include the rho
+      exponent 1/2.
+
+identical_shape_null:
+  object: >-
+    Use the same curve-node count, directed edge ledger, edge degrees, path
+    lengths, walk schedule, hash widths, memory cap, seeds, and query budget.
+    Replace each true subgroup transport map selected for destruction with a
+    keyed pseudorandom bijection over the same encoded-point domain and expose
+    the same evaluation and certificate-shaped interface.
+  preserved:
+    - graph_shape
+    - degree_sequence
+    - path_length_distribution
+    - encoding_sizes
+    - hash_and_collision_pipeline
+    - operation_and_query_counters
+    - memory_limit
+  destroyed: "cross-curve group-homomorphic coherence"
+  acceptance_rule: >-
+    Null collisions are processed by the identical recovery and original-curve
+    verification path. They must not be reclassified or silently discarded.
+
+destruction_parameter:
+  name: theta
+  range: "[0,1]"
+  meaning: "independent fraction of path edges replaced by shape-matched pseudorandom bijections"
+  expected_decay: "(1-theta)^L for coherence requiring all L path edges"
+  canonical_artifact_tell: >-
+    A collision-rate signal that persists without the predicted decay as theta
+    increases is treated as a measurement artifact.
+
+cheapest_bounded_discriminator:
+  stage_A:
+    objective: "test certificate correctness, M-scaling, null separation, and destruction decay"
+    bit_sizes:
+      - 20
+      - 24
+    independent_instances_per_size: 8
+    orbit_sizes:
+      - 1
+      - 16
+      - 64
+    theta_values:
+      - 0.0
+      - 0.5
+      - 1.0
+    objects:
+      - real
+      - identical_shape_null
+    maximum_cell_runs: 288
+    seed_policy: "pre-register deterministic seeds and pair every real cell with its null"
+    memory_limit_gb: 4
+    wall_clock_limit_hours: 12
+  conditional_stage_B:
+    admission: "only if Stage A satisfies P1, P3, and P4"
+    objective: "estimate charged N, M, and canonicalization scaling"
+    bit_sizes:
+      - 20
+      - 24
+      - 28
+      - 32
+    independent_instances_per_size: 12
+    orbit_conditions:
+      - "M=1"
+      - "M approximately N^(1/3)"
+    required_objects:
+      - real_theta_0
+      - real_theta_star
+      - identical_shape_null
+    maximum_cell_runs: 288
+    memory_limit_gb: 4
+    wall_clock_limit_hours: 24
+  stopping_rules:
+    - "Stop and mark the run invalid on any certificate-verification discrepancy."
+    - "Stop Stage A if the real-minus-null excess cannot become positive under the pre-registered confidence rule."
+    - "Stop Stage A if increasing theta fails the P4 decay threshold."
+    - "Do not enter Stage B unless all Stage A admission conditions pass."
+    - "Stop the exponent lane if gamma>=delta/2 or any charged total-time lower confidence bound is no better than rho at two successive sizes."
+    - "A timeout, crash, or invalid implementation is infrastructure evidence only."
+
+required_artifacts:
+  - exact_command_and_environment
+  - git_commit_and_dirty_tree_state
+  - deterministic_seed_manifest
+  - curve_and_subgroup_parameters
+  - complete_edge_and_kernel_ledger
+  - raw_point_map_transcripts
+  - path_accumulator_and_fingerprint_transcripts
+  - real_and_null_objects_with_shared_shape_manifest
+  - pseudorandom_bijection_keys_or_reproducible_seed_commitments
+  - raw_collision_stream
+  - independently_verified_certificates
+  - original_curve_kP_equals_Q_checks
+  - per_operation_time_memory_and_query_counters
+  - per_attempt_success_and_retry_records
+  - raw_machine_readable_results
+  - confidence_interval_and_slope_code
+  - stdout_stderr_and_resource_receipts
+
+pareto:
+  named_prior_best: matched_pollard_rho
+  current_state:
+    time_exponent: null
+    memory_exponent: null
+    data_query_exponent: null
+    dominated_by: matched_pollard_rho
+    reason: >-
+      The canonical quotient, orbit size, and cost exponents are unverified;
+      current evidence supplies no implementation that improves rho.
+  target_state:
+    time_exponent: "3/8"
+    memory_exponent: "0"
+    data_query_exponent: "0"
+    delta_alpha_vs_rho: "+1/8"
+    concrete_log2_time_ratio: null
+    concrete_log2_memory_ratio: null
+    concrete_log2_data_ratio: null
+    missing_for_concrete_ratios:
+      - implemented_constant_factors
+      - certified_orbit_size
+      - canonicalization_cost
+      - certificate_cost
+      - matched_parameter_instances
+    dominated_by: null
+    null_justification: >-
+      This null applies only to the stated target inequalities: time exponent
+      3/8 is below rho's 1/2 while both retain power-exponent-zero memory and
+      data/query use. It is not a claim about the current unimplemented idea.
+  rows_checked:
+    - matched_pollard_rho_time
+    - matched_pollard_rho_memory
+    - matched_pollard_rho_data_queries
+    - quotient_walk_time
+    - quotient_walk_memory
+    - quotient_walk_data_queries
+    - preprocessing
+    - certificate_generation_and_verification
+    - retries_and_parallelism
+
+promotion_requirements:
+  - "Coordinator-approved specification before execution"
+  - "independent validation of certificates, nulls, metrics, and receipts"
+  - "proof decomposition into correctness, state-space size, runtime, and success lemmas"
+  - "validated heuristic statements with explicit falsification conditions"
+  - "concrete cost and time-memory-data tradeoff table"
+  - "independent review-breakthrough at max effort before any breakthrough claim"
+  - "red-team cost-model and scope review"
+
+forward_guidance: >-
+  The decisive theoretical question is whether a transport-invariant
+  fingerprint for an N^delta isogeny-orbit quotient can be computed with
+  gamma<delta/2 without orbit enumeration or hidden DLP work. A proof that
+  every such canonicalizer costs Omega(N^(delta/2)) in the stated model would
+  obstruct this successor; a construction meeting the target inequalities
+  would justify a bounded Executor specification.

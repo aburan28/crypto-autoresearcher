@@ -1,0 +1,268 @@
+idea:
+  id: IDEA-20260731-012
+  question_id: RQ-ECDLP-002
+  title: >-
+    Large-prime variation for prime-field ECDLP relation collection — near-miss
+    harvest over a shifted (m-1)-sumset with shared-large-prime combining
+  class: composition
+  claim: >-
+    Let E/F_p carry a prime-order subgroup G of order N, let F be a factor base
+    of size B = N^beta, and fix decomposition arity m >= 4. Define the large-prime
+    pool L = {L_1..L_{B'}} (|L| = B' = N^{beta'}, beta' < beta) as a public set of
+    points of G. Replace the arity-m membership test (is a random target R = aP +
+    bQ in the m-fold sumset F^{[m]}?) by the LP-1 harvest: precompute the (m-1)-fold
+    sumset S_{m-1} = F^{[m-1]} once (size |S_{m-1}| = B^{m-1}/(m-1)! up to
+    collisions), then per random target test R - L_i in S_{m-1} by hash lookup for
+    each i in {1..B'}. Every hit harvests a relation R = (sum of m-1 base points) +
+    L_i carrying one unknown log(L_i); relations sharing the same L_i combine in
+    pairs (R1 - R2 = B1 - B2) into factor-base-only equations, and the surviving
+    matrix solves by sparse LA as usual. Under HEUR-LP-1 (hit events Poisson with
+    mean lambda = B' * |S_{m-1}| / N; see heuristic block), the charged
+    per-usable-relation cost ratio R_LP = (C_precompute(S_{m-1}) + C_harvest +
+    C_combine + C_LA) / C_naive is strictly below 0.7 at some toy (B, B', m) cell
+    with B >= 64, where C_naive is the direct arity-m harvest with the same backend
+    (m-sumset precompute + lookup, or Groebner test) plus the same C_LA. The
+    collection-side gain must survive the null object of IDEA-20260731-011
+    (random-oracle predicate of identical cost replacing the sumset membership):
+    R_LP_null >= 0.9 whenever R_LP < 0.7. If R_LP >= 0.9 at every tested cell, the
+    LP rewrite adds no charged saving and the lane closes on the tested scope.
+  mechanism: >-
+    ATTACK OBJECT: the harvested relation pool with large-prime slots and its
+    shared-large-prime combining graph — not "ECDLP" generically. In
+    point-decomposition index calculus (KN-TECH-003), relation collection
+    dominates the attack path over prime fields; the classical large-prime
+    variation of finite-field/hyperelliptic index calculus (KN-LIT-164; NFS
+    practice) relaxes the smoothness predicate and recombines near-misses, but
+    nothing in this ledger installs it for EC point decomposition, where
+    "smoothness" is decomposability (membership in the factor-base sumset). The
+    LP-1 rewrite splits arity m into (m-1, 1): the target-independent half is the
+    precomputed (m-1)-sumset S_{m-1} (charged once, reused across all attempts and
+    all targets), and the 1 is a pool element whose unknown log is eliminated by
+    pairwise combining. The per-attempt cost drops from one arity-m test to B'
+    hash lookups; the usable-relation yield requires each used pool element to
+    appear in >= 2 relations (equations after combining = N_hit - B'_used). This
+    is a different point of the (table-size, per-attempt, combining) tradeoff
+    surface from the degree-split claw of IDEA-20260731-007 / SG-ECDLP-001 (which
+    splits m into (m/2, m/2) with a per-target dependent half): LP-1 has NO
+    target-dependent half, so it amortizes across targets (feeds SG-ECDLP-004's
+    multi-target regime), at the price of the combining stage and a larger table
+    exponent (beta*(m-1) vs beta*m/2). The experiment decides which split wins at
+    toy scale and whether the gain is Semaev-structure or generic (null object).
+  novelty_status: adaptation
+  novelty_screen:
+    screened_on: '2026-07-31'
+    corpus_paths_grepped:
+    - ledger/proposals
+    - ledger/hypotheses
+    - knowledge/INDEX.md
+    - knowledge/techniques
+    - knowledge/open-problems
+    - knowledge/literature
+    grep_results:
+    - KN-LIT-164 (Gaudry-Thome-Theriault-Diem, double large prime variation,
+      hyperelliptic IC) is the external prior art; its own relevance note says
+      decomposition-based novelty checks must cite it before claiming new
+      mechanisms — this record cites it and claims the ADAPTATION, not the
+      variation itself.
+    - No ledger proposal installs a large-prime pool / near-miss harvest /
+      combining graph for PRIME-FIELD EC point decomposition. IDEA-20260727-007
+      is an arity-five membership BUDGET (amortized alpha over attempts), not a
+      split-and-combine harvest; IDEA-20260731-007 is the m/2-split claw on the
+      membership test; IDEA-20260726-005 is a multi-level DESCENT tree (target
+      descent depth), not relation-collection pooling; IDEA-20260726-001 and
+      IDEA-20260731-010 are multi-target AMORTIZATION of the matrix, not
+      collection-stage near-miss reuse.
+    - KN-OPEN-002/004/007 cover the Groebner/elimination stage; KN-OPEN-006
+      covers designed AP relation supports for displacement-rank LA; neither is a
+      large-prime predicate for collection.
+    literature_verified:
+    - KN-LIT-164 (archived; hyperelliptic double-large-prime variation)
+    conclusion: >-
+      Known variation in adjacent settings, newly installed on prime-field EC
+      point decomposition with a pool-combining semantics that no ledger item
+      covers; novelty_status adaptation, not stronger, pending a literature
+      deep-read of any EC-specific large-prime prior art (none located in this
+      corpus).
+  assumptions:
+  - >-
+      All points involved lie in the prime-order subgroup G (guaranteed: R = aP + bQ
+      and base points are in G, so R - (m-1)-sum is in G).
+  - The factor base F, the pool L, and arity m are public and frozen before
+    harvest; B' and beta' are tuned parameters of the experiment.
+  - The LA stage is the standard sparse solve on the surviving factor-base-only
+    matrix (row weight ~ 2(m-1) + 2 after combining), charged identically on both
+    sides.
+  - Toy instances only for the executable falsification; crypto-scale statements
+    are labeled extrapolation.
+  predictions:
+  - metric: per_usable_relation_cost_ratio_R_LP
+    direction: lower
+    minimum_effect: R_LP = (C_precompute + C_harvest + C_combine + C_LA) / C_naive
+      < 0.7 at >= 1 (B, B', m) cell with B >= 64 on >= 2 toy bit sizes, with the
+      null-object ratio R_LP_null >= 0.9 whenever R_LP < 0.7
+  - metric: hit_rate_residual_decay
+    direction: lower
+    minimum_effect: >-
+      the normalized residual |P_hit_measured - lambda| / lambda
+      decays by >= 2x across the tested bit-size sweep (the canonical artifact
+      tell per inventor-protocol section 3: a residual that stays flat with size
+      is a measurement artifact, not structure)
+  - metric: combining_efficiency
+    direction: higher
+    minimum_effect: usable equations after combining >= B - 1 (matrix rank B-1
+      control) with B'_used distinct pool elements and N_hit - B'_used >= B - 1
+  minimal_test:
+    design: >-
+      At 16-, 20-, and 24-bit prime-order subgroups with m in {4, 5}, B in
+      {64, 128, 256}, and B' in {B/2, B, 2B}: (1) build F and L; (2) side A
+      (naive): harvest to rank B-1 by direct arity-m membership (m-sumset
+      precompute + hash lookup at toy B where the m-sumset fits, else the
+      committed Groebner test), recording per-usable-relation cost; (3) side B
+      (LP-1): precompute S_{m-1}, harvest N_hit = B + B' hits by shifted-sumset
+      lookup, run the combining pass (hash table keyed by L_i, pairwise
+      elimination), solve, and record per-usable-relation cost; (4) run side B on
+      the null object of IDEA-20260731-011 (membership predicate replaced by a
+      random oracle of identical cost; combining kept, since it is combinatorial
+      and predicate-independent) and record R_LP_null; (5) sweep sizes and report
+      the residual decay; (6) an LP-2 extension arm (two pool elements per
+      relation, cycle finding in the relation-pool bipartite graph) is optional
+      and reported separately, never merged into the LP-1 metric.
+    controls:
+    - >-
+        Unstructured control: identical experiment with F and L replaced by random
+        point sets of the same sizes on the same curve (random-support baseline).
+    - >-
+        Null-object control (IDEA-20260731-011 template): random-oracle membership
+        predicate of identical cost; the collection-side gain must vanish.
+    - >-
+        Planted-bug positive control: corrupt 5% of harvested relations; the
+        combining pass must still produce a matrix whose solve is detected as
+        inconsistent by a terminal certificate check.
+    - Matched Pollard rho (negation) and BSGS on the same instances, in the same
+      group-operation unit.
+    - >-
+        Rank control: no usable-relation credit before the combined matrix reaches
+        rank B-1.
+    - >-
+        Scale/decay control: the hit-rate residual must decay with bit size, not
+        plateau.
+    required_metrics:
+    - R_LP and R_LP_null with bootstrap confidence intervals, per cell
+    - measured P_hit vs lambda per cell, and the residual across the size sweep
+    - N_hit, B'_used, combining yield (N_hit - B'_used), final matrix rank
+    - C_precompute, C_harvest, C_combine, C_LA charged separately, both sides
+    - matched rho and BSGS group-operation counts; BSGS memory in bits
+  falsification_conditions:
+  - 'TOY-TIER FALSIFIER: R_LP >= 0.9 at all tested (B, B'', m) cells with
+    successful harvest to rank B-1 -> the LP rewrite adds no charged saving in
+    tested scope; idea weakened/rejected_scoped to the tested parameters. This is
+    a toy-scope statement and does not close the variation at scale.'
+  - 'TOY-TIER FALSIFIER: R_LP_null < 0.5 whenever R_LP < 0.7 -> the apparent gain
+    is a predicate-engine artifact, not Semaev/group structure; the gain claim is
+    void under the null gate of IDEA-20260731-011.'
+  - 'Scale gate: a positive R_LP < 0.7 at toy cells may be labeled a charged
+    toy-cost finding only; any crypto-scale extrapolation must (a) re-derive
+    lambda at scale from the counting bound, (b) pass the residual-decay control
+    at the largest feasible size, and (c) be labeled extrapolation, never
+    validation (AGENTS.md rule 7).'
+  - 'Infrastructure: failure to reach rank B-1 on either side within the declared
+    budget is infrastructure-inconclusive, not mathematical evidence.'
+  confounders:
+  - At toy B the S_{m-1} precompute can dominate both sides; memory must be
+    reported separately from the asymptotic claim, and B' tuning can fake a win
+    (larger B' raises P_hit and the combining cost simultaneously).
+  - The combining pass is combinatorial and predicate-independent; only the
+    COLLECTION-side gain is attributable to the sumset structure, so R_LP and
+    R_LP_null must be decomposed into their collection and combining components.
+  - Hash collisions in the pool key and multiset collisions in S_{m-1} shrink the
+    usable yield; the bias direction is known (conservative for the LP side) and
+    must be reported, not silently corrected.
+  interpretation_limits:
+  - A confirmed R_LP < 0.7 is a charged per-relation cost finding at toy scale; it
+    does not by itself move any assembled ECDLP exponent, because the free-oracle
+    LA floor of IDEA-20260727-003 still binds the end-to-end single-target cost.
+  - The LP-1 advantage, if real, feeds the multi-target regime (SG-ECDLP-004) via
+    the target-independent S_{m-1} table; the single-target comparison against the
+    claw (SG-ECDLP-001) must be reported as a separate row, never merged.
+  - Nothing here is evidence about ECDLP at cryptographic scale, and the LP
+    variation is not a special-curve or preprocessing claim.
+  heuristic_assumptions:
+  - id: HEUR-LP-1
+    statement: >-
+      For a uniform random target R = aP + bQ and a frozen pool L with shifted
+      sumset L + S_{m-1}, the hit events {R in L_i + S_{m-1}} are Poisson with
+      mean lambda = B' * |S_{m-1}| / N, i.e. the shifted (m-1)-sumsets behave
+      like independent uniform subsets of G of density |S_{m-1}| / N.
+    rigorous_support: >-
+      Uniform-target counting (the same sumset-equidistribution heuristic the
+      BATCH-011 / EXP-YIELD-001 census P_pred model and the multiset counting
+      bound B^m / m! rest on); no theorem transfers it to Semaev sumsets over
+      prime fields (KN-OPEN-001/003 remain open).
+    validation_plan: >-
+      At toy sizes, enumerate S_{m-1} exactly, measure P_hit over >= 10^5
+      attempts per cell, compare to lambda (KS / CDF and the residual-decay
+      sweep); report failure explicitly rather than assuming the Poisson model.
+      Toy-scale only; crypto-scale validation would require a correspondence
+      sampler and is out of the minimal test.
+  target_complexity:
+    time_exponent: >-
+      Collection stage: attempts per usable relation ~ N / (B' * B^{m-1}) * B'
+      lookups vs naive N / B^m tests; table precompute B^{m-1}/(m-1)! vs B^m/m!.
+      End-to-end exponent still governed by the free-oracle floor
+      max(B, c_LA * B^omega_LA) (IDEA-20260727-003); no assembled exponent below
+      rho is claimed.
+    memory_exponent: >-
+      LP-1 table: B^{m-1}/(m-1)! entries (vs B^m/m! naive) — a table-memory
+      exponent drop of beta in B = N^beta convention; claw (SG-ECDLP-001) table is
+      B^{m/2}, smaller, but has a per-target dependent half.
+    best_known: >-
+      Pollard rho ~0.886 sqrt(N) group ops (generic; KN-TECH-001); prime-field
+      point-decomposition IC not competitive end-to-end (KN-OPEN-001).
+    hidden_overhead: >-
+      o(1)/cofactor hides the combining-pass constants, hash engineering, and the
+      B'-tuning surface; the collision correction to |S_{m-1}| and the LA floor
+      are not proved negligible at any scale.
+    tradeoff_note: >-
+      B' trades harvest attempt count against combining cost and usable yield;
+      the S_{m-1} table can be reduced by distinguished-point-style sampling at
+      the cost of harvest recall; parallelization is near-linear in harvest and
+      combining.
+  matched_baseline: >-
+    SAME COST CONVENTION ON BOTH SIDES, serial classical: costs in
+    group-operation equivalents (1 point addition = 1 op; scalar multiplications
+    charged by their operation count); memory charged separately in bits (table
+    entries x bit-width); preprocessing and query data charged (factor base,
+    sumset tables, pool, walk data). Baselines written down: Pollard rho ~ 0.886 *
+    2^(n/2) group ops serial constant memory (KN-TECH-001, archived); BSGS ~
+    2^(n/2) time x n * 2^(n/2) bits memory (KN-TECH-031/035, archived); multi-target
+    rho: independent runs T * 0.886 * 2^(n/2); shared distinguished-point table ~
+    sqrt(T * N) total ops — UNVERIFIED (standard Kuhn-Struik-style claim, not
+    archived in this corpus); preprocessing frontier S*T^2 = Omega~(eps*N)
+    (KN-LIT-013, archived); generic GGM Omega(sqrt(N)) (KN-TECH-005, archived).
+    Quantum: stated separately under MAXDEPTH; none claimed here. On the LP side
+    the same convention charges C_precompute, C_harvest, C_combine, C_LA; on the
+    naive side the same four items at arity m.
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: high
+  dominated_by: >-
+    End-to-end single-target exponent: dominated by Pollard rho and by the
+    free-oracle LA floor (IDEA-20260727-003) unless an m >= 5 admissible point
+    with verified HEUR-LP-1 clears both — not claimed here. Single-target
+    collection MEMORY row: dominated by the SG-ECDLP-001 claw (table exponent
+    beta*m/2 < beta*(m-1)). Multi-target per-usable-relation row (T >= 1 shared
+    S_{m-1} table): not dominated a priori — that is the measurement. Every row
+    of the frontier (time, memory, data/queries) checked as documented.
+  sota_delta: >-
+    Quantitative: charged per-usable-relation cost target R_LP < 0.7 vs 1.0
+    naive at identical (B, m); collection-table memory exponent beta*(m-1) vs
+    beta*m (a drop of beta) and vs beta*m/2 (claw, larger constant through the
+    per-target half); no assembled single-target exponent delta claimed.
+  source_refs:
+  - knowledge/literature/KN-LIT-164.md
+  - knowledge/techniques/KN-TECH-003.md
+  - ledger/proposals/IDEA-20260731-007.yaml
+  - ledger/proposals/IDEA-20260731-010.yaml
+  - ledger/proposals/IDEA-20260731-011.yaml
+  - ledger/proposals/IDEA-20260727-003.yaml
