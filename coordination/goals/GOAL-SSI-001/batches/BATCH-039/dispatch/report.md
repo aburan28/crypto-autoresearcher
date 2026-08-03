@@ -6,11 +6,11 @@ BATCH-039: instantiate exactly ONE substantive numeric gate (primary A: composit
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-129` | red-team | queued | 80 | TASK-20260730-127, TASK-20260730-128 | coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-129/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-129/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-039/tasks/TASK-20260730-129 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-130`: dependency_not_completed:TASK-20260730-129:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-039: instantiate exactly ONE substantive numeric gate (primary A: composit
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9766b1049a797fd98d1d21b25a4fc90cf15da4b9d1d470354d5ae9e517c409da`
+Plan SHA-256: `aa0851894060b7e52265cef2488897524da66c7b4cdcf3a2ff9c44a798eb4fd4`
