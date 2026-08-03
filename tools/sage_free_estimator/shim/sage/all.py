@@ -30,6 +30,15 @@ class _Real(mp.mpf):
     def is_infinity(self):
         return mp.isinf(self)
 
+    def n(self, prec=None, digits=None):
+        """Sage's numerical-approximation method. estimator.lwe_dual.MATZOV
+        calls it, so without this the MATZOV cost model -- the one the public
+        `LWE.dual_hybrid` name actually resolves to -- cannot run at all.
+        Found by BATCH-011, which had to patch it in-process to proceed.
+        Third time this shim has been wrong about its own limits (see the pi/e
+        attributes from BATCH-010 D4); each was found by someone running it."""
+        return _Real(self)
+
 
 def _mkreal(x):
     if x is oo or x == mp.inf:
@@ -78,36 +87,36 @@ def QQ(x):
 def log(x, b=None):
     x = _f(x)
     if b is None:
-        return mp.log(x)
-    return mp.log(x) / mp.log(_f(b))
+        return _mkreal(mp.log(x))
+    return _mkreal(mp.log(x) / mp.log(_f(b)))
 
 
 def sqrt(x):
-    return mp.sqrt(_f(x))
+    return _mkreal(mp.sqrt(_f(x)))
 
 
 def exp(x):
-    return mp.exp(_f(x))
+    return _mkreal(mp.exp(_f(x)))
 
 
 def erf(x):
-    return mp.erf(_f(x))
+    return _mkreal(mp.erf(_f(x)))
 
 
 def coth(x):
-    return mp.coth(_f(x))
+    return _mkreal(mp.coth(_f(x)))
 
 
 def tanh(x):
-    return mp.tanh(_f(x))
+    return _mkreal(mp.tanh(_f(x)))
 
 
 def sinh(x):
-    return mp.sinh(_f(x))
+    return _mkreal(mp.sinh(_f(x)))
 
 
 def cosh(x):
-    return mp.cosh(_f(x))
+    return _mkreal(mp.cosh(_f(x)))
 
 
 def ceil(x):
@@ -124,7 +133,7 @@ def round(x, n=0):  # noqa: A001 - shadowing is intentional, matches sage.all
 
 
 def binomial(n, k):
-    return mp.binomial(_f(n), _f(k))
+    return _mkreal(mp.binomial(_f(n), _f(k)))
 
 
 def prod(it):
@@ -135,7 +144,7 @@ def prod(it):
 
 
 def zeta(x):
-    return mp.zeta(_f(x))
+    return _mkreal(mp.zeta(_f(x)))
 
 
 def parent(x):
