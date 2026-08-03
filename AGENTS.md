@@ -345,7 +345,21 @@ Rebasing a branch that carries pushed run records is forbidden: it rewrites the
 commits those records were archived in, and a run receipt whose commit no
 longer exists is not reproducible. `tools/sync_open_branches.py` performs this
 merge periodically for open pull requests and validates the merged tree before
-pushing it. Coordinators must routinely fetch and inspect `origin/main` for
+pushing it, on the schedule in `.github/workflows/sync-branches.yml`. It skips
+any branch committed to recently, because pushing into a worktree an agent is
+mid-batch on is the interference it exists to reduce.
+
+**The same rule binds the trunk: `main` takes merge commits and never squashes.**
+A squash merge replaces an entire branch with one new commit, so every
+`commit_sha` an archive receipt recorded becomes unreachable from `main` and
+every recorded `parent_sha` becomes wrong — the receipts are not falsified, they
+simply stop verifying the moment the branch lands. Five goals carried
+unresolvable `latest_verified_commit` values from exactly this
+(`ledger/corrections/CORR-20260802-a1f151.yaml`). Because a repository setting
+is not a guarantee, receipts additionally bind to **content**: the dispatcher
+verifies `path_sha256` and degrades commit reachability to advisory, so an
+archive whose commit binding is destroyed still verifies on bytes and is
+reported as content-verified rather than silently accepted or wrongly rejected. Coordinators must routinely fetch and inspect `origin/main` for
 new commits—at the start of an active session, before a snapshot or ledger
 commit, and before requesting review or merge—and promptly merge those changes
 into each open branch. Record the base commit checked and merge outcome in the

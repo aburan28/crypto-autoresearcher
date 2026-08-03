@@ -36,14 +36,21 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REMAP_PATH = os.path.join(REPO, "tools", "run_id_remaps.yaml")
 
 
-def load_renames() -> dict[str, str]:
-    """Declared duplicate-id repairs: old run directory -> new run directory.
+def load_renames() -> dict[str, tuple[str, list[tuple[str, str]]]]:
+    """Declared identifier repairs: old run directory -> (new dir, substitutions).
 
     A duplicate RUN id is the one defect the append-only rule cannot repair,
     because superseding under a fresh id leaves the collision standing. Renames
     listed in tools/run_id_remaps.yaml are therefore allowed -- but only after
     `rename_is_faithful` proves the directory's bytes are unchanged apart from
-    the declared id. That keeps this an identifier repair, never a data edit.
+    the declared substitutions. That keeps this an identifier repair, never a
+    data edit.
+
+    `from_experiment` covers the case where the EXPERIMENT id is what changed,
+    so the run moves between directories. `also_substitute` then declares the
+    extra string swap that entails -- a run manifest names its own experiment,
+    so a run-id-only substitution could not describe such a move honestly. Every
+    declared substitution is still verified byte for byte; nothing is waived.
     """
     try:
         import yaml
@@ -59,8 +66,15 @@ def load_renames() -> dict[str, str]:
         old, new = entry.get("from_run_id"), entry.get("to_run_id")
         if not (experiment and old and new):
             continue
-        base = f"experiments/{experiment}/runs"
-        renames[f"{base}/{old}"] = f"{base}/{new}"
+        from_experiment = entry.get("from_experiment") or experiment
+        old_dir = f"experiments/{from_experiment}/runs/{old}"
+        new_dir = f"experiments/{experiment}/runs/{new}"
+        subs = [(old, new)]
+        for extra in entry.get("also_substitute") or []:
+            src, dst = extra.get("from"), extra.get("to")
+            if src and dst:
+                subs.append((src, dst))
+        renames[old_dir] = (new_dir, subs)
     return renames
 
 
@@ -69,16 +83,16 @@ def blob(ref: str, path: str) -> bytes | None:
     return r.stdout if r.returncode == 0 else None
 
 
-def rename_is_faithful(base_sha: str, head: str, old_dir: str,
-                       new_dir: str) -> str | None:
-    """None if the rename only substituted the run id, else why it did not."""
-    old_id, new_id = os.path.basename(old_dir), os.path.basename(new_dir)
+def rename_is_faithful(base_sha: str, head: str, old_dir: str, new_dir: str,
+                       subs: list[tuple[str, str]]) -> str | None:
+    """None if the rename only applied the declared substitutions."""
     listing = subprocess.run(
         ["git", "ls-tree", "-r", "--name-only", base_sha, old_dir + "/"],
         capture_output=True, text=True)
     names = [p for p in listing.stdout.splitlines() if p]
     if not names:
         return f"{old_dir}: nothing at {base_sha} to rename"
+    shown = ", ".join(f"{a} -> {b}" for a, b in subs)
     for old_path in names:
         new_path = new_dir + old_path[len(old_dir):]
         before, after = blob(base_sha, old_path), blob(head, new_path)
@@ -86,10 +100,12 @@ def rename_is_faithful(base_sha: str, head: str, old_dir: str,
             return f"{new_path}: declared rename target is missing"
         if before is None:
             return f"{old_path}: unreadable at {base_sha}"
-        expected = before.replace(old_id.encode(), new_id.encode())
+        expected = before
+        for src, dst in subs:
+            expected = expected.replace(src.encode(), dst.encode())
         if after != expected:
             return (f"{new_path}: content changed beyond the declared "
-                    f"{old_id} -> {new_id} substitution")
+                    f"substitution(s) [{shown}]")
     return None
 
 
@@ -149,8 +165,8 @@ def main() -> int:
             continue
         if old_dir not in checked:
             checked.add(old_dir)
-            reason = rename_is_faithful(base_sha, head, old_dir,
-                                        renames[old_dir])
+            new_dir, subs = renames[old_dir]
+            reason = rename_is_faithful(base_sha, head, old_dir, new_dir, subs)
             if reason:
                 unfaithful.append(reason)
                 bad_dirs.add(old_dir)
