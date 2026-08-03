@@ -6,11 +6,11 @@ Snapshot and implement the externally bound, non-authorizing historical-index re
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260803-003` | executor | queued | 100 | TASK-20260803-002 | tools/author_reconciliation_history.py, tools/check_reconciliation_generated_artifacts.py, tools/research_dispatch.py, tests/test_author_reconciliation_history.py, tests/test_check_reconciliation_generated_artifacts.py, tests/test_research_dispatch.py, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/source_occurrence_table.json, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/reference_occurrence_table.json, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/static_check_report.json, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003/implementation_report.yaml | tools/author_reconciliation_history.py, tools/check_reconciliation_generated_artifacts.py, tools/research_dispatch.py, tests/test_author_reconciliation_history.py, tests/test_check_reconciliation_generated_artifacts.py, tests/test_research_dispatch.py, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-003 |
+| `TASK-20260803-004` | coordinator | queued | 100 | TASK-20260803-003 | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-004/snapshot_commit_receipt.json | coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260803-004 |
 
 ## Deferred or Blocked
 
-- `TASK-20260803-004`: task_marked_blocked
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ Snapshot and implement the externally bound, non-authorizing historical-index re
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `4de95d1eaa04357d2a5e06706d13d5db84ea10893e58f79d279cb565324f01b6`
+Plan SHA-256: `4a4937ce98bc8a052738036fbd0e94fa5182a62fb98adb6ddaef17ef9899775f`
