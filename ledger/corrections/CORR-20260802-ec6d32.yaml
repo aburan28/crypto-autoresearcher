@@ -1,0 +1,134 @@
+correction:
+  id: CORR-20260802-ec6d32
+  recorded_at: '2026-08-02'
+  record_type: truncated_stdout_capture
+  record_id: GOAL-AES-003/BATCH-002/TASK-20260802-9dcca8
+  field: six_unparseable_stdout_captures_blocking_check_merge_hygiene_repo_wide
+  authority: >-
+    Explicit user direction of 2026-08-02, "fix the AES-003 truncated files so
+    CI can pass", given after the blocker and the reasons for not touching the
+    files were stated on PR #112 and reaffirmed.
+
+  the_defect:
+    files:
+      - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/WRONG6-03.json
+      - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/WRONG6-04.json
+      - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/WRONG6-05.json
+      - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/WRONG6-06.json
+      - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/WRONG6-07.json
+      - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/WRONG7-01.json
+    symptom: >-
+      check_merge_hygiene.py parses every *.json under coordination/. These six
+      did not parse, so the gate failed on EVERY branch in the repository,
+      including a clean origin/main checkout. It was a repo-wide CI blockage,
+      not a property of any one PR.
+
+  what_these_files_actually_are: >-
+    CAPTURED STDOUT, NOT LEDGER RUN RECORDS. RESULTS.json is the authoritative
+    aggregate for this task and references each of them in its own "stdout"
+    field, with a matching "stderr" pointing at the sibling .err file. The .err
+    captures were never gate-parsed only because they do not end in .json. The
+    .json suffix on a stdout log is what put these under a JSON-parsing gate at
+    all.
+
+  why_they_did_not_parse: >-
+    Each producing process was killed mid-print. Five stop partway through the
+    "structures" array with the array and the outer object never closed, at
+    byte 353 or 354; WRONG7-01 is zero bytes. Nothing was corrupted in place:
+    what is on disk is exactly what each process managed to write before it
+    died.
+
+  disposition_already_recorded_by_the_lane_itself:
+    WRONG6-03: {results_json_status: failed_or_timeout, exit_status: 124, wall_seconds: 1150}
+    WRONG6-04: {results_json_status: failed_or_timeout, exit_status: 124}
+    WRONG6-05: {results_json_status: failed_or_timeout, exit_status: 124}
+    WRONG6-06: {results_json_status: failed_or_timeout, exit_status: 124}
+    WRONG6-07: {results_json_status: failed_or_timeout, exit_status: 124, wall_seconds: 1150}
+    WRONG7-01: >-
+      NO AGGREGATE ENTRY AT ALL. RESULTS.json contains no record for this run
+      and its stdout is zero bytes: it produced nothing and was never
+      aggregated. PREREGISTRATION.md planned WRONG7-01..08; only WRONG7-02
+      reached RESULTS.json.
+    reading: >-
+      Exit status 124 is the GNU timeout kill. The lane had ALREADY
+      dispositioned these five correctly as timeouts before this correction
+      existed; the truncated stdout is the visible residue of that same kill,
+      not a separate defect. NO MEASUREMENT WAS LOST, because none of these
+      runs completed a measurement to lose.
+
+  action_taken:
+    preserved: >-
+      Each truncated capture is preserved VERBATIM at <name>.json.truncated.
+      Byte-for-byte identity against the committed blobs was verified by
+      re-hashing after the move: WRONG6-03 c62e9e328d48, WRONG6-04
+      a1a15451eda3, WRONG6-05 b9453c4af71f, WRONG6-06 714462b97e07, WRONG6-07
+      8ec1d07d0c40, WRONG7-01 e3b0c44298fc, each matching git show HEAD:<path>
+      exactly.
+    replaced_with: >-
+      A parseable disposition object at the original <name>.json path, carrying
+      only OBSERVED facts -- original byte count, original sha256, the parse
+      error of the original, the RESULTS.json status and exit status where one
+      exists -- plus asserts_no_measurement: true and a pointer to the
+      preserved bytes. Keeping the original path occupied means RESULTS.json's
+      existing "stdout" pointers still resolve rather than going stale.
+    manifest: >-
+      coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/TRUNCATED_STDOUT_DISPOSITION.json
+      records the same facts once, for all six, including the rename mapping.
+
+  what_was_REFUSED_and_why:
+    reconstructing_the_json: >-
+      REFUSED. Completing the truncated objects would mean inventing the tail
+      of a run that never finished -- fabricated outputs under AGENTS.md rule
+      5. Nothing in this repository would have caught it: the immutability gate
+      does not cover coordination directories (see below), and a reconstructed
+      file that PARSES is precisely what every remaining gate would wave
+      through. That is the most dangerous available "fix" and it was not done.
+    deleting_them: >-
+      REFUSED. The truncated bytes are the evidence that these processes were
+      killed. Deleting them would erase the record of the overrun.
+    adding_them_to_the_hygiene_baseline: >-
+      REFUSED, and the tool forbids it in terms. tools/merge_hygiene_baseline.txt
+      states: "Lines may only ever be REMOVED, as records are repaired or
+      superseded. Adding a line to silence a new failure defeats the entire
+      point of the check." The baseline grandfathers records that predate the
+      gate; it is not an exemption list. This correction takes the route that
+      header names as legitimate -- supersession.
+
+  gate_scope_gap_found_while_doing_this:
+    finding: >-
+      tools/check_run_immutability.py filters on
+      `"/runs/" in line and line.startswith("experiments/")` -- BOTH
+      conditions. Run outputs written under a COORDINATION task directory
+      contain "/runs/" but do not start with "experiments/", so the
+      immutability gate does not see them at all. They can be edited or deleted
+      silently, and only check_merge_hygiene would notice, and then only if the
+      edit left them unparseable. An edit that made a truncated record PARSE
+      would pass every gate in the repository.
+    status: >-
+      REPORTED, NOT FIXED. Widening that filter is a repo-wide integrity change
+      and belongs to whoever owns the tool. It is recorded here because this
+      correction is exactly the class of operation the gap would fail to catch.
+
+  effect_on_research_state:
+    dispositions_changed: 0
+    statuses_changed: 0
+    hypotheses_moved: []
+    goal_status_changed: false
+    claim_tier: none
+    measurements_altered: 0
+    note: >-
+      No AES-003 result, status, claim or conclusion changes. RESULTS.json is
+      not edited. The five timeout dispositions it already recorded stand
+      exactly as they were, and WRONG7-01 remains what it always was: a run
+      with no output and no aggregate entry.
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    model_verified: false
+    fallback_used: true
+    fallback_reason: >-
+      Run under the Claude Code harness, which cannot resolve the GPT-5.6
+      family policy aliases in orchestration/model-policies.yaml. The actual
+      resolved model is recorded directly per the CLAUDE.md model policy note.
+    degraded_requirements: []

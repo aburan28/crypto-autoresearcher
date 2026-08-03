@@ -1,0 +1,167 @@
+experiment:
+  id: EXP-WESOVOW-001
+  version: 1
+  status: approved
+  approved_by: coordinator
+  approved_by_task: TASK-20260724-P13-COST
+  title: 'Concrete cost model of Wesolowski''s p^{1/3+o(1)} supersingular isogeny attack (paper
+    P13) in the van Oorschot-Wiener middle-memory regime.
+
+    '
+  role: executor
+  schema_repair_note: 'Committed as a FLAT mapping with `experiment_id:` at the top level,
+    so it carried no `experiment:` key, never registered, and every record citing it reported
+    an unresolved reference. Nested into the frozen schema on 2026-08-02 under CORR-20260802-013.
+    Field renames only: experiment_id -> id, state -> status, budgets -> budget. The identifier
+    also changed from EXP-WESOVOW-001 to EXP-WESOVOW-001 because the old one carried a digit-bearing
+    area code. No objective, model definition, scenario, control, metric, budget, stopping
+    rule or honesty constraint is added, removed or reworded.'
+  hypothesis_id: null
+  hypothesis_id_note: 'NULL AND DELIBERATELY SO, in the contract''s own words: this experiment
+    "records OBSERVATIONS ONLY; it does not promote, weaken, or reject any hypothesis about
+    the paper''s claims." It converts Section 4.1 of a frozen external paper into a reproducible
+    cost model. Naming a hypothesis would assert a binding the contract explicitly disclaims.'
+  objective: 'Convert Section 4.1 of the frozen paper into a concrete, reproducible cost model:
+    optimize the smoothness bound B per field size, reproduce the paper''s five (time, memory)
+    pairs, then extend into the van Oorschot-Wiener middle-memory regime and explicit superpolynomial-overhead
+    scenarios. This experiment records OBSERVATIONS ONLY; it does not promote, weaken, or
+    reject any hypothesis about the paper''s claims.
+
+    '
+  frozen_source: inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+  created: 2026-07-24
+  metrics:
+  - log2B_opt, B_opt per field size
+  - log2X, w_opt, u_opt, log2P0 per field size
+  - log2M (memory, entries), log2T_full (time, F_{p^2}-ops) per field size
+  - deviation from the paper's five pairs (bits)
+  - per (p, w, overhead c): log2 T(w), log2 speedup vs T_DG, crossover flag
+  - crossover memory log2(w*) per (p, overhead c), analytic: w* = (T_full * 2^{c*sqrt(log2
+      p)} / T_DG)^2, capped by M
+  - memory in bytes for 64 and 256 bytes/entry
+  budget:
+    wall_clock_seconds: 600
+    memory_gb: 2
+    maximum_runs: 2
+  success_criterion: null
+  success_criterion_note: NULL, AND THE NULL IS THE DESIGN. The contract is observation-only,
+    so no measured value makes it succeed or fail. The nearest thing is control C1-sanity-paper-pairs,
+    which is an INSTRUMENT SANITY GATE carrying a 3-bit tolerance and feeding a stopping rule
+    about inspecting for implementation error -- not a criterion on a hypothesis. The field
+    is present and explicitly null rather than absent so a reader cannot mistake an omitted
+    field for an overlooked one.
+  falsification_criterion: null
+  falsification_criterion_note: 'NULL, FOR THE SAME REASON. No outcome of this contract falsifies
+    anything: it reproduces and extends a published cost model, and its own stopping rules
+    record that a timeout, crash or implementation failure is failed_infrastructure and "is
+    NOT evidence about the paper''s claims" (AGENTS.md rule 5).'
+  model_definition:
+    quantities:
+      log2X: 'log2(X) = 0.5*log2(B) + (log2(p) - 1)/6          [paper Sec. 4.1: X = B^{1/2}
+        (p/2)^{1/6}]'
+      w: w = log(X)/log(B) = log2(X)/log2(B)              [Dickman argument for Psi(X,B)]
+      log2Psi: log2(Psi(X,B)) = log2(X) + log2(rho(w))        [Theorem 1.4, rho = Dickman-de
+        Bruijn]
+      log2M: 'log2(M) = log2(Psi) + log2(X) = 2*log2(X) + log2(rho(w))   [paper Sec. 4.1:
+        M = Psi(X,B) X]'
+      u: u = log(p/2)/(3 log(B)) = (log2(p) - 1)/(3*log2(B))        [Lemma 3.5]
+      log2P0: 'log2(P0) = -u*log2(u)                           [paper Sec. 4.1: P0 estimated
+        as u^{-u}]'
+      log2Tfull: log2(T_full) = log2(M) - log2(P0)            [F_{p^2}-operations, full memory]
+    unit_of_cost: 'F_{p^2}-operations (paper''s conservative convention: 1 op per table entry)'
+    unit_of_memory: table entries (an entry stores one isogeny/curve record); byte conversions
+      use 64 and 256 bytes/entry as scenario parameters
+    optimizer:
+      variable: log2(B)
+      grid: log2(B) in [1.0, 60.0], step 0.1
+      objective: minimize log2(T_full)
+      constraints: w >= 1, u >= 1, w within Dickman grid range
+    dickman_rho:
+      method: 'Laplace inversion through the real saddle point. The Laplace transform of rho
+        is rho_hat(s) = exp(gamma - Ein(s)) with Ein(z) = int_0^z (1-e^{-t})/t dt; rho(u)
+        = (1/2pi) int exp(u(-xi+i*tau) - Ein(-xi+i*tau) + gamma) d*tau with (e^xi - 1)/xi
+        = u, evaluated by trapezoid in tau (h = 0.05, T = 25) with Ein by 96-point Gauss-Legendre
+        on [0,1]. Pure Python/numpy (scipy and mpmath unavailable in the managed runtime).
+        rho is tabulated on u in [1, 130], step 0.05, and log2(rho) is linearly interpolated.
+
+        '
+      why_not_dde_marching: 'Development observation (recorded honestly): direct marching
+        of the DDE rho''(u) = -rho(u-1)/u is ill-conditioned for this use - fresh truncation
+        error scales with rho(u-1) while rho decays superexponentially, so relative error
+        grows like ~1/rho(u); linear trapezoid marching diverges at u ~ 10 even at du = 1e-4
+        and a log-domain implicit variant at u ~ 9.5. The first run of this experiment (overwritten
+        receipts) picked a spurious optimum because of this. The Laplace method shows no such
+        instability.
+
+        '
+      validation: 'In-script anchors: rho(2) vs exact 1 - ln(2) (expect rel err < 3e-3); cross-method
+        agreement vs an independent du = 1e-5 DDE marching solution (converged in its stable
+        range u <= 8) with max |delta log2 rho| over u = 2..8 recorded in raw-result.json
+        (expect < 0.02 bit).
+
+        '
+      accuracy_note: 'Residual quadrature error is <= ~2e-4 relative for u >= 4 (<= 0.0003
+        bit) and ~1e-3 relative at u = 2-3 (<= 0.002 bit), negligible against the stated sanity
+        tolerance.
+
+        '
+  scenario_definitions:
+    field_sizes_log2p:
+    - 256
+    - 384
+    - 512
+    - 576
+    - 768
+    memory_budgets_log2w_entries:
+    - 30
+    - 40
+    - 50
+    - 60
+    - 70
+    - 80
+    overhead_scenarios:
+      description: explicit multiplier 2^{c * sqrt(log2 p)} on T(w), modelling the superpolynomial
+        factor hidden in the paper's o(1)
+      c_values:
+      - 0.0
+      - 0.5
+      - 1.0
+      - 2.0
+    bytes_per_entry:
+    - 64
+    - 256
+  controls:
+  - id: C1-sanity-paper-pairs
+    description: 'Reproduce the paper''s five Section 4.1 (log2 time, log2 memory) pairs for
+      log2(p) in {256, 384, 512, 576, 768}.
+
+      '
+    tolerance: abs deviation <= 0.75 bit on both time and memory
+    on_violation: record deviation honestly in execution_report; run stays valid (this is
+      a model-reproduction check, not an implementation check)
+  - id: C2-baseline-consistency
+    description: Delfs-Galbraith baseline log2(T_DG) = log2(p)/2 must match the paper's 'previous
+      methods' figures (128/192/256/288/384).
+  - id: C3-monotonicity
+    description: T(w) must be non-increasing in memory budget w for every (p, overhead) scenario;
+      T(w) must equal T_full for w >= M.
+  - id: C4-vow-asymptote
+    description: At w = M, vOW time must equal T_full exactly (cap check).
+  stopping_rules:
+  - stop after first valid run unless C1 fails by more than 3 bits (then inspect for implementation
+    error before any rerun)
+  - a timeout/crash/implementation failure is recorded as failed_infrastructure and is NOT
+    evidence about the paper's claims
+  honesty_constraints:
+  - no fabricated commands, outputs, timings, or statistics
+  - deviations from the paper's figures are reported, not tuned away
+  - this model uses the paper's own conservative conventions; observations about cost are
+    model-conditional, not measurements of a real attack
+  required_artifacts:
+  - specification.yaml
+  - cost_model.py
+  - runs/RUN-WESOVOW-001/manifest.yaml
+  - runs/RUN-WESOVOW-001/raw-result.json
+  - runs/RUN-WESOVOW-001/execution_report.yaml
+  - runs/RUN-WESOVOW-001/stdout.txt
+  - runs/RUN-WESOVOW-001/stderr.txt
