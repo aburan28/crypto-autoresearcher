@@ -1,5 +1,14 @@
 # The quasigroup gap — closed exactly, unrealized approximately
 
+> **FOLLOW-UP NOTICE — added later; no text below is altered.** The control this
+> document declares missing in §4 and §6.1 — random Latin-square sampling at
+> `M = 8,16,32` — **has now been run**, in `O2_quasigroup_scaling.md`. It does
+> not overturn §3: the quasigroup excess *decreases* with `M` (0.076 → 0.004),
+> and the **exact** worst case over all `f` stays `<= 0.196` where `(★)` permits
+> `32`, which rigorously caps worst-case quasigroups too. §4's stated inability
+> to separate "quasigroups are special" from "`M <= 5` is too small" is thereby
+> resolved in favour of the former. Everything below stands as written.
+
 Attacks the item that `O2_composition_closure.md` §5.1 named as the only thing
 left between the composition and closure of the character-filter class for
 arbitrary predictors, and that **both** independent derivations
