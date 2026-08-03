@@ -1,7 +1,7 @@
 # Analysis — Autolab binary-field BIN-EXP-003: m=3 fixed target
 
 ## Observation
-- **m=3** (first non-degenerate arity — m=2 linearizes at degree ≤2 and cannot show the FPPR effect).
+**Date:** 2026-05-31. Script: `bin_exp003_m3_fixed_target.sage`. Log: `bin_exp003_m3_fixed_target.log` (RC=0, 2/2 cells, RESULTS_JSON present). Both cells fast (<2s).
 
 Source excerpt / raw summary:
 

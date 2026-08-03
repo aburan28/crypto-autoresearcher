@@ -10,10 +10,11 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/round010_exp020_crossbred_m4.sage`
-- `source/round010_exp020_crossbred_m4.stdout`
 - `source/round010_exp020_crossbred_m4_result.json`
 - `source/round010_exp020_crossbred_m4_result.md`
+- `source/round010_exp020_crossbred_m4.sage`
+- `source/round010_exp020_crossbred_m4.sage.py`
+- `source/round010_exp020_crossbred_m4.stdout`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

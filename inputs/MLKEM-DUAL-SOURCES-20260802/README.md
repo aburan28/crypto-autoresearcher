@@ -1,71 +1,52 @@
-# MLKEM-DUAL-SOURCES-20260802 — vendored primary-source provenance
+# TASK-20260802-101 source package
 
-Produced by **TASK-20260802-101** (executor) under GOAL-MLKEM-003 / BATCH-007,
-authorized by DEC-20260802-002, on 2026-08-02 (retrieval window
-17:23:43Z–17:26:05Z) at repo commit `b71403265d782449e227c10f46f3b076d8a47761`.
+This package records the primary-source retrieval and bounded adjudication for
+GOAL-MLKEM-003 / BATCH-007. It is literature and source-code provenance only;
+it is not a run, a security estimate, or an ML-KEM break claim.
 
-Purpose: give the program's standing Carrier findings (KN-FIND-012, -013, -014,
--016 and the KN-OPEN-016 residual) a checkable link to the primary sources,
-after a period in which network policy blocked every one of them. The
-adjudication itself lives in
-`coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-101/source_adjudication.md`.
+## Retrieved material
 
-## What is here
+- Carrier–Meyer-Hilfiger–Shen–Tillich, ePrint 2022/1750: the current landing
+  page and revision metadata, plus the accessible HAL `hal-05406481v1`
+  document. The ePrint page says `2025-06-11: last of 3 revisions`. The HAL
+  PDF is 1,252,838 bytes with SHA-256
+  `083b142256eecaebfa72dfccf847151b2175666a3979cef4e7383376757b8005`, which
+  is byte-identical to the pinned `origin/main` comparison artifact. Only the
+  front matter, Table C.2 region, and the Pgood-threshold paragraph are kept;
+  the full PDF is not duplicated here. The direct ePrint PDF and revision
+  archive both returned HTTP 403 and remain explicitly unretrieved.
+- NIST FIPS 203 final, published 2024-08-13: landing page and PDF were
+  retrieved. The selected text records the standard identity, date, and its
+  ML-KEM scope; the full PDF is not duplicated here.
+- Ducas–Pulles ePrint 2023/302: landing page was retrieved. The direct ePrint
+  PDF returned HTTP 403 and is recorded as unretrieved. The authors' accessible
+  CWI version-of-record full text
+  (2025-11-20) was retrieved as a supplemental primary source for the score
+  distribution and measurement-scope check; only selected loci are retained.
+- MATZOV, `Zenodo-6412487-v1` and `Zenodo-6493704-v2`: metadata and report
+  PDFs were retrieved; selected abstract/Table-1/distinguisher loci are
+  retained rather than duplicating the PDFs.
+- Guo–Johansson, ASIACRYPT 2021 LNCS 13093, pp. 33–62: the IACR proceedings
+  PDF and selected text were retrieved.
+- `kevin-carrier/CodedDualAttack`: GitHub API resolved `main` to
+  `9c1367f85d26038244bc83c025d84c0b7006f2ee`; the relevant current-head
+  `FFT_sample.py` and `Algorithm.py` were retrieved. The FFT file is
+  byte-identical to the pinned `origin/main` vendor-lock file.
 
-| path | what it is |
-|---|---|
-| `provenance.json` | **one record per attempted source**: url, http_status, retrieved_at (UTC), sha256, byte size, content type, `revision_id` (+ the `revision_id_basis` it was derived from), `retrieved`/`unretrieved` + reason. Also the code-repository block (`git ls-remote` output, clone head) and the local baseline artifact. `addendum_attempts` holds the corrected Guo–Johansson lookups. |
-| `source_reads.json` | the **reads** the three verdicts rest on: Table C.2 row, ePrint revision metadata, code score-path lines, measured `Pwrong`/`Pgood` ranges, term counts in MATZOV and FIPS 203. |
-| `eprint-2022-1750/` | ePrint landing page, OAI-PMH record, HAL API record, OpenAlex and Semantic Scholar records, Springer landing page, and the **failed-attempt bodies** (Cloudflare / Anubis interstitials) kept as evidence of the block. |
-| `eprint-2023-302/`, `eprint-2021-948/` | Ducas–Pulles and (mis-targeted, see below) landing pages plus their failed PDF attempt bodies. |
-| `guo-johansson-2021/` | OpenAlex record and ePrint title-search page for KN-LIT-109. |
-| `fips203/`, `matzov-2022/` | landing page / Zenodo record; the PDFs themselves are **not** vendored (see reuse boundary). |
-| `codeddualattack/` | `FFT_sample.py` as served by `raw.githubusercontent.com` at `main`, plus the GitHub 403 bodies. |
-| `extracts/` | the exact text regions used by the adjudication: Carrier PDF pages 23, 25, 26, 27, 37 and its metadata; the code head's `FFT_sample.py`, the sha256 manifest of all 167 tracked files at head, and the `.out` file headers; MATZOV's false-positive locus; FIPS 203 front matter. |
-
-Total: 39 files, ~628 KB. Re-run, from the repo root and in this order, the
-three scripts in
-`coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-101/`:
-`fetch_sources.py` (all retrievals), `fetch_addendum.py` (the corrected
-Guo–Johansson lookups), `annotate_revisions.py` (derives each entry's
-`revision_id` from the already-retrieved artifacts; adds fields only).
+Every attempted source has one record in `provenance.json` with URL, HTTP
+status where applicable, UTC retrieval time, byte count, SHA-256 for retrieved
+content, revision identifier, and either `retrieved` or `unretrieved` status.
 
 ## Reuse boundary
 
-- **Text regions, not whole papers.** Large PDFs (NIST FIPS 203, 1 252 341 B;
-  MATZOV 2022, 609 899 B) were downloaded to a work directory outside the
-  repository. Only their sha256, metadata and the extracted regions actually
-  used are vendored. Re-download them from the recorded URLs and check the
-  sha256 in `provenance.json`.
-- **The Carrier full text is not re-vendored here.** The program's copy at
-  `experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf`
-  (sha256 `083b1422…757b8005`) is an immutable run artifact; this task opened it
-  **read-only** and vendored only text extracts of pages 23/25/26/27/37. Nothing
-  under `experiments/` was modified.
-- **Licences.** The Carrier paper is CC BY (per the ePrint landing page).
-  `kevin-carrier/CodedDualAttack` carries no licence file at HEAD; only the two
-  short excerpts needed to state the Q2 finding are vendored, everything else is
-  referenced by commit + sha256.
-- These bytes are **inputs**, not results. Nothing here is evidence for or
-  against any hypothesis on its own; the evidence claims live in the ledger and
-  cite this directory by path and hash.
+The exact HAL PDF and optimizer artifacts in
+`experiments/EXP-MLKEM-010/vendor-lock/` were read from `origin/main` only and
+were not modified. No ledger, prior batch, experiment, finding, or open-problem
+record was edited. The extracted loci are sufficient to reproduce the three
+adjudication questions; they must not be reused as fresh empirical runs.
 
-## Honest limits of this snapshot
-
-- `eprint.iacr.org/*.pdf` and `/archive/versions/*` returned **HTTP 403** with a
-  Cloudflare interstitial for all three ePrint papers attempted; `hal.science`
-  served an **Anubis proof-of-work** interstitial; `web.archive.org` was denied
-  by **proxy egress policy**. None of these challenges was solved or
-  circumvented, and none of them is evidence about the content of the source.
-- `github.com`, `api.github.com` and `codeload.github.com` return HTTP 403
-  (`GitHub access to this repository is not enabled for this session`).
-  `git ls-remote` / `git clone` over git smart-HTTP and `raw.githubusercontent.com`
-  do work, and that is how the code head was read.
-- `eprint-2021-948/` is a **mis-targeted attempt kept on purpose**: the first
-  pass guessed that ePrint number for Guo–Johansson, and the retrieved page shows
-  it belongs to an unrelated paper (Watanabe et al., searchable symmetric
-  encryption). KN-LIT-109 records `eprint: null`. The attempt is preserved
-  rather than deleted so the record shows what was actually tried.
-- Guo–Johansson (ASIACRYPT 2021) has **no open-access location** per OpenAlex,
-  and Ducas–Pulles' full text was unretrievable; both gaps bound what the Q3
-  adjudication can claim.
+The initial script invocation failed before writing any source file because
+the Python TLS stack could not verify the local CA certificate. That
+infrastructure failure was preserved in the execution narrative; the script
+was corrected to use the repository host's working `curl` transport, and the
+successful bounded invocation is the one recorded in `provenance.json`.

@@ -16,22 +16,22 @@ a hash it cannot is an assertion by the session that recorded it.
 |---|---|
 | Frozen source packages (`SRC-*`) | 3 |
 | — of those with the artifact committed | 2 |
-| Per-URL retrieval attempts | 29 |
-| — succeeded | 16 |
-| — failed or blocked | 13 |
+| Per-URL retrieval attempts | 0 |
+| — succeeded | 0 |
+| — failed or blocked | 0 |
 | Source artifacts under `inputs/` | 8 |
 | — hash recomputed and matching | 6 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7804 |
-| — with a resolvable external identifier | 2211 |
+| Literature entries (`KN-LIT-*`) | 7807 |
+| — with a resolvable external identifier | 2214 |
 | — with no identifier recorded | 5593 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1317, doi 146, eprint 722, url 26. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1318, doi 146, eprint 723, url 27. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 10, `full_text` 3, `full_text_supplied` 1, `read` 7456, `web` 313.
+`citation_verified` distribution: `False` 21, `True` 9, `full_text` 3, `full_text_supplied` 1, `read` 7459, `web` 314.
 
 ## 1. Frozen source packages
 
@@ -40,13 +40,9 @@ decides whether a later session can re-read what was read here.
 
 | Record | Title | Author | Year | Package | Artifact in repo | Basis | URL | sha256 |
 |---|---|---|---|---|---|---|---|---|
-| SRC-OAI-TEN-PROOFS-2026 | Ten Advances in Mathematics and Theoretical Computer Science | OpenAI | 2026 | `inputs/OAI-TEN-PROOFS-2026` | **no** | declared | https://cdn.openai.com/pdf/ten-proofs-oai.pdf | 64b900d5fae6fe22 |
+| SRC-OAI-TEN-PROOFS-2026 | Ten Advances in Mathematics and Theoretical Computer Science | OpenAI | 2026 | `inputs/OAI-TEN-PROOFS-2026` | **no** | no_artifact_found | https://cdn.openai.com/pdf/ten-proofs-oai.pdf | 64b900d5fae6fe22 |
 | SRC-P13-PANNY-POC | Proof-of-concept implementation of the Wesolowski 2026 p^{1/3+o(1)} attack on OneEnd | Lorenz Panny |  | `inputs/P13-PANNY-POC` | yes | frozen_path | https://yx7.cc/files/p-one-third.py | 4f43780404a7ab5d |
 | SRC-P13-WESOLOWSKI-2026 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | Benjamin Wesolowski | 2026 | `inputs/P13-WESOLOWSKI-2026` | yes | package_contents |  |  |
-
-Declared reproducibility limitations:
-
-- **SRC-OAI-TEN-PROOFS-2026** — The PDF is not committed, so the sha256 above cannot be recomputed from this repository and no later session can re-read the source these summaries were taken from. This record is an assertion about a read that happened, not a checkable receipt for it -- the contrast is SRC-P13-WESOLOWSKI-2026, whose full text is frozen at inputs/P13-WESOLOWSKI-2026/paper_fulltext.md.
 
 ## 2. Per-URL retrieval attempts
 
@@ -56,35 +52,6 @@ not the same as never having looked.
 
 | Source id | URL | Status | HTTP | Retrieved at | Vendored path |
 |---|---|---|---|---|---|
-| codeload-tarball | https://codeload.github.com/kevin-carrier/CodedDualAttack/tar.gz/refs/heads/main | unretrieved | 403 | 2026-08-02T17:23:56Z |  |
-| eprint-2021-948-identity-check | https://eprint.iacr.org/2021/948 | retrieved | 200 | 2026-08-02T17:26:05Z |  |
-| eprint-2021-948-landing | https://eprint.iacr.org/2021/948 | retrieved | 200 | 2026-08-02T17:23:55Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2021-948/landing.html` |
-| eprint-2021-948-pdf | https://eprint.iacr.org/2021/948.pdf | unretrieved | 403 | 2026-08-02T17:23:56Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2021-948/pdf_attempt.body` |
-| eprint-2022-1750-landing | https://eprint.iacr.org/2022/1750 | retrieved | 200 | 2026-08-02T17:23:43Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/landing.html` |
-| eprint-2022-1750-oai | https://eprint.iacr.org/oai?verb=GetRecord&identifier=oai:eprint.iacr.org:2022/1750&metadataPrefix=oai_dc | retrieved | 200 | 2026-08-02T17:23:44Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/oai_getrecord.xml` |
-| eprint-2022-1750-pdf | https://eprint.iacr.org/2022/1750.pdf | unretrieved | 403 | 2026-08-02T17:23:43Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/pdf_attempt.body` |
-| eprint-2022-1750-versions | https://eprint.iacr.org/archive/versions/2022/1750 | unretrieved | 403 | 2026-08-02T17:23:44Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/versions_attempt.body` |
-| eprint-2023-302-landing | https://eprint.iacr.org/2023/302 | retrieved | 200 | 2026-08-02T17:23:51Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2023-302/landing.html` |
-| eprint-2023-302-pdf | https://eprint.iacr.org/2023/302.pdf | unretrieved | 403 | 2026-08-02T17:23:52Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2023-302/pdf_attempt.body` |
-| fips203-landing | https://csrc.nist.gov/pubs/fips/203/final | retrieved | 200 | 2026-08-02T17:23:50Z | `inputs/MLKEM-DUAL-SOURCES-20260802/fips203/landing.html` |
-| fips203-pdf | https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf | retrieved | 200 | 2026-08-02T17:23:51Z |  |
-| github-api-repo | https://api.github.com/repos/kevin-carrier/CodedDualAttack | unretrieved | 403 | 2026-08-02T17:23:56Z | `inputs/MLKEM-DUAL-SOURCES-20260802/codeddualattack/github_api_attempt.json` |
-| github-web-repo | https://github.com/kevin-carrier/CodedDualAttack | unretrieved | 403 | 2026-08-02T17:23:56Z | `inputs/MLKEM-DUAL-SOURCES-20260802/codeddualattack/github_web_attempt.body` |
-| guo-johansson-eprint-search | https://eprint.iacr.org/search?q=Faster+Dual+Lattice+Attacks+for+Solving+LWE+with+Applications+to+CRYSTALS | retrieved | 200 | 2026-08-02T17:26:04Z | `inputs/MLKEM-DUAL-SOURCES-20260802/guo-johansson-2021/eprint_search.html` |
-| guo-johansson-openalex | https://api.openalex.org/works/doi:10.1007/978-3-030-92068-5_2 | retrieved | 200 | 2026-08-02T17:26:03Z | `inputs/MLKEM-DUAL-SOURCES-20260802/guo-johansson-2021/openalex_work.json` |
-| hal-05406481-api | https://api.archives-ouvertes.fr/search/?q=halId_s:hal-05406481&fl=halId_s,version_i,title_s,submittedDate_s,modifiedDate_s,fileMain_s,files_s,label_s,doiId_s&wt=json | retrieved | 200 | 2026-08-02T17:23:45Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/hal_api_record.json` |
-| hal-05406481-document | https://hal.science/hal-05406481/document | unretrieved | 500 | 2026-08-02T17:23:45Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/hal_document_attempt.body` |
-| hal-05406481-file | https://hal.science/hal-05406481/file/2022-1750.pdf | unretrieved | 200 | 2026-08-02T17:23:46Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/hal_file_attempt.body` |
-| local-artifact |  | local_artifact |  | 2026-08-02T17:23:43Z | `experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf` |
-| matzov-pdf | https://zenodo.org/api/records/6412487/files/Report%20on%20the%20Security%20of%20LWE.pdf/content | retrieved | 200 | 2026-08-02T17:23:53Z |  |
-| matzov-zenodo-record | https://zenodo.org/api/records/6412487 | retrieved | 200 | 2026-08-02T17:23:52Z | `inputs/MLKEM-DUAL-SOURCES-20260802/matzov-2022/zenodo_record.json` |
-| openalex-work | https://api.openalex.org/works/doi:10.1007/978-3-032-01855-7_15 | retrieved | 200 | 2026-08-02T17:23:46Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/openalex_work.json` |
-| raw-fft-sample-main | https://raw.githubusercontent.com/kevin-carrier/CodedDualAttack/main/verifyModel/ScoreExperimentalDistribution/FFT_sample.py | retrieved | 200 | 2026-08-02T17:23:57Z | `inputs/MLKEM-DUAL-SOURCES-20260802/codeddualattack/FFT_sample.raw-main.py` |
-| raw-readme-main | https://raw.githubusercontent.com/kevin-carrier/CodedDualAttack/main/README.md | unretrieved | 404 | 2026-08-02T17:23:56Z |  |
-| raw-readme-master | https://raw.githubusercontent.com/kevin-carrier/CodedDualAttack/master/README.md | unretrieved | 404 | 2026-08-02T17:23:57Z |  |
-| semanticscholar-work | https://api.semanticscholar.org/graph/v1/paper/DOI:10.1007/978-3-032-01855-7_15?fields=title,openAccessPdf,externalIds,isOpenAccess | retrieved | 200 | 2026-08-02T17:23:47Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/semanticscholar.json` |
-| springer-chapter | https://link.springer.com/chapter/10.1007/978-3-032-01855-7_15 | retrieved | 200 | 2026-08-02T17:23:47Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/springer_landing.html` |
-| wayback-cdx-eprint-pdf | http://web.archive.org/cdx/search/cdx?url=eprint.iacr.org/2022/1750.pdf&output=json&limit=20 | unretrieved | 403 | 2026-08-02T17:23:50Z | `inputs/MLKEM-DUAL-SOURCES-20260802/eprint-2022-1750/wayback_cdx_attempt.body` |
 
 ## 3. Source artifacts under `inputs/`
 
@@ -131,7 +98,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2211 of 7804 `KN-LIT-*` entries carry an
+2214 of 7807 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1318,6 +1285,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-198 | Isogenies of elliptic curves and the Morava stabilizer group | 2005 | `arxiv:0508079` | read |
 | KN-LIT-199 | ON THE EMBEDDING PROBLEM FOR 2+ S4 REPRESENTATIONS | 2005 | `arxiv:0507381` | read |
 | KN-LIT-19cf36 | On insecurity of cryptosystems based on generalized Reed-Solomon codes | 1992 | `doi:10.1515/dma.1992.2.4.439` | web |
+| KN-LIT-1c9474 | HQC-RMRS, an instantiation of the HQC encryption framework with a more efficient auxiliary error-correcting code | 2020 | `arxiv:2005.10741` | read |
 | KN-LIT-1d7668 | Classic McEliece key generation on RAM constrained devices | 2022 | `eprint:2022/1613` | web |
 | KN-LIT-1d8337 | Masking large keys in hardware: a masked implementation of McEliece | 2015 | `eprint:2015/924` | web |
 | KN-LIT-1f10ac | A summary of McEliece-type cryptosystems and their security | 2007 | `eprint:2006/162` | web |
@@ -1651,6 +1619,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-499 | Efficient Secure Multiparty Computation with Identifiable Abort | 2016 | `eprint:2016/187` | read |
 | KN-LIT-49a052 | An attack on a modified Niederreiter encryption scheme | 2006 | `doi:10.1007/11745853_2` | web |
 | KN-LIT-4a6dd5 | Classic McEliece implementation with low memory footprint | 2020 | `eprint:2021/138` | web |
+| KN-LIT-4c1133 | Compact HQC with new (un)balance | 2026 | `eprint:2026/461` | web |
 | KN-LIT-4c8135 | Polynomial time key-recovery attack on high rate random alternant codes | 2024 | `arxiv:2304.14757` | web |
 | KN-LIT-500 | ELLIPTIC CURVES IN ISOGENY CLASSES | 2016 | `arxiv:1611.05258` | read |
 | KN-LIT-501 | ELLIPTIC GAUSS SUMS AND SCHOOF’S ALGORITHM | 2016 | `arxiv:1601.03227` | read |
@@ -2004,7 +1973,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-7634 | Trapdoor DDH Groups from Pairings and Isogenies | 2020 | `eprint:2019/1290` | true |
 | KN-LIT-7635 | A Kilobit Hidden SNFS Discrete Logarithm Computation | 2017 | `eprint:2016/961` | true |
 | KN-LIT-7636 | Removable Weak Keys for Discrete Logarithm Based Cryptography | 2020 | `eprint:2020/1436` | true |
-| KN-LIT-7637 | FAEST: Algorithm Specifications (v2.0, latest published; no Round-3 specification exists as of 2026-07-31) | 2024 | `url:faest.info/faest-spec-v2.0.pdf` | true |
+| KN-LIT-7637 | Ten Advances in Mathematics and Theoretical Computer Science | 2026 | `url:cdn.openai.com/pdf/ten-proofs-oai.pdf` | read |
 | KN-LIT-7638 | Publicly Verifiable Zero-Knowledge and Post-Quantum Signatures From VOLE-in-the-Head | 2023 | `eprint:2023/996` | true |
 | KN-LIT-7639 | Character sums over AG codes | 2024 | `eprint:eccc tr24-069` | read |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | 2020 | `arxiv:2003.10118` | read |
@@ -2309,6 +2278,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-b777d1 | Algebraic approach for code equivalence | 2018 | `doi:10.70675/4409179fzb277z4e80z8334z16f39e22980c` | web |
 | KN-LIT-b8a8be | Memory-efficient quantum information set decoding algorithm | 2023 | `doi:10.1007/978-3-031-35486-1_20` | web |
 | KN-LIT-b9d3e0 | How to backdoor (Classic) McEliece and how to guard against backdoors | 2022 | `eprint:2022/362` | web |
+| KN-LIT-b9e1a8 | Hamming Quasi-Cyclic (HQC) | 2025 | `url:pqc-hqc.org/doc/hqc_specifications_2025_08_22.pdf` | read |
 | KN-LIT-bb53c1 | A non asymptotic analysis of information set decoding | 2013 | `eprint:2013/162` | web |
 | KN-LIT-bbd0e9 | A probabilistic algorithm for computing minimum weights of large error-correcting codes | 1988 | `doi:10.1109/18.21270` | web |
 | KN-LIT-bfef5d | Leveraging HLS to design a versatile & high-performance Classic McEliece accelerator | 2024 | `doi:10.1145/3698395` | web |
@@ -7965,3 +7935,4 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `eprint:2015/573` | KN-LIT-475, KN-LIT-7607 |
 | `eprint:2023/1618` | KN-LIT-1117, KN-LIT-132 |
 | `eprint:2026/366` | KN-LIT-7667, KN-LIT-7c2620 |
+| `url:cdn.openai.com/pdf/ten-proofs-oai.pdf` | KN-LIT-7637, KN-LIT-7640 |

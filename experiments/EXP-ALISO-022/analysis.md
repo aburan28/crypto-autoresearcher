@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1243_ordinary_transverse_field_probe
 
 ## Observation
-ORDINARY TOY-EVIDENCE / FIELD-ACCOUNTING CONTROL / NO KANI RECONSTRUCTION
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 
