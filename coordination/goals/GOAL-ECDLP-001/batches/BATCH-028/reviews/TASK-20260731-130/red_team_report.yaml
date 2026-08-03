@@ -1,0 +1,245 @@
+red_team_report:
+  id: RT-20260731-130
+  task_id: TASK-20260731-130
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-028
+  experiment_id: EXP-IT-001
+  hypothesis_id: H-IT-001
+  run_id: RUN-IT-001-bounded-toy
+  snapshot_commit: a4561488d972895b1192cc4d0c99d86edc8a54f3
+  execution_commit_at_run_time: 332c9b7f424da0dec33e08a321fdc4f9744ee475
+  snapshot_path_sha256_verified: null   # validator duty; red team reviewed working tree == snapshot per task brief
+  claim_under_review: >-
+    RUN-IT-001-bounded-toy v3 bounded-toy package: "no sub-rho isogeny-transfer
+    signal" reading of 21 censored unplanted cells (R_xfer=0.0 everywhere),
+    rate_iso_1_pass=false, rho_special_by_bits=0.0, and the packaged
+    completed_valid validity status. Claim ceiling: toy.
+  independent_session: true
+  reviewed_records:
+    - experiments/EXP-IT-001/runs/RUN-IT-001-bounded-toy/manifest.json
+    - experiments/EXP-IT-001/runs/RUN-IT-001-bounded-toy/raw-result.json
+    - experiments/EXP-IT-001/runs/RUN-IT-001-bounded-toy/stdout.log
+    - experiments/EXP-IT-001/runs/RUN-IT-001-bounded-toy/stderr.log
+    - experiments/EXP-IT-001/runs/RUN-IT-001-bounded-toy/console_tee.log
+    - experiments/EXP-IT-001/results/summary.json
+    - experiments/EXP-IT-001/results/HEUR_ISO_1_report.json
+    - experiments/EXP-IT-001/results/HEUR_ISO_1_report.freeze.json
+    - experiments/EXP-IT-001/results/transfer_gate_report.json
+    - experiments/EXP-IT-001/results/concrete_cost_table.json
+    - experiments/EXP-IT-001/results/null_it_isogeny_transfer_report.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260731-127/execution_report.yaml
+    - experiments/EXP-IT-001/specification.v3.yaml
+    - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc27-b5-b8.yaml
+    - experiments/EXP-IT-001/implementation/run_bounded_toy.sage
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: opencode/deepseek-v4-flash-free
+    reasoning_effort: null
+    model_verified: false
+    fallback_used: true
+    fallback_reason: "Independent session served on runtime opencode/deepseek-v4-flash-free; review-adversarial xhigh not attainable on this backend"
+    independent_session_required: true
+    degraded_requirements:
+      - requirement: "review-adversarial xhigh reasoning effort"
+        status: "NOT_MET_ON_THIS_BACKEND"
+  objections:
+    - id: RT-130-O1
+      severity: BLOCKING
+      location: manifest.json (validity_status, protocol_deviations, anomalies, timing) + HEUR_ISO_1_report.json + stderr.log (unarchived)
+      title: "Crashed run archived as completed_valid; exit code 1 and a corrupt declared artifact with no recorded deviation"
+      why: >-
+        stderr.log contains a traceback: TypeError "Object of type Integer is
+        not JSON serializable ... when serializing dict item 'version'" at
+        run_bounded_toy.sage.py line 746 (json.dump of heur_report), followed by
+        EXIT:1 at 2026-07-31T23:17:32Z. HEUR_ISO_1_report.json is a 153-byte
+        invalid JSON file truncated mid-value at "version": — the partial write
+        of that very dump. Yet manifest.json and execution_report.yaml record
+        protocol_deviations: [] and validity_status: completed_valid, and the
+        anomalies list omits the crash. AGENTS rule 5 (a crash is not evidence
+        and must be recorded as infrastructure failure) and the experiment state
+        machine (completed | failed_infrastructure | invalid) make completed_valid
+        an overclaim. The archived package mixes one completed invocation's
+        artifacts (mtime 23:13:16Z) with the crashed invocation's corrupt HEUR
+        file (mtime 23:17:32Z) and no annotation.
+    - id: RT-130-O2
+      severity: BLOCKING
+      location: raw-result.json (curve_results, planted_path_control, CTRL_NULL_IT_PLANT) + summary.json
+      title: "Both controls void and 21/21 cells censored: every 0.0 is censorship, not a measurement — no 'no signal' reading is licensed"
+      why: >-
+        planted_path_recovered=false (path_edges=[], H_min_heur=0) and
+        plant_detected=false, both declared in the manifest anomalies as
+        "harness void for sub-rho claims per contract". All 21 unplanted cells
+        are censored (H_min=null, mode=censorship_lower_bound,
+        certificate_pass=false) with C_path measured 0 (C_search=0: the BFS
+        explored zero edges on every cell). The instrument never demonstrated
+        it can detect a transfer when one exists, so a "0.0 everywhere" reading
+        is uninterpretable — it is NOT evidence of "no signal", and it is NOT
+        evidence of "no speedup". Any summary aggregation (means, maxima,
+        fractions) over these zeros is vacuous. The 20/24-bit rho_special=0 are
+        genuine exhaustive scans (scanned_j=p), but the 28-bit rho_special=0 is
+        a sample estimate (847,433 of 536,870,923 scanned, ~0.16%) with no CI —
+        also not a validated density.
+    - id: RT-130-O3
+      severity: HIGH
+      location: summary.json (rate_iso_1_pass, rate_iso_1_fraction_R_ge_1) + run_bounded_toy.sage RATE-ISO-1 block (lines ~1100-1116)
+      title: "rate_iso_1 fields are gate-hold numbers computed over censored rows — laundering risk into 'HEUR-ISO-1 unsupported' or H-DS-001 (S1_met) negative evidence"
+      why: >-
+        The executed code computes completed = [r for r in transfer_rows if
+        r["R_xfer"] is not None] — all 21 rows qualify because every row carries
+        the censored lower bound 0.0 — then ge1 = rows with R_xfer >= 1.0,
+        giving fraction 0.0 and pass=false. These are not measurements: the
+        RATE criterion is a gate-hold under heavy censorship, exactly as the
+        driver's own comment states ("RATE under heavy censorship is a
+        gate-hold observation, not HEUR confirmation", it001_driver.py) and as
+        the freeze file shows (rate_iso_1_pass: null there). KS/TAIL are null
+        (0 uncensored samples < 20). summary.json ships the false/0.0 without
+        this caveat inline; no_support_reject_conclusion: true and
+        observations_only: true are present and correct, but a downstream
+        aggregator keying on rate_iso_1_* alone would read a false negative for
+        HEUR-ISO-1 and could feed H-DS-001.
+    - id: RT-130-O4
+      severity: HIGH
+      location: raw-result.json planted_path_control.best + transfer_gate_report.json (c_iso_schedule) + concrete_cost_table.json (optimistic_assumptions)
+      title: "C_special cost model is unvalidated and demonstrably inverted for the anomalous family; the positive control fails ONLY because of it"
+      why: >-
+        The planted control endpoint is anomalous (trace=1, Smart-attack
+        vulnerable): H_min=0 hops, C_path=0 measured, C_pullback=20 modeled,
+        C_special=7856 modeled -> R_xfer=9.24 >= 1 -> control fails. The true
+        cost to solve ECDLP on an anomalous curve is O(log p) ~ 20 group ops;
+        substituting it gives R_xfer ~ (0+20+20)/851.9 ~ 0.047 < 0.7 and the
+        control PASSES. The gate outcome is therefore determined by an
+        unvalidated modeled constant that is inverted relative to the real
+        attack cost, and every R_xfer in the package inherits this model
+        dependence. This is the cheapest counterexample: one recomputation of
+        the anomalous control with the true Smart cost flips the verdict.
+    - id: RT-130-O5
+      severity: HIGH
+      location: transfer_gate_report.json (cost_ledger_unit, matched_rho_formula) + run_bounded_toy.sage charge_path
+      title: "Per-attempt cost x inverse success probability bookkeeping is absent from the entire transfer accounting"
+      why: >-
+        R_xfer = (C_path + C_pullback + C_special)/matched_rho is a
+        deterministic modeled ratio with no success-probability term, no
+        repeated-attempt model, and no censoring-aware expectation anywhere.
+        The exemplar discipline (red-team contract point 5;
+        target-result-profile C-bookkeeping) requires total expected cost =
+        per-attempt cost x inverse success probability. Under 100% censorship
+        the true expected transfer cost is unbounded and the packaged 0.0
+        lower bounds are vacuous (C_search=0 makes the lower bound trivially
+        0). The gate is deterministic-cost-only and must be labeled as such.
+    - id: RT-130-O6
+      severity: MEDIUM
+      location: raw-result.json CTRL_NULL_IT_PLANT + null_it_isogeny_transfer_report.json + PA-IT-001-v3-rc27-b5-b8.yaml (B-8)
+      title: "Null-object control is vacuous: the plant was injected into a zero-signal cell, so the detector was never exercised"
+      why: >-
+        The designated plant cell (bits=20, seed=SEEDS[0], i=0, j=1074805) is
+        censored with C_path_honest=0; C_path_reported=floor(0/4)=0 and
+        C_path_recomputed=0; the frozen predicate (reported <=
+        floor(recomputed/4) and reported < recomputed) evaluates false by
+        construction. plant_detected=false is a tautology, not a
+        false-positive-free result, and plant_detection_eps is hardcoded 0.
+        A detector that was never handed a nonzero signal cannot certify the
+        absence of false positives.
+    - id: RT-130-O7
+      severity: MEDIUM
+      location: raw-result.json planted_path_control.best.certificate_pass + certificates note
+      title: "Control certificate_pass: true is the self-generated ECDLP-instance certificate, not a transfer-path certificate — labeling risk"
+      why: >-
+        The driver constructed the ECDLP instance on E_rand (it knows k),
+        verified it with harness recompute (verifier
+        "harness.toycurve.EllipticCurve.mul independent-recompute"), and that
+        flag is surfaced as certificate_pass: true inside the control's
+        transfer_accounting "best" entry. It validates arithmetic, not the
+        transfer; it must not be presented as transfer evidence. The unplanted
+        cells are honest here: kind=none, verified=false, and no solve is
+        claimed (task point 4 satisfied).
+    - id: RT-130-O8
+      severity: MEDIUM
+      location: snapshot commit a4561488 vs manifest.artifact_paths
+      title: "Snapshot omits declared artifacts and the logs that expose the crash"
+      why: >-
+        The snapshot adds only 9 files. Missing from it: command.txt,
+        environment.json, stdout.log, stderr.log, console_tee.log (all listed
+        in manifest.artifact_paths) and HEUR_ISO_1_report.freeze.json (written
+        by the run, valid JSON, carries rate_iso_1_pass: null and the KS/TAIL
+        skeleton). The omitted stderr.log is the only place the EXIT:1 crash is
+        visible. Per AGENTS.md a missing artifact blocks downstream promotion;
+        as archived, the package is not fully reproducible (the run executed on
+        a dirty tree with 4731 dirty entries).
+    - id: RT-130-O9
+      severity: LOW
+      location: manifest.json timing + raw-result.json finished_at + stderr.log timestamps
+      title: "Recorded finished_at/wall_seconds predate actual process termination by ~4m16s"
+      why: >-
+        finished_at=2026-07-31T23:13:16Z, wall_seconds=1758.87, but stderr.log
+        carries density progress timestamps through 23:17:32Z and the crash
+        traceback after; the archived HEUR file mtime is 23:17:32Z. The
+        package's own timing claims contradict the process record.
+    - id: RT-130-O10
+      severity: LOW
+      location: manifest.json inference + execution_report.yaml inference
+      title: "Inference provenance: fallback_used=true, model_verified=false (recorded, not a violation)"
+      why: >-
+        Executor requested executor-implementation and resolved to
+        cursor-grok-4.5 with fallback used and model not probe-verified;
+        recorded honestly. Noted for the record; the computational content of
+        the run originates from a non-probe-verified backend.
+  required_controls:
+    - "Rerun must recover the planted path: H_min >= 1 with non-empty path_edges and endpoint != start before any sub-rho reading"
+    - "Null-object plant must be injected into a cell with nonzero honest cost so the detector has a real signal"
+    - "C_special model must be calibrated against true Smart/MOV attack cost (anomalous control must pass at ~O(log p))"
+    - "BFS must explore nonzero edges on at least some cells (C_search > 0); total censorship means the search instrument never ran"
+    - "Transfer accounting must include per-attempt x inverse-success-probability or declare deterministic-only"
+    - "All declared artifacts must be valid JSON; crash/exit codes must be recorded as deviations"
+  counterexample_or_mutation: >-
+    Recompute the planted anomalous control with the true Smart-attack cost
+    (C_special ~ log2(p) group ops instead of the modeled 7856):
+    R_xfer ~ (0 + 20 + 20)/851.9 ~ 0.047 < 0.7 -> the control flips from FAIL
+    to PASS, proving the gate outcome is a model artifact, not a measurement.
+  baseline_comparison: >-
+    matched_rho = 0.886*sqrt(N) and matched_bsgs = 2*ceil(sqrt(N)) are the
+    standard expected-cost baselines and are honestly labeled "modeled"; the
+    red team finds no overstatement in the baselines themselves. The
+    corruption is in the unvalidated special-detector term (O-4), the missing
+    success-probability factor (O-5), and the vacuous censored values (O-2).
+  heuristic_challenges:
+    - "HEUR-ISO-1 was never adjudicated: KS/TAIL null (0 uncensored samples), RATE is a censored gate-hold (O-3). The freeze skeleton (rate_iso_1_pass: null) is the honest state; the summary's false/0.0 is not a validation result."
+    - "rho_special=0 at 28 bits is a sample estimate (847,433/536,870,923 scanned) with no confidence bounds; must not be read as a validated density or extrapolated."
+  cost_model_challenges:
+    - "No per-attempt x inverse-success-probability term anywhere (O-5)"
+    - "C_special modeled constant inverted vs true anomalous cost; control outcome model-dominated (O-4)"
+    - "c_iso=4*ell, MOV 1:1 charging, tree-ball independent-marking: flagged as optimistic in concrete_cost_table.json — that flag is present and honest"
+    - "rho calibration is a 1/8-BSGS proxy scaled x8, labeled 'not a full rho solve' — honest"
+  reduction_and_scope_challenges:
+    - "affected_vs_safe_scope is correctly limited to 'GENERIC random ordinary prime-field E at tested toy bit sizes only'; no crypto-scale or universal wording found (task point 5 discharged)"
+    - "No H-DS-001 / H-IC-001 / H-STR-002 / EXP-DS-001 content is touched by this run; nothing here licenses SG-ECDLP-001 lane-death"
+    - "The manifest do_not_execute list and the PA-IT-001-v3-rc27-b5-b8 amendment scope are consistent with the executed specification.v3.yaml"
+  narrowest_supported_statement: >-
+    Under the v3 contract at 20/24/28-bit toy fields, the run produced 21
+    fully censored unplanted cells, failed both planted controls, and crashed
+    (exit 1) while serializing a declared artifact. No transfer-related
+    quantity was measured. The run therefore supports no statement — positive
+    or negative — about isogeny-transfer cost, HEUR-ISO-1, or any ECDLP
+    improvement; the observation set is a bounded-toy package with
+    observations_only status.
+  next_concrete_action: >-
+    Coordinator: reclassify RUN-IT-001-bounded-toy to failed_infrastructure
+    (crash + corrupt artifact + void controls) via decision record citing
+    RT-20260731-130; authorize a scoped rerun task (TASK-20260731-127 already
+    flagged requires_rerun: true, protocol_complete: false) gated on the six
+    required controls above; keep H-IT-001 status unchanged (specified);
+    forbid any promotion of rate_iso_1_*/rho_special/summary fields into
+    H-DS-001 (S1_met) or HEUR-ISO-1 validation records.
+  recommended_disposition: failed_infrastructure
+  alternate_disposition: invalid
+  recommended_posture_detail: >-
+    The run's ledger status must be failed_infrastructure: an unrecorded
+    exit-1 crash, a corrupt declared artifact, and two void controls are
+    infrastructure/evidence-integrity failures (AGENTS rule 5), not a
+    mathematical result. "Inconclusive" is the correct posture for the
+    scientific question (H-IT-001 sub-rho transfer) — the zeros are
+    uninterpretable, and inconclusive must NOT be read as a null result.
+  claim_ceiling: toy
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/reviews/TASK-20260731-130/red_team_report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/reviews/TASK-20260731-130/objections.md
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/reviews/TASK-20260731-130/receipt.json

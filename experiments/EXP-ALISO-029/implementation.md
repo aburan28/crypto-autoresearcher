@@ -11,6 +11,7 @@ Historical Autolab port (no re-execution).
 
 ## Copied artifacts
 - `source/iso_genus_filtered_crater_sweep_result.json`
+- `source/iso_genus_filtered_crater_sweep.sage.py`
 - `source/iso_genus_filtered_crater_sweep_verify.py`
 
 ## Deviations from live harness execution

@@ -46,6 +46,9 @@ SEARCH_GLOBS = [
     os.path.join(REPO, "ledger", "*", "*.yaml"),       # typed subdirectories
     os.path.join(REPO, "experiments", "*", "specification.yaml"),
     os.path.join(REPO, "knowledge", "*", "*.md"),
+    # Batch directories. Their identifier lives in the DIRECTORY name, which is
+    # why occurrences() matches on the parent as well as the stem.
+    os.path.join(REPO, "coordination", "goals", "*", "batches", "*", "*.json"),
 ]
 
 # id prefix -> the record type whose pattern governs it
@@ -57,7 +60,12 @@ PREFIX_TYPE = {
     "EV": "evidence",
     "DEC": "coordinator_decision",
     "TASK": "handoff",
+    "BATCH": "batch",
 }
+
+# Record types whose identifier is PREFIX-SUFFIX with no date or area segment.
+NO_MIDDLE = {"batch"}
+
 
 ID_TOKEN = re.compile(r"\b(RQ|IDEA|H|EXP|EV|DEC|TASK|CORR|GOAL|KN|RUN)-[A-Za-z0-9._-]+\b")
 
@@ -156,13 +164,16 @@ def token_id(rec_type: str, middle: str, *, seed: int | None = None) -> int:
         return 1
     rng = random.Random(seed) if seed is not None else random.SystemRandom()
     for _ in range(64):  # bounded; a hit is overwhelmingly improbable
-        rec_id = f"{prefix}-{middle}-{random_token(rng)}"
+        token = random_token(rng)
+        rec_id = (f"{prefix}-{token}" if rec_type in NO_MIDDLE
+                  else f"{prefix}-{middle}-{token}")
         ok, why = well_formed(rec_id)
         if not ok:
             print(f"REFUSE: {rec_id} is malformed -- {why}", file=sys.stderr)
             return 1
         if not occurrences(rec_id):
-            print(f"free {rec_type} id for '{middle}': {rec_id}")
+            label = rec_type if rec_type in NO_MIDDLE else f"{rec_type} id for '{middle}'"
+            print(f"free {label}: {rec_id}")
             print(f"  allocation: random {TOKEN_WIDTH}-hex token "
                   f"(1 of {16 ** TOKEN_WIDTH:,} per namespace; no state scanned)")
             print("  VERIFY BEFORE USE: python3 tools/allocate_id.py --check "
@@ -258,9 +269,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.audit:
         return audit()
     middle = args.area or args.date
-    if not middle:
+    if not middle and args.next not in NO_MIDDLE:
         ap.error("--next requires --area (for RQ/H/EXP/EV) or --date "
-                 "(for IDEA/DEC/TASK)")
+                 "(for IDEA/DEC/TASK); batch takes neither")
     if args.sequential:
         return next_free(args.next, middle)
     return token_id(args.next, middle, seed=args.seed)

@@ -10,9 +10,9 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/p1243_auxiliary_principalized_lattice.py`
-- `source/p1243_auxiliary_principalized_lattice_contract_20260729.md`
 - `source/p1243_auxiliary_principalized_lattice_result.json`
+- `source/._p1243_auxiliary_principalized_lattice_contract_20260729.md`
+- `source/p1243_auxiliary_principalized_lattice.py`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

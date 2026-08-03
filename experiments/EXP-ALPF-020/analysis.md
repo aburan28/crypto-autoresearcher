@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round010_exp020_crossbred_m4
 
 ## Observation
-`meter_self_validated = True`
+{'meter_self_validated': True, 'meter_detail': {'POS_A': {'d_ff': 4, 'D_reg': None, 'fires': False}, 'NEG_1': {'fires': False}, 'NEG_2': {'fires': False}, 'ering_m3': {'fires': True, 'gate_passes': False, 'gate_meaningful': False}, 'POSC_weil': {'fires': True, 'gate_passes': True, 'gate_meaningful': True}, 'criterion': 'POS-A d_ff=4; NEGs quiet; e-ring fires-but-not-meaningful; POS-C gate_meaningful'}, 'any_admissible_below_Dreg': False, 'any_crossbred_beats_rho_end2end': False, 'verdict': 'fail
 
 Source excerpt / raw summary:
 

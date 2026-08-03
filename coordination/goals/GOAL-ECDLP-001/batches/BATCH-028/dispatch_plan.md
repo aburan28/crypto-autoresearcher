@@ -1,17 +1,19 @@
 # Dynamic Subagent Dispatch Plan
 
-Perform OPEN-BATCH023-A, THE OWED DIRECT SMOOTHNESS MEASUREMENT OF HEUR-DS-1, which DEC-20260801-011 ranked first and which BATCH-024 closed WITHOUT PERFORMING -- that decision records in its own words that no integer was factored and HEUR-DS-1 was neither validated nor refuted. This batch factors integers and measures the declared quantity directly. Two gating disciplines are built into the cards rather than left to good intentions: the contract is FROZEN by task one, which produces no datum, and its sha256 is re-checked by task two before the first measurement, so 'frozen before any datum' is VERIFIABLE; and the null is MEASURED AT THE ACTUAL X and committed BEFORE the treatment arm, because the asymptotic Dickman rho is not a calibration at finite X. Enumeration is i<j so the diagonal is excluded by construction rather than filtered afterwards. AN INCONCLUSIVE RESULT IS A LEGITIMATE OUTCOME and closes the open item as attempted-and-inconclusive; it is not dressed as support or refutation.
+BATCH-028 bounded toy Executor for EXP-IT-001 v3 under SG-ECDLP-002 / IDEA-20260731-008 after DEC-034 APPROVED. IDEA-011 null + planted-path + matched rho/BSGS + HEUR-ISO-1. Snapshot then Val+RT then ledger EV-IT-001/DEC-036. BATCH-026 CI TASK-115 left alone (disjoint). Toy. No STR. No v1/v2. No push.
 
 ## Ready Tasks
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-0a1d4d` | validator | queued | 70 | TASK-20260802-80f5e9, TASK-20260802-6a39f8, TASK-20260802-d34ac4 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-0a1d4d/validation_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-0a1d4d |
-| `TASK-20260802-411037` | red-team | queued | 70 | TASK-20260802-80f5e9, TASK-20260802-6a39f8, TASK-20260802-d34ac4 | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-411037/red_team_report.yaml | coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-411037 |
+| `TASK-20260731-127` | executor | running | 80 | TASK-20260731-126 | experiments/EXP-IT-001/runs/RUN-IT-001-bounded-toy/manifest.json, experiments/EXP-IT-001/runs/RUN-IT-001-bounded-toy/raw-result.json, experiments/EXP-IT-001/results/summary.json, experiments/EXP-IT-001/results/HEUR_ISO_1_report.json, experiments/EXP-IT-001/results/transfer_gate_report.json, experiments/EXP-IT-001/results/concrete_cost_table.json, experiments/EXP-IT-001/results/null_it_isogeny_transfer_report.json, coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260731-127/execution_report.yaml | experiments/EXP-IT-001/implementation, experiments/EXP-IT-001/runs, experiments/EXP-IT-001/results, coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260731-127 |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-268ec9`: dependency_not_completed:TASK-20260802-0a1d4d:queued, dependency_not_completed:TASK-20260802-411037:queued
+- `TASK-20260731-128`: dependency_not_completed:TASK-20260731-127:running
+- `TASK-20260731-129`: dependency_not_completed:TASK-20260731-127:running, dependency_not_completed:TASK-20260731-128:queued
+- `TASK-20260731-130`: dependency_not_completed:TASK-20260731-127:running, dependency_not_completed:TASK-20260731-128:queued
+- `TASK-20260731-131`: dependency_not_completed:TASK-20260731-128:queued, dependency_not_completed:TASK-20260731-129:queued, dependency_not_completed:TASK-20260731-130:queued
 
 ## Dispatch Gates
 
@@ -26,4 +28,4 @@ Perform OPEN-BATCH023-A, THE OWED DIRECT SMOOTHNESS MEASUREMENT OF HEUR-DS-1, wh
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `a424c9f887daf594a69f3421ceb77b49b0908684d37e13f9db2f9103f14a5336`
+Plan SHA-256: `d4103db6554439f7e13de531018ea5080a4b6135327be6008790e54676a47797`

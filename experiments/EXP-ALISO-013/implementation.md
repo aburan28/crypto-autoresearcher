@@ -10,8 +10,8 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/p1486_quantum_cost_accounting_verify.py`
 - `source/p1486_quantum_cost_accounting_verify_result.json`
+- `source/p1486_quantum_cost_accounting_verify.py`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

@@ -181,7 +181,7 @@ def test_backends_distinguishes_missing_key_from_missing_binding(capsys,
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     _, output = run(["backends"], capsys)
     assert "no credentials" in output          # anthropic: bound, no key
-    assert "unbound" in output                 # openai: key or not, no model ids
+    assert "unbound" in output                 # openrouter/local remain unbound
 
 
 def test_dotenv_is_loaded_without_overriding_the_shell(tmp_path, monkeypatch):

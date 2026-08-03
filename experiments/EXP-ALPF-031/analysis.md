@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round019b_ering_sweep
 
 ## Observation
-No narrative finding recorded; source result artifact carries fields: any_gate_meaningful, pos_control_fired, rows, start.
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 

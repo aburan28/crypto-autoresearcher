@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round006_exp011_binary_fppr
 
 ## Observation
-Binary FPPR early fall reproduced: d_ff < D_reg. Meter calibrated at large-degree Semaev profile. PO-002 met.
+survived
 
 Source excerpt / raw summary:
 
