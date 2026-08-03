@@ -125,7 +125,9 @@ def list_urls(path: str) -> list[dict]:
             parsed = urllib.parse.urlparse(url)
             # Presigned URLs carry a long query string; the basename of the path
             # is the real filename and the signature must not become part of it.
-            base = posixpath.basename(parsed.path) or "unnamed"
+            # Unquote first, or a key with a space arrives as `a%20b.pdf` and
+            # safe_name renders it `a_20b.pdf` -- the escape read as content.
+            base = posixpath.basename(urllib.parse.unquote(parsed.path)) or "unnamed"
             objects.append({
                 "key": parsed.path.lstrip("/"),
                 "size": None,
