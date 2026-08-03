@@ -75,6 +75,14 @@ ID_PATTERNS = {
     "evidence": re.compile(rf"^EV-[A-Z]+-{SUFFIX}$"),
     "coordinator_decision": re.compile(rf"^DEC-\d{{8}}-{SUFFIX}$"),
     "handoff": re.compile(rf"^TASK-\d{{8}}-{SUFFIX}$"),
+    # Batches carry no date or area segment: BATCH-<suffix>. Sequential batch
+    # numbers are the LAST place in this harness where two concurrent lanes
+    # still collide by construction -- each computes "highest + 1" from the
+    # same committed state and both open BATCH-028. That happened twice in one
+    # session: once as a directory-name collision resolved by yielding, and
+    # once as a whole card set replaced wholesale. The legacy \d{3} form stays
+    # valid forever because existing batch directories are immutable.
+    "batch": re.compile(rf"^BATCH-{SUFFIX}$"),
 }
 RUN_ID = re.compile(r"^RUN-[A-Za-z0-9._-]+$")
 
