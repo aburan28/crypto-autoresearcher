@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7667 |
-| — with a resolvable external identifier | 2083 |
+| Literature entries (`KN-LIT-*`) | 7670 |
+| — with a resolvable external identifier | 2086 |
 | — with no identifier recorded | 5584 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1313, doi 92, eprint 660, url 18. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1314, doi 92, eprint 662, url 18. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 3, `True` 10, `full_text` 3, `full_text_supplied` 1, `read` 7455, `web` 195.
+`citation_verified` distribution: `False` 2, `True` 10, `full_text` 3, `full_text_supplied` 1, `read` 7458, `web` 196.
 
 ## 1. Frozen source packages
 
@@ -131,7 +131,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2083 of 7667 `KN-LIT-*` entries carry an
+2086 of 7670 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1301,6 +1301,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-197 | Index Calculus in Class Groups of Plane Curves of Small Degree Claus Diem | 2005 | `eprint:2005/119` | read |
 | KN-LIT-198 | Isogenies of elliptic curves and the Morava stabilizer group | 2005 | `arxiv:0508079` | read |
 | KN-LIT-199 | ON THE EMBEDDING PROBLEM FOR 2+ S4 REPRESENTATIONS | 2005 | `arxiv:0507381` | read |
+| KN-LIT-1c9474 | HQC-RMRS, an instantiation of the HQC encryption framework with a more efficient auxiliary error-correcting code | 2020 | `arxiv:2005.10741` | read |
 | KN-LIT-200 | Ordinary elliptic curves of high rank over Fp (x) with constant j-invariant II | 2005 | `arxiv:0509600` | read |
 | KN-LIT-201 | Scholten forms and elliptic/hyperelliptic curves with weak Weil restrictions | 2005 | `eprint:2005/277` | read |
 | KN-LIT-202 | ALGEBRAIC THETA FUNCTIONS AND THE p-ADIC INTERPOLATION OF EISENSTEIN-KRONECKER NUMBERS | 2006 | `arxiv:0610163` | read |
@@ -1609,6 +1610,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-497 | Contemporary Mathematics The geometry of efficient arithmetic on elliptic curves | 2016 | `arxiv:1601.03665` | read |
 | KN-LIT-498 | CYCLIC ÉTALE COVERINGS OF GENERIC CURVES AND ORDINARINESS OF DORMANT OPERS | 2016 | `arxiv:1602.07061` | read |
 | KN-LIT-499 | Efficient Secure Multiparty Computation with Identifiable Abort | 2016 | `eprint:2016/187` | read |
+| KN-LIT-4c1133 | Compact HQC with new (un)balance | 2026 | `eprint:2026/461` | web |
 | KN-LIT-500 | ELLIPTIC CURVES IN ISOGENY CLASSES | 2016 | `arxiv:1611.05258` | read |
 | KN-LIT-501 | ELLIPTIC GAUSS SUMS AND SCHOOF’S ALGORITHM | 2016 | `arxiv:1601.03227` | read |
 | KN-LIT-502 | EXTENSIONS OF CM ELLIPTIC CURVES AND ORBIT COUNTING ON THE PROJECTIVE LINE | 2016 | `arxiv:1608.01390` | read |
@@ -1946,7 +1948,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-7636 | Removable Weak Keys for Discrete Logarithm Based Cryptography | 2020 | `eprint:2020/1436` | true |
 | KN-LIT-7637 | FAEST: Algorithm Specifications (v2.0, latest published; no Round-3 specification exists as of 2026-07-31) | 2024 | `url:faest.info/faest-spec-v2.0.pdf` | true |
 | KN-LIT-7638 | Publicly Verifiable Zero-Knowledge and Post-Quantum Signatures From VOLE-in-the-Head | 2023 | `eprint:2023/996` | true |
-| KN-LIT-7639 | Ten advances in mathematics and theoretical computer science (OpenAI / Astra) | 2026 | `url:openai.com/index/ten-advances-in-mathematics` | false |
+| KN-LIT-7639 | Character sums over AG codes | 2024 | `eprint:eccc tr24-069` | read |
 | KN-LIT-764 | FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE | 2020 | `arxiv:2003.10118` | read |
 | KN-LIT-7640 | Ten Advances in Mathematics and Theoretical Computer Science | 2026 | `url:cdn.openai.com/pdf/ten-proofs-oai.pdf` | read |
 | KN-LIT-7641 | The principal ideal problem for endomorphism rings of superspecial abelian varieties | 2026 | `eprint:2026/454` | web |
@@ -2219,6 +2221,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-997 | ISOGENY GRAPHS ON SUPERSPECIAL ABELIAN VARIETIES: | 2022 | `arxiv:2201.04293` | read |
 | KN-LIT-998 | Key Structures: Improved Related-Key Boomerang Attack against the Full AES-256 | 2022 | `eprint:2022/845` | read |
 | KN-LIT-999 | Local inversion of maps: A new attack on | 2022 | `arxiv:2202.06584` | read |
+| KN-LIT-b9e1a8 | Hamming Quasi-Cyclic (HQC) | 2025 | `url:pqc-hqc.org/doc/hqc_specifications_2025_08_22.pdf` | read |
 
 ## 6. Literature citations with no recorded identifier
 

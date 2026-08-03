@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_frobenius_midpoint_probe_result_v2
 
 ## Observation
-No narrative finding recorded in the source result artifacts.
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 

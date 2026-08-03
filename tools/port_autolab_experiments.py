@@ -56,6 +56,7 @@ PORT_TAG = "autolab-port-20260731"
 
 
 AUTOLAB_CANDIDATES = (
+    Path("/Volumes/SSD990/autolab"),
     Path("/Volumes/Volume/autolab"),
     Path("/Volumes/SSD990/Volume/autolab"),
 )
@@ -90,6 +91,7 @@ def resolve_ecdsafail_root() -> Path:
     if env and (Path(env) / "ecdsafail-challenge").exists():
         return Path(env)
     for candidate in (
+        Path("/Volumes/SSD990/autolab"),
         Path("/Volumes/Volume/autolab"),
         Path("/Volumes/SSD990/Volume/autolab"),
         REPO / "inputs" / "refs",

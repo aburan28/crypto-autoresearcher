@@ -10,9 +10,9 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
+- `source/score.json`
 - `source/README.md`
 - `source/results.tsv`
-- `source/score.json`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.
