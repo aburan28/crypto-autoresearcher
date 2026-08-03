@@ -1,21 +1,40 @@
 ---
 id: KN-FIND-ffe1df
-type: finding
+type: internal_finding
 title: "(O2) no cheap sum-compatible filter on E(F_p): the Wagner k-tree route to a sub-rho ECDLP exponent is closed for every F1 filter family except the null"
-status: established_scoped
-claim_tier: exploratory
-area: ECDLP
-goal_ids: [GOAL-ECDLP-001]
-question_ids: [RQ-ECDLP-002]
-hypothesis_ids: []
-evidence_ids: []
-decision_ids: []
-artifact_paths:
-  - analysis/o2-sum-compatible-filters/
-depends_on_literature: [KN-LIT-7639]
-added: "2026-08-03"
+tags:
+- ecdlp
+- prime-field
+- wagner-k-tree
+- character-sums
+- toy
+- internal-finding
+confidence: reported
+internal_refs:
+- RQ-ECDLP-002
+proof_status: derivation
+proof_refs: []
+added: 2026-08-03
 superseded_by: null
 ---
+
+## Frontmatter note
+
+`proof_status: derivation` and `proof_refs: []` are literal, not placeholders.
+**This finding is promoted from derivations, not from any evidence record**: no
+`EXP-*`, `RUN-*`, `EV-*` or `DEC-*` record exists for the (O2) line, because the
+work is proof plus measurement rather than a protocolled experiment. The
+`internal_refs` therefore name the goal and question this attaches to, not
+evidence it was promoted from — the usual promotion chain
+(`EV-* → DEC-* → KN-FIND-*`) is **absent here and that is a real gap**, not a
+formatting choice. The proofs live in the artifact paths listed below.
+
+## Artifacts
+
+- `analysis/o2-sum-compatible-filters/` — all documents and scripts.
+- Literature: [[KN-LIT-7639]] (H1, multiplicative — partly traced),
+  [[KN-LIT-f6de4b]] (H1′, additive — **largely untraced**; see "What is NOT
+  established" item 3, which that entry corrects downward).
 
 ## The finding
 
