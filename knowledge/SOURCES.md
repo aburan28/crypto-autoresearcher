@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7666 |
-| — with a resolvable external identifier | 2082 |
+| Literature entries (`KN-LIT-*`) | 7667 |
+| — with a resolvable external identifier | 2083 |
 | — with no identifier recorded | 5584 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1313, doi 92, eprint 659, url 18. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1313, doi 92, eprint 660, url 18. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 3, `True` 10, `full_text` 3, `full_text_supplied` 1, `read` 7457, `web` 192.
+`citation_verified` distribution: `False` 3, `True` 10, `full_text` 3, `full_text_supplied` 1, `read` 7455, `web` 195.
 
 ## 1. Frozen source packages
 
@@ -131,7 +131,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2082 of 7666 `KN-LIT-*` entries carry an
+2083 of 7667 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1984,8 +1984,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-7670 | Cryptanalysis of HAWK: a Guessing Game | 2026 | `eprint:2026/1318` | web |
 | KN-LIT-7671 | Exploiting the complexity of Lattice Isomorphism Problem via Irreducible Decomposition | 2026 | `eprint:2026/1139` | web |
 | KN-LIT-7672 | Revisiting the Concrete Security of Falcon-type Signatures | 2026 | `eprint:2026/096` | web |
-| KN-LIT-7673 | HAWK: Having Automorphisms Weakens Key | 2025 | `eprint:2025/928` | read |
-| KN-LIT-7674 | Cryptanalysis of HAWK: a Guessing Game | 2026 | `eprint:2026/1318` | read |
+| KN-LIT-7675 | Revisiting the Security of Approximate FHE with Noise-Flooding Countermeasures | 2025 | `eprint:2024/424` | web |
 | KN-LIT-768 | From the Hardness of Detecting Superpositions to Cryptography: Quantum Public Key Encryption and Commitments | 2020 | `arxiv:2009.07450` | read |
 | KN-LIT-769 | Hardness of LWE on General Entropic Distributions? | 2020 | `eprint:2020/119` | read |
 | KN-LIT-770 | Hashing to elliptic curves of j “ 0 and Mordell–Weil groups | 2020 | `arxiv:2005.08336` | read |
@@ -2018,6 +2017,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-797 | On some p-adic Galois representations and form class groups | 2020 | `arxiv:2009.13837` | read |
 | KN-LIT-798 | On the algebraic functional equation for the mixed signed Selmer group over multiple Zp-extensions | 2020 | `arxiv:2004.10592` | read |
 | KN-LIT-799 | ON THE ANTICYCLOTOMIC IWASAWA THEORY OF RATIONAL ELLIPTIC | 2020 | `arxiv:2008.02571` | read |
+| KN-LIT-7c2620 | Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE | 2026 | `eprint:2026/366` | web |
 | KN-LIT-800 | On the distribution of orders of Frobenius action on `-torsion of abelian surfaces | 2020 | `arxiv:2001.03546` | read |
 | KN-LIT-801 | On the division fields of an elliptic curve and an effective bound to the hypotheses of the local-global divisibility | 2020 | `arxiv:2001.03429` | read |
 | KN-LIT-802 | On the Role of Hash-based Signatures in Quantum-Safe Internet of Things: Current Solutions and Future Directions | 2020 | `arxiv:2004.10435` | read |
@@ -2171,6 +2171,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-950 | ALGEBRAIC INDEPENDENCE AND DIFFERENCE EQUATIONS OVER ELLIPTIC FUNCTION FIELDS | 2022 | `arxiv:2207.13377` | read |
 | KN-LIT-951 | An attack on SIDH with arbitrary starting curve (draft) | 2022 | `eprint:2022/1026` | read |
 | KN-LIT-952 | Another Round of Breaking and Making Quantum Money: How to Not Build It from Lattices, and More | 2022 | `arxiv:2211.11994` | read |
+| KN-LIT-95256d | Attacks Against the IND-CPA^D Security of Exact FHE Schemes | 2024 | `eprint:2024/127` | web |
 | KN-LIT-953 | ASYMPTOTIC FERMAT FOR SIGNATURE (4, 2, p) OVER NUMBER FIELDS | 2022 | `arxiv:2209.09153` | read |
 | KN-LIT-954 | ASYMPTOTIC FORMULA FOR TATE–SHAFAREVICH GROUPS OF p-SUPERSINGULAR ELLIPTIC CURVES OVER ANTICYCLOTOMIC EXTENSIONS | 2022 | `arxiv:2203.14164` | read |
 | KN-LIT-955 | Attaining GOD Beyond Honest Majority With Friends and Foes | 2022 | `eprint:2022/120` | read |
@@ -7826,4 +7827,4 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `arxiv:1711.04062` | KN-LIT-560, KN-LIT-7632 |
 | `eprint:2015/573` | KN-LIT-475, KN-LIT-7607 |
 | `eprint:2023/1618` | KN-LIT-1117, KN-LIT-132 |
-| `eprint:2026/1318` | KN-LIT-7670, KN-LIT-7674 |
+| `eprint:2026/366` | KN-LIT-7667, KN-LIT-7c2620 |
