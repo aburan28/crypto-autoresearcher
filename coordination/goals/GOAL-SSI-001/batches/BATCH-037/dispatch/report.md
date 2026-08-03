@@ -6,7 +6,7 @@ BATCH-037: construct a checkable symbolic global FC0 memory-bound obligation sch
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-119` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/global_memory_bound_schema_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/global_memory_bound_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119 |
+| `TASK-20260730-119` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/global_memory_bound_schema_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/global_memory_bound_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/global_memory_bound_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/global_memory_bound_harness/ledger_checks.py, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/global_memory_bound_harness/test_global_memory_bound.py, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/global_memory_bound_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119/global_memory_bound_harness/harness_receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-037/tasks/TASK-20260730-119 |
 
 ## Deferred or Blocked
 
@@ -27,4 +27,4 @@ BATCH-037: construct a checkable symbolic global FC0 memory-bound obligation sch
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `29b019598797e9e074db08f80cf85110a216289cbda6eee67f10ca7051caf080`
+Plan SHA-256: `f4ddc1780c1ce74ef2a2ae41960d2612adec34ba7ab9efe5a42f08d827621a15`
