@@ -42,6 +42,29 @@ REFERENCE = {
     "Kyber768": 200.9587149140538,
 }
 
+# Same archived run, `dual_fft_MATZOV_log2`. Added after independent validation
+# (BATCH-010 defect D4) found the harness silently could not serve the dual
+# attack at all, while this file's scope note claimed only Arora-GB was missing.
+#
+# Two things this reference catches that nothing else did:
+#   1. dual_hybrid must be called with fft=True. The DEFAULT call returns
+#      145.528285 / 206.356913 -- wrong by 1.74 / 2.57 bits, and entirely
+#      plausible-looking. That is the exact failure shape this campaign lost
+#      three batches to.
+#   2. It exercises a different arithmetic path from primal_bdd, which is why
+#      it agrees to round-off rather than exactly (see DUAL_TOLERANCE).
+DUAL_REFERENCE = {
+    "Kyber512": 143.78847824788485,
+    "Kyber768": 203.78786306762115,
+}
+
+# primal_bdd reproduces EXACTLY (0.0) and that bar is not relaxed. The dual path
+# runs more floating-point operations and lands at ~3e-13, which is round-off:
+# it is ~12 orders of magnitude below the 0.001-bit scale at which any claim
+# here is stated, and ~45 below the 1-bit scale that decides a NIST category.
+# The tolerance is declared rather than discovered per run.
+DUAL_TOLERANCE = 1e-9
+
 NIST_CLASSICAL_CUTOFF = {"Kyber512": 143, "Kyber768": 207, "Kyber1024": 272}
 
 
@@ -81,6 +104,23 @@ def main() -> int:
         if delta != 0.0:
             failures.append((name, got, ref, delta))
 
+    # Dual attack, added after BATCH-010 D4. Uses fft=True: the default call is
+    # wrong by 1.74-2.57 bits and looks fine.
+    try:
+        from estimator.lwe_dual import dual_hybrid
+
+        print()
+        for name, ref in DUAL_REFERENCE.items():
+            r = dual_hybrid(params[name], red_cost_model=RC.MATZOV, fft=True)
+            got = math.log2(float(r["rop"]))
+            delta = abs(got - ref)
+            print(f"{name:10} {got:14.10f} {ref:18.10f} {delta:10.2e} "
+                  f"{'dual_hybrid(fft=True)':>25}")
+            if delta > DUAL_TOLERANCE:
+                failures.append((f"{name}/dual", got, ref, delta))
+    except ImportError as exc:
+        print(f"\nWARN: dual reference not exercised ({exc}).", file=sys.stderr)
+
     if failures:
         print("\nFAIL: the shim does not reproduce the Sage-computed reference.",
               file=sys.stderr)
@@ -91,10 +131,14 @@ def main() -> int:
               "agrees exactly.", file=sys.stderr)
         return 1
 
-    print(f"\nPASS: every reference value reproduced exactly (delta 0.0) against "
-          f"lattice-estimator {PINNED_COMMIT[:12]}.")
-    print("Scope: primal_bdd under RC.MATZOV. Arora-GB is unavailable in this "
-          "harness; 'best attack' claims are scoped to the attacks served.")
+    print(f"\nPASS: every reference reproduced against lattice-estimator "
+          f"{PINNED_COMMIT[:12]} -- primal_bdd exactly (delta 0.0), "
+          f"dual_hybrid(fft=True) within {DUAL_TOLERANCE:g}.")
+    print("Scope: primal_bdd and dual_hybrid(fft=True) under RC.MATZOV.")
+    print("KNOWN UNAVAILABLE in this harness, all verified by running them: "
+          "arora_gb (PowerSeriesRing is a stub that raises), "
+          "dual (ZeroDivisionError), primal_hybrid (ZeroDivisionError). "
+          "Any 'best attack' claim is scoped to the attacks actually served.")
     return 0
 
 

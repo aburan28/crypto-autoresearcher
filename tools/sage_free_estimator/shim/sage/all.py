@@ -40,11 +40,26 @@ def _mkreal(x):
 
 
 class _RealField:
+    """Sage's RR/RDF are also *rings*, carrying constants as attributes.
+    estimator/prob.py:213 calls RDF.pi(); without these the dual attack dies
+    with AttributeError. Found by independent validation (BATCH-010 D4), not by
+    the author -- the original shim documented only Arora-GB as unavailable and
+    was wrong about the harness's own limits."""
+
     def __init__(self, prec=53):
         self.prec = prec
 
     def __call__(self, x):
         return _mkreal(x)
+
+    def pi(self):
+        return _mkreal(mp.pi)
+
+    def e(self):
+        return _mkreal(mp.e)
+
+    def euler_constant(self):
+        return _mkreal(mp.euler)
 
 
 RR = _RealField()
