@@ -137,13 +137,7 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
             "experiment_id": exp_id,
             "status": final_status,
             "code": {"commit": commit, "dirty": dirty, "command": command},
-            "inference": {
-                "requested_policy": "executor-terra",
-                "resolved_model_id": "none (deterministic harness execution)",
-                "reasoning_effort": None,
-                "fallback_used": False,
-                "adapter_version": None,
-            },
+            "inference": _inference_block(),
             "environment": environment(),
             "inputs": {
                 "curve_id": result.curve_id,
@@ -197,6 +191,23 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
 
 def _iso(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
+
+def _inference_block() -> dict:
+    """The `inference` block every harness-written run manifest carries.
+
+    A run produced by this module is deterministic Python, not a model call,
+    so there is no resolved model to record. Saying that explicitly is the
+    point: AGENTS.md requires the block on every run manifest, and an absent
+    block reads as "nobody recorded it" rather than "no inference happened".
+    """
+    return {
+        "requested_policy": "executor-terra",
+        "resolved_model_id": "none (deterministic harness execution)",
+        "reasoning_effort": None,
+        "fallback_used": False,
+        "adapter_version": None,
+    }
 
 
 def _write(run_dir: str, name: str, content: str) -> None:

@@ -1,12 +1,12 @@
 ---
 id: KN-LIT-6691
 type: literature
-title: "Simultaneous Secrecy and Reliability Amplification for a General Channel Model"
+title: Simultaneous Secrecy and Reliability Amplification for a General Channel Model
 authors:
-  - "Russell Impagliazzo"
-  - "Ragesh Jaiswal"
-  - "Valentine Kabanets"
-  - "Bruce M"
+- Russell Impagliazzo
+- Ragesh Jaiswal
+- Valentine Kabanets
+- Bruce M
 year: null
 venue: null
 identifiers:
@@ -14,10 +14,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- hardness-amplification
+- secrecy-amplification
+- foundations
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

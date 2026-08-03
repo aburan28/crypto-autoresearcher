@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-2557
 type: literature
-title: "Anonymous Whistleblowing over Authenticated Channels"
+title: Anonymous Whistleblowing over Authenticated Channels
 authors:
-  - "Thomas Agrikola"
-  - "Geoffroy Couteau"
-  - "Sven Maier"
+- Thomas Agrikola
+- Geoffroy Couteau
+- Sven Maier
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- anonymity
+- whistleblowing
+- protocol
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

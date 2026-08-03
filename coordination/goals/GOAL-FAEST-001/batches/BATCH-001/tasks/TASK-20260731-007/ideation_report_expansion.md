@@ -2,7 +2,7 @@
 
 Task: produce exactly three schema-complete IDEA-20260731-004..006 proposals
 for RQ-FAEST-001, one per lane that BATCH-001's first ideation pass
-(TASK-20260731-003) left undeveloped: (4) the QROM Fiat-Shamir extractor
+(TASK-20260731-014) left undeveloped: (4) the QROM Fiat-Shamir extractor
 loss, (5) algebraic attacks on the deployed AES constraint system given
 partial VOLE openings, (6) the Even-Mansour OWF matched baseline. Executed
 2026-07-31 under object-first discipline with the matched baseline written
@@ -18,7 +18,7 @@ decision record was created, and no official research state was changed.
 | IDEA-20260731-006 | The faest_em_* Even-Mansour OWF matched baseline: is the best EM attack matched at the claimed category, and does the AES-based permutation add a structural shortcut? | (1) The **faest_em_* Even-Mansour one-way function f(k1,k2) = EM_{k1,k2}(x)** at its deployed definition (widths, key split, P, fixed inputs), and (2) the **AES-based public permutation P** — whether the best EM attack (slidex T*D = 2^n, MITM 2^n, Grover 2^n, ABK q_E*q_P^2 ~ 2^n) is matched at the claimed category and whether P admits a structural shortcut | measurement | adaptation |
 
 All three are verification/barrier lanes, not attacks (matching
-IDEA-20260731-001..003): each names the exact soundness or reduction object,
+IDEA-20260731-019, IDEA-20260731-002..003): each names the exact soundness or reduction object,
 states the falsification direction explicitly (a charged forgery/bound below
 the claimed category or matched baseline), and is aimed at either exhibiting
 that falsification or producing the scoped barrier statement for exactly one
@@ -37,7 +37,7 @@ a depth-limited (MAXDEPTH) convention.
 1. **IDEA-20260731-004 (quantum/QROM lane).** Parameter set faest_128f /
    faest_128s (spec v2.0, category-1, AES-128; deployed tau, kappa, field,
    digest, challenge space are UNVERIFIED placeholders — spec PDF text
-   unread, KN-LIT-7617 limit). Because the adversary is a quantum (QROM)
+   unread, KN-LIT-7637 limit). Because the adversary is a quantum (QROM)
    adversary, the matched comparison is the **quantum** AES baseline: Grover
    key search ~2^64 sequential AES evaluations (KN-LIT-679, archived query
    count), depth-limited charged ~2^85.8 and NIST gate-count ~2^143 (both
@@ -88,7 +88,7 @@ KN-LIT-2701; Grover 2^64 KN-LIT-679; T*D = 2^n and memoryless-variant
 KN-LIT-4930; q_E*q_P^2 ~ 2^n KN-LIT-5810) or explicitly labeled UNVERIFIED
 in place.
 
-## Distinctness from IDEA-20260731-001..003
+## Distinctness from IDEA-20260731-019, IDEA-20260731-002..003
 
 - **IDEA-004 vs IDEA-001**: 001 measures the per-round consistency-check
   soundness error eps_cc (a classical per-round term at the deployed field).
@@ -140,7 +140,7 @@ Findings relevant to novelty verdicts:
   generic bounds too weak), KN-LIT-6386 (SDitH QROM tight proof avoiding
   generic FS losses — the MPCitH sibling that shows the technique), plus the
   KN-LIT-387x/4046/7159/5807/6262/7517 lines. **None is FAEST-specific.** The
-  FAEST sources (KN-LIT-7617..7620) are citation-level only; the 2026
+  FAEST sources (KN-LIT-7637, KN-LIT-7638, KN-LIT-7619..7620) are citation-level only; the 2026
   Renyi-divergence retightening named in RQ-FAEST-001 is NOT filed in
   knowledge/ — this is why IDEA-004's novelty_status is `unverified`: the
   tightest-known bound (the external ingredient the reconstruction depends
@@ -176,7 +176,7 @@ Findings relevant to novelty verdicts:
   archived; applying it to the pinned faest_em_* definition and checking the
   AES-based P for a structural shortcut is a known-technique-on-a-new-
   instance lane, with the pinned definition's details honestly UNVERIFIED.
-- **No prior IDEA record in `ledger/proposals/`** (beyond IDEA-20260731-001..
+- **No prior IDEA record in `ledger/proposals/`** (beyond IDEA-20260731-019..
   003, read in full for distinctness) targets the QROM loss, the FAEST
   constraint system, or the EM OWF; the existing proposal corpus is
   ECDLP/isogeny/AES-cryptanalysis lanes.
@@ -195,9 +195,9 @@ remains open, with named obstructions and forward guidance:
 
 1. **RSF-5 — spec v2.0 PDF-text blocker (gating all six idea records).**
    Obstruction: the spec PDF body text was unextractable in the sources
-   task (KN-LIT-7617 limit), so every deployed-parameter statement in every
+   task (KN-LIT-7637 limit), so every deployed-parameter statement in every
    record is an UNVERIFIED placeholder. Forward guidance (unchanged from
-   DEC-20260731-001): resolve via an alternate extraction path or adopt a
+   DEC-20260731-020): resolve via an alternate extraction path or adopt a
    pinned faest-ref commit as ground truth; no experiment design for any of
    the six ideas before that gate. IDEA-006's pinning surface is the
    smallest (faest-ref owf.c/h + aes.c/h), so it is the cheapest lane to
@@ -211,7 +211,7 @@ remains open, with named obstructions and forward guidance:
    (KN-LIT-6386) is the in-corpus sibling technique for tight MPCitH QROM
    proofs.
 3. **Round-3 tweak pending (2026-08-14).** The Round-3 FAEST spec does not
-   exist as of 2026-07-31 (KN-LIT-7617 headline finding); all records are
+   exist as of 2026-07-31 (KN-LIT-7637 headline finding); all records are
    specified against v2.0 with the tweak tracked as a caveat. Re-verify the
    "no Round-3 spec" negative after 2026-08-14 if relied on (red-team
    C2-F5).
@@ -259,7 +259,7 @@ rigorous_support + validation_plan, matched_baseline with parameter_set +
 convention + both baseline sides, target_complexity, estimated_cost,
 recommended_priority), each naming an exact attack object (never "attack
 FAEST"), each carrying the matched baseline under one cost convention with
-the RSF-1 one-pair caveat, and each distinct from IDEA-20260731-001..003 as
+the RSF-1 one-pair caveat, and each distinct from IDEA-20260731-019, IDEA-20260731-002..003 as
 mapped above. The inventor-protocol §3 controls (unstructured control,
 null-object control, scale/decay control) are present in every minimal test;
 toy-tier labeling (AGENTS.md rule 7) and re-derivation-at-deployed-parameters

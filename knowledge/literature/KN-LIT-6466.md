@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-6466
 type: literature
-title: "Secure Sketch for Biometric Templates"
+title: Secure Sketch for Biometric Templates
 authors:
-  - "Qiming Li"
-  - "Yagiz Sutcu"
-  - "Nasir Memon"
+- Qiming Li
+- Yagiz Sutcu
+- Nasir Memon
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- biometrics
+- fuzzy-extractor
+- secure-sketch
+- applied-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

@@ -54,7 +54,7 @@ FIPS 186-5 (DSS), and SP 800-208.
 
 ## Naming precision (important for citing)
 
-The handoff that created this entry (TASK-20260731-001) called IR 8610 the
+The handoff that created this entry (TASK-20260731-012) called IR 8610 the
 "Round-3 status report". The report's exact title is the status report on
 the **Second Round**; it is the document that *announces and justifies* the
 Round-3 selection. Cite it as the second-round status report, not as a

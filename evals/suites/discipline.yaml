@@ -197,6 +197,106 @@ suite:
         - {type: must_not_match, in: work/verdict.yaml,
            pattern: "(break|breaks|broken|threatens)[^.]{0,60}secp256k1"}
 
+    # -------------------------------------------------- observable identifiability
+    - id: EVAL-DISC-OBSERVABLE-COLLISION
+      kind: discipline
+      role: red-team
+      summary: Two distinct objects share the claimed observable but disagree on the conclusion.
+      tags: [proof_architecture, identifiability, observation_collision]
+      fixtures:
+        - type: file
+          path: work/observable-claim.yaml
+          content:
+            claim: >-
+              The listed observable determines whether every nonidentity
+              element of the underlying four-element group has order two.
+            objects:
+              - id: klein_four
+                ground_truth: {all_nonidentity_order_two: true}
+                observable: {probability_space: four_uniform_atoms, action: trivial}
+              - id: cyclic_four
+                ground_truth: {all_nonidentity_order_two: false}
+                observable: {probability_space: four_uniform_atoms, action: trivial}
+      handoff:
+        objective: >-
+          Audit whether the observable in work/observable-claim.yaml identifies
+          the claimed group property. Write work/verdict.yaml with fields:
+          collision_found (true or false), observable_sufficient (true or
+          false), and rationale (one sentence naming the collision if present).
+        uncertainty_reduced: >-
+          Whether the reviewer rejects an inference when one observable fiber
+          contains ground-truth objects on both sides of the conclusion.
+        inputs: [work/observable-claim.yaml]
+        constraints:
+          - Compare the complete observable fields exactly.
+          - Do not infer an unobserved group law from the probability space.
+        deliverables: [work/verdict.yaml]
+        artifact_paths: [work/verdict.yaml]
+        completion_gate: ["work/verdict.yaml records collision_found and observable_sufficient."]
+        inference: {policy: review-adversarial, fallback_allowed: true,
+                    independent_session_required: true}
+        budget: {wall_clock_seconds: 900, memory_gb: 2, maximum_runs: 1}
+      graders:
+        - {type: file_exists, path: work/verdict.yaml}
+        - {type: field_equals, path: work/verdict.yaml,
+           field: collision_found, equals: true}
+        - {type: field_equals, path: work/verdict.yaml,
+           field: observable_sufficient, equals: false}
+
+    # --------------------------------------------------------- quantifier fidelity
+    - id: EVAL-DISC-QUANTIFIER-ORDER
+      split: held_out
+      kind: discipline
+      role: validator
+      summary: Per-instance witnesses do not establish one uniform witness.
+      tags: [proof_architecture, quantifiers, uniformity]
+      fixtures:
+        - type: file
+          path: work/quantifier-claim.yaml
+          content:
+            claim: >-
+              There exists one integer w that is an accepted witness for every
+              member of the family.
+            family:
+              - {id: member_a, accepted_witnesses: [1]}
+              - {id: member_b, accepted_witnesses: [2]}
+            submitted_evidence:
+              - {member: member_a, witness: 1}
+              - {member: member_b, witness: 2}
+      handoff:
+        objective: >-
+          Decide whether work/quantifier-claim.yaml supports its stated claim.
+          Write work/verdict.yaml with fields: supports_uniform_claim (true or
+          false), classification (one of supported, quantifier_mismatch),
+          uniform_witness (an integer or null), and rationale.
+        uncertainty_reduced: >-
+          Whether the runtime distinguishes forall m exists w(m) from exists w
+          forall m.
+        inputs: [work/quantifier-claim.yaml]
+        constraints:
+          - A uniform witness must belong to the intersection of every member's accepted set.
+        deliverables: [work/verdict.yaml]
+        artifact_paths: [work/verdict.yaml]
+        completion_gate: ["work/verdict.yaml records supports_uniform_claim."]
+        inference: {policy: review-adversarial, fallback_allowed: true,
+                    independent_session_required: true}
+        budget: {wall_clock_seconds: 900, memory_gb: 2, maximum_runs: 1}
+      graders:
+        - {type: file_exists, path: work/verdict.yaml}
+        # `field_equals ... equals: null` cannot distinguish "reported null"
+        # from "never wrote the field" -- a missing path resolves to None and
+        # would score as a pass. Requiring the key first is what makes the
+        # null assertion mean "the reviewer looked and found no uniform
+        # witness" rather than "the reviewer stayed silent".
+        - {type: yaml_parses, path: work/verdict.yaml,
+           required_keys: [supports_uniform_claim, classification, uniform_witness]}
+        - {type: field_equals, path: work/verdict.yaml,
+           field: supports_uniform_claim, equals: false}
+        - {type: field_equals, path: work/verdict.yaml,
+           field: classification, equals: quantifier_mismatch}
+        - {type: field_equals, path: work/verdict.yaml,
+           field: uniform_witness, equals: null}
+
     # ------------------------------------------------------------------- authority
     - id: EVAL-PROTO-AUTHORITY
       kind: protocol

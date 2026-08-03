@@ -1,11 +1,11 @@
 ---
 id: KN-LIT-2878
 type: literature
-title: "Chernoff-type Direct Product Theorems"
+title: Chernoff-type Direct Product Theorems
 authors:
-  - "Russell Impagliazzo"
-  - "Ragesh Jaiswal"
-  - "Valentine Kabanets"
+- Russell Impagliazzo
+- Ragesh Jaiswal
+- Valentine Kabanets
 year: null
 venue: null
 identifiers:
@@ -13,10 +13,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- hardness-amplification
+- direct-product
+- complexity-theory
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

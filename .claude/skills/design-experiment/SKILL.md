@@ -15,7 +15,10 @@ specification, experiment design, approval, and handoff.
 ## Steps
 
 1. Read the selected proposal from `ledger/proposals/`. If the user did not
-   name one, list open proposals and ask which to pursue.
+   name one, list open proposals and ask which to pursue. Before designing,
+   merge `origin/main` into the working branch (merge, never rebase) so the
+   hypothesis and contract are drafted against current ledger state — see
+   "Branch and PR hygiene" below.
 2. Dispatch the **coordinator** subagent to:
    - convert the idea into a `hypothesis` record (template in
      `templates/research-records.md`) with explicit test boundary and
@@ -37,6 +40,24 @@ specification, experiment design, approval, and handoff.
 6. The Coordinator runs an isolated snapshot archive task that commits the
    selected proposal, hypothesis, frozen specification, and handoff by exact
    path. Do not dispatch the Executor until its post-commit receipt verifies.
+7. Push the branch and open or refresh a PR against `main` naming the new
+   `H-*`/`EXP-*`/`TASK-*` records (see "Branch and PR hygiene"). A frozen
+   contract that exists only in a local commit is not approved — it is
+   unpublished.
+
+## Branch and PR hygiene
+
+Designing an experiment creates shared records (hypothesis, specification,
+handoff), so every run of this skill also pulls in `main` and surfaces the
+work as a PR:
+
+- **Before designing:** `git fetch origin && git merge origin/main` — merge,
+  never rebase. If the merge conflicts, stop and report; never resolve a
+  conflict by editing a record. Re-run `tools/validate_ledger.py` after the
+  merge.
+- **After the snapshot archive:** `git push -u origin <branch>` then
+  `gh pr create --base main --head <branch> --title "experiment: <EXP-ID>" --body "<H-*/EXP-*/TASK-* IDs>"`
+  (or `gh pr edit <number>` when a PR for the branch already exists).
 
 ## Experiment class patterns
 

@@ -25,8 +25,11 @@ research_goal:
   latest_verified_commit: null
   completion_criteria: []
   pause_conditions: []
-  # Required to move status -> completed. Three CONCUR attestations with
-  # pairwise-distinct resolved_model_id. Omit entirely until closure is sought.
+  # OPTIONAL. The three-model quorum that once gated status -> completed is
+  # suspended (AGENTS.md rule 13), so closure needs only a committed
+  # Coordinator decision naming the criterion met. Omit this block entirely
+  # unless you actually gathered attestations; if present, every field below
+  # is validated and must describe a review that really happened.
   completion_quorum:
     quorum_satisfied: false      # true only in the same archive that sets
                                  # status: completed
@@ -52,12 +55,21 @@ The goal record is an operational anchor, not evidence. Create and commit it
 with its initial question and handoff before dispatch. Update it only through a
 Coordinator ledger archive commit.
 
-`completion_quorum` is the one gate on `status: completed` (AGENTS.md rule 13).
-Three attestations that resolve to the same model are not a quorum, however many
-distinct policy aliases they requested — the validator compares
-`resolved_model_id`. A single `DISSENT` blocks closure rather than being
-outvoted. Statuses that assert no success (`paused`, `blocked`,
-`closed_at_budget`) need no quorum.
+`completion_quorum` **no longer gates** `status: completed` — the three-model
+quorum is suspended (AGENTS.md rule 13, restored via
+`GOAL_CLOSURE_QUORUM_REQUIRED` in `tools/validate_ledger.py`). Closure now rests
+on a committed Coordinator decision naming the criterion met and citing its
+evidence.
+
+The block stays optional and supported. When present it is still validated in
+full: attestation shape, `independent_session: true`, cited record IDs that
+resolve, and `quorum_satisfied: true` only on a goal that is actually
+`completed`. A single `DISSENT` still blocks closure rather than being outvoted
+— that is self-consistency, not the quorum. Never record an attestation you did
+not obtain. Under the restored rule, three attestations resolving to the same
+model are not a quorum however many distinct policy aliases they requested; the
+validator compares `resolved_model_id`. Statuses that assert no success
+(`paused`, `blocked`, `closed_at_budget`) never needed a quorum.
 
 ## Research question
 
@@ -86,6 +98,31 @@ hypothesis:
   statement: null
   mechanism: null
   assumptions: []
+  proof_search_map:              # required for proof-oriented hypotheses;
+                                 # docs/inventor-protocol.md section 8
+    bottleneck: null             # exact step whose removal changes theorem/cost
+    baseline_embedding:
+      parameter_slice: null      # exact old-method boundary, or not_applicable
+      reproduction_check: null   # symbolic proof or frozen regression fixture
+    observation_collision:
+      observable: null           # invariant/certificate/quotient carrying claim
+      distinct_preimage_search: null
+    constructive_transforms:
+      - transform: null          # boundary_lift | stronger_invariant |
+                                 # telescoping_potential | specialization_pack |
+                                 # representation_reduction | observable_fiber
+        proposed_object: null
+        predicted_gain: null
+    quantifier_order: null       # explicit forall/exists statement and dependencies
+    method_ceiling:
+      strongest_certifiable_claim: null
+      nearby_object_control: null
+    proof_obligations:
+      - claim: null
+        responsibility: null     # baseline | feasibility | strictness | size |
+                                 # runtime | memory | correctness |
+                                 # success_probability | interface | scope
+    not_applicable_reason: null
   rerandomization: null         # worst-to-average-case device, if any: the
                                 # re-randomizing walk, its mixing-time
                                 # justification (with citation), and how the
@@ -143,6 +180,12 @@ leaves `asymptotic_claim` null. Each `HEUR-NNN` is part of the hypothesis
 and is refuted only through its own `falsification_condition` — an
 infrastructure failure or timeout is never evidence against it (AGENTS.md
 rule 5).
+
+`proof_search_map` operationalizes `KN-TECH-080`. A hypothesis that is purely
+empirical may set `not_applicable_reason` and leave the other subfields null.
+For proof-oriented work, nulling the whole map is incomplete: baseline
+reproduction, observation collisions, quantifier order, and method ceilings
+are deliberately cheap pre-compute audits.
 
 ## Experiment
 
