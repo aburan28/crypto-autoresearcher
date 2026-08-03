@@ -29,7 +29,10 @@ identifier. Rebuild it with `make sources`
 
 Its central column is whether the bytes are in the repository. A hash the tool
 recomputes is a receipt; a hash it merely relays is an assertion by whoever
-recorded it. `SOURCES.md` also carries the gap honestly — entries with no
+recorded it. Sources too large or too numerous to commit live in the S3 source
+store instead (`docs/s3-source-store.md`); a citation backed only by an object
+there is an assertion, which is why the default is to freeze extracted text
+in-repo for anything a finding actually rests on. `SOURCES.md` also carries the gap honestly — entries with no
 recorded identifier are listed as having none, never backfilled by title
 search — so the count of unreachable citations is visible rather than implied.
 
