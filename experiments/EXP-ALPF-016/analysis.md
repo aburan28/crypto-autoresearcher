@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round008_exp015_m4_semaev_gated
 
 ## Observation
-Round 008. Seed 42. Timestamp 2026-05-31 00:54:53.
+failed
 
 Source excerpt / raw summary:
 

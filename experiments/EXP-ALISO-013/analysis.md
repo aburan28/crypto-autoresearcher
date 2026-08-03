@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_quantum_cost_accounting_verify
 
 ## Observation
-No narrative finding recorded; source result artifact carries fields: all_pass, artifact_hashes, grid, identity_checks, membership_threshold, mutations, quantum_frontier, registered.
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 

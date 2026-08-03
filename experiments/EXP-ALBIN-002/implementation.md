@@ -11,8 +11,8 @@ Historical Autolab port (no re-execution).
 
 ## Copied artifacts
 - `source/bin_exp002_result.md`
-- `source/bin_exp002_solving_degree.log`
 - `source/bin_exp002_solving_degree.sage`
+- `source/bin_exp002_solving_degree.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

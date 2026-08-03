@@ -435,7 +435,7 @@ def test_a_suite_is_refused_upfront_on_a_backend_that_cannot_serve_it(cfg):
     """Benchmarking against a silently different model measures nothing."""
     suite = tasks_module.load_suite(CAPABILITY)
     with pytest.raises(Exception) as excinfo:
-        runner_module.run_suite(suite, config=cfg, backend="openai", trials=1)
+        runner_module.run_suite(suite, config=cfg, backend="openrouter", trials=1)
     assert "unbound" in str(excinfo.value)
 
 
