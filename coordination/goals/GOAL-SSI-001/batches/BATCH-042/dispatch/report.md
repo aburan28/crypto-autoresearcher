@@ -6,11 +6,11 @@ BATCH-042: advance QM-ERROR (f_union_ledger_partial) with a bounded zero-compute
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-141` | red-team | queued | 80 | TASK-20260730-139, TASK-20260730-140 | coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-141/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-141/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-141 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-142`: dependency_not_completed:TASK-20260730-141:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-042: advance QM-ERROR (f_union_ledger_partial) with a bounded zero-compute
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `2c3bcc5e21e1be05fa4d32dd1fc007f4e5c24bbb6bb55406fb62780d747188c1`
+Plan SHA-256: `c1eae2826788681d3e8d16c06398e64179fbc50cb572ee9dc0dd7226a7edd62c`
