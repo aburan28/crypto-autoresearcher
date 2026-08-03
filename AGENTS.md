@@ -319,3 +319,52 @@ Each run must retain:
 - timestamps and resource measurements
 
 See `docs/`, `templates/`, and `docs/inference-backends.md` for the full semantics.
+
+## Knowledge retrieval policy
+
+`kb/` builds a derived retrieval index over the corpus and exposes it to
+Claude Code, Codex, and OpenCode through one read-only MCP server. The index is
+derived: object storage and this repository's records remain the source of
+truth, and the index can be deleted and rebuilt from them without loss.
+
+Use `search_knowledge` before:
+
+- asserting that an ECDLP avenue has already been tested;
+- claiming that an approach is known to fail;
+- citing a paper or a prior internal experiment;
+- proposing an experiment likely to duplicate earlier work;
+- changing an authoritative research conclusion.
+
+Search behavior:
+
+1. Start with 4-6 results.
+2. Use exact identifiers where known (`EXP-GGM-001`, `KN-LIT-024`, `P-256`,
+   `Theorem 4.3`). An identifier in the query is resolved as an exact lookup and
+   placed first.
+3. Filter by `field_type` and `source_type`.
+4. Call `get_context` only for results that affect the conclusion.
+5. Distinguish published claims from internal hypotheses: read `claim_status`,
+   `evidence_level`, and `authority`, which rank machine-checked proof >
+   reproduced experiment > single-run experiment > peer-reviewed > preprint >
+   internal analysis > agent hypothesis.
+6. Include source IDs and experiment IDs in the output.
+7. Report contradictory sources rather than picking one. Results are capped at
+   two passages per source so disagreement stays visible.
+8. Do not treat retrieval scores as evidence quality. The evaluation harness
+   measures score distributions for answerable and unanswerable questions and
+   they overlap; score ranks relevance, not truth.
+9. Do not repeatedly retrieve the same query in one task.
+
+Bounds and prohibitions:
+
+- Retrieval never substitutes for the evidence rules in **Core rules**. A
+  passage returned by `search_knowledge` is a pointer to a record, not a
+  citation in itself; cite the experiment, run, and evidence IDs it carries.
+- Superseded material is excluded by default and is never deleted. Ask for it
+  explicitly (`include_superseded`) when auditing a retracted conclusion.
+- Absence of a search result is not evidence that something was not tried.
+  Recall is measured as a floor, not an estimate, and the index only covers
+  what has been staged into the corpus.
+- No agent may write to the index. The MCP server exposes no ingestion or
+  deletion tool; the write path is the ingestion worker, driven by corpus
+  events. Do not add one.
