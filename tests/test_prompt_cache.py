@@ -21,7 +21,7 @@ def test_cache_key_is_stable_across_mapping_order():
             namespace="executor:tree-1", model="m", system="stable", tools=[right])
 
 
-def test_anthropic_cache_marks_stable_system_and_last_tool(cfg=None):
+def test_anthropic_cache_marks_stable_system_and_last_tool():
     body = {"model": "m", "system": "stable", "messages": [], "tools": [
         {"name": "a", "description": "a", "input_schema": {}},
         {"name": "b", "description": "b", "input_schema": {}},
@@ -34,7 +34,7 @@ def test_anthropic_cache_marks_stable_system_and_last_tool(cfg=None):
         "type": "ephemeral", "ttl": "1h"}
     assert "cache_control" not in cached["tools"][0]
     assert cached["tools"][-1]["cache_control"]["ttl"] == "1h"
-    assert body["system"] == "stable"  # no mutation of the uncached request
+    assert body["system"] == "stable"
 
 
 def test_openai_cache_key_excludes_volatile_messages():
