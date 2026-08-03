@@ -17,8 +17,26 @@ Everything a worker in this batch may rely on, and the exact state it starts fro
 ## Base state
 
 - Branch `claude/implementation-p9dqz3`, merge commit `5fbc8b8c` (`origin/main` merged, never rebased).
-- `tools/check_merge_hygiene.py`: **PASS** — no conflict markers, no unparseable records.
 - `tools/validate_ledger.py`: **FAIL, 20 new errors** (down from 110 before the merge).
+
+### CORRECTED 2026-08-03 — this capsule's original hygiene claim was WRONG
+
+The opening version of this file said `check_merge_hygiene.py` **PASS** at the
+batch-opening tree. **That was false at commit `d1b6952c`.**
+`ledger/corrections/CORR-20260803-a1c41e.yaml` was committed **unparseable** —
+an unquoted colon-space in a plain scalar at line 54, the same defect class this
+batch documents in five upstream records.
+
+It escaped because the Coordinator ran the hygiene gate **before `git add`**,
+while the file was untracked and therefore invisible to a tool that inspects
+the files a branch touched. The gate was not defective; it was run at the wrong
+moment. **Run it after staging.**
+
+The Executor of `TASK-20260803-fa7476` caught it, correctly refused to touch a
+file outside its write scope, and reported it. The record is repaired and the
+repair is documented in `CORR-20260803-a1c41e.self_repair_note_2026_08_03`;
+only punctuation changed. Current state: `check_merge_hygiene.py` **PASS**,
+verified after staging.
 
 ## The 20 pre-existing validator errors
 
