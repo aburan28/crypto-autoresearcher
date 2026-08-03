@@ -15,7 +15,7 @@ tags: [code-based, mceliece, structural-attack, key-recovery, goppa, distinguish
 confidence: reported
 citation_verified: web
 added: "2026-08-03"
-superseded_by: null
+superseded_by: KN-LIT-15c85b
 ---
 
 ## Contribution

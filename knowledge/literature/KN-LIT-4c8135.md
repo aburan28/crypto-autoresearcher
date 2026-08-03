@@ -17,7 +17,7 @@ tags: [code-based, mceliece, structural-attack, key-recovery, alternant-codes, p
 confidence: reported
 citation_verified: web
 added: "2026-08-03"
-superseded_by: null
+superseded_by: KN-LIT-c4c2ac
 ---
 
 ## Contribution
