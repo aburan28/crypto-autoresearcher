@@ -3,44 +3,30 @@
 # decisions are the ones that keep a derived index from becoming a second
 # source of truth, and the ones that keep agents away from the write path.
 #
-# Not applied by CI. Review it before running it against a real account.
-
-terraform {
-  required_version = ">= 1.5"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-variable "bucket_name" {
-  type        = string
-  default     = "crypto-autoresearcher"
-  description = "Corpus bucket. The source of truth; the index is derived from it."
-}
-
-variable "environment" {
-  type    = string
-  default = "prod"
-}
-
-variable "corpus_prefix" {
-  type        = string
-  default     = "knowledge/source/"
-  description = "Only this prefix produces ingestion events."
-}
+# Terraform settings are in cloud.tf and versions.tf; inputs in variables.tf.
 
 locals {
   name = "crypto-kb-${var.environment}"
+
+  # The bucket is either created here or looked up. Everything downstream
+  # references these, so neither branch is special-cased more than once.
+  bucket_id  = var.create_bucket ? aws_s3_bucket.corpus[0].id : data.aws_s3_bucket.corpus[0].id
+  bucket_arn = var.create_bucket ? aws_s3_bucket.corpus[0].arn : data.aws_s3_bucket.corpus[0].arn
+
+  alarm_actions = var.alarm_topic_arn == "" ? [] : [var.alarm_topic_arn]
 }
 
 # --------------------------------------------------------------------------
 # Corpus bucket
 # --------------------------------------------------------------------------
 
+data "aws_s3_bucket" "corpus" {
+  count  = var.create_bucket ? 0 : 1
+  bucket = var.bucket_name
+}
+
 resource "aws_s3_bucket" "corpus" {
+  count  = var.create_bucket ? 1 : 0
   bucket = var.bucket_name
 }
 
@@ -48,14 +34,16 @@ resource "aws_s3_bucket" "corpus" {
 # indexed, which is what makes "which bytes produced this chunk" answerable
 # after the object has been overwritten.
 resource "aws_s3_bucket_versioning" "corpus" {
-  bucket = aws_s3_bucket.corpus.id
+  count  = var.create_bucket ? 1 : 0
+  bucket = aws_s3_bucket.corpus[0].id
   versioning_configuration {
     status = "Enabled"
   }
 }
 
 resource "aws_s3_bucket_public_access_block" "corpus" {
-  bucket                  = aws_s3_bucket.corpus.id
+  count                   = var.create_bucket ? 1 : 0
+  bucket                  = aws_s3_bucket.corpus[0].id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -63,7 +51,8 @@ resource "aws_s3_bucket_public_access_block" "corpus" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "corpus" {
-  bucket = aws_s3_bucket.corpus.id
+  count  = var.create_bucket ? 1 : 0
+  bucket = aws_s3_bucket.corpus[0].id
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
@@ -72,7 +61,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "corpus" {
 }
 
 resource "aws_s3_bucket_notification" "corpus" {
-  bucket      = aws_s3_bucket.corpus.id
+  bucket      = local.bucket_id
   eventbridge = true
 }
 
@@ -83,21 +72,28 @@ resource "aws_s3_bucket_notification" "corpus" {
 resource "aws_sqs_queue" "dlq" {
   name                      = "${local.name}-ingest-dlq"
   message_retention_seconds = 1209600 # 14 days: long enough to notice and replay
+  sqs_managed_sse_enabled   = true
 }
 
 resource "aws_sqs_queue" "ingest" {
   name = "${local.name}-ingest"
 
-  # Docling on a large mathematical PDF is minutes of CPU. The visibility
-  # timeout has to exceed the slowest document, or the queue redelivers work
-  # that is still running and the worker duplicates effort.
-  visibility_timeout_seconds = 900
+  visibility_timeout_seconds = var.queue_visibility_timeout_seconds
   message_retention_seconds  = 345600
   receive_wait_time_seconds  = 20 # long polling
+  sqs_managed_sse_enabled    = true
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.dlq.arn
-    maxReceiveCount     = 5
+    maxReceiveCount     = var.max_receive_count
+  })
+}
+
+resource "aws_sqs_queue_redrive_allow_policy" "dlq" {
+  queue_url = aws_sqs_queue.dlq.id
+  redrive_allow_policy = jsonencode({
+    redrivePermission = "byQueue"
+    sourceQueueArns   = [aws_sqs_queue.ingest.arn]
   })
 }
 
@@ -127,7 +123,7 @@ resource "aws_cloudwatch_event_rule" "corpus_changes" {
     source        = ["aws.s3"]
     "detail-type" = ["Object Created", "Object Deleted"]
     detail = {
-      bucket = { name = [aws_s3_bucket.corpus.id] }
+      bucket = { name = [local.bucket_id] }
       object = { key = [{ prefix = var.corpus_prefix }] }
     }
   })
@@ -163,19 +159,19 @@ resource "aws_iam_role" "worker" {
 data "aws_iam_policy_document" "worker" {
   statement {
     actions   = ["s3:GetObject", "s3:GetObjectVersion"]
-    resources = ["${aws_s3_bucket.corpus.arn}/${var.corpus_prefix}*"]
+    resources = ["${local.bucket_arn}/${var.corpus_prefix}*"]
   }
   statement {
     actions   = ["s3:ListBucket"]
-    resources = [aws_s3_bucket.corpus.arn]
+    resources = [local.bucket_arn]
   }
   statement {
     actions = ["s3:PutObject", "s3:DeleteObject"]
     resources = [
-      "${aws_s3_bucket.corpus.arn}/knowledge/normalized/*",
-      "${aws_s3_bucket.corpus.arn}/knowledge/manifests/*",
-      "${aws_s3_bucket.corpus.arn}/knowledge/stats/*",
-      "${aws_s3_bucket.corpus.arn}/knowledge/rejected/*",
+      "${local.bucket_arn}/knowledge/normalized/*",
+      "${local.bucket_arn}/knowledge/manifests/*",
+      "${local.bucket_arn}/knowledge/stats/*",
+      "${local.bucket_arn}/knowledge/rejected/*",
     ]
   }
   statement {
@@ -185,6 +181,7 @@ data "aws_iam_policy_document" "worker" {
 }
 
 resource "aws_iam_role_policy" "worker" {
+  name   = "${local.name}-worker"
   role   = aws_iam_role.worker.id
   policy = data.aws_iam_policy_document.worker.json
 }
@@ -201,7 +198,7 @@ resource "aws_iam_role" "mcp" {
 data "aws_iam_policy_document" "mcp" {
   statement {
     actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.corpus.arn}/knowledge/normalized/*"]
+    resources = ["${local.bucket_arn}/knowledge/normalized/*"]
   }
   statement {
     actions   = ["secretsmanager:GetSecretValue"]
@@ -210,6 +207,7 @@ data "aws_iam_policy_document" "mcp" {
 }
 
 resource "aws_iam_role_policy" "mcp" {
+  name   = "${local.name}-mcp"
   role   = aws_iam_role.mcp.id
   policy = data.aws_iam_policy_document.mcp.json
 }
@@ -232,10 +230,12 @@ resource "aws_cloudwatch_metric_alarm" "queue_backlog" {
   statistic           = "Maximum"
   period              = 300
   evaluation_periods  = 2
-  threshold           = 3600
+  threshold           = var.queue_age_alarm_seconds
   comparison_operator = "GreaterThanThreshold"
   dimensions          = { QueueName = aws_sqs_queue.ingest.name }
   alarm_description   = "Ingestion is behind: the index no longer reflects the corpus."
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
 }
 
 resource "aws_cloudwatch_metric_alarm" "dlq_not_empty" {
@@ -249,16 +249,5 @@ resource "aws_cloudwatch_metric_alarm" "dlq_not_empty" {
   comparison_operator = "GreaterThanThreshold"
   dimensions          = { QueueName = aws_sqs_queue.dlq.name }
   alarm_description   = "Documents failed ingestion repeatedly and are not in the index."
-}
-
-output "queue_url" {
-  value = aws_sqs_queue.ingest.id
-}
-
-output "worker_role_arn" {
-  value = aws_iam_role.worker.arn
-}
-
-output "mcp_role_arn" {
-  value = aws_iam_role.mcp.arn
+  alarm_actions       = local.alarm_actions
 }

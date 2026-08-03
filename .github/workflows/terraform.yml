@@ -1,0 +1,73 @@
+name: terraform
+
+# Formatting and validation only. No credentials, no state, no plan:
+# `terraform init -backend=false` skips cloud initialisation, so this runs
+# against a fork or an unconfigured checkout exactly as it does here.
+#
+# Real plans come from HCP Terraform. Once the workspaces are VCS-connected
+# they post speculative plans on pull requests touching this directory; this
+# job is the part that does not need an organization to exist yet.
+
+on:
+  pull_request:
+    paths:
+      - "kb/infra/terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "kb/infra/terraform/**"
+      - ".github/workflows/terraform.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - kb/infra/terraform
+          - kb/infra/terraform/bootstrap
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          # Pinned to the version in bootstrap/variables.tf. A workspace that
+          # silently moves to a new Terraform release is a plan nobody
+          # reviewed.
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: fmt
+        working-directory: ${{ matrix.module }}
+        run: terraform fmt -check -diff
+
+      - name: init
+        working-directory: ${{ matrix.module }}
+        run: terraform init -backend=false -input=false
+
+      - name: validate
+        working-directory: ${{ matrix.module }}
+        run: terraform validate -no-color
+
+      # The lock files are committed so runs are reproducible across machines.
+      # `-backend=false` init will happily proceed against a lock file missing
+      # the current platform's hashes, so check it explicitly rather than
+      # discovering it on someone's laptop.
+      - name: provider lock covers linux_amd64
+        working-directory: ${{ matrix.module }}
+        run: |
+          if ! grep -q 'h1:' .terraform.lock.hcl; then
+            echo "::error::.terraform.lock.hcl has no recorded hashes"
+            exit 1
+          fi
+          terraform providers lock -platform=linux_amd64
+          if ! git diff --quiet -- .terraform.lock.hcl; then
+            echo "::error::.terraform.lock.hcl is stale; run 'terraform providers lock' and commit"
+            git diff -- .terraform.lock.hcl
+            exit 1
+          fi

@@ -235,7 +235,10 @@ before trusting a high-value paper's chunks.
 kb/
 ├── config/           metadata-schema.json, retrieval.yaml (documented defaults)
 ├── clients/          MCP configuration for Claude Code, Codex, OpenCode
-├── infra/            Dockerfile (two targets), terraform (S3→EventBridge→SQS→ECS)
+├── infra/
+│   ├── docker/       Dockerfile, two targets (mcp, worker)
+│   └── terraform/    AWS (S3→EventBridge→SQS→IAM) on HCP Terraform, plus
+│                     bootstrap/ which creates the workspaces themselves
 ├── src/crypto_kb/
 │   ├── models.py     the retrieval contract
 │   ├── config.py     settings, corpus prefixes
@@ -274,8 +277,12 @@ construction, embedding fine-tuning, multi-hop agentic retrieval,
 model-generated authoritative metadata, automatic paper summarization,
 distributed ingestion, and a web UI.
 
-Also not built: the remote MCP deployment. The Terraform describes the
-production topology and the IAM boundaries; the TLS termination, bearer
-authentication, per-client identity, and rate limiting the plan calls for are
-specified there but not implemented, and the server today is stdio-only. Do
-not expose it over a network as it stands.
+Also not built: the remote MCP deployment. `infra/terraform/` manages the
+corpus notifications, the queue, and the two asymmetric IAM roles, and runs on
+HCP Terraform (`infra/terraform/README.md` is the runbook — organization,
+workspaces, dynamic credentials). What is *not* written is the ECS cluster and
+task definitions, and the TLS termination, bearer authentication, per-client
+identity, and rate limiting the plan calls for. The server today is stdio-only.
+Do not expose it over a network as it stands.
+
+Nothing has been applied: the Terraform is validated, not deployed.
