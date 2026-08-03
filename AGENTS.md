@@ -285,7 +285,11 @@ Rebasing a branch that carries pushed run records is forbidden: it rewrites the
 commits those records were archived in, and a run receipt whose commit no
 longer exists is not reproducible. `tools/sync_open_branches.py` performs this
 merge periodically for open pull requests and validates the merged tree before
-pushing it. It never resolves a conflict: when a sync conflicts inside a ledger
+pushing it. Coordinators must routinely fetch and inspect `origin/main` for
+new commits—at the start of an active session, before a snapshot or ledger
+commit, and before requesting review or merge—and promptly merge those changes
+into each open branch. Record the base commit checked and merge outcome in the
+task receipt. It never resolves a conflict: when a sync conflicts inside a ledger
 record, run artifact, or knowledge entry, the resolution is a new superseding
 record under a new id — the same rule as any other correction — and never an
 edit that picks one side.
