@@ -95,7 +95,7 @@
       "id": "TASK-20260803-f3aece",
       "title": "Transcribe Classic McEliece's parameter sets, rates and claimed categories from primary specification; settle standardization status",
       "role": "executor",
-      "state": "running",
+      "state": "completed",
       "priority": 92,
       "review_required": true,
       "depends_on": [],
@@ -172,17 +172,15 @@
     },
     {
       "id": "TASK-20260803-f3beb0",
-      "title": "Snapshot archive: freeze both BATCH-001 producer packages before any reviewer reads them",
+      "title": "Snapshot archive: freeze the TASK-20260803-f3aece parameter/standardization package before any reviewer reads it",
       "role": "coordinator",
       "state": "queued",
       "priority": 85,
       "review_required": false,
       "depends_on": [
-        "TASK-20260803-292b99",
         "TASK-20260803-f3aece"
       ],
       "read_scope": [
-        "coordination/goals/GOAL-MCE-001/batches/BATCH-001/tasks/TASK-20260803-292b99",
         "coordination/goals/GOAL-MCE-001/batches/BATCH-001/tasks/TASK-20260803-f3aece"
       ],
       "write_scope": [
@@ -196,7 +194,7 @@
         "runs_authorized": 1
       },
       "handoff": {
-        "objective": "Commit the exact terminal artifacts of both producers, in one commit that also contains its own receipt, before any independent reviewer reads them.",
+        "objective": "Commit the exact terminal artifacts of TASK-20260803-f3aece, in one commit that also contains its own receipt, before any independent reviewer reads them.",
         "uncertainty_reduced": "Whether the reviewed object is fixed and hash-bound, or a working tree that could still move under the reviewer.",
         "inference": {
           "policy": "coordinator-orchestration-code",
@@ -223,13 +221,87 @@
           "wall_clock_seconds": 900,
           "memory_gb": 1,
           "maximum_runs": 1
+        },
+        "amendment": {
+          "amended_at": "2026-08-03",
+          "was": "claimed both producers (TASK-20260803-292b99 and TASK-20260803-f3aece) in one snapshot",
+          "now": "claims TASK-20260803-f3aece only; TASK-20260803-292b99 is claimed by the new snapshot TASK-20260803-9fddc2",
+          "reason": "TASK-20260803-f3aece reached a terminal result while TASK-20260803-292b99 was still in flight. A single snapshot claiming both would either freeze one producer's artifacts mid-write -- defeating the gate, whose purpose is that the reviewed object cannot move under the reviewer -- or hold terminal work uncommitted for the duration of an unrelated task. GOAL-HQC-001 BATCH-001 ran two per-producer snapshots (TASK-20260802-a3dc0a and TASK-20260802-1f2e40) for exactly this reason; this amendment adopts that shape.",
+          "queue_discipline": "Append, do not erase: no task is removed and no completed state is rewritten. docs/dynamic-subagent-dispatch.md records the queue as append-only coordination history."
         }
       },
       "archive": {
         "kind": "snapshot",
         "source_task_ids": [
-          "TASK-20260803-292b99",
           "TASK-20260803-f3aece"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "record_ids": [],
+        "path_sha256": {}
+      }
+    },
+    {
+      "id": "TASK-20260803-9fddc2",
+      "title": "Snapshot archive: freeze the TASK-20260803-292b99 attack-transcription package before any reviewer reads it",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 85,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260803-292b99"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MCE-001/batches/BATCH-001/tasks/TASK-20260803-292b99"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MCE-001/batches/BATCH-001/archives/TASK-20260803-9fddc2"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MCE-001/batches/BATCH-001/archives/TASK-20260803-9fddc2/snapshot-receipt.json"
+      ],
+      "budget": {
+        "wall_clock_seconds": 900,
+        "runs_authorized": 1
+      },
+      "handoff": {
+        "objective": "Commit the exact terminal artifacts of TASK-20260803-292b99, in one commit that also contains its own receipt, before any independent reviewer reads them.",
+        "uncertainty_reduced": "Whether the reviewed object is fixed and hash-bound, or a working tree that could still move under the reviewer.",
+        "inference": {
+          "policy": "coordinator-orchestration-code",
+          "fallback_note": "Policy alias does not resolve under this harness; resolved model is the session model, fallback_used true."
+        },
+        "constraints": [
+          "Runs alone. No other task may hold the Git index concurrently.",
+          "The receipt is committed INSIDE the commit it describes and therefore carries commit_sha: null; the sha lives in this queue's archive block. Committing a receipt in a separate commit is the defect recorded as GOAL-HAWK-001 BATCH-001 known_defect and must not be repeated.",
+          "Stage the declared paths by exact pathspec. Do NOT use git add -A: dispatch_queue.json is dirty at this point and belongs to the ledger archive; sweeping it in would make the commit's actual paths exceed its declared paths.",
+          "A failed snapshot gate stops the review chain and is an evidence-integrity failure, never a negative result."
+        ],
+        "inputs": [
+          "The terminal artifacts of TASK-20260803-292b99 and TASK-20260803-f3aece"
+        ],
+        "deliverables": [
+          "snapshot-receipt.json naming the parent, the declared paths, per-path sha256, and commit_sha: null"
+        ],
+        "completion_gate": [
+          "Commit is reachable from HEAD and has the declared parent",
+          "Commit changes exactly the declared paths, no more and no fewer",
+          "Recorded per-path sha256 values match the committed blobs"
+        ],
+        "budget": {
+          "wall_clock_seconds": 900,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "amendment": {
+          "created_at": "2026-08-03",
+          "reason": "Second per-producer snapshot, added when the two producers reached terminal results at different times. See TASK-20260803-f3beb0.handoff.amendment."
+        }
+      },
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": [
+          "TASK-20260803-292b99"
         ],
         "commit_sha": null,
         "parent_sha": null,
@@ -247,7 +319,8 @@
       "depends_on": [
         "TASK-20260803-292b99",
         "TASK-20260803-f3aece",
-        "TASK-20260803-f3beb0"
+        "TASK-20260803-f3beb0",
+        "TASK-20260803-9fddc2"
       ],
       "read_scope": [
         "AGENTS.md",
@@ -317,7 +390,8 @@
       "depends_on": [
         "TASK-20260803-292b99",
         "TASK-20260803-f3aece",
-        "TASK-20260803-f3beb0"
+        "TASK-20260803-f3beb0",
+        "TASK-20260803-9fddc2"
       ],
       "read_scope": [
         "AGENTS.md",
