@@ -1,0 +1,313 @@
+idea:
+  id: IDEA-20260731-002
+  title: "Multi-round forgery cost model: the grinding/repetition (kappa, tau) tradeoff, fully charged against the matched AES baseline"
+  class: measurement
+  claim: >-
+    There exists a fully charged cost model of FAEST multi-round forgery —
+    charging every hash evaluation (salt/grinding search, transcript
+    hashing, LeafCommit + bAVC commitment computation per round, per-round
+    consistency-check verification work) and memory — at the spec v2.0
+    category-1 parameter sets, whose minimal expected forgery cost over the
+    grinding/repetition tradeoff (kappa, tau) is >= the matched AES-128
+    key-recovery baseline of 2^126.1 (KN-LIT-2701) under the same cost
+    convention. Equivalently: no (kappa, tau) point admitted by the scheme
+    yields a charged forgery cheaper than AES key recovery; the
+    Fiat-Shamir/grinding link is not the source of a forgery below the
+    matched baseline. The model's per-attempt cost predictions must be
+    reproduced as a measured ratio by a toy-scale transcript-forger harness
+    before the deployed-scale statement is taken seriously (inventor-protocol
+    §6 ladder step 2). The falsification direction is a charged forgery cost
+    below 2^126.1 at a named (kappa, tau) — the GOAL-FAEST-001 completion
+    criterion — which would then require a forgery certificate at reduced
+    parameters and independent review.
+  mechanism: >-
+    Exact attack object: the grinding/repetition exponent tradeoff in FAEST's
+    multi-round Fiat-Shamir transform — the pair (kappa, tau) and the
+    expected forgery cost it induces. FAEST is a tau-round signature whose
+    per-round soundness error is the consistency-check term eps_cc (the
+    object of IDEA-20260731-019); the honest prover grinds kappa bits (searches
+    a salt so that the first kappa bits of the challenge hash vanish) to
+    reduce the required tau. An attacker forging without the key generates
+    transcripts that pass each round's checks with probability at most
+    eps_cc per round; the expected number of attempts is eps_cc^{-tau}, and
+    each attempt costs C_transcript(kappa, tau) = LeafCommit/bAVC commitment
+    computation + transcript hashing + verification work, with grinding
+    adding 2^{kappa} hash evaluations per attempt-window. The claimed
+    security of the transform is the statement that
+    min over feasible (kappa, tau) of 2^{kappa} * eps_cc^{-tau} *
+    C_transcript >= 2^{lambda}. The mechanism under test is this inequality
+    with every term charged: which term dominates, whether the scheme's
+    published (kappa, tau) is at or near the optimum (if the scheme's point
+    is far from the optimum, the claimed security is still safe — this is a
+    tightness question, not an attack), and whether any term is
+    systematically undercharged in the scheme's own analysis (e.g. the cost
+    of bAVC openings growing with the witness size, or hash-call costs in
+    the challenge derivation). The toy-scale harness measures the actual
+    attempt distribution of a genuine transcript forger at reduced
+    parameters and compares it with the model's prediction for the same
+    (kappa, tau).
+  novelty_status: adaptation
+  assumptions:
+    - >-
+      Deployed tau, kappa ranges, eps_cc, field size, digest lengths, and
+      the scheme's claimed security category are UNVERIFIED placeholders
+      until spec v2.0 and eprint 2023/996 full texts are read
+      (KN-LIT-7637 limit). No experiment may be designed before then
+      (RQ-FAEST-001 constraint).
+    - >-
+      The per-round error eps_cc feeds the forgery model from
+      IDEA-20260731-019; the commitment-hash costs feed from the
+      LeafCommit/bAVC analysis of IDEA-20260731-003. This idea is the
+      assembly link of the three records.
+    - >-
+      Grinding is a random-oracle search: forcing kappa zero bits of the
+      challenge hash costs 2^{kappa} hash evaluations on average, with no
+      structural shortcut in the deployed salt/challenge derivation.
+  predictions:
+    - metric: minimal_expected_forgery_cost_log2_AES_equivalents
+      direction: higher
+      minimum_effect: >-
+        The model's min over feasible (kappa, tau) is >= 126.1 (the
+        biclique AES-128 baseline, KN-LIT-2701) at the category-1 parameter
+        sets. The falsification direction is a model output < 126.1 at a
+        named (kappa, tau) with all terms charged.
+    - metric: toy_harness_attempt_cost_ratio_to_model
+      direction: different
+      minimum_effect: >-
+        At toy parameters, the measured expected number of attempts (and
+        per-attempt wall cost in AES-equivalents) of the transcript-forger
+        harness divided by the model's prediction lies within [0.5, 2] for
+        every tested (kappa, tau). A consistent ratio outside this band
+        means the model under- or overcharges a term and must be corrected
+        before the deployed-scale statement.
+    - metric: optimal_grinding_exponent_kappa_star
+      direction: different
+      minimum_effect: >-
+        The model's optimal (kappa*, tau*) lies inside the scheme's feasible
+        parameter region. A kappa* outside the scheme's published range
+        (e.g. > max grinding) indicates a broken constraint linkage in the
+        model, not an attack.
+    - metric: scheme_point_distance_to_optimum
+      direction: lower
+      minimum_effect: >-
+        The scheme's published (kappa, tau) has forgery cost within a
+        factor 2^{4} of the model optimum (a tightness statement). A
+        distance > 2^{4} is a finding about the scheme's parameter choice
+        (still safe, but loose), not a break.
+  minimal_test:
+    design: >-
+      Two components. (1) COST MODEL (script/derivation): inputs tau, kappa,
+      eps_cc (from IDEA-20260731-019), field size, witness dimension,
+      per-transcript AES-call and hash-call counts from the LeafCommit/bAVC
+      instantiation (from IDEA-20260731-003), digest lengths, and memory;
+      outputs the expected forgery cost in AES-128-equivalent evaluations
+      with memory in bits, at faest_128f/s, minimized over (kappa, tau).
+      (2) TOY VALIDATION (run): at toy parameters (small field, tau in
+      2..8, reduced-size commitment tree and toy AES or reduced rounds),
+      implement a genuine transcript-forger harness that does real work
+      (hash evaluations, commitment recomputation, verification attempts)
+      and measure the expected number of attempts and per-attempt cost to
+      produce a transcript passing all tau checks; compare with the model's
+      prediction at the same (kappa, tau), and measure the honest-prover
+      sign cost as a unit-cost calibration. All costs in AES-equivalent
+      evaluations; wall times reported separately as implementation
+      artifacts.
+    controls:
+      - >-
+        Honest-prover control: measure honest signing cost at toy parameters
+        and confirm the model's C_transcript matches it, validating the unit
+        costs (AES-call counts, hash-call counts) before any forgery
+        statement.
+      - >-
+        Random-transcript null control: measure attempt cost for uniformly
+        random transcripts; it must be eps_cc^{-tau} with eps_cc from the
+        toy field size, linking this measurement to IDEA-20260731-019's
+        consistency-check measurement.
+      - >-
+        Parameter-scaling control: double tau and confirm expected attempts
+        scale as eps_cc^{-1} (a quantity that should decay; a flat curve is
+        the canonical artifact tell, inventor-protocol §3).
+      - >-
+        Grinding control: force kappa zero bits in the toy challenge hash
+        and confirm the average search cost is 2^{kappa} hash evaluations
+        (no shortcut), validating the random-oracle grinding assumption.
+    required_metrics:
+      - model output log2(min forgery cost) per (kappa, tau) grid point at category-1 parameters
+      - measured attempts and per-attempt cost of the toy forger harness per (kappa, tau)
+      - ratio of measured to predicted per (kappa, tau)
+      - honest sign time at toy parameters (unit-cost calibration)
+      - kappa* (model optimum) and distance of the scheme's published point to it
+      - memory charged in bits at the model optimum
+  falsification_conditions:
+    - >-
+      A model output below 126.1 AES-equivalents at a named (kappa, tau)
+      with every term charged — a charged forgery path below the matched AES
+      baseline. Per RQ-FAEST-001 this requires a forgery certificate at
+      reduced parameters (a transcript that verifies) before any claim, and
+      per AGENTS.md rule 12 independent review; until certified it is a
+      cost-model prediction, toy-tier at most.
+    - >-
+      The toy harness's measured attempt cost deviating from the model by a
+      factor > 2 consistently across (kappa, tau): the model mischarges a
+      term and the deployed-scale output is void until corrected.
+    - >-
+      The random-transcript null control not matching eps_cc^{-tau} from the
+      toy field size: the eps_cc input (IDEA-20260731-019) is inconsistent
+      with this measurement, and the model cannot be assembled.
+  confounders:
+    - >-
+      Unread spec text: tau, kappa, eps_cc, digest sizes, and the exact
+      commitment/hash construction are unverified placeholders; the model
+      must be re-parameterized from the pinned sources before any
+      deployed-scale number is reported.
+    - >-
+      Cost-convention ambiguity (KN-TECH-040): AES-equivalents vs hash calls
+      vs wall time changes the answer by constant factors that can exceed
+      the slack being probed. The convention must be fixed identically on
+      both sides of every comparison (this is why the matched baseline uses
+      the same unit).
+    - >-
+      Parallelization: a forger parallelizes attempts, so the serial-cost
+      convention must be stated; wall-clock claims must divide by P with P
+      named, exactly as the matched AES baseline is stated serially.
+    - >-
+      Toy-scale forger harness cost is implementation-bound (hash function
+      choice, language); the AES-equivalent conversion is model-dependent
+      and must be reported as such.
+  interpretation_limits:
+    - >-
+      The model is a cost-model prediction, not an attack: a value above the
+      baseline confirms the Fiat-Shamir/grinding link is not the weak link
+      (a scoped barrier statement for exactly this link, at exactly the
+      parameter sets and cost convention modeled).
+    - >-
+      A model value below the baseline is toy-tier until a certified
+      forgery exists at reduced parameters (claim_tier_ceiling of
+      RQ-FAEST-001; AGENTS.md rule 7).
+    - >-
+      The model does not address the QROM extractor question (whether a
+      quantum adversary's forgery cost matches this classical model); that
+      is a separate open lane (see ideation_report open directions).
+    - >-
+      This record creates no hypothesis, experiment, evidence, or decision
+      record; it is a proposal whose minimal test, if approved, would be
+      specified and executed under later tasks.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The tau rounds are independent, so the forgery success probability
+        per attempt factorizes as eps_cc^tau; no correlation between rounds
+        helps the forger.
+      rigorous_support: >-
+        Round-by-round soundness of the multi-round Fiat-Shamir transform is
+        the structure the VOLEitH paper analyzes (KN-LIT-7638 abstract:
+        "soundness of the Fiat-Shamir non-interactive version analyzed via
+        round-by-round soundness").
+      validation_plan: >-
+        In the toy harness, measure the empirical joint pass distribution
+        across rounds and test independence (product of marginals vs joint);
+        a correlation above sampling noise is a model error.
+    - id: H2
+      statement: >-
+        The per-transcript commitment cost C_transcript is dominated by the
+        AES-based LeafCommit/bAVC hash chain and is well-modeled as a fixed
+        per-round cost (in AES-call counts) independent of the message and
+        of (kappa, tau).
+      rigorous_support: >-
+        Reported structure only: v2.0 uses AES-based leaf commitments and
+        batch vector commitments (KN-LIT-7637, from the official resources
+        page); the per-call cost model follows the convention fixed in this
+        record.
+      validation_plan: >-
+        Honest-prover control: measure the sign-time breakdown at toy scale,
+        attribute cost per component (LeafCommit, bAVC, hashing, checks),
+        and confirm the model's C_transcript within the [0.5, 2] band.
+    - id: H3
+      statement: >-
+        Grinding is a pure random-oracle search: forcing kappa zero bits of
+        the challenge hash costs 2^{kappa} hash evaluations on average, and
+        no structural shortcut exists in the salt/challenge derivation.
+      rigorous_support: >-
+        Random-oracle model for the challenge derivation (standard for
+        Fiat-Shamir; the deployed hash instantiation is the only
+        non-idealized component).
+      validation_plan: >-
+        Grinding control in the toy harness: measure the average number of
+        hashes to force kappa zero bits for kappa = 1..8 and confirm 2^{kappa}
+        scaling; a bias in the deployed salt structure would show up as a
+        deviation.
+    - id: H4
+      statement: >-
+        The deployed parameter values (tau, kappa, eps_cc, field, digest
+        sizes) and the scheme's claimed security category at faest_128f/s
+        are as the spec states, with the claimed forgery bound >= 2^128.
+      rigorous_support: >-
+        Placeholder — UNVERIFIED: spec v2.0 PDF text has not been read by
+        this program (KN-LIT-7637 limit).
+      validation_plan: >-
+        Read spec v2.0 §security and the eprint 2023/996 soundness section;
+        pin every input; re-run the model; any change in the inputs that
+        moves the output is recorded as a parameter-sensitivity finding.
+  matched_baseline:
+    parameter_set: >-
+      faest_128f / faest_128s (spec v2.0, category-1, AES-128). Deployed
+      tau, kappa, field size, digest lengths UNVERIFIED placeholders (spec
+      PDF text not extractable by the sources task, KN-LIT-7637 limit);
+      pinned from spec v2.0 + eprint 2023/996 full text before any
+      experiment (RQ-FAEST-001 constraint).
+    convention: >-
+      Serial classical cost in AES-128-equivalent evaluations (one AES-128
+      encryption = 1 unit); hash calls converted at the deployed hash's
+      per-call AES count; memory in bits charged separately; data charged;
+      quantum baselines stated separately under a depth-limited (MAXDEPTH)
+      convention. Identical convention on both sides of every comparison
+      (KN-TECH-040).
+    aes_key_recovery: >-
+      Best known AES-128 key recovery (full 10-round, single-key, known
+      plaintext-ciphertext pair): 2^126.1 time, biclique attack
+      (Bogdanov–Khovratovich–Rechberger; KN-LIT-2701, archived, confidence
+      reported). Data ~2^88 chosen plaintexts, ~2^8 memory (UNVERIFIED
+      in-repo detail). Quantum: Grover ~2^64 sequential AES evaluations
+      (KN-LIT-679), depth-limited charged ~2^85.8 (UNVERIFIED in-repo),
+      NIST gate-count ~2^143 (UNVERIFIED in-repo). FAEST's one-wayness
+      assumption applies to the AES-based one-way function f(k) = AES_k(x)
+      for fixed public x (KN-LIT-7637); the biclique attack is the matched
+      classical baseline. EM variants (faest_em_*) use a 2n-bit-key Even-
+      Mansour OWF; their baseline is not established in-repo and is out of
+      primary scope here.
+    voleith_fs_soundness: >-
+      Best known attack on the VOLEitH/Fiat-Shamir layer: the generic
+      multi-round transcript forgery 2^{kappa} * eps_cc^{-tau} *
+      C_transcript — which is exactly the object this idea models. The
+      scheme's claimed forgery cost at category-1 is >= 2^128 in its own
+      analysis (UNVERIFIED — spec text unread); the generic forgery with
+      deployed (kappa, tau, eps_cc) is the best known soundness-layer
+      attack, no structural improvement published to this program's
+      knowledge (prior-art grep of knowledge/ and ledger/ found none).
+  target_complexity:
+    time_exponent: >-
+      n/a — no exponent move claimed. The quantity of interest is the
+      charged exponent log2(2^{kappa} * eps_cc^{-tau} * C_transcript),
+      expected >= 126.1 at category-1; the falsification is a charged value
+      below 126.1.
+    memory_exponent: >-
+      Charged in the model: the commitment tree (LeafCommit/bAVC) state and
+      hash state at the optimum (kappa*, tau*); expected negligible-to-moderate
+      relative to the AES baseline's 2^8-memory (UNVERIFIED detail).
+    best_known: >-
+      2^126.1 AES-128 key recovery (KN-LIT-2701); generic transcript forgery
+      (deployed values unverified placeholders).
+    hidden_overhead: >-
+      The per-transcript constants — AES-call counts inside LeafCommit/bAVC,
+      the challenge-derivation hash chain, verification work — are the
+      "o(1)" here and are exactly what the model discloses per component;
+      no term is folded into an asymptotic notation.
+    tradeoff_note: >-
+      The (kappa, tau) tradeoff is the scheme's own time-vs-signature-size
+      lever: more grinding buys fewer rounds (smaller signatures) at more
+      hash work. Parallel foragers divide expected wall time by P; the
+      serial convention is stated and used for the matched comparison.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high

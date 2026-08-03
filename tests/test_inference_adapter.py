@@ -127,17 +127,24 @@ def test_degraded_resolution_is_permitted_only_explicitly_and_is_recorded(cfg):
 
 def test_unbound_model_cannot_be_waved_through(cfg):
     """`model: null` is a hard stop: there is nothing to call."""
+    original = cfg.binding_table["openai"]["research-deep"]
+    cfg.binding_table["openai"]["research-deep"] = {
+        "model": None, "provenance": "unbound"
+    }
     with pytest.raises(resolver_module.ResolutionError, match="unbound"):
-        adapter.resolve(cfg, "research-deep", backend="openai",
-                        degraded_allowed=True, env={})
+        try:
+            adapter.resolve(cfg, "research-deep", backend="openai",
+                            degraded_allowed=True, env={})
+        finally:
+            cfg.binding_table["openai"]["research-deep"] = original
 
 
 def test_cross_backend_fallback_records_what_it_replaced(cfg):
-    resolution = adapter.resolve(cfg, "research-deep", backend="openai",
+    resolution = adapter.resolve(cfg, "research-deep", backend="openrouter",
                                  fallback_allowed=True, env={})
     assert resolution.fallback_used is True
-    assert resolution.backend != "openai"
-    assert "openai" in resolution.fallback_reason
+    assert resolution.backend != "openrouter"
+    assert "openrouter" in resolution.fallback_reason
     assert resolution.degraded_requirements == []    # fallback never downgrades
 
 

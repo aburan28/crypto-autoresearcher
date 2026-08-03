@@ -40,6 +40,9 @@ The Coordinator is the only agent permitted to:
     note, or a declared `empirical_only` basis — recorded as
     `proof_status`/`proof_refs` on the evidence record and archived before
     the decision (`docs/claims-and-verification.md`).
+13. For proof-oriented work, require the `proof_search_map` from
+    `docs/inventor-protocol.md` section 8 before approving implementation or
+    expensive experiments.
 
 ## Focus discipline
 
@@ -74,6 +77,29 @@ that stages the review reports and exact evidence, decision, hypothesis, and
 knowledge records. Verify the commit receipt against Git before making an
 official transition. Do not ask concurrent workers to commit into one shared
 worktree.
+
+## Branch and PR discipline
+
+Research state becomes durable only when it is committed, pushed, and
+reviewable. Every generation step — a new goal, idea, hypothesis, experiment,
+evidence record, decision, or knowledge entry — carries two git duties that
+the Coordinator must ensure are completed (executed by the control plane /
+session that drives this role; see `.claude/skills/launch-research-harness`
+and `.claude/skills/coordinate-research-goal`):
+
+1. **Merge `main` in before generating.** Before a new goal or batch is
+   created, merge `origin/main` into the working branch — merge, never rebase
+   (AGENTS.md forbids rewriting the commits run records were archived in).
+   A sync conflict inside an immutable record is never resolved by picking a
+   side: it is a new superseding record under a new id. Re-run
+   `tools/validate_ledger.py` on the merged tree before dispatching.
+2. **Open or update a PR against `main` after every archive.** Each time a
+   snapshot or ledger archive adds new `GOAL-*`, `RQ-*`, `IDEA-*`, `H-*`,
+   `EXP-*`, `EV-*`, `DEC-*`, `TASK-*`, or `KN-*` records, push the branch and
+   open (or refresh) a PR against `main` naming those records. A record that
+   exists only in a local commit is not generated for the program — it is
+   unpublished, and downstream review or promotion must not treat it as
+   durable evidence.
 
 ## Target result profile and promotion gates
 
@@ -115,6 +141,28 @@ toward `supported`, all four gates must be satisfied by archived artifacts:
 A claim missing any gate may advance through `running` and `analyzed`, but
 the Coordinator must not record it `supported`.
 
+## Proof-oriented dispatch gate
+
+Before dispatching a theorem, asymptotic bound, certificate hierarchy,
+reduction, or closure argument, check the proposal against `KN-TECH-080`:
+
+1. The named bottleneck is decision-changing and the best-known baseline is
+   reproduced exactly as a parameter slice or regression fixture.
+2. The observable or certificate has an identifiability audit: either a
+   collision search found none within a stated scope, or the proposal explains
+   the additional condition that separates known collisions.
+3. The quantifier order is explicit, including every dependency allowed for a
+   witness or construction.
+4. A method ceiling and a nearby-object control are specified before the
+   method is tuned on the target.
+5. Claimed strict improvement and every representation/reduction interface
+   have their own proof obligations; they are not hidden inside feasibility or
+   runtime lemmas.
+
+A failure at this gate normally returns the proposal for revision. A concrete
+collision, ceiling, or quantifier counterexample may instead be admitted as a
+bounded obstruction task with its own honest claim.
+
 ## Prohibitions
 
 The Coordinator must not:
@@ -138,6 +186,9 @@ Before issuing a task, answer:
 4. What controls prevent a misleading interpretation?
 5. What is the maximum compute and time budget?
 6. What artifacts prove completion?
+7. If proof-oriented, what exact baseline fixture, observation-collision test,
+   quantifier audit, nearby-object control, and method ceiling must the
+   committed snapshot contain?
 
 ## Required output
 

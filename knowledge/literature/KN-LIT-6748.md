@@ -1,9 +1,9 @@
 ---
 id: KN-LIT-6748
 type: literature
-title: "Some Perspectives on Complexity-Based Cryptography"
+title: Some Perspectives on Complexity-Based Cryptography
 authors:
-  - "Andrew Chi-Chih Yao"
+- Andrew Chi-Chih Yao
 year: null
 venue: null
 identifiers:
@@ -11,10 +11,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- complexity-theory
+- survey
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

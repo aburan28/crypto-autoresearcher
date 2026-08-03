@@ -1,0 +1,57 @@
+PRE-REGISTERED PREDICTION, written before the na>=5 sweeps were run.
+Stamped 2026-08-01T22:45Z (UTC epoch 1785624347).
+
+Claim: for MINI-AES-64, a plaintext set active in cells drawn from the two
+ShiftRows-diagonals DIAG0={0,5,10,15} and DIAG1={4,9,14,3} is BALANCED AFTER
+5 ROUNDS when the number of active cells na >= 7 (2^28 texts).
+
+Mechanism: after round 1 the active cells occupy state columns 0 and 1; after
+round 2 the set is exactly an affine GF(2)-subspace of dimension 4*na (each
+state column varies in a linear image of the free cells, and the level-0 ->
+level-2 map is a bijection on the active coordinates). Three further rounds
+have algebraic degree at most deg(S)^3 = 3^3 = 27 because the 4-bit SubCells
+map has degree 3. A function of degree < d sums to zero over any affine
+subspace of dimension d, so 4*na >= 28 forces a zero sum at level 5.
+
+Therefore: na=7 and na=8 predicted BALANCED at level 5; na=5 (dim 20) and
+na=6 (dim 24) predicted NOT guaranteed (they hold only if the true 3-round
+degree is below 20 resp. 24). Level 6 is predicted NOT balanced at any na<=8,
+since 4 rounds bound the degree by 3^4=81 > 64 = the whole block.
+
+THIS IS THE STEP THAT DOES NOT TRANSFER TO AES-128: the AES 8-bit S-box has
+degree 7, so the same argument needs 7^3 = 343 < dim, i.e. a subspace larger
+than the 128-bit block. The 5-round balance is a property of 4-bit cells.
+
+--- OUTCOME, appended 2026-08-01T22:47Z (epoch 1785624421). PREDICTION LEFT AS
+--- WRITTEN ABOVE; IT IS FALSIFIED IN PART.
+MEASURED: na=5 (dim 20) NOT balanced at level 5 (0/10 sets).
+MEASURED: na=6 (dim 24) NOT balanced at level 5 (0/4 sets).
+MEASURED: na=7 (dim 28) NOT balanced at level 5 (0/3 sets)  <-- FALSIFIES the
+          "na >= 7" half of the prediction.
+Levels 1-4 balanced 100% at every na tested, as predicted.
+
+NAMED ERROR IN THE ARGUMENT. The step "after round 2 the set is an affine
+subspace" requires each active LEVEL-1 STATE COLUMN to range over ALL 2^16 of
+its values, so that round 2's SubCells acts on a product of full cell ranges
+and preserves the product structure. That holds only when a whole ShiftRows
+diagonal is active. At na=7, DIAG1 has 3 of 4 cells active, so level-1 column 1
+ranges over a proper 12-bit subspace, round-2 SubCells destroys the affine
+structure, and the degree bound must instead be applied from level 1 -- four
+rounds, 3^4 = 81 > 28. The bound then gives nothing.
+
+CORRECTED PREDICTION, registered now, before the na=8 sweep is run: the
+argument is repaired only at na=8, where BOTH diagonals are fully active,
+level-1 columns 0 and 1 each range over all 2^16 values, level 2 is an affine
+subspace of dimension 32, and three further rounds have degree <= 27 < 32.
+na=8 (2^32 texts) is therefore predicted BALANCED at level 5 and not at level 6.
+The corrected prediction costs a factor 16 in data: 2^32, not 2^28.
+
+--- 2026-08-01T22:51Z (epoch 1785624663): the FIRST na=8 run is VOID.
+The distinguisher sweep's job struct declared the plaintext-counter bounds as
+`int`; at na=8 the bound 3*(2^32/4) = 3221225472 overflows a signed int, so
+threads 2 and 3 swept garbage ranges and the "not balanced at level 5" reading
+for na=8 was an INVALID MEASUREMENT (implementation error), NOT a negative
+observation about the cipher. Same for its prp control. Bounds widened to
+long long; both re-run below. The corrected prediction above is UNTESTED at
+the moment of this note, not falsified. The na<=7 sweeps are unaffected
+(their bounds fit in an int) and stand.

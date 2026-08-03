@@ -1,0 +1,202 @@
+# =============================================================================
+# RUN MANIFEST -- GOAL-AES-002 falsification gates for CAND-FR-1 and CAND-FR-2.
+#
+# STATUS OF THIS PACKAGE: NOT A LEDGER RECORD. Written entirely inside the
+# session scratchpad by explicit instruction. No repository path, no ledger
+# record, no experiment directory and no coordination directory was written or
+# committed. There is no approved `experiments/<EXP-ID>/specification.yaml` for
+# this work; the frozen contract exercised here is the ideation's own
+# pre-registered gate text in candidate_report.yaml. That is recorded as a
+# PROTOCOL DEVIATION below, not concealed.
+# =============================================================================
+run:
+  id: RUN-FRGATES-20260801-001
+  produced_by: executor
+  purpose: >-
+    Execute the two falsification gates pre-registered in the GOAL-AES-002
+    BATCH-001 ideation (CAND-FR-1 and CAND-FR-2), exactly as that ideation
+    specifies them, including all nulls, the sibling nulls, the
+    control-of-control, the sensitivity anchor, the vacuity check and the
+    pre-registered VOID conditions.
+  goal_id: GOAL-AES-002
+  question_id: RQ-AES-002
+  decision_ref: DEC-20260731-019
+  ledger_bound: false
+
+timing_utc:
+  start: '2026-08-01T19:07:28Z'
+  start_epoch: 1785611248
+  declared_wall_clock_seconds: 1800
+  binding_stop_utc: '2026-08-01T19:37:28Z'
+  section_boundaries:
+    - {utc: '2026-08-01T19:07:53Z', marker: 'output directory created; context reading begun'}
+    - {utc: '2026-08-01T19:11:08Z', marker: 'context read complete (baseline_map, candidate_report, RQ-AES-002, GOAL-AES-002, DEC-20260731-019, throughput receipt, AGENTS.md, CLAUDE.md, inventor protocol, KN-FIND-017, KN-FIND-018)'}
+    - {utc: '2026-08-01T19:16:11Z', marker: 'GATE 1 complete (14.2 s compute); GATE 2 binary built, FIPS-197 KAT passed, stage-1 shards launched'}
+    - {utc: '2026-08-01T19:19:00Z', marker: 'GATE 2 AES-CTR keygen cross-check summarized; main shards still running'}
+  halted_on_budget: false
+
+environment:
+  git_commit: 8144e19f243be42c25854772d0fb5ee5bdf10297
+  git_dirty_tree: false        # `git status --porcelain` empty at run start
+  os: Linux-6.18.5-x86_64-with-glibc2.39
+  python: 3.11.15
+  pycryptodome: 3.23.0
+  gcc: 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04.1)
+  cores: 4
+  memory_gb_total: 15
+  no_numpy: true
+  no_sage: true
+  no_milp_or_sat: true
+  no_gpu: true
+
+inference:
+  requested_policy: executor-implementation
+  resolved_model: claude-opus-5   # Claude Code subagent, `model: inherit`
+  fallback_used: true
+  fallback_reason: >-
+    orchestration/model-policies.yaml routes executor-implementation to a
+    GPT-5.6-family policy alias that Claude Code cannot resolve; CLAUDE.md's
+    model-policy note requires recording the requested policy and the actual
+    resolved model with fallback_used: true.
+  model_verified: false
+  model_verified_reason: '`python3 -m orchestration.adapter doctor --probe` was not run.'
+  independent_session: true
+  reasoning_effort: policy default
+
+randomness:
+  gate1: >-
+    NONE. GATE 1 is a deterministic exhaustive enumeration over all 65535
+    nonzero 16-bit key-difference SUPPORTS and all 11 splice points. No PRNG is
+    instantiated. Byte-identically reproducible by re-running the command.
+  gate2:
+    key_stream_seed_primary: 20260801002        # splitmix64, argv[4]
+    key_stream_seed_crosscheck: 20260801777     # AES-CTR generator, argv[4], keygen=1
+    random_sbox_seed: '0x5EED0B0B0B0B0001'      # Fisher-Yates, fixed in source
+    null_a_round_key_prf: 'FNV-1a over the master key, then splitmix64 stream'
+    fixed_plaintext: '00112233445566778899aabbccddeeff'
+    note: >-
+      Every draw is a pure function of (seed, key index, matrix index). Re-running
+      the same command reproduces the counters byte-identically. Two structurally
+      different key generators were run (splitmix64 and AES-CTR under the real
+      cipher with an independent seed key) as the pre-registered PRNG-structure
+      confounder mitigation.
+
+specification_pinning:
+  method: >-
+    The GATE 2 software AES was checked against the FIPS-197 Appendix C
+    known-answer vectors AND against two independent implementations before the
+    instrument was used.
+  aes128:
+    plaintext: '00112233445566778899aabbccddeeff'
+    key: '000102030405060708090a0b0c0d0e0f'
+    gate2_instrument: '69c4e0d86a7b0430d8cdb78070b4c55a'
+    pycryptodome:     '69c4e0d86a7b0430d8cdb78070b4c55a'
+    openssl_cli:      '69c4e0d86a7b0430d8cdb78070b4c55a'
+    agree: true
+  aes256:
+    key: '000102...1f'
+    gate2_instrument: '8ea2b7ca516745bfeafc49904b496089'
+    pycryptodome:     '8ea2b7ca516745bfeafc49904b496089'
+    agree: true
+  gate1_pinning: >-
+    GATE 1 is a combinatorial activity-propagation instrument and computes no
+    ciphertext, so a ciphertext KAT does not apply to it. Its structural pinning
+    is the CONTROL-OF-CONTROL (a semantics-preserving transpose relabelling of
+    byte indices applied consistently to ShiftRows, the MixColumns column
+    grouping and the key-schedule word-to-byte map), which left rho_min AND the
+    complete 720885-cell histogram bit-identical on all four matrices.
+
+certificate:
+  kind: none
+  reason: >-
+    Both gates are PURE MEASUREMENT runs. No discrete log, no factor-base
+    relation, no AES key recovery and no factorisation is claimed, so
+    docs/claims-and-verification.md requires `kind: none` stated explicitly.
+    RQ-AES-002 BLK-1 (the certificate vocabulary cannot express an AES
+    key_recovery kind) is therefore NOT engaged by this run and remains open.
+
+claim_tier: toy
+claim_tier_reason: >-
+  RQ-AES-002 R7: default tier is `toy` for every record under this question.
+  GATE 1 is a combinatorial count under a conservative model; GATE 2 is a
+  sampled statistic at a resolution floor seven-plus orders of magnitude above
+  the scale at which an exploitable effect would live. Neither is a cost claim
+  and neither may exceed `toy`.
+
+artifacts:
+  - {path: gate1_recomputation.py,        kind: SOURCE_CODE}
+  - {path: gate1_raw_result.json,         kind: MACHINE_READABLE_MANIFEST}
+  - {path: gate1_stdout.log,              kind: MACHINE_READABLE_MANIFEST}
+  - {path: gate1_stderr.log,              kind: MACHINE_READABLE_MANIFEST}
+  - {path: gate2_invariance.c,            kind: SOURCE_CODE}
+  - {path: gate2_summarize.py,            kind: SOURCE_CODE}
+  - {path: g2_shard0..3.json,             kind: MACHINE_READABLE_MANIFEST}
+  - {path: g2ctr_shard0..1.json,          kind: MACHINE_READABLE_MANIFEST}
+  - {path: gate2_main_summary.json,       kind: MACHINE_READABLE_MANIFEST}
+  - {path: gate2_ctr_crosscheck_summary.json, kind: MACHINE_READABLE_MANIFEST}
+  - {path: command.txt,                   kind: MACHINE_READABLE_MANIFEST}
+  - {path: manifest.yaml,                 kind: MACHINE_READABLE_MANIFEST}  # SELF
+  - {path: gate_results.json,             kind: MACHINE_READABLE_MANIFEST}
+
+protocol_deviations:
+  - id: D-1
+    text: >-
+      NO APPROVED experiments/<EXP-ID>/specification.yaml EXISTS for this work.
+      The Executor contract requires refusing to execute an experiment whose
+      contract is not `approved` with a non-null `approved_by`. That refusal is
+      NOT exercised here because this task is explicitly scoped as a scratchpad
+      execution of an ideation's own pre-registered gates, writes to no
+      repository or ledger path, changes no official state, and produces no
+      evidence record. The consequence is recorded rather than waived: NOTHING
+      in this package may be cited as evidence until a Coordinator binds it to
+      an approved contract and a snapshot commit. Until then it is not durable.
+  - id: D-2
+    text: >-
+      GATE 2 ran at N = 524288 = 2^19 keys per configuration for the main run
+      and N = 32768 = 2^15 for the independent-generator cross-check, against a
+      pre-registered Stage 1 N = 2^22 and Stage 2 N = 2^30. Cause: the 1800 s
+      task budget. The achieved 5-sigma resolution floor is reported beside
+      every negative reading, as the frozen spec requires. Stage 2 (the
+      high-resolution leg) was NOT EXECUTED and is recorded as such; it is
+      scope, not an answer.
+  - id: D-3
+    text: >-
+      GATE 2 used a single SOFTWARE AES code path for every matrix rather than
+      AES-NI for the real cipher and software for NULL-B. gcc -O3 -maes is
+      confirmed working (throughput_receipt.json MEAS-GOAL-AES-002-001), but
+      AESENC hardwires the real S-box, so NULL-B (seeded random S-box) is not
+      expressible in it. Measuring the target on one engine and its sibling null
+      on another would make them incomparable. The cost of this choice is the
+      reduced N in D-2, and it is the reason for it.
+  - id: D-4
+    text: >-
+      UNEXPECTED OBSERVATION, RECORDED PER AGENTS.md RULE 8. The ideation
+      pre-registered, as a built-in check that NULL-A negates what it claims to
+      negate, that "the excess at r = 1 should SURVIVE under NULL-A, since round
+      1 is unaffected by the schedule downstream". IT DOES NOT SURVIVE: NULL-A
+      reads at the null already at r = 1. The cause is definitional, not a
+      defect: "independent uniformly random round keys" includes RK[0], the
+      whitening key, whereas in real AES-128 RK[0] = K, so under NULL-A a
+      single-byte master-key difference no longer produces a single-byte state
+      difference before round 1. The ideation's built-in check presumes
+      RK[0] = K. The check is therefore VOID AS WRITTEN and is reported as void
+      rather than reinterpreted to pass. It fires no pre-registered VOID or
+      falsification condition (both of those are about failure to DECAY, and
+      every profile decays), and the sensitivity anchor, which is defined on the
+      REAL cipher, is unaffected and holds at 181 sigma.
+  - id: D-5
+    text: >-
+      The GATE 1 confounder mitigation "report both a conservative count and a
+      VALUE-EXACT count on a random sample of keys" (H1-FR1's validation plan,
+      2^20 keys) was NOT EXECUTED, for budget. Consequence stated plainly: the
+      gap between the conservative count and a value-exact count is UNMEASURED,
+      so the possibility that this gap differs between AES and NULL-1 and
+      thereby corrupts the attribution is NOT excluded by this run. It is named
+      as an open item, not estimated.
+
+budget:
+  wall_clock_seconds_limit: 1800
+  gate1_compute_seconds: 14.2
+  gate2_build_and_kat_seconds: ~5
+  gate2_compute_seconds: see gate_results.json (measured, sharded over 4 cores)
+  maximum_runs: n/a (two gates, each executed once at the recorded parameters)

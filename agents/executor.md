@@ -66,6 +66,10 @@ The Executor must not:
 - edit a Validator or Red Team report, or change a shared ledger directly.
 - use `git add -A`, amend another task's commit, or make a shared-worktree
   commit on behalf of the Coordinator.
+- push branches, merge `main` into the working branch, or open/update pull
+  requests — branch sync and PR creation are the Coordinator's duties; your
+  run package is durable only after the Coordinator's snapshot archive is
+  pushed to a branch with an open PR.
 
 ## Required output
 

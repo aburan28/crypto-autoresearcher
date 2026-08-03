@@ -1,7 +1,7 @@
 # BATCH-017 recovery / object-lifetime gate report
 
 Task `TASK-20260730-039` · GOAL-SSI-001 · IDEA-20260729-001  
-Authority: `DEC-20260730-014` / `EV-SSI-016`  
+Authority: `DEC-20260803-5d30b6` / `EV-SSI-016`  
 Pinned process: `CollimationSieve@6f9188e4` via BATCH-012 `process_extraction.md`  
 Schedule source: BATCH-013 `recovery_spec.md`
 
@@ -72,7 +72,7 @@ the sieve is not an end-to-end stopping policy relative to `Verify`.
 Retain the BATCH-016 / `EV-SSI-016` finite ideal-choice ttm-v2 panel
 observations (including the red-team occupancy qualification: zp index
 outcomes vs unique decide keys) as a separate, already-confirmed control
-result under `DEC-20260730-014`.
+result under `DEC-20260803-5d30b6`.
 
 - Do **not** equate BATCH-014 (`definitions_differ_not_equated` stands).
 - Closing or failing this recovery/lifetime gate does not rewrite panel
