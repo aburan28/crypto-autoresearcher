@@ -6,7 +6,7 @@ BATCH-038: construct a checkable symbolic global-bound composition-law / peak-ag
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-123` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_schema_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/classification.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123 |
+| `TASK-20260730-123` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_schema_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/mutation_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_harness/ledger_checks.py, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_harness/test_composition_aggregation.py, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123/composition_aggregation_harness/harness_receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-123 |
 
 ## Deferred or Blocked
 
@@ -27,4 +27,4 @@ BATCH-038: construct a checkable symbolic global-bound composition-law / peak-ag
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `0f828d1c90a06fcce0451b2bc0dc95a2f8e86132729557bbd69048f8439cd6e8`
+Plan SHA-256: `aae40b86c34f24a0e2b33201df7b4a9a45189dfb71facea71e4fbac218df5c47`
