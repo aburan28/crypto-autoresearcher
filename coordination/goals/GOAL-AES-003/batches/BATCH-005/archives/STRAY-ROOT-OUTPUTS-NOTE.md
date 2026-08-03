@@ -22,11 +22,28 @@ Line 143 read:
 
     coordination/goals/.../BATCH-006/tasks/TASK-20260803-b8e91c/coordination/goals/.../TASK-20260803-0764fc/yoyo_sbox_v2
 
-A DOUBLED PATH. An `echo >> .gitignore` ran while the shell's working directory
-was a task subdirectory, so the relative path was appended onto a prefix that
-was already there. The rule therefore matched nothing, and the compiled binary it
-was meant to exclude stayed untracked and kept appearing in `git status` — which
-is how it was noticed.
+A DOUBLED PATH.
+
+**MY FIRST DIAGNOSIS OF THIS WAS WRONG, AND THE BUG RECURRED BECAUSE OF IT.** I
+wrote that an `echo >> .gitignore` had run while the shell's working directory
+was a task subdirectory, so a relative path was appended onto a prefix already
+present. That story was plausible and false, and I did not test it.
+
+THE ACTUAL CAUSE: my own repair script rewrote `.gitignore` with
+`"\n".join(lines)`, which DROPS THE TRAILING NEWLINE. The next `>>` append then
+concatenated its first line directly onto the file's last line. So the repair
+that removed the doubled paths was itself what recreated the condition for the
+next one — and an hour later a second doubled path appeared by exactly the same
+route, on a rule that then silently matched nothing.
+
+Fixed properly: every rewrite now ends with `.rstrip("\n") + "\n"`, and the
+result is checked with `git check-ignore -v` AND by asserting the file ends in a
+newline.
+
+The lesson is not about newlines. It is that I diagnosed a silent failure from a
+plausible story instead of from the file, which is the same act as the six
+recorded claims about the corpus that turned out to be wrong -- and here it cost
+a recurrence, because a wrong diagnosis leaves the real cause in place.
 
 This is the same class as the regex that corrupted a checkpoint field
 (CORR-20260803-f459b3) and the inlined commit message that substituted itself
