@@ -248,6 +248,58 @@ Declared capabilities are assertions too. The resolver can catch a binding that
 `max_reasoning_effort` to make a review gate pass is an evidence-integrity
 failure, in the same class as overstating a claim tier.
 
+### Verifying one Codex CLI session
+
+Backend catalog verification and session runtime verification answer different
+questions. `doctor --probe` asks a configured API backend which model IDs it
+serves. The session probe instead proves which exact model, reasoning effort,
+provider, CLI version, working directory, source, and sandbox were persisted
+for one newly created Codex CLI thread:
+
+```sh
+python3 -m orchestration.adapter probe-codex-session \
+  --codex-bin /absolute/path/to/codex \
+  --state-db /absolute/path/to/.codex/state.sqlite \
+  --workdir /absolute/path/to/repository \
+  --model gpt-5.6-sol \
+  --effort xhigh \
+  --policy review-adversarial \
+  --role validator \
+  --task-id TASK-YYYYMMDD-NNN \
+  --receipt /new/path/runtime-session-receipt.json \
+  --independent-session
+```
+
+The command launches exactly one non-ephemeral `codex exec --json` process
+with the fixed public `PROBE_OK` prompt and a read-only sandbox. It obtains the
+new thread ID from exactly one `thread.started` event, queries only that ID in
+the supplied SQLite database (URI `mode=ro` plus `PRAGMA query_only=ON`), and
+streams only that row's rollout file. The requested values must agree exactly
+with the single state row, `session_meta`, and probe-turn `turn_context`.
+Unknown metadata and every missing, ambiguous, or mismatched value fail closed.
+
+The receipt is created exclusively and is never overwritten, including after a
+failed attempt. It stores allowlisted facts, canonical-path hashes, event-line
+hashes, output byte counts and hashes, and safe argument vectors. It does not
+store raw stdout/stderr, raw rollout events, prompts other than the fixed public
+probe, environment variables, credentials, base instructions, or unrelated
+thread IDs. `tools/check_runtime_bindings.py` must also pass before the receipt
+can set `runtime_resolution_verified: true`.
+
+A verified receipt always states:
+
+```yaml
+verification_scope: exact_codex_session_only
+global_backend_verified: false
+model_bindings_mutated: false
+```
+
+It is valid only for its `independent_session_id`. It neither upgrades
+`model-bindings.yaml` nor proves that a provider serves the model generally.
+Each independent Validator or Red Team session therefore needs its own new
+receipt and must conduct or resume its review in that exact receipt-bound
+thread.
+
 ## Running the program on GLM
 
 `glm-5.2` is configured on two backends: `zai` (OpenAI wire) and
