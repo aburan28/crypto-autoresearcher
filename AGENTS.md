@@ -201,6 +201,24 @@ and adds nothing that relaxes the core rules. Four obligations:
   frontier across time, memory, and data/queries) and a quantitative
   `sota_delta`. An unchecked `null` is a fabrication under rule 5.
 
+Section 8 of the protocol (adopted 2026-08-01; technique abstract:
+`knowledge/techniques/KN-TECH-080.md`) adds the **proof-architecture
+portfolio** and extends the binding to the **Coordinator**, which is where the
+protocol first gains a gate that can refuse work:
+
+- A proof-oriented proposal — a theorem, asymptotic bound, certificate family,
+  reduction, or closure argument — carries a `proof_search_map`
+  (`templates/research-records.md`) before it is dispatched, and the
+  Coordinator does not approve implementation or expensive experiments
+  without one.
+- The map's four audits (exact baseline reproduction, observation-collision
+  search, quantifier-order statement, method ceiling with a nearby-object
+  control) are deliberately cheap and run before compute. An audit that does
+  not apply records why; it is not silently omitted.
+- This is a falsification aid, not a new claim tier. A failed audit is
+  frequently the useful result, and passing every audit still asserts nothing
+  beyond what rules 4 and 6 already allow.
+
 ## Required handoff envelope
 
 Every inter-agent task must include:
