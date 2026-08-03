@@ -6,11 +6,11 @@ BATCH-038: construct a checkable symbolic global-bound composition-law / peak-ag
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-125` | red-team | queued | 80 | TASK-20260730-123, TASK-20260730-124 | coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-125/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-125/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-038/tasks/TASK-20260730-125 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-126`: dependency_not_completed:TASK-20260730-125:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-038: construct a checkable symbolic global-bound composition-law / peak-ag
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `d620cb4a5051636061879ddc2e0701b325205d083bf3e941e9e90e1e622f9729`
+Plan SHA-256: `12bdbb6eb0c3448613585dc2d3283c0e500485e70afd2704b83747a7957809fa`
