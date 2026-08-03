@@ -6,12 +6,11 @@ Execute GOAL-AES-003 BATCH-003 in the rank order DEC-20260802-b226fb fixed. RANK
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-5baf79` | validator | queued | 70 | TASK-20260802-4500d4, TASK-20260802-447db8, TASK-20260802-d8a5ed | coordination/goals/GOAL-AES-003/batches/BATCH-003/tasks/TASK-20260802-5baf79/validation_report.yaml | coordination/goals/GOAL-AES-003/batches/BATCH-003/tasks/TASK-20260802-5baf79 |
-| `TASK-20260802-fa1dcc` | red-team | queued | 70 | TASK-20260802-4500d4, TASK-20260802-447db8, TASK-20260802-d8a5ed | coordination/goals/GOAL-AES-003/batches/BATCH-003/tasks/TASK-20260802-fa1dcc/red_team_report.yaml | coordination/goals/GOAL-AES-003/batches/BATCH-003/tasks/TASK-20260802-fa1dcc |
+| `TASK-20260802-4072e6` | coordinator | queued | 60 | TASK-20260802-5baf79, TASK-20260802-fa1dcc | ledger/evidence/EV-AES-96257a.yaml, ledger/decisions/DEC-20260802-f04fb0.yaml, coordination/goals/GOAL-AES-003/batches/BATCH-003/archives/TASK-20260802-4072e6/ledger-receipt.json, coordination/goals/GOAL-AES-003/batches/BATCH-003/archives/TASK-20260802-4072e6/COORDINATOR-NOTE.md, ledger/corrections/CORR-20260803-b4e663.yaml | ledger/evidence/EV-AES-96257a.yaml, ledger/decisions/DEC-20260802-f04fb0.yaml, ledger/goals/GOAL-AES-003.yaml, coordination/goals/GOAL-AES-003/batches/BATCH-003/archives/TASK-20260802-4072e6, ledger/corrections/CORR-20260803-b4e663.yaml |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-4072e6`: dependency_not_completed:TASK-20260802-5baf79:queued, dependency_not_completed:TASK-20260802-fa1dcc:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Execute GOAL-AES-003 BATCH-003 in the rank order DEC-20260802-b226fb fixed. RANK
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `0f709efb09991eee1ace2e070f555134e8741f2005c4304f2f0af723db82e101`
+Plan SHA-256: `92032027608ebed006ef18e803114658ff9ea873574346afcc7c726e86fc380b`
