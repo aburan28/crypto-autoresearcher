@@ -1,7 +1,7 @@
 ---
 id: KN-FIND-ffe1df
 type: internal_finding
-title: "(O2) no cheap sum-compatible filter on E(F_p): the Wagner level-1 filtering gain is p^o(1) for the algebraic character families and for x-based interval/bit-window filters"
+title: "(O2) a conditional, class-restricted, level-1, BUCKET-AVERAGED barrier for sum-compatible filters on E(F_p) - NOT a closure of the Wagner k-tree lane"
 tags:
 - ecdlp
 - prime-field
@@ -35,6 +35,78 @@ formatting choice. The proofs live in the artifact paths listed below.
 - Literature: [[KN-LIT-7639]] (H1, multiplicative — partly traced),
   [[KN-LIT-f6de4b]] (H1′, additive — **largely untraced**; see "What is NOT
   established" item 3, which that entry corrects downward).
+
+## THE HEADLINE CLAIM IS WITHDRAWN — red team RT-20260803-be45a8
+
+An independent Red Team pass
+(`analysis/o2-sum-compatible-filters/reviews/REDTEAM.md`) found a hole that no
+angle in this line had touched, and it is **load-bearing for the entire `j = 2`
+result**.
+
+**Every theorem here bounds the wrong quantity.** All of them bound
+`δ = Pr[h(P+Q) = f(h(P),h(Q))]`, which is the `q_c`-weighted **average** over
+target buckets. A Wagner level fixes **one** bucket `c` and one offset `d`,
+**chosen after seeing `h`**, and is paid at `max_{c,d} π_c(d)`. Since
+`δ = Σ_c q_c π_c`, it is always true that
+
+```
+   max_c π_c  >=  δ .
+```
+
+**The closure therefore bounds a *lower* bound on the attacker's rate**, which
+establishes nothing about the attacker. `O2_derivation_attempt.md` Lemma 5
+bridges this with the words *"if the `π_c` are equal"*, and **nothing else in the
+line touches that hypothesis**.
+
+**Repairing it costs back exactly the factor the composition removed.** Expanding
+the single-bucket rate, all `M²` coefficients have modulus 1 — no `ℓ²` saving,
+the *same* Cauchy–Schwarz step both derivations independently flagged — giving
+`ε_c <= 1/M² + Λ_W` and
+
+```
+   speedup = M·π_c  <=  1 + M²·Λ_W    →    p^{o(1)} only for M <= p^{1/4}
+```
+
+`j = 2` needs `M ≈ p^{1/3}`. **The `M²` barrier was never bypassed;
+`O2_composition_closure.md` §3.3 escaped it by changing which quantity is
+bounded.** This also resolves the corpus's own internal contradiction — the
+composition said the loss "is real", `O2_quasigroup_scaling.md` said it was "a
+proof artifact, not a phenomenon", and both were right about *different
+quantities*.
+
+**Measured, exactly and whole-group** (`p = 65539, M = 40`):
+`M·max_c π_c = 1.084` against `M·δ = 1.002` — but the SHA null gives `1.082` and
+the excess *decays* in `p` (1.15 → 1.08). So this is **a proof hole, not a
+demonstrated attack**. The narrowest valid statement: **`j = 2` is UNPROVED, not
+refuted.**
+
+### Three further red-team findings
+
+- **Family J has an explicit counterexample.** §2.2's `Σ|c_α| = O(log p)` rests on
+  `g_t` being "supported on `O(1)` intervals" — false; each *level set* is, while
+  `g_t` takes `M` values on `M` pieces. Measured at `p = 65539, M = 16`: popcount
+  has **9438** intervals per level, `L¹ = 7.56·log p`, and
+  `max|T_t| = 3.95e-1` — **101× the `√p` scale**, gain bound 7.3 rather than
+  `1+o(1)`. It is entirely the `ξ = 0` marginal term, so it is a counterexample to
+  the theorem *as stated* and identifies the dropped hypothesis: [D]'s **(H6)**
+  balance/non-redundancy. Encouragingly, `T ~ M^θ` gives `θ ≈ 0.000` across
+  `M = 4…256`, so the completion's *conclusion* survives even though its stated
+  reason does not.
+- **The published statistic was the wrong one.** `Λ_x = 0.01622` vs
+  `Λ_sha = 0.01619` are "indistinguishable" — but `T_x = 2.00e-3` vs
+  `T_sha = 5.84e-5` are **34× apart**, with `α(T_x) = −0.52` against
+  `α(T_sha) = −1.20`. Algebraic filters sit at the Weil scale `p^{-1/2}`, the null
+  at `p^{-1}`. **"The algebraic filters land on the null side" was an artifact of
+  reporting `Λ` instead of `T_t`.**
+- **The `P2` control is weaker than advertised.** It returns `0.90032` identical
+  to five decimals at every `p` because it is flat *by algebraic identity*. It
+  calibrates only the maximal-signal end and **never demonstrates that the
+  instrument resolves the `M·T ≈ 1` boundary where closure is actually decided.**
+  This line repeatedly called that control "the point"; it is necessary but far
+  from sufficient.
+- **"Wagner merges on a quotient homomorphism" is asserted, not derived.** A
+  prime-order `E(F_p)` **has no proper quotients**, so the `(Z/2)^n` analogy pins
+  nothing. The operative class is quasigroups — closed only in the *exact* case.
 
 ## Independent validation — verdict `failed` (VAL-20260803-3b7c1a)
 
@@ -88,15 +160,21 @@ below Pollard rho's `1/2` by this route.
 | A, B — **`x`-based** intervals and bit windows only | closed at level 1, conditional on (H1′) | Theorem A′ + additive completion |
 | **A, B — `y`-based, joint `(x,y)`, and nonlinear members** (`x±y`, `xy`, `x⊕y`, `x^{-1}`) | **NOT closed** | outside §2.2's expansion; never measured |
 | **I — popcount, digit sums** | **NOT closed** | not `O(1)` intervals and not an AP; measured L¹ grows `~p^{0.39}`, not `O(log p)` |
-| **J — `y`-sign** | **NOT closed** | not a function of `x` at all, so the expansion never starts |
+| **J — `y`-sign, popcount** | **REFUTED as stated** | not a function of `x`; and popcount is an explicit counterexample — 9438 intervals/level, `max|T_t| = 3.95e-1`, **101× the `√p` scale** |
 | quasigroup combining rules | closed **exactly**; unrealized approximately | Theorem C |
 | H — SHA-256 | not covered, and irrelevant | the in-arm null, outside any algebraic class by construction |
 
 | `j` | needed `M` | exponent (`m=16`) | status |
 |---|---|---|---|
-| 2 | `p^{1/3}` | 0.4167 | level-1 gain is `p^{o(1)}` |
-| 3 | `p^{1/4}` | 0.3750 | level-1 gain is `p^{o(1)}` |
-| 4 | `p^{1/5}` | 0.4000 | level-1 gain is `p^{o(1)}` |
+| 2 | `p^{1/3}` | 0.4167 | **UNPROVED** — outside `M <= p^{1/4}`; the bucket hole is fatal here |
+| 3 | `p^{1/4}` | 0.3750 | boundary case; level-1, bucket-averaged only |
+| 4 | `p^{1/5}` | 0.4000 | level-1, bucket-averaged only |
+
+**No row says "closed", and `j = 2` — the entire headline — is UNPROVED.**
+Repairing the bucket hole with this line's own machinery reaches only
+`M <= p^{1/4}`, and `j = 2` needs `p^{1/3}`. Earlier versions of this entry
+asserted all three rows closed; that was wrong twice over, first on the
+level-1 restriction and then on bucket averaging.
 
 **"Level-1", not "closed" — this is a correction forced by validation.**
 Theorem A′ is proved for **uniform independent `P,Q`**, which is the tree's
@@ -208,6 +286,27 @@ and is evidence about the derivations rather than about the backend.
 5. **Toy scale.** All computation is `N <= 65539`. Under `AGENTS.md` rule 4 this
    is not crypto-scale validation. The theorems are asymptotic; the computations
    check their steps and their `p`-dependence over ~3 orders of magnitude.
+
+8. **The bucket-averaging hole (RT-20260803-be45a8) is the largest gap in the
+   line**, and it postdates every theorem here. Until Lemma 5's equal-`π_c`
+   hypothesis is either proved or replaced, **no statement in this entry
+   constrains a Wagner attacker**, who picks the bucket after seeing `h`.
+9. **Target-dependent `h`** has no row in the coverage table and is listed
+   uncovered in [D] §7.6 item 5. Per-call filter cost is also never amortized
+   over the `~p^{1/3}` calls of a single run.
+10. **`O(1)`-valued combining rules** — what Proposition 2's own filter and
+    Wagner-over-`Z/N` actually use — have no row either.
+
+## The next experiment, specified by the red team
+
+`RT-EXP-1`, the **bucket-gain ladder**: measure `G = M·max_{c,d} π_c(d)` at
+`M = round(N^{1/3})`, **3 curves per `p`** across the existing 8-prime ladder, add
+popcount / digit-sum / `x([2]P)` / target-dependent `h_Q`, and include a
+**planted `θ = p^{-1/9}` dlog mixture calibrated to sit at `M·T ≈ 1`** — which is
+the sensitivity the `P2` control never established. ~10 minutes. The claim is
+refuted if any cheap family's 95% CI on `α(G−1)` excludes `<= 0` while the nulls
+decay. **This is the correct next action for the (O2) line and it has not been
+run.**
 
 ## Promotion-gate status
 
