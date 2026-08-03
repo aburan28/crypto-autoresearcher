@@ -177,6 +177,16 @@ collisions were the first instance of it and are already fixed the same way.
   everything hourly and files an issue against the owning campaign. A branch
   that breaks a record still changed it and is still caught — what is no longer
   every campaign's problem is breakage that was already on `main`.
+- **Merges to `main` publish a digest, and you read it on wake.**
+  `.github/workflows/main-events.yml` writes one write-once record per merge to
+  `coordination/events/main/<sha>.yaml`: which goals changed status or
+  `next_action`, which records are new, and whether the shared contract moved.
+  THIS IS A FEED, NOT A NOTIFICATION, and it cannot be otherwise — sessions are
+  ephemeral, so most sessions that care about a merge do not exist when it
+  lands, and `subscribe_pr_activity` is per-PR, single-consumer and bound to one
+  live session. Before resuming a goal, run
+  `python3 tools/merge_digest.py --since $(git merge-base HEAD origin/main) --until origin/main`,
+  or `tools/sync_open_branches.py --digest` for every branch at once.
 - **Branch drift is a scheduled job, not your job.**
   `.github/workflows/sync-branches.yml` runs `tools/sync_open_branches.py` every
   six hours. It refuses any branch committed to within `--idle-minutes` (default
