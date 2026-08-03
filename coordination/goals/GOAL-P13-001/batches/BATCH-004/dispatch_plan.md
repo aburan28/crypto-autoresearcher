@@ -29,4 +29,4 @@ GOAL-P13-001 BATCH-004, the first UNCAPPED batch (DEC-20260802-fa3b26). Its prim
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `bfadbd94cc05e71031bb0dfe78d2227e0a27f3b666430933fefca9023792fb40`
+Plan SHA-256: `5a53ccba7b8ff2c0490e67b33191d405c7cfd6524535194ccbbd5ba65cc897bb`
