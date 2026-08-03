@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-7633 entries.
+7646 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7326,7 +7326,20 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7560 | “HILA5 Pindakaas”: On the CCA security of lattice-based encryption with error correction | literature | reported | read | cryptanalysis hyperelliptic lattice pairing pqc protocol symmetric |
 | KN-LIT-7561 | “Ooh Aah... Just a Little Bit” : A small amount of side channel can go a long way | literature | reported | read | binary-field cryptanalysis curve-arithmetic ecdsa elliptic-curve implementation lattice prime-field provable-security rsa side-channel signature symmetric |
 | KN-LIT-7562 | “Provable” Security Against Differential and Linear Cryptanalysis | literature | reported | read | cryptanalysis dlp mov-fr provable-security survey symmetric |
+| KN-LIT-7563 | Resource Estimation of the Distributed Quantum Algorithm for the Elliptic Curve Logarithm Problem | literature | reported | web | ecdlp quantum shor resource-estimation distributed-quantum-computing logical-qubits modular-inversion extended-euclidean cost-model p256 quantum-cryptanalysis |
+| KN-LIT-7564 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | literature | reported | web | isogeny supersingular isogeny-path-problem endomorphism-ring complexity smoothness-heuristic memory-cost parameter-selection post-quantum cost-model frontier |
+| KN-LIT-7565 | Multilevel Amortized Gaussian Elimination in Information-Set Decoding: Applications to HQC and PCG | literature | reported | web | information-set-decoding gaussian-elimination amortization linear-algebra-cost stern code-based hqc pcg gate-cost-model branching-process security-estimate adjacent |
+| KN-LIT-7566 | Provable Recovery of RSA Private Exponents below N^{11/42-epsilon} | literature | reported | web | rsa small-private-exponent wiener boneh-durfee coppersmith small-roots lattice provable heuristic-removal cryptanalysis adjacent |
+| KN-LIT-7567 | On the Impossibility of Round-Optimal Pairing-Free Blind Signatures in the ROM | literature | reported | web | blind-signature impossibility lower-bound generic-group-model maurer-ggm random-oracle-model pairing-free round-complexity barrier discrete-logarithm adjacent |
+| KN-LIT-7568 | Hybrid hash function based on the DLP and SIS problems | literature | reported | web | hash-function discrete-logarithm sis pedersen ajtai hybrid double-provable-security parameter-selection elliptic-curve post-quantum adjacent |
+| KN-LIT-7569 | Beyond Binary: crosscorrelation of Cubic, Quartic and Quintic Character Sequences | literature | reported | web | character-sums multiplicative-character finite-field pseudorandom-sequence crosscorrelation equidistribution legendre-sequence weil-bound additive-combinatorics adjacent |
 | KN-LIT-757 | EQUIDISTRIBUTION OF αpθ WITH A CHEBOTAREV CONDITION AND APPLICATIONS TO EXTREMAL PRIMES | literature | reported | read | elliptic-curve number-theory pairing |
+| KN-LIT-7570 | On k-way split multiplication algorithms | literature | reported | web | polynomial-multiplication karatsuba toeplitz tmvp subquadratic interpolation-lower-bound crossover field-arithmetic cost-model ntt-unfriendly implementation adjacent |
+| KN-LIT-7571 | Post-Quantum Anonymous Signatures from the Lattice Isomorphism Group Action | literature | reported | web | group-action cryptographic-group-action lattice-isomorphism-problem lip isogeny class-group-action blind-signature designated-verifier zero-knowledge non-commutative post-quantum adjacent |
+| KN-LIT-7572 | Border Bases and Border Basis Schemes | literature | reported | web | border-basis groebner-basis zero-dimensional-ideal multiplication-matrices commuting-matrices polynomial-system solving numerical-stability border-basis-scheme survey semaev |
+| KN-LIT-7573 | Generic ordinarity for abelian coverings of the projective line | literature | reported | web | abelian-covering projective-line ordinary mu-ordinary newton-polygon hurwitz-space torelli shimura-variety l-function character-sums finite-field monodromy semaev-cover |
+| KN-LIT-7574 | Quantum Cryptanalysis on IBM Quantum Hardware: Extending Even-Mansour Period Recovery from N=4 to N=10 | literature | reported | web | quantum-cryptanalysis simon-algorithm grover bernstein-vazirani even-mansour feistel real-hardware nisq error-mitigation q2-model calibration scope-discipline adjacent |
+| KN-LIT-7575 | DSA Nonce Vulnerabilities: An Interactive Analysis | literature | reported | web | dsa nonce-reuse nonce-leakage hidden-number-problem hnp lattice key-recovery ctf education tooling visualization ecdlp-adjacent |
 | KN-LIT-758 | EULER CHARACTERISTICS AND THEIR CONGRUENCES FOR MULTI-SIGNED SELMER GROUPS | literature | reported | read | elliptic-curve number-theory pairing provable-security supersingular |
 | KN-LIT-759 | Explicit description of isogeny and isomorphism classes of Drinfeld modules over finite field | literature | reported | read | abelian-variety elliptic-curve endomorphism finite-field isogeny number-theory pairing |
 | KN-LIT-760 | EXPLICIT TWO-COVER DESCENT FOR GENUS 2 CURVES | literature | reported | read | curve-arithmetic elliptic-curve hyperelliptic isogeny jacobian number-theory provable-security |
