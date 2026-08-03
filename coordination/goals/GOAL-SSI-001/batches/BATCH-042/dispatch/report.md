@@ -6,12 +6,10 @@ BATCH-042: advance QM-ERROR (f_union_ledger_partial) with a bounded zero-compute
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-139` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/qm_error_advancement.md, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/f_union_obligation_ledger.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/falsifiable_criteria.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/memory_map_status.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/classification.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/advancement_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/error_harness/__init__.py, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/error_harness/ledger_checks.py, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/error_harness/test_error.py, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/error_harness/run_harness.py, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139/error_harness/harness_receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-139 |
+| `TASK-20260730-141` | red-team | queued | 80 | TASK-20260730-139, TASK-20260730-140 | coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-141/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-141/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-042/tasks/TASK-20260730-141 |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-140`: dependency_not_completed:TASK-20260730-139:queued
-- `TASK-20260730-141`: dependency_not_completed:TASK-20260730-139:queued, dependency_not_completed:TASK-20260730-140:queued
 - `TASK-20260730-142`: dependency_not_completed:TASK-20260730-141:queued
 
 ## Dispatch Gates
@@ -27,4 +25,4 @@ BATCH-042: advance QM-ERROR (f_union_ledger_partial) with a bounded zero-compute
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `4c794eaba0f0843d532f4cc15cca7f79629b6e071b8525dd20017a7b65414c9b`
+Plan SHA-256: `2c3bcc5e21e1be05fa4d32dd1fc007f4e5c24bbb6bb55406fb62780d747188c1`
