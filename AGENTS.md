@@ -104,41 +104,81 @@ supported concern about unjustified steering as an auditable finding. Do not
 claim to store, infer, or expose private chain-of-thought; only explicit
 decision summaries and ordinary research artifacts are retained and reviewed.
 
-## Goal closure quorum
+## Goal closure quorum — SUSPENDED
+
+> **Status: suspended.** The three-model requirement below is **not currently
+> enforced**. A `GOAL-*` record may move to `status: completed` on a committed
+> Coordinator decision showing a declared completion criterion was met, with no
+> `completion_quorum` block required. The rule, its enforcement code, and its
+> tests are retained in full and are restored by setting
+> `GOAL_CLOSURE_QUORUM_REQUIRED = True` in `tools/validate_ledger.py`.
+>
+> **Why.** The rule presumes several backends binding to genuinely different
+> models. In the harness as deployed there is one usable backend, so three
+> attestations necessarily resolve to one model — which the rule itself defines
+> as *not* a quorum. It therefore made `completed` unreachable for every goal
+> regardless of research merit, and goals that met their criteria sat `paused`,
+> which understates them. Suspending it trades a safeguard for reachability;
+> that trade is deliberate and reversible, not a judgement that the safeguard
+> was wrong.
+>
+> **What did not change.** Everything in "What the suspension does not relax"
+> below still binds. In particular: never record an attestation you did not
+> obtain, and never present a closure as more corroborated than it is. Closing a
+> goal is still the strongest claim the program makes; it now rests on the
+> Coordinator decision and its cited evidence alone, so that decision carries
+> the full weight.
+>
+> **Restore when** more than one backend resolves — check with
+> `python3 -m orchestration.adapter doctor --probe`.
 
 Closing out a goal is the strongest claim the program makes: it asserts that a
 declared completion criterion was actually met. One model's judgement is not
 enough for that, and neither is one model consulted three times.
 
-A `GOAL-*` record may move to `status: completed` only when its
-`completion_quorum.attestations` list carries at least **three** verdicts that
-are all `CONCUR` and whose `resolved_model_id` values are **pairwise distinct**.
+**The suspended rule.** A `GOAL-*` record may move to `status: completed` only
+when its `completion_quorum.attestations` list carries at least **three**
+verdicts that are all `CONCUR` and whose `resolved_model_id` values are
+**pairwise distinct**.
 
 - Distinctness is on the **resolved** model, never the requested policy alias.
   Three aliases that all fall back to one backend produce correlated judgements;
   counting them three times is not independent agreement, and the validator
   rejects it. This is the failure mode the rule exists to prevent.
+- If three distinct models cannot be resolved, the goal does not close. Record
+  the narrowest supported result and leave it `paused` with a concrete next
+  action — an unattested closure is worse than an open goal, and a fabricated
+  attestation is worse than both.
+
+### What the suspension does not relax
+
+These bind now, exactly as before:
+
+- Attestations remain fully supported and are still worth recording. When you
+  do record one it is a claim that a review happened, so it must be true:
+  **never record an attestation you did not obtain.**
 - Every attestation sets `independent_session: true`, names the role, records
   `requested_policy` and `resolved_model_id`, and cites the exact record IDs it
-  reviewed.
+  reviewed. The validator still checks all of this whenever a
+  `completion_quorum` block is present.
 - A single `DISSENT` blocks closure. It is not outvoted; it stands until a new
-  Coordinator decision supersedes it on the merits.
+  Coordinator decision supersedes it on the merits. This is ordinary
+  self-consistency rather than part of the quorum: having obtained a dissent,
+  closing anyway is incoherent at any quorum size.
 - Attestations may be gathered before the transition, but
   `quorum_satisfied: true` on a goal that is not `completed` is an error: only a
   Coordinator ledger archive performs the transition.
-- `paused`, `blocked`, and `closed_at_budget` assert no success and need no
-  quorum. Retiring a goal that *did* meet a criterion under one of those
-  statuses, to avoid the quorum, is a contract violation.
+- `paused`, `blocked`, and `closed_at_budget` assert no success. Retiring a goal
+  that *did* meet a criterion under one of those statuses, to understate it, is
+  still a contract violation — the suspension removes the reason anyone would.
+- A `completed` goal still requires a committed Coordinator decision showing the
+  criterion was met. Reachable is not automatic.
 
 Enforced by `check_goals` in `tools/validate_ledger.py`; failure modes pinned in
-`tools/test_goal_closure_quorum.py`. The rule is prospective — goals closed
-before it existed are listed in `PRE_QUORUM_GOAL_IDS` and that set must not
-grow.
-
-If three distinct models cannot be resolved, the goal does not close. Record the
-narrowest supported result and leave it `paused` with a concrete next action —
-an unattested closure is worse than an open goal, and a fabricated attestation
-is worse than both.
+`tools/test_goal_closure_quorum.py`, whose tests exercise **both** the enforcing
+and suspended modes so the rule can be switched back on intact. The rule is
+prospective — goals closed before it existed are listed in
+`PRE_QUORUM_GOAL_IDS` and that set must not grow.
 
 ## Target result profile
 
