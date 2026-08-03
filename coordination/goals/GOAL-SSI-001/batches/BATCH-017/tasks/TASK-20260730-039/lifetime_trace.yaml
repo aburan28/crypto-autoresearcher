@@ -1,0 +1,216 @@
+lifetime_trace:
+  task_id: TASK-20260730-039
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-017
+  idea_id: IDEA-20260729-001
+  decision_ref: DEC-20260803-5d30b6
+  evidence_ref: EV-SSI-016
+  recovery_spec_ref: coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/recovery_spec.md
+  process_extraction_ref: coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-013/process_extraction.md
+  pinned_artifact:
+    name: CollimationSieve
+    commit: 6f9188e4eb5611bcfdf29a3e1ec3cd69a29a50e9
+    primary_path: src/Main.hs
+    coverage: local_recursive_sieve_report_only_not_end_to_end_key_recovery
+  method: >-
+    Symbolic object-schedule gate only. For each recovery_spec object class,
+    record birth stage, last-use, cleanup precondition, peak-stage live-set
+    membership, and whether the pinned process extraction implements that
+    lifetime or leaves it unimplemented/spec-only. No numeric widths,
+    probabilities, HashDRBG equivalence, curve/isogeny/quantum-circuit
+    computation, or peak-byte claims.
+  numeric_widths: not_invented
+  interpretation_limit: >-
+    This gate instantiates the recovery_spec schedule as a checklist against
+    the pinned report-only sieve. It does not supply a global FC0 peak-memory
+    bound, retry-to-peak conversion, or QUERY_MEMORY clearance.
+
+  stage_live_sets:
+    preparation:
+      members: [B_input, B_attempt, W_label, R_label]
+      implemented_in_pinned_source: false
+      note: >-
+        recovery_spec stage; pinned Main.hs parses CLI args and builds a
+        schedule but does not birth named W_label/R_label FC0 objects.
+    sieve_attempt:
+      members: [B_input, B_attempt, W_sieve, R_sieve, B_sieve]
+      implemented_in_pinned_source: partial_simulator_phasevector_only
+      note: >-
+        Local sieve'/collimate retains classical PhaseVector roots with
+        source-level concurrency bound D+3 (BATCH-012). That is not an FC0
+        W_sieve/R_sieve/B_sieve schedule.
+    recovery:
+      members: [B_input, B_attempt, B_post, B_recovery, accepted_transcript]
+      implemented_in_pinned_source: false
+      note: Classical postprocessing/recovery stages are absent from the pinned artifact.
+    tail_verification:
+      members: [B_input, B_attempt, B_recovery, M_tail, B_candidate]
+      implemented_in_pinned_source: false
+      note: Residual tail and Verify(x,k') are absent; main ends in a statistics report.
+
+  object_classes:
+    - id: B_input
+      class: B
+      birth_stage: initialize
+      last_use: after_final_verification_record_retained
+      cleanup_precondition: final_verification_record_retained_then_explicit_cleanup
+      peak_stage_membership: [preparation, sieve_attempt, recovery, tail_verification]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: >-
+        CLI/instance arguments exist transiently in main; no FC0 classical
+        immutable input/backing object with declared death after Verify.
+
+    - id: B_attempt
+      class: B
+      birth_stage: initialize
+      last_use: after_final_verification_record_retained
+      cleanup_precondition: final_verification_record_retained_then_explicit_cleanup
+      peak_stage_membership: [preparation, sieve_attempt, recovery, tail_verification]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: >-
+        Attempt counters (numNodes/numDiscarded/numQueries) exist inside the
+        sieve monad, but there is no classical attempt-metadata object tied to
+        a verification record or end-to-end cleanup rule.
+
+    - id: W_label
+      class: W
+      birth_stage: oracle_label_preparation
+      last_use: accepted_handoff_to_sieve_attempt
+      cleanup_precondition: explicit_uncompute_and_verify_cleanup_before_handoff
+      peak_stage_membership: [preparation]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: Coherent workspace W is not represented by the classical simulator.
+
+    - id: R_label
+      class: R
+      birth_stage: oracle_label_preparation
+      last_use: last_declared_query
+      cleanup_precondition: destroy_only_after_last_declared_query
+      peak_stage_membership: [preparation]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: No QRACM allocation/lifetime API; ordinary arrays only.
+
+    - id: W_sieve
+      class: W
+      birth_stage: sieve_attempt_before_local_transition
+      last_use: final_specified_use_after_accepted_sieve_output
+      cleanup_precondition: >-
+        On retry, destroy/reset attempt-local W_sieve before next attempt;
+        on accept, destroy only after final specified use then enter recovery.
+      peak_stage_membership: [sieve_attempt]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: >-
+        No coherent W_sieve. Closest implemented analogue is lexical
+        PhaseVector temporaries in sieve'/collimate (not FC0 W).
+
+    - id: R_sieve
+      class: R
+      birth_stage: sieve_attempt_before_local_transition
+      last_use: final_specified_use_after_accepted_sieve_output
+      cleanup_precondition: >-
+        On retry, destroy/reset attempt-local R_sieve before next attempt;
+        on accept, destroy only after final specified use.
+      peak_stage_membership: [sieve_attempt]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: No QRACM R_sieve; arrays simulate vectors only.
+
+    - id: B_sieve
+      class: B
+      birth_stage: sieve_attempt_before_local_transition
+      last_use: end_of_attempt_or_accept_handoff
+      cleanup_precondition: release_B_sieve_allocation_before_next_attempt_on_retry
+      peak_stage_membership: [sieve_attempt]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: >-
+        Haskell arrays/runtime temporaries exist without a hard heap/GC
+        contract or declared B_sieve width/unit. README notes possible large RAM.
+
+    - id: accepted_transcript
+      class: B
+      birth_stage: accepted_sieve_output_handoff
+      last_use: recovery_candidate_reconstruction
+      cleanup_precondition: retained_through_recovery_then_explicit_release_under_cleanup_rules
+      peak_stage_membership: [recovery]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: >-
+        Keep branch returns a PhaseVector used for statistics; there is no
+        retained accepted sieve transcript feeding recovery.
+
+    - id: B_post
+      class: B
+      birth_stage: classical_postprocessing_recovery
+      last_use: before_or_during_candidate_reconstruction
+      cleanup_precondition: destroy_after_verification_under_explicit_cleanup_rules
+      peak_stage_membership: [recovery]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: Absent; no classical postprocessing stage.
+
+    - id: B_recovery
+      class: B
+      birth_stage: classical_postprocessing_recovery
+      last_use: verification_event
+      cleanup_precondition: destroy_after_verification_under_explicit_cleanup_rules
+      peak_stage_membership: [recovery, tail_verification]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: Absent; no candidate-reconstruction backing.
+
+    - id: M_tail
+      class: M_tail
+      birth_stage: residual_tail_after_recovery_transition
+      last_use: verification_event_or_tail_exhaustion
+      cleanup_precondition: >-
+        Destroy after verification; must not be counted dead merely because
+        source variables are unused; width/enumeration-order/stopping-rule
+        must be declared (spec obligation; not supplied here as numbers).
+      peak_stage_membership: [tail_verification]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: Absent because terminal classical search is absent.
+
+    - id: B_candidate
+      class: B
+      birth_stage: verification_event
+      last_use: Verify_x_k_prime_predicate
+      cleanup_precondition: destroy_after_Verify_then_cleanup_upstream_objects
+      peak_stage_membership: [tail_verification]
+      lifetime_status: unimplemented_spec_only
+      pinned_source_status: Absent; no candidate buffer or key-recovery decision.
+
+    - id: PhaseVector_simulator_lexical
+      class: simulator_analogue_not_FC0
+      birth_stage: sieve_prime_child_return_or_collimate
+      last_use: >-
+        After vlen/keep computed, v1/v2 source-unreachable; on keep return v;
+        on discard, v source-unreachable before retry.
+      cleanup_precondition: source_unreachability_subject_to_compiler_runtime_retention
+      peak_stage_membership: [sieve_attempt]
+      lifetime_status: implemented_lexical_trace_only
+      pinned_source_status: >-
+        BATCH-012 lexical-reference trace of sieve'/collimate. Rejects
+        unbounded retention of failed same-level PhaseVector roots at
+        source-reference level (C3 lexical subcase). Does not instantiate
+        W/R/B/M_tail FC0 lifetimes.
+
+  coverage_summary:
+    recovery_spec_object_classes_traced:
+      - B_input
+      - B_attempt
+      - W_label
+      - R_label
+      - W_sieve
+      - R_sieve
+      - B_sieve
+      - accepted_transcript
+      - B_post
+      - B_recovery
+      - M_tail
+      - B_candidate
+    implemented_fc0_lifetimes: []
+    implemented_non_fc0_analogues:
+      - PhaseVector_simulator_lexical
+    unimplemented_spec_only_count: 12
+    qm_memory_map_reconciled: false
+    residual_gaps:
+      - No implemented FC0 W/R birth/last-use/cleanup with widths/units.
+      - No hard B schedule or retry cleanup facts convertible to a peak bound.
+      - No M_tail / B_candidate / B_recovery / B_post lifetimes in pinned source.
+      - Stage live sets remain specification checklists, not runtime traces.

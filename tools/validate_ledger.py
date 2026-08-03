@@ -22,6 +22,12 @@ Entries may only ever be removed from the baseline (as records are
 repaired or superseded), never added — regenerating it to absorb a new
 violation defeats the check.
 
+An archived run manifest that is repaired by a NEW record rather than an
+edit (AGENTS.md core rule 4) is routed via tools/run_supersession_registry.yaml:
+the run-schema check reads the superseding record, while both files stay
+pinned by sha256 and the superseded file must remain present at its
+original path. Supersession redirects the check; it never suppresses it.
+
 Usage: python3 tools/validate_ledger.py [--no-baseline] [--update-baseline]
 """
 from __future__ import annotations
@@ -45,6 +51,20 @@ LEGACY_LEDGER_INVENTORY = os.path.join(
 LEGACY_RUN_INVENTORY = os.path.join(
     REPO, "tools", "legacy_run_inventory.yaml"
 )
+RUN_SUPERSESSION_REGISTRY = os.path.join(
+    REPO, "tools", "run_supersession_registry.yaml"
+)
+RUN_SUPERSESSION_SCHEMA = "run-supersession-registry-v1"
+RUN_SUPERSESSION_REQUIRED = ["run_id", "superseded_path", "superseded_sha256",
+                             "superseding_path", "superseding_sha256",
+                             "defect", "registered"]
+# The exact shape check_run() discovers by glob. A superseded record must match
+# it (otherwise the entry would never be consulted and would only mislead), and
+# a superseding record must NOT match it (otherwise the glob would find it too
+# and register the same run id twice, weakening the duplicate-ID check).
+RUN_MANIFEST_PATH = re.compile(
+    r"^experiments/[^/]+/runs/[^/]+/manifest\.yaml$")
+SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 
 # Identifier suffixes. TWO FORMS ARE VALID AND THE RANDOM ONE IS PREFERRED.
 #
@@ -287,7 +307,33 @@ def check_experiment(path: str, ctx: Ctx):
     ctx.register(str(rec_id), path, body, "experiment")
 
 
-def check_run(path: str, ctx: Ctx):
+def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None):
+    """Validate the run manifest discovered at `path`.
+
+    If `path` is registered in tools/run_supersession_registry.yaml, the schema
+    check is applied to the SUPERSEDING record instead: the archived file is
+    immutable, so a defect in it is repaired by a new record, not an edit, and
+    the check must read the record that actually carries the fields.
+
+    Routing is decided by exact registered path only. The superseded file must
+    still exist and still hash to its registered value — that is checked by
+    check_run_supersessions(), not softened here. Companion artifacts are
+    always looked for in the discovered run directory, since they belong to the
+    run package regardless of where the superseding record is filed.
+    """
+    run_dir = os.path.dirname(path)
+    entry = (supersessions or {}).get(os.path.abspath(path))
+    if entry is not None:
+        superseding = entry["superseding_path"]
+        if os.path.isfile(superseding):
+            path = superseding
+        else:
+            # Reported by check_run_supersessions() as well; fall back to the
+            # superseded record so the run still gets validated and registered
+            # rather than silently vanishing from the ledger.
+            ctx.err(path, "registered superseding run manifest is missing; "
+                          "validating the superseded record in place",
+                    force=True)
     doc = load_yaml(path, ctx)
     if doc is None:
         return
@@ -318,8 +364,7 @@ def check_run(path: str, ctx: Ctx):
         ctx.err(path, "run.code.commit missing (not reproducible)")
     if not code.get("command"):
         ctx.err(path, "run.code.command missing (not reproducible)")
-    # Companion artifacts must exist next to the manifest.
-    run_dir = os.path.dirname(path)
+    # Companion artifacts must exist in the run directory.
     for artifact in ("command.txt", "environment.json", "stdout.log",
                      "stderr.log", "raw-result.json"):
         if not os.path.exists(os.path.join(run_dir, artifact)):
@@ -341,10 +386,36 @@ def check_run(path: str, ctx: Ctx):
 
 
 def tier_of_run(params: dict) -> int | None:
+    """Highest claim tier a run's parameters can support.
+
+    `field_bits` may be a single value or a LIST of cells: a run that sweeps
+    several field sizes records e.g. [16, 20], and both EXP-LPF-001 runs do.
+    Semantics for a multi-cell run: **the tier is governed by the largest
+    cell**. The tier ceiling asks what size of instance the run actually
+    reached, and the largest cell is that size; taking the smallest or the
+    first would understate a run that did reach a bigger instance.
+
+    An absent, empty, or non-numeric value yields None — tier unknown, so no
+    ceiling is enforced from this run — which is the pre-existing behaviour for
+    a missing field_bits. It is never a crash: `int()` on a list raises
+    TypeError, which would abort the whole validation instead of reporting a
+    line, so list values are unpacked before any coercion.
+    """
     bits = params.get("field_bits") or params.get("field_bit_size")
     if bits is None:
         return None
-    bits = int(bits)
+    cells = list(bits) if isinstance(bits, (list, tuple, set)) else [bits]
+    widths = []
+    for cell in cells:
+        if isinstance(cell, bool) or not isinstance(cell, (int, float, str)):
+            return None
+        try:
+            widths.append(int(cell))
+        except (TypeError, ValueError):
+            return None
+    if not widths:
+        return None
+    bits = max(widths)
     if bits <= 32:
         return TIER_ORDER["toy"]
     if bits <= 96:
@@ -427,6 +498,123 @@ def load_legacy_run_inventory() -> dict[str, str]:
     if not isinstance(records, dict):
         raise ValueError("legacy run inventory records must be a mapping")
     return {str(path): str(digest) for path, digest in records.items()}
+
+
+def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
+    """Load the run-supersession registry, keyed by absolute superseded path.
+
+    Shape problems raise ValueError (the tool refuses to run on a malformed
+    registry rather than half-applying it). Whether the registered files exist
+    and still hash to their registered values is a per-run finding and is
+    reported by check_run_supersessions().
+    """
+    path = path or RUN_SUPERSESSION_REGISTRY
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as handle:
+        doc = yaml.safe_load(handle)
+    if not isinstance(doc, dict) or doc.get("schema") != RUN_SUPERSESSION_SCHEMA:
+        raise ValueError("invalid run supersession registry schema")
+    records = doc.get("records") or []
+    if not isinstance(records, list):
+        raise ValueError("run supersession registry records must be a list")
+    entries: dict[str, dict] = {}
+    for index, raw in enumerate(records):
+        if not isinstance(raw, dict):
+            raise ValueError(f"run supersession record {index} must be a mapping")
+        for field in RUN_SUPERSESSION_REQUIRED:
+            if not str(raw.get(field) or "").strip():
+                raise ValueError(f"run supersession record {index} is missing "
+                                 f"required field '{field}'")
+        superseded = str(raw["superseded_path"]).strip()
+        superseding = str(raw["superseding_path"]).strip()
+        for label, relative in (("superseded_path", superseded),
+                                ("superseding_path", superseding)):
+            if os.path.isabs(relative) or ".." in relative.split("/"):
+                raise ValueError(f"run supersession {label} must be a "
+                                 f"repository-relative path without '..': "
+                                 f"{relative}")
+        if not RUN_MANIFEST_PATH.match(superseded):
+            raise ValueError(f"run supersession superseded_path must be a "
+                             f"discovered run manifest "
+                             f"(experiments/*/runs/*/manifest.yaml): "
+                             f"{superseded}")
+        if RUN_MANIFEST_PATH.match(superseding):
+            raise ValueError(f"run supersession superseding_path must not "
+                             f"itself be discovered by the run glob, or the "
+                             f"run id would be registered twice: {superseding}")
+        digests = {}
+        for label in ("superseded_sha256", "superseding_sha256"):
+            digest = str(raw[label]).strip().lower()
+            if not SHA256_HEX.match(digest):
+                raise ValueError(f"run supersession {label} must be 64 hex "
+                                 f"characters: {raw[label]!r}")
+            digests[label] = digest
+        key = os.path.abspath(os.path.join(REPO, superseded))
+        if key in entries:
+            raise ValueError(f"run supersession registry lists {superseded} "
+                             f"more than once")
+        entries[key] = {
+            "run_id": str(raw["run_id"]).strip(),
+            "superseded_path": key,
+            "superseded_sha256": digests["superseded_sha256"],
+            "superseding_path": os.path.abspath(
+                os.path.join(REPO, superseding)),
+            "superseding_sha256": digests["superseding_sha256"],
+        }
+    return entries
+
+
+def _run_id_of(path: str) -> str | None:
+    try:
+        with open(path, encoding="utf-8") as handle:
+            doc = yaml.safe_load(handle)
+    except (OSError, yaml.YAMLError):
+        return None
+    body = doc.get("run") if isinstance(doc, dict) else None
+    rec_id = body.get("id") if isinstance(body, dict) else None
+    return str(rec_id) if rec_id else None
+
+
+def check_run_supersessions(ctx: Ctx, supersessions: dict[str, dict]) -> None:
+    """Audit every registered supersession before any routing happens.
+
+    Both files must be present and hash to their registered values, and both
+    must declare the registered run id. A supersession that let either file
+    drift, or that pointed at an unrelated record, would be a way to hide
+    changes to an archived run rather than a way to repair one, so every
+    finding here is an error and none is downgraded to a legacy warning.
+    """
+    for key in sorted(supersessions):
+        entry = supersessions[key]
+        for role, file_path, expected in (
+            ("superseded", entry["superseded_path"],
+             entry["superseded_sha256"]),
+            ("superseding", entry["superseding_path"],
+             entry["superseding_sha256"]),
+        ):
+            if not os.path.isfile(file_path):
+                ctx.err(file_path,
+                        f"registered {role} run manifest is missing; a "
+                        f"supersession requires both records to be present",
+                        force=True)
+                continue
+            with open(file_path, "rb") as handle:
+                actual = hashlib.sha256(handle.read()).hexdigest()
+            if actual != expected:
+                ctx.err(file_path,
+                        f"registered {role} run manifest hash changed "
+                        f"(registry pins {expected[:8]}, found {actual[:8]}); "
+                        f"supersede it instead of editing it",
+                        force=True)
+                continue
+            found = _run_id_of(file_path)
+            if found != entry["run_id"]:
+                ctx.err(file_path,
+                        f"registered {role} run manifest declares run id "
+                        f"{found!r}, but the supersession registry entry is "
+                        f"for {entry['run_id']!r}",
+                        force=True)
 
 
 def check_legacy_run_inventory(ctx: Ctx, inventory: dict[str, str]) -> None:
@@ -888,6 +1076,12 @@ def main() -> int:
         print(f"FAIL: cannot load legacy inventory: {error}",
               file=sys.stderr)
         return 1
+    try:
+        run_supersessions = load_run_supersessions()
+    except (OSError, ValueError, yaml.YAMLError) as error:
+        print(f"FAIL: cannot load run supersession registry: {error}",
+              file=sys.stderr)
+        return 1
     legacy_paths = {os.path.abspath(os.path.join(REPO, path))
                     for path in (*legacy_inventory, *legacy_run_inventory)}
     absolute_remaps = {
@@ -904,9 +1098,10 @@ def main() -> int:
         check_experiment(path, ctx)
     check_legacy_run_inventory(ctx, legacy_run_inventory)
     register_legacy_json_runs(ctx, legacy_run_inventory)
+    check_run_supersessions(ctx, run_supersessions)
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
                                               "*", "manifest.yaml"))):
-        check_run(path, ctx)
+        check_run(path, ctx, run_supersessions)
     check_legacy_id_remaps(ctx)
     # Knowledge must be indexed before goal closure quorum checks so that
     # reviewed_record_ids may cite KN-* entries (ctx.knowledge), not only
@@ -939,6 +1134,11 @@ def main() -> int:
               f"were indexed; {len(legacy_run_inventory)} legacy run "
               f"manifest(s) were indexed; {len(ctx.legacy_warnings)} legacy "
               "schema issue(s) remain read-only")
+    if run_supersessions:
+        print(f"note: {len(run_supersessions)} superseded run manifest(s) "
+              f"routed to their superseding records by "
+              f"{os.path.relpath(RUN_SUPERSESSION_REGISTRY, REPO)}; both "
+              f"records stay hash-pinned")
     if stale:
         print(f"note: {len(stale)} baseline entrie(s) no longer occur; prune "
               f"with --update-baseline")
