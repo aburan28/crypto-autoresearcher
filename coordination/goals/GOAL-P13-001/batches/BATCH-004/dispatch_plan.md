@@ -6,12 +6,11 @@ GOAL-P13-001 BATCH-004, the first UNCAPPED batch (DEC-20260802-fa3b26). Its prim
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260802-44c6a2` | red-team | queued | 75 | TASK-20260802-79a3cd, TASK-20260802-e83f4d, TASK-20260803-4946a5, TASK-20260803-cdc4bd, TASK-20260803-d164ba | coordination/goals/GOAL-P13-001/batches/BATCH-004/reviews/TASK-20260802-44c6a2/red_team_report.yaml | coordination/goals/GOAL-P13-001/batches/BATCH-004/reviews/TASK-20260802-44c6a2 |
-| `TASK-20260802-cd08cd` | validator | queued | 75 | TASK-20260802-79a3cd, TASK-20260802-e83f4d, TASK-20260803-4946a5, TASK-20260803-cdc4bd, TASK-20260803-d164ba | coordination/goals/GOAL-P13-001/batches/BATCH-004/reviews/TASK-20260802-cd08cd/validation_report.yaml | coordination/goals/GOAL-P13-001/batches/BATCH-004/reviews/TASK-20260802-cd08cd |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260802-375cd8`: dependency_not_completed:TASK-20260802-cd08cd:queued, dependency_not_completed:TASK-20260802-44c6a2:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ GOAL-P13-001 BATCH-004, the first UNCAPPED batch (DEC-20260802-fa3b26). Its prim
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `8bca8b0437295a54a38929fd0f42e55bfb07ddc52b6393ba454820ad81f6ef1b`
+Plan SHA-256: `bffaabbf63359f1cff61fd50b7ac312ce3e6d77a3320c692a8809fa2e80d7145`
