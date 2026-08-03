@@ -1,11 +1,12 @@
 ---
 id: KN-LIT-4273
 type: literature
-title: "How to Delegate and Verify in Public: Verifiable Computation from Attribute-based Encryption"
+title: 'How to Delegate and Verify in Public: Verifiable Computation from Attribute-based
+  Encryption'
 authors:
-  - "Bryan Parno"
-  - "Mariana Raykova"
-  - "Vinod Vaikuntanathan"
+- Bryan Parno
+- Mariana Raykova
+- Vinod Vaikuntanathan
 year: null
 venue: null
 identifiers:
@@ -13,10 +14,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- verifiable-computation
+- attribute-based-encryption
+- delegation
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

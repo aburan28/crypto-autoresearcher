@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-6417
 type: literature
-title: "Secure Computability of Functions in the IT setting with"
+title: Secure Computability of Functions in the IT setting with
 authors:
-  - "Dishonest Majority"
-  - "Applications to Long-Term"
+- Dishonest Majority
+- Applications to Long-Term
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,14 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- mpc
+- information-theoretic
+- computability
+- foundations
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

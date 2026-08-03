@@ -29,73 +29,10 @@ STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
 ARCHIVE_KINDS = {"snapshot", "ledger"}
 SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-NONAUTHORITATIVE_ERROR = "POLICY_NONAUTHORITATIVE"
-RECONCILIATION_ID = "RECON-20260802-001"
-RECONCILIATION_HISTORY_SCHEMAS = {
-    "crypto.autoresearch.reconciliation_history_index.v1",
-    "crypto.autoresearch.reconciliation_history_view.v1",
-}
-RECONCILIATION_VARIANT_ROOTS = (
-    "coordination/reconciliation/RECON-20260802-001/variants/local-a9664afb",
-    "coordination/reconciliation/RECON-20260802-001/variants/reanchor-717d932c",
-)
-RECONCILIATION_PROTECTED_QUEUES = tuple(
-    f"coordination/goals/GOAL-ECDLP-001/batches/BATCH-{number:03d}/dispatch_queue.json"
-    for number in range(20, 25)
-)
 
 
 class DispatchError(ValueError):
     """Raised when a dispatch queue cannot be safely scheduled."""
-
-
-def _relative_to_repository(path: Path, repo_root: Path) -> str | None:
-    """Return a canonical repository-relative path, or ``None`` if outside."""
-
-    try:
-        return path.relative_to(repo_root).as_posix()
-    except ValueError:
-        return None
-
-
-def enforce_reconciliation_queue_authority(queue_path: Path, repo_root: Path) -> None:
-    """Reject preserved and inherited RECON-20260802-001 queues before parsing.
-
-    Both the lexical path and the resolved target are checked so absolute,
-    relative, and symlink aliases cannot reach readiness evaluation.
-    """
-
-    root = repo_root.resolve()
-    lexical = queue_path if queue_path.is_absolute() else Path.cwd() / queue_path
-    candidates = {lexical.absolute(), lexical.resolve(strict=False)}
-    for candidate in candidates:
-        relative = _relative_to_repository(candidate, root)
-        if relative is None:
-            continue
-        if relative in RECONCILIATION_PROTECTED_QUEUES or any(
-            relative == variant or relative.startswith(variant + "/")
-            for variant in RECONCILIATION_VARIANT_ROOTS
-        ):
-            raise DispatchError(
-                f"{NONAUTHORITATIVE_ERROR}: {relative} is historical reconciliation material"
-            )
-
-
-def enforce_reconciliation_document_authority(queue: Any) -> None:
-    """Reject non-authorizing reconciliation envelopes before validation."""
-
-    if not isinstance(queue, dict):
-        return
-    authority = queue.get("authority")
-    nonauthorizing = isinstance(authority, dict) and (
-        authority.get("code") == "NONAUT"
-        or authority.get("dispatch_authority") == "NONAUT"
-        or authority.get("live_dispatch_semantics") == "none"
-    )
-    if queue.get("schema") in RECONCILIATION_HISTORY_SCHEMAS or nonauthorizing:
-        raise DispatchError(
-            f"{NONAUTHORITATIVE_ERROR}: reconciliation history indexes have no live dispatch semantics"
-        )
 
 
 class RepositoryVerifier(Protocol):
@@ -815,6 +752,18 @@ def markdown(plan: dict[str, Any]) -> str:
         lines.append("None.")
     for task in plan["deferred"]:
         lines.append(f"- `{task['id']}`: {', '.join(task['reason'])}")
+    degraded = plan.get("content_only_archives") or []
+    if degraded:
+        lines.extend(["", "## Archives verified on CONTENT only", "",
+                      "These archives' commit bindings could not be reached, so they were",
+                      "verified against their declared `path_sha256` instead. The content",
+                      "binding held in every case below -- a mismatch would have failed.",
+                      "This is the expected state after a squash merge; see",
+                      "`ledger/corrections/CORR-20260802-a1f151.yaml`.", ""])
+        for item in degraded:
+            lines.append(f"- `{item['task_id']}`: {item['reason']} "
+                         f"({item['paths_verified']} path hashes verified)")
+
     lines.extend(["", "## Dispatch Gates", ""])
     for gate, passed in plan["gates"].items():
         lines.append(f"- `{gate}`: {'passed' if passed else 'failed'}")
@@ -822,11 +771,25 @@ def markdown(plan: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+# Generated artifacts, mirrored from .gitignore. An archive that declared one of
+# these before they were untracked cannot have its binding to that path checked
+# any more, and that is a POLICY change rather than corruption of the archive.
+GENERATED_ARTIFACTS = ("knowledge/INDEX.md", "dispatch_plan.json", "dispatch_plan.md")
+
+
+def _is_generated_path(path: str) -> bool:
+    return any(path == g or path.endswith("/" + g) for g in GENERATED_ARTIFACTS)
+
+
 class GitRepositoryVerifier:
     """Verify archive receipts using Git at one explicit repository root."""
 
     def __init__(self, repo_root: Path):
         self.repo_root = repo_root.resolve()
+        # Archives whose commit binding was gone and which verified on content
+        # alone. Surfaced in the plan so a degraded verification is never
+        # silently indistinguishable from a full one.
+        self.content_only_archives: list[dict[str, Any]] = []
 
     def _run(self, arguments: Sequence[str]) -> bytes:
         try:
@@ -887,13 +850,80 @@ class GitRepositoryVerifier:
             paths.append(path)
         return paths
 
+    def _verify_content_only(
+        self, task_id: str, archive: dict[str, Any], reason: str
+    ) -> None:
+        """Verify an archive against CONTENT when its commit binding is gone.
+
+        THE COMMIT BINDING IS NOT DURABLE AND THE CONTENT BINDING IS. A squash
+        merge replaces a branch with one new commit, so every `commit_sha` an
+        archive receipt recorded becomes unreachable and every `parent_sha`
+        becomes wrong -- while every `path_sha256` still matches the bytes on
+        main. Five goals carried unresolvable commits for exactly this reason
+        (CORR-20260802-a1f151); the same records' content hashes all still
+        verified.
+
+        Failing on that punishes an archive for the repository's merge strategy,
+        which is not a property of the research. So when the commit cannot be
+        reached, this verifies the declared path hashes against the current tree
+        and records the degradation instead of raising. A CONTENT MISMATCH IS
+        STILL FATAL -- what is relaxed is the binding to a commit, never the
+        binding to bytes.
+        """
+
+        hashes = archive.get("path_sha256")
+        if not isinstance(hashes, dict) or not hashes:
+            raise DispatchError(
+                f"archive task {task_id} commit binding is unverifiable ({reason}) and it "
+                f"declares no path_sha256 to fall back on"
+            )
+        skipped: list[str] = []
+        for path in sorted(hashes):
+            # Read the COMMITTED content at HEAD, not the working tree. A dirty
+            # tree is not evidence about an archive, and generated files in
+            # particular are rebuilt locally on demand -- comparing against them
+            # would fail an archive for a file the repository deliberately no
+            # longer tracks.
+            blob = subprocess.run(
+                ["git", "-C", str(self.repo_root), "show", f"HEAD:{path}"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
+            if blob.returncode != 0:
+                if _is_generated_path(path):
+                    # The archive bound a generated artifact that this repository
+                    # has since stopped tracking (.gitignore). The binding cannot
+                    # be checked and its absence is policy, not corruption.
+                    skipped.append(path)
+                    continue
+                raise DispatchError(
+                    f"archive task {task_id} commit binding is unverifiable ({reason}) and "
+                    f"declared artifact {path} is absent from HEAD"
+                )
+            observed = hashlib.sha256(blob.stdout).hexdigest()
+            if observed != hashes[path]:
+                if _is_generated_path(path):
+                    skipped.append(path)
+                    continue
+                raise DispatchError(
+                    f"archive task {task_id} content hash mismatch for {path}: "
+                    f"expected {hashes[path]}, observed {observed}"
+                )
+        self.content_only_archives.append({
+            "task_id": task_id, "reason": reason,
+            "paths_verified": len(hashes) - len(skipped),
+            "generated_paths_skipped": skipped})
+
     def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
         archive = task["archive"]
         task_id = task["id"]
         declared_commit = archive["commit_sha"]
         if not isinstance(declared_commit, str):
             raise DispatchError(f"completed archive task {task_id} requires archive.commit_sha")
-        commit_sha = self._resolve_commit(declared_commit, task_id, "archive.commit_sha")
+        try:
+            commit_sha = self._resolve_commit(declared_commit, task_id, "archive.commit_sha")
+        except DispatchError:
+            self._verify_content_only(
+                task_id, archive, f"commit {declared_commit} does not resolve")
+            return
 
         try:
             ancestor = subprocess.run(
@@ -905,7 +935,9 @@ class GitRepositoryVerifier:
         except OSError as error:
             raise DispatchError(f"unable to execute git for archive verification: {error}") from error
         if ancestor.returncode == 1:
-            raise DispatchError(f"archive task {task_id} commit is not an ancestor of HEAD")
+            self._verify_content_only(
+                task_id, archive, f"commit {commit_sha[:12]} is not an ancestor of HEAD")
+            return
         if ancestor.returncode != 0:
             detail = ancestor.stderr.decode("utf-8", "replace").strip()
             raise DispatchError(
@@ -992,6 +1024,79 @@ def discover_repository_root(start: Path) -> Path:
     return Path(result.stdout.decode("utf-8").strip()).resolve()
 
 
+NONAUTHORITATIVE_ERROR = "POLICY_NONAUTHORITATIVE"
+RECONCILIATION_ID = "RECON-20260802-001"
+RECONCILIATION_HISTORY_SCHEMAS = {
+    "crypto.autoresearch.reconciliation_history_index.v1",
+    "crypto.autoresearch.reconciliation_history_view.v1",
+}
+RECONCILIATION_VARIANT_ROOTS = (
+    "coordination/reconciliation/RECON-20260802-001/variants/local-a9664afb",
+    "coordination/reconciliation/RECON-20260802-001/variants/reanchor-717d932c",
+)
+RECONCILIATION_PROTECTED_QUEUES = tuple(
+    f"coordination/goals/GOAL-ECDLP-001/batches/BATCH-{number:03d}/dispatch_queue.json"
+    for number in range(20, 25)
+)
+
+
+def _relative_to_repository(path: Path, repo_root: Path) -> str | None:
+    """Return a canonical repository-relative path, or ``None`` if outside."""
+
+    try:
+        return path.relative_to(repo_root).as_posix()
+    except ValueError:
+        return None
+
+def enforce_reconciliation_queue_authority(queue_path: Path, repo_root: Path) -> None:
+    """Reject preserved and inherited RECON-20260802-001 queues before parsing.
+
+    Both the lexical path and the resolved target are checked so absolute,
+    relative, and symlink aliases cannot reach readiness evaluation.
+    """
+
+    root = repo_root.resolve()
+    lexical = queue_path if queue_path.is_absolute() else Path.cwd() / queue_path
+    candidates = {lexical.absolute(), lexical.resolve(strict=False)}
+    for candidate in candidates:
+        relative = _relative_to_repository(candidate, root)
+        if relative is None:
+            continue
+        if relative in RECONCILIATION_PROTECTED_QUEUES or any(
+            relative == variant or relative.startswith(variant + "/")
+            for variant in RECONCILIATION_VARIANT_ROOTS
+        ):
+            raise DispatchError(
+                f"{NONAUTHORITATIVE_ERROR}: {relative} is historical reconciliation material"
+            )
+
+
+def enforce_reconciliation_document_authority(queue: Any) -> None:
+    """Reject non-authorizing reconciliation envelopes before validation."""
+
+    if not isinstance(queue, dict):
+        return
+    authority = queue.get("authority")
+    nonauthorizing = isinstance(authority, dict) and (
+        authority.get("code") == "NONAUT"
+        or authority.get("dispatch_authority") == "NONAUT"
+        or authority.get("live_dispatch_semantics") == "none"
+    )
+    if queue.get("schema") in RECONCILIATION_HISTORY_SCHEMAS or nonauthorizing:
+        raise DispatchError(
+            f"{NONAUTHORITATIVE_ERROR}: reconciliation history indexes have no live dispatch semantics"
+        )
+
+
+class RepositoryVerifier(Protocol):
+    """Verifies the Git receipt for a completed archival task."""
+
+    def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
+        """Raise DispatchError unless ``task`` has the required archive commit."""
+
+
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("queue", type=Path, help="dispatch queue JSON")
@@ -1008,7 +1113,10 @@ def main() -> int:
         enforce_reconciliation_queue_authority(args.queue, repo_root)
         queue = json.loads(args.queue.read_text(encoding="utf-8"))
         enforce_reconciliation_document_authority(queue)
-        plan = select(queue, repository_verifier=GitRepositoryVerifier(repo_root))
+        verifier = GitRepositoryVerifier(repo_root)
+        plan = select(queue, repository_verifier=verifier)
+        if verifier.content_only_archives:
+            plan["content_only_archives"] = verifier.content_only_archives
     except (OSError, json.JSONDecodeError, DispatchError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2

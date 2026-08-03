@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round011_exp022_solvegate_ic_vs_rho
 
 ## Observation
-| bits | p | n_bits | |FB| | #rel | P_rel | ops/attempt | IC_coll | IC_la | IC_desc | IC_total | rho | IC/rho | k_verified | extrap |
+**Date:** 2026-05-31  **Seed base:** 20260531  **m:** 3
 
 Source excerpt / raw summary:
 

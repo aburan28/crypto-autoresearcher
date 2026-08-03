@@ -15,6 +15,10 @@ are runtimes and backends declared in `orchestration/providers.yaml`.
 from .config import ADAPTER_VERSION, Config, ConfigError, load, validate
 from .manifest import (block_from_env, deterministic_block, inference_block,
                        receipt, write_receipt)
+from .prompt_cache import (PromptCachePolicy, apply_prompt_cache,
+                           build_cached_request, cache_efficiency,
+                           cache_write_without_read, canonical_json,
+                           normalize_usage, prompt_cache_key)
 from .resolver import (Attempt, GovernanceError, Resolution, ResolutionError,
                       resolve, resolve_handoff)
 from .transport import (Completion, Message, Tool, ToolCall, ToolResult,
@@ -23,10 +27,12 @@ from .transport import (Completion, Message, Tool, ToolCall, ToolResult,
 
 __all__ = [
     "ADAPTER_VERSION", "Attempt", "Completion", "Config", "ConfigError",
-    "GovernanceError", "Message", "Resolution", "ResolutionError", "Tool",
-    "ToolCall", "ToolResult", "TransportError", "block_from_env",
-    "build_request", "complete",
-    "deterministic_block", "inference_block", "list_models", "load",
-    "parse_response", "receipt", "render_messages", "resolve", "resolve_handoff",
-    "translate_tools", "validate", "write_receipt",
+    "GovernanceError", "Message", "PromptCachePolicy", "Resolution",
+    "ResolutionError", "Tool", "ToolCall", "ToolResult", "TransportError",
+    "apply_prompt_cache", "block_from_env", "build_cached_request",
+    "build_request", "cache_efficiency", "cache_write_without_read",
+    "canonical_json", "complete", "deterministic_block", "inference_block",
+    "list_models", "load", "normalize_usage", "parse_response",
+    "prompt_cache_key", "receipt", "render_messages", "resolve",
+    "resolve_handoff", "translate_tools", "validate", "write_receipt",
 ]

@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-022 RT048-CTRL-1: author a FRESH frozen experiment contract under the NEW id EXP-SMTH-001 and a new hypothesis H-SMTH-001, with the reading rule RR-SMTH-1 AND ITS ATTAINABILITY ARGUMENT ATTAIN-RR-SMTH-1 frozen before any datum exists; one RC-22 review cycle whose FIRST NAMED DUTY is checking that attainability argument; Executor RUN-SMTH-001-heur only if APPROVED - sample >= 10^5 GENUINE half-arity Semaev partial-map intermediates (exhaustively, n = C(513,2) = 131328 per set) at bits in {16,20} with m = 4 over a frozen 512-element factor base, record largest prime factor and B-smoothness of each, compare the empirical CDF against Dickman rho(u) under EXP-DS-001's ALREADY-FROZEN KS, rate-band and tail thresholds, run the IDENTICAL measurement on uniform random integers of matched range as the MANDATORY null object, and sweep u over [2,6] so the required u^(-u(1+o(1))) decay is testable and a flat smooth fraction is recognizable as the artifact tell; Val+RT; ledger EV-SMTH-001 + decision + GOAL checkpoint. Toy claim ceiling. NO search, NO timing, NO cost identity, NO R. This is a distributional measurement, not a cost measurement. It would be the first experiment in twenty-two batches to test the mechanism H-DS-001 is actually about. Do not modify any EXP-DS-001 artifact. Do not alter H-DS-001, H-IC-001 or H-STR-002. Leave FAEST and XEDN alone.
+BATCH-022 residual-control theater-r2 under SG-ECDLP-001: author PA-DS-001-v2-ctrl-theater-r2 (CTRL-RT056-PLANT-CLOSED-PATH + RHO-CALIB-AUDITED + NULL-SPLIT-HARD-DESTROY) discharging RT056-B1/B2; one RC-22 review cycle; Executor RUN-DS-001-ctrl-theater-r2 only if APPROVED; Val+RT; ledger EV-DS-006/DEC-20260731-017. Deferred: CI-IDENTITY, SPARSE-P-SUCCESS. Toy claim ceiling. No full 54-cell matrix. No v1. Do not edit rejected BATCH-021 freeze. Do not alter H-IC-001/H-STR-002. Do not reopen STR. Ignore unauthorized RUN-DS-001-ctrl-theater. Leave FAEST/XEDN alone. No push.
 
 ## Ready Tasks
 
@@ -10,11 +10,7 @@ BATCH-022 RT048-CTRL-1: author a FRESH frozen experiment contract under the NEW 
 
 ## Deferred or Blocked
 
-- `TASK-20260801-014`: task_marked_blocked
-- `TASK-20260801-015`: task_marked_blocked
-- `TASK-20260801-016`: task_marked_blocked
-- `TASK-20260801-017`: task_marked_blocked
-- `TASK-20260801-018`: task_marked_blocked
+None.
 
 ## Dispatch Gates
 
@@ -29,4 +25,4 @@ BATCH-022 RT048-CTRL-1: author a FRESH frozen experiment contract under the NEW 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `48814834aa4fdaa15ab0123ace7fab1482d4e5414bacfa0e6163000b59be1724`
+Plan SHA-256: `4e470baf233e7a5a77e95216188245951eb462da43c055bc767c50207f3d3bbb`

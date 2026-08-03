@@ -33,13 +33,41 @@ jobs:
       # record that does not parse cannot be schema-checked -- so corrupting
       # one REMOVES errors and reads as an improvement. Nine files reached
       # main holding literal conflict markers through exactly that gap.
+      # Generated artifacts are not committed (see .gitignore). Building them
+      # here proves the corpus and every queue still build, which is the part
+      # that carried information; the files themselves carried none.
+      - name: Build generated artifacts
+        run: |
+          python3 tools/build_knowledge_index.py
+          fail=0
+          for q in $(git ls-files 'coordination/goals/*/batches/*/dispatch_queue.json'); do
+            d=$(dirname "$q")
+            python3 tools/research_dispatch.py "$q" \
+              --output "$d/dispatch_plan.json" --report "$d/dispatch_plan.md" \
+              || { echo "::warning::queue does not render: $q"; fail=1; }
+          done
+          # A queue that no longer renders is a real defect, but queues are
+          # per-campaign and a stale one must not red-light every other
+          # campaign's PR -- the coupling this workflow is being changed to
+          # remove. Reported as a warning here; main-health.yml fails on it.
+          exit 0
+
+      # PR: scoped to the files the branch touches. main: absolute.
+      # A branch that BREAKS a record still changed it and is still caught; what
+      # is no longer every campaign's problem is breakage that was already on
+      # main. See the scope comment in tools/check_merge_hygiene.py.
       - name: Merge hygiene — conflict markers, parseability, id collisions
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             python3 tools/check_merge_hygiene.py --base "origin/${{ github.base_ref }}"
           else
-            python3 tools/check_merge_hygiene.py
+            python3 tools/check_merge_hygiene.py --absolute
           fi
+
+      # Installed separately so the step above proves the core toolchain still
+      # works without the agent runtime's dependency tree.
+      - name: Install api_direct runtime dependencies
+        run: pip install -r requirements-agent.txt
 
       - name: Validate ledger, experiments, and run records
         run: |
@@ -106,6 +134,13 @@ jobs:
             python3 tools/build_knowledge_index.py --check
           fi
 
+      # Absolute, not diffed against base: this index is green as of the commit
+      # that introduced it, so there is no pre-existing failure to compare away.
+      # It also recomputes the sha256 of every vendored source artifact, which
+      # makes a stale-output failure and a corrupted-source failure the same red.
+      - name: Check source index is current and vendored source hashes match
+        run: python3 tools/build_source_index.py --check
+
       - name: Validate inference configuration (offline)
         run: python3 -m orchestration.adapter doctor
 
@@ -119,6 +154,12 @@ jobs:
           for suite in evals/suites/*.yaml; do
             python3 -m orchestration.eval validate --suite "$suite"
           done
+
+      - name: Validate inference configuration (offline)
+        run: python3 -m orchestration.adapter doctor
+
+      - name: Check runtime role bindings have not drifted
+        run: python3 tools/check_runtime_bindings.py
 
       - name: Validate live research dispatch queue
         run: |

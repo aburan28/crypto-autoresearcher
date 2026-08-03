@@ -1,10 +1,10 @@
 ---
 id: KN-LIT-5878
 type: literature
-title: "Predicate Encryption Supporting Disjunctions"
+title: Predicate Encryption Supporting Disjunctions
 authors:
-  - "Polynomial Equations"
-  - "Inner Products"
+- Polynomial Equations
+- Inner Products
 year: null
 venue: null
 identifiers:
@@ -12,10 +12,13 @@ identifiers:
   doi: null
   arxiv: null
   url: null
-tags: []
+tags:
+- predicate-encryption
+- pairing
+- provable-security
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

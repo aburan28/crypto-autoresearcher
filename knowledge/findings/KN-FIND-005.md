@@ -1,11 +1,37 @@
 ---
 id: KN-FIND-005
-title: Raised deg-a≤4 non-isotrivial free-x still admit inf-norm-1 MW relations; deg x≤3 empty on deg-b=6
 type: internal_finding
+title: Raised deg-a≤4 non-isotrivial free-x still admit inf-norm-1 MW relations; deg x≤3 empty
+  on deg-b=6
+tags:
+- lifting
+- xedni
+- function-field
+- non-isotrivial
+- mordell-weil
+- coefficient-bound
+- methodology
+- toy-scale
+confidence: reported
 status: established
-tags: [lifting, xedni, function-field, non-isotrivial, mordell-weil, coefficient-bound, methodology, toy-scale]
-evidence: [EV-XEDN-004]
-decision: [DEC-20260725-002]
+internal_refs:
+- EV-XEDN-004
+- DEC-20260725-002
+- H-XEDN-004
+- EXP-XEDN-005
+proof_status: empirical_only
+proof_refs:
+- ledger/evidence/EV-XEDN-004.yaml
+- experiments/EXP-XEDN-005/execution_report.md
+- experiments/EXP-XEDN-005/specification.yaml
+added: '2026-07-24'
+superseded_by: null
+schema_repair_note: 'Committed with `evidence:`/`decision:` keys, which the internal_finding
+  schema does not define, so its references were never cross-checked and its proof level was
+  never stated. Repaired 2026-08-02 under CORR-20260802-007: the same two records are carried
+  in internal_refs alongside the hypothesis and experiment the evidence itself names, and
+  proof_status is set to the conservative empirical_only. No claim, scope or strength in the
+  body text is changed.'
 ---
 
 # KN-FIND-005

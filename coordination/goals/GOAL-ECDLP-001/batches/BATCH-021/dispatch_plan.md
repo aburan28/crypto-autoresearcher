@@ -1,6 +1,6 @@
 # Dynamic Subagent Dispatch Plan
 
-BATCH-021 CTRL-RT047-MATCHED-NULL (RT047-CTRL-1 variant (a)): author PA-DS-001-v2-ctrl-matched-null with a FROZEN PRE-REGISTERED DISPOSITION MAP; one RC-21 review cycle; Executor RUN-DS-001-ctrl-matched-null only if APPROVED - naive_search and split_search UNCHANGED (smoothness_abort=false, same charge_backend_units, same frozen wall-derived cost identity, 200 relations, seed 101) against the additive group Z/753848Z with a 128-element negation-closed random signed factor base and 200 uniform random targets, reporting R and R_null under BOTH the wall proxy and the charged-unit proxy plus per-arm n_enum, peak claw-table entries and peak RSS; Val+RT; ledger EV-DS-004 + decision + GOAL checkpoint. Toy claim ceiling. No live plant. No B-sweep. No full 54-cell matrix. No HEUR. No v1. Do not alter H-IC-001/H-STR-002. Leave FAEST/XEDN alone.
+BATCH-021 residual-control theater repair under SG-ECDLP-001: author PA-DS-001-v2-ctrl-theater-repair (CTRL-RT025-PLANT-INDEPENDENT + RHO-CALIB + NULL-SPLIT-COMPOSITION); one RC-21 review cycle; Executor RUN-DS-001-ctrl-theater only if APPROVED; Val+RT; ledger EV-DS-005/DEC-20260731-015 (EV-DS-004 reserved for parse supersession of EV-DS-003 per CORR-20260731-002). Deferred: CI-IDENTITY, SPARSE-P-SUCCESS. Toy claim ceiling. No full 54-cell matrix. No v1. Do not alter H-IC-001/H-STR-002. Leave FAEST/XEDN alone.
 
 ## Ready Tasks
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `afb1f4199640184a2ad7c9724b2a8ca7b110f40455d8d9ed58aa3033c7b5b785`
+Plan SHA-256: `e843a800ea2d08f2f66d5802b2f6044d675d9498060be8138d7758471f4a4ebd`

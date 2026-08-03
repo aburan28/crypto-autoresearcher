@@ -1,0 +1,71 @@
+correction:
+  id: CORR-20260731-010
+  recorded_at: '2026-07-31'
+  record_type: archive_procedure
+  record_id: GOAL-ECDLP-001/BATCH-020/TASK-20260731-045
+  field: feasibility_of_resume_option_A_from_CORR-20260731-009
+  prior_value:
+    option_A_as_stated: >-
+      "A Coordinator decision re-declares TASK-20260731-045's archive over the
+      twelve-path commit 61cd5262 and re-homes the receipt declaration, which
+      requires deciding what nonempty artifact_paths that archive then carries."
+      Recorded in CORR-20260731-009 as one of two resume options, and SELECTED.
+  corrected_value:
+    determination: >-
+      OPTION A IS IMPOSSIBLE. It was attempted, it failed on a rule
+      CORR-20260731-009 did not account for, and the failure is not a matter of
+      choosing a better artifact_paths value - NO value exists. The attempt was
+      reverted and the queue is byte-identical to its committed state.
+  the_proof: >-
+    Let S = TASK-20260731-044.artifact_paths, the twelve run-package paths, and
+    let A = TASK-20260731-045.archive.artifact_paths.
+    (1) SCHEMA. tools/research_dispatch.py line 396 applies require_text_list
+        without allow_empty, so A is nonempty.
+    (2) OWNERSHIP. Lines 405-409 raise "artifact path ... is owned by both ..."
+        if any path appears in two tasks' artifact_paths, so A and S are
+        DISJOINT. This is the rule CORR-20260731-009 missed, and it is what the
+        renderer returned when Option A was attempted with
+        A = {runs/RUN-DS-001-ctrl-unplanted/manifest.json}.
+    (3) VERIFIER. verify_archive requires the bound commit to change EXACTLY
+        S UNION A.
+    From (1) and (2), |S UNION A| = |S| + |A| >= 13. The only commit containing
+    all of S is 61cd5262, which changed exactly twelve paths. So
+    changed(61cd5262) != S UNION A for EVERY admissible A. No other commit can
+    contain S: S is already committed and immutable, re-committing identical
+    content is a no-op, and modifying run records is forbidden outright.
+    THEREFORE TASK-20260731-045 CAN NEVER BE BOUND TO ANY COMMIT. QED.
+  the_consequence_that_follows_and_is_not_softened: >-
+    A completed archive REQUIRES archive.commit_sha (lines 469 and 832), so
+    TASK-20260731-045 can never reach state `completed`. TASK-20260731-046
+    (Validator) and TASK-20260731-047 (Red Team) both declare depends_on
+    [TASK-20260731-044, TASK-20260731-045], and TASK-20260731-048 depends on all
+    three. THE BATCH-020 REVIEW AND LEDGER CHAIN IS THEREFORE PERMANENTLY BLOCKED
+    UNDER THIS QUEUE AS WRITTEN. That is a statement about the queue's
+    bookkeeping, NOT about the research: the snapshot the gate exists to
+    guarantee DID happen, at commit 61cd5262, which is pushed and immutable.
+  generalization: >-
+    ANY ARCHIVE WHOSE DECLARED SOURCE ARTIFACTS ARE COMMITTED WITHOUT THE
+    ARCHIVE'S OWN DECLARED ARTIFACT IN THE SAME COMMIT IS PERMANENTLY UNBINDABLE.
+    This is the same shape as CORR-20260731-891's finding about ID remaps: an
+    immutable commit plus a mutable declaration can be driven apart, and once
+    apart they cannot be reconciled. The receipt-in-same-commit convention
+    BATCH-020 used at TASK-20260731-041 is not a stylistic preference - it is
+    load-bearing, and departing from it is unrecoverable rather than untidy.
+  what_remains_true_and_undamaged:
+    - Every artifact is committed and immutable at 61cd5262; the receipt at 0d214d72. Nothing needs re-running.
+    - The queue renders. TASK-20260731-045 stays `queued` with commit_sha null and NO FALSE BINDING EXISTS.
+    - No hypothesis status, claim tier or goal status moves. H-DS-001 analyzed; H-IC-001 and H-STR-002 untouched.
+  remaining_routes_stated_without_choosing: >-
+    (i) Amend TASK-20260731-046 / -047 depends_on to drop TASK-20260731-045. The
+    dependency's PURPOSE - reviewers read an immutable committed snapshot - is
+    factually satisfied by 61cd5262 even though its BINDING is not, so this
+    trades a mechanical gate for a documentary one on this batch alone.
+    (ii) Open BATCH-021 carrying the reviews, referencing the run package by
+    commit SHA rather than by an archive binding.
+    (iii) Leave the chain blocked and close BATCH-020 with the run archived and
+    unreviewed. THE CHOICE IS THE COORDINATOR'S AND IS NOT MADE HERE. Option (i)
+    deletes a review gate and must not be taken silently.
+  evidence_artifacts:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/dispatch_queue.json
+    - ledger/corrections/CORR-20260731-009.yaml
+    - tools/research_dispatch.py

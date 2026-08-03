@@ -1,20 +1,25 @@
 ---
 id: KN-LIT-1578
 type: literature
-title: "Bridging the Cybersecurity Gap Between Web2 and Web3 An Incident-Based Analysis of Organizational and Application-Level Security Failures"
+title: Bridging the Cybersecurity Gap Between Web2 and Web3 An Incident-Based Analysis of
+  Organizational and Application-Level Security Failures
 authors:
-  - "Tarkan Yavas∗"
+- Tarkan Yavas∗
 year: 2026
-venue: "arXiv preprint"
+venue: arXiv preprint
 identifiers:
   eprint: null
   doi: null
-  arxiv: "2605.18484"
-  url: "https://arxiv.org/abs/2605.18484"
-tags: []
+  arxiv: '2605.18484'
+  url: https://arxiv.org/abs/2605.18484
+tags:
+- survey
+- blockchain
+- applied-security
+- incident-analysis
 confidence: reported
 citation_verified: read
-added: "2026-07-24"
+added: '2026-07-24'
 superseded_by: null
 ---
 

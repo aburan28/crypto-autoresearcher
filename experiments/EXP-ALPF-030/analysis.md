@@ -1,7 +1,7 @@
 # Analysis — Autolab prime-field: round019_PO009prime
 
 ## Observation
-No narrative finding recorded; source result artifact carries fields: control_has_resolution, falsified, rows, same_order_dff, same_order_maxGBdeg, start.
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 
