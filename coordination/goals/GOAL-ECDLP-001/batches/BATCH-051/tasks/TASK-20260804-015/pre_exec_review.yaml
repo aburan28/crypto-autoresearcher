@@ -1,0 +1,297 @@
+pre_exec_review:
+  id: RT-20260804-f60dbf
+  task_id: TASK-20260804-015
+  experiment_id: EXP-ICI-e622fd
+  hypothesis_id: H-ICI-063e91
+  verdict: REVISE
+  approval_recommendation: false
+
+  # -----------------------------------------------------------------------
+  # BLOCKING ITEMS  (must be resolved before any execution)
+  # -----------------------------------------------------------------------
+  blocking_items:
+
+    - id: BLOCK-1
+      title: Isogeny rationality — prime-order curves have no F_p-rational 2-isogenies
+      severity: critical
+      description: >-
+        The specification simultaneously requires (a) "random prime-field curves
+        … with prime order N" and (b) "ordinary 2-isogenies phi: E -> E'
+        computed via 2-torsion kernel enumeration using the degree-2 division
+        polynomial."  These two requirements are mutually exclusive.
+
+        MATHEMATICAL ARGUMENT.  Let p be an odd prime and N = #E(F_p) an odd
+        prime.  The trace of Frobenius is t = p + 1 - N.  Since p is odd and N
+        is odd, t = (even) - (odd) = odd, so t ≡ 1 (mod 2).  The characteristic
+        polynomial of Frobenius on E[2] (as a GF(2)-module) is
+
+            x² - tx + p ≡ x² + x + 1   (mod 2)
+
+        which is IRREDUCIBLE over GF(2).  An irreducible char-poly mod ℓ is the
+        "Atkin" condition: no Galois-stable subgroup of order ℓ exists in E[ℓ].
+        Concretely, E[2](F_p) = {O} (no rational 2-torsion), so no étale
+        F_p-group-scheme of order 2 can serve as the kernel of a degree-2
+        isogeny over F_p.  There are NO F_p-rational 2-isogenies from any
+        prime-order ordinary curve over an odd prime field.
+
+        CONSEQUENCE FOR THE EXPERIMENT.  The degree-2 division polynomial
+        x³ + ax + b has no roots in F_p for these curves (rational roots of the
+        cubic ↔ rational 2-torsion ↔ even group order).  Vélu's formulas require
+        a rational kernel generator; without one, no 2-isogeny over F_p can be
+        constructed.  A naïve implementation that searches for roots over F_p
+        will find none and either crash or silently return an empty preimage set.
+
+        MEASUREMENT CONSEQUENCE.  If the implementation returns phi⁻¹(F) = ∅
+        for the F_p-rational preimage, the measured augmentation_ratio = |F ∪ ∅|/|F|
+        = 1.0.  The negation control ALSO gives ratio = 1.0 (correct, by design).
+        The CTRL-ENDOMORPHISM-NEGATION stopping rule fires only when
+        negation_ratio ≠ 1.0 — it does NOT fire on ratio = 1.0 from a failed
+        isogeny computation.  The experiment would record ratio = 1 and the
+        falsification criterion ("augmentation_ratio ≤ random_map_ratio + 0.01 at
+        all cells") would appear to be triggered, producing a FALSE FALSIFICATION
+        of H-ICI-063e91.  No stopping rule distinguishes this from the
+        mathematical null outcome.
+
+      required_fix: >-
+        Resolve the curve class / isogeny-type consistency before dispatch.
+        Three options (choose one and document the choice):
+
+        OPTION A — Curves with cofactor 2.  Change the curve generation to
+        produce curves with #E(F_p) = 2N (N prime, cofactor 2).  Even group
+        order ↔ rational 2-torsion ↔ F_p-rational 2-isogeny exists.  Apply
+        Vélu's formulas on the unique rational 2-torsion point.  Explicitly
+        acknowledge that cofactor-2 curves differ from the prime-order ECDLP
+        setting; document the impact on ECDLP relevance in the spec.
+
+        OPTION B — Extension-field isogenies with explicit rationality accounting.
+        State that phi is a 2-isogeny over F_{p²} (not F_p), constructed from
+        the two conjugate 2-torsion generators over F_{p²}.  Define phi⁻¹(F)
+        as {P ∈ E(F_{p²}) : phi(P) ∈ F_{E'}(F_p)}, partition into
+        E(F_p)-rational and (E(F_{p²}) \ E(F_p))-parts, and count only the
+        F_p-rational component.  Add a stopping rule: "If |phi⁻¹(F) ∩ E(F_p)| = 0
+        at every cell, flag as EXTENSION-FIELD FAILURE — not evidence for or
+        against H-ICI-063e91."  Note: theory predicts this count to be 0 for
+        prime-order curves; confirming that prediction is itself a valid (negative)
+        finding, but it must be explicitly modeled, not silently absorbed.
+
+        OPTION C — Alternative isogeny degree.  Replace 2-isogenies with ℓ-isogenies
+        for an odd prime ℓ chosen such that the Elkies condition (t² - 4p is a
+        QR mod ℓ) is likely to hold for a non-negligible fraction of the tested
+        curves.  Document the fraction of test curves expected to have F_p-rational
+        ℓ-isogenies and add a cell-skip rule for Atkin curves.
+
+      cited_rules: [AGENTS rule 5, AGENTS rule 9]
+
+  # -----------------------------------------------------------------------
+  # NON-BLOCKING NOTES  (should be addressed; do not block approval alone)
+  # -----------------------------------------------------------------------
+  non_blocking_notes:
+
+    - id: NOTE-1
+      title: Budget arithmetic inconsistency
+      description: >-
+        The per-run wall-clock limit is 300 s and the total budget is 1 CPU-hour
+        (3600 s).  The experiment has 3 bit-sizes × 3 B_fractions × 10
+        replications = 90 primary runs, plus controls (random-map + negation for
+        each cell ≈ 180 additional evaluations).  At the stated ceiling,
+        90 × 300 s = 27,000 s ≈ 7.5 CPU-hours >> 1 CPU-hour budget.
+        For toy primes at bits ∈ {20, 24, 28} actual per-run time should be
+        O(seconds), so the total will fit comfortably; but the specification is
+        internally inconsistent.
+      recommended_fix: >-
+        Add a sentence: "300 s is a per-run safety ceiling; expected runtime at
+        bits ∈ {20, 24, 28} is < 10 s per run.  The 1 CPU-hour budget is the
+        hard total cap; abort the run set if cumulative wall-clock exceeds it."
+
+    - id: NOTE-2
+      title: B_fraction / factor-base-threshold notation ambiguity
+      description: >-
+        The inputs list B_fractions ∈ {0.1, 0.2, 0.3} but the factor-base
+        definition uses the formula "x-coordinate < p/B."  If B = B_fraction
+        (i.e., B ∈ {0.1, 0.2, 0.3}), the threshold p/B ∈ {10p, 5p, 3.33p}
+        exceeds p and wraps in F_p — nonsensical.  The intended reading is
+        B_fraction as the fraction of N, so B = B_fraction × N and the threshold
+        is p/B ≈ p/(B_fraction × N) ≈ 1/B_fraction — but that gives threshold
+        {10, 5, 3.33}, which is also too small (factor base of < 10 points).
+        The only sensible interpretation that matches H-ICI-063e91's
+        B ∈ {N/10, N/5, N/3} is:
+            threshold = B_fraction × p    (e.g., 0.1 × p = p/10)
+        i.e., the factor base is {P ∈ E(F_p) : x(P) < B_fraction × p}, giving
+        |F| ≈ N × B_fraction.  The formula "p/B" in the specification should be
+        replaced with "B_fraction × p" (or equivalently "p × B_fraction") to
+        eliminate ambiguity.  An implementer who reads the formula literally and
+        computes p/0.1 = 10p will produce a factor base of the ENTIRE curve.
+      recommended_fix: >-
+        Replace the factor-base formula with:
+            threshold := floor(B_fraction * p)
+            F := { P ∈ E(F_p) : x(P) < threshold }
+        and add a check |F| ∈ [0.4 * B_fraction * N, 1.6 * B_fraction * N] as a
+        sanity assertion (should hold with high probability; failure → report and
+        skip cell).
+
+    - id: NOTE-3
+      title: Random-bijection control under-specified; memory concern at bits=28
+      description: >-
+        CTRL-NULL-RANDOM-MAP specifies "psi is a RANDOM bijection of E(F_p) to
+        itself" without a construction.  Storing an explicit random permutation
+        table of N ~ 2²⁸ ≈ 2.7 × 10⁸ points requires O(N) memory (~1–4 GB),
+        which is borderline against the 4 GB budget when combined with the rest
+        of the computation.  More importantly, the construction is under-specified
+        and different implementations (shuffle vs. hash-based vs. scalar-mult)
+        produce different distributions.
+      recommended_fix: >-
+        Define psi explicitly as scalar multiplication: psi := [k] for a
+        uniformly random k ∈ (Z/N)*.  This is a bijection of E(F_p) whenever N
+        is prime and gcd(k, N) = 1 (trivially satisfied since N is prime and
+        k ≠ 0 mod N).  It requires no table, costs O(log N) per point evaluation,
+        and makes the null distribution precisely determined.  The expected ratio
+        is 2 − B_fraction (≈ 2 − |F|/N) as required by HEUR-ICI-1.
+
+    - id: NOTE-4
+      title: Inconclusive outcome region not labeled
+      description: >-
+        The success criterion fires at ≥ 6 of 9 cells; the falsification
+        criterion fires at all 9 cells showing no advantage.  The 3–5 cell
+        region (some advantage, not enough for success) has no named outcome.
+        Under the current spec the experiment terminates with neither a "success"
+        nor a "falsification" label; a Coordinator reviewing the results may
+        promote or dismiss the hypothesis inconsistently.
+      recommended_fix: >-
+        Add an explicit third outcome:
+            inconclusive: augmentation_ratio > random_map_ratio + 0.01 at
+            1 ≤ k ≤ 5 cells.  Record as INCONCLUSIVE; H-ICI-063e91 remains
+            at 'specified'; suggest follow-up with larger bits or more replications.
+
+    - id: NOTE-5
+      title: Implementation source code not in required_artifacts
+      description: >-
+        required_artifacts lists manifests, raw-result, and augmentation_table,
+        but does not include the implementation source.  Without the source,
+        a Validator cannot verify the isogeny computation, the preimage
+        enumeration logic, or the factor-base threshold formula.
+      recommended_fix: >-
+        Add "experiments/EXP-ICI-e622fd/src/" (or a specific source file path)
+        to required_artifacts, with a requirement that the exact committed git
+        SHA for the source is recorded in the run manifest.
+
+  # -----------------------------------------------------------------------
+  # CHECKS PERFORMED
+  # -----------------------------------------------------------------------
+  checks:
+
+    falsifiability:
+      verdict: conditional_pass
+      notes: >-
+        Success and falsification criteria are decidable from the primary metric
+        (augmentation_ratio) and the null-control metric (random_map_ratio).
+        The 1.05 absolute threshold matches the hypothesis prediction.
+        CAVEAT: see BLOCK-1 — if the isogeny computation silently fails, the
+        criteria are evaluated on artifacts that do not reflect the intended
+        experiment; decidability of the criterion does not imply validity of
+        the measurement.
+
+    controls_validity:
+      CTRL_NULL_RANDOM_MAP:
+        verdict: design_correct_implementation_under_specified
+        notes: >-
+          The logic is sound: if ratio_isogeny ≈ ratio_random, the isogeny
+          adds nothing over a random map.  Construction of the random bijection
+          is under-specified (see NOTE-3).  Assuming psi = [k] for random k,
+          the expected null ratio 2 − B/N follows from set-independence; the
+          formula is correctly stated in the preregistered_prediction.
+      CTRL_ENDOMORPHISM_NEGATION:
+        verdict: pass
+        notes: >-
+          Claim is correct: [-1](P) has the same x-coordinate as P (since
+          -P = (x, -y) on short Weierstrass forms), so [-1]⁻¹(F) = F for any
+          x-coordinate-defined F.  Augmentation_ratio = 1.0 follows
+          unconditionally.  This is a valid sanity/infrastructure check.
+          NOTE: the stopping rule "negation_ratio ≠ 1.0 → halt" is correct,
+          but it does NOT detect silent failure of the isogeny computation
+          (see BLOCK-1).
+
+    scope_and_claim_ceiling:
+      verdict: pass
+      notes: >-
+        Claim ceiling explicitly prohibits sub-rho ECDLP time exponent,
+        crypto-scale claims, H-ICI-063e91 status above 'analyzed', and all
+        asymptotic claims.  All four asymptotic promotion gates remain open.
+        claim_tier: toy is correctly set.  No overreach detected.
+
+    budget_realism:
+      verdict: conditional_pass
+      notes: >-
+        At bits ∈ {20, 24, 28} expected per-run runtime is O(seconds); 90 runs
+        + controls fit well within 1 CPU-hour.  The 300 s per-run ceiling is
+        conservative and appropriate.  The arithmetic inconsistency is a
+        documentation error (see NOTE-1), not a resource safety problem.
+
+    implementation_feasibility:
+      verdict: fail
+      notes: >-
+        See BLOCK-1.  "2-torsion kernel enumeration using the degree-2 division
+        polynomial" is infeasible for prime-order curves over odd prime fields.
+        The cubic x³ + ax + b has no roots in F_p for these curves (rational
+        root ↔ rational 2-torsion ↔ even group order).  Vélu's formulas require
+        a rational kernel generator.  The implementation method is
+        mathematically incorrect for the stated curve class.
+
+    factor_base_definition:
+      verdict: conditional_pass
+      notes: >-
+        With threshold = B_fraction × p (the only sensible reading), |F| ≈
+        N × B_fraction, which matches the hypothesis B ∈ {N/10, N/5, N/3}.
+        The formula "x < p/B" in the spec is ambiguous (see NOTE-2).  The
+        definition is reasonable and gives an approximately correct factor base
+        size; the implementation must use the correct formula.
+
+    preregistered_prediction:
+      verdict: pass
+      notes: >-
+        Theoretical prediction (ratio = 2 − B/N under HEUR-ICI-1; ratio = 1
+        if phi permutes F) is stated before results are generated.
+        The prediction source is cited (IDEA-20260804-027a00, H-ICI-063e91).
+        The 1.05 threshold matches the hypothesis minimum_effect.
+
+    stopping_rules:
+      verdict: partial_fail
+      notes: >-
+        The negation stopping rule is correct and will catch general
+        infrastructure failures.  It will NOT catch silent isogeny-computation
+        failure (phi⁻¹(F) = ∅ due to no rational 2-torsion), because that
+        failure produces ratio = 1.0, which is IDENTICAL to the expected
+        negation control value and therefore does not trigger the halt condition.
+        A supplemental stopping rule must be added (see BLOCK-1, OPTION B).
+
+  # -----------------------------------------------------------------------
+  # VERDICT SUMMARY
+  # -----------------------------------------------------------------------
+  verdict_rationale: >-
+    The experiment design is conceptually sound — the null control structure is
+    correct, the claim ceiling is appropriately conservative, and the
+    falsification criteria are decidable.  However, there is one critical
+    mathematical blocking issue: the specification requires prime-order curves
+    AND F_p-rational 2-isogenies, but these are mutually exclusive for all
+    ordinary curves over odd prime fields.  The characteristic polynomial of
+    Frobenius mod 2 is always irreducible (x² + x + 1 over GF(2)) for curves
+    with odd prime group order, giving the Atkin condition that prevents any
+    F_p-rational 2-isogeny.  The stated implementation method (degree-2
+    division polynomial over F_p) will find no rational kernel, and the silent
+    failure produces ratio = 1 — indistinguishable from the hypothesis null
+    outcome under the current stopping rules.  This would produce a false
+    falsification of H-ICI-063e91.  The blocking issue must be resolved with
+    an explicit choice of curve class and isogeny rationality model before the
+    contract can be approved or executed.
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    independent_session: true
+
+  reviewed_artifacts:
+    - experiments/EXP-ICI-e622fd/specification.yaml
+    - ledger/hypotheses/H-ICI-063e91.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-049/tasks/TASK-20260804-006/proposals.yaml
+    - ledger/decisions/DEC-20260804-419e3c.yaml
+
+  reviewed_at: '2026-08-04'
