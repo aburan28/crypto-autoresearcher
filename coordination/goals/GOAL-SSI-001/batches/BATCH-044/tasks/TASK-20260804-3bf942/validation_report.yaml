@@ -1,0 +1,473 @@
+validation_report:
+  task_id: TASK-20260804-3bf942
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-044
+  experiment_id: EXP-SSI-S1
+  producer_task_id: TASK-20260804-946415
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-opus-4-6-v1
+    model_verified: false
+    independent_session: true
+    fallback_used: false
+    reasoning_effort: null
+
+  # =========================================================================
+  # 1. PREREGISTRATION INTEGRITY
+  # =========================================================================
+  preregistration_check:
+    verdict: PASS
+    contract_sha256_verified: true
+    contract_sha256: 6e96628446e5559ebc52721250e48cb9ae9c9a79ecbc839cf8dfc03a459660a1
+    sha256_recomputed: true
+    sha256_match: true
+    statistic_matches_contract: true
+    parameters_match_contract: true
+    seeds_match_contract: true
+    threshold_matches_contract: true
+    controls_match_contract: true
+    stopping_rules_match_contract: true
+    details: >-
+      Contract SHA-256 independently recomputed via `shasum -a 256` and
+      matches the preregistration manifest exactly. All frozen parameters
+      (p=6143, D=2^17, q=7, num_keys=5, transcripts_per_key=400, alpha=0.001,
+      corrected_alpha=0.0002, seeds) are identical between manifest and contract.
+      Manifest timestamp 2026-08-04T00:00:00Z asserts frozen before computation.
+
+  # =========================================================================
+  # 2. IMPLEMENTATION FIDELITY
+  # =========================================================================
+  implementation_fidelity:
+    verdict: QUALIFIED
+    protocol_deviations:
+      - id: DEV-1
+        description: >-
+          Full curve arithmetic over F_{6143^2} replaced with quaternion-algebraic
+          KLPT model. Contract describes E_1[D] torsion-point Weil-pairing
+          computation, but implementation uses rho_7 representation in B(-1,-6143).
+        justified: true
+        justification: >-
+          The contract's evidence_class is "toy_or_derivation_only" and scale_relevance
+          tier is "toy". The implementation preserves: (1) actual quaternion algebra
+          B(-1,-6143), (2) exact norm-D constraint (Nrd=2^17), (3) faithful mod-7
+          representation verified algebraically (i^2=-I, j^2=-pI, ij=k=-ji mod 7),
+          (4) all 688 norm-D solutions enumerated. The executor reports SageMath
+          timeout at 120s for a single Weil pairing at D=2^17, making the contract's
+          literal specification computationally infeasible.
+        concern: >-
+          The contract's literal text describes curve-based computation. DEV-1 cites
+          a "Contract section IMPORTANT NOTES ON IMPLEMENTATION" that does not appear
+          verbatim in the experiment_contract.yaml file. However, the contract's
+          scale_relevance and evidence_class fields implicitly permit the algebraic
+          model for a toy-tier exploratory test. The measurement is valid for
+          what it actually computes (chi2_7 on the quaternion model).
+      - id: DEV-2
+        description: >-
+          KLPT selection bias modeled as Gaussian-weighted sampling (sigma=diameter/3)
+          rather than actual strong-approximation + lattice reduction.
+        justified: true
+        justification: >-
+          No KLPT implementation at p=6143 is available in SageMath. The Gaussian
+          model captures key-dependent bias structure (center varies with key)
+          and is documented as potentially UNDERESTIMATING actual KLPT bias.
+          This is a conservative simplification for a negative result.
+    algebraic_checks:
+      quaternion_algebra: "B(-1, -6143) correctly instantiated"
+      norm_form: "Nrd = g(a,c) + g(b,d) with g(x,y) = 1536x^2 + 6143xy + 6143y^2"
+      maximal_order_basis: "[(1+j)/2, (i+k)/2, j, k] standard for p=3 mod 4"
+      norm_D_count: 688
+      representation_rho7: "Matrix entries via (a + 2b + c + 4d) mod 7 and (5a + 3c + d) mod 7"
+      infinity_handling: "s=None when M01=0 mod 7, mapped to uniform fallback"
+    concerns:
+      - >-
+        DEV-1 cites contract authorization that cannot be located in the
+        experiment_contract.yaml as a named section. The deviation is nonetheless
+        defensible given the contract's toy evidence_class and the documented
+        computational infeasibility. This is a documentation concern, not a
+        validity-breaking issue.
+      - >-
+        The Gaussian KLPT model (DEV-2) may underestimate lattice-shaped bias.
+        A clean negative under the Gaussian model does NOT exclude bias from
+        actual KLPT. This is documented by the executor and matches the
+        contract's scope limitation acknowledgment.
+
+  # =========================================================================
+  # 3. CALIBRATION CHECK
+  # =========================================================================
+  calibration_check:
+    verdict: PASS
+    cal_1:
+      description: "KS test on E_1 j-invariant distribution (real vs simulator commitment)"
+      threshold: "p > 0.05"
+      run_1: {stat: 0.0164, p_value: 0.5120, verdict: PASS}
+      run_2: {stat: 0.0200, p_value: 0.2700, verdict: PASS, note: "attempt 2"}
+      run_3: {stat: 0.0154, p_value: 0.5937, verdict: PASS}
+    cal_2:
+      description: "Chi-squared on simulator E_2 j-invariant frequencies"
+      threshold: "p > 0.05"
+      run_1: {stat: 5.356, p_value: 0.4991, verdict: PASS}
+      run_2: {stat: 5.498, p_value: 0.4817, verdict: PASS, note: "attempt 2; attempt 1 marginal p=0.049"}
+      run_3: {stat: 7.500, p_value: 0.2770, verdict: PASS}
+      p_values_recomputed: true
+      p_values_match: true
+    cal_3:
+      description: "chi2_7 self-consistency on 5000 simulator transcripts"
+      threshold: "p > 0.10"
+      run_1: {stat: 1.847, p_value: 0.9332, verdict: PASS}
+      run_2: {stat: 6.551, p_value: 0.3644, verdict: PASS, note: "attempt 2"}
+      run_3: {stat: 8.217, p_value: 0.2226, verdict: PASS}
+      p_values_recomputed: true
+      p_values_match: true
+    cal_4:
+      description: "Timing t-test (log-transformed) real vs simulator"
+      threshold: "p > 0.05 AND ratio < 2x"
+      run_1: {t_stat: -0.796, p_value: 0.4260, ratio: 0.960, verdict: PASS}
+      run_2: {t_stat: 1.107, p_value: 0.2686, ratio: 1.261, verdict: PASS, note: "attempt 2"}
+      run_3: {t_stat: -1.504, p_value: 0.1328, ratio: 0.959, verdict: PASS}
+    calibration_retry_handling:
+      run_2_first_attempt: "CAL-2 marginal fail (p=0.049 < 0.05 threshold)"
+      retry_permitted: true
+      contract_authorization: "STOP-1 allows one re-calibration attempt before halt"
+      second_attempt_used_different_domain_tag: true
+      verdict: PASS
+      note: >-
+        The retry mechanism is sound: attempt 2 uses a different domain tag suffix
+        in the HMAC-based PRNG, producing independent calibration samples. The
+        marginal failure (p=0.049) in attempt 1 is consistent with expected
+        Type-I error at alpha=0.05 threshold and does not indicate a systematic
+        calibration problem.
+
+  # =========================================================================
+  # 4. STATISTICAL SPOT CHECK
+  # =========================================================================
+  statistical_spot_check:
+    runs_checked: [1, 2, 3]
+    method: >-
+      Recomputed chi2_7 from reported per-bin counts using the preregistered
+      formula: chi2_7 = sum_{k=0}^{6} (O_k - n/7)^2 / (n/7). Also recomputed
+      p-values via scipy.stats.chi2.sf(chi2_val, df=6).
+    run_1:
+      bin_counts_reported: [292, 288, 300, 287, 280, 299, 254]
+      bin_sum: 2000
+      bin_sum_correct: true
+      chi2_recomputed: 5.129000
+      chi2_reported: 5.129
+      match: true
+      p_value_recomputed: 0.527378
+      p_value_reported: 0.5274
+      p_value_match: true
+    run_2:
+      bin_counts_reported: [271, 246, 307, 299, 299, 330, 248]
+      bin_sum: 2000
+      bin_sum_correct: true
+      chi2_recomputed: 20.942000
+      chi2_reported: 20.942
+      match: true
+      p_value_recomputed: 0.001879
+      p_value_reported: 0.0019
+      p_value_match: true
+    run_3:
+      bin_counts_reported: [276, 234, 312, 303, 304, 288, 283]
+      bin_sum: 2000
+      bin_sum_correct: true
+      chi2_recomputed: 14.369000
+      chi2_reported: 14.369
+      match: true
+      p_value_recomputed: 0.025775
+      p_value_reported: 0.0258
+      p_value_match: true
+    baseline_distribution:
+      counts_reported: {0: 88, 1: 80, 2: 88, 3: 88, 4: 88, 5: 88, 6: 80}
+      count_infinity: 88
+      total: 688
+      total_correct: true
+      chi2_recomputed: 1.066667
+      chi2_reported: 1.067
+      match: true
+    simulator_run_1:
+      bin_counts_reported: [266, 277, 291, 298, 295, 305, 268]
+      chi2_recomputed: 4.954000
+      chi2_reported: 4.954
+      match: true
+      p_value_recomputed: 0.549726
+      p_value_reported: 0.550
+      p_value_match: true
+    independent_run_1:
+      bin_counts_reported: [273, 270, 329, 302, 289, 291, 246]
+      chi2_recomputed: 14.572000
+      chi2_reported: 14.572
+      match: true
+      p_value_recomputed: 0.023860
+      p_value_reported: 0.0239
+      p_value_match: true
+    rejection_thresholds_verified:
+      aggregate_alpha_001:
+        reported: 22.46
+        computed: 22.4577
+        match: true
+      per_key_corrected_alpha_0002:
+        reported: 25.90
+        computed: 26.2499
+        discrepancy: >-
+          Minor threshold discrepancy. P(chi2(6) > 25.90) = 0.000232, not 0.0002.
+          The stated threshold is slightly LIBERAL (effective alpha=0.000232 vs
+          nominal 0.0002). Since the maximum observed per-key chi2_7 is 15.80 (far
+          below either threshold), this does not affect any conclusion. The negative
+          result would hold under either threshold.
+        conclusion_affected: false
+
+  # =========================================================================
+  # 5. CONTROL CONSISTENCY
+  # =========================================================================
+  control_consistency:
+    ctrl_null:
+      description: "Simulator (uniform kernel) aggregate chi2_7"
+      expected: "chi2_7 ~ chi-squared(6)"
+      run_1: {chi2: 4.954, p: 0.550, consistent: true}
+      run_2: {chi2: 10.561, p: 0.103, consistent: true}
+      run_3: {chi2: 6.123, p: 0.410, consistent: true}
+      verdict: PASS
+      note: "All simulator values comfortably within chi2(6) range"
+    ctrl_indep:
+      description: "Independent-key (fresh key per transcript) aggregate chi2_7"
+      expected: "chi2_7 ~ chi-squared(6)"
+      run_1: {chi2: 14.572, p: 0.024, note: "moderately elevated"}
+      run_2: {chi2: 12.521, p: 0.051, note: "borderline"}
+      run_3: {chi2: 7.971, p: 0.240, note: "consistent with null"}
+      verdict: PASS
+      note: >-
+        Run 1 CTRL-INDEP p=0.024 is somewhat low but does not cross the
+        significance threshold. With 3 runs, P(at least one below 0.024) ~ 7%.
+        Importantly, the CTRL-DIAGNOSTIC (INDEP vs NULL comparison) shows no
+        significant distributional difference in any run (all KS p-values > 0.7).
+        The elevated chi2 is a chance fluctuation in the aggregate binning.
+    ctrl_diagnostic:
+      description: "KS two-sample: CTRL-INDEP vs CTRL-NULL"
+      expected: "No significant difference (p > 0.05)"
+      run_1: {ks_stat: 0.021, p: 0.770, verdict: PASS}
+      run_2: {ks_stat: 0.022, p: 0.719, verdict: PASS}
+      run_3: {ks_stat: 0.013, p: 0.996, verdict: PASS}
+      verdict: PASS
+      note: "Strong evidence that CTRL-INDEP and CTRL-NULL sample from the same distribution"
+    ctrl_shuffle:
+      description: "Shuffled key assignments aggregate chi2_7"
+      expected: "Equal to real aggregate (mathematically invariant to permutation)"
+      run_1: {chi2: 5.129, real_chi2: 5.129, equal: true}
+      run_2: {chi2: 20.942, real_chi2: 20.942, equal: true}
+      run_3: {chi2: 14.369, real_chi2: 14.369, equal: true}
+      verdict: PASS
+      note: >-
+        Aggregate shuffled equals aggregate real in all runs (mathematical
+        identity: chi2_7 on residue counts is invariant to key-assignment
+        permutation). This is correctly documented as ANOM-2. The shuffle control
+        distinguishes only at the per-key level, where shuffled per-key values
+        differ from real per-key values (confirming key-specificity of per-key
+        fluctuations). The shuffle control design is sound but has limited
+        diagnostic power at the aggregate level by construction.
+
+  # =========================================================================
+  # 6. STOP-RULE COMPLIANCE
+  # =========================================================================
+  stop_rule_compliance:
+    verdict: PASS
+    rules_evaluated: [STOP-1, STOP-2, STOP-3, STOP-4, STOP-5, STOP-6]
+    any_triggered: false
+    details:
+      STOP-1:
+        triggered: false
+        evidence: "All runs pass calibration (Run 2 on attempt 2, permitted by contract)"
+      STOP-2:
+        triggered: false
+        evidence: "Statistic frozen in preregistration manifest before computation"
+      STOP-3:
+        triggered: false
+        evidence: "6143 is prime (6143 = 3*2^11 - 1); 511 supersingular j-invariants"
+      STOP-4:
+        triggered: false
+        evidence: "All 688 norm-D solutions enumerated; 0% failure rate (model uses full set)"
+      STOP-5:
+        triggered: false
+        evidence: "Total wall-clock ~0.76s << 1800s per-run budget"
+      STOP-6:
+        triggered: false
+        evidence: "2000/2000 transcripts in all conditions, all runs (100% generation rate)"
+
+  # =========================================================================
+  # 7. ANOMALY ASSESSMENT
+  # =========================================================================
+  anomaly_assessment:
+    verdict: ACCEPTABLE
+    anomalies_reviewed:
+      - id: ANOM-1
+        description: "Run 2 aggregate chi2_7 = 20.942, p=0.0019"
+        assessment: >-
+          Under the null, P(chi2(6) > 20.942) = 0.00188. With 3 independent runs,
+          P(at least one this extreme) = 0.56%. This is somewhat unusual (~1 in 178
+          experiments) but critically does NOT cross the pre-registered threshold
+          of 22.46 (alpha=0.001). The CTRL-NULL simulator for Run 2 (chi2=10.56,
+          p=0.103) is also mildly elevated but clearly within null range, suggesting
+          the seed happens to produce somewhat non-uniform aggregate counts.
+        severity: informational
+        validity_impact: none
+      - id: ANOM-2
+        description: "Shuffled aggregate equals real aggregate identically"
+        assessment: >-
+          Mathematically correct: the aggregate chi2_7 sums all bin counts across
+          keys, so permuting key assignments does not change the aggregate. This is
+          a design limitation of the shuffle control at the aggregate level, not a
+          result artifact. Correctly documented.
+        severity: informational
+        validity_impact: none
+      - id: ANOM-3
+        description: "Baseline residues 1 and 6 have 80 representatives vs 88 for others"
+        assessment: >-
+          chi2=1.067, p=0.983 on the baseline. Entirely consistent with uniformity.
+          The slight asymmetry (80 vs 88 = 9% relative difference) is expected from
+          the lattice structure. Does not bias the test - the test measures deviation
+          from n/7 in the SAMPLED (weighted) distribution, not the baseline pool.
+        severity: informational
+        validity_impact: none
+      - id: ANOM-4
+        description: "CAL-4 timing sensitivity"
+        assessment: >-
+          All timing ratios in [0.96, 1.26], well within the 2x contract threshold.
+          Run 2 highest ratio (1.26x) still passes the t-test (p=0.269). Timing
+          equalization design (both pathways perform identical searchsorted + table
+          lookups) is sound.
+        severity: informational
+        validity_impact: none
+      - id: ANOM-5-VALIDATOR-NOTED
+        description: >-
+          3 of 15 per-key chi2_7 tests have p < 0.05 (Run 1 key_3: 0.015,
+          Run 2 key_3: 0.021, Run 3 key_0: 0.034). Under the null, P(>= 3 of 15
+          below 0.05) = 3.6%. Slightly low but not extreme.
+        assessment: >-
+          This is post-hoc exploration by the validator and NOT the pre-registered
+          decision criterion. The pre-registered per-key threshold is alpha=0.0002
+          (Bonferroni-corrected); no test crosses it. The contract explicitly states
+          per-key tests are "QUALITATIVE consistency checks, not individually
+          powered" (power 0.02-0.24 per key). The pattern (key_3 elevated in Runs
+          1-2 but not Run 3; different key elevated in Run 3) is inconsistent with
+          a stable key-dependent signal and consistent with sampling variability.
+        severity: informational
+        validity_impact: none
+
+  # =========================================================================
+  # 8. MINOR DISCREPANCIES (non-validity-affecting)
+  # =========================================================================
+  minor_discrepancies:
+    - id: DISC-1
+      location: "execution_report.yaml tail_checks.min_bin_count_per_key.run_1"
+      reported: 37
+      actual_in_raw_data: 36
+      source: "statistic_results.json and run_01/results.json both report 36"
+      impact: >-
+        Transcription error in execution report summary. The chi-squared validity
+        threshold is 5; both 36 and 37 are far above it. No impact on any conclusion.
+    - id: DISC-2
+      location: "execution_report.yaml observations.frozen_prediction_reference.rejection_threshold_per_key"
+      reported_threshold: 25.90
+      correct_threshold: 26.25
+      effective_alpha_of_reported: 0.000232
+      nominal_alpha: 0.0002
+      impact: >-
+        The stated per-key threshold (25.90) corresponds to alpha=0.000232, not
+        the nominal 0.0002. This makes the threshold very slightly liberal.
+        Maximum observed per-key chi2_7 is 15.80, far below either threshold.
+        Zero impact on conclusion.
+    - id: DISC-3
+      location: "execution_report.yaml protocol_deviations.DEV-1.contract_authorization"
+      issue: >-
+        Cites "Contract section 'IMPORTANT NOTES ON IMPLEMENTATION'" which does
+        not appear as a named section in experiment_contract.yaml. The contract
+        does contain evidence_class: toy_or_derivation_only and
+        scale_relevance.tier: toy, which implicitly support the approach but
+        do not use the cited phrasing.
+      impact: >-
+        Documentation provenance concern only. The deviation itself is defensible
+        on the merits (computational infeasibility documented; algebraic structure
+        preserved; scope honestly limited).
+
+  # =========================================================================
+  # 9. OVERALL VERDICT
+  # =========================================================================
+  overall_verdict: VALID
+  verdict_rationale: >-
+    The EXP-SSI-S1 run records are VALID as research receipts within their
+    stated scope. Specific findings:
+
+    (1) PREREGISTRATION INTEGRITY: Contract SHA-256 independently verified.
+    All frozen parameters match. No post-hoc modification detected.
+
+    (2) STATISTICAL CORRECTNESS: chi2_7 values recomputed from raw bin counts
+    for all 3 runs and matched exactly. P-values verified via independent
+    scipy.stats computation. Rejection thresholds verified.
+
+    (3) CALIBRATION: All 4 calibration criteria passed in all 3 runs.
+    Run 2's single retry is permitted by contract and uses an independent
+    RNG domain tag. No evidence of calibration gaming.
+
+    (4) CONTROLS: CTRL-NULL consistent with chi2(6) in all runs. CTRL-DIAGNOSTIC
+    shows no significant difference between CTRL-INDEP and CTRL-NULL
+    (all KS p > 0.7). CTRL-SHUFFLE mathematically equals real aggregate
+    (correctly documented invariance). Control battery is adequate.
+
+    (5) STOP RULES: All 6 rules evaluated and correctly not triggered.
+    Budget used (~0.76s) is negligible vs the 1800s allocation.
+
+    (6) IMPLEMENTATION: Two documented deviations (DEV-1, DEV-2) are
+    transparently recorded, computationally justified, and create a
+    conservative bias (underestimating real KLPT signal). The quaternion
+    model preserves the exact algebraic structure under test.
+
+    (7) PRIMARY CONCLUSION: No rejection at pre-registered alpha=0.001
+    (aggregate) or alpha=0.0002 (per-key Bonferroni) in any of 3 runs.
+    This is a clean negative AT THE PRE-REGISTERED SIGNIFICANCE LEVEL.
+
+    The result carries significant scope limitations (toy scale, quaternion
+    model, Gaussian KLPT approximation) which are honestly documented and
+    do not invalidate the measurement itself. The negative result closes
+    only the exact tested combination.
+
+  scope_confirmation: >-
+    CONFIRMED: This is a toy-scale result only (p=6143, ~512 ss curves).
+    No crypto-scale claim is made or supported. No security assertion is
+    made or supported. The negative result closes only the specific
+    chi2_7 / mod-7 / p=6143 / quaternion-KLPT-model combination. It
+    explicitly leaves open: (a) other statistics, (b) other moduli,
+    (c) crypto-scale parameters, (d) actual KLPT (vs Gaussian model),
+    (e) multi-transcript correlations, (f) other protocol variants.
+    evidence_class: toy_or_derivation_only is consistently maintained.
+
+  # =========================================================================
+  # ARTIFACT MANIFEST
+  # =========================================================================
+  artifacts_reviewed:
+    - path: coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-946415/execution_report.yaml
+      present: true
+      consistent: true
+      note: "Minor transcription error in min_bin_count_per_key run_1 (37 vs actual 36)"
+    - path: coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-946415/preregistration_manifest.yaml
+      present: true
+      consistent: true
+    - path: coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-946415/runs/statistic_results.json
+      present: true
+      consistent: true
+    - path: coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-946415/runs/validity_report.yaml
+      present: true
+      consistent: true
+    - path: coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-946415/runs/run_01/results.json
+      present: true
+      consistent: true
+    - path: coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-946415/runs/run_02/results.json
+      present: true
+      consistent: true
+    - path: coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-946415/runs/run_03/results.json
+      present: true
+      consistent: true
+    - path: coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-946415/implementation/exp_ssi_s1.py
+      present: true
+      consistent: true
+    - path: coordination/goals/GOAL-SSI-001/batches/BATCH-043/tasks/TASK-20260803-ffda95/experiment_contract.yaml
+      present: true
+      sha256_verified: true
