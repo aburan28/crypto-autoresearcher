@@ -41,6 +41,14 @@ experiment:
 
       Under H0 (uniform kernel selection): chi2_q ~ chi-squared(df = q - 1 = 6).
       Under H1 (KLPT bias): chi2_q ~ chi-squared(6, lambda) with lambda > 0.
+
+      BASIS INVARIANCE NOTE (REV-4): chi2_q is invariant under symplectic basis
+      changes Sp(2, Z/DZ). Any basis change induces s → as+b (a invertible mod D),
+      which permutes residues mod 7 via (Z/7Z)*-action and translation. Since
+      chi-squared is invariant under category permutations, two independent
+      implementers using different valid Weil-normalized bases will compute the
+      SAME chi2_q value. The canonical-basis specification affects reproducibility
+      of individual s_i values but not the test statistic.
     justification: >-
       The KLPT algorithm finds a quaternion element gamma of reduced norm D in
       the maximal order End(E_1). The set of such elements is constrained by
@@ -200,22 +208,58 @@ experiment:
         "exploratory" in the report.
     power:
       target_power: 0.80
-      achieved_power_estimate: 0.83
+      power_guarantee_scope: aggregate_concentrated_bias
+      revision_note: >-
+        Corrected per TASK-20260803-b5ce08 validation (REV-1, REV-2).
+        Original derivation contained invalid probability distribution and
+        incorrect Cohen's w formula. Power depends on bias concentration pattern.
       derivation: |
         Under H1: TV(P_real, U_7) = epsilon = 0.05.
-        Cohen's w = sqrt(sum_k (p_k - 1/7)^2 / (1/7)).
-        For TV = 0.05 concentrated in one bin shift:
-          p_0 = 1/7 + 0.10, p_6 = 1/7 - 0.10, others = 1/7.
-          w = sqrt(7 * (0.10^2 + 0.10^2) / 1) = sqrt(7 * 0.02) = sqrt(0.14) = 0.374.
-        That overstates; for diffuse TV = 0.05 across 3 bins:
-          p_0 = 1/7 + 0.033, p_1 = 1/7 + 0.033, p_2 = 1/7 + 0.034,
-          p_5 = 1/7 - 0.033, p_6 = 1/7 - 0.034, p_3 = p_4 = 1/7.
-          w = sqrt(7 * 2*(0.033^2 + 0.033^2 + 0.034^2)) = sqrt(7 * 2 * 0.003267) ≈ 0.214.
-        Non-centrality lambda = n * w^2 = 400 * 0.214^2 = 400 * 0.046 = 18.3.
-        Chi-squared(6, 18.3) exceedance at threshold 22.46 (alpha=0.001):
-          P(chi2(6,18.3) > 22.46) ≈ 0.83.
-        At the aggregate level (n=2000): lambda = 2000 * 0.046 = 91.6; power > 0.99.
-        The binding power guarantee is at the per-key level (n=400): power ≈ 0.83 > 0.80.
+        TV = (1/2) * sum_k |p_k - 1/7|. For TV = 0.05, sum |p_k - 1/7| = 0.10.
+        Cohen's w = sqrt(sum_k (p_k - 1/7)^2 / (1/7)) = sqrt(7 * sum_k (p_k - 1/7)^2).
+
+        CASE A — Concentrated bias (1+1 bins):
+          p_0 = 1/7 + 0.05, p_6 = 1/7 - 0.05, others = 1/7.
+          Check: TV = (1/2)(0.05 + 0.05) = 0.05. ✓ Sums to 1. ✓
+          w^2 = 7 * (0.05^2 + 0.05^2) = 7 * 0.005 = 0.035. w = 0.187.
+          Per-key (n=400): lambda = 400 * 0.035 = 14.0.
+            At alpha=0.0002, chi2(6) threshold = 25.9.
+            P(chi2(6, 14.0) > 25.9) ≈ 0.24.
+          Aggregate (n=2000): lambda = 2000 * 0.035 = 70.0.
+            At alpha=0.001, chi2(6) threshold = 22.46.
+            P(chi2(6, 70.0) > 22.46) > 0.99. ✓
+
+        CASE B — Mid bias (2+2 bins):
+          p_0 = p_1 = 1/7 + 0.025, p_5 = p_6 = 1/7 - 0.025, p_2 = p_3 = p_4 = 1/7.
+          Check: TV = (1/2)(4 * 0.025) = 0.05. ✓ Sums to 1. ✓
+          w^2 = 7 * (4 * 0.025^2) = 7 * 0.0025 = 0.0175. w = 0.132.
+          Aggregate (n=2000): lambda = 2000 * 0.0175 = 35.0.
+            P(chi2(6, 35.0) > 22.46) ≈ 0.96. ✓
+
+        CASE C — Diffuse bias (3+3 bins):
+          p_0 = p_1 = p_2 = 1/7 + 1/60, p_4 = p_5 = p_6 = 1/7 - 1/60, p_3 = 1/7.
+          Check: TV = (1/2)(6 * 1/60) = 0.05. ✓ Sums to 1. ✓
+          w^2 = 7 * (6 * (1/60)^2) = 7 * 6/3600 = 42/3600 = 0.01167. w = 0.108.
+          Aggregate (n=2000): lambda = 2000 * 0.01167 = 23.3.
+            P(chi2(6, 23.3) > 22.46) ≈ 0.73.
+
+        CASE D — Worst case (spread across all 7 bins):
+          lambda ≈ 2000 * 0.008 = 16.0. Power ≈ 0.62.
+
+        SUMMARY:
+        - Per-key (n=400): per-key tests are QUALITATIVE consistency checks,
+          not individually powered. Power ranges 0.02–0.24 depending on pattern.
+        - Aggregate (n=2000): power ≥ 0.95 for concentrated biases (1-2 bins);
+          power ≈ 0.73 for diffuse biases (3+ bins); worst-case ≈ 0.62.
+        - The binding guarantee is: power ≥ 0.95 at aggregate level for
+          concentrated (1-2 bin) biases. For diffuse biases, this experiment
+          has moderate but not definitive power.
+      interpretation_of_negative: >-
+        A negative result (no rejection at aggregate level) provides strong
+        evidence against concentrated KLPT bias (TV ≥ 0.05 in 1-2 bins) but
+        only moderate evidence against diffuse biases. The honest statement is:
+        "We detected no TV ≥ 0.05 concentrated bias with >0.95 power; diffuse
+        biases at TV = 0.05 would be detected with probability ~0.73."
 
   # ─────────────────────────────────────────────────────────────────────────
   # CONTROLS
@@ -373,7 +417,8 @@ experiment:
     PRIMARY: For at least 3 of K=5 keys, chi2_7(same-key real) exceeds
     the chi-squared(6) critical value at alpha = 0.0002 (Bonferroni-
     corrected), AND chi2_7(CTRL-NULL) and chi2_7(CTRL-INDEP) do NOT
-    reject. This would constitute evidence that same-key KLPT transcripts
+    reject at alpha = 0.05 (REV-3: explicit control non-rejection threshold).
+    This would constitute evidence that same-key KLPT transcripts
     carry a detectable residue bias at toy scale.
   falsification_criterion: >-
     For ALL 5 keys across ALL 3 replicate runs, chi2_7(same-key real)
