@@ -1,14 +1,14 @@
 # EXP-IT-001 implementation note (TASK-20260801-143 / RUN-IT-001-rerun)
 
-Bound contract: `experiments/EXP-IT-001/specification.v3.yaml` (v3 / PA-IT-001-v3-rc27-b5-b8) plus
-repair overlay PA-IT-001-v3-rc30-repair-1-to-7 (FIX-1..FIX-7).
+Bound contract: `experiments/EXP-IT-001/specification.v3.yaml` (v3 / PA-IT-001-v3-rc45-repair-5) plus
+repair overlay PA-IT-001-v3-rc45-repair-5 (FIX-1..FIX-7).
 
 ## What was implemented
 
 - Density freeze for HEUR-ISO-1 (`rho_special`, `F_hit` tables, `d=3`) **before** path search
 - Charged transfer gate with measured/modeled cost ledger labels; `R_xfer` = MIN over certificates
 - CTRL-PLANTED-PATH-POS, matched rho/BSGS (modeled + calibration proxy), IDEA-011 null object
-- CTRL-NULL-IT-PLANT packaging plant on designated bits=20 / seed=2026073101 cell
+- CTRL-NULL-IT-PLANT packaging plant on designated bits=20 / seed=2026080347 cell
 - Independent DL re-verify via `harness.toycurve.EllipticCurve.mul` when a solve is claimed
 - FIX-1: Sage Integer -> int() casts via `_jsonable()` before every json.dump
 - FIX-2: BFS runs on every cell (no rho==0 short-circuit); per-cell + total edge counters
