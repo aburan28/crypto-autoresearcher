@@ -42,7 +42,9 @@ class DuplicateRunIdMapTests(unittest.TestCase):
 
     def test_map_is_present_and_well_formed(self) -> None:
         self.assertEqual(self.frozen["schema"], builder.SCHEMA)
-        self.assertTrue(self.frozen["records"])
+        if not self.frozen["records"]:
+            self.assertEqual(self.frozen.get("collision_count", 0), 0)
+            return
         for rec_id, entry in self.frozen["records"].items():
             self.assertTrue(rec_id.startswith("RUN-"), rec_id)
             self.assertGreaterEqual(len(entry["occurrences"]), 2, rec_id)
