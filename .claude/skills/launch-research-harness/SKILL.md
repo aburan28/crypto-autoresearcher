@@ -13,6 +13,16 @@ Entry point for starting or resuming a persistent `GOAL-*` campaign. This skill
 selects the goal and binds committed state; the continuous batch loop is
 `/coordinate-research-goal`.
 
+**The harness runs indefinitely.** It is a standing process, not a one-shot
+errand: batches follow batches, and a goal reaching a terminal status hands off
+to the next goal rather than ending the session. Only the conditions in
+"Terminal stops" below end a run. Everything else — an empty ready set, a failed
+candidate, an exhausted campaign budget, a completed goal — is a transition to
+the next unit of work, taken through the standing loop in step 8. Indefinite
+operation changes what you do when work runs out; it changes none of the
+evidence, archival, or review rules, and it is never a licence to manufacture
+work to stay busy.
+
 Do not invent runs, timings, or review verdicts. Do not change hypothesis or
 goal status outside Coordinator ledger archives.
 
@@ -47,8 +57,16 @@ Pick in this order:
 
 1. Explicit `GOAL-*` in the user request.
 2. Single `active` goal that matches the request text or current branch/area.
-3. Otherwise list `active` / `paused` goals (ID, status, batch, next action)
-   and ask which to run. Do not silently resume a `paused` or `completed` goal.
+3. Any other `active` goal, highest ranked first, when the request names no
+   specific one. In a standing run this is the ordinary case and needs no user
+   prompt — the harness is expected to keep working the active portfolio.
+4. Otherwise list `active` / `paused` goals (ID, status, batch, next action)
+   and ask which to run. Do not silently resume a `paused` or `completed` goal:
+   a pause was recorded for a reason, and resuming it requires either the user
+   or a committed Coordinator decision clearing that reason.
+
+If no `active` goal exists at all, do not stop — go to step 8's "when the
+portfolio is empty".
 
 **Resume** an existing goal: use its `dispatch_queue_path` and
 `current_batch_id`; continue from `next_action`.
@@ -66,7 +84,10 @@ Confirm before dispatching workers:
 - Goal record is committed (or about to ride a Coordinator snapshot).
 - `dispatch_queue_path` exists and queue top-level `goal_id` matches.
 - Campaign budget still allows another batch (`maximum_batches`,
-  `total_wall_clock_seconds`, `max_concurrent` ≤ 3).
+  `total_wall_clock_seconds`, `max_concurrent` ≤ 3). An exhausted budget stops
+  *this campaign*, not the harness: pause the goal and move to the next one via
+  step 8. Never quietly raise a budget to keep a campaign running — a budget
+  extension is a Coordinator decision with a recorded rationale.
 - `next_action` is concrete; empty queue alone does not complete the goal.
 - The working branch exists, is pushed to origin, and has an open PR against
   `main`. If not, create the branch, push it, and open the PR now — do not run
@@ -108,7 +129,8 @@ Follow `/coordinate-research-goal` for every batch:
    refs, `latest_verified_commit`, exactly one `next_action`. Rerank only after
    the verified checkpoint.
 6. Regenerate the dispatch plan; open the next bounded batch while status is
-   `active`.
+   `active`. Do not pause between batches for user confirmation — return to
+   step 5 and keep going. When the goal leaves `active`, go to step 8.
 
 Lifecycle stage skills when a ready task maps to them: `/propose-ideas`,
 `/design-experiment`, `/run-experiment`, `/review-evidence`,
@@ -156,29 +178,71 @@ batch is mid-flight; it exists so the work is reviewable and mergeable, not as
 a claim of closure. A goal, idea, or experiment that exists only in a local
 commit is not generated — it is unpublished.
 
-### 8. Stop conditions
+### 8. Standing loop: goal terminal → next goal
 
-Stop the harness when any of these hold:
+A goal ending is a campaign boundary, not the end of the run. When the selected
+goal leaves `active`, record its terminal state properly and then re-enter the
+loop at step 2:
 
-- User asks to stop or pause.
-- Goal reaches a declared `completion_criteria` via committed Coordinator
-  decision → mark `completed`. The three-model closure quorum that also gated
-  this is **suspended** (AGENTS.md rule 13), so a met criterion now suffices;
-  a quorum without a met criterion still does not close a goal. The decision
-  record must name which criterion was met and cite the evidence for it.
-- A declared `pause_conditions` item triggers (budget exhausted, archive
-  verification failure, unresolved required model policy with
-  `fallback_allowed: false`) → mark `paused` with a concrete resume action.
-- Required model policy cannot be honored without silent downgrade — refuse
-  and pause rather than substitute. This is unchanged by the quorum
-  suspension: it governs review policies such as `review-breakthrough`, which
-  is still `degradable: false`.
-- Attestations are optional but never fictional. If you record one it asserts a
-  review that happened; never record a quorum you did not obtain, and do not
-  present a single-model review as independent corroboration.
+- **Completed.** The goal reached a declared `completion_criteria` item via a
+  committed Coordinator decision → mark `completed`. The three-model closure
+  quorum that also gated this is **suspended** (AGENTS.md rule 13), so a met
+  criterion now suffices; a quorum without a met criterion still does not close
+  a goal. The decision record must name which criterion was met and cite the
+  evidence for it. Then rediscover goals and select the next one.
+- **Paused or blocked.** A declared `pause_conditions` item triggered (budget
+  exhausted, archive verification failure, unresolved required model policy
+  with `fallback_allowed: false`) → mark `paused` with a concrete resume
+  action, then select the next `active` goal. Pausing one campaign never pauses
+  the harness, and the pressure to keep running is never a reason to press on
+  through a triggered pause condition: an archive that will not verify or a
+  policy that cannot be honored still halts *that* campaign immediately.
+- **Required model policy cannot be honored** without a silent downgrade —
+  refuse and pause that goal rather than substitute, then move on. This is
+  unchanged by the quorum suspension: it governs review policies such as
+  `review-breakthrough`, which is still `degradable: false`. If the policy is
+  unresolvable for every goal in the portfolio, that is a terminal stop below.
 
-A failed candidate, empty ready set, or timeout is scoped evidence, not goal
-completion: record it and set the next action.
+**When the portfolio is empty** — no `active` goal, and every remaining one is
+paused, blocked, or completed — the harness still does not exit. In priority
+order:
+
+1. Resume a `paused` goal whose recorded pause reason is now demonstrably
+   cleared (budget renewed by decision, archive repaired, policy resolvable).
+   The clearing goes in the resuming Coordinator decision; do not just flip the
+   status.
+2. Open a new campaign against the highest-ranked open `RQ-*` or
+   `KN-OPEN-*` item, following step 3's "Start new" path.
+3. If no open question justifies a campaign, run `/propose-ideas` on the
+   best-supported research question to generate candidates, then rank them and
+   open a campaign against the winner.
+
+Idling is a last resort and is reported as such. Continuous operation must not
+degrade into make-work: a campaign opened only to keep the loop turning, with
+no ranked justification, is worse than an honest report that the portfolio
+needs direction. If you reach that point, say so plainly and stop.
+
+### Terminal stops
+
+Only these end the run itself:
+
+- The user asks to stop.
+- Every goal is terminal and none of the three portfolio-refill paths above
+  yields a justified campaign.
+- A harness-wide integrity failure that makes *any* durable work impossible:
+  no resolvable backend for a `degradable: false` policy, a repository that
+  cannot be pushed, or a ledger that will not validate on `main`. Report the
+  failure and what would clear it; do not keep dispatching work that cannot be
+  archived.
+
+A failed candidate, empty ready set, or timeout is none of these. It is scoped
+evidence: record it, set the next action, continue.
+
+Attestations are optional but never fictional. If you record one it asserts a
+review that happened; never record a quorum you did not obtain, and do not
+present a single-model review as independent corroboration. Nothing in
+indefinite operation relaxes this — a long run produces more claims, not
+cheaper ones.
 
 ## Safety rules (non-negotiable)
 
@@ -203,6 +267,10 @@ decision IDs with claim boundaries; knowledge promotions or `not_warranted`
 reasons; exact next action (or pause/complete rationale); PR number/branch the
 batch was pushed to and how current it is with `main`.
 
+The report is a checkpoint, not a handover — write it and immediately begin the
+next batch or the next goal. When the run does end, say which terminal stop
+fired and what would let it resume.
+
 ## Quick examples
 
 ```text
@@ -215,4 +283,9 @@ User: continue the active ECDLP goal
 
 User: launch a new research goal for RQ-SSI-001
 → create GOAL-SSI-00N + BATCH-001 → snapshot → then coordinate loop
+
+User: just keep the harness running
+→ select highest-ranked active goal → batch → checkpoint → next batch → ...
+  → on goal completion/pause, select or open the next goal → continue until a
+  terminal stop
 ```
