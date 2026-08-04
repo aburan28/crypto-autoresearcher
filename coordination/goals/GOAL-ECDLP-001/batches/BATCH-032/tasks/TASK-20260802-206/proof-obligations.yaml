@@ -1,0 +1,247 @@
+schema_version: "1.0"
+task_id: TASK-20260802-206
+record_kind: proof_obligation_set
+official_state_change: none
+
+notation:
+  source_group: "G=<P> subset E(F_p)"
+  group_order: "N, prime"
+  scalar_orientation: "Q=[x]P"
+  identity: "O"
+  quotient_scale: "M=N^(delta+o(1))"
+  per_state_overhead: "N^(gamma+o(1)) group operations"
+  candidate_divisor: "d | (N-1), d=N^(delta+o(1))"
+
+cost_units:
+  time: elliptic_curve_group_operations
+  memory: simultaneously_stored_group_elements
+  preprocessing: target_independent_group_operations
+  data:
+    - secret_dependent_group_element_count
+    - encoded_bits
+  queries: secret_dependent_auxiliary_data_queries
+  verification: elliptic_curve_group_operations
+  polylog_rule: "integer and field operations polynomial in log(N) are N^(o(1)), but auxiliary data are separately itemized"
+
+obligations:
+  - id: PO-206-01
+    title: fixed_field_trace_and_order
+    statement: "F_p-isogenous elliptic curves have equal Frobenius trace and equal F_p-rational point count."
+    kind: theorem
+    dependencies: []
+    disposition_in_payload: reconstructed
+    discharge:
+      required_argument:
+        - equality_of_frobenius_characteristic_polynomials
+        - point_count_formula_p_plus_1_minus_trace
+    failure_effect: invalidates_fixed_field_order_barrier
+
+  - id: PO-206-02
+    title: prime_to_N_subgroup_isomorphism
+    statement: "An isogeny of degree coprime to N restricts injectively to the order-N subgroup."
+    kind: theorem
+    dependencies:
+      - PO-206-01
+    disposition_in_payload: reconstructed
+    discharge:
+      required_argument:
+        - kernel_order_divides_isogeny_degree
+        - coprimality_with_N
+    failure_effect: invalidates_subgroup_preservation_claim
+
+  - id: PO-206-03
+    title: embedding_degree_invariance
+    statement: "With p and N fixed, k=ord_N(p) is fixed."
+    kind: theorem
+    dependencies:
+      - PO-206-02
+    disposition_in_payload: reconstructed
+    discharge:
+      required_argument:
+        - definition_of_multiplicative_order
+    failure_effect: invalidates_MOV_Frey_Ruck_barrier
+
+  - id: PO-206-04
+    title: prime_field_subfield_limit
+    statement: "F_p has no proper subfield."
+    kind: theorem
+    dependencies: []
+    disposition_in_payload: reconstructed
+    discharge:
+      required_argument:
+        - classification_of_finite_subfields
+    failure_effect: invalidates_prime_field_subfield_barrier
+
+  - id: PO-206-05
+    title: exact_quotient_count
+    statement: "An NM-element set partitioned into classes of size M has N classes."
+    kind: counting_lemma
+    dependencies: []
+    disposition_in_payload: reconstructed
+    exact_equation: "|(G x [M]) / ~| = (N*M)/M = N"
+    failure_effect: invalidates_quotient_correction
+
+  - id: PO-206-06
+    title: fiber_success_probability
+    statement: "Retaining one label from a uniform M-element fiber gives success probability 1/M."
+    kind: probability_lemma
+    dependencies:
+      - H-206-01
+    disposition_in_payload: conditional
+    generalization: "retaining r labels gives probability r/M"
+    failure_effect: replace_inverse_success_factor_by_proved_probability
+
+  - id: PO-206-07
+    title: lossy_total_expected_cost
+    statement: "For M=N^(delta+o(1)), per-state overhead N^(gamma+o(1)), and one retained uniform label, total expected time is N^(gamma+(1+delta)/2+o(1))."
+    kind: cost_assembly
+    dependencies:
+      - PO-206-06
+      - H-206-02
+    disposition_in_payload: reconstructed_conditionally
+    algebra:
+      per_attempt: "N^(gamma+(1-delta)/2+o(1))"
+      inverse_success: "N^(delta+o(1))"
+      total: "N^(gamma+(1+delta)/2+o(1))"
+    failure_effect: no_lossy_quotient_exponent_claim
+
+  - id: PO-206-08
+    title: auxiliary_input_type_correctness
+    statement: "A=[x^d mod N]P is a supplied group element; z->z^d is a scalar-space map and is not assumed to be an efficiently computable point endomorphism."
+    kind: typing_obligation
+    dependencies: []
+    disposition_in_payload: reconstructed
+    failure_effect: reject_candidate_as_type_incorrect
+
+  - id: PO-206-09
+    title: power_map_cardinality
+    statement: "For d | (N-1), f_d on F_N^* has kernel size d, image size (N-1)/d, and every nonempty fiber has size d."
+    kind: algebra_lemma
+    dependencies: []
+    disposition_in_payload: reconstructed
+    required_argument:
+      - cyclicity_of_F_N_star
+      - first_isomorphism_theorem
+    failure_effect: invalidates_candidate_state_counts
+
+  - id: PO-206-10
+    title: APR_206_auxiliary_power_recovery
+    statement: "Given (P, Q=[x]P, A=[x^d]P, d), typed meet-in-the-middle relations exhaust an image domain of size (N-1)/d and a fiber domain of size d in O(sqrt((N-1)/d)+sqrt(d)) group operations."
+    kind: central_algorithm_lemma
+    dependencies:
+      - PO-206-08
+      - PO-206-09
+    disposition_in_payload: open
+    required_artifacts:
+      - line_by_line_algorithm
+      - invariant_for_every_table_entry
+      - collision_implies_scalar_equation
+      - proof_of_complete_domain_coverage
+      - exact_operation_and_memory_counts
+      - handling_of_x_equals_zero
+      - handling_of_failed_or_duplicate_collisions
+    prohibited_shortcuts:
+      - treating_x_to_x_power_d_as_a_point_endomorphism
+      - assuming_access_to_the_scalar_x_power_d
+      - omitting_the_d_element_fiber_stage
+      - citing_an_unarchived_name_without_reconstructing_the_typed_reduction
+    failure_effect: candidate_falsified_as_an_algorithmic_escape
+
+  - id: PO-206-11
+    title: total_candidate_cost
+    statement: "Conditional on APR-206 and d=N^(delta+o(1)), online time and table memory have exponent tau=max((1-delta)/2,delta/2)."
+    kind: cost_assembly
+    dependencies:
+      - PO-206-10
+    disposition_in_payload: conditional
+    exact_form:
+      time: "O(ceil(sqrt((N-1)/d)) + ceil(sqrt(d)))"
+      memory: "O(ceil(sqrt((N-1)/d)) + ceil(sqrt(d))) group elements"
+      success_probability: "1 for exhaustive deterministic coverage of a well-formed input"
+      attempts: 1
+    exponent:
+      tau: "max((1-delta)/2, delta/2)"
+      matched_rho_delta: "-min(delta,1-delta)/2"
+      balanced_case: "delta=1/2 gives tau=1/4"
+    failure_effect: no_sub_half_online_exponent_claim
+
+  - id: PO-206-12
+    title: divisor_family
+    statement: "The claimed asymptotic family contains public divisors d | (N-1) with d=N^(delta+o(1)); the 1/4 row additionally needs delta=1/2+o(1)."
+    kind: family_existence_condition
+    dependencies: []
+    disposition_in_payload: open_for_any_concrete_family
+    falsification: "No such divisor family exists in the stated target distribution."
+    failure_effect: restrict_or_remove_balanced_exponent_row
+
+  - id: PO-206-13
+    title: auxiliary_data_acquisition
+    statement: "The source and cost of A are explicit; if deriving A from an ordinary instance costs N^(a+o(1)), end-to-end time is N^(max(a,tau)+o(1))."
+    kind: scope_and_cost_obligation
+    dependencies:
+      - PO-206-11
+    disposition_in_payload: open
+    falsification: "a >= 1/2 for the claimed ordinary-ECDLP route"
+    failure_effect: "candidate remains only an augmented-input result"
+
+  - id: PO-206-14
+    title: certificate_correctness
+    statement: "A recovered x' is accepted only if Q=[x']P and A=[(x')^d mod N]P."
+    kind: correctness_lemma
+    dependencies:
+      - PO-206-08
+      - PO-206-10
+    disposition_in_payload: reconstructed_conditionally
+    certificate:
+      value: x_prime
+      size_bits: "ceil(log2(N))"
+      verification_cost: "N^(o(1)) group operations"
+    failure_effect: reject_output
+
+  - id: PO-206-15
+    title: pareto_audit
+    statement: "Dominance is evaluated only within a common input contract and across time, memory, preprocessing, data, and query coordinates."
+    kind: accounting_obligation
+    dependencies:
+      - PO-206-11
+      - PO-206-13
+    disposition_in_payload: reconstructed
+    failure_effect: invalidate_dominated_by_and_sota_delta_fields
+
+  - id: PO-206-16
+    title: matched_controls
+    statement: "All five required controls preserve shape and charge omitted success, correlation, type, and unit costs."
+    kind: control_obligation
+    dependencies:
+      - PO-206-06
+      - PO-206-10
+      - PO-206-15
+    disposition_in_payload: preregistered_not_run
+    failure_effect: any_future_signal_remains_artifact
+
+heuristics:
+  - id: H-206-01
+    formal_statement: "Conditional on a projected state, an omitted fiber label is uniform on a set of size M."
+    used_for:
+      - PO-206-06
+      - PO-206-07
+    justification: "uniform-target model specified by the quotient analysis"
+    falsification_condition: "A proof or identical-shape controlled measurement establishes a conditional probability asymptotically different from 1/M."
+    theorem_status: heuristic_not_theorem
+
+  - id: H-206-02
+    formal_statement: "The projected randomized walk has birthday-scale collision cost on N/M effective states."
+    used_for:
+      - PO-206-07
+    justification: random_mapping_model
+    falsification_condition: "A mixing obstruction or controlled normalized stopping-time distribution contradicts the square-root law."
+    theorem_status: heuristic_not_theorem
+
+candidate_dependency_summary:
+  survives_symbolic_accounting: true
+  central_open_obligation: PO-206-10
+  ordinary_ECDLP_escape_established: false
+  augmented_input_escape_established: false
+  reason: "APR-206 and a concrete divisor/input family require proof and independent review."
+  closure_claim: false
+  breakthrough_claim: false

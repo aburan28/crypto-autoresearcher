@@ -135,5 +135,48 @@ class AllocationTests(unittest.TestCase):
         self.assertEqual(ai.audit(), 1)
 
 
+class BatchIdentifierTests(unittest.TestCase):
+    """Batch numbers were the last sequential identifier left in the harness.
+
+    Two lanes each computing "highest batch + 1" from the same committed state
+    both open BATCH-028. That is not hypothetical: in one session it happened
+    twice -- once as a directory-name collision that had to be resolved by
+    yielding the number, and once as an entire card set replaced wholesale
+    (CORR-20260803-77d5da).
+    """
+
+    def test_batch_is_a_registered_prefix(self) -> None:
+        self.assertEqual(ai.PREFIX_TYPE["BATCH"], "batch")
+
+    def test_random_batch_ids_are_well_formed(self) -> None:
+        for token in ("2d52f9", "000000", "ffffff"):
+            ok, why = ai.well_formed(f"BATCH-{token}")
+            self.assertTrue(ok, f"BATCH-{token} rejected: {why}")
+
+    def test_legacy_numeric_batch_ids_remain_valid(self) -> None:
+        """Existing batch directories are immutable and must never be renamed."""
+        for rec_id in ("BATCH-001", "BATCH-028", "BATCH-037"):
+            ok, why = ai.well_formed(rec_id)
+            self.assertTrue(ok, f"legacy {rec_id} rejected: {why}")
+
+    def test_malformed_batch_ids_are_refused(self) -> None:
+        for rec_id in ("BATCH-28", "BATCH-ZZZZZZ", "BATCH-abcd", "BATCH-0123456"):
+            ok, _ = ai.well_formed(rec_id)
+            self.assertFalse(ok, f"{rec_id} should not be well-formed")
+
+    def test_batch_takes_no_middle_segment(self) -> None:
+        self.assertIn("batch", ai.NO_MIDDLE)
+
+    def test_existing_batch_directories_are_seen_as_taken(self) -> None:
+        """Freedom checking must reach batch DIRECTORIES, not just record files.
+
+        A batch identifier lives in a directory name, so an allocator that only
+        globbed record files would call every existing batch free.
+        """
+        self.assertTrue(ai.occurrences("BATCH-028"),
+                        "BATCH-028 exists on disk but was reported free")
+
+
+
 if __name__ == "__main__":
     unittest.main()

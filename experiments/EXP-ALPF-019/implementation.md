@@ -10,11 +10,12 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/round009_exp018_vw_optimal_fleet.c`
-- `source/round009_exp018_vw_optimal_fleet.log`
-- `source/round009_exp018_vw_optimal_fleet_harness.sage`
 - `source/round009_exp018_vw_optimal_fleet_result.json`
 - `source/round009_exp018_vw_optimal_fleet_result.md`
+- `source/round009_exp018_vw_optimal_fleet.c`
+- `source/round009_exp018_vw_optimal_fleet_harness.sage`
+- `source/round009_exp018_vw_optimal_fleet_harness.sage.py`
+- `source/round009_exp018_vw_optimal_fleet.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.

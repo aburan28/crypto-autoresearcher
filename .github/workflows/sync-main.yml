@@ -1,0 +1,54 @@
+name: sync-main
+
+# Periodic check that no open pull-request branch has fallen behind main.
+#
+# Every six hours, each open branch that is behind gets main merged into it and
+# pushed. A branch that conflicts, or that merges cleanly but leaves the ledger
+# invalid, is reported on its pull request and left untouched — records are
+# immutable, so no machine picks a side in a conflicted one (AGENTS.md rule 4).
+# Merge only, never rebase: a rebase rewrites history over pushed run records.
+#
+# The decision logic and the reasoning behind it live in
+# tools/sync_open_branches.py.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report what would change without pushing or commenting"
+        type: boolean
+        default: false
+
+# Never let two sync passes race for the same branches.
+concurrency:
+  group: sync-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the merge to the pull-request branch
+      pull-requests: write # report a conflict on the pull request
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # every open branch must be reachable
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # The merged tree is validated before it is pushed, so the validators
+      # need their dependencies here.
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Merge main into stale pull-request branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/sync_open_branches.py \
+            ${{ inputs.dry_run && '--dry-run' || '' }}

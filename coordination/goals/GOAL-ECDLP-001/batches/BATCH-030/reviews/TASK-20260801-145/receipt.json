@@ -1,0 +1,107 @@
+{
+  "schema": "crypto.autoresearch.validator_receipt.v1",
+  "validation_report_id": "VAL-20260801-145",
+  "task_id": "TASK-20260801-145",
+  "run_ids": [
+    "RUN-IT-001-rerun"
+  ],
+  "experiment_id": "EXP-IT-001",
+  "goal_id": "GOAL-ECDLP-001",
+  "batch_id": "BATCH-030",
+  "protocol_amendment_id": "PA-IT-001-v3-rc30-repair-1-to-7",
+  "repair_overlay_id": "PA-IT-001-v3-rc30-repair-1-to-7",
+  "snapshot_commit": "62055d2965fb54fc648c76b1eb48e24aafd8b2a8",
+  "claim_ceiling": "toy",
+  "checked_at": "2026-08-01T19:30:00Z",
+  "independent_session": true,
+  "verdict": "NOT_SUPPORTED",
+  "verdict_detail": "The mechanics are clean (all 12 JSON artifacts parse; every Executor numeric claim independently recomputes from raw-result.json with 0 mismatches; the archive binding 62055d296 is verified at git level; FIX-1/FIX-2/FIX-6/FIX-7 PASS). But the two controls that would make the run a valid transfer-gate measurement do not hold under the frozen ledger: FIX-3's planted-path control passes only under an unamended C_special_MOV formula substitution (ceil(k*log2(p))=22) applied to an embedding-degree-1 endpoint, whereas the frozen v3 formula (ceil(0.886*sqrt(p^k))=1284) gives R_xfer=(9+1284+40)/641.609=2.08 >= 0.7 -> recovered=false -> spec v3 falsification F2 (harness void); FIX-5's null-plant recomputation is not independently verifiable (empty edge_ledger, C_path_recomputed=729 echoes the censorship search count; null gate never ran, R_null=null on all 21 cells). RATE-ISO-1 fails by the letter (fraction 0.0), so success criterion S1 is not met. The Executor's completed_valid claim is SUPPORTED only as a toy-tier density-measurement package for the three fixed fields, NOT as an admissible transfer-gate measurement and NOT as sub-rho/HEUR-ISO-1/safety evidence.",
+  "defects": [
+    {
+      "id": "D-1",
+      "severity": "critical",
+      "artifact": "experiments/EXP-IT-001/runs/RUN-IT-001-rerun/raw-result.json / results/transfer_gate_report.json / implementation/it001_pure.py",
+      "description": "C_special_MOV substituted in code (ceil(k*log2(p))=22) without an amendment authorizing a MOV-formula change; repair overlay FIX-4 scopes calibration to the anomalous family only, and the executed planted endpoint is embedding-degree-1 (anomalous_trace_eq_1=false). Under the frozen v3 formula (ceil(0.886*sqrt(p^k))=1284, persisted by the run as mov_modeled_value_before_fix), R_xfer=(9+1284+40)/641.609=2.08 >= 0.7 -> recovered=false -> spec F2 (harness void) fires. Independently recomputed, zero new data.",
+      "required_action": "Either keep the frozen C_special_MOV formula (control fails -> F2 harness void for sub-rho claims) or obtain an approved amendment that recalibrates C_special with a field-DLP-inclusive cost and re-derives the control on an actually anomalous (trace-1) curve."
+    },
+    {
+      "id": "D-2",
+      "severity": "critical",
+      "artifact": "experiments/EXP-IT-001/runs/RUN-IT-001-rerun/raw-result.json / implementation/run_bounded_toy.py",
+      "description": "The recovery certificate is a direct BSGS solve of the instance (solve_by_bsgs_toy = P.discrete_log(Q), wrapper-reverified k*P==Q); no isogeny pullback is ever evaluated ('toy pullback = direct solve; no isogeny evaluation at toy scale' — the run's own note). The planted 2-hop walk returned to the special start (top-level endpoint_j=1416 == start_special_j=1416; inner best record endpoint 480976), and the recovered path [1416->480976] is a 1-hop edge between two special curves. The control would pass on any graph with two adjacent special marks; it does not discriminate transfer capability.",
+      "required_action": "A genuine certificate-bearing transfer control on a non-special instance with the isogeny pullback actually evaluated (or a declared direct-solve proxy labeled non-transfer)."
+    },
+    {
+      "id": "D-3",
+      "severity": "major",
+      "artifact": "experiments/EXP-IT-001/results/null_it_isogeny_transfer_report.json",
+      "description": "CTRL_NULL_IT_PLANT has edge_ledger=[] (empty) although spec.v3 requires a persisted raw edge ledger for Validator-independent recomputation; C_path_recomputed=729 is the censorship search count echoed, not an independent ledger sum. The null-gate arm never ran on any cell (R_null=null x21), so no discriminator between a real sub-rho signal and a packaging artifact was exercised.",
+      "required_action": "Require a non-empty raw edge ledger for the plant cell and one live null-gate run on a certificate-bearing sub-0.7 claim."
+    },
+    {
+      "id": "D-4",
+      "severity": "major",
+      "artifact": "experiments/EXP-IT-001/results/HEUR_ISO_1_report.json",
+      "description": "HEUR-ISO-1 unmeasured: all 21 cells censored (censored_fraction=1.0), 0 uncensored H_min samples (KS/TAIL null; requires n>=20), F_hit identically 0.0 (degenerate CDF at rho=0), rate_iso_1_pass=false. No adjudication in either direction.",
+      "required_action": "Record HEUR-ISO-1 as unmeasured; do not read censored rows as negative evidence."
+    },
+    {
+      "id": "D-5",
+      "severity": "major",
+      "artifact": "experiments/EXP-IT-001/results/HEUR_ISO_1_report.json",
+      "description": "rho_special=0 at 28 bits is a 50,000-class sample estimate (95% CI upper bound ~3/50000 ~ 6e-5), not exact zero; at 20/24 bits exact only for the two chosen primes under the smallest-p rule. The zero licenses a toy-tier upper bound for the fixed fields, not a density law.",
+      "required_action": "Quote the 28-bit value as a CI-bounded estimate; do not promote to a density law."
+    },
+    {
+      "id": "D-6",
+      "severity": "major",
+      "artifact": "results/concrete_cost_table.json / summary.json / execution_report.yaml",
+      "description": "No dominated_by and no quantitative sota_delta in any deliverable (inventor-protocol Pareto honesty failure). Honest quantification is negative for the transfer idea: rho_special=0 -> expected cost unbounded; for the only family found (k=1 MOV) honest C_special >= 2*sqrt(N*) ~ matched rho so R_xfer >= 1 by construction. Cost model omits sieve/construction cost of the special set and a time-memory tradeoff row.",
+      "required_action": "State dominated_by and the quantitative sota_delta in every deliverable per inventor protocol."
+    },
+    {
+      "id": "D-7",
+      "severity": "minor",
+      "artifact": "runs/RUN-IT-001-rerun/stdout.log",
+      "description": "stdout prints wall_budget=7200s while the task declares 10800s wall_clock. Actual wall 1627.45s under both; divergence unexplained.",
+      "required_action": "Record budget declarations consistently in future runs."
+    },
+    {
+      "id": "D-8",
+      "severity": "minor",
+      "artifact": "snapshot 62055d296",
+      "description": "Exit code not printed in stdout (inferred 0 from completed_valid + empty stderr); manifest top-level validity null while manifest.result carries completed_valid; stderr 1 byte not 0; implementation/ dir (run_bounded_toy.py, it001_pure.py) is entirely untracked and NOT inside the snapshot — the code that produced the run is not archived in the durable snapshot.",
+      "required_action": "Archive the implementation code in a snapshot for reproducibility binding."
+    }
+  ],
+  "limitations": [
+    {
+      "id": "L-1",
+      "text": "FIX-3 control failure under the frozen ledger (D-1/D-2) voids sub-rho/transfer-gate interpretation per the frozen contract; no sub-rho claim is made anywhere."
+    },
+    {
+      "id": "L-2",
+      "text": "All 21 unplanted curves censored; every R_xfer is a censorship_lower_bound, not a measurement; RATE-ISO-1 fails (fraction 0.0) so S1 is not met."
+    },
+    {
+      "id": "L-3",
+      "text": "FIX-6 (deterministic-only declaration) is honored; no expected-cost comparison to matched rho is claimed anywhere — correct and honest."
+    },
+    {
+      "id": "L-4",
+      "text": "Validator and Red Team sessions resolved to opencode/deepseek-v4-flash-free with review-adversarial not attainable on this backend, recorded honestly and not a basis for the verdict."
+    }
+  ],
+  "checks_summary": {
+    "run_count_and_seeds": "PASS (21 unplanted + planted control, seeds 2026073101/02/03)",
+    "schema_completeness_and_manifest_fields": "PASS",
+    "raw_summary_agreement": "PASS (R_xfer identity 0 mismatches on all 21 cells; rho identity 0 mismatches)",
+    "certificate_discipline": "PASS (no solves claimed on unplanted; certificate is a direct-solve on the planted control, disclosed as such)",
+    "controls": "FAIL (FIX-3 planted control fails under frozen ledger -> F2 harness void; FIX-5 null-plant recomputation not independently verifiable)",
+    "control_integrity_judgement": "Controls fail under the frozen ledger; the run is NOT an admissible transfer-gate measurement, only a toy-tier density-measurement package for the three fixed fields.",
+    "archive_binding": "PASS (62055d296 ancestor of HEAD, parent 86d5f0a41, exactly 14 changed paths, 10 spot-checked sha256s match)"
+  },
+  "reviews": [
+    "coordination/goals/GOAL-ECDLP-001/batches/BATCH-030/reviews/TASK-20260801-145/validation_report.yaml"
+  ]
+}

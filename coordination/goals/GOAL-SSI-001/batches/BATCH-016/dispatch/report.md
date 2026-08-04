@@ -6,15 +6,11 @@ BATCH-016: preregister ttm-v2 with explicit return-modulus and requested-length 
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-031` | executor | queued | 100 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-031/schedule_panel.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-031/tape_machine_spec_v2.md, coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-031/preregistration_manifest.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-016/tasks/TASK-20260730-031 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-032`: dependency_not_completed:TASK-20260730-031:queued
-- `TASK-20260730-033`: dependency_not_completed:TASK-20260730-031:queued, dependency_not_completed:TASK-20260730-032:queued
-- `TASK-20260730-034`: dependency_not_completed:TASK-20260730-033:queued
-- `TASK-20260730-035`: dependency_not_completed:TASK-20260730-033:queued, dependency_not_completed:TASK-20260730-034:queued
-- `TASK-20260730-036`: dependency_not_completed:TASK-20260730-035:queued
+None.
 
 ## Dispatch Gates
 
@@ -29,4 +25,4 @@ BATCH-016: preregister ttm-v2 with explicit return-modulus and requested-length 
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `15e6ea80e74dab3ec0fe9ebba348dfbd8f62dc19f3bbb071b5c62813ee881ce5`
+Plan SHA-256: `d0d5852f0bcf6b808f989487d979bcb64faf1dcaffe1e82e53735c6209e46585`

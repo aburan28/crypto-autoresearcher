@@ -1,8 +1,12 @@
 # CLAUDE.md
 
-Claude Code harness for autonomous, reproducible ECDLP research. The
-binding inter-agent contract is `AGENTS.md` — read it before doing any
-research work. This file wires that contract into Claude Code.
+Claude Code **runtime binding** for the autonomous, reproducible ECDLP
+research program. The program itself is runtime-neutral: the binding
+inter-agent contract is `AGENTS.md`, the role contracts are `agents/*.md`
+and `orchestration/roles.yaml`, and Claude Code is one of several runtimes
+that can execute them (see `docs/inference-backends.md`). Read `AGENTS.md`
+before doing any research work. This file wires that contract into Claude
+Code specifically.
 
 ## Harness layout
 
@@ -97,37 +101,22 @@ evidence rules above apply unchanged.
 
 ## Conventions
 
-- IDs: `RQ-<AREA>-NNN`, `IDEA-YYYYMMDD-NNN`, `H-<AREA>-NNN`,
-  `EXP-<AREA>-NNN`, `RUN-*`, `EV-<AREA>-NNN`, `DEC-YYYYMMDD-NNN`,
-  `TASK-YYYYMMDD-NNN`, `KN-{LIT,TECH,FIND,OPEN}-NNN`. Immutable, never
-  reused, and **never allocated by grepping for max+1**.
-- **Suffixes are RANDOM 6-hex tokens, minted through the tool:**
-
-  ```sh
-  python3 tools/allocate_id.py --next coordinator_decision --date 20260802
-  #   -> DEC-20260802-0edaee
-  python3 tools/allocate_id.py --check DEC-20260802-0edaee   # confirm before use
-  ```
-
-  Two suffix forms validate. `[0-9a-f]{6}` is what new records use. The legacy
-  `\d{3}` form stays valid **forever** — those records are immutable — but
-  **never mint a new one**.
-
-  **Sequential allocation is the collision bug, not a fallback.** It asks "what
-  is the maximum, plus one", and every concurrent worktree asks that of the same
-  committed state and gets the same answer, so they mint the SAME identifier for
-  DIFFERENT records. The collision surfaces at merge time, when both records are
-  already immutable and neither can be renamed. **A random token asks no such
-  question — it scans no state, so two worktrees cannot converge by
-  construction.** `--sequential` remains for legacy single-worktree use only.
-
-  Cost of the change, stated plainly: identifiers no longer sort into creation
-  order. Nothing in this repository ordered by them; use `added`/`recorded_at`
-  or git history for chronology.
-- **A rename is not a cheap repair.** Remapping an ID that a completed archive
-  names in its binding fields breaks that archive **permanently**: the commit is
-  immutable, so its declared path set and the live tree can never agree again.
-  Randomising up front is cheaper than any such repair.
+- IDs: `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
+  `EXP-<AREA>-<tok>`, `RUN-*`, `EV-<AREA>-<tok>`, `DEC-YYYYMMDD-<tok>`,
+  `TASK-YYYYMMDD-<tok>`, `BATCH-<tok>`, `KN-{LIT,TECH,FIND,OPEN}-<tok>`, where
+  `<tok>` is a random 6-hex token. Immutable, never reused.
+  **Do not grep for "the next free number".** That question is the bug: every
+  concurrent worktree asks it of the same committed state, gets the same
+  answer, and mints the same identifier for different records — discovered only
+  at merge time, when both are immutable and neither can be renamed without
+  breaking whatever archive binds it. Mint with
+  `python3 tools/allocate_id.py --next <type> [--area X | --date YYYYMMDD]`,
+  which draws a token **without scanning state**, then `--check` it before use.
+  `BATCH-<tok>` takes neither `--area` nor `--date`: `--next batch`.
+  The legacy three-digit form stays valid forever — existing records and batch
+  directories are immutable and must not be renamed. Cost, stated plainly: IDs
+  no longer sort into creation order; read `added`/`recorded_at` or git history
+  for chronology.
 - Record schemas live in `templates/research-records.md`; copy, don't
   invent fields.
 - The Coordinator alone stages declared research paths in the shared worktree:
@@ -177,6 +166,16 @@ collisions were the first instance of it and are already fixed the same way.
   everything hourly and files an issue against the owning campaign. A branch
   that breaks a record still changed it and is still caught — what is no longer
   every campaign's problem is breakage that was already on `main`.
+- **Merges to `main` publish a digest, and you read it on wake.**
+  `.github/workflows/main-events.yml` writes one write-once record per merge to
+  `coordination/events/main/<sha>.yaml`: which goals changed status or
+  `next_action`, which records are new, and whether the shared contract moved.
+  THIS IS A FEED, NOT A NOTIFICATION, and it cannot be otherwise — sessions are
+  ephemeral, so most sessions that care about a merge do not exist when it
+  lands, and `subscribe_pr_activity` is per-PR, single-consumer and bound to one
+  live session. Before resuming a goal, run
+  `python3 tools/merge_digest.py --since $(git merge-base HEAD origin/main) --until origin/main`,
+  or `tools/sync_open_branches.py --digest` for every branch at once.
 - **Branch drift is a scheduled job, not your job.**
   `.github/workflows/sync-branches.yml` runs `tools/sync_open_branches.py` every
   six hours. It refuses any branch committed to within `--idle-minutes` (default
@@ -186,14 +185,31 @@ collisions were the first instance of it and are already fixed the same way.
 
 ## Model policy note
 
-`orchestration/model-policies.yaml` defines role→model routing (GPT-5.6
-family policy aliases) for the future runtime adapter described in
-AGENTS.md and the roadmap. Claude Code cannot resolve those identifiers:
-subagent frontmatter in `.claude/agents/` supports only Claude models, so
-all three subagents use `model: inherit` here. When running under this
-harness, record `requested_policy` from the handoff and the actual
-resolved model in each run manifest's `inference` block, with
-`fallback_used: true` if they differ — never silently substitute.
+Policies are vendor-neutral capability contracts
+(`orchestration/model-policies.yaml`); the model that serves one is chosen
+per backend in `orchestration/model-bindings.yaml` and resolved by
+`orchestration/adapter/`. Subagent frontmatter in `.claude/agents/` cannot
+express a policy, so per-role model selection under this runtime is
+process-level: launch the session with the resolved environment rather
+than mixing policies in one session, and keep `model: inherit` in the
+frontmatter.
+
+```sh
+# resolve a role's policy and see exactly what would answer
+python3 -m orchestration.adapter resolve --role coordinator
+# run this runtime against a different backend entirely (e.g. GLM)
+eval "$(python3 -m orchestration.adapter env \
+          --runtime claude_code --backend zai-anthropic --role coordinator)"
+```
+
+That `env` output also sets `AUTORESEARCH_POLICY` and
+`AUTORESEARCH_BACKEND`, which is how `harness/runner.py` records the exact
+resolved model in each run manifest's `inference` block. Record
+`requested_policy` from the handoff alongside it, with `fallback_used:
+true` and a reason if they differ — never silently substitute. Do not edit
+`.claude/agents/*.md` tool lists directly: authority and tool surface come
+from `orchestration/roles.yaml`, and `tools/check_runtime_bindings.py`
+fails the build if the two disagree.
 
 ## Typical loop
 

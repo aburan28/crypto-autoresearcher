@@ -1,7 +1,7 @@
 # Analysis — Autolab isogeny: p1486_hecke_krylov_probe
 
 ## Observation
-TOY-EVIDENCE / FULL-GRAPH ORACLE / MODEL-BOUND / ALGORITHM FALSE
+Historical Autolab experiment with retained result artifacts.
 
 Source excerpt / raw summary:
 

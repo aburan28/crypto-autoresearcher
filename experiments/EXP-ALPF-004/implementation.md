@@ -10,11 +10,12 @@ Historical Autolab port (no re-execution).
 - Port tag: `autolab-port-20260731`
 
 ## Copied artifacts
-- `source/round003_exp003b_multitarget.log`
-- `source/round003_exp003b_multitarget.py`
-- `source/round003_exp003b_multitarget_harness.sage`
 - `source/round003_exp003b_multitarget_result.json`
 - `source/round003_exp003b_multitarget_result.md`
+- `source/round003_exp003b_multitarget.py`
+- `source/round003_exp003b_multitarget_harness.sage`
+- `source/round003_exp003b_multitarget_harness.sage.py`
+- `source/round003_exp003b_multitarget.log`
 
 ## Deviations from live harness execution
 - Run package is an archival import of prior Autolab outputs.
