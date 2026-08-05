@@ -83,6 +83,8 @@ tool surface.
 11. An agent may request a stronger policy but may not silently alter its own model or reasoning level.
 12. Any claim proposed as a breakthrough, closure result, or contradiction of established evidence must receive independent `review-breakthrough` review at `max` effort. That review may not be degraded or run on a backend that cannot reach it.
 13. A persistent research goal may be marked `completed` only on the concurring judgement of **three independently-resolved models**. See "Goal closure quorum".
+14. Every record identifier carries a **random 6-hex suffix**, minted via `python3 tools/allocate_id.py --next <type> --area|--date <x>` and confirmed with `--check` before use — e.g. `DEC-20260802-0edaee`. The legacy `\d{3}` form remains valid forever (those records are immutable) but **no new record may use it**. Never allocate by grepping for `max+1`: that asks committed state for a maximum, every concurrent worktree gets the same answer, and they mint the same identifier for different records — discovered only at merge time when both are already immutable. A random token scans no state and so cannot converge. `--sequential` is legacy-only and must never mint a record that will be merged. Identifiers no longer sort into creation order; use `added`/`recorded_at` or git history for chronology.
+15. **An identifier remap is a last resort, not a repair.** Renaming a record that a *completed* archive names in its binding fields (`artifact_paths`, `write_scope`, `archive.path_sha256`, `archive.record_ids`, or the bound commit message) breaks that archive permanently — the commit is immutable, so its declared set and the live tree can never be reconciled. Before any remap, check whether the identifier appears in a completed archive's binding fields; if it does, supersede the record instead of renaming it.
 
 ## Research-direction integrity and auditability
 
@@ -102,41 +104,81 @@ supported concern about unjustified steering as an auditable finding. Do not
 claim to store, infer, or expose private chain-of-thought; only explicit
 decision summaries and ordinary research artifacts are retained and reviewed.
 
-## Goal closure quorum
+## Goal closure quorum — SUSPENDED
+
+> **Status: suspended.** The three-model requirement below is **not currently
+> enforced**. A `GOAL-*` record may move to `status: completed` on a committed
+> Coordinator decision showing a declared completion criterion was met, with no
+> `completion_quorum` block required. The rule, its enforcement code, and its
+> tests are retained in full and are restored by setting
+> `GOAL_CLOSURE_QUORUM_REQUIRED = True` in `tools/validate_ledger.py`.
+>
+> **Why.** The rule presumes several backends binding to genuinely different
+> models. In the harness as deployed there is one usable backend, so three
+> attestations necessarily resolve to one model — which the rule itself defines
+> as *not* a quorum. It therefore made `completed` unreachable for every goal
+> regardless of research merit, and goals that met their criteria sat `paused`,
+> which understates them. Suspending it trades a safeguard for reachability;
+> that trade is deliberate and reversible, not a judgement that the safeguard
+> was wrong.
+>
+> **What did not change.** Everything in "What the suspension does not relax"
+> below still binds. In particular: never record an attestation you did not
+> obtain, and never present a closure as more corroborated than it is. Closing a
+> goal is still the strongest claim the program makes; it now rests on the
+> Coordinator decision and its cited evidence alone, so that decision carries
+> the full weight.
+>
+> **Restore when** more than one backend resolves — check with
+> `python3 -m orchestration.adapter doctor --probe`.
 
 Closing out a goal is the strongest claim the program makes: it asserts that a
 declared completion criterion was actually met. One model's judgement is not
 enough for that, and neither is one model consulted three times.
 
-A `GOAL-*` record may move to `status: completed` only when its
-`completion_quorum.attestations` list carries at least **three** verdicts that
-are all `CONCUR` and whose `resolved_model_id` values are **pairwise distinct**.
+**The suspended rule.** A `GOAL-*` record may move to `status: completed` only
+when its `completion_quorum.attestations` list carries at least **three**
+verdicts that are all `CONCUR` and whose `resolved_model_id` values are
+**pairwise distinct**.
 
 - Distinctness is on the **resolved** model, never the requested policy alias.
   Three aliases that all fall back to one backend produce correlated judgements;
   counting them three times is not independent agreement, and the validator
   rejects it. This is the failure mode the rule exists to prevent.
+- If three distinct models cannot be resolved, the goal does not close. Record
+  the narrowest supported result and leave it `paused` with a concrete next
+  action — an unattested closure is worse than an open goal, and a fabricated
+  attestation is worse than both.
+
+### What the suspension does not relax
+
+These bind now, exactly as before:
+
+- Attestations remain fully supported and are still worth recording. When you
+  do record one it is a claim that a review happened, so it must be true:
+  **never record an attestation you did not obtain.**
 - Every attestation sets `independent_session: true`, names the role, records
   `requested_policy` and `resolved_model_id`, and cites the exact record IDs it
-  reviewed.
+  reviewed. The validator still checks all of this whenever a
+  `completion_quorum` block is present.
 - A single `DISSENT` blocks closure. It is not outvoted; it stands until a new
-  Coordinator decision supersedes it on the merits.
+  Coordinator decision supersedes it on the merits. This is ordinary
+  self-consistency rather than part of the quorum: having obtained a dissent,
+  closing anyway is incoherent at any quorum size.
 - Attestations may be gathered before the transition, but
   `quorum_satisfied: true` on a goal that is not `completed` is an error: only a
   Coordinator ledger archive performs the transition.
-- `paused`, `blocked`, and `closed_at_budget` assert no success and need no
-  quorum. Retiring a goal that *did* meet a criterion under one of those
-  statuses, to avoid the quorum, is a contract violation.
+- `paused`, `blocked`, and `closed_at_budget` assert no success. Retiring a goal
+  that *did* meet a criterion under one of those statuses, to understate it, is
+  still a contract violation — the suspension removes the reason anyone would.
+- A `completed` goal still requires a committed Coordinator decision showing the
+  criterion was met. Reachable is not automatic.
 
 Enforced by `check_goals` in `tools/validate_ledger.py`; failure modes pinned in
-`tools/test_goal_closure_quorum.py`. The rule is prospective — goals closed
-before it existed are listed in `PRE_QUORUM_GOAL_IDS` and that set must not
-grow.
-
-If three distinct models cannot be resolved, the goal does not close. Record the
-narrowest supported result and leave it `paused` with a concrete next action —
-an unattested closure is worse than an open goal, and a fabricated attestation
-is worse than both.
+`tools/test_goal_closure_quorum.py`, whose tests exercise **both** the enforcing
+and suspended modes so the rule can be switched back on intact. The rule is
+prospective — goals closed before it existed are listed in
+`PRE_QUORUM_GOAL_IDS` and that set must not grow.
 
 ## Target result profile
 
@@ -200,6 +242,24 @@ and adds nothing that relaxes the core rules. Four obligations:
   `dominated_by` (settable to `null` only after checking every row of the
   frontier across time, memory, and data/queries) and a quantitative
   `sota_delta`. An unchecked `null` is a fabrication under rule 5.
+
+Section 8 of the protocol (adopted 2026-08-01; technique abstract:
+`knowledge/techniques/KN-TECH-080.md`) adds the **proof-architecture
+portfolio** and extends the binding to the **Coordinator**, which is where the
+protocol first gains a gate that can refuse work:
+
+- A proof-oriented proposal — a theorem, asymptotic bound, certificate family,
+  reduction, or closure argument — carries a `proof_search_map`
+  (`templates/research-records.md`) before it is dispatched, and the
+  Coordinator does not approve implementation or expensive experiments
+  without one.
+- The map's four audits (exact baseline reproduction, observation-collision
+  search, quantifier-order statement, method ceiling with a nearby-object
+  control) are deliberately cheap and run before compute. An audit that does
+  not apply records why; it is not silently omitted.
+- This is a falsification aid, not a new claim tier. A failed audit is
+  frequently the useful result, and passing every audit still asserts nothing
+  beyond what rules 4 and 6 already allow.
 
 ## Required handoff envelope
 
@@ -285,7 +345,11 @@ Rebasing a branch that carries pushed run records is forbidden: it rewrites the
 commits those records were archived in, and a run receipt whose commit no
 longer exists is not reproducible. `tools/sync_open_branches.py` performs this
 merge periodically for open pull requests and validates the merged tree before
-pushing it. It never resolves a conflict: when a sync conflicts inside a ledger
+pushing it. Coordinators must routinely fetch and inspect `origin/main` for
+new commits—at the start of an active session, before a snapshot or ledger
+commit, and before requesting review or merge—and promptly merge those changes
+into each open branch. Record the base commit checked and merge outcome in the
+task receipt. It never resolves a conflict: when a sync conflicts inside a ledger
 record, run artifact, or knowledge entry, the resolution is a new superseding
 record under a new id — the same rule as any other correction — and never an
 edit that picks one side.
@@ -319,3 +383,52 @@ Each run must retain:
 - timestamps and resource measurements
 
 See `docs/`, `templates/`, and `docs/inference-backends.md` for the full semantics.
+
+## Knowledge retrieval policy
+
+`kb/` builds a derived retrieval index over the corpus and exposes it to
+Claude Code, Codex, and OpenCode through one read-only MCP server. The index is
+derived: object storage and this repository's records remain the source of
+truth, and the index can be deleted and rebuilt from them without loss.
+
+Use `search_knowledge` before:
+
+- asserting that an ECDLP avenue has already been tested;
+- claiming that an approach is known to fail;
+- citing a paper or a prior internal experiment;
+- proposing an experiment likely to duplicate earlier work;
+- changing an authoritative research conclusion.
+
+Search behavior:
+
+1. Start with 4-6 results.
+2. Use exact identifiers where known (`EXP-GGM-001`, `KN-LIT-024`, `P-256`,
+   `Theorem 4.3`). An identifier in the query is resolved as an exact lookup and
+   placed first.
+3. Filter by `field_type` and `source_type`.
+4. Call `get_context` only for results that affect the conclusion.
+5. Distinguish published claims from internal hypotheses: read `claim_status`,
+   `evidence_level`, and `authority`, which rank machine-checked proof >
+   reproduced experiment > single-run experiment > peer-reviewed > preprint >
+   internal analysis > agent hypothesis.
+6. Include source IDs and experiment IDs in the output.
+7. Report contradictory sources rather than picking one. Results are capped at
+   two passages per source so disagreement stays visible.
+8. Do not treat retrieval scores as evidence quality. The evaluation harness
+   measures score distributions for answerable and unanswerable questions and
+   they overlap; score ranks relevance, not truth.
+9. Do not repeatedly retrieve the same query in one task.
+
+Bounds and prohibitions:
+
+- Retrieval never substitutes for the evidence rules in **Core rules**. A
+  passage returned by `search_knowledge` is a pointer to a record, not a
+  citation in itself; cite the experiment, run, and evidence IDs it carries.
+- Superseded material is excluded by default and is never deleted. Ask for it
+  explicitly (`include_superseded`) when auditing a retracted conclusion.
+- Absence of a search result is not evidence that something was not tried.
+  Recall is measured as a floor, not an estimate, and the index only covers
+  what has been staged into the corpus.
+- No agent may write to the index. The MCP server exposes no ingestion or
+  deletion tool; the write path is the ingestion worker, driven by corpus
+  events. Do not add one.
