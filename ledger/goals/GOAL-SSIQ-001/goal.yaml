@@ -57,7 +57,7 @@ research_goal:
     maximum_batches: 8
     total_wall_clock_seconds: 28800
     max_concurrent: 3
-  current_batch_id: BATCH-006
+  current_batch_id: BATCH-007
   dispatch_queue_path_note: >-
     BATCH-003 and BATCH-004 did not use a formal tools/research_dispatch.py
     JSON queue -- their tasks (a pre-freeze Red Team review, then a single
@@ -66,21 +66,23 @@ research_goal:
     BATCH-001/002. No dispatch_queue.json exists under
     coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/ or BATCH-004/.
     Recorded so the absence reads as a process choice, not an oversight.
-  latest_verified_commit: 06af9596d623b1d61c6daf6e14ed898ef00c213d
+  latest_verified_commit: cc786884a485d85224cf44bf9e4aaf85be606e0c
   latest_verified_commit_note: >-
-    The TASK-20260805-8bddd0 snapshot commit (the RUN-SSIQ-a85692-b
+    The TASK-20260805-2d8575 snapshot commit (the RUN-SSIQ-a85692-c
     package), accepted by the dispatcher-equivalent manual check and
-    INDEPENDENTLY RE-VERIFIED by the Validator TASK-20260805-10868f:
-    reachable from HEAD, parent 14b56525ea9584cb0d7fd20f2dc4de5af82d2215,
+    INDEPENDENTLY RE-VERIFIED by the Validator TASK-20260805-47be12:
+    reachable from HEAD, parent 7f40426b041044b9074f8bf208971786bde83801,
     changed-path set exactly equal to the 10 declared artifacts, all
-    path_sha256 recomputed directly from the git blobs at 06af9596 (not the
-    working tree). DELIBERATELY NOT ADVANCED to the ledger-archive commit
-    carrying this edit, for the same reason as every prior batch: that
-    commit has not been through a verifier at the moment it is written.
-    Branch commits stop resolving under a squash merge; the durable
-    bindings are the path_sha256 maps in the receipts under
+    path_sha256 recomputed directly from the git blobs at cc786884 (not
+    the working tree). DELIBERATELY NOT ADVANCED to the ledger-archive
+    commit carrying this edit, for the same reason as every prior batch:
+    that commit has not been through a verifier at the moment it is
+    written. Branch commits stop resolving under a squash merge; the
+    durable bindings are the path_sha256 maps in the receipts under
     coordination/goals/GOAL-SSIQ-001/batches/*/archives/.
-    PRIOR VERIFIED COMMITS, retained for history: BATCH-004's
+    PRIOR VERIFIED COMMITS, retained for history: BATCH-005's
+    06af9596d623b1d61c6daf6e14ed898ef00c213d (TASK-20260805-8bddd0, the
+    RUN-SSIQ-a85692-b package, parent 14b56525, 10/10 paths); BATCH-004's
     299537238f14db622c7e93f52bc19286a7c4bba7 (TASK-20260805-81ffe0, the
     RUN-SSIQ-a85692-a package, parent 5fc59a15, 20/20 paths); BATCH-003's
     3c117cbc60c85743532e2e2db0530e3be97a8520 (TASK-20260805-fdd699, the
@@ -687,6 +689,50 @@ research_goal:
         a prior batch's review, and not by trusting that a control
         surviving N prior batches' reviews means its internals were ever
         exercised.
+    - id: GD-10
+      raised_by: [TASK-20260805-176dab]
+      severity: high
+      detail: >-
+        NAMED IN BATCH-006, BY THE RED TEAM, ON RUN-SSIQ-a85692-c -- THE
+        FOURTH INSTANCE OF THIS CAMPAIGN'S "LOOKS VALIDATED, WASN'T"
+        FAILURE PATTERN (after GD-4, GD-7, GD-9), ONE LAYER FURTHER IN.
+        The v3 amendment's own pre-freeze review (PF-1) correctly found
+        that GD-9's fix, c_null_label_comparison_v3, would be
+        unreachable on RUN-SSIQ-a85692-b's real data (both arms lose all
+        4 primes to trapped_exclusion_filter_v3), and REQUIRED a
+        synthetic self-test, independent of real data, as the only way
+        to get runtime evidence the wrapper actually works. The Executor
+        built one; the Validator independently confirmed its arithmetic
+        is correct (an exact power law must recover gamma exactly, hand-
+        derived from first principles). But the Red Team, reading the
+        self-test's code directly, found it NEVER CALLS
+        c_null_label_comparison_v3 -- it calls the underlying
+        ols_loglog_fit/bootstrap_gap_ci library functions directly and
+        re-implements the comparison rule as a second, hand-written copy,
+        bypassing the wrapper's own cross-dict indexing (confirmed
+        structurally necessary: the null arm's data schema carries no N
+        field, so pulling N from the real arm's dict is the only correct
+        wiring), its len(null_survivors)<min_primes gate, and its
+        sorted() ordering step entirely. A subtly wrong implementation of
+        the wrapper -- a swapped dict source, an off-by-one, a missing
+        sort -- would pass this self-test unchanged. GD-9's wrapper is
+        therefore downgraded from "fixed" to "fixed in code, consistent
+        with spec, runtime-unvalidated." Fixable at zero new search cost:
+        construct synthetic data in the real data's own schema and call
+        the wrapper itself through both its branches.
+      standing_repair_adopted: >-
+        Effective BATCH-007 onward: a validation artifact (a synthetic
+        self-test, a unit test, a null-object control's comparison logic)
+        must be verified to actually CALL the specific function/branch it
+        is built to validate, not merely to exercise library code that
+        function happens to reuse. When a pre-freeze review requires a
+        self-test BECAUSE a specific wrapper is unreachable on real data,
+        the pre-freeze review's own required_controls names the exact
+        function the self-test must call, not just describes the desired
+        behavior in prose -- the fix for a validation gap can itself have
+        the identical validation gap, one layer further in, and checking
+        that requires the same direct-code-reading discipline GD-9's own
+        repair established, applied recursively to the repair itself.
   completion_criteria:
     - >-
       An exponent-budget decomposition of the archived p^{1/3+o(1)} algorithm
@@ -767,55 +813,57 @@ research_goal:
     real M-GAP was computed for the first time, but the terminal
     CONTROL-FAILURE-VOID rests on a low-power control and a dead-code
     control, and the point estimate is separately invalidated by a missing
-    filter) on evidence EV-SSIQ-f3ce32.
+    filter) on evidence EV-SSIQ-f3ce32; BATCH-006 closed by DEC-20260805-e46f4f
+    (revise, GD-10 -- GD-8 fixed and validated on real data; GD-9's wrapper
+    fixed in code but its required validation artifact bypasses the wrapper
+    itself, downgrading it to runtime-unvalidated) on evidence EV-SSIQ-028c9f.
   next_action: >-
-    OPEN BATCH-006 AS A FURTHER VERSIONED AMENDMENT (v3) TO
-    EXP-SSIQ-a85692 -- same contract lineage, same validated delta_E and
-    budget-allocation infrastructure (both independently confirmed working
-    in BATCH-005, EV-SSIQ-f3ce32 O-1/O-2), same hypothesis content
-    (H-SSIQ-36e970, restating H-SSIQ-137200 unchanged). L4 remains the
-    only lever whose ceiling meets this goal's target and still the top
-    priority -- and is now closer to a real test than at any prior batch:
-    BATCH-005 computed the campaign's first real M-GAP on real,
-    in-session-computed delta_E labels, but two independent, zero-new-
-    search-cost defects (GD-8, GD-9) mean that result cannot yet be
-    trusted. THE FIX, RANKED BY THE RED TEAM AND ADOPTED IN
-    DEC-20260805-5f5ac6, BOTH APPLICABLE TO RUN-SSIQ-a85692-b's
-    ALREADY-COLLECTED DATA WITH ZERO NEW SEARCH: (1) wire C-NULL-LABEL's
-    comparison logic (GD-9's fix) -- fit a null M-GAP from the
-    already-computed null_by_prime medians, bootstrap its CI the same way
-    the real arm's CI is bootstrapped, and derive
-    c_null_label_control_failure from a comparison rule stated and
-    justified BEFORE looking at what it outputs on the existing data; (2)
-    implement PER-PRIME-TRAPPED-EXCLUSION per the frozen spec's own
-    inherited text (GD-8's fix) and re-derive descent_metrics under it
-    using this run's already-collected trapped_fraction values -- if this
-    leaves fewer than 4 usable primes (plausible: all 4 previously-used
-    primes are at trapped_fraction 0.72-0.85), report
-    DATA-UNAVAILABLE/BLOCKED honestly rather than lowering the threshold,
-    itself an informative result about whether greedy descent is
-    pervasively trapped at this graph scale; (3) only after (1)-(2), if a
-    genuine construction-order question remains open, consider
-    strengthening C-SEARCH-BIAS's statistical power (larger n_sample or a
-    bootstrap CI on the correlation difference) -- the low-power finding
-    that undermined BATCH-005's CONTROL-FAILURE-VOID (EV-SSIQ-f3ce32 O-4,
-    a power limitation, not itself a numbered goal defect).
-    GOES THROUGH ITS OWN PRE-FREEZE RED TEAM REVIEW WITH GD-8/GD-9's
-    STANDING REPAIR APPLIED: any reused control's comparison logic is
-    verified by direct code reading, not cited as functional because it
-    "ran" in a prior batch's review.
+    OPEN BATCH-007 AS A FURTHER VERSIONED AMENDMENT (v4) TO
+    EXP-SSIQ-a85692 -- same contract lineage, same validated delta_E,
+    budget-allocation, and trapped-vertex-filter infrastructure (GD-7 and
+    GD-8 both independently confirmed working in BATCH-005/006). L4
+    remains the only lever whose ceiling meets this goal's target and
+    still the top priority, EXPLICITLY NOT RETIRED despite a zero-survivor
+    outcome at toy scale (a coverage gap is not a named obstruction with
+    an argument, per docs/inventor-protocol.md section 4's closure
+    standard). BATCH-006 found the required validation artifact for GD-9's
+    fix (a synthetic self-test) bypasses the wrapper function
+    c_null_label_comparison_v3 it was built to validate -- named GD-10.
+    THE FIX, RANKED BY THE RED TEAM AND ADOPTED IN DEC-20260805-e46f4f,
+    BOTH ZERO NEW SEARCH COST: (1) fix GD-10 -- build a synthetic self-test
+    that constructs real_per_prime/null_per_prime dicts in the ACTUAL
+    real-data schema (real arm carries N, null arm does not) and calls
+    c_null_label_comparison_v3 itself through BOTH its NOT-EVALUABLE and
+    fit-and-bootstrap branches, with hand-computable expected outputs --
+    must land before any future run's c_null_label_control_failure value
+    is cited as validated machinery; (2) investigate the mechanism behind
+    pervasive trapping (all 4 previously-searched primes exceed 0.5
+    trapped_fraction in BOTH label arms) using already-collected graph/
+    vertex/degree-sequence data from RUN-SSIQ-a85692-b -- is trapping
+    concentrated on specific low-degree vertices, correlated with a
+    graph-structural property independent of N, or an artifact of the
+    greedy tie-break rule -- do this BEFORE spending real search budget on
+    larger N under an unexamined assumption that bigger graphs trap less,
+    since trapped_fraction does NOT monotonically decrease across the 4
+    already-tested N values (0.837, 0.722, 0.820, 0.851 at N=203, 324,
+    478, 611).
+    GOES THROUGH ITS OWN PRE-FREEZE RED TEAM REVIEW WITH GD-10's STANDING
+    REPAIR APPLIED: any required validation artifact's pre-freeze text
+    names the exact function/branch it must call, not just describes the
+    desired behavior in prose.
     Deferred with revisit conditions, not dropped (AGENTS.md rule 9):
-    (i) Spending new real search budget on additional primes is deferred
-    until GD-8/GD-9 are fixed, since any new run would inherit both
-    defects unchanged. (ii) Whether a construction-order artifact is real
-    and fixable (widening B/X, a different collision tie-break) is
-    deferred until C-SEARCH-BIAS has real statistical power to test it.
-    (iii) REC-1b / M-GRAD via WISDE remains RETIRED. (iv) REC-4, the
-    zero-compute N5 scoping pass, stays open and unscheduled while L4's
-    control-code defects are fixed. (v) The deferred p != 1 (mod 12)
-    successor from PF-5 stays costed higher than the p=1 mod 12 route.
-    (vi) Routing the docs/claims-and-verification.md correction under GD-3
-    to its owner remains open.
+    (i) Widening to larger primes/N is deferred until item (2) above gives
+    a specific, evidence-based reason to expect different behavior at
+    larger N. (ii) Retiring lever L4 as exhausted is explicitly NOT
+    chosen; revisit only if items (1)-(2) are completed and either
+    identify a fixable mechanism, or a larger-N attempt with a specific
+    hypothesis also shows pervasive trapping. (iii) REC-1b / M-GRAD via
+    WISDE remains RETIRED. (iv) REC-4, the zero-compute N5 scoping pass,
+    stays open and unscheduled while L4's remaining diagnostic questions
+    are worked. (v) The deferred p != 1 (mod 12) successor from PF-5
+    stays costed higher than the p=1 mod 12 route. (vi) Routing the
+    docs/claims-and-verification.md correction under GD-3 to its owner
+    remains open.
   id_corrections:
     - correction: retired-unused task identifiers
       recorded_at: '2026-08-05'
@@ -834,4 +882,4 @@ research_goal:
         entry exists because a silently corrected identifier is
         indistinguishable from a fabricated one in an archive.
   created_at: '2026-08-05T01:00:00Z'
-  updated_at: '2026-08-05T14:20:00Z'
+  updated_at: '2026-08-05T15:20:00Z'
