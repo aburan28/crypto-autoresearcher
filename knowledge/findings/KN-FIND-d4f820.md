@@ -6,6 +6,9 @@ tags: [hpseudo, character-sum, fourier, discrete-log, semaev, factor-base, toy-s
 confidence: preliminary_empirical
 evidence_level: toy_measurement
 source_refs: [BATCH-073, BATCH-074, BATCH-076, BATCH-077, EV-BGT-816536, EV-PSEUDO-28f914, EV-PSEUDO-65a7ea, EV-PSEUDO-6b3146, H-PSEUDO-83817b]
+internal_refs: [EV-BGT-816536, EV-PSEUDO-28f914, EV-PSEUDO-65a7ea, EV-PSEUDO-6b3146, H-PSEUDO-83817b]
+proof_status: empirical_only
+proof_refs: []
 added: '2026-08-04'
 superseded_by: null
 ---

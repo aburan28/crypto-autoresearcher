@@ -6,6 +6,9 @@ tags: [betti-yield, discrete-morse, chain-complex, h-pseudo, combinatorial, exac
 confidence: proved
 evidence_level: theorem
 source_refs: [BATCH-091, DEC-20260804-425827]
+internal_refs: [DEC-20260804-425827]
+proof_status: derivation
+proof_refs: [knowledge/findings/KN-FIND-9d2f56.md]
 added: '2026-08-04'
 superseded_by: null
 ---

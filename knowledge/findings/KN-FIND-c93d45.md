@@ -6,6 +6,9 @@ tags: [weil-bound, character-sum, dl-circularity, semaev, arithmetic-factor-base
 confidence: proved
 evidence_level: argument
 source_refs: [BATCH-067, DEC-20260804-1b22b2]
+internal_refs: [DEC-20260804-1b22b2]
+proof_status: derivation
+proof_refs: [knowledge/findings/KN-FIND-c93d45.md]
 added: '2026-08-04'
 superseded_by: null
 ---

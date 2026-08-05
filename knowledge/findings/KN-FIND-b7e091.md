@@ -6,6 +6,9 @@ tags: [ggm, generic-group-model, incidence, endomorphism, shoup-lower-bound, ora
 confidence: proved
 evidence_level: theorem_backed
 source_refs: [BATCH-060, EV-GGM-79e710, DEC-20260804-3b4258]
+internal_refs: [EV-GGM-79e710, DEC-20260804-3b4258]
+proof_status: derivation
+proof_refs: [knowledge/findings/KN-FIND-b7e091.md]
 added: '2026-08-04'
 superseded_by: null
 ---

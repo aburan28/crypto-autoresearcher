@@ -6,6 +6,9 @@ tags: [hpseudo, adversarial, robustness, constant-c, fourier, prime-field]
 confidence: preliminary_empirical
 evidence_level: toy_adversarial_search
 source_refs: [BATCH-104, BATCH-105, EV-PSEUDO-dd0c51, EV-PSEUDO-066646]
+internal_refs: [EV-PSEUDO-dd0c51, EV-PSEUDO-066646]
+proof_status: empirical_only
+proof_refs: []
 added: '2026-08-04'
 superseded_by: null
 ---

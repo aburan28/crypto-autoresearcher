@@ -6,6 +6,9 @@ tags: [bkk, semaev, sparse-relation, constant-speedup, growing-m, prime-field, i
 confidence: preliminary_empirical
 evidence_level: toy_measurement
 source_refs: [BATCH-110,111,112,113,114,115, EV-SEMAEV-47d130,473ea1,5d7580,6ef060,95eebe]
+internal_refs: [EV-SEMAEV-47d130, EV-SEMAEV-473ea1, EV-SEMAEV-5d7580, EV-SEMAEV-6ef060, EV-SEMAEV-95eebe]
+proof_status: empirical_only
+proof_refs: []
 added: '2026-08-04'
 superseded_by: null
 ---

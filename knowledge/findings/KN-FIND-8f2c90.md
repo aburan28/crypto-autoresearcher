@@ -6,6 +6,9 @@ tags: [bkk, semaev, relation-collection, constant-speedup, index-calculus, prime
 confidence: preliminary_empirical
 evidence_level: toy_measurement
 source_refs: [BATCH-110, BATCH-111, BATCH-112, EV-SEMAEV-47d130, EV-SEMAEV-473ea1]
+internal_refs: [EV-SEMAEV-47d130, EV-SEMAEV-473ea1]
+proof_status: empirical_only
+proof_refs: []
 added: '2026-08-04'
 superseded_by: null
 ---

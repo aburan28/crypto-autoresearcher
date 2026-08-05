@@ -6,6 +6,9 @@ tags: [hpseudo, character-sum, proof-attempts, ddh, bgs, weil, weyl, michel-venk
 confidence: proved_negative
 evidence_level: multiple_independent_analyses
 source_refs: [BATCH-067, BATCH-072, BATCH-080, BATCH-081, BATCH-082, DEC-20260804-1b22b2, DEC-20260804-f320c2, DEC-20260804-ba880f, DEC-20260804-53c89f, DEC-20260804-73287b]
+internal_refs: [DEC-20260804-1b22b2, DEC-20260804-f320c2, DEC-20260804-ba880f, DEC-20260804-53c89f, DEC-20260804-73287b]
+proof_status: derivation
+proof_refs: [knowledge/findings/KN-FIND-e7a3b1.md]
 added: '2026-08-04'
 superseded_by: null
 ---

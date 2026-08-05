@@ -6,6 +6,9 @@ tags: [hpseudo, magcs, katz-sarnak, tate-pairing, embedding-degree, mov-vulnerab
 confidence: conditional_proof
 evidence_level: theorem_backed_for_k2
 source_refs: [BATCH-086, BATCH-087, DEC-20260804-f567ac, DEC-20260804-6ee18a]
+internal_refs: [DEC-20260804-f567ac, DEC-20260804-6ee18a]
+proof_status: derivation
+proof_refs: [knowledge/findings/KN-FIND-3a7d42.md]
 added: '2026-08-04'
 superseded_by: null
 ---

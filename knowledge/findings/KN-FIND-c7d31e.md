@@ -6,6 +6,9 @@ tags: [bkk, semaev, speedup-theorem, combinatorics, index-calculus, proved]
 confidence: proved
 evidence_level: theorem
 source_refs: [BATCH-119, KN-FIND-2a8b7e]
+internal_refs: [DEC-20260804-1825ea]
+proof_status: derivation
+proof_refs: [knowledge/findings/KN-FIND-c7d31e.md]
 added: '2026-08-04'
 superseded_by: null
 ---

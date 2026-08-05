@@ -6,6 +6,9 @@ tags: [semaev, monodromy, prime-field, ecdlp, index-calculus, galois, factor-bas
 confidence: derivation
 evidence_level: internal_analysis
 source_refs: [BATCH-061, DEC-20260804-4f37d5, KN-OPEN-009]
+internal_refs: [DEC-20260804-4f37d5]
+proof_status: derivation
+proof_refs: [knowledge/findings/KN-FIND-a1f3c2.md]
 added: '2026-08-04'
 superseded_by: null
 ---

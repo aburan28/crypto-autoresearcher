@@ -6,6 +6,9 @@ tags: [hpseudo, betti-yield, wesolowski, structural-gap, algebraic-structure, pr
 confidence: multiple_independent_analyses
 evidence_level: derived
 source_refs: [BATCH-085, BATCH-091, BATCH-095, BATCH-096, DEC-20260804-425827, DEC-20260804-4f7da7, DEC-20260804-bfbb09]
+internal_refs: [DEC-20260804-425827, DEC-20260804-4f7da7, DEC-20260804-bfbb09]
+proof_status: derivation
+proof_refs: [knowledge/findings/KN-FIND-5c1a03.md]
 added: '2026-08-04'
 superseded_by: null
 ---

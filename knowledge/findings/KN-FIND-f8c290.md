@@ -6,6 +6,9 @@ tags: [semaev, index-calculus, achievability, complexity-tight, prime-field, ecd
 confidence: preliminary_empirical
 evidence_level: toy_demonstration
 source_refs: [BATCH-083, EV-SEMAEV-b3db54, DEC-20260804-db75bb]
+internal_refs: [EV-SEMAEV-b3db54, DEC-20260804-db75bb]
+proof_status: empirical_only
+proof_refs: []
 added: '2026-08-04'
 superseded_by: null
 ---

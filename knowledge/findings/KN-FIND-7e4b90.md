@@ -6,6 +6,9 @@ tags: [wesolowski, quaternion-algebra, ordinary-curves, structural-theorem, 4d-l
 confidence: proved_negative
 evidence_level: mathematical_argument
 source_refs: [BATCH-096, DEC-20260804-bfbb09, inputs/P13-WESOLOWSKI-2026]
+internal_refs: [DEC-20260804-bfbb09]
+proof_status: derivation
+proof_refs: [knowledge/findings/KN-FIND-7e4b90.md]
 added: '2026-08-04'
 superseded_by: null
 ---
