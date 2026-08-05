@@ -50,9 +50,9 @@ TASK_DIR = (
     / "goals"
     / "GOAL-ECDLP-001"
     / "batches"
-    / "BATCH-030"
+    / "BATCH-046"
     / "tasks"
-    / "TASK-20260801-143"
+    / "TASK-20260803-019"
 )
 
 SEEDS = [2026073101, 2026073102, 2026073103]
@@ -65,30 +65,181 @@ ALLOWED_PRIMES = [2, 3, 5, 7]
 WALL_CLOCK_SECONDS = 7200
 TARGET_UNPLANTED = 20
 MIN_PER_BITS = 6
+CLI_COMMAND = None
+AMENDMENT_PATH = None
+RUN_MODE = "legacy"
 
 SPEC_PATH = "experiments/EXP-IT-001/specification.v3.yaml"
 APPROVAL = {
-    "decision_id": "DEC-20260731-034",
-    "task_id": "TASK-20260731-124",
-    "commit_sha": "8f02ab4b7ce02dbe67a3367d559e671b1be0e556",
-    "batch_open": "DEC-20260801-001",
-    "batch_open_commit": "aae3619f1",
-    "amend_freeze": "d65c5e21763fe2a920e6f546f8eec039e1bc3d8f",
-    "protocol_amendment_id": "PA-IT-001-v3-rc27-b5-b8",
+    "decision_id": "DEC-20260803-003",
+    "task_id": "TASK-20260803-019",
+    "commit_sha": None,
+    "batch_open": "DEC-20260803-003",
+    "batch_open_commit": None,
+    "amend_freeze": "16f7b7bf8b9d8a483b6ef939e9ebcc2a0fcb4620",
+    "protocol_amendment_id": "PA-IT-001-v3-rc45-repair-5",
     "repair_overlay": {
-        "id": "PA-IT-001-v3-rc30-repair-1-to-7",
-        "authoring_task": "TASK-20260801-141",
-        "snapshot_task": "TASK-20260801-142",
-        "executor_task": "TASK-20260801-143",
-        "run_snapshot_task": "TASK-20260801-144",
-        "validator_task": "TASK-20260801-145",
-        "red_team_task": "TASK-20260801-146",
-        "ledger_task": "TASK-20260801-147",
+        "id": "PA-IT-001-v3-rc45-repair-5",
+        "authoring_task": "TASK-20260803-011",
+        "snapshot_task": "TASK-20260803-012",
+        "executor_task": "TASK-20260803-019",
+        "run_snapshot_task": "TASK-20260803-020",
+        "validator_task": "TASK-20260803-021",
+        "red_team_task": "TASK-20260803-022",
+        "ledger_task": "TASK-20260803-024",
         "from_version": 3,
         "to_version": 3,
-        "defects_repaired": ["FIX-1", "FIX-2", "FIX-3", "FIX-4", "FIX-5", "FIX-6", "FIX-7"],
+        "defects_repaired": ["RT-044-Y1", "RT-044-M2", "RT-045-D2"],
     },
 }
+
+
+def configure_from_cli(argv=None):
+    """RT-045-D2: accept frozen RC-45 Executor CLI flags.
+
+    Frozen strings (PA-IT-001-v3-rc45-repair-5 future_executor_commands):
+      --amendment <path> --run-id <id> --mode smoke|measure
+      --seed INT | --seeds a,b,c
+    """
+    global RUN_ID, RUN_DIR, TASK_DIR, SEEDS, WALL_CLOCK_SECONDS
+    global APPROVAL, CLI_COMMAND, AMENDMENT_PATH, RUN_MODE
+
+    import yaml  # available under sage and local venv
+
+    parser = argparse.ArgumentParser(
+        description="EXP-IT-001 bounded toy runner (RC-45 CLI binding)"
+    )
+    parser.add_argument(
+        "--amendment",
+        type=str,
+        default=None,
+        help="Path to protocol amendment YAML (frozen RC-45 path required for admission)",
+    )
+    parser.add_argument("--run-id", type=str, default=None)
+    parser.add_argument("--mode", choices=["smoke", "measure", "legacy"], default=None)
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument(
+        "--seeds",
+        type=str,
+        default=None,
+        help="Comma-separated seed list for measure mode",
+    )
+    parser.add_argument(
+        "--task-dir",
+        type=str,
+        default=None,
+        help="Optional override for execution_report.yaml directory",
+    )
+    args, _unknown = parser.parse_known_args(argv)
+
+    # Reconstruct the invoked command for command.txt (preserve exact flags).
+    CLI_COMMAND = "sage experiments/EXP-IT-001/implementation/run_bounded_toy.py"
+    if argv is None:
+        # Drop sage interpreter path if present; keep flags after script name.
+        av = list(sys.argv[1:])
+    else:
+        av = list(argv)
+    if av:
+        CLI_COMMAND = "sage experiments/EXP-IT-001/implementation/run_bounded_toy.py " + " ".join(av)
+
+    if args.amendment is None and args.run_id is None and args.mode is None:
+        # Backward-compatible no-flag invocation (legacy BATCH-030 constants remain
+        # unless overridden). Prefer explicit RC-45 flags for BATCH-046+.
+        return args
+
+    if args.amendment is None:
+        raise SystemExit("RC-45 CLI requires --amendment <path>")
+    AMENDMENT_PATH = args.amendment
+    amend_path = Path(args.amendment)
+    if not amend_path.is_absolute():
+        amend_path = ROOT / args.amendment
+    if not amend_path.is_file():
+        raise SystemExit(f"amendment not found: {amend_path}")
+    blob = yaml.safe_load(amend_path.read_text())
+    pa = blob.get("protocol_amendment") or blob
+    amend_id = pa.get("id")
+    if amend_id != "PA-IT-001-v3-rc45-repair-5":
+        raise SystemExit(
+            f"contract_invalid: expected PA-IT-001-v3-rc45-repair-5, got {amend_id!r}"
+        )
+
+    # Apply frozen c_smart=8 into the anomalous Smart charge (runtime only).
+    pure.C_SPECIAL_ANOMALOUS_CALIB_CONST = 8.0
+
+    mode = args.mode or "smoke"
+    RUN_MODE = mode
+    budgets = pa.get("budgets") or {}
+    if mode == "smoke":
+        WALL_CLOCK_SECONDS = int(budgets.get("wall_clock_seconds_smoke", 600))
+        if args.seed is not None:
+            SEEDS = [int(args.seed)]
+        elif isinstance((pa.get("seeds") or {}).get("smoke"), int):
+            SEEDS = [int(pa["seeds"]["smoke"])]
+        else:
+            SEEDS = [2026080304]
+        default_run = "RUN-IT-001-rc45-smoke"
+    elif mode == "measure":
+        WALL_CLOCK_SECONDS = int(budgets.get("wall_clock_seconds_measure", 3600))
+        if args.seeds:
+            SEEDS = [int(x) for x in args.seeds.split(",") if x.strip()]
+        elif args.seed is not None:
+            SEEDS = [int(args.seed)]
+        else:
+            SEEDS = list((pa.get("seeds") or {}).get("measure") or [2026080304, 2026080305, 2026080306])
+        default_run = "RUN-IT-001-rc45-measure"
+    else:
+        default_run = "RUN-IT-001-rc45-smoke"
+
+    RUN_ID = args.run_id or default_run
+    reserved = set(pa.get("reserved_run_ids") or [])
+    if reserved and RUN_ID not in reserved:
+        raise SystemExit(f"contract_invalid: run-id {RUN_ID} not in reserved_run_ids {sorted(reserved)}")
+    RUN_DIR = EXP_DIR / "runs" / RUN_ID
+
+    if args.task_dir:
+        TASK_DIR = Path(args.task_dir)
+        if not TASK_DIR.is_absolute():
+            TASK_DIR = ROOT / args.task_dir
+    else:
+        TASK_DIR = (
+            ROOT
+            / "coordination"
+            / "goals"
+            / "GOAL-ECDLP-001"
+            / "batches"
+            / "BATCH-046"
+            / "tasks"
+            / "TASK-20260803-019"
+        )
+
+    APPROVAL = {
+        "decision_id": "DEC-20260803-003",
+        "task_id": "TASK-20260803-019",
+        "commit_sha": None,
+        "batch_open": "DEC-20260803-003",
+        "batch_open_commit": None,
+        "amend_freeze": "16f7b7bf8b9d8a483b6ef939e9ebcc2a0fcb4620",
+        "protocol_amendment_id": amend_id,
+        "amendment_path": str(Path(args.amendment).as_posix()),
+        "c_smart": 8,
+        "c_special_formula_id": "C_special_smart",
+        "anomalous_plant_bits": int((pa.get("cost_model") or {}).get("anomalous_plant_bits") or 20),
+        "run_mode": mode,
+        "repair_overlay": {
+            "id": amend_id,
+            "authoring_task": "TASK-20260803-011",
+            "snapshot_task": "TASK-20260803-012",
+            "executor_task": "TASK-20260803-019",
+            "run_snapshot_task": "TASK-20260803-020",
+            "validator_task": "TASK-20260803-021",
+            "red_team_task": "TASK-20260803-022",
+            "ledger_task": "TASK-20260803-024",
+            "from_version": 3,
+            "to_version": 3,
+            "defects_repaired": ["RT-044-Y1", "RT-044-M2", "RT-045-D2"],
+        },
+    }
+    return args
 
 
 def utc_now() -> str:
@@ -1013,6 +1164,7 @@ def rho_calibration(E, P, Q, N_star: int, modeled: float):
 
 
 def main():
+    configure_from_cli()
     RUN_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     TASK_DIR.mkdir(parents=True, exist_ok=True)
@@ -1909,7 +2061,13 @@ def main():
     (RESULTS_DIR / "HEUR_ISO_1_report.json").write_text(
         json.dumps(_jsonable(heur_report), indent=2, sort_keys=True) + "\n"
     )
-    (RESULTS_DIR / "transfer_gate_report.json").write_text(
+    if APPROVAL.get("c_special_formula_id"):
+        transfer_report["c_special_formula_id"] = APPROVAL["c_special_formula_id"]
+        transfer_report["c_smart"] = APPROVAL.get("c_smart")
+        transfer_report["anomalous_plant_bits"] = APPROVAL.get("anomalous_plant_bits")
+        transfer_report["matched_rho_formula_id"] = "ceil_0_886_sqrt_Nstar"
+        transfer_report["amendment_id"] = APPROVAL.get("protocol_amendment_id")
+        (RESULTS_DIR / "transfer_gate_report.json").write_text(
         json.dumps(_jsonable(transfer_report), indent=2, sort_keys=True) + "\n"
     )
     (RESULTS_DIR / "concrete_cost_table.json").write_text(
@@ -1923,8 +2081,8 @@ def main():
     )
 
     # run records
-    cmd = (
-        f"sage -python experiments/EXP-IT-001/implementation/run_bounded_toy.py"
+    cmd = CLI_COMMAND or (
+        "sage experiments/EXP-IT-001/implementation/run_bounded_toy.py"
     )
     (RUN_DIR / "command.txt").write_text(cmd + "\n")
     env = {

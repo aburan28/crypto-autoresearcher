@@ -1,0 +1,47 @@
+working_directory: /home/user/crypto-autoresearcher
+
+# ---------------------------------------------------------------------
+# WISDE acquisition (12 pre-registered primes, p <= 22000, WISDE
+# exhaustive block).  Same route as EXP-SSIQ-4de240/runs/RUN-SSIQ-4de240-a
+# (raw.githubusercontent.com per-file), see source_access_log.yaml for the
+# full per-file record (URL, HTTP status, byte count, SHA-256).
+for p in 2437 3889 5737 7333 8893 10657 12541 14389 16189 18049 19717 21601; do
+  curl -sS -f -L --max-time 30 -A 'crypto-autoresearcher/EXP-SSIQ-58b642-executor' \
+    -o <cache>/results${p}.sage \
+    https://raw.githubusercontent.com/christellevincent/WISDE/main/results/results${p}.sage
+done
+
+# ---------------------------------------------------------------------
+# Phase 0 (C-CAL-GAP), run standalone first, before any real graph or
+# fetch, to demonstrate the gate independently of Phase 1 (this exact
+# invocation is ALSO run internally, first, by the primary_execution
+# command below -- both are recorded because both were actually executed
+# during this run's development/verification):
+python3 experiments/EXP-SSIQ-58b642/implementation/calibration_synthetic.py
+
+# ---------------------------------------------------------------------
+# primary_execution: Phase 0 (C-CAL-GAP) + Phase 1 (real graph
+# construction, correctness gates, delta_E cross-reference attempt,
+# C-NULL-LABEL, C-REPRO, decision rule), single combined command:
+ulimit -v 4194304
+timeout 7200 python3 experiments/EXP-SSIQ-58b642/implementation/descent_hitting_time.py \
+  --wisde-cache-dir <cache> \
+  --out experiments/EXP-SSIQ-58b642/runs/RUN-SSIQ-58b642-a/raw-result.json
+
+# <cache> = /tmp/claude-0/-home-user-crypto-autoresearcher/f9328c92-fa77-50ca-9d01-8fdf46810784/scratchpad/wisde_cache
+#   (session scratchpad; the 12 fetched files, 552 KB total, are NOT
+#   committed -- their per-file SHA-256 values ARE, in
+#   source_access_log.yaml.  Re-fetching from the recorded URLs and
+#   re-running the primary command reproduces every number in
+#   raw-result.json.)
+
+# ---------------------------------------------------------------------
+# C-EDGELIST and other correctness-gate development/verification checks
+# (ad hoc interactive python3 -c invocations against
+# implementation/build_isogeny_graph.py) are recorded in
+# runs/RUN-SSIQ-58b642-a/execution_report.yaml under
+# "development_verification_commands"; the FINAL, decisive C-EDGELIST
+# result reported in raw-result.json is produced by
+# descent_hitting_time.py's run_correctness_gates() call inside the
+# primary_execution command above (edgelist_prime = 2437, the smallest
+# pre-registered prime), not by a separate command.

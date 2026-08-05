@@ -1,0 +1,128 @@
+coordinator_decision:
+  id: DEC-20260801-629
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-021
+  recorded_by_task: TASK-20260801-003
+  context: >-
+    BATCH-020 executed RUN-DS-001-ctrl-unplanted, the unplanted control that
+    DEFER-BATCH009-001 and RT-20260731-038 (RT038-B7) require before any S1_met or
+    mechanism-support reading of the EXP-DS-001 relations=200 planted package. The
+    run package is committed and immutable at
+    61cd52621e0a53669cee8f30af145f8193838362. BATCH-020 could not carry its own
+    review chain because CORR-20260731-010 proves TASK-20260731-045 permanently
+    unbindable, so BATCH-021 carried the two independent reviews and this close.
+  decision: inconclusive
+  decision_scope: >-
+    THE RUN IS HARNESS VOID UNDER ITS OWN FROZEN CONTRACT, AND HARNESS VOID IS NOT
+    A MATHEMATICAL NEGATIVE. specification.v2.yaml line 247 sets the
+    CTRL-NULL-PLANT pass_condition as "Detection flag true; otherwise harness
+    void" and line 329 directs "stop and report harness void (no mathematical
+    negative)". The detection flag is false. The decision is therefore
+    `inconclusive` and NOT `reject_scoped`, NOT `weaken`, and NOT `support`: a
+    control that cannot fire supports no statement about decomposition yield in
+    either direction. `reject_scoped` on this run is forbidden outright, both by
+    agents/coordinator.md and by the contract clause just quoted.
+  target_ids: [H-DS-001, EXP-DS-001, RUN-DS-001-ctrl-unplanted]
+  evidence_refs: [EV-DS-648]
+  rationale:
+    - >-
+      THE RECORDED STATUS CONTRADICTS THE FROZEN CONTRACT (EV-DS-648 OBS-1). The
+      run records `completed_valid` with `live_plant_detected: false`. The
+      pre-existing mode_impl implements the contract's void branch at
+      ds001_driver.py lines 1301-1303; the new mode_ctrl_unplanted omits it
+      entirely and only reports the flag. The Coordinator independently confirmed
+      this by direct inspection of both the specification lines and the code. The
+      correct status is invalid_measurement / harness void.
+    - >-
+      THE CONTROL IS DETERMINISTICALLY NON-FIRING (OBS-2). Detection needs
+      R_null < 3.6; observed R_null is 112.105 here and lies in [80.405, 189.133]
+      across 54 committed planted cells. 0 of 55 measurements could have fired.
+      This is why the disposition is not "re-run with more cells": sample size is
+      not the defect.
+    - >-
+      THE NULL IS NOT A MATCHED NULL (OBS-3). The null split arm stores under side
+      key "L" and queries under "R" and "J", so no lookup can match by
+      construction - 0 hits in 40000 lookups. R_null measures a handicap. The
+      surrounding comments indicate this is deliberate, so whether it is a defect
+      or an intentionally structure-free null that is simply unfit for this gate is
+      left open for repair to decide; either way it cannot support the gate.
+    - >-
+      THE REPORTED INTERVAL IS NOT A CI FOR R (OBS-4), being a bootstrap of a
+      different estimand. 41 of 54 planted cells show the same failure, 23 below
+      and 18 above. The CI conjuncts of the control's falsification rule and of
+      spec S1 are unusable as written.
+    - >-
+      WHAT PASSED IS RECORDED TOO (OBS-7). Unplantedness, absence of the forbidden
+      synthetic shortcut, backend byte-identity, exact reproduction of R and
+      R_null, and a three-way verified certificate all pass. Nothing is
+      fabricated. The producer reported planted_bug_detected false honestly while a
+      hardcoded True sat in the same file - which is the only reason the deeper
+      defect was findable. This decision is a finding about the CONTROL, not an
+      accusation about the execution.
+  limitations:
+    - Toy tier, one cell, bits=20, one execution, no replicate of R.
+    - >-
+      Both reviews resolved to the same model identity, so reviewer independence
+      is session and role independence only, not model independence. No closure
+      quorum is claimed.
+    - >-
+      review-adversarial's xhigh reasoning-effort floor could be neither requested
+      nor verified under this harness and is recorded as unmet-and-unverifiable.
+    - >-
+      The run package is bound by commit rather than by a verified archive
+      receipt, per CORR-20260731-010. Disclosed, not concealed.
+  hypothesis_status_transition:
+    hypothesis_id: H-DS-001
+    from: analyzed
+    to: analyzed
+    note: >-
+      NO TRANSITION. A void harness moves no hypothesis in either direction.
+      H-IC-001 and H-STR-002 are untouched by this decision.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      No KN-FIND is promoted. Promotion requires evidence at strength `replicated`
+      or `strong`; EV-DS-648 is `inadmissible` and carries no directional claim.
+      The harness-validity findings (OBS-1 to OBS-4) are real and reusable, but
+      they are findings about THIS PROGRAM'S OWN INSTRUMENT, not about the
+      mathematics, and the right home for them is the repair contract rather than
+      the knowledge corpus. RECONSIDER PROMOTION IF the repair confirms the
+      deterministically-non-firing-control pattern generalises beyond EXP-DS-001,
+      in which case a KN-TECH entry on control-power preconditions would be
+      warranted.
+  next_actions:
+    - >-
+      REPAIR THE CONTROL BEFORE RE-RUNNING ANYTHING. The detector or the null must
+      change, not the cell count. At minimum: (a) implement the contract's void
+      branch in mode_ctrl_unplanted so a failed CTRL-NULL-PLANT records
+      invalid_measurement, matching mode_impl; (b) replace the live /4 plant with
+      a detector whose firing threshold is reachable at the observed R_null scale,
+      or state why R_null must first be repaired; (c) make the null split arm a
+      matched null, or declare explicitly that it is structure-free and remove the
+      gates that depend on it behaving as matched; (d) replace the bootstrap with
+      one that resamples R's actual estimand.
+    - >-
+      MEASURE REPRESENTATION DENSITY FIRST, as the cheapest falsification of the
+      control's power: histogram all C(130,3) triples of the signed factor base and
+      count representations per element of <P>. Under a minute of CPU. If unplanted
+      targets already admit many decompositions, "R did not move" is the prediction
+      of BOTH hypotheses and the whole control design needs rethinking.
+    - >-
+      BIND CODE TO RUNS. Record a source hash in the manifest so a committed driver
+      is provably the executed one; the current dirty-tree provenance gap is
+      cheap to close and was flagged by the Red Team.
+    - >-
+      DEFER-BATCH009-001 AND RT038-B7 REMAIN OPEN and must be carried forward
+      unretracted into the next batch that touches H-DS-001.
+  decided_by: coordinator
+  decided_at: '2026-08-01'
+  inference_provenance:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    fallback_used: false
+    degraded_allowed: false
+    note: >-
+      Decision recorded by the orchestrating session acting in Coordinator
+      capacity. The two reviews it rests on were independent sessions that did not
+      produce the artifact; their model-independence limitation is recorded in
+      limitations above and in EV-DS-648.

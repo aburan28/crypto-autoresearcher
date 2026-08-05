@@ -1,0 +1,120 @@
+verify_interface:
+  package_id: FC0-EXT-PKG-SSI-001
+  freeze_status: frozen
+  version: "1.0.0-freeze"
+  task_id: TASK-20260730-055
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-021
+  idea_id: IDEA-20260729-001
+  decision_ref: DEC-20260730-018
+  evidence_ref: EV-SSI-020
+  recovery_spec_ref: >-
+    coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/recovery_spec.md
+  lifetime_trace_ref: >-
+    coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-039/lifetime_trace.yaml
+  recorded_at: '2026-07-31T21:00:00Z'
+
+  predicate:
+    name: Verify
+    signature: Verify(x, k_prime) -> bool
+    totality: total_deterministic_predicate
+    parameters:
+      - name: x
+        role: public_instance
+        meaning: >-
+          Classical public instance object (immutable input/backing referenced
+          by B_input). Exact encoding left to a later implementation; this
+          freeze names the parameter role only.
+        type_status: abstract_parameter_role
+      - name: k_prime
+        role: candidate_secret
+        meaning: >-
+          Candidate recovered key / secret proposed for acceptance. Held in
+          B_candidate at the verification event. Exact encoding left to a
+          later implementation.
+        type_status: abstract_parameter_role
+    return:
+      type: bool
+      true_meaning: >-
+        Completed candidate is successful: k_prime is accepted for public
+        instance x. This is the only success exit of the end-to-end recovery
+        schedule (recovery_spec).
+      false_meaning: >-
+        Candidate rejected. Maps to F_verify ⊆ F (common operational failure
+        event). Not a success exit.
+
+  operational_placement:
+    stage: verification_event
+    coexists_with: [B_input, B_attempt, B_recovery, M_tail, B_candidate]
+    requires_prior:
+      - B_candidate_birthed
+      - candidate_k_prime_loaded_into_B_candidate
+    post_true:
+      - success_exit
+      - retain_final_verification_record
+      - then_destroy_B_candidate_M_tail_B_recovery_B_post_then_B_attempt_B_input
+    post_false:
+      - typed_failure_F_verify
+      - not_a_success
+
+  relation_to_F_star:
+    common_failure_event: >-
+      F = {procedure fails to return a k' with Verify(x,k')=true within its
+      declared stopping policy}
+    verify_constituent: F_verify
+    inclusion_obligation: >-
+      F_input ∪ F_oracle ∪ F_cleanup ∪ F_stop ∪ F_recovery ∪ F_tail ∪
+      F_verify ⊆ F (checklist until an end-to-end implementation instantiates
+      it; does not map BATCH-012 F_sim to F).
+    report_only_completion: failure_not_success
+    unverified_candidate: failure_not_success
+    exhausted_residual_search: failure_not_success
+
+  error_channels:
+    - id: F_verify
+      trigger:
+        - Verify_returns_false
+        - verification_fault
+      maps_to: F
+      status: interface_named_not_probability_bound
+    - id: verification_fault
+      trigger: >-
+        Implementation-defined fault during predicate evaluation (e.g. malformed
+        candidate buffer). Still a typed failure constituent of F_verify / F;
+        never a success.
+      status: interface_named_not_implemented
+
+  stopping_policy_relation:
+    note: >-
+      Verify itself does not define τ or a stopping law. Declared stopping
+      policy membership of F is a separate QM-STOPPING obligation. This
+      interface freezes only the acceptance predicate and its F_verify channel.
+    invents_tau: false
+    clears_QM_STOPPING: false
+
+  deferred_to_implementation_spike:
+    - concrete_encoding_of_x
+    - concrete_encoding_of_k_prime
+    - numeric_bit_widths
+    - curve_or_group_action_evaluation
+    - executable_predicate_body
+    - timing_or_resource_measurements
+
+  explicit_non_claims:
+    - no_implementation
+    - no_numeric_widths
+    - no_tau
+    - no_joint_Q_S_P_C_finiteness
+    - no_CollimationSieve_API
+    - no_QUERY_MEMORY_clearance
+    - no_probability_bounds_on_F_verify
+    - no_F_sim_to_F_map
+    - no_PIN_COMPLETE
+
+  interpretation_limit: >-
+    This file freezes the Verify(x,k') signature, return meaning, stage
+    placement, and F_verify error channel as an in-repo interface. It is not
+    an implementation, not a CollimationSieve API, and not numeric clearance
+    of any QUERY_MEMORY blocker.
+
+  non_extrapolation: true

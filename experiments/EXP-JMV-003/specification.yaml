@@ -1,0 +1,62 @@
+experiment:
+  id: EXP-JMV-003
+  hypothesis_id: H-JMV-002
+  version: 1
+  title: Measured spectral gap of the ordinary horizontal-isogeny graph vs the GRH bound of Lemma 4.1.
+  status: draft
+  objective: >-
+    Lemma 4.1 bounds nontrivial eigenvalues by O(m^{1/2} log|mD|) with an absolute but
+    UNSPECIFIED implied constant. Measure lambda_2 exactly for many discriminants and fit
+    that constant, supplying the concrete input that EXP-JMV-004 needs.
+  inputs:
+    discriminants: ">= 200 fundamental discriminants D < 0 spanning 4 size decades (|D| ~ 10^4 .. 10^8)"
+    generator_bound_m: [64, 128, 256, 512, 1024, 2048]
+    order_scope: maximal orders only (c_E = 1) in the first pass
+  method_note: >-
+    The graph is an ABELIAN Cayley graph on Cl(O), so eigenvalues are Hecke character sums
+    and no h x h matrix is required: lambda_chi = (1/e) * sum_{p <= m} a_p(chi), where a split
+    prime p contributes 2*Re chi([P]), an inert prime contributes 0, and a ramified prime
+    contributes chi([P]). Needs the class group structure plus the discrete log of each prime
+    form in it (Pari bnfinit / bnfisprincipal for maximal orders). Feasible to h ~ 10^5.
+  controls:
+    - "Correctness gate: for h <= 2000, ALSO build the adjacency matrix and diagonalize numerically. The two methods must agree; disagreement means the class-group discrete-log step is wrong and blocks all interpretation."
+    - "Trivial-eigenvalue check: lambda_triv must equal the graph degree, ~ #{split p <= m}, matching the paper's pi(m)/e."
+    - "Regularity check: every vertex has equal degree (required for the spectral criterion to mean expansion)."
+    - "Negative control: a deliberately small generating set (m = 4) must show a visibly worse gap, confirming the metric is sensitive to m."
+  independent_variables: [discriminant D, generator bound m]
+  metrics:
+    primary: [lambda_triv, lambda_2, ratio lambda_2/lambda_triv, fitted beta in lambda_2 = lambda_triv^beta]
+    secondary:
+      - class number h
+      - "fitted constant C in lambda_2 <= C*m^(1/2)*log|mD|"
+      - group structure of Cl(O)
+  replication:
+    seeds: []            # deterministic given (D, m)
+    independent_instances: 1
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 12
+    maximum_memory_gb: 16
+    maximum_runs: 30
+  stopping_rules:
+    - Skip any D whose class group does not resolve within the per-D cap; record it as skipped, with the count reported (silent skipping would bias the fit).
+  invalidation_rules:
+    - Any disagreement between the character-sum and matrix methods on the h <= 2000 cross-check invalidates the entire run.
+    - lambda_triv not equal to the computed degree invalidates the run.
+  success_criterion: >-
+    A fitted implied constant C with error bars, and the measured scaling of
+    lambda_2/lambda_triv in m and |D|, across at least 200 discriminants.
+  falsification_criterion: >-
+    lambda_2 exceeds C * m^{1/2} * log|mD| for any modest C, i.e. the GRH-conditional bound
+    fails empirically. This is the most interesting possible outcome and therefore the most
+    likely bug: it must be independently replicated before it is believed or recorded.
+  required_artifacts: [runs/<id>/manifest.yaml, raw.json, stderr.txt, analysis.md, eigenvalues.csv]
+  claim_tier: medium
+  claim_boundary: >-
+    Measured constants for the tested discriminant range. Extension to cryptographic |D|
+    requires the explicit scaling analysis in EXP-JMV-004 and is not asserted here. Says
+    nothing about GRH itself.
+  notes:
+    - Non-maximal orders (c_E > 1, the lower levels of a volcano) are a documented extension, not part of this pass.
+  assigned_to: executor
+  approved_by: null
