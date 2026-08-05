@@ -1,15 +1,19 @@
-# DRAFT CONTRACT — NOT YET FROZEN. Per GD-4 (ledger/goals/GOAL-SSIQ-001/goal.yaml),
-# this draft went to a Red Team pre-freeze review BEFORE any data is touched and
-# before status moves to approved. That review
+# FROZEN CONTRACT. Per GD-4 (ledger/goals/GOAL-SSIQ-001/goal.yaml), this draft
+# went to a Red Team pre-freeze review BEFORE any data was touched
 # (coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/reviews/RT-PREFREEZE-EXP-SSIQ-58b642.md,
-# verdict FREEZE-WITH-FIXES) returned seven BLOCKING findings, PF-1 through PF-7.
-# Six are applied directly below (PF-1,2,3,4,6,7); PF-5 (the degenerate-vertex
-# convention) is deliberately left as a REQUIRED PRE-FREEZE RESEARCH STEP rather
-# than a Coordinator-asserted numeric table, because the Coordinator does not
-# reliably know the exact per-(p mod 12)-class multiplicity pattern and AGENTS.md
-# rule 9 forbids stating one without a verified citation. A bounded research task
-# is filling that field; this file freezes only once it returns. Do not treat
-# this file as authoritative until status: approved and frozen_at is set.
+# verdict FREEZE-WITH-FIXES), returning seven BLOCKING findings, PF-1 through
+# PF-7. Six were applied directly (PF-1,2,3,4,6,7). PF-5 (the degenerate-vertex
+# convention) went to a bounded, zero-compute research task rather than a
+# Coordinator-asserted numeric table, per AGENTS.md rule 9
+# (coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/tasks/PF5-research/pf5_degenerate_vertex_convention.md).
+# That task found the foundational Pizer/CGL construction this contract's own
+# convention descends from does NOT solve the general multiplicity case
+# either -- it restricts to p = 1 (mod 12) specifically to avoid it. PF-5 is
+# RESOLVED BY NARROWING THE CONFIRMATORY PRIME SET to that same regime (see
+# inputs.primes.pf5_resolution for the full citation and reasoning), not by
+# asserting a number the literature itself does not provide. Every prediction,
+# tolerance, window, estimator and failure consequence below was fixed before
+# any real graph was built.
 experiment:
   id: EXP-SSIQ-58b642
   hypothesis_id: H-SSIQ-18dc91
@@ -17,13 +21,25 @@ experiment:
   title: >-
     Greedy delta_E descent versus random-walk hitting time on directly-built
     supersingular 2-isogeny graphs (REC-3, the direct test of lever L4)
-  status: draft
-  approved_by: null
+  status: approved
+  approved_by: coordinator
   pre_freeze_review:
     report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/reviews/RT-PREFREEZE-EXP-SSIQ-58b642.md
     verdict: FREEZE-WITH-FIXES
     findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-6, PF-7]
-    findings_pending: [PF-5]
+    findings_resolved_by_scope_narrowing: [PF-5]
+    pf5_research_task: coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/tasks/PF5-research/pf5_degenerate_vertex_convention.md
+    pf5_narrowing_note: >-
+      The research task itself was NOT authorized to choose between its two
+      named options (commission a Velu-formula run-time computation, vs.
+      accept the STOP-fallback as intended behaviour for the forced p=11 mod
+      12 case). The Coordinator chose neither literally: narrowing the
+      confirmatory prime set to p = 1 (mod 12) removes the forcing rule that
+      created the problem (the original PF-3 fix's balance-across-all-residues
+      requirement), rather than accepting a contract whose own pre-registered
+      requirement would likely trigger its own STOP on every run. Deferred,
+      not abandoned: testing p = 5, 7, 11 (mod 12) is a named successor lever,
+      gated on the run-time-computation option the research task identified.
     advisory_carried: [A1, A2, "pre-run edge-list correctness gate"]
   objective: >-
     Build supersingular 2-isogeny graphs independently of the WISDE counting
@@ -38,17 +54,20 @@ experiment:
   inputs:
     graph_construction:
       method: >-
-        For each prime p in PRIMES (below): enumerate the vertex set of the
-        supersingular 2-isogeny graph over F_{p^2} by breadth-first search from
-        a known supersingular seed j-invariant (j = 1728 if p = 3 mod 4,
-        j = 0 if p = 1 mod 3, else a seed obtained by the standard construction
-        from a supersingular curve over F_p -- state which route was used and
-        why). At each vertex, find 2-isogenous neighbours as the roots in
-        F_{p^2} of the classical modular polynomial Phi_2(X, j) (a published,
-        fixed nine-term polynomial; DO NOT approximate or truncate it),
-        excluding the edge back to the immediate predecessor for the
-        NON-BACKTRACKING variant used for hitting-time measurement, and
-        including it for the CONNECTIVITY check.
+        For each prime p in PRIMES (below), where p = 1 (mod 12) per
+        selection_rule_pf3_corrected_and_pf5_narrowed: enumerate the vertex set
+        of the supersingular 2-isogeny graph over F_{p^2} by breadth-first
+        search from a known supersingular seed j-invariant obtained by the
+        standard construction from a supersingular curve over F_p -- state
+        which route was used and why (at p = 1 mod 12, neither j=0 nor j=1728
+        is supersingular, per the standard CM criteria restated in
+        degenerate_j_handling below, so the seed is necessarily some other
+        j-invariant; do not assume j=0/1728 are available shortcuts). At each
+        vertex, find 2-isogenous neighbours as the roots in F_{p^2} of the
+        classical modular polynomial Phi_2(X, j) (a published, fixed nine-term
+        polynomial; DO NOT approximate or truncate it), excluding the edge back
+        to the immediate predecessor for the NON-BACKTRACKING variant used for
+        hitting-time measurement, and including it for the CONNECTIVITY check.
         PRE-RUN CORRECTNESS GATE (advisory A3, carried as a required step): for
         at least one small pre-registered prime, verify the FULL EDGE LIST (not
         just the vertex count) against an independent computation before
@@ -56,32 +75,33 @@ experiment:
         a compensating pair of local errors can pass an aggregate count check
         while corrupting the adjacency the whole experiment depends on.
       degenerate_j_handling: >-
-        PF-5, NOT YET RESOLVED IN THIS DRAFT. j = 0 and j = 1728 have
-        automorphism groups larger than {+-1}, and the standard treatment
-        builds the modular-polynomial graph as a MULTIGRAPH where a root
-        multiplicity of Phi_2(X, j) at a vertex is an edge multiplicity, not
-        something to deduplicate -- but the EXACT multiplicity pattern at
-        j = 0 and j = 1728, and its dependence on p mod 12, must be pinned from
-        a cited primary or secondary source (Sutherland, "Isogeny volcanoes,"
-        ANTS X 2012, section 2; or Pizer's original construction papers; or
-        Costello, "Supersingular Isogeny Graphs in Cryptography") BEFORE this
-        contract may be frozen. THIS MATTERS MORE HERE THAN GENERICALLY: the
-        prime-balance requirement below FORCES p = 11 mod 12 into the
-        pre-registered set, which is exactly the residue class where j = 0 AND
-        j = 1728 are SIMULTANEOUSLY supersingular with enlarged automorphism
-        groups -- the hardest case, guaranteed to be tested, at exactly the
-        point where a silent multiplicity bug is most likely and where the
-        aggregate C-CONNECTIVITY count is weakest (a compensating local
-        over/under-count can still match the total). M-DEGSEQ below must check
-        the EXACT numeric pattern once pinned, not a generic 3-regularity
-        statement. A bounded pre-freeze research task is filling this field;
-        see pre_freeze_review.findings_pending.
-      degenerate_j_handling_fallback: >-
-        IF THE EXECUTOR CANNOT INDEPENDENTLY VERIFY THE PINNED CONVENTION
-        AGAINST A PRIMARY SOURCE AT RUN TIME (source unreachable, citation does
-        not resolve the way the pre-freeze research task recorded it), STOP and
-        report the underspecification per invalidation_rules -- do not guess a
-        multiplicity and do not silently deduplicate to a simple graph.
+        PF-5 RESOLVED BY SCOPE NARROWING (see
+        inputs.primes.pf5_resolution for the full finding and citations).
+        AT p = 1 (mod 12), j = 0 and j = 1728 ARE NOT SUPERSINGULAR AT ALL, so
+        this section does not apply to the confirmatory prime set and no
+        degenerate-vertex handling is required for THIS run: standard CM
+        criterion, j = 1728 supersingular iff p = 3 (mod 4), j = 0
+        supersingular iff p = 2 (mod 3), and p = 1 (mod 12) satisfies neither
+        (p = 1 mod 4 and p = 1 mod 3). This is exactly why
+        Charles-Goren-Lauter (J. Cryptology 22(1), 2009, Section 4, quoted in
+        pf5_resolution) restrict their own Pizer-graph construction to
+        p = 1 (mod 12): "the elliptic curves have no automorphisms other than
+        +-1" at that residue, which is what makes the graph a genuine SIMPLE
+        undirected 3-regular graph with no multiplicity bookkeeping at all.
+        M-DEGSEQ's check for THIS run is therefore the plain statement
+        "every vertex has degree exactly 3," not a per-(p mod 12)-class
+        multiplicity table -- there is no degenerate case to check against in
+        this prime set.
+        RETAINED AS BACKGROUND, NOT LOAD-BEARING FOR THIS RUN: the general
+        multigraph-with-root-multiplicity convention for p != 1 (mod 12) is
+        established (Sutherland, "Isogeny volcanoes," ANTS X 2012,
+        arXiv:1208.5370, Definition 3 and Section 2.5: root multiplicity of
+        Phi_2(X,j) IS edge multiplicity; every vertex has out-degree exactly 3
+        unconditionally; only in-degree/undirected-symmetrisation can fail at
+        j=0/1728 and their neighbours). The EXACT numeric multiplicity pattern
+        by p mod 12 class remains unresolved in the literature reached by the
+        pre-freeze research task and is DEFERRED, not needed here -- see
+        inputs.primes.pf5_resolution's successor-lever note.
       delta_E_cross_reference: >-
         For every enumerated j-invariant, cross-reference delta_E from the
         WISDE released data used in EXP-SSIQ-4de240 (same source, same
@@ -93,23 +113,83 @@ experiment:
       note: >-
         PRE-REGISTER THE EXACT PRIME SET before any graph is built, so it
         cannot be chosen after seeing which primes give a favourable result.
-      selection_rule_pf3_corrected: >-
-        PF-3 FIX APPLIED. 12 primes with p <= 22000, i.e. p/12 (graph size)
-        spread across roughly a few hundred to ~1800 vertices -- NOT clustered
-        near the ceiling, so the power-law fit has an actual N-range to work
-        over -- such that p is covered by the WISDE release's EXHAUSTIVE BLOCK
-        (never the sieve-selected block above p = 22000: RT-BATCH-002 control
-        #4 / O-28 established that pooling with the sieve-selected block
-        introduces a p-range artifact, and EV-SSIQ-29fcbb O-1 records the
-        released data spans p in [2, 265207], so this bound also keeps every
-        selected prime well inside coverage, with room for the delta_E
-        cross-reference to have something to check against). p mod 12 BALANCED
-        across residues {1, 5, 7, 11} at least once each (avoids a
-        degenerate-vertex-count artifact from testing only one residue class;
-        this also FORCES the p = 11 mod 12 case into the set, which is why
-        PF-5 must be resolved before freeze -- see degenerate_j_handling).
-        EXACT LIST TO BE PINNED BEFORE FREEZE from the WISDE prime index, not
-        chosen after inspection of any fitted result.
+      selection_rule_pf3_corrected_and_pf5_narrowed: >-
+        PF-3 FIX APPLIED, THEN NARROWED BY PF-5's RESEARCH FINDING (see
+        pf5_resolution below). 12 primes with p <= 22000 AND p = 1 (mod 12),
+        i.e. p/12 (graph size) spread across roughly a few hundred to ~1800
+        vertices -- NOT clustered near the ceiling, so the power-law fit has
+        an actual N-range to work over -- such that p is covered by the
+        WISDE release's EXHAUSTIVE BLOCK (never the sieve-selected block
+        above p = 22000: RT-BATCH-002 control #4 / O-28 established that
+        pooling with the sieve-selected block introduces a p-range artifact,
+        and EV-SSIQ-29fcbb O-1 records the released data spans p in
+        [2, 265207], so this bound also keeps every selected prime well
+        inside coverage). EXACT LIST TO BE PINNED BEFORE FREEZE from the
+        WISDE prime index, not chosen after inspection of any fitted result.
+        THE ORIGINAL PF-3 FIX'S BALANCE REQUIREMENT ACROSS {1, 5, 7, 11} mod
+        12 IS WITHDRAWN, not retained alongside this rule -- see
+        pf5_resolution for why forcing that balance was itself the defect.
+      pf5_resolution: >-
+        PF-5 RESOLVED BY SCOPE NARROWING, ON EVIDENCE FROM THE PRE-FREEZE
+        RESEARCH TASK
+        (coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/tasks/PF5-research/pf5_degenerate_vertex_convention.md),
+        NOT BY A COORDINATOR-ASSERTED NUMERIC TABLE. That task found, with
+        primary-source citation and verbatim quotation: (1) Sutherland,
+        "Isogeny volcanoes" (ANTS X 2012, arXiv:1208.5370), Definition 3 and
+        Section 2.5, confirms the general multigraph-with-root-multiplicity
+        convention and that every vertex has out-degree l+1 = 3 unconditionally,
+        with only in-degree/undirected-symmetrisation able to fail at j=0/1728
+        and their neighbours; but Remark 8's explicit multiplicity FORMULA is
+        stated only for a different regime (ordinary volcanoes, general varying
+        l), and the task explicitly declined to hand-extrapolate it to l=2
+        supersingular after finding it did not self-consistently close, per
+        AGENTS.md rule 9. (2) MORE IMPORTANTLY: Charles-Goren-Lauter,
+        "Cryptographic Hash Functions from Expander Graphs" (J. Cryptology
+        22(1), 2009), Section 4, quoted verbatim: the foundational Pizer-graph
+        construction THIS CONTRACT'S OWN degenerate_j_handling TEXT CITES does
+        NOT solve the general-p-mod-12 multiplicity case either -- it
+        explicitly RESTRICTS to p = 1 (mod 12) "because... the elliptic curves
+        have no automorphisms other than +-1" at that residue, which is
+        precisely what makes the edge-identification canonical. The published
+        literature this contract descends from treats the general case as one
+        to AVOID, not one it has solved.
+        CONSEQUENCE: the original PF-3 fix's balance requirement across all
+        four residues {1,5,7,11} mod 12 was ITSELF A DEFECT introduced while
+        fixing PF-3 -- it forced p = 11 mod 12 (both j=0 and j=1728
+        simultaneously supersingular and degenerate) into a PRE-REGISTERED
+        CONFIRMATORY prime set, on top of an unresolved mathematical question
+        the foundational construction paper itself sidesteps. Freezing on
+        degenerate_j_handling_fallback's STOP-and-report path as the "intended
+        behaviour" for that forced case (the research task's option (b)) would
+        very likely stall Phase 1 on its own structural requirement, since the
+        one case the contract REQUIRES is the one case with no ready
+        multiplicity table anywhere in the literature reached.
+        THE FIX: narrow the CONFIRMATORY prime set to p = 1 (mod 12) only --
+        CGL's own canonical operating regime, where Aut(E) = {±1} for every
+        supersingular curve, the graph is a genuine SIMPLE undirected 3-regular
+        graph with no multiplicity bookkeeping, and the vertex-count anchor is
+        at its cleanest (CGL / De Feo "Mathematics of Isogeny Based
+        Cryptography" Theorem 47: floor(p/12) + epsilon, with epsilon = 0
+        exactly at p = 1 mod 12, versus +1 or +2 at the other residues --
+        itself a stronger C-CONNECTIVITY anchor than the general case). This
+        removes degenerate_j_handling as a load-bearing pre-freeze blocker for
+        THIS run's confirmatory metric, without asserting any unverified
+        number: j = 0 and j = 1728 are NOT supersingular at p = 1 mod 12 at
+        all (standard CM criterion: j=1728 supersingular iff p = 3 mod 4;
+        j=0 supersingular iff p = 2 mod 3; neither holds at p = 1 mod 12), so
+        the degenerate case this contract cannot yet resolve simply does not
+        arise in the narrowed prime set.
+        DEFERRED, NOT ABANDONED (AGENTS.md rule 9): testing p = 5, 7, 11 mod 12
+        -- where the multiplicity question is live -- is a named successor
+        lever for a future batch, gated on either (a) an independent
+        Velu-formula-based computation of the exact l=2 multiplicities as a
+        run-time correctness gate rather than a literature lookup (the PF-5
+        research task's option (a); CGL pp. 97-99 gives the Velu formulas such
+        a computation would need), since the literature itself treats this as
+        a computation to perform rather than a fact to cite, or (b) a source
+        that states the table directly, if one is later found. Recorded in
+        ledger/goals/GOAL-SSIQ-001/goal.yaml as a new open item, not silently
+        dropped.
       superseded_size_bound_note: >-
         SUPERSEDED BY selection_rule_pf3_corrected ABOVE. The prior text here
         ("5000 <= p/12 <= 2000*12") was an internally inconsistent placeholder,
@@ -170,11 +250,13 @@ experiment:
           worth a later batch.
       - id: M-DEGSEQ
         definition: >-
-          the realised degree/multiplicity sequence of each built graph,
-          checked against the EXACT numeric pattern pinned by PF-5's
-          resolution for j=0 and j=1728 per p mod 12 class (not a generic
-          3-regularity statement), as a graph-construction correctness check
-          independent of the WISDE cross-reference.
+          the realised degree sequence of each built graph, checked against
+          "every vertex has degree exactly 3" -- the plain, unqualified check
+          licensed by PF-5's scope-narrowing resolution (inputs.primes.pf5_resolution):
+          at p = 1 (mod 12), neither j=0 nor j=1728 is supersingular, so there
+          is no degenerate vertex and no multiplicity table to check against
+          in this run's prime set. This is a graph-construction correctness
+          check independent of the WISDE cross-reference.
       - id: M-TIEFREQ
         definition: >-
           PF-4 FIX APPLIED. Fraction of greedy-descent steps that land on an
@@ -311,16 +393,19 @@ experiment:
       kind: correctness
       description: >-
         BFS-enumerated vertex count for each prime must match the WISDE
-        record's supersingular curve count for that prime (up to the PF-5
-        -pinned j=0/j=1728 automorphism bookkeeping, stated explicitly and
-        checked numerically, not just "up to the known convention").
+        record's supersingular curve count for that prime. At p = 1 (mod 12)
+        this anchor is at its CLEANEST (CGL / De Feo "Mathematics of Isogeny
+        Based Cryptography" Theorem 47: floor(p/12) + epsilon, epsilon = 0
+        exactly at this residue, versus +1 or +2 elsewhere) -- no j=0/j=1728
+        automorphism bookkeeping applies, per degenerate_j_handling.
       failure_consequence: >-
         A mismatch means the graph construction is wrong (missed a
-        connected-component, mis-handled a degenerate vertex, or a Phi_2
-        root-finding bug), and that prime's run is completed_invalid.
+        connected-component, or a Phi_2 root-finding bug -- NOT a degenerate
+        -vertex handling error, since this prime set has none), and that
+        prime's run is completed_invalid.
     - id: C-DEGSEQ
       kind: correctness
-      description: M-DEGSEQ checked against the PF-5-pinned exact numeric pattern for every prime.
+      description: M-DEGSEQ checked against "every vertex has degree exactly 3" for every prime (see degenerate_j_handling).
     - id: C-EDGELIST
       kind: correctness
       description: >-
@@ -417,9 +502,10 @@ experiment:
       not silently fit over survivors.
     - C-REPRO fails -- completed_invalid.
     - >-
-      PF-5's pinned degenerate-vertex convention cannot be independently
-      verified at run time against its cited source -- STOP per
-      degenerate_j_handling_fallback.
+      A pre-registered prime is found NOT to satisfy p = 1 (mod 12) (a
+      prime-set assembly error) -- STOP and correct the prime list rather than
+      run a mixed-residue set; degenerate_j_handling's "no degenerate vertex"
+      guarantee is scoped exactly to this residue and does not extend silently.
     - >-
       The contract is found underspecified on any point that changes M-GAP:
       STOP and report the underspecification rather than choosing unilaterally.
@@ -471,8 +557,14 @@ experiment:
     populated as sub-keys of the code dict entry -- not implied by, and not
     satisfied merely by, the five companion filenames existing on disk.
   assigned_to: executor
-  approved_by: null
+  frozen_at: '2026-08-05'
   freeze_note: >-
-    NOT YET FROZEN. PF-1, PF-2, PF-3, PF-4, PF-6, PF-7 applied above. PF-5 (the
-    degenerate-vertex convention) is pending a bounded pre-freeze research task
-    that must return a cited numeric pattern before status moves to approved.
+    FROZEN. All seven pre-freeze findings resolved: PF-1, PF-2, PF-3, PF-4,
+    PF-6, PF-7 applied directly; PF-5 resolved by narrowing the confirmatory
+    prime set to p = 1 (mod 12) -- the literature's own canonical,
+    automorphism-free regime -- rather than by asserting an unverified
+    multiplicity table. See pre_freeze_review and inputs.primes.pf5_resolution
+    for the full reasoning and citations. No prediction, tolerance, window,
+    estimator, control or failure consequence below has been touched since
+    this freeze; a change requires a versioned protocol amendment per
+    docs/task-lifecycle.md.
