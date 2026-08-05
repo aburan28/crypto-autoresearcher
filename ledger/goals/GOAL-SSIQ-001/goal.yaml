@@ -57,7 +57,7 @@ research_goal:
     maximum_batches: 8
     total_wall_clock_seconds: 28800
     max_concurrent: 3
-  current_batch_id: BATCH-005
+  current_batch_id: BATCH-006
   dispatch_queue_path_note: >-
     BATCH-003 and BATCH-004 did not use a formal tools/research_dispatch.py
     JSON queue -- their tasks (a pre-freeze Red Team review, then a single
@@ -66,21 +66,23 @@ research_goal:
     BATCH-001/002. No dispatch_queue.json exists under
     coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/ or BATCH-004/.
     Recorded so the absence reads as a process choice, not an oversight.
-  latest_verified_commit: 299537238f14db622c7e93f52bc19286a7c4bba7
+  latest_verified_commit: 06af9596d623b1d61c6daf6e14ed898ef00c213d
   latest_verified_commit_note: >-
-    The TASK-20260805-81ffe0 snapshot commit (the RUN-SSIQ-a85692-a
+    The TASK-20260805-8bddd0 snapshot commit (the RUN-SSIQ-a85692-b
     package), accepted by the dispatcher-equivalent manual check and
-    INDEPENDENTLY RE-VERIFIED by the Validator TASK-20260805-798a16:
-    reachable from HEAD, parent 5fc59a15b4c3cef68740fbe72c76719a59c67b6b,
-    changed-path set exactly equal to the 20 declared artifacts, all
-    path_sha256 recomputed directly from the git blobs at 29953723 (not the
+    INDEPENDENTLY RE-VERIFIED by the Validator TASK-20260805-10868f:
+    reachable from HEAD, parent 14b56525ea9584cb0d7fd20f2dc4de5af82d2215,
+    changed-path set exactly equal to the 10 declared artifacts, all
+    path_sha256 recomputed directly from the git blobs at 06af9596 (not the
     working tree). DELIBERATELY NOT ADVANCED to the ledger-archive commit
     carrying this edit, for the same reason as every prior batch: that
     commit has not been through a verifier at the moment it is written.
     Branch commits stop resolving under a squash merge; the durable
     bindings are the path_sha256 maps in the receipts under
     coordination/goals/GOAL-SSIQ-001/batches/*/archives/.
-    PRIOR VERIFIED COMMITS, retained for history: BATCH-003's
+    PRIOR VERIFIED COMMITS, retained for history: BATCH-004's
+    299537238f14db622c7e93f52bc19286a7c4bba7 (TASK-20260805-81ffe0, the
+    RUN-SSIQ-a85692-a package, parent 5fc59a15, 20/20 paths); BATCH-003's
     3c117cbc60c85743532e2e2db0530e3be97a8520 (TASK-20260805-fdd699, the
     RUN-SSIQ-58b642-a package, parent f5244c18, 11/11 paths); BATCH-002's
     41a4aebd6d57f4b5672327870f03f6dffc4bc266 (TASK-20260805-556a74, the
@@ -617,6 +619,74 @@ research_goal:
         its individual-cap and cumulative-prefix readings explicitly derived
         during pre-freeze review, with the operative one named in the
         contract text and confirmed against the actual code, before freeze.
+    - id: GD-8
+      raised_by: [TASK-20260805-91bae2, TASK-20260805-10868f, TASK-20260805-f60ff9]
+      severity: high
+      detail: >-
+        NAMED IN BATCH-005, ON RUN-SSIQ-a85692-b -- THE FIRST RUN IN THIS
+        CAMPAIGN TO REACH REAL descent_metrics DATA. v1's inherited
+        M-GAMMA-GREEDY definition states its own trapped_fraction>0.5
+        exclusion threshold in text (inherited from EXP-SSIQ-58b642), but
+        the reused inline orchestration in compute_delta_e.py /
+        compute_delta_e_v2.py never implements it
+        (usable_full = [p for p in per_prime], no filter of any kind).
+        Confirmed by all three independent parties: the Executor's own
+        disclosure (PD-2), the Validator, and the Red Team, all against
+        the actual code and this run's own raw
+        greedy_trapped_fraction values. All 4 primes contributing to
+        BATCH-005's fit (2437, 3889, 5737, 7333) have trapped_fraction in
+        [0.72, 0.85], each exceeding the stated 0.5 threshold. Under a
+        correctly implemented filter, zero primes would remain and no
+        gamma_greedy/gamma_random/m_gap would exist to report --
+        independently invalidating BATCH-005's reported point estimate on
+        a ground separate from and prior to that run's own
+        CONTROL-FAILURE-VOID label. Undetected in BATCH-003/004 because
+        neither reached real, non-empty descent-metrics data. Fixable at
+        zero new search cost against already-collected data.
+      standing_repair_adopted: >-
+        Any exclusion or filtering rule stated in a frozen contract's
+        prose (a metric definition, a control's failure_consequence) is
+        independently checked against the ACTUAL CODE PATH that computes
+        the metric it describes, not assumed present because the metric
+        is reported -- the same discipline GD-7 applied to a budget
+        formula now applies to a filter.
+    - id: GD-9
+      raised_by: [TASK-20260805-f60ff9]
+      severity: high
+      detail: >-
+        NAMED IN BATCH-005, BY THE RED TEAM, ON RUN-SSIQ-a85692-b. C-NULL-
+        LABEL is described in the frozen contract as a REQUIRED control
+        (not optional) and is named by the decision rule's own
+        CONTROL-FAILURE-VOID reason text alongside C-SEARCH-BIAS as a
+        control whose failure can void a real M-GAP. Reading
+        compute_delta_e.py's and compute_delta_e_v2.py's C-NULL-LABEL
+        block end to end: c_null_label_control_failure is initialized
+        False and never reassigned anywhere in either file -- no null
+        M-GAP is ever fit across primes, no bootstrap CI is computed on
+        it, and no comparison against the real arm's CI ever occurs,
+        despite equivalent machinery existing in a sibling module
+        (experiments/EXP-SSIQ-58b642/implementation/descent_hitting_time.py's
+        run_null_arm) built for a different, WISDE-based null arm in
+        BATCH-003. THIS IS A CONTROL THAT STRUCTURALLY CANNOT FAIL.
+        Undetected in BATCH-003/004 because neither run reached this code
+        path with real, non-empty delta_E data at all -- BATCH-005 is the
+        first run in the project's history to do so, and the finding is
+        moot for BATCH-005's own terminal label only because
+        C-SEARCH-BIAS happens to fire the same branch first. A future run
+        that clears C-SEARCH-BIAS could report DETECTED with zero actual
+        protection from this control, directly contrary to the frozen
+        spec's own text. Fixable at zero new search cost against
+        already-collected null_by_prime data.
+      standing_repair_adopted: >-
+        Effective BATCH-006 onward: a control's failure_consequence being
+        named in a frozen decision rule does not establish that the
+        control's comparison logic was ever implemented. Verify any
+        reused control by direct code reading THE FIRST TIME a run
+        actually reaches its comparison logic with non-trivial data --
+        not by citing that the control "ran" (produced a report block) in
+        a prior batch's review, and not by trusting that a control
+        surviving N prior batches' reviews means its internals were ever
+        exercised.
   completion_criteria:
     - >-
       An exponent-budget decomposition of the archived p^{1/3+o(1)} algorithm
@@ -691,45 +761,61 @@ research_goal:
     real-arm untested -- instrument validated, data-availability gap) on
     evidence EV-SSIQ-9a0396; BATCH-004 closed by DEC-20260805-a4e04e (revise,
     contract budget-allocation defect GD-7 -- instrument validated, Phase -1
-    gate failed on a fixable formula) on evidence EV-SSIQ-94de20.
+    gate failed on a fixable formula) on evidence EV-SSIQ-94de20; BATCH-005
+    closed by DEC-20260805-5f5ac6 (revise, control-code defects GD-8/GD-9 --
+    GD-7's fix confirmed to work on both sides, Phase -1 gate PASSED and a
+    real M-GAP was computed for the first time, but the terminal
+    CONTROL-FAILURE-VOID rests on a low-power control and a dead-code
+    control, and the point estimate is separately invalidated by a missing
+    filter) on evidence EV-SSIQ-f3ce32.
   next_action: >-
-    OPEN BATCH-005 AS A VERSIONED AMENDMENT TO EXP-SSIQ-a85692 -- same
-    contract, same delta_E instrument (independently validated in BATCH-004,
-    EV-SSIQ-94de20 O-1), same hypothesis content (H-SSIQ-137200, restating
-    H-SSIQ-9e2c71 unchanged). L4 remains the only lever whose ceiling meets
-    this goal's target and still the top priority. BATCH-004's Phase -1
-    coverage gate failed because the truncation fallback's budget check was
-    an INDIVIDUAL per-prime cap (T_prime=300s) rather than a CUMULATIVE
-    check of the ascending prefix against the reserved budget -- named GD-7,
-    independently re-verified by the Coordinator from BATCH-004's own
-    already-committed per-prime cost estimates with zero re-measurement: a
-    cumulative reading of the SAME numbers admits 4 primes at the
-    half-budget reading (3600s) and 6 at the full-budget reading (7200s),
-    clearing the gate's 4-prime floor. THE FIX: (1) correct the fallback to
-    a cumulative-ascending-prefix budget check (GD-7's standing repair);
-    (2) widen coverage toward the originally intended 203-1800 vertex N-range
-    where cheaply possible rather than accepting only the cheapest
-    small-prime prefix (DEC-20260805-a4e04e D-5's caveat, guarding against
-    repeating the narrow-fitting-window estimator bias in
-    instrument_calibration); (3) actually EXECUTE Phase -1 (the real
-    greedy-vs-random descent test) on the corrected prefix, using the
-    ~7109s of BATCH-004's 7200s budget that went unspent. Optionally fold in
-    the Validator's F-1 cost-model correction (a second smoke test at the
-    smallest prime) if it does not materially extend scope.
-    GOES THROUGH THE PRE-FREEZE RED TEAM PROCESS WITH GD-7's STANDING REPAIR
-    APPLIED: any prefix-truncation fallback under a reserved budget has both
-    its individual-cap and cumulative-prefix readings explicitly derived,
-    with the operative one named and confirmed against the actual code,
-    before freeze.
+    OPEN BATCH-006 AS A FURTHER VERSIONED AMENDMENT (v3) TO
+    EXP-SSIQ-a85692 -- same contract lineage, same validated delta_E and
+    budget-allocation infrastructure (both independently confirmed working
+    in BATCH-005, EV-SSIQ-f3ce32 O-1/O-2), same hypothesis content
+    (H-SSIQ-36e970, restating H-SSIQ-137200 unchanged). L4 remains the
+    only lever whose ceiling meets this goal's target and still the top
+    priority -- and is now closer to a real test than at any prior batch:
+    BATCH-005 computed the campaign's first real M-GAP on real,
+    in-session-computed delta_E labels, but two independent, zero-new-
+    search-cost defects (GD-8, GD-9) mean that result cannot yet be
+    trusted. THE FIX, RANKED BY THE RED TEAM AND ADOPTED IN
+    DEC-20260805-5f5ac6, BOTH APPLICABLE TO RUN-SSIQ-a85692-b's
+    ALREADY-COLLECTED DATA WITH ZERO NEW SEARCH: (1) wire C-NULL-LABEL's
+    comparison logic (GD-9's fix) -- fit a null M-GAP from the
+    already-computed null_by_prime medians, bootstrap its CI the same way
+    the real arm's CI is bootstrapped, and derive
+    c_null_label_control_failure from a comparison rule stated and
+    justified BEFORE looking at what it outputs on the existing data; (2)
+    implement PER-PRIME-TRAPPED-EXCLUSION per the frozen spec's own
+    inherited text (GD-8's fix) and re-derive descent_metrics under it
+    using this run's already-collected trapped_fraction values -- if this
+    leaves fewer than 4 usable primes (plausible: all 4 previously-used
+    primes are at trapped_fraction 0.72-0.85), report
+    DATA-UNAVAILABLE/BLOCKED honestly rather than lowering the threshold,
+    itself an informative result about whether greedy descent is
+    pervasively trapped at this graph scale; (3) only after (1)-(2), if a
+    genuine construction-order question remains open, consider
+    strengthening C-SEARCH-BIAS's statistical power (larger n_sample or a
+    bootstrap CI on the correlation difference) -- the low-power finding
+    that undermined BATCH-005's CONTROL-FAILURE-VOID (EV-SSIQ-f3ce32 O-4,
+    a power limitation, not itself a numbered goal defect).
+    GOES THROUGH ITS OWN PRE-FREEZE RED TEAM REVIEW WITH GD-8/GD-9's
+    STANDING REPAIR APPLIED: any reused control's comparison logic is
+    verified by direct code reading, not cited as functional because it
+    "ran" in a prior batch's review.
     Deferred with revisit conditions, not dropped (AGENTS.md rule 9):
-    (i) REC-1b / M-GRAD via WISDE remains RETIRED (doubly confirmed dead in
-    BATCH-002/003); revisit only if a future WISDE release adds per-vertex
-    linkage. (ii) REC-4, the zero-compute N5 scoping pass, stays open and
-    unscheduled while L4's now-narrowly-blocked labelling problem is worked
-    to conclusion. (iii) The deferred p != 1 (mod 12) successor from PF-5
-    stays costed higher than the p=1 mod 12 route; revisit only after that
-    route is exhausted. (iv) Routing the docs/claims-and-verification.md
-    correction under GD-3 to its owner remains open.
+    (i) Spending new real search budget on additional primes is deferred
+    until GD-8/GD-9 are fixed, since any new run would inherit both
+    defects unchanged. (ii) Whether a construction-order artifact is real
+    and fixable (widening B/X, a different collision tie-break) is
+    deferred until C-SEARCH-BIAS has real statistical power to test it.
+    (iii) REC-1b / M-GRAD via WISDE remains RETIRED. (iv) REC-4, the
+    zero-compute N5 scoping pass, stays open and unscheduled while L4's
+    control-code defects are fixed. (v) The deferred p != 1 (mod 12)
+    successor from PF-5 stays costed higher than the p=1 mod 12 route.
+    (vi) Routing the docs/claims-and-verification.md correction under GD-3
+    to its owner remains open.
   id_corrections:
     - correction: retired-unused task identifiers
       recorded_at: '2026-08-05'
@@ -748,4 +834,4 @@ research_goal:
         entry exists because a silently corrected identifier is
         indistinguishable from a fabricated one in an archive.
   created_at: '2026-08-05T01:00:00Z'
-  updated_at: '2026-08-05T09:55:00Z'
+  updated_at: '2026-08-05T14:20:00Z'
