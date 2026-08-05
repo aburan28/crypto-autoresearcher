@@ -1,0 +1,979 @@
+validation_report:
+  id: VAL-20260803-3fc363
+  task_id: TASK-20260803-3fc363
+  role: validator
+  goal_id: GOAL-MLKEM-004
+  batch_id: BATCH-c45baf
+  reviewed_task: TASK-20260803-db170f
+  reviewed_snapshot_commit: 555a576209c5ff15869f45a409d226faef71743f
+  recorded_at_utc: "2026-08-05T06:12:23Z"
+  independent_session: true
+  redispatch_note: >-
+    This is the re-dispatch of TASK-20260803-3fc363 after the artifact-loss
+    incident recorded in
+    coordination/goals/GOAL-MLKEM-004/batches/BATCH-c45baf/coordinator_notes/artifact_loss_incident.md.
+    Nothing from the destroyed first pass was forwarded to me and I read no
+    summary of it. Every number below was re-derived in this session from the
+    committed snapshot.
+  run_ids:
+    - TASK-20260803-db170f (executor package; no RUN-* id minted by the producer)
+
+  verdict: ADMISSIBLE_WITH_DEFECTS
+  validator_agent_enum_verdict: passed
+  verdict_note: >-
+    Every quantitative claim I could recompute reproduced. The pooled Stage A
+    table, all nine per-instance excesses, the four-point decay control, all
+    eighteen Stage B pooled excesses, all eight Stage B known-answer controls
+    and the whole Nf/adjacent-bin arithmetic reproduce from the emitted data
+    with my own code. Beyond that I rebuilt the instrument from scratch in a
+    fresh venv, regenerated instances 0/1/2 of BATCH-f75059 from their own
+    seeds, and re-measured the separation through a different scoring route
+    (modular, not cosine-addition), with my own surrogate seeds, my own error
+    draws and my own row ordering: excess 1.2943 / 1.3190 / 1.3956 against the
+    producer's 1.3056 / 1.2901 / 1.3461, and the decay control monotone
+    increasing in all three. THE 9-OF-9 REPLICATION AND THE MONOTONE DECAY
+    CONTROL BOTH SURVIVE INDEPENDENT RECOMPUTATION. I additionally ran a
+    control the producer did not run (NULL-NORMSTRAT, below) which REFUTES the
+    leading alternative mechanism, so this validation strengthens rather than
+    weakens the package's central observation. The nine defects are defects of
+    evidential weighting, of stated precision, and of control completeness.
+    None is a fabrication and none is a measurement error. Admissibility
+    asserts nothing about ML-KEM, no speedup, no security claim, and no status
+    change to any EV-MLKEM-* or KN-* record. AGENTS.md rule 12 remains UNMET
+    and UNWAIVED.
+
+  scope_binding:
+    toy_scale: "Stage A m=35 n=25 d=60 q=127; Stage B sieve dim m+k_lat=50; one sieve (g6k 0.1.2 bgj1_sieve), one modulus"
+    not_asserted:
+      - no ML-KEM break, no security proof, no FIPS 203 parameter set affected or cleared
+      - no cost claim, no speedup, no attack implemented, no discrete-log solve, no factor-base relation
+      - no numbered extrapolation heuristic to FIPS 203 dimensions
+      - no conclusion that the dual-attack independence heuristic is validated or refuted
+      - no status change to any EV-MLKEM-* or KN-* record
+
+  # =====================================================================
+  # 1. ARTIFACT AND SNAPSHOT INTEGRITY
+  # =====================================================================
+  artifact_checks:
+    - id: A-1
+      check: all seven declared producer artifacts present under the reviewed task directory
+      status: reproduced
+      detail: >-
+        rebuild_transcript.txt, stage_a.py, stage_a_results.json, stage_b.py,
+        stage_b_results.json, report.md, receipt.json all present.
+    - id: A-2
+      check: snapshot_receipt.json source_path_sha256 matches the working tree
+      status: reproduced
+      detail: >-
+        All seven sha256 values in
+        coordination/goals/GOAL-MLKEM-004/batches/BATCH-c45baf/archives/TASK-20260803-7e9034/snapshot_receipt.json
+        recomputed and matched byte-for-byte.
+    - id: A-3
+      check: the same seven hashes match the blobs inside commit 555a5762 itself
+      status: reproduced
+      detail: >-
+        `git show 555a5762:<path>` piped to sha256 for each of the seven; all
+        match. I validated a Coordinator-committed snapshot, not a working-tree
+        artifact.
+    - id: A-4
+      check: commit parentage, reachability and declared scope
+      status: reproduced
+      detail: >-
+        555a5762 parent 9315225a, reachable from HEAD (`git merge-base
+        --is-ancestor` returns 0). `git diff-tree -r` shows exactly the seven
+        producer paths plus the snapshot receipt; nothing else.
+    - id: A-5
+      check: producer-declared dirty-tree state at run time
+      status: reproduced
+      detail: >-
+        receipt.json records repo_git_commit a55ac7bf, repo_git_dirty true with
+        the single dirty path `?? .../tasks/` — the task's own untracked output
+        directory. a55ac7bf is an ancestor of the snapshot. Consistent.
+    - id: A-6
+      check: producer scratch directory unavailable, so no cross-contamination with my re-derivation
+      status: reproduced
+      detail: >-
+        The producer's scratch path .../scratchpad/c45baf/ does not exist (the
+        container was replaced). I therefore could not and did not read any
+        producer intermediate file; everything came from the seven committed
+        artifacts.
+
+  # =====================================================================
+  # 2. INSTRUMENT REBUILD (mine, independent of the producer's)
+  # =====================================================================
+  environment_checks:
+    - id: E-1
+      check: KN-TECH-14efa5 rebuild recipe reproduces in this container today
+      status: reproduced
+      detail: >-
+        The container was replaced, so no /tmp/sagevenv* existed. I built my own
+        fresh venv /tmp/sagevenv-val3fc363 (rm -rf, python3 -m venv), installed
+        passagemath-standard (fpylll 0.6.4 arrives with it), created my own
+        libgmp.so symlink at /tmp/gmplink-val with LIBRARY_PATH/LDFLAGS, and
+        installed g6k with --no-build-isolation. Result: g6k 0.1.2 with all five
+        kernels exposed (gauss_sieve, bgj1_sieve, bdgl_sieve, hk3_sieve,
+        nv_sieve), numpy 2.4.6. Both KN-TECH-14efa5 fixes were needed exactly as
+        documented. The recipe is confirmed a second time by a second agent in a
+        second container.
+    - id: E-2
+      check: producer's claim that /tmp/sagevenv and /tmp/sagevenv-f75059 were never invoked
+      status: reproduced
+      detail: >-
+        rebuild_transcript.txt mentions `/tmp/sagevenv` and
+        `/tmp/sagevenv-f75059` only at lines 33-37, inside one `ls -d` and one
+        note. All 17 other occurrences of `sagevenv` are `-c45baf`. Lines 41/44
+        show `rm -rf /tmp/sagevenv-c45baf` then `python3 -m venv
+        /tmp/sagevenv-c45baf`. The fresh-venv claim holds.
+    - id: E-3
+      check: pinned lattice-estimator at /tmp/le, commit 3e48ef42..., clean tree
+      status: reproduced
+      detail: >-
+        `git -C /tmp/le log --oneline -1` gives 3e48ef4; `git status
+        --porcelain` is empty. The estimator I read line 540 from is the one the
+        producer declares.
+    - id: E-4
+      check: producer timings (rebuild 306 s, Stage A 258.85 s, Stage B 9.7 s), peak RSS, smoke-run count
+      status: unable_to_check
+      reason: >-
+        Self-reported in receipt.json. The producer's stdout logs and its five
+        smoke-run JSONs lived only in scratch, which the container replacement
+        destroyed. No independent record survives. Nothing turns on these
+        numbers, but they are unverifiable and I do not treat them as verified.
+    - id: E-5
+      check: stage-ordering claim (stage_a_results.json written before Stage B began)
+      status: unable_to_check
+      reason: >-
+        Both files land in one snapshot commit; git preserves no mtimes and the
+        stdout logs are gone. The in-file `log` arrays are consistent with the
+        claim but are produced by the same process that asserts it.
+
+  # =====================================================================
+  # 3. PROVENANCE AND INDEPENDENCE OF THE NINE INSTANCES
+  # =====================================================================
+  control_checks:
+    - id: P-1
+      check: are the nine Stage A instances genuinely independent draws, or nine views of one database?
+      status: reproduced
+      finding: GENUINELY DISTINCT DRAWS
+      detail: >-
+        stage_a.py:381-384 derives sd_ = 20260803206 + 1000*rep and then draws
+        A = rng.integers(0,q,(35,25)) and s = centered_binomial(rng,2,25) from
+        that single stream, so a different rep gives a different A AND a
+        different secret AND a different fpylll/sieve seed (sd_+1, sd_+2). I
+        confirmed the downstream consequences are all distinct across the nine:
+        seed 9/9 distinct, sieve_seconds 9/9 distinct, mean_xnorm2 9/9 distinct
+        (181.278..181.967), mean_ynorm2 9/9 distinct, a_x 9/9 distinct, a_y 9/9
+        distinct, and the real near-miss sd ratio 9/9 distinct
+        (0.137226..0.142994). Only n_vectors is identical (17919 on all nine),
+        which is expected: the bgj1 database size at fixed dimension is a
+        saturation target, not an instance property. These are nine independent
+        LWE instances, not nine views of one database.
+    - id: P-2
+      check: provenance -- are these BATCH-f75059's own nine instances?
+      status: reproduced
+      detail: >-
+        I regenerated instances 0, 1 and 2 myself from seed 20260803206 +
+        1000*rep with my own code and my own g6k build, and recomputed a_x =
+        2 pi^2 sigma^2 mean(||x||^2)/q^2 from the raw vectors. All three match
+        BATCH-f75059's published a_x to 0.0e+00:
+        rep0 0.888475041394716, rep1 0.8876366140975788, rep2 0.890787614568475.
+        Provenance established independently of the producer's transcript.
+    - id: P-3
+      check: independence caveat that provenance does NOT establish
+      status: reproduced
+      detail: >-
+        Nine instances from one seed family and one entropy source. Instance-level
+        statistical independence is real; it is independence by distinct seeds,
+        not by distinct entropy. All nine also share one design (m, n, q, sieve,
+        candidate construction), so the across-instance sd measures
+        instance-to-instance variation WITHIN that design and cannot support any
+        statement beyond it. The producer states this at report.md section 9.2;
+        I confirm it and it is not a defect.
+    - id: P-4
+      check: lattice-membership certificates, re-verified independently of g6k
+      status: reproduced
+      detail: >-
+        I recomputed mod(X.dot(A) - Y, q) from my own regenerated A and my own
+        reconstructed vectors for instances 0/1/2: 0 violating entries in each
+        (3 x 17919 x 25 = 1,343,925 entries). The producer's 9-instance total of
+        4,031,775 entries with 0 violations and 0 all-zero vectors is consistent.
+        The 3 Stage B certificates (191,385 entries) I did not regenerate;
+        the producer's own arithmetic route is recorded and self-consistent.
+    - id: C-1
+      check: >-
+        IS THE SURROGATE REALLY A ROW PERMUTATION? Does it preserve the exact
+        multiset of x, the exact multiset of y and every column marginal, and
+        remove only the pairing?
+      status: reproduced
+      finding: YES, EXACTLY -- verified as multiset identity, not approximately
+      detail: >-
+        Code path (stage_a.py:426-429): the arm is built as
+        (cosPhi[pi], sinPhi[pi]) with pi = rng.permutation(N); X is never
+        touched, and cosPhi/sinPhi are row-indexed derivatives of Y. Indexing a
+        row axis by a permutation vector is a bijection on rows, so the row
+        multiset is preserved by construction.
+        I did not rely on that reading. On my own regenerated instances 0/1/2 I
+        applied my own permutation to Y and checked, as exact integer identities:
+        (a) the sorted multiset of Y rows (structured-array sort over all 25
+        coordinates) is identical before and after -- True on 3/3;
+        (b) sorted(Y[:,k]) is identical before and after for every one of the 25
+        columns -- True on 3/3, i.e. every column marginal is exactly preserved;
+        (c) the sorted multiset of ||y_i||^2 is identical -- True on 3/3;
+        (d) X, and hence the x multiset and every ||x_i||, is untouched.
+        These are exact array equalities on int64, not tolerances. The surrogate
+        removes the pairing and nothing else.
+    - id: C-2
+      check: SENS-0 -- correct-secret score is bitwise invariant under any row permutation
+      status: reproduced
+      detail: >-
+        SENS0_correct_score_max_abs_change_under_rowperm is exactly 0.0 on all
+        nine instances (the set of values across instances is {0.0}). This is the
+        analytic proof of batch 2's NULL-V defect and it holds numerically.
+    - id: C-3
+      check: SENS-1 (y := 0) collapses the Stage A statistics
+      status: reproduced
+      detail: >-
+        near-miss sd ratio max 6.235e-15 over the nine instances (report says
+        6.2e-15); correct-minus-best exactly 0.0 on all nine. Against real values
+        0.140 and 1.55e-3. The Stage A statistics demonstrably read y.
+    - id: C-4
+      check: SENS-2 rearrangement -- is the sensitivity demonstration as reported?
+      status: reproduced
+      detail: >-
+        The analytic identity holds: max |predicted - measured| paired difference
+        is 4.83e-06 on instance 0 and 3.758e-05 as a max over all nine, against
+        an analytic spread of 8.353e-04 (report says "<= 3.8e-05 ... against an
+        effect of 4.6e-04"). The reported flags reproduce:
+        sensitivity_demonstrated_on_near_miss_sd_ratio is False on 9/9 instances;
+        sensitivity_demonstrated_on_correct_minus_best is True on 9/9. See
+        defect DEF-8 on the selective quoting of the z values.
+    - id: C-5
+      check: SENS-3 dose-response, Stage A
+      status: reproduced
+      detail: >-
+        Pooled near-miss curves are monotone in t on BOTH statistics
+        (sd ratio 0.140324 -> 0.136897 -> 0.128694 -> 0.114948 -> 0.109177 ->
+        0.107382; correct-best 0.001547 -> ... -> 0.001737) and the response is
+        graded, not a step. Uniform curves are not monotone and per-instance
+        strict monotonicity is 0/9 there, as reported. Per-instance strict
+        monotonicity for near-miss is 5/9 (sd ratio) and 1/9 (correct-best),
+        exactly as the producer's "honest limit" paragraph states. This -- not
+        the N' control -- is the null-object decay control that AGENTS.md's
+        inventor-protocol section 3 asks for, and it fires correctly: the
+        parameter meant to destroy the effect is t, and the effect decays
+        monotonically in t for the group that separates and is flat for the group
+        that does not.
+    - id: C-6
+      check: >-
+        MISSING CONTROL, SUPPLIED BY ME. Does a null that preserves the sieve's
+        (||x||, ||y||) joint geometry still separate?
+      status: reproduced
+      finding: >-
+        YES -- the separation survives. The leading alternative mechanism is
+        REFUTED, by a control the package does not contain.
+      detail: >-
+        Motivation. A sieve emits vectors that are short in the JOINT lattice, so
+        ||x_i||^2 + ||y_i||^2 concentrates on a shell and the two halves are
+        forced to trade off. I measured that coupling, which the package never
+        reports: corr(||x_i||^2, ||y_i||^2) = -0.8877 / -0.8863 / -0.8850 on
+        instances 0/1/2. A plain row permutation destroys this geometric coupling
+        at the same time as it destroys the algebraic pairing, so on the
+        package's control set alone the 32% excess could be a norm-budget
+        artifact rather than the algebraic dependence.
+        Control run. NULL-NORMSTRAT: a row permutation of Y restricted to 60
+        quantile bins of ||y_i||^2. It still destroys y = A^T x mod q, but it
+        preserves the empirical joint law of (||x_i||, ||y_pi(i)||) to within a
+        bin. Result (my code, my seeds, 500 draws, 5 realisations, instances
+        0/1/2): excess real/NULL-NORMSTRAT = 1.3445 / 1.2705 / 1.3705, against
+        excess real/NULL-ROWPERM = 1.2943 / 1.3190 / 1.3956 on the same runs.
+        The separation is undiminished; restoring the norm coupling moves the
+        surrogate slightly AWAY from the real database, not toward it.
+        Conclusion. The norm-budget explanation does not account for the
+        separation. This is a gap in the package's control set, not an error in
+        its conclusion, and closing it favours the producer.
+    - id: C-7
+      check: internal contrast -- uniform group shows no separation on the same code and same instances
+      status: reproduced
+      detail: >-
+        uniform sd-ratio excess 1.008741 +- 0.019188, t_8 = +1.37, 5 of 9 above 1;
+        exact sign test p = 1.0, exact Wilcoxon p = 0.30. Correct-minus-best
+        excess 0.999763 +- 0.000406. This is a genuine negative control measured
+        on the same nine instances with the same code, and it behaves as a null
+        object should.
+    - id: C-8
+      check: NULL-RANDDIR reproduces RT-20260803-dc7568's randx_randy values
+      status: reproduced
+      detail: >-
+        Batch 2 reported 0.104707 +- 0.001475 and 0.001808 +- 0.000011 on one
+        instance (BATCH-f75059/tasks/TASK-20260803-dc7568/notes.md:136-138). This
+        task gives 0.107115 +- 0.001365 and 0.001812 +- 0.000019 on nine. Both
+        pooled values recompute from per_arm. Note NULL-RANDDIR preserves the
+        per-vector pairing of the two lengths and shows no separation, which is a
+        second, weaker piece of evidence in the same direction as C-6.
+
+  # =====================================================================
+  # 4. METRIC RECOMPUTATIONS
+  # =====================================================================
+  metric_recomputations:
+    - id: M-1
+      claim: "near-miss sd-ratio excess 1.3169 +- 0.0188 pooled, 9 of 9 above 1"
+      status: reproduced
+      detail: >-
+        Recomputed from per_arm (real vs the mean of the ten NULL-ROWPERM arms),
+        not from the producer's headline block: excess_mean 1.316946, sd 0.018811,
+        9/9 above 1, real_mean 0.140324, rowperm_mean 0.106552. Identical to 6 dp.
+        Per-instance excesses reproduce exactly:
+        1.3056 1.2901 1.3461 1.3130 1.2969 1.3403 1.3112 1.3220 1.3274.
+    - id: M-2
+      claim: "correct - best-of-8 excess 0.8893 +- 0.0115, 9 of 9 below 1"
+      status: reproduced
+      detail: >-
+        Recomputed: 0.889292 +- 0.011549, 0/9 above 1. Per-instance
+        0.9010 0.9095 0.8746 0.8890 0.8943 0.8773 0.8928 0.8865 0.8786.
+    - id: M-3
+      claim: "decay control pooled excess 1.0146 / 1.0434 / 1.1480 / 1.3169 at N' = 500/2000/8000/17919, monotone increasing"
+      status: reproduced
+      detail: >-
+        Recomputed from the per-instance decay blocks: 1.0146 +- 0.0374,
+        1.0434 +- 0.0174, 1.1480 +- 0.0310, 1.3169 +- 0.0188. Instances above 1:
+        8/9, 9/9, 9/9, 9/9. Strict per-instance monotone increase over all four
+        N' holds on 7/9; from N'=2000 upward it holds on 9/9 -- exactly the
+        producer's phrasing. Independently re-measured on my own regenerated
+        instances with my own row ordering, my own permutations and my own error
+        draws: 1.0448/1.0684/1.2270/1.2562 (rep0),
+        0.9858/1.0593/1.1089/1.3317 (rep1), 1.0135/1.0606/1.1933/1.3533 (rep2)
+        -- monotone increasing in all three. THE MONOTONE DECAY SURVIVES.
+    - id: M-4
+      claim: "the surrogate stays flat to within 0.001 over a 36x range"
+      status: reproduced_with_qualification
+      detail: >-
+        Surrogate pooled ratios 0.105557 / 0.106222 / 0.106614 / 0.106552. Max
+        deviation from their mean is 0.000679, so "within 0.001 of the mean"
+        holds; the max-min RANGE is 0.001058, so "flat to within 0.001" fails
+        marginally under the range reading. N' range is 17919/500 = 35.8x, not
+        36x. Both are rounding-level and neither affects the conclusion.
+    - id: M-5
+      claim: "internal contrast: uniform 1.0087 +- 0.0192 (no separation); secret_distribution separates 9/9 at about +2.4%"
+      status: reproduced
+      detail: >-
+        uniform sd ratio 1.008741 +- 0.019188 (t_8 +1.37, 5/9 above 1);
+        secret_distribution sd ratio 1.025433 +- 0.011255 (t_8 +6.78, 9/9) and
+        correct-minus-best 1.023774 +- 0.002200 (t_8 +32.42, 9/9). All four
+        recompute exactly from per_arm. OBS-A1's sign observation is correct: for
+        near-miss the real database scores WORSE on correct-minus-best (0.889),
+        for secret_distribution BETTER (1.024).
+    - id: M-6
+      claim: "P(correct first within near-miss): real 0.9870 +- 0.0031, rowperm 0.9956 +- 0.0009, randdir 0.9966 +- 0.0009, colperm 0.9955 +- 0.0008"
+      status: reproduced
+      detail: recomputed from per_arm to 4 dp; all four match.
+    - id: M-7
+      claim: "batch 2's frozen reference values are carried across unaltered"
+      status: reproduced
+      detail: >-
+        FROZEN_REFERENCE in stage_a.py matches
+        BATCH-f75059/tasks/TASK-20260803-dc7568/notes.md lines 136-138 and 161
+        exactly: 0.142888, 0.105408 +- 0.000991, 0.001522, 0.001761 +- 0.000011,
+        decay 1.062/0.987/1.193/1.354, randdir 0.104707 +- 0.001475 and
+        0.001808 +- 0.000011. Note batch 2's own full-N excess is
+        0.142888/0.105408 = 1.3556 while its decay row gives 1.354; the report
+        quotes both ("1.356" in the headline table, "1.354" in the decay table).
+        That is batch 2's internal rounding, faithfully carried, not a new error.
+    - id: M-8
+      claim: "independent scoring route agreement 3.1e-14 (Stage A) and 2.0e-15 (Stage B)"
+      status: reproduced
+      detail: >-
+        fast_route_max_abs_deviation_from_modular_route = 3.11972669919669e-14 on
+        instance 0. I went further: my entire re-measurement used the MODULAR
+        route exclusively (cos(2 pi ((x.e + y.(s-c)) mod q)/q), never the
+        cosine-addition identity), on my own error draws, and landed on
+        real 0.13913/0.13868/0.14421 against the producer's
+        0.13812/0.13723/0.14299 -- agreement to within Monte-Carlo noise at my
+        500 draws vs their 2000. The two routes agree.
+    - id: M-9
+      claim: "Stage B B3 pooled excesses, all three p and all three groups"
+      status: reproduced
+      detail: >-
+        All 18 pooled excess means and sds recomputed from B3_per_instance
+        per_arm and matched to 1e-9. Including the three the report tabulates:
+        p=2 near_miss 0.9607 +- 0.0187, p=3 1.0088 +- 0.0281,
+        p=5 0.9762 +- 0.0228.
+    - id: M-10
+      claim: "Stage B correct bin moves under NULL-ROWPERM with paired |z| median 14.8-31.3 and max 101.0"
+      status: reproduced
+      detail: >-
+        Over 30 realisation-level paired z per p: p=2 median 26.1 (max 96.9),
+        p=3 median 31.3 (max 77.3), p=5 median 14.8 (max 101.0). The quoted
+        median range and max are exact. The MINIMA are 0.8 / 3.1 / 0.2, which the
+        report does not give; the statistic is sensitive on average, not on every
+        realisation.
+    - id: M-11
+      claim: "'the uniform curves are flat (every value within 0.005 of the mean)'"
+      status: not_reproduced
+      detail: >-
+        Pooled uniform sd-ratio dose curve is
+        1.000466 / 0.998114 / 0.995518 / 0.987232 / 0.997834 / 0.995123, mean
+        0.995715, max deviation from the mean 0.008483 -- 1.7x the stated 0.005
+        bound (the t=0.50 point). The range is 0.013234. The substantive claim
+        survives (0.0085 is still small against the across-instance sd of 0.0540,
+        and per-instance strict monotonicity is 0/9), but the stated numerical
+        bound is wrong. See DEF-6.
+
+  # =====================================================================
+  # 5. RE-SCORING OF THE AGGREGATION (task card item 4)
+  # =====================================================================
+  aggregation_rescoring:
+    - id: R-1
+      question: "Is the pooled z of +50.6 credible, or does it rest on treating 9 correlated instances as independent?"
+      status: reproduced
+      finding: >-
+        The instances are NOT correlated in the sense feared (see P-1). The
+        arithmetic is exact. The overstatement is of a different kind: "+50.6" is
+        a one-sample t on 9 numbers with 8 degrees of freedom, reported as a "z"
+        with no dof and no p-value, and no distribution-free scoring is offered.
+      detail: >-
+        Producer's rule: excess_i = T_real,i / mean_rho T_rowperm,i,rho; pooled
+        z = (mean-1)/(sd/sqrt(9)). Recomputed exactly: +50.546 (near-miss sd
+        ratio) and -28.757 (correct-minus-best).
+    - id: R-2
+      scoring: "one-sample t, 8 dof (the producer's own statistic, correctly labelled)"
+      result: >-
+        near-miss sd ratio t_8 = +50.55, two-sided p ~ 2.4e-11;
+        correct-minus-best t_8 = -28.76. This is a normality extrapolation deep
+        into the tail of a t_8 from 9 points and should not be quoted as a
+        significance level.
+    - id: R-3
+      scoring: "exact sign test on the 9 excesses (distribution-free)"
+      result: >-
+        9/9 and 0/9 respectively, two-sided p = 2/2^9 = 0.003906 for both. This
+        is the SMALLEST two-sided p attainable with n=9 -- the design's floor. A
+        9-instance sign test cannot distinguish this effect from any other
+        unanimous one.
+    - id: R-4
+      scoring: "exact Wilcoxon signed-rank on excess - 1, all 512 sign flips enumerated (distribution-free)"
+      result: >-
+        p = 0.003906 for near-miss sd ratio and for correct-minus-best; p = 0.3008
+        for the uniform group. Again the n=9 floor.
+    - id: R-5
+      scoring: "exact within-instance permutation test, then joint across instances (distribution-free, uses the surrogate realisations as the reference set)"
+      result: >-
+        The real pairing is strictly the maximum of the 11 pairings (itself plus
+        its 10 surrogate realisations) on the near-miss sd ratio in ALL NINE
+        instances, and strictly the minimum on correct-minus-best in all nine.
+        Under exchangeability each has probability 1/11, so the joint probability
+        is 11^-9 = 4.24e-10. This is the strongest defensible distribution-free
+        statement available from the package and it is much stronger than the
+        sign test, because it uses the surrogate realisations rather than only
+        the across-instance sign pattern. The producer does not report it.
+    - id: R-6
+      scoring: "per-instance z against the surrogate's OWN realisation spread"
+      result: >-
+        (real - mean_rp)/sd_rp = 9.4 15.5 13.8 13.1 12.6 12.4 11.6 17.2 17.0,
+        median 13.1, minimum 9.4. A more defensible per-instance figure than the
+        pooled +50.6.
+    - id: R-7
+      scoring: "absolute differences, which the producer supplied precisely so the rule could be re-scored"
+      result: >-
+        near-miss sd ratio: mean +3.377e-02, sd 2.037e-03, t_8 = +49.74, 9/9 same
+        sign. correct-minus-best: -1.926e-04, t_8 = -28.99, 9/9. uniform:
+        +8.549e-03, t_8 = +1.32, 5/9. secret_distribution: +7.408e-02, t_8 =
+        +10.94, 9/9. The verdict is INSENSITIVE to the ratio-vs-difference choice.
+    - id: R-8
+      conclusion: >-
+        The aggregation rule was not chosen to flatter the result. Every
+        alternative scoring I ran -- differences instead of ratios, exact sign,
+        exact Wilcoxon, exact within-instance permutation, per-instance
+        realisation z -- agrees in direction and in the group contrast. What does
+        not survive is the specific figure "+50.6" read as a significance level.
+        See DEF-3.
+
+  # =====================================================================
+  # 6. WHAT ELSE COULD PRODUCE THE MONOTONE SHAPE (task card item 3)
+  # =====================================================================
+  mechanism_analysis:
+    - id: MECH-1
+      finding: >-
+        A GROWING-WITH-N' RATIO IS ALGEBRAICALLY IMPLIED BY ANY NON-ZERO FIXED
+        SEPARATION AT ANY SINGLE N'. It is not a second, independent line of
+        evidence.
+      derivation: >-
+        The statistic is sd_across_candidates(score) / sqrt(1/(2N')), so the
+        surrogate's ratio is flat exactly because its raw spread decays as
+        1/sqrt(N') (I confirmed: implied raw sd 3.338e-03 / 1.680e-03 /
+        8.429e-04 / 5.628e-04 at N' = 500/2000/8000/17919, i.e. the 1/sqrt(N')
+        law to three digits). Fit the real arm to the two-parameter model
+        sd_real(N')^2 = k/(2N') + b^2. Least squares on the four pooled points
+        gives sqrt(k) = 0.1062 -- statistically indistinguishable from the
+        surrogate's flat 0.1065 -- and b = 4.843e-04, and reproduces all four
+        measured ratios to better than 0.4%
+        (0.107263/0.110495/0.122571/0.140274 against
+        0.107079/0.110822/0.122380/0.140324). Once b > 0, the ratio
+        sqrt(k + 2N'b^2)/sqrt(k) MUST increase monotonically in N' with no
+        further content. So "monotone increasing" and "excess > 1 at full N'"
+        are the same fact, re-parameterised.
+      what_it_does_and_does_not_rule_out: >-
+        It DOES rule out the sampling-noise artifact class: an excess that were a
+        finite-sample fluke would not grow. It does NOT rule out a systematic
+        non-algebraic coupling, because any such coupling produces exactly this
+        shape. The producer's framing -- "the canonical artifact tell fires here
+        in the direction that says the effect is not a sampling artifact" --
+        misapplies docs/inventor-protocol.md section 3: the parameter meant to
+        destroy this effect is the fraction of the pairing removed (t), not the
+        database size. Increasing N' should sharpen a real effect, not destroy
+        it. The protocol's decay control is SENS-3, which the package DOES run
+        and which DOES fire correctly (C-5).
+    - id: MECH-2
+      finding: >-
+        The leading candidate systematic coupling -- the sieve's forced
+        (||x||, ||y||) norm trade-off, measured here at corr = -0.886 -- is
+        REFUTED as an explanation by the NULL-NORMSTRAT control I ran (C-6).
+    - id: MECH-3
+      finding: >-
+        The separation does NOT live in the error-averaged mean scores, which
+        undercuts the SENS-2 rearrangement argument more sharply than the
+        producer states.
+      detail: >-
+        I computed the draw-free quantity sd_j( mean_i w_i cos(phi_ij) ), i.e.
+        the across-candidate spread of E_e[score_j], with w_i the exact rounded-
+        Gaussian characteristic function. Real vs row-permuted vs norm-stratified:
+        5.620e-05 / 5.080e-05 / 5.487e-05 (rep0), 3.184e-05 / 2.878e-05 /
+        3.139e-05 (rep1), 4.716e-05 / 4.255e-05 / 4.488e-05 (rep2). The real/
+        surrogate ratio of the ERROR-AVERAGED spread is only about 1.11, against
+        1.30 on the statistic actually reported. So roughly two thirds of the
+        separation lives in the per-draw covariance between the x-side phase
+        cos/sin(2 pi x_i.e/q) and the y-side phase, not in the mean scores. SENS-2
+        is extremal for the mean-score functional only, which is exactly why it
+        yields |z| = 0.35..3.79 on the sd ratio (0/9 pass the pre-declared 5) and
+        |z| = 7.5..12.2 on correct-minus-best (9/9 pass). The producer says SENS-2
+        is "the wrong functional for a spread across candidates"; this quantifies
+        how wrong, and it means SENS-3 is not a convenience but the only
+        demonstration carrying the sd-ratio statistic.
+    - id: MECH-4
+      finding: >-
+        SCOPE. What separates is a 32% modulation on top of a much larger,
+        entirely pairing-INDEPENDENT effect.
+      detail: >-
+        Both arms sit near 0.10-0.14, i.e. the near-miss candidate scores are
+        roughly 7-10x MORE concentrated than the iid prediction in the SURROGATE
+        too. That 7-10x concentration is a property of the y multiset and of the
+        ad-hoc candidate definition c = s + e_k (whose phase offset is the single
+        small integer -Y[i,k]), not of the pairing. The producer's own OBS-B1
+        makes the corresponding point from the other side: under the principled
+        adjacent-FFT-bin definition the raw ratio is about 1.0 and no separation
+        is detected. Any downstream reading must keep this in view: the
+        replicated effect is a second-order modulation of a first-order artifact
+        of the candidate definition.
+
+  # =====================================================================
+  # 7. STAGE B
+  # =====================================================================
+  proof_architecture_checks:
+    - id: B-1
+      claim: "line 540 gives k_lat = 15 = 25 - 10 - 0 (KA-1)"
+      status: reproduced
+      detail: >-
+        /tmp/le at 3e48ef4, clean tree, estimator/lwe_dual.py line 540 reads
+        exactly `k_lat = params.n - k_fft - k_enum  # p.15`. With n=25, k_fft=10,
+        k_enum=0 this is 15. k_lat + k_fft + k_enum = 25 = n. Confirmed against
+        the source, not against the producer's transcript.
+    - id: B-2
+      claim: "m + k_lat = 50 = beta_sieve (KA-2), so beta_bkz drops out (KA-3)"
+      status: reproduced
+      detail: >-
+        35 + 15 = 50. In the lsigma_s expression at lwe_dual.py:544-550 the factor
+        deltaf(beta_bkz)^(m + k_lat - beta_sieve) has exponent 0, so beta_bkz is
+        genuinely irrelevant. The producer's KA-3 observation (identical Nf at
+        beta_bkz 45/60/300) follows and is reported as identical to 14 digits.
+        The batch-2 obstruction (R1 forcing k_lat = n while R2 forced
+        k_enum + k_fft = n) does not arise here. THE TUPLE IS ADMISSIBLE.
+    - id: B-3
+      claim: "adjacent-bin term 2^11.8657 / 2^5.2736 / 2^1.8985 for p = 2/3/5"
+      status: reproduced
+      detail: >-
+        exp(k_fft/3 * (sigma_s pi/p)^2) with k_fft=10, sigma_s=1 exactly for CBD
+        eta=2, computed by me from the source formula at lwe_dual.py:554:
+        p=2 3731.8909237202 = 2^11.8656911042;
+        p=3 38.6833408142 = 2^5.2736404907;
+        p=5 3.7282809402 = 2^1.8985105767.
+        Identical to the producer's values to 13 significant figures.
+    - id: B-4
+      claim: "with k_fft = 0 the term is exactly 1.0 (KA-5)"
+      status: reproduced
+      detail: exp(0) = 1.0 exactly. Batch 2's design could not test this term in either direction.
+    - id: B-5
+      claim: "ML-KEM-512 reference reproduces at 2685.665 = 2^11.391 (KA-6)"
+      status: reproduced
+      detail: >-
+        With sigma_s = sqrt(3/2) = 1.224744871391589 for CBD(eta=3), k_fft = 40,
+        p = 5: exp(40/3 * (sigma_s pi/5)^2) = 2685.6646571506 = 2^11.3910634600.
+        Matches the producer's 2685.6646571506376 and batch 2's card value
+        2685.7 = 2^11.39. The consistency check k_fft*log(p) = 40*log 5 = 64.377
+        also matches batch 2's 64.38
+        (BATCH-f75059/tasks/TASK-20260803-dc7568/notes.md:261-264).
+        QUALIFIER: I verified the ARITHMETIC given (k_enum, k_fft, p) = (0, 40, 5).
+        I did NOT re-run the estimator's optimiser to confirm that this really is
+        ML-KEM-512's optimum; that input is inherited from RT-20260803-dc7568.
+        The producer labels the whole figure MODELED and asserts nothing from it.
+    - id: B-6
+      claim: "Nf at the tuple: 45128.8 / 716.55 / 99.2663 for p = 2/3/5"
+      status: reproduced
+      detail: >-
+        Re-derived from lwe_dual.py:544-557 by hand:
+        lsigma_s = 2^(35/50) * 127^(15/50) * sqrt(4/3) * sqrt(50/(2 pi e))
+                 = 13.727116155555624 (producer: identical);
+        prefactor exp(4*(lsigma_s pi/127)^2) = 1.586012417989119 (identical);
+        log-term k_fft log p + log 2 = 7.624618986159398 / 11.679270067241044 /
+        16.787526304900947 (identical);
+        Nf = 45128.7881210813 / 716.5496009363 / 99.2663195927 (identical).
+        KA-4's factorisation check therefore holds independently.
+    - id: B-7
+      claim: "all 8 known-answer controls pass"
+      status: reproduced_with_qualification
+      detail: >-
+        KA-1..KA-6 I re-derived myself and all pass (B-1..B-6). KA-0a and KA-0b
+        (LWE.dual_hybrid IS estimator.lwe_dual.matzov; type name MATZOV) are
+        identity assertions about the installed estimator's namespace; I did not
+        import Sage to re-run them, and they are not load-bearing for anything in
+        this report.
+    - id: B-8
+      claim: "Stage B has 3 instances (2 dof), not 9 -- self-reported as D-9"
+      status: reproduced
+      detail: >-
+        B3_n_instances_completed = 3. The across-instance sds carry 2 degrees of
+        freedom, which is very weak; e.g. p=2 secret_distribution correct-best is
+        1.1592 +- 0.1883. The producer records this and does not lean on it.
+    - id: B-9
+      claim: "Stage B null-object declaration -- IS THE PRODUCER'S REFUSAL WARRANTED?"
+      status: reproduced
+      finding: >-
+        THE REFUSAL IS WARRANTED, AND THE REASON IS STRUCTURAL, NOT A
+        SMALL-SAMPLE ACCIDENT. The producer has not been over-cautious and has
+        not discarded a result.
+      structural_argument: >-
+        Compare where candidate-dependence lives in the two designs.
+        STAGE A (stage_a.py:410-412): the candidate-discriminating phase is
+        phi_ij = -2 pi Y[i,j]/q, a function of y_i. A row permutation of Y
+        therefore rewires the candidate contrast row by row, at FIRST order.
+        STAGE B (stage_b.py:386-393): the candidate-discriminating phase is
+        theta_ij = 2 pi [ (x_i^T A_fft . s_fft)/q - (ahat_i . c_j)/p ], where
+        ahat_i = round(p * (x_i^T A_fft mod q)/q). This is a function of x_i
+        ALONE. The pairing carrier is psi_i = 2 pi (y_lat,i . s_lat)/q, and
+        phase_arrays() applies it as cp*cosT - sp*sinT with cp, sp indexed by the
+        permutation and cosT, sinT NOT -- i.e. psi_i is CANDIDATE-INDEPENDENT and
+        multiplies every candidate's row-i term identically. A row permutation
+        therefore cannot generate across-candidate contrast at first order; it
+        can only act through a second-order correlation between the per-row
+        rotation e^{i psi_i} and the x-side contrast structure.
+      empirical_confirmation: >-
+        SENS-1 sets psi identically 0 -- the MAXIMAL removal of the object. If
+        the group statistic read the object, SENS-1 should be at least as extreme
+        as NULL-ROWPERM and on the same side of real. Measured (p=2, three
+        instances): real 1.09472 / 1.08974 / 1.03790; NULL-ROWPERM 1.11794 /
+        1.13384 / 1.10194; SENS-1 1.14012 / 1.15133 / 1.13626. Total removal of
+        the object lands BEYOND the random-repairing arm and on the OPPOSITE
+        side from real. Same picture at p=3 and p=5 (SENS-1/real ratios
+        0.9735..1.0948). SENS-3 is non-monotone on 0/3 instances at every p, and
+        also on the uniform group at every p, so it separates nothing.
+        The statistic has essentially no usable dynamic range with respect to the
+        object. "No separation detected" from it is uninformative, exactly as the
+        producer says.
+      residual_inconsistency: >-
+        The producer's own Stage B null registry
+        (stage_b_results.json -> nulls[0]) asserts
+        statistic_reads_the_object: "YES ... Every candidate's score carries the
+        residual phase psi_i ... Note this includes the CORRECT bin". That is
+        true of the SCORES and of the correct bin (M-10 confirms the correct bin
+        moves), and false of the ACROSS-CANDIDATE CONTRAST that the group
+        statistics measure. Section 5.3 of report.md corrects this in substance
+        but the registry text is left standing. See DEF-4.
+    - id: B-10
+      claim: "SENS-2 demonstrates sensitivity for correct-best (z = -12.2) but not the sd ratio (z = 3.21)"
+      status: reproduced
+      detail: >-
+        Both quoted numbers are instance 0's. Across all nine: sd-ratio
+        |z| = 3.21, 3.79, 0.77, 0.64, 1.27, 1.81, 1.18, 1.05, 0.35 -- 0/9 pass
+        the pre-declared 5, and instance 0's 3.21 is the LARGEST. correct-best
+        |z| = 12.20, 8.19, 8.51, 10.39, 9.41, 9.03, 10.41, 8.20, 7.53 -- 9/9
+        pass, and instance 0's 12.20 is again the LARGEST. Both quoted figures
+        are the best case of nine. See DEF-8.
+
+  # =====================================================================
+  # 8. NUMBERED DEFECTS
+  # =====================================================================
+  defects:
+    - id: DEF-1
+      severity: moderate
+      self_reported_by_producer: false
+      title: >-
+        The decay control's monotone increase is presented as an independent,
+        decisive line of evidence. It is algebraically equivalent to the
+        single-N' separation.
+      detail: >-
+        See MECH-1. Given that the surrogate's raw spread decays exactly as
+        1/sqrt(N') (confirmed to three digits), the ratio must grow monotonically
+        as soon as the real arm has ANY non-decaying component b > 0, and the
+        two-parameter fit sd_real^2 = k/(2N') + b^2 with sqrt(k) = 0.1062 (the
+        surrogate's own flat value) and b = 4.843e-04 reproduces all four points
+        to <0.4%. The report's box "AND IT DOES NOT DECAY LIKE ITS SURROGATE ...
+        the canonical artifact tell fires here" reads as though a second,
+        stronger test had been passed. What was actually excluded is the
+        sampling-noise artifact class alone; every systematic coupling, algebraic
+        or not, produces the identical shape. It also misidentifies the
+        protocol's decay parameter: docs/inventor-protocol.md section 3 asks
+        about the parameter meant to DESTROY the effect, which here is t (SENS-3),
+        not N'. Mitigation: SENS-3 exists in the package and does fire correctly,
+        and report.md section 9.3 concedes "monotone-in-N' is consistent with
+        more than one mechanism".
+    - id: DEF-2
+      severity: moderate
+      self_reported_by_producer: false
+      title: >-
+        No control isolates the algebraic pairing from the sieve's geometric
+        (||x||, ||y||) coupling. The package never reports that coupling exists.
+      detail: >-
+        A sieve emits jointly short vectors, forcing corr(||x_i||^2, ||y_i||^2)
+        = -0.886 (measured by me on three instances; not reported anywhere in the
+        package). NULL-ROWPERM, NULL-COLPERM and NULL-RANDDIR all destroy that
+        geometric coupling along with the algebraic pairing, so on the package's
+        own control set the excess is not attributable to either. RESOLVED
+        FAVOURABLY: I ran the missing control (NULL-NORMSTRAT, C-6) and the
+        separation survives at 1.3445 / 1.2705 / 1.3705. The defect is that the
+        package could not have known this; it is a completeness gap, and the
+        answer favours the producer.
+    - id: DEF-3
+      severity: minor
+      self_reported_by_producer: partially
+      title: >-
+        "Pooled z = +50.6" is a one-sample t with 8 dof reported as a z, without
+        dof, without a p-value, and without any distribution-free companion.
+      detail: >-
+        The producer self-reports that the aggregation rule is its own and asks a
+        reviewer to check it (section 9.1) -- that disclosure is exemplary and is
+        why the re-scoring in R-1..R-8 was possible. What it does not say is that
+        with n = 9 the distribution-free floor is p = 0.0039 (exact sign and
+        exact Wilcoxon both attain it), so "+50.6" cannot be read as a
+        significance level; it is a normality extrapolation from 9 points. The
+        strongest defensible distribution-free statement is the exact
+        within-instance permutation result 11^-9 = 4.24e-10 (R-5), which the
+        producer does not report even though its own data contain it.
+    - id: DEF-4
+      severity: minor
+      self_reported_by_producer: partially
+      title: >-
+        Stage B's machine-readable null registry claims the group statistic reads
+        the object; section 5.3 of the report says it does not. Both are archived.
+      detail: >-
+        stage_b_results.json -> nulls[0].statistic_reads_the_object says "YES"
+        and can_it_fail says "YES, for every group AND for the correct bin",
+        while report.md 5.3 declares the group-level null inadmissible. Only the
+        correct-bin half of the registry claim is supported (M-10). A downstream
+        consumer reading the JSON rather than the prose would draw the opposite
+        conclusion. The prose is the correct one (B-9).
+    - id: DEF-5
+      severity: minor
+      self_reported_by_producer: false
+      title: >-
+        Stage B's p=2 arm is measured at N = 4253 vectors against its own modelled
+        requirement Nf = 45128.8 -- a 10.6x shortfall -- and this is stated nowhere.
+      detail: >-
+        Nf(p=3) = 716.5 and Nf(p=5) = 99.3 are comfortably below the measured
+        N = 4253; only p=2 is not. OBS-B2 reports the 454x Nf range but never
+        compares it to the N actually used. This does not invalidate a
+        distributional null test, but p=2 is the arm carrying the largest
+        deviation (0.9607 +- 0.0187) and it is the one arm whose vector budget is
+        an order of magnitude below its own model. It should have been declared.
+    - id: DEF-6
+      severity: cosmetic
+      self_reported_by_producer: false
+      title: '"the uniform curves are flat (every value within 0.005 of the mean)" is false.'
+      detail: >-
+        Max deviation is 0.008483, 1.7x the stated bound (M-11). The substantive
+        claim -- flat relative to the across-instance sd of 0.054, with 0/9
+        per-instance monotonicity -- survives; the stated bound does not.
+    - id: DEF-7
+      severity: cosmetic
+      self_reported_by_producer: false
+      title: '"the surrogate stays flat to within 0.001 over a 36x range" is marginal on both numbers.'
+      detail: >-
+        Max-min range is 0.001058 (max deviation from the mean is 0.000679, so
+        the claim holds under the mean reading and fails under the range
+        reading); N' ratio is 35.8x, not 36x (M-4).
+    - id: DEF-8
+      severity: cosmetic
+      self_reported_by_producer: false
+      title: >-
+        The two SENS-2 z values quoted in the report (-12.2 and 3.21) are both
+        instance 0's, and instance 0 is the best case of nine on both.
+      detail: >-
+        correct-best |z| ranges 7.53..12.20 across the nine (all pass); sd-ratio
+        |z| ranges 0.35..3.79 (none pass). Quoting only instance 0 overstates the
+        demonstration that succeeded and, coincidentally, also overstates the one
+        that failed. The verdicts (9/9 and 0/9) are unaffected and are recorded
+        correctly in the JSON. Same pattern at M-10: the Stage B correct-bin |z|
+        medians and max are quoted, the minima (0.8 / 3.1 / 0.2) are not.
+    - id: DEF-9
+      severity: minor
+      self_reported_by_producer: partially
+      title: >-
+        Model-level independence is absent throughout, and this validation does
+        not repair it.
+      detail: >-
+        The producer records at section 9.5 that batch 1's producer, batch 2's
+        producer, all four reviewers and itself all resolve to claude-opus-5.
+        This validator resolves to the same model. Independence here is
+        procedural (separate session, separate code, separate seeds, separate
+        instrument build, no access to the producer's scratch) and is NOT
+        model-level. In addition, the artifact-loss incident record discloses
+        that the Coordinator retains the destroyed first pass's findings in
+        session context; my card was the original text and forwarded nothing,
+        but the disclosure stands.
+
+  # =====================================================================
+  # 9. CLAIMS I COULD NOT CHECK
+  # =====================================================================
+  unable_to_check:
+    - id: U-1
+      claim: "rebuild 306 s, Stage A 258.85 s, Stage B 9.7 s, peak RSS 561.8 / 442.4 MB"
+      reason: >-
+        Self-reported; the producer's stdout logs lived only in scratch, which the
+        container replacement destroyed. No independent record exists.
+    - id: U-2
+      claim: "5 smoke runs, 0 discarded, 0 repeated, 0 unreported runs, 0 post-hoc analyses"
+      reason: >-
+        The five smoke JSONs are named in receipt.json but were written to scratch
+        and are gone. This is unfalsifiable from the archive. I found no internal
+        evidence contradicting it: the stage_a.py header's frozen reference and
+        aggregation rule are stated as pre-run, the |z|>5 criterion appears as a
+        pre-declared constant, and the results file records failures (SENS-2c,
+        SENS-2 on the sd ratio) that a tuned run would have removed.
+    - id: U-3
+      claim: "stage_a_results.json was written before Stage B began"
+      reason: >-
+        Both files enter the archive in one commit; git preserves no mtimes and
+        the process logs are gone.
+    - id: U-4
+      claim: "(k_enum, k_fft, p) = (0, 40, 5) is the estimator's own ML-KEM-512 optimum"
+      reason: >-
+        Inherited from RT-20260803-dc7568; I verified only the arithmetic given
+        those inputs (B-5). Re-running the optimiser would require importing Sage,
+        which is outside what this claim needs since the figure is labelled MODELED
+        and nothing is asserted from it.
+    - id: U-5
+      claim: "KA-0a / KA-0b estimator namespace identities"
+      reason: >-
+        Not re-run; not load-bearing (B-7).
+    - id: U-6
+      claim: "Stage B's three lattice-membership certificates (191,385 entries, 0 violations)"
+      reason: >-
+        I regenerated and re-certified the three Stage A instances I re-measured,
+        not the Stage B ones. The producer's route is recorded and is the same
+        integer arithmetic that reproduced exactly for Stage A.
+    - id: U-7
+      claim: "D-2 anomaly: dim-50 gauss_sieve db 4259 vectors vs the recipe's 4075 and batch 2's 4166"
+      reason: >-
+        A seeded instrument check whose seed the recipe does not pin. I did not
+        re-run it. The producer records it as an anomaly rather than explaining it
+        away, which is the correct handling.
+
+  # =====================================================================
+  heuristic_validation_checks:
+    - id: H-1
+      check: pre-registration of the prediction
+      status: reproduced_with_qualification
+      detail: >-
+        The frozen reference values are batch 2's, fixed in stage_a.py's header
+        and in FROZEN_REFERENCE, and they match RT-20260803-dc7568 exactly (M-7).
+        The SENS-3 prediction ("monotone in t if the statistic reads the pairing,
+        flat if not") and the |z| > 5 SENS-2 criterion are stated as pre-declared
+        in the script header and appear as constants in the code. The aggregation
+        rule over nine instances is the producer's own and was NOT
+        Coordinator-pre-registered; the producer says so and supplies the absolute
+        differences so it can be re-scored, which I did (R-7).
+    - id: H-2
+      check: sample integrity -- sizes, seeds, procedure in the manifest
+      status: reproduced
+      detail: >-
+        Every seed is recorded in stage_a_results.json -> seeds and receipt.json
+        -> randomness (replicates 20260803206 inherited; error_draws 20260803401,
+        rowperm ...402, colperm ...403, randdir ...404, order ...405,
+        rowperm_decay ...406, dose ...407; Stage B ...501-...506). 2000 draws per
+        arm per instance, 10 rowperm realisations, 5 colperm, 5 randdir, 5
+        rowperm-decay. All statistics I recomputed came from the emitted
+        per-arm arrays, never copied from the report.
+    - id: H-3
+      check: correspondence validity
+      status: not_applicable
+      reason: >-
+        No correspondence substitutes for direct sampling here; the sieve database
+        is measured directly.
+    - id: H-4
+      check: scale binding
+      status: reproduced
+      detail: >-
+        d = 60 (Stage A) and 50 (Stage B), q = 127, one sieve family. Toy scale is
+        declared in the scope line of every artifact, in the commit message, in
+        report.md sections 1 and 8, and in receipt.json explicit_non_claims. The
+        one FIPS-203-parameter number (2^11.391) is labelled MODELED in every
+        place it appears and is explicitly not derived from any measurement.
+        AGENTS.md rule 7 is satisfied.
+  cost_model_checks:
+    - id: K-1
+      check: unit declaration and measured-vs-modeled labelling
+      status: reproduced
+      detail: >-
+        Nf is a vector count, not a time or memory cost, and the package makes no
+        cost claim, no speedup claim and no total-expected-cost claim. Every
+        Stage B B1/B2 number carries measured_or_modeled = "MODELED -- every
+        number in B1/B2 is the pinned estimator's own arithmetic, not a
+        measurement." There is no concrete cost table to audit for units, memory
+        or per-attempt x inverse-success-probability bookkeeping, and none is
+        required, because nothing is costed.
+    - id: K-2
+      check: the one place a modelled requirement meets a measurement
+      status: not_reproduced
+      detail: >-
+        Nf(p=2) = 45128.8 against the N = 4253 actually measured. See DEF-5.
+
+  limitations:
+    - >-
+      TOY SCALE. Stage A is d=60, q=127, m=35, n=25, one sieve (g6k 0.1.2
+      bgj1_sieve), one modulus, one secret/error distribution, nine instances of
+      ONE design. Stage B is d=50 with three instances (2 dof). Nothing here
+      transfers to FIPS 203 dimensions and AGENTS.md rule 7 applies in full.
+    - >-
+      The replicated Stage A effect is a ~32% modulation of a statistic that is
+      itself ~7-10x below the iid prediction in BOTH arms, and that 7-10x is a
+      property of the ad-hoc candidate definition c = s + e_k rather than of the
+      pairing (MECH-4). Under the principled adjacent-FFT-bin definition the raw
+      ratio is ~1.0 and no separation is detected -- the producer's own OBS-B1.
+    - >-
+      "The separation replicates" means: on nine instances of one toy design, a
+      row-permutation surrogate differs from the real sieve database on two
+      statistics, in the batch-2 direction, at comparable magnitude, and this
+      survives my independent re-measurement and one additional control. It does
+      NOT mean the dual-attack independence heuristic fails, and it says nothing
+      about ML-KEM. That judgement is the Coordinator's, not mine.
+    - >-
+      Independence is procedural, not model-level (DEF-9). A genuinely
+      independent check remains outstanding, as DEC-20260803-264d6a already notes.
+    - >-
+      This report is a validation of receipt admissibility. A passed validation
+      does not support any ECDLP or ML-KEM claim, does not demonstrate a speedup,
+      and does not authorize promotion of anything.
+    - >-
+      AGENTS.md rule 12 is UNMET and UNWAIVED, inherited from GOAL-MLKEM-003. This
+      report changes the status of no EV-MLKEM-* record and no KN-* entry, and
+      proposes no change.
+
+  commit_note: >-
+    The dispatch-queue card for this task says "Do NOT run git commit". The
+    re-dispatch instruction from the Coordinator overrides that specific line,
+    for the stated reason that the first pass's output was lost by being left
+    uncommitted (see the artifact_loss_incident record). I therefore committed
+    exactly the two files in my write_scope --
+    coordination/goals/GOAL-MLKEM-004/batches/BATCH-c45baf/tasks/TASK-20260803-3fc363/{report.yaml,notes.md}
+    -- and nothing else. I edited no producer artifact, no ledger record and no
+    dispatch queue.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-c45baf/tasks/TASK-20260803-3fc363/report.yaml
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-c45baf/tasks/TASK-20260803-3fc363/notes.md
