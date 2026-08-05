@@ -14,6 +14,15 @@ Use this skill for a persistent research program, not an unbounded prompt. It
 continuously narrows uncertainty while preserving every theory, run, review,
 and ledger transition as committed evidence.
 
+The loop below runs indefinitely: each batch is bounded, the sequence of
+batches is not. Finishing a batch is a checkpoint, never an exit — do not stop
+to ask whether to continue, and do not treat a quiet batch as a reason to wind
+down. The campaign ends only at a committed terminal status (see "Completion
+and pause"), and when it does, control returns to
+`/launch-research-harness` step 8, which selects the next goal. Indefinite
+operation adds no urgency and removes no gate: every batch still archives,
+reviews, and scopes its claims exactly as before.
+
 ## Launch or resume
 
 1. Read `AGENTS.md`, `CLAUDE.md`, `docs/task-lifecycle.md`,
@@ -59,10 +68,26 @@ For every batch, run this sequence:
 5. In that same ledger commit, update the `GOAL-*` record with the batch,
    decision, latest verified commit, and exactly one next action. Rerank the
    remaining hypotheses only after this committed checkpoint.
-6. Generate the next bounded batch and continue while the goal remains
+6. Generate the next bounded batch and return to step 1 while the goal remains
    `active`. Preserve failed, invalid, deferred, and anomalous tasks as scoped
    evidence and route them to a repair, replication, or new positive search
    direction.
+
+The loop has no batch count. Iterate until the goal takes a committed terminal
+status or the campaign budget is exhausted — and an exhausted budget is a
+`paused` checkpoint with a resume action, handed back to the launcher, not a
+conclusion about the science.
+
+**When a batch has nothing ready.** An empty ready set means the queue needs
+work, not that the campaign is over. In order: run the goal's recorded
+`next_action`; failing that, dispatch the highest-ranked open hypothesis under
+the goal; failing that, dispatch a replication or a control run for the
+weakest-supported live claim; failing that, run `/propose-ideas` on the bound
+`RQ-*` to refill the candidate pool. Only when none of these yields a ranked,
+justified task do you record the goal as `paused` with that finding as its
+resume action. Never dispatch a task you cannot rank ahead of doing nothing —
+under a loop that never stops, make-work is the standing temptation, and it
+costs budget while producing evidence nobody asked for.
 
 ## Branch and PR hygiene
 
@@ -136,6 +161,11 @@ candidate, empty queue, timeout, or temporary lack of a promising idea does not
 complete the goal: record the narrowest result and add the next concrete action
 instead.
 
+Both terminal statuses return control to `/launch-research-harness` step 8,
+which picks up the next goal. Because the run continues either way, there is no
+incentive to reach for `completed` — an honest `paused` with a resume action
+costs the harness nothing.
+
 ### Closure quorum (AGENTS.md rule 13) — SUSPENDED
 
 The three-model quorum is **not currently required**. Close a goal on the
@@ -172,7 +202,7 @@ three distinct models cannot be resolved, the goal does not close.
 
 ## Output after each batch
 
-Report:
+Report the following, then start the next batch without waiting:
 
 - goal ID and active/paused/completed status;
 - completed task IDs and verified commit IDs;
