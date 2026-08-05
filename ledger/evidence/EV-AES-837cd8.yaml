@@ -1,0 +1,169 @@
+evidence:
+  id: EV-AES-837cd8
+  hypothesis_id: null
+  hypothesis_id_note: >-
+    DELIBERATELY NULL. This record establishes a memory ceiling and confirms a
+    prior underpowered result stays underpowered for a documented reason, not
+    a cipher property. RQ-AES-003 carries no hypothesis about the r=5 yoyo
+    excess; naming one here would manufacture a binding this record does not
+    have. Admitted under the documented-null allowance recorded in
+    CORR-20260802-009.
+  experiment_ids: []
+  run_ids: []
+  task_ids:
+    - TASK-20260805-080b62
+    - TASK-20260805-2d4d1a
+    - TASK-20260805-4c4c87
+  type: measurement
+  direction: inconclusive
+  strength: weak
+  strength_basis: >-
+    WEAK, AND THE REASON IS SCOPE RATHER THAN EXECUTION QUALITY. Every claim in
+    this record was independently verified twice -- once by the Coordinator
+    before archiving, once by the validator afterward -- including a
+    MECHANISTIC verification of the equivalence claim (reading perm128_probe/
+    forward/inverse and confirming idx_cap affects only which hash bucket a
+    probe starts at, never which value is returned, so output invariance under
+    the load-factor change follows from the code structure, not merely from
+    two files happening to match) and an independent recomputation of the
+    2^26 memory ceiling from the actual malloc call sites. What holds strength
+    at weak: the batch's central comparison (cipher substitution at a
+    decisive exposure) remains genuinely unresolved, and this record's content
+    is a power/infrastructure finding rather than a result bearing on any
+    cipher property. Every party resolves to one model under standing basis
+    0137a051eb5828789eb267fa83c8278086578d4c, so NOTHING HERE COUNTS TOWARD A
+    CLOSURE QUORUM.
+  claim_tier: toy
+  claim_tier_basis: >-
+    Reduced-round AES-shaped SPN, r=5, one probe geometry (amask=1, smask=1),
+    trials at 2^25 on one machine. No crypto-scale, medium-scale, affected-
+    scheme or asymptotic claim is made or implied, and no comparison to
+    published cryptanalysis is made in either direction (RQ-AES-003 R3).
+  certificate_refs: []
+  proof_status: empirical_only
+  proof_refs: []
+
+  observations:
+    - id: OBS-B12-1
+      statement: >-
+        THE LOAD-FACTOR CHANGE IS PROVABLY BEHAVIOR-PRESERVING, NOT MERELY
+        OBSERVED TO MATCH. The diff changes exactly one line (perm128_init's
+        idx_cap multiplier, 2 to 1); the validator read perm128_probe,
+        perm128_forward and perm128_inverse directly and confirmed idx_cap
+        controls only which hash bucket a linear-probe sequence starts at --
+        the found/not-found result and the returned pid depend solely on
+        which keys already exist in dom[]/rng[], resolved by exact byte
+        comparison, never by idx_cap, provided the table does not overflow
+        (confirmed true at both load factors here). Output invariance under
+        the change therefore follows from the code's own structure, and the
+        byte-identical equivalence-check JSONs are the expected corollary
+        rather than a coincidence that happened to hold at this trial count.
+      status: CONFIRMED, mechanistically, by the independent validator
+    - id: OBS-B12-2
+      statement: >-
+        2^25 TRIALS NOW COMPLETES IN FULL WITHIN AN 8 GB BUDGET. Measured peak
+        VmHWM 6.293 GB, below the 6.442 GB allocation estimate (normal
+        allocator/page-accounting slack). Both comparison-B arms read
+        W_ge1_nontrivial=0 at trials=33,554,432=2^25, with
+        perm_pairs_realised=134,217,728=4*2^25 exactly matching the expected
+        four oracle queries per trial.
+      status: CONFIRMED independently by both the Coordinator and the validator
+    - id: OBS-B12-3
+      statement: >-
+        THE NULL RESULT IS NOW ATTRIBUTABLE TO STATISTICAL POWER ALONE, NOT TO
+        A MEMORY CEILING. BATCH-011's 2^24 result could not distinguish "the
+        excess is absent" from "the exposure never reached a memory-permitted
+        level where it could show up." This batch removes that ambiguity for
+        one further exposure doubling: 2^25 was reached in full, and the
+        expected event count at that exposure under BATCH-009's own measured
+        rate (14 per 2^30) is ~0.4375, preregistered before any run (confirmed
+        from file mtimes: PREREGISTRATION.md predates every run output, and
+        the budget stamp predates even the source edits). P(0 hits | true
+        effect at the measured rate) is approximately e^-0.4375 ~ 0.65 --
+        stated and correctly not spun as either confirming or refuting
+        anything.
+      status: CONFIRMED, preregistration timing independently checked from filesystem mtimes
+    - id: OBS-B12-4
+      statement: >-
+        TWO DISTINCT "EXPECTED COUNT" QUANTITIES APPEAR IN THE RAW RUN FILES
+        AND ARE NOT CONFLATED. null_expectation_analytic: 0.03125 in
+        cmpB_ideal_2p25.json is the standard per-instrument analytic null
+        (4*2^-32*trials, independently recomputed and confirmed exact at
+        2^25). The 0.4375 figure used in the preregistration and decision
+        text is a DIFFERENT quantity: BATCH-009's own empirically-measured
+        excess rate (14 hits per 2^30 trials) extrapolated to this exposure.
+        Both are correctly kept separate in the producer's artifacts.
+      status: CONFIRMED, independently recomputed and distinguished by both reviewers
+    - id: OBS-B12-5
+      statement: >-
+        THE LEVER'S CEILING IS NOW ESTABISHED ARITHMETICALLY, NOT ASSUMED.
+        blk128 is 16 bytes; the dom/rng pair-storage arrays cost
+        32*max_pairs bytes REGARDLESS of the index load factor. At 2^26
+        trials, max_pairs = 4*2^26 = 2^28, giving 32*2^28 = 8.589934592 GB for
+        dom+rng ALONE -- exceeding an 8 GB budget before a single index-table
+        byte is counted. Recomputed independently by the validator directly
+        against perm128_init's actual malloc call sites and the armideal
+        branch's max_pairs formula (N*4ULL, with no dependence on the load-
+        factor multiplier).
+      status: CONFIRMED independently by the validator
+
+  defects_carried:
+    - id: D-B12-1
+      statement: >-
+        The RSS-polling methodology (VmHWM sampled at 50ms intervals) has a
+        minor, flagged race: the monitoring process can be reaped before a
+        final status read, potentially missing a small last-instant memory
+        increment. The validator judged this negligible given the workload's
+        gradual, roughly-monotonic growth and that the measured figure
+        already sits below the allocation estimate, but it is recorded rather
+        than silently accepted.
+
+  boundaries:
+    - >-
+      This record establishes that comparison B's null result at 2^25 is a
+      power limitation, not a memory-ceiling artifact, and that the
+      load-factor lever is now exhausted at 2^26. It does NOT establish
+      whether BATCH-009's cipher-substitution finding holds or fails on an
+      independent instrument; that question remains open.
+    - >-
+      Session and implementation independence only. NO MODEL INDEPENDENCE
+      under standing basis 0137a051eb5828789eb267fa83c8278086578d4c; nothing
+      here counts toward a closure quorum.
+    - >-
+      No mechanism is named for the r=5 excess by this record. Nothing here
+      is a statement about full-round or deployed AES.
+
+  unresolved_confounds:
+    - >-
+      The cipher-substitution mechanism specifically (BATCH-009's central
+      claim) still has no independent-instrument corroboration in either
+      direction. A decisive exposure (order 2^30, where ~14 events would be
+      expected under the measured rate) requires a structurally different,
+      O(1)-memory-per-query oracle construction -- the pair-storage
+      architecture used here cannot reach it within any plausible memory
+      budget.
+    - The 32-bit-vs-24-bit localization question (EV-AES-8b8dcf boundary) remains open.
+    - Whether OUTCOME-A (BATCH-009) depends on idealness specifically versus mere structurelessness (U4) remains open; RC-D remains unrun.
+    - RC-C (the five-data-point S-box-specificity recomputation, DEC-20260805-a9dade rank 2) remains unrun.
+
+  reviewed_by:
+    - >-
+      TASK-20260805-4c4c87 (independent validator; verdict PASSED; confirmed
+      archive durability against origin, mechanistically verified the
+      equivalence claim by reading the probe/forward/inverse functions rather
+      than trusting matched output files, independently recomputed the 2^26
+      memory ceiling from actual malloc call sites, and confirmed
+      preregistration timing from filesystem mtimes)
+  reviewed_at: 2026-08-05
+  red_team_reviewed: false
+  red_team_note: >-
+    NO RED TEAM REVIEWED THIS BATCH. Recorded plainly, consistent with prior
+    disclosure in this campaign.
+
+  inference:
+    policy: coordinator-orchestration-code
+    requested_policy: coordinator-orchestration-code
+    resolved_model: claude-sonnet-5
+    fallback_used: true
+    model_verified: false
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
