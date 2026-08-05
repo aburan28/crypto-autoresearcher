@@ -1,0 +1,156 @@
+validation_report:
+  task_id: TASK-20260804-53e77f
+  producer_task_id: TASK-20260804-52cc2b
+  snapshot_commit: a54fe74d94e796d4cb8d1d5fe90a48a768425e78
+  verdict: accept
+  summary: >
+    All 5 artifacts hash-verified against the committed snapshot; all
+    reported statistics (empirical_var, independence_predicted, ratio,
+    chi2_stat, p_value, 95% CI) recomputed from raw TN_values with
+    exact floating-point agreement; scope flags clean; platform Linux
+    x86_64; n_runs_completed=150; single_score_var provenance correctly
+    labeled within-environment run-0.
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: true
+    fallback_reason: >
+      Only one backend is available in this deployment. The resolved
+      model is amazon-bedrock/us.anthropic.claude-sonnet-4-6; the
+      review-adversarial policy targets a higher-tier model. Recorded
+      as fallback per AGENTS.md §Model policy.
+    independent_session: true
+    model_verified: false
+
+  checks:
+
+    - id: CHK-1
+      name: Hash verification (all 5 artifacts)
+      status: PASS
+      detail: >
+        SHA256 of each artifact in the working tree AND from the git blob
+        at commit a54fe74d both match the artifact_sha256 map in
+        TASK-20260804-acb3aa/snapshot_receipt.json exactly.
+        - rebuild_transcript.txt: 7bd97307b1ca957764a795603e7c9164108a32006c52c715042f64272676ee5c ✓
+        - receipt.json:          42cd9f046ecbab96bf2cd1b9324fd2afbd68718de1aa1ad734650433793d37e0 ✓
+        - variance_results.json: 57d394749fbd3f1051f98306410055d35240ac3111c01f73c9c017c4cac66984 ✓
+        - report.md:             21b9d3bfd16c0756cfdfb8e68ead94bb7a688ae7c7f84bdefaa602240b500c14 ✓
+        - variance_test_b3.py:   43b46ccb840d34a1cde9169a30878aa1e2fe546edd2385db8ae1ccc0f87ad7fc ✓
+        Snapshot commit is reachable from HEAD.
+        Commit parent (45b9b5fd) matches snapshot_receipt.parent_sha.
+        Commit changes exactly the 5 declared artifacts — no scope expansion.
+
+    - id: CHK-2
+      name: Arithmetic re-derivation
+      status: PASS
+      detail: >
+        All statistics recomputed from raw TN_values array (n=150) using
+        numpy/scipy with exact floating-point agreement (< 1e-9 absolute
+        error on all checks):
+          empirical_var_TN (ddof=1): 8492.309645148742  — reported 8492.309645148742 ✓
+          independence_predicted_var: 17919 × 0.3405690866420119 = 6102.657463538211
+                                       — reported 6102.657463538211 ✓
+          variance_ratio: 1.3915756694338621 — reported 1.3915756694338621 ✓
+          chi2_stat: 207.34477474564545 — reported 207.34477474564545 ✓
+          p_value: 0.001122555172757167 — reported 0.001122555172757167 ✓
+          95% CI ratio: [1.1226822967504917, 1.770694675325302] ✓
+        TN_values array and run_records are internally consistent
+        (all 150 entries match, all N_vectors=17919, all valid=true).
+        Siever seed expression numpy.random.default_rng(20260804001)
+        .integers(0, 2**32, size=150) is reproducible and matches the
+        stored siever_seeds list (first 5 and last seed confirmed).
+
+    - id: CHK-3
+      name: Scope — no finding stated, no MATZOV/Nf comparison
+      status: PASS
+      detail: >
+        variance_results.json: states_a_finding=false, compared_against_matzov_nf=false.
+        receipt.json: states_a_finding=false, compared_against_matzov_nf=false.
+        report.md: "states_a_finding: false", "compared_against_matzov_nf: false".
+        Only occurrence of "matzov" in variance_results.json is the key name
+        "compared_against_matzov_nf": false — not a comparison.
+        No "MATZOV", "Nf", "cost_model", or "cost-model" terms appear as
+        substantive content. No ML-KEM security implication drawn anywhere.
+
+    - id: CHK-4
+      name: Platform Linux x86_64 and n_runs_completed=150
+      status: PASS
+      detail: >
+        variance_results.json platform field:
+          "Linux-6.12.76-linuxkit-x86_64-with-glibc2.41" — Linux x86_64 ✓
+        receipt.json:
+          docker_platform_flag: linux/amd64 ✓
+          container_arch: x86_64 ✓
+          container_kernel: Linux-6.12.76-linuxkit-x86_64-with-glibc2.41 ✓
+        rebuild_transcript.txt lines 2-3 confirm x86_64 uname output.
+        n_runs_completed: 150 in both variance_results.json and receipt.json ✓
+        n_runs_failed: 0 ✓
+
+    - id: CHK-5
+      name: within-env Var[s_i] provenance
+      status: PASS
+      detail: >
+        variance_results.json independence_test.single_score_source:
+          "within-environment run-0 sieve vectors"
+        This is not batch-1 data. The receipt.json deviation record
+        explicitly notes: "independence_predicted_var uses within-environment
+        run-0 single_score_var (0.340569) vs batch-2 which used batch-1
+        raw_scores.json (0.332505). This is by design for batch-3."
+        The variance_test_b3.py script confirms: compute_single_score_var_from_run0
+        is called after run i==0 using run-0's own coeffs and Bused, not
+        any external batch-1 file.
+
+    - id: CHK-GIT
+      name: Commit integrity
+      status: PASS
+      detail: >
+        Commit a54fe74d is reachable from HEAD.
+        Parent 45b9b5fd matches snapshot_receipt.parent_sha ✓.
+        git diff-tree shows exactly 5 files changed, all within the
+        declared write_scope (TASK-20260804-52cc2b/). No scope expansion.
+
+  qualifications:
+
+    - id: QUAL-1
+      severity: informational
+      detail: >
+        The handoff briefing for this validator task stated
+        "empirical_var_TN (ddof=1): ~7296.8 (need to read exact from file)".
+        The actual value in the artifact is 8492.309645148742. This is
+        a discrepancy in the handoff briefing text only — the artifact
+        itself is arithmetically self-consistent and all statistics are
+        verified. The artifact takes precedence over the briefing estimate.
+
+    - id: QUAL-2
+      severity: informational
+      detail: >
+        The executor model (amazon-bedrock/us.anthropic.claude-sonnet-4-6)
+        is the same model now executing this validation, meaning review
+        and execution share a model. This is a structural limitation of
+        the single-backend deployment, not a contract violation. It is
+        recorded here for transparency; AGENTS.md §Goal closure quorum
+        documents this constraint and its implications.
+
+    - id: QUAL-3
+      severity: informational
+      detail: >
+        model_verified: false in both executor receipt and this validation.
+        The adapter doctor --probe has not confirmed the backend serves the
+        declared model identifier. This is consistent with the single-backend
+        deployment and is the expected status per AGENTS.md model policy.
+
+    - id: QUAL-4
+      severity: informational
+      detail: >
+        The within-environment single_score_var (0.340569) comes from a
+        single sieve run (run-0, seed=1873347320). Different sieve seeds
+        produce different vector sets with potentially different score
+        distributions. The independence prediction denominator is therefore
+        seed-dependent. This is the stated methodology and is correctly
+        documented in the artifact; it is not an error, but downstream
+        consumers should be aware when interpreting the variance_ratio and
+        its CI.
+
+  admissible: true
+  validated_at: '2026-08-04'
+  validated_by: TASK-20260804-53e77f
