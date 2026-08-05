@@ -1,0 +1,205 @@
+# DRAFT PROTOCOL AMENDMENT, NOT YET FROZEN. Supersedes specification.yaml
+# (v1, frozen 96ad45de, retained unedited) on EXACTLY ONE POINT: the
+# scope_reduction_fallback_pinned_before_data truncation formula, named
+# defective as GD-7 (ledger/goals/GOAL-SSIQ-001/goal.yaml). Every other
+# pinned element of v1 -- B=23/X=23, the decision-rule ordering, every
+# control, every required artifact, the reused BATCH-003 code -- is
+# REUSED UNCHANGED BY REFERENCE, not respecified. This amendment must go
+# through its own pre-freeze Red Team review before it is frozen, per
+# GD-7's standing repair: the reviewer explicitly derives BOTH the
+# individual-cap and cumulative-prefix readings of any prefix-truncation
+# formula proposed here, names which one the text and code actually
+# implement, and confirms the operative reading against the code before
+# freeze -- exactly the scrutiny the smoothness parameters received in
+# BATCH-004's pre-freeze review (Finding 1/8) and the budget-allocation
+# formula did not.
+experiment:
+  id: EXP-SSIQ-a85692
+  hypothesis_id: H-SSIQ-137200
+  version: 2
+  title: >-
+    Greedy delta_E descent versus random-walk hitting time, with a
+    CUMULATIVE-BUDGET truncation fallback replacing v1's individual
+    per-prime cap (BATCH-005, unblocking H-SSIQ-9e2c71's Phase -1 gate
+    failure)
+  status: draft
+  approved_by: null
+  amends: EXP-SSIQ-a85692 (version 1, specification.yaml, frozen 96ad45de)
+  amendment_scope: >-
+    ONE CHANGE ONLY: inputs.delta_e_computation.scope_reduction_fallback_v2
+    below replaces v1's scope_reduction_fallback_pinned_before_data. A
+    second, small, optional change (a smoke test at the smallest prime, not
+    only the largest, per DEC-20260805-a4e04e D-4/D-5) is also applied,
+    because it is cheap and directly strengthens the estimate the corrected
+    formula consumes -- but the CUMULATIVE-VS-INDIVIDUAL budget check
+    (GD-7's fix) is the change that actually clears the Phase -1 gate;
+    the two-point smoke test is a secondary accuracy improvement, not
+    load-bearing for reaching >=4 primes (BATCH-004's own numbers, summed
+    cumulatively with ZERO cost-model correction, already clear it -- see
+    EV-SSIQ-94de20 O-3). B=23/X=23, the decision-rule ordering, every
+    control (C-CAL-GAP, C-COVERAGE, C-BOUND-CHECK, C-NULL-LABEL,
+    C-SEARCH-BIAS, C-CONNECTIVITY, C-DEGSEQ, C-EDGELIST, C-SEED, C-REPRO),
+    every metric, the tie-break rule, the four-label
+    outcome_scope_label_glossary, and every invalidation_rule are REUSED
+    UNCHANGED from v1 and are NOT restated in full below -- this document
+    is a diff against specification.yaml, not a replacement of it, and v1
+    remains the governing text for every field not named here.
+  pre_freeze_review:
+    status: PENDING
+    note: >-
+      Not yet reviewed. Per GD-7's standing repair, the reviewer must (a)
+      re-derive both the individual-cap and cumulative-prefix readings of
+      scope_reduction_fallback_v2 below from its own text, independent of
+      this draft's own worked arithmetic; (b) confirm which reading the
+      pseudocode/description below actually specifies, so the Executor
+      cannot implement the wrong one as BATCH-004's Executor correctly
+      implemented v1's (a faithful implementation of a defective formula);
+      (c) re-derive, from BATCH-004's own already-committed
+      raw-result.json numbers, that the cumulative reading admits >=4
+      primes BEFORE this amendment is frozen -- the exact independent
+      check the Coordinator performed by hand in EV-SSIQ-94de20 O-3 and
+      DEC-20260805-a4e04e D-3, now required as a formal pre-freeze step
+      rather than a post-hoc one; (d) check whether the optional two-point
+      smoke test (widening from one anchor to two) introduces any new
+      failure mode the single-point version did not have (e.g. what
+      happens if the two measured per-vertex costs are NOT monotonic in
+      p, which the interpolation formula below assumes).
+  inputs:
+    delta_e_computation:
+      feasibility_smoke_test_v2: >-
+        WIDENS v1's single-point smoke test (largest prime only) to TWO
+        POINTS: run the IDENTICAL smoke-test procedure (>= 3 vertices,
+        two-sided B=23,X=23 table, at least one Phi_ell for ell>2) at BOTH
+        the LARGEST pre-registered prime (21601, as v1 required) AND the
+        SMALLEST (2437). This directly measures the per-vertex cost
+        variation across p that BATCH-004's Validator (F-1) showed is
+        plausible but was never tested against real data -- v1 measured
+        one point and applied it flat; this measures two and interpolates.
+        Total added cost: ~5-10s (one more 3-vertex smoke test), negligible
+        against the 7200s budget.
+      per_prime_cost_estimate_v2: >-
+        Given the two measured per-vertex costs c_min (at p_min=2437) and
+        c_max (at p_max=21601), estimate per-vertex cost at each
+        pre-registered prime p by LINEAR INTERPOLATION:
+        cost_per_vertex(p) = c_min + (c_max - c_min) * (p - p_min) / (p_max - p_min).
+        This is a simple, pre-registered, auditable model -- not a claim
+        that cost is exactly linear in p, but a defensible interpolation
+        between two real measurements, strictly better-grounded than v1's
+        flat single-point extrapolation. If c_max < c_min (the two
+        measurements are NON-MONOTONIC, contrary to the expectation that
+        larger p costs more), STOP and report per invalidation_rules
+        rather than silently extrapolating from an assumption the data
+        itself contradicts -- this is a NEW invalidation condition v1 did
+        not need with only one measured point.
+        For each pre-registered prime, estimated_full_coverage_seconds(p)
+        = n_non_fp_rational_vertices(p) * cost_per_vertex(p).
+      scope_reduction_fallback_v2: >-
+        REPLACES v1's scope_reduction_fallback_pinned_before_data
+        (individual per-prime cap against T_prime=300s, named defective as
+        GD-7). Reserve the SAME half-budget for Phase -1 as v1
+        (T_reserved = 0.5 * 7200 = 3600s; the 0.5 split rationale --
+        reserving the other half for Phase 0, graph reuse, and descent
+        simulation -- is unchanged and not itself in question).
+        Using per_prime_cost_estimate_v2's per-prime estimates, ascending
+        by prime size, compute the RUNNING CUMULATIVE SUM of estimated
+        costs. TRUNCATE the confirmatory prime set to the largest ascending
+        PREFIX whose CUMULATIVE sum is <= T_reserved (3600s) -- this is
+        the fix: the budget check is against the prefix's TOTAL estimated
+        cost, not against each prime's estimate compared to a fixed 1/12
+        equal share of the reserved budget. An ascending-prefix selection
+        that already discards the expensive tail must be checked against
+        the budget it actually proposes to spend, not against a share
+        sized for a full run across all 12 primes that will never happen.
+        This reuses the existing ">= 4 primes or INCONCLUSIVE" floor
+        (stopping_rules, unchanged from v1) rather than inventing new
+        machinery: if the cumulative-truncated prefix has fewer than 4
+        primes, the run is DATA-UNAVAILABLE/BLOCKED for lack of coverage,
+        exactly as v1's decision rule specifies for that case.
+        WORKED CHECK (not itself part of the frozen rule, a sanity check
+        for the pre-freeze reviewer): applying this formula to BATCH-004's
+        own already-committed per-prime estimates (which used v1's flat,
+        uncorrected single-point cost -- i.e. WITHOUT even this
+        amendment's two-point interpolation improvement) admits 4 primes
+        within 3600s (cumulative 3041.7s at the fourth prime, 7333) and 6
+        within the full 7200s (cumulative 6138.3s at the sixth, 10657).
+        This amendment's two-point interpolation is expected to admit AT
+        LEAST as many primes, plausibly more, since BATCH-004's Validator
+        (F-1) found the flat single-point estimate likely overstates cost
+        at the smaller primes.
+        THE FORMULA ITSELF -- T_reserved's value and the cumulative-prefix
+        selection -- IS FIXED HERE, before any real vertex is searched on
+        this amendment, so it cannot be tuned after seeing which primes
+        are convenient.
+      coverage_widening_note: >-
+        DEC-20260805-a4e04e D-5's caveat, applied: the cheapest admissible
+        prefix concentrates on the SMALLER pre-registered primes (narrower
+        N-range than the originally intended 203-1800-vertex span), which
+        risks repeating the shape of the narrow-fitting-window estimator
+        bias documented in instrument_calibration
+        (DEC-20260805-be2f87). If, after the cumulative-prefix admits its
+        primes and Phase -1 completes, MORE of the 7200s budget remains
+        unspent than the admitted primes alone required (BATCH-004 itself
+        spent only 90.57s of 7200s, so ample headroom is expected even
+        after real execution), the Executor MAY additionally attempt the
+        NEXT ascending prime beyond the cumulative-prefix cutoff, spending
+        remaining budget to widen N-range coverage -- but MAY NOT retune
+        (B,X), MAY NOT re-estimate cost after seeing a favorable result,
+        and MUST report any such extension attempt and its outcome
+        explicitly, distinct from the pre-registered cumulative-prefix
+        set. This is DISCLOSED, BOUNDED, POST-HOC WIDENING WITHIN AN
+        ALREADY-PASSED GATE, not a change to the gate itself -- the Phase
+        -1 decision (DETECTED / UNRESOLVED-BY-THIS-TEST /
+        DATA-UNAVAILABLE-BLOCKED) is determined by the pre-registered
+        cumulative-prefix set alone; any additionally-attempted prime is
+        reported as a secondary, clearly-labelled coverage extension.
+  invalidation_rules_v2_additions:
+    - >-
+      NEW (this amendment only): the two-point smoke test's measured
+      per-vertex costs are non-monotonic (c_max < c_min) -- STOP and
+      report per per_prime_cost_estimate_v2 rather than extrapolating from
+      a contradicted assumption; do not fall back to v1's flat single-point
+      formula as an improvised substitute (that would itself be an
+      unreviewed protocol change mid-run).
+    - >-
+      All of v1's invalidation_rules are inherited unchanged and continue
+      to apply (C-CAL-GAP failure, Phi_ell independent-verification
+      failure, C-NULL-LABEL/C-SEARCH-BIAS failure, etc.) -- not restated
+      here.
+  required_artifacts:
+    - runs/RUN-SSIQ-a85692-b/manifest.yaml
+    - runs/RUN-SSIQ-a85692-b/raw-result.json
+    - runs/RUN-SSIQ-a85692-b/execution_report.yaml
+    - runs/RUN-SSIQ-a85692-b/source_access_log.yaml
+    - runs/RUN-SSIQ-a85692-b/command.txt
+    - runs/RUN-SSIQ-a85692-b/environment.json
+    - runs/RUN-SSIQ-a85692-b/stdout.log
+    - runs/RUN-SSIQ-a85692-b/stderr.log
+  required_artifacts_note: >-
+    implementation/compute_delta_e.py is REUSED from EXP-SSIQ-a85692's v1
+    implementation directory BY REFERENCE, with ONLY the
+    apply_truncation_fallback function replaced per
+    scope_reduction_fallback_v2 above (and the smoke-test driver extended
+    to run at both endpoints, per feasibility_smoke_test_v2) -- every other
+    function (build_smooth_table, the collision search, Phi_ell loading,
+    velu_verify, C-SEARCH-BIAS) is REUSED UNCHANGED, same reuse discipline
+    as v1's inputs.reused_from_batch_003.reuse_rule: import or call
+    unchanged; any other change to the reused code is a further amendment,
+    not a silent improvement made mid-run. New run id RUN-SSIQ-a85692-b
+    (v1's RUN-SSIQ-a85692-a stays frozen and untouched).
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 4
+    maximum_memory_gb: 4
+    maximum_runs: 1
+    note: >-
+      Unchanged from v1. BATCH-004 spent only 90.57s of this budget (Phase
+      -1 never executed a real search); this amendment expects to spend
+      the estimated 3042-6138s the cumulative-prefix's admitted primes
+      require for their ACTUAL Phase -1 search, well inside budget.
+  frozen_at: null
+  freeze_note: >-
+    NOT YET FROZEN. Pending pre-freeze Red Team review (see
+    pre_freeze_review.status above). Do not dispatch to the Executor until
+    a FREEZE or FREEZE-WITH-FIXES verdict is recorded here and this note is
+    updated to name the freeze commit, per this campaign's standing
+    practice since BATCH-003 (GD-4).
