@@ -1,0 +1,326 @@
+# DRAFT PROTOCOL AMENDMENT, NOT YET FROZEN. Supersedes specification.yaml
+# (v1, frozen 96ad45de, retained unedited) on EXACTLY ONE POINT: the
+# scope_reduction_fallback_pinned_before_data truncation formula, named
+# defective as GD-7 (ledger/goals/GOAL-SSIQ-001/goal.yaml). Every other
+# pinned element of v1 -- B=23/X=23, the decision-rule ordering, every
+# control, every required artifact, the reused BATCH-003 code -- is
+# REUSED UNCHANGED BY REFERENCE, not respecified. This amendment must go
+# through its own pre-freeze Red Team review before it is frozen, per
+# GD-7's standing repair: the reviewer explicitly derives BOTH the
+# individual-cap and cumulative-prefix readings of any prefix-truncation
+# formula proposed here, names which one the text and code actually
+# implement, and confirms the operative reading against the code before
+# freeze -- exactly the scrutiny the smoothness parameters received in
+# BATCH-004's pre-freeze review (Finding 1/8) and the budget-allocation
+# formula did not.
+experiment:
+  id: EXP-SSIQ-a85692
+  hypothesis_id: H-SSIQ-137200
+  version: 2
+  title: >-
+    Greedy delta_E descent versus random-walk hitting time, with a
+    CUMULATIVE-BUDGET truncation fallback replacing v1's individual
+    per-prime cap (BATCH-005, unblocking H-SSIQ-9e2c71's Phase -1 gate
+    failure)
+  status: approved
+  approved_by: coordinator
+  amends: EXP-SSIQ-a85692 (version 1, specification.yaml, frozen 96ad45de)
+  amendment_scope: >-
+    REVISED AFTER PRE-FREEZE REVIEW (RT-PREFREEZE-EXP-SSIQ-a85692-v2.md,
+    FREEZE-WITH-FIXES, PF-1 through PF-4 applied below, PF-5 folded into
+    required_artifacts_note). The original draft understated its own scope:
+    TWO CHANGES, not one, are required for the amendment to actually
+    deliver what it claims. (1) inputs.delta_e_computation.scope_reduction_fallback_v2
+    replaces v1's scope_reduction_fallback_pinned_before_data (the
+    ADMISSION-side individual-per-prime-cap defect, GD-7). (2) NEW,
+    PF-1's fix: inputs.delta_e_computation.real_execution_budget_v2 replaces
+    the EXECUTION-side per-prime real-time cap in
+    run_phase_minus1_on_confirmatory_set, which the original draft never
+    named and which carried the IDENTICAL defective constant
+    (T_PRIME=0.5*7200/12=300s) under a different call site -- the pre-freeze
+    reviewer found this by reading the actual code, not the prose, and it is
+    the change that makes fix (1) load-bearing rather than cosmetic: without
+    it, a corrected admission rule feeds primes into a real search that was
+    never told the admission rule changed. A third, small, optional change
+    (the two-point smoke test, per DEC-20260805-a4e04e D-4/D-5) is also
+    applied for reporting/diagnostic accuracy, restricted per PF-3 below to
+    never gate real execution time. B=23/X=23, the decision-rule ordering,
+    every control (C-CAL-GAP, C-COVERAGE, C-BOUND-CHECK, C-NULL-LABEL,
+    C-SEARCH-BIAS, C-CONNECTIVITY, C-DEGSEQ, C-EDGELIST, C-SEED, C-REPRO),
+    every metric, the tie-break rule, the four-label
+    outcome_scope_label_glossary, and every invalidation_rule not amended
+    below are REUSED UNCHANGED from v1 and are NOT restated in full below.
+  pre_freeze_review:
+    status: REVIEWED
+    report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-005/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v2.md
+    verdict: FREEZE-WITH-FIXES
+    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-5]
+    pf1_summary: >-
+      BLOCKING, applied. The pre-freeze reviewer read
+      compute_delta_e.py directly (not the draft's prose claim about which
+      functions change) and found run_phase_minus1_on_confirmatory_set
+      caps each ADMITTED prime's real search at the SAME defective
+      T_PRIME=300s constant this amendment's admission-side fix replaces --
+      an independent instance of GD-7, invisible in the text. Quantified
+      from already-committed numbers: at most ~2 of the 4 admitted primes
+      could clear M-COVERAGE>=0.5 under the unfixed execution cap, so the
+      run would likely still return DATA-UNAVAILABLE-BLOCKED. Fixed by
+      real_execution_budget_v2 below (option (ii) from the review: an
+      AGGREGATE cap replacing the per-prime cap, per-prime allocation no
+      longer gated by any estimate).
+    pf2_summary: >-
+      BLOCKING, applied. coverage_widening_note rewritten below with an
+      explicit iterative rule and a single, mechanical, measured-not-
+      estimated stopping condition.
+    pf3_summary: >-
+      BLOCKING, applied. per_prime_cost_estimate_v2's interpolation is now
+      explicitly restricted to reporting/diagnostics and to the widening
+      decision only (see real_execution_budget_v2 and coverage_widening_note
+      below); it never gates or sizes real execution time, which PF-1's fix
+      makes governed solely by measured aggregate wall-clock against
+      T_reserved -- so the interpolation's unaddressed concave-underestimate
+      risk (PF-3's finding) cannot propagate into a real coverage shortfall.
+    pf4_summary: >-
+      BLOCKING, applied. The non-monotonicity STOP condition in
+      invalidation_rules_v2_additions now names DATA-UNAVAILABLE/BLOCKED
+      explicitly, per the reviewer's recommended mapping (no confirmatory
+      set can even be computed).
+    pf5_summary: >-
+      ADVISORY, folded into required_artifacts_note below: an explicit,
+      code-verified function-level diff list replaces the prior imprecise
+      prose description.
+  inputs:
+    delta_e_computation:
+      feasibility_smoke_test_v2: >-
+        WIDENS v1's single-point smoke test (largest prime only) to TWO
+        POINTS: run the IDENTICAL smoke-test procedure (>= 3 vertices,
+        two-sided B=23,X=23 table, at least one Phi_ell for ell>2) at BOTH
+        the LARGEST pre-registered prime (21601, as v1 required) AND the
+        SMALLEST (2437). This directly measures the per-vertex cost
+        variation across p that BATCH-004's Validator (F-1) showed is
+        plausible but was never tested against real data -- v1 measured
+        one point and applied it flat; this measures two and interpolates.
+        Total added cost: ~5-10s (one more 3-vertex smoke test), negligible
+        against the 7200s budget.
+      per_prime_cost_estimate_v2: >-
+        Given the two measured per-vertex costs c_min (at p_min=2437) and
+        c_max (at p_max=21601), estimate per-vertex cost at each
+        pre-registered prime p by LINEAR INTERPOLATION:
+        cost_per_vertex(p) = c_min + (c_max - c_min) * (p - p_min) / (p_max - p_min).
+        This is a simple, pre-registered, auditable model -- not a claim
+        that cost is exactly linear in p, but a defensible interpolation
+        between two real measurements, strictly better-grounded than v1's
+        flat single-point extrapolation. If c_max < c_min (the two
+        measurements are NON-MONOTONIC, contrary to the expectation that
+        larger p costs more), STOP and report per invalidation_rules
+        rather than silently extrapolating from an assumption the data
+        itself contradicts -- this is a NEW invalidation condition v1 did
+        not need with only one measured point.
+        For each pre-registered prime, estimated_full_coverage_seconds(p)
+        = n_non_fp_rational_vertices(p) * cost_per_vertex(p).
+        PF-3 FIX APPLIED: this estimate is used ONLY for (i) diagnostic
+        reporting and (ii) the go/no-go decision in coverage_widening_note
+        below on whether to ATTEMPT the next ascending prime. It NEVER
+        determines how much real wall-clock time any prime's actual search
+        receives -- that is governed solely by real_execution_budget_v2
+        below, measured from the actual clock, not estimated. This closes
+        the reviewer's concavity-underestimate concern (PF-3): even if this
+        interpolation underestimates true cost at an interior prime, the
+        aggregate real-time cap in real_execution_budget_v2 is the only
+        thing that can ever curtail a real search, so an inaccurate
+        estimate can misinform a widening ATTEMPT decision but cannot by
+        itself produce a false coverage shortfall.
+      scope_reduction_fallback_v2: >-
+        REPLACES v1's scope_reduction_fallback_pinned_before_data
+        (individual per-prime cap against T_prime=300s, named defective as
+        GD-7). Reserve the SAME half-budget for Phase -1 as v1
+        (T_reserved = 0.5 * 7200 = 3600s; the 0.5 split rationale --
+        reserving the other half for Phase 0, graph reuse, and descent
+        simulation -- is unchanged and not itself in question).
+        Using per_prime_cost_estimate_v2's per-prime estimates, ascending
+        by prime size, compute the RUNNING CUMULATIVE SUM of estimated
+        costs. TRUNCATE the confirmatory prime set to the largest ascending
+        PREFIX whose CUMULATIVE sum is <= T_reserved (3600s) -- this is
+        the fix: the budget check is against the prefix's TOTAL estimated
+        cost, not against each prime's estimate compared to a fixed 1/12
+        equal share of the reserved budget. An ascending-prefix selection
+        that already discards the expensive tail must be checked against
+        the budget it actually proposes to spend, not against a share
+        sized for a full run across all 12 primes that will never happen.
+        This reuses the existing ">= 4 primes or INCONCLUSIVE" floor
+        (stopping_rules, unchanged from v1) rather than inventing new
+        machinery: if the cumulative-truncated prefix has fewer than 4
+        primes, the run is DATA-UNAVAILABLE/BLOCKED for lack of coverage,
+        exactly as v1's decision rule specifies for that case.
+        WORKED CHECK (not itself part of the frozen rule, a sanity check
+        for the pre-freeze reviewer): applying this formula to BATCH-004's
+        own already-committed per-prime estimates (which used v1's flat,
+        uncorrected single-point cost -- i.e. WITHOUT even this
+        amendment's two-point interpolation improvement) admits 4 primes
+        within 3600s (cumulative 3041.7s at the fourth prime, 7333) and 6
+        within the full 7200s (cumulative 6138.3s at the sixth, 10657).
+        This amendment's two-point interpolation is expected to admit AT
+        LEAST as many primes, plausibly more, since BATCH-004's Validator
+        (F-1) found the flat single-point estimate likely overstates cost
+        at the smaller primes.
+        THE FORMULA ITSELF -- T_reserved's value and the cumulative-prefix
+        selection -- IS FIXED HERE, before any real vertex is searched on
+        this amendment, so it cannot be tuned after seeing which primes
+        are convenient.
+      real_execution_budget_v2: >-
+        PF-1 FIX APPLIED (RT-PREFREEZE-EXP-SSIQ-a85692-v2.md, BLOCKING
+        finding). REPLACES run_phase_minus1_on_confirmatory_set's per-prime
+        real-execution cap (the code's own T_PRIME=0.5*7200/12=300s
+        constant, passed unchanged to every admitted prime regardless of
+        how many are admitted -- an independent, textually-invisible
+        instance of GD-7's exact defect, found only by reading the code).
+        THE FIX IS OPTION (ii) from the pre-freeze review: remove the
+        per-prime cap entirely. Instead, track ONE aggregate, real,
+        measured (not estimated) wall-clock counter across the entire
+        Phase -1 search, initialized at T_reserved=3600s. Search the
+        cumulative-prefix's admitted primes IN ASCENDING ORDER (same order
+        as admission); for each prime, run the real two-sided
+        smooth-degree search to completion on every non-F_p-rational
+        vertex UNLESS the aggregate counter is exhausted first, in which
+        case STOP the search immediately (mid-prime if necessary) and
+        report that prime's M-COVERAGE as whatever fraction of its
+        vertices were actually resolved before the stop -- reusing the
+        existing valid-but-truncated pattern (stopping_rules, "If total
+        budget is reached with only a partial prime set completed, report
+        achieved coverage") applied HERE to the aggregate Phase -1 clock
+        specifically, rather than left implicit. No prime receives an
+        individual sub-budget of any kind, estimated or fixed; the ONLY
+        real-time constraint operating during Phase -1 is this single
+        aggregate counter, measured from actual wall-clock time via the
+        same timing mechanism the smoke test already uses. This makes the
+        execution-side budget model consistent with the admission-side
+        model for the first time: both are now "the prefix's aggregate
+        real cost against T_reserved," not "each prime individually
+        against a fixed 1/12 share."
+      coverage_widening_note: >-
+        PF-2 FIX APPLIED (BLOCKING finding: the prior draft left widening
+        as an unbounded Executor judgment call). DEC-20260805-a4e04e D-5's
+        caveat motivates this: the cheapest admissible prefix concentrates
+        on the SMALLER pre-registered primes (narrower N-range than the
+        originally intended 203-1800-vertex span), which risks repeating
+        the shape of the narrow-fitting-window estimator bias documented in
+        instrument_calibration (DEC-20260805-be2f87). THE RULE, MECHANICAL,
+        NO DISCRETION: after real_execution_budget_v2's aggregate search
+        completes (or stops early) on the cumulative-prefix's admitted
+        primes, compute REMAINING = T_reserved - actual_measured_seconds_spent
+        (actual clock time, never an estimate). WHILE REMAINING > 0: take
+        the next ascending pre-registered prime beyond the current
+        confirmatory/extension set; IF its per_prime_cost_estimate_v2
+        value <= REMAINING, ATTEMPT it (run its real search, capped by the
+        SAME aggregate-counter mechanism as real_execution_budget_v2,
+        continuing to draw against the same T_reserved-rooted counter, now
+        extended prime-by-prime); update REMAINING from the newly-measured
+        actual time spent; repeat. IF the next prime's estimate exceeds
+        REMAINING, or no ascending prime remains, STOP widening -- this is
+        the ONLY stopping condition, and it is mechanical (a numeric
+        comparison against a measured, not estimated, remaining-budget
+        figure), not a judgment call. Each attempted extension prime is
+        reported as a secondary, explicitly labelled "coverage_extension"
+        entry, distinct from the pre-registered cumulative-prefix set. The
+        Phase -1 decision (DETECTED / UNRESOLVED-BY-THIS-TEST /
+        DATA-UNAVAILABLE-BLOCKED) is determined by the pre-registered
+        cumulative-prefix set ALONE; extension primes contribute to
+        reported N-range coverage and to W-MAIN's fitting window (per
+        fitting_window, unchanged from v1: "No prime may be excluded
+        post-hoc for an inconvenient hitting time or an inconvenient M-GAP
+        contribution" applies equally to an admitted extension prime once
+        attempted) but never retroactively change which primes counted
+        toward the gate itself. The Executor MAY NOT retune (B,X) at any
+        point during widening.
+  invalidation_rules_v2_additions:
+    - >-
+      NEW (this amendment only). PF-4 FIX APPLIED (BLOCKING finding: the
+      prior draft left this outcome's label unnamed). The two-point smoke
+      test's measured per-vertex costs are non-monotonic (c_max < c_min) --
+      STOP and report DATA-UNAVAILABLE/BLOCKED (the run-level label from
+      v1's outcome_scope_label_glossary, reused unchanged: no confirmatory
+      set can even be computed, matching that label's existing definition
+      exactly) rather than extrapolating from a contradicted assumption; do
+      not fall back to v1's flat single-point formula as an improvised
+      substitute (that would itself be an unreviewed protocol change
+      mid-run).
+    - >-
+      All of v1's invalidation_rules are inherited unchanged and continue
+      to apply (C-CAL-GAP failure, Phi_ell independent-verification
+      failure, C-NULL-LABEL/C-SEARCH-BIAS failure, etc.) -- not restated
+      here.
+  required_artifacts:
+    - runs/RUN-SSIQ-a85692-b/manifest.yaml
+    - runs/RUN-SSIQ-a85692-b/raw-result.json
+    - runs/RUN-SSIQ-a85692-b/execution_report.yaml
+    - runs/RUN-SSIQ-a85692-b/source_access_log.yaml
+    - runs/RUN-SSIQ-a85692-b/command.txt
+    - runs/RUN-SSIQ-a85692-b/environment.json
+    - runs/RUN-SSIQ-a85692-b/stdout.log
+    - runs/RUN-SSIQ-a85692-b/stderr.log
+  required_artifacts_note: >-
+    PF-5 FIX APPLIED (ADVISORY finding, folded in alongside PF-1's
+    correction): the prior draft's diff-list claim was checked against the
+    actual v1 code by the pre-freeze reviewer and did not hold. EXPLICIT,
+    CODE-VERIFIED FUNCTION-LEVEL DIFF against
+    experiments/EXP-SSIQ-a85692/implementation/compute_delta_e.py (v1):
+      CHANGED: apply_truncation_fallback -- rewritten per
+        scope_reduction_fallback_v2 (cumulative-prefix, not individual-cap).
+      CHANGED: run_phase_minus1_on_confirmatory_set -- rewritten per
+        real_execution_budget_v2 (PF-1's fix): no longer accepts a
+        per-prime t_prime cap; instead accepts/maintains the single
+        aggregate remaining-budget counter described there.
+      CHANGED (call site only, function itself unchanged):
+        run_feasibility_smoke_test -- already takes an arbitrary prime
+        argument and a prime-agnostic ceiling formula; main() gains a
+        SECOND call site at PRIMES[0] (the smallest prime) alongside the
+        existing call at PRIMES[-1] (the largest), per
+        feasibility_smoke_test_v2. The function body is NOT modified.
+      CHANGED (call site only): main()'s call to
+        run_phase_minus1_on_confirmatory_set (previously line ~717-718,
+        passing the module constant T_PRIME) -- updated to pass the
+        aggregate counter per real_execution_budget_v2, and extended per
+        coverage_widening_note to loop over extension primes after the
+        cumulative-prefix set completes.
+      NEW: per_prime_cost_estimate_v2's two-point linear interpolation is
+        implemented as a new, separate helper function (not folded into
+        apply_truncation_fallback), so C-BOUND-CHECK-style review can
+        inspect it independently of the admission logic it feeds.
+      UNCHANGED: build_smooth_table, the collision search, Phi_ell loading,
+        velu_verify.py, C-SEARCH-BIAS, the F_p-rational identity check, and
+        every function not named above -- REUSED BY REFERENCE, same reuse
+        discipline as v1's inputs.reused_from_batch_003.reuse_rule: import
+        or call unchanged; any further change is a new amendment, not a
+        silent improvement made mid-run.
+    New run id RUN-SSIQ-a85692-b (v1's RUN-SSIQ-a85692-a stays frozen and
+    untouched). The Executor's own execution_report.yaml must confirm this
+    diff list against the code it actually wrote/ran, and report any
+    discrepancy rather than silently reconciling it.
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 4
+    maximum_memory_gb: 4
+    maximum_runs: 1
+    note: >-
+      Unchanged from v1. BATCH-004 spent only 90.57s of this budget (Phase
+      -1 never executed a real search); this amendment expects to spend
+      the estimated 3042-6138s the cumulative-prefix's admitted primes
+      require for their ACTUAL Phase -1 search, well inside budget.
+  frozen_at: '2026-08-05'
+  freeze_note: >-
+    FROZEN. Pre-freeze Red Team review
+    (RT-PREFREEZE-EXP-SSIQ-a85692-v2.md) returned FREEZE-WITH-FIXES with
+    five findings; all five are applied above: PF-1 (BLOCKING -- the
+    execution-side per-prime cap was an independent, textually-invisible
+    instance of GD-7's exact defect, fixed by real_execution_budget_v2's
+    aggregate-counter replacement), PF-2 (BLOCKING -- coverage_widening_note
+    now states a mechanical, measured-not-estimated stopping condition),
+    PF-3 (BLOCKING -- the two-point interpolation is now explicitly
+    restricted to reporting/diagnostics and the widening go/no-go decision,
+    never to gating real execution time), PF-4 (BLOCKING -- the
+    non-monotonicity STOP condition now names DATA-UNAVAILABLE/BLOCKED
+    explicitly), PF-5 (ADVISORY -- required_artifacts_note now carries an
+    explicit, code-verified function-level diff list). No prediction,
+    tolerance, window, estimator, control or failure consequence in this
+    amendment (or, unamended, in v1) has been touched since this freeze; a
+    further change requires its own versioned protocol amendment.

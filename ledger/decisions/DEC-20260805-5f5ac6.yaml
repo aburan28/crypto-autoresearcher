@@ -1,0 +1,233 @@
+coordinator_decision:
+  id: DEC-20260805-5f5ac6
+  context: >-
+    GOAL-SSIQ-001 BATCH-005 closes. It executed the frozen v2 amendment
+    (specification_v2.yaml, EXP-SSIQ-a85692) that fixed GD-7's
+    budget-allocation defect on both its admission side and its
+    execution side (PF-1, caught by this amendment's own pre-freeze
+    review before any real search ran). Both fixes worked, independently
+    confirmed by two reviewers: the Phase -1 gate passed for the first
+    time in this campaign, and a real M-GAP was computed on real,
+    in-session-computed delta_E labels for the first time. The run's
+    terminal branch is CONTROL-FAILURE-VOID. Recorded as EV-SSIQ-f3ce32,
+    on TASK-20260805-10868f ADMIT-WITH-CONDITIONS and TASK-20260805-f60ff9
+    CHALLENGE.
+  decision: revise
+  decision_note: >-
+    revise, not inconclusive. The run itself executed honestly and its
+    terminal label is mechanically correct -- this is NOT a repeat of any
+    prior batch's shape (not a data-availability wall, not a
+    budget-formula defect, not an unresolved-by-this-test null result).
+    The reason for revise is that clearing the budget-allocation blocker
+    exposed the codebase's NEXT layer of unstress-tested reused elements:
+    two defects in control code inherited unedited since BATCH-003
+    (descent_hitting_time.py's inline orchestration, C-NULL-LABEL's
+    comparison logic) that were invisible until this run finally reached
+    their code paths with real, non-empty data. Both are independently
+    confirmed by the Red Team against the actual code and this run's own
+    raw numbers, both are fixable at ZERO NEW SEARCH COST using data
+    already collected, and both must be fixed before any future run's
+    DETECTED or a trusted CONTROL-FAILURE-VOID can be taken at face value.
+    Named GD-8 and GD-9.
+  target_ids:
+    - GOAL-SSIQ-001
+    - RQ-SSIQ-9702af
+    - H-SSIQ-137200
+    - EXP-SSIQ-a85692
+    - EV-SSIQ-f3ce32
+    - TASK-20260805-91bae2
+    - TASK-20260805-10868f
+    - TASK-20260805-f60ff9
+  evidence_refs:
+    - EV-SSIQ-f3ce32
+  rationale:
+    - id: D-1
+      statement: >-
+        GD-7's FIX WORKED, ON BOTH ITS ADMISSION SIDE AND ITS
+        PREVIOUSLY-HIDDEN EXECUTION SIDE, INDEPENDENTLY CONFIRMED BY BOTH
+        REVIEWERS THROUGH DIRECT CODE READING, NOT PROSE. The Phase -1
+        gate passed for the first time in this campaign's history under
+        H-SSIQ-9e2c71/H-SSIQ-137200: 5 of 12 primes admitted via a fresh
+        two-point smoke test and cumulative-prefix admission, all 5
+        cleared M-COVERAGE>=0.5, via a genuine aggregate real-time
+        counter with no per-prime cap (Validator: independently
+        recomputed the counter's per-prime behavior, a 3.8x spread
+        directly falsifying a fixed-cap reading; Red Team: independently
+        re-summed to 3600.072s against the reported
+        3600.0714724063873s, five significant figures). This closes the
+        budget-allocation defect lineage (GD-4 through GD-7) as far as
+        the mechanism this run exercised.
+      confidence: high
+    - id: D-2
+      statement: >-
+        CONTROL-FAILURE-VOID IS THE MECHANICALLY CORRECT TERMINAL LABEL,
+        independently re-traced against the frozen decision rule's
+        ordering by both reviewers: C-SEARCH-BIAS's control failure fires
+        before the CI is ever consulted, and no artifact in this run
+        overclaims the wide, positive-leaning CI despite the void.
+      confidence: high
+    - id: D-3
+      statement: >-
+        BUT THE RED TEAM CHALLENGES WHAT CONTROL-FAILURE-VOID IS ENTITLED
+        TO MEAN, ON A GROUND THIS CAMPAIGN'S OWN PRIOR REVIEW (RT-BATCH-004
+        OBJECTION 4) ANTICIPATED BUT COULD NOT TEST UNTIL REAL DATA
+        EXISTED. C-SEARCH-BIAS's comparability rule has two clauses that
+        DISAGREE on this run's actual numbers: the ratio clause
+        (|corr_rand|>=0.5*|corr_true|) says NOT comparable; only the
+        absolute-floor clause (both <0.1) fires, and that floor has
+        essentially no statistical power at the pre-registered n=20
+        sample (needs |r|>~0.44 for conventional significance). Both
+        correlations are statistically indistinguishable from zero and
+        therefore from each other REGARDLESS of whether real
+        search-order contamination exists -- the floor clause will fire
+        whenever the true-target correlation is itself weak, the generic
+        expected outcome at toy scale, making a control "failure" a
+        near-certainty at this sample size independent of mechanism. This
+        cuts toward a POSSIBLE FALSE control-failure (insufficient power
+        to distinguish "no relationship in either arm" from "genuine
+        contamination"), not a false pass, so it does not overturn the
+        VOID label -- but it means the void should not be read as
+        confirmed evidence that Algorithm 2's construction order
+        contaminates the signal.
+      confidence: medium
+    - id: D-4
+      statement: >-
+        A NEW DEFECT IS NAMED, GD-9: C-NULL-LABEL, THE OTHER CONTROL THE
+        DECISION BRANCH'S OWN REASON TEXT CITES, IS DEAD CODE. Its
+        control_failure flag is initialized False and never reassigned
+        in either compute_delta_e.py or compute_delta_e_v2.py -- no null
+        M-GAP is ever fit, bootstrapped, or compared against the real
+        arm's CI, despite equivalent machinery existing in a sibling
+        module built for a different (WISDE-based) null arm in BATCH-003.
+        Moot for THIS run's own terminal label (C-SEARCH-BIAS fires
+        first), but this is the FIRST run in the project's history to
+        reach this code path with real, non-empty delta_E data at all --
+        the first opportunity anyone has had to notice a "required, not
+        optional" control this experiment's own text relies on
+        structurally cannot ever fail. Left unfixed, a future run that
+        clears C-SEARCH-BIAS could report DETECTED with zero actual
+        protection from this control, directly contrary to the frozen
+        spec's own text.
+      severity: high
+      standing_repair_adopted: >-
+        Any control whose failure_consequence is named in a frozen
+        contract's decision rule must have its comparison logic verified
+        by direct code inspection before that contract's FIRST real-data
+        run, not assumed functional because it "ran" (produced a report
+        block) -- a control can execute, populate a report, and never
+        actually compute the comparison its own failure_consequence
+        promises. Effective immediately: any control block reused across
+        batches is re-verified by direct code reading the first time a
+        run actually reaches its comparison logic with non-trivial data,
+        not merely re-cited from a prior batch's review.
+    - id: D-5
+      statement: >-
+        A SECOND NEW DEFECT IS NAMED, GD-8, ON A COMPLETELY SEPARATE
+        GROUND FROM GD-9 AND FROM THE CONTROL-FAILURE QUESTION ENTIRELY:
+        PD-2 (disclosed by the Executor, independently confirmed by both
+        reviewers against the actual code and this run's raw data).
+        v1's inherited M-GAMMA-GREEDY definition states its own
+        trapped_fraction exclusion threshold in text, but the reused
+        inline orchestration (usable_full = [p for p in per_prime]) never
+        implements it -- no filter of any kind. All 4 primes contributing
+        to this run's fit have trapped_fraction in [0.72, 0.85], each
+        exceeding the stated 0.5 threshold. The Validator confirms this
+        does not change the terminal decision (CONTROL-FAILURE-VOID fires
+        first); the Red Team goes further, correctly: under a CORRECTLY
+        implemented filter, all four primes would be dropped and no
+        gamma_greedy/gamma_random/m_gap would exist to report at all --
+        an invalidity of the point estimate itself, independent of and
+        prior to the control-failure question, that will recur in any
+        future run reusing this code, including one that clears
+        C-SEARCH-BIAS.
+      severity: high
+    - id: D-6
+      statement: >-
+        BOTH NEW DEFECTS ARE FIXABLE AT ZERO NEW SEARCH COST, USING DATA
+        THIS RUN ALREADY COLLECTED -- the Red Team's own ranking (its
+        Front 4) puts wiring C-NULL-LABEL's comparison logic and
+        implementing PER-PRIME-TRAPPED-EXCLUSION as items 1 and 2, both
+        "zero new compute," ahead of strengthening C-SEARCH-BIAS's
+        statistical power (item 3) and any question of whether a
+        construction-order artifact is real and fixable (item 4, which
+        the Red Team notes is only informative once item 3 gives the
+        comparability test real power). This decision adopts that
+        ranking as BATCH-006's plan.
+  limitations:
+    - >-
+      H-SSIQ-137200's real-arm prediction is UNTESTED. CONTROL-FAILURE-VOID
+      is the mechanically correct label but is not confirmed evidence of
+      genuine construction-order contamination (D-3), and the underlying
+      point estimate (gamma_greedy=0.23354, m_gap=+0.16786) is separately
+      invalidated by GD-8 regardless of the control question (D-5). Do not
+      cite either number as a candidate measurement in any successor
+      record.
+    - >-
+      No claim about a p^{1/4} algorithm's existence, likelihood, or
+      proximity is made or implied anywhere in this decision or its
+      evidence record.
+    - >-
+      GD-8 and GD-9 describe defects in code reused unedited since
+      BATCH-003; they are not defects this batch's own v2 amendment
+      introduced, and they went undetected in BATCH-003/004 because
+      neither prior run reached the code paths they live in with real,
+      non-empty data.
+    - >-
+      Toy scale throughout (N in [203, 611] for the 4 contributing primes
+      -- narrower than the originally intended 203-1800 range, the exact
+      risk DEC-20260805-a4e04e D-5 flagged, realized because the
+      aggregate Phase -1 budget was consumed before the widening
+      extension could fire).
+    - >-
+      Model independence remains absent and unverifiable in this
+      environment, unchanged from every prior batch. Evidence strength
+      stays capped at preliminary campaign-wide.
+  next_actions:
+    - >-
+      SINGLE NEXT ACTION -- open BATCH-006 as a further versioned
+      amendment to EXP-SSIQ-a85692 (v3), implementing the Red Team's
+      ranked list against ALREADY-COLLECTED RUN-SSIQ-a85692-b data, in
+      order: (1) wire C-NULL-LABEL's comparison logic (fit a null M-GAP
+      from the already-computed null_by_prime medians, bootstrap its CI
+      the same way the real arm's CI is bootstrapped, and derive
+      c_null_label_control_failure from a pre-registered comparison rule
+      stated before looking at what it outputs on existing data) --
+      fixes GD-9; (2) implement PER-PRIME-TRAPPED-EXCLUSION per the
+      frozen spec's own text and re-derive what descent_metrics would
+      report under it using this run's already-collected labels -- fixes
+      GD-8, and is itself diagnostic (if it leaves zero usable primes,
+      that is informative about whether trapped descent is a property of
+      graph size rather than labelling quality, per Red Team's Front 4
+      item 2); (3) only after (1)-(2), consider strengthening
+      C-SEARCH-BIAS's statistical power (larger n_sample or a bootstrap
+      CI on the correlation difference) if a genuine construction-order
+      question remains open. This amendment goes through its own
+      pre-freeze Red Team review before freeze, per this campaign's
+      standing practice, with explicit attention to GD-8/GD-9's standing
+      repair (D-4: verify any cited control's comparison logic by direct
+      code reading before the first real-data run that reaches it).
+    - >-
+      NOT CHOSEN, WITH REVISIT CONDITIONS (AGENTS.md rule 9). (i)
+      Widening B/X or changing the collision tie-break rule to test
+      whether a construction-order artifact is real (Red Team's item 4)
+      is deferred until item 3 gives C-SEARCH-BIAS real statistical
+      power -- premature before then. (ii) Spending new real search
+      budget on additional primes beyond RUN-SSIQ-a85692-b's already-
+      admitted 5 is deferred until GD-8/GD-9 are fixed, since any new
+      run would inherit the same two defects. (iii) The N5 scoping pass
+      and the p != 1 (mod 12) successor from PF-5 (BATCH-004) stay open
+      and unscheduled, unchanged from prior batches' reasoning.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      Nothing promoted; evidence strength for H-SSIQ-137200 itself is
+      inconclusive, below the replicated bar docs/task-lifecycle.md step 9
+      requires. A SIXTH KNOWLEDGE CANDIDATE IS NOW QUEUED campaign-wide,
+      distinct from the prior five: "a control's failure_consequence being
+      named in a frozen decision rule does not establish that the control's
+      comparison logic was ever actually implemented -- verify by direct
+      code reading the first time a run reaches it with real data, not by
+      citing that the control 'ran.'" All six promote together when a
+      genuinely different model becomes available to re-check them.
+  decided_by: coordinator
+  decided_at: '2026-08-05'
