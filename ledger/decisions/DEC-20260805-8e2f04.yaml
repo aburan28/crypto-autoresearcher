@@ -1,0 +1,308 @@
+coordinator_decision:
+  id: DEC-20260805-8e2f04
+  goal_id: GOAL-SSI-001
+  context: >-
+    DEC-20260805-7b3e91 FINDING-1 reported that `EXP-SSI-S1` is cited as an
+    experiment by EV-SSI-17c854 and EV-SSI-fcda7e and as a decision target by
+    DEC-20260804-a6bb36 and DEC-20260804-cfe4d0, while no experiments/EXP-SSI-*/
+    directory exists; that the work does exist (frozen contract under BATCH-043,
+    execution artifacts and an independent validation report under BATCH-044); and
+    that `EXP-SSI-S1` cannot match ID_PATTERNS["experiment"], whose suffix must be
+    three digits or six lowercase hex. That finding deferred the filing on the
+    grounds that minting the record is an approval act. This decision takes the
+    act. It is made by the approving authority and it splits: the record is filed,
+    and the four citations are NOT resolved.
+
+  decision: approve
+
+  target_ids:
+    - EXP-SSI-7c41d9
+    - GOAL-SSI-001
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # RULING 1 — FILE THE RECORD
+  # ───────────────────────────────────────────────────────────────────────────
+  ruling_1_file:
+    verdict: filed
+    record: experiments/EXP-SSI-7c41d9/specification.yaml
+    rationale:
+      - >-
+        The approval this filing needs already exists and is committed.
+        DEC-20260804-a6bb36 carries `decision: approve`, the decision_scope
+        "Approve EXP-SSI-S1 for execution", and
+        `experiment_status_transition: "EXP-SSI-S1: specified -> approved"`.
+        DEC-20260804-cfe4d0 carries `"EXP-SSI-S1: approved -> completed"`. Filing
+        therefore transcribes an approval that happened; it does not manufacture
+        one, and no new approval is granted here.
+      - >-
+        The design is frozen and complete, the execution artifacts exist, and an
+        independent validator returned VALID. Leaving a real, reviewed experiment
+        permanently outside the ledger is not a neutral act:
+        docs/inventor-protocol.md treats premature closure as a failure mode
+        symmetric with overclaiming, and a filed record is what lets future
+        ideation see that this measurement point is already closed.
+      - >-
+        Filing costs zero new validation errors. The id is format-legal;
+        `hypothesis_id: null` with a sibling note passes the DOCUMENTED_NULL_OK
+        path the validator provides; `status: completed` means the
+        approved-experiment field triple is not enforced, though `approved_by` is
+        filled anyway because a committed decision establishes it; and an
+        experiment with no runs directory is not an error.
+    contract_status_discrepancy_resolved:
+      question: >-
+        The frozen contract states `status: specified` and `approved_by: null`,
+        while EV-SSI-17c854 and DEC-20260804-cfe4d0 describe the experiment as
+        executed and completed.
+      resolution: >-
+        The contract file is a PRE-APPROVAL SNAPSHOT. It was frozen before the
+        approval decision and never updated -- which is correct behaviour for a
+        frozen artifact, not a defect in it. The ledger already carries both
+        transitions, in the two decisions that performed them. The filed record
+        therefore takes `status: completed`, `approved_by: coordinator`, and
+        explicit `approval_decision_ref` / `completion_decision_ref` fields naming
+        those decisions. Every value is read from committed text; none is inferred.
+      not_papered_over: >-
+        `completed` is NOT the terminal experiment state. AGENTS.md gives
+        `... -> completed | failed_infrastructure | invalid -> analyzed ->
+        archived`. This experiment never reached `archived`, and the filed record
+        says so in an `archival_status` block rather than rounding the lifecycle up
+        to look finished. See FINDING-6 below, which is why that distinction
+        carries weight.
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # RULING 2 — DO NOT RESOLVE THE FOUR CITATIONS
+  # ───────────────────────────────────────────────────────────────────────────
+  ruling_2_citations:
+    verdict: not_resolved_declared_debt
+    affected:
+      - ledger/evidence/EV-SSI-17c854.yaml
+      - ledger/evidence/EV-SSI-fcda7e.yaml
+      - ledger/decisions/DEC-20260804-a6bb36.yaml
+      - ledger/decisions/DEC-20260804-cfe4d0.yaml
+    mechanism_audit:
+      question: Does this repository implement a way to make a citation to a format-illegal experiment id resolve?
+      answer: No.
+      detail:
+        - >-
+          check_cross_refs resolves experiment_ids and target_ids against
+          `ctx.ids` union `ctx.legacy_aliases`, and nothing else.
+        - >-
+          ctx.ids cannot hold EXP-SSI-S1: check_experiment early-returns on a
+          malformed id WITHOUT registering, so filing the contract verbatim at
+          experiments/EXP-SSI-S1/specification.yaml would add a fifth error ("bad
+          experiment id") and clear none of the four.
+        - >-
+          ctx.legacy_aliases has four population sites. check_legacy_ledger globs
+          ledger/{RQ,H,EV,DEC}-*.yaml only and has no EXP- pattern;
+          check_ledger_record requires the path to be in a legacy freeze inventory
+          AND under a LEDGER_DIRS subdirectory (experiments/ is neither); the
+          remaining two sites register run ids only.
+        - >-
+          `remapped_ids` in tools/legacy_ledger_inventory.yaml does the OPPOSITE of
+          what is needed: it suppresses registration of a frozen source. It adds no
+          alias.
+        - >-
+          tools/run_supersession_registry.yaml is hard-bound by RUN_MANIFEST_PATH
+          to experiments/*/runs/*/manifest.yaml and raises on anything else. It
+          cannot express an experiment.
+        - >-
+          ledger/corrections/ is not read by the validator at all, so a correction
+          record cannot make a citation resolve.
+      conclusion: >-
+        The only two routes are (i) rewriting the four citations to the new id, or
+        (ii) adding a file to a legacy freeze inventory. Route (ii) is refused on
+        the same grounds DEC-20260805-7b3e91 FINDING-2 refused it for the run
+        manifests -- those inventories freeze pre-schema records and growing them
+        to absorb a new one is the same violation as growing the validation
+        baseline -- and it is in any case NON-FUNCTIONAL here, since neither
+        alias site fires for an experiment id. So the real question is route (i).
+    why_route_i_is_refused:
+      - >-
+        IT WOULD CREATE AN INTERNAL CONTRADICTION INSIDE THE TWO DECISIONS THAT
+        PERFORMED THE OFFICIAL TRANSITIONS. DEC-20260804-a6bb36 and
+        DEC-20260804-cfe4d0 each carry an `experiment_status_transition` string
+        naming EXP-SSI-S1. Those strings are the record of the transition and must
+        not be rewritten. Changing `target_ids` alone would leave each decision
+        asserting one id as its target and another in its transition. Removing an
+        external inconsistency by manufacturing an internal one is a bad trade.
+      - >-
+        THE CITATIONS ARE NOT WRONG. EXP-SSI-S1 is the designation this experiment
+        actually had: it is the id in the frozen contract, in both BATCH-043 and
+        BATCH-044 batch objectives, throughout the BATCH-044 dispatch queue, and in
+        both transition strings. The defect is that the designation was never
+        format-legal and no record was filed -- not that four records cite it.
+      - >-
+        IT WOULD SPLIT THE LEDGER FROM THE COORDINATION RECORD. After a rewrite,
+        ledger/ would say EXP-SSI-7c41d9 while the frozen contract and every
+        coordination artifact -- which cannot and must not be edited -- say
+        EXP-SSI-S1, with the bridge existing in one correction record. That is a
+        worse split than the present one, which is at least uniform.
+      - >-
+        IT EXCEEDS THE REPAIR POLICY THIS COORDINATOR SET AND HAD VERIFIED. Every
+        repair authorised by DEC-20260805-7b3e91 filled an empty schema slot or
+        normalised a serialisation. None replaced a value. `target_ids` on these
+        two records has a value, and it is the true historical designation.
+      - >-
+        AGENTS.md rule 15 permits but does not warrant it. The binding-fields test
+        comes out clean -- EXP-SSI-S1 appears in dispatch-queue objective/title/
+        inputs prose and batch objectives, but in no completed archive's
+        artifact_paths, write_scope, archive.path_sha256, archive.record_ids or
+        bound commit message, because THERE ARE NO COMPLETED ARCHIVES FOR THESE
+        BATCHES AT ALL (see FINDING-6). So a remap is a permitted last resort. But
+        rule 15's stated alternative is to supersede, and superseding here would
+        mean minting four records duplicating the same science, leaving two live
+        records per review. That is disproportionate and is its own integrity
+        hazard.
+      - >-
+        DECISIVE: IT WOULD CONCEAL FINDING-6. The four citation errors are
+        currently the only machine-visible trace of an experiment whose execution
+        was never made durable. Rewriting four ids to turn the validator green
+        would produce a lifecycle that reads complete -- approved, completed,
+        evidence cited, all references resolving -- over a hole the validator
+        cannot see. That is the failure mode this Coordinator has refused
+        throughout: converting a visible integrity gap into an invisible one.
+    consequence: >-
+      tools/validate_ledger.py will continue to report four errors: two "evidence
+      references unknown experiment 'EXP-SSI-S1'" and two "decision references
+      unknown target 'EXP-SSI-S1'". They are declared, owned debt with a named
+      unblock path, NOT an oversight. They must not be absorbed into
+      tools/validate_ledger_baseline.txt, which may only ever shrink.
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # WHAT WOULD UNBLOCK IT, AND WHO MUST DO IT
+  # ───────────────────────────────────────────────────────────────────────────
+  unblock_path:
+    - id: UNBLOCK-1
+      preferred: true
+      what: >-
+        Extend tools/validate_ledger.py with an explicit, auditable
+        historical-designation registry for ledger records -- the experiment
+        analogue of tools/run_supersession_registry.yaml -- mapping a
+        format-illegal historical designation to the conforming record that
+        supersedes it, and consulting it in check_cross_refs. It must ADD an alias,
+        never suppress a check, and must be append-only and reviewed like any other
+        registry.
+      who: >-
+        A tooling change, not a Coordinator act. It needs an independent
+        review-adversarial pass because it widens what the validator accepts, and
+        it must not be written by this Coordinator, who has an interest in the
+        four errors it would clear.
+      why_preferred: >-
+        It resolves the citations without editing any committed record, keeps both
+        designations visible, and generalises: EXP-SSI-S1 is unlikely to be the
+        only format-illegal designation that ever ran.
+    - id: UNBLOCK-2
+      preferred: false
+      what: >-
+        Authorise the identifier remap under AGENTS.md rule 15 and rewrite the four
+        citations, preserving `EXP-SSI-S1` verbatim in a sibling field on each
+        record and cross-referencing this decision.
+      who: >-
+        An independent reviewer, not this Coordinator. Rule 15 calls a remap a last
+        resort, and the party proposing it should not also be the party approving
+        it.
+      precondition: >-
+        FINDING-6 must be resolved first, or recorded in the same archive. Clearing
+        the citation errors while the archival gap stands would hide it.
+    - id: UNBLOCK-3
+      what: >-
+        Fill the `frozen_contract.sha256` field of experiments/EXP-SSI-7c41d9/specification.yaml
+        by running sha256sum on the frozen contract path. Until then the filed
+        record is bound to the contract by PATH ONLY and must not be treated as
+        content-bound.
+      who: Any session with command execution. Mechanical; requires no judgement.
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # FINDING-6 — new, found while applying the rule 15 binding-fields test
+  # ───────────────────────────────────────────────────────────────────────────
+  finding_6_archival_gap:
+    subject: BATCH-043 and BATCH-044 of GOAL-SSI-001 were never archived.
+    observed: >-
+      No `archives/` directory exists under either batch. The BATCH-044 dispatch
+      queue declares two Coordinator archive tasks -- TASK-20260804-adb972
+      ("Snapshot-archive EXP-SSI-S1 run records", artifact_paths naming
+      archives/TASK-20260804-adb972/snapshot_commit_receipt.json) and
+      TASK-20260804-6e1ce4 ("Ledger archive for EXP-SSI-S1 execution") -- and every
+      task in that queue carries `state: queued`. Neither receipt exists. By
+      contrast GOAL-MLKEM-004's BATCH-d2a728 does carry both receipts under its own
+      archives/ directory, so this is an absence rather than a layout difference.
+    consequence: >-
+      Under AGENTS.md "Durable research commits" the snapshot commit must precede
+      independent review and the ledger commit must precede the official
+      transition, and a missing commit "blocks downstream review or promotion; it
+      is an evidence-integrity failure, not a mathematical result."
+      DEC-20260804-cfe4d0 -- which recorded the approved -> completed transition and
+      confirmed the scoped negative -- declares `archived_by: TASK-20260804-6e1ce4`,
+      a task whose receipt does not exist. The official transition was therefore
+      made from an unarchived state.
+    what_it_does_not_impugn: >-
+      The measurement, the validator verdict, and the scoped negative in
+      EV-SSI-17c854 stand on artifacts that are present in the tree. This is a
+      durability defect, not a finding that anything reported is wrong. No evidence
+      record is withdrawn and no status is changed by it.
+    owner: >-
+      GOAL-SSI-001's next Coordinator batch. The correct remedy is a scoped
+      archival task that commits the BATCH-044 producer and review artifacts and
+      records the receipts, NOT a retroactive claim that they were archived at the
+      time.
+
+  limitations:
+    - >-
+      This decision files a record and rules on identifiers. It reviews no
+      measurement, changes no hypothesis status, and creates no knowledge entry.
+    - >-
+      The filed record is bound to the frozen contract by path only until
+      UNBLOCK-3 is done, and it transcribes rather than duplicates the contract;
+      the frozen contract is authoritative for every field, including those not
+      transcribed.
+    - >-
+      Four validation errors remain by design. Anyone reporting this branch as
+      clean is reporting it wrongly.
+    - >-
+      Made by a single Coordinator with no independent review. It changes no
+      research claim, which is why that is acceptable; a reviewer disagreeing with
+      either ruling should supersede this record rather than edit it.
+
+  evidence_refs:
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-043/tasks/TASK-20260803-ffda95/experiment_contract.yaml
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-946415/execution_report.yaml
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-3bf942/validation_report.yaml
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-044/dispatch_queue.json
+    - DEC-20260804-a6bb36
+    - DEC-20260804-cfe4d0
+    - DEC-20260805-7b3e91
+    - tools/validate_ledger.py
+
+  next_actions:
+    - >-
+      Fill frozen_contract.sha256 in experiments/EXP-SSI-7c41d9/specification.yaml
+      (UNBLOCK-3).
+    - >-
+      Open a scoped archival task under GOAL-SSI-001 for FINDING-6: commit the
+      BATCH-044 producer and review artifacts and record the receipts. Do not
+      back-date or assert an archive that did not happen.
+    - >-
+      Decide UNBLOCK-1 versus UNBLOCK-2 in an independent session. Neither is this
+      Coordinator's to take.
+    - >-
+      Leave the four EXP-SSI-S1 citation errors reported. Do not add them to
+      tools/validate_ledger_baseline.txt.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      This is a ledger-integrity and identifier decision. It files an existing
+      experiment record and rules on citation resolution; it reviews no evidence,
+      produces no measurement, and asserts nothing durable about SQIsign or KLPT.
+      The experiment's own result -- a clean negative at one toy parameter point --
+      was already assessed for promotion by DEC-20260804-cfe4d0, which recorded
+      `not_warranted` with its reasons, and nothing here disturbs that.
+
+  official_research_state_changed: false
+  hypothesis_status_transition: none
+  experiment_status_transition: >-
+    None performed. EXP-SSI-7c41d9 is filed AT the status its two committed
+    transition decisions already established (completed); this decision transitions
+    nothing.
+  decided_by: coordinator
+  decided_at: '2026-08-05'
