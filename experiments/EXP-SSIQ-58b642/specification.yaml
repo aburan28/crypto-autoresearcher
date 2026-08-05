@@ -1,0 +1,253 @@
+# DRAFT CONTRACT — NOT YET FROZEN. Per GD-4 (ledger/goals/GOAL-SSIQ-001/goal.yaml),
+# this draft goes to a Red Team pre-freeze review BEFORE any data is touched and
+# before status moves to approved. Do not treat this file as authoritative until
+# status: approved and frozen_at is set.
+experiment:
+  id: EXP-SSIQ-58b642
+  hypothesis_id: H-SSIQ-18dc91
+  version: 1
+  title: >-
+    Greedy delta_E descent versus random-walk hitting time on directly-built
+    supersingular 2-isogeny graphs (REC-3, the direct test of lever L4)
+  status: draft
+  approved_by: null
+  objective: >-
+    Build supersingular 2-isogeny graphs independently of the WISDE counting
+    data for a pre-registered set of small primes, and measure whether greedy
+    descent on delta_E to the F_p-rational locus scales with a smaller exponent
+    in graph size N than an undirected random walk on the same graphs.
+  objective_boundary: >-
+    This experiment tests for the EXISTENCE of a computable delta_E-gradient
+    (L4's revisit condition). It does not implement, propose, or cost a descent
+    algorithm, and a positive result does not itself constitute a complexity
+    claim (H-SSIQ-18dc91 asymptotic_claim_note).
+  inputs:
+    graph_construction:
+      method: >-
+        For each prime p in PRIMES (below): enumerate the vertex set of the
+        supersingular 2-isogeny graph over F_{p^2} by breadth-first search from
+        a known supersingular seed j-invariant (j = 1728 if p = 3 mod 4,
+        j = 0 if p = 1 mod 3, else a seed obtained by the standard construction
+        from a supersingular curve over F_p -- state which route was used and
+        why). At each vertex, find 2-isogenous neighbours as the roots in
+        F_{p^2} of the classical modular polynomial Phi_2(X, j) (a published,
+        fixed nine-term polynomial; DO NOT approximate or truncate it),
+        excluding the edge back to the immediate predecessor for the
+        NON-BACKTRACKING variant used for hitting-time measurement, and
+        including it for the CONNECTIVITY check.
+      degenerate_j_handling: >-
+        j = 0 and j = 1728 have automorphism groups larger than {+-1} and their
+        neighbour multiplicities in Phi_2 differ from the generic 3-neighbour
+        case; handle exactly per the standard convention (multiplicities from
+        Phi_2's factorisation at these points) and RECORD which convention was
+        used. Getting this wrong silently biases the degree sequence at exactly
+        the two most structurally important vertices.
+      delta_E_cross_reference: >-
+        For every enumerated j-invariant, cross-reference delta_E from the
+        WISDE released data used in EXP-SSIQ-4de240 (same source, same
+        acquisition route). This is a GROUND-TRUTH AND CORRECTNESS CHECK ONLY:
+        it supplies the delta_E label used for descent and the identification
+        of the delta_E = 1 locus, and it is NEVER used to construct or bias an
+        edge of the graph, which is built purely from Phi_2 root-finding.
+    primes:
+      note: >-
+        PRE-REGISTER THE EXACT PRIME SET before any graph is built, so it
+        cannot be chosen after seeing which primes give a favourable result.
+      selection_rule: >-
+        The 12 smallest primes p with 5000 <= p/12 <= 2000*12 (i.e. graph size
+        roughly 5000 to 24000... NARROWED BELOW to fit budget) such that p is
+        covered by the WISDE release AND p mod 12 is BALANCED across residues
+        {1, 5, 7, 11} at least once each (avoids a degenerate-vertex-count
+        artifact from testing only one residue class). EXACT LIST TO BE PINNED
+        BEFORE FREEZE from the WISDE prime index, not chosen after inspection
+        of any fitted result.
+      size_bound_note: >-
+        THIS FIELD IS A PLACEHOLDER FOR PRE-FREEZE REVIEW. The actual vertex
+        count ceiling is set by the executor's real per-vertex Phi_2 root-find
+        cost inside the wall-clock budget below, and the Red Team pre-freeze
+        review is asked explicitly whether the bound and prime count are
+        realistic BEFORE this is frozen.
+  independent_variables:
+    - N (graph size, i.e. number of enumerated supersingular j-invariants for a prime)
+    - descent method: greedy (steepest local descent on delta_E) versus undirected random walk
+  metrics:
+    primary:
+      - id: M-GAMMA-GREEDY
+        definition: >-
+          fitted exponent gamma_greedy in median_hitting_time_greedy(N) ~
+          N^{gamma_greedy}, fit over the pre-registered prime set by OLS on
+          log(median hitting time) against log(N).
+      - id: M-GAMMA-RANDOM
+        definition: >-
+          fitted exponent gamma_random in median_hitting_time_random(N) ~
+          N^{gamma_random}, SAME estimator, SAME primes, run on the SAME
+          built graphs.
+      - id: M-GAP
+        definition: gamma_random - gamma_greedy, with a bootstrap confidence interval.
+    secondary:
+      - id: M-LOCALMIN
+        definition: >-
+          fraction of greedy-descent starts that halt at a local minimum before
+          reaching delta_E = 1, and the delta_E value at which they halt.
+          EXPLORATORY: informs whether a repair (random restart, simulated
+          annealing) is worth a later batch; NOT part of the confirmatory
+          decision rule.
+      - id: M-DEGSEQ
+        definition: >-
+          the realised degree sequence of each built graph, checked against the
+          expected 3-regular-except-{j=0,j=1728} shape, as a graph-construction
+          correctness check independent of the WISDE cross-reference.
+  preregistered_prediction:
+    quantity: "M-GAP = gamma_random - gamma_greedy"
+    formula: >-
+      NO POINT PREDICTION IS PRE-REGISTERED for the magnitude of the gap,
+      because no prior computation in this campaign establishes one -- doing so
+      would be exactly the unjustified-precision error DEC-20260805-be2f87 D-1/
+      D-2 records against the BATCH-002 tolerance. What IS pre-registered is the
+      DECISION RULE below, stated in terms of statistical separability, not a
+      numeric target.
+    source: >-
+      L4's revisit condition in ledger/goals/GOAL-SSIQ-001/goal.yaml
+      (exponent_budget.levers L4) and RT-BATCH-002's REC-3 recommendation.
+    decision_rule_frozen_before_data:
+      - >-
+        M-GAP's bootstrap 95% CI excludes 0 in the POSITIVE direction
+        (gamma_random > gamma_greedy): a computable delta_E-gradient is
+        DETECTED. Lever L4 status moves to OPEN-WITH-SIGNAL and the next action
+        becomes designing a cost model for the descent, NOT a claim that a
+        p^{1/4} algorithm exists.
+      - >-
+        M-GAP's CI includes 0 or excludes 0 in the NEGATIVE direction: NO
+        detectable gradient at this scale. Lever L4's obstruction (the
+        hitting-time bound) stands unresolved by this test, and the record must
+        say "unresolved by this test", never "refuted" -- toy-scale absence of a
+        detected gradient does not prove none exists at larger scale.
+      - >-
+        Either estimator's own null-object control (below) fails: the run is
+        VOID for the primary metric, per the BATCH-002 precedent, and is
+        reported as such rather than interpreted.
+  controls:
+    - id: C-NULL-LABEL
+      kind: null_object
+      description: >-
+        Run BOTH descent methods on the SAME built graphs but with delta_E
+        REPLACED by a uniformly random permutation of the same value multiset
+        (breaking any correlation between the label and graph structure while
+        preserving the label distribution exactly).
+      pre_registered_expectation: >-
+        gamma_greedy and gamma_random should be STATISTICALLY INDISTINGUISHABLE
+        under the shuffled label, because greedy descent on an uncorrelated
+        label is just another random walk.
+      failure_consequence: >-
+        IF THE SHUFFLED-LABEL GAP IS ALSO SIGNIFICANT, the apparent signal is an
+        artifact of the graph's own structure (e.g. degree heterogeneity) or the
+        estimator, NOT of delta_E specifically, and M-GAP ON THE REAL LABELS IS
+        VOID. This is the single most important control in this contract and it
+        must be run BEFORE the real-label result is interpreted, exactly as
+        C-NULL was in EXP-SSIQ-4de240.
+    - id: C-CONNECTIVITY
+      kind: correctness
+      description: >-
+        BFS-enumerated vertex count for each prime must match the WISDE
+        record's supersingular curve count for that prime (up to the known
+        j=0/j=1728 automorphism bookkeeping, stated explicitly).
+      failure_consequence: >-
+        A mismatch means the graph construction is wrong (missed a
+        connected-component, mis-handled a degenerate vertex, or a Phi_2
+        root-finding bug), and that prime's run is completed_invalid.
+    - id: C-DEGSEQ
+      kind: correctness
+      description: M-DEGSEQ checked against the expected shape for every prime.
+    - id: C-SEED
+      kind: sampling_independence
+      description: >-
+        Random-walk hitting times and the label-shuffle control are each
+        repeated under three declared seeds; report the spread.
+    - id: C-REPRO
+      kind: determinism
+      description: Re-run from the same built graphs and recorded seeds; confirm bit-identical fitted exponents.
+  fitting_window:
+    W-MAIN: >-
+      All pre-registered primes with a CONNECTIVITY-passing graph. No prime may
+      be excluded post-hoc for giving an inconvenient hitting time.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Graph sizes bounded by real compute budget, likely in the low thousands
+      of vertices. This tests EXISTENCE of a signal, which is a qualitatively
+      different question from EXP-SSIQ-4de240's asymptotic exponent match, and
+      is less sensitive to the finite-size bias that sank that experiment
+      BECAUSE the decision rule here is a SIGN test on a DIFFERENCE of two
+      exponents measured through the identical instrument on the identical
+      graphs, not a comparison of a fitted value against a numeric target. A
+      shared instrument bias in gamma_greedy and gamma_random cancels in M-GAP
+      to first order; this cancellation claim IS ITSELF PART OF WHAT THE
+      PRE-FREEZE RED TEAM REVIEW MUST CHECK, per the BATCH-002 lesson that an
+      uncalculated "should cancel" is not evidence it does.
+    correspondence: null
+  tail_checks:
+    - >-
+      Report the single largest and smallest per-prime hitting time for each
+      method beside the fitted trend, so a single outlier prime cannot be
+      obscured by the aggregate fit.
+  replication:
+    seeds: [20260805, 11, 977]
+    independent_instances: 1
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 4
+    maximum_memory_gb: 4
+    maximum_runs: 1
+  stopping_rules:
+    - >-
+      If graph construction for the smallest pre-registered prime does not
+      complete within 900 seconds, STOP and report failed_infrastructure with
+      the exact obstruction (Phi_2 root-finding cost, F_{p^2} arithmetic
+      implementation, or another cause) -- do not silently shrink the prime set
+      after seeing the first result.
+    - >-
+      If total budget is reached with only a partial prime set completed,
+      report the achieved coverage and mark the run valid-but-truncated,
+      provided at least 4 primes with connectivity-passing graphs are obtained;
+      otherwise INCONCLUSIVE for lack of coverage.
+  invalidation_rules:
+    - C-CONNECTIVITY fails for a prime -- that prime's data point is dropped, not fabricated.
+    - C-NULL-LABEL fails -- M-GAP on real labels is VOID (see decision rule branch 3).
+    - C-REPRO fails -- completed_invalid.
+    - >-
+      The contract is found underspecified on any point that changes M-GAP:
+      STOP and report the underspecification rather than choosing unilaterally.
+  success_criterion: >-
+    The run is successful when M-GAP is estimated with a bootstrap CI over the
+    pre-registered prime set, C-NULL-LABEL and C-CONNECTIVITY return recorded
+    verdicts for every prime, and the decision rule is applied mechanically to
+    return exactly one of DETECTED / NOT-DETECTED-AT-THIS-SCALE / VOID.
+    A NOT-DETECTED-AT-THIS-SCALE outcome with all controls passing is a fully
+    successful run: it retires the lane with a measured reason rather than
+    leaving it open on speculation.
+  falsification_criterion: >-
+    H-SSIQ-18dc91 is falsified at the tested scale if M-GAP's CI includes or is
+    below 0 with C-NULL-LABEL and C-CONNECTIVITY passing on at least 4 primes.
+  required_artifacts:
+    - implementation/build_isogeny_graph.py
+    - implementation/descent_hitting_time.py
+    - runs/RUN-SSIQ-58b642-a/manifest.yaml
+    - runs/RUN-SSIQ-58b642-a/raw-result.json
+    - runs/RUN-SSIQ-58b642-a/execution_report.yaml
+    - runs/RUN-SSIQ-58b642-a/source_access_log.yaml
+    - runs/RUN-SSIQ-58b642-a/code.txt
+    - runs/RUN-SSIQ-58b642-a/inputs.json
+    - runs/RUN-SSIQ-58b642-a/environment.json
+    - runs/RUN-SSIQ-58b642-a/stdout.log
+    - runs/RUN-SSIQ-58b642-a/stderr.log
+  required_artifacts_note: >-
+    THIS LIST NAMES THE RUN-MANIFEST SCHEMA KEYS EXPLICITLY (code.txt,
+    inputs.json, environment.json, stdout.log, stderr.log) BECAUSE GD-5 RECORDS
+    THAT THE PRIOR CONTRACT DID NOT AND THAT WAS A COORDINATOR DEFECT, NOT AN
+    EXECUTOR ONE. Do not silently rename these back to stdout.txt/stderr.txt.
+  assigned_to: executor
+  approved_by: null
+  freeze_note: >-
+    NOT YET FROZEN. Pending Red Team pre-freeze review per GD-4 standing
+    practice, adopted after BATCH-001 and BATCH-002 each froze an instrument
+    that could not do the work asked of it.
