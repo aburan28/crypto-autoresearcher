@@ -1,0 +1,403 @@
+red_team_report:
+  task_id: TASK-20260803-bc2f41
+  producer_task_id: TASK-20260803-e53ce2
+  snapshot_commit: 8cc51677f7202e9f9b85efdf834860254798abf4
+  verdict: pass_with_constraints
+  summary: >-
+    The pipeline measures the correct mathematical object (per-vector cosine
+    character score) and its controls hold; batch 1 is admissible as raw data.
+    However, the measurement is structurally one-sided: it can confirm or deny
+    the model's predicted MEAN per-vector score but cannot, even in principle,
+    test the independence assumption from a single sieve run. Independence is a
+    VARIANCE-STRUCTURE claim (Var[sum_N s_i] = N · Var[s_i]) and requires
+    multiple independent sieve realizations to estimate empirically. Five
+    concrete constraints on batch 2 are listed below; none makes batch 1
+    inadmissible, but two are blocking for the stated goal of GOAL-MLKEM-004 if
+    not addressed before batch 2's comparison is made.
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: true
+    fallback_reason: >-
+      Handoff sets fallback_allowed: true. Session resolved to
+      amazon-bedrock/us.anthropic.claude-sonnet-4-6; review-adversarial policy
+      requires xhigh reasoning and an independent session; the resolved model is
+      the only available backend with API keys set. Recorded rather than
+      silently substituted.
+    independent_session: true
+    model_verified: false
+    model_verified_note: >-
+      orchestration.adapter doctor --probe not available; all provider API keys
+      unset for probe verification. model_verified: false carried forward.
+
+  objections:
+
+    - id: OBJ-1
+      title: >-
+        The pipeline measures the per-vector marginal mean; the independence
+        assumption is a variance-structure claim that a single sieve run cannot
+        test.
+      severity: concern
+      description: >-
+        The score formula cos(2π t_i(s)/q) is mathematically correct: at the
+        correct secret, t_i = center_mod(x_i · e, q), and E[cos(2π x·e/q)] is
+        exactly the per-vector expected contribution that MATZOV.Nf's advantage
+        law uses. The measured mean +0.42738 is also roughly consistent with a
+        Gaussian-approximation estimate (~0.41 at ||x||²≈184, σ=2, q=127),
+        which confirms the pipeline is measuring the right object.
+
+        The design limitation is this: MATZOV.Nf's N formula is derived from
+        the signal-to-noise ratio
+            SNR = E[T_N^{correct}] / sqrt(Var[T_N^{null}])
+        where T_N = sum_{i=1}^{N} cos(2π t_i/q).
+        Under independence, Var[T_N] = N · Var[single score].
+        Under positive correlation (the Ducas-Pulles concern), Var[T_N] > N · Var[single score],
+        which inflates the denominator, degrades the SNR, and means the true
+        required N exceeds MATZOV.Nf's prediction.
+
+        Batch 1 reports the mean of one set of 17,919 scores. There is exactly
+        ONE value of T_N in the dataset. Estimating Var[T_N] from one scalar is
+        impossible without additional distributional assumptions — and those
+        assumptions ARE the thing under test. A bootstrap estimate of Var[T_N]
+        would compute the variance under independent resampling by construction,
+        which is the null hypothesis and not a test of it.
+
+        Consequence: even perfect agreement between the measured mean +0.42738
+        and MATZOV.Nf's model prediction would not confirm the independence
+        assumption. The batch can show "the mean is right" or "the mean is
+        wrong," but NOT "the variance structure is right" or "the variance
+        structure is wrong." The measurement is shaped only to test the MEAN
+        component of the model, not the INDEPENDENCE component.
+
+      cheapest_check: >-
+        From raw_scores.json phases_t for the correct candidate (17,919
+        integers), compute the empirical cosine variance: S_1 = Var[cos(2π t/q)].
+        Then compute the sum T_N = sum of all 17,919 cosine scores.
+        These two numbers allow computing the independence-predicted variance
+        N · S_1 and comparing it against the REALIZED T_N — but since there is
+        only ONE realization of T_N, this is a single data point and provides
+        no statistical test. The cheapest check that ACTUALLY tests independence
+        is: run the sieve ≥ 50 times with different g6k Siever seeds (same
+        LWE instance, same A and e, different vector sets), compute T_N for each
+        run, and test whether Var[T_N across runs] ≈ N · S_1. If
+        Var[T_N] >> N · S_1, the vectors are positively correlated. This test
+        costs 50 × 17 seconds ≈ 14 minutes of sieve time.
+      renders_batch_inadmissible: false
+
+    - id: OBJ-2
+      title: >-
+        The null removes signal from b but does not probe the independence
+        failure mode; the independence null requires variation in the sieve
+        output, not in b.
+      severity: concern
+      description: >-
+        The null (uniform b, same sieve vectors, same candidates, same scoring
+        code) correctly tests: "does the pipeline produce structure when there
+        is no LWE structure in b?" The answer is no (rank 18/33, mean ≈ 0.003),
+        which is expected and necessary.
+
+        But there are two distinct ways MATZOV.Nf could be wrong, and the
+        current null distinguishes only one of them:
+
+        Failure mode A — Signal in the mean: the pipeline finds the correct
+        secret when a null b is used. The current null DOES test this and
+        rules it out.
+
+        Failure mode B — Correlated variance: the sieve vectors are positively
+        correlated with each other, so Var[T_N] > N · Var[single score], making
+        N_required larger than MATZOV.Nf predicts. The current null provides
+        ZERO information about this, because replacing b with a uniform vector
+        does not change the correlation structure of the sieve vectors.
+
+        The independence null of the right shape is: same A, same b, same e,
+        but DIFFERENT sieve vectors produced by a fresh sieve run with a
+        different random seed. If the sieve vectors' scores are correlated
+        within a sieve run (failure mode B), computing T_N for many independent
+        sieve runs and estimating Var[T_N] would detect it. The current null
+        cannot.
+
+        For batch 1's stated goal (establish that measurement can be made and
+        controls hold), the current null is sufficient and correctly designed.
+        But the handoff asks whether this measurement is admissible as input to
+        testing the independence assumption. The answer is: not alone.
+
+      cheapest_check: >-
+        Re-run measure_scores.py with ten different g6k Siever seeds (same
+        instance seed, same LWE problem, different sieve vector sets). Compute
+        T_N for each run using the existing scoring code. The empirical variance
+        of these ten T_N values estimates Var[T_N | one sieve run]. If this
+        variance exceeds 17919 · Var[single score] (computable from the
+        existing raw_scores.json), failure mode B is confirmed. Ten sieve runs
+        at 17 seconds each ≈ 3 minutes.
+      renders_batch_inadmissible: false
+
+    - id: OBJ-3
+      title: >-
+        Vector norm inflation (all 17,919 vectors above the Gaussian heuristic
+        minimum) confounds any batch 2 comparison against MATZOV.Nf's predicted
+        mean.
+      severity: concern
+      description: >-
+        Sieve vectors have ||v||² ∈ [218, 329] (min 218, median 315). The
+        Gaussian heuristic (GH) for this lattice predicts ||v||² ≈ 199. Every
+        vector in the database exceeds the GH minimum; the median is 58% above
+        it and approximately 26% longer in Euclidean norm (sqrt(315/199) ≈ 1.258).
+
+        MATZOV.Nf's advantage formula uses the expected per-vector score, which
+        depends on the norm distribution of sieve vectors. If MATZOV.Nf assumes
+        vectors near the GH minimum (as the theory predicts for a saturated sieve)
+        but the actual vectors are 26% longer, the expected contribution per vector
+        is different — longer vectors have larger |x·e|, which pushes cos(2π x·e/q)
+        away from +1 toward lower values. So longer vectors → lower mean score.
+
+        A Gaussian-approximation estimate:
+            E[cos(2π x·e/q)] ≈ exp(-2π² σ² ||x||² / q²)
+        At σ=2, q=127:
+            GH-norm (||x||²≈184): predicted ≈ exp(-2π² · 4 · 184 / 16129) ≈ 0.41
+            Actual-median (||x||²≈184 with ||v||²=315, split rough): ≈ 0.41 as well
+
+        At first glance the approximation matches the measured 0.427, suggesting
+        the norm inflation may not be the dominant discrepancy for this specific
+        comparison. However, the approximation itself ignores that MATZOV.Nf's
+        formula uses a SPECIFIC norm distribution (likely the sieve's expected
+        output distribution, which differs from the GH prediction when the sieve
+        is undersaturated). Since the validator confirmed that all vectors are above
+        the GH minimum (consistent with an undersaturated sieve stopped at g6k
+        defaults), and since sieve quality parameters were left at defaults (DEF-4
+        from the validator), this is a systematic source of discrepancy between the
+        sieve output distribution and MATZOV.Nf's assumed input distribution.
+
+        The raw_scores.json file DOES include per-vector norm2_v, norm2_x, and
+        norm2_y, which enables norm-conditioned analysis in batch 2. But there are
+        NO vectors with ||v||² ≤ 199, so norm-conditioning on the GH-norm population
+        is impossible from this data. Batch 2 must either (a) run a longer sieve to
+        reach saturation (producing shorter vectors), (b) use an analytic model of
+        the sieve's output norm distribution, or (c) explicitly compare against
+        MATZOV.Nf's formula using the ACTUAL norm distribution rather than the
+        GH-ideal distribution.
+
+        If batch 2 simply compares the measured mean against MATZOV.Nf's prediction
+        without addressing norms, any discrepancy is confounded: it could be due to
+        (i) the independence assumption failing, (ii) the assumed norm distribution
+        being wrong, or (iii) both.
+
+      cheapest_check: >-
+        From raw_scores.json phases_t (correct candidate) and per_vector.norm2_x,
+        compute mean scores binned by ||x||² (bins: [218,240), [240,270), [270,300),
+        [300,329]). Check whether the mean score is monotonically decreasing in norm
+        as the Gaussian approximation predicts. If yes, the norm effect is real and
+        must be accounted for in batch 2's comparison. This is a ~20-line Python
+        calculation on existing data.
+      renders_batch_inadmissible: false
+
+    - id: OBJ-4
+      title: >-
+        The wrong_mean_of_means in results.json (+0.18082) is pooled over
+        non-exchangeable populations; batch 2 must not use it to represent the
+        MATZOV.Nf model's "wrong-candidate score distribution."
+      severity: concern
+      description: >-
+        MATZOV.Nf's advantage formula computes the SNR between the correct
+        secret's accumulated score and the null hypothesis (a randomly chosen
+        wrong candidate). The "wrong" distribution MATZOV.Nf models is a
+        uniformly random secret from the same space — effectively, a candidate
+        whose phase x·b − y·s' is (modulo the small correlation from sharing the
+        same b) approximately uniform on Z_q.
+
+        The pipeline scores three populations with very different mean scores:
+          Uniform-Z_q wrong candidates (n=16): mean ≈ +0.004  ← MATZOV models this
+          Secret-distribution wrong candidates (n=8): mean ≈ +0.29  ← NOT modeled
+          Near-miss wrong candidates (n=8): mean ≈ +0.42  ← NOT modeled
+
+        The results.json field wrong_mean_of_means = +0.18082 is the arithmetic
+        mean over all 32 wrong candidates. This is dominated by near-miss
+        candidates and is approximately 45× larger than the uniform-Z_q mean.
+        If batch 2 uses +0.18 as the "wrong-candidate baseline" when computing
+        the gap between correct and wrong, the apparent SNR would be about
+        (0.427 - 0.18) / something ≈ 0.247, rather than the correct
+        (0.427 - 0.004) / something ≈ 0.423. This is roughly a 1.7× underestimate
+        of the per-vector discriminability.
+
+        The executor correctly flagged this as "observation to check" but the
+        field wrong_mean_of_means in results.json does not carry any warning and
+        could be mechanically consumed by batch 2's comparison script without
+        noticing the pooling artifact.
+
+      cheapest_check: >-
+        Confirm from results.json that wrong_mean_of_means = +0.18082 and
+        then compute separately: mean of uniform_00..15 (n=16) ≈ 0.004, mean
+        of secretdist_00..07 (n=8) ≈ 0.29, mean of nearmiss_00..07 (n=8) ≈ 0.42.
+        The gap in wrong_mean_of_means between these three populations reveals
+        which one should be used for the MATZOV comparison (the uniform group).
+        Require batch 2's contract to explicitly name the comparison population.
+      renders_batch_inadmissible: false
+
+    - id: OBJ-5
+      title: >-
+        The near-miss scoring gap is too small to use mean score for
+        disambiguation at N=17,919; batch 2 must state what N is actually
+        required for the correct-vs-near-miss distinction.
+      severity: note
+      description: >-
+        Near-miss candidates (s + e_i for unit e_i, i=0..7) score
+        +0.42496 to +0.42672, with the correct secret at +0.42738. The gap is
+        approximately 0.0024 per vector on average (correct: 0.42738 vs near-miss
+        mean: 0.42496).
+
+        For a Gaussian accumulator of N independent scores, the standard error of
+        the mean difference is sqrt(2 · Var[score] / N). With Var[cos(·)] ≈ 0.5
+        (rough upper bound), at N=17,919:
+            SE ≈ sqrt(2 · 0.5 / 17919) ≈ 0.0075
+
+        The near-miss gap of 0.0024 is about 0.32 standard errors of the mean
+        difference — not statistically distinguishable from zero at N=17,919 even
+        under independence. Distinguishing s from s + e_i at this gap with even
+        80% power requires N ≈ (1.28 + 0.84)² · 2 · 0.5 / 0.0024² ≈ 390,000 vectors
+        (rough estimate under independence).
+
+        This is not a defect in batch 1. It is a structural observation that the
+        dual attack in the "distinguishing form" (scored over full candidate space
+        including near-misses) cannot reliably separate the correct secret from its
+        near neighbors at these parameters and this N. For batch 2's design, this
+        means the comparison against MATZOV.Nf must be scoped to the correct-vs-
+        uniform-wrong-candidate discrimination, NOT to the correct-vs-near-miss
+        discrimination, since the latter requires a much larger N that is not
+        available in this dataset.
+
+      cheapest_check: >-
+        From results.json, compute the near-miss gap per vector:
+        0.42738 - mean(0.42496, ..., 0.42672) ≈ 0.0024. Compute the N required
+        for reliable discrimination: N = (z_alpha + z_beta)^2 · 2 · Var[score] / gap^2.
+        With Var[score] ≈ Var[cos(·)] estimated from raw_scores.json, and
+        gap = 0.0024, this is a 10-line calculation giving the required N for
+        correct-vs-nearmiss discrimination.
+      renders_batch_inadmissible: false
+
+    - id: OBJ-6
+      title: >-
+        CTRL-RT-4 (known-answer test on MATZOV.Nf callable) absent; its absence
+        is correctly deferred but must become a batch 2 completion gate.
+      severity: note
+      description: >-
+        GOAL-MLKEM-004 records CTRL-RT-4 as outstanding work inherited from
+        GOAL-MLKEM-003: "put a known-answer control on estimator.lwe_dual.matzov
+        itself, the callable four batches argued about and none covered." Batch 1
+        correctly deferred this because batch 1 makes no comparison against
+        MATZOV.Nf. Its absence does not make batch 1 inadmissible.
+
+        However, if batch 2's comparison is made without CTRL-RT-4, any agreement
+        or discrepancy between the measured score and MATZOV.Nf's prediction is
+        uninterpretable: the discrepancy could be in the measurement, in the
+        callable's computation, or in the model. CTRL-RT-4 is the check that
+        confirms MATZOV.Nf is computing what it claims to compute (not a silent
+        O(1) approximation, wrong block-size convention, or version skew) before
+        a comparison is believed.
+
+        Specific risk: GOAL-MLKEM-003's red teams repeatedly identified that
+        lwe_dual.matzov drops an unbounded O() on the block-size term and receives
+        short vectors free. If batch 2 computes MATZOV.Nf's predicted mean on a
+        known-answer synthetic instance and the prediction is wrong, the comparison
+        is meaningless. This was never checked across twelve batches of the
+        predecessor.
+
+      cheapest_check: >-
+        Construct a synthetic LWE instance where the error e is all-zeros (zero
+        error). Then the correct-secret score should be exactly cos(0) = 1.0 for
+        all vectors. Run the pipeline on this synthetic instance and confirm that
+        every per-vector score is exactly 1.0. Separately, on a uniform-error
+        instance (e uniform on Z_q), the expected score should be ~0. Both are
+        known-answer checks on the scoring pipeline. For MATZOV.Nf itself: call
+        the estimator on a parameter set where the expected output is independently
+        derivable (e.g., dimension 1, n=1, m=1, q=127, σ=0), confirm the callable
+        returns the analytically correct N.
+      renders_batch_inadmissible: false
+
+    - id: OBJ-7
+      title: >-
+        The decay control has a coarse resolution gap between σ=2 and σ=4; the
+        operating point may be in a sensitive transition region that the current
+        sweep does not characterize.
+      severity: note
+      description: >-
+        The decay sweep shows: mean@correct = 0.427 (σ=2), 0.018 (σ=4).
+        The signal collapses by a factor of ~24 in one doubling of σ from 2 to 4.
+        The transition from signal to noise happens somewhere in [2, 4]. The
+        sweep does not place σ=2 clearly in either "regime" — it could be near
+        the edge of the signal regime, just before the waterfall collapse (as
+        Ducas-Pulles' "waterfall-floor" phenomenon would predict), or
+        comfortably inside it.
+
+        This is relevant for batch 2 because: if σ=2 is near the edge of the
+        signal regime, a small change in vector quality (sieve parameters,
+        vector norms, number of vectors N) could move the operating point from
+        "detectable" to "not detectable." MATZOV.Nf's prediction of N assumes
+        you're within the signal regime. If the measured parameters are near the
+        boundary, the comparison is sensitive to exactly the regime characterization
+        that the coarse sweep doesn't provide.
+
+        For batch 1, this is a note. For batch 2's comparison design: add σ=2.5
+        and σ=3.0 to characterize whether σ=2 is in the signal interior or near
+        the edge. This costs no additional sieve runs (just recompute scores on
+        existing sieve vectors with different error draws).
+
+      cheapest_check: >-
+        From the existing sieve vectors and raw_scores.json, generate new
+        error vectors e' with σ=2.5 and σ=3.0 (using recorded seeds so the
+        test is deterministic) and recompute b' = As + e'. Score the existing
+        17,919 sieve vectors against b'. This requires no re-sieving (the
+        dual vectors already exist) and costs ~1 second of compute. The two
+        new data points fill the gap in the decay curve.
+      renders_batch_inadmissible: false
+
+  admissible_as_raw_data: true
+
+  what_batch_2_must_add:
+    - id: B2-1
+      priority: blocking_for_independence_test
+      item: >-
+        Multiple independent sieve realizations (≥50, ideally ≥100) using the
+        same LWE instance but different g6k Siever seeds. Compute T_N for each
+        run and estimate Var[T_N] empirically. Compare to N · Var[single score]
+        (where Var[single score] is computable from any single run's raw_scores.json).
+        If Var[T_N] > N · Var[single score]: positive correlation detected,
+        independence assumption fails. If equal: consistent with independence
+        (though not proof of it).
+        Without this, batch 2 CANNOT test the independence assumption and must
+        not claim to do so.
+
+    - id: B2-2
+      priority: blocking_for_comparison_validity
+      item: >-
+        CTRL-RT-4: known-answer test on MATZOV.Nf callable before any comparison.
+        Minimum: confirm the callable produces analytically correct N on a
+        synthetic instance with known error distribution and dimension.
+
+    - id: B2-3
+      priority: needed_for_clean_comparison
+      item: >-
+        Norm-conditioning analysis: compute mean score binned by ||x||² and
+        compare against MATZOV.Nf's prediction at each norm level. If
+        MATZOV.Nf assumes GH-norm vectors but the sieve produces vectors 58%
+        above GH, the comparison must use the actual norm distribution (available
+        in raw_scores.json per_vector fields) rather than the GH-predicted norm.
+
+    - id: B2-4
+      priority: needed_for_clean_comparison
+      item: >-
+        Restrict the wrong-candidate comparison population to uniform-Z_q
+        candidates ONLY (n=16 in batch 1 data). Do NOT use the pooled
+        wrong_mean_of_means field from results.json (+0.18082) as the
+        "wrong-candidate baseline." Use the 16 uniform-Z_q candidates whose
+        mean ≈ 0.004.
+
+    - id: B2-5
+      priority: informative_for_regime_characterization
+      item: >-
+        Fill the σ=2 to σ=4 gap in the decay curve by computing scores at
+        σ=2.5 and σ=3.0 on the existing sieve vectors (no re-sieve needed).
+        This characterizes whether the σ=2 operating point is in the signal
+        interior or near the regime boundary.
+
+  reviewed_at: '2026-08-03'
+  reviewed_by: TASK-20260803-bc2f41

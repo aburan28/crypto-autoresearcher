@@ -1,0 +1,577 @@
+experiment:
+  id: EXP-SSI-S1
+  goal_id: GOAL-SSI-001
+  question_id: RQ-SSI-001
+  hypothesis_id: null  # Exploratory test; no specific hypothesis under test
+  version: 1
+  title: SQIsign transcript leakage test against true simulator null
+  status: specified
+  objective: >-
+    Determine whether adaptive challenge/response transcripts produced by a
+    toy SQIsign prover using KLPT expose a statistic on the response-isogeny
+    kernel representation that distinguishes real transcripts from a true
+    simulator null (uniformly random kernel selection of the same degree).
+  evidence_class: toy_or_derivation_only
+  not_claimed: [key_recovery, cryptographic_scale, break, completion, exponent_improvement]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # RT-CTRL-001 ELEMENT 1: EXACT STATISTIC
+  # ─────────────────────────────────────────────────────────────────────────
+  statistic:
+    name: Chi-squared goodness-of-fit on response-isogeny kernel-scalar residues modulo q
+    symbol: chi2_q
+    formula: |
+      Let {P_i, Q_i} be the canonical Weil-normalized basis of E_1^{(i)}[D]
+      (canonical: e_D(P_i, Q_i) = zeta_D the fixed primitive D-th root of unity
+      in F_{p^2} chosen as the lexicographically smallest).
+
+      For each transcript i in [n], recover the kernel scalar s_i in Z/DZ
+      such that ker(sigma^{(i)}) = <P_i + [s_i] Q_i>.
+
+      Fix the test modulus q = 7 (chosen: coprime to D = 2^17, smallest prime
+      giving >= 7 bins for chi-squared validity at n >= 49).
+
+      Compute residues: r_i = s_i mod q, for i = 1, ..., n.
+
+      Bin counts: O_k = |{i in [n] : r_i = k}|, for k = 0, 1, ..., q-1.
+      Expected counts: E_k = n / q.
+
+      Test statistic:
+        chi2_q = sum_{k=0}^{q-1} (O_k - E_k)^2 / E_k
+
+      Under H0 (uniform kernel selection): chi2_q ~ chi-squared(df = q - 1 = 6).
+      Under H1 (KLPT bias): chi2_q ~ chi-squared(6, lambda) with lambda > 0.
+
+      BASIS INVARIANCE NOTE (REV-4): chi2_q is invariant under symplectic basis
+      changes Sp(2, Z/DZ). Any basis change induces s → as+b (a invertible mod D),
+      which permutes residues mod 7 via (Z/7Z)*-action and translation. Since
+      chi-squared is invariant under category permutations, two independent
+      implementers using different valid Weil-normalized bases will compute the
+      SAME chi2_q value. The canonical-basis specification affects reproducibility
+      of individual s_i values but not the test statistic.
+    justification: >-
+      The KLPT algorithm finds a quaternion element gamma of reduced norm D in
+      the maximal order End(E_1). The set of such elements is constrained by
+      the quaternion lattice structure, which depends on End(E_A) transported
+      through the commitment isogeny. If this constraint biases the kernel
+      scalar s = gamma's image in the torsion representation, residues modulo
+      small coprime primes will deviate from uniformity. The chi-squared test
+      detects such deviation with known power characteristics. The choice q = 7
+      balances bin granularity against power loss from multiple bins.
+    secondary_statistics:
+      - name: Kolmogorov-Smirnov two-sample test on empirical CDFs of s/D
+        purpose: Complement chi-squared with a distribution-free test sensitive to local deviations
+      - name: Mutual information estimate I(r; key_id) via plug-in
+        purpose: Detect key-dependent bias across the K = 5 keys
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # RT-CTRL-001 ELEMENT 2: SIMULATOR CONSTRUCTION
+  # ─────────────────────────────────────────────────────────────────────────
+  simulator:
+    id: SIM-UNIFORM-KERNEL
+    construction: |
+      For each simulated transcript i:
+        1. INPUT: Public key E_A, commitment degree distribution D_commit
+           (empirically measured from real transcripts during calibration).
+        2. COMMITMENT: Perform a random walk from E_A on the 2-isogeny graph
+           for L steps, where L is drawn from the calibrated commitment-length
+           distribution. Let E_1 = endpoint.
+        3. KERNEL SELECTION: Fix canonical basis {P_i, Q_i} for E_1[D] via
+           Weil-pairing normalization. Draw s_i uniformly at random from
+           Z/DZ (with D = 2^17). Set kernel generator K_i = P_i + [s_i] Q_i.
+        4. RESPONSE: Compute sigma^{(i)} = Velu(E_1, <K_i>) of degree D.
+           Let E_2 = sigma^{(i)}(E_1).
+        5. OUTPUT: (E_1, sigma^{(i)}, E_2).
+    rationale: >-
+      This simulator replaces the KLPT-derived kernel selection (step 3) with
+      a uniformly random selection. The commitment walk (step 2) uses the same
+      mechanism as the real protocol (random walk from E_A) to match the E_1
+      distribution. The response isogeny computation (step 4) is identical.
+      The only difference is the source of the kernel scalar: KLPT (real) vs.
+      uniform random (simulator). This isolates the hypothesis that KLPT's
+      algebraic constraints bias kernel selection.
+    calibration_criteria:
+      - id: CAL-1
+        description: >-
+          j-invariant distribution of simulator's E_1 values matches real E_1.
+          Two-sample KS test on 5000 samples from each source.
+        acceptance: KS test p-value > 0.05
+        failure_action: Adjust commitment-walk length distribution and re-calibrate.
+      - id: CAL-2
+        description: >-
+          j-invariant distribution of simulator's E_2 values matches the
+          marginal over the uniform kernel. Chi-squared test on binned
+          j-invariant frequencies (bins = supersingular j-invariant classes).
+        acceptance: Chi-squared p-value > 0.05
+        failure_action: Investigate whether non-uniform curve counts bias Velu codomain. Record.
+      - id: CAL-3
+        description: >-
+          Kernel-scalar distribution of the simulator is computationally
+          uniform. Apply the same chi2_7 test to 5000 simulator transcripts.
+        acceptance: >-
+          chi2_7 p-value > 0.10 (conservative; the simulator's kernel IS
+          uniform by construction, so failure indicates implementation error).
+        failure_action: Halt. Implementation bug in PRNG or basis normalization.
+      - id: CAL-4
+        description: >-
+          Timing-independence: wall-clock per transcript is statistically
+          indistinguishable between real and simulator (two-sample t-test on
+          log-transformed times).
+        acceptance: t-test p-value > 0.05
+        failure_action: >-
+          Record timing disparity. If ratio > 2x, add constant-time padding
+          to equalize. Timing is not part of the primary statistic but must
+          not confound secondary analysis.
+    calibration_sample_size: 5000
+    calibration_budget_seconds: 300
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # RT-CTRL-001 ELEMENT 3: TOY SQIsign PARAMETER SET
+  # ─────────────────────────────────────────────────────────────────────────
+  parameters:
+    prime:
+      value: 6143
+      verification: >-
+        6143 = 3 * 2^11 - 1. Must verify: (a) 6143 is prime (Miller-Rabin or
+        AKS in calibration), (b) 6143 mod 4 = 3, (c) the 2-isogeny graph on
+        supersingular curves over F_{6143^2} is connected. If any fails,
+        fallback to p = 4391 (also prime, mod 4 = 3, ~366 ss-curves).
+      properties:
+        congruence: "p = 3 mod 4"
+        form: "3 * 2^11 - 1"
+        supersingular_curve_count_approx: 512
+        two_adic_structure: "p + 1 = 3 * 2^11 (excellent for 2-isogeny chains)"
+    security_bits: 6  # Toy; log2(sqrt(#curves)) ~ log2(sqrt(512)) ~ 4.5; rounded up
+    response_degree:
+      D: 131072  # 2^17
+      exponent_e: 17
+      justification: >-
+        e = 17 gives D = 2^17 >> p = 6143, providing sufficient algebraic
+        room for KLPT to always find a connecting ideal of norm D. The ratio
+        D/p ~ 21 matches the relative sizing in the full SQIsign spec
+        (D ~ p^{4/3} at crypto scale; here (6143)^{4/3} ~ 130000 ~ 2^17).
+    isogeny_prime: 2  # ell = 2; response decomposes as chain of 17 two-isogenies
+    transcript_count:
+      per_key: 400
+      num_keys: 5
+      total_real: 2000  # 5 keys * 400 transcripts/key
+      total_simulator: 2000
+      total_independent: 2000  # 2000 transcripts, each from a fresh key
+      total_shuffled: 2000   # Real transcripts with key assignments permuted
+      grand_total: 8000
+    seeds:
+      description: >-
+        Each run uses a single 256-bit master seed. All sub-randomness
+        (key generation, commitment ideal, challenge selection, simulator
+        kernel, shuffle permutation) derives from HMAC-SHA256(master_seed,
+        domain_tag || counter). Domain tags: "keygen", "commit", "challenge",
+        "sim_kernel", "shuffle".
+      run_seeds:
+        - run_id: 1
+          master_seed: "0x20260803_EXP_SSI_S1_RUN01"
+        - run_id: 2
+          master_seed: "0x20260803_EXP_SSI_S1_RUN02"
+        - run_id: 3
+          master_seed: "0x20260803_EXP_SSI_S1_RUN03"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # RT-CTRL-001 ELEMENT 4: EFFECT-SIZE THRESHOLD
+  # ─────────────────────────────────────────────────────────────────────────
+  threshold:
+    minimum_advantage:
+      value: 0.05
+      definition: >-
+        Total variation distance between the per-key kernel-residue
+        distribution P_real (induced by KLPT on the q=7 residues) and the
+        uniform distribution U_7 = (1/7, ..., 1/7):
+          TV(P_real, U_7) = (1/2) * sum_{k=0}^{6} |P_real(k) - 1/7|.
+        The experiment has power >= 0.80 to detect TV >= 0.05 at the
+        preregistered sample size and significance level.
+      interpretation: >-
+        TV = 0.05 means a distinguisher looking at one residue has at most
+        a 5% advantage over random guessing whether a transcript is real vs.
+        simulated. This is a meaningful threshold: smaller effects would not
+        constitute a practical statistical weakness even if detected.
+    significance_level:
+      per_test_alpha: 0.001
+      justification: >-
+        Conservatively low to account for multiple testing and to minimize
+        false-positive risk in an exploratory study where a positive signal
+        would be surprising.
+    multiple_testing_correction:
+      method: Bonferroni
+      num_primary_tests: 5  # One chi2_7 test per key
+      corrected_alpha: 0.0002  # 0.001 / 5
+      secondary_tests_note: >-
+        Secondary statistics (KS, MI) are reported but not used for the
+        primary decision. They carry no alpha budget and are labeled
+        "exploratory" in the report.
+    power:
+      target_power: 0.80
+      power_guarantee_scope: aggregate_concentrated_bias
+      revision_note: >-
+        Corrected per TASK-20260803-b5ce08 validation (REV-1, REV-2).
+        Original derivation contained invalid probability distribution and
+        incorrect Cohen's w formula. Power depends on bias concentration pattern.
+      derivation: |
+        Under H1: TV(P_real, U_7) = epsilon = 0.05.
+        TV = (1/2) * sum_k |p_k - 1/7|. For TV = 0.05, sum |p_k - 1/7| = 0.10.
+        Cohen's w = sqrt(sum_k (p_k - 1/7)^2 / (1/7)) = sqrt(7 * sum_k (p_k - 1/7)^2).
+
+        CASE A — Concentrated bias (1+1 bins):
+          p_0 = 1/7 + 0.05, p_6 = 1/7 - 0.05, others = 1/7.
+          Check: TV = (1/2)(0.05 + 0.05) = 0.05. ✓ Sums to 1. ✓
+          w^2 = 7 * (0.05^2 + 0.05^2) = 7 * 0.005 = 0.035. w = 0.187.
+          Per-key (n=400): lambda = 400 * 0.035 = 14.0.
+            At alpha=0.0002, chi2(6) threshold = 25.9.
+            P(chi2(6, 14.0) > 25.9) ≈ 0.24.
+          Aggregate (n=2000): lambda = 2000 * 0.035 = 70.0.
+            At alpha=0.001, chi2(6) threshold = 22.46.
+            P(chi2(6, 70.0) > 22.46) > 0.99. ✓
+
+        CASE B — Mid bias (2+2 bins):
+          p_0 = p_1 = 1/7 + 0.025, p_5 = p_6 = 1/7 - 0.025, p_2 = p_3 = p_4 = 1/7.
+          Check: TV = (1/2)(4 * 0.025) = 0.05. ✓ Sums to 1. ✓
+          w^2 = 7 * (4 * 0.025^2) = 7 * 0.0025 = 0.0175. w = 0.132.
+          Aggregate (n=2000): lambda = 2000 * 0.0175 = 35.0.
+            P(chi2(6, 35.0) > 22.46) ≈ 0.96. ✓
+
+        CASE C — Diffuse bias (3+3 bins):
+          p_0 = p_1 = p_2 = 1/7 + 1/60, p_4 = p_5 = p_6 = 1/7 - 1/60, p_3 = 1/7.
+          Check: TV = (1/2)(6 * 1/60) = 0.05. ✓ Sums to 1. ✓
+          w^2 = 7 * (6 * (1/60)^2) = 7 * 6/3600 = 42/3600 = 0.01167. w = 0.108.
+          Aggregate (n=2000): lambda = 2000 * 0.01167 = 23.3.
+            P(chi2(6, 23.3) > 22.46) ≈ 0.73.
+
+        CASE D — Worst case (spread across all 7 bins):
+          lambda ≈ 2000 * 0.008 = 16.0. Power ≈ 0.62.
+
+        SUMMARY:
+        - Per-key (n=400): per-key tests are QUALITATIVE consistency checks,
+          not individually powered. Power ranges 0.02–0.24 depending on pattern.
+        - Aggregate (n=2000): power ≥ 0.95 for concentrated biases (1-2 bins);
+          power ≈ 0.73 for diffuse biases (3+ bins); worst-case ≈ 0.62.
+        - The binding guarantee is: power ≥ 0.95 at aggregate level for
+          concentrated (1-2 bin) biases. For diffuse biases, this experiment
+          has moderate but not definitive power.
+      interpretation_of_negative: >-
+        A negative result (no rejection at aggregate level) provides strong
+        evidence against concentrated KLPT bias (TV ≥ 0.05 in 1-2 bins) but
+        only moderate evidence against diffuse biases. The honest statement is:
+        "We detected no TV ≥ 0.05 concentrated bias with >0.95 power; diffuse
+        biases at TV = 0.05 would be detected with probability ~0.73."
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # CONTROLS
+  # ─────────────────────────────────────────────────────────────────────────
+  controls:
+    - id: CTRL-NULL
+      description: >-
+        True simulator null (SIM-UNIFORM-KERNEL). Produces transcripts with
+        uniformly random kernel selection of the same degree from the same
+        E_1 distribution. Tests whether KLPT produces biased kernels.
+      purpose: Primary null hypothesis (H0). Leakage = deviation from this.
+      expected_result: chi2_7 consistent with chi-squared(6) under H0.
+    - id: CTRL-SHUFFLE
+      description: >-
+        Shuffled-secret control. Generate 2000 real transcripts from K=5
+        keys, then uniformly permute key assignments across transcripts.
+        This preserves per-transcript marginal structure but destroys
+        key-transcript correlation.
+      purpose: >-
+        Distinguish key-correlated leakage from per-transcript protocol
+        artifacts. If chi2_7(real) differs from chi2_7(simulator) but
+        chi2_7(shuffled) equals chi2_7(simulator), the effect is
+        key-specific. If chi2_7(shuffled) also differs, the protocol
+        has a per-transcript bias independent of key reuse.
+      expected_result: chi2_7(shuffled) ~ chi-squared(6) if bias is key-specific.
+    - id: CTRL-INDEP
+      description: >-
+        Independent-key control. 2000 transcripts, each generated with a
+        fresh random key (fresh End(E_A) per transcript). Destroys same-key
+        repeated measurements while preserving real KLPT execution.
+      purpose: >-
+        If chi2_7(independent) = chi2_7(simulator), then any observed
+        same-key leakage requires key reuse (consistent with standard
+        ZK security model). If chi2_7(independent) differs from
+        chi2_7(simulator), KLPT has a per-invocation bias detectable
+        without key reuse.
+      expected_result: >-
+        chi2_7(independent) ~ chi-squared(6). If this fails, the KLPT
+        per-invocation distribution is non-uniform regardless of key reuse.
+    - id: CTRL-DIAGNOSTIC
+      description: >-
+        CTRL-INDEP vs. CTRL-NULL comparison. Should show no significant
+        difference. If it does, the toy implementation has a protocol-level
+        artifact unrelated to key-correlation.
+      purpose: Detect implementation or model errors in the simulator.
+      expected_result: Two-sample KS p-value > 0.05.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # BUDGET
+  # ─────────────────────────────────────────────────────────────────────────
+  budget:
+    simulator_construction_seconds: 600
+    simulator_construction_scope: >-
+      Implementation of SIM-UNIFORM-KERNEL, canonical basis computation,
+      Velu machinery, calibration runs (5000 transcripts), calibration
+      statistical tests. EXCLUDES real-protocol implementation (charged
+      to transcript_generation).
+    transcript_generation_seconds: 900
+    transcript_generation_scope: >-
+      KLPT implementation in toy quaternion algebra, key generation (5
+      keys), commitment generation (random ideal from maximal order),
+      real transcript generation (2000), simulator transcripts (2000),
+      independent-key transcripts (2000), shuffled control (2000
+      permuted assignments from real pool). Total 8000 transcripts.
+    statistical_testing_seconds: 300
+    statistical_testing_scope: >-
+      Kernel-scalar extraction, canonical basis normalization, chi2_7
+      computation per key and aggregate, KS tests, MI estimation,
+      calibration-vs-test consistency check, report generation.
+    total_wall_clock_seconds: 1800
+    memory_gb: 4
+    maximum_runs: 3
+    per_run_budget_note: >-
+      Each of 3 replicate runs has its own master seed and executes
+      the full pipeline (calibration + generation + testing). The
+      1800s budget is per-run; total wall-clock across 3 runs is 5400s
+      but runs may execute sequentially or in parallel.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # STOP RULES
+  # ─────────────────────────────────────────────────────────────────────────
+  stopping_rules:
+    - id: STOP-1
+      condition: >-
+        Simulator calibration fails: any of CAL-1 through CAL-4 rejects
+        after one re-calibration attempt.
+      action: >-
+        Record calibration failure as the outcome. Do not proceed to
+        statistical testing. Report as infrastructure/methodology
+        finding, NOT as evidence for or against leakage.
+    - id: STOP-2
+      condition: >-
+        The chi2_7 statistic was selected or modified after inspecting
+        real-transcript kernel residues.
+      action: >-
+        Abort. This experiment is invalidated by post-hoc statistic
+        choice (violates preregistration). File a new experiment with
+        the post-hoc statistic clearly labeled as exploratory.
+    - id: STOP-3
+      condition: >-
+        Prime verification fails (6143 is not prime, or the 2-isogeny
+        graph is disconnected at this prime).
+      action: >-
+        Switch to fallback prime p = 4391 and re-run calibration from
+        the beginning. Record the fallback in the run receipt.
+    - id: STOP-4
+      condition: >-
+        KLPT implementation cannot produce connecting ideals of norm
+        D = 2^17 for more than 10% of randomly sampled (E_1, E_2) pairs.
+      action: >-
+        Record as infrastructure limitation. Reduce D to 2^14 or 2^15
+        and document the modification. Do NOT interpret KLPT failure
+        as evidence of leakage.
+    - id: STOP-5
+      condition: >-
+        Wall-clock budget for any phase (simulator construction,
+        transcript generation, statistical testing) exceeds its
+        allocated sub-budget by more than 50%.
+      action: >-
+        Reduce transcript count proportionally (maintaining per-key
+        balance). Record the reduced count and recompute power. If
+        power drops below 0.50, abort and report as budget-limited.
+    - id: STOP-6
+      condition: >-
+        Fewer than 90% of planned transcripts are successfully
+        generated in any condition (fewer than 1800 of 2000).
+      action: >-
+        Record generation failure rate. Proceed with available
+        transcripts only if per-key count remains >= 200
+        (chi-squared validity: expected count per bin >= 200/7 ~ 28 > 5).
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # INVALIDATION RULES
+  # ─────────────────────────────────────────────────────────────────────────
+  invalidation_rules:
+    - >-
+      Any modification to the chi2_7 formula, the modulus q, the
+      canonical-basis definition, or the kernel-scalar extraction
+      procedure after transcript generation begins.
+    - >-
+      Re-running the experiment with a different statistic after
+      observing results, unless the new run is filed as a separate
+      exploratory experiment with its own ID.
+    - >-
+      Using the calibration transcripts (5000 per phase) in the
+      primary statistical test.
+    - >-
+      Interpreting a positive result (chi2_7 rejects) as evidence
+      of a key-recovery attack or cryptographic-scale vulnerability.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SUCCESS AND FALSIFICATION CRITERIA
+  # ─────────────────────────────────────────────────────────────────────────
+  success_criterion: >-
+    PRIMARY: For at least 3 of K=5 keys, chi2_7(same-key real) exceeds
+    the chi-squared(6) critical value at alpha = 0.0002 (Bonferroni-
+    corrected), AND chi2_7(CTRL-NULL) and chi2_7(CTRL-INDEP) do NOT
+    reject at alpha = 0.05 (REV-3: explicit control non-rejection threshold).
+    This would constitute evidence that same-key KLPT transcripts
+    carry a detectable residue bias at toy scale.
+  falsification_criterion: >-
+    For ALL 5 keys across ALL 3 replicate runs, chi2_7(same-key real)
+    p-value > 0.05, AND the diagnostic control (CTRL-INDEP vs CTRL-NULL)
+    shows no significant difference. This would constitute a clean
+    negative: the preregistered statistic does not distinguish real from
+    simulator at toy scale, with the stated power against TV >= 0.05.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # REQUIRED ARTIFACTS
+  # ─────────────────────────────────────────────────────────────────────────
+  required_artifacts:
+    - path: preregistration_manifest.yaml
+      description: >-
+        Frozen copy of this contract plus cryptographic hash, generated
+        BEFORE any transcript computation. Includes the exact statistic
+        formula, parameter values, seed list, and threshold. The hash
+        of this file must appear in all subsequent artifacts.
+      timing: Before any transcript generation
+    - path: prime_verification.txt
+      description: >-
+        Proof or certificate that p = 6143 is prime and the 2-isogeny
+        graph over F_{p^2} is connected. Output of a primality test.
+      timing: Before transcript generation
+    - path: simulator_calibration_report.yaml
+      description: >-
+        CAL-1 through CAL-4 results: sample sizes, test statistics,
+        p-values, and PASS/FAIL for each criterion. Includes the
+        calibrated commitment-length distribution.
+      timing: After simulator construction, before primary testing
+    - path: raw_transcripts/
+      description: >-
+        Directory containing one JSON file per condition per run:
+        real_key{1..5}_run{1..3}.json, simulator_run{1..3}.json,
+        independent_run{1..3}.json. Each file contains the list of
+        (E_1_j, kernel_scalar_s, E_2_j) tuples.
+      timing: After transcript generation
+    - path: statistic_results.json
+      description: >-
+        For each run and each condition: the per-key chi2_7 value,
+        the aggregate chi2_7 value, the KS test statistic (secondary),
+        the MI estimate (secondary), and all p-values.
+      timing: After statistical testing
+    - path: validity_report.yaml
+      description: >-
+        Self-assessment: preregistration hash matches, no stop rules
+        triggered, no invalidation rules violated, calibration passed,
+        transcript counts achieved, correct seeds used.
+      timing: Final artifact
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # REPLICATION
+  # ─────────────────────────────────────────────────────────────────────────
+  replication:
+    seeds: ["0x20260803_EXP_SSI_S1_RUN01", "0x20260803_EXP_SSI_S1_RUN02", "0x20260803_EXP_SSI_S1_RUN03"]
+    independent_instances: 3
+    consistency_requirement: >-
+      The primary conclusion (reject or fail-to-reject) must agree
+      across all 3 runs. If runs disagree, report as "inconsistent"
+      and recommend increased transcript count or investigation of
+      seed-dependent behavior.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SCALE RELEVANCE
+  # ─────────────────────────────────────────────────────────────────────────
+  scale_relevance:
+    tier: toy
+    justification: >-
+      p = 6143 gives ~512 supersingular curves. At this scale, the
+      endomorphism ring of every curve is computable by brute force
+      (enumerate all degree-d endomorphisms for d up to O(p^{1/2})).
+      KLPT behavior at this scale may differ from cryptographic scale
+      (p ~ 2^256) because: (a) the quaternion algebra has small
+      discriminant, (b) the space of norm-D ideals is fully enumerable,
+      (c) lattice structure in the maximal order is more constrained.
+      A negative result at toy scale provides a controlled-null
+      baseline and validates the methodology; it does NOT prove
+      absence of leakage at crypto scale. A positive result at toy
+      scale motivates mid-scale follow-up (p ~ 2^32) but does NOT
+      constitute a vulnerability finding.
+    correspondence: null  # Direct sampling; no sampling correspondence used
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SCOPE AND CLAIMS
+  # ─────────────────────────────────────────────────────────────────────────
+  scope:
+    what_this_tests: >-
+      Whether the KLPT algorithm's algebraic constraints create a
+      detectable statistical bias in the kernel-scalar representation
+      of response isogenies, measurable from public transcripts without
+      knowledge of the secret key, at toy scale.
+    what_positive_means: >-
+      A statistically significant chi2_7 rejection across multiple
+      keys and runs would constitute preliminary (toy-scale) evidence
+      that KLPT's kernel selection is non-uniform in a direction
+      detectable from transcripts. This would warrant: (1) mid-scale
+      replication at p ~ 2^32, (2) information-theoretic analysis of
+      the bias mechanism, (3) investigation of whether the bias
+      persists in updated SQIsign variants (v2.0, SQIsign2D).
+    what_negative_means: >-
+      Failure to reject across all keys and runs means: the chi2_7
+      statistic on kernel-scalar mod-7 residues does NOT distinguish
+      real from simulator at TV >= 0.05, at toy scale. This closes
+      the specific chi2_7/mod-7 test at p = 6143 and validates the
+      methodology. It leaves open: other statistics (entropy-based,
+      higher-order correlations), other moduli, other parameters,
+      multi-transcript joint statistics, and crypto-scale behavior.
+    what_this_does_not_test:
+      - Key recovery from transcripts (not attempted)
+      - Deployed SQIsign security (toy scale only)
+      - Timing side channels (explicitly excluded by CAL-4 equalization)
+      - Security against adversaries with knowledge of the secret key
+        (Borin-Lai-Leroux 2024 already shows distinguishability WITH the key)
+      - CSIDH, CGL, or other non-SQIsign protocols
+      - Quantum distinguishers
+    evidence_class: toy_or_derivation_only
+    not_claimed: [key_recovery, cryptographic_scale, break, completion]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # METADATA
+  # ─────────────────────────────────────────────────────────────────────────
+  inputs:
+    decision_ref: DEC-20260803-ce35f1
+    red_team_control: RT-CTRL-001
+    idea_screen_candidate: SSI-S1
+    literature_refs:
+      - KN-LIT-072   # SQIsign original (De Feo et al. 2020)
+      - KN-LIT-1231  # Erebor: SQIsign simulator distinguisher with key (Borin et al. 2024)
+      - KN-LIT-1159  # SQIsign side-channel / constant-time (Jacquemin et al. 2023)
+      - KN-LIT-1903  # Algebraic Isogeny Model / SQIsign EUF-CMA (2026)
+      - KN-TECH-028  # Deuring, KLPT, SQIsign technique
+      - KN-TECH-057  # VW matched baseline
+  independent_variables:
+    - name: condition
+      levels: [same_key_real, simulator_null, independent_key, shuffled_key]
+    - name: key_id
+      levels: [key_1, key_2, key_3, key_4, key_5]
+  metrics:
+    primary:
+      - chi2_7 per key per condition
+      - chi2_7 p-value (from chi-squared(6) reference)
+    secondary:
+      - KS two-sample statistic (real vs simulator per key)
+      - Mutual information I(residue; key_id) (pooled across keys)
+      - Per-bin residue frequencies (for diagnostic visualization)
+  preregistered_prediction:
+    quantity: chi2_7 distribution under H0
+    formula: "chi2_7 ~ chi-squared(df=6) with mean 6 and variance 12"
+    source: "Standard chi-squared theory; kernel-scalar uniformity is the security assumption"
+  tail_checks:
+    - "Maximum observed chi2_7 across 5 keys × 3 runs (15 values) vs. Bonferroni-corrected extreme-value bound"
+    - "Per-bin counts: no bin with fewer than 20 observations (validates chi-squared approximation)"
+  assigned_to: executor
+  approved_by: null  # Pending validator review (TASK-20260803-b5ce08)
+  designed_by: idea-generator
+  designed_at: '2026-08-04'

@@ -799,7 +799,20 @@ def check_knowledge_entries(ctx: Ctx) -> None:
         promotion = body.get("knowledge_promotion")
         if not isinstance(promotion, dict):
             continue
-        for knowledge_id in promotion.get("promoted") or []:
+        for entry in promotion.get("promoted") or []:
+            # Records in the wild write both shapes: a bare `KN-*` id, and a
+            # mapping carrying the id plus a note or action. Take the id from
+            # either. An entry that is neither is a malformed reference, not a
+            # reason to abort the whole run -- an unhashable one used to raise
+            # TypeError here and take every later check down with it.
+            if isinstance(entry, dict):
+                knowledge_id = entry.get("id")
+            else:
+                knowledge_id = entry
+            if not isinstance(knowledge_id, str):
+                ctx.err(ctx.ids[rec_id], "knowledge_promotion entry is not a "
+                                         f"knowledge ID: {entry!r}")
+                continue
             if knowledge_id not in ctx.knowledge:
                 ctx.err(ctx.ids[rec_id], "knowledge_promotion references "
                                          f"unknown entry '{knowledge_id}'")
