@@ -1061,6 +1061,21 @@ def _kill_process(process: subprocess.Popen[Any]) -> None:
             pass
 
 
+def _proc_cpu_seconds(process_id: int) -> float | None:
+    """Per-process CPU seconds from /proc, with sub-second precision."""
+    if not sys.platform.startswith("linux"):
+        return None
+    try:
+        clk_tck = os.sysconf("SC_CLK_TCK")
+        with open(f"/proc/{process_id}/stat", encoding="ascii") as handle:
+            fields = handle.read().split()
+        utime = int(fields[13])
+        stime = int(fields[14])
+        return (utime + stime) / clk_tck
+    except (FileNotFoundError, ProcessLookupError, IndexError, OSError, ValueError):
+        return None
+
+
 def _cpu_time_seconds(value: str) -> float:
     days = 0
     if "-" in value:
@@ -1097,7 +1112,9 @@ def _process_table() -> dict[int, tuple[int, int, int, float, str]]:
             parent_id = int(fields[1])
             group_id = int(fields[2])
             rss_kib = int(fields[3])
-            process_cpu = _cpu_time_seconds(fields[4])
+            process_cpu = _proc_cpu_seconds(process_id)
+            if process_cpu is None:
+                process_cpu = _cpu_time_seconds(fields[4])
         except ValueError:
             continue
         table[process_id] = (
