@@ -6,11 +6,11 @@ BATCH-040: one bounded zero-compute batch that (1) specifies the host-integratio
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260730-133` | red-team | queued | 80 | TASK-20260730-131, TASK-20260730-132 | coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-133/red_team_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-133/falsification_review.md | coordination/goals/GOAL-SSI-001/batches/BATCH-040/tasks/TASK-20260730-133 |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260730-134`: dependency_not_completed:TASK-20260730-133:queued
+None.
 
 ## Dispatch Gates
 
@@ -25,4 +25,4 @@ BATCH-040: one bounded zero-compute batch that (1) specifies the host-integratio
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `50c8bfb9e60544578a375752d5542fcdbfd46749d331f78bd12757540520beeb`
+Plan SHA-256: `ecc360aa4f5c428711b754e3edb004e7c794aebce8f8c5df35a6e038f29def52`
