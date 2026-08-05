@@ -57,28 +57,32 @@ research_goal:
     maximum_batches: 8
     total_wall_clock_seconds: 28800
     max_concurrent: 3
-  current_batch_id: BATCH-003
+  current_batch_id: BATCH-005
   dispatch_queue_path_note: >-
-    BATCH-003 did not use a formal tools/research_dispatch.py JSON queue --
-    its two tasks (a pre-freeze Red Team review, then a single Executor run)
-    were dispatched directly, with the same archival/review/immutability
-    discipline as BATCH-001/002. No dispatch_queue.json exists under
-    coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/. Recorded so the
-    absence reads as a process choice, not an oversight.
-  latest_verified_commit: 3c117cbc60c85743532e2e2db0530e3be97a8520
+    BATCH-003 and BATCH-004 did not use a formal tools/research_dispatch.py
+    JSON queue -- their tasks (a pre-freeze Red Team review, then a single
+    Executor run, then Validator/Red Team review) were dispatched directly,
+    with the same archival/review/immutability discipline as
+    BATCH-001/002. No dispatch_queue.json exists under
+    coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/ or BATCH-004/.
+    Recorded so the absence reads as a process choice, not an oversight.
+  latest_verified_commit: 299537238f14db622c7e93f52bc19286a7c4bba7
   latest_verified_commit_note: >-
-    The TASK-20260805-fdd699 snapshot commit (the RUN-SSIQ-58b642-a package),
-    accepted by the dispatcher-equivalent manual check and INDEPENDENTLY
-    RE-VERIFIED by the Validator TASK-20260805-2c086d: reachable from HEAD,
-    first parent f5244c18, changed-path set exactly equal to the 11 declared
-    artifacts, all path_sha256 recomputed directly from the git blobs at
-    3c117cbc (not the working tree). DELIBERATELY NOT ADVANCED to the
-    ledger-archive commit carrying this edit, for the same reason as every
-    prior batch: that commit has not been through a verifier at the moment it
-    is written. Branch commits stop resolving under a squash merge; the
-    durable bindings are the path_sha256 maps in the receipts under
+    The TASK-20260805-81ffe0 snapshot commit (the RUN-SSIQ-a85692-a
+    package), accepted by the dispatcher-equivalent manual check and
+    INDEPENDENTLY RE-VERIFIED by the Validator TASK-20260805-798a16:
+    reachable from HEAD, parent 5fc59a15b4c3cef68740fbe72c76719a59c67b6b,
+    changed-path set exactly equal to the 20 declared artifacts, all
+    path_sha256 recomputed directly from the git blobs at 29953723 (not the
+    working tree). DELIBERATELY NOT ADVANCED to the ledger-archive commit
+    carrying this edit, for the same reason as every prior batch: that
+    commit has not been through a verifier at the moment it is written.
+    Branch commits stop resolving under a squash merge; the durable
+    bindings are the path_sha256 maps in the receipts under
     coordination/goals/GOAL-SSIQ-001/batches/*/archives/.
-    PRIOR VERIFIED COMMITS, retained for history: BATCH-002's
+    PRIOR VERIFIED COMMITS, retained for history: BATCH-003's
+    3c117cbc60c85743532e2e2db0530e3be97a8520 (TASK-20260805-fdd699, the
+    RUN-SSIQ-58b642-a package, parent f5244c18, 11/11 paths); BATCH-002's
     41a4aebd6d57f4b5672327870f03f6dffc4bc266 (TASK-20260805-556a74, the
     EXP-SSIQ-4de240 run package, parent 23930942, 8/8 paths) and its REC-2
     snapshot 948c9aee1e0d038274f8d8ea984b89b3b056947d (parent ab8e3ad8, 4/4
@@ -578,6 +582,41 @@ research_goal:
         DATA-UNAVAILABLE/BLOCKED branch as distinct from a control-failure
         VOID, wherever an external dataset is load-bearing for the
         confirmatory metric.
+    - id: GD-7
+      raised_by: [TASK-20260805-b5873f]
+      severity: medium
+      detail: >-
+        NAMED IN BATCH-004, ON RUN-SSIQ-a85692-a's DATA-UNAVAILABLE-BLOCKED
+        OUTCOME. The frozen contract's truncation fallback selected an
+        ascending prefix of primes by checking each prime's estimated
+        full-coverage cost against T_prime = 0.5*7200/12 = 300s -- an
+        INDIVIDUAL 1/12 share of half the run's reserved budget -- and
+        stopped extending the prefix at the first prime that failed. The
+        smallest pre-registered prime already failed (379.7s > 300s), so
+        the prefix was empty: 0 of 12 primes confirmatory. The Red Team
+        found, and the Coordinator independently re-verified BY HAND FROM
+        THE RUN'S OWN ALREADY-COMMITTED per_prime_estimate NUMBERS (zero
+        re-measurement, zero cost-model correction), that a CUMULATIVE
+        reading of the identical numbers against the SAME reserved budget
+        -- summing the ascending prefix's costs and comparing the running
+        total to 3600s (half-budget) or 7200s (full budget) -- admits 4
+        primes at the half-budget reading (cumulative 3041.7s) and 6 at the
+        full-budget reading (cumulative 6138.3s), both clearing the Phase
+        -1 gate's own stated 4-prime floor. An individual per-prime cap is
+        the wrong check for an ascending-prefix selection rule that already
+        discards the expensive tail: it implicitly reserves an equal share
+        for primes the selection rule will never admit anyway. THIS IS
+        GD-4's EXACT FAILURE MODE ONE LAYER DOWNSTREAM: the pre-freeze
+        review explicitly stress-tested the smoothness parameters (B, X,
+        Finding 1/8) but the budget-allocation formula governing how those
+        parameters get applied across primes was finalized in the same fix
+        pass and never received the same scrutiny.
+      standing_repair_adopted: >-
+        Effective BATCH-005 onward: any prefix-truncation or scope-reduction
+        fallback that selects items under a reserved total budget has BOTH
+        its individual-cap and cumulative-prefix readings explicitly derived
+        during pre-freeze review, with the operative one named in the
+        contract text and confirmed against the actual code, before freeze.
   completion_criteria:
     - >-
       An exponent-budget decomposition of the archived p^{1/3+o(1)} algorithm
@@ -650,39 +689,47 @@ research_goal:
     by DEC-20260805-be2f87 (revise, instrument defect) on evidence
     EV-SSIQ-29fcbb; BATCH-003 closed by DEC-20260805-cd8bcd (inconclusive,
     real-arm untested -- instrument validated, data-availability gap) on
-    evidence EV-SSIQ-9a0396.
+    evidence EV-SSIQ-9a0396; BATCH-004 closed by DEC-20260805-a4e04e (revise,
+    contract budget-allocation defect GD-7 -- instrument validated, Phase -1
+    gate failed on a fixable formula) on evidence EV-SSIQ-94de20.
   next_action: >-
-    OPEN BATCH-004 ON A DIRECT-COMPUTATION UNBLOCK OF LEVER L4 -- still the
-    only lever whose ceiling meets this goal's target, and still the top
-    priority; the campaign does not pivot off it. BATCH-003 built a validated
-    calibration harness (C-CAL-GAP) and a validated graph-construction
-    pipeline (Phi_2 root-finding, BFS, C-CONNECTIVITY/C-EDGELIST) for the
-    2-isogeny graph at p = 1 (mod 12), independently re-verified beyond the
-    contractual minimum, but could not compute the real-arm delta_E labels:
-    WISDE's released data carries no per-vertex j-invariant linkage (confirmed
-    by reading WISDE's own generating script), and the Executor correctly
-    refused to fabricate one. REUSE BATCH-003's INFRASTRUCTURE; SUPPLY THE
-    MISSING LABELS BY DIRECT IN-SESSION COMPUTATION of delta_E via bounded
-    smooth-degree isogeny search (the archived source's own method), which
-    sidesteps the hard Deuring curve-to-ideal direction entirely, rather than
-    full endomorphism-ring reconstruction.
-    THE CONTRACT CARRIES GD-6's STANDING REPAIR: (i) the pre-freeze Red Team
-    pass re-reads every cited prior artifact IN FULL, not just its headline
-    metric -- this batch's own defect was catchable from an already-committed
-    document nobody reopened; (ii) the decision rule names a
-    DATA-UNAVAILABLE/BLOCKED branch as distinct from a control-failure VOID.
+    OPEN BATCH-005 AS A VERSIONED AMENDMENT TO EXP-SSIQ-a85692 -- same
+    contract, same delta_E instrument (independently validated in BATCH-004,
+    EV-SSIQ-94de20 O-1), same hypothesis content (H-SSIQ-137200, restating
+    H-SSIQ-9e2c71 unchanged). L4 remains the only lever whose ceiling meets
+    this goal's target and still the top priority. BATCH-004's Phase -1
+    coverage gate failed because the truncation fallback's budget check was
+    an INDIVIDUAL per-prime cap (T_prime=300s) rather than a CUMULATIVE
+    check of the ascending prefix against the reserved budget -- named GD-7,
+    independently re-verified by the Coordinator from BATCH-004's own
+    already-committed per-prime cost estimates with zero re-measurement: a
+    cumulative reading of the SAME numbers admits 4 primes at the
+    half-budget reading (3600s) and 6 at the full-budget reading (7200s),
+    clearing the gate's 4-prime floor. THE FIX: (1) correct the fallback to
+    a cumulative-ascending-prefix budget check (GD-7's standing repair);
+    (2) widen coverage toward the originally intended 203-1800 vertex N-range
+    where cheaply possible rather than accepting only the cheapest
+    small-prime prefix (DEC-20260805-a4e04e D-5's caveat, guarding against
+    repeating the narrow-fitting-window estimator bias in
+    instrument_calibration); (3) actually EXECUTE Phase -1 (the real
+    greedy-vs-random descent test) on the corrected prefix, using the
+    ~7109s of BATCH-004's 7200s budget that went unspent. Optionally fold in
+    the Validator's F-1 cost-model correction (a second smoke test at the
+    smallest prime) if it does not materially extend scope.
+    GOES THROUGH THE PRE-FREEZE RED TEAM PROCESS WITH GD-7's STANDING REPAIR
+    APPLIED: any prefix-truncation fallback under a reserved budget has both
+    its individual-cap and cumulative-prefix readings explicitly derived,
+    with the operative one named and confirmed against the actual code,
+    before freeze.
     Deferred with revisit conditions, not dropped (AGENTS.md rule 9):
-    (i) REC-1b / M-GRAD via WISDE is now RETIRED, not deferred -- doubly
-    confirmed dead by the identical data gap in both BATCH-002 and BATCH-003;
-    revisit only if a future WISDE release adds per-vertex linkage.
-    (ii) REC-4, the zero-compute N5 scoping pass, stays open and unscheduled
-    while L4's labelling problem is worked, so attention is not split across
-    two open levers; revisit once L4 resolves either way. (iii) The deferred
-    p != 1 (mod 12) successor from PF-5 is COSTED HIGHER by PD-2's finding
-    that even p = 1 mod 12 carries mild Frobenius-conjugate multiplicity;
-    revisit only after the p = 1 mod 12 direct-computation route is exhausted.
-    (iv) Routing the docs/claims-and-verification.md correction under GD-3 to
-    its owner remains open.
+    (i) REC-1b / M-GRAD via WISDE remains RETIRED (doubly confirmed dead in
+    BATCH-002/003); revisit only if a future WISDE release adds per-vertex
+    linkage. (ii) REC-4, the zero-compute N5 scoping pass, stays open and
+    unscheduled while L4's now-narrowly-blocked labelling problem is worked
+    to conclusion. (iii) The deferred p != 1 (mod 12) successor from PF-5
+    stays costed higher than the p=1 mod 12 route; revisit only after that
+    route is exhausted. (iv) Routing the docs/claims-and-verification.md
+    correction under GD-3 to its owner remains open.
   id_corrections:
     - correction: retired-unused task identifiers
       recorded_at: '2026-08-05'
@@ -701,4 +748,4 @@ research_goal:
         entry exists because a silently corrected identifier is
         indistinguishable from a fabricated one in an archive.
   created_at: '2026-08-05T01:00:00Z'
-  updated_at: '2026-08-05T08:15:00Z'
+  updated_at: '2026-08-05T09:55:00Z'
