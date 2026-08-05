@@ -31,8 +31,8 @@ experiment:
     Re-analysis of RUN-SSIQ-a85692-b under a corrected trapped-vertex
     exclusion filter and a wired C-NULL-LABEL comparison (BATCH-006,
     fixing GD-8/GD-9, zero new search)
-  status: draft
-  approved_by: null
+  status: approved
+  approved_by: coordinator
   amends: EXP-SSIQ-a85692 (version 2, specification_v2.yaml, frozen 14b56525)
   amendment_scope: >-
     TWO CHANGES, BOTH RE-ANALYSIS OF ALREADY-COLLECTED DATA, ZERO NEW
@@ -52,34 +52,52 @@ experiment:
     desired outcome. Every other pinned element of v1/v2 is REUSED
     UNCHANGED and NOT restated below.
   pre_freeze_review:
-    status: PENDING
-    note: >-
-      Not yet reviewed. The reviewer must: (a) verify by direct code
-      reading that trapped_exclusion_filter_v3 and
-      c_null_label_comparison_v3 below are actually implemented as
-      specified, not left as dead code the way GD-9 was (the exact
-      failure mode this amendment exists to fix, so the reviewer must not
-      repeat it); (b) independently re-derive, from
-      RUN-SSIQ-a85692-b's own already-committed raw-result.json
-      (c_null_label.per_prime and descent_metrics.per_prime), which
-      primes survive trapped_exclusion_filter_v3 (expected: zero of the 4
-      previously-used primes, since all four have trapped_fraction in
-      [0.72, 0.85], each exceeding 0.5 -- confirm this arithmetic
-      independently rather than trusting the draft's own worked check);
-      (c) check that c_null_label_comparison_v3's pre-registered rule is
-      genuinely stated independent of what it would output on existing
-      data, i.e. that the rule's design does not implicitly encode
-      knowledge of RUN-SSIQ-a85692-b's actual null_by_prime numbers; (d)
-      confirm the DATA-UNAVAILABLE/BLOCKED-for-corrected-filter branch
-      below (fired when < 4 primes survive trapped_exclusion_filter_v3)
-      is a genuinely informative, honestly-reported outcome and not a
-      way to avoid computing an inconvenient number; (e) check for any
-      other reused element (beyond C-NULL-LABEL) whose
-      failure_consequence is named in the decision rule but whose
-      comparison logic might likewise be unimplemented -- GD-9's own
-      standing repair requires this be checked now that it is known to
-      be possible, not assumed absent elsewhere just because it was
-      found once.
+    status: REVIEWED
+    report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-006/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v3.md
+    verdict: FREEZE-WITH-FIXES
+    findings_applied: [PF-1, PF-2, PF-3]
+    findings_advisory_noted: [PF-4]
+    pf1_summary: >-
+      BLOCKING, applied. The reviewer independently re-derived
+      trapped_exclusion_filter_v3's survivor set for BOTH arms (the
+      draft's own worked check quoted only the real arm) and found ZERO
+      survivors in the null arm too (0.8079, 0.7037, 0.7908, 0.8478,
+      all >0.5) -- below c_null_label_comparison_v3's own stated >=3
+      minimum. This means the fit-and-bootstrap branch, the one
+      substantive new computation this amendment adds to fix GD-9, is
+      structurally unreachable on this dispatch's data: a correct
+      implementation and a stub that unconditionally returns
+      NOT-EVALUABLE are indistinguishable in this run's own artifacts --
+      a harder, non-grep-detectable variant of GD-9's own failure mode.
+      Fixed by (i) evidentiary_limitation_disclosure below, stating this
+      plainly rather than letting the run's own "ran: true"-shaped
+      output imply more than it can support, and (ii) a new required
+      artifact, a synthetic self-test independent of
+      RUN-SSIQ-a85692-b's real data, that does exercise and validate the
+      fit-and-bootstrap branch end to end.
+    pf2_summary: >-
+      BLOCKING, applied. decision_rule_v3 depends on apply_decision_rule
+      (compute_delta_e.py, Boolean-only c_null_label_control_failure
+      parameter), which required_artifacts_note never named, and whose
+      interface has no defined behavior for the NOT-EVALUABLE state
+      invalidation_rules_v3_additions requires be preserved. Fixed:
+      apply_decision_rule is now named explicitly in
+      required_artifacts_note as reused-by-reference, and
+      not_evaluable_decision_rule_v3 below states the mechanical rule
+      for what happens when c_null_label_control_failure is
+      NOT-EVALUABLE.
+    pf3_summary: >-
+      ADVISORY, applied. The worked-check range below now states both
+      arms' actual trapped_fraction ranges rather than the real arm's
+      alone.
+    pf4_note: >-
+      Non-blocking, forward-looking per the reviewer: c_null_label_comparison_v3's
+      statistical power at its own n>=3 floor is unaddressed and cannot
+      be checked on data that never reaches the branch. Recorded as a
+      standing caveat for whichever future run first exercises this
+      branch for real -- not fixed here, since PF-1's synthetic self-test
+      validates correctness, not statistical power, and no real data
+      exists yet against which to assess power.
   inputs:
     reanalysis_scope: >-
       THIS AMENDMENT OPERATES ENTIRELY ON RUN-SSIQ-a85692-b's ALREADY-
@@ -109,12 +127,20 @@ experiment:
       identically to both arms, before either OLS fit runs. THE THRESHOLD
       (0.5) IS NOT NEW: it is v1's own inherited text, unchanged, applied
       here for the first time to real data. WORKED CHECK (not itself part
-      of the frozen rule, a sanity check for the pre-freeze reviewer):
+      of the frozen rule, a sanity check for the pre-freeze reviewer),
+      PF-3 FIX APPLIED -- BOTH ARMS STATED, not the real arm alone:
       applying this filter to RUN-SSIQ-a85692-b's own already-committed
-      numbers (trapped_fraction 0.8374, 0.7222, 0.8201, 0.8511 for primes
-      2437, 3889, 5737, 7333 respectively) excludes ALL FOUR -- zero
-      primes survive. This is expected, disclosed, and handled by
-      decision_rule_v3 below, not silently avoided.
+      numbers excludes ALL FOUR primes in the REAL arm (trapped_fraction
+      0.8374, 0.7222, 0.8201, 0.8511, range [0.7222, 0.8511], for primes
+      2437, 3889, 5737, 7333 respectively) AND ALL FOUR primes in the
+      NULL arm (trapped_fraction 0.8079, 0.7037, 0.7908, 0.8478, range
+      [0.7037, 0.8478], same four primes) -- zero primes survive in
+      EITHER arm. This is expected, disclosed, and handled by
+      decision_rule_v3 below, not silently avoided. IT ALSO MEANS (PF-1
+      FIX APPLIED, see evidentiary_limitation_disclosure_v3 below):
+      c_null_label_comparison_v3's fit-and-bootstrap branch cannot be
+      exercised by this dispatch's real data at all, since the null
+      arm's own survivor count (0) is below its own >=3 minimum.
     c_null_label_comparison_v3: >-
       GD-9's fix. IF (and only if) trapped_exclusion_filter_v3 leaves >=3
       primes surviving in the null arm (ols_loglog_fit's own minimum,
@@ -151,6 +177,44 @@ experiment:
       requires n>=3) and c_null_label_control_failure is reported as
       NOT-EVALUABLE, distinct from both True and False -- this is itself
       informative and must not be silently defaulted to either boolean.
+    evidentiary_limitation_disclosure_v3: >-
+      PF-1 FIX APPLIED (RT-PREFREEZE-EXP-SSIQ-a85692-v3.md, BLOCKING
+      finding). STATED PLAINLY, BEFORE DISPATCH: given
+      trapped_exclusion_filter_v3's own worked check above, THIS SPECIFIC
+      DISPATCH (against RUN-SSIQ-a85692-b's real data) IS EXPECTED, WITH
+      HIGH CONFIDENCE INDEPENDENTLY CONFIRMED AT PRE-FREEZE, TO EXERCISE
+      ONLY c_null_label_comparison_v3's NOT-EVALUABLE PATH. The
+      fit-and-bootstrap branch -- the one substantive new computation
+      this amendment adds to fix GD-9 -- will NOT run on this data. A
+      correct implementation and a stub that unconditionally returns
+      NOT-EVALUABLE without ever calling ols_loglog_fit/bootstrap_gap_ci
+      are INDISTINGUISHABLE in this run's own raw-result.json,
+      manifest.yaml, or execution_report.yaml. This run's own artifacts
+      therefore supply NO RUNTIME EVIDENCE that GD-9's fix actually
+      works; that evidence comes only from synthetic_self_test_v3 below,
+      which is INDEPENDENT of RUN-SSIQ-a85692-b's real data and is a
+      required artifact, not optional. Any successor record citing this
+      batch must state this limitation explicitly rather than letting a
+      "c_null_label_comparison.ran: true"-shaped report block imply more
+      than it can support -- the exact shallow-read failure mode that
+      let GD-9 itself go undetected for three batches.
+    synthetic_self_test_v3: >-
+      PF-1 FIX APPLIED, REQUIRED ARTIFACT (see required_artifacts below).
+      Independent of RUN-SSIQ-a85692-b's real data: construct at least 4
+      synthetic (N, greedy_median, random_median) triples with a
+      hand-computable (or independently cross-checkable) gamma/m_gap --
+      e.g. two exact power laws with known exponents, so ols_loglog_fit's
+      output is analytically predictable -- and run them through the
+      IDENTICAL c_null_label_comparison_v3 code path (the same
+      ols_loglog_fit/bootstrap_gap_ci calls, the same comparison rule)
+      to demonstrate the fit-and-bootstrap branch executes end to end and
+      produces numbers matching the hand/analytic computation to
+      reasonable tolerance. This is a few lines of test code against
+      already-imported functions, negligible against the 300s budget.
+      Report its output (inputs, computed gamma_null_greedy/
+      gamma_null_random/m_gap_null/CI, and the expected values it is
+      checked against) in execution_report.yaml as a DISTINCT section
+      from RUN-SSIQ-a85692-b's own re-analysis, never conflated with it.
   decision_rule_v3: >-
     REPLACES v1/v2's decision_rule_frozen_before_data's Phase -1 gate
     check for THIS re-analysis with a NEW, PRIOR gate specific to the
@@ -171,12 +235,33 @@ experiment:
     H-SSIQ-36e970's mechanism section. If >=4 primes DO survive: recompute
     gamma_greedy/gamma_random/m_gap on exactly the surviving subset (the
     SAME ols_loglog_fit/bootstrap_gap_ci functions, unchanged), then
-    apply v1/v2's UNCHANGED decision rule ordering (Phase 0 already
-    passed -> Phase -1 gate already passed -> control-failure check, now
-    including c_null_label_control_failure computed for real for the
-    first time, alongside the already-computed C-SEARCH-BIAS flag -> CI
-    sign) to determine DETECTED / UNRESOLVED-BY-THIS-TEST /
-    CONTROL-FAILURE-VOID.
+    apply v1/v2's UNCHANGED decision rule ordering via apply_decision_rule
+    (compute_delta_e.py, imported unchanged by reference -- see
+    required_artifacts_note below, PF-2 fix) (Phase 0 already passed ->
+    Phase -1 gate already passed -> control-failure check, now including
+    c_null_label_control_failure computed for real for the first time,
+    alongside the already-computed C-SEARCH-BIAS flag -> CI sign) to
+    determine DETECTED / UNRESOLVED-BY-THIS-TEST / CONTROL-FAILURE-VOID.
+  not_evaluable_decision_rule_v3: >-
+    PF-2 FIX APPLIED (RT-PREFREEZE-EXP-SSIQ-a85692-v3.md, BLOCKING
+    finding). apply_decision_rule's c_null_label_control_failure
+    parameter is a plain Boolean with no slot for NOT-EVALUABLE.
+    STATED RULE, not left to Executor discretion: in the (on
+    RUN-SSIQ-a85692-b's data, unreached, but foreseeable on a future
+    run's data) case where the real arm's >=4-primes-survive branch
+    fires WHILE the null arm's own, independently-computed filter
+    leaves fewer than 3 survivors (i.e. c_null_label_control_failure is
+    NOT-EVALUABLE), DO NOT invoke apply_decision_rule's Boolean
+    parameter with either True or False. Instead, BYPASS
+    apply_decision_rule entirely for that branch and report the
+    terminal outcome as UNRESOLVED-BY-THIS-TEST directly -- never
+    DETECTED -- on the same non-improvisation principle this campaign
+    already applies elsewhere: a control that could not be evaluated
+    cannot license a positive claim, so the absence of its protection is
+    treated the same way a genuine ambiguous/uncertain result is treated
+    (v1's PF-7 fix), not silently treated as if the control had passed.
+    This rule is stated here, before any run exercises it, so a future
+    Executor cannot choose an interpretation mid-run.
   invalidation_rules_v3_additions:
     - >-
       NEW (this amendment only). trapped_exclusion_filter_v3 leaves fewer
@@ -202,6 +287,7 @@ experiment:
     - runs/RUN-SSIQ-a85692-c/environment.json
     - runs/RUN-SSIQ-a85692-c/stdout.log
     - runs/RUN-SSIQ-a85692-c/stderr.log
+    - runs/RUN-SSIQ-a85692-c/synthetic_self_test.json
   required_artifacts_note: >-
     EXPLICIT, CODE-VERIFIED FUNCTION-LEVEL DIFF against
     experiments/EXP-SSIQ-a85692/implementation/compute_delta_e_v2.py (v2),
@@ -212,6 +298,11 @@ experiment:
         (does not re-execute compute_delta_e_v2.py's search machinery at
         all), applies trapped_exclusion_filter_v3, and implements
         c_null_label_comparison_v3.
+      NEW, REQUIRED, PF-1 FIX: a synthetic self-test (per
+        synthetic_self_test_v3 above), independent of
+        RUN-SSIQ-a85692-b's real data, producing
+        runs/RUN-SSIQ-a85692-c/synthetic_self_test.json (inputs, computed
+        outputs, and the expected/analytic values checked against).
       IMPORTED UNCHANGED, BY REFERENCE: ols_loglog_fit and
         bootstrap_gap_ci from
         experiments/EXP-SSIQ-58b642/implementation/descent_hitting_time.py
@@ -219,16 +310,23 @@ experiment:
         m_gap already used in RUN-SSIQ-a85692-b -- reused, not
         reimplemented, so the null arm's fit uses byte-identical machinery
         to the real arm's).
+      IMPORTED UNCHANGED, BY REFERENCE, PF-2 FIX: apply_decision_rule
+        from experiments/EXP-SSIQ-a85692/implementation/compute_delta_e.py
+        (v1) -- decision_rule_v3's own text requires re-invoking it, and
+        this note previously omitted it; not_evaluable_decision_rule_v3
+        above states its bypass rule for the NOT-EVALUABLE case.
       UNCHANGED, NOT INVOKED AT ALL: compute_delta_e_v2.py's search,
         smoke-test, admission, and Phase -1 execution code -- this
         amendment performs no delta_E search of any kind.
     New run id RUN-SSIQ-a85692-c (v1's RUN-SSIQ-a85692-a and v2's
     RUN-SSIQ-a85692-b stay frozen and untouched; this run's manifest.yaml
-    names RUN-SSIQ-a85692-b as its sole data source, not a fresh search).
-    The Executor's own execution_report.yaml must confirm this diff list
-    against the code it actually wrote/ran, and report any discrepancy
-    rather than silently reconciling it -- the exact cross-check GD-9's
-    own discovery depended on the Validator performing.
+    names RUN-SSIQ-a85692-b as its sole real-data source, and states
+    explicitly that the synthetic self-test data is NOT sourced from any
+    prior run). The Executor's own execution_report.yaml must confirm
+    this diff list against the code it actually wrote/ran, and report any
+    discrepancy rather than silently reconciling it -- the exact
+    cross-check GD-9's own discovery depended on the Validator
+    performing.
   budget:
     wall_clock_seconds_per_run: 300
     total_cpu_hours: 0.1
@@ -239,10 +337,26 @@ experiment:
       already-collected numbers (OLS fits on n<=4 points, a 2000-resample
       bootstrap), not a search. No delta_E search, no Phi_ell
       verification, no graph construction is performed.
-  frozen_at: null
+  frozen_at: '2026-08-05'
   freeze_note: >-
-    NOT YET FROZEN. Pending pre-freeze Red Team review (see
-    pre_freeze_review.status above). Do not dispatch to the Executor until
-    a FREEZE or FREEZE-WITH-FIXES verdict is recorded here and this note is
-    updated to name the freeze commit, per this campaign's standing
-    practice since BATCH-003 (GD-4).
+    FROZEN. Pre-freeze Red Team review
+    (RT-PREFREEZE-EXP-SSIQ-a85692-v3.md) returned FREEZE-WITH-FIXES with
+    four findings; all applied above: PF-1 (BLOCKING -- the null arm ALSO
+    has zero survivors under trapped_exclusion_filter_v3, making
+    c_null_label_comparison_v3's fit-and-bootstrap branch structurally
+    unreachable on this dispatch's real data; fixed by
+    evidentiary_limitation_disclosure_v3 stating this plainly and
+    synthetic_self_test_v3, a required artifact independent of
+    RUN-SSIQ-a85692-b's real data, that validates the branch actually
+    works), PF-2 (BLOCKING -- apply_decision_rule is now named in
+    required_artifacts_note and not_evaluable_decision_rule_v3 states its
+    bypass rule for the foreseeable NOT-EVALUABLE case), PF-3 (ADVISORY --
+    the worked check now states both arms' trapped_fraction ranges), PF-4
+    (non-blocking, forward-looking -- c_null_label_comparison_v3's
+    statistical power at n>=3 is an open question for whichever future
+    run first exercises the branch for real, recorded rather than fixed
+    here since no real data exists yet to assess it against). No
+    prediction, tolerance, window, estimator, control or failure
+    consequence in this amendment (or, unamended, in v1/v2) has been
+    touched since this freeze; a further change requires its own
+    versioned protocol amendment.
