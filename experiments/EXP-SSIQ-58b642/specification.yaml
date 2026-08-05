@@ -1,7 +1,15 @@
 # DRAFT CONTRACT — NOT YET FROZEN. Per GD-4 (ledger/goals/GOAL-SSIQ-001/goal.yaml),
-# this draft goes to a Red Team pre-freeze review BEFORE any data is touched and
-# before status moves to approved. Do not treat this file as authoritative until
-# status: approved and frozen_at is set.
+# this draft went to a Red Team pre-freeze review BEFORE any data is touched and
+# before status moves to approved. That review
+# (coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/reviews/RT-PREFREEZE-EXP-SSIQ-58b642.md,
+# verdict FREEZE-WITH-FIXES) returned seven BLOCKING findings, PF-1 through PF-7.
+# Six are applied directly below (PF-1,2,3,4,6,7); PF-5 (the degenerate-vertex
+# convention) is deliberately left as a REQUIRED PRE-FREEZE RESEARCH STEP rather
+# than a Coordinator-asserted numeric table, because the Coordinator does not
+# reliably know the exact per-(p mod 12)-class multiplicity pattern and AGENTS.md
+# rule 9 forbids stating one without a verified citation. A bounded research task
+# is filling that field; this file freezes only once it returns. Do not treat
+# this file as authoritative until status: approved and frozen_at is set.
 experiment:
   id: EXP-SSIQ-58b642
   hypothesis_id: H-SSIQ-18dc91
@@ -11,6 +19,12 @@ experiment:
     supersingular 2-isogeny graphs (REC-3, the direct test of lever L4)
   status: draft
   approved_by: null
+  pre_freeze_review:
+    report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/reviews/RT-PREFREEZE-EXP-SSIQ-58b642.md
+    verdict: FREEZE-WITH-FIXES
+    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-6, PF-7]
+    findings_pending: [PF-5]
+    advisory_carried: [A1, A2, "pre-run edge-list correctness gate"]
   objective: >-
     Build supersingular 2-isogeny graphs independently of the WISDE counting
     data for a pre-registered set of small primes, and measure whether greedy
@@ -35,13 +49,39 @@ experiment:
         excluding the edge back to the immediate predecessor for the
         NON-BACKTRACKING variant used for hitting-time measurement, and
         including it for the CONNECTIVITY check.
+        PRE-RUN CORRECTNESS GATE (advisory A3, carried as a required step): for
+        at least one small pre-registered prime, verify the FULL EDGE LIST (not
+        just the vertex count) against an independent computation before
+        trusting C-CONNECTIVITY's aggregate count for the rest of the batch --
+        a compensating pair of local errors can pass an aggregate count check
+        while corrupting the adjacency the whole experiment depends on.
       degenerate_j_handling: >-
-        j = 0 and j = 1728 have automorphism groups larger than {+-1} and their
-        neighbour multiplicities in Phi_2 differ from the generic 3-neighbour
-        case; handle exactly per the standard convention (multiplicities from
-        Phi_2's factorisation at these points) and RECORD which convention was
-        used. Getting this wrong silently biases the degree sequence at exactly
-        the two most structurally important vertices.
+        PF-5, NOT YET RESOLVED IN THIS DRAFT. j = 0 and j = 1728 have
+        automorphism groups larger than {+-1}, and the standard treatment
+        builds the modular-polynomial graph as a MULTIGRAPH where a root
+        multiplicity of Phi_2(X, j) at a vertex is an edge multiplicity, not
+        something to deduplicate -- but the EXACT multiplicity pattern at
+        j = 0 and j = 1728, and its dependence on p mod 12, must be pinned from
+        a cited primary or secondary source (Sutherland, "Isogeny volcanoes,"
+        ANTS X 2012, section 2; or Pizer's original construction papers; or
+        Costello, "Supersingular Isogeny Graphs in Cryptography") BEFORE this
+        contract may be frozen. THIS MATTERS MORE HERE THAN GENERICALLY: the
+        prime-balance requirement below FORCES p = 11 mod 12 into the
+        pre-registered set, which is exactly the residue class where j = 0 AND
+        j = 1728 are SIMULTANEOUSLY supersingular with enlarged automorphism
+        groups -- the hardest case, guaranteed to be tested, at exactly the
+        point where a silent multiplicity bug is most likely and where the
+        aggregate C-CONNECTIVITY count is weakest (a compensating local
+        over/under-count can still match the total). M-DEGSEQ below must check
+        the EXACT numeric pattern once pinned, not a generic 3-regularity
+        statement. A bounded pre-freeze research task is filling this field;
+        see pre_freeze_review.findings_pending.
+      degenerate_j_handling_fallback: >-
+        IF THE EXECUTOR CANNOT INDEPENDENTLY VERIFY THE PINNED CONVENTION
+        AGAINST A PRIMARY SOURCE AT RUN TIME (source unreachable, citation does
+        not resolve the way the pre-freeze research task recorded it), STOP and
+        report the underspecification per invalidation_rules -- do not guess a
+        multiplicity and do not silently deduplicate to a simple graph.
       delta_E_cross_reference: >-
         For every enumerated j-invariant, cross-reference delta_E from the
         WISDE released data used in EXP-SSIQ-4de240 (same source, same
@@ -53,20 +93,31 @@ experiment:
       note: >-
         PRE-REGISTER THE EXACT PRIME SET before any graph is built, so it
         cannot be chosen after seeing which primes give a favourable result.
-      selection_rule: >-
-        The 12 smallest primes p with 5000 <= p/12 <= 2000*12 (i.e. graph size
-        roughly 5000 to 24000... NARROWED BELOW to fit budget) such that p is
-        covered by the WISDE release AND p mod 12 is BALANCED across residues
-        {1, 5, 7, 11} at least once each (avoids a degenerate-vertex-count
-        artifact from testing only one residue class). EXACT LIST TO BE PINNED
-        BEFORE FREEZE from the WISDE prime index, not chosen after inspection
-        of any fitted result.
-      size_bound_note: >-
-        THIS FIELD IS A PLACEHOLDER FOR PRE-FREEZE REVIEW. The actual vertex
-        count ceiling is set by the executor's real per-vertex Phi_2 root-find
-        cost inside the wall-clock budget below, and the Red Team pre-freeze
-        review is asked explicitly whether the bound and prime count are
-        realistic BEFORE this is frozen.
+      selection_rule_pf3_corrected: >-
+        PF-3 FIX APPLIED. 12 primes with p <= 22000, i.e. p/12 (graph size)
+        spread across roughly a few hundred to ~1800 vertices -- NOT clustered
+        near the ceiling, so the power-law fit has an actual N-range to work
+        over -- such that p is covered by the WISDE release's EXHAUSTIVE BLOCK
+        (never the sieve-selected block above p = 22000: RT-BATCH-002 control
+        #4 / O-28 established that pooling with the sieve-selected block
+        introduces a p-range artifact, and EV-SSIQ-29fcbb O-1 records the
+        released data spans p in [2, 265207], so this bound also keeps every
+        selected prime well inside coverage, with room for the delta_E
+        cross-reference to have something to check against). p mod 12 BALANCED
+        across residues {1, 5, 7, 11} at least once each (avoids a
+        degenerate-vertex-count artifact from testing only one residue class;
+        this also FORCES the p = 11 mod 12 case into the set, which is why
+        PF-5 must be resolved before freeze -- see degenerate_j_handling).
+        EXACT LIST TO BE PINNED BEFORE FREEZE from the WISDE prime index, not
+        chosen after inspection of any fitted result.
+      superseded_size_bound_note: >-
+        SUPERSEDED BY selection_rule_pf3_corrected ABOVE. The prior text here
+        ("5000 <= p/12 <= 2000*12") was an internally inconsistent placeholder,
+        flagged by the draft itself for the pre-freeze review to catch (PF-3):
+        its lower end already exceeded the ~2000-vertex ceiling used elsewhere
+        in this same document, and its upper end exceeded the WISDE dataset's
+        own coverage. Retained here, struck through in substance rather than
+        deleted, so the correction is visible rather than silent.
   independent_variables:
     - N (graph size, i.e. number of enumerated supersingular j-invariants for a prime)
     - descent method: greedy (steepest local descent on delta_E) versus undirected random walk
@@ -77,26 +128,77 @@ experiment:
           fitted exponent gamma_greedy in median_hitting_time_greedy(N) ~
           N^{gamma_greedy}, fit over the pre-registered prime set by OLS on
           log(median hitting time) against log(N).
+        pf2_censoring_rule: >-
+          PF-2 FIX APPLIED. "Median hitting time" is a POPULATION-WIDE median
+          over ALL N starting vertices (one trial per starting vertex per
+          declared seed), NEVER restricted to starts that reach delta_E = 1 --
+          a survivor-restricted median is exactly the N-correlated selection
+          effect PF-2 identified. A greedy start that halts at a local minimum
+          (no strictly-smaller neighbour, delta_E > 1) is assigned a SENTINEL
+          hitting time equal to the graph's own BFS-computed diameter for that
+          prime (itself reported, so the sentinel is auditable and not an
+          arbitrary constant). trapped_fraction(N) -- the fraction of starts
+          that halt at a local minimum -- is COMPUTED AND REPORTED alongside
+          M-GAP for every prime, under BOTH real and shuffled labels. IF
+          trapped_fraction(N) EXCEEDS 0.5 FOR ANY PRIME, gamma_greedy for that
+          prime is degenerate (the sentinel dominates the median) and that
+          prime's greedy data point is reported VOID, not silently fit anyway.
+          A trapped_fraction that GROWS with N alongside an apparently
+          DETECTED result is flagged explicitly in execution_report.yaml as the
+          artifact signature PF-2 named, whether or not the void threshold
+          fires.
       - id: M-GAMMA-RANDOM
         definition: >-
           fitted exponent gamma_random in median_hitting_time_random(N) ~
           N^{gamma_random}, SAME estimator, SAME primes, run on the SAME
-          built graphs.
+          built graphs, SAME population-wide-median convention as
+          M-GAMMA-GREEDY (a random walk cannot get permanently stuck on a
+          non-bipartite connected graph, so no sentinel is expected to fire
+          here in practice; if one does, report it as an anomaly, not as
+          silently expected).
       - id: M-GAP
         definition: gamma_random - gamma_greedy, with a bootstrap confidence interval.
     secondary:
       - id: M-LOCALMIN
         definition: >-
-          fraction of greedy-descent starts that halt at a local minimum before
-          reaching delta_E = 1, and the delta_E value at which they halt.
-          EXPLORATORY: informs whether a repair (random restart, simulated
-          annealing) is worth a later batch; NOT part of the confirmatory
-          decision rule.
+          Superseded in its confirmatory role by trapped_fraction(N) under
+          M-GAMMA-GREEDY.pf2_censoring_rule above, which is now load-bearing
+          rather than purely exploratory. Retained here only for the
+          delta_E VALUE at which a halt occurs (not just whether one occurs),
+          which stays EXPLORATORY and outside the confirmatory decision rule:
+          informs whether a repair (random restart, simulated annealing) is
+          worth a later batch.
       - id: M-DEGSEQ
         definition: >-
-          the realised degree sequence of each built graph, checked against the
-          expected 3-regular-except-{j=0,j=1728} shape, as a graph-construction
-          correctness check independent of the WISDE cross-reference.
+          the realised degree/multiplicity sequence of each built graph,
+          checked against the EXACT numeric pattern pinned by PF-5's
+          resolution for j=0 and j=1728 per p mod 12 class (not a generic
+          3-regularity statement), as a graph-construction correctness check
+          independent of the WISDE cross-reference.
+      - id: M-TIEFREQ
+        definition: >-
+          PF-4 FIX APPLIED. Fraction of greedy-descent steps that land on an
+          EXACT delta_E tie among a vertex's (up to 3) neighbours, reported for
+          BOTH real-label and C-NULL-LABEL shuffled-label arms, alongside
+          M-GAP. delta_E takes roughly (p/2)^{1/3} ~ 22 distinct integer values
+          at the largest pre-registered prime across graphs of up to ~1800
+          vertices with degree <= 3: exact ties among a vertex's neighbours are
+          the GENERIC case for this object, not a corner case, under both
+          labellings, so this diagnostic is not optional.
+  tie_break_rule:
+    pf4_fix_applied: >-
+      PF-4 FIX APPLIED. Named explicitly rather than left as "a fixed
+      deterministic rule": when greedy descent finds two or more neighbours
+      tied at the strict minimum delta_E among a vertex's neighbours, break the
+      tie by computing sha256 over the tuple (delta_E value, the tied
+      neighbours' OWN j-invariant representations as field elements, sorted) --
+      CONTENT-DERIVED, never BFS discovery order, never internal vertex ID,
+      never anything derived from HOW the graph was built. This is verified
+      structurally: the tie-break input depends only on (a) the current
+      vertex's tied-neighbour set and (b) the delta_E labelling in force for
+      that arm (real or shuffled) -- both of which are graph-construction-order
+      -independent by construction, which is the property PF-4 required rather
+      than merely asserted.
   preregistered_prediction:
     quantity: "M-GAP = gamma_random - gamma_greedy"
     formula: >-
@@ -111,6 +213,9 @@ experiment:
       (exponent_budget.levers L4) and RT-BATCH-002's REC-3 recommendation.
     decision_rule_frozen_before_data:
       - >-
+        Phase 0 (C-CAL-GAP, below) must PASS before any real graph is built.
+        See controls.C-CAL-GAP for its own gate.
+      - >-
         M-GAP's bootstrap 95% CI excludes 0 in the POSITIVE direction
         (gamma_random > gamma_greedy): a computable delta_E-gradient is
         DETECTED. Lever L4 status moves to OPEN-WITH-SIGNAL and the next action
@@ -119,45 +224,111 @@ experiment:
       - >-
         M-GAP's CI includes 0 or excludes 0 in the NEGATIVE direction: NO
         detectable gradient at this scale. Lever L4's obstruction (the
-        hitting-time bound) stands unresolved by this test, and the record must
-        say "unresolved by this test", never "refuted" -- toy-scale absence of a
-        detected gradient does not prove none exists at larger scale.
+        hitting-time bound) stands "UNRESOLVED BY THIS TEST" -- that exact
+        phrase, never "refuted" and never "falsified" (PF-7 fix: see
+        falsification_criterion below) -- toy-scale absence of a detected
+        gradient does not prove none exists at larger scale.
       - >-
-        Either estimator's own null-object control (below) fails: the run is
-        VOID for the primary metric, per the BATCH-002 precedent, and is
-        reported as such rather than interpreted.
+        Either C-NULL-LABEL or C-CONNECTIVITY fails: the run is VOID for the
+        primary metric, per the BATCH-002 precedent, and is reported as such
+        rather than interpreted.
   controls:
+    - id: C-CAL-GAP
+      kind: calibration
+      pf1_fix_applied: true
+      order: "PHASE 0 -- runs BEFORE any real graph is built or real data is fetched."
+      description: >-
+        Run the EXACT M-GAP pipeline (same OLS-on-logs estimator, same
+        population-wide-median-with-sentinel convention, same window shape as
+        selection_rule_pf3_corrected: N spread from a few hundred to ~1800) on
+        AT LEAST TWO synthetic hitting-time pairs with KNOWN, DIFFERENT true
+        exponents and a STATED shared finite-size bias mechanism:
+          (i) CONSTANT-OFFSET variant: h_random(N) = N^{0.5} + c,
+              h_greedy(N) = N^{0.25} + c, for at least two values of the shared
+              constant c spanning the offset-to-signal ratio the real graphs
+              are expected to show (small c and a c comparable to the smallest
+              pre-registered graph's diameter);
+          (ii) SATURATING/CAPPED variant, because PF-2 identified that greedy
+              specifically risks a CAP (the local-minimum sentinel), not just
+              an additive offset: h_greedy_capped(N) = min(N^{0.25}, D(N)) for
+              a stated cap function D(N) matching the sentinel rule in
+              M-GAMMA-GREEDY.pf2_censoring_rule, against the same
+              h_random(N) = N^{0.5}.
+        Both variants are pure synthetic arithmetic -- no field theory, no
+        graph construction, no fetch. Declare a pre-registered RECOVERY
+        TOLERANCE: the pipeline's fitted M-GAP on each synthetic pair must
+        recover the TRUE gap (0.25 in both illustrative cases above) to within
+        +-0.10 for the run to proceed to Phase 1.
+      pre_registered_expectation: >-
+        REPLACES the deleted, uncalculated "cancels to first order" sentence
+        (see scale_relevance below). No expectation of exact recovery is
+        assumed -- the calibration EXISTS PRECISELY BECAUSE RT-PREFREEZE's
+        toy counterexample showed a hand-constructed instance of this same
+        mechanism does NOT cancel exactly (fitted M-GAP bias +0.0192 to
+        -0.0377 against a true gap of 0.25, sign-changing across offset
+        magnitudes). The tolerance of +-0.10 is chosen to be wider than that
+        toy counterexample's observed bias range, so the calibration is a
+        real gate and not a rubber stamp of the same magnitude the
+        counterexample already found.
+      failure_consequence: >-
+        IF EITHER SYNTHETIC PAIR'S RECOVERED M-GAP FALLS OUTSIDE +-0.10 OF THE
+        TRUE GAP, STOP BEFORE PHASE 1. Do not build any real graph. Report
+        failed_infrastructure with the calibration failure as the exact
+        obstruction (per stopping_rules), and route the finding back to the
+        Coordinator as a contract defect requiring a new estimator or window
+        before this hypothesis can be tested at all -- exactly the GD-4/GD-5
+        escalation path, caught before data this time rather than after.
     - id: C-NULL-LABEL
       kind: null_object
       description: >-
         Run BOTH descent methods on the SAME built graphs but with delta_E
         REPLACED by a uniformly random permutation of the same value multiset
         (breaking any correlation between the label and graph structure while
-        preserving the label distribution exactly).
+        preserving the label distribution exactly). M-TIEFREQ is reported for
+        this arm too (PF-4): if the tie-break rule were secretly
+        structure-correlated, THIS is one of the two places (alongside the
+        real-label arm) that would show it.
       pre_registered_expectation: >-
         gamma_greedy and gamma_random should be STATISTICALLY INDISTINGUISHABLE
         under the shuffled label, because greedy descent on an uncorrelated
-        label is just another random walk.
+        label is just another random walk. THIS EXPECTATION IS NOT RE-DERIVED
+        HERE FROM FIRST PRINCIPLES (RT-PREFREEZE PF-4 notes the calculation
+        that would fully justify it -- ruling out any structure-correlation
+        via the tie-break rule -- is discharged by tie_break_rule's
+        content-derived construction, not by this expectation alone); the
+        control's own failure_consequence is what actually protects against
+        the residual risk PF-4 raised, not the stated expectation.
       failure_consequence: >-
         IF THE SHUFFLED-LABEL GAP IS ALSO SIGNIFICANT, the apparent signal is an
-        artifact of the graph's own structure (e.g. degree heterogeneity) or the
-        estimator, NOT of delta_E specifically, and M-GAP ON THE REAL LABELS IS
-        VOID. This is the single most important control in this contract and it
-        must be run BEFORE the real-label result is interpreted, exactly as
-        C-NULL was in EXP-SSIQ-4de240.
+        artifact of the graph's own structure (e.g. degree heterogeneity), the
+        tie-break rule, or the estimator, NOT of delta_E specifically, and
+        M-GAP ON THE REAL LABELS IS VOID. This is the single most important
+        control on the REAL-DATA phase of this contract (C-CAL-GAP is the most
+        important control overall, gating Phase 0) and it must be run BEFORE
+        the real-label result is interpreted, exactly as C-NULL was in
+        EXP-SSIQ-4de240.
     - id: C-CONNECTIVITY
       kind: correctness
       description: >-
         BFS-enumerated vertex count for each prime must match the WISDE
-        record's supersingular curve count for that prime (up to the known
-        j=0/j=1728 automorphism bookkeeping, stated explicitly).
+        record's supersingular curve count for that prime (up to the PF-5
+        -pinned j=0/j=1728 automorphism bookkeeping, stated explicitly and
+        checked numerically, not just "up to the known convention").
       failure_consequence: >-
         A mismatch means the graph construction is wrong (missed a
         connected-component, mis-handled a degenerate vertex, or a Phi_2
         root-finding bug), and that prime's run is completed_invalid.
     - id: C-DEGSEQ
       kind: correctness
-      description: M-DEGSEQ checked against the expected shape for every prime.
+      description: M-DEGSEQ checked against the PF-5-pinned exact numeric pattern for every prime.
+    - id: C-EDGELIST
+      kind: correctness
+      description: >-
+        The pre-run edge-list correctness gate named under
+        inputs.graph_construction.method (advisory A3, carried as required):
+        for at least one small pre-registered prime, verify the full edge list
+        against an independent computation before trusting C-CONNECTIVITY's
+        aggregate count for the rest of the batch.
     - id: C-SEED
       kind: sampling_independence
       description: >-
@@ -173,17 +344,26 @@ experiment:
   scale_relevance:
     tier: toy
     justification: >-
-      Graph sizes bounded by real compute budget, likely in the low thousands
-      of vertices. This tests EXISTENCE of a signal, which is a qualitatively
-      different question from EXP-SSIQ-4de240's asymptotic exponent match, and
-      is less sensitive to the finite-size bias that sank that experiment
-      BECAUSE the decision rule here is a SIGN test on a DIFFERENCE of two
-      exponents measured through the identical instrument on the identical
-      graphs, not a comparison of a fitted value against a numeric target. A
-      shared instrument bias in gamma_greedy and gamma_random cancels in M-GAP
-      to first order; this cancellation claim IS ITSELF PART OF WHAT THE
-      PRE-FREEZE RED TEAM REVIEW MUST CHECK, per the BATCH-002 lesson that an
-      uncalculated "should cancel" is not evidence it does.
+      Graph sizes bounded by real compute budget, roughly a few hundred to
+      ~1800 vertices per selection_rule_pf3_corrected. This tests EXISTENCE of
+      a signal, which is a qualitatively different question from
+      EXP-SSIQ-4de240's asymptotic exponent match. The decision rule here is a
+      SIGN test on a DIFFERENCE of two exponents measured through the
+      identical instrument on the identical graphs, not a comparison of a
+      fitted value against a numeric target -- a deliberate design choice to
+      avoid BATCH-002's failure mode.
+    cancellation_claim_pf1_fix: >-
+      PF-1 FIX APPLIED. The prior sentence here ("a shared instrument bias...
+      cancels in M-GAP to first order") is DELETED as an unqualified claim. It
+      was asserted, not calculated, and RT-PREFREEZE constructed a toy
+      counterexample (shared additive finite-size offset on two power laws of
+      different true exponent, same OLS estimator, same window) where the
+      fitted M-GAP bias is non-zero, unequal to either individual exponent's
+      bias, and CHANGES SIGN across offset magnitudes (+0.0192 to -0.0377
+      against a true gap of 0.25). Whether cancellation holds for the ACTUAL
+      bias mechanism this experiment encounters is now a MEASURED, GATING
+      question -- see controls.C-CAL-GAP, Phase 0, which must pass before any
+      real graph is built.
     correspondence: null
   tail_checks:
     - >-
@@ -196,9 +376,26 @@ experiment:
   budget:
     wall_clock_seconds_per_run: 7200
     total_cpu_hours: 4
+    cpu_hour_relationship_note: >-
+      ADVISORY A1, carried rather than resolved: the relationship between
+      wall_clock_seconds_per_run and total_cpu_hours is not pinned to a
+      specific parallelism factor. The Executor states explicitly in
+      execution_report.yaml whether the 4 CPU-hour figure was interpreted as
+      inclusive of parallelism or as a separate, looser accounting, rather
+      than leaving it implicit.
     maximum_memory_gb: 4
     maximum_runs: 1
+  median_population_note: >-
+    ADVISORY A2, resolved rather than merely carried, since PF-2's fix already
+    forced the answer: the population is ONE TRIAL PER STARTING VERTEX (all N
+    vertices), replicated at the three declared seeds per C-SEED, with the
+    population-wide-median-plus-sentinel convention of
+    M-GAMMA-GREEDY.pf2_censoring_rule applying identically to both methods.
   stopping_rules:
+    - >-
+      PHASE 0 GATE: if C-CAL-GAP fails (either synthetic pair's recovered
+      M-GAP falls outside +-0.10 of its true gap), STOP before Phase 1. Do not
+      build any real graph. See controls.C-CAL-GAP.failure_consequence.
     - >-
       If graph construction for the smallest pre-registered prime does not
       complete within 900 seconds, STOP and report failed_infrastructure with
@@ -211,43 +408,71 @@ experiment:
       provided at least 4 primes with connectivity-passing graphs are obtained;
       otherwise INCONCLUSIVE for lack of coverage.
   invalidation_rules:
+    - C-CAL-GAP fails -- STOP before Phase 1; no real-data run is attempted.
     - C-CONNECTIVITY fails for a prime -- that prime's data point is dropped, not fabricated.
-    - C-NULL-LABEL fails -- M-GAP on real labels is VOID (see decision rule branch 3).
+    - C-NULL-LABEL fails -- M-GAP on real labels is VOID (see decision rule branch 4).
+    - >-
+      trapped_fraction(N) exceeds 0.5 for a prime's greedy arm -- that prime's
+      gamma_greedy contribution is VOID, per M-GAMMA-GREEDY.pf2_censoring_rule,
+      not silently fit over survivors.
     - C-REPRO fails -- completed_invalid.
+    - >-
+      PF-5's pinned degenerate-vertex convention cannot be independently
+      verified at run time against its cited source -- STOP per
+      degenerate_j_handling_fallback.
     - >-
       The contract is found underspecified on any point that changes M-GAP:
       STOP and report the underspecification rather than choosing unilaterally.
   success_criterion: >-
-    The run is successful when M-GAP is estimated with a bootstrap CI over the
-    pre-registered prime set, C-NULL-LABEL and C-CONNECTIVITY return recorded
-    verdicts for every prime, and the decision rule is applied mechanically to
-    return exactly one of DETECTED / NOT-DETECTED-AT-THIS-SCALE / VOID.
-    A NOT-DETECTED-AT-THIS-SCALE outcome with all controls passing is a fully
+    The run is successful when C-CAL-GAP has passed, M-GAP is estimated with a
+    bootstrap CI over the pre-registered prime set, C-NULL-LABEL and
+    C-CONNECTIVITY return recorded verdicts for every prime, trapped_fraction(N)
+    and M-TIEFREQ are reported alongside M-GAP for both label arms, and the
+    decision rule is applied mechanically to return exactly one of DETECTED /
+    UNRESOLVED-BY-THIS-TEST / VOID.
+    An UNRESOLVED-BY-THIS-TEST outcome with all controls passing is a fully
     successful run: it retires the lane with a measured reason rather than
     leaving it open on speculation.
   falsification_criterion: >-
-    H-SSIQ-18dc91 is falsified at the tested scale if M-GAP's CI includes or is
-    below 0 with C-NULL-LABEL and C-CONNECTIVITY passing on at least 4 primes.
+    PF-7 FIX APPLIED (reworded to match decision_rule_frozen_before_data's own
+    discipline). H-SSIQ-18dc91's toy-scale prediction is NOT SUPPORTED AT THIS
+    SCALE if M-GAP's CI includes or is below 0 with C-CAL-GAP,
+    C-NULL-LABEL and C-CONNECTIVITY all passing on at least 4 primes. Record
+    this outcome as "unresolved by this test," NEVER as "falsified" or
+    "refuted" -- a downstream reader citing this field verbatim must not be
+    able to misreport a NOT-SUPPORTED-AT-THIS-SCALE outcome as L4's obstruction
+    being refuted or as proof no delta_E-gradient exists at any scale.
   required_artifacts:
     - implementation/build_isogeny_graph.py
     - implementation/descent_hitting_time.py
+    - implementation/calibration_synthetic.py
     - runs/RUN-SSIQ-58b642-a/manifest.yaml
     - runs/RUN-SSIQ-58b642-a/raw-result.json
     - runs/RUN-SSIQ-58b642-a/execution_report.yaml
     - runs/RUN-SSIQ-58b642-a/source_access_log.yaml
-    - runs/RUN-SSIQ-58b642-a/code.txt
-    - runs/RUN-SSIQ-58b642-a/inputs.json
+    - runs/RUN-SSIQ-58b642-a/command.txt
     - runs/RUN-SSIQ-58b642-a/environment.json
     - runs/RUN-SSIQ-58b642-a/stdout.log
     - runs/RUN-SSIQ-58b642-a/stderr.log
   required_artifacts_note: >-
-    THIS LIST NAMES THE RUN-MANIFEST SCHEMA KEYS EXPLICITLY (code.txt,
-    inputs.json, environment.json, stdout.log, stderr.log) BECAUSE GD-5 RECORDS
-    THAT THE PRIOR CONTRACT DID NOT AND THAT WAS A COORDINATOR DEFECT, NOT AN
-    EXECUTOR ONE. Do not silently rename these back to stdout.txt/stderr.txt.
+    PF-6 FIX APPLIED. The prior list named "code.txt" and "inputs.json",
+    NEITHER of which tools/validate_ledger.py's companion-artifact check
+    (RUN_REQUIRED_TOP, lines ~155-156 and ~382-395) looks for, and OMITTED
+    "command.txt", which the validator DOES check for and which is the actual
+    file GD-5's repair added (confirmed against
+    experiments/EXP-SSIQ-4de240/runs/RUN-SSIQ-4de240-a/ on disk, which has
+    command.txt and no code.txt). This list now names the FIVE companion
+    filenames the validator actually checks (command.txt, environment.json,
+    stdout.log, stderr.log, raw-result.json) rather than a mechanical
+    .txt/.json suffixing of the manifest-body key names. THIS IS A SEPARATE
+    OBLIGATION FROM THE FIVE COMPANION FILES: manifest.yaml's BODY must
+    independently satisfy RUN_REQUIRED_TOP (id, experiment_id, status, code,
+    environment, inputs, timing, result), with code.commit and code.command
+    populated as sub-keys of the code dict entry -- not implied by, and not
+    satisfied merely by, the five companion filenames existing on disk.
   assigned_to: executor
   approved_by: null
   freeze_note: >-
-    NOT YET FROZEN. Pending Red Team pre-freeze review per GD-4 standing
-    practice, adopted after BATCH-001 and BATCH-002 each froze an instrument
-    that could not do the work asked of it.
+    NOT YET FROZEN. PF-1, PF-2, PF-3, PF-4, PF-6, PF-7 applied above. PF-5 (the
+    degenerate-vertex convention) is pending a bounded pre-freeze research task
+    that must return a cited numeric pattern before status moves to approved.
