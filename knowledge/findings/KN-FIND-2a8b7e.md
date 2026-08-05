@@ -34,9 +34,15 @@ Speedup ≈ 2 × (1.32)^{m_opt-2} ≈ 2 × (1.32)^{2-3} ≈ 3-4x constant factor
 This represents a genuine algorithmic contribution: BKK sparse Semaev gives approximately
 3-5x constant factor improvement in relation collection for prime-field ECDLP index calculus.
 
-## Correction of earlier estimates
+## Complete formula (BATCH-118)
 
-The saturated-regime measurements (BATCH-114) showed 15x at m=5, but this was at heuristic=9 (B much larger than optimal). At near-optimal B (heuristic ≈ 1): speedup ≈ 4x at m=5.
+BKK speedup ≈ 1.72 × 1.36^{m-2} (geometrically growing).
+At N=2^256 with m_opt≈4: speedup ≈ 3.3x.
+At N=2^{1024} with m_opt≈6: speedup ≈ 5.9x.
+
+Gamma model: gamma_m ≈ 0.86 × 0.68^{m-2} at near-optimal B.
+
+Extrapolated speedup: m=6(5.9x), m=7(8.0x), m=8(10.9x).
 
 ## Significance
 
