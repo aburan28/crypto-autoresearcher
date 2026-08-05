@@ -1,6 +1,6 @@
 # GOAL-SSIQ-001 BATCH-001 — opening
 
-**Goal:** GOAL-SSIQ-001 · **Question:** RQ-SSIQ-9702af · **Opened:** 2026-08-03
+**Goal:** GOAL-SSIQ-001 · **Question:** RQ-SSIQ-9702af · **Opened:** 2026-08-05
 **Coordinator authority:** user direction this session — *"create a new goal to
 breakthrough and find a 0.25 algorithm for this problem
 https://eprint.iacr.org/2026/1486"*.
@@ -52,7 +52,7 @@ Two consequences follow immediately, and they are the batch's reason to exist:
    both.
 
 This table is a **Coordinator reading and is not yet independently verified.**
-`TASK-20260803-d57b53` exists to re-derive it from the frozen text with line
+`TASK-20260805-85af9d` exists to re-derive it from the frozen text with line
 locators and to correct it. A lever built on an uncorrected factor inherits the
 defect, so the correction comes first.
 
