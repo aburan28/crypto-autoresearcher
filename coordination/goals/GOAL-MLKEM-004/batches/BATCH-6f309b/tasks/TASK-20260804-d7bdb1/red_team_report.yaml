@@ -1,0 +1,262 @@
+red_team_report:
+  id: RT-20260804-11bdeb
+  task_id: TASK-20260804-d7bdb1
+  producer_task_id: TASK-20260804-736f46
+  snapshot_commit: 3c7032c748bb1d520e1a5cc515535e02cfd6de47
+  reviewed_artifacts:
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-736f46/variance_results.json
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-736f46/report.md
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/tasks/TASK-20260804-736f46/receipt.json
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-e53ce2/results.json
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-d2a728/tasks/TASK-20260803-e53ce2/report.md
+  verdict: pass_with_constraints
+  summary: >
+    The raw 50-run variance measurement is admissible as an observation; however
+    the variance ratio (1.2247) is NOT statistically significant (chi2(49)=60.0,
+    p=0.135), the 95% CI for Var[T_N] is [5092, 11331] which includes the
+    independence-predicted 5958, and a systematic 1.36% mean-score difference
+    between the batch-1 and batch-2 execution environments (different Docker
+    images, different kernels, QEMU vs potentially native x86_64) introduces a
+    cross-environment confound that must be resolved before the ratio can be
+    interpreted as evidence for or against the i.i.d. assumption.
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: false
+    independent_session: true
+    model_verified: false
+  computed_statistics:
+    chi2_test_stat: 60.009
+    chi2_df: 49
+    chi2_crit_alpha_0p05_onesided: 66.339
+    p_value_onesided_right: 0.1347
+    ci_95_var_TN_lower: 5091.6
+    ci_95_var_TN_upper: 11330.8
+    ci_95_ratio_lower: 0.855
+    ci_95_ratio_upper: 1.902
+    independence_predicted_in_95_ci: true
+    power_at_observed_ratio_n50_alpha_0p05: 0.40
+    approx_n_for_80pct_power_at_ratio_1p22: 200
+    batch1_mean_score: 0.427375
+    batch2_implied_mean_score: 0.421574
+    mean_score_relative_diff_pct: 1.36
+    batch2_expected_TN_from_batch1_mean: 7658.1
+    batch2_actual_mean_TN: 7554.2
+    systematic_mean_shortfall: -103.9
+    lag1_autocorr_seed_index: 0.0044
+    spearman_seed_index_corr: -0.247
+    spearman_seed_index_pvalue: 0.084
+    seed27_TN_zscore: 2.42
+  objections:
+    - id: OBJ-1
+      title: "Cross-environment baseline: QEMU vs unverified batch-1 environment"
+      severity: concern
+      description: >
+        The variance_results.json reports platform "Linux-6.12.76-linuxkit-x86_64-with-glibc2.41"
+        for batch-2 (QEMU x86_64 emulation via Docker Desktop on aarch64), but
+        batch-1 (TASK-20260803-e53ce2/results.json) reports
+        "Linux-6.18.5-x86_64-with-glibc2.39" — a different kernel, different
+        glibc, and a venv that was pre-existing (not freshly built). These are
+        different execution environments. The independence test compares
+        batch-2's between-run Var[T_N] against batch-1's within-run Var[s_i];
+        this cross-environment comparison is valid only if both environments
+        produce sieve vectors from the same distribution.
+
+        The data shows they do not: batch-2's implied mean score is 0.421574
+        (= 7554.192 / 17919) vs batch-1's 0.427375, a systematic shortfall of
+        -103.9 in T_N units and 1.36% in score units. Batch-2 runs produce
+        LOWER mean cosine scores on average. This shift is systematic, not
+        attributable to seed randomness (seed-to-seed SD of T_N is ~85 while
+        the mean difference corresponds to N×0.0058 = 103.9 — larger than one
+        SD of T_N). This strongly suggests QEMU emulation changes the sieve
+        vector distribution (e.g., different SIMD vectorization paths, different
+        convergence behavior). Additionally the g6k verification db size
+        differed (4075 in batch-1 vs 4259 in batch-2 for an unseeded gauss_sieve
+        on dim-50), further indicating different sieve behavior.
+
+        Note: g6k does NOT use x86 RDRAND/RDSEED instructions; its internal
+        PRNG is a software Xorshift initialized from the `seed` parameter. The
+        QEMU RDRAND-emulation concern is therefore moot at the level of random
+        number generation. The concern is instead that QEMU SIMD emulation
+        produces a different vector database quality distribution, biasing the
+        cross-batch baseline comparison.
+      cheapest_check: >
+        In the same batch-2 QEMU environment, run one extra sieve with
+        seed=469431436621 (batch-1's seed) and compute within-run Var[s_i]
+        directly. Compare against batch-1's 0.332505. If the two agree, the
+        environment difference is negligible for variance purposes; if they
+        disagree, the cross-environment baseline is invalid.
+      renders_batch_inadmissible: false
+
+    - id: OBJ-2
+      title: "N is consistent at 17,919 across all 50 runs"
+      severity: note
+      description: >
+        All 50 run_records in variance_results.json confirm N_vectors = 17919
+        identically. The concern about variable N is not realized in this batch.
+        The variance calculation uses equal-N sums throughout. OBJ-2 and OBJ-4
+        are resolved by the data.
+      cheapest_check: "Verified: var_results.json run_records all show N_vectors=17919."
+      renders_batch_inadmissible: false
+
+    - id: OBJ-3
+      title: "Baseline Var[s_i] from a different sieve run (different seed, different environment)"
+      severity: concern
+      description: >
+        The independence prediction uses Var[s_i] = 0.332505, measured from
+        batch-1 using Siever seed=469431436621 in a DIFFERENT execution
+        environment. The 50 batch-2 runs use seeds 0-49 in a QEMU x86_64
+        environment that systematically produces lower mean cosine scores
+        (0.421574 vs batch-1's 0.427375, a 1.36% difference). For cosine
+        scores dependent on sieve vector quality, a change in mean implies a
+        change in distribution, which implies a potential change in within-run
+        variance. If Var[s_i] in the batch-2 environment is lower than
+        0.332505, the independence-predicted denominator is inflated, and the
+        ratio of 1.22 overstates the true inflation. Conversely if it is higher,
+        the ratio understates it. Without measuring within-run Var[s_i] in the
+        batch-2 environment, the denominator of the ratio test is unverified.
+
+        Self-consistency check: if we use batch-2's mean (0.4216) instead of
+        batch-1's to compute expected T_N = N × 0.4216 = 7554.1, the actual
+        batch-2 mean T_N (7554.2) agrees perfectly. The mean is self-consistent
+        within batch-2. But the VARIANCE baseline comes from batch-1 (a
+        different run in a different environment), and this is not self-consistent.
+      cheapest_check: >
+        Re-run the batch-1 scoring step on one of the batch-2 sieve outputs:
+        take one batch-2 sieve run's vector database and compute the within-run
+        Var[s_i]. Compare against 0.332505. Alternatively, run one extra sieve
+        in the batch-2 environment with the original batch-1 seed (469431436621)
+        to obtain a batch-2-environment within-run variance estimate.
+      renders_batch_inadmissible: false
+
+    - id: OBJ-4
+      title: "T_N is a SUM - variable N would confound the test"
+      severity: note
+      description: >
+        All 50 runs produce N_vectors = 17919 identically. The concern about
+        variable N does not apply. The variance calculation sums exactly 17919
+        scores in every run. OBJ-4 is resolved by the data (same resolution
+        as OBJ-2).
+      cheapest_check: "Verified: confirmed in run_records of variance_results.json."
+      renders_batch_inadmissible: false
+
+    - id: OBJ-5
+      title: "n=50 is statistically insufficient to detect ratio=1.22; CI includes independence prediction"
+      severity: blocking
+      description: >
+        The variance ratio of 1.2247 is NOT statistically significant with n=50
+        runs. Exact chi-squared test for H0: true_Var[T_N] = independence_predicted:
+
+          chi2 = (n-1) * s2_obs / s2_pred = 49 * 7296.782 / 5958.153 = 60.009
+          df = 49
+          critical value at alpha=0.05 (one-sided): chi2_0.95(49) = 66.339
+          p-value = P(chi2(49) > 60.009) = 0.135
+
+        Since 60.009 < 66.339, we FAIL TO REJECT H0 at alpha=0.05. The measured
+        ratio of 1.2247 is consistent with sampling noise from the null distribution.
+
+        95% confidence interval for the true Var[T_N]:
+          [5091.6, 11330.8] (using chi2(0.025,49)=31.54, chi2(0.975,49)=70.22)
+
+        The independence-predicted value of 5958.2 is INSIDE this CI.
+        The 95% CI on the ratio itself is [0.855, 1.902].
+
+        Power analysis: with n=50, the one-sided chi-squared test has approximately
+        40% power to detect ratio=1.22 at alpha=0.05. Approximately n=200 runs
+        would be required for 80% power at ratio=1.22.
+
+        This is blocking because the primary claim ("ratio > 1.0 means more variance
+        than independence predicts") cannot be distinguished from sampling noise at
+        n=50. Batch-3 MUST report p-values and CIs, not just the point estimate,
+        and must use n ≥ 150-200 runs for a meaningful test.
+      cheapest_check: >
+        Compute the chi-squared test and its p-value directly from variance_results.json:
+        chi2 = 49 * empirical_var_TN / independence_predicted_var = 60.009.
+        P(chi2(49) > 60.009) = 0.135. Already computed; see computed_statistics above.
+      renders_batch_inadmissible: false
+
+    - id: OBJ-6
+      title: "Seeds 0-49 show marginal negative trend with seed index; seed 27 is a high outlier"
+      severity: note
+      description: >
+        Low integer seed check: Spearman rank correlation between seed index (0-49)
+        and T_N is -0.247 (p=0.084). This is a weak negative trend — higher seeds
+        tend to produce slightly lower T_N values — but it is NOT significant at
+        alpha=0.05. The lag-1 autocorrelation (adjacent seeds) is 0.0044 (effectively
+        zero), so there is no evidence of adjacent-seed PRNG state sharing.
+
+        Seed 27 produced the highest T_N (7760.6), with Z-score 2.42 above the
+        sample mean. While notable, an outlier of this magnitude in n=50 samples
+        is not extreme (expected maximum z-score ~2.4 for Gaussian n=50).
+
+        The marginal Spearman correlation (p=0.084) deserves mention as a
+        direction to watch. If it persists with more data, it could indicate
+        seed-dependent sieve quality (perhaps g6k's Xorshift initialization from
+        small integer seeds produces slightly different PRNG cycles that affect
+        bucketing efficiency). However, with p=0.084 it is likely a statistical
+        artifact at this sample size.
+      cheapest_check: >
+        Re-run with 50 seeds drawn uniformly at random from [0, 2^32) rather than
+        0-49, and compare variance_ratio and Spearman(seed_index, T_N). If the
+        trend vanishes, low-integer seeds are a confound; if it persists, there
+        is a real environment effect.
+      renders_batch_inadmissible: false
+
+  admissible_as_variance_measurement: true
+  admissible_as_independence_test: false
+  admissible_as_independence_test_reason: >
+    The raw data (50 T_N values, all N=17919, all valid) is admissible as an
+    observation. However, treating variance_ratio=1.2247 as evidence for or
+    against the i.i.d. assumption is inadmissible for two independent reasons:
+    (1) it is not statistically significant (p=0.135, CI includes independence
+    prediction), and (2) the baseline Var[s_i] comes from a different execution
+    environment (batch-1 on Linux-6.18.5 vs batch-2 on Linux-6.12.76-linuxkit
+    QEMU), and the mean score difference (1.36%) confirms the two environments
+    produce different sieve vector distributions.
+
+  what_batch_3_must_address:
+    - >
+      Statistical significance: report chi-squared test statistic, p-value, and
+      95% CI on Var[T_N] and on variance_ratio. Do NOT present a point estimate
+      ratio as an observation without its sampling distribution. The current
+      batch reports ratio=1.22 without noting p=0.135.
+    - >
+      Same-environment baseline: measure within-run Var[s_i] IN THE SAME DOCKER
+      ENVIRONMENT used for the 50-run batch. Either run one extra sieve with
+      seed=469431436621 in the QEMU container, or compute within-run variance
+      from the actual batch-2 vector databases. Do NOT import Var[s_i] from
+      batch-1 (a different environment).
+    - >
+      Increase n: with n=50, power to detect ratio=1.22 is only ~40%.
+      Approximately n=150-200 runs are needed for 80% power at this effect
+      size. The batch-3 protocol should pre-specify a minimum n and a stopping
+      rule before running.
+    - >
+      Explain the systematic mean shift: batch-2's mean T_N (7554.2) is 103.9
+      below the batch-1 prediction (N × 0.427375 = 7658.1). This is larger
+      than one empirical SD of T_N (85.4). This shift needs a mechanistic
+      explanation (QEMU SIMD quality? different kernel scheduler? floating-point
+      differences?) before cross-environment comparisons can be trusted.
+    - >
+      Pre-register the test: specify the null hypothesis, test statistic, alpha
+      level, sample size, and stopping rule BEFORE running. The current test
+      was designed post-hoc relative to the observed batch-1 baseline.
+    - >
+      Seed diversity: use a randomized (not consecutive-integer) seed set to
+      avoid any possible low-integer-seed artifacts. The Spearman correlation
+      of -0.247 (p=0.084) with seed index is not established but warrants
+      preventive action.
+
+  narrowest_supported_statement: >
+    "In 50 independent bgj1_sieve runs on the same LWE instance (m=35, n=25,
+    q=127, sigma=2, D=60), each yielding N=17919 vectors with siever seeds
+    0-49 in a QEMU x86_64 Docker environment, the empirical Var[T_N] = 7297
+    (ddof=1). Using within-run Var[s_i]=0.332505 from a single batch-1 sieve
+    run in a different environment as the independence prediction gives
+    ratio=1.22, but this ratio is not statistically significant (chi2(49)=60.0,
+    p=0.135; 95% CI for ratio: [0.855, 1.902]). The measurement is admissible
+    as a raw observation; no conclusion about the MATZOV.Nf i.i.d. assumption
+    is supported."
+
+  reviewed_at: '2026-08-04'
+  reviewed_by: TASK-20260804-d7bdb1
