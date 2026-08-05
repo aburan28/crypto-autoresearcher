@@ -45,8 +45,11 @@ and ledger transition as committed evidence.
 
 For every batch, run this sequence:
 
-1. Render the dispatch plan. Start at most three non-archive tasks with
-   disjoint write scopes.
+1. Render the dispatch plan. Start at most the queue's declared
+   `max_concurrent` non-archive tasks with disjoint write scopes. The
+   tooling's fixed ceiling of three was removed on explicit user direction
+   (2026-08-05); size `max_concurrent` to the environment's real headroom —
+   see `.claude/skills/launch-research-harness/SKILL.md`'s "Concurrency" note.
 2. When a producer reaches a terminal result, run its Coordinator-only
    `snapshot` archive task alone. Its Git receipt must verify before a
    Validator, Reviewer, or Red Team reads the result.

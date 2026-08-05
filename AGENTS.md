@@ -245,9 +245,18 @@ evidence: raw run receipts remain immutable in their experiment directories.
 - A task becomes eligible only after every dependency has a `completed` receipt.
   A failed, invalid, or cancelled dependency blocks its successors until the
   Coordinator creates a scoped repair or successor task.
-- Keep at most three concurrent subagent tasks. Reserve an independent
-  Reviewer, Validator, or Red Team task whenever a result could change an
-  ECDLP claim.
+- Concurrent subagent tasks are bounded by the dispatch queue's own declared
+  `max_concurrent`, not by a fixed ceiling in this document. The prior fixed
+  ceiling of three was REMOVED on the user's EXPLICIT DIRECTION of 2026-08-05
+  ("remove the concurrent limit from the code rules"); see
+  `tools/research_dispatch.py`'s `MAX_CONCURRENT_CEILING` for the mechanism
+  and its restore path. Sizing `max_concurrent` to what the execution
+  environment can actually run without degrading is the dispatching
+  Coordinator's responsibility, not a rule the tooling enforces for you: see
+  GOAL-AES-003 BATCH-002 (`DEC-20260802-b226fb` budget_accounting) for the
+  recorded cost of dispatching more producers than a machine had headroom
+  for. Reserve an independent Reviewer, Validator, or Red Team task whenever
+  a result could change an ECDLP claim.
 - The Executor records observations only. A Reviewer challenges claims, a
   Validator verifies artifact and control integrity, and a Red Team writes
   objections and falsification routes. The Coordinator alone may promote,
