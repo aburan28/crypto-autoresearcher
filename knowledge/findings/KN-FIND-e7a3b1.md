@@ -27,6 +27,8 @@ H-PSEUDO (Discrete Logarithm Pseudorandomness Conjecture):
 | BGS spectral gap | E(F_p)≅Z/N is abelian; no Ω(1) spectral gap for bounded generators |
 | Weyl/WvdC differencing | Σ_h C_h = B² exactly; Weyl has no access to EC arithmetic |
 | DL random permutation assumption | Not standard; empirically refuted (C grows as p^{0.079} ≠ O(sqrt(log p))) |
+| Shparlinski/ECCG Fourier expansion | DL circularity recurs; achieves O(p^{3/4}) rigorous bound but not H-PSEUDO target |
+| MAGCS/Tate pairing (Weil pairing as algebraic DL character) | Works for k=2 (MOV-vulnerable) curves only; for generic curves requires F_{p^{N/2}} extension = infeasible |
 
 ## Why all approaches fail
 
