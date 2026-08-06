@@ -1,0 +1,280 @@
+# DRAFT PROTOCOL AMENDMENT, NOT YET FROZEN. Supersedes specification_v5.yaml
+# (v5, frozen 59cfaf39ea721780b4cddf3d7ac5968a70872b15, retained unedited) on
+# the ranked resume action DEC-20260806-357b30 recorded at BATCH-008's close:
+# (A) GD-12's fix -- supersede (never edit) greedy_descent_hitting_time to
+# expose the walk's TERMINAL vertex, and correct the trapping diagnostic's
+# required cross-check to compare against it, restricted to trapped:True
+# walks, excluding the delta_E=1/success case; (B) the funnel-structure
+# diagnostic named by both BATCH-008 reviewers as the next mechanism
+# question for L4 -- which structural local minima capture the most greedy
+# walks (basin-size / in-degree concentration), now that PART A supplies a
+# genuine terminal-vertex-to-basin mapping. UNLIKE v5's PART A/PART B (which
+# were fully independent), PART B of THIS amendment DEPENDS on PART A's new
+# function -- stated explicitly here rather than claimed independent.
+# BATCH-009, the first batch under the extended campaign_budget
+# (maximum_batches: 8 -> 12, GOAL-SSIQ-001 goal.yaml
+# maximum_batches_amendment_20260806).
+experiment:
+  id: EXP-SSIQ-a85692
+  hypothesis_id: H-SSIQ-36e970
+  version: 6
+  title: >-
+    (A) Fix GD-12: expose the greedy walk's terminal vertex and correct the
+    trapped-vs-structural cross-check, and (B) diagnose funnel structure --
+    which structural local minima capture the most walks (BATCH-009)
+  status: draft
+  approved_by: null
+  amends: EXP-SSIQ-a85692 (version 5, specification_v5.yaml, frozen 59cfaf39ea721780b4cddf3d7ac5968a70872b15)
+  amendment_scope: >-
+    PART A fixes GD-12 (EV-SSIQ-334ab9, DEC-20260806-357b30 D-2/D-3):
+    descent_hitting_time.py is EXP-SSIQ-58b642's own frozen artifact and
+    stays byte-for-byte UNTOUCHED (AGENTS.md immutability). A NEW module,
+    experiments/EXP-SSIQ-a85692/implementation/descent_walk_hardened.py,
+    defines greedy_descent_hitting_time_v2: identical to
+    dht.greedy_descent_hitting_time's walk logic in every branch, except
+    every returned dict additionally carries "terminal_vertex": the value
+    of `current` at the moment of return (start itself, unmoved, in the
+    delta_E==1 immediate-identity branch; the trapped vertex in the
+    trapped=True branch; the delta_E==1 vertex reached by descent in the
+    trapped=False/steps>0 branch). This is a pure superset of the
+    original's return value -- hitting_time/trapped/steps/tie_events/
+    steps_with_choice are computed by the IDENTICAL walk logic and must be
+    bit-identical to dht.greedy_descent_hitting_time's own output on every
+    input, which is a REQUIRED regression control (gd12_fix_v6.equivalence
+    below), not merely a stated intention.
+    The frozen v5 contract's required cross-check compared
+    dht.greedy_descent_hitting_time's "trapped" flag against
+    is_structural_local_min(START) for EVERY vertex, unconditionally. Both
+    BATCH-008 reviewers independently confirmed (Validator: re-tracing the
+    Executor's own p=2437/(148,37) example; Red Team: an independent
+    p=3889 counter-example) that this is the wrong vertex whenever start is
+    not itself a local minimum -- PF-6's underlying mathematical argument
+    (round 1 of v5's own pre-freeze review) is correct for the walk's
+    TERMINAL vertex, never exposed by the frozen function's return value.
+    THIS AMENDMENT'S OWN CORRECTED CLAIM, stated explicitly and traced
+    below (gd12_fix_v6.corrected_equivalence_proof) rather than asserted as
+    round 1's prose was: for every walk with trapped=True, the walk's own
+    non-backtracking exclusion NEVER removes a genuine smaller-delta
+    candidate (dht's own docstring: a strict-descent walk's predecessor
+    always has STRICTLY GREATER delta than the current vertex, so it can
+    never itself be a smaller-delta candidate) -- so a trapped=True walk's
+    terminal vertex has no neighbour, among its FULL neighbour set
+    including the excluded predecessor, with strictly smaller delta. That
+    IS exactly is_structural_local_min(terminal) by definition. This holds
+    UNCONDITIONALLY for trapped=True walks and is NOT claimed for
+    trapped=False walks (the delta_E=1 immediate-identity case): there,
+    terminal==start and delta_map[terminal]==1, which trivially satisfies
+    is_structural_local_min (1 is the global minimum of a positive-integer-
+    valued delta_E) regardless of whether the walk was meaningfully
+    "trapped" in the interesting sense -- comparing trapped=False against
+    is_structural_local_min(terminal)=True-by-triviality is exactly the
+    SECOND, independent boundary-condition defect the Red Team found in
+    BATCH-008 (RT-BATCH-008.md), and would newly misclassify every
+    successful walk (15-28% of vertices per prime, per that report) as a
+    disagreement under a naive terminal-vertex-only fix. THE CORRECTED
+    CROSS-CHECK THEREFORE COMPARES ONLY trapped=True WALKS, explicitly
+    EXCLUDING trapped=False (delta_E=1 success) walks from the equivalence
+    claim entirely -- reported and counted separately, never silently
+    dropped from the accounting.
+    PART B, DEPENDENT ON PART A: for the same four primes as v5's diagnostic
+    (2437, 3889, 5737, 7333; already-archived full delta_map coverage), run
+    greedy_descent_hitting_time_v2 from EVERY vertex (not the frozen
+    dht.greedy_descent_hitting_time, since only the v2 function exposes
+    terminal_vertex) and, for every trapped=True walk, assign that START
+    vertex to the BASIN of its terminal_vertex (a structural local minimum,
+    by PART A's corrected proof). Compute, per prime: the basin-size
+    distribution over the set of structural local minima (independently
+    computed exactly as v5's trapping_diagnostic_v5.py already does, REUSED
+    UNCHANGED as a library import, not re-implemented) -- is capture
+    concentrated on a small number of "deep" local minima (a funnel/hub
+    structure) or spread near-uniformly across all local minima? Reports
+    max basin size, the top-decile concentration (fraction of all
+    trapped=True walks captured by the top 10% of local minima by basin
+    size), and the correlation between a local minimum's basin size and its
+    own "depth" (the gap between its delta_E value and its smallest
+    neighbour's delta_E among non-local-minimum neighbours it could have
+    been reached from -- operationalized precisely in
+    funnel_structure_diagnostic_v6 below, not left to the Executor to
+    invent). This is NEW analysis (no prior batch computed a basin
+    assignment), but at ZERO NEW SEARCH COST: no new delta_E computation,
+    reusing the already-archived delta_map and the same pinned-seed graph
+    rebuild v5 already established.
+    Everything else in v1-v5 (B=23/X=23, the delta_E instrument, every
+    budget-allocation formula, trapped_exclusion_filter_v3,
+    c_null_label_comparison_v3, the decision rule, every control, GD-11's
+    fix in ols_hardened.py) is REUSED UNCHANGED and NOT reopened, restated,
+    or re-run.
+  pre_freeze_review:
+    status: PENDING
+    report: null
+    verdict: null
+    findings_applied: []
+  inputs:
+    gd12_fix_v6: >-
+      PART A. descent_walk_hardened.py defines ONE function,
+      greedy_descent_hitting_time_v2(adjacency, start, delta_map,
+      diameter_sentinel), a pure superset of
+      dht.greedy_descent_hitting_time: identical walk logic (the delta_E==1
+      immediate check, the non-backtracking candidate exclusion, the tied-
+      neighbour tie-break via the imported, unchanged tie_break_choice, the
+      strict-descent termination guarantee), with "terminal_vertex": current
+      added to every returned dict at the exact point of return.
+      REQUIRED EQUIVALENCE REGRESSION (bit-identical non-terminal-vertex
+      fields): construct at least 3 independent (adjacency, start,
+      delta_map, diameter_sentinel) inputs -- including the already-
+      archived p=2437 graph and the exact (148,37) start vertex from
+      trapping_diagnostic_v5.py's own hand-traced counter-example -- and
+      confirm greedy_descent_hitting_time_v2's hitting_time/trapped/steps/
+      tie_events/steps_with_choice fields are BIT-IDENTICAL to
+      dht.greedy_descent_hitting_time's own output on the SAME input, for
+      every case, and that terminal_vertex for the (148,37) case equals
+      (1617, 1793) EXACTLY, matching the already-independently-traced value
+      in trapping_diagnostic_v5.py's own code comment.
+      corrected_equivalence_proof (restated here as the amendment's own
+      claim, not inherited from v5's PF-6): for trapped=True walks,
+      is_structural_local_min(terminal_vertex) is TRUE UNCONDITIONALLY, by
+      the non-backtracking-exclusion argument in amendment_scope above.
+      NOT claimed for trapped=False walks -- excluded from the corrected
+      cross-check entirely, per the Red Team's boundary-condition finding.
+      REQUIRED CORRECTED CROSS-CHECK (supersedes v5's inputs.
+      trapping_mechanism_diagnostic_v5's cross-check, which is NOT re-run
+      by this amendment -- it already ran, failed, and is archived
+      unmodified in RUN-SSIQ-a85692-e): for each of the 4 primes, run
+      greedy_descent_hitting_time_v2 from EVERY vertex against the SAME
+      rebuilt graph and delta_map v5 already used (same pinned seed
+      convention, same PF-4 key-format bridge, same PF-9 coverage
+      assertion, same PF-5/PF-11 graph-rebuild verification -- all REUSED
+      UNCHANGED, not re-derived). Partition results into trapped=True and
+      trapped=False sets; REQUIRED ACCOUNTING ASSERTION:
+      n_trapped_true + n_trapped_false MUST equal that prime's archived
+      n_vertices exactly, halting with an explicit error on any mismatch.
+      For every trapped=True result ONLY, confirm
+      is_structural_local_min(terminal_vertex) == True (computed via the
+      SAME is_structural_local_min definition v5 already established,
+      REUSED, not re-implemented); halt with an explicit error, not a
+      silently-reported disagreement count, on ANY disagreement -- per the
+      corrected_equivalence_proof above, this direction is now proven
+      unconditionally, so a disagreement here IS conclusively a bug in
+      this amendment's own code (adjacency/delta_map wiring, key matching,
+      or the v2 function itself), never a mechanism finding. Report,
+      separately and explicitly, n_trapped_false (delta_E=1 success walks,
+      EXCLUDED from the equivalence claim, never silently folded into a
+      pass/fail count) alongside the trapped=True cross-check's own result.
+    funnel_structure_diagnostic_v6: >-
+      PART B, DEPENDENT ON PART A's greedy_descent_hitting_time_v2 (this
+      diagnostic cannot run against the frozen, unmodified
+      dht.greedy_descent_hitting_time, which does not expose terminal_vertex).
+      For each of the same 4 primes, using the SAME rebuilt graph, delta_map,
+      and PART A's now-passing corrected cross-check as a precondition
+      (REQUIRED: if PART A's corrected cross-check does not pass for a given
+      prime, PART B MUST NOT run for that prime and must report why, rather
+      than computing a basin analysis on data whose walk-to-local-minimum
+      correspondence is not independently confirmed):
+      1. For every trapped=True walk (from every start vertex), record
+         (start, terminal_vertex). basin[m] = the multiset of start
+         vertices whose walk terminates at local minimum m, for every m in
+         the set of structural local minima v5's trapping_diagnostic_v5.py
+         already computes (REUSED UNCHANGED via import, not recomputed).
+      2. REQUIRED ACCOUNTING ASSERTION: sum(len(basin[m]) for all m) +
+         n_trapped_false (PART A's own count) MUST equal that prime's
+         n_vertices exactly; halt with an explicit error on any mismatch.
+      3. basin_size_distribution: report, per prime, the full sorted list
+         of basin sizes (one per structural local minimum with a nonempty
+         basin; a local minimum with an EMPTY basin -- no OTHER vertex's
+         walk terminates there, only its own trivial 1-vertex basin from
+         itself as a start -- is reported with basin_size == 1, its own
+         start, never as 0 or omitted), plus max, mean, median, and the
+         TOP-DECILE CONCENTRATION: the fraction of all trapped=True walks
+         (not all vertices) captured by the 10% of local minima with the
+         largest basins (ties broken by (delta value ascending, vertex
+         tuple ascending) for a deterministic top-decile boundary).
+      4. depth(m), for each local minimum m: min(delta_map[u] for u in
+         adjacency[m]) - delta_map[m] -- the gap between m's own delta_E
+         and its smallest neighbour's delta_E (well-defined and positive
+         for every genuine local minimum, since is_structural_local_min(m)
+         requires delta_map[m] <= every neighbour's delta, and depth==0
+         would mean a tied neighbour at the same minimum value, which the
+         non-backtracking walk's tie-break rule can still enter and
+         terminate at -- depth==0 is a legitimate, reportable value, not an
+         error).
+      5. REQUIRED CORRELATION: Pearson correlation coefficient (computed by
+         a self-contained, dependency-free implementation -- this campaign
+         has never imported a stats library and does not start doing so
+         here) between {depth(m)} and {basin_size(m)} across all local
+         minima with a nonempty basin, per prime, plus the same correlation
+         computed on log(basin_size(m)) (since basin sizes are plausibly
+         power-law-distributed, not necessarily linear against depth) --
+         report BOTH, do not select one post hoc.
+      OBJECTIVE_BOUNDARY (restated, unchanged from v5): this is a
+      DIAGNOSTIC, not a claim. It does not test H-SSIQ-36e970's real-arm
+      prediction, does not gate any decision rule, and does not itself
+      constitute evidence for or against a computable delta_E-gradient. A
+      strong depth/basin-size correlation would be a candidate MECHANISM
+      QUESTION for a future amendment (does descent get funnelled toward
+      "deep" local minima preferentially, and if so, by what property of
+      the walk or the graph), never itself evidence for or against L4's
+      revisit condition (a computable delta_E-gradient).
+  required_artifacts:
+    - runs/RUN-SSIQ-a85692-f/manifest.yaml
+    - runs/RUN-SSIQ-a85692-f/raw-result.json
+    - runs/RUN-SSIQ-a85692-f/execution_report.yaml
+    - runs/RUN-SSIQ-a85692-f/source_access_log.yaml
+    - runs/RUN-SSIQ-a85692-f/command.txt
+    - runs/RUN-SSIQ-a85692-f/environment.json
+    - runs/RUN-SSIQ-a85692-f/stdout.log
+    - runs/RUN-SSIQ-a85692-f/stderr.log
+    - runs/RUN-SSIQ-a85692-f/gd12_equivalence_regression_test.json
+    - runs/RUN-SSIQ-a85692-f/corrected_crosscheck.json
+    - runs/RUN-SSIQ-a85692-f/funnel_structure_diagnostic.json
+  required_artifacts_note: >-
+    EXPLICIT, CODE-VERIFIED FUNCTION-LEVEL DIFF, per GD-9/GD-10's standing
+    repair:
+      NEW: experiments/EXP-SSIQ-a85692/implementation/descent_walk_hardened.py --
+        ONE function, greedy_descent_hitting_time_v2 (pure superset of
+        dht.greedy_descent_hitting_time, adds terminal_vertex to the
+        returned dict, bit-identical on every other field -- REQUIRED
+        regression per gd12_fix_v6 above).
+      NEW: a diagnostic script (e.g. funnel_structure_diagnostic_v6.py)
+        implementing funnel_structure_diagnostic_v6, importing
+        greedy_descent_hitting_time_v2 (this amendment's own new function),
+        build_isogeny_graph.build_graph_bfs/degree_sequence_check
+        (IMPORTED UNCHANGED), and trapping_diagnostic_v5's
+        is_structural_local_min computation (REUSED, not reimplemented --
+        either by direct import of trapping_diagnostic_v5.run_diagnostic_for_prime
+        or an equivalent refactor that does not duplicate its logic;
+        the Executor's execution_report.yaml must state which and why).
+      UNCHANGED, NOT MODIFIED: descent_hitting_time.py (stays exactly as
+        frozen; this amendment supersedes by addition, never by edit),
+        ols_hardened.py, trapping_diagnostic_v5.py, compute_delta_e.py,
+        compute_delta_e_v2.py, reanalyze_v3.py, reanalyze_v4_selftest.py,
+        build_isogeny_graph.py.
+      NOT RE-RUN: RUN-SSIQ-a85692-a/-b/-c/-d/-e and every already-archived
+        gamma/CI/diagnostic value stay exactly as committed; this amendment
+        reads RUN-SSIQ-a85692-b's raw-result.json (delta_map only) but
+        performs no delta_E search and does not touch any prior run's own
+        files.
+    New run id RUN-SSIQ-a85692-f. The Executor's own execution_report.yaml
+    must confirm this diff list against the code it actually wrote/ran, and
+    report any discrepancy rather than silently reconciling it. If the
+    corrected cross-check does NOT pass (contrary to the
+    corrected_equivalence_proof above), this is itself a REQUIRED,
+    EXPLICITLY DISCLOSED finding (per this task's own governing instruction
+    to stop and report a genuine underspecification or defect rather than
+    improvise past it), not a silently-absorbed anomaly -- and per PART B's
+    own precondition, would BLOCK the funnel diagnostic for that prime.
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.3
+    maximum_memory_gb: 2
+    maximum_runs: 1
+    note: >-
+      Graph reconstruction for 4 primes (~12-120s total, per
+      EXP-SSIQ-58b642's own measured figures, reused unchanged) plus pure
+      arithmetic on already-committed delta_map data, now including a
+      basin-assignment pass (O(N) per prime, same order as the existing
+      exhaustive cross-check) and a self-contained Pearson correlation
+      computation (O(n_local_minima) per prime). No delta_E search of any
+      kind. Generously sized against the actual work, matching v5's budget
+      exactly since the added computation is the same order of magnitude.
+  frozen_at: null
+  freeze_note: null
