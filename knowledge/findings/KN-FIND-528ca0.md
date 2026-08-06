@@ -1,13 +1,15 @@
-# KN-FIND-528ca0: Fractional Left O-Ideals of Norm q' in an Indefinite Maximal Quaternion Order Are Infinite; Density of "Easy" nrd-PIP Instances Under Bounded Sampling Decays to Zero
+# KN-FIND-528ca0: Fractional Left O-Ideals of Norm q' in an Indefinite Maximal Quaternion Order Are Infinite — SCOPE CORRECTION: Does NOT Apply to HAWK's Totally Definite Algebra
 
 **ID:** KN-FIND-528ca0
 **Type:** finding
-**Proof status:** derivation (repaired, BATCH-d44912; original derivation BATCH-56498f)
+**Proof status:** derivation (repaired, BATCH-d44912; scope-corrected DEC-20260805-a62164)
 **Claim tier:** toy
-**States a finding:** true (mathematical finding only — ideal count and density)
+**States a finding:** true (mathematical finding — for INDEFINITE quaternion algebras)
 **States a security claim:** false
 **Added:** 2026-08-05
+**Scope corrected:** 2026-08-05 — HAWK uses A = (-1,-1|K), a TOTALLY DEFINITE algebra. This finding applies to indefinite algebras only (DEC-20260805-a62164).
 **Source task:** TASK-20260805-a39814
+
 **Prior evidence:** EV-HAWK-af783e
 **Goal:** GOAL-HAWK-001
 
