@@ -1,0 +1,154 @@
+{
+  "record": "FROZEN PRE-REGISTERED PREDICTION",
+  "task_id": "TASK-20260806-b51ac8",
+  "batch_id": "BATCH-5a4656",
+  "goal_id": "GOAL-MLKEM-005",
+  "repairs": "TASK-20260805-708b70 (BATCH-a51f91), per DEC-20260805-4823db next_actions[0] and RT-20260806-d008e0 required_controls RC-1..RC-5",
+  "frozen_at_utc": "2026-08-06T15:43:11Z",
+  "frozen_at_git_commit": "a582a799135e34e0968087feab4e92867693f1c4",
+  "frozen_at_git_branch": "claude/mlkem-campaign-005",
+  "frozen_at_git_dirty": true,
+  "frozen_at_git_dirty_note": "Working tree carries only this task's own untracked directory (coordination/goals/GOAL-MLKEM-005/batches/BATCH-5a4656/tasks/), per `git status --short` at freeze time. No other path is dirty.",
+  "frozen_before_any_research_number": true,
+  "freeze_note": "This file is written and its sha256 recorded BEFORE measure.py is executed on any research cell. Every number in this file is either (i) a parameter copied from the task card / from BATCH-a51f91's frozen file unchanged, or (ii) a closed-form value computed programmatically by a short Python script and pasted here verbatim (never computed by hand), specifically to avoid BATCH-a51f91's own D1 defect (a hand-transcribed variance list with two wrong entries out of four). The generating computation is reproduced in `freeze_computation` below so a reader can re-run it.",
+
+  "freeze_computation": {
+    "language": "python3",
+    "code": "import math\ndef formula(d,beta): return math.sqrt(2*(1-beta/d)/beta)\ndef var_beta(d,beta): return 2*beta*(d-beta)/(d**2*(d+2))\nfor d,beta in [(100,30),(100,40),(140,30),(140,40)]:\n    print(d,beta,beta/d,var_beta(d,beta),formula(d,beta))\nfor d in (100,140):\n    print(d, formula(d,40)/formula(d,30))",
+    "executed_output_verbatim": "100 30 0.3 0.0041176470588235294 0.21602468994692867\n100 40 0.4 0.004705882352941176 0.1732050807568877\n140 30 0.21428571428571427 0.0023713710836447254 0.2288689068002365\n140 40 0.2857142857142857 0.002874389192296637 0.18898223650461363\n100 0.8017837257372731\n140 0.8257228238721947"
+  },
+
+  "statistic": {
+    "symbol": "R",
+    "definition": "R = ||pi_{d-beta}(e)||^2 / ||e||^2 where pi_{d-beta} is the orthogonal projection onto a rank-beta subspace of R^d and e is an error vector. UNCHANGED from BATCH-a51f91's TASK-20260805-708b70.",
+    "computed_as": "R = ||Q^T e||^2 / ||e||^2 with Q the d x beta matrix of orthonormal projector-frame columns. For the real/unreduced/LLL-only arms Q is the tail Gram-Schmidt frame of a q-ary basis at the corresponding reduction stage; for the Haar/graded/coordinate-aligned arms Q is constructed directly (see `graded_family` below)."
+  },
+
+  "cells": {
+    "d": [100, 140],
+    "k": "d/2",
+    "q": 3329,
+    "beta": [30, 40],
+    "bases_per_cell": 8,
+    "reduction": "LLL, then BKZ-beta with max_loops=2 -- UNCHANGED from BATCH-a51f91. Same fplll basis seeds (700000 + d*1000 + beta*10 + i), so the reductions reproduce bit-for-bit if regenerated; BATCH-a51f91's on-disk BKZ cache does not exist in this session's scratchpad (checked before freezing), so bases are REGENERATED from the same seeds rather than reused from a file. Recorded in receipt.json.",
+    "errors_per_basis": 1048576,
+    "error_law_CBD": "CBD_{eta=2} (FIPS 203 e / e_1 law), per-coordinate variance eta/2 = 1, support {-2,-1,0,1,2}. Shared across ALL CBD-based arms within a cell (real, unreduced, LLL-only, Haar, graded family) -- same discipline as BATCH-a51f91.",
+    "error_law_Gaussian_for_P4": "iid N(0,1) per coordinate (matched total variance to CBD_{eta=2}: Var = 1 per coordinate). Used ONLY for the P4 null-of-the-null arm, drawn from an independent seed, same N = 1048576 per cell."
+  },
+
+  "graded_family": {
+    "definition": "Q_t = QR( sqrt(1-t) * E_S + sqrt(t) * G ), where E_S is a d x beta matrix whose columns are beta distinct standard basis vectors of R^d selected by a random permutation (i.e. the first beta columns of a random d x d permutation matrix -- already orthonormal), and G is a d x beta iid standard-Gaussian matrix. QR denotes the Q-factor of a reduced QR decomposition (orthonormal columns). t = 0 gives Q_0 = E_S exactly (coordinate-aligned projector onto a random beta-subset of coordinates); t = 1 gives Q_1 = QR(G), a Haar-random beta-subspace, IDENTICAL IN LAW to BATCH-a51f91's haar_null arm.",
+    "t_grid": [0.00, 0.05, 0.10, 0.25, 0.50, 0.75, 1.00],
+    "draws_per_t": 8,
+    "coupling_across_t": "For a fixed replicate index j (j = 0..7), E_S(j) and G(j) are drawn ONCE from independent seed families and reused across ALL SEVEN t values, so Q_t(j) is a smooth (in t) interpolation for each replicate -- this is what makes the monotonicity check across the 7-point grid meaningful rather than 7 independent noisy draws. Consequence stated explicitly for the SE derivation below: at the two ENDPOINTS t=0 and t=1, Q_0(j) = E_S(j) depends ONLY on the E_S seed and Q_1(j) = QR(G(j)) depends ONLY on the G seed -- these are two DISJOINT seed families, so Q_0(j) and Q_1(j) are statistically INDEPENDENT random objects even though they carry the same replicate index j. Only the interior t values genuinely couple E_S and G.",
+    "seed_families": {
+      "E_S": "910000 + d*1000 + beta*10 + j  (numpy PCG64; generates a random permutation of {0,...,d-1} via rng.permutation(d), first beta indices become the selected coordinate set)",
+      "G": "920000 + d*1000 + beta*10 + j  (numpy PCG64; d x beta iid standard normal)"
+    },
+    "identification_with_prior_arms": "graded(t=1) IS the Haar null arm (same construction as BATCH-a51f91's haar_null, different seed family so not bit-identical to BATCH-a51f91's draws but identical in law/role). graded(t=0) IS the sensitivity-demonstration's coordinate-aligned arm. No separate 'haar_null' or 'demo' arm is computed outside this family."
+  },
+
+  "additional_arms": {
+    "unreduced_qary_tail_GSO": "The last beta Gram-Schmidt vectors of the SAME q-ary basis A = IntegerMatrix.random(d,'qary',k=d//2,q=q) used for the real arm, BEFORE any LLL or BKZ call -- i.e. the GSO of the raw generator matrix. Same 8 fplll seeds, same code path, computed as a QR of A^T with no reduction applied. This answers whether the real arm's agreement (or departure) is a property of reduction at all, or already present in the raw q-ary shape.",
+    "LLL_only_tail_GSO": "The same basis after LLL.reduction() only, before any BKZ call. Captured from the SAME IntegerMatrix object mid-reduction (LLL mutates in place; BKZ is applied afterward to the same object to produce the real arm), so unreduced -> LLL-only -> real are three GSO snapshots of ONE progressive reduction per basis, not three independent reductions.",
+    "gaussian_null_of_the_null_P4": "The coordinate-aligned projector Q_0(j), j=0..7 (the SAME 8 projector realizations used for the CBD coordinate-aligned arm, i.e. graded(t=0)), applied to an INDEPENDENT Gaussian error sample of the same N = 2^20 and the same per-coordinate variance (1). Because a Gaussian vector's direction is exactly rotation-invariant, R = ||Q_0^T g||^2/||g||^2 is EXACTLY Beta(beta/2,(d-beta)/2) for ANY FIXED projector, not only a Haar one -- so this arm isolates whether the coordinate-alignment departure measured under CBD is a property of the PROJECTOR (in which case it would also appear under Gaussian error, and P4 would fail) or a property of CBD's platykurtosis interacting with a fixed coordinate direction (in which case P4 must pass)."
+  },
+
+  "forced_values_derived_in_advance": {
+    "E_R": {
+      "value_formula": "beta / d",
+      "values": {"d100_b30": 0.3, "d100_b40": 0.4, "d140_b30": 0.21428571428571427, "d140_b40": 0.2857142857142857},
+      "status": "FORCED. CARRIES ZERO INFORMATION. Holds for EVERY basis (unreduced, LLL-only, BKZ-reduced) and for every arm in the graded family at every t, since E[R] = sigma^2 tr(P)/(sigma^2 d) = beta/d for ANY rank-beta orthogonal projector and any e with iid equal-variance coordinates.",
+      "computed_by": "closed-form substitution, not measured; matches BATCH-a51f91's forced_values.E_R block exactly."
+    },
+    "beta_law": {
+      "law": "Beta(beta/2, (d-beta)/2)",
+      "status": "DERIVED, NOT FITTED. Exact for a Haar-random projector against any fixed error vector, by rotation invariance. This is the marginal law the Haar (t=1) arm's ratio statistics are compared against, and it is what P1/P2 score the real arm against, UNCHANGED from BATCH-a51f91.",
+      "variance_formula": "Var(R) = 2*beta*(d-beta) / (d^2 * (d+2))",
+      "variance_values": {
+        "d100_b30": 0.0041176470588235294,
+        "d100_b40": 0.004705882352941176,
+        "d140_b30": 0.0023713710836447254,
+        "d140_b40": 0.002874389192296637
+      },
+      "variance_values_note": "Computed by the same freeze_computation script above, printed and pasted verbatim -- not transcribed by hand. (BATCH-a51f91's D1 defect was exactly a hand-transcription error in this list; the formula there was always correct and used by the code. This file never hand-transcribes a derived number.)"
+    },
+    "sd_over_mean_formula_for_P5": {
+      "formula": "sqrt(2*(1 - beta/d)/beta)",
+      "status": "This is the falsifier's predictive formula, quoted verbatim from the handoff. It is the large-(d-beta) approximation to sqrt(Var(R))/E[R] for R ~ Beta(beta/2,(d-beta)/2) (the exact form drops a +2 inside (d+2), immaterial at these d)."
+    }
+  },
+
+  "P1": {
+    "statement": "On the REAL-BASIS (BKZ-reduced) arm, in all four cells: |q_emp(2^-10)/q_Beta(2^-10) - 1| <= 0.05 AND |q_emp(2^-16)/q_Beta(2^-16) - 1| <= 0.10.",
+    "status_note": "UNCHANGED from BATCH-a51f91's P1, verbatim. Not re-derived, not re-scored.",
+    "evaluated_on": "the pooled-over-8-bases empirical quantile of each cell, AND additionally per basis; per-cell verdict taken on the pooled ratio, per-basis spread reported beside it.",
+    "tolerance_2em10": 0.05,
+    "tolerance_2em16": 0.10
+  },
+  "P2": {
+    "statement": "On the REAL-BASIS arm, the between-basis component of Var(R) is <= 20% of the total, in all four cells.",
+    "status_note": "UNCHANGED from BATCH-a51f91's P2, verbatim.",
+    "threshold": 0.20
+  },
+
+  "P3": {
+    "statement": "The t=0 (coordinate-aligned) arm of the graded family clears the t=1 (Haar) arm by >= 4 SE-of-the-difference, at the declared draw count (8), on the ratio_2em10 statistic (mean over 8 draws of the empirical 2^-10 quantile ratio q_emp(2^-10)/q_Beta(2^-10)).",
+    "direction_predicted_in_advance": "POSITIVE: mean(t=0) - mean(t=1) >= +4*SE. Basis: for a coordinate-aligned rank-beta P, R = sum_{i in S} e_i^2 / sum_i e_i^2, and Var(sum_{i in S} e_i^2) = beta*(E[e^4]-1) for CBD_{eta=2} where E[e^4] = 2.5 (computed from the exact pmf {1,4,6,4,1}/16 on {-2,-1,0,1,2}: E[e^4] = 2*(1*16 + 4*1)/16 = 2*(16+4)/16 = 40/16 = 2.5), giving Var(sum) = 1.5*beta -- under-dispersed relative to the 2*beta a rotation-invariant (Beta/Gaussian) law would give. Under-dispersion in the numerator pushes the empirical lower-tail quantile of R UP (ratio > 1) relative to Beta. This is the same mechanism RT-20260806-d008e0 derived in `is_C3_unmeetable_by_this_design`; it is RE-DERIVED here independently as a pre-registered directional prediction, not copied as a result.",
+    "SE_definition": {
+      "choice": "UNPAIRED: SE = sqrt(sd_t0^2 + sd_haar^2) / sqrt(n_draws), n_draws = 8.",
+      "why_unpaired_not_paired": "The t=0 and t=1 arms use DISJOINT random seed families (E_S vs G; see graded_family.coupling_across_t above) -- Q_0(j) and Q_1(j) share no common randomness for any j, so there is no genuine projector-level pairing to exploit, unlike BATCH-a51f91's broken gate where the demonstration and null arms reused the IDENTICAL 8 Haar draws (a real pairing that the frozen file ignored, DEF-3, understating the true SE and making the gate too LENIENT). Here the only possible source of correlation between the two arms' per-draw ratio statistics is that they are evaluated against the SAME underlying N=2^20 CBD error vectors within a cell (a shared-data, not shared-projector, correlation). Any such correlation from common sampling noise in a large, shared, finite error sample is expected to be non-negative (both arms' finite-sample quantile estimates move together when the SAME finite draw over- or under-represents its tail), so treating the arms as unpaired (ignoring a plausibly non-negative covariance) makes the reported SE an upper bound on the true paired SE, i.e. the resulting test is CONSERVATIVE (harder to pass) rather than lenient. This is stated as the deliberate choice, in the direction that avoids repeating BATCH-a51f91's DEF-3 defect.",
+      "n_draws": 8
+    },
+    "threshold_multiplier": 4.0,
+    "P3_met_condition": "(mean_ratio_2em10[t=0] - mean_ratio_2em10[t=1]) >= 4.0 * SE_unpaired"
+  },
+
+  "P4": {
+    "statement": "The Gaussian-error null-of-the-null (coordinate-aligned projector Q_0(j), j=0..7, applied to independent Gaussian errors at matched variance) returns a ratio_2em10 within its own sampling noise of 1.000, exactly as the marginal-law theorem predicts for ANY fixed projector under a rotation-invariant error law.",
+    "test": "|mean_over_8_draws(ratio_2em10, gaussian_coord_aligned) - 1.0| <= 4.0 * SE_of_mean, where SE_of_mean = sd_over_8_draws(ratio_2em10, gaussian_coord_aligned) / sqrt(8). Same 4-SE convention as P3, applied here as a two-sided null check rather than a one-sided detection.",
+    "consequence_if_it_fails": "STOP. Per the handoff constraints: do not proceed to interpret P3, P5 or the real arm; report an INSTRUMENT DEFECT and do not rescue the instrument post hoc.",
+    "why_this_must_pass_if_the_instrument_is_sound": "Gaussian directions are exactly rotation-invariant (unlike CBD, which is only hyperoctahedral-invariant), so R computed against a Gaussian error vector has the EXACT Beta(beta/2,(d-beta)/2) law for every fixed beta-dimensional projector, coordinate-aligned or not. If P4 fails, either the projector construction, the quantile estimator, or the RNG has a defect independent of any question about CBD or BKZ."
+  },
+
+  "P5_falsifier": {
+    "statement_verbatim_from_handoff": "The coordinate-alignment departure should scale like sd(R)/E[R] ~ sqrt(2*(1 - beta/d)/beta), i.e. DECAY as ~1/sqrt(beta) at fixed beta/d. Compute the predicted departure at beta=30 and beta=40 (both already in the cell grid) from this formula BEFORE measuring, freeze both numbers in prediction_frozen.json, then check whether the measured departure at beta=40 is smaller than at beta=30 by roughly the predicted factor. A departure that stays FLAT as beta grows is the artifact tell and must be reported as one.",
+    "measured_departure_operationalisation": "departure(d,beta) = mean_ratio_2em10[t=0](d,beta) - mean_ratio_2em10[t=1](d,beta) -- the SAME signed quantity P3 tests against 4*SE. This is the natural non-arbitrary choice: it is already computed for P3 and needs no new statistic.",
+    "predicted_formula_values_beta30_beta40": {
+      "note": "The falsifier's formula sqrt(2*(1-beta/d)/beta) depends on d as well as beta; the cell grid has TWO d values, so both are reported rather than picking one arbitrarily. 'at beta=30 and beta=40' below means the four (d,beta) formula evaluations, since both beta values occur at both d values.",
+      "formula_sd_over_mean": {
+        "d100_b30": 0.21602468994692867,
+        "d100_b40": 0.1732050807568877,
+        "d140_b30": 0.2288689068002365,
+        "d140_b40": 0.18898223650461363
+      }
+    },
+    "predicted_decay_ratio_beta40_over_beta30_at_fixed_d": {
+      "d100": 0.8017837257372731,
+      "d140": 0.8257228238721947,
+      "pure_1_over_sqrt_beta_reference": 0.8660254037844386,
+      "note": "predicted_ratio(d) = formula(d,40)/formula(d,30), computed by the same freeze_computation script. This is what 'the predicted factor' in the falsifier statement means operationally: the PRE-REGISTERED prediction is that departure(d,40)/departure(d,30) should be positive (same sign as departure(d,30)), LESS THAN 1 (decay, not flat or growing), and roughly of this magnitude, evaluated separately at d=100 and d=140."
+    },
+    "adjudication": "PASS/consistent if, at BOTH d=100 and d=140: (a) departure(d,30) and departure(d,40) are both positive (matching P3's predicted direction) and (b) departure(d,40) < departure(d,30) (decay, not flat or growing). 'Roughly the predicted factor' is reported as the ratio departure(d,40)/departure(d,30) against predicted_decay_ratio_beta40_over_beta30_at_fixed_d[d] with the relative discrepancy stated in percent -- no additional pass/fail band is imposed on the magnitude beyond direction, per the handoff's own qualifier 'roughly'. A flat-or-growing departure (violates (b) at either d) is reported as the artifact tell and is NOT rescued or reinterpreted."
+  },
+
+  "branches": {
+    "P4_fails": "STOP. Instrument defect, not a research finding. Do not proceed to P3, P5 or the real arm's P1/P2.",
+    "P4_holds_P3_fails": "INSTRUMENT OUTCOME, same as BATCH-a51f91's NEITHER branch. Record no mathematical conclusion about the real arm; name a third independent cause if found.",
+    "P4_holds_P3_holds_P5_not_consistent": "Report the artifact tell explicitly per docs/inventor-protocol.md sec 3 (a departure that does not decay when the parameter meant to destroy it grows). The real arm's P1/P2 numbers remain UNINTERPRETABLE pending a wider beta-scan this task does not attempt.",
+    "P4_holds_P3_holds_P5_consistent": "The repaired instrument is sensitive and the decay is as predicted; proceed to read the real arm's P1/P2 result as interpretable, scoped exactly as BATCH-a51f91's frozen file scoped it (toy scale, d<=140, beta<=40, not transported)."
+  },
+
+  "scope_constraints_binding_on_the_report": [
+    "NOTHING MEASURED HERE IS TRANSPORTED TO beta = 606, d = 1420. The beta-trend over {30,40} x {100,140} is FOUR POINTS, NOT A LAW. The falsifier's decay check is a property of the FORMULA extrapolated in prediction only; no MEASURED number at these toy cells is carried to crypto-scale parameters.",
+    "The mechanism is SESSION recovery, not key recovery. No number here may be subtracted from the in-repo primal_bdd margins of 2.80 / 6.04 / 1.28 bits.",
+    "AGENTS.md rule 12 is UNMET and UNWAIVED. No ML-KEM break claim. No status change to any EV-MLKEM-* record or KN-* entry.",
+    "Toy scale is never crypto-scale evidence.",
+    "This task does NOT copy RT-20260806-d008e0's own probe numbers (1.09402, 1.03719, the seven-point 1.09304...1.00098 sequence, 39.3s, 15.3s) into any frozen or headline figure here. Those numbers are cited in this file's derivations ONLY as the reason this design was chosen (design rationale), never as this task's own measured result. Every number in results.json is freshly computed by measure.py in THIS task's own protocol run."
+  ],
+
+  "decision_rule_discipline": {
+    "verdict_on_the_null_arm_first": "P1 and P2 are evaluated and reported on the Haar (t=1) arm BEFORE the real arm is read, per KN-TECH-1a5b7e mode 4 -- UNCHANGED from BATCH-a51f91.",
+    "adjudication_order_in_the_report": "P4 first (stop if it fails), then P3, then P5, then -- conditionally -- P1/P2 on the real arm. This order is fixed here, before any measurement, per the handoff's completion_gate."
+  }
+}
