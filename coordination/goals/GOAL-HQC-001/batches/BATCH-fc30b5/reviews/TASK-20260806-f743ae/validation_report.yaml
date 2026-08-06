@@ -1,0 +1,554 @@
+validation_report:
+  id: TASK-20260806-f743ae
+  task_id: TASK-20260806-f743ae
+  role: validator
+  goal: GOAL-HQC-001
+  batch: BATCH-fc30b5
+  experiment_id: EXP-HQC-982268
+  validates: TASK-20260806-e120e8
+  snapshot_commit_validated: 2f034e0cd16825947d532c7b3e5e7c85023ae5e7
+  snapshot_parent: de450e9a9a7a67faeb57645857216e989bd19007
+  snapshot_receipt: coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/archives/TASK-20260806-7bbbc8/snapshot-receipt.json
+  claim_tier: toy
+  independent_session: true
+  reasoning_effort_used: xhigh
+
+  scope_note: >-
+    Reviewed ONLY the Coordinator-committed snapshot at 2f034e0c (reachable
+    from HEAD, parent de450e9a as declared). Refused to treat any
+    working-tree-only artifact as a receipt; none was encountered. This
+    report validates ONE reanalysis task: a matched-pair reanalysis of
+    TASK-20260806-77a574's already-collected pilot data (shards 5000/6000),
+    plus a defect-specific required-T derivation, both for the V3
+    (last-block-window-read-early) defect at decode_blocks's last block,
+    PS-R3, single seed family. Draws no conclusion about A17, HQC's DFR, or
+    any standardized parameter set. All independent code run for this review
+    is scratch-only, writes nothing under experiments/, stage_a.py,
+    measure.py, pilot_injection.py, or any producer's task directory, and is
+    a FRESH implementation (not a copy of matched_pair_reanalysis.py).
+
+  run_ids: []
+  run_ids_note: >-
+    No experiments/ run record exists for this task; per this campaign's
+    convention, coordination-task artifacts are cited by path and hash.
+
+  artifact_checks:
+    - artifact: design.md
+      present: true
+      sha256_matches_snapshot_receipt: true
+      recomputed_sha256: c6ea73c936603de9e20f26bba7619955b38a7f635bbcd31d6da7914628c0cd7d
+      predates_matched_pair_reanalysis_py: true
+      note: >-
+        design.md states the method, sanity-check tolerances, dilution
+        model, and power target (Section 3.3) BEFORE any real-data run.
+        Internally consistent with the eventual results with no sign of
+        retroactive editing: the "which of these outcomes obtains is not
+        decided in advance" language in Section 2.5 is exactly the kind of
+        honest a-priori framing a retrofitted document tends not to include.
+    - artifact: matched_pair_reanalysis.py
+      present: true
+      sha256_matches_snapshot_receipt: true
+      recomputed_sha256: eb0301bd5697b8944a1a30e06f38516f13d0b2cd5ca94ce0190726f71180019a
+      reuses_stage_a_measure_pilot_injection_read_only: true
+      new_code_is_thin: true
+      note: >-
+        Read in full. Only new logic: the matched decode_blocks monkey-patch
+        wrapper (calls the imported, unmodified original_decode_blocks AND
+        the imported, unmodified pilot_injection.make_defected_decode_blocks
+        on the same bits, does not reimplement either), the paired/unpaired
+        jackknife comparison (calls sa.hist_of/batch_hists and
+        measure.comb_matrix/log2_A_from_hists directly), and the required-T
+        driver/reporting logic.
+    - artifact: reanalysis_results.json
+      present: true
+      sha256_matches_snapshot_receipt: true
+      recomputed_sha256: d67c80fedd7e29e8c5dc1838a2003bb235241214103bf6cfbb1d68cde7e5bd35
+      stdout_log_matches_reported_numbers: true
+      stderr_log_empty: true
+    - artifact: reanalysis_report.md
+      present: true
+      sha256_matches_snapshot_receipt: true
+      recomputed_sha256: 5e5ee90d9b5334031ecfce7f15824164270389a46bd71348454f2687431e1a73
+    - artifact: run_manifest.yaml
+      present: true
+      sha256_matches_snapshot_receipt: true
+      recomputed_sha256: 2ef2b224c7f19cec5b7338c4a1d4b42dcfa0d6b540285399aa734bebebe83952
+      command_git_dirty_seeds_environment_present: true
+      dirty_tree_at_run_time: true
+      dirty_tree_explanation_checked: >-
+        Sole dirty entry at run time was this task's own untracked output
+        directory, pre-snapshot -- verified against git history: commit
+        de450e9a is the manifest's recorded git.commit and is the parent of
+        the snapshot commit 2f034e0c; the snapshot commit's diff adds exactly
+        the seven declared artifact paths (design.md, matched_pair_reanalysis.py,
+        reanalysis_report.md, reanalysis_results.json, run_manifest.yaml,
+        stdout.log, stderr.log) and nothing else.
+    - artifact: stdout.log / stderr.log
+      present: true
+      sha256_matches_snapshot_receipt: true
+
+  independent_reproduction:
+    method: >-
+      Wrote an ENTIRELY SEPARATE script (scratchpad, not derived from
+      matched_pair_reanalysis.py's source, structurally different: TWO
+      SEPARATE _t_shard invocations per shard -- one under the real
+      decode_blocks, one under the defected wrapper -- rather than the
+      executor's single monkey-patched double-decode inside one _t_shard
+      call) loading stage_a.py / measure.py / pilot_injection.py fresh via
+      the same sha256 pins, re-verifying those pins independently against
+      the files on disk before importing, and implementing its own
+      paired/unpaired jackknife comparison and required-T derivation from
+      first principles rather than by reading matched_pair_reanalysis.py's
+      formulas. Consulted the raw underlying pilot/Red-Team numbers
+      (pilot_results.json, red_team_report.md) as required inputs, but wrote
+      and ran the independent computation BEFORE reading
+      reanalysis_report.md's headline conclusions in detail, then compared.
+    checks_performed:
+      - name: sha256 re-verification of all three reused modules
+        result: >-
+          Independently recomputed sha256 of stage_a.py, measure.py, and
+          pilot_injection.py at their read-scope paths; all three match the
+          pins in matched_pair_reanalysis.py and run_manifest.yaml exactly
+          (06a0a618...681405 / a4fd1ecb...4f5dc8 / 629105382f...5fe72a9).
+      - name: sanity check vs Red Team's shard 424242
+        result: >-
+          Independently regenerated shard 424242 and reproduced, EXACTLY,
+          the Red Team's own reported numbers and the executor's own
+          reproduction of them: flips=533/5000, p_true=0.3198, p_def=0.3280,
+          diff_marginal=0.0082, k=17 point_true=-0.9360, point_def=-0.7438,
+          diff=+0.1922, se_unpaired=0.5514. Exact digit match on every field
+          checked.
+      - name: bit-identical reproduction of the pilot's own shards
+        result: >-
+          Independently regenerated shards 5000 (defected-arm draws) and
+          6000 (undefected-arm draws) via stage_a.py's real, unmodified
+          _t_shard, and confirmed the resulting S-histograms are BIT-
+          IDENTICAL to pilot_results.json's own committed
+          MEASUREMENT.defected.S_histogram and
+          MEASUREMENT.undefected.S_histogram arrays (all 57 bins each,
+          both arms). D2/D3 violations: 0/0, neither shard truncated.
+      - name: matched-pair diff/SE/z at k=17 and two other k (k=2, k=26)
+        result: >-
+          Combined 10,000-matched-pair sample (my own independent code):
+          k=2  diff=-0.0000599  se_paired=0.0000947  z_paired=-0.6324
+          k=17 diff=+0.0515674  se_paired=0.0966241  z_paired=+0.5337
+          k=26 diff=+0.2628245  se_paired=0.5213902  z_paired=+0.5041
+          max|z_paired| over k=2..26 = 0.6324 (at k=2).
+          EXACT MATCH (to the digit shown) against the executor's reported
+          k=17 diff=+0.0516/SE=0.0966/z=+0.534, k=2 z=-0.632, k=26 z=0.504,
+          and against reanalysis_results.json's raw per_k arrays.
+      - name: unpaired SE and power ratio cross-check
+        result: >-
+          se_unpaired at k=17 = 0.30114, power ratio 3.117x -- matches the
+          report's "3.12x tighter" claim and the raw JSON's 3.1167 exactly.
+
+  metric_recomputations:
+    - metric: "the doubly-diluted structural formula, re-derived from first
+        principles (not read off design.md's stated form)"
+      method: >-
+        Independently derived mubar_k for a system where only block n_e-1's
+        marginal failure probability differs between arms, decomposing
+        E[C(S,k)] over k-subsets that do (C(n_e-1,k-1) of them) and do not
+        (C(n_e-1,k) of them) contain block n_e-1, using the identities
+        C(n_e-1,k)/C(n_e,k) = 1-k/n_e and C(n_e-1,k-1)/C(n_e,k) = k/n_e, and
+        the design's stated independence-of-block-n_e-1 approximation. This
+        independently reproduces
+        mubar_k = (1-k/n_e)*mubar_k^other + (k/n_e)*p_{n_e-1}*mubar_{k-1}^other
+        exactly as design.md Section 3.2 states, confirming Delta(mubar_k) =
+        (k/n_e)*Delta_p*mubar_{k-1}^other is EXACT (not merely first-order)
+        under the stated independence approximation. Combined with the
+        EXACT identity Delta(q) = Delta_p/n_e (linearity of the mean, no
+        independence assumption needed) and first-order log-linearization of
+        both terms gives
+        Delta(log2_A_k) = (k/n_e)*Delta_p/ln2 * [mubar_{k-1}/mubar_k - 1/q_hat],
+        matching design.md Section 3.2's formula exactly. Independently
+        confirmed the claimed "exact cancellation under i.i.d. block
+        failures" property: if blocks are i.i.d. Bernoulli(q), mubar_k = q^k
+        exactly, so mubar_{k-1}/mubar_k = 1/q exactly and the bracket is 0.
+      result: >-
+        The structural formula is mathematically correct given its two
+        disclosed, non-trivial approximations: (1) block n_e-1's failure is
+        independent of the other n_e-1 blocks' joint failure structure
+        (needed for the exact linearity in p_{n_e-1}); (2) mubar_{k-1}^other
+        (restricted to the 55 "other" blocks) is approximated by the pooled
+        true-arm mubar_{k-1} computed over all 56 blocks -- a proxy, not
+        re-derived, but a reasonable one since block n_e-1's own marginal
+        rate (~0.31-0.33) is not exceptional relative to the pooled q_hat
+        (0.3194). Neither approximation is hidden; both are stated in
+        design.md Section 3.2 as simplifications "not re-derived here."
+      minor_note: >-
+        reanalysis_report.md Section 5.2 states the bracket differs from
+        i.i.d. cancellation "by only ~12% at k=17"; my independent
+        computation gives (mubar_16/mubar_17)/(1/q_hat) - 1 = 13.4%. A minor
+        imprecision in the report's rounding, not a correctness issue and
+        not consequential to any conclusion (both figures support the same
+        "near-total but not exact cancellation" characterization).
+    - metric: "required-T arithmetic at k=17, independently recomputed"
+      method: >-
+        Recomputed Z_SUM = z_{0.975} + z_{0.90} = 1.959963985 + 1.281551566
+        = 3.241515551 independently (matches the code's constant). Applied
+        the standard power formula T_req = T_ref*(z_sum*SE_ref/Delta)^2 to
+        my own independently-derived Delta(log2_A_17) and the independently
+        -measured se_paired_ref at T_ref=10,000, using ONLY numbers computed
+        by my own script.
+      result: >-
+        k=17, using the Red Team's Delta_p=0.0082 as input: leading_term=
+        1.2749e-2, q_shift_term=-1.1244e-2, total=1.5053e-3, required_T=
+        4.3291e8 -- EXACT MATCH to reanalysis_results.json's
+        required_T_derivation.load_bearing_k17.required_T_red_team_input =
+        432907900.434108 (i.e. the reported "~4.33e8").
+        k=2:  my required_T = 4.122e7  (report: "4.1e7")
+        k=26: my required_T = 6.879e7  (report: "6.9e7")
+        Also independently verified the exact quadratic scaling of
+        required_T in 1/Delta_p (since the modeled effect is linear in
+        Delta_p by construction): predicted T(delta_p=0.02) from
+        T(delta_p=0.0082)*(0.0082/0.02)^2 = 72,771,818.06297357, matching
+        the JSON's delta_p_sensitivity_k17 entry (72,771,818.06297332) to 9
+        significant figures -- an internal self-consistency check the
+        executor's own code also implicitly satisfies (both computed
+        independently, from the same underlying model, and agree).
+      verdict: >-
+        PASS. The 4.33e8 figure is arithmetically correct given its stated
+        inputs (Delta_p=0.0082, se_paired at T=10,000, the stated power
+        target) and the structural formula verified above. No sign error,
+        no off-by-one in the power formula, no unit inconsistency found.
+    - metric: "power/precision target and SE-scaling assumption"
+      method: Read design.md Section 3.3 and the code's t_req() function.
+      result: >-
+        Two-sided alpha=0.05, power=0.90 is a standard, non-arbitrary choice,
+        stated BEFORE any required-T number was computed (per the
+        completion_gate and design.md's own framing). The SE(T) = SE_ref *
+        sqrt(T_ref/T) scaling assumption is standard central-limit/jackknife
+        behavior for a smooth statistic and is EXPLICITLY flagged in both
+        design.md and reanalysis_report.md as an assumption "not
+        independently re-verified at T far from T_ref" -- an honest,
+        load-bearing caveat given the ~5 orders-of-magnitude extrapolation
+        from T_ref=10,000 to T_req~4e8-7e11. This is exactly the kind of
+        untested extrapolation Section 6 of docs/inventor-protocol.md's
+        ladder asks to be isolated and named, and it is.
+      minor_note: >-
+        design.md Section 2.5's prose describes the "resolved_null" boundary
+        condition using the pre-registered SIGNAL_Z_THRESHOLD=3.0, while the
+        code's actual resolved_null branch computes T_req using Z_SUM=3.24
+        (the two-sided-alpha/power combination) and compares that T_req
+        against the achieved T=10,000. These are numerically close (3.0 vs
+        3.24, a ~14% difference in the implied SE threshold) and this
+        discrepancy has NO effect on this run's actual verdict, since every
+        computed T_req exceeds the achieved T by 4-8 orders of magnitude
+        regardless of which threshold is used -- flagged as a minor
+        internal-consistency nit between prose and code, not a substantive
+        error.
+
+  control_checks:
+    - control: "sanity check against the Red Team's independently reported
+        numbers, run BEFORE any pilot-shard result was computed (fail-closed)"
+      pre_registered: true (design.md Section 2.2, before any run)
+      correctly_applied: true
+      note: >-
+        Confirmed both by reading the code (the sanity-check block executes
+        and can raise SystemExit before the pilot-shard regeneration phase
+        begins) and by my own independent reproduction of shard 424242
+        against the same Red Team numbers, which passes with the same
+        near-exact matches the executor reports.
+    - control: "bit-identical reproduction check against pilot_results.json's
+        own committed histograms (fail-closed)"
+      pre_registered: true (design.md Section 2.3)
+      correctly_applied: true
+      note: >-
+        Independently re-verified (see independent_reproduction above): my
+        own regeneration of shards 5000/6000 is bit-identical to the pilot's
+        committed S_histogram arrays, confirming the executor's claimed
+        no-new-sampling provenance rather than merely trusting the JSON's
+        self-reported "bit_identical: true" fields.
+    - control: "fail-closed sha256 pin and defect-wrapper-identity selftests"
+      pre_registered: true
+      correctly_applied: true
+      note: >-
+        Read selftest_fail_closed_sha_mismatch() and the
+        wrapper_calls_unmodified_function identity check in full; both
+        construct a genuine deliberate mismatch and both raise SystemExit
+        with a message naming the mismatch. stdout.log confirms both ran and
+        printed PASS during the authorized run.
+    - control: "no positive control / no null-object control for the
+        required-T derivation itself"
+      note: >-
+        docs/inventor-protocol.md Section 3's null-object standard applies
+        most naturally to a claimed SIGNAL; this task reports a NULL (no
+        significant z_paired anywhere) plus a conditional cost projection,
+        not a positive detection, so there is no "signal that needs a null
+        object to rule out being an artifact" here. The relevant analogue --
+        whether the comparison METHOD itself has ever produced a genuine
+        positive detection on a known-present effect -- remains the still-
+        open item the Red Team named (positive-control pilot, item 3 of
+        DEC-20260806-9a4551, explicitly out of this batch's scope). This
+        task does not claim to close that gap and says so explicitly
+        (reanalysis_report.md Section 8).
+    - control: "Delta_p reliability check (McNemar-style SE against the null
+        Delta_p=0), reported prominently rather than only in raw JSON"
+      pre_registered: false (discovered during execution, per
+        run_manifest.yaml's unexpected_observations -- correctly NOT
+        smoothed over)
+      correctly_applied: true
+      note: >-
+        Independently recomputed on my own combined sample: delta_p=+0.0002,
+        se=0.00326, z=+0.061 -- matches the executor's reported
+        delta_p_reliability.this_task_combined_10000 (z=0.0613) to
+        rounding. Confirmed: none of the four independent Delta_p point
+        estimates (Red Team +0.0082 z=1.78, this task's shard 5000 +0.0026
+        z=0.56, shard 6000 -0.0022 z=-0.48, combined +0.0002 z=0.06) clears
+        |z|>=2, and they disagree in sign.
+
+  heuristic_validation_checks: not_applicable
+  heuristic_validation_checks_note: >-
+    This is a matched-pair reanalysis and a defect-specific power/required-T
+    derivation, not a Dickman-de Bruijn-style heuristic validation against a
+    pre-registered theoretical CDF; docs/target-result-profile.md's
+    checklist items 1-3 do not apply to this artifact class in that specific
+    sense. The GENERAL principle they encode (pre-register before seeing
+    data; recompute from raw samples, not from the report) is checked above
+    under artifact_checks/independent_reproduction/metric_recomputations and
+    is satisfied: design.md predates the run, and every headline number was
+    recomputed from raw regenerated trial data, not copied from
+    reanalysis_report.md.
+
+  cost_model_checks:
+    - check: unit and comparison honesty
+      result: >-
+        required_T is reported consistently as a trial count (dimensionless
+        count of matched-pair trials), not conflated with core-seconds or
+        wall-clock; the report separately notes (Section title reference in
+        the batch's background prompt, not restated here as a claim of this
+        task's own artifacts) that 4.33e8 trials at ~2,000 t/cs implies
+        ~216,500 core-seconds -- that specific conversion is NOT computed
+        inside reanalysis_results.json or reanalysis_report.md itself (it
+        appears only in the dispatching Coordinator's task-card background),
+        so I did not find it inside this task's own artifacts to check, but
+        the implied order of magnitude is consistent with this campaign's
+        own previously-measured ~2,000-2,200 t/cs throughput figures
+        (EV-HQC-bfb257, this pilot's own run_manifest.yaml).
+    - check: "per-attempt-cost x inverse-success-probability bookkeeping"
+      result: >-
+        Not directly applicable in the Pollard-rho/relation-search sense --
+        this is a statistical detection-power sizing, not a discrete-log
+        attempt-count model. Its structural analogue (T_req = T_ref *
+        (z_sum*SE_ref/Delta)^2, i.e. "trials needed" scaling as the inverse
+        square of the target effect size) is present, stated, and verified
+        above under metric_recomputations.
+    - check: "sensitivity/uncertainty on the headline cost figure is
+        reported, not just a single point estimate"
+      result: >-
+        PASS, and unusually thorough for a toy-scale reanalysis: a full
+        delta_p_sensitivity_k17 table spans 8 Delta_p values from 0.0002 to
+        0.05, giving required_T from 7.28e11 down to 1.16e7 -- an honest,
+        wide uncertainty band rather than a single misleadingly precise
+        number, plus the reliability caveat (control_checks above)
+        explaining WHY that band is wide.
+
+  proof_architecture_checks: not_applicable
+
+  inventor_protocol_section6_ladder_check:
+    - item: "each assumption the complexity/cost analysis rests on was
+        isolated and measured separately, with the specific failure mode
+        named"
+      status: met
+      finding: >-
+        The two load-bearing approximations in the dilution model (block
+        n_e-1 failure independence from the other blocks; mubar_{k-1}^other
+        approximated by the pooled true-arm mubar_{k-1}) are named
+        individually in design.md Section 3.2 as simplifications "not
+        re-derived here," not silently assumed. The SE(T) CLT-scaling
+        assumption is separately named and flagged as unverified at T far
+        from T_ref. The flip-rate-vs-net-marginal-shift distinction (a
+        specific, quantified failure mode: naively using the raw flip rate
+        as the marginal-shift input would overstate the propagated effect by
+        ~13x) is isolated, quantified, and reported as a separate
+        "hypothetical/upper-bound" column rather than folded silently into
+        the primary estimate.
+    - item: "the whole pipeline was run on a scaled-down instance of the
+        same shape, and the claimed improvement (here: the matched-pair
+        design's power gain) appears as a MEASURED ratio against baseline,
+        not a projection"
+      status: met
+      finding: >-
+        The 3.12x SE-tightening at k=17 (and the 1.76x-10.0x range across
+        k=2..26) is a directly MEASURED ratio on the pilot's own real data
+        (not projected from the Red Team's separate fresh-shard probe), and
+        I independently reproduced this measured ratio myself (3.117x at
+        k=17). This is exactly the "step 2" the ladder singles out as most
+        often skipped, and it was not skipped here.
+    - item: "any cheat in a real-scale partial run is named individually and
+        classified as completeness-preserving or soundness-losing"
+      status: met
+      finding: >-
+        run_manifest.yaml's protocol_deviations section names three: (1)
+        raw per-trial data was not available in pilot_results.json, so
+        shards were regenerated deterministically rather than read directly
+        -- classified and verified as completeness-preserving (bit-identical
+        to the original, confirmed independently by this review); (2) the
+        Red Team's probe shard was additionally regenerated for a sanity
+        check, explicitly excluded from the primary reported result --
+        completeness-preserving; (3) the power-target choice was the
+        executor's own disclosed discretion within an underspecified
+        instruction, not a deviation from a pre-specified value.
+    - item: "the reproducibility pointer was exercised -- artifacts rebuilt
+        from scratch and listed, not asserted"
+      status: met, exceeded
+      finding: >-
+        This review independently rebuilt the entire chain from scratch with
+        a structurally different implementation (two separate _t_shard calls
+        rather than one monkey-patched double-decode call), re-derived the
+        structural formula from first principles rather than transcribing
+        it, and reproduced every headline number to the reported precision.
+
+  limitations:
+    - >-
+      Toy-scale, hard ceiling: PS-R3 only, V3 defect class, decode_blocks
+      last-block injection point, 10,000 matched pairs (reusing the pilot's
+      original 5,000+5,000 trial budget). Nothing here is a statement about
+      HQC, A17, its decoding-failure rate, or any standardized parameter
+      set. Nothing here generalizes to V1's global-shift defect class, to
+      the other three named injection points, or to PS-A/PS-R1/PS-R5.
+    - >-
+      The required-T figure (4.33e8 at k=17, using the Red Team's Delta_p)
+      rests on a Delta_p point estimate that is itself not statistically
+      distinguishable from zero (see independent_reasoning_on_reliability
+      below) and on a CLT SE-scaling assumption extrapolated ~5 orders of
+      magnitude beyond its T_ref=10,000 validation point. Both limitations
+      are disclosed in the reviewed artifacts themselves, not discovered
+      only by this review.
+    - >-
+      No positive control has been run through this exact real-sampler
+      detection pipeline at any trial count (carried forward from
+      EV-HQC-67a6ec; unchanged by this batch, which was explicitly scoped
+      to exclude it -- DEC-20260806-9a4551 item 3).
+    - >-
+      This review's own independent code is scratch-only and checks 3 of 25
+      reported k values in the primary matched-pair table (k=2, 17, 26) plus
+      the full required-T formula and its k=17/k=2/k=26 instantiations; the
+      remaining 22 k-cells were spot-checked only via the internal
+      self-consistency scaling check (independent quadratic-in-Delta_p
+      verification against the JSON's own sensitivity table), not
+      individually recomputed from raw trial data.
+
+  independent_reasoning_on_reliability_caveat: >-
+    My own view, requested explicitly by this task's handoff: the Delta_p
+    reliability caveat does NOT undermine the required-T figure's validity
+    as a CONDITIONAL projection -- the arithmetic is correct given its
+    stated input, and I independently verified it. But it DOES mean the
+    4.33e8 headline should not be read as an unconditional cost estimate.
+    Because required_T scales as 1/Delta_p^2 (confirmed above), and Delta_p
+    is not yet established to be nonzero at all, the true required T could
+    be anywhere from ~1e6 (the explicitly-labeled, least-realistic
+    hypothetical that treats the entire raw flip rate as one-directional) to
+    >7e11 (this task's own pooled point estimate) to literally unbounded (if
+    the true net marginal shift is exactly zero, which the four disagreeing-
+    in-sign estimates do not rule out). Read as a PLANNING NUMBER rather
+    than a measured fact, 4.33e8 is a reasonable, disclosed central estimate
+    to use IF one is committed to using the Red Team's single fresh-shard
+    Delta_p as the best available point estimate (it has the largest |z| of
+    the four, 1.78, even though still below significance) -- but the more
+    defensible framing is "every one of the three effect-size inputs tried
+    (including the most optimistic, least-realistic hypothetical) implies a
+    required T that is 8x-2,400,000x the specification's own T_req, and the
+    true multiplier is unknown but very unlikely to be below 8x." I note
+    (as an observation, not a recommendation -- the campaign-level call
+    belongs to the Coordinator and Red Team per this batch's own division of
+    labor) that resolving Delta_p ITSELF to 3-sigma significance would need
+    only ~T=(3*sqrt(flip_rate))^2/Delta_p^2 ~= 14,300 matched-pair trials at
+    the Red Team's own Delta_p=0.0082 -- roughly four orders of magnitude
+    cheaper than confirming the propagated log2_Ahat_17 effect directly, and
+    not identified as an option in the reviewed artifacts. Whether that is
+    worth pursuing next is outside this validator's remit.
+
+  admissibility_verdict: ADMIT
+  admissibility_verdict_rationale: >-
+    Every artifact is present, hash-bound to the Coordinator-committed
+    snapshot (2f034e0c, parent de450e9a, both verified against git and the
+    snapshot receipt's path_sha256 map), and internally consistent
+    (stdout.log, reanalysis_results.json, run_manifest.yaml, and
+    reanalysis_report.md all agree on every number checked). The matched-
+    pair method is confirmed to be the SAME method the Red Team used (not a
+    weaker or different approximation): identical construction (same
+    underlying random draws, decoded once true and once defected, via the
+    Red Team's own described mechanism), and this task's own sanity check
+    against the Red Team's independently reported numbers passes exactly,
+    which I independently reproduced myself rather than trusting either
+    party's self-report. The core statistical claims (matched-pair diff/SE/z
+    at k=17 and across the full range) recompute exactly from raw
+    regenerated trial data via a structurally independent implementation.
+    The structural "doubly diluted" formula is mathematically correct given
+    its two disclosed approximations, independently re-derived here from
+    first principles rather than merely checked against the code. The
+    required-T arithmetic (4.33e8 at k=17) is exactly reproducible and
+    internally self-consistent (quadratic scaling in 1/Delta_p verified to
+    9 significant figures). No new (T)-sampling occurred: every shard
+    decoded (5000, 6000, 424242) was already used in this campaign's
+    committed record, and the regeneration of the pilot's own shards is
+    genuinely bit-identical, confirmed independently by this review's own
+    from-scratch regeneration, not merely by trusting the JSON's self-report.
+    The reliability caveat on Delta_p is surfaced prominently and honestly
+    rather than smoothed over, and its consequence (an unstable, possibly
+    unbounded required-T) is correctly characterized as a limitation on the
+    headline number's precision, not concealed. This receipt is admissible
+    evidence for the campaign's next-action decision.
+
+  independent_ambiguity_resolution_judgement: >-
+    I confirm the reanalysis's own pre-registered conclusion
+    ("genuinely_ambiguous") is correctly and mechanically applied to the
+    measured numbers, and I independently recomputed the numbers that
+    conclusion rests on. My own reading of what this batch establishes,
+    stated in my own words rather than restating the executor's framing:
+    (1) RESOLVED: the pilot's original between-shard design was genuinely,
+    measurably underpowered relative to the free matched-pair alternative --
+    this is no longer only the Red Team's separate fresh-shard claim, it now
+    holds on the pilot's own actual data, independently reproduced twice
+    (by the executor and by this review). (2) NOT RESOLVED, and unlikely to
+    be resolvable by more of the SAME design at any remotely affordable T:
+    whether the V3/decode_blocks defect propagates to the joint-moment
+    estimator at all. The evidence leans, on balance, toward "if there is a
+    real propagated effect here, it is diluted by BOTH the k/n_e block-
+    fraction AND a near-total cancellation built into the estimator's own
+    definition (verified above), making it many orders of magnitude harder
+    to see than the defect's large, unambiguous LOCAL effect (10.7% flip
+    rate, z~24-35 in every sample) would suggest" -- rather than toward
+    "there is probably no effect at all" (the four Delta_p estimates
+    disagree in sign, which is as consistent with a small nonzero true
+    effect swamped by noise as with a true zero) or toward "the effect is
+    real and just needs a bigger run to confirm at the SAME injection
+    point" (every input tried implies T_req at least ~8x the
+    specification's own T_req, and typically 2-4 orders of magnitude more).
+    Genuine ambiguity about the SIGN and EXISTENCE of the propagated effect
+    remains; what is no longer ambiguous is that resolving it via more
+    trials at this exact injection point, defect class, and comparison
+    design is not a tractable next step at any budget this campaign has
+    discussed.
+
+  verdict: passed
+  verdict_note: >-
+    "passed" per agents/validator.md's terminal-verdict vocabulary maps to
+    this report's ADMIT recommendation above. This verdict certifies the
+    RECEIPT's integrity and the FACTUAL/arithmetic claims checked above; it
+    authorizes nothing beyond that -- not an ECDLP claim, not a demonstrated
+    speedup, not a promotion of H-HQC-18d1b4's status, and not the
+    campaign's next-action call (full run / positive-control pilot / PAUSE),
+    which remains the Coordinator's, informed by this report and the
+    parallel Red Team report (TASK-20260806-2cec38).
+
+  artifact_paths:
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/reviews/TASK-20260806-f743ae/validation_report.yaml
+  reviewed_snapshot_paths:
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/design.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/matched_pair_reanalysis.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/reanalysis_results.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/reanalysis_report.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/run_manifest.yaml
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/stdout.log
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/stderr.log
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/archives/TASK-20260806-7bbbc8/snapshot-receipt.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/pilot_results.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/pilot_injection.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-92aecb/red_team_report.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py
+    - ledger/evidence/EV-HQC-67a6ec.yaml
+    - ledger/decisions/DEC-20260806-9a4551.yaml
