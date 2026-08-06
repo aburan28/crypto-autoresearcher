@@ -161,7 +161,7 @@ experiment:
       killed two of three attempts at a similar scale in this exact
       experiment's own history) and four further advisory findings
       (PF-4, PF-5, PF-6, PF-8).
-    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-5, PF-6, PF-8]
+    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-5, PF-6, PF-8, PF-9, PF-10, PF-11]
     pf1_summary: >-
       BLOCKING (round 1). PART B fed PART A's possibly-partial new
       delta_map directly into delta_e_permutation_null_control_v7.
@@ -213,6 +213,45 @@ experiment:
       re-runs the two-part graph-identity verification (degree_sequence_
       check plus vertex-count match) before searching, not left implicit
       in the graph-construction seed's own determinism.
+    round2_report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-011/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v8-round2.md
+    round2_verdict: >-
+      DO-NOT-FREEZE. PF-1 and PF-2 (round 1's blocking findings) both
+      CONFIRMED HOLDING, independently re-verified against the actual
+      manifest.yaml/command.txt/compute_delta_e_v2.py source, not merely
+      re-read. But a NEW blocking defect (PF-9) was found: PART A's own
+      text mentioned F_p-rational vertices "resolving for free" only as a
+      passing parenthetical, never as a REQUIRED CONSTRUCTION STEP for
+      new_delta_map itself -- a literal implementation would produce a
+      new_delta_map missing those 9 entries even at coverage_fraction==
+      1.0 (which only ever covered the 194 non-F_p-rational vertices),
+      and PART B's depth0_fraction call (iterating all 203 vertices)
+      would crash with an uncaught KeyError -- reproducing PF-1's exact
+      catastrophic failure mode through a path PF-1's own gate could not
+      detect. Fixed by making the F_p-rational wiring an explicit,
+      required construction step and strengthening the gate to check
+      len(new_delta_map) == 203 directly, not coverage_fraction alone.
+      Two further advisory findings (PF-10, PF-11) applied in the same
+      pass.
+    pf9_summary: >-
+      BLOCKING, NEW (round 2). new_delta_map's F_p-rational entries were
+      never a required, explicit construction step -- only a passing
+      parenthetical -- so a literal implementation could omit them even
+      at 100% non-F_p-rational coverage, crashing PART B on the first
+      missing entry. Fixed by requiring new_delta_map[v] = 1 for every
+      F_p-rational v as an explicit step before the search loop (matching
+      compute_delta_e_v2.py's own construction exactly), and by
+      strengthening PART B's gate to verify len(new_delta_map) == 203
+      directly, not merely infer it from coverage_fraction.
+    pf10_summary: >-
+      ADVISORY, NEW (round 2), applied. "margin" is now restated as an
+      explicit formula (REAL_DEPTH0_FRACTION minus this run's own null
+      maximum, in percentage points), not left implicit by analogy to
+      v7's archived figure.
+    pf11_summary: >-
+      ADVISORY, NEW (round 2), applied. The COVERAGE-SHORTFALL outcome
+      now states explicitly that neither half of PF-6's confound was
+      tested under that outcome, not merely that "no result" was
+      produced.
   inputs:
     probe_delta_e_search_v8: >-
       PART A. A new module, e.g.
@@ -245,18 +284,51 @@ experiment:
       vertex: resolved (bool), delta_e_upper_bound (int or None),
       wall_seconds (float), whether it agrees with the ARCHIVED value for
       that vertex (see comparison below).
+      REQUIRED CONSTRUCTION STEP, STATED AS AN EXPLICIT WIRED STEP, PF-9
+      FIX APPLIED (round 2 pre-freeze review, BLOCKING: the original text
+      mentioned F_p-rational vertices resolving "for free" only as a
+      passing parenthetical, never as a required construction step for
+      new_delta_map itself -- a literal implementation following only the
+      non-F_p-rational search loop would produce a new_delta_map MISSING
+      the 9 F_p-rational entries even at coverage_fraction==1.0, and
+      PART B's depth0_fraction call, which iterates ALL 203 vertices, not
+      only the 194 non-F_p-rational ones, would crash with an uncaught
+      KeyError on the first missing F_p-rational vertex -- reproducing
+      PF-1's exact catastrophic failure through a path PF-1's own gate
+      cannot detect, since coverage_fraction as originally defined never
+      accounts for these 9 vertices at all): BEFORE the per-vertex search
+      loop begins, new_delta_map MUST be initialized with new_delta_map[v]
+      = 1 for every v in graph["vertices"] with field.is_in_fp(v) True (9
+      such vertices at p=2437, matching RUN-SSIQ-a85692-f's own archived
+      F_p-rational locus count) -- IDENTICAL to compute_delta_e_v2.py's
+      own construction step (real_execution_budget_v2, lines 259-261:
+      `for v in g["vertices"]: if field.is_in_fp(v): delta_map[v] = 1`),
+      reused as an explicit step here, not left implicit.
       REQUIRED COVERAGE REPORTING (not an assertion that halts anything,
-      since <100% coverage under a fixed, bounded per-vertex budget is a
-      possible, informative outcome, not a failure -- unlike v6/v7's
-      graph-identity coverage assertions, which check the REUSED graph
-      matches archived metadata exactly): report n_resolved, n_attempted,
-      n_vertices, coverage_fraction (== n_resolved / n_non_fp_rational)
-      for this NEW search, honestly, whatever the actual value is. The
-      EXPECTED result (stated explicitly, not required to hold): given
-      the original search's own 100% coverage at ~1.47s/vertex average
-      and this amendment's 15s fixed budget (~10x that average), NEW
-      coverage is expected to also reach 100%, but this run's own actual
-      figure is what is reported, not this expectation.
+      since <100% NON-F_P-RATIONAL coverage under a fixed, bounded
+      per-vertex budget is a possible, informative outcome, not a
+      failure -- unlike v6/v7's graph-identity coverage assertions, which
+      check the REUSED graph matches archived metadata exactly): report
+      n_resolved, n_attempted, n_non_fp_rational (== 194),
+      coverage_fraction (== n_resolved / n_non_fp_rational, over the
+      NON-F_P-RATIONAL vertices ONLY -- the 9 F_p-rational vertices are
+      NEVER included in this fraction's denominator or numerator, since
+      they are never "attempted": they are wired in directly, always,
+      unconditionally, per the REQUIRED CONSTRUCTION STEP above) for this
+      NEW search, honestly, whatever the actual value is. PF-9's OWN
+      STRENGTHENED GATE (see PART B below): the actual gating condition
+      PART B checks is len(new_delta_map) == len(graph["vertices"]) ==
+      203 -- NOT coverage_fraction == 1.0 alone -- so that the gate is
+      correct even if a future reader mis-implements the F_p-rational
+      wiring step above; both conditions are equivalent ONLY IF the
+      REQUIRED CONSTRUCTION STEP was actually performed, and the stronger
+      len()-based check is what PART B actually verifies, not merely
+      trusts. The EXPECTED result (stated explicitly, not required to
+      hold): given the original search's own 100% coverage at ~1.47s/
+      vertex average and this amendment's 15s fixed budget (~10x that
+      average), NEW non-F_p-rational coverage is expected to also reach
+      100% (194/194), but this run's own actual figure is what is
+      reported, not this expectation.
       REQUIRED COMPARISON AGAINST THE ARCHIVED delta_map (PF-6's own
       falsification design, the reason this amendment exists): load
       RUN-SSIQ-a85692-b's archived delta_map for p=2437 via
@@ -287,20 +359,30 @@ experiment:
       PART B's very first call with an uncaught KeyError, before any of
       the 1000 null trials run, discarding this amendment's entire
       real-compute spend for zero interpretable result): PART B IS
-      GATED, EXPLICITLY, ON PART A REACHING FULL COVERAGE. REQUIRED GATE:
-      if PART A's coverage_fraction < 1.0 (ANY unresolved non-F_p-
-      rational vertex, per the fixed 15s budget), PART B DOES NOT RUN AT
-      ALL -- report a DISTINCT outcome label, COVERAGE-SHORTFALL (never
-      PERSISTS, WEAKENS, or AMBIGUOUS), stating PART A's actual
-      coverage_fraction and the list of unresolved vertices, and skip
-      every step below. This is itself an informative, honestly-reported
-      outcome (a fixed 15s per-vertex budget proving too tight for full
-      coverage is itself evidence about the search's own timing
-      properties), not a failure requiring re-dispatch -- but it is NOT
-      one of PF-6's three interpretive outcomes, since a partial-coverage
-      REAL_DEPTH0_FRACTION is not comparable to v7's own full-194-vertex
-      REAL_DEPTH0_FRACTION=1.0 baseline. ONLY IF coverage_fraction == 1.0
-      (all 194 non-F_p-rational vertices resolved) does PART B proceed:
+      GATED, EXPLICITLY, ON PART A REACHING FULL COVERAGE. REQUIRED GATE,
+      PF-9 FIX APPLIED (round 2, BLOCKING: the original gate checked only
+      coverage_fraction over the 194 non-F_p-rational vertices, which
+      cannot detect a missing F_p-rational entry): the ACTUAL condition
+      PART B verifies, directly, before calling depth0_fraction, is
+      len(new_delta_map) == len(graph["vertices"]) == 203 -- NOT
+      coverage_fraction == 1.0 in isolation. If len(new_delta_map) != 203
+      for ANY reason (an unresolved non-F_p-rational vertex, OR a missing
+      F_p-rational entry, OR any other construction gap), PART B DOES NOT
+      RUN AT ALL -- report a DISTINCT outcome label, COVERAGE-SHORTFALL
+      (never PERSISTS, WEAKENS, or AMBIGUOUS), stating PART A's actual
+      coverage_fraction, len(new_delta_map), and the list of missing
+      vertices (from EITHER category), and skip every step below. This is
+      itself an informative, honestly-reported outcome (a fixed 15s
+      per-vertex budget proving too tight for full coverage is itself
+      evidence about the search's own timing properties), not a failure
+      requiring re-dispatch -- but it is NOT one of PF-6's three
+      interpretive outcomes, since a partial-coverage REAL_DEPTH0_FRACTION
+      is not comparable to v7's own full-194-vertex REAL_DEPTH0_FRACTION=
+      1.0 baseline. PF-11 FIX APPLIED (round 2, advisory): a
+      COVERAGE-SHORTFALL outcome means NEITHER half of PF-6's confound
+      (RNG-sharing or budget-shape) was actually tested this run -- stated
+      explicitly here, not left to be inferred as merely "no result." ONLY
+      IF len(new_delta_map) == 203 does PART B proceed:
       using the delta_map PART A computed (NOT the archived one), reuse
       the SAME p=2437 graph (already rebuilt in PART A; not rebuilt
       twice) and run the IDENTICAL procedure specification_v7.yaml
@@ -331,7 +413,16 @@ experiment:
       shrinking per-vertex budget, still equal (or closely approach)
       1.0, and does it still clear the null distribution's own maximum by
       a comparable margin to v7's own archived result for p=2437 (23.1
-      percentage points, per EV-SSIQ-a64d92 O-2)? PF-6 FIX APPLIED (round
+      percentage points, per EV-SSIQ-a64d92 O-2)? PF-10 FIX APPLIED
+      (round 2, advisory: "margin" was used throughout without a
+      restated formula, only inferable by analogy to v7): margin :=
+      (REAL_DEPTH0_FRACTION - max(NULL_DEPTH0_FRACTIONS)) * 100,
+      expressed in percentage points, using THIS run's own NEW
+      REAL_DEPTH0_FRACTION and THIS run's own NEW 1000-trial null
+      distribution's maximum (NOT v7's archived null distribution's
+      maximum) -- the identical formula v7's own archived 23.1-point
+      figure was computed with, restated here explicitly rather than left
+      implicit. PF-6 FIX APPLIED (round
       1, advisory: the original margin band had an undefined edge for a
       STRONGER-than-archived margin, defaulting it to AMBIGUOUS when it
       intuitively supports PERSISTS): Report explicitly: PERSISTS (new
