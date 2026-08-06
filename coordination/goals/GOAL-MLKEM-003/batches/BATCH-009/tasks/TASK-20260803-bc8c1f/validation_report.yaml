@@ -1,0 +1,727 @@
+validation_report:
+  id: VAL-20260803-942c68
+  task_id: TASK-20260803-bc8c1f
+  repairs: TASK-20260802-08f428
+  repair_note: >-
+    Successor, not a retry. TASK-20260802-08f428 terminated on a provider session
+    limit and is recorded failed_infrastructure; under AGENTS.md rule 5 that is
+    not evidence about the F1 comparison in either direction. Its partial
+    validation_notes.md was read only after this session reached its own numbers,
+    carries no verdict field, and no claim in this report rests on it.
+  batch_id: BATCH-009
+  goal_id: GOAL-MLKEM-003
+  role: validator
+  package_under_review:
+    snapshot_commit: d0f2bf7f1770f26833be4e888b0faee0cb67e4a8
+    snapshot_task: TASK-20260802-7c4aee
+    producer_task: TASK-20260802-8bae8e
+  run_ids: []
+  run_ids_note: >-
+    The package is a pure recomputation over archived bytes; it declares no
+    experiment run id. The bound experiment directory whose data it reads is
+    EXP-MLKEM-011 (vendor-lock data), with EXP-MLKEM-013 vendor-lock sources used
+    by this validator for corroboration only.
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-opus-5
+    fallback_used: true
+    fallback_reason: >-
+      orchestration/model-policies.yaml routes review-adversarial to a
+      GPT-5.6-family alias that Claude Code cannot resolve; per CLAUDE.md's model
+      policy note the subagent runs on the inherited Claude model and the
+      substitution is recorded rather than performed silently.
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_note: >-
+      No orchestration backend is reachable here, so
+      `python3 -m orchestration.adapter doctor --probe` was NOT run. Its absence
+      is recorded, not substituted for.
+    independent_session: true
+
+  artifact_checks:
+    - id: A1
+      check: all four declared producer artifacts exist at the declared paths
+      status: passed
+      detail: >-
+        approx49_comparison.py, comparison_report.md, comparison_results.json,
+        receipt.json all present in commit d0f2bf7f and in the working tree.
+    - id: A2
+      check: declared path_sha256 == committed blob == working tree, for all four
+      status: passed
+      detail: >-
+        74f34f8cb86d2af1a28af3692163bb9ad7c927751ba4fac0f3a99e4c67620285 (script);
+        ca377c062c58cdfccb7ae55c06f4533d6e2b50b25f0e54685d2f9b16184bbd5a (results);
+        7ed2d0cb81c4d688f34244eb67b2bc3550e91f259597697930550e38c12d7478 (report);
+        a39f692d3bf017eb527828d7883338aee219835ae233692c608192dfce1dc0f7 (receipt).
+        Verified three ways each (sha256sum on the worktree, `git cat-file blob
+        <commit>:<path> | sha256sum`, and the snapshot receipt's
+        source_path_sha256).
+    - id: A3
+      check: snapshot commit reachable from HEAD, changes exactly its declared paths
+      status: passed
+      detail: >-
+        `git merge-base --is-ancestor d0f2bf7f1770 HEAD` -> reachable;
+        `git show --stat` -> exactly 5 paths (4 producer artifacts +
+        snapshot_receipt.json).
+    - id: A4
+      check: input data bytes match the archived upstream manifest
+      status: passed
+      detail: >-
+        50bd293c… (n=43 Pwrong), ce23181d… (n=50 Pwrong), f1e9cf47… (Pgood) all
+        match inputs/MLKEM-DUAL-SOURCES-20260802/extracts/codeddualattack/file_sha256_manifest.txt.
+    - id: A5
+      check: dirty-tree state in the reviewed scopes at validation time
+      status: passed
+      detail: >-
+        `git status --porcelain` clean for coordination/.../BATCH-009/,
+        experiments/EXP-MLKEM-011/ and inputs/MLKEM-DUAL-SOURCES-20260802/.
+    - id: A6
+      check: committed results are reproducible from the committed script
+      status: passed
+      detail: >-
+        The committed script (sha re-checked) was copied into a sandboxed mirror
+        of the repository-relative layout, with the data and inputs directories
+        symlinked, and executed there so that no producer artifact was touched. A
+        recursive JSON diff against the committed comparison_results.json yields
+        exactly 6 differing leaves, all timing: /generated_at_utc,
+        /wall_clock_seconds and four per-stage elapsed-time strings in
+        /stdout_log. EVERY NUMERICAL FIELD IS BIT-IDENTICAL.
+    - id: A7
+      check: archive receipt commit binding
+      status: incomplete
+      detail: >-
+        archives/TASK-20260802-7c4aee/snapshot_receipt.json carries
+        commit_sha: null, parent_sha: null, verification.status
+        pending_post_commit. It was committed inside the commit it describes, so
+        it cannot carry its own sha. Per CLAUDE.md the archive binds to CONTENT
+        first: content verifies (A2) and the commit is reachable (A3). Recorded
+        for the Coordinator's archive task; not a defect against the producer.
+
+  metric_recomputations:
+    - id: M1
+      metric: counting floor and resolved band, both files
+      producer_value: "n=43 floor 1.7860305406935986e-11 (log2 -35.70445229), band [0,1802], first zero 1803; n=50 floor 1.1906870271290657e-11 (log2 -36.28941479), band [0,2309], first zero 2310"
+      recomputed_value: "identical; floors equal 1/(nb_iteration*q^k_fft) as exact IEEE-754 equality in both files; no positive value after the first zero; monotone non-increasing"
+      status: reproduced
+    - id: M2
+      metric: integer-multiple identity of the survival column
+      producer_value: "max rel deviation 2.164964216343976e-16 (n=43), 1.815e-16 (n=50)"
+      recomputed_value: "2.1650e-16 at score 520 (n=43); 1.8152e-16 at score 131 (n=50)"
+      status: reproduced
+    - id: M3
+      metric: last score with pooled count >= 10
+      producer_value: "1492 (n=43), 1968 (n=50), count exactly 10 at both"
+      recomputed_value: "1492 and 1968, count exactly 10"
+      status: reproduced
+    - id: M4
+      metric: score-scale sigma estimators vs sqrt(avg_N/2)
+      producer_value: "n=43 A 113.9051 B 113.7914 vs 113.9539, ratios 0.9996/0.9986 raw and 2.9987/2.9957 vs /k_fft; n=50 A 114.1781 B 113.9783 vs 113.9517, ratios 1.0020/1.0002 and 3.0060/3.0007"
+      recomputed_value: "all eight ratios and all six sigmas identical to the printed digits"
+      status: reproduced
+    - id: M5
+      metric: measured survival and pooled count at every row of report section 4.2 (n=43)
+      producer_value: "14 rows, log2 measured -1.0029 … -35.7045, counts 2.79e10 … 1"
+      recomputed_value: "all 14 log2 values and all 14 counts identical"
+      status: reproduced
+    - id: M6
+      metric: Approximation 4.9 predicted curve, log2 pred at report section 4.2 scores, at the producer's exact K
+      producer_value: "-0.7017, -3.3176, -8.8180, -13.7438, -17.2410, -21.2500, -23.4897, -26.3710, -28.6849, -30.6825, -32.4643, -34.0520, -34.8497, -35.6014"
+      recomputed_value: "-0.701905, -3.318032, -8.818581, -13.744464, -17.241531, -21.250186, -23.489712, -26.371002, -28.684862, -30.682517, -32.464293, -34.052029, -34.849714, -35.601412; max disagreement 0.00066 bits, correlated with the clipped fraction (see D10)"
+      status: reproduced
+      implementation_independence: >-
+        My implementation integrates in u with the min(1,.) kink placed at its
+        exact location u* = N exp(-K^{-1/p}) and the clipped piece in closed form
+        (Q(T-u*)); the producer grids in v = ln(N/u) over 4370 fixed nodes with
+        the kink falling inside a panel. Different variable, different mesh,
+        different clip treatment, both without numpy/scipy.
+    - id: M7
+      metric: parameter-free Gaussian component log2 Q(T)
+      producer_value: "-1.0000, -4.1303, -10.3039, -15.7710, -19.8270, -25.8844, -32.8166, -49.3252, -69.3797, -92.9958, -120.1831, -150.2257, -167.6740, -185.6975"
+      recomputed_value: "identical to every printed digit"
+      status: reproduced
+    - id: M8
+      metric: divergence statistics over the whole resolved band, at the producer's exact K
+      producer_value: "n=43 min -0.933 @1616, max +1.516 @471, mean +0.245, rms 0.706; n=50 min -0.917 @2283, max +1.710 @420, mean +0.192, rms 0.697"
+      recomputed_value: "n=43 -0.9325 @1616, +1.5154 @471, +0.2449, 0.7055; n=50 -0.9170 @2283, +1.7109 @420, +0.1920, 0.6969"
+      status: reproduced
+    - id: M9
+      metric: sign-change structure of the residual
+      producer_value: "n=43 12 sign changes, first at 888, then 1682/1693/1741; n=50 14 sign changes, 1090-1173 then 2044/2084/2286"
+      recomputed_value: "n=43 12 changes at 888,889,891,900,901,902,904,905,909,1682,1693,1741; n=50 14 changes at 1090,1093,1094,1099,1119,1133,1142,1163,1171,1172,1173,2044,2084,2286"
+      status: reproduced
+    - id: M10
+      metric: fitted normalisation log2 K_fit
+      producer_value: "-72.712581 (n=43), -67.222505 (n=50)"
+      recomputed_value: "-72.711622 and -67.219917, from my own golden-section fit over ALL 1803 / 2310 scores"
+      status: reproduced
+      note: >-
+        Agreement 0.001 / 0.003 bits. My fit uses the whole band; the producer's
+        uses a 92-/117-point subsample (see D1).
+    - id: M11
+      metric: clip-negligible AND count>=10 sub-band statistics
+      producer_value: "n=43 scores 755-1492, n=738, min -0.675 max +0.182 mean -0.202 rms 0.283; n=50 scores 727-1968, n=1242, -0.640/+0.244/-0.163/0.274"
+      recomputed_value: "n=43 scores 756-1492, n=737, -0.673968/+0.180672/-0.20132/0.282294; n=50 scores 727-1968, n=1242 (exact), -0.637778/+0.247056/-0.16048/0.272238"
+      status: reproduced
+      note: "one-score boundary offset at 755 traced to the clipped-fraction definition, D10"
+    - id: M12
+      metric: anchored normalisations, anchor scores, worst undershoot/overshoot
+      producer_value: "n=43 -89.979061 @213 and -72.147621 @1492, undershoot up to 18.20 mean -10.70, overshoot at most +1.75; n=50 -82.956451 @214 and -66.704753 @1968, 16.65 / -11.48 / +1.95"
+      recomputed_value: "n=43 -89.978460 @213 and -72.147622 @1492, -18.1984 / -10.6965 / +1.7524; n=50 -82.956085 @214 and -66.704754 @1968, -16.6505 / -11.4762 / +1.9454"
+      status: reproduced
+    - id: M13
+      metric: elasticity dlog2(pred)/dlog2(K) at score 213
+      producer_value: "0.15 (report), 0.1535 (per_score column, defined at K_fit)"
+      recomputed_value: "0.1535 at K_fit reproduced from the committed row; at K_low I obtain 0.0057, i.e. even less K-sensitive"
+      status: reproduced
+    - id: M14
+      metric: parameter-free component tracking thresholds and deficits
+      producer_value: "within 0.1/0.5/1 bit to score 322/469/525 (n=43) and 273/401/460 (n=50); deficit 32.40 / 35.16 bits at score 1000; 149.99 / 265.56 bits at the floor"
+      recomputed_value: "322/469/525 and 273/401/460; 32.400 / 35.156; 149.993 / 265.557"
+      status: reproduced
+    - id: M15
+      metric: structural sub-floor dip (no K >= 0 reproduces the measurement)
+      producer_value: "scores 0-126 (n=43) max shortfall 0.0037 bits; 0-133 (n=50) max 0.0069 bits"
+      recomputed_value: "0-126 max 0.0037 at score 51; 0-133 max 0.0069 at score 57"
+      status: reproduced
+    - id: M16
+      metric: exponent p from archived integers
+      producer_value: "26.0 (n=43), 24.5 (n=50)"
+      recomputed_value: "(44+8)/2 = 26.0 and (41+8)/2 = 24.5, from the header beta_1 and n_fft, caption agreeing"
+      status: reproduced
+    - id: M17
+      metric: free-exponent scan rms values quoted in report section 4.4
+      producer_value: "n=43 1.96/1.01/0.743/0.504/0.454/0.692/1.061/3.63 at p=10/18/20/22/24/26/28/40; n=50 2.35/1.04/0.678/0.438/0.602/0.694/4.38"
+      recomputed_value: "every quoted value matches the committed free_exponent_diagnostic to the quoted precision, and the entire JSON is byte-reproducible from the committed script (A6)"
+      status: reproduced
+      note: >-
+        The scan grid is band[::40] + last (47 and 59 points). Both files prefer
+        an exponent about 2-2.5 BELOW their archived value; disclosed by the
+        producer and not used to adjust the model.
+    - id: M18
+      metric: Pgood file summary statistics
+      producer_value: "n=4000, min 6667.673616, max 17822.813537, median 11964.802334, mean 11983.50504751896"
+      recomputed_value: "n=4000, min 6667.673616, max 17822.813537, mean 11983.50504752, sorted v[1999]=11964.145101, v[2000]=11964.802334, true median 11964.473718"
+      status: reproduced
+      note: "the reported 11964.802334 is the UPPER central order statistic; report and receipt call it the lower. See D9."
+    - id: M19
+      metric: delta sensitivity arithmetic quoted in report section 2
+      producer_value: "44*31 = 1364; 0.1% change in delta moves the prediction by roughly 2.0 and 2.4 bits"
+      recomputed_value: "1364*log2(1.001) = 1.967; 1681*log2(1.001) = 2.424; 44*(40+35-44)=1364 and 41*(40+42-41)=1681"
+      status: reproduced
+    - id: M20
+      metric: normalisation-free drift over the K-sensitive window
+      producer_value: "report: drifts by only 1.150 bits (n=43, scores 643-1492, range -73.298 ... -72.038); 1.238 bits (n=50, range -67.942 ... -66.582)"
+      recomputed_value: "the committed JSON's own fields give drift_bits_low_to_high 1.1504 and 1.2377 but min/max spans of 1.2604 and 1.3603 bits"
+      status: not_reproduced
+      reason: >-
+        The report pairs the first-to-last-score drift with the min/max range,
+        whose span is 0.11-0.12 bits larger. The JSON carries both statistics
+        correctly and separately; the report's sentence understates the spread.
+        See D2.
+    - id: M21
+      metric: bit-identity of execution 1's retained outputs across the two executions
+      producer_value: "receipt claims everything not derived from the defective diagnostic is bit-identical between the two runs"
+      recomputed_value: null
+      status: unable_to_check
+      reason: >-
+        Execution 1's comparison_results.json was overwritten in place at the same
+        path and no longer exists. I independently recomputed every quantity the
+        receipt lists as unchanged (floor, band, exact-equality and
+        integer-multiple checks, the scale check, log2 K_fit, both anchors and
+        anchor scores, every delta statistic) and all of them reproduce; that
+        corroborates the claim but does not verify bit-identity. See D7.
+    - id: M22
+      metric: absolute level of Approximation 4.9
+      producer_value: "declared not computable from archived bytes"
+      recomputed_value: null
+      status: unable_to_check
+      reason: >-
+        Correct in outcome, misattributed in cause. alpha and Phi's exact
+        functional form block it; delta(beta_bkz) does NOT (see D3). Not checkable
+        without introducing my own unarchived assumptions, which I declined to do.
+    - id: M23
+      metric: whether the declared reading of Phi_dlsc is the paper's
+      producer_value: "declared reading, not archived"
+      recomputed_value: null
+      status: unable_to_check
+      reason: >-
+        The page introducing Approximation 4.6, where Phi is defined, is not in
+        the archive. I confirmed its absence across the extracts myself; it is not
+        assumed anywhere.
+    - id: M24
+      metric: third archived Pwrong file (...beta037_beta144_N200001.out)
+      producer_value: "not present in this repository; header extract and sha256 only"
+      recomputed_value: null
+      status: unable_to_check
+      reason: >-
+        Confirmed: the file is listed in the upstream manifest and has a header
+        extract, but no survival column exists in this repository. Pre-existing
+        archival gap, not introduced by this task.
+    - id: M25
+      metric: effective sample size of the pooled counting estimator
+      producer_value: "not recoverable from the archive; Poisson reasoning indicative only"
+      recomputed_value: null
+      status: unable_to_check
+      reason: >-
+        The q^k_fft candidates inside one FFT share the same N dual vectors and
+        the same target. The producer's statement is correct and I could not do
+        better from archived bytes.
+
+  gate_checks:
+    - id: G1
+      name: resolved-band check
+      question: >-
+        Did the comparison stay inside [2^-35.70, 2^-1] / scores 0..1802 for the
+        q=241/m=40/n=43 file, with no extrapolation past the counting floor?
+      answer: PASS
+      evidence:
+        - "per_score has exactly 1803 rows over [0,1802] (n=43) and 2310 rows over [0,2309] (n=50); no row carries measured <= 0"
+        - "resolved band probability [1.7860305406935986e-11, 0.4990028428783925] = [2^-35.70445229, 2^-1.00288006], recomputed from the raw bytes"
+        - "fit grid band[::20]+last, exponent-scan grid band[::40]+last, anchors 213/1492 and 214/1968, and the K-solved profile (scores 643-1492, 600-1968) are all slices of the band"
+        - "the floor is 1/(nb_iteration*q^k_fft), i.e. the instrument's sampling resolution, and the package states this in instrument.note rather than reading the estimator's own bottom as data"
+        - "no fit, anchor, scan point, statistic or plotted value lies at or beyond the first zero score"
+      caveat: >-
+        scale_check sums its moment series over the whole file column including
+        the trailing zeros. Those contribute exactly 0, so no unmeasured value is
+        used as a value, but the second moment is biased low by the unresolved
+        tail (bounded by ~6e-5 relative). It does not affect the raw-vs-/k_fft
+        conclusion. Limitation, not a violation.
+    - id: G2
+      name: score-scale check
+      question: >-
+        Did the comparison use the raw score scale, given the known
+        Pwrong = fftn/k_fft vs Pgood = raw cosine sum asymmetry with k_fft = 3?
+      answer: PASS - raw, undivided cosine-sum scale; no k_fft alignment anywhere
+      evidence:
+        - "moment estimators reproduced: sigma ratios 0.9996/0.9986 (n=43) and 1.0020/1.0002 (n=50) against sqrt(avg_N/2), versus 2.9987/2.9957 and 3.0060/3.0007 against a /k_fft scale"
+        - "source corroboration the package does not use: experiments/EXP-MLKEM-013/vendor-lock/FFT_sample.py line 30 defines the score as an unnormalised sum of cosines, whose wrong-guess second moment is N/2"
+        - "parameter-free positive control: Q(T) = 0.5*erfc(T/sqrt(N)), zero free parameters, tracks the measurement within 0.1 bit up to score 322 (n=43) / 273 (n=50); a factor-3 scale slip would be immediately visible and is not present"
+        - "code audit: k_fft enters only the counting denominator, the /k_fft ratio diagnostic and prose; it multiplies or divides no score and no prediction"
+
+  control_checks:
+    - id: C1
+      control: parameter-free positive control (Model 4.7's Gaussian component)
+      kind: positive
+      status: passed
+      detail: >-
+        Q(T) with N from the header and no free parameter tracks the measurement
+        within 0.1 bit over scores 0-322 / 0-273 and is 149.993 / 265.557 bits
+        below it at the floor. Both ends reproduce. This simultaneously validates
+        the score scale and the use of avg_N.
+    - id: C2
+      control: model-family control (free-exponent scan)
+      kind: negative
+      status: passed
+      detail: >-
+        The one-parameter family is not degenerate: whole-grid rms rises to 1.96 /
+        2.35 bits at p=10 and 3.63 / 4.38 bits at p=40 against 0.692 / 0.694 at
+        the archived exponents. Reproduced from the committed diagnostic, which is
+        itself byte-reproducible from the script.
+    - id: C3
+      control: null object of the same shape (inventor-protocol section 3)
+      kind: null_object
+      status: absent
+      detail: >-
+        The package never runs the same one-parameter fit against a structurally
+        null survival curve of the same shape. The exponent scan is a
+        within-family sensitivity, not a null object. Because the package reports
+        a goodness-of-shape comparison rather than a correlation, bias or excess,
+        this is not fatal, but it is the reason the "tracks across 34.7 bits"
+        sentence is not a measurement of the model's specificity.
+    - id: C4
+      control: nearby-object control run by this validator
+      kind: nearby_object
+      status: informative_negative
+      detail: >-
+        Fitting the model built from one file's archived (p, N) to the other
+        file's measured curve, one free K, whole-band rms: n=43 data under its own
+        p=26 gives 0.7055 but under the n=50 file's p=24.5 gives 0.4965 (BETTER);
+        n=50 data under p=26 gives 1.0204 versus 0.6969 under its own p=24.5. The
+        discrimination is one-sided: the n=43 measurement fits the other file's
+        archived exponent better than its own. This is the same fact as the
+        producer's own section 4.4 (both files prefer p about 2 lower) in a form
+        the free K cannot absorb. Disclosed in substance by the producer; recorded
+        here because it bounds what "tracks" is entitled to mean.
+
+  heuristic_validation_checks:
+    - id: H1
+      check: pre-registered prediction
+      status: failed_as_stated_but_disclosed
+      detail: >-
+        The theoretical prediction is NOT parameter-free. Phi_dlsc, alpha and
+        Phi's constants are unavailable, so the curve carries one free scale K
+        that is FITTED TO THE DATA BEING COMPARED. Under the validator's
+        heuristic-validation rule 1 a prediction whose normalisation is fitted
+        after seeing the data is not a validation of that normalisation. The
+        producer states this repeatedly and plainly (section 2 "this is a
+        shape-and-relative comparison with one free normalisation, not an
+        absolute-level test"; section 5.1; section 7). The SHAPE, given the
+        archived exponent p, is pre-registered by the archived integers; the LEVEL
+        is not tested at all.
+    - id: H2
+      check: sample integrity - sample size, procedure, and recomputation from raw
+      status: passed
+      detail: >-
+        nb_iteration and all instrument parameters come from each file's own
+        header; the empirical survival function and its counting floor were
+        recomputed here from the raw bytes, not copied. No new sampling occurred
+        and no seed exists (deterministic recomputation), correctly recorded.
+        Header-vs-caption disagreement on nb_iteration (6000 vs 4000, n=50) is
+        disclosed; the header value is additionally FORCED by the file's own
+        quantisation, an argument the producer had available and did not make.
+    - id: H3
+      check: correspondence validity (substitute sampling)
+      status: not_applicable
+      detail: >-
+        No correspondence substitutes for direct sampling here. The measurement is
+        a third-party archived simulation of Algorithm 3.1 read as bytes.
+    - id: H4
+      check: scale binding
+      status: passed
+      detail: >-
+        Toy parameters (q=241, m=40, n=43/50, n_fft=8, k_fft=3) are recorded as a
+        limitation in the report section 7, the receipt non_claims and the results
+        JSON. No crypto-scale claim is made anywhere in the package (AGENTS.md
+        rule 7 respected). The archived Kyber-scale tables (C.1/C.2) are read but
+        never used to extrapolate.
+    - id: H5
+      check: heuristic numbering and conditional framing
+      status: passed
+      detail: >-
+        The package names Approximation 4.6, Model 4.7, Approximation 4.8 and
+        Approximation 4.9 explicitly and keeps the comparison scoped to 4.9, with
+        the good-guess statement 4.8 correctly excluded from the Pgood file's
+        treatment. It asserts neither validation nor refutation of 4.9.
+
+  cost_model_checks:
+    - id: K1
+      check: concrete cost table with declared unit
+      status: not_applicable
+      detail: >-
+        The package reports no cost table and revises no cost model. COST-MLKEM-001
+        is untouched. I verified that no cost, gate count or security level appears
+        in any of the four artifacts.
+    - id: K2
+      check: per-attempt cost x inverse success probability bookkeeping
+      status: not_applicable
+      detail: No expected-cost claim is made.
+    - id: K3
+      check: resource records (time and memory both present)
+      status: passed
+      detail: >-
+        243.078 s wrapper-measured wall clock vs 242.965 s in-script, peak RSS
+        23.4 MB against a 4 GB allowance. Mutually consistent. My own
+        re-execution took 211.9 s on this host.
+
+  proof_architecture_checks:
+    - id: P1
+      check: baseline fixture - the archived formulas reproduce exactly
+      status: passed
+      detail: >-
+        I verified the load-bearing identities numerically, in this session:
+        (i) the (4.22) weight normalises to exactly the product of an N(0,N/2)
+        density in t and an N(mu_lsc, sigma_lsc^2) density in d_lsc - integral
+        2419.3413118413 against pi*sigma*sqrt(2N) = 2419.3413118416, ratio
+        1.000000000000; (ii) the first factor of (4.19) is exactly
+        E_{d~N(mu,s^2)}[exp(-alpha pi^2 d^2/q^2)] - ratio 1.000000000000 at alpha
+        in {0.5, 2, 7}; (iii) the second factor of (4.19) is exactly the
+        beta_sieve-ball-norm average of exp(-alpha(pi x/q)^2); (iv) the closed
+        form G(b,n) = Gamma(b/2)Gamma(n/2)/(2(b+n)Gamma((b+n)/2)) checks to ratio
+        1.000000 at (b,n) in {(4,2),(6,4),(3,5)}.
+    - id: P2
+      check: strictness witness for an improvement claim
+      status: not_applicable
+      detail: The package claims no improvement over anything.
+    - id: P3
+      check: interface preservation - what the reading of Phi costs
+      status: failed
+      detail: >-
+        The step from (4.19) to Phi_dlsc(x,y) = exp(-(a x^2 + b y^2)) is described
+        as FORCED by the archive. It is not: (4.19) pins the dependence on
+        x = ||w_lat|| and shows a Gaussian dependence on the decoding distance
+        d_lsc, but constrains nothing about y = ||w_lsc||, which is Phi's second
+        argument in (4.17)/(4.23) and which is what carries n_fft into the
+        exponent p. See D4.
+    - id: P4
+      check: quantifier fidelity of the d_lsc average
+      status: failed
+      detail: >-
+        Archived (4.22) specifies E_{d_lsc}[min(1, K(d_lsc) L^p)]; the script
+        computes min(1, Kbar L^p). min(1,.) is concave, so by Jensen the collapsed
+        form is an UPPER BOUND on (4.22), exact only where the clip does not bind.
+        The two headline divergences sit at clipped fractions 0.361 and 0.381. The
+        script's docstring states the condition; no bound on the resulting error
+        is given. See D5.
+    - id: P5
+      check: method ceiling and nearby-object control
+      status: incomplete
+      detail: >-
+        The exponent scan is a within-family sensitivity. The nearby-object
+        control (C4) was supplied by this validator, not by the package, and its
+        result is one-sided against the archived exponent for the n=43 file.
+
+  defects:
+    - id: D1
+      severity: minor
+      title: reported fitting method does not match the executed code
+      detail: >-
+        comparison_report.md section 3 describes K_fit as "least squares on log2
+        residuals over the resolved band". The script fits on band[::20] plus the
+        last score - 92 points (n=43) and 117 points (n=50) - and its own stdout,
+        embedded in comparison_results.json -> stdout_log, says so verbatim
+        ("92-point subsample of the resolved band"). Numerically immaterial: my
+        whole-band fit gives -72.711622 against the committed -72.712581. But the
+        report's stated method is not the method executed.
+      affects_a_reported_number: false
+    - id: D2
+      severity: minor
+      title: report prose contradicts its own recorded data on the drift statistic
+      detail: >-
+        Section 4.3(1) says the per-score solved scale "drifts by only 1.150 bits
+        (n=43, over scores 643-1492, range -73.298 ... -72.038)". The quoted range
+        spans 1.2604 bits. The JSON carries both statistics correctly and
+        separately (drift_bits_low_to_high 1.1504; min -73.29806, max -72.03763).
+        Same for n=50: 1.238 quoted against a min/max span of 1.3603
+        (drift_bits_low_to_high 1.2377; min -67.94249, max -66.58214). The
+        sentence understates the spread by 0.11-0.12 bits.
+      affects_a_reported_number: true
+    - id: D3
+      severity: moderate
+      title: delta(beta_bkz) is over-declared UNAVAILABLE, and a stated conclusion rests on that
+      detail: >-
+        Report section 2 lists delta(beta_bkz) as UNAVAILABLE with "No archived
+        numerical value", and section 2 concludes "the absolute level of
+        Approximation 4.9 cannot be checked from the archived extracts at all,
+        because delta(beta_bkz) is missing ... No substitute bound would be
+        meaningful." But experiments/EXP-MLKEM-013/vendor-lock/utilitary.py line
+        16, in the same hash-verified vendor-locked upstream tree that produced the
+        Pwrong data, defines root_hermite_factor(beta), i.e. delta(beta). I
+        evaluated it: delta(32) = 1.012528410, delta(35) = 1.012604644, hence
+        delta^1364 = 2^24.501 and delta^1681 = 2^30.377. The archived (4.24)
+        already substitutes Lemma 2.9's result inline as the
+        delta^{beta_sieve(m+n_lat-beta_sieve)} factor, so Lemma 2.9 is not
+        separately needed either. What actually blocks the absolute level is alpha
+        together with Phi's exact functional form. The conclusion is directionally
+        right but attributed to the wrong missing quantity, and "no substitute
+        bound would be meaningful" is stronger than the archive supports. Note
+        that the report claims an explicit repository-wide search only for Phi, not
+        for delta.
+      affects_a_reported_number: false
+    - id: D4
+      severity: moderate
+      title: the derivational status of the Phi reading is overstated
+      detail: >-
+        Report section 2 and the script's STEP 2 say the archived (4.19) "forces"
+        Phi to be exponential in a negative quadratic form of the two lengths. I
+        verified that (4.19)'s two factors are exactly the d_lsc-Gaussian average
+        and the beta_sieve-ball-norm average of exp(-alpha(pi*length/q)^2), so the
+        dependence on x = ||w_lat|| is indeed pinned. The dependence on
+        y = ||w_lsc|| - Phi's SECOND argument, and the one that carries n_fft into
+        p = (beta_sieve+n_fft)/2 - is not constrained by (4.19) at all; it is
+        inferred by analogy with the d_lsc factor. The report contradicts itself,
+        correctly, elsewhere ("The adopted reading of Phi is declared, not
+        archived"; section 5.2). The producer's own exponent scan shows the data
+        prefer r about 2.2 rather than r = 2, i.e. precisely the unconstrained
+        half of the reading.
+      affects_a_reported_number: false
+    - id: D5
+      severity: moderate
+      title: the d_lsc average is collapsed to a constant, and the collapse is least valid exactly where the headline divergence peaks
+      detail: >-
+        Archived (4.22) integrates over d_lsc INSIDE min(1, integral over E(T-t)),
+        and E depends on d_lsc through Phi_dlsc. The script replaces
+        E_{d_lsc}[min(1, K(d_lsc) L^p)] by min(1, Kbar L^p). Its docstring states
+        the reduction is exact only in the unclipped regime and reports the clipped
+        fraction per score, which is honest; but no bound on the collapse error is
+        given, and the two headline divergences (+1.516 bits at score 471, +1.710
+        at score 420) sit at clipped fractions 0.361 and 0.381. Because min(1,.) is
+        concave, Jensen makes the collapsed model an upper bound on (4.22), i.e. the
+        bias has the same sign as the reported over-prediction in exactly that
+        region. I did not quantify the size: doing so requires a further declared
+        reading of how d_lsc enters Phi's quadratic form, and adding my own
+        unarchived assumption to a package under validation would not be a check.
+      affects_a_reported_number: true
+    - id: D6
+      severity: minor
+      title: receipt budget fields contradict each other
+      detail: >-
+        receipt.json records maximum_runs_allowed 1, script_executions_performed 2,
+        and budget_exceeded false. Two executions against a declared maximum of one
+        is an overrun and the last two fields cannot both be right. The overrun
+        itself is fully and creditably disclosed, with the superseded execution's
+        defect named and its changed numbers quoted.
+      affects_a_reported_number: false
+    - id: D7
+      severity: minor
+      title: superseded artifact overwritten in place, making one receipt claim unverifiable
+      detail: >-
+        Execution 1's comparison_results.json was overwritten at the same path, so
+        the receipt's "bit-identical between the two runs" claim cannot be checked
+        (recorded as M21 unable_to_check). The direction of the disclosed change
+        was unfavourable-to-favourable (shape drift 15.39 -> 1.15 bits), which is
+        the case where preserving the superseded artifact matters most. AGENTS.md
+        rule 4 makes results immutable and corrections superseding rather than
+        overwriting; overwriting a superseded run output in place sits against that
+        rule even though the change was disclosed.
+      affects_a_reported_number: false
+    - id: D8
+      severity: minor
+      title: recorded timestamps that cannot all be true
+      detail: >-
+        comparison_results.json records generated_at_utc 2026-08-02T23:31:21Z
+        (written from the run's start) with wall_clock_seconds 242.965, so the
+        final execution ran 23:31:21-23:35:24Z. receipt.json records
+        final_script_execution_started_utc 23:47:36Z and task_completed_utc
+        23:58:00Z; the latter is after the snapshot commit (author date
+        23:49:11Z) whose committed blob already contains that string, i.e. a
+        completion time was written before it occurred. The receipt designates
+        generated_at_utc authoritative and the two wall-clock figures (243.078 vs
+        242.965) are mutually consistent, so this is bookkeeping rather than a
+        fabricated measurement - but a recorded time that had not happened is a
+        defect under the artifact policy.
+      affects_a_reported_number: false
+    - id: D9
+      severity: cosmetic
+      title: a self-description that is factually backwards
+      detail: >-
+        Report section 5(6) and receipt.json anomalies explain the Pgood median
+        difference from EV-MLKEM-018 by saying this run "takes the lower of the two
+        central order statistics rather than their average". Recomputed: sorted
+        v[1999] = 11964.145101, v[2000] = 11964.802334; the reported 11964.802334
+        is the UPPER central order statistic. Nothing depends on it.
+      affects_a_reported_number: false
+    - id: D10
+      severity: minor
+      title: kink handling in the quadrature, and the accuracy of the clipped-fraction column
+      detail: >-
+        The script integrates min(1, K v^p) through its kink at v* = K^{-1/p} on a
+        fixed panel grid and reports clipped_fraction_of_pred_Kfit by classifying
+        quadrature nodes. Because the integrand is continuous the totals are barely
+        affected - my exact-split implementation agrees with the committed
+        predictions to at most 0.00066 bits - but the clipped-fraction column is
+        accurate only to about 3% relative (mine 0.1409 / 0.3831 / 0.3765 against
+        the committed 0.13712 / 0.36876 / 0.36115 at scores 0 / 360 / 471), which
+        moves the clip-negligible sub-band boundary by one score (755 vs 756). The
+        script's two quadrature self-checks (the K -> infinity limit and
+        coarse-vs-fine J) both probe regimes with no interior kink, so neither
+        bounds this error.
+      affects_a_reported_number: true
+    - id: D11
+      severity: cosmetic
+      title: reproduction note does not name every run-dependent field
+      detail: >-
+        receipt.json reproduction_note names generated_at_utc and
+        wall_clock_seconds as the fields that change on re-execution. My byte-level
+        re-run reproduced the committed JSON exactly except for those two AND four
+        per-stage elapsed-time strings inside stdout_log.
+      affects_a_reported_number: false
+
+  what_the_package_supports:
+    - >-
+      The measured Pwrong survival curves of the two archived verifyModel files,
+      over the band the counting instrument resolved, recomputed exactly.
+    - >-
+      That a one-parameter family derived from Approximation 4.9 under a DECLARED
+      reading of the unarchived Phi, with its exponent fixed by archived integers
+      and its normalisation FITTED to the same data, tracks those curves to rms
+      0.71 bits over the whole band and 0.28 bits over the sub-band where the
+      prediction is carried by the D component.
+    - >-
+      That the direction of the residual (model above measurement below the
+      crossover, below it above) is the same direction as the paper's own remark
+      that its analysis "may be slightly optimistic". Whether it is the same
+      effect is not adjudicated by the package and is not adjudicated here.
+  what_the_package_does_not_support:
+    - The absolute level of Approximation 4.9 - untested, by construction.
+    - Any statement about Approximation 4.9 below the counting floor.
+    - Any validation or refutation of Approximation 4.9 as the paper states it.
+    - Any ML-KEM, Kyber or FIPS 203 security claim, at any scale.
+    - Any cost-model revision; COST-MLKEM-001 is untouched.
+    - Any change of status for EV-MLKEM-011, EV-MLKEM-013 or EV-MLKEM-017.
+
+  limitations:
+    - >-
+      Toy parameters only (q=241, m=40, n=43/50, n_fft=8, k_fft=3). Toy-scale
+      evidence is never crypto-scale validation (AGENTS.md rule 7).
+    - >-
+      The comparison has one free normalisation fitted to the data it is compared
+      against; it is a shape test, not a level test (H1).
+    - >-
+      Two archived files at two parameter points, un-replicated, from a
+      third-party simulation this program did not run.
+    - >-
+      The pooled counting estimator's effective sample size is not recoverable, so
+      the top of the band (counts 1-10) supports indicative reasoning only.
+    - >-
+      No null-object control of the same shape exists in the package (C3); the
+      nearby-object control (C4) is mine and is one-sided against the archived
+      exponent for the n=43 file.
+    - >-
+      AGENTS.md rule 12 is UNMET and UNWAIVED for this batch. This report changes
+      no record status and treats no prior evidence record as corrected.
+    - >-
+      model_verified is false: no backend is reachable, so the resolved model
+      identifier was not probe-verified. Not run, not asserted.
+
+  verdict: passed
+  verdict_scope: >-
+    "passed" here means exactly what the Validator contract means by it: the
+    package is an ADMISSIBLE research receipt for the recomputation it performed.
+    It is not a verdict on Approximation 4.9, not evidence of any speedup, not an
+    ML-KEM security statement, and not an authorisation to promote anything.
+  package_verdict: ADMISSIBLE_WITH_DEFECTS
+  package_verdict_rationale: >-
+    Every quantitative claim I could check reproduced, most of them to the last
+    printed digit, using an implementation deliberately independent of the
+    producer's; the artifact binding is exact in three directions; the committed
+    results JSON is byte-reproducible from the committed script apart from six
+    timing fields; and both gate checks - resolved band and score scale - pass
+    cleanly. Eleven defects are recorded. D1, D2, D6, D7, D8, D9 and D11 are
+    bookkeeping or prose errors that change nothing computed. D10 changes one
+    sub-band boundary by one score. D3, D4 and D5 are substantive: they do not
+    alter any reported number, but they change what the report's headline sentence
+    is entitled to mean - delta is available and the absolute-level claim is
+    misattributed; the Phi reading is declared, not forced, in exactly the half
+    that fixes the exponent; and the d_lsc collapse biases the reported peak
+    divergence upward by an unquantified amount in exactly the region where that
+    peak is reported. None of these is a fabrication, and every one of them is
+    either self-disclosed elsewhere in the same package or discoverable from its
+    own artifacts, which is why the verdict is ADMISSIBLE_WITH_DEFECTS rather than
+    INADMISSIBLE.
+  recommended_successor_work:
+    - >-
+      A scoped correction record for D3 (delta availability) and D2 (the drift
+      sentence), superseding rather than editing the producer's immutable report.
+    - >-
+      A bounded task quantifying D5: re-evaluate (4.22) with the d_lsc integral
+      kept inside min(1,.) under a declared K(d_lsc), and report how much of the
+      +1.516 / +1.710 bit peak survives.
+    - >-
+      Retrieval of the page defining Approximation 4.6 and Phi_dlsc, which is the
+      single change that would convert this from a shape test into a test.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260803-bc8c1f/validation_report.yaml
+    - coordination/goals/GOAL-MLKEM-003/batches/BATCH-009/tasks/TASK-20260803-bc8c1f/validation_notes.md
+  archived_by: TASK-20260802-43e5e4
+  committed_by_this_task: false
+  write_scope_respected: true
+  write_scope_note: >-
+    Only the two paths above were written. No producer artifact was edited, no
+    ledger record touched, no commit made. The re-execution of the producer's
+    script ran on a copy in a session scratchpad outside the repository, with the
+    data and inputs directories symlinked read-only in effect, so no repository
+    byte was modified by it.
+  non_claims:
+    - No ML-KEM or Kyber security claim; no FIPS 203 parameter set affected or cleared.
+    - No cost-model revision, no new sampling, no G6K run, no network access.
+    - Approximation 4.9 is neither validated nor refuted by this report.
+    - >-
+      AGENTS.md rule 12 remains UNMET and UNWAIVED. EV-MLKEM-011, EV-MLKEM-013 and
+      EV-MLKEM-017 keep their status; nothing here is a correction to them.
+    - >-
+      The prior failure of TASK-20260802-08f428 was a provider session limit, i.e.
+      infrastructure, and is cited here as neither positive nor negative evidence
+      about the F1 comparison (AGENTS.md rule 5).
