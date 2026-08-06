@@ -1,0 +1,241 @@
+red_team_report:
+  id: RT-20260804-019
+  task_id: TASK-20260804-019
+  run_id: RUN-ICI-001
+  experiment_id: EXP-ICI-e622fd
+  hypothesis_id: H-ICI-063e91
+  amendment_id: PA-ICI-e622fd-v2-rc51
+  reviewed_artifacts:
+    - experiments/EXP-ICI-e622fd/runs/RUN-ICI-001/manifest.json
+    - experiments/EXP-ICI-e622fd/runs/RUN-ICI-001/augmentation_table.json
+    - experiments/EXP-ICI-e622fd/runs/RUN-ICI-001/raw-result.json
+    - experiments/EXP-ICI-e622fd/amendments/PA-ICI-e622fd-v2-rc51.yaml
+    - ledger/hypotheses/H-ICI-063e91.yaml
+
+  verdict: PASS_SCOPED
+
+  blocking_objections: []
+
+  # No verdict of FAIL is issued.  The experiment is internally consistent and
+  # the falsification claim is sound within its actual test boundary.  The
+  # concerns below are scope-limiting and provenance-qualifying, not
+  # correctness-breaking.  However they collectively prevent an unconditional
+  # PASS and require the Coordinator to re-scope H-ICI-063e91 before any
+  # downstream promotion.
+
+  non_blocking_notes:
+
+    - id: NB-1
+      category: hypothesis_isogeny_type_mismatch
+      severity: high
+      summary: >-
+        The experiment falsifies the claim for Elkies ℓ-isogenies, NOT for the
+        2-isogenies specified in H-ICI-063e91.
+      detail: >-
+        H-ICI-063e91 states the mechanism in terms of "a random ordinary
+        2-isogeny phi: E -> E'."  PA-ICI-e622fd-v2-rc51 correctly notes that
+        F_p-rational 2-isogenies are impossible on prime-order curves (the
+        2-division polynomial is irreducible mod 2 for odd prime N), and
+        substitutes Elkies ℓ-isogenies (ℓ ∈ {3, 5, 7, 11, 13, 17, 19, 23}).
+        The amendment preserves the qualitative predictions, but the tested
+        object is structurally different from the stated object.
+        Consequently:
+        (a) falsification_criterion_met=True is TRUE for the Elkies ℓ-isogeny
+            claim, but formally UNTESTED for 2-isogenies on prime-order curves
+            (those do not exist on the test curves).
+        (b) H-ICI-063e91 as written is self-contradictory: it specifies
+            prime-order curves AND 2-isogenies, which cannot coexist.
+        The Coordinator must either (i) update the hypothesis text to name
+        Elkies ℓ-isogenies as the tested mechanism, or (ii) supersede
+        H-ICI-063e91 with a corrected record before recording a state
+        transition.
+
+    - id: NB-2
+      category: raw_data_provenance
+      severity: high
+      summary: >-
+        The per_replication array in raw-result.json contains NO records for
+        the 8 completed experimental cells; all auditable replication data is
+        missing.
+      detail: >-
+        Inspection of raw-result.json shows that per_replication contains 90
+        entries, but their B_fraction values are limited to {0, 0.3}.  B_frac
+        ∈ {0.1, 0.2} — the values for all 8 cells that drive the falsification
+        conclusion — are absent.  Every entry with B_fraction=0 has
+        augmentation_ratio=1 and null_map_ratio=1, which is trivially expected
+        for an empty factor base and carries no experimental information.  The
+        B_fraction=0.3 entries are all resource_exhaustion.  Therefore the ONLY
+        source of the key measurements (aug ≈ null ≈ 2-B_frac) is
+        augmentation_table.json, which DEV-3 explicitly identifies as
+        "reconstructed from captured stdout and hardcoded in the recovery
+        script."  The original per-replication computation cannot be
+        independently verified from artifact files alone.  This does not
+        falsify the result — the reconstructed values follow a smooth,
+        theoretically expected trend and there is no obvious motive to fabricate
+        a negative finding — but it prevents per-replication cross-checks and
+        breaks reproducibility from the committed artifacts.
+      required_action: >-
+        The Coordinator should request that the Executor re-run a subset of
+        cells (e.g., 3 reps of bits=24/B_frac=0.1) from scratch with intact
+        artifact write-out to verify the augmentation_table.json values
+        independently.
+
+    - id: NB-3
+      category: missing_cell
+      severity: medium
+      summary: >-
+        Cell bits=28, B_frac=0.3 (all 10 reps resource_exhaustion) leaves the
+        largest factor base untested.
+      detail: >-
+        The manifest reports that cell bits=28/B_frac=0.3 was fully exhausted
+        (10/10 reps, each hitting the 300s cap).  The manifest argues that the
+        result would be ≈1.7 based on the trend from the 8 completed cells.
+        That inference is plausible but unverified.  Two specific risk
+        scenarios:
+        (a) THRESHOLD EFFECT: a larger factor base (|F| ≈ 0.3 × 2^28 ≈ 80M
+            points) could in principle reveal a structural correlation not
+            visible at smaller fractions.  No such effect has been observed
+            across any other (bits, B_frac) pair, but the trend is only
+            confirmed for |F| up to about 0.2 × 2^28.
+        (b) WALL-CLOCK ARGUMENT: the resource exhaustion is caused by the
+            Python implementation's per-iteration cost of Legendre-symbol
+            evaluation, not by a mathematical barrier.  An optimized
+            implementation could complete this cell.
+        The conclusion should state "8 of 9 parameter cells" rather than all 9.
+
+    - id: NB-4
+      category: null_control_conceptual_scope
+      severity: low
+      summary: >-
+        The [k]-map null control is an endomorphism of E, not a generic random
+        bijection; the comparison conflates two different structural levels.
+      detail: >-
+        phi (Elkies ℓ-isogeny) maps E → E' (different curve, degree ℓ).
+        [k] is a scalar multiplication E → E (same curve, degree k² as an
+        endomorphism).  The null control correctly tests whether the Elkies
+        isogeny augments RELATIVE TO random-looking scalar multiplications on
+        the same curve.  It does not test against all possible bijections of
+        the x-coordinate set.  In particular:
+        (a) Both phi and [k] are algebraic morphisms, so neither is a truly
+            "random" bijection.  The comparison is valid as a relative test but
+            the baseline is not "all bijections."
+        (b) [k] preserves the group structure of E (it is an automorphism of
+            the group), while phi connects structurally distinct curves.  Any
+            advantage from the cross-curve structure of phi would be captured
+            by this comparison, so the control is appropriate for the stated
+            question.
+        (c) Empirically, [k] yields null ≈ 2-B_frac as expected for
+            independent random sets, confirming that the [k] action is
+            statistically uniform with respect to the x-coordinate factor base.
+            The null control is valid for the intended comparison.
+        Overall assessment: the [k] control is adequate; the framing of it as
+        a "random bijection" is a slight overstatement but does not affect the
+        conclusion.
+
+    - id: NB-5
+      category: scale_artifact_vs_structure
+      severity: low
+      summary: >-
+        At bits=20-28, the result aug ≈ null ≈ 2-B_frac is expected from
+        generic set-theoretic arguments whenever |F| << N.
+      detail: >-
+        When two sets of size B × N are drawn independently and uniformly at
+        random from a group of size N, their union has expected size
+        (2B - B²) × N = (2-B_frac) × B × N, giving ratio 2-B_frac.  The
+        experimental result precisely matches this generic prediction for BOTH
+        the isogeny preimage and the [k] preimage.  This is consistent with
+        phi^{-1}(F') and [k^{-1}](F) both behaving as essentially independent
+        random subsets of E(F_p) of size B_frac × N.  The experiment correctly
+        interprets this as evidence against structural augmentation, but the
+        observation is equally consistent with "both maps look uniformly random
+        at toy scale" — a statement that provides no information about
+        cryptographic-scale behavior (AGENTS rule 7).  The result is a valid
+        negative finding within its test boundary but cannot be extrapolated to
+        larger bit sizes.
+
+    - id: NB-6
+      category: scope_of_falsification
+      severity: low
+      summary: >-
+        The falsification scope is strictly limited to Elkies ℓ-isogenies
+        (ℓ ≤ 23) on random prime-order ordinary F_p-curves.  Several isogeny
+        types remain untested.
+      detail: >-
+        The following are NOT covered by the falsification:
+        (a) 2-isogenies (impossible on the tested curve type; see NB-1).
+        (b) Elkies ℓ-isogenies for ℓ > 23.
+        (c) CM-endomorphism-related isogenies: if E has CM by an imaginary
+            quadratic order O, the CM endomorphism phi_CM may have special
+            x-coordinate structure (related to the Frobenius, the trace, and
+            O's discriminant) that could produce non-generic augmentation.
+            This is a plausible candidate for a follow-up experiment.
+        (d) Isogeny chains (walks of length > 1) and volcano-path isogenies.
+        (e) Isogenies over extension fields or on supersingular curves.
+        (f) Non-prime-order curves, where 2-isogenies do exist.
+        The "random bijection" null result applies to small-ℓ Elkies isogenies
+        only, not to the full isogeny class.
+
+    - id: NB-7
+      category: git_dirty_tree
+      severity: low
+      summary: >-
+        The run was executed with a dirty git working tree (dirty: true in
+        manifest).
+      detail: >-
+        The dirty_note says "untracked: experiments/EXP-ICI-e622fd/runs/
+        (new run directory)" which is the expected state for a fresh run that
+        has not yet been archived.  This is a routine artifact status rather
+        than an integrity concern.  However, the Coordinator's commit task must
+        confirm that no other uncommitted changes were present at run time.
+
+    - id: NB-8
+      category: model_not_probe_verified
+      severity: low
+      summary: >-
+        The executor's resolved model (amazon-bedrock/us.anthropic.claude-sonnet-4-6)
+        was not probe-verified (model_verified: false in manifest inference
+        block).
+      detail: >-
+        Per AGENTS.md, a model identifier is unverified configuration until
+        confirmed by adapter doctor --probe.  This is a process gap but does
+        not affect the mathematical content of the run.
+
+  narrowest_supported_statement: >-
+    For Elkies ℓ-isogenies (ℓ ∈ {3, 5, 7, 11, 13, 17, 19, 23}) computed via
+    the Elkies splitting condition on random prime-order ordinary F_p-curves at
+    log₂ p ∈ {20, 24, 28} and factor-base fractions B_frac ∈ {0.1, 0.2}, and
+    additionally at B_frac=0.1 for bits=28 (8 of 9 cells fully measured), the
+    factor-base augmentation ratio |F ∪ phi^{-1}(F')| / |F| lies within ±0.004
+    of the [k]-map null-control value 2-B_frac across 80 valid replications.
+    No structural augmentation advantage over the scalar-multiplication null
+    control is detected.  The 2-isogeny mechanism stated in H-ICI-063e91 is not
+    tested by this experiment (no F_p-rational 2-torsion exists on prime-order
+    curves).  The result applies only to small-ℓ Elkies isogenies at toy scale
+    and cannot be extrapolated to cryptographic parameter sizes (AGENTS rule 7).
+    CM-endomorphism-related isogenies and isogenies over extension fields remain
+    untested.
+
+  recommended_coordinator_actions:
+    - >-
+      UPDATE or SUPERSEDE H-ICI-063e91 to replace "2-isogeny" with "Elkies
+      ℓ-isogeny (ℓ ≤ 23)" before recording a status transition.  The present
+      hypothesis text is self-contradictory for prime-order test curves.
+    - >-
+      REQUEST a targeted re-run of 3 replications at bits=24/B_frac=0.1 with
+      correct per_replication artifact output to independently confirm the
+      augmentation_table.json values (NB-2).
+    - >-
+      CONSIDER a follow-up experiment for CM-endomorphism-related isogenies
+      (NB-6c), which represent the nearest unscreened candidate for structural
+      augmentation.
+    - >-
+      DO NOT record falsification_criterion_met as falsifying the full
+      isogeny-augmented index-calculus direction.  It falsifies only the
+      small-ℓ Elkies case on prime-order curves at toy scale.
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    independent_session: true
+    model_verified: false
+    reasoning_effort: xhigh

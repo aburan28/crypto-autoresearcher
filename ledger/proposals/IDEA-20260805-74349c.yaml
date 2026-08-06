@@ -1,0 +1,610 @@
+idea:
+  id: IDEA-20260805-74349c
+  question_id: RQ-UOV-001
+  added: '2026-08-05'
+  title: >-
+    Key compression answers half its own question by an identity and changes
+    the other half completely - track the entropy of the oil space through the
+    seed-expansion map and the binding attack stops being algebraic
+  class: audit
+
+  claim: >-
+    GOAL-UOV-001 must deliver 'an explicit finding on whether key compression
+    alters the model'. Half of that finding is forced by an identity and needs
+    no experiment: the expanded public key of a seed-compressed UOV instance is
+    BIT-IDENTICAL to an uncompressed one, so every attack whose input is the
+    expanded map - intersection, Kipnis-Shamir, reconciliation, forgery - has
+    EXACTLY the same cost, and the derived system's shape (M = 3m - 2 equations
+    in N = 2n - 3m variables) is compression-invariant. Writing that down is a
+    complete answer to the question as usually asked, and it is one line. The
+    other half is not forced and is where the model actually moves. Compression
+    replaces a v*m-field-element secret by a seed. SESSION-COMPUTED: at the
+    recalled tuple (q,n,m) = (256,112,44) the oil space O' carries
+    v*m*log2(q) = 23,936 bits of entropy uncompressed and at most seedlen bits
+    when seed-derived, a collapse of about 187 to 1. A generic seed search then
+    costs 2^seedlen candidate expansions with a per-candidate rejection test
+    DERIVED at about 2^18.2 gates, i.e. 2^146.2 gates at seedlen = 128 against a
+    claimed level-I figure of 2^143 - A MARGIN OF ABOUT 3 BITS. The same
+    calculation gives +2.2, +4.7 and +4.4 bits at the other three recalled
+    tuples with the seed matched to the level. So for the compressed variants
+    the binding key-recovery cost is min(algebraic, generic seed search), the
+    second term is within single-digit bits of the first, it depends on nothing
+    algebraic, and it does not appear in any algebraic cost table. THIRD, and in
+    the other direction: publishing the seed PROVES that (P1, P2) is a
+    pseudorandom-function output, which CLOSES a key-subversion channel that the
+    uncompressed variant leaves open - and the density of the weak keys an
+    honest generator would otherwise hit by accident is derivable in closed
+    form, P[corank(P'_a) >= 2r] about q^{-r(2r-1)}, SESSION-COMPUTED as 2^-8,
+    2^-48, 2^-120, 2^-224 for 2r = 2, 4, 6, 8 at q = 256. Compression is
+    therefore neither neutral nor a weakening; it is a TRADE, and stating the
+    trade quantitatively is the finding the goal asks for.
+
+  object_first_candidate:
+    tracked_object: >-
+      The ENTROPY OF THE SECRET OIL SPACE, H(O'), followed through the
+      key-generation pipeline: seed -> expansion -> O' -> (P1, P2, P3) ->
+      public key -> attacker. The object is a single number in bits at each
+      stage, and the proposal is that the pipeline has a stage where it drops by
+      a factor of 187 and no cost table records the drop.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: (1) every algebraic key-recovery family -
+      intersection, Kipnis-Shamir, reconciliation, MinRank, direct forgery -
+      because the identity in Part A shows they cannot see compression at all,
+      and reasoning about them here would be reasoning about the wrong object;
+      (2) QR-UOV's quotient-ring compression, which is a DIFFERENT compression
+      of a DIFFERENT object and belongs to GOAL-QRUOV-001 - this record must not
+      be cited about it; (3) MAYO's whipping and its seed-fixing/fault routes,
+      which belong to GOAL-MAYO-001; (4) side-channel and fault attacks on the
+      expansion function, which are implementation questions this record does
+      not touch; (5) cryptanalysis of SHAKE or of any concrete expansion
+      function, which is assumed ideal here and said to be assumed.
+    newness_score: >-
+      Part A is elementary and is surely known to the designers; its value is
+      that it is UNWRITTEN in this program and that writing it discharges half a
+      completion criterion at zero cost. Part B is standard practice on the
+      design side - seed lengths are chosen to match levels - but the MARGIN is
+      not usually stated, and a margin of 3 bits is a different object from a
+      margin of 60. Part C, the subversion-channel direction, points the
+      opposite way from how compression is normally discussed and is not
+      recorded anywhere in this corpus. None of the three is claimed as new
+      mathematics; what is new here is the accounting.
+    testability_score: >-
+      High and almost free. Part A is an identity checkable by building one toy
+      key both ways and comparing bytes. Part B is arithmetic plus one honest
+      gate count. Part C is a closed-form density plus a small exhaustive check
+      at toy sizes.
+    survival_score: >-
+      H(O') is defined at every stage and never dissolves. The risk is that the
+      answer is boring - that the seed is long enough everywhere and the margin
+      is 60 bits rather than 3 - and that outcome is pre-registered as the
+      expected one for at least one of the four tuples.
+
+  mechanism: >-
+    DERIVED AND COMPUTED IN THIS SESSION using Python's standard library only.
+    Scratchpad scripts are not committed; every figure must be recomputed
+    in-harness before citation. The UOV key-generation structure below is
+    RECALLED-UNVERIFIED in its details and is the first thing Stage 0 must
+    check; the ARGUMENTS are written so that they survive any structure of the
+    same shape.
+
+    STRUCTURE ASSUMED (RECALLED, TO BE VERIFIED). Write the oil space in
+    echelon form with respect to the last m coordinates, O = column span of
+    [O' ; I_m] with O' in F_q^{v x m}. Split each public matrix into blocks
+      P_l = [[P1_l, P2_l], [0, P3_l]]
+    with P1_l of size v x v, P2_l of size v x m and P3_l of size m x m, all
+    upper-triangular where the block is square. The condition that p_l vanishes
+    on O is then a determination of the last block:
+      P3_l = Upper( - O'^T P1_l O' - O'^T P2_l ).
+    So (P1, P2) is FREE and P3 is DETERMINED. Compression exploits exactly this:
+    publish a seed and let (P1, P2) = Expand(seed), then publish only P3.
+
+    PART A - THE IDENTITY, AND WHY IT SETTLES HALF THE QUESTION.
+    Let K_c be a compressed key (seed, P3) and K_u its expansion
+    (Expand(seed), P3). By definition of expansion, K_u is byte-for-byte an
+    ordinary UOV public key. Let A be any algorithm whose input is the expanded
+    public map. Then cost_A(K_c) = cost_A(K_u) + cost(Expand), and cost(Expand)
+    is a fixed polynomial independent of the secret. In particular the
+    intersection attack's derived system (IDEA-20260805-ca92fd:
+    M = 3m - 2 equations in N = 2n - 3m variables), its solving degree, its
+    Macaulay matrix, its memory and its time are ALL COMPRESSION-INVARIANT.
+    There is no algebraic structure to look for, because there is no algebraic
+    difference. Anyone proposing to search for one should first be shown this
+    paragraph. THE CONVERSE IS THE INTERESTING PART: the only way compression
+    can matter is through an attack that is NOT a function of the expanded map -
+    that is, one that reads the seed, or the shortness of the seed, or the fact
+    that the seed is a commitment.
+
+    PART B - THE ENTROPY CAP, AND A MARGIN OF THREE BITS.
+    In the fully compressed variant the SECRET is also a seed:
+    O' = Expand_sk(sk_seed). Then
+      H(O') <= seedlen   bits,   whereas an uncompressed O' carries
+      v * m * log2(q)    bits.
+    SESSION-COMPUTED at the four recalled tuples: 23,936 / 24,576 / 64,512 /
+    113,664 bits respectively, against a seed of 128 to 256 bits - a collapse of
+    between 187 and 444 fold. A generic attack follows immediately and is not
+    algebraic at all: enumerate candidate sk_seed, expand, and reject. The
+    rejection test is CHEAP because one oil vector suffices - expand the first
+    column o' of O', form o = (o', e_1), and test p_1(o) = 0. In block form
+    that costs about v(v+1)/2 + v field multiplications, DERIVED, which at
+    (256,112,44) is 2,414 multiplications, or about 2^18.2 gates at a schoolbook
+    2*log2(q)^2 gates per F_256 multiplication. Total:
+      cost = 2^seedlen * 2^{test}, SESSION-COMPUTED as
+      (256,112,44), level I 2^143,  seed 128 -> 2^146.2, margin +3.2 bits
+      (16,160,64),  level I 2^143,  seed 128 -> 2^145.2, margin +2.2 bits
+      (256,184,72), level III 2^207, seed 192 -> 2^211.7, margin +4.7 bits
+      (256,244,96), level V 2^272,  seed 256 -> 2^276.4, margin +4.4 bits
+    THREE OBSERVATIONS, in decreasing order of confidence. (i) The margin is
+    single-digit bits at every level. That is by design - seed lengths are
+    chosen to match levels - but it means the compressed variants' key-recovery
+    security is set by the seed, not by the algebra, and the algebraic margin of
+    about 15 bits computed in IDEA-20260805-ca92fd is NOT the binding one.
+    (ii) The margin is smaller than the modelling conventions that surround it.
+    A different gates-per-multiplication convention, or counting the expansion
+    rather than the test, moves the total by more than 3 bits in either
+    direction. So the correct report is an INTERVAL, and computing that interval
+    honestly is the deliverable. (iii) A multi-target seed search does NOT
+    multiply the gain by the number of targets, and saying otherwise would be
+    wrong: with T targets a candidate O' can be tested against all T public keys,
+    so only 2^seedlen / T expansions are needed but 2^seedlen tests are still
+    performed, and the saving is bounded by cost(Expand)/cost(test), which is a
+    small constant. DERIVED, and it is a bound in the DEFENDER's favour.
+
+    PART C - THE SUBVERSION CHANNEL COMPRESSION CLOSES.
+    In the uncompressed variant nothing binds (P1, P2) to any procedure; a
+    malicious or buggy generator may choose them. In the compressed variant the
+    published seed is a proof that (P1, P2) = Expand(seed), so the freedom is
+    gone. Compression is therefore a security IMPROVEMENT on this axis, which is
+    the reverse of the direction 'compression trades size for structure' would
+    predict, and the reversal is worth recording. To make it quantitative one
+    needs the density of the keys a subverter would aim at. The natural target
+    is low rank, since MinRank-style costs fall with corank. DERIVED HERE by a
+    kernel-first union bound: an alternating n x n form over F_q with a
+    prescribed 2r-dimensional kernel descends to the quotient, so
+      P[corank >= 2r] <= [n, 2r]_q * q^{(n-2r)(n-2r-1)/2 - n(n-1)/2}
+    which SESSION-COMPUTED evaluates to q^{-r(2r-1)} to within a small constant:
+    2^-8, 2^-48, 2^-120, 2^-224 at q = 256 for 2r = 2, 4, 6, 8, and 2^-4, 2^-24,
+    2^-60, 2^-112 at q = 16. Two consequences. An honest generator at q = 256
+    and m = 44 produces at least one corank-2 polar form with probability about
+    m * 2^-8 = 2^-2.5, i.e. roughly one key in six - so corank 2 is COMMON and
+    cannot by itself be a weakness. At q = 16 the same union bound exceeds 1 and
+    is therefore uninformative, which is recorded as a limitation of the bound
+    rather than papered over with the exact law, which is not derived here. A
+    subverter, by contrast, can place corank 8 at density 2^-224 for free. The
+    open quantitative question - at which corank does the MinRank cost actually
+    drop below the claimed level - is named as forward guidance and is NOT
+    answered here.
+
+    PART D - THE SIZE ACCOUNTING, AS AN INDEPENDENT CHECK ON THE RECALLED
+    TUPLES. From the block structure, an uncompressed public key holds
+    m * (v(v+1)/2 + v*m + m(m+1)/2) field elements and a compressed one holds
+    m * m(m+1)/2 plus a seed. SESSION-COMPUTED: 278,432 / 412,160 / 1,225,440 /
+    2,869,440 bytes uncompressed against 43,592 / 66,592 / 189,248 / 447,008
+    compressed, a ratio of about 6.4 at every level. Those uncompressed figures
+    coincide with the public-key sizes this session RECALLS for UOV. That
+    coincidence is CORROBORATION OF THE RECALLED TUPLES, not verification of
+    them, and is recorded as such - two recollections agreeing is one
+    recollection.
+
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_grepped:
+      - ledger/proposals
+      - ledger/goals
+      - ledger/questions
+      - knowledge/literature
+      - knowledge/open-problems
+    grep_results:
+      - >-
+        No record in this corpus discusses seed-based key compression for any
+        scheme. KN-OPEN-003 asks QR-UOV's 'compression or structural weakening?'
+        question for the QUOTIENT-RING representation and, per ANGLE-BRIEF F7,
+        has no control specified; that is a different object and a different
+        goal's property.
+      - >-
+        IDEA-20260801-014 does not mention compression.
+      - >-
+        No record anywhere in this corpus computes an entropy budget for a
+        secret key or compares a generic seed search against a claimed security
+        level.
+    conclusion: >-
+      Absent from this corpus. Certainly not absent from the design literature,
+      where seed lengths are chosen precisely to make Part B come out positive -
+      which is the point: the calculation is routine on the design side and
+      missing on this program's analysis side, and the three dependent goals
+      each have a compressed variant of their own.
+
+  literature_context:
+    - >-
+      The UOV round-3 specification, including its key-generation structure, its
+      seed lengths, its parameter tuples and its own security-analysis table.
+      NOT READ. RQ-UOV-001 records that csrc.nist.gov is unreachable under this
+      harness's network policy; ANGLE-BRIEF section 1 measures arXiv, ePrint
+      abstract pages, author-hosted PDFs and raw.githubusercontent as REACHABLE,
+      with only eprint.iacr.org PDF bodies blocked, so the source-preference
+      order has NOT been exhausted and the pause_condition about sources must
+      not be invoked before it is.
+    - >-
+      KN-LIT-4397 (Beullens, 'Improved cryptanalysis of UOV and Rainbow'). NOT
+      READ; bulk-seeded entry with all four identifiers null. Relevant here only
+      because Part A asserts that its attacks cannot see compression, and that
+      assertion should be checked against what the paper's attacks actually take
+      as input.
+    - >-
+      NIST security-level gate counts 2^143, 2^207 and 2^272 for levels I, III
+      and V. RECALLED-UNVERIFIED. They are load-bearing for every margin in
+      Part B and are the first thing Stage 0 must confirm; a level-I figure of
+      2^128 instead of 2^143 turns the +3.2 bit margin into +18.2.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Full key-generation transcript (sk_seed, pk_seed, O', P1, P2, P3) -> the
+      triple (H(O') in bits, seedlen in bits, cost of one rejection test in
+      gates).
+    what_is_discarded: >-
+      All the algebra. The public map, the oil space's position, the field
+      structure and every attack that reads them. Three integers remain.
+    why_genuinely_lossy: >-
+      Extremely lossy, and deliberately so - the whole argument of Part B is
+      that a generic attack exists which needs none of the discarded structure,
+      so discarding it is not a loss for that attack. The projection is not a
+      change of coordinates by any reading: the fibre over (23936, 128, 2^18.2)
+      is the entire instance space.
+    why_compatible_with_the_operations: >-
+      Compatible: entropy is monotone under deterministic maps, so H(O') <=
+      seedlen propagates through the expansion regardless of what the expansion
+      computes, and the rejection test's cost is a function of (q, n, m) alone.
+      Both retained quantities propagate deterministically through every step of
+      key generation.
+    is_it_only_a_change_of_coordinates: >-
+      No, and the MIRROR FAILURE - a projection so lossy it is constant across
+      instances - IS PRESENT IN PART A AND IS THE POINT THERE. Part A's
+      observable (the expanded public key) is provably identical between the
+      compressed and uncompressed arms, which is exactly zero comparator spread,
+      and the correct conclusion is that no algebraic attack can distinguish
+      them. The audit's discipline is to notice that this is a CONCLUSION in
+      Part A and would be a DEFECT in Part B: so Part B's comparator is checked
+      separately, and it has nonzero spread by construction, because
+      min(algebraic, 2^seedlen * test) differs between an arm with a seed and an
+      arm without one. THE CHECK THAT WAS RUN: at (256,112,44) the compressed
+      arm's binding cost is 2^146.2 and the uncompressed arm's is the algebraic
+      2^158.0 - different, so the comparator discriminates. Had they been equal,
+      the honest report would have been that the analysis does not read the
+      compression at all.
+
+  assumptions:
+    - >-
+      That the expansion function is an ideal PRF, so no candidate seed can be
+      rejected faster than by expanding and testing. If it is not, Part B is an
+      UNDERESTIMATE of the attacker's advantage, i.e. the assumption is in the
+      defender's favour and a violation makes the finding stronger, not weaker.
+    - >-
+      That the key-generation block structure is as recalled - (P1, P2) free
+      from the public seed, P3 determined. If the actual scheme determines a
+      different block or derives O' differently, Parts A and C are unaffected
+      (they use only the identity and the polar forms) but Part B's rejection
+      test must be recosted.
+    - >-
+      That one oil vector suffices to reject a wrong candidate. Derived: for a
+      wrong O', p_1(o) is a nonzero field element with probability 1 - 1/q, so
+      one test rejects all but a 1/q fraction and two tests all but 1/q^2. The
+      expected number of tests per candidate is therefore under 1 + 1/q, and the
+      cost model uses 1 - a difference of under 0.01 bits.
+
+  predictions:
+    - metric: >-
+        expanded_key_identity - the number of bytes differing between a
+        compressed key's expansion and an independently generated uncompressed
+        key built from the same (O', P1, P2)
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0. Forced by definition. A single differing byte means the
+        implementation does not implement compression as described and Part A
+        does not apply to it - which would itself be a finding about the
+        implementation.
+    - metric: >-
+        attack_invariance - the derived (M, N, d_reg) triple of the intersection
+        system computed from the compressed key's expansion versus from the
+        uncompressed key
+      direction: different
+      minimum_effect: >-
+        IDENTICAL in all three components at every toy cell. This is the
+        experimentally checkable form of Part A and it CAN fail if the builder
+        reads the seed anywhere it should not.
+    - metric: >-
+        seed_margin - log2(generic seed-search gate cost) minus the claimed
+        level, per parameter set
+      direction: lower
+      minimum_effect: >-
+        Predicted in [0, 10] bits at all four recalled tuples with the seed
+        matched to the level; SESSION-COMPUTED as +3.2, +2.2, +4.7, +4.4. A
+        margin above 20 bits at every tuple falsifies the claim that the seed is
+        the binding constraint and reduces this proposal to Parts A and C. A
+        NEGATIVE margin at any tuple, once the specification is read, is not a
+        break claim but an immediate escalation - a generic attack below the
+        claimed level would be reported to the Coordinator before anything else
+        is written.
+    - metric: >-
+        multi_target_gain - log2 of the reduction in total gate count from T
+        simultaneous targets
+      direction: lower
+      minimum_effect: >-
+        BOUNDED BY log2(cost(Expand)/cost(test)), derived above, independent of
+        T. Predicted under 8 bits. A measured gain that grows with T falsifies
+        the derivation and would be the most consequential outcome in this
+        record.
+    - metric: >-
+        weak_key_density - the measured fraction of random alternating forms
+        over F_q of corank >= 2r at toy n, against the derived q^{-r(2r-1)}
+      direction: different
+      minimum_effect: >-
+        Agreement within a factor of 2 at n = 6, 8, 10 and r = 1, 2 over F_16
+        by exhaustive or large-sample enumeration. This is a check on the
+        DERIVED bound, and if the bound is wrong every statement in Part C is
+        withdrawn.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first, each able to terminate the line.
+      STAGE 0 (reading, zero compute, and it can end the whole record).
+      Obtain the round-3 specification. Confirm or refute: the block structure,
+      the seed lengths, the parameter tuples, the NIST gate counts, and - most
+      importantly - WHETHER THE SPECIFICATION ALREADY STATES THE GENERIC
+      SEED-SEARCH BOUND. If it does, Part B is a reproduction of the designers'
+      own analysis and must be reported as one, which is the most likely single
+      outcome of this proposal.
+      STAGE 1 (the identity, minutes). Generate a toy compressed key at
+      (q,v,m) = (16,6,5), expand it, generate the matching uncompressed key, and
+      diff. Then build the intersection system from both and compare (M, N,
+      d_reg). Part A is then checked, not asserted.
+      STAGE 2 (arithmetic, minutes). Recompute the entropy table, the rejection
+      cost, the margins and the size table in committed code. Report each margin
+      as an INTERVAL over the gates-per-multiplication convention, over whether
+      the expansion is charged, and over the level figure.
+      STAGE 3 (the density check, minutes). Enumerate or sample alternating
+      forms over F_16 at n = 6, 8, 10 and compare measured corank frequencies
+      against q^{-r(2r-1)}.
+    controls:
+      - >-
+        NULL OBJECT FOR PART B (same shape, forced value derived first, CAN
+        FAIL). Run the identical entropy-and-margin machinery on the
+        UNCOMPRESSED variant, where the secret is drawn directly with
+        v*m*log2(q) bits. FORCED VALUE: the generic-search term is
+        2^23936 * 2^18.2 at (256,112,44), i.e. astronomically above the
+        algebraic term, so the machinery must report min(algebraic, generic) =
+        algebraic = 2^158.0 for that arm and 2^146.2 for the compressed arm.
+        IF THE MACHINERY RETURNS THE SAME BINDING TERM FOR BOTH ARMS IT IS NOT
+        READING THE COMPRESSION AT ALL and every number it produced is void.
+        This null can genuinely fail - a machinery that hard-codes the algebraic
+        term fails it immediately.
+      - >-
+        POSITIVE CONTROL, WHERE THE EFFECT MUST APPEAR. Re-run Part B with an
+        artificially SHORT seed, 64 bits, at (256,112,44). The generic term must
+        then be 2^82.2, far below the algebraic 2^158.0, and the machinery must
+        report the generic term as binding and flag the parameter set. If it
+        does not flag a 64-bit seed, it cannot be trusted to flag a real one and
+        NO negative conclusion about seed adequacy may be drawn.
+      - >-
+        GRADED CONTROL, 5 interior points, monotonicity reported. Sweep
+        seedlen over 64, 96, 128, 160, 192, 224, 256 at each tuple and report
+        the binding term and the margin at each. DERIVED EXPECTATION: the
+        binding term is the generic one below a crossover seed length and the
+        algebraic one above it, with the crossover at
+        seedlen = log2(algebraic) - test, i.e. 158.0 - 18.2 = 139.8 bits at
+        (256,112,44). A crossover measured anywhere else means the machinery's
+        arithmetic is wrong, and the crossover value LOCALISES the error.
+      - >-
+        NEARBY-OBJECT CONTROL. Apply the identical Part-A argument to QR-UOV's
+        quotient-ring compression, where the conclusion is KNOWN TO BE
+        DIFFERENT - there the compression changes the algebraic object itself,
+        so the expanded key is NOT an arbitrary UOV key. If the argument as
+        implemented also 'proves' invariance for QR-UOV, it is proving something
+        about its own formulation rather than about seed expansion. THE CONTROL
+        IS RUN AND REPORTED HERE; the QR-UOV analysis itself is NOT performed
+        and belongs to GOAL-QRUOV-001.
+      - >-
+        ORDERING CONTROL. The null arm and the graded sweep are computed and
+        committed before the headline margins are written up.
+      - >-
+        ARCHIVE CHECK (zero compute). Prior entropy-budget or seed-search
+        analyses in this corpus: NONE FOUND. Recorded as unavailable rather than
+        as a passed check.
+    required_metrics:
+      - byte-diff count between expanded-compressed and uncompressed keys, which must be 0
+      - the (M, N, d_reg) triple from both key forms, which must be identical
+      - H(O') in bits, seedlen, rejection-test gate count, generic-search total, algebraic total, binding term, margin - per tuple
+      - each margin as an interval over the three named conventions
+      - the seedlen crossover per tuple, derived and measured
+      - measured versus derived corank densities at toy n
+      - an explicit statement of whether the specification already contains the seed-search bound
+
+  falsification_conditions:
+    - >-
+      Any nonzero byte-diff in Stage 1. Part A does not apply to the
+      implementation tested and must be restated for whatever the scheme
+      actually does.
+    - >-
+      The (M, N, d_reg) triples differ between the two key forms. Part A is
+      false as stated and the record is withdrawn by supersession.
+    - >-
+      The specification already states the generic seed-search bound. Part B is
+      then a reproduction and must be reported as one, prominently, rather than
+      as a finding. THIS IS THE MOST LIKELY FAILURE OF THE PROPOSAL.
+    - >-
+      Measured corank densities disagree with q^{-r(2r-1)} by more than a factor
+      of 2 at toy n. Part C's quantitative content is withdrawn; the qualitative
+      subversion argument survives without it.
+    - >-
+      The null arm returns the same binding term as the compressed arm. Nothing
+      may be reported.
+    - >-
+      The margins all come out above 20 bits after Stage 0 fixes the level
+      figures and seed lengths. The 'seed is binding' claim is then false, and
+      the deliverable reduces to Parts A and C.
+
+  confounders:
+    - >-
+      GATE-COUNT CONVENTION. 2*log2(q)^2 gates per F_q multiplication is a
+      crude schoolbook figure chosen here because it is transparent, not because
+      it is right. A bitsliced or tower-field implementation moves it by several
+      bits, and the margins under audit are 2 to 5 bits. This is the dominant
+      uncertainty in Part B and it is why the deliverable is an interval.
+    - >-
+      WHAT COUNTS AS THE ATTACK'S UNIT. Charging the full expansion rather than
+      one rejection test raises the generic cost by about 5 bits and would
+      erase the tightness. Both are computed and both are reported.
+    - >-
+      THE LEVEL FIGURE ITSELF. 2^143 versus 2^128 for level I is a 15-bit swing
+      on a 3-bit margin, and KN-OPEN-014 is this corpus's worked instance of a
+      security claim resting on a contested cost convention.
+    - >-
+      RECALLED EVERYTHING. Tuples, seed lengths, block structure and level
+      figures are all recalled. The size table of Part D corroborates the tuples
+      but corroboration by a second recollection is not verification.
+    - >-
+      A REPRODUCTION PRESENTED AS A FINDING. If the designers already did this
+      calculation - and they almost certainly did, since that is how seed
+      lengths get chosen - then presenting it as a discovery would be a
+      misrepresentation. Stage 0 exists to prevent that and the failure mode is
+      named first in falsification_conditions.
+
+  interpretation_limits:
+    - >-
+      Nothing here is an attack and nothing here is a break. Part B describes a
+      GENERIC exhaustive search that the designers are presumed to have
+      accounted for; the contribution is that its margin is stated and is small.
+    - >-
+      Part A is an identity about seed-expanded compression ONLY. It does not
+      transfer to QR-UOV's quotient-ring compression, to MAYO's whipping, or to
+      SNOVA's matrix-ring structure, all of which change the algebraic object.
+      Any citation of this record toward those three goals is a misuse.
+    - >-
+      Part C establishes a DENSITY, not a cost. At which corank MinRank actually
+      becomes cheaper than the intersection attack is NOT answered here, and the
+      subversion argument is qualitative until it is.
+    - >-
+      The claim tier is toy for anything measured and derivation-only for
+      Parts A, B and D. No statement about a deployed parameter set may be made
+      until Stage 0 replaces the recalled inputs.
+
+  heuristic_assumptions:
+    - id: HEUR-UOV-C1
+      statement: >-
+        The seed-expansion function behaves as an ideal PRF, so the only way to
+        test a candidate sk_seed is to expand it and evaluate a public equation.
+      rigorous_support: >-
+        None offered, and none needed for the direction of the conclusion: the
+        assumption is the one most favourable to the DEFENDER, so a violation
+        makes the generic attack cheaper and the margin smaller. Stated as a
+        heuristic because a cost model that quietly assumed it without saying so
+        would be exactly the failure this goal exists to correct.
+      validation_plan: >-
+        Not validated here. Recorded so that any later record citing the margin
+        carries the assumption with it.
+    - id: HEUR-UOV-C2
+      statement: >-
+        One rejection test costs about v(v+1)/2 + v field multiplications, and a
+        field multiplication costs about 2*log2(q)^2 gates.
+      rigorous_support: >-
+        The multiplication count is DERIVED from the block form of p_1 evaluated
+        at o = (o', e_1). The gate count is a schoolbook convention and is NOT
+        derived; it is the single most fragile input to Part B's margins.
+      validation_plan: >-
+        Report every margin as an interval across at least three
+        gates-per-multiplication conventions, and state which conclusions
+        survive all of them. A conclusion that survives only one convention is
+        reported as convention-dependent, not as a finding.
+    - id: HEUR-UOV-C3
+      statement: >-
+        P[corank(uniform alternating n x n over F_q) >= 2r] is about
+        q^{-r(2r-1)}.
+      rigorous_support: >-
+        An UPPER BOUND is derived here by counting forms with a prescribed
+        2r-dimensional kernel and multiplying by the Gaussian binomial
+        [n, 2r]_q; the union bound is tight to within a small constant when
+        q^{-r(2r-1)} is small and is VACUOUS when it is not - at q = 16 with
+        m = 64 forms the union already exceeds 1, and that is reported as a
+        limitation rather than smoothed over.
+      validation_plan: >-
+        Stage 3 measures the frequency at toy n over F_16 by enumeration and
+        sampling. Disagreement beyond a factor of 2 withdraws Part C's numbers.
+
+  target_complexity:
+    time_exponent: >-
+      NO ALGEBRAIC EXPONENT MOVES, and Part A proves that none can move under
+      compression. What the record supplies is a SECOND, NON-ALGEBRAIC term in
+      the cost of the compressed variants: 2^{seedlen + test}, SESSION-COMPUTED
+      at 2^146.2 / 2^145.2 / 2^211.7 / 2^276.4 against algebraic terms of
+      2^158.0 / 2^198.4 / 2^242.3 / 2^304.0 from IDEA-20260805-ca92fd. The
+      binding term for the compressed variants is therefore the GENERIC one at
+      every recalled tuple, by 11.8, 53.2, 30.6 and 27.6 bits.
+    memory_exponent: >-
+      The generic seed search needs O(n^2) memory - polynomial. That is the
+      other half of why it matters: IDEA-20260805-69af7c shows the algebraic
+      attack needs 2^72.2 field elements, so under any charged-memory accounting
+      the seed search is not merely comparable in time, it dominates on the
+      memory axis outright.
+    best_known: >-
+      For key recovery against a fully compressed UOV instance: the smaller of
+      the intersection attack and a generic seed search, both figures derived in
+      this session and neither read from a source.
+    hidden_overhead: >-
+      The gates-per-multiplication convention, whether the expansion is charged
+      per candidate, and the level figure. All three are larger than the margins
+      they modify, which is the honest headline of Part B.
+    tradeoff_note: >-
+      Compression trades about 6.4x in public-key size (SESSION-COMPUTED
+      278,432 -> 43,592 bytes at the level-I tuple) for a security cap at the
+      seed length, and buys back the removal of a key-subversion channel. Three
+      numbers, three directions, one trade.
+
+  dominated_by: >-
+    n/a - no attack is claimed and no improvement is offered. FRONTIER ROWS
+    ACTUALLY CHECKED, for key recovery against a COMPRESSED UOV instance at the
+    recalled level-I tuple, on all three axes, using only quantities derived in
+    this session. TIME: generic seed search 2^146.2; intersection attack
+    2^158.0; Kipnis-Shamir 2^205.8; direct full-oil-space key equation 2^553.8.
+    MEMORY: generic seed search polynomial; intersection attack 2^72.2 field
+    elements; Kipnis-Shamir polynomial; direct key equation 2^265.1.
+    DATA/QUERIES: all four are key-only and need zero signatures. RESULT OF THE
+    CHECK: the generic seed search is not dominated on any axis at the compressed
+    level-I tuple - it is best on time and tied-best on memory and data - which
+    is the finding. It is of course not an improvement over anything, because it
+    is the trivial attack the seed length was chosen to resist; that is the
+    whole point of stating the margin. ROWS NOT CHECKED, declared: forgery
+    routes, multi-user attacks beyond the bound derived in Part B, fault and
+    side-channel routes, quantum search (which would halve the seed exponent and
+    is NOT costed here), and anything in the unread specification.
+  sota_delta: >-
+    Zero against the state of the art - every component is either an identity or
+    a generic search that the designers presumably accounted for. Quantitatively
+    against THIS PROGRAM: the count of UOV records stating a compressed-variant
+    security bound moves from 0 to 1; the binding key-recovery term for the
+    compressed level-I tuple moves from an unstated algebraic 2^158.0 to a
+    stated generic 2^146.2, a correction of 11.8 bits in the direction that
+    matters; and half of GOAL-UOV-001's second completion criterion is
+    discharged by a one-line identity at zero compute.
+
+  estimated_cost:
+    implementation: >-
+      low. Stage 1 needs a toy UOV key generator over F_16 - roughly 200 lines
+      including field arithmetic - which the paired experiment
+      EXP-UOV-cd7536 must build anyway. Stages 2 and 3 are standard-library
+      arithmetic and a small enumeration.
+    compute: >-
+      negligible; minutes in total.
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.95 that Part A survives exactly as stated - it is an identity, and the
+    only way it fails is if the scheme does not do what the recalled structure
+    says. 0.45 that Part B survives as a FINDING rather than as a reproduction:
+    the arithmetic is near-certain but the specification probably already
+    contains it, and this record's falsification_conditions name that as the
+    most likely outcome. It is not lower than 0.45 because even a reproduction
+    settles GOAL-UOV-001's compression criterion with a number rather than an
+    assertion, and because the MARGIN being 2 to 5 bits rather than 60 is
+    genuinely informative regardless of who computed it first. 0.60 that Part C
+    survives quantitatively - the union bound is derived but its q = 16 case is
+    already vacuous, and the corank at which MinRank actually bites is not
+    answered. Overall 0.90 that the audit reaches a decisive readout, since
+    every stage is arithmetic or a toy key generation.

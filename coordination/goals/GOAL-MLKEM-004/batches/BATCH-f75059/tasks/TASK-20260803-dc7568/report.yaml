@@ -1,0 +1,987 @@
+red_team_report:
+  id: RT-20260803-4d68e0
+  task_id: TASK-20260803-dc7568
+  batch: BATCH-f75059
+  goal: GOAL-MLKEM-004
+  role: red-team
+  independent_session: true
+  reviewed_snapshot_commit: e08462acade9e8399211e0c08350964b57b48d02
+  reviewed_package: coordination/goals/GOAL-MLKEM-004/batches/BATCH-f75059/tasks/TASK-20260803-5f11b7/
+  recorded_at: '2026-08-03'
+
+  verdict: blocking_objections
+
+  verdict_statement: >-
+    THE DATA ARE CLEAN AND EVERY NUMBER I COULD CHECK REPRODUCES. The
+    certificate re-derives exactly (0 violating entries of 447,975 by my own
+    integer arithmetic), a_x = 0.8902087 and a_y = 0.1585554 reproduce to all
+    printed digits, and NULL-V reproduces essentially exactly with my own code
+    and my own seeds (sieve sd 0.088012 against length-matched surrogate
+    0.087716, 0.34%, against the producer's 0.088015/0.087785). The block is not
+    on the measurement. It is on TWO HEADLINE CONCLUSIONS, both of which are
+    negative results, both of which are about to drive a decision on batches 3-6,
+    and both of which fail the standard this program applies to positive claims.
+    (1) PAC-1's generalisation is FALSE. NULL-V was applied only to the
+    correct-secret score, a statistic that contains no y at all and therefore
+    cannot depend on lattice membership except through ||x||, which the surrogate
+    matches by construction. I ran the null the batch owed -- on the statistics
+    that DO involve y -- and the sieve database is distinguishable from a null
+    that preserves both length multisets and the per-column marginals of Y and
+    removes only the pairing y_i = A^T x_i: near-miss sd ratio 0.14289 against
+    0.10541 +/- 0.00099 (+35.6%, ~38 surrogate sd) and correct-minus-best-of-8
+    delta 0.001522 against 0.001761 +/- 0.000011 (-13.6%, ~22 surrogate sd, 5x
+    the batch's own instance-to-instance sd). The observable is blind on the one
+    statistic NULL-V tested and NOT blind on the statistics it did not.
+    (2) The P1 "no tuple exists" headline is a statement about this harness's
+    scoring protocol, not about MATZOV.Nf, and the package contradicts it in its
+    own section 5: reading R-A -- (m=35, k_enum=0, k_fft=0, p irrelevant,
+    beta_bkz irrelevant, beta_sieve=60) -- IS an admissible tuple for the vector
+    family this run produced, the package uses it, and the enumeration of 351
+    pairs is literally `if (k_enum+k_fft==0) and (k_enum+k_fft==25)`.
+    The commit message at e08462ac carries the fourth interpretive overclaim of
+    this program, and it is the FIRST one in the PESSIMISTIC direction: "the
+    headline observable CANNOT distinguish the sieve database from any vector
+    family of the same lengths. The design cannot yet see what the campaign wants
+    to see." Under docs/inventor-protocol.md that is premature closure, which
+    this program treats as symmetric with overclaiming. I found no security
+    claim, no ML-KEM break claim, and no FIPS 203 statement anywhere in the
+    package or the commit message; the disclaimers are present and correct.
+
+  rule12_status: >-
+    AGENTS.md rule 12 is UNMET and UNWAIVED, inherited from GOAL-MLKEM-003. This
+    report changes the status of no EV-MLKEM-* record and no KN-* entry, and
+    proposes none. It recommends against a superseding action, not for one.
+
+  scope_statement: >-
+    Everything below is scoped to m=35, n=25, d=60, q=127, secret
+    centred-binomial eta=2, error rounded-Gaussian sigma=2, one sieve
+    (g6k 0.1.2 bgj1_sieve, threads=1), one database of 17,919 vectors, 34
+    candidates, seeds as recorded, and -- for every one of my own new
+    computations -- the SINGLE primary instance, because that is the only
+    instance whose vectors were emitted. TOY SCALE. No ML-KEM break claim, no
+    security proof, no FIPS 203 parameter set affected or cleared, no cost claim,
+    no speedup, no attack. My own findings are subject to the same rules I apply
+    to the producer's: they are one instance and require replication before use.
+
+  claim_under_review: >-
+    That batch 2's comparison against MATZOV.Nf is sound and its conclusions
+    supported, specifically: that no admissible (m, k_enum, k_fft, p, beta_bkz,
+    beta_sieve) tuple exists for this design; that the vector-null is a
+    controlled null and PAC-1 therefore stands unrefuted; that the per-vector
+    advantage law and the uniform arm of the iid noise model hold at the stated
+    tolerances; and that two batch-1 records are corrected.
+
+  # ==========================================================================
+  objections:
+
+    - id: OBJ-1
+      severity: blocking
+      title: >-
+        NULL-V names lattice membership and the exact 3-term relations as the
+        objects it removes, then measures a statistic that provably cannot
+        depend on either. With respect to the objects it names, it cannot fail.
+      detail: >-
+        results.json -> S8_nulls_P2 -> NULL-V declares removes_object = "THE
+        SIEVE DATABASE ITSELF -- its lattice membership, its integrality, the
+        exact 3-term algebraic relations among its vectors, and its ball
+        saturation structure", and declares can_it_fail: YES. Its statistic field
+        reads "mean_i cos(2 pi x_i.e / q) for the correct secret". That statistic
+        is a function of x alone. y never enters it, so lattice membership
+        (y = A^T x mod q), the 3-term relations among the (x,y) pairs, and
+        integrality cannot influence it except through the ||x|| distribution --
+        which the surrogate matches vector by vector BY CONSTRUCTION. So with
+        respect to three of the four objects it names, NULL-V is exactly the
+        defect DEC-20260803-d810d0 PD-1 was written to prevent, one level up from
+        batch 1's NULL-T: a control that passes because it cannot fail. What
+        NULL-V DOES legitimately test -- whether the concentration is a property
+        of the length distribution rather than of the direction distribution --
+        it tests well, and that result is correct and I reproduce it exactly.
+        The error is in the removes_object field and in everything downstream
+        that reads it.
+      cheapest_check: >-
+        Apply the identical surrogate to any statistic that contains y. I did;
+        see OBJ-2. Cost: seconds of numpy on the already-emitted vectors.json.
+
+    - id: OBJ-2
+      severity: blocking
+      title: >-
+        PAC-1's generalisation is refuted. The sieve database IS distinguishable
+        from length-matched vector families -- on exactly the near-miss
+        statistics that carry the batch's only interesting departure.
+      detail: >-
+        I built three nulls and scored all 34 candidates through each, 2000
+        paired error draws, 5 independent surrogate realisations, my own code and
+        seeds. The sharpest null preserves the EXACT multiset of x vectors, the
+        EXACT multiset of y vectors, and therefore every length distribution and
+        every per-column marginal of Y, and removes ONLY the per-vector pairing
+        y_i = A^T x_i mod q -- i.e. lattice membership, and nothing else.
+        Results (real / row-permuted-pairing / random-direction):
+          correct-secret sd over e : 0.088012 / 0.088012 / 0.087716 +/- 0.000098
+          near-miss sd ratio to iid: 0.142888 / 0.105408 +/- 0.000991 / 0.104707 +/- 0.001475
+          correct - mean of 8 nm   : 0.002639 / 0.002582 +/- 0.000006 / 0.002626 +/- 0.000008
+          correct - best of 8 nm   : 0.001522 / 0.001761 +/- 0.000011 / 0.001808 +/- 0.000011
+          P(correct first vs nm)   : 0.984    / 0.9971  +/- 0.0012    / 0.9970 +/- 0.0015
+        The correct-secret row is a controlled null to 0.34% -- the producer is
+        right there, and I reproduce their 0.3% independently. Every row that
+        involves y is NOT. The real database is 35.6% MORE spread across
+        near-miss candidates (~38 surrogate sd) and separates the correct secret
+        from its best near-miss 13.6% WORSE (~22 surrogate sd, and 5x the batch's
+        own instance-to-instance sd of 4.3e-5 on 1.571e-3 from S9). A permutation
+        of each COLUMN of Y independently -- which preserves the exact empirical
+        marginal of every y_k -- also fails to reproduce it (0.104814 +/-
+        0.002603), so the effect is not column-marginal heterogeneity. It is
+        localised to the (x_i, y_i) pairing, which is the object whose
+        independence MATZOV.Nf asserts.
+        I APPLIED THE DECAY CONTROL TO MY OWN FINDING before believing it. The
+        parameter that should destroy a sampling artifact here is N. Excess
+        (real/row-permuted) of the near-miss sd ratio at N' = 500 / 2000 / 8000 /
+        17919: 1.062 / 0.987 / 1.193 / 1.354. The surrogate's ratio is flat at
+        ~0.105, i.e. its near-miss spread decays exactly as 1/sqrt(N); the real
+        database's does not. That is a component of near-miss score spread that
+        does not decay with N, which is precisely what the independence
+        assumption forbids -- and it is invisible at N' <= 2000.
+        CONSEQUENCE FOR THE COORDINATOR'S QUESTION. The correct reading of PAC-1
+        is NOT "the campaign has built an instrument that cannot see its object".
+        It is: the campaign has ONE observable that is blind (the correct-secret
+        score and its variance, where NULL-V is decisive and correct) and at
+        least one observable that is NOT (the near-miss group statistics, where
+        no null had been run). The batch measured the blind one, generalised, and
+        wrote the generalisation into an immutable commit message.
+      narrowest_supported_form_of_my_own_finding: >-
+        At m=35, n=25, q=127, on ONE instance, at N = 17,919 which is 700x-6000x
+        the N the law itself asks for at this configuration, the sieve database's
+        near-miss score statistics differ from a null preserving both length
+        multisets and all y-column marginals by +35.6% (group spread) and -13.6%
+        (separation from the best near-miss), and the excess vanishes at
+        N' <= 2000. Nothing about ML-KEM, nothing about crypto scale, one
+        instance, one sieve, one candidate construction, unreplicated.
+      cheapest_check: >-
+        Repeat exactly this comparison on the 9 replicate instances. It is pure
+        numpy on emitted arrays and needs no sieve -- but it needs their (x,y),
+        which batch 2 did not emit (OBJ-9). Minutes once emitted.
+
+    - id: OBJ-3
+      severity: blocking
+      title: >-
+        The P1 impossibility is a statement about THIS HARNESS'S SCORING
+        PROTOCOL, not about MATZOV.Nf's expressive power, and the package
+        contradicts its own headline three pages later.
+      detail: >-
+        The enumeration in compare.py lines 372-379 is
+        `r1 = (m + k_lat == d)` and `r2 = (k_enum + k_fft == n)`, i.e. with
+        k = k_enum + k_fft it is literally `if k == 0 and k == 25`. Enumerating
+        351 pairs to discover that adds no information over the two-line
+        contradiction, and does not support "WITH A PROOF" in an immutable commit
+        message. More seriously: R1 is forced by the run (the sieve really did
+        run on the full d = 60 dual lattice), but R2 is a FREE DESIGN CHOICE --
+        the harness elected to score candidates that differ from s on all n
+        coordinates. R1 alone pins (k_enum, k_fft) = (0, 0), and the tuple
+        (m=35, k_enum=0, k_fft=0, p irrelevant by KA-3, beta_bkz irrelevant by
+        KA-5, beta_sieve=60) IS admissible: it is reading R-A, and
+        wellposedness.md section 5 uses it. So an admissible tuple exists for the
+        vector family and for the distinguishing sub-experiment the design also
+        runs (reference_zero under MAIN against NULL-T). What does not exist is a
+        tuple describing the vector family AND the full-secret candidate scoring
+        simultaneously. wellposedness.md section 6 states this correctly; the
+        report.md headline table row and the commit message do not.
+        FOR KN-OPEN-016 THIS MATTERS. Nothing in this batch bears on whether
+        MATZOV's cost model can express a full-lattice distinguishing attack. It
+        can: k_lat = n, k_enum = k_fft = 0 is exactly that, and the estimator
+        evaluates it without complaint. The batch has found a property of its own
+        protocol.
+        AND THE R-A COMPARISON IS TESTABLE, WHICH THE BATCH DENIES. I ran it.
+        Nf under R-A with the modeled length gives N_pred = 2.979; with a
+        correctly instantiated measured length (OBJ-4) 5.646. Empirically, the
+        LWE-versus-uniform distinguishing advantage on this database reaches 0.5
+        at N' ~ 8 (advantage 0.402 at N'=5, 0.512 at N'=8, 0.651 at N'=16). So
+        Nf's own output -- a sample count -- under-predicts by roughly 1.4x-2.7x
+        at this configuration. That is a well-posed, quantitative comparison
+        against MATZOV.Nf, on the reading the run's own beta_sieve pins, which
+        the batch reported as impossible.
+      caveat_on_my_own_number: >-
+        My "advantage" is max over threshold of TPR-FPR (total-variation
+        advantage). MATZOV's mu = 0.5 convention must be pinned against Theorem
+        7.6 / p.29 before 1.4x-2.7x is a number rather than an indication. That
+        is a reading task, not a run.
+      cheapest_check: >-
+        Pin mu against the MATZOV write-up, then plot distinguishing advantage
+        against N' from the already-emitted arrays. Minutes, no sieve.
+
+    - id: OBJ-4
+      severity: must_fix
+      title: >-
+        The package carries two different "measured lsigma_s", and the one that
+        anchors the N_pred grid omits a term Nf's own formula contains.
+      detail: >-
+        S2's prefactor reading P-C uses lsigma_s = 26.9702, which is
+        sqrt(sigma_e^2 <||x||^2>) = sqrt(4 * 181.848) -- the x-block only. S6's
+        sub_comparison_C uses measured_effective_lsigma_s = 29.2737, which is
+        sqrt(sigma_e^2<||x||^2> + sigma_s^2<||y||^2>) = sqrt(727.39 + 129.56).
+        Both are labelled "measured". Nf's lsigma_s is
+        Xe.stddev^(m/(m+k_lat)) * (Xs.stddev*q)^(k_lat/(m+k_lat)) * ..., which
+        explicitly carries the secret-block factor, so 29.2737 is the correct
+        measured analogue and 26.9702 is not. Consequence: the measured-length
+        prefactor should be exp(2*1.0488) = 8.146, not 5.932, and the
+        much-celebrated "reproduction of RT-20260803-4064e1's low endpoint,
+        24.854 against 24.9" reproduces batch 1's own instantiation rather than a
+        correct one. I verified 24.4058 for the modeled lsigma_s by hand from the
+        source formula, so the MODELED column is right; only the MEASURED column
+        is mis-built.
+      cheapest_check: Recompute the grid with the sigma-weighted measured length. Three lines.
+
+    - id: OBJ-5
+      severity: must_fix
+      title: >-
+        The "1015x spread before any data" is manufactured by taking a Cartesian
+        product over cells that the very identity used to prove emptiness forbids.
+      detail: >-
+        k_lat = n - k_enum - k_fft is an identity. L3 (k_enum = n) therefore
+        implies k_lat = 0 and cannot be paired with P-A or P-C, both of which
+        assume k_lat = n. L1 (k_enum = k_fft = 0) implies k_lat = n and cannot be
+        paired with P-B, which assumes k_lat = 0. Of the 12 grid cells, only four
+        are internally consistent: L1xP-A = 2.979, L1xP-C = 4.112 (the k_lat = n
+        family, which is the family this run produced), and L3xP-B = 53.277,
+        L4xP-B = 125.100 (a k_lat = 0 family, which would need a sieve in
+        dimension 35, not 60). Since beta_sieve = 60 is a FACT OF THE RUN, the
+        run pins the first cluster, and the admissible spread is 2.979 to 4.112 =
+        1.38x, not 1015x. L2 is not an Nf instantiation at all (its k_enum and
+        k_fft are null in the record). The report's own strongest sentence --
+        "a residual against a predicted value that is uncertain by three orders
+        of magnitude is not a measurement of anything" -- is therefore built on a
+        spread that its own identity forbids.
+      cheapest_check: Mask the grid on `m + (n - k_enum - k_fft) == beta_sieve`. Two lines.
+
+    - id: OBJ-6
+      severity: must_fix
+      title: >-
+        "The uniform arm HOLDS to 0.2%" is over-precise by roughly 8x. The quoted
+        error bar omits the two dominant variance components, and the post-hoc
+        correction that produces 0.9978 is smaller than the honest uncertainty.
+      detail: >-
+        D2 ITSELF IS LEGITIMATE, and I checked it before objecting: c4(16) =
+        0.983484 and c4(8) = 0.965030 reproduce exactly from
+        sqrt(2/(n-1))*Gamma(n/2)/Gamma((n-1)/2); it is a standard, parameter-free
+        bias correction of the sample sd; it was applied to all three groups and
+        moves two of them AWAY from unity (3.9612 -> 4.1047, 0.1450 -> 0.1503),
+        so it is not directionally cherry-picked. The objection is about the
+        error bar it is quoted against. The report cites ratio 0.9814 +/- 0.1780
+        over 2000 draws, sem 0.00398, and reads the D2-corrected 0.9978 as
+        agreement to 0.2%. But the 16 uniform candidates are FIXED across those
+        2000 draws and so is the database, so draw-resampling is not the dominant
+        variance. The batch's own S9 gives instance-to-instance sd 0.05209 across
+        9 instances -- sem 0.0174 -- and my 5 independent surrogate realisations
+        give a realisation sd of 0.0148 on the same quantity. The honest headline
+        is "consistent with 1 within about 2%", at which precision the 1.66% D2
+        correction is unresolvable and load-bears nothing. Note the same sem
+        error inflates the ingredient-1 statement: decile 1 and decile 10 are
+        quoted at "about 11 and 10 sem from unity" on the same per-draw sem.
+      cheapest_check: >-
+        Quote every ratio with the S9 across-instance sem, which the batch
+        already computed. Zero new computation.
+
+    - id: OBJ-7
+      severity: must_fix
+      title: >-
+        A cryptographic-scale claim, stated as fact, inside a batch that declares
+        it asserts no extrapolation heuristic -- and reached by the wrong argument.
+      detail: >-
+        report.md section 3: "That discreteness correction is a property of the
+        toy modulus/sigma regime (sigma/q = 2/127) and shrinks at cryptographic
+        q". I re-derived D1 independently and it is exactly SHEPPARD'S
+        CORRECTION: Var(round(N(0,2))) = 4.0833333... = sigma^2 + 1/12 to machine
+        precision, and the closed form exp(-a_x/(12 sigma_e^2)) = 0.98162
+        predicts the observed -1.8% common offset with ZERO free parameters, plus
+        the per-decile trend (predicted 0.98675 .. 0.97673 against my measured
+        0.98557 .. 0.97337 over my own 2000 draws). D1 is principled, not fitted;
+        that half of the card's question is answered in the producer's favour.
+        But that factor does not depend on q at all. It depends on
+        a_x/(12 sigma_e^2), and a_x GROWS at cryptographic parameters. At a dual
+        operating point a_x = 18.4 with sigma_e^2 = 1.5 the same rounded-Gaussian
+        correction would be exp(-1.02) = 0.360, i.e. N wrong by 7.7x. The
+        conclusion is benign for ML-KEM only because ML-KEM's error is CENTRED
+        BINOMIAL, whose characteristic function prod_j cos^{2eta}(pi x_j/q)
+        deviates from the Gaussian at fourth order rather than second: I compute
+        exact/Gaussian = 0.9997 / 0.9922 / 0.8989 at a = 1 / 5 / 18.4 for eta = 3
+        and 0.9995 / 0.9884 / 0.8513 for eta = 2, i.e. N off by 1.24x and 1.38x
+        respectively at a = 18.4. Right conclusion, wrong reason, asserted where
+        the batch says it asserts nothing.
+      cheapest_check: >-
+        The arithmetic above -- exact CBD characteristic function against the
+        Gaussian idealisation at ML-KEM (q, eta) and a dual-attack a_x. Seconds,
+        no sieve, and it is CRYPTO-SCALE, which nothing else in this campaign is.
+
+    - id: OBJ-8
+      severity: scope
+      title: >-
+        The term this design "cannot test in either direction" is worth 2^11.4 of
+        the sample count at the pinned estimator's OWN ML-KEM-512 optimum. The
+        package treats it as a footnote.
+      detail: >-
+        I re-ran KA-6 independently in the rebuilt venv against the pinned
+        estimator at commit 3e48ef4 (clean tree): LWE.dual_hybrid(Kyber512,
+        RC.ADPS16) returns log2(rop) = 115.50989392, beta' = 395, p = 5,
+        zeta = 0, t = 40, N ~ 2^81.4 -- reproducing the producer's 2^115.5099
+        exactly. Reading estimator/lwe_dual.py lines 619-620, cost["zeta"] is
+        k_enum and cost["t"] is k_fft, so the optimum at ML-KEM-512 is k_enum = 0,
+        k_fft = 40, p = 5. At that point exp(k_fft/3 * (sigma_s pi / p)^2) =
+        2685.7 = 2^11.39 and k_fft*log(p) = 64.38 against log(1/mu) = 0.693.
+        So (i) the near-miss/adjacent-bin factor the design sets identically to 1
+        is 11.4 bits of N at the parameter set this goal names, and (ii) the
+        design's operating corner (k_enum = k_fft = 0) is precisely the corner
+        the estimator's optimiser never selects at cryptographic parameters. This
+        is by far the strongest available argument that batch 3 must change the
+        DESIGN rather than the observable, and it appears nowhere in the package.
+      cheapest_check: Already run; four lines against the pinned estimator, seconds.
+
+    - id: OBJ-9
+      severity: must_fix_record
+      title: >-
+        The 9 replicate instances -- the entire answer to D-6 -- are not
+        independently checkable, because only the primary instance's vectors were
+        emitted.
+      detail: >-
+        RT-20260803-4064e1 OBJ-3's remedy was "emit x and y so a reviewer can
+        score any candidate without re-running". Batch 2 honoured it for the
+        primary instance (vectors.json, 3,751,898 bytes, sha256 7f8c545d...,
+        which I verified byte-for-byte against results.json and used for every
+        computation in this report) and not for the 9 replicates. Since D-6 makes
+        the primary instance a deliberate reuse of batch 1's seeds, the
+        replicates carry the whole independence argument, and every replicate
+        number rests on the producer's transcript alone. This also blocks the
+        cheapest check of my own OBJ-2.
+      cheapest_check: >-
+        Emit the 9 replicate (x, y) sets, or at minimum the per-instance 34 x
+        n_draws score matrices. ~35 MB, one re-run of an existing script.
+
+    - id: OBJ-10
+      severity: correct_the_record
+      title: >-
+        The two claimed corrections to batch 1 do NOT overturn EV-MLKEM-da9e3b.
+        They refine it. Superseding it on these grounds would supersede on a
+        false premise -- I say that plainly because the card asked me to.
+      detail: >-
+        CORRECTION 1 (OBS-6, the 9-of-9 / z = -2.31). I reproduced the null
+        independently: 1000 fresh uniform targets on the emitted database give
+        the nominal secret mean rank 4.949 +/- 2.653 of 9 within the
+        secret-distribution group (producer: 5.051 +/- 2.571), and
+        P(rank = 9) = 0.108 against the exchangeable prediction 1/9 = 0.111. So
+        the producer's claim is CORRECT and I confirm it. But OBS-6 as written
+        asserts only that all 8 secret-shaped candidates beat the nominal secret
+        in batch 1's single draw and that the package did not name it. Both remain
+        true. The observation is EXPLAINED, not falsified.
+        CORRECTION 2 (OBS-4, the ~20%). OBS-4 as written says "Resampling the
+        error gives correct-secret mean +0.4029 +/- 0.0856" -- it already names
+        error-resampling as the source. Batch 2's S9 adds that instance-to-
+        instance sd is 0.0041, 22x smaller. That is new information, not a
+        contradiction. The only sentence now known to be imprecise is the
+        strength_note's universal "every headline number carries roughly 20%
+        unreported uncertainty", which is right for batch 1's single-draw scores
+        and wrong for quantities averaged over many draws.
+        RECOMMENDATION: do not supersede EV-MLKEM-da9e3b on these two grounds.
+        Record both as supplements in the batch-2 evidence record. IF anything in
+        EV-MLKEM-da9e3b needs a superseding note it is OBS-2, whose sentence "the
+        411x / N_eff = 44 inflation is therefore a controlled null" is correct for
+        the correct-secret statistic and must not be carried to any statistic
+        involving y (OBJ-2).
+      cheapest_check: Already run; 1000 null draws on the emitted arrays, seconds.
+
+    - id: OBJ-11
+      severity: minor_record
+      title: Three smaller overstatements, none material on its own.
+      detail: >-
+        (a) "restores EXACT iid behaviour at N_eff 18319 against N = 17919": that
+        is a 2.2% excess, i.e. a 1.1% sd agreement, at 1000 draws where the noise
+        on an sd estimate is itself ~2.2%. "Consistent with iid" is the supported
+        word. (b) The post-D1 shape trend is reported as corr = +0.7571, read as
+        a sign flip. My own independent 2000 draws give corr = -0.3887 on the
+        same corrected prediction. The sign is not stable between two draw sets,
+        so the residual trend after D1 is not significant -- which strengthens D1
+        and weakens the reading of it. (c) KA-6's 2^115.5099 for Kyber512 appears
+        in the commit message without the note that it is the pinned repository's
+        documented value being round-tripped, not this program's estimate. The
+        sentence does say "round-trips the pinned repo's own documented Kyber512
+        value", which is adequate; flagged only because it is the first
+        crypto-scale number this campaign has emitted.
+      cheapest_check: Wording, in the batch-2 evidence record. Zero compute.
+
+  # ==========================================================================
+  required_controls:
+    - id: CTRL-RT-7
+      name: the vector-null applied to statistics that CONTAIN y
+      spec: >-
+        Score every candidate group through (i) random directions matched to
+        ||x_i|| and ||y_i||, (ii) a permutation of the row index of Y against X
+        that preserves both multisets and removes only the pairing
+        y_i = A^T x_i, and (iii) an independent permutation of each column of Y
+        that preserves every marginal <y_k^2>. Report the near-miss sd ratio, the
+        correct-minus-best-of-8 delta and P(correct first) for all four
+        populations, >= 5 surrogate realisations, >= 10^3 paired error draws.
+      status: RUN BY RED TEAM, this report. Real database separable from all
+        three nulls on every y-bearing statistic; identical to them on the
+        correct-secret statistic.
+    - id: CTRL-RT-8
+      name: N-decay control on the separation of OBJ-2
+      spec: >-
+        Repeat CTRL-RT-7 at N' in {500, 2000, 8000, 17919}. The independence
+        assumption predicts every spread decays as 1/sqrt(N'); a component that
+        does not is the finding, a component that vanishes as N' grows is a
+        small-sample artifact.
+      status: RUN BY RED TEAM. Excess 1.062 / 0.987 / 1.193 / 1.354. Surrogate
+        flat at ~0.105, i.e. exactly 1/sqrt(N'); real database not.
+    - id: CTRL-RT-9
+      name: instance replication of CTRL-RT-7
+      spec: >-
+        CTRL-RT-7 on all 9 replicate instances. This is the control my own
+        finding needs before anyone believes it, and it is blocked by OBJ-9.
+      status: NOT RUN -- replicate vectors were not emitted. BLOCKING for any
+        use of OBJ-2 beyond "one instance".
+    - id: CTRL-RT-10
+      name: length-model decay control in beta_sieve
+      spec: >-
+        wellposedness.md section 5's 17% length under-prediction / 47% advantage
+        over-prediction is currently uncontrolled. The parameter that is supposed
+        to destroy it is beta_sieve. Measure modeled/measured lsigma_s at
+        beta_sieve in {40, 50, 60, 70} and check that the ratio moves toward 1.
+        Note separately that this run sieved the UNWEIGHTED norm ||x||^2+||y||^2
+        while Nf's lsigma_s describes the sigma-weighted lattice, so part of the
+        17% is a design confound, not a departure.
+      status: NOT RUN. Required before the length sub-comparison is quoted again.
+    - id: CTRL-RT-11
+      name: known-answer control on the R-A distinguishing prediction
+      spec: >-
+        Pin MATZOV's mu convention against Theorem 7.6, then measure
+        distinguishing advantage against N' and compare with
+        Nf(m=35, 0, 0, p, beta_bkz, 60).
+      status: RUN BY RED TEAM in indicative form (advantage 0.5 at N' ~ 8 against
+        N_pred 2.98-5.65); mu convention NOT pinned, so the ratio is indicative.
+
+  counterexample_or_mutation: >-
+    The decisive mutation is the row-permutation null and I ran it. Take the real
+    sieve database, keep every x, keep every y, and destroy nothing except which
+    y is paired with which x. Every length distribution, every column marginal,
+    every entry multiset is preserved exactly; the only thing removed is
+    membership of the dual lattice. The correct-secret statistic is unchanged to
+    six decimal places (0.088012 both sides, as it must be, since it never reads
+    y). The near-miss group spread falls by 26% (0.142888 -> 0.105408 +/-
+    0.000991) and the separation from the best near-miss rises by 16%
+    (0.001522 -> 0.001761 +/- 0.000011). Therefore the claim "the headline
+    observable cannot distinguish the sieve database from any vector family of
+    the same lengths" is false as a general statement, and the campaign's
+    instrument is not blind to its object -- it was pointed at the one statistic
+    that is.
+
+  baseline_comparison:
+    applicable: partially
+    note: >-
+      No attack, no speedup and no cost claim is made, so there is no
+      Pollard-rho / BSGS / specialised-baseline row to contest. The package sets
+      dominated_by to "any version of this measurement at more than one (m,q)
+      pair, or with a statistic sensitive to the exact 3-term relations" and
+      sota_delta to "none claimed". I checked that against every axis I could:
+      time, memory and data/queries are all unclaimed because no attack exists,
+      and states_a_conclusion is false in results.json, which is true of the
+      shipped code. The dominated_by field is honest and, given OBJ-2, is now
+      also SATISFIED IN PART: a statistic sensitive to more than lengths exists
+      and is cheap.
+    baselines_that_do_apply:
+      - name: MATZOV.Nf, pinned lattice-estimator commit 3e48ef4
+        comparison: >-
+          KA-6 reproduced independently by me: Kyber512 / ADPS16 gives
+          log2(rop) = 115.50989392, beta'=395, p=5, zeta=0, t=40, N~2^81.4,
+          against the repository's documented 2^115.5. KA-3 (p-independence at
+          k_fft=0) and KA-0a/0b/0c reproduced. KA-4 reproduced by source
+          inspection: Hf divides by log(2.0) and so returns BITS while log(p) and
+          log(1/mu) in the same sum are NATS. Direction, which the package does
+          not state: since Hf_bits > Hf_nats, the code's log-term is LARGER than
+          the natural-log reading, so N and hence the cost estimate are
+          CONSERVATIVE for a defender. Under reading R-A, Nf's N_pred is 2.98
+          (modeled length) or 5.65 (correctly instantiated measured length)
+          against a measured distinguishing threshold of N' ~ 8.
+      - name: null objects preserving lengths and marginals
+        comparison: >-
+          Reproduce the correct-secret concentration to 0.34% and FAIL to
+          reproduce the near-miss statistics by 14-36%. This is the baseline the
+          package is missing.
+      - name: Ducas-Pulles critique of the independence assumption
+        comparison: >-
+          The measurement remains consistent with the critique in the place the
+          critique points at, and OBJ-2 now supplies the first evidence in this
+          campaign that the effect is attributable to lattice membership rather
+          than to lengths. One instance, toy scale, at N >> N_pred.
+    sota_delta: >-
+      n/a. No attack, no cost claim, no exponent. Measurement and control
+      contribution only.
+
+  heuristic_challenges:
+    - id: HC-3
+      challenge: >-
+        The batch states "This batch asserts no numbered extrapolation heuristic"
+        and then asserts one in prose (OBJ-7: "shrinks at cryptographic q"). An
+        unnumbered extrapolation is worse than a numbered wrong one, because
+        nothing downstream can falsify it.
+      falsification_condition: >-
+        Evaluate the exact characteristic function of the actual error
+        distribution against the Gaussian idealisation at ML-KEM (q, eta) and a
+        dual-attack a_x. I did: 1.24x-1.38x on N for centred binomial, 7.7x for
+        rounded Gaussian. The stated q-scaling is falsified; the benign
+        conclusion survives for a different reason.
+    - id: HC-4
+      challenge: >-
+        Random-model transfer, sharpest form, unchanged from
+        RT-20260803-4064e1 HC-2 and now with a measured consequence: a sieve
+        database is not N independent samples. Batch 1 counted 7,248 + 10,041
+        exact 3-term relations. Batch 2 measured no statistic sensitive to them
+        and said so honestly. OBJ-2 shows that a statistic sensitive to lattice
+        membership exists, is cheap, and separates. Whether the separation is
+        attributable to the 3-term relations specifically, or to the weaker fact
+        that y_i is a deterministic function of x_i, is NOT determined by my
+        control and should not be asserted.
+      cheapest_experiment_that_would_expose_deviation: >-
+        Score only the 17,289 vectors participating in an exact 3-term relation
+        against a size-matched random subset of the database, on the near-miss
+        statistics. Numpy on emitted arrays, minutes, no sieve.
+    - id: HC-5
+      challenge: >-
+        H-SCALE-1 remains OFFERED AND KNOWN INCOMPLETE, and the batch correctly
+        declines to adopt it. Nothing in this report adopts it either. My a_x =
+        18.4 arithmetic in OBJ-7 and OBJ-8 is arithmetic ON THE ESTIMATOR'S OWN
+        OUTPUT at ML-KEM-512, not an extrapolation of any toy measurement, and
+        must not be cited as one.
+
+  cost_model_challenges:
+    - id: CMC-5
+      challenge: >-
+        Per-attempt versus total expected cost. The batch reports mean scores and
+        per-group success probabilities but never converts to Nf's own currency,
+        which is a sample count tied to mu. OBJ-3 shows the conversion is
+        available and cheap. Total expected cost = per-attempt x inverse success
+        probability is not exercised anywhere in this campaign yet.
+    - id: CMC-6
+      challenge: >-
+        Eliminated-dimension check (KN-LIT-7593). My row-permutation and
+        column-permutation nulls are NOT realisable vector families -- they are
+        not lattice points and no attacker can obtain them. They are null objects,
+        exactly as batch 2's random directions are, and nothing in OBJ-2 proposes
+        them as a shortcut. The cost of my computation is charged: 8 numpy passes
+        over the emitted 17,919 x 60 arrays, no sieve, no estimator run beyond
+        the 2 known-answer calls.
+    - id: CMC-7
+      challenge: >-
+        N is still bounded by sieve memory and is still not a free parameter.
+        OBJ-2's effect grows with N and is invisible at N' <= 2000, so any future
+        statement about it must say what sieve dimension supplies the N and at
+        what memory, or it charges an eliminated dimension for free.
+
+  reduction_and_scope_challenges:
+    - id: RSC-4
+      challenge: >-
+        SECURITY-CLAIM AUDIT of report.md, wellposedness.md, results.json,
+        receipt.json and the snapshot commit message e08462ac, done sentence by
+        sentence looking specifically for an ML-KEM break, a security proof, a
+        FIPS 203 parameter set affected or cleared, a speedup, a cost claim, or a
+        status change to an EV-* or KN-* record.
+      finding: >-
+        NONE FOUND. The scope banners are present, first, and binding in
+        report.md; results.json carries scope and rule12_status;
+        states_a_conclusion is false; the commit message's TOY SCALE paragraph is
+        correct and complete. The Coordinator did NOT overclaim on security in
+        this commit. The overclaim in this commit is of a different kind and is
+        OBJ-2/OBJ-3: a negative universal ("CANNOT distinguish ... from any
+        vector family of the same lengths", "The design cannot yet see what the
+        campaign wants to see", "P1 IS ANSWERED IN THE NEGATIVE, WITH A PROOF")
+        generalised from one statistic, one surrogate family and one instance.
+        docs/inventor-protocol.md section 4 holds a closure to a named
+        obstruction, an argument and forward guidance; "the observable is blind"
+        has an argument only for the statistic that was tested. This is the
+        fourth interpretive overclaim in an immutable commit message in this
+        program and the first in the pessimistic direction.
+    - id: RSC-5
+      challenge: >-
+        Certificate scope. certificate.kind is lattice_membership only, with an
+        explicit "no discrete-log solve and no factor-base relation". I
+        re-derived it from A and the emitted vectors with my own integer
+        arithmetic: 0 violating entries of 447,975, 0 all-zero vectors, 17,919
+        distinct y rows. It certifies the vectors and nothing inferred from their
+        scores, and the package says exactly that.
+    - id: RSC-6
+      challenge: >-
+        No published reduction is cited or instantiated, so reduction
+        instantiation is non-applicable rather than omitted. KA-4's claim about
+        the pinned estimator's units IS a claim about a third party's artifact
+        and I verified it directly in the source; it is supported, and the
+        package's hedge ("no claim that the estimator is wrong") is appropriate.
+
+  proof_architecture_challenges:
+    - id: PAC-1-STATUS
+      audit: observation collision
+      finding: >-
+        PARTIALLY REFUTED, and this is the central result of this review.
+        PAC-1 as stated in RT-20260803-4064e1 -- that the sieve database and
+        length-matched random directions have the same observable -- HOLDS for
+        the correct-secret score and its variance over error draws, where I
+        reproduce the collision to 0.34%. It FAILS for the near-miss group
+        statistics, where a null preserving both length multisets and all
+        y-column marginals and removing only lattice membership separates at
+        ~22-38 surrogate sd. The observable therefore DOES identify "sieve
+        database" against "vector family of the same lengths", on the statistics
+        that involve y. Batch 2's escalation of PAC-1 to a property of "the
+        headline observable" is not supported.
+    - id: PAC-6
+      audit: quantifier order
+      finding: >-
+        Improved but not closed. Batch 1's every-number-is-one-instance problem
+        is genuinely addressed by S9's 9 replicates for four quantities. It is
+        NOT addressed for the near-miss concentration ratio, the NULL-V
+        agreement, the D1 and D2 corrections, or anything I computed, all of
+        which remain single-instance. And D-6 makes the primary instance batch
+        1's instance, so the primary is inside batch 1's "for all", not over it.
+    - id: PAC-7
+      audit: method ceiling
+      finding: >-
+        The ceiling has MOVED DOWN, not up, and this is the argument for changing
+        the design. At the pinned estimator's own ML-KEM-512 optimum the attack
+        uses k_enum = 0, k_fft = 40, p = 5. This design's corner is k_enum =
+        k_fft = 0, which the optimiser never selects, and it sets to 1 a factor
+        worth 2^11.39 of N there. So the most this design can establish under
+        ideal tuning is the behaviour of the k_fft = 0 corner at (a_x ~ 0.9,
+        a_y ~ 0.16, m = 35, one q, one instance) -- a corner of the attack that
+        is not the attack. Four more batches of the same corner cannot reach the
+        heuristic KN-OPEN-016 is about.
+    - id: PAC-8
+      audit: nearby-object control
+      finding: >-
+        Applied and now DISCRIMINATING. The nearby object is the row-permuted
+        database: same vectors, same lengths, same marginals, not a lattice. The
+        method distinguishes it from the real object on the y-bearing statistics
+        and does not on the x-only statistic. That is exactly the diagnostic the
+        audit is for, and it says the load-bearing structure is the pairing.
+    - id: PAC-9
+      audit: baseline reproduction
+      finding: >-
+        Passes, and I strengthened it. KA-6 reproduced independently at
+        cryptographic parameters (2^115.50989 against the repository's 2^115.5),
+        KA-3 and KA-0a/0b/0c reproduced, KA-4 confirmed from source, the modeled
+        lsigma_s 24.4058 reproduced by hand from the published formula, the
+        NULL-V analytic sd 0.085933 = S * a_x * sqrt(2/m) reproduced by hand, and
+        Sheppard's sigma^2 + 1/12 = 4.0833333 reproduced to machine precision.
+        The instrument and the arithmetic are sound.
+
+  # ==========================================================================
+  claim_verification:
+    - claim: "certificate: 17,919/17,919 satisfy y == A^T x mod q, 0 violating entries of 447,975, 0 all-zero, 0 duplicate y"
+      status: reproduced
+      note: my own numpy int64 arithmetic from the emitted A and vectors; 0 violations, 17,919 distinct y rows.
+    - claim: "a_x measured = 0.8902087199960952, a_y measured = 0.15855537136281617"
+      status: reproduced
+      note: exact to all printed digits from the emitted vectors.
+    - claim: "||v||^2 min 218 / median 315 / max 329 / mean 311.40476589095374; <||x||^2> 181.848, <||y||^2> 129.556"
+      status: reproduced
+      note: exact. Also reproduces batch 1, consistent with the deliberate seed reuse (D-6).
+    - claim: "vectors.json 3,751,898 bytes, sha256 7f8c545da970d37c20a0e12ae169dd5305f9376d38c86bc9c7cb5d12aceed343"
+      status: reproduced
+      note: byte count and hash match the value recorded in results.json and report.md.
+    - claim: "ingredient 1: global ratio measured/predicted 0.9838 +/- 0.2148 over 2000 draws; deciles 0.9873 .. 0.9795, shape corr -0.9975"
+      status: reproduced
+      note: >-
+        my own 2000 fresh draws give global 0.98039 and deciles 0.98557 .. 0.97337,
+        corr -0.9491. The 0.0034 offset is 0.5 of the common-mode sem between two
+        independent draw sets. Functional form and monotone trend both confirmed.
+    - claim: "D1: exact variance of round(N(0,sigma=2)) is 4.0833, not 4"
+      status: reproduced
+      note: 4.083333333333334, i.e. exactly sigma^2 + 1/12 (Sheppard). Zero free parameters.
+    - claim: "D1: exact discrete characteristic function moves the decile ratios to 1.00045 .. 1.00327, spread 0.0028, shape residual 2.8x smaller"
+      status: reproduced
+      note: >-
+        my own draws give 0.99637 .. 0.99992, spread 0.0035, a 3.5x reduction, and
+        my closed-form Sheppard factor exp(-a_x/(12 sigma^2)) = 0.98162 predicts
+        the -1.8% offset without any fit. D1 is PRINCIPLED, not fitted.
+    - claim: "D1: shape trend correlation flips to +0.7571 after correction"
+      status: not_reproduced
+      note: >-
+        my independent 2000 draws give -0.3887 on the same corrected prediction.
+        The sign is unstable between draw sets, so the post-D1 residual trend is
+        not significant. See OBJ-11(b).
+    - claim: "D2: c4(16) = 0.983484, c4(8) = 0.965030; corrected ratios 0.9978 / 4.1047 / 0.1503"
+      status: reproduced
+      note: >-
+        c4 values exact from sqrt(2/(n-1))Gamma(n/2)/Gamma((n-1)/2); the three
+        divisions reproduce. The correction is legitimate; its quoted precision is
+        not (OBJ-6).
+    - claim: "group statistics over 2000 draws: uniform sd_within 0.005184 (ratio 0.9814), secret-dist 0.020924 (3.9612), near-miss 0.000766 (0.14504)"
+      status: reproduced
+      note: my own 2000 draws give 0.005156 / 0.97788, 3.996, 0.142888.
+    - claim: "paired deltas: correct minus near-miss group mean +0.002658 +/- 0.000633; minus best of 8 +0.001523 +/- 0.000719; P(correct first) 0.986"
+      status: reproduced
+      note: my own 2000 draws give +0.002639, +0.001522, 0.984.
+    - claim: "NULL-V: sieve db sd 0.088015 (N_eff 44.4) against matched-||x|| random directions 0.087785 (N_eff 44.7), 0.3%"
+      status: reproduced
+      note: >-
+        my own code and seeds, 2000 paired draws: 0.088012 against 0.087716
+        (0.34%). The controlled-null conclusion for the CORRECT-SECRET statistic
+        is correct. Its generalisation is not (OBJ-2).
+    - claim: "NULL-V modeled analytic sd 0.085933 = S * a_x * sqrt(2/m), independent of N"
+      status: reproduced
+      note: 0.4038 * 0.8902 * sqrt(2/35) = 0.085933 by hand; N-independence confirmed by my own N'-sweep.
+    - claim: "NULL-IID: independent error per vector gives sd 0.004368, N_eff 18319 against N = 17919"
+      status: unable_to_check
+      note: >-
+        not re-run; the mechanism is implied by my own reproduction of the
+        variance decomposition and the number is consistent with sqrt(Var_1/N).
+        "Exact" overstates a 1.1% agreement at 1000 draws (OBJ-11a).
+    - claim: "NULL-SWEEP: N_eff grows ~linearly in m (44.9/93.8/173.8/349.7) and is independent of N over a 60x range"
+      status: unable_to_check
+      note: >-
+        the m-sweep was not re-run. The N-independence half is corroborated by my
+        own N'-sweep of the correct-secret statistic. Batch 1's RT reported the
+        same and batch 2 reproduced it with independent code.
+    - claim: "NULL-T: nominal secret mean rank 5.051 +/- 2.571 of 9 within the secret-distribution group over 1000 fresh uniform targets"
+      status: reproduced
+      note: >-
+        my own 1000 fresh uniform targets give 4.949 +/- 2.653, and P(rank = 9) =
+        0.108 against the exchangeable 1/9 = 0.111. Batch 1's 9-of-9 is an
+        ordinary draw. Near-miss group 5.006 +/- 1.439, P(first) 0.005 (producer 0.002).
+    - claim: "S5b success against subsample size, near-miss group: 0.008/0.036/0.114/0.457/0.900/0.989"
+      status: reproduced
+      note: >-
+        same shape from my own draws (0.015/0.026/0.098/0.383/0.822/0.949); the
+        residual gap at large N' is my bootstrap-with-replacement against their
+        without-replacement, and their N'=17919 entry (0.989) correctly equals the
+        full-database P(correct first) 0.986 within noise.
+    - claim: "P1: exhaustive enumeration of 351 (k_enum, k_fft) pairs returns an empty admissible set"
+      status: reproduced
+      note: >-
+        compare.py 372-379 is `r1 = (m + k_lat == d)` and `r2 = (k_enum+k_fft == n)`,
+        i.e. `if k == 0 and k == 25`. The code does what it says. What it says is a
+        tautology, and the conjunction it encodes is a property of the harness's
+        scoring choice, not of Nf (OBJ-3).
+    - claim: "Nf line 540 fixes k_lat = params.n - k_fft - k_enum"
+      status: reproduced
+      note: verified in /tmp/le at commit 3e48ef4, clean tree, estimator/lwe_dual.py.
+    - claim: "KA-0a/0b/0c: LWE.dual_hybrid IS estimator.lwe_dual.matzov, type MATZOV; estimator.lwe_dual.dual_hybrid is a different callable"
+      status: reproduced
+      note: re-run in the rebuilt venv; True / MATZOV / True (a module-level function).
+    - claim: "KA-3: Nf is independent of p when k_fft = 0"
+      status: reproduced
+      note: re-run; exact equality at p = 2 against p = 127.
+    - claim: "KA-4: MATZOV.Hf returns bits while log p and log(1/mu) in the same sum are nats"
+      status: reproduced
+      note: >-
+        Hf divides by log(2.0) at estimator/lwe_dual.py; log(p) and log(1/mu) are
+        natural. Direction, unstated by the package: Hf_bits > Hf_nats, so the
+        code's N is LARGER than the natural reading, i.e. conservative.
+    - claim: "KA-6: matzov(Kyber512, RC.ADPS16) gives 2^115.5099, beta 395, p 5, zeta 0, t 40 against the repository's documented 2^115.5"
+      status: reproduced
+      note: >-
+        re-run independently in /tmp/sagevenv-f75059 against /tmp/le at 3e48ef4:
+        log2(rop) = 115.50989392453226, beta' 395, p 5, zeta 0, t 40, N ~ 2^81.4.
+        This is the batch's strongest control and it holds. It also supplies OBJ-8.
+    - claim: "RT-20260803-4064e1's endpoints reproduced: low 24.854, high 722.545"
+      status: reproduced
+      note: >-
+        5.932 x 4.1897 = 24.854 and 5.932 x 121.798 = 722.545. But the prefactor
+        5.932 is built from the x-block only and is the wrong measured analogue of
+        Nf's lsigma_s (OBJ-4), so this reproduces batch 1's instantiation, not a
+        correct one.
+    - claim: "N_pred spans 0.712 to 722.545, a spread of 1015x before any data"
+      status: not_reproduced
+      note: >-
+        arithmetic on the 12 cells is correct, but 8 of the 12 cells violate the
+        identity k_lat = n - k_enum - k_fft that the same section uses to prove
+        emptiness. Over internally consistent cells the run's own beta_sieve = 60
+        pins N_pred to 2.979 - 4.112, a spread of 1.38x (OBJ-5).
+    - claim: "modeled lsigma_s (R-A) = 24.406, prefactor 4.297, modeled per-vector advantage 0.4824"
+      status: reproduced
+      note: >-
+        2^(35/60) * 127^(25/60) * sqrt(4/3) * sqrt(60/2 pi e) = 24.410 by hand,
+        prefactor exp(4(24.406 pi/127)^2) = 4.2971, advantage exp(-0.729) = 0.4824.
+    - claim: "measured effective lsigma_s = 29.274, ratio modeled/measured 0.834"
+      status: reproduced
+      note: >-
+        sqrt(4*181.848 + 129.556) = 29.2737 and 24.4058/29.2737 = 0.83371. But this
+        is a DIFFERENT measured length from S2's P-C (26.970), and the package does
+        not reconcile them (OBJ-4). Additionally the run sieved the unweighted norm
+        while Nf's lsigma_s describes the sigma-weighted lattice, which is an
+        unnamed confound in the 17% figure (CTRL-RT-10).
+    - claim: "S9: 9 replicate instances, ingredient-1 ratio 0.98771 +/- 0.00968, uniform ratio 1.00207 +/- 0.05209, near-miss delta 0.0015715 +/- 0.000043, all certificates verified"
+      status: unable_to_check
+      reason: >-
+        the replicate instances' vectors were not emitted (OBJ-9), so every S9
+        number rests on the producer's transcript. Missing data stays missing.
+        I USE the S9 sd values in OBJ-6 and OBJ-2 only as the producer's own
+        stated uncertainty, against the producer's own claim.
+    - claim: "step 0: real rebuild of a new venv at /tmp/sagevenv-f75059; passagemath-standard 10.8.7 and g6k 0.1.2 installed from scratch; both link-level fixes needed"
+      status: unable_to_check
+      reason: >-
+        not re-run; a rebuild consumes the batch's instrument budget and this task
+        has maximum_runs = 1. The venv exists and is functional -- I used it for
+        KA-0/KA-3/KA-6 -- and the transcript records the commands. Functionality is
+        independently established by my successful estimator runs inside it.
+    - claim: "fpylll dim-60 BKZ-30 ||b0|| 160.4 -> 130.3 in 0.31s; g6k dim-50 gauss_sieve db 4166 against the recipe's 4075"
+      status: unable_to_check
+      reason: >-
+        not re-run. The 4166/4075 deviation is disclosed as D-7 with a stated cause
+        (unpinned seed in the recipe's own verification figure) and no measurement
+        in the batch depends on it. Recorded, not contested.
+    - claim: "timings: sieve 16.277 s, total 312.786 s, peak RSS 795.1 MB against a 6 GB cap"
+      status: unable_to_check
+      reason: machine- and load-dependent. Not evidence either way.
+    - claim: "[RED TEAM, NOT THE PRODUCER'S] the near-miss statistics separate the sieve database from length- and marginal-matched nulls"
+      status: reproduced
+      note: >-
+        my own computation, three surrogate families, 5 realisations each, 2000
+        paired draws. ONE INSTANCE ONLY. Requires CTRL-RT-9 before use.
+    - claim: "[RED TEAM] at the estimator's own ML-KEM-512 optimum the untestable p-term is exp(k_fft/3 (sigma_s pi/p)^2) = 2685.7 = 2^11.39"
+      status: reproduced
+      note: >-
+        from the pinned estimator's own returned optimum (zeta = k_enum = 0,
+        t = k_fft = 40, p = 5, sigma_s = 1.224745) and cost["zeta"]/cost["t"]
+        assignments at estimator/lwe_dual.py lines 619-620.
+
+  # ==========================================================================
+  batch_3_recommendation:
+    continue_this_line: false
+    abandon: false
+    statement: >-
+      CHANGE THE LINE -- but not by abandoning it, and not for the reason the
+      card proposes. The premise "the instrument cannot see its object" is false
+      (OBJ-2): the instrument sees the object on every statistic that reads y,
+      and was pointed at the one statistic that does not. Abandoning here would be
+      premature closure on a refuted premise. Equally, four more batches of the
+      same corner cannot reach KN-OPEN-016, for a reason the package never states:
+      at the pinned estimator's own ML-KEM-512 optimum the attack runs at
+      k_enum = 0, k_fft = 40, p = 5, and this design's corner (k_enum = k_fft = 0)
+      is the corner the optimiser never selects, with a factor 2^11.39 of N set
+      identically to 1 (OBJ-8).
+    the_specific_change: >-
+      Adopt the successor design the producer already names in wellposedness.md
+      section 6 and make it the batch-3 target: sieve on m + k_lat with
+      k_lat < n, and FFT the remaining n - k_lat coordinates at a modulus p > 1.
+      Concretely at this scale: m = 35, n = 25, k_lat = 15, k_fft = 10, p in
+      {2, 3, 5}, beta_sieve = m + k_lat = 50. This single change does three things
+      no amount of further measurement in the present corner can do -- (i) an
+      admissible (m, k_enum, k_fft, p, beta_bkz, beta_sieve) tuple EXISTS, so
+      MATZOV.Nf becomes a prediction about the measured object and P1 is answered
+      constructively instead of by tautology; (ii) the term
+      exp(k_fft/3 (sigma_s pi/p)^2), which exists precisely to charge the
+      adjacent-FFT-bin penalty, becomes non-trivial and therefore FALSIFIABLE in
+      both directions -- it is the law's own model of the near-miss phenomenon
+      that is the campaign's only interesting observation; (iii) the near-miss
+      population acquires a principled definition (an adjacent FFT bin) rather
+      than an ad hoc one (+1 in one coordinate).
+    the_cheapest_validating_check_before_committing_batch_3: >-
+      CTRL-RT-9, run on the already-existing replicate instances: repeat my
+      row-permutation and length-matched nulls against the near-miss statistics on
+      all 9 instances. It needs no sieve, no estimator, and about ten minutes of
+      numpy -- it needs only that the replicates' (x, y) be emitted (OBJ-9). It is
+      the cheapest check because it decides the question the card actually asks. If
+      the +35.6% / -13.6% separation replicates, the campaign has its first
+      sieve-structure-sensitive observable and batch 3 should carry it INTO the
+      redesigned corner, where the p-term makes it comparable against the law's own
+      correction. If it does not replicate, PAC-1's generalisation is restored, the
+      instrument really is blind on this instance class, and the redesign is still
+      required -- for the independent reason in OBJ-8. Either outcome licenses the
+      same change of design, which is why this is the check to run first.
+    second_cheapest_check_worth_running_in_the_same_hour: >-
+      The crypto-scale error-model arithmetic of OBJ-7 -- exact centred-binomial
+      characteristic function against MATZOV's Gaussian idealisation at ML-KEM
+      (q, eta) and a dual-attack a_x. Seconds, no sieve, no toy scale, and it is
+      the only computation this campaign has produced that speaks at cryptographic
+      parameters. It yields a defensible 1.24x-1.38x correction to N with an
+      explicit derivation and a named failure mode, which is the shape of
+      deliverable docs/target-result-profile.md asks for even when the magnitude is
+      small.
+    what_batch_3_must_not_do:
+      - >-
+        Must not cite "the headline observable cannot distinguish the sieve
+        database from any vector family of the same lengths" or "the design cannot
+        see what the campaign wants to see". Both are refuted for y-bearing
+        statistics by CTRL-RT-7 in this report.
+      - >-
+        Must not cite "no (m, k_enum, k_fft, p, beta_bkz, beta_sieve) tuple exists"
+        without the qualifier "for the conjunction of this run's vector family with
+        this run's full-secret candidate scoring". Reading R-A is an admissible
+        tuple and the package itself uses it.
+      - >-
+        Must not cite the 1015x N_pred spread; over internally consistent cells at
+        this run's beta_sieve it is 1.38x.
+      - >-
+        Must not cite the uniform arm as holding "to 0.2%". The batch's own
+        across-instance sd makes it about 2%.
+      - >-
+        Must not carry my OBJ-2 numbers as a finding about sieves until CTRL-RT-9
+        replicates them. One instance, at N >> N_pred, one candidate construction.
+
+  narrowest_supported_statement: >-
+    At m=35, n=25, d=60, q=127, secret centred-binomial eta=2, error
+    rounded-Gaussian sigma=2, on one LWE instance whose seeds are deliberately
+    those of BATCH-d2a728, a rebuilt g6k 0.1.2 bgj1_sieve returned 17,919 dual
+    vectors, all of which I independently certified to satisfy y = A^T x mod q
+    (0 violating entries of 447,975). On that database: the per-vector advantage
+    law exp(-2 pi^2 sigma_e^2 ||x||^2/q^2) holds to about 2% as written across
+    ||x||^2 deciles spanning a 3.8x range, and to about 0.3% once the error's
+    rounding is accounted for by Sheppard's correction sigma^2 + 1/12, which I
+    re-derived in closed form with no free parameters; the iid noise model for
+    uniform wrong candidates is consistent with unity within about 2%, where 2% is
+    the batch's own across-instance spread and not the 0.2% quoted; the near-miss
+    population is roughly 7x more concentrated than independence predicts, of which
+    a factor about 9.5 is reproduced by vector families with the same lengths and a
+    residual factor about 1.36 is NOT, being absent from a null that preserves both
+    length multisets and every y-column marginal and removes only membership of the
+    dual lattice; that residual grows with N over a 36x range and is invisible at
+    N <= 2000; the correct-secret score's 403x variance inflation is a controlled
+    null attributable entirely to the shared error vector, which I reproduce to
+    0.34%; and MATZOV.Nf admits exactly one instantiation consistent with this run's
+    vector family, namely k_enum = k_fft = 0, under which it predicts N = 2.98-5.65
+    against a measured distinguishing threshold near N' = 8. Every one of these is a
+    statement about one toy instance under one sieve at one modulus. None is a
+    statement about ML-KEM, about FIPS 203 parameters, about the cost of any attack,
+    or about whether MATZOV's independence heuristic holds at cryptographic scale.
+    No break. No security proof. No speedup. certificate.kind: lattice_membership only.
+
+  next_concrete_action: >-
+    Coordinator: before dispatching batch 3, issue a one-task emission job that
+    writes the (x, y) arrays for the 9 replicate instances into the batch-2 task
+    directory, then run CTRL-RT-9 on them. That single artifact decides whether
+    the campaign has a sieve-structure-sensitive observable or not, costs one
+    re-run of an existing script plus ten minutes of numpy, and is a prerequisite
+    for either possible batch-3 framing. In the same decision, correct the record
+    on OBJ-2 and OBJ-3 in the batch-2 evidence record -- the commit message at
+    e08462ac is immutable and is superseded, not edited -- and do NOT supersede
+    EV-MLKEM-da9e3b on the two claimed batch-1 corrections, which refine it rather
+    than overturn it (OBJ-10).
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-f75059/tasks/TASK-20260803-dc7568/report.yaml
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-f75059/tasks/TASK-20260803-dc7568/notes.md
+
+  inference:
+    requested_policy: red-team-adversarial
+    fallback_allowed: true
+    fallback_used: true
+    fallback_reason: >-
+      session launched without the resolved adapter environment
+      (AUTORESEARCH_POLICY / AUTORESEARCH_BACKEND unset); the executing model is
+      claude-opus-5, the same underlying model as the producer and as both batch-1
+      reviewers. That is a real limit on the independence of this review and is
+      recorded rather than glossed. fallback_allowed was true in the task card.
+    resolved_model: claude-opus-5
+    degraded_allowed: false
+    degraded_requirements: []
+    independent_session: true
+    model_verified: false
+    model_verified_note: >-
+      orchestration.adapter doctor --probe cannot verify any backend model id in
+      this environment; recorded as unverified rather than asserted.
+
+  budget:
+    wall_clock_seconds_allowed: 1800
+    memory_gb_allowed: 4
+    measurement_runs_allowed: 1
+    measurement_runs_used: 0
+    measurement_runs_note: >-
+      No sieve was run and no instrument was rebuilt. All new computation is numpy
+      analysis over the already-emitted vectors.json plus two read-only calls to
+      the pinned estimator inside the existing venv, following the precedent of
+      RT-20260803-4064e1, which classified numpy analysis of emitted arrays as
+      analysis rather than a measurement run.
+    budget_exceeded: false

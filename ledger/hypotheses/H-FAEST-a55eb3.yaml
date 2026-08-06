@@ -1,0 +1,546 @@
+hypothesis:
+  id: H-FAEST-a55eb3
+  question_id: RQ-FAEST-001
+
+  statement: >-
+    SCOPE: the bAVC opening-size filter of FAEST v2.0 AS IMPLEMENTED in
+    faest-ref (bavc.c, function bavc_open, Steps 5-17), at the twelve
+    deployed parameter sets, computed exactly or by Monte Carlo over the
+    challenge space. CLAIM TIER: exact combinatorics at deployed parameters
+    for the two measured quantities, and NOTHING ELSE -- no forgery, no
+    soundness claim, no statement about the FAEST specification's analysis,
+    which has not been read.
+    CLAIM. Define, for a challenge vector c = (c_0..c_{tau-1}) with
+    c_i in [0, N_i), the opening size
+      revealed(c) = |union over i of the root-path of pos_in_tree(i, c_i)|
+                    - 2*tau + 1,
+    the accepted set A = {c : revealed(c) <= T_open}, the acceptance rate
+    rho = |A| / |C|, and the componentwise conditioning gain
+      G = max over instances i and values v of Pr[c in A | c_i = v] / rho.
+    THEN, at faest_128f (lambda 128, tau 16, w_grind 8, T_open 110, k 8,
+    tau1 8, tau0 8, L 3072 -- all read from faest-ref):
+      (H1) revealed is NOT constant, and its maximum over C is STRICTLY
+           GREATER than T_open, so 0 < rho < 1 and the rejection branch is
+           reachable;
+      (H2) G > 1 STRICTLY, i.e. acceptance is not independent of an
+           individual challenge component, because pos_in_tree places
+           instance i's index c_i at leaf slot tau*c_i + i (for
+           c_i < 2^{k-1}), so equal components put the hidden leaves at
+           consecutive slots and unequal components separate them;
+      (H3) the honest signer's expected counter iterations equal
+           2^{w_grind} / rho, which exceeds the 2^{w_grind} that a
+           grinding-only cost model charges.
+    ALSO CLAIMED, AS AN EXACT IDENTITY REQUIRING NO RUN:
+      (H0) log2|C| + w_grind = lambda for every parameter set, because
+           log2|C| = tau1*k + tau0*(k-1) = tau*(k-1) + tau1
+                   = tau*floor((lambda-w_grind)/tau) + ((lambda-w_grind) mod tau)
+                   = lambda - w_grind.
+    IF (H1) FAILS the filter is vacuous at the deployed parameters and the
+    deliverable is a scoped negative naming that fact; if (H2) fails with
+    (H1) holding, the deliverable is that the conditioning exists but is
+    componentwise neutral. BOTH NEGATIVES ARE DELIVERABLES and both feed
+    GOAL-FAEST-001's second completion horn.
+
+  mechanism: >-
+    ALL STRUCTURE READ FROM faest-ref SOURCE BY THIS SESSION on 2026-08-06
+    over raw.githubusercontent.com at the MOVING ref 'main' (HTTP 200); NO
+    COMMIT SHA WAS PINNED and pinning one is stage 0 of the experiment. The
+    FAEST v2.0 SPECIFICATION PDF WAS NOT READ. Nothing below is a claim
+    about the specification or about the FAEST team's analysis.
+
+    (a) THE TREE. generate_seeds() allocates 2*L - 1 nodes and expands
+    children 2*alpha+1, 2*alpha+2 from alpha, so the object is a
+    heap-indexed complete binary tree with leaves at indices L-1 .. 2L-2,
+    node alpha at depth floor(log2(alpha+1)). For faest_128f, L = 3072 and
+    the leaves occupy indices 3071..6142, i.e. two adjacent depths (11 and
+    12). CONFIRMING THE EXACT DEPTH SPLIT BY ENUMERATION IS A STAGE-1 TASK;
+    it is derived here, not measured.
+
+    (b) THE PLACEMENT MAP, VERBATIM FROM bavc.c:
+      pos_in_tree(i, j) = L - 1 + tau*j + i                     if j < 2^{k-1}
+                        = L - 1 + tau*2^{k-1} + tau1*(j mod 2^{k-1}) + i
+                                                                otherwise.
+    The tau instances are therefore INTERLEAVED with stride tau across the
+    first tau*2^{k-1} leaf slots (2048 of 3072 for faest_128f) and with
+    stride tau1 across the remainder. This is the load-bearing structural
+    fact: relative index equality across instances becomes leaf ADJACENCY.
+
+    (c) THE OPENING SIZE, DERIVED AND MATCHED TO THE CODE. bavc_open marks
+    each hidden node and its unmarked ancestors, counting nh marked nodes.
+    The marked set S is a subtree containing the root with exactly tau
+    leaves (the hidden positions, none an ancestor of another since all lie
+    at leaf level). Counting by branching type: tau leaves, tau - 1 nodes
+    with two children in S, hence |S| - tau - (tau-1) = |S| - 2*tau + 1
+    nodes with exactly one child in S. The opening emits the OTHER child of
+    each such node -- which is exactly what the Step 19-25 loop does
+    (alpha = 2i+1+bit(2i+1) selects the child NOT in S) -- so the number of
+    emitted nodes is nh - 2*tau + 1, and Step 16-17 rejects when that
+    exceeds T_open. reconstruct_keys reads exactly T_open node slots and
+    requires the unused tail to be zero, so the bound is enforced by the
+    verifier as well as the signer.
+
+    (d) THE TWO EXTREMES, DERIVED. If every c_i equals a common j < 2^{k-1},
+    the hidden leaves occupy the tau consecutive slots tau*j .. tau*j+tau-1;
+    for tau = 16 aligned to a 16-boundary these sit under one common
+    ancestor four levels above the leaf level, giving |S| = (depth - 4) + 31
+    and revealed(c) of order 8. If the components are maximally spread, the
+    root-paths share only the top levels that cannot hold 16 distinct nodes
+    (depths 0..3, 15 nodes), giving |S| <= 15 + 16*9 = 159 and
+    revealed(c) <= 128 at leaf depth 12. T_open = 110 for faest_128f lies
+    strictly inside [8, 128]. THE UPPER BOUND 128 IS A DERIVATION FROM AN
+    ASSUMED UNIFORM LEAF DEPTH OF 12 AND IS THE WEAKEST STEP IN (H1): if the
+    depth-11 leaves and the block structure lower the true maximum below
+    110, (H1) is false. The experiment measures the maximum rather than
+    assuming it.
+
+    (e) WHY (H2) FOLLOWS FROM (b). Acceptance is monotone decreasing in |S|,
+    and merging two root-paths strictly decreases |S|. Fixing c_i to a value
+    whose leaf slot is adjacent (mod the stride) to where the other
+    components typically land therefore weakly increases Pr[accept]. Strict
+    increase requires that the conditional distributions actually differ,
+    which they do unless the geometry is componentwise symmetric -- and the
+    stride-tau interleaving is not symmetric in the index value, because
+    slot tau*c_i + i depends on c_i affinely, so different c_i sit in
+    different subtrees at every level above the stride. THIS IS A
+    MONOTONICITY ARGUMENT, NOT A PROOF THAT G > 1; the strictness is what
+    the experiment measures.
+
+    (f) THE COST BOOKKEEPING, PER-ATTEMPT COST TIMES INVERSE SUCCESS
+    PROBABILITY. Honest signer: each counter iteration costs one hash chain
+    plus one tree walk and succeeds with probability 2^{-w_grind} * rho, so
+    expected iterations = 2^{w_grind}/rho -- this is (H3). Partial-cheating
+    forger fixing components on a set J: per-attempt success is
+    Pr[hash hits c_J] * Pr[accept | c_J], versus Pr[hash hits c_J] * rho in
+    a model that treats the challenge as unconditioned; the ratio is G by
+    definition. G is therefore an UPPER BOUND on the per-attempt accounting
+    slack from this source alone, and composing it with the other links of
+    the chain is NOT done here and is NOT licensed by this hypothesis.
+
+  assumptions:
+    - >-
+      That faest-ref bavc.c implements the specification's BAVC.Open. NOT
+      VERIFIED. A divergence would make every finding an implementation
+      finding, which is still a finding but a different one.
+    - >-
+      That the Fiat-Shamir challenge is uniform on C before filtering
+      (HEUR-FE-1). Whether the index decoding slices bits (unbiased, since
+      all N_i are powers of two) or reduces modulo is TO BE READ FROM THE
+      CODE in stage 0, not assumed here.
+    - >-
+      That the tree layout is the heap layout derived in (a). To be
+      confirmed by enumeration in stage 1.
+    - >-
+      That Monte-Carlo estimation of rho is admissible. It is only
+      admissible if the deployed T_open is not deep in the tail; the
+      contract requires switching to exact dynamic programming if the
+      estimated tail mass falls below 1e-4.
+
+  proof_search_map:
+    bottleneck: >-
+      The single step "the Fiat-Shamir challenge is uniform on C" in any
+      reconstruction of FAEST's numbered chain. Every downstream soundness
+      and zero-knowledge statement that quantifies over challenges inherits
+      it. If the deployed filter makes the honest challenge uniform on a
+      proper subset A instead, then either the analysis already says A (and
+      this audit confirms a link, producing the barrier deliverable) or it
+      says C (and the audit has located a loose step with a number attached).
+      Removing this uncertainty changes which of GOAL-FAEST-001's two
+      completion horns this link contributes to.
+    baseline_embedding:
+      parameter_slice: >-
+        T_open set to its maximum possible value (equivalently infinity),
+        which reproduces exactly the unconditioned setting every existing
+        FAEST cost model in this corpus assumes: A = C, rho = 1, G = 1, and
+        the signer grinds only for the w_grind proof-of-work.
+      reproduction_check: >-
+        SYMBOLIC AND EXACT: at T_open = infinity the conditioning event is
+        the whole space, so rho = 1 and G = 1 identically, and the expected
+        signer iterations reduce to 2^{w_grind}, which is the quantity
+        IDEA-20260731-002's grinding model charges. The implementation must
+        reproduce these three numbers exactly, not approximately. A frozen
+        regression fixture is the tuple (1.0, 0.0, 2^{w_grind}) per set.
+    observation_collision:
+      observable: >-
+        The scalar revealed(c), and through it the boolean c in A. This is
+        the entire observable the filter consumes.
+      distinct_preimage_search: >-
+        Collisions are MASSIVE and EXPECTED: 2^{120} challenges map to fewer
+        than 2^8 values of revealed(c) at faest_128f, so the fibre over a
+        typical value has size ~2^{113}. That is not a defect here -- the
+        filter itself only reads revealed(c), so the projection is the
+        sufficient statistic for the operation under study. WHAT WOULD BE A
+        DEFECT, and is checked: if revealed(c) were CONSTANT across C the
+        observable would carry no information and the whole hypothesis would
+        be vacuous. The two-extreme derivation in mechanism (d) is precisely
+        the search for two challenges with DIFFERENT observable values, and
+        it succeeds on paper (order 8 versus order 128). Stage 1 exhibits
+        both explicitly.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace the challenge space by the multiset of pairwise
+          leaf-slot distances, since |S| depends only on the ancestor
+          structure of the hidden leaf set. This turns a 2^{120}-element
+          space into a small combinatorial object over which rho and G can be
+          computed by exact dynamic programming up the tree rather than by
+          sampling.
+        predicted_gain: >-
+          Converts a Monte-Carlo estimate into an exact rational number, and
+          removes the tail-resolution confounder entirely. Obligations
+          (encoding faithfulness, completeness) are listed under
+          proof_obligations.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold revealed(c) fixed and vary the forgotten structure (which
+          instance holds which index). If Pr[accept | c_i = v] is the same
+          for all (i, v), then the fibre structure is componentwise
+          symmetric, G = 1, and (H2) is false at zero further cost.
+        predicted_gain: >-
+          A direct, cheap falsifier of (H2) that does not require computing
+          the maximum.
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER: FOR the deployed parameter set, THERE EXIST an
+      instance i and a value v such that Pr[c in A | c_i = v] > Pr[c in A].
+      The witness (i, v) IS ALLOWED TO DEPEND ON THE PARAMETER SET, and the
+      hypothesis is stated per-set for exactly that reason; the stronger
+      uniform order (one (i, v) working for all sets) is NOT claimed and
+      would be false on its face since the sets have different tau.
+      THE QUANTIFIER TRAP THIS AUDIT IS HUNTING, stated so a reviewer can
+      check whether the audit itself falls into it: a security analysis that
+      says "for all challenges c, ..." is a different statement from "for all
+      challenges c in A, ..." and from "for the challenge distribution
+      induced by the signer's retry loop, ...". Which of the three the FAEST
+      analysis makes is UNKNOWN TO THIS PROGRAM and must be read, not
+      assumed; this hypothesis asserts nothing about it.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: exact values of rho, of the revealed(c) histogram, and of a
+        componentwise conditioning gain G, at the twelve deployed parameter
+        sets, for the bAVC opening filter AS IMPLEMENTED IN faest-ref at a
+        pinned commit. It CANNOT certify a forgery, cannot certify that
+        FAEST's claimed category is wrong, cannot certify that the
+        specification's analysis is defective, and cannot compose G with any
+        other link of the chain without a composition argument this
+        hypothesis does not supply.
+      nearby_object_control: >-
+        THE NEARBY OBJECT ON WHICH THE HOPED-FOR CONCLUSION MUST FAIL is the
+        SAME pipeline with pos_in_tree replaced by a block-contiguous layout
+        (instance i owning leaf slots [offset_i, offset_i + N_i)), keeping
+        L, tau, N_i and T_open identical. Under that layout hidden leaves
+        from different instances can never be adjacent, so the clustering
+        mechanism is absent; the method MUST report a smaller G there. If it
+        reports the same G for both layouts, it is responding to something
+        other than the interleaving and has not identified the load-bearing
+        structure, and no causal claim may be made. A SECOND nearby object:
+        faest_128s, which has tau1 = 0 and a single instance size, so its
+        interleaving is uniform stride 11 with no mixed-stride region.
+    proof_obligations:
+      - claim: >-
+          log2|C| + w_grind = lambda for all twelve sets (H0).
+        responsibility: baseline
+      - claim: >-
+          revealed(c) = nh - 2*tau + 1 equals the number of nodes bavc_open
+          emits, for every challenge.
+        responsibility: correctness
+      - claim: >-
+          The heap layout and leaf-depth split are as derived, confirmed by
+          enumeration and not assumed.
+        responsibility: interface
+      - claim: >-
+          max over C of revealed(c) is MEASURED (or bounded by an exact
+          argument), never assumed to be the loose 128 derived here.
+        responsibility: strictness
+      - claim: >-
+          The Monte-Carlo estimator's tail resolution is reported, and exact
+          dynamic programming is substituted when the tail is thinner than
+          1e-4.
+        responsibility: correctness
+      - claim: >-
+          G is an upper bound on per-attempt slack from this source alone and
+          is never composed with other links here.
+        responsibility: scope
+      - claim: >-
+          Every statement is about faest-ref at a pinned commit, not about
+          the FAEST specification.
+        responsibility: scope
+    not_applicable_reason: null
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Deliberately null. NO COMPLEXITY CLAIM OF ANY KIND. The hypothesis
+    concerns two combinatorial constants of a deployed construction. It moves
+    no exponent, proposes no algorithm, and its sota_delta against every
+    known attack is exactly zero. The reason to run it is that
+    GOAL-FAEST-001's objective is to find every step where the chain is
+    loose, and this is a step whose looseness is currently UNMEASURED rather
+    than known to be zero.
+
+  heuristic_assumptions:
+    - id: HEUR-FE-1
+      formal_statement: >-
+        The Fiat-Shamir challenge vector, before the opening-size filter, is
+        distributed uniformly on C = product over i of [0, N_i), i.e. FOR ALL
+        c in C, Pr[chall = c] = |C|^{-1}, in the random-oracle model for the
+        challenge hash.
+      random_model_justification: >-
+        Standard ROM modelling of the challenge derivation, PLUS an unbiased
+        decoding of hash bits into indices. The second half is not automatic
+        and is not assumed: all N_i are powers of two (2^k or 2^{k-1}), so a
+        bit-slicing decoder is exactly unbiased, while a modular reduction
+        would also be exactly unbiased for power-of-two moduli. Both
+        plausible implementations are therefore unbiased, which is why this
+        heuristic is rated low-risk -- but WHICH ONE IS USED IS STILL TO BE
+        READ, because a decoder that consumed a non-multiple of k bits per
+        index could correlate components.
+      supporting_results: []
+      validation_experiment_ids: [EXP-FAEST-51f781]
+      falsification_condition: >-
+        The code is found to derive indices in a way that correlates
+        components or biases them. rho and G are then measured against the
+        wrong reference measure and both must be recomputed under the true
+        challenge distribution; the bias itself becomes the finding.
+    - id: HEUR-FE-2
+      formal_statement: >-
+        The componentwise maximum in G is attained at a configuration that
+        CLUSTERS the hidden leaves, i.e. argmax over (i, v) of
+        Pr[accept | c_i = v] lies at an extreme of the interleaving geometry.
+      random_model_justification: >-
+        Motivated by monotonicity: acceptance decreases in |S| and merging
+        root-paths decreases |S|. NOT PROVED, because the componentwise
+        conditional averages over all OTHER components and the maximum could
+        sit at an interior configuration balancing several partial merges.
+      supporting_results: []
+      validation_experiment_ids: [EXP-FAEST-51f781]
+      falsification_condition: >-
+        The measured argmax is not at a clustering configuration. HEUR-FE-2
+        is refuted; G's VALUE stands, because the experiment computes it by
+        exhaustive conditioning over all (i, v) rather than by searching only
+        the predicted extreme. This is deliberate: the heuristic is used only
+        to predict a direction, never to restrict the search.
+
+  structural_ingredients:
+    - description: >-
+        Branching-type count for a subtree of a binary tree: a subtree
+        containing the root with t leaves has t - 1 two-child nodes, hence
+        |S| - 2t + 1 one-child nodes.
+      citation: >-
+        Elementary; derived in this record and matched line-by-line against
+        faest-ref bavc.c Steps 5-25. NO EXTERNAL CITATION IS ASSERTED.
+      role: converts the opening size into a pure set-union count
+    - description: >-
+        The FAEST parameter macros CALC_K, CALC_TAU1, CALC_TAU0, CALC_L and
+        the twelve parameter tables.
+      citation: >-
+        faest-ref instances.c and meson.build, FETCHED AND READ 2026-08-06
+        at moving ref 'main' over raw.githubusercontent.com (HTTP 200). NO
+        COMMIT SHA PINNED. KN-LIT-7619 is the corpus's entry for this
+        repository and states that code contents were not fetched or
+        audited; this is the first record here that reads them.
+      role: supplies (lambda, tau, w_grind, T_open, k, tau0, tau1, L) exactly
+    - description: >-
+        The placement map pos_in_tree and the acceptance test in bavc_open.
+      citation: faest-ref bavc.c, same fetch.
+      role: the mechanism under test
+
+  reduction_chain:
+    core_problem: >-
+      Compute the acceptance rate rho and the componentwise conditioning gain
+      G of FAEST's bAVC opening-size filter at the deployed parameter sets.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY. Neither quantity reduces to a forgery, a soundness
+      bound, or a security-category statement without an argument this
+      hypothesis does not make. In particular, feeding G into
+      IDEA-20260731-002's (kappa, tau) forgery model requires a composition
+      argument that is that lane's obligation, not this one's.
+
+  predictions:
+    - metric: entropy_identity_residual = log2|C| + w_grind - lambda, all 12 sets
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0 at every set. Derived, not fitted. A nonzero residual voids
+        the macro reading and the hypothesis is superseded rather than
+        adjusted.
+    - metric: max over C of revealed(c) at faest_128f
+      direction: higher
+      minimum_effect: >-
+        STRICTLY GREATER THAN 110. Derived upper bound 128; derived lower
+        bound on the maximum is not available, which is why this is the
+        primary falsifier. If the measured maximum is <= 110 then rho = 1,
+        (H1) and (H2) both fail, and the lane closes with a scoped negative.
+    - metric: rho at deployed T_open, faest_128f
+      direction: lower
+      minimum_effect: >-
+        STRICTLY BELOW 1.0, and above 2^{-8}. The lower guard is
+        pre-registered because rho < 2^{-8} would put honest signing above
+        2^{16} iterations, contradicting FAEST's published performance and
+        indicating a modelling error rather than a property of FAEST.
+    - metric: log2(G), componentwise, faest_128f
+      direction: higher
+      minimum_effect: >-
+        STRICTLY POSITIVE. NO MAGNITUDE IS PRE-REGISTERED and none may be
+        invented after the fact. log2(G) = 0.00 within Monte-Carlo error is a
+        clean negative and is a deliverable.
+    - metric: >-
+        rho and log2(G) under the block-contiguous layout control, same
+        (L, tau, N_i, T_open)
+      direction: different
+      minimum_effect: >-
+        log2(G) STRICTLY SMALLER than under the deployed interleaved layout.
+        If the two are equal, the interleaving is not the cause and the
+        mechanism's stated explanation is refuted even if its numbers stand.
+    - metric: >-
+        rho and log2(G) at T_open = infinity (null arm)
+      direction: different
+      minimum_effect: >-
+        EXACTLY 1.000000 and EXACTLY 0.000000. Not a tolerance band: the
+        conditioning event is the whole space and any deviation is a code
+        defect.
+    - metric: monotonicity of rho(T) and log2 G(T) over the graded sweep
+      direction: different
+      minimum_effect: >-
+        rho(T) non-decreasing and log2 G(T) non-increasing at EVERY adjacent
+        pair of the >= 7 sweep points, reaching (1, 0) at T = revealed_max.
+        A single inversion localises a bug in the union-of-paths counter.
+
+  test_boundary:
+    instances:
+      - >-
+        faest_128f: lambda 128, tau 16, w_grind 8, T_open 110, k 8, tau1 8,
+        tau0 8, L 3072. PRIMARY CELL.
+      - >-
+        faest_128s: lambda 128, tau 11, w_grind 7, T_open 102, k 12, tau1 0,
+        tau0 11, L 22528. Shape control (tau1 = 0).
+      - >-
+        faest_em_128f: lambda 128, tau 16, w_grind 8, T_open 112. Same tree
+        shape as faest_128f with a different threshold; isolates T_open.
+      - >-
+        faest_192f (tau 24, w_grind 8, T_open 163) and faest_256f (tau 32,
+        w_grind 8, T_open 246). Scale controls.
+      - >-
+        SYNTHETIC CONTROL INSTANCES: T_open = infinity (null);
+        T_open = revealed_min (positive control); block-contiguous layout
+        (structural null); >= 5 interior T_open values (graded).
+    parameters:
+      primary_set: faest_128f
+      lambda: 128
+      tau: 16
+      w_grind: 8
+      T_open: 110
+      k: 8
+      tau1: 8
+      tau0: 8
+      L: 3072
+      tree_nodes: 6143
+      challenge_space_log2: 120
+      derived_revealed_bracket: [8, 128]
+      parameter_source: >-
+        faest-ref meson.build and instances.c, fetched 2026-08-06 at moving
+        ref 'main'; commit sha NOT pinned (stage-0 obligation).
+    implementation: >-
+      Pure Python 3.11, standard library only. A bytearray bitmask over
+      2L - 1 <= 45055 nodes, a loop marking ancestors, and a counter. numpy
+      2.4.6 IS present in this container (MEASURED THIS SESSION:
+      `python3 -c "import numpy"` succeeded, version 2.4.6) but is NOT
+      required and must not be a dependency, because the two scouting reports
+      disagree about the environment and a stdlib-only implementation makes
+      the disagreement irrelevant. No solver, no Sage, no NTL.
+    budget:
+      stage0_wall_clock_seconds: 900
+      stage1_wall_clock_seconds: 900
+      stage2_wall_clock_seconds: 3600
+      stage3_wall_clock_seconds: 3600
+      maximum_memory_gb: 2
+      note: >-
+        Stage 2/3 are NOT authorized by this record. Execution requires a
+        separate committed Coordinator approval (AGENTS.md rule 1).
+
+  falsification_conditions:
+    - >-
+      F1 (PRIMARY, CHEAPEST): max over C of revealed(c) <= T_open at the
+      deployed sets. The filter is unreachable, rho = 1, G = 1, (H1)-(H3) all
+      fail, and the deliverable is the scoped negative "the bAVC opening
+      filter does not condition the FAEST challenge space at the deployed
+      parameters", with the measured maximum and threshold quoted.
+    - >-
+      F2: log2(G) = 0 within Monte-Carlo error at every deployed set while
+      rho < 1. (H2) fails; the conditioning exists but is componentwise
+      neutral, and a uniform-challenge forgery model is safe on this axis.
+      A DELIVERABLE, not a failure.
+    - >-
+      F3: the entropy identity residual is nonzero anywhere. The macro
+      reading is wrong; supersede the record, do not patch it.
+    - >-
+      F4: the T_open = infinity null does not return exactly (1.0, 0.0). The
+      estimator is broken and NO number from any other cell may be reported.
+    - >-
+      F5: the positive control (T_open = revealed_min) does not return a
+      large log2(G). The estimator cannot detect conditioning even when it is
+      maximal, and no negative may be reported anywhere.
+    - >-
+      F6: the pinned-commit source differs from the mechanism above. Every
+      derived number is void; supersede.
+    - >-
+      F7 (NOT A FALSIFICATION, PRE-REGISTERED BEFORE ANY RUN): if the
+      specification is later read and found to define soundness and
+      zero-knowledge over the accepted set A explicitly, the correct reading
+      is that this audit CONFIRMED a link of the chain, not that it found a
+      defect. That reading is fixed here and may not be revised after the
+      fact.
+
+  interpretation_limits:
+    - >-
+      NO FORGERY, NO SOUNDNESS CLAIM, NO STATEMENT ABOUT FAEST'S SECURITY
+      CATEGORY. The output is two numbers and a histogram.
+    - >-
+      EVERY STATEMENT IS ABOUT faest-ref AT A PINNED COMMIT, not about the
+      FAEST specification, which has not been read. A finding here is an
+      implementation finding until the specification is checked against it.
+    - >-
+      G is an upper bound on per-attempt accounting slack FROM THIS SOURCE
+      ALONE. It does not compose with the consistency-check, commitment, or
+      QROM links without a separate argument, and this record supplies none.
+    - >-
+      (H3) is a PERFORMANCE statement (expected signer iterations), not a
+      security statement, and must never be quoted as one.
+    - >-
+      This hypothesis proposes NO status change to any record. In particular
+      it proposes no change to GOAL-FAEST-001's pause condition #2, even
+      though this session reached faest-ref source over
+      raw.githubusercontent.com; that is a Coordinator decision.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260805-38048d.yaml
+    - ledger/proposals/IDEA-20260805-59fa23.yaml
+    - ledger/questions/RQ-FAEST-001.yaml
+    - ledger/goals/GOAL-FAEST-001.yaml
+    - ledger/proposals/IDEA-20260731-002.yaml
+    - ledger/proposals/IDEA-20260731-019.yaml
+    - ledger/evidence/EV-FAEST-001.yaml
+    - knowledge/literature/KN-LIT-7619.md
+    - knowledge/literature/KN-LIT-7638.md
+    - coordination/goals/GOAL-FAEST-001/source-acquisition-probe-20260731.md
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+    - templates/research-records.md
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; the session model is recorded as
+      resolved. Recorded, never silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; `python3 -m
+      orchestration.adapter doctor --probe` was not run.
