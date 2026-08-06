@@ -1,0 +1,879 @@
+experiment:
+  id: EXP-SSI-697354
+  version: 1
+  status: approved
+  frozen: true
+  frozen_at: '2026-08-06'
+  frozen_by: coordinator
+  freeze_task: TASK-20260806-976fd5
+  approved_by: coordinator
+  execution_authorized: true
+  execution_dispatched: false
+  evidence_eligible: true
+  hypothesis_id: H-SSI-7fe2bf
+  question_id: RQ-SSI-001
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-b3c87f
+  source_proposal: IDEA-20260803-48e258
+
+  title: >-
+    The Wesolowski crossover locus p*(w) from committed numbers only: a
+    zero-compute, stdlib-only reconstruction of the corrected concrete-cost
+    comparison against the matched Delfs-Galbraith baseline, with a
+    known-answer reproduction gate, two null estimators, and a memory
+    monotonicity check that can fail
+
+  objective: >-
+    Convert the INCONCLUSIVE scalar NIST-I margin into a decidable
+    practitioner-facing object - the locus p*(w) where the corrected
+    p^{1/3+o(1)} cost curve crosses the matched Delfs-Galbraith / previous-methods
+    p^{1/2} curve as a function of available memory w - using arithmetic on
+    already-committed numbers and nothing else, and determine exactly what would
+    have to be true for that locus to be wrong. Secondary and equally binding:
+    determine whether the sign of the comparison is controlled by the corrected
+    estimator or by an unstated memory-charging convention.
+
+  what_this_is_not:
+    - >-
+      NOT AN EXECUTED ATTACK. No isogeny, no curve, no field element, no walk, no
+      table is constructed at any scale. Nothing is solved. There is no
+      certificate because there is nothing to certify (docs/claims-and-verification.md,
+      certificate kind `none`).
+    - >-
+      NOT A SECURITY CLAIM. This contract may not assert, and no artifact
+      produced under it may assert, that SQIsign is broken, weakened, or that any
+      parameter set is unsafe. It costs a MODEL.
+    - >-
+      NOT CRYPTO-SCALE VALIDATION. The load-bearing measured input tops out at
+      p = 2^40. Every emitted number at log2 p in [256, 768] is an extrapolation
+      of a medium-tier measurement (AGENTS.md rule 7).
+    - >-
+      NOT A VALIDATION OF HEURISTIC 1, and not a substitute for the NC-3/NC-6
+      pairing that EV-WESO-b6ceff records as failed_infrastructure and
+      KN-FIND-d1c853 records as the dominant open uncertainty.
+    - >-
+      NOT A NEW ALGORITHM, cost reduction, or improvement on any axis. sota_delta
+      on every attack axis is exactly zero.
+    - >-
+      NOT A RESOLUTION of which memory-charging convention is physically correct.
+      The contract makes the dependence explicit and carries both.
+
+  claim_ceiling:
+    tier: medium
+    mechanical_basis: >-
+      docs/claims-and-verification.md derives the tier from the parameters of the
+      runs that support the record. The load-bearing measured input (T1) covers
+      log2 p in [9, 40]; 32 < 40 <= 96, so the ceiling is `medium`.
+    strongest_admissible_sentence: >-
+      "Under the committed inputs T1 and T2, conditional on Heuristic 1 and on
+      HEUR-XO-1..3, and at memory budget w, the reconstructed cost model places
+      the assessed method's crossing against the matched baseline at <locus or
+      categorical label>, with the tested band; the sign of the comparison is
+      controlled by the memory-charging convention; and the assessed method
+      requires 2^{L_mem} table entries, which exceeds all recorded global storage
+      at every tested parameter set."
+    forbidden_sentences:
+      - Any sentence asserting SQIsign, or any SQIsign parameter set, is broken, weakened, or unsafe.
+      - Any sentence stating a cost number without its memory requirement and its conditionality in the same sentence.
+      - >-
+        The unqualified sentence "NIST-III/V retain margin". It is true only on
+        the memory-feasibility axis (SCOPE-C) and false on the advantage and
+        target-gap axes (SCOPE-A, SCOPE-B) under the committed table. Every use
+        must name the axis.
+      - Any presentation of the scenario-grid spread as a confidence interval or error bar.
+      - Any p* value outside [256, 768].
+
+  # =====================================================================
+  # DEPENDENCY CONTRACT - the reason this experiment was selected
+  # =====================================================================
+  dependency_contract:
+    primary_path_requires: ["python3 >= 3.9 standard library only"]
+    stdlib_modules_permitted: [math, json, os, sys, time, hashlib, statistics, platform, importlib]
+    optional_permitted: >-
+      numpy, and ONLY for the optional secondary cross-check XCHK-2. No reported
+      number, no gate verdict, and no artifact field outside
+      cross_check_secondary.json may depend on numpy. If numpy is absent, XCHK-2
+      is recorded NOT_RUN with the ImportError text and the run remains valid.
+    forbidden: [sagemath, sage, g6k, fpylll, scipy, mpmath, network access]
+    rationale: >-
+      The dependency situation was checked at design time and is NOT assumed.
+      requirements-dev.txt pins only PyYAML, sympy and pytest - numpy is not a
+      declared harness dependency. A committed validation receipt
+      (coordination/tasks/TASK-20260724-P13-VAL/validation_report.yaml lines
+      74 and 98) records the managed runtime as "Python 3.12.13 ... numpy 2.4.4"
+      with "scipy and mpmath explicitly not installed". A committed merge digest
+      (coordination/events/main/f12e21b55a8d.yaml line 42) records that a
+      SageMath/g6k environment had to be requested rather than used, and
+      EXP-P13-NC36 was never executed for that reason. Two committed records
+      therefore DISAGREE about this container's package set across time. The
+      contract resolves that by making the primary path stdlib-only, which is a
+      strict subset of "numpy alone" and cannot be blocked by either reading.
+    runtime_assertion: >-
+      Step 0 of the run MUST record, in environment.json: the interpreter
+      version; the result of `importlib.util.find_spec` for each of numpy, sage,
+      sagemath, g6k, fpylll, scipy, mpmath (present/absent plus version where
+      present); and an explicit statement that no forbidden module was imported.
+      An import of any forbidden module INVALIDATES the run.
+
+  # =====================================================================
+  # INPUTS - named by committed path, pointer, and row count. Not prose.
+  # =====================================================================
+  inputs:
+    T1_per_entry_table:
+      path: coordination/goals/GOAL-SSI-001/batches/BATCH-046/tasks/TASK-20260804-55952a/implementation/cost_measurements.json
+      pointer: $.scaling_summary
+      rows: 8
+      columns_used:
+        x: log2_p
+        y: avg_mults_per_entry
+      columns_recorded_not_used: [p, B, X, num_ss_curves, primes_used, total_attempts, successes, P0_empirical, P0_theory_lower_bound, u_parameter, avg_table_entries, avg_total_mults_per_attempt, cost_per_success, log2_cost_per_success, walk_total_cost]
+      frozen_values_x: [9, 14, 17, 20, 24, 28, 32, 40]
+      frozen_values_y:
+        - 143.72875226039784
+        - 192.67237687366168
+        - 244.77013354917037
+        - 293.178645371192
+        - 343.926267281106
+        - 439.4038324400175
+        - 515.2952824694235
+        - 651.0768243785084
+      fit_window_log2p: [9, 40]
+      integrity_rule: >-
+        The run re-reads the file, re-extracts the 8 rows, and compares them to
+        frozen_values_x / frozen_values_y exactly (float equality on the decimal
+        literals above). Any mismatch INVALIDATES the run as input drift. The
+        SHA-256 of the whole file is recorded in input_hashes.json.
+      known_limitation_carried: >-
+        Every row uses primes_used in {[2,3], [2,3,5]}. RT-20260805-92751c OBJ-1
+        states the operating ell at NIST-I is far larger and that per-entry cost
+        rises with it, and that the linear extrapolation approximates the FFT
+        figure only because two errors partially cancel. This is the single
+        largest modelling weakness and is stamped on every emitted number.
+
+    T2_paper_anchor_table:
+      path: inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+      lines: [234, 238]
+      rows: 5
+      columns:
+        P: [256, 384, 512, 576, 768]
+        L_paper_log2_time_lower_bound: [106.5, 157.5, 204.2, 230.9, 302.4]
+        L_mem_log2_memory_lower_bound: [92.5, 138.6, 181.3, 206.0, 272.2]
+        L_prev_log2_previous_methods_time: [128, 192, 256, 288, 384]
+      labels: [SQIsign NIST-I, SQIsign NIST-III, SQIsign NIST-V, null, null]
+      window_log2p: [256, 768]
+      transcription_check: >-
+        The run re-reads lines 234-238 of the frozen paper text, parses the five
+        bullets, and asserts the parsed triples equal the frozen columns above.
+        It SEPARATELY asserts that the parsed (time, memory) pairs equal the
+        PAPER_PAIRS dict transcribed independently at
+        coordination/tasks/TASK-20260724-P13-VAL/repro/experiments/EXP-P13VOW-001/cost_model.py
+        lines 60-66. Either mismatch INVALIDATES the run.
+      convention_note: >-
+        L_prev equals P/2 at all five rows to the stated precision, which is the
+        paper's own convention log2 k_DG = 0. This is a TRANSCRIPTION, not an
+        independently verified Delfs-Galbraith constant; KN-TECH-050 is explicit
+        that the corpus cannot state what the matched baseline costs, and
+        EV-WESO-b6ceff records the constant k as not stated in the retrieved
+        abstracts. Carried as HEUR-XO-2 with a reported sensitivity.
+      interpolation_rule: >-
+        L_paper and L_mem are piecewise-linear in P between adjacent committed
+        rows. Only the five committed P values are `exact`; every other P is
+        stamped interpolated_between_committed_rows with the two bracketing rows
+        named. Evaluation outside [256, 768] is FORBIDDEN, not extrapolated.
+
+    T3_declared_scalars:
+      - id: S_struct
+        values: [0.0, 3.0]
+        unit: bits
+        meaning: >-
+          Structural surcharge above the per-entry-corrected figure: two tables,
+          sort/merge overhead, and the Remark-1 multiplicity counter-correction,
+          taken as a two-valued SCENARIO rather than a point.
+        source: >-
+          3.0 = 121.5 - 118.5, the width of the committed F_{p^2}-operation
+          bracket in
+          coordination/goals/GOAL-SSI-001/batches/BATCH-046/tasks/TASK-20260804-55952a/red_team_concrete_cost.yaml
+          verdict.security_estimate_range.F_p2_operations ("2^{118.5} to
+          2^{121.5}"), corroborated by EV-SSI-59f7a2 observations.
+        honesty_flag: >-
+          NOT RE-DERIVED. The committed record does not decompose 3.0 into named
+          factors, so this contract takes it as an INPUT and says so. The
+          reproduction gate is therefore split: RG-1 DERIVES the 118.5 endpoint
+          from T1 and T2, RG-2 only checks that the declared surcharge lands the
+          upper endpoint where the record put it.
+      - id: A_aes_log2_alpha
+        values: [0.0, -1.736966, 1.584963, 3.906891]
+        labels: [F_p2_operations_no_conversion, pure_RAM_alpha_0.3, cpu_aes_ni_alpha_3, asic_alpha_15]
+        unit: bits
+        source: >-
+          red_team_concrete_cost.yaml OBJ-6: "Pure RAM (alpha=0.3) ... CPU+AES-NI
+          (alpha=3) ... ASIC (alpha=15)". Values are log2 of those alphas.
+        honesty_flag: >-
+          alpha = 0.3 is the ATTACKER-FAVOURABLE corner that OBJ-6 flags as
+          "the most attacker-favorable model". It is reported AS a corner and is
+          never the default. alpha = 3 is the committed hardware-realistic value
+          used to reproduce the 2^{120}-2^{123} bracket.
+      - id: c_overhead_scenario
+        values: [0.0, 0.5, 1.0, 1.8, 2.0]
+        form: overhead_bits = c * sqrt(P)
+        source: >-
+          Form and the values 0.0 and 1.8 from EV-WESO-001 observations
+          ("overhead scenario 2^{c*sqrt(log2 p)}"; "the c = 0 scenario is the most
+          attack-favorable corner, not a neutral default, and a defensible
+          calibration c ~ 1.8"). Values 0.5, 1.0, 2.0 are the remaining entries of
+          OVERHEAD_C at
+          coordination/tasks/TASK-20260724-P13-VAL/repro/experiments/EXP-P13VOW-001/cost_model.py
+          line 68 - a DECLARED READ-SCOPE EXTENSION beyond
+          TASK-20260806-976fd5's read_scope, recorded here so review can check it.
+        excluded_deliberately: >-
+          The BATCH-002/003 c bracket [1.327077, 1.576444] and the eighteen
+          measured-gamma readings are NOT used. They are outside this task's
+          read_scope, and IDEA-20260803-48e258 forbids citing c as a number
+          rather than as a bracket with its eight mandatory attachments, which
+          this contract cannot enumerate from inside its scope.
+      - id: log2_k_DG
+        value: 0.0
+        independently_transcribed: false
+        source: T2 column L_prev (the paper's own previous-methods figures)
+        handling: >-
+          Primary output is the RATIO form, which is k-free. The absolute locus is
+          emitted at log2 k_DG = 0 only, flagged, and accompanied by the reported
+          sensitivity d(p*)/d(log2 k_DG) at every w.
+      - id: global_storage_log2_bytes
+        value: 73.08
+        source: >-
+          red_team_concrete_cost.yaml OBJ-5: "Total storage on Earth: ~10^{22}
+          bytes (Cisco, 2023)". 73.08 = log2(10^22).
+        use: SCOPE-C only; never enters a cost curve.
+      - id: bytes_per_entry
+        values: [64, 256]
+        source: red_team_concrete_cost.yaml OBJ-5 ("64 bytes for 256-bit p")
+        use: SCOPE-C only.
+
+  # =====================================================================
+  # COST FUNCTIONS - both sides, exactly
+  # =====================================================================
+  cost_functions:
+    units: "log2 of F_{p^2}-operations, optionally converted to AES-equivalents by A."
+    per_entry_laws:
+      L1_proportional_all_rows:
+        definition: "a1 = sum_i(x_i*y_i) / sum_i(x_i^2) over the 8 T1 rows;  E(P) = log2(a1 * P)"
+        design_time_value_a1: 15.576908
+      L2_committed_headline:
+        definition: "a2 = 2 * 8.1 = 16.2 exactly;  E(P) = log2(a2 * P)"
+        source: >-
+          EV-SSI-59f7a2 observation: "measured ops/entry scaling as ~8.1 x
+          2*log2(p), giving extrapolated ~4147 (2^{12}) at NIST-I". a2 is
+          TRANSCRIBED, not fitted; the run additionally reports |a1 - a2| and
+          |a4 - a2| as a transcription-consistency readout.
+      L3_ols_with_intercept:
+        definition: "ordinary least squares of y on x over the 8 T1 rows; E(P) = log2(a3*P + b3); UNDEFINED where a3*P + b3 <= 0"
+        design_time_values: {a3: 16.925485, b3: -36.279641}
+      L4_largest_row_anchor:
+        definition: "a4 = y(x=40) / 40 = 651.0768243785084 / 40;  E(P) = log2(a4 * P)"
+        design_time_value_a4: 16.27692061
+      L5_alpha_corrected_SENSITIVITY_ONLY:
+        definition: "E(P) = log2( 651.0768243785084 * (P/40)^1.1321 )"
+        source: >-
+          alpha_primary = 1.1321 measured at ell in {47,101,151,211} in
+          EV-WESO-b6ceff / KN-FIND-4e7a92, which records that this 13% excess
+          "has not been propagated into any margin row in the c-table". This
+          contract propagates it HERE for the first time.
+        status: >-
+          NOT a member of the main scenario band and NOT part of the reproduction
+          gate. Reported separately as the extrapolation-sensitivity readout.
+    null_estimators:
+      N0_one_op_per_entry:
+        definition: "E(P) = 0.0 for all P"
+        meaning: >-
+          The SUPERSEDED estimator: Wesolowski Section 4.1's deliberate
+          one-F_{p^2}-operation-per-entry convention
+          (inputs/P13-WESOLOWSKI-2026/paper_fulltext.md line 230), which
+          EV-SSI-59f7a2 exists to correct. This is the null object required by
+          the batch handoff.
+      N1_superseded_velu:
+        definition: "E(P) = 9.8 for all P"
+        meaning: >-
+          The NEARBY-OBJECT null: the pre-red-team Velu-based estimator
+          ("Real Algorithm 1 correction factor: x 2^{9.8}",
+          concrete_cost_analysis.md line 31), superseded by
+          red_team_concrete_cost.yaml OBJ-3 which shows Algorithm 1 uses modular
+          polynomial root-finding, not Velu.
+    assessed_method_cost:
+      MC_P13:
+        formula: "T_A(P, w) = L_paper(P) + E(P) + S + c*sqrt(P) + A - 0.5*min(log2_w, L_mem(P))"
+        feasibility: "always defined in-window"
+        provenance: >-
+          coordination/tasks/TASK-20260724-P13-VAL/repro/experiments/EXP-P13VOW-001/cost_model.py
+          line 236 ("T_w_vOW = T_full / sqrt(min(w, M))") and line 270; consequence
+          recorded in EV-WESO-001.
+      MC_VOW:
+        formula: "T_A(P, w) = L_paper(P) + E(P) + S + c*sqrt(P) + A"
+        feasibility: "DEFINED ONLY WHERE log2_w >= L_mem(P); otherwise the cell is INFEASIBLE_AT_MEMORY"
+        provenance: >-
+          the paper's Section 1.1 law as quoted in red_team_concrete_cost.yaml
+          OBJ-5 ("time p^{1/2+o(1)}/(w^{1/2}*n) with memory w"); consequence
+          recorded in CMC-4.
+    baseline_cost:
+      MC_P13:
+        formula: "T_B(P, w) = P/2 + log2_k_DG + A"
+        note: memoryless baseline, w-independent, exactly the paper's L_prev column
+      MC_VOW:
+        formula: "T_B(P, w) = P/2 + log2_k_DG + A - 0.5*log2_w"
+        note: vOW middle-memory baseline at memory w, single processor (n = 1)
+    margin:
+      definition: "Delta(P, w, theta) = T_B(P, w) - T_A(P, w);  positive means the assessed method is cheaper"
+      unit_cancellation_note: >-
+        A appears on both sides and cancels in Delta. It is retained in the
+        formulas because the reproduction gate compares ABSOLUTE costs against
+        EV-SSI-59f7a2's bracket, where the unit matters. The run must report that
+        A cancels in Delta and does not silently drop it.
+    ratio_form_primary:
+      definition: "Delta expressed as a function of log2_k_DG: Delta(log2_k_DG) = Delta(0) + log2_k_DG"
+      sensitivity: "d(p*)/d(log2_k_DG), reported numerically at every w by re-solving at log2_k_DG in {-4, -2, 0, +2, +4}"
+
+  # =====================================================================
+  # CROSSOVER-SOLVING PROCEDURE - exactly
+  # =====================================================================
+  crossover_procedure:
+    scenario_tuple: "theta = (law in [L1,L2,L3,L4], S in [0.0,3.0], A in the 4 declared values, c in the 5 declared values, MC in [MC_P13, MC_VOW])"
+    main_grid_cells: "4 laws x 2 S x 4 A x 5 c x 2 MC x 14 w = 4480"
+    null_grid_cells: "2 nulls x (2 S x 4 A x 5 c x 2 MC x 14 w) = 2240"
+    sensitivity_grid_cells: "L5 x (2 S x 4 A x 5 c x 2 MC x 14 w) = 1120"
+    steps:
+      - "1. Bracket scan. Evaluate g(P) = Delta(P, w, theta) at P = 256, 257, ..., 768 (513 points, step 1.0)."
+      - "2. Feasibility mask. Under MC_VOW mark every P with L_mem(P) > log2_w as INFEASIBLE. Under MC_P13 no P is masked (the convention permits any w), but L_mem(P) is recorded for every reported P so feasibility is always visible."
+      - "3. If the feasible set is empty, emit INFEASIBLE_AT_MEMORY together with the smallest log2_w that would make P = 256 feasible (92.5). Stop this cell."
+      - "4. Count sign changes of g between adjacent feasible grid points. If zero, emit NO_CROSSOVER_IN_WINDOW with sign(g) and the value of g at BOTH feasible endpoints. Stop this cell."
+      - "5. If one or more sign changes, bisect the FIRST bracketing interval to |g| < 1e-9 or 80 iterations, whichever first, and emit p_star_log2 = the root. If more than one sign change, emit MULTIPLE_ROOTS with every root; never silently reduce to one."
+      - "6. Window guard. No root may be reported outside [256, 768] under any circumstance. A sign pattern implying a root beyond the window is emitted as ROOT_OUTSIDE_WINDOW with the direction, and the numeric value is NOT emitted."
+      - "7. Repeat steps 1-6 for the two nulls and for L5, using the identical code path with only E(.) swapped. A separate implementation of the solver for the nulls is FORBIDDEN - the null must be the same procedure."
+    determinism: >-
+      Fully deterministic. seed 0 is recorded for form only; no randomness is
+      used anywhere. Two runs on the same inputs must produce byte-identical
+      raw-result.json apart from timing fields.
+
+  independent_variables:
+    - log2 p (the solved-for axis, window [256, 768])
+    - log2 w (the deliverable's free axis, 14 declared values)
+    - per-entry law (4 + 1 sensitivity + 2 nulls)
+    - structural surcharge S (2)
+    - AES-equivalence exponent A (4)
+    - overhead scenario c (5)
+    - memory-charging convention MC (2)
+
+  # =====================================================================
+  # CONTROLS - the three mandatory ones plus the proposal's own
+  # =====================================================================
+  controls:
+
+    - id: RG-REPRODUCTION-GATE
+      kind: known_answer_gate
+      mandatory: true
+      blocking: true
+      description: >-
+        Recover EV-SSI-59f7a2's committed bracket at the parameters that record
+        evaluated it: log2 p = 256 (SQIsign NIST-I, p = 5*2^248 - 1), unbounded
+        memory, memoryless baseline, c = 0.
+      assertions:
+        - id: RG-1
+          statement: "For each of L1, L2, L3, L4: T_A(256) with S = 0, A = 0, c = 0 lies in [118.25, 118.75]."
+          derives: "the low endpoint 2^{118.5} is DERIVED from T1 and T2, not declared"
+          design_time_expectation: "[118.461, 118.569] across the four laws"
+        - id: RG-2
+          statement: "Same with S = 3.0 lies in [121.25, 121.75], reproducing the committed F_{p^2} upper endpoint 2^{121.5}."
+        - id: RG-3
+          statement: "Applying A = 1.584963 (alpha = 3, hardware) gives [119.9, 120.4] and [122.9, 123.4], reproducing the committed AES-equivalent bracket 2^{120}-2^{123}."
+        - id: RG-4
+          statement: >-
+            EV-SSI-59f7a2's headline bracket [118.5, 123.0] is reproduced with
+            both endpoints matching to within 0.25 bits, AND the run records the
+            UNIT of each endpoint and whether they differ. If the low endpoint is
+            in F_{p^2}-operations while the high endpoint is in AES-equivalents,
+            that is reported as a UNIT-MIXING DISCLOSURE about the input record.
+            Neither outcome fails the gate; failing to report which one holds
+            DOES fail it.
+        - id: RG-5
+          statement: >-
+            Over the full scenario grid at P = 256 (4 laws x 2 S x 4 A, c = 0),
+            the set of gaps below the 128-bit target covers the committed
+            interval [6, 11] bits of red_team_concrete_cost.yaml
+            gap_below_128_target.theoretical_unbounded_memory: min gap <= 6.5 and
+            max gap >= 10.5. The grid's own span is reported alongside, and if it
+            is wider than [6, 11] the sub-grid that reproduces [6, 11] exactly is
+            named.
+      can_this_control_fail: >-
+        YES, on real defects and on real data. RG-1 recomputes 118.5 from the raw
+        8-row table and the paper anchor under four independent fit rules; a
+        misread column, a wrong pointer, a transposed row, a wrong anchor, or a
+        wrong fit form moves it out of a 0.5-bit-wide window. RG-4 can fail by
+        omission of the unit disclosure. RG-5 can fail if the reconstructed grid
+        does not reach the committed interval at either end.
+      on_failure: "RUN INVALID. Nothing else may be emitted. This is proposal falsifier F1."
+
+    - id: NULL-OBJECT
+      kind: null_object
+      mandatory: true
+      blocking: false
+      description: >-
+        Run the IDENTICAL procedure with the corrected estimator replaced by the
+        superseded ones and show the object moves.
+      arms:
+        - "N0: Wesolowski's one-operation-per-entry convention, E(P) = 0. The estimator EV-SSI-59f7a2 exists to correct."
+        - "N1: the superseded Velu estimator, E(P) = 9.8. The nearby object."
+      measured_quantities:
+        - "D_null0(P, w, theta) = |Delta_corrected - Delta_N0| at every evaluated cell, and its min / max / argmin / argmax over the grid."
+        - "D_null1(P, w, theta) = |Delta_corrected - Delta_N1| likewise."
+        - "Locus displacement: |p*_corrected - p*_null| wherever both are numeric, and the categorical transition (e.g. numeric -> NO_CROSSOVER) wherever they are not."
+      preregistered_prediction: >-
+        min D_null0 >= 11.9 bits and max D_null0 <= 14.2 bits, increasing
+        monotonically in P. D_null1 at P = 256 in [1.5, 4.0] bits, and
+        D_null1 < D_null0 at EVERY evaluated P.
+      can_this_control_fail: >-
+        YES, in three distinct ways, each with a different meaning.
+        (a) min D_null0 < 1.0 bit: the correction is not driving the object; this
+        is proposal falsifier F4 and the record must be re-described.
+        (b) D_null1 >= D_null0 anywhere: the procedure does not ORDER two
+        estimators it is supposed to resolve; falsifier F6.
+        (c) D_null0 outside [11.9, 14.2] while still above 1.0: the reconstruction
+        is not the one EV-SSI-59f7a2 performed, and the discrepancy is reported.
+        Note that the LOCUS displacement may legitimately be categorical-only if
+        every cell is NO_CROSSOVER; that is why the displacement is measured on
+        the margin SURFACE, which always has resolution, and not only on the
+        locus.
+      on_failure: "Recorded as a finding. The run stays valid; the interpretation changes."
+
+    - id: MONO-MEMORY
+      kind: monotonicity
+      mandatory: true
+      blocking: true
+      description: >-
+        The memory axis is the parameter this deliverable is built around. If the
+        instrument does not respond to it with the pre-registered sign, slope and
+        kink location, it is not measuring the thing it claims to.
+      limbs:
+        - id: MONO-1
+          statement: >-
+            d(Delta)/d(log2 w) equals +0.5 exactly under MC_P13 while
+            log2 w < L_mem(P), and 0 exactly at or above it; and -0.5 exactly
+            under MC_VOW wherever the assessed method is feasible. Measured by
+            finite difference on the declared w grid at every committed P row and
+            every theta. Tolerance 1e-6.
+          fails_on: sign reversal, wrong magnitude, memory charged to the wrong side, a missing clamp
+        - id: MONO-2
+          statement: >-
+            The kink in Delta versus log2 w under MC_P13 sits at exactly
+            L_mem(P), i.e. at 92.5 / 138.6 / 181.3 / 206.0 / 272.2 for the five
+            committed rows, to within 1e-9.
+          fails_on: "an implementation that drops the min() clamp - which is the single most likely wiring defect and produces NO kink at all"
+        - id: MONO-3
+          statement: >-
+            p*(w) is non-increasing in w under MC_P13 and non-decreasing under
+            MC_VOW, wherever at least two numeric loci exist within one theta. If
+            fewer than two numeric loci exist, the limb reports
+            NOT_EVALUABLE(n = <count>) for that theta - NEVER `pass`.
+          fails_on: a strict move in the wrong direction
+        - id: MONO-4
+          statement: >-
+            MC_P13 and MC_VOW differ by at least 0.5 bits in Delta at some
+            evaluated cell with log2 w >= 10. If they agree everywhere, the
+            memory axis is not wired in.
+          fails_on: identical surfaces
+        - id: MONO-5
+          statement: >-
+            DATA CHECK, not a formula check. Over the 5 committed T2 rows:
+            L_paper is strictly increasing; L_mem is strictly increasing;
+            L_paper(P) - P/3 is strictly increasing and lies in [21.0, 47.0];
+            L_mem(P) - P/3 is non-decreasing.
+          fails_on: "a non-monotone committed column - a property of the input that could have been otherwise"
+          why_it_matters: >-
+            L_paper(P) - P/3 is the only in-corpus handle on the superpolynomial
+            o(1) term that docs/claims-and-verification.md requires be
+            characterized rather than hidden.
+      can_this_control_fail: >-
+        YES. MONO-1, MONO-2 and MONO-4 fail on the concrete wiring defects named
+        beside them; MONO-3 fails on a direction reversal and otherwise reports
+        NOT_EVALUABLE rather than passing vacuously; MONO-5 is a property of the
+        committed data and is not implied by any formula in this contract.
+      on_failure: "MONO-1, MONO-2, MONO-4, MONO-5 failure INVALIDATES the run as a wiring or input defect. MONO-3 failure is a finding."
+
+    - id: FITTED-WINDOW-GUARD
+      kind: disclosure_guard
+      mandatory: true
+      blocking: true
+      description: >-
+        The proposal's guard, applied honestly rather than vacuously. Taken
+        literally it would void every cell, because T1's fit window is
+        log2 p in [9, 40] and every evaluation is at log2 p in [256, 768]. That
+        extrapolation is precisely what EV-SSI-59f7a2 already performed to obtain
+        2^{118.5}, and its own boundary list discloses it. The guard is therefore
+        implemented as: mandatory per-cell disclosure, not suppression.
+      rules:
+        - "Every emitted number carries fit_window_extrapolation: true and extrapolation_ratio = P / 40 in [6.4, 19.2]."
+        - "Every emitted number at a non-committed P carries interpolated_between_committed_rows with the two bracketing T2 rows named."
+        - "L3 cells with a3*P + b3 <= 0 are UNDEFINED with the missing condition named. (Design-time check: does not fire on [256, 768].)"
+        - "Evaluation outside [256, 768] is refused by the solver, not disclosed - the window is a hard boundary."
+        - "undefined_segments.json lists every cell with a non-null guard flag and names the input responsible. An empty list would itself be a defect and is reported as such."
+      can_this_control_fail: >-
+        YES, by omission: a run that emits any number without its extrapolation
+        stamp fails this control and the run is invalid. It also fails if
+        undefined_segments.json is empty, because at least the 6.4x-19.2x
+        extrapolation stamp must appear on every cell.
+
+    - id: ADVERSARIAL-CORNER
+      kind: corner_disclosure
+      mandatory: true
+      blocking: false
+      description: >-
+        Evaluate and report explicitly the corner most favourable to the assessed
+        method: the per-entry law giving the smallest E, S = 0, A = -1.736966
+        (pure RAM), c = 0.0, MC = MC_P13, log2 k_DG = 0. Any pre-registered lower
+        bound is claimed ONLY if it survives that corner.
+      can_this_control_fail: >-
+        YES: if a headline statement holds at the median grid point but not at
+        this corner, the headline is withdrawn, not qualified.
+
+    - id: SANITY-1-MODEL-COHERENCE
+      kind: model_audit
+      mandatory: true
+      blocking: false
+      description: >-
+        Audit whether MC_P13 implies that REDUCING memory below L_mem(P) makes
+        the assessed method CHEAPER. Report the implied magnitude at each
+        committed P row.
+      preregistered_expectation: >-
+        The formula as committed subtracts 0.5*min(log2 w, L_mem) from the cost,
+        so smaller w gives a smaller subtraction and a LARGER cost - the
+        subtraction is a discount that shrinks with memory. The audit must report
+        the sign of dT_A/d(log2 w) explicitly and, if it is negative (cost falls
+        as memory rises), state that the convention gives the memory discount to
+        the assessed method. If any arrangement of the committed formula implies
+        cost falling as memory falls, the run records
+        MODEL_PATHOLOGY: memory_discount_direction with the magnitude.
+      can_this_control_fail: >-
+        YES: it is an audit of a COMMITTED model against a physical coherence
+        requirement, and its adverse outcome is a finding about the campaign's own
+        cost model, not about this run.
+      why_it_is_here: >-
+        Two committed artifacts charge the same vOW law to opposite sides
+        (H-SSI-7fe2bf HEUR-XO-3). No committed record reconciles them. A contract
+        that picked one silently would be manufacturing the sign of its own
+        answer.
+
+  # =====================================================================
+  metrics:
+    primary:
+      - "p_star_table: the deliverable curve. One row per (log2 w, theta) with outcome in {numeric p*, NO_CROSSOVER_IN_WINDOW + both endpoint signs and values, INFEASIBLE_AT_MEMORY, MULTIPLE_ROOTS + all roots, ROOT_OUTSIDE_WINDOW + direction}. 4480 main rows."
+      - "p_star_band per log2 w: [min p*, max p*] over numeric cells, PLUS the counts n_numeric / n_no_crossover_attack_side / n_no_crossover_baseline_side / n_infeasible. A band reported without the categorical counts is incomplete by contract."
+      - "Band-width comparison at (P = 256, log2 w = 30): p* band width in log2 p as a fraction of its midpoint, against the margin band width in bits as a fraction of its midpoint. Proposal falsifier F2."
+      - "Reproduction gate residuals RG-1..RG-5, per law, in bits."
+      - "Null displacements D_null0 and D_null1: min, max, argmin, argmax, and the per-P profile."
+      - "Monotonicity limbs MONO-1..MONO-5 with measured slopes, kink locations, and verdicts."
+      - "Convention-sign table: sign(Delta) under MC_P13 and MC_VOW at every evaluated cell, and the count of cells where they agree."
+    secondary:
+      - "Ratio-form margin as a function of log2 k_DG, and d(p*)/d(log2 k_DG) at every w, computed at log2 k_DG in {-4,-2,0,+2,+4}."
+      - "L5 extrapolation sensitivity: E_L5(P) - E_L4(P) at every committed P row (design-time expectation: rising from about 0.36 bits at P = 256 to about 0.56 at P = 768) and the induced locus displacement."
+      - "Transcription-consistency readout |a1 - 16.2|, |a3*P+b3 vs a2*P| at P = 256, |a4 - 16.2|."
+      - "SCOPE-A / SCOPE-B / SCOPE-C tables for NIST-I/III/V (see scope_statement below)."
+      - "undefined_segments.json: every guard flag with the responsible input named."
+      - "input_hashes.json: SHA-256 of T1, T2 and every scalar-source file, recorded at run time."
+      - "environment.json: interpreter, module presence/absence for numpy, sage, g6k, fpylll, scipy, mpmath, and the no-forbidden-import assertion."
+      - "cross_check_secondary.json: XCHK-2 (numpy, optional) or NOT_RUN with the ImportError text."
+
+  cross_checks:
+    - id: XCHK-1
+      requires: stdlib only
+      description: >-
+        Recompute T_A(256) at S = 0, A = 0, c = 0 by a second, independently
+        written expression path (direct summation of the committed literals
+        rather than the general evaluator) and require agreement to 1e-12. This
+        catches an evaluator bug that happens to land inside the RG-1 window.
+      blocking: true
+    - id: XCHK-2
+      requires: numpy (OPTIONAL)
+      description: >-
+        Re-derive L_paper and L_mem independently by the B-optimization over the
+        Dickman rho function, as implemented at
+        coordination/tasks/TASK-20260724-P13-VAL/repro/experiments/EXP-P13VOW-001/cost_model.py,
+        and compare against the T2 columns. Agreement tolerance is the COMMITTED
+        observed deviation of 3.51 bits from EV-WESO-001 ("the paper's five
+        concrete (time, memory) pairs reproduce only within 0.05-3.51 bits
+        (partial control failure, honestly disclosed)"), NOT the 0.75-bit
+        SANITY_TOLERANCE_BITS declared inside that script.
+      blocking: false
+      on_absence: "record NOT_RUN with the ImportError text; the run remains valid and no reported number changes"
+
+  heuristic_under_test: >-
+    NONE. This experiment tests no heuristic. It DEPENDS on HEUR-XO-1, HEUR-XO-2,
+    HEUR-XO-3 and Wesolowski Heuristic 1, all declared in H-SSI-7fe2bf, and it
+    validates none of them. Any citation suggesting otherwise is a claim-tier
+    violation.
+
+  preregistered_prediction:
+    quantity: >-
+      (Q1) the reproduction-gate values at P = 256; (Q2) the null displacements;
+      (Q3) the sign of Delta under each memory-charging convention; (Q4) the
+      monotonicity slopes and kink locations; (Q5) the three scope orderings.
+    formula: >-
+      Q1: T_A(256) = 106.5 + log2(a*256 [+ b]) [+ S] [+ A].
+      Q2: D_null0(P) = E(P);  D_null1(P) = |E(P) - 9.8|.
+      Q3: sign(Delta) = sign(P/2 - L_paper(P) - E(P) - S - c*sqrt(P) [+ 0.5*min(log2 w, L_mem(P))  |  - 0.5*log2 w on the baseline]).
+      Q4: dDelta/dlog2w in {+0.5, 0} (MC_P13) and {-0.5} (MC_VOW); kink at L_mem(P).
+      Q5: SCOPE-A and SCOPE-B gaps increase with NIST level; SCOPE-C infeasibility increases with NIST level.
+    source: >-
+      All five derive from the committed inputs named in `inputs` above plus the
+      formulas in `cost_functions`. No external theorem is invoked. The
+      design-time expectations recorded beside each assertion were computed BY
+      HAND from the committed literals at freeze time and are PRE-REGISTRATION,
+      NOT RESULTS: they exist so that a reviewer can check whether tolerances were
+      set before or after the numbers were seen.
+    frozen_reference_values:
+      a1: 15.576908
+      a2: 16.2
+      a3: 16.925485
+      b3: -36.279641
+      a4: 16.27692061
+      E_at_256: {L1: 11.961328, L2: 12.017922, L3: 12.069019, L4: 12.024751, L5: 12.379}
+      T_A_256_S0_A0: {L1: 118.461328, L2: 118.517922, L3: 118.569019, L4: 118.524751}
+      L_paper_minus_P_over_3: [21.166667, 29.5, 33.533333, 38.9, 46.4]
+      L_mem_minus_P_over_3: [7.166667, 10.6, 10.633333, 14.0, 16.2]
+      gap_below_target_S0_A0_c0: {NIST-I: 9.538672, NIST-III: 21.95, NIST-V: 38.84}
+      memory_bytes_log2_at_64B: {NIST-I: 98.5, NIST-III: 144.6, NIST-V: 187.3}
+
+  scale_relevance:
+    tier: medium
+    justification: >-
+      Nothing is executed at any scale. The tier is inherited from the
+      load-bearing measured input T1 (log2 p <= 40), which is medium by the
+      mechanical rule. The FORM of the per-entry law is argued to transfer
+      (the counting rule in T1's own metadata is exactly linear in log2 p at
+      fixed ell); the VALUE at log2 p in [256, 768] is an extrapolation of
+      6.4x to 19.2x beyond the fit window and is stamped as such on every cell.
+    limit: >-
+      NOTHING TRANSFERS TO CRYPTOGRAPHIC SCALE AS A VALIDATED VALUE. The
+      cryptographic-size numbers here are extrapolations of a medium-tier
+      measurement, and any citation toward a crypto-scale conclusion must carry
+      that gap in the citing sentence.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Report Delta at BOTH window endpoints (P = 256 and P = 768) for every cell,
+      not only the crossing outcome. A cell reported NO_CROSSOVER whose endpoint
+      values are near zero is a different object from one whose endpoints are 60
+      bits apart, and the distinction must be visible.
+    - >-
+      Report the smallest |Delta| observed anywhere in the grid and the cell it
+      occurs at. If the minimum is below 1 bit at any memory-feasible cell, the
+      comparison is knife-edge there and the locus in that neighbourhood is
+      reported as a bracket, not a point.
+    - >-
+      Report the extreme cells of the null displacement (argmin, argmax) so a
+      reviewer can check the displacement is not driven by one pathological
+      corner.
+    - >-
+      Report the count of cells at each categorical label per convention. A
+      convention that produces 100% of one label is decisive and must be reported
+      as decisive rather than averaged into a band.
+
+  replication:
+    seeds: [0]
+    seeds_note: "No randomness is used anywhere. Seed 0 is recorded for form only. Determinism is the replication guarantee: a re-run must be byte-identical apart from timing fields."
+    independent_instances: 0
+    independent_reimplementation_required: >-
+      XCHK-1 is a second expression path for the gate value inside the same run.
+      A fully independent reimplementation by a Validator is REQUIRED before any
+      evidence record derived from this run may reach `replicated` strength.
+
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 0.25
+    maximum_memory_gb: 1
+    maximum_runs: 1
+    new_compute: none_beyond_arithmetic_on_committed_numbers
+    budget_basis: >-
+      About 7840 cells, each a 513-point bracket scan plus at most 80 bisection
+      steps: under 5 million evaluations of a closed-form expression. Pure Python
+      completes this in seconds; the 600 s ceiling is a generous margin, not an
+      estimate. No file exceeds a few megabytes.
+
+  stopping_rules:
+    - "Run once. There is nothing to re-seed and no reason to re-run except an input change, which would be a different experiment version."
+    - "Stop and emit nothing beyond the gate report if any RG assertion fails. The gate is evaluated FIRST, before any curve is computed."
+    - "Stop and report failed_infrastructure if the interpreter, a stdlib module, or an input file is unavailable. That is infrastructure signal, never a mathematical result (AGENTS.md rule 5)."
+    - "Stop at 600 s wall clock and report which cells were reached. An unreached cell is UNREACHED, never a negative and never an INFEASIBLE."
+    - "Do not execute until this contract is dispatched to an Executor under a handoff with a budget and an assigned archival task. `execution_authorized: true` authorizes dispatch; it does not authorize an undispatched run."
+
+  invalidation_rules:
+    - "Any RG-1..RG-5 assertion failing, including RG-4 failing by omission of the unit disclosure."
+    - "Any input file whose re-extracted rows differ from the frozen values in `inputs`, or whose SHA-256 is not recorded."
+    - "T2 transcription mismatch against the paper text OR against the independent PAPER_PAIRS transcription."
+    - "MONO-1, MONO-2, MONO-4 or MONO-5 failing."
+    - "XCHK-1 disagreeing beyond 1e-12."
+    - "Any reported p* outside [256, 768], or any number emitted without its fit-window extrapolation stamp."
+    - "An empty undefined_segments.json."
+    - "Any import of sage, sagemath, g6k, fpylll, scipy or mpmath; any network access; any reported number depending on numpy."
+    - "Any post-hoc change to the scenario grid, the tolerance windows, the w grid, or the frozen reference values after any output has been observed. Such a change requires a versioned protocol_amendment and a new experiment version."
+    - "Any emitted artifact containing a sentence from claim_ceiling.forbidden_sentences."
+
+  infrastructure_failure_disposition: >-
+    A missing input file, an unreadable path, an unavailable module, a parse
+    failure, or a wall-clock exhaustion is INFRASTRUCTURE SIGNAL and is NEVER
+    negative mathematical evidence (AGENTS.md rule 5). In particular, the absence
+    of numpy makes XCHK-2 NOT_RUN and changes no reported number; it is not a
+    finding about the cost model. An unreached cell is UNREACHED and is
+    distinguished in the artifacts from INFEASIBLE_AT_MEMORY and from
+    NO_CROSSOVER_IN_WINDOW, which are substantive outcomes.
+
+  success_criterion: >-
+    A COMPLETE, VALID package in which: (1) RG-1..RG-5 all pass and their
+    residuals are reported in bits; (2) XCHK-1 agrees to 1e-12; (3) MONO-1,
+    MONO-2, MONO-4, MONO-5 all pass with measured slopes and kink locations, and
+    MONO-3 reports a verdict or an explicit NOT_EVALUABLE with its count;
+    (4) both null arms are computed through the identical code path and their
+    displacements reported with min, max and argument; (5) the p_star_table is
+    complete over all 4480 main cells with an explicit categorical label wherever
+    no numeric locus exists; (6) every cell carries its extrapolation and
+    interpolation stamps; (7) SCOPE-A/B/C are reported separately with the axis
+    named; (8) the adversarial corner is reported explicitly. Success is
+    DELIVERY OF A COMPLETE PACKAGE, not a particular sign of the answer.
+
+  falsification_criterion: >-
+    H-SSI-7fe2bf is falsified, in the specific parts named, by any of:
+    F1 (RG fails - H1 false, run void); F2 (the p* band is proportionally no
+    narrower than the margin band - H3 false, the locus buys nothing);
+    F4 (min D_null0 < 1.0 bit - H4 false, the correction is not load-bearing);
+    F5 (MC_P13 and MC_VOW agree in sign everywhere - H2 false, the convention is
+    not the controlling variable); F6 (D_null1 >= D_null0 anywhere - the procedure
+    does not resolve the estimator); F7 (MONO-5 fails - the anchor table is not
+    what the hypothesis takes it to be). F3 (a numeric p* <= 512 at a
+    memory-FEASIBLE cell with log2 w <= 40) is a concrete-threat CANDIDATE, not a
+    falsifier, and triggers the escalation rule below.
+
+  escalation_rules:
+    - >-
+      F3 CANDIDATE. If any cell reports both a numeric p* <= 512 and
+      log2 w >= L_mem(p*) at log2 w <= 40, the run halts reporting at the data
+      level, marks the cell, and the Coordinator commissions independent
+      review-breakthrough review before ANY claim is made. No artifact may state
+      it as a security conclusion. Design-time note: L_mem(256) = 92.5 > 40, so
+      no cell at log2 w <= 40 can satisfy the feasibility half. If a cell
+      nonetheless does, the implementation is wrong before the world is.
+    - >-
+      VACUOUS SATISFACTION. A pre-registered bound satisfied only because the
+      assessed method is memory-infeasible at that w is reported with the words
+      VACUOUSLY SATISFIED and is never presented as substantive confirmation.
+      IDEA-20260803-48e258's F3 is expected to be satisfied vacuously across its
+      entire w range for exactly this reason, and saying so is the point.
+
+  scope_statement:
+    required_axes:
+      SCOPE-A_advantage_over_matched_baseline: >-
+        The assessed method's advantage over the matched baseline, per NIST level,
+        per scenario. PRE-REGISTERED PREDICTION: this advantage INCREASES with
+        level, because the p^{1/2} - p^{1/3} spread grows with p. This is the
+        axis on which EV-WESO-001's red-team observation "NIST-III/V margins
+        survive all tested scenarios" is a statement about the ATTACK surviving,
+        not about the scheme being safe.
+      SCOPE-B_gap_below_the_levels_own_target: >-
+        Assessed cost against 2^128 / 2^192 / 2^256. PRE-REGISTERED PREDICTION:
+        the gap below target also INCREASES with level (design-time: about 9.5 /
+        22 / 39 bits at S = 0, A = 0, c = 0). On this axis NIST-III/V are NOT
+        safer than NIST-I in the unbounded-memory model, and the contract
+        requires that be stated plainly rather than smoothed.
+      SCOPE-C_memory_feasibility: >-
+        Required table memory in bytes at 64 and 256 bytes per entry, against the
+        committed global-storage figure of about 2^{73.08} bytes. PRE-REGISTERED
+        PREDICTION: infeasible at ALL THREE levels, with infeasibility INCREASING
+        with level (design-time: 2^{98.5} / 2^{144.6} / 2^{187.3} bytes at 64 B
+        per entry). THIS IS THE ONLY AXIS ON WHICH NIST-III/V RETAIN MORE MARGIN
+        THAN NIST-I, and any safety statement must name it.
+    affected_conditionally_in_model: >-
+      Constructions resting on the supersingular Isogeny / EndRing / OneEnd
+      problem at log2 p in [256, 768] - the SQIsign family being the named
+      instance - ONLY in the unbounded-memory model, ONLY conditional on
+      Heuristic 1 and HEUR-XO-1..3, and ONLY as a cost model, never as an
+      executed attack.
+    safe_or_out_of_range: >-
+      CSIDH and other group-action or torsion-based constructions are out of
+      range entirely (EV-WESO-001 boundary: "Nothing here bears on
+      CSIDH/(qt-)Pegasis or torsion-based schemes"). Every tested SQIsign level
+      retains margin ON THE MEMORY-FEASIBILITY AXIS, at all three levels, under
+      every tested overhead scenario, by margins that widen with level.
+    mandatory_qualifier: >-
+      Every cost number emitted under this contract appears in the same sentence
+      as (i) its memory requirement and (ii) its conditionality on Heuristic 1.
+      Dropping either qualifier is a claim-tier violation per
+      docs/claims-and-verification.md.
+
+  required_artifacts:
+    - experiments/EXP-SSI-697354/specification.yaml (this file) and a freeze receipt binding its SHA-256
+    - experiments/EXP-SSI-697354/crossover.py (Executor-written; stdlib-only primary path)
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/manifest.yaml (full AGENTS.md artifact policy, including the inference block)
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/raw-result.json
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/p_star_table.json
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/reproduction_gate.json
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/null_object.json
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/monotonicity.json
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/undefined_segments.json
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/scope_statement.json
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/sensitivity.json (L5, log2 k_DG, adversarial corner, SANITY-1)
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/cross_check_secondary.json
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/input_hashes.json
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/environment.json
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/stdout.txt
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/stderr.txt
+    - experiments/EXP-SSI-697354/runs/RUN-SSI-697354-a/execution_report.yaml
+    - A Coordinator snapshot archive of the above BEFORE independent review, then Validator and Red Team reports, then a ledger archive.
+
+  certificate:
+    kind: none
+    reason: >-
+      No solve and no relation is claimed, so there is nothing to certify
+      (docs/claims-and-verification.md). The integrity analogue here is the input
+      hash binding plus XCHK-1, and both are mandatory.
+
+  review_requirements:
+    - Independent Validator: re-derive RG-1..RG-5 from T1 and T2 by an independently written implementation, without reference to the Executor's code.
+    - Independent Validator: confirm every control in `controls` is capable of returning a negative, naming the concrete input that would make it do so.
+    - Independent Red Team: attack the memory-charging convention treatment, the S_struct declared-input honesty flag, and whether any emitted sentence licenses a security claim the model cannot support.
+    - Independent Red Team: verify the dependency claim by inspection - the primary path must be stdlib-only.
+
+  assigned_to: executor
+
+  provenance_and_scope_notes:
+    read_scope_extensions_declared:
+      - >-
+        coordination/tasks/TASK-20260724-P13-VAL/repro/experiments/EXP-P13VOW-001/cost_model.py
+        (lines 60-68, 236, 270, 283) - used for the independent PAPER_PAIRS
+        transcription check, the OVERHEAD_C values 0.5/1.0/2.0, and the MC_P13
+        formula provenance. Outside TASK-20260806-976fd5's declared read_scope;
+        declared here so review can check it.
+      - >-
+        inputs/P13-WESOLOWSKI-2026/paper_fulltext.md - the frozen source, named
+        in EV-SSI-59f7a2.artifact_refs, read at lines 224-240.
+      - >-
+        coordination/tasks/TASK-20260724-P13-VAL/validation_report.yaml and
+        coordination/events/main/f12e21b55a8d.yaml - read only to CHECK the
+        dependency situation rather than assume it.
+      - requirements-dev.txt - same reason.
+    observation_not_acted_on: >-
+      ledger/goals/GOAL-SSI-001.yaml does not exist, and no sharded
+      ledger/goals/GOAL-SSI-001/ directory exists, although BATCH-b3c87f names it
+      in read_scope and a later task in the same queue declares it in a
+      write_scope. Recorded as an observation for the Coordinator running the
+      ledger archive; outside this task's write scope and not acted on here.
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to one model.
+      Recorded, never silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.
