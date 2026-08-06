@@ -1,0 +1,163 @@
+execution_report:
+  experiment_id: EXP-OIFP-0ca0c9
+  run_id: RUN-OIFP-001
+  task_id: TASK-20260804-039
+  batch_id: BATCH-057
+  hypothesis_id: H-OIFP-097d1a
+  implementation_commit: 84829edb6912c18bfce3ae31dadb41288618d090
+  implementation_branch: cursor/ecdlp-batch-047-rc45-proper-controls
+  dirty_tree: true
+  dirty_tree_note: untracked files only (run artifacts + unrelated task dirs); no staged or modified tracked files
+  recorded_at: "2026-08-04"
+  sage_version: "SageMath 10.9 (2026-05-04)"
+  seed: 2026080456
+
+  protocol_deviations:
+    - id: DEV-001
+      description: >-
+        The specification states "enumerate all j-invariants reachable from E via Elkies
+        3-isogenies to get the isogeny class (up to h(D) ~ sqrt(p) curves)". In practice,
+        SageMath's isogenies_prime_degree(3) returns all 3-isogenies (Elkies + non-Elkies)
+        defined over F_p. This is wider than Elkies-only but is the standard isogeny-graph
+        model used in OIFP literature.
+    - id: DEV-002
+      description: >-
+        For bits=20, most random ordinary prime-order curves (14/20 reps) yielded class_size=2
+        rather than the O(sqrt(p)) ~ 1024 scale expected by the specification. The random curve
+        sampler naturally favours small-discriminant curves where few 3-isogenies are defined
+        over F_p. Two reps found larger classes (384 and 309 nodes). This is recorded as an
+        anomaly and reported to the Coordinator; the specification's prediction assumed
+        typical h(D) ~ sqrt(p) class sizes.
+    - id: DEV-003
+      description: >-
+        For bits=40, the first rep found a partial class of 4730 nodes (enumeration stopped
+        at the 30s class-build budget). The BFS MITM on 4730 nodes did not find a collision
+        within 10000 steps, hitting resource_exhaustion. All subsequent reps hit the
+        global 270s wall-clock budget. Classified as resource_exhaustion (infrastructure),
+        not negative evidence per AGENTS.md rule 5.
+
+  runs:
+    completed:
+      - id: RUN-OIFP-001-bits20
+        bits: 20
+        replications_completed: 20
+        replications_planned: 20
+        mean_collision_steps: 2.4
+        median_collision_steps: 1.0
+        min_collision_steps: 1
+        max_collision_steps: 17
+        p_quarter_prediction: 32.0
+        threshold_4x_pred: 128.0
+        criterion_met: true
+        note: "mean 2.4 << threshold 128; dominated by class_size=2 reps where MITM trivially terminates in 1 step"
+
+    invalid: []
+
+    failed:
+      - id: RUN-OIFP-001-bits40
+        bits: 40
+        failure_class: resource_exhaustion
+        replications_completed: 0
+        replications_planned: 20
+        resource_exhaustion_events: 20
+        detail: >-
+          rep=0 found partial class of 4730 nodes; BFS MITM exceeded 10000-step budget
+          without collision (298s). Reps 1-19 hit global 270s wall-clock budget before
+          first curve was even enumerated. This is an infrastructure/budget failure,
+          not a mathematical result.
+        not_negative_evidence: true
+
+  observations:
+    - id: OBS-001
+      frozen_prediction_reference: "O(sqrt(h(D))) ~ p^{1/4} isogeny steps"
+      bits: 20
+      comparison_statistic: mean_collision_steps
+      measured_value: 2.4
+      predicted_value: 32.0
+      ratio: 0.075
+      threshold_4x: 128.0
+      below_threshold: true
+      note: >-
+        Executor records measured vs predicted without concluding the heuristic is
+        supported or refuted. The measured mean is far below p^{1/4}, but most
+        class sizes are 2-8 (much smaller than the O(sqrt(p)) scale assumed by the
+        prediction formula). The two larger-class reps (309, 384 nodes) gave
+        13 and 17 steps respectively, closer to sqrt(class_size) ~ 17-20.
+    - id: OBS-002
+      control: CTRL-PLANTED
+      bits: 20
+      result: "3/3 passed (BFS MITM finds collision at step=1 when E' is a direct neighbor)"
+    - id: OBS-003
+      control: CTRL-PLANTED
+      bits: 40
+      result: "3/3 passed (ran before main rep budget was exhausted)"
+    - id: OBS-004
+      control: CTRL-RANDOM-WALK
+      bits: 20
+      mean_steps: 3.9
+      note: >-
+        Random-graph MITM mean (3.9) is similar to isogeny MITM mean (2.4) at the
+        same small class sizes. Both much below p^{1/4}=32, consistent with the
+        birthday paradox at small graph sizes, not indicative of algebraic structure.
+    - id: OBS-005
+      bits: 40
+      result: resource_exhaustion
+      note: "No collision data. Class enumeration partial at 4730 nodes. Not interpretable as mathematical result."
+
+  anomalies:
+    - id: ANOM-001
+      description: >-
+        Random ordinary prime-order curve sampling at bits=20 produces class_size=2
+        in 14/20 reps. At class_size=2 the MITM necessarily terminates in 1 step
+        (E' is the only non-E node, so after one step from E we reach E'). This
+        is degenerate and not representative of the O(sqrt(p))-scale class sizes
+        the specification's prediction assumes.
+      action: reported; no data discarded
+    - id: ANOM-002
+      description: >-
+        bits=40 rep=0 partial class enumeration stopped at 4730 nodes (30s class
+        budget). The actual class size is unknown; it could be O(sqrt(p)) ~ 32768.
+        The BFS MITM on 4730 nodes (partial class) failed to find E' in 10000 steps,
+        which is expected: E' was placed at position ~2365 in the class, but the
+        10000-step BFS expansion may not reach it if the class is larger.
+      action: recorded as resource_exhaustion; not negative evidence
+    - id: ANOM-003
+      description: >-
+        SageMath random.seed() rejects Sage Integer type; fixed by wrapping SEED
+        in int(). Two script iterations ran; first attempt recorded in
+        oifp_run_output.txt (Sage Integer JSON serialisation failure also fixed).
+      action: Both preliminary and final runs in /Volumes/SSD990/llm/tmp/opencode/.
+               Final results are from oifp_run_output_v2.txt.
+
+  artifact_paths:
+    - experiments/EXP-OIFP-0ca0c9/specification.yaml
+    - experiments/EXP-OIFP-0ca0c9/runs/RUN-OIFP-001/manifest.json
+    - experiments/EXP-OIFP-0ca0c9/runs/RUN-OIFP-001/collision_table.json
+    - experiments/EXP-OIFP-0ca0c9/runs/RUN-OIFP-001/command.txt
+    - experiments/EXP-OIFP-0ca0c9/runs/RUN-OIFP-001/environment.json
+    - experiments/EXP-OIFP-0ca0c9/runs/RUN-OIFP-001/stdout.log
+    - experiments/EXP-OIFP-0ca0c9/runs/RUN-OIFP-001/stderr.log
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-057/tasks/TASK-20260804-039/execution_report.yaml
+
+  executor_assessment:
+    protocol_complete: false
+    protocol_complete_note: >-
+      bits=20 cell complete (20/20 reps); bits=40 cell incomplete (resource_exhaustion,
+      0/20 reps). The protocol as specified requires both cells. A larger budget or
+      a distinguished-point random-walk MITM would be needed for bits=40.
+    data_quality: limited
+    data_quality_note: >-
+      bits=20 data is valid but dominated by small (class_size=2) instances that are
+      degenerate for the O(p^{1/4}) prediction. The two larger-class reps (309, 384)
+      produced non-trivial collision counts (13, 17) consistent with sqrt(class_size),
+      which is the meaningful regime for the OIFP prediction. bits=40 has no valid data.
+    requires_rerun: true
+    rerun_recommendation: >-
+      To obtain meaningful data: (1) use CM theory to select curves with known large
+      discriminant (h(D) ~ sqrt(p)), bypassing the class_size=2 selection bias;
+      (2) implement distinguished-point collision search for efficient random-walk MITM
+      at bits=40; (3) increase per-rep wall-clock budget for bits=40 to >= 600s.
+
+  hypothesis_status_note: >-
+    H-OIFP-097d1a remains at status=specified. Executor makes no status change.
+    This is an observation record only.
