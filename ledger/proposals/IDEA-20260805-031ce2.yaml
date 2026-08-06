@@ -1,0 +1,585 @@
+idea:
+  id: IDEA-20260805-031ce2
+  question_id: RQ-MLDSA-ffa0f5
+  added: '2026-08-05'
+  title: >-
+    Sufficient is not necessary: the hint-correctness fibre of ML-DSA, and a
+    predicate-by-predicate census of Algorithm 7 separating the SELF-ENFORCING
+    signing checks (violation makes verification fail) from the one genuinely
+    unobservable check, with the derived survival probability 0.991 at
+    ML-DSA-44
+  class: mechanism
+
+  claim: >-
+    RQ-MLDSA-ffa0f5 records, as a relayed claim, that signatures violating
+    ML-DSA's signing-only rejection conditions still verify. That is not a
+    property of ML-DSA's rejection conditions in general, and treating it as
+    one misroutes the whole goal. Each predicate in FIPS 204 Algorithm 7 falls
+    into exactly one of three cells, and the cell is DERIVABLE rather than
+    measurable: (a) VERIFIER-ENFORCED -- ||z||_inf >= gamma1 - beta, which
+    Algorithm 8 Line 13 checks directly, and "number of 1's in h > omega",
+    which Algorithm 21 refuses to decode, so neither is signing-only at all
+    despite both appearing only in the signing pseudocode;
+    (b) SELF-ENFORCING -- ||r0||_inf >= gamma2 - beta, whose violation makes
+    HighBits(w - <<c s2>>) differ from the w1 the signer hashed, so the
+    recomputed challenge misses and verification FAILS; and (c) GENUINELY
+    UNOBSERVABLE -- ||<<c t0>>||_inf >= gamma2 alone. For (c) the object that
+    decides everything is the gap between the SUFFICIENT condition of the
+    MakeHint/UseHint correctness lemma and the ACTUAL failure set, because a
+    perturbation exceeding gamma2 breaks reconstruction only when the
+    commitment's low part happens to sit within the overshoot of a bucket
+    boundary. GENERATOR-COMPUTED, RE-DERIVATION REQUIRED: at ML-DSA-44 the
+    exceedance overshoot above gamma2 is exponentially distributed with mean
+    1693, so the conditional probability that a violating signature STILL
+    VERIFIES is approximately 1 - 1693/(2 gamma2) = 0.991. That number is the
+    honest content behind "signatures violating it verify", and it belongs in
+    the goal instead of the qualitative sentence. NO BREAK, NO FORGERY: every
+    signature discussed here is produced by a party holding the private key.
+
+  object_first_candidate:
+    tracked_object: >-
+      The HINT-CORRECTNESS FIBRE: the set of pairs (r, s) with r in Z_q and
+      s an integer perturbation, on which
+      UseHint(MakeHint(s, r), r) = HighBits(r + s) holds. FIPS 204's design
+      guarantees this whenever |s| <= gamma2; the object tracked here is the
+      part of the fibre lying OUTSIDE that guarantee -- pairs with |s| > gamma2
+      on which the identity nevertheless holds -- followed through Algorithm 7
+      and Algorithm 8 as the thing that decides whether a non-conforming
+      signature verifies. Secondary tracked object, one level up: each
+      predicate of Algorithm 7 carried as a triple
+      (reachability envelope, verifier-observability, failure consequence).
+    established_families_off_limits: >-
+      OFF-LIMITS AS THE PRIMARY LENS: lattice reduction and estimator work of
+      every kind; fault injection and physical side channels (GOAL-MLDSA-001's
+      scope, binding under RQ-MLDSA-ffa0f5's second constraint); nonce misuse
+      and the HNP family; decryption/verification-failure boosting as a
+      cryptanalytic device; and forgery search. Nothing here searches for a
+      signature under an unknown key -- every object is emitted by a signer
+      holding sk, which is what makes it a conformance object and not an
+      attack. The lens actually used is the elementary geometry of the
+      Decompose/MakeHint/UseHint triple, which is not an attack family.
+    newness_score: >-
+      That the MakeHint lemma is sufficient rather than necessary is immediate
+      to anyone who reads Algorithms 39-40, and the quantitative consequence
+      may well be folklore among implementers. What this corpus holds is
+      nothing: area MLDSA has no experiments, no runs and no evidence, and
+      KN-LIT-056 does not mention hints. What is claimed as new with confidence
+      is only the three-cell census as a deliverable and the derived 0.991,
+      neither of which appears anywhere in this program. Treat as NOT
+      ESTABLISHED NOVEL, and note that the corpus-wide novelty-screen discount
+      recorded in KN-OPEN-3f7a21 applies in full.
+    testability_score: >-
+      Very high and unusually cheap: the whole (b)-vs-(c) distinction is
+      decided by running a deliberately non-conforming signer that omits one
+      predicate at a time and counting how often the output verifies. Each cell
+      costs a few hundred signatures, not 10^8, because the (b) predicate fires
+      on the majority of attempts and the (c) predicate can be probed directly
+      at the fibre level without generating signatures at all.
+    survival_score: >-
+      The fibre object survives to the end of verification -- it IS the last
+      step -- which is unusual and is what makes the census decisive. It
+      dissolves the moment one asks about a signer who does not hold the key,
+      which is exactly the boundary this proposal must not cross.
+
+  mechanism: >-
+    FIPS 204 QUOTATIONS ARE READ from the primary text obtained by the
+    generating session on 2026-08-06 (HTTP 200 from nvlpubs.nist.gov,
+    3,291,746 bytes, sha256
+    57239b9f84c03227eda3ca0991204dc7764c79af9ce2e6824eda774918d46b6b), and are
+    re-verification targets until an executor repeats the fetch under a run
+    record.
+
+    (1) THE FOUR PREDICATES, VERBATIM. Algorithm 7 Line 23:
+      "if ||z||_inf >= gamma1 - beta or ||r0||_inf >= gamma2 - beta then
+       (z, h) <- perp"
+    Algorithm 7 Line 28:
+      "if ||<<c t0>>||_inf >= gamma2 or the number of 1's in h is greater than
+       omega, then (z, h) <- perp"
+    Algorithm 8 Line 13:
+      "return [[ ||z||_inf < gamma1 - beta ]] and [[ c~ = c~' ]]".
+
+    (2) CELL (a): TWO PREDICATES ARE NOT SIGNING-ONLY AT ALL.
+    The z-norm predicate is checked verbatim by Algorithm 8 Line 13. The hint
+    weight predicate is enforced by the ENCODING rather than by an explicit
+    verifier test: Algorithm 20 (HintBitPack) emits omega + k bytes whose last
+    k entries are cumulative counts, and Algorithm 21 (HintBitUnpack) returns
+    perp if "y[omega + i] < Index or y[omega + i] > omega", if the indices
+    within a polynomial are not strictly increasing, or if any of the remaining
+    first-omega bytes is nonzero; Algorithm 8 Line 3 returns false on perp. A
+    hint with more than omega ones therefore has no encoding a verifier will
+    accept. THIS IS A DIRECT CORRECTION TO THE FRAMING RQ-MLDSA-ffa0f5
+    INHERITED, which names the signing-only condition as
+    "||<<c t0>>||_inf >= gamma2 OR #1(h) > omega": only the first disjunct
+    qualifies. Getting this wrong would have had the goal budget a rate
+    measurement for a condition the verifier already refuses.
+
+    (3) CELL (b): THE r0 PREDICATE IS SELF-ENFORCING, DERIVED. The signer
+    hashes w1 = HighBits(w) at Line 15-16. The verifier reconstructs
+    w'_Approx = A z - c t1 2^d = w - <<c s2>> + <<c t0>> and applies
+    UseHint, which -- when the hint is correct -- returns
+    HighBits(w - <<c s2>>). Verification therefore requires
+      HighBits(w - <<c s2>>) = HighBits(w),
+    and this is exactly what ||r0||_inf < gamma2 - beta buys, since
+    ||<<c s2>>||_inf <= tau * eta = beta and r0 = LowBits(w - <<c s2>>). A
+    signer that omits the r0 predicate emits signatures on attempts where the
+    equality can fail, and on those attempts c~' != c~ and VERIFICATION FAILS.
+    So the r0 check is not an undetectable non-conformance: it is
+    self-policing, and a sign-then-verify test DOES catch a signer that drops
+    it -- the opposite of the property the goal was built around. The
+    frequency at which it would be caught is not small: under the standard
+    uniform-LowBits heuristic the per-attempt rejection rate of the r0
+    predicate is 1 - ((2(gamma2 - beta) - 1)/(2 gamma2))^(256k), i.e.
+    GENERATOR-COMPUTED 0.570 / 0.684 / 0.610 at ML-DSA-44 / -65 / -87. The
+    exhibition GOAL-MLDSA-002's first criterion asks for is therefore available
+    for this predicate in ONE OR TWO attempts -- but what it exhibits is a
+    signature that a compliant signer would not emit AND that a verifier
+    rejects, which is a different and weaker object than the criterion wants.
+    BOTH FACTS ARE THE DELIVERABLE.
+
+    (4) CELL (c): THE ct0 PREDICATE, AND WHY SUFFICIENCY IS NOT NECESSITY.
+    FIPS 204's hint machinery is exact under a one-sided condition: for
+    |s| <= gamma2, UseHint(MakeHint(s, r), r) = HighBits(r + s), because a
+    perturbation of at most one bucket width's half can move HighBits by at
+    most one step and MakeHint records exactly that one step. When
+    |s| > gamma2 the guarantee lapses -- but the CONCLUSION does not
+    automatically fail. Write s = gamma2 + e with e > 0 the overshoot. The
+    reconstruction is wrong only when the perturbation moves HighBits by two
+    steps, which requires the low part of r to lie within e of a bucket
+    boundary; under a uniform model for that low part the conditional failure
+    probability is e / (2 gamma2). Hence
+      P(a Line-28-violating signature still verifies) ~ 1 - E[e] / (2 gamma2).
+    E[e] is computable exactly from the same 39-fold convolution that
+    IDEA-20260805-bb52fa uses: the tail of |<<c t0>>_j| near gamma2 is locally
+    exponential with rate lambda, measured from the exact closed form as
+    lambda = 5.907 x 10^-4 per unit at ML-DSA-44 (the tail falls by a factor
+    0.7453 per 500 units at 95232, and by 0.7433 over the next 500, so the
+    exponential model is checked over the range it is used on, not assumed),
+    giving E[e] = 1/lambda = 1693 and
+      P(still verifies) ~ 1 - 1693 / 190464 = 0.991.
+    GENERATOR-COMPUTED, OUTSIDE THE HARNESS, NO RUN RECORD. So about 99 per
+    cent of violating signatures verify, which both CORROBORATES the relayed
+    Pitfall-12 statement and REPLACES it with a number and a mechanism. A
+    second, unconditional envelope confirms the two-step picture is the worst
+    case: ||<<c t0>>||_inf <= tau * 2^(d-1) = 159744 < 2 gamma2 = 190464 at
+    ML-DSA-44, so HighBits can never move by three steps and the analysis has
+    no third case.
+
+    (5) THE CENSUS AS A TABLE, WHICH IS THE PRIMARY DELIVERABLE. For each of
+    the four predicates, at each of the three parameter sets, four columns:
+    REACHABLE (from the envelope argument -- ct0 unreachable at -65 and -87,
+    everything else reachable); VERIFIER-OBSERVABLE (z: yes, explicit; hint
+    weight: yes, via encoding; r0: no explicitly, yes implicitly through
+    correctness; ct0: no); CONSEQUENCE OF OMISSION (nothing / verification
+    fails / verification succeeds ~99 per cent of the time); and RATE (0.567
+    for z, 0.570-0.684 for r0, a per-cent-level rate for hint weight,
+    7.34 x 10^-9 for ct0 at -44 and exactly 0 at -65 and -87). Exactly ONE
+    cell of that table is the object GOAL-MLDSA-002's first criterion is
+    about, and it is live at exactly ONE parameter set.
+
+    (6) A SMALL AUDIT THAT COMES FREE, AND IS REPORTED AS SMALL. Table 1's
+    "Repetitions" column reads 4.25 / 5.1 / 3.85. Recomputing it from the same
+    table under the standard uniform heuristic,
+      1 / [ ((2(gamma1-beta)-1)/(2 gamma1))^(256 l) *
+            ((2(gamma2-beta)-1)/(2 gamma2))^(256 k) ],
+    GENERATOR-COMPUTED gives 4.297 / 5.118 / 3.875 -- residuals of
+    +1.1 / +0.35 / +0.65 per cent. The agreement is good and is reported as
+    good; what is worth a line in a report is that the residual has the SAME
+    SIGN at all three sets and points the way the omitted Line-28 rejections
+    cannot explain, since extra rejection causes raise the repetition count
+    rather than lower it. Either a convention closes the gap or a standard's
+    own table carries an unexplained one per cent. Neither outcome is a
+    security statement, and the item is listed last because it is the least
+    important thing here.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      FIPS 204, NIST, 2024-08-13. READ (primary text; fetch receipt and hash in
+      mechanism). Quoted: Algorithm 7 Lines 23 and 28; Algorithm 8 Lines 3, 9,
+      13; Algorithms 20-21 (hint encoding and its perp conditions); Algorithms
+      35-41 (Power2Round, Decompose, HighBits, LowBits, MakeHint, UseHint);
+      Section 7.4's explanatory text on hints; Table 1.
+    - >-
+      "Apples, Oranges, and Signatures" (eprint 2026/1333), Pitfall 12. NOT
+      READ -- RELAYED CLAIM. Two of its relayed contents are addressed here
+      rather than repeated: the statement of the signing-only condition as
+      "||<<c t0>>||_inf >= gamma2 OR #1(h) > omega" is corrected in mechanism
+      (2), and "signatures violating it verify" is derived and quantified at
+      0.991 in mechanism (4). Neither correction is offered as a criticism of a
+      paper this program has not read; both are offered as what the standard's
+      own text says, and Stage 0 makes obtaining the paper a checkable step.
+    - >-
+      KN-LIT-3907 (Barbosa et al., Fiat-Shamir with aborts proof gap) is the
+      corpus's nearest entry to the question of what a rejection condition buys
+      in the security argument. NOT READ by this session; named as the entry a
+      proof-role determination would have to engage, and deliberately NOT used
+      to support any statement here. This proposal determines the CORRECTNESS
+      role of each predicate, which is decidable from the standard's own
+      algorithms; the ZERO-KNOWLEDGE / proof role is left explicitly open.
+    - >-
+      GOAL-MLKEM-002 is the structural precedent named by GOAL-MLDSA-002 --
+      the ML-KEM re-encryption comparison, a security-relevant step outside
+      observation. The census here decides, for ML-DSA, which predicates
+      actually have that shape; the answer is one of four, and saying so
+      sharpens the analogy rather than weakening it.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The full signing state at Line 28 mapped to the pair
+      (overshoot e = ||<<c t0>>||_inf - gamma2, position of the commitment's
+      low part relative to the nearest bucket boundary) -- and, at the census
+      level, each predicate mapped to the triple (reachable?, observable?,
+      consequence).
+    what_is_discarded: >-
+      The key, the message, the challenge, the mask, and every coefficient of
+      <<c t0>> except the offending one; at the census level, all quantitative
+      structure except three categorical bits per predicate.
+    why_genuinely_lossy: >-
+      Strongly lossy: the fibre over an observed (e, position) pair is an
+      enormous set of signing states. The discard is compatible with the
+      operations because verification's outcome factors through exactly these
+      two quantities -- UseHint's correctness on the offending coefficient is a
+      function of the perturbation and the bucket position and of nothing else,
+      which is why the projection retains enough to predict the outcome
+      deterministically.
+    is_it_only_a_change_of_coordinates: >-
+      No -- the map is many-to-one by an astronomical factor and nothing
+      reconstructs the signing state from it. The MIRROR failure was checked
+      and does NOT occur for the primary object: e varies from violation to
+      violation with a derived exponential law of mean 1693, so the comparator
+      has real spread and a measured spread near zero would be the
+      pre-registered tell of a broken instrument. It DOES occur, deliberately,
+      for the census-level projection, which is constant across instances by
+      construction -- and that is stated rather than hidden, because a
+      categorical census is only useful if it is constant, and its usefulness
+      comes from the fact that it takes DIFFERENT constant values in different
+      cells (three distinct verdicts across four predicates), not from any
+      per-instance variation.
+
+  assumptions:
+    - >-
+      That the reconstruction identity in mechanism (3),
+      A z - c t1 2^d = w - <<c s2>> + <<c t0>>, is exactly right. It is
+      checkable symbolically and by direct computation on one signature, and
+      Stage 1 does both.
+    - >-
+      That the uniform model for the position of the commitment's low part
+      relative to a bucket boundary is adequate at the resolution 1693/190464.
+      This is a heuristic (H2 below) and the graded control tests it.
+    - >-
+      That the exponential fit to the exceedance tail is valid over the range
+      it is used on. This is checked rather than assumed: the exact convolution
+      gives decay factors 0.7453 and 0.7433 over two consecutive 500-unit
+      intervals above gamma2, and the fit is used only inside that range.
+
+  predictions:
+    - metric: >-
+        verdict_table: for each of the four Algorithm 7 predicates, the triple
+        (reachable, verifier-observable, consequence-of-omission)
+      direction: different
+      minimum_effect: >-
+        FORCED, DERIVED BEFORE ANY RUN. z-norm: (reachable, OBSERVABLE
+        explicitly, verification fails). hint weight: (reachable, OBSERVABLE
+        via encoding, signature undecodable). r0: (reachable, not explicitly
+        checked, VERIFICATION FAILS). ct0: (reachable only at ML-DSA-44,
+        NOT observable, verification usually SUCCEEDS). Any cell coming out
+        differently falsifies the census.
+    - metric: >-
+        measured fraction of signatures that still verify when the signer omits
+        the r0 predicate of Line 23, at each parameter set, over 500 emissions
+      direction: lower
+      minimum_effect: >-
+        Predicted well below 1 and pre-registered as "materially less than the
+        conforming rate of 1.000". A measured 1.000 over 500 emissions
+        falsifies mechanism (3) outright and would mean the r0 predicate is
+        also unobservable -- which would make the goal's original framing right
+        and this proposal wrong. That is the single cheapest decisive
+        measurement in the whole goal.
+    - metric: >-
+        measured fraction of Line-28-violating emissions that still verify at
+        ML-DSA-44, obtained by DIRECT FIBRE SAMPLING (draw r uniformly and s
+        from the conditional overshoot law) rather than by generating 10^8
+        signatures
+      direction: higher
+      minimum_effect: >-
+        FORCED VALUE: 0.991, derived pre-run from E[e]/(2 gamma2) with
+        E[e] = 1693 and 2 gamma2 = 190464. Pre-registered acceptance band
+        [0.985, 0.996] at 10^5 fibre samples. A measured value near 0.5 or
+        near 1.000 both falsify the mechanism, in opposite and diagnostic ways.
+    - metric: >-
+        maximum HighBits displacement caused by <<c t0>> at ML-DSA-44, over
+        any input
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE: at most 2 steps, because
+        tau * 2^(d-1) = 159744 < 2 gamma2 = 190464. An observed 3-step
+        displacement is impossible and its occurrence indicates an
+        implementation bug, not a discovery.
+    - metric: >-
+        recomputed Repetitions column against FIPS 204 Table 1
+      direction: different
+      minimum_effect: >-
+        4.297 / 5.118 / 3.875 against 4.25 / 5.1 / 3.85, i.e. residuals of
+        +1.1 / +0.35 / +0.65 per cent with a common sign. Reported as a small
+        residual with a stated direction, never as an error in the standard.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest-first, each able to terminate the line.
+      STAGE 0 (reading, zero compute, TERMINATING): re-obtain FIPS 204, quote
+      the four predicates and Algorithm 8 Line 13 and Algorithm 21's perp
+      conditions verbatim with pages. If the hint-weight predicate turns out
+      NOT to be encoding-enforced, cell (a) loses a member and the census is
+      restated before anything runs.
+      STAGE 1 (algebra, zero compute, TERMINATING): derive the reconstruction
+      identity and the two-step displacement bound symbolically; produce the
+      forced verdict table. If the identity fails, STOP.
+      STAGE 2 (fibre sampling, seconds): draw 10^5 pairs (r, s) directly at
+      ML-DSA-44 parameters with s from the conditional overshoot law and r
+      uniform, and measure the fraction on which
+      UseHint(MakeHint(s, r), r) = HighBits(r + s) despite |s| > gamma2. No
+      signing at all. This is the arm that produces the 0.991 check, and it
+      costs nothing because it decouples the rare EVENT from the cheap
+      CONDITIONAL question.
+      STAGE 3 (non-conforming signers, minutes): build a pure-Python ML-DSA on
+      hashlib SHAKE and run four signer variants -- conforming, r0-omitted,
+      ct0-omitted, hint-weight-omitted -- at each parameter set, 500 emissions
+      each, and record how many verify under an INDEPENDENTLY WRITTEN verifier
+      that shares no code path with the signer.
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE, FORCED VALUE PRE-DERIVED, CAN FAIL: the
+        CONFORMING signer arm. Forced value: 500/500 emissions verify at every
+        parameter set. If a conforming signer's output ever fails the
+        independent verifier, the implementation is wrong and NOTHING else in
+        the package may be reported. This is the null that catches the failure
+        mode that would otherwise masquerade as the finding.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR: the
+        hint-weight-omitted signer. Its output must be REJECTED at Algorithm
+        21 (undecodable) whenever the weight exceeds omega, at the per-cent
+        rate derived in IDEA-20260805-bb52fa. If the instrument reports those
+        as verifying, the verifier is not enforcing the encoding and every
+        other verdict in the census is void.
+      - >-
+        GRADED CONTROL, FIVE POINTS, MONOTONICITY REPORTED: in Stage 2, sweep
+        the perturbation magnitude s over
+        {0.5, 0.9, 1.0, 1.5, 2.0} x gamma2 and report the measured
+        hint-correctness rate at each. FORCED SHAPE, DERIVED PRE-RUN:
+        exactly 1.000 for the first three points (the lemma's guarantee),
+        approximately 1 - (s - gamma2)/(2 gamma2) for the fourth, and
+        approximately 0.5 at the fifth. A rate that fails to decay as s rises
+        past gamma2 is the canonical artifact tell and localises the fault to
+        the MakeHint/UseHint implementation rather than leaving "it did not
+        break".
+      - >-
+        INDEPENDENT VERIFIER REQUIREMENT: the verifier must be written from
+        Algorithm 8 without importing any function from the signer, per
+        docs/claims-and-verification.md's independence rule. A shared UseHint
+        implementation would make the whole census self-confirming.
+      - >-
+        VERDICT-ON-THE-NULL-FIRST: the conforming arm is run, verified and its
+        verdict committed before any non-conforming arm is examined.
+      - >-
+        ARCHIVE CHECK, ZERO COMPUTE: no prior measurement of this observable
+        exists in this corpus. Recorded as an absence, not a passed check.
+    required_metrics:
+      - the four predicates and Algorithm 8 Line 13 quoted verbatim with pages
+      - the forced verdict table, filled before Stage 2 runs
+      - fibre-sampling hint-correctness rate at 10^5 samples with seeds, against 0.991
+      - the five-point graded sweep with monotonicity reported
+      - verify-rate per signer variant per parameter set, 500 emissions, independent verifier
+      - the recomputed Repetitions column beside Table 1's
+
+  falsification_conditions:
+    - >-
+      The r0-omitted signer's emissions verify at a rate indistinguishable from
+      the conforming signer's. Mechanism (3) is wrong, the r0 predicate is
+      unobservable after all, and the goal's original framing is vindicated
+      against this proposal. Cheapest decisive measurement in the goal.
+    - >-
+      The measured hint-correctness rate above gamma2 is far from 0.991 -- near
+      1.000 means the MakeHint guarantee extends further than derived and the
+      overshoot analysis is wrong; near 0.5 means the two-step displacement is
+      much more common than the uniform-position model allows.
+    - >-
+      The hint-weight predicate is found NOT to be enforced by Algorithm 21.
+      Cell (a) loses a member and the census is restated.
+    - >-
+      The conforming arm does not verify 500/500. Nothing is reported.
+    - >-
+      A 3-step HighBits displacement is observed at ML-DSA-44. Impossible under
+      the envelope, hence an implementation defect; the package halts as
+      invalid_measurement rather than reporting a discovery.
+
+  confounders:
+    - >-
+      IMPLEMENTATION SELF-CONFIRMATION. A census of what a verifier checks,
+      measured with a verifier written by the same hand as the signer, tests
+      nothing. The independent-verifier control is not decoration; it is the
+      main threat to validity.
+    - >-
+      PURE-PYTHON SCALE. The signer is three orders of magnitude slower than an
+      optimised implementation, so 500 emissions per arm is what the budget
+      buys. That is ample for effects of order 0.5 and useless for effects of
+      order 10^-8, which is precisely why Stage 2 decouples the conditional
+      question from the rare event.
+    - >-
+      THE UNIFORM-BOUNDARY-POSITION MODEL. The 0.991 rests on it. The graded
+      sweep tests it at magnitudes where the effect is large, and the number is
+      reported as heuristic-conditional throughout.
+    - >-
+      A CENSUS IS COMFORTABLE. Producing a tidy four-row table reads as rigour
+      and costs nothing. Three of the four rows are decided by argument and
+      only one by measurement; the record must say which is which on every
+      citation, and the positive control exists so that a null row costs
+      something to assert.
+
+  interpretation_limits:
+    - >-
+      NOT A BREAK, NOT A FORGERY, NOT A VULNERABILITY REPORT. Every object here
+      is produced by a party holding the private key. A verifying signature
+      that a conforming signer would not emit is a CONFORMANCE observation, and
+      under RQ-MLDSA-ffa0f5's claim_tier_ceiling it may not be reported as
+      evidence about MLWE, MSIS or SelfTargetMSIS in any direction.
+    - >-
+      The census determines each predicate's CORRECTNESS role, which follows
+      from the standard's own algorithms. It does NOT determine the
+      ZERO-KNOWLEDGE or proof role -- whether omitting a predicate makes the
+      transcript distribution secret-dependent is a question about the security
+      argument, is NOT answered here, and is named as the explicit successor.
+      Writing "omitting the check leaks s2" would be exactly the unsupported
+      step this record refuses.
+    - >-
+      "About 99 per cent of violating signatures verify" is conditional on a
+      violation occurring, and violations occur at 7.34 x 10^-9 per signature
+      at ML-DSA-44 and never at ML-DSA-65 or -87
+      (IDEA-20260805-bb52fa). The conditional and the unconditional statements
+      must never be quoted without each other.
+    - >-
+      NO STATUS CHANGE to any existing record is proposed or implied, and no
+      criticism of eprint 2026/1333 is made or intended: that paper has not
+      been read by this program.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        As in IDEA-20260805-bb52fa: the coefficients of t0 behave as
+        independent uniforms on [-2^(d-1)+1, 2^(d-1)], used here only to derive
+        the conditional overshoot law and the r0 rejection rates.
+      random_model_justification: >-
+        Exact up to a 1/1023 excess at the single residue class 0, since
+        q - 1 = 1023 * 8192; the excess sits at the centre and thins the tail.
+        Independence across coefficients is NOT justified and is the weak half.
+      validation_plan: >-
+        The hint-weight arm of IDEA-20260805-bb52fa tests the same law in the
+        bulk at all three parameter sets against pre-registered means
+        63.4 / 38.7 / 57.1.
+    - id: H2
+      statement: >-
+        Conditional on a coefficient of <<c t0>> exceeding gamma2 by e, the
+        position of the corresponding coefficient of w - <<c s2>> + <<c t0>>
+        relative to the nearest multiple of 2 gamma2 is uniform on that
+        interval and independent of e.
+      random_model_justification: >-
+        w = A y with y freshly sampled by ExpandMask at every attempt and A
+        pseudorandom from rho, so the commitment's low part is modelled as
+        uniform; the independence from e is the part that is NOT justified,
+        since e is a function of t0 and c while the position is a function of
+        w, c, s2 and t0 -- they share c and t0. Recorded as the weak half; the
+        direction of any resulting error is not known and is not guessed.
+      validation_plan: >-
+        The five-point graded sweep measures the hint-correctness rate at
+        perturbations 0.5, 0.9, 1.0, 1.5 and 2.0 times gamma2, where the
+        uniform model makes a sharp and falsifiable prediction
+        (1, 1, 1, ~0.75, ~0.5) that is easy to miss if the model is wrong.
+    - id: H3
+      statement: >-
+        The standard uniform-LowBits model used to recompute Table 1's
+        Repetitions column: r0 coefficients uniform on the 2 gamma2 integers
+        (-gamma2, gamma2] and z coefficients uniform on the 2 gamma1 integers
+        (-gamma1, gamma1], independently across coordinates.
+      random_model_justification: >-
+        It is the model the published parameter derivation is understood to
+        use; it is invoked here ONLY to reproduce a published column, and it
+        reproduces it to 1.1 per cent, which is itself the evidence for its
+        adequacy at that resolution and no better.
+      validation_plan: >-
+        Direct measurement of the empirical repetition count over 10^3
+        signatures per parameter set, against both 4.25/5.1/3.85 and
+        4.297/5.118/3.875. This is the arm that can attribute the residual.
+
+  target_complexity:
+    time_exponent: >-
+      n/a -- NO EXPONENT IS MOVED and none is claimed. This is a conformance
+      census and a correctness-geometry derivation about a fielded standard.
+      Saying so plainly is required by docs/target-result-profile.md's cost
+      honesty; the exponent this lane must never claim to move is the
+      MLWE/MSIS/SelfTargetMSIS one, and RQ-MLDSA-ffa0f5 forbids it explicitly.
+    memory_exponent: >-
+      Negligible. Stage 2 streams 10^5 integer pairs; Stage 3 holds one
+      signature at a time.
+    best_known: >-
+      No prior art in this corpus (area MLDSA is empty). Outside it, the
+      relayed Pitfall 12 statement is the nearest, and it is qualitative where
+      this is quantitative -- but it is NOT READ and so cannot be positioned
+      against with confidence.
+    hidden_overhead: >-
+      Writing an independent verifier is the real cost and it is deliberate: a
+      shared implementation would be cheaper and worthless.
+    tradeoff_note: >-
+      The design trades away any hope of directly observing a Line-28 ct0
+      violation (priced at 1.36 x 10^8 signatures) in exchange for measuring
+      the CONDITIONAL question at 10^5 fibre samples. That trade is the whole
+      reason the census fits in the campaign budget, and it is declared in
+      advance rather than discovered halfway through.
+
+  dominated_by: >-
+    n/a (no attack, no cost claim, no Pareto point claimed). Rows checked
+    before writing: (i) the corpus -- area MLDSA holds no ideas, hypotheses,
+    experiments, runs or evidence, and KN-LIT-056 mentions no algorithm, line
+    number, predicate or hint; (ii) the sibling GOAL-MLDSA-001, whose scope by
+    its own non_duplication block is assumptions and fault injection, neither
+    of which is touched; (iii) GOAL-MLKEM-002, the completed structural
+    precedent, which owns the ML-KEM re-encryption lane and not this one;
+    (iv) the three cost axes on which a competitor could dominate this
+    deliverable -- TIME (Stage 1 is zero-compute and Stage 2 is seconds),
+    MEMORY (negligible), DATA/QUERIES (2,000 signatures total across four
+    variants and three parameter sets, against the 10^9 the criterion's
+    stated route implies). NOT CHECKED, AND SAID SO: the external
+    implementation and conformance-testing literature, and eprint 2026/1333
+    itself, which is NOT READ; the corpus-wide novelty-screen discount of
+    KN-OPEN-3f7a21 applies and no novelty is asserted.
+  sota_delta: >-
+    Quantitative and categorical rather than asymptotic. Replaces "the
+    signing-only rejection condition is ||<<c t0>>||_inf >= gamma2 OR
+    #1(h) > omega, and signatures violating it verify" with: three of four
+    predicates are not signing-only in the operative sense (two are
+    verifier-enforced, one is self-enforcing), the fourth is unobservable and
+    is live at exactly one of three parameter sets, and conditional on a
+    violation the signature verifies with probability 0.991 rather than
+    "verifies". Query cost of establishing this: about 2,000 signatures plus
+    10^5 arithmetic samples, against the order 10^9 signatures the goal's
+    criterion implies if read literally. No exponent moves and no algorithm is
+    improved.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.75 that the three-cell census survives independent re-derivation as
+    stated. NOT HIGHER because cell (b) rests on an algebraic identity about a
+    real algorithm rather than on counting, because the encoding-enforcement
+    argument for the hint weight depends on reading Algorithm 21's perp
+    conditions correctly, and because a conformance census of a heavily
+    implemented standard is the kind of thing that is either already known or
+    subtly wrong. NOT LOWER because every step is quoted from the standard's
+    own pseudocode, because the r0 conclusion is decided in minutes by a
+    500-emission measurement that this design front-loads, and because the two
+    unconditional envelopes (no three-step displacement; ct0 unreachable at -65
+    and -87) constrain the analysis from outside. Separately: 0.55 that the
+    0.991 figure survives as a number within its pre-registered band, held down
+    by H2's unjustified independence between the overshoot and the boundary
+    position, which the graded sweep is designed to expose rather than to hide.

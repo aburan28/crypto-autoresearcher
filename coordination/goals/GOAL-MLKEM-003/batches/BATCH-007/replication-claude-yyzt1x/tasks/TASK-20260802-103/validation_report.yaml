@@ -1,0 +1,580 @@
+validation_report:
+  id: VAL-20260802-001
+  task_id: TASK-20260802-103
+  goal_id: GOAL-MLKEM-003
+  batch_id: BATCH-007
+  role: validator
+  reviewed_object:
+    kind: coordinator_snapshot_commit
+    commit_sha: bd184fff917e84ff1f0c909412a3e49e2a5e784c
+    parent_sha: 25e90257926c0e981f9eac12738157ff4a05649d
+    producer_task: TASK-20260802-101
+    archive_task: TASK-20260802-102
+  run_ids: []
+  claim_tier: estimate/table
+  scope_statement: >-
+    This report says only whether the TASK-20260802-101 retrieval and adjudication
+    package is admissible as a research receipt. It makes no ML-KEM claim, no
+    crypto-scale claim, and no statement about whether 143.30 is or is not a
+    transcription error (that diagnosis is EXP-MLKEM-010 / KN-FIND-016 and was not
+    re-adjudicated here). A passed validation does not authorize any promotion.
+  independence:
+    independent_session: true
+    produced_the_reviewed_package: false
+    method: >-
+      Re-derived rather than confirmed. Every check below was executed in this
+      session against bytes fetched in this session or against the committed
+      objects; no producer transcript was accepted as proof of what a source says.
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: claude-opus-5
+    model_provenance: >-
+      Claude Code subagent frontmatter (model: inherit); identifier as reported by
+      the running session.
+    model_verified: false
+    model_verified_reason: >-
+      orchestration.adapter doctor --probe was not run in this session; the
+      identifier is session-reported configuration, not probe-verified.
+    reasoning_effort: xhigh
+    fallback_used: true
+    fallback_reason: >-
+      orchestration/model-policies.yaml names GPT-5.6-family aliases for
+      review-adversarial. Claude Code cannot resolve those identifiers
+      (CLAUDE.md model policy note), so the task ran on a Claude model.
+      fallback_allowed: true in the handoff.
+    degraded_allowed: false
+    degraded_requirements: []
+
+  # ------------------------------------------------------------------ artifacts
+  artifact_checks:
+  - check: commit changes exactly the declared path set
+    method: git show --name-only bd184fff vs snapshot_receipt.json declared_paths
+    result: 18 files changed = 17 declared paths + the receipt itself; no extra path
+    status: pass
+  - check: receipt path_sha256 vs working tree and vs committed blobs
+    method: sha256 of each of the 17 declared paths, recomputed twice (worktree, git show COMMIT:path)
+    result: 17/17 match on both sides; 0 mismatches
+    status: pass
+  - check: working tree clean for the reviewed paths
+    method: git status --porcelain
+    result: no modifications to any reviewed path
+    status: pass
+  - check: vendored run artifact hash
+    method: sha256sum experiments/EXP-MLKEM-010/vendor-lock/Carrier-2022-1750-hal-05406481.pdf
+    result: 083b142256eecaebfa72dfccf847151b2175666a3979cef4e7383376757b8005 (1252838 bytes)
+    status: pass
+  - check: independent re-fetch of the highest-priority source
+    method: curl -sSL https://hal.science/hal-05406481/document, this session, 2026-08-02T06:44:56Z
+    result: >-
+      HTTP 200, application/pdf, 1252838 bytes, sha256
+      083b142256eecaebfa72dfccf847151b2175666a3979cef4e7383376757b8005 --
+      byte-identical to both the vendored artifact and the value recorded in
+      provenance.json. The Coordinator's byte-identity check is independently
+      confirmed, not inherited.
+    status: pass
+  - check: independent re-fetch of the ePrint 2022/1750 landing page
+    method: curl -sS https://eprint.iacr.org/2022/1750, this session, 2026-08-02T06:46:07Z
+    result: >-
+      HTTP 200, 17539 bytes, sha256 90494be8f4c72023ac60381476644113c3ba4a28952c2dba2f7205b2ba0ef844 --
+      identical to provenance.json sources[eprint-2022-1750-abstract].sha256.
+    status: pass
+  - check: extract genuinely derives from the PDF it names, at the page it names
+    method: >-
+      pypdf 6.14.2 PdfReader(my own re-fetched hal-doc.pdf).pages[36].extract_text()
+      diffed against extracts/carrier-hal-05406481-p37-tableC1-C2.txt
+    result: >-
+      identical except the committed file omits the trailing newline. The PDF has
+      37 pages; page 37 is the last page and its trailing printed folio is "36",
+      matching the cited "PDF page 37 (printed page 36)". Page 1 is confirmed to be
+      the HAL cover sheet, so the p02 title-page citation is also correct.
+    status: pass
+  - check: producer script is the script that produced provenance.json
+    method: >-
+      copied fetch_sources.py to scratch with only OUT_DIR repointed (single-line
+      diff shown in validation_notes.md), re-ran it end to end against the live
+      network, writing outside the repository. No producer artifact was touched.
+    result: >-
+      Re-run reproduced the record order exactly (35 records in the same sequence),
+      the same tally {attempted 35, retrieved 20, unretrieved 14, not_attempted 1},
+      and the same per-source status for all 35. 11 of 12 extracts are byte-identical
+      to the committed ones; hal-05406481-api.json differs in exactly one field, the
+      Solr relevance score "maxScore" (5.948268 vs 5.9518228). Every substantive HAL
+      field is identical.
+    status: pass
+  - check: three-runs disclosure consistent with what is committed
+    method: read fetch_sources.py for the artefacts of runs 1 and 2
+    result: >-
+      Consistent. The committed script carries the run-2 fix (expect_pdf magic-byte
+      check, lines 113-123) and the run-3 fix (pipe-delimited curl -w and
+      split("|"), lines 76 and 100). provenance.json's per-record retrieved_at values
+      all fall in 06:34:00-06:34:28Z with environment.retrieved_at_utc 06:34:29Z,
+      i.e. one contiguous execution. Discarding runs 1 and 2 is disclosed under
+      protocol_deviations.
+    status: pass
+
+  # ------------------------------------------------- provenance-integrity checks
+  metric_recomputations:
+  - metric: provenance tally
+    reported: {attempted: 35, retrieved: 20, unretrieved: 14, not_attempted: 1}
+    recomputed: {records: 35, retrieved: 20, unretrieved: 14, not_attempted: 1}
+    status: consistent
+    note: >-
+      Arithmetic is self-consistent, but "attempted: 35" counts the one
+      not_attempted record; the true attempt count is 34. See D-7.
+  - metric: every record carries sha256 or an explicit unretrieved reason
+    recomputed: >-
+      34/35 records carry sha256 + bytes + http_status + retrieved_at; the single
+      not_attempted record carries sha256 null with an explicit multi-sentence
+      reason. All 14 unretrieved records carry an error string with the HTTP status
+      and, where applicable, the cf-mitigated header value and a 400-byte body
+      snippet.
+    status: consistent
+  - metric: no `retrieved` record is actually an interstitial/error page
+    recomputed: >-
+      Checked all 20. One miss found: springer-chapter-landing (see D-3). The other
+      19 are genuine objects -- 5 verified by PDF magic bytes and page extraction,
+      5 JSON payloads parsed and inspected, 9 HTML pages whose extracted text
+      carries the expected content.
+    status: defect_found
+  - metric: ePrint search hit count
+    reported: 34
+    recomputed: 34 lines in extracts/eprint-search-coded-dual-attack-hits.txt
+    status: consistent
+  - metric: Semantic Scholar citing-paper count and titles
+    reported: 5 papers, titles listed in adjudication_results.json sweep.citing_titles
+    recomputed: >-
+      5 entries in extracts/semanticscholar-citations-carrier.json; all five titles,
+      years and venues match the reported list exactly.
+    status: consistent
+  - metric: "Pwrong token absent from Ducas-Pulles, Pouly-Shen, MATZOV"
+    reported: mentions_Pwrong_token false for all three
+    recomputed: >-
+      Re-extracted all three PDFs from my own re-fetch cache with pypdf 6.14.2.
+      "Pwrong" absent from all three; "P wrong" also absent; "Carrier" present in
+      Ducas-Pulles and Pouly-Shen (bibliography), absent from MATZOV.
+    status: consistent
+
+  # ---------------------------------------------------------------- control checks
+  control_checks:
+  - control: ePrint PDF-path denial is path-class-wide, not specific to 2022/1750
+    producer_probe: eprint.iacr.org/2023/302.pdf -> 403, cf-mitigated challenge
+    my_independent_probe: >-
+      Hand-probed 2022/1750.pdf, 2023/302.pdf and /archive/versions/2022/1750 in this
+      session: all three HTTP/2 403 with header "cf-mitigated: challenge".
+    status: reproduced
+  - control: positive control that PDF retrieval as such works
+    my_independent_probe: >-
+      HAL (1252838 B), CWI (1021750 B), inria.hal (925479 B), Zenodo (610325 B) and
+      nvlpubs.nist.gov (1252341 B) PDFs all retrieved with correct magic bytes in my
+      re-run, so the ePrint 403 is not a general PDF-fetch failure.
+    status: reproduced
+  - control: GitHub denial is session-wide, not repository-specific or transient
+    producer_probe: api.github.com/repos/numpy/numpy -> 403, same proxy message
+    my_independent_probe: >-
+      Hand-probed api.github.com/repos/kevin-carrier/CodedDualAttack,
+      .../commits/main, github.com/kevin-carrier/CodedDualAttack and
+      api.github.com/repos/numpy/numpy. All four returned HTTP 403 with the byte-identical
+      proxy message "GitHub access to this repository is not enabled for this session."
+      The numpy control fails identically, so the denial is not a property of the
+      target repository.
+    status: reproduced
+  - control: null-object / decay control for a statistical signal
+    applicability: not_applicable
+    reason: >-
+      docs/inventor-protocol.md section 3 requires a null-object control before any
+      reported correlation, bias or excess is treated as evidence. This package
+      reports no statistical signal: it reports what printed characters appear in
+      published documents and which HTTP fetches succeeded. The only quantities it
+      touches (Pwrong / Pgood scale asymmetry, the Fig 4.1 coverage gap) are
+      referenced to KN-FIND-012/014 and explicitly not re-adjudicated. No control is
+      owed here, and none is claimed. The obligation transfers unchanged to whatever
+      task closes the KN-OPEN-016 residual.
+
+  # ----------------------------------------- per-question reproduction status
+  question_reproductions:
+  - id: Q1
+    producer_verdict: confirmed_in_current_source
+    status: reproduced
+    what_i_reproduced_byte_for_byte:
+    - >-
+      Re-fetched https://hal.science/hal-05406481/document myself; sha256
+      083b1422...b8005, byte-identical to the recorded value and to the vendored
+      immutable artifact.
+    - >-
+      Re-extracted page 37 of that PDF with pypdf 6.14.2: the CN block of Table C.2
+      reads "Kyber-512 -120.51 7.71 143.30 117.91 124.00 0.71 -7.49". The third
+      numeric column under log2(Tsample) is 143.30. The committed extract is
+      identical to my extraction.
+    - >-
+      Re-fetched the ePrint 2022/1750 landing page myself (sha256 90494be8...,
+      identical to the recorded value): "2025-06-11: last of 3 revisions",
+      "2022-12-20: received", Note "This version of the paper differs only in the
+      title", "Published by the IACR in CRYPTO 2025", current four-author title. No
+      erratum, correction notice or withdrawal notice anywhere on the page.
+    - >-
+      Re-fetched the HAL API record: version_i 1, submittedDate_s 2025-12-09,
+      producedDate_s 2025-08-17, modifiedDate_s 2026-02-16, files_s .../2022-1750.pdf.
+    reproducible_scope: >-
+      What is byte-established is: the HAL deposit hal-05406481 as served on
+      2026-08-02 prints 143.30 in that cell, and the ePrint landing page as served on
+      2026-08-02 records three revisions with the last on 2025-06-11 and no erratum.
+      That is the statement a downstream record may cite.
+    rests_on_recollection: false
+    revision_pinning_audit:
+      producer_claim: the HAL object is ePrint revision 3 (inferred, not byte-verified)
+      i_attacked_it_and_found:
+      - >-
+        No retrieved fact is INCONSISTENT with HAL-object = ePrint rev 3. I checked
+        every field the producer retrieved, including two it never discussed:
+        producedDate_s 2025-08-17 (which postdates the 2025-06-11 ePrint revision) and
+        modifiedDate_s 2026-02-16. Neither contradicts the identification:
+        producedDate_s is a bibliographic conference-date field, and version_i is
+        still 1, so the deposited file was never re-versioned.
+      - >-
+        The strongest available discriminator against the rival hypothesis
+        "HAL object = Springer version of record" is present in the retrieved
+        metadata and the producer did not deploy it as such: /Producer "PDFLaTeX"
+        with /PTEX.Fullbanner "pdfTeX ... TeX Live 2024" shows the inner document is
+        an author LaTeX build, not Springer LNCS typesetting. The producer cited
+        /Producer only to argue about the timestamp.
+      - >-
+        A distinguishing check the producer could have run and did not: compare the
+        ePrint landing page abstract against the HAL PDF's own abstract. I ran it.
+        Substantively identical, with the same headline figures (3.5/11.9/12.3 bits
+        below 143/207/272); the only differences are citation-macro rendering
+        ("[MAT22]" / "Kyber [SAB+20]" in the PDF vs "[Matzov,2022]" /
+        "CRYSTALS-Kyber" in the ePrint metadata field). This is CONSISTENT with, but
+        does not prove, the identification, because ePrint's abstract field is
+        author-typed metadata rather than text extracted from the PDF.
+      - >-
+        One retrieved fact IS misdescribed and it is the one bearing most directly on
+        revision identity. See D-2: Unpaywall records the HAL location as
+        version "submittedVersion", not as the published version. The producer's
+        evidence item says the opposite. The error's direction of effect favours the
+        producer's own conclusion, so Q1 does not fall, but the record was
+        misparaphrased and the probative field went unused and unvendored.
+      residual_i_also_could_not_close: >-
+        I reproduced the producer's failure to obtain ePrint-hosted bytes: 403
+        cf-mitigated challenge on 2022/1750.pdf and on /archive/versions/2022/1750,
+        Springer answering both its landing and content-pdf URLs with the same
+        cookies_not_supported interstitial, and web.archive.org blocked by egress
+        policy. So in my session too the HAL-object/ePrint-rev-3 identity remains an
+        inference. I can neither upgrade nor refute it.
+  - id: Q2
+    producer_verdict: unretrievable
+    status: reproduced
+    what_i_reproduced: >-
+      Four independent hand probes in this session (repo API, commits/main, the web
+      host, and the numpy control) all returned HTTP 403 with the byte-identical
+      proxy denial message quoted in the adjudication. No head commit SHA is
+      obtainable in this session either. The quoted 403 body matches the
+      provenance record character for character.
+    locus_check: >-
+      The Q2 incidental-gain quotation ("We provide the program used to generate
+      Figure 4.1 in the GitHub repository[13] / 13
+      https://github.com/kevin-carrier/CodedDualAttack/tree/main/verifyModel") is
+      present in extracts/carrier-hal-05406481-fig4.1-validation-section.txt lines
+      11-13, which I re-derived byte-identically from my own PDF re-fetch. This
+      genuinely upgrades the repository locus from program notes to a primary
+      published source.
+    rests_on_recollection: false
+    correctly_scoped: >-
+      Yes. The producer states plainly that this is an infrastructure fact and is not
+      evidence for or against KN-FIND-014 in either direction (AGENTS.md rule 5), and
+      that KN-FIND-014's observation at commit 9c1367f stands unchallenged and
+      unconfirmed. That is the right handling and I endorse it.
+    note: >-
+      raw.githubusercontent.com was deliberately not used. I did not use it either.
+      Routing around a stated access denial would violate the session policy and
+      would in any case not supply the HEAD SHA the question needs.
+  - id: Q3
+    producer_verdict: indeterminate
+    status: reproduced
+    with_defects: [D-1, D-4, D-8]
+    what_i_reproduced_byte_for_byte:
+    - >-
+      The Fig 4.1 validation-section locus, re-extracted from my own PDF re-fetch:
+      byte-identical to the committed extract. It does contain the sentence about
+      computing an experimental Pwrong for different values of T, the axis tick
+      labels 200..1600, the 4000-iteration count, and the left/right panel parameter
+      lists including kfft = 3, n = 43 and n = 50.
+    - >-
+      Figure 4.1's extracted legend carries only (D >= T), (N(0, N/2) >= T),
+      (D + N(0, N/2) >= T) and "Experimental results for Pwrong"; no Pgood curve
+      appears, supporting the producer's statement.
+    - >-
+      Table C.2's caption "We recall that Pgood ~ 0.5." is present on the same page
+      as the CN row, so the operating point is asserted rather than measured on the
+      Fig 4.1 axis, as the producer says.
+    - >-
+      The Ducas-Pulles non-commensurability claim is correct. I re-extracted the CWI
+      PDF (sha256 947f2826...) and confirmed T there denotes a number of
+      samples/candidates in every occurrence I inspected ("a large number T of
+      uniform samples", "T = 2.05n uniform samples", "T = exp(exp(n.99))",
+      "T = n2n"), and that Figure 4's log2 T axis runs 30..50 against dimension.
+    - >-
+      Pwrong token absent from all three non-Carrier PDFs, independently recomputed.
+    rests_on_recollection: false
+    caveat: >-
+      Two of the Ducas-Pulles quotations backing this have no committed locus (D-1),
+      and the "measured Pwrong support ends at T ~ 1600-1800" observation is not
+      entailed by the cited locus (D-4). Both are documentation defects; I verified
+      the underlying facts against the hashed object myself.
+
+  # ---------------------------------------------------------------------- defects
+  defects:
+  - id: D-1
+    severity: moderate
+    class: provenance_gap
+    title: Three load-bearing quotations have no committed locus, contradicting the package's own self-description
+    detail: >-
+      source_adjudication.md closes with "Every quotation is from a file in
+      inputs/MLKEM-DUAL-SOURCES-20260802/extracts/", and README reuse boundary 3
+      repeats it. Three quotations are not: (a) the Ducas-Pulles bibliography entry
+      "CST22. Kevin Carrier, Yixin Shen, and Jean-Pierre Tillich. Faster dual lattice
+      attacks by using coding theory. Cryptology ePrint Archive, Paper 2022/1750,
+      2022." -- this is Q1 inference fact 2 and is LOAD-BEARING, since it is what makes
+      the HAL title page's four-author title "the current title, not the earlier one";
+      (b) "even among a number of random candidates as large as doubly-exponential
+      T = exp(exp(n.99))" (Q3); (c) "When taking T = 2.05n uniform samples" (Q3).
+      All three are in the Ducas-Pulles PDF, which was deliberately not vendored;
+      the committed excerpt covers Sections 5.2-5.3 only.
+    my_verification: >-
+      I re-fetched the CWI PDF (sha256 947f2826ce64d7a8c09493f9901ef418095b89a8660be075880f8874863eb62e),
+      re-extracted it, and located all three. All three are accurate, modulo the
+      de-hyphenation and space normalization pypdf forces. This is a vendoring gap,
+      NOT a fabrication.
+    impact: >-
+      No verdict falls. But a downstream reader holding only the committed package
+      cannot check three quotations without re-fetching a 1 MB PDF that the package
+      deliberately did not vendor -- which is precisely the failure mode the package
+      exists to prevent.
+    remedy_for_a_successor_task: >-
+      A superseding record adds extracts covering the Ducas-Pulles reference list
+      entry CST22 and Sections 4.2/4.3 where T is defined, or the adjudication drops
+      the un-locus'd quotations and cites only the committed excerpt.
+    verdict_affecting: false
+  - id: D-2
+    severity: moderate
+    class: misdescribed_retrieved_fact
+    title: The Unpaywall record is paraphrased in the direction opposite to the field it actually carries, and the distinguishing field is unused and unvendored
+    detail: >-
+      Q1 identification_evidence item 5 (adjudication_results.json line 78; prose
+      version at source_adjudication.md fact 4) states "Semantic Scholar and Unpaywall
+      both name hal.science/hal-05406481 as the OA location for the published
+      chapter". The retrieved Unpaywall record (provenance source
+      unpaywall-978-3-032-01855-7_15, sha256 49ca1746e7b50289...) carries exactly one
+      OA location, with version "submittedVersion" -- Unpaywall classifies the HAL
+      deposit as the SUBMITTED version, not the published one. Semantic Scholar's
+      record does say openAccessPdf status GOLD with the same HAL URL, so the
+      Semantic Scholar half is defensible; the Unpaywall half inverts the record.
+    my_verification: >-
+      I re-fetched and parsed both records this session. Unpaywall:
+      is_oa true, oa_locations[0].version "submittedVersion", url
+      https://hal.science/hal-05406481. Semantic Scholar: openAccessPdf
+      {"url": "https://hal.science/hal-05406481", "status": "GOLD", "license": "CCBY"}.
+    why_it_matters: >-
+      The handoff asked specifically whether a retrieved fact exists that would
+      DISTINGUISH the HAL object from ePrint revision 3 and was not used. This is it.
+      "submittedVersion" is direct evidence that the deposit is the author/preprint
+      build rather than the Springer version of record -- which STRENGTHENS the
+      producer's conclusion while contradicting the sentence the producer wrote. The
+      producer had the discriminating field, described it backwards, and used the
+      weaker framing. Neither the Unpaywall nor the Semantic Scholar paper record was
+      vendored to extracts/, so this item too has no committed locus.
+    impact: Q1 is not overturned; the direction of the error favours the verdict it supports.
+    verdict_affecting: false
+  - id: D-3
+    severity: minor
+    class: inconsistent_retrieval_classification
+    title: springer-chapter-landing is recorded `retrieved` although it is the same cookie-error interstitial that its sibling record is correctly recorded `unretrieved` for
+    detail: >-
+      provenance.json records springer-chapter-landing with status "retrieved" and
+      url_effective
+      "https://link.springer.com/chapter/10.1007/978-3-032-01855-7_15?error=cookies_not_supported&code=...".
+      The sibling springer-chapter-pdf is correctly recorded "unretrieved" with the
+      note that the body is a cookie wall. The only reason the two are classified
+      differently is that fetch() applies its sole content check (PDF magic bytes)
+      when expect_pdf is set, and expect_pdf was not set on the landing fetch
+      (fetch_sources.py lines 113-118, 290-292).
+    my_verification: >-
+      I fetched both URLs this session with -L. Both end at the identical
+      "?error=cookies_not_supported&code=<uuid>" page, ~332 kB, and both bodies
+      contain 14 cookie/privacy markers. The page does carry the correct chapter
+      title in <title>, so it is a degraded landing page rather than a pure error
+      page -- but it is the same object class the producer rejected.
+    impact: >-
+      Not load-bearing. No verdict cites springer-chapter-landing, and the
+      adjudication correctly records that whether the Springer version of record
+      prints the same cell is UNKNOWN. But it contradicts README reuse boundary 2
+      ("Only `retrieved` records are usable"), so a downstream reader could treat a
+      cookie-error page as usable evidence.
+    verdict_affecting: false
+  - id: D-4
+    severity: minor
+    class: locus_over_read
+    title: The Q3 observation about where the measured Pwrong support ends is not entailed by the cited locus
+    detail: >-
+      adjudication_results.json Q3 locus.observation states "The measured Pwrong
+      support in the current text ends at T of roughly 1600-1800", and
+      source_adjudication.md repeats it. The cited locus supplies only Figure 4.1's
+      AXIS TICK LABELS (200 400 600 800 1000 1200 1400 1600). A tick-label list does
+      not bound the support of the plotted data -- the plotted crosses may stop before
+      or extend past the last labelled tick. The "1800" is not in the locus at all: it
+      comes from KN-FIND-014's archived run data (Pwrong last-positive T = 1802), a
+      different artifact from a different experiment.
+    impact: >-
+      The statement is probably true and is consistent with KN-FIND-014, but as
+      written the cited locus does not entail it, which is the exact failure the
+      handoff asked me to look for. Cite KN-FIND-014 for the 1802 figure and scope
+      the locus-derived claim to "the labelled T-axis of Figure 4.1 runs to 1600".
+    verdict_affecting: false
+  - id: D-5
+    severity: minor
+    class: unmarked_normalization
+    title: Block quotes presented as verbatim are silently normalized, and in one case content is added
+    detail: >-
+      The adjudication renders the Pwrong definition as
+      "|{z in Z^{kfft}_q : F^{(lsc)}_0(z) >= T}| / q^{kfft}". The cited extract has no
+      cardinality bars -- pypdf produced "{z in Z kfftq : F (lsc) 0 (z) >= T } / qkfft".
+      Other quotes are silently de-hyphenated and re-flowed across the extract's line
+      breaks. This is defensible editorial repair of mangled PDF text extraction, but
+      it is not marked as repair, and README reuse boundary 1 warns precisely against
+      character-level claims made off these extracts.
+    verdict_affecting: false
+  - id: D-6
+    severity: minor
+    class: verdict_label_broader_than_verification
+    title: The label `confirmed_in_current_source` is broader than the one current source whose bytes were read
+    detail: >-
+      Three live "current sources" exist for this table: the ePrint-hosted PDF, the
+      Springer version of record, and the authors' HAL deposit. Only the third was
+      read. The producer discloses this fully -- in verdict_sensitivity, in
+      not_retrieved, in the README, and in the snapshot commit message -- and states
+      the verdict degrades to `indeterminate` under the stricter reading. So this is
+      labelling looseness that the package itself corrects in prose, not concealment.
+      Flagged because the machine-readable verdict token is what a downstream record
+      is most likely to copy.
+    my_position: >-
+      I reproduced the HAL-scoped statement exactly and I reproduced the inability to
+      reach the other two. A downstream record should cite the scoped form given under
+      question_reproductions[Q1].reproducible_scope, not the bare token.
+    verdict_affecting: false
+  - id: D-7
+    severity: trivial
+    class: counting_semantics
+    title: '"35 attempted" counts a source that was deliberately not attempted'
+    detail: >-
+      provenance.json counts.attempted is len(RECORDS) = 35, which includes the one
+      not_attempted record; README and source_adjudication.md both say "35 attempts:
+      20 retrieved, 14 unretrieved, 1 deliberately not attempted". 35 attempts of
+      which one was not an attempt is self-contradictory. The true attempt count is 34.
+      Arithmetic is internally consistent; only the label is wrong.
+    verdict_affecting: false
+  - id: D-8
+    severity: minor
+    class: scoping_ambiguity
+    title: Q3's machine-readable field for the Carrier paper is under-qualified
+    detail: >-
+      Q3 asks whether any retrieved source "reports Pwrong at or near the aligned
+      Pgood operating threshold", and records
+      reports_pwrong_at_operating_threshold false for Carrier et al. Read literally
+      that is wrong: Table C.2 does report log2(Pwrong) at the operating point
+      (CN/Kyber-512 -120.51, CC/Kyber-512 -119.57) under a caption that recalls
+      Pgood ~ 0.5. The intended and correct reading is "no source EXPERIMENTALLY
+      MEASURES Pwrong at the aligned threshold", and the producer states that
+      distinction in the prose ("the Pgood ~ 0.5 operating point is asserted, not
+      measured against that same axis") and again in unexpected observation 5 -- but
+      not in the question text or in verdict_scope, which is where a downstream reader
+      will look.
+    impact: The `indeterminate` verdict is correct under the intended reading, which the package does state.
+    verdict_affecting: false
+
+  # ------------------------------------------------------ non-defects, checked
+  checks_that_found_nothing:
+  - >-
+    No verdict rests on recollection. I traced every factual assertion in
+    source_adjudication.md and adjudication_results.json to either a committed
+    extract, a provenance record, or (for the three in D-1 and the one in D-2) an
+    object I re-fetched and verified myself. `unverified_recollections` is correctly
+    empty. Nothing in the package asserts a fact from training-data memory.
+  - >-
+    No fabricated command, output, status code, hash, count or citation was found.
+    Every number I could recompute recomputed.
+  - >-
+    The record order in provenance.json matches the call order in fetch_sources.py
+    exactly, all 35, so the script is the script that produced the file.
+  - >-
+    The producer did not route around the GitHub denial. raw.githubusercontent.com
+    is recorded as not_attempted with an explicit reason. I did not route around it
+    either.
+  - >-
+    The producer did not present toy-scale or estimate-tier material as
+    crypto-scale. claim_tier is estimate/table throughout and the scope statement
+    disclaims any ML-KEM break claim (AGENTS.md rule 7).
+  - >-
+    The premature-closure obligation of docs/inventor-protocol.md is honoured --
+    unexpected observation 4 explicitly records that the lane is active, not
+    saturated, and names the 2026 papers that make it so.
+
+  # ---------------------------------------------------------------- limitations
+  limitations:
+  - >-
+    I could not obtain ePrint-hosted PDF bytes for 2022/1750 (HTTP 403,
+    cf-mitigated challenge), the ePrint per-version listing (403), the Springer
+    version of record (cookie-error interstitial), any Wayback copy (403, blocked by
+    egress policy), or any content from kevin-carrier/CodedDualAttack (403,
+    session-scoped repository denial). Every one of these is a defect I therefore
+    could NOT check: I cannot confirm or refute that the ePrint-hosted PDF or the
+    Springer proceedings version print 143.30 in that cell.
+  - >-
+    My re-derivation of the HAL PDF's text uses the same tool and version as the
+    producer (pypdf 6.14.2). It is therefore an independent execution but not an
+    independent implementation. A different extractor could in principle render that
+    cell differently; the underlying PDF bytes are however pinned by sha256 and were
+    fetched independently.
+  - >-
+    "Table C.2 prints 143.30" is a fact about printed characters. It is not evidence
+    that 143.30 is a transcription error, which is KN-FIND-016's separate empirical
+    claim resting on the EXP-MLKEM-010 optimizer pickle. Nothing here re-adjudicates
+    that, and nothing here supports any claim about ML-KEM security.
+  - >-
+    `verdict: passed` below means "admissible as a research receipt, with the eight
+    defects listed". It does not mean defect-free, and it authorizes no promotion,
+    no hypothesis-status change, and no knowledge-corpus entry.
+
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+
+  # ------------------------------------------------------------------- verdicts
+  question_verdict_summary:
+    Q1: reproduced
+    Q2: reproduced
+    Q3: reproduced
+  package_verdict: ADMISSIBLE_WITH_DEFECTS
+  package_verdict_rationale: >-
+    Every one of the three question verdicts reproduces under independent
+    re-derivation. The highest-priority source was re-fetched in this session and its
+    sha256 matches the recorded value and the vendored immutable artifact exactly.
+    The Q1 locus genuinely derives from the PDF it names at the page it names -- I
+    re-extracted it rather than reading the extract. The retrieval script re-runs to
+    the same 35-record tally with 11 of 12 extracts byte-identical. No fabrication and
+    no recollection-based adjudication was found, and the producer's two
+    non-confident verdicts are honestly non-confident. The package is nevertheless
+    not fully self-verifying: three load-bearing quotations have no committed locus
+    (D-1) and one load-bearing metadata claim inverts the field it cites (D-2). Both
+    are documentation-integrity defects rather than evidence failures -- I closed both
+    against the same hashed objects -- but they must be repaired by a superseding
+    record before any downstream record cites the affected quotations.
+  verdict: passed
+  verdict_enum_note: >-
+    `passed` is the agents/validator.md enum value corresponding to
+    package_verdict ADMISSIBLE_WITH_DEFECTS. It asserts only that the receipt is
+    admissible evidence at estimate/table tier. It does not support an ECDLP or
+    ML-KEM claim, does not demonstrate a speedup, and does not authorize promotion.
+
+  artifact_paths:
+  - coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-103/validation_report.yaml
+  - coordination/goals/GOAL-MLKEM-003/batches/BATCH-007/tasks/TASK-20260802-103/validation_notes.md
+  handoff_to: TASK-20260802-105

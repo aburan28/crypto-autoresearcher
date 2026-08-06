@@ -1,0 +1,566 @@
+idea:
+  id: IDEA-20260805-4a6dc7
+  question_id: RQ-FNDSA-001
+  added: '2026-08-05'
+  title: >-
+    Move the exactness test down to the leaf, where ground truth exists: a
+    goodness-of-fit test on FN-DSA signatures has essentially no power at
+    2n = 1024 dimensions, while the same test on the one-dimensional leaf
+    sampler has an exactly computable rational reference and a derived power
+    law, and the difference is the whole difference between a calibrated
+    instrument and an uncalibrated one
+  class: measurement
+
+  claim: >-
+    The natural instrument for this goal -- collect signatures, run a
+    chi-square or Kolmogorov-Smirnov goodness-of-fit test against the ideal
+    discrete Gaussian -- CANNOT BE CALIBRATED AS SPECIFIED, for two reasons
+    that are structural rather than practical. FIRST, there is no computable
+    reference: the ideal distribution over the lattice coset is
+    rho_sigma,c(v) / rho_sigma,c(Lambda), and the denominator is a lattice
+    theta value at dimension 2n = 1024 which cannot be evaluated, so the
+    "ideal" the test compares against does not exist as a number. SECOND, even
+    granting a reference, the support is Z^{1024} and the number of signatures
+    any adversary may obtain is bounded by q_s = 2^64, so essentially every
+    observed signature falls in its own cell and a chi-square statistic has no
+    power against any alternative -- the test's asymptotic regime is never
+    entered. THE CONSTRUCTIVE CLAIM IS THAT BOTH OBJECTIONS DISSOLVE ONE LEVEL
+    DOWN. The one-dimensional leaf sampler D_{Z, sigma_i, c} has sigma_i in
+    [sigma_min, sigma_max], approximately [1.28, 1.83], so its effective
+    support is about 25 integers; its normalizer is an ordinary theta value
+    computable to arbitrary precision in exact rational or high-precision
+    decimal arithmetic in microseconds; and a chi-square test over 25 cells is
+    in its asymptotic regime at N = 10^4. The exactness question is therefore
+    DECIDABLE at the leaf and only there, and the paired experiment supplies
+    the pre-derived power law N(tau) = c / tau^2 with the constant c computed
+    before the run and a six-rung graded bias ladder to measure it against.
+
+  object_first_candidate:
+    tracked_object: >-
+      The CONDITIONAL LEAF OUTPUT LAW: the probability vector
+      p(z | sigma, frac(c)) for z in a window around c, produced by the
+      standardized base sampler, tracked as a function of the center's
+      fractional part. This is the sampler's smallest complete unit, it is the
+      unit at which an exact reference exists, and every deviation of the full
+      signature distribution that is not the normalizer defect of
+      IDEA-20260805-2bbfb2 must pass through it.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: (a) timing, cache and power side
+      channels on the sampler; (b) BKZ / lattice-reduction cost estimation;
+      (c) overstretched-NTRU and subfield attacks; (d) fault injection; (e)
+      whole-signature goodness-of-fit testing, which is the object this
+      proposal argues is untestable and therefore may not be the lens through
+      which the replacement is designed; (f) any statistical test whose null
+      distribution is asserted from a table rather than derived. The
+      restriction in (f) is the operative one: the point of this proposal is
+      that the reference must be COMPUTED, not looked up.
+    newness_score: >-
+      As statistics, nothing here is new -- a chi-square test on a
+      25-cell multinomial with an exactly computed reference is the most
+      ordinary instrument imaginable. What is new to this corpus is the
+      DIAGNOSIS: naming why the obvious instrument for this goal cannot work,
+      and relocating the measurement to the level where it can. This program's
+      own census records that 82 per cent of its evidence records carry no
+      positive control and that only one experiment specification in 195 has a
+      declared arms-and-controls block; a proposal whose entire content is a
+      calibrated instrument with a derived power law is unusual here precisely
+      because that gap exists.
+    testability_score: >-
+      Maximal. Every number in the design is a closed-form evaluation, the
+      reference is exact, the null can fail, and the whole thing runs in
+      minutes in pure Python with numpy 2.4.6, which was verified present in
+      this container during ideation (scipy and sympy are ABSENT and the
+      design uses neither).
+    survival_score: >-
+      The object survives as far as it is allowed to: leaf exactness is
+      NECESSARY but NOT SUFFICIENT for signature exactness, because the
+      normalizer defect derived in IDEA-20260805-2bbfb2 exists even when every
+      leaf is perfect. This proposal therefore cannot certify signature
+      exactness and does not claim to; it certifies or refutes one of the
+      three factors in the decomposition, and the record names the other two.
+
+  mechanism: >-
+    DERIVED IN-RECORD.
+
+    THE DECOMPOSITION THAT MAKES THE LEAF THE RIGHT PLACE. Let P be the actual
+    signature distribution of a concrete FN-DSA implementation and D the ideal
+    discrete Gaussian over the coset. Then
+      log(P / D) = A + B + C, where
+      A = the LEAF DEFECT: sum over leaves of
+          log(p_impl(z_i | sigma_i, c_i) / p_exact(z_i | sigma_i, c_i));
+      B = the NORMALIZER DEFECT: -sum over leaves of log Z_i(c_i) plus the
+          constant log rho_sigma,c(Lambda), which is nonzero even for perfect
+          leaves and is computed in closed form in IDEA-20260805-2bbfb2;
+      C = the RECURSION AND PRECISION DEFECT: the difference between the
+          centers and widths the exact tower recursion prescribes and those a
+          finite-precision ffSampling actually computes.
+    A, B and C are separately measurable and only B is derivable in closed
+    form. This proposal measures A. It is the only one of the three for which
+    an EXACT REFERENCE EXISTS, and that is not an accident: A is a statement
+    about a distribution on about 25 points.
+
+    WHY THE WHOLE-SIGNATURE TEST HAS NO POWER, DERIVED. A chi-square test with
+    m cells and N observations has non-centrality parameter
+    lambda = N sum over cells of (p_alt - p_null)^2 / p_null, and it needs
+    lambda of order sqrt(m) to be detectable at fixed level when m is large,
+    because the null statistic itself has mean m and standard deviation
+    sqrt(2m). With m of order the number of occupied cells and N signatures,
+    the occupied-cell count is at most N, so the test degenerates: at
+    N = 2^64 observations in Z^{1024} with per-coordinate standard deviation
+    165.7, the expected number of coincidences between any two signatures in
+    all 1024 coordinates is astronomically below one, every cell count is 0 or
+    1, and the statistic carries no information about the alternative. THE
+    OBSTRUCTION IS NOT SAMPLE SIZE, IT IS DIMENSION, and it cannot be repaired
+    by collecting more signatures. A one-dimensional marginal projection
+    repairs the dimension but throws away exactly the structure that carries
+    the deviation, because the marginals of the ideal and of a
+    normalizer-defective sampler agree to O(eps).
+
+    WHY THE LEAF TEST HAS POWER, DERIVED. Fix sigma and c. The exact law is
+    p_exact(z) = exp(-(z - c)^2 / (2 sigma^2)) / Z_sigma(c), computable to any
+    precision by summing about 2 K + 1 terms with a rigorous tail bound: the
+    omitted mass beyond |z - c| > K sigma is at most
+    2 exp(-K^2 / 2) / (1 - exp(-K / sigma^2)) times the leading term, so
+    K = 40 gives an error below 2^-1000 in decimal arithmetic and the
+    reference is exact for every practical purpose. The window has about
+    2 ceil(6 sigma_max) + 1, i.e. about 25, cells with non-negligible mass.
+    Against an alternative that perturbs the law by a relative amount tau in a
+    structured way -- the ladder below uses a width perturbation
+    sigma -> sigma (1 + tau), which is the perturbation an implementation error
+    actually produces -- the non-centrality is
+    lambda = N tau^2 sum over cells of p (d log p / d log sigma)^2, and
+    d log p / d log sigma = ((z - c)^2 / sigma^2) - E[(z - c)^2 / sigma^2], so
+    the sum is Var((z - c)^2 / sigma^2), which equals 2 + O(eps) for a
+    Gaussian. Hence lambda = 2 N tau^2 and
+      N_required(tau) = (z_{1 - alpha} + z_{1 - beta})^2 / (2 tau^2).
+    AT alpha = 0.001 AND beta = 0.05 THE CONSTANT IS
+    (3.090232306 + 1.644853627)^2 / 2 = 11.2105, SO
+    N_required(tau) = 11.2105 / tau^2.
+    That is the pre-registered power law and its constant, derived before any
+    run, and the six-rung ladder measures it.
+
+    THE LADDER AND ITS FORCED VALUES. tau in {2^-4, 2^-5, 2^-6, 2^-7, 2^-8,
+    2^-9} gives N_required = 2870, 11480, 45918, 183673, 734693, 2938770 --
+    six interior points, each a number fixed before the run, spanning three
+    orders of magnitude in N and following an exact factor-of-four law between
+    adjacent rungs. A measured N_required that does not quadruple per rung
+    falsifies the power derivation; a measured N_required systematically below
+    the derived value means the test is anti-conservative and its reported
+    alpha is wrong; systematically above means the implementation of the test
+    is lossy and its sensitivity claim must be discounted by the measured
+    factor.
+
+    WHAT THE INSTRUMENT THEN REPORTS ABOUT THE STANDARDIZED SAMPLER. Applied
+    to the actual base sampler at the actual sigma values, with N samples, the
+    instrument returns either a rejection with an estimated effect size, or an
+    UPPER BOUND: at N samples the smallest detectable tau at power 0.95 is
+    tau_min = sqrt(11.2105 / N), so N = 10^8 gives
+    tau_min = 3.35e-4 = 2^-11.55.
+    THAT IS THE HONEST SENSITIVITY STATEMENT the goal's completion criterion
+    demands, and it must be reported beside any non-rejection. Note the gap it
+    leaves and do not paper over it: 2^-11.5 is 25 bits above the eps_crit of
+    2^-37 derived in IDEA-20260805-2bbfb2, so a direct leaf-level test at
+    feasible N CANNOT reach the level at which the leaf defect would matter
+    cryptographically. The instrument's honest role is therefore to catch
+    GROSS leaf defects -- a wrong table, a truncated CDT, a mis-scaled sigma,
+    a biased rejection loop -- which are the defects that actually occur in
+    implementations, and to state its own blind spot in bits.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      IDEA-20260801-010 is the prior proposal on RQ-FNDSA-001 and this record
+      engages it directly and by name. Its design is: collect at least 10^6
+      seeded sampler outputs, compute the ideal discrete Gaussian over the
+      support, run chi-square and Kolmogorov-Smirnov, report p-values and the
+      minimum detectable deviation. THIS RECORD DOES NOT SUPERSEDE IT,
+      CONTRADICT IT, OR PROPOSE ANY STATUS CHANGE TO IT -- that would be a
+      Coordinator decision and none is requested. What this record adds is the
+      observation that "the support" is ambiguous in that design and that the
+      two readings have opposite feasibility: at the SIGNATURE level the ideal
+      distribution is not computable and the test has no power, while at the
+      LEAF level both problems vanish. Read charitably, IDEA-20260801-010 may
+      already have intended the leaf reading; the record does not say which,
+      and this proposal supplies the derivation either way. Its listed
+      controls -- an exact reference sampler as positive control, a perturbed
+      sampler as negative control -- are also labelled in the opposite sense
+      to this program's convention, where the null object is the one whose
+      forced value is derived and the positive control is the one that must
+      fire; that is a naming issue and not a defect, and it is recorded here
+      so a reviewer comparing the two records is not confused.
+    - >-
+      DRAFT FIPS 206 / FN-DSA: NOT READ. sigma_min approximately 1.2778,
+      sigma_max approximately 1.8205, q = 12289, and the existence of a
+      base sampler over a fixed half-Gaussian table with rejection are ALL
+      RECALLED, UNVERIFIED. In particular the claim that the standardized base
+      sampler uses a cumulative distribution table plus a Bernoulli rejection
+      step, which is what makes the leaf a discrete testable object at all, is
+      recalled and is a Stage 0 reading task.
+    - >-
+      ENVIRONMENT, MEASURED DURING IDEATION ON THIS MACHINE AND OUTSIDE THE
+      HARNESS -- re-verify in-harness and record the result in the run
+      manifest: python 3.11.15, numpy 2.4.6 PRESENT, scipy ABSENT, sympy
+      ABSENT. The two scouting sweeps that informed this session disagree
+      about this container's contents; this record states what was actually
+      observed here and the design uses only the standard library plus numpy.
+      Normal quantiles are hard-coded rather than taken from scipy.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Full signature (s_1, s_2) in Z^{2n} together with its internal sampling
+      transcript, projected to a single leaf triple (sigma_i, frac(c_i), z_i),
+      and then to the conditional histogram of z_i given a quantized bin of
+      frac(c_i).
+    what_is_discarded: >-
+      2n - 1 of the 2n leaf draws, the lattice structure, the message, the
+      key, and the ordering of the recursion. Only a scalar and its
+      conditioning bin survive.
+    why_genuinely_lossy: >-
+      Overwhelmingly lossy and not invertible: the fibre over one leaf
+      histogram is the entire remaining signature space.
+    why_compatible_with_the_operations: >-
+      Compatible because the sampler's output is literally a composition of
+      leaf draws: the recursion consumes leaf samples and does nothing else
+      stochastic. So the retained part propagates deterministically -- the
+      composition of exact leaves plus the exact recursion is the exact Klein
+      output, up to the normalizer term B which is derived separately. The
+      compatibility is structural, not statistical.
+    is_it_only_a_change_of_coordinates: >-
+      NO. Checked against both canonical failures.
+      NOT the (Delta, Pi) = (x xor y, x y) failure: the leaf histogram is
+      radically non-invertible, so information is genuinely discarded.
+      NOT the mirror failure either, and this is the check that mattered: is
+      the projected observable CONSTANT across implementations, with zero
+      comparator spread? It is not, and the reason is derived rather than
+      hoped for: the conditional law p(z | sigma, c) depends analytically on
+      sigma and on frac(c), its sensitivity d log p / d log sigma has variance
+      exactly 2 + O(eps), and that variance is precisely the non-centrality
+      coefficient computed in the mechanism. A nonzero derived sensitivity IS
+      the comparator spread, and it is what gives the instrument power. Had it
+      been zero, the leaf histogram would have been an apparatus constant and
+      the whole proposal void; the check was run and it returned 2.
+      THE HONEST DEFECT, RECORDED HERE RATHER THAN DISCOVERED LATER: the
+      projection discards exactly the normalizer defect B, because B is a
+      property of the PRODUCT of normalizers across leaves and is invisible in
+      any single leaf. So this observable is provably blind to the one
+      deviation that is known to exist. That is why the two proposals are
+      companions and neither is sufficient alone.
+
+  assumptions:
+    - >-
+      That the standardized sampler exposes a one-dimensional base sampler
+      that can be invoked directly at a chosen (sigma, c). If the draft
+      specifies a monolithic sampler with no such interface, the leaf test
+      must be run on a reimplementation, and the conclusion then concerns the
+      reimplementation and NOT the standard -- a distinction the contract
+      makes binding.
+    - >-
+      That the base sampler is deterministic given its randomness tape, so
+      that seeded reproduction is possible.
+    - >-
+      That leaf draws are independent given (sigma, c). If the implementation
+      reuses randomness across leaves this is false and the chi-square
+      degrees of freedom are wrong; the design includes an autocorrelation
+      diagnostic for exactly this.
+
+  predictions:
+    - metric: >-
+        chi2_reference_agreement -- maximum absolute difference between the
+        exactly computed reference probabilities p_exact(z) and a second,
+        independently implemented computation (high-precision decimal versus
+        exact rational), over the full window at sigma in {1.2778, 1.5, 1.8205}
+      direction: lower
+      minimum_effect: >-
+        Below 1e-30. Two independent exact computations of the same quantity
+        must agree far beyond any statistical resolution; a disagreement means
+        the reference is wrong and NOTHING may be measured against it.
+    - metric: >-
+        N_required(tau) at power 0.95 and alpha = 0.001, measured by
+        bisection over N on the graded bias ladder
+      direction: different
+      minimum_effect: >-
+        Pre-derived values 2870, 11480, 45918, 183673, 734693, 2938770 at
+        tau = 2^-4 ... 2^-9, i.e. a factor of exactly 4 per rung. Agreement
+        within a factor of 1.5 at every rung, and the measured ratio between
+        adjacent rungs within [3.4, 4.7]. A measured law with a different
+        exponent falsifies the power derivation and the instrument's
+        sensitivity claim is void.
+    - metric: >-
+        null_false_positive_rate -- fraction of 1000 independent runs of the
+        exact-reference sampler at N = 10^5 that reject at alpha = 0.001
+      direction: different
+      minimum_effect: >-
+        0.001 with a binomial 99 per cent interval of approximately
+        [0.0002, 0.0025] at 1000 runs. THIS NULL CAN FAIL: an implementation
+        error in the reference, in the window truncation, or in the statistic
+        produces a rate far from 0.001, and a measured rate outside the
+        interval invalidates every other number in the package.
+    - metric: >-
+        tau_min_reported -- the smallest width perturbation detectable at
+        power 0.95 with the N actually run
+      direction: lower
+      minimum_effect: >-
+        Must be reported as a NUMBER beside any non-rejection, together with
+        the derived gap to eps_crit = 2^-37 from IDEA-20260805-2bbfb2. At
+        N = 10^8 the derived value is 3.35e-4 = 2^-11.55, leaving a stated
+        blind spot of 25.4 bits. A non-rejection reported without this number
+        is an inadmissible deliverable.
+    - metric: >-
+        leaf_independence_diagnostic -- maximum absolute lag-1 to lag-8
+        autocorrelation of the standardized z sequence at fixed (sigma, c)
+        over 10^7 draws
+      direction: lower
+      minimum_effect: >-
+        Below 3 / sqrt(10^7) = 9.5e-4 at every lag. Above it, draws are not
+        independent, the chi-square degrees of freedom are wrong, and the
+        p-values must be recomputed under a block bootstrap instead.
+
+  minimal_test:
+    design: >-
+      Five stages, cheapest first; stages 1 and 2 can end the line.
+      STAGE 0 (reading, zero compute): obtain the draft standard, quote the
+      base sampler's interface, its sigma range, and whether it is specified
+      as a table plus rejection or otherwise. If no such interface exists,
+      record it and restate every later conclusion as concerning a
+      reimplementation.
+      STAGE 1 (reference construction, seconds): compute p_exact(z) twice by
+      independent methods -- exact rational with fractions, and 80-digit
+      decimal -- and require agreement below 1e-30. THIS STAGE CAN END THE
+      LINE: without an agreed reference there is nothing to test against.
+      STAGE 2 (null calibration, minutes): 1000 independent runs of the exact
+      sampler at N = 10^5, measure the false-positive rate against the derived
+      0.001. THIS STAGE CAN END THE LINE: a miscalibrated null invalidates
+      everything downstream, and it is checked BEFORE any treatment arm is
+      generated.
+      STAGE 3 (graded positive control, minutes): the six-rung tau ladder,
+      bisection for N_required at each rung, compared with the pre-derived
+      table.
+      STAGE 4 (treatment, minutes): the standardized or reimplemented base
+      sampler at its actual sigma values, with the ladder-calibrated
+      instrument, reporting either a rejection with effect size or a
+      non-rejection with tau_min and the 25-bit blind spot.
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE, FORCED VALUE DERIVED PRE-RUN, AND IT
+        CAN FAIL. The exact-reference sampler: inverse-CDF sampling from the
+        exactly computed p_exact using integer arithmetic on a 128-bit
+        uniform, at the identical (sigma, c) and identical N, feeding the
+        identical statistic. FORCED VALUE: false-positive rate exactly alpha
+        = 0.001, binomial interval [0.0002, 0.0025] at 1000 runs. It can fail
+        in at least four concrete ways -- window truncated too tightly, CDF
+        rounding bias, insufficient uniform resolution, wrong degrees of
+        freedom -- and each has a distinct signature in the measured rate.
+      - >-
+        POSITIVE CONTROL, AND NO NEGATIVE MAY BE REPORTED IF IT DOES NOT
+        FIRE. The tau = 2^-4 rung: a width perturbation of 6.25 per cent must
+        be detected at power 0.95 with N = 2870 samples. If the instrument
+        cannot see a 6 per cent width error in three thousand draws it is
+        broken, and no statement about the standardized sampler may be made.
+      - >-
+        GRADED CONTROL, SIX INTERIOR POINTS, MONOTONICITY REPORTED. The full
+        tau ladder above, with the derived factor-of-four law. The report
+        states the measured N_required at each rung, the ratios between
+        adjacent rungs, and whether the sequence is monotone. A failure at one
+        rung localises the obstruction to a particular effect size instead of
+        leaving "the test did not work".
+      - >-
+        SECOND POSITIVE CONTROL OF A DIFFERENT SHAPE, because a single
+        perturbation family can be detected by an instrument that is blind to
+        every other. A TRUNCATION perturbation: zero the reference's mass
+        beyond |z - c| > 4 sigma and renormalize. Its derived detectable
+        sample size is computed pre-run from the same non-centrality formula
+        using the truncated tail mass, and the instrument must fire on it too.
+      - >-
+        ORDERING CONTROL. Null and ladder arms are generated, analysed and
+        hash-committed before the treatment arm is generated. The decision
+        rule is executed on the null first.
+      - >-
+        ARCHIVE CHECK, ZERO COMPUTE. Prior measurements of a leaf-level
+        sampler histogram in this corpus: NONE. Area FNDSA holds no
+        experiments, runs or evidence. Recorded as unavailable rather than
+        claimed as passed.
+    required_metrics:
+      - the two independent reference computations and their maximum difference
+      - measured false-positive rate of the null arm with its binomial interval
+      - measured N_required at all six ladder rungs beside the pre-derived table, and the adjacent-rung ratios
+      - the truncation control's derived and measured detection point
+      - treatment outcome with either an effect size or tau_min and the stated blind spot in bits
+      - autocorrelation diagnostic at lags 1 to 8
+      - seeds, seed derivation rule, and the exact statistic implementation
+
+  falsification_conditions:
+    - >-
+      The two independent reference computations disagree above 1e-30. The
+      reference is wrong; nothing may be measured until it is fixed.
+    - >-
+      The null arm's false-positive rate lies outside [0.0002, 0.0025]. The
+      instrument is miscalibrated and no result of any sign is admissible.
+    - >-
+      The tau = 2^-4 positive control does not fire at N = 2870 with power
+      0.95. The instrument is insensitive and no negative may be reported.
+    - >-
+      The measured N_required does not follow a tau^-2 law across the six
+      rungs. The power derivation is wrong and every sensitivity statement
+      derived from it must be withdrawn.
+    - >-
+      The draft standard exposes no one-dimensional base sampler, so the leaf
+      is not an addressable object of the standard. The proposal's conclusions
+      then concern a reimplementation only, and must be relabelled throughout.
+
+  confounders:
+    - >-
+      REIMPLEMENTATION SUBSTITUTION. If the standardized sampler cannot be
+      obtained or invoked, the measurement is of this program's own code and
+      says nothing about FN-DSA. This is the dominant confounder and the
+      contract requires the substitution to be stated in every sentence of the
+      conclusion, not once in a limitations section.
+    - >-
+      THE 25-BIT BLIND SPOT. The instrument's best feasible sensitivity is
+      about 2^-11.5 while the cryptographically relevant threshold is 2^-37.
+      A non-rejection is therefore compatible with a defect 25 bits below what
+      was tested. Reporting a non-rejection as "the sampler is exact" would be
+      a scope violation of the first order.
+    - >-
+      MULTIPLICITY. Testing at many (sigma, c) bins inflates the family-wise
+      error rate. The design fixes the bin set and the alpha before the run
+      and applies a Bonferroni correction stated in advance.
+    - >-
+      RANDOMNESS-SOURCE CONFOUNDING. A defect in the pseudorandom generator
+      driving both the null and the treatment arm would cancel in a
+      comparison and be invisible. The design uses a counter-mode
+      SHA-256 stream with a declared derivation rule, and reports a
+      generator self-test against known answers.
+
+  interpretation_limits:
+    - >-
+      This instrument can certify or refute the LEAF factor A of the
+      decomposition only. It is provably blind to the normalizer factor B,
+      which is nonzero by derivation, and it does not address the recursion
+      and precision factor C. No outcome supports a statement that the FN-DSA
+      signature distribution is exact.
+    - >-
+      A non-rejection is an upper bound at a stated sensitivity, never a proof
+      of exactness, and must always be reported with tau_min in bits.
+    - >-
+      Toy tier throughout, and the tier is not raised by the fact that the
+      sigma values are the standardized ones: measuring a component of a
+      standardized algorithm at feasible sample sizes is not a crypto-scale
+      result about that algorithm.
+    - >-
+      Nothing here is a status change, a criticism of a record, or a claim.
+      IDEA-20260801-010 remains exactly as it is.
+
+  heuristic_assumptions:
+    - id: HEUR-FN-3
+      statement: >-
+        The chi-square statistic on the truncated leaf window, with the
+        declared window and degrees of freedom, has the nominal chi-square
+        null distribution at N = 10^5 and 25 cells, i.e. the asymptotic
+        regime is entered.
+      rigorous_support: >-
+        The usual sufficient condition is an expected count of at least 5 in
+        every retained cell; at sigma = 1.2778 the smallest retained cell in a
+        window of about 25 cells has probability of order 1e-9, so the naive
+        window VIOLATES the condition and the design therefore pools the tails
+        into two boundary cells chosen so that every retained cell has
+        expected count at least 20 at N = 10^5. The pooling rule is fixed
+        before the run. This is a real correction, not a formality, and it is
+        recorded because getting it wrong is the most common way a
+        goodness-of-fit test silently reports a wrong alpha.
+      validation_plan: >-
+        The null arm measures the realized false-positive rate directly, which
+        is a decisive test of this heuristic and does not rely on it. If the
+        measured rate deviates, the design switches to an exact multinomial
+        Monte Carlo null computed from the same reference, and reports that it
+        did.
+    - id: HEUR-FN-4
+      statement: >-
+        The non-centrality coefficient
+        Var((z - c)^2 / sigma^2) equals 2 + O(eps) for the discrete Gaussian
+        at sigma >= 1.2778, so N_required(tau) = 11.2105 / tau^2 at
+        alpha = 0.001 and power 0.95.
+      rigorous_support: >-
+        Exact for the continuous Gaussian, where the quantity is the variance
+        of a chi-square with one degree of freedom. The discrete correction is
+        O(eps) with eps = exp(-2 pi^2 sigma^2) = 2^-46.5 at sigma_min, hence
+        utterly negligible relative to the factor-1.5 tolerance. This one is
+        genuinely safe and is recorded so that a reviewer can check the claim
+        rather than take it.
+      validation_plan: >-
+        The ladder measures N_required directly at six points; the derived
+        constant is a prediction that the measurement either reproduces or
+        refutes.
+
+  target_complexity:
+    time_exponent: >-
+      THIS PROPOSAL MOVES NO EXPONENT AND MAKES NO ATTACK CLAIM. It is an
+      instrument. It is worth running because the goal's first completion
+      criterion is literally the existence of a calibrated instrument with
+      reported power, because no such instrument exists anywhere in this
+      corpus for any scheme, and because it costs minutes.
+    memory_exponent: >-
+      O(window size) for the histogram, i.e. constant. Charged because the
+      accounting rule requires it, and negligible.
+    best_known: >-
+      No prior calibrated distributional test of a lattice-signature sampler
+      exists in this corpus. Externally, implementation-conformance test
+      vectors for Gaussian samplers are standard practice; this design's
+      difference is the derived power law and the graded control, not the
+      chi-square.
+    hidden_overhead: >-
+      The pooling rule for tail cells is a real design choice that changes the
+      degrees of freedom and hence the alpha; it is declared in advance rather
+      than hidden in an implementation.
+    tradeoff_note: >-
+      Sample size trades directly against sensitivity as tau_min = sqrt(11.2105 / N),
+      so a factor of 100 more samples buys one decimal digit of sensitivity.
+      This is why the 25-bit blind spot cannot be closed by brute force and
+      why the derivation in IDEA-20260805-2bbfb2 is the load-bearing half of
+      the pair.
+
+  dominated_by: >-
+    n/a (no attack claimed). Frontier rows checked, and listed: TIME -- no
+    attack, no time row; MEMORY -- constant, minimal; DATA / QUERIES -- the
+    instrument consumes samples from a sampler it controls, not signatures
+    from a victim, so it makes no query claim at all and cannot be dominated
+    on that axis; PREPROCESSING -- the exact reference is computed once in
+    microseconds; ORACLE -- none; VERIFICATION -- not applicable, nothing is
+    recovered. On the QUESTION of leaf-sampler conformance the incumbent is
+    ordinary implementation test-vector checking, which this design dominates
+    on exactly one axis, calibrated power, and matches on every other. Corpus
+    rows checked for a prior instrument of this shape: ledger/proposals,
+    ledger/evidence, experiments, knowledge/techniques. None found; and this
+    corpus's novelty screens are discounted by the bulk-seeding caveat
+    recorded against 95 per cent of its literature entries.
+  sota_delta: >-
+    Quantitative: the prior FN-DSA proposal in this corpus states a target of
+    at least 10^6 samples and a power of 0.95 against "a shift of one
+    standard-deviation-scale distributional error" without deriving what
+    sample size that requires or what the test's null distribution is. This
+    design derives N_required(tau) = 11.2105 / tau^2 with a stated alpha, gives
+    six pre-computed ladder points spanning 2870 to 2938770 samples, and
+    converts the sensitivity into a single reportable number, tau_min =
+    sqrt(11.2105 / N), which at N = 10^6 is 3.35e-3 and at N = 10^8 is 3.35e-4.
+    The delta is a power law with a constant where there was a target
+    without one.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.90 that the instrument calibrates as derived, i.e. the null arm returns
+    a false-positive rate inside its interval and the ladder follows the
+    tau^-2 law. It is high because everything in the design is ordinary
+    statistics with an exactly computable reference and no dependence on any
+    unread source. It is not higher because the tail-pooling rule is a real
+    source of alpha error and because the container's numeric environment is
+    contested between two prior sweeps. 0.35 that a Stage 0 reading yields an
+    addressable standardized base sampler rather than a reimplementation,
+    which is the main threat to the deliverable's relevance rather than to its
+    correctness. Below 0.02 that the treatment arm rejects on a correct
+    reference implementation, because a leaf defect at the 2^-11 level would
+    be a gross bug that conformance testing would already have caught -- and
+    that low prior is precisely why the instrument's value is its stated
+    sensitivity rather than its verdict.

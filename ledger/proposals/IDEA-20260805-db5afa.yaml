@@ -1,0 +1,692 @@
+idea:
+  id: IDEA-20260805-db5afa
+  question_id: RQ-HQC-001
+  added: '2026-08-05'
+  title: >-
+    The evaluation character of F_2[X]/(X^n - 1) is the only nontrivial ring
+    projection HQC has, and it forces w(e') = w_e mod 2 exactly: a zero-compute
+    disproof of assumption A5, a derived (1-2p*)^l damping law, and the
+    confounder the queued joint-moment measurement does not control for
+  class: control
+
+  claim: >-
+    For every HQC instance, the Hamming weight of the error vector
+    e' = x.r2 - r1.y + e, taken over the FULL ambient length n, satisfies
+    w(e') = w_e (mod 2) DETERMINISTICALLY - not with high probability, not in
+    distribution, but for every choice of x, y, r1, r2, e admitted by the
+    scheme's own fixed-weight sampler. The reason is one line: evaluation at
+    X = 1 is a ring homomorphism F_2[X]/(X^n - 1) -> F_2, so
+    e'(1) = x(1)r2(1) + r1(1)y(1) + e(1) = w.w_r + w_r.w + w_e = w_e (mod 2),
+    the two convolution terms cancelling identically because x and y carry the
+    same weight w and r1, r2 carry the same weight w_r. SPEC assumption A5
+    (transcribed at
+    coordination/goals/GOAL-HQC-001/batches/BATCH-001/tasks/TASK-20260802-6344ed/dfr_model_transcription.md)
+    models the coordinates of e' as independent Bernoulli(p*), under which
+    Eq. (3) assigns probability (1 + (1-2p*)^n)/2 = 0.5 + 1e-2400 to the WRONG
+    parity class. A5 is therefore not merely a simplification: it is exactly
+    false, and it is false in a way that can be exhibited with no compute and
+    no simulation. THIS IS NOT AN ATTACK AND NOT A BREAK. The consequence for
+    HQC's own parameters is damped by the l = n - n1.n2 trailing coordinates
+    that A23 truncates before the concatenated code ever sees the error, and
+    the damping factor is itself derivable: the parity bias surviving
+    truncation is exactly (1-2p*)^l, which is 3.378e-03 / 7.191e-07 /
+    1.105e-22 at HQC-1 / HQC-3 / HQC-5. The deliverable is threefold: a proved
+    dependence channel with an exact magnitude (the first quantitative bound on
+    ANY dependence channel in this campaign), a graded artifact test with a
+    forced decay law, and a mandatory confounder control for the joint-moment
+    measurement GOAL-HQC-001's next_action queues - because a reduced parameter
+    set chosen without regard to l will measure this algebraic identity and
+    report it as inner-decoder dependence.
+
+  object_first_candidate:
+    tracked_object: >-
+      The image of the ciphertext-error computation under the evaluation
+      character chi_1: F_2[X]/(X^n - 1) -> F_2, f -> f(1) (equivalently: the
+      parity of the Hamming weight; equivalently: the coordinate of f in the
+      F_2 factor of the CRT decomposition of the ambient ring). It is followed
+      through the whole computation - keygen (x, y), encryption randomness
+      (r1, r2, e), the two cyclic convolutions, the sum, and finally the
+      truncation to the first n1.n2 coordinates, which is the one step in the
+      chain that does NOT commute with chi_1 and is therefore where the
+      information is destroyed and where the (1-2p*)^l law comes from.
+    established_families_off_limits: >-
+      Declared off-limits as the primary lens for this proposal:
+      (i) information-set decoding and all its descendants (Prange, Stern, MMT,
+      BJMM, May-Ozerov, DOOM) - that is a separate proposal,
+      IDEA-20260805-baa4da; (ii) the timing / power / single-trace
+      implementation-attack line named in RQ-HQC-001.scope.targets[3];
+      (iii) decryption-failure attacks in the Guo-Johansson sense (chosen
+      ciphertext, precomputed failure-inducing vectors) - this proposal
+      measures a model, not a key; (iv) algebraic structural attacks on
+      quasi-cyclic codes (polynomial factorisation, folding); (v) the pairwise
+      correlation of inner-decoder failure indicators, which DEC-20260802-9664c6
+      D-6 already establishes cannot sign the direction and which the goal's
+      queued lane already owns. The CRT / character lens IS the primary lens
+      here and that is the point: it has never been pointed at HQC in this
+      corpus.
+    newness_score: >-
+      The algebraic fact is elementary and an expert would call it obvious once
+      stated; no claim of mathematical novelty is made and none should be
+      inferred. What is new, and what this record supplies, is (a) that the
+      identity is nowhere in this corpus - grep over knowledge/ returns no
+      occurrence of "parity" in any of the three HQC KN-LIT entries filed by
+      BATCH-002 (KN-LIT-b9e1a8, KN-LIT-1c9474, KN-LIT-4c1133), and none of the
+      23 numbered assumptions in the BATCH-001 transcription records it;
+      (b) that neither primary source transcribed by this program states it,
+      although SPEC's own hedge H2 ("can realistically only be <= p*") is a
+      claim about exactly this kind of conditioning; and (c) its conversion
+      into a pre-registered graded control with a forced decay law, which is
+      the deliverable the queued measurement lane lacks. Whether the identity
+      appears in the external decryption-failure literature is UNKNOWN to this
+      program and the audit's stage 0 is to look.
+    testability_score: >-
+      Maximal, and mostly free. The headline is checkable by hand in one line
+      and confirmable by exhaustive enumeration at n = 7 in milliseconds. The
+      graded decay law is measurable in pure Python plus numpy (both verified
+      present in this container on 2026-08-05: numpy 2.4.6; sympy and scipy are
+      NOT present) at 1e6 samples per cell in minutes.
+    survival_score: >-
+      The identity survives the entire computation exactly - it is a
+      homomorphism, so it cannot fail to. It dies at exactly one step, the
+      truncation, and it dies at a known rate. That the object has a single,
+      identifiable, quantifiable death is what makes it useful rather than
+      merely true.
+
+  mechanism: >-
+    DERIVED IN THIS RECORD. Every step below is elementary algebra over F_2 and
+    is checkable without any source. Numbers marked [SESSION-COMPUTED] were
+    computed during this generation session with the exact procedure stated and
+    MUST be re-derived in-harness before any evidence record cites them; they
+    are pre-registered forced values, not measurements.
+
+    (1) THE RING. HQC works in R = F_2[X]/(X^n - 1). SPEC section 4.1, verbatim
+    in the BATCH-001 transcription: "The parameter n denotes the length of the
+    ambient space namely the smallest primitive prime greater than n1 n2."
+    "Primitive prime" means n is prime and 2 is a primitive root mod n, i.e.
+    ord_n(2) = n - 1. Then X^n - 1 = (X - 1) . Phi(X) over F_2 with Phi of
+    degree n - 1 IRREDUCIBLE, so by CRT R = F_2 x F_{2^{n-1}} and R has
+    EXACTLY TWO ring factors. [SESSION-COMPUTED, by explicit order computation
+    over the factorisation of n-1: ord_n(2) = n - 1 holds for all three
+    parameter sets - 17668 for n = 17669, 35850 for n = 35851, 57636 for
+    n = 57637.] This is the number the program-wide angle inventory names as
+    HQC's cheapest decisive gate, and it settles the multiplicative-split
+    family in the direction it predicted: there is no rich CRT decomposition to
+    exploit. But it does NOT settle it to nothing. It settles it to exactly one
+    nontrivial projection, and that projection is not information-free.
+
+    (2) THE PROJECTION. The unique nontrivial ring homomorphism R -> F_2 is
+    chi_1: f -> f(1) = sum of coefficients mod 2 = w(f) mod 2. It is well
+    defined because 1^n - 1 = 0, and multiplicative because it is evaluation.
+
+    (3) THE IDENTITY. SPEC section 6.1 defines e' = x.r2 - r1.y + e, all
+    products being products in R and subtraction being addition in
+    characteristic 2. Applying chi_1:
+      chi_1(e') = chi_1(x)chi_1(r2) + chi_1(r1)chi_1(y) + chi_1(e)
+                = (w mod 2)(w_r mod 2) + (w_r mod 2)(w mod 2) + (w_e mod 2)
+                = w_e mod 2.
+    The two convolution terms are EQUAL, not merely equidistributed, because
+    A1 fixes w(x) = w(y) = w and w(r1) = w(r2) = w_r. They cancel in
+    characteristic 2 for every instance. Hence
+      w(e') = w_e (mod 2)   with probability exactly 1.
+    At HQC-1 and HQC-5, w_e = 75 and 149 are odd, so w(e') is ALWAYS ODD; at
+    HQC-3, w_e = 114 is even, so w(e') is ALWAYS EVEN.
+
+    (4) WHAT THIS DOES TO A5 AND EQ. (3). SPEC Eq. (3) states
+    Pr[w(e') = d] = C(n,d) p*^d (1-p*)^{n-d}. Under it the parity of w(e') is
+    Bernoulli with bias (1-2p*)^n, i.e. uniform to within 10^{-2400}. The true
+    distribution is supported on ONE parity class. The total variation distance
+    between the modelled and the true weight distribution is therefore AT LEAST
+    1/2 - O((1-2p*)^n), which is essentially 1/2. A5 is not approximately true
+    at the level of the weight distribution of e' over the full ambient length;
+    it is maximally wrong there in the total-variation metric. This is a
+    statement about the model as literally written and NOT yet a statement
+    about the DFR, because the DFR is not a function of w(e') over the full
+    ambient length - which is step (5), and is the honest part.
+
+    (5) THE DAMPING, AND WHY THE HEADLINE IS NOT A BREAK. A23 records SPEC's
+    own rule: computations are in length n, the concatenated code occupies the
+    first n1.n2 coordinates, and the trailing l = n - n1.n2 coordinates are
+    truncated. [SESSION-COMPUTED: l = 5, 11, 37 at HQC-1/3/5, from
+    n1.n2 = 17664, 35840, 57600 against n = 17669, 35851, 57637.] The decoder
+    sees e'_trunc, the first n1.n2 coordinates, and
+      w(e'_trunc) = w(e') - w(tail),
+    so the parity of w(e'_trunc) is determined by w_e mod 2 XOR parity(tail).
+    IF the l tail coordinates were independent Bernoulli(p*) - which is A5
+    again, now used only on l = 5 to 37 coordinates rather than on all n, and
+    which RMRS Remark 4.2 explicitly supports for "a small proportion of HQC
+    bits" - the parity bias of the truncated weight is exactly
+      B(l) = |2.Pr[w(e'_trunc) = w_e mod 2] - 1| = (1 - 2p*)^l,
+    the standard XOR-of-independent-bits bias identity. [SESSION-COMPUTED from
+    the transcribed model in exact rationals: p* = 0.339788 / 0.361804 /
+    0.372489 at HQC-1/3/5, reproducing SPEC Table 9's 0.3398 and Table 11's
+    0.3618 and 0.3725 to every printed digit; hence
+      B(5) = 3.378e-03, B(11) = 7.191e-07, B(37) = 1.105e-22.]
+    So at HQC's own parameters the exact algebraic constraint is destroyed by
+    an accident of parameter selection - the gap between n1.n2 and the next
+    primitive prime - and the surviving distortion at NIST-5 is 1e-22, far
+    below the 2^-256 DFR target's own scale and not a security-relevant
+    quantity. SAY SO PLAINLY: this proposal does not weaken HQC.
+
+    (6) WHY IT IS NEVERTHELESS WORTH RUNNING, IN THREE PARTS.
+    (6a) IT IS THE FIRST QUANTIFIED DEPENDENCE CHANNEL IN THIS CAMPAIGN. Three
+    batches have established that A17/A5's failure direction cannot be signed
+    from the page (DEC-20260802-9664c6 D-6) and that the measurement is
+    structurally infeasible at HQC's parameters (EV-HQC-0e9116: T_req ~ 1/DFR,
+    3.4e41 / 6.8e59 / 8.4e79 trials). This channel is signed, exact, and needs
+    no trials at all. It converts "the coordinates are not independent" from an
+    assertion into a decomposition: dependence = (character channel, magnitude
+    (1-2p*)^l, derived) + (residual, unknown).
+    (6b) IT IS A CONFOUNDER FOR THE QUEUED MEASUREMENT, AND AN UNCONTROLLED
+    ONE. The next_action directs BATCH-004 to measure the joint moment
+    mu_{delta_e+1} of inner-decoder failure indicators on the true space (T) at
+    REDUCED parameters. A reduced parameter set is a choice of (n, n1, n2, w,
+    w_r, w_e) and therefore a choice of l. Nothing in the queued design fixes
+    l, and at small l the character channel injects a real, algebraically
+    forced dependence among block weights whose magnitude (1-2p*)^l can exceed
+    the residual dependence the measurement is trying to see. The proposal's
+    operational output is a SELECTION RULE: choose reduced parameters with
+    (1-2p*)^l at or below the (1-2p*)^l of the HQC level being modelled, and
+    report B(l) beside every joint moment. A measurement that does not do this
+    is measuring an identity.
+    (6c) IT IS A GRADED ARTIFACT TEST WITH A FORCED DECAY LAW. inventor
+    protocol section 3 asks what a measured quantity SHOULD do as the parameter
+    meant to destroy it increases. Here the answer is not a guess: the parity
+    bias must decay as (1-2p*)^l, exactly, one geometric factor per truncated
+    coordinate. A measured bias that does not decay at that rate localises the
+    defect - too slow means a second, non-character dependence channel among
+    the tail coordinates (which is a FINDING, and the most interesting outcome
+    available); too fast, or absent at l = 0, means the instrument is broken
+    and no negative may be reported.
+
+    (7) THE CLOSURE THIS SUPPLIES, AT THE INVENTOR-PROTOCOL SECTION 4 STANDARD.
+    Named obstruction: because ord_n(2) = n - 1 by HQC's own parameter
+    selection rule, R has exactly two CRT factors, so the CRT/character family
+    contains exactly ONE nontrivial projection, chi_1, and its entire content
+    is the single parity bit derived above. Argument: any F_2-algebra
+    homomorphism out of R factors through one of the two factors; the
+    F_{2^{n-1}} factor is a field of degree n-1 and carries no proper quotient,
+    so no further coordinate-wise-computable invariant is available from the
+    ring decomposition. Forward guidance, naming what remains open: the
+    residual dependence in e' is NOT of ring-decomposition origin and must come
+    from the two structures the character cannot see - the FIXED WEIGHT of
+    x, y, r1, r2, e (a global constraint the character reduces to one bit) and
+    the SUPPORT GEOMETRY of the cyclic convolution (which coordinates of
+    x.r2 collide). Those two are the open lanes, and the queued joint-moment
+    measurement is aimed at the second of them.
+
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_grepped:
+      - knowledge/literature (14 files match "HQC")
+      - knowledge/open-problems
+      - ledger/proposals
+      - ledger/decisions, ledger/evidence (all HQC records)
+      - coordination/goals/GOAL-HQC-001 (all three batches, all task artifacts)
+    grep_results:
+      - >-
+        No occurrence of "parity" in KN-LIT-b9e1a8, KN-LIT-1c9474,
+        KN-LIT-4c1133 (the three HQC entries BATCH-002 filed), nor in
+        KN-LIT-2141.
+      - >-
+        The BATCH-001 transcription's 23 numbered assumptions (A1-A23) and 10
+        anomalies (X1-X10) contain no statement of the evaluation character,
+        the CRT decomposition of the ambient ring, or any exact constraint on
+        w(e').
+      - >-
+        ord_n(2) is computed nowhere in the corpus. The phrase "primitive
+        prime" appears only inside the transcribed SPEC quotation.
+      - >-
+        IDEA-20260801-011, the only prior proposal on RQ-HQC-001, measures
+        aggregate failure counts against the model; it names no algebraic
+        invariant and carries no forced value.
+    conclusion: >-
+      Novel WITHIN THIS CORPUS, which is all that is claimed. The underlying
+      algebra is elementary and may well be recorded in the external
+      decryption-failure literature; stage 0 of the minimal test is to look,
+      and a positive finding there is recorded as a confirmation, not as a
+      failure of the proposal. AGENTS.md retrieval policy: absence of a search
+      result is not evidence that something was not tried. This screen is
+      further discounted by KN-OPEN-3f7a21 - 95 per cent of this corpus's
+      literature entries carry citation_verified read against bodies that say
+      the opposite - so the screen can see roughly nothing about external
+      priority and says so.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Full HQC instance (x, y, r1, r2, e, and hence e' in R = F_2[X]/(X^n - 1),
+      an n-bit object) -> chi_1(e') = w(e') mod 2, a SINGLE BIT.
+    what_is_discarded: >-
+      n - 1 bits of the n-bit error vector. The fibre over an observed value is
+      half the ambient space.
+    why_genuinely_lossy: >-
+      Maximally lossy by any measure: the projection is onto a 1-dimensional
+      F_2-algebra. There is no reconstruction, exact or approximate.
+    why_compatible_with_the_operations: >-
+      Perfectly compatible, and provably so rather than empirically: chi_1 is a
+      RING HOMOMORPHISM, so it commutes with both operations HQC's error
+      computation uses - cyclic convolution (multiplication in R) and
+      coordinate-wise XOR (addition in R). The retained bit therefore
+      propagates deterministically through the entire computation, which is
+      exactly the inventor-protocol section 2 requirement. It fails to commute
+      with exactly one operation, TRUNCATION, and that failure is the source of
+      the (1-2p*)^l law rather than a defect of the object.
+    is_it_only_a_change_of_coordinates: >-
+      NO, and the check is not a matter of judgement: a change of coordinates
+      is a bijection, and chi_1 is a 2-to-1 quotient onto a 1-dimensional
+      target. The (Delta, Pi) = (x XOR y, x.y) failure of KN-LIT-7595 does not
+      apply - there the pair was recoverable as the roots of t^2 + Delta t + Pi,
+      here nothing whatever is recoverable.
+    which_failure_was_checked_and_what_it_returned: >-
+      THE MIRROR FAILURE WAS THE ONE CHECKED, because it is the one this object
+      is exposed to: a projection so lossy that it is CONSTANT across
+      instances, giving zero comparator spread. The check returns a SPLIT
+      answer, and the split IS the proposal. On the TREATMENT ensemble (true
+      HQC fixed-weight sampling on the full ambient length) the projection is
+      constant - spread exactly zero, which under the usual reading condemns
+      the object. On the MATCHED NULL (i.i.d. Bernoulli(p*) coordinates, the
+      ensemble A5 asserts) the projection is very nearly uniform - spread
+      maximal, bias (1-2p*)^n < 1e-2400. A projection that is constant on the
+      treatment and uniform on the null is not a dead statistic; it is a
+      PERFECT discriminator between the true ensemble and the modelled one, and
+      the comparator whose spread matters is the DIFFERENCE, which is 1. The
+      audit's honest residual: on the TRUNCATED vector, which is what the
+      decoder actually sees, the spread difference collapses to (1-2p*)^l and
+      the discriminator becomes weak to worthless at HQC's own parameters
+      (1.1e-22 at NIST-5). Recorded here rather than discovered later.
+
+  assumptions:
+    - >-
+      That the BATCH-001 transcription faithfully reproduces SPEC section 6.1's
+      definition of e' and A1's fixed-weight sampling. The transcription is
+      image-verified per formula and was reproduced nine ways by the BATCH-001
+      red team, so this assumption is strong - but it is an assumption, and
+      stage 0 re-reads the two sentences that carry the whole derivation:
+      SPEC section 6.1's "e' = x . r2 - r1 . y + e" and section 4.1's
+      "smallest primitive prime".
+    - >-
+      That w(x) = w(y) = w exactly (not "the pair (x,y) has total weight w").
+      SPEC section 4.1 reads "the parameters w, w_r and w_e denote the weight
+      of the vectors (x, y), (r1, r2) and e respectively", which is ambiguous
+      in the printed English. IF the intended reading is total weight w over
+      the concatenation, the two convolution terms STILL cancel identically
+      whenever w(x) . w(r2) = w(r1) . w(y) mod 2, which the symmetric reading
+      guarantees and the total-weight reading does not. RESOLVING THIS IS
+      STAGE 0 AND IT IS LOAD-BEARING: under the asymmetric reading the identity
+      becomes chi_1(e') = w(x)w(r2) + w(y)w(r1) + w_e mod 2, still exactly
+      computable from the sampled weights but no longer instance-independent.
+      The proposal is designed to survive either answer and to report which
+      one holds.
+    - >-
+      That the l trailing coordinates behave as independent Bernoulli(p*) FOR
+      THE PURPOSE OF THE DAMPING LAW ONLY. This is A5 reused on l <= 37
+      coordinates, which is precisely the regime RMRS Remark 4.2 supports
+      verbatim ("a small proportion of HQC bits do behave as i.i.d Bernoulli
+      variables"). It is numbered as HEUR-HQC-CHI-2 below and it is the ONLY
+      distributional assumption anywhere in this proposal; the identity in
+      step (3) is unconditional.
+
+  predictions:
+    - metric: >-
+        parity_fixed_fraction: fraction of sampled full-length error vectors e'
+        whose weight satisfies w(e') = w_e (mod 2), over N = 1e6 independent
+        instances at each reduced parameter cell, TREATMENT arm (true
+        fixed-weight sampling of x, y, r1, r2, e)
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 1.000000 (1000000 of 1000000). Derived before any run from the
+        homomorphism property. This is not a statistical prediction and admits
+        no tolerance: a single counterexample means either the implementation
+        is wrong or the fixed-weight reading in assumptions[1] is wrong, and in
+        either case the run halts and reports which.
+    - metric: >-
+        parity_fixed_fraction on the MATCHED NULL arm (n i.i.d. Bernoulli(p*)
+        coordinates, same n, same p*, same N)
+      direction: different
+      minimum_effect: >-
+        0.5 + (1-2p*)^n / 2, which at every cell with n >= 200 is 0.5 to more
+        than 40 decimal places; measured value must lie within 4 binomial
+        standard errors of 0.5, i.e. inside 0.5 +/- 0.002 at N = 1e6. THE NULL
+        CAN FAIL: if the null arm also returns 1.000000, the two arms are not
+        differently constructed and the entire measurement is void.
+    - metric: >-
+        B_hat(l) = |2 . (fraction of truncated vectors with parity w_e mod 2)
+        - 1|, measured on the SAME treatment samples truncated to the first
+        n - l coordinates, for l in {0, 1, 2, 3, 4, 5}
+      direction: lower
+      minimum_effect: >-
+        FORCED CURVE, stated before any run: B(l) = (1 - 2p*)^l exactly, so at
+        a cell with p* = 0.34 the six predicted values are
+        1.000, 0.320, 0.1026, 0.0329, 0.01053, 0.00337. Pass condition:
+        |B_hat(l) - (1-2p*)^l| <= 4 / sqrt(N) for every l with
+        (1-2p*)^l >= 8 / sqrt(N) (the declared measurement floor; at N = 1e6
+        that floor is 0.008, so l = 0..4 are tested and l = 5 is reported as
+        below floor). Monotone decrease across l = 0..4 is required
+        separately. A bias that fails to decay is the canonical artifact tell.
+    - metric: >-
+        B_hat(0) at every cell (the positive control: no truncation)
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 1.000. If the instrument does not return 1 where the effect is
+        algebraically forced to be total, the instrument is broken and NO
+        negative result from any other cell may be reported.
+    - metric: >-
+        ord_n(2) for n in {17669, 35851, 57637}, recomputed in-harness
+      direction: different
+      minimum_effect: >-
+        EXACTLY n - 1 in all three cases, i.e. 17668, 35850, 57636. If any
+        differs, HQC's ambient ring has more than two CRT factors, SPEC's
+        "smallest primitive prime" sentence does not mean what it says, and the
+        closure in mechanism step (7) is void - which would be a strictly more
+        interesting outcome, since a richer decomposition is exploitable
+        structure. [SESSION-COMPUTED as n-1 in all three cases; re-derivation
+        in-harness is a required stage, not a formality.]
+    - metric: >-
+        p* recomputed in exact rationals from SPEC Prop 6.1.1 and Eq. (2) at
+        the three HQC parameter sets
+      direction: different
+      minimum_effect: >-
+        0.339788, 0.361804, 0.372489, agreeing with SPEC Table 9's 0.3398 and
+        Table 11's 0.3618 / 0.3725 at every printed digit. This is the
+        instrument's baseline-reproduction check against the published numbers
+        and it is not novel - the BATCH-001 red team already reproduced SPEC's
+        published numbers nine ways (GOAL-HQC-001 batch_checkpoints BATCH-001
+        outcome). It is repeated here because a measurement instrument that
+        cannot reproduce the source's own constants may not be used to
+        contradict the source.
+    - metric: >-
+        residual_ratio: (measured excess of the block-weight joint moment over
+        its binomial value at truncation level l) divided by (the same excess
+        at l = 0), for l in {0, 1, 2, 3, 4}
+      direction: lower
+      minimum_effect: >-
+        If the block-weight dependence is entirely the character channel, this
+        ratio must equal (1-2p*)^l, the same forced curve. A ratio that decays
+        SLOWER than (1-2p*)^l by more than 4 standard errors at any l is a
+        second dependence channel not of ring-decomposition origin, is the most
+        valuable outcome this proposal can produce, and is the quantity
+        GOAL-HQC-001's queued BATCH-004 actually wants. No prediction is made
+        about its sign or size; that is the point of measuring it.
+
+  minimal_test:
+    design: >-
+      Five stages, cheapest first, each able to terminate the line. STAGE 0
+      (reading, zero compute): re-read SPEC section 4.1 and section 6.1 to fix
+      the two ambiguities - whether w(x) = w(y) = w or w is a total weight, and
+      whether "primitive prime" carries its standard meaning - and search the
+      external decryption-failure literature for a prior statement of the
+      identity. STAGE 1 (algebra, zero compute): write the homomorphism
+      derivation out and have it checked by a reader who is not the producer;
+      recompute ord_n(2) at the three n and l = n - n1.n2. If ord_n(2) != n-1
+      at any level, STOP and rewrite. STAGE 2 (exact rationals, seconds):
+      recompute p-tilde and p* from Prop 6.1.1 and Eq. (2) and check against
+      SPEC Tables 9 and 11. If they do not reproduce, the instrument is
+      disqualified before any sampling. STAGE 3 (sampling, minutes): at three
+      reduced cells, sample 1e6 instances per arm, measure the four parity
+      quantities and the graded ladder. STAGE 4 (the transfer, minutes): on the
+      same samples, measure the block-weight joint moment excess at each
+      truncation level and report the residual ratio.
+    controls:
+      - >-
+        NULL-CHI (matched null of the same shape, forced value derived
+        pre-run, CAN FAIL). n i.i.d. Bernoulli(p*) coordinates with p*
+        computed from the SAME cell's parameters - matched on length, on
+        crossover probability and on the truncation ladder, differing ONLY in
+        that the fixed-weight and convolution structure is removed. FORCED
+        VALUE: parity_fixed_fraction = 0.5 + (1-2p*)^n/2, indistinguishable
+        from 0.5. This null can fail in the strong sense: if the null returns
+        a fixed parity, the null generator has accidentally inherited the
+        structure and the comparison is void.
+      - >-
+        POSITIVE CONTROL, PLANTED, MUST FIRE (l = 0 cell). At zero truncation
+        the character constraint is algebraically total, so the treatment arm
+        must return parity_fixed_fraction = 1.000000 and B_hat(0) = 1.000. This
+        is a sensitivity demonstration with a comparator and a pre-declared
+        threshold: if the instrument fails to separate treatment from null at
+        l = 0, where the true separation is maximal, it cannot be trusted to
+        report separation or its absence anywhere else, and NO negative result
+        may be reported from the package.
+      - >-
+        GRADED CONTROL, >= 3 interior points, monotonicity reported.
+        l in {0, 1, 2, 3, 4, 5} on the identical samples, with the forced curve
+        (1-2p*)^l and a declared measurement floor 8/sqrt(N). Reporting
+        monotonicity localises any failure: a plateau at small l says the
+        instrument saturates, a plateau at large l says a second channel
+        survives truncation, and a uniformly wrong level says p* is
+        mis-computed. "It did not work" is not an admissible outcome of a
+        graded ladder.
+      - >-
+        SECOND NEARBY OBJECT WHERE THE CONCLUSION MUST FAIL: a cell with n
+        prime but 2 NOT primitive mod n (e.g. n with ord_n(2) = (n-1)/2), so
+        that R has more than two CRT factors. The parity identity still holds
+        (chi_1 exists for every n), but the closure in mechanism (7) does not,
+        and additional characters exist. Measuring the parity bias there and
+        confirming it behaves identically separates "the identity" from "the
+        closure", which are two different claims that would otherwise be
+        reported as one.
+      - >-
+        ORDERING CONTROL. The null arm is generated, measured, and hash
+        committed BEFORE any treatment sample is drawn, and the decision rule
+        is executed on the null first. If the rule emits the same verdict on
+        both arms it discriminates nothing and must be rewritten before the
+        treatment arm is read.
+      - >-
+        ARCHIVE CHECK (zero compute). List every archived measurement of this
+        observable in this program. NONE EXISTS - GOAL-HQC-001 has executed
+        zero runs across three batches (runs_authorized was 0 throughout, the
+        validator confirmed the no-run gate independently) - and that absence
+        is recorded here rather than reported as a passed check.
+    required_metrics:
+      - parity_fixed_fraction per arm per cell, with N and the exact seed rule
+      - B_hat(l) for l in 0..5 per arm per cell, with the declared floor 8/sqrt(N)
+      - the forced curve (1-2p*)^l tabulated beside the measurement, per cell
+      - ord_n(2) and l = n - n1.n2 for the three HQC levels, recomputed
+      - p-tilde and p* in exact rationals against SPEC Tables 9 and 11
+      - residual_ratio per truncation level, with its standard error
+      - the resolved reading of SPEC section 4.1's weight ambiguity, quoted
+
+  falsification_conditions:
+    - >-
+      Any single treatment sample at l = 0 whose weight parity differs from
+      w_e mod 2. The identity is then wrong as stated - almost certainly
+      because the fixed-weight reading in assumptions[1] is wrong - and the
+      proposal is withdrawn or restated by a superseding record, never edited.
+    - >-
+      ord_n(2) != n - 1 at any HQC parameter set. The two-factor closure in
+      mechanism (7) is void; the identity survives but the "only nontrivial
+      projection" claim does not, and the record must say so.
+    - >-
+      The null arm returns a fixed parity. The null is not a null and no
+      comparison in the package may be reported.
+    - >-
+      B_hat(0) != 1.000 on the treatment arm. Instrument broken; no negative
+      result may be reported from any cell (inventor protocol section 3).
+    - >-
+      B_hat(l) matches (1-2p*)^l at every tested l AND the residual ratio also
+      matches it at every tested l. Then the character channel accounts for the
+      entire measured block-weight dependence at these cells, there is no
+      residual to hand to BATCH-004 at this scale, and the honest deliverable
+      is the selection rule plus a negative on the residual scoped to exactly
+      the cells tested.
+    - >-
+      Stage 2 fails to reproduce SPEC's p* values. The instrument is
+      disqualified and the package reports an instrument failure, not a finding
+      about HQC.
+
+  confounders:
+    - >-
+      READING AMBIGUITY IN SPEC SECTION 4.1 (the largest single risk). If w is
+      a total weight over the pair (x, y) rather than the weight of each, the
+      cancellation is not identical and the whole headline weakens to a
+      computable-per-instance rather than instance-independent statement.
+      Stage 0 exists to remove this and the package may not proceed past it on
+      the ambiguous reading.
+    - >-
+      REDUCED-PARAMETER ARTIFACTS. The damping law is derived for the tail
+      under a Bernoulli(p*) model; at very small n the tail coordinates may be
+      measurably non-Bernoulli, which would show as a level shift in B_hat(l)
+      at fixed l across cells. This is why the ladder is run at three cells and
+      the cell-to-cell consistency is a reported metric rather than an
+      assumption.
+    - >-
+      SAMPLER FIDELITY. A fixed-weight sampler with a subtle bias (HQC's own
+      deployed SampleFixedWeightVect is biased by construction - A22, with tau
+      values in SPEC Table 12) could distort the null comparison. This package
+      uses an exact uniform fixed-weight sampler (Fisher-Yates on the support)
+      and declares it; the biased-sampler variant is NOT tested here and is
+      named as a successor.
+    - >-
+      CHEAP-REFUTATION ASYMMETRY. Producing an "the assumption is false"
+      finding is cheap and reads as rigour. This proposal is designed so that
+      the cheap half (the identity) is unconditional and checkable in one line
+      by any reader, and the expensive half (does it matter) is answered
+      HONESTLY AND IN THE NEGATIVE at HQC's own parameters, in the record's own
+      headline, before anyone else can point it out.
+
+  interpretation_limits:
+    - >-
+      NOT AN ATTACK, NOT A BREAK, NOT A WEAKENING OF HQC. The identity is
+      exact; its security-relevant consequence at HQC's selected parameters is
+      damped to 3.4e-03 / 7.2e-07 / 1.1e-22 and is not a quantity from which
+      any advantage follows. No decapsulation, no key recovery, no
+      chosen-ciphertext consequence is claimed, and any citation of this record
+      that omits the damping is a misuse of it.
+    - >-
+      A5 IS FALSIFIED AS A LITERAL STATEMENT ABOUT THE FULL AMBIENT VECTOR AND
+      IS NOT THEREBY FALSIFIED AS AN ENGINEERING APPROXIMATION FOR THE
+      TRUNCATED VECTOR ON CODEWORD SUPPORTS, WHICH IS HOW SPEC USES IT.
+      Conflating the two would be exactly the overclaim this program exists to
+      prevent. SPEC's own hedges H1, H2, H3 already describe A5 as a
+      "simplifying assumption" and a "working assumption"; this record sharpens
+      the description, it does not catch anyone in an error.
+    - >-
+      CLAIM TIER toy, per RQ-HQC-001's ceiling, and the tier may not be raised
+      by any downstream citation. The identity itself is scale-free algebra and
+      is stated as such; every MEASURED quantity in the package is at reduced
+      parameters and is toy.
+    - >-
+      The closure in mechanism (7) is scoped to the CRT/character family over
+      the ambient ring. It says nothing about fixed-weight constraints, about
+      convolution support geometry, about the RM/RS decoder, or about the
+      quasi-cyclic structure of the public key, and it explicitly names those
+      as the open lanes.
+    - >-
+      NO STATUS CHANGE is proposed or implied for A5, A17, EV-HQC-0e9116,
+      GOAL-HQC-001's next_action, or any existing record. Those are Coordinator
+      decisions.
+
+  heuristic_assumptions:
+    - id: HEUR-HQC-CHI-1
+      statement: >-
+        NONE LOAD-BEARING FOR THE HEADLINE. chi_1(e') = w_e mod 2 is a theorem
+        under A1's fixed-weight sampling, not a distributional claim, and it is
+        unconditional. This entry exists to record that the proposal's central
+        assertion is proved rather than assumed, and that the only assumption
+        anywhere in it is the evidentiary one - that the transcribed SPEC text
+        says what it is quoted as saying.
+      rigorous_support: >-
+        Evaluation at X = 1 is a ring homomorphism from F_2[X]/(X^n - 1) to
+        F_2 because 1 is a root of X^n - 1 over F_2; homomorphisms commute with
+        products and sums; w(x)w(r2) = w(y)w(r1) mod 2 whenever
+        w(x) = w(y) and w(r2) = w(r1); characteristic 2 makes the two equal
+        terms cancel. Every step is elementary and self-contained.
+      validation_plan: >-
+        Exhaustive verification at n = 7 over all fixed-weight tuples
+        (milliseconds), plus 1e6 random samples per reduced cell. Not a
+        distributional validation and not presented as one.
+    - id: HEUR-HQC-CHI-2
+      statement: >-
+        FORALL reduced cells in the declared boundary, the l truncated tail
+        coordinates of e' are jointly independent Bernoulli(p*), so that the
+        parity bias of the truncated weight is exactly (1 - 2p*)^l. Quantifiers
+        matter: this is asserted only for the TAIL of l <= 37 coordinates and
+        NOT for the n1.n2 retained coordinates, and it is asserted uniformly
+        over cells, not per cell.
+      rigorous_support: >-
+        Partial and honestly partial. RMRS Remark 4.2 states verbatim that "a
+        small proportion of HQC bits do behave as i.i.d Bernoulli variables",
+        which is a statement about exactly this regime and is the strongest
+        support available; SPEC's Table 10 simulation is the other. Neither is
+        a proof, and the correct reading is that the damping law is a
+        PREDICTION under a weakened form of the very assumption the proposal
+        falsifies elsewhere. That circularity is deliberate and disclosed: the
+        law is the null hypothesis for the graded ladder, and the ladder's job
+        is to break it if it is breakable.
+      validation_plan: >-
+        The graded ladder IS this heuristic's test. Measured B_hat(l) against
+        (1-2p*)^l at l = 0..4 with a declared floor; a systematic departure
+        refutes HEUR-HQC-CHI-2 and simultaneously produces the residual channel
+        that is the proposal's most valuable possible outcome.
+      falsification_condition: >-
+        |B_hat(l) - (1-2p*)^l| > 4/sqrt(N) at any l above the measurement
+        floor, consistently across cells.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this audit. NO EXPONENT IS MOVED AND NONE IS CLAIMED. Stating
+      this plainly rather than dressing a model audit as a complexity result is
+      required by the generation contract. The exponent this goal's OTHER lane
+      does target - the ISD baseline - is the subject of IDEA-20260805-baa4da,
+      not of this record.
+    memory_exponent: n/a
+    best_known: >-
+      n/a. There is no competing method for "exhibit an exact algebraic
+      constraint on the HQC error vector" because this corpus records no
+      previous attempt to look for one.
+    hidden_overhead: >-
+      n/a. The derivation has no cofactor; the measurement's cost is dominated
+      by 1e6 sparse cyclic convolutions per cell, which is seconds.
+    tradeoff_note: n/a
+
+  dominated_by: >-
+    n/a (no attack, no cost claim, no Pareto point). Rows checked before
+    writing n/a, as the inventor protocol section 5 requires. TIME axis: no
+    algorithm is proposed, so there is no time to dominate; the fastest known
+    route to any statement about HQC's DFR model is this one, since it is
+    pen-and-paper. MEMORY axis: no memory is used beyond one error vector.
+    DATA / QUERIES axis: zero queries to any oracle, zero ciphertexts, zero
+    decapsulations - which is strictly better than every decryption-failure
+    attack in the literature (Guo-Johansson, relayed at KN-LIT-2141 as needing
+    about 2^64 special ciphertexts; note that corpus entry prints "264" where
+    the abstract reads 2^64, a flattened exponent recorded in the
+    program-wide angle inventory and NOT repaired here because editing it is
+    outside this record's scope). What could dominate this proposal is a
+    STRONGER algebraic constraint on e' - one that pins more than a single bit
+    and survives truncation. None is known to this program, and finding one is
+    named as the successor.
+  sota_delta: >-
+    Quantitatively, against the state of this program's knowledge on
+    2026-08-05: dependence channels in HQC's error vector with a DERIVED
+    magnitude, before: 0. After: 1, of magnitude exactly (1-2p*)^l =
+    3.378e-03 / 7.191e-07 / 1.105e-22 at the three levels. Numbered
+    assumptions in the transcription of SPEC's DFR model, before: 23; the
+    identity is not among them. Runs executed by GOAL-HQC-001 in three
+    batches: 0; this proposal's decisive stage costs zero of them. Against the
+    EXTERNAL state of the art on HQC's security: delta ZERO, in either
+    direction. No attack, no bit of claimed security moved, and the security
+    relevance at NIST-5 is 1e-22.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.93 that the identity holds exactly as stated and is confirmed at stage 1.
+    It is not 1.00 for exactly one reason, and it is a real one: SPEC section
+    4.1's English is ambiguous about whether w is the weight of each of x and y
+    or of the pair, and under the asymmetric reading the two convolution terms
+    need not cancel identically. Every other step is a ring homomorphism
+    applied to a definition. It is not lower because the derivation uses no
+    literature, no recalled theorem, and no numerical input beyond two integers
+    read off SPEC Table 5, and because the p* reproduction (0.339788 against
+    SPEC's printed 0.3398, at all three levels) independently confirms that the
+    transcribed model was read correctly.
+    SEPARATELY, 0.15 that the residual channel measured in stage 4 departs
+    detectably from the forced curve at reachable cell sizes - that is the
+    outcome that would matter to BATCH-004, and its prior is low because the
+    same 1/DFR rarity wall that made the direct measurement infeasible
+    (EV-HQC-0e9116) also suppresses joint-moment excesses at small N. It is
+    not lower than 0.15 because nothing has ever been measured here at all,
+    and because DEC-20260805-2be965 records this program's red team finding
+    four of five named obstructions defective on audit - the base rate for "we
+    already know what we would see" in this corpus is poor.
