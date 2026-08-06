@@ -126,6 +126,10 @@ python3 tools/research_dispatch.py coordination/dispatch_queue.json \
 python3 -m unittest tools/test_research_dispatch.py
 ```
 
-Use a concurrency cap of at most three subagent tasks. More task cards provide
-dynamic continuity; they do not justify starting more work than can be
-independently reviewed.
+Set `max_concurrent` to what the environment can run without degrading, not
+to fill idle capacity. The tooling's fixed ceiling of three was removed on
+explicit user direction (2026-08-05; see `MAX_CONCURRENT_CEILING` in
+`tools/research_dispatch.py`), so nothing in the dispatcher itself will stop
+an oversized value — sizing it is the dispatching Coordinator's job. More
+task cards provide dynamic continuity; they do not justify starting more work
+than can be independently reviewed.

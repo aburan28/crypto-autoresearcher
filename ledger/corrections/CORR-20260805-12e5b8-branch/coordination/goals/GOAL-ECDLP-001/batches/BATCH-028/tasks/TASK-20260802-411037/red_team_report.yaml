@@ -1,0 +1,945 @@
+red_team_report:
+  id: RT-20260802-411037
+  id_note: >-
+    Derived from this task id rather than allocated with tools/allocate_id.py,
+    which has no `red_team_report` type. This is a review artifact, not a ledger
+    record, and it mints no ledger identifier.
+  task_id: TASK-20260802-411037
+  role: red-team
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-028
+  question_id: RQ-ECDLP-002
+  experiment_id: EXP-SMTH-4403c4
+  produced_utc: "2026-08-02T21:52:00Z"
+
+  status: >-
+    ANALYSIS ONLY, UNCOMMITTED, NOT `git add`ed. A validator was re-executing
+    measurements concurrently and CPU was not competed for: the only code I
+    executed was the Dickman-rho helper embedded in run_manifest.json (a
+    sub-second pure-Python ODE loop) and closed-form probability arithmetic.
+    NO arm was re-run and NO integer was re-factored by me. This report assigns
+    NO official state, NO evidence strength, and recommends NO promotion. It
+    declares no hypothesis supported, weakened, rejected or closed, and it
+    re-scores no frozen rule (the contract's `post_hoc_rescoring_forbidden`
+    clause is respected: every alternative calibration below is labelled a
+    SENSITIVITY OBSERVATION, never a verdict).
+
+  reviewed_snapshot:
+    receipt: coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/archives/TASK-20260802-d34ac4/snapshot-receipt.json
+    commits_seen: ["d01c5d03 record the VERIFIED BATCH-028 snapshot archive", "f846c8dd TASK-20260802-d34ac4: BATCH-028 producer snapshot archive"]
+    declared_paths: 9
+    integrity_check_i_ran: >-
+      Recomputed sha256 for all 9 declared paths. 8/9 match. The single
+      mismatch is snapshot-receipt.json's own entry, which the receipt itself
+      explains in `path_sha256_note`: "The receipt's own digest is its content
+      before this map was filled." That is a correct self-disclosed limitation,
+      not a defect. experiments/EXP-SMTH-4403c4/specification.yaml hashes to
+      664e37a3752b984f6b213dde21c9d7c26e891708325185c785f36c5d6462eb6f,
+      matching the freeze receipt and both the executor's and the Coordinator's
+      recomputation. I confirm the pre-registration integrity property
+      independently.
+    code_provenance_check_i_ran: >-
+      The four scripts embedded in run_manifest.json `code` hash to their
+      recorded sha256 values, and each equals the copy still on disk in the
+      session scratchpad. I therefore read the code that ran, not a paraphrase
+      of it. D7 (code outside write scope, embedded verbatim in the manifest)
+      is adequately handled; the scratchpad copies are non-durable and I relied
+      on the manifest-embedded text.
+
+  claim_under_review: >-
+    That the BATCH-028 measurement is admissible evidence despite carrying
+    `approved_by: null`, and that its mechanical reading -- verdict_id
+    V-CONSISTENT at CELL-16 (primary, 16-bit field, p = 62897) and at CELL-20
+    (20-bit field, p = 1045963), DR-1 NOT-REJECT, DR-3 TAIL-CLEAN, DR-2 PASS at
+    all four powered rungs, instrument gate passed -- is a toy-tier
+    distributional status report on limb (a) of HEUR-DS-1.
+
+  what_i_recomputed:
+    - >-
+      Poisson(10) tail probabilities for DR-3's frozen thresholds: P(T>=26) =
+      1.768e-05 and P(T<=1) = 4.994e-04. The contract's arithmetic reproduces
+      exactly. I then computed the marginal distribution of T when tau is the
+      10th largest of an EQUAL-SIZE null sample rather than a known quantile:
+      NegativeBinomial(r=10, p=1/2), giving P(T>=26) = 2.994e-03 and P(T<=1) =
+      5.859e-03. See objection RT028-B4.
+    - >-
+      The KS thresholds: two-sample 1.63*sqrt(2/130816) = 0.0063734 (matches);
+      one-sample 1.63/sqrt(130816) = 0.0045066. Observed D at CELL-16 =
+      0.0048083. See objection RT028-B1.
+    - >-
+      The `dickman_rho` helper embedded in run_manifest.json, at the exact u
+      values recorded in RESULTS.json and at four step sizes. Reproduces the
+      recorded values at the default h, but is NOT convergent: at
+      u = 6.012858 it returns 1.40721e-05 at h=5e-4 and 1.74746e-05 at h=1e-4;
+      at u = 5.994822 it returns 1.38602e-05 at h=5e-4 and 1.89989e-05 at
+      h=5e-5; and it is discontinuous in u, returning 1.21019e-05 at u=6.01280
+      and 1.88956e-05 at u=6.01300. See objection RT028-B6.
+    - >-
+      Arithmetic on the DR-2 rows: at CELL-16 the ratio p_real/p_null is below
+      1 at all five rungs (0.990, 0.960, 0.980, 0.907, 0.944); at CELL-20 it is
+      at or above 1 at all five (0.996, 1.022, 1.002, 1.119, 1.300). The two
+      cells deviate in OPPOSITE directions, consistent with the DR-1 signed
+      deviations (+0.004808 at CELL-16, -0.002408 at CELL-20).
+
+  # =====================================================================
+  # 1. ADMISSIBILITY: THE REFERRAL AND THE QUESTION
+  # =====================================================================
+  admissibility_analysis:
+    the_defect_as_recorded_and_it_is_recorded_honestly: >-
+      experiments/EXP-SMTH-4403c4/specification.yaml lines 17-29 read, in full:
+      "  status: frozen_pending_approval
+         status_note: >-
+           FROZEN, NOT APPROVED. This task freezes the contract and produces NO
+           measurement of any kind. `approved_by` is null and remains null until the
+           Coordinator records an approval determination in its snapshot receipt.
+           The executing task TASK-20260802-6a39f8 is authorized by its dispatch card
+           and by the freeze receipt hash check, and it must halt if the sha256 of
+           this file differs from the one recorded in
+           coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-80f5e9/freeze_receipt.json.
+         approved_by: null
+         execution_authorized_by: dispatch_card TASK-20260802-6a39f8 (BATCH-028)
+         evidence_eligible: true
+         claim_tier: toy"
+      AGENTS.md fixes the experiment lifecycle as
+      "`draft -> review_required -> approved -> running -> completed | failed_infrastructure | invalid -> analyzed -> archived`".
+      `approved` is a mandated predecessor of `running`, so this is a skipped
+      state, not a missing signature.
+    RT028-G1_the_contract_pre-decides_the_question_referred_to_me: >-
+      HIGH. The frozen contract sets `evidence_eligible: true` on line 28 while
+      setting `approved_by: null` on line 26. The Coordinator's
+      APPROVAL-DETERMINATION.md refers evidence-eligibility to the reviewers as
+      an open question; the artifact under review has already answered it in
+      the affirmative, in a field that is now frozen and unamendable. Nobody
+      has drawn attention to this. Whatever the reviewers rule, an automated
+      reader or a later citation that reads `evidence_eligible` from the
+      contract gets `true`. This is the single most concrete way the missing
+      approval is silently cured, and it is INSIDE the frozen artifact, so it
+      cannot be repaired by a determination document. A successor contract must
+      not carry a self-asserted `evidence_eligible`; that field belongs to the
+      approver, not the author.
+    is_the_substitution_argument_sound: >-
+      PARTLY, AND ONLY FOR ONE OF THE TWO THINGS APPROVAL PROTECTS. The
+      Coordinator's own document draws the right distinction and I agree with
+      the distinction: integrity (the contract was fixed before any datum) is
+      independently verifiable and I verified it myself. But the argument
+      "integrity is verifiable from the hash chain, therefore approval is
+      substitutable" is not sound as a general principle, for a reason the
+      determination document states but does not follow to its conclusion:
+      approval also certifies JUDGEMENT -- that the design can answer the
+      question asked -- and judgement is exactly what a hash chain cannot
+      supply. Sections 2-4 of this report list eight design defects a
+      prospective approver had the standing and the information to catch. Their
+      existence is the empirical demonstration that the judgement function was
+      not vestigial here. A hash proves the ruler was not moved after the
+      measurement; it does not prove the ruler measures the right thing.
+    is_the_self-referral_itself_a_way_to_get_a_favourable_ruling: >-
+      I take this seriously and I decline to accuse. What I will state is the
+      structural fact, which does not depend on motive. The referral was made
+      AFTER the results were known and were favourable. The determination
+      document says so and discounts itself for it, in these words, quoted in
+      full: "THAT SENTENCE IS WORTH EXACTLY AS MUCH AS ITS TIMING ALLOWS, WHICH
+      IS LESS THAN A PROSPECTIVE APPROVAL. I am stating a counterfactual about
+      what I would have done, after seeing that the results came back clean,
+      and a reader should discount it accordingly." That self-discounting is
+      genuine and unusual, and it is the reason I do not read the referral as
+      manipulation. The residual problem is a PRECEDENT problem, not a motive
+      problem: a regime in which the approval step is discovered missing only
+      after the reading is known, and is then cured by reviewer ruling, has the
+      property that approval is never binding on any run whose results are
+      favourable -- because an unfavourable run's producer has no incentive to
+      raise the defect and no reviewer would be asked. The strongest case for
+      INADMISSIBLE is exactly this: a pre-registration regime whose approval
+      step can be skipped whenever the results come back clean is not a
+      pre-registration regime, it is a post-registration regime with good
+      record-keeping. I think that case is correct about the regime and wrong
+      about this run's data.
+    my_view_stated_plainly: >-
+      SPLIT, AND THE SPLIT IS NOT A COMPROMISE -- it tracks the two functions
+      approval serves.
+      (i) ADMISSIBLE AS AN INSTRUMENT AND PROVENANCE RECORD. The 1046528
+      factorizations, the per-arm counts, the integrity checks, the N-sequence
+      hashes, the embedded code and the phase ordering are real, independently
+      checkable, honestly reported, and were obtained at real cost. Nullifying
+      them would destroy sound data to punish a Coordinator queue defect that
+      the PRODUCER self-reported as D1 -- an incentive gradient that teaches
+      future producers to stay quiet. AGENTS rule 3's spirit (a process failure
+      is not mathematical evidence) cuts both ways: it is also not
+      anti-evidence.
+      (ii) NOT ADMISSIBLE AS A PRE-REGISTERED DECISION READING. The verdict
+      map's authority comes from the approval gate that was skipped, and the
+      defects in sections 2-4 are of precisely the type approval exists to
+      catch. The label V-CONSISTENT should not be inherited downstream as a
+      pre-registered decision outcome.
+      (iii) THE DISPOSITION DOES NOT TURN ON (i) OR (ii). My independent
+      findings below push OPEN-BATCH023-A to the same place the governance
+      defect does: ATTEMPTED, MEASURED, AND INCONCLUSIVE AS TO THE HEURISTIC,
+      with the measurement retained. That is a terminal outcome the contract
+      itself declares legitimate in advance. So the Coordinator does not need
+      my eligibility ruling to be load-bearing, and I would rather it were not
+      -- a reviewer whose eligibility ruling is the hinge is a rubber stamp
+      with extra steps.
+    binding_forward_requirement_i_would_impose: >-
+      The determination's own closing rule ("Every future batch that freezes a
+      contract carries an explicit Coordinator APPROVAL TASK between the freeze
+      and the execution, and the execution card's completion gate requires a
+      non-null `approved_by`") is right and sufficient IF one thing is added:
+      the executor's halt condition must include `approved_by is null`, so that
+      the gate is enforced by the producer's code path and not by the queue
+      author's memory. The queue author is the party who failed here; a gate
+      that only the failing party can arm is not a gate.
+
+  # =====================================================================
+  # 2. OBJECTIONS
+  # =====================================================================
+  objections:
+    - id: RT028-B1
+      severity: HIGH
+      title: >-
+        THE ONE THAT WOULD HURT MOST. The primary cell's NOT-REJECT is not
+        robust to the choice of null model, and the contract's own text
+        supports a framing under which CELL-16 crosses.
+      finding: >-
+        DR-1 uses the EQUAL-SAMPLE two-sample KS critical value
+        T = 1.63*sqrt(2/n_eff) = 0.0063734, which is correct when BOTH arms are
+        iid samples of size n. But the contract states, in
+        measured_null.seeds.note, quoted in full: "The treatment arm carries NO
+        SEED AND NO SAMPLING NOISE: it is EXHAUSTIVE over all 130816 pairs and
+        is reproducible from (p, a, b, FB) alone." If that sentence is taken at
+        face value -- A-REAL is the EXACT population CDF of the pair set for
+        this curve and factor base, not a sample from it -- then only A-NULL
+        carries sampling noise, the problem is a ONE-sample KS test against a
+        fixed CDF, and the critical value at the same alpha is 1.63/sqrt(n) =
+        0.0045066. The observed CELL-16 statistic D = 0.0048083 EXCEEDS that by
+        6.7 percent. Under that framing the PRIMARY cell reads
+        "distinguishable", not "not distinguishable". CELL-20 (D = 0.0024080)
+        does not cross under either framing.
+      what_i_am_and_am_not_saying: >-
+        I am NOT re-scoring the run; the contract forbids it and the frozen
+        verdict at CELL-16 is NOT-REJECT under the rule that was frozen. I am
+        saying the primary reading sits inside the gap between two defensible
+        calibrations of the same data (0.004507 < D = 0.004808 < 0.006373), the
+        contract never states why it chose the wider one, and OBS-3's "75
+        percent of threshold" is therefore understating the fragility rather
+        than merely flagging a narrow margin. A reading whose direction depends
+        on an unargued modelling choice is not a status report, it is a coin
+        that landed.
+      fair_counter_argument_stated: >-
+        The two-sample form is defensible if one regards the factor base itself
+        as one pseudorandom draw, so that A-REAL is a (dependent) sample rather
+        than a population. That is a real argument. It is also not the argument
+        the contract makes -- the contract asserts the opposite in the sentence
+        quoted above -- and it leads directly to RT028-B2, where the honest
+        threshold is much LOOSER, not tighter. The two framings bracket the
+        frozen one from both sides.
+    - id: RT028-B2
+      severity: HIGH
+      title: >-
+        n_eff = 130816 is not the effective sample size of the treatment arm.
+        The 130816 pairs come from 512 factor-base elements, each appearing in
+        511 pairs.
+      finding: >-
+        The task card's premise is half right and I want to be exact about
+        which half, because the two halves point in OPPOSITE directions.
+        (a) DIRECTION OF THE CORRECTION. Positive dependence among the pair
+        values INFLATES the variance of the treatment arm's empirical CDF
+        relative to the binomial/independent case. Inflated variance makes the
+        frozen threshold TOO SMALL, i.e. the test OVER-rejects relative to its
+        nominal alpha = 0.01. A test that fires too easily and did NOT fire is
+        not thereby weakened: the NOT-REJECT survives the dependence, and if
+        anything the honest critical value is larger than 0.0063734, which
+        makes D = 0.0048083 a comfortable pass rather than a narrow one. So the
+        card's inference "the threshold is too tight, therefore a not-reject
+        means less than claimed" does not go through as stated for the DR-1
+        verdict.
+        (b) WHAT DEPENDENCE DOES DESTROY is the REACH claim and the tail rule.
+        The contract's reach_and_power (a) says, in full: "DR-1 at n_eff =
+        130816 detects CDF separations above 0.006373. A smaller separation is
+        invisible to this contract and a NOT-REJECT does not exclude one." That
+        sentence is a resolution claim and it is only true under independence.
+        If the Hajek projection of the pair kernel onto the 512 underlying
+        x-coordinates is non-degenerate, the empirical CDF fluctuates at scale
+        O(1/sqrt(512)) ~ 0.044, roughly SEVEN TIMES the quoted resolution, and
+        the honest statement is that this design cannot exclude separations an
+        order of magnitude larger than it says it can. DR-2's half-widths and
+        DR-4's allowance inherit the same defect, and DR-3's Poisson(10)
+        exchangeability assumption is broken twice over (see RT028-B4).
+        (c) THE DEEPER POINT. If the target of inference is "half-arity Semaev
+        intermediates" rather than "this curve's pair set", the replication
+        unit is the CURVE, and n = 1 per cell. The measured evidence that this
+        matters is already in the package and is being read as reassurance: the
+        two cells deviate in OPPOSITE directions (CELL-16 signed +0.004808 with
+        all five DR-2 ratios below 1; CELL-20 signed -0.002408 with all five at
+        or above 1). Instance-to-instance variation is of the same order as the
+        statistic being thresholded.
+      cheapest_control: >-
+        A DELETE-ONE-x JACKKNIFE over the 512 factor-base elements: recompute
+        each rung's smooth fraction and the DR-1 statistic with x_i removed
+        (511 pairs dropped), 512 times, from data already produced, and compare
+        the jackknife standard deviation to the binomial sqrt(p(1-p)/n) the
+        thresholds assume. The ratio IS the variance-inflation factor, measured
+        rather than argued. Secondary: resample disjoint perfect matchings of
+        the 512 elements (256 genuinely non-overlapping pairs each) and compare
+        their spread. Both are O(n) bookkeeping on stored per-pair values; both
+        are minutes, not hours.
+    - id: RT028-B3
+      severity: HIGH
+      title: >-
+        OBS-1 proves the treatment distribution is NOT the null distribution,
+        and no pre-registered rule saw it. The instrument is demonstrably
+        insensitive to a known, 50-percent-of-support structural deviation.
+      finding: >-
+        run_manifest.json OBS-1 states, in full: "INTEG-3 found that ALL 130816
+        pairs have both roots of f_ij in F_p at both cells (pairs_with_roots_in_Fp
+        = 130816, roots_checked = 261632, bad_root_checks = 0), so the root
+        check ran on every pair rather than a subset." The executor withheld
+        interpretation. Here is the consequence it withheld. Both roots lying
+        in F_p for every one of 130816 pairs means the discriminant
+        c_1^2 - 4*c_0*c_2, equivalently e_1^2 - 4*e_2, is a square mod p for
+        every emitted pair -- 130816 times out of 130816, where a uniform pair
+        would give about half. Therefore the treatment pairs (e_1, e_2) live on
+        a subset of [0,p) x [0,p) of density about 1/2, while A-NULL and
+        A-IDENT draw from the whole grid. THE TWO ARMS ARE PROVABLY NOT THE
+        SAME DISTRIBUTION, by a factor-2 restriction of support that the run
+        itself measured with certainty -- and DR-1 returned NOT-REJECT, DR-3
+        returned TAIL-CLEAN, DR-2 passed at every powered rung.
+      why_this_is_the_lossy-projection_test_failing: >-
+        The defence is available and I state it fairly: limb (a) is precisely
+        the claim that such structure does not affect SMOOTHNESS, so a
+        not-reject is the predicted outcome and not a scandal. But that defence
+        concedes the point that matters for how the reading should be cited.
+        ENC-B, N = e_1*p + e_2 + 1, is a bijection but not an arithmetic
+        morphism: the smoothness of N has no relation to the smoothness of e_1
+        or of e_2, so digit-interleaving scrambles exactly the multiplicative
+        structure an index-calculus relation search would touch. The run's own
+        arms make the point: A-POWER, the ARITHMETIC encoding
+        max(e_1,1)*max(e_2,1), separates from the null at D = 0.6279 -- 98x the
+        threshold -- and the contract confines it to "POWER CERTIFICATE ONLY,
+        ... NEVER cited as evidence for or against HEUR-DS-1". The decision
+        encoding is the arithmetically inert one; the arithmetically live one
+        is barred from the decision set. Per docs/inventor-protocol.md section
+        3, V-CONSISTENT here is closer to a CONTROLLED NULL -- the treatment
+        matched the null object under a projection that discards the structure
+        -- than to a finding.
+      cheapest_control: >-
+        Two, both cheap and both decisive in opposite ways.
+        (1) SUPPORT-MATCHED NULL: draw (e_1, e_2) uniformly from the SAME
+        support the treatment provably occupies (e_1^2 - 4*e_2 a square mod p),
+        encode with ENC-B, factor, and rerun the KS against A-NULL. If the
+        support-matched null is indistinguishable from the uniform null, that
+        is a direct measurement of the projection's blindness and it bounds how
+        much V-CONSISTENT can ever mean. If it is distinguishable, then A-NULL
+        was the wrong null and the whole comparison is mis-specified. Cost:
+        one arm, about 130816 factorizations, seconds at the run's own measured
+        rate of ~26000/s.
+        (2) MATCHED-NULL POWER ARM: compare A-POWER against a null of
+        max(u,1)*max(v,1) with u,v drawn uniformly from [0,p) -- which the
+        A-IDENT stream already provides -- instead of against uniform integers
+        on [1,p^2]. That is the ONLY comparison in the vicinity that tests limb
+        (a) in an arithmetically meaningful encoding, and it was not run.
+    - id: RT028-B4
+      severity: MEDIUM-HIGH
+      title: >-
+        DR-3's stated nominal probabilities are wrong by two orders of
+        magnitude, because tau is estimated from the null rather than known.
+      finding: >-
+        The contract states, in full: "null_expectation: Under the hypothesis
+        that A-REAL and A-NULL are exchangeable, T is approximately Poisson
+        with mean 10." and records "P_T_ge_26_given_Poisson_10: 1.768e-05,
+        P_T_le_1_given_Poisson_10: 4.994e-04" with the note that they "are
+        properties of the frozen thresholds, not measurements of any sample."
+        The Poisson arithmetic is right and I reproduced both numbers. The
+        MODEL is not. tau is the 10th largest z in a FINITE null arm of the same
+        size as the treatment arm, so the exceedance rate above tau is itself
+        random -- Beta(10, n-9) -- and T is marginally NegativeBinomial(r=10,
+        p=1/2), mean 10 but variance 20, not 10. I computed the correct tails:
+        P(T>=26) = 2.994e-03 (169x the stated value) and P(T<=1) = 5.859e-03
+        (11.7x). The rule's real nominal false-fire rate is about 0.9 percent,
+        which consumes the entire family-wise alpha = 0.01 the contract
+        allocates across DR-1, DR-2 and DR-3 by itself.
+      direction_and_effect_on_this_reading: >-
+        The error makes DR-3 fire MORE readily than advertised, so it did not
+        manufacture the TAIL-CLEAN verdicts, and T = 7 (CELL-16) and T = 15
+        (CELL-20) are clean under both models -- though under the correct model
+        T = 15 sits at P(T>=15) = 0.154 rather than 0.083, i.e. less remarkable
+        still. The defect is in a recorded property of a frozen threshold, and
+        any successor contract that reuses "Poisson with mean 10" inherits it.
+    - id: RT028-B5
+      severity: MEDIUM
+      title: >-
+        DR-1's `direction_recorded` field is generated by a hardcoded string
+        and is WRONG at CELL-16, and its explanation is wrong at CELL-20.
+      finding: >-
+        analyze.py lines 117-119, quoted in full:
+        '               "direction_recorded": ("real SMOOTHER than null (F_real above F_null is "
+                                              "at low z; sign of maximal deviation F_real - F_null = %+0.6f)"
+                                              % d_real_signed) if d_real_signed != 0 else "no deviation",'
+        The phrase "real SMOOTHER than null" is emitted for EVERY nonzero
+        deviation regardless of sign; only the numeric %+0.6f varies. The
+        correctly sign-branched field is the adjacent `direction_plain`. At
+        CELL-16 the signed deviation is +0.004808, F_real exceeds F_null at low
+        z, z near 1 means N is near-prime, so the treatment is ROUGHER; the two
+        fields in the same record contradict each other, "real SMOOTHER than
+        null" against "A-REAL has MORE mass at small z (rougher: z near 1 means
+        N is near-prime)". At CELL-20 the signed deviation is -0.002408, so the
+        label "SMOOTHER" is right by accident while its parenthetical
+        explanation ("F_real above F_null is at low z") is false.
+      why_it_matters_despite_being_descriptive: >-
+        The contract makes direction a recorded, non-thresholded field, so no
+        verdict moves. But direction is the field a downstream reader quotes
+        when asking WHICH WAY the intermediates deviate, and RT028-B2(c) shows
+        that the sign disagreement between the two cells is one of the more
+        informative things in the package. A record that states the sign
+        backwards at the primary cell is a citation hazard, and it is the kind
+        of defect that reaches a knowledge entry intact.
+    - id: RT028-B6
+      severity: MEDIUM
+      title: >-
+        OBS-2's numbers are produced by a numerically unconverged rho routine
+        and are understated by 25-40 percent at exactly the rungs OBS-2 is
+        about.
+      finding: >-
+        The `dickman_rho` helper embedded in run_manifest.json is a hand-rolled
+        midpoint integrator with no accuracy check against any reference value.
+        Executing it at the u values RESULTS.json records: at u = 6.012858
+        (CELL-16, Bsm = 40) it returns 1.40721e-05 at the default h = 5e-4 and
+        1.74746e-05 at h = 1e-4; at u = 5.994822 (CELL-20, Bsm = 102) it returns
+        1.38602e-05 at h = 5e-4 and 1.89989e-05 at h = 5e-5. It is also
+        discontinuous in its argument: 1.21019e-05 at u = 6.01280 versus
+        1.88956e-05 at u = 6.01300, a 56 percent swing across delta-u = 2e-4.
+        OBS-2's headline ratios rho/p_null = 0.10 (CELL-16) and 0.18 (CELL-20)
+        therefore become roughly 0.13 and 0.25 on refinement. The qualitative
+        observation survives; the two numbers do not, and they are the two most
+        quotable numbers in OBS-2.
+      scope: >-
+        rho carries zero decision weight everywhere in this contract and I
+        confirm that by reading analyze.py: rho appears only inside fields named
+        MODELED_..._ZERO_DECISION_WEIGHT and enters no rule, no gate and no
+        verdict. This objection is about a reported observation, not a verdict.
+    - id: RT028-B7
+      severity: MEDIUM
+      title: >-
+        One power arm, at 98x the threshold, is not a demonstration of
+        sensitivity anywhere near the alternative of interest.
+      finding: >-
+        DR-5 certifies that the apparatus rejects A-POWER, where D_power =
+        0.6279 against T = 0.0063734. That establishes the statistic is not
+        identically zero. It establishes nothing about power at effect sizes of
+        order 0.005-0.05, which is the entire region where a real HEUR-DS-1
+        deviation at these parameters would live. The contract's V-CONSISTENT
+        text nonetheless licenses the stronger reading, quoted in full: "At this
+        cell, the half-arity Semaev intermediates under ENC-B were not
+        distinguishable from measured uniform integers on the same range by any
+        pre-registered rule, on an apparatus demonstrated in the same run to
+        have power to reject." The clause after the comma is doing work it has
+        not earned. Combined with RT028-B3, the honest summary is: the
+        instrument was shown to detect a derivably enormous difference and was
+        NOT shown to detect a proven 50-percent support restriction that was
+        present in every single record.
+      cheapest_control: >-
+        A POWER LADDER instead of a power point: inject a controlled
+        contamination into a copy of the null arm -- replace a fraction eps of
+        records with draws from a mildly smoother distribution -- for eps on a
+        pre-registered grid, and report the smallest eps at which DR-1 fires.
+        That converts "has power to reject" into a measured detection floor,
+        and it costs one arm per grid point.
+    - id: RT028-B8
+      severity: MEDIUM
+      title: >-
+        INTEG-3 compares two copies of the same expression and cannot detect a
+        wrong S_3. The genuinely independent check is cheap and was not run.
+      finding: >-
+        The contract's S_3_source_of_truth says, in full: "The S_3 coefficients
+        above are the third Semaev summation polynomial for the short
+        Weierstrass curve y**2 = x**3 + a*x + b, matching
+        harness/semaev.py::s3_expr / s3_eval character-for-character in
+        algebraic content. The executor MUST cross-check its implementation
+        against harness.semaev.s3_eval on every pair it evaluates (INTEG-3
+        below) rather than trusting either transcription." I read both: driver.py
+        `pair_e1_e2` computes c2 = (xi-xj)^2, c1 = -2((xi+xj)(xi*xj+a)+2b),
+        c0 = (xi*xj-a)^2 - 4b(xi+xj) mod p, and harness/semaev.py `s3_eval`
+        evaluates the identical expression. Agreement between two transcriptions
+        of one formula is a typo check. The root check in INTEG-3 re-evaluates
+        the SAME s3_eval at the computed roots, so it is not independent either.
+        I make NO claim that the formula is wrong -- I did not verify it and I
+        will not assert from recollection (DEC-20260731-019 ruling 3).
+      cheapest_control: >-
+        Verify against the GROUP LAW, which is independent of the S_3
+        transcription: for a sample of pairs, lift x_i and x_j to points P, Q on
+        E via the harness's own curve object and check that the two roots of
+        f_ij are exactly x(P+Q) and x(P-Q). This costs seconds, is fully
+        independent of the polynomial's coefficients, and it would simultaneously
+        explain OBS-1 (RT028-B3) instead of leaving it as an uninterpreted
+        anomaly.
+    - id: RT028-B9
+      severity: LOW-MEDIUM
+      title: >-
+        Zero exclusions is plausible, but the exclusion machinery was never
+        shown to be capable of firing.
+      finding: >-
+        I read factor_record in driver.py: the timeout is signal.setitimer
+        (ITIMER_REAL, 5) around each sympy.factorint call in a forked worker,
+        and failures are recorded with their index and excluded, never imputed.
+        Zero exclusions across 1046528 records is EXPECTED, not suspicious:
+        every N is below 2^40, sympy's small-number path returns in
+        microseconds, and a 5-second per-integer timeout is four to five orders
+        of magnitude above the observed per-record cost (the arms report 2.49 to
+        5.02 seconds for 130816 records each across 4 workers). Zero N == 1
+        records is also expected: N == 1 requires drawing exactly 1 from
+        [1, ~4e9] in A-NULL (expected count ~3e-5 per arm) or e_1 = e_2 = 0 in
+        A-REAL. I do NOT read this as undetected failure.
+      residual_objection: >-
+        What has not been shown is that the exclusion path is REACHABLE as
+        implemented. DR-5 certifies the KS statistic can fire; nothing
+        certifies the exclusion accounting can. A one-line liveness control --
+        push a deliberately hard integer (a product of two ~64-bit primes, or a
+        monkeypatched raising worker) through the same pipeline and confirm it
+        lands in `failures` with its index and is subtracted from n_eff -- costs
+        seconds and converts "zero exclusions" from an absence into a
+        measurement. The contract's own M-INSTR branch depends on that
+        accounting being live.
+    - id: RT028-B10
+      severity: MEDIUM
+      title: >-
+        The experiment does not test HEUR-DS-1's own pre-registered
+        falsification condition, and the substitution is nowhere recorded as a
+        substitution.
+      finding: >-
+        H-DS-001 heuristic_assumptions[0].falsification_condition reads, in
+        full: "At a tested toy size with >=10^5 sampled intermediates, the
+        empirical CDF of intermediate degrees (or their largest prime factors)
+        has Kolmogorov-Smirnov distance from Dickman rho(u) exceeding the
+        pre-registered threshold in EXP-DS-001, or the smoothest-sample tail
+        probability under rho is inconsistent with the observed extreme by the
+        contract's tail check -- reported as HEUR-DS-1 failed at toy scale, not
+        as crypto-scale refutation." That condition is scored AGAINST rho, i.e.
+        against limb (b). EXP-SMTH-4403c4 argues, persuasively, that scoring
+        against asymptotic rho at finite X attributes model error to the object,
+        and it therefore tests limb (a) instead. I think the contract is right
+        on the merits. But the consequence is that HEUR-DS-1's OWN registered
+        falsification condition remains untested, and no artifact in the package
+        says so in those words. A reader who checks "was the heuristic's
+        falsification condition exercised?" gets no answer. It should be
+        recorded as a deliberate, reasoned substitution, and H-DS-001's
+        condition should be superseded by a successor that is testable at finite
+        X -- not left standing while a different test is performed under its
+        name.
+
+  # =====================================================================
+  # 3. WHAT THE RESULT DOES NOT SAY
+  # =====================================================================
+  scope_and_what_slides:
+    how_much_of_HEUR_DS_1_this_touches: >-
+      NOT A PERCENTAGE OF RUNGS. HEUR-DS-1's sentence, quoted in full from
+      H-DS-001, is: "Intermediate degrees arising from half-arity Semaev partial
+      maps on uniform random targets behave, for B-smoothness purposes, like
+      uniform random integers of the same bitlength: the probability an
+      intermediate is B-smooth is within a constant factor of Dickman rho(u)
+      with u = log D / log B, where D bounds the intermediate degree." It
+      carries six quantifiers. The run touches two of them, partially.
+      (1) OBJECT -- "intermediate degrees ... where D bounds the intermediate
+      degree". MEASURED INSTEAD: integer smoothness of N = e_1*p + e_2 + 1, a
+      digit-interleaving of the two elementary symmetric functions of the S_3
+      fibre. The contract states outright that "The bound D = 2**(2*bits) is
+      used for NOTHING in any decision rule of this contract". No degree object
+      is measured. SUBSTITUTED, and the substitution is admitted in
+      interpretation_limits but never charged: "A different faithful encoding of
+      the same fibre could carry a different smoothness law, and this experiment
+      does not rule that out." This is the standing objection RT038-B2 /
+      RT047-H2 recorded in GOAL-ECDLP-001 -- "HEUR-DS-1 sampling still measures
+      encode_intermediate of an EC x-coordinate (provably the identity here),
+      not the Semaev resultant/norm intermediate the heuristic is about; the
+      transfer objection RT038-B2 is unrepaired and sharper." BATCH-028 IMPROVES
+      on that (it measures a genuine S_3 fibre invariant, not a curve
+      x-coordinate) but it does NOT discharge it: an ENC-B integer is not a
+      resultant, a norm, or a degree.
+      (2) ENSEMBLE -- "on uniform random targets". MEASURED INSTEAD: no target
+      exists anywhere in the pipeline. The ensemble is C(512,2) pairs from one
+      fixed pseudorandom factor base on one fixed curve. The randomness the
+      heuristic quantifies over is absent from the measurement. SUBSTITUTED.
+      (3) PROPERTY -- "for B-smoothness purposes ... within a constant factor of
+      rho(u)". TOUCHED, limb (a) only, at four of five rungs, and blind to the
+      structure OBS-1 proves is present (RT028-B3).
+      (4) REGIME -- the u at which early abort pays, and u growing with the
+      problem. NOT TOUCHED. See below.
+      (5) SCALE -- 16- and 20-bit FIELDS against cryptographic sizes. NOT
+      TOUCHED, and no substitute-sampling argument is offered that would make
+      the claimed scale reachable.
+      (6) ARITY -- "half-arity Semaev partial maps" at m in {4,5}. What is
+      measured is S_3 on pairs; the connection to a half-arity partial map of
+      the m = 4 search is asserted by inheritance from EXP-SMTH-001's INT-1 and
+      is not re-derived here.
+      SUMMARY: the run supplies a real, honest, previously-missing measurement
+      about (3) at (5)-toy, on an object that substitutes for (1) and drops (2)
+      entirely. It moves HEUR-DS-1 from "never measured at all" to "measured
+      once, in a proxy representation, at toy scale, in the shallow regime". That
+      is a genuine advance over BATCH-024's nothing. It is not a status report on
+      the heuristic.
+    the_deep_smooth_regime: >-
+      UNTESTED, and the contract says so in advance, in full: "THE CONSTANT-FACTOR
+      CLAIM OF HEUR-DS-1 IN THE DEEP-SMOOTH REGIME IS THEREFORE NOT TESTED BY
+      THIS EXPERIMENT." M-UNPOWERED did not fire because its trigger is "FEWER
+      THAN TWO ladder rungs are POWERED" and four of five were powered. That
+      trigger is a floor against a vacuous rule set; it is not a test of whether
+      the INTERESTING rung was powered, and at both cells the interesting rung
+      was not (k_null = 18 at CELL-16, k_null = 10 at CELL-20, against the
+      k_null >= 30 requirement). The load-bearing role of HEUR-DS-1 in H-DS-001
+      is stated in that record's mechanism as "HEUR-DS-1 justifies early abort
+      when partial sums land outside a smooth ideal class" -- an early-abort
+      licence lives or dies on the rate in the deep tail, which is exactly the
+      part not powered. The batch tested the cheap part. That is not a criticism
+      of the executor, who declared it in advance and reported it four separate
+      times; it is a criticism of reading the outcome as progress on the
+      heuristic's load-bearing content.
+    OBS_2_and_whether_the_scoping_is_self-serving: >-
+      MY ANSWER IS NO, AND FOR A REASON THAT CUTS AGAINST THE SUSPICION. The
+      ratio rho/p_null falling to ~0.10 and ~0.18 (or ~0.13 and ~0.25 after
+      RT028-B6's correction) is computed against p_null, and p_null is the
+      measured smooth density of UNIFORM RANDOM INTEGERS on [1, p^2]. It
+      contains no Semaev content whatsoever. What it says is that at these X the
+      asymptotic rho understates the smooth density of ORDINARY INTEGERS by
+      most of an order of magnitude at nominal u ~ 6 -- i.e. limb (b) as
+      literally written fails for the REFERENCE CLASS, not for the object. That
+      is adverse to any cost model in this campaign built on rho, so the
+      out-of-reach item is not one the campaign benefits from suppressing; and
+      it is uninterpretable at cryptographic scale, where a constant-factor
+      statement about rho may well be fine. So: yes, a factor-of-ten divergence
+      sits outside the decision set by the contract's construction, and no, I do
+      not read that construction as convenient. The contract's stated reason for
+      demoting rho -- that scoring a finite-X sample against an asymptotic
+      density attributes model error to the object -- is correct, and OBS-2 is
+      the empirical vindication of that reasoning rather than a casualty of it.
+      What I DO object to is leaving it as a bare observation: the finite-X
+      inflation of Psi(X,B)/X over rho(u) is measurable directly and cheaply at
+      these sizes, and turning OBS-2 into a measured finite-X correction is a
+      more valuable follow-up than another limb-(a) cell.
+    sentences_that_let_V_CONSISTENT_slide: >-
+      I grepped the whole BATCH-028 package for support-flavoured wording. THE
+      EXECUTOR'S ARTIFACTS ARE CLEAN: run_manifest.json's scope_statement,
+      executor_does_not_judge, checks_that_did_not_run and OBS-1..OBS-4 are, in
+      my reading, exemplary, and the word "validated" appears nowhere as a
+      finding. I found three places where a downstream reader could slide, none
+      of them an executor overclaim.
+      (a) THE VERDICT LABEL ITSELF. The contract reads:
+      "      - id: V-CONSISTENT
+               label: consistent with HEUR-DS-1 at this toy cell"
+      The label names the WHOLE heuristic. Every downstream citation of the
+      verdict id carries "consistent with HEUR-DS-1" without the limb-(a),
+      shallow-regime, proxy-object qualifiers that live several fields away. The
+      one-word repair for a successor contract is `V-CONSISTENT-LIMB-A`.
+      (b) THE POWER CLAUSE inside V-CONSISTENT's what_it_means, quoted in full
+      in RT028-B7: "on an apparatus demonstrated in the same run to have power
+      to reject". True only for a 98x effect.
+      (c) THE SNAPSHOT RECEIPT'S HEADLINE. `measured_outcome_as_reported_no_
+      coordinator_interpretation` leads with "CELL-16: verdict_id V-CONSISTENT"
+      for both cells. Its NOT_TESTED field immediately afterwards is unusually
+      forthright -- "The DEEP-SMOOTH REGIME IS NOT TESTED ... M-UNPOWERED did
+      not fire because four of five rungs were powered, which is the contract's
+      stated precondition, NOT because the deep tail was covered" -- so the
+      receipt as a whole is honest. But the verdict string is what travels.
+
+  # =====================================================================
+  # 4. PARETO, BASELINE AND SCOPE
+  # =====================================================================
+  baseline_comparison: >-
+    NO ALGORITHMIC CLAIM IS MADE AND NONE IS IMPLIED, so a Pollard-rho / BSGS /
+    specialized-baseline comparison has no purchase on the reported quantity.
+    The contract's knowledge_scope declares "dominated_by: Pollard rho at
+    generic exact-ECDLP exponent 1/2" and "sota_delta: 0". I checked that
+    against every axis I could: no discrete logarithm was computed, no relation
+    was harvested, no search dimension was eliminated, no invariant or
+    precomputation was charged or credited, no time, memory or query claim is
+    made anywhere in the package, and interpretation_limits states "No cost
+    consequence follows from any outcome. Even V-CONSISTENT licenses no early
+    abort, no charged saving and no exponent, because the cost of the abort test
+    is not measured here and R is not measured at all." That is a correct and
+    complete `dominated_by`, not an unchecked null. I record it as CONFIRMED and
+    raise no Pareto objection. The KN-LIT-7593 discipline (an eliminated search
+    dimension is not a speedup until the invariant's own cost is charged) is not
+    engaged, because no dimension was eliminated.
+  steps_between_this_reading_and_anything_cryptographically_relevant:
+    - step: S1 OBJECT FIDELITY. Measure the intermediate HEUR-DS-1 actually
+        names -- a resultant/norm or degree object of the partial map -- rather
+        than an ENC-B digit-interleaving of the fibre's symmetric functions.
+      funded: NO. No contract exists. This is RT038-B2 / RT047-H2, standing.
+    - step: S2 ENSEMBLE FIDELITY. Introduce uniform random TARGETS and a
+        half-arity partial map at m = 4, so the quantifier the heuristic ranges
+        over is present in the measurement.
+      funded: NO.
+    - step: S3 DEEP-TAIL POWER. Enlarge the factor base to power rungs at
+        nominal u >= 6. The contract costs this honestly (Bfb = 2048 gives ~16x,
+        Bfb = 8192 gives ~256x, cost linear in n across four arms) and says "the
+        Coordinator should decide whether to fund it rather than discover the
+        gap after this run."
+      funded: NO. The decision is now owed.
+    - step: S4 INSTANCE REPLICATION. Multiple seeds and curves per field size.
+        The opposite-sign deviations at the two cells (RT028-B2c) show that
+        instance variation is of the same order as the statistic; with n = 1
+        curve per cell nothing separates structure from instance noise.
+      funded: NO. run_manifest lists replication under checks_that_did_not_run,
+        reason "out of contract scope".
+    - step: S5 SCALE SERIES. 24, 32, 48-bit fields, to see whether any deviation
+        decays as it must if it is finite-size and persists if it is structural.
+      funded: NO.
+    - step: S6 FINITE-X CORRECTION. Turn OBS-2 into a measured correction to rho
+        so that limb (b) becomes testable at finite X at all.
+      funded: NO.
+    - step: S7 THE COST PATH. R = cost_split/cost_naive, the charged early-abort
+        test, relation harvest to rank B-1, linear algebra. This is H-DS-001's
+        actual prediction and the only place a smoothness fact could become a
+        cost fact.
+      funded: NO. Entirely untouched by BATCH-028.
+    - step: S8 CRYPTOGRAPHIC SCALE. Infeasible by exhaustive pair enumeration;
+        would require a substitute-sampling argument of the kind
+        docs/target-result-profile.md's exemplar supplies via the Deuring
+        correspondence. None is offered.
+      funded: NO.
+    - summary: >-
+        EIGHT STEPS, ALL UNFUNDED, AND NONE OF THEM IS ON THE COST PATH THIS
+        MEASUREMENT ADVANCES -- because this measurement advances no cost path.
+        AGENTS rule 7 / target-profile "scale honesty" - toy-scale smoothness
+        data never validates a heuristic at cryptographic sizes, and nothing in
+        this package claims otherwise.
+
+  # =====================================================================
+  heuristic_challenges:
+    - >-
+      HEUR-DS-1 is explicit and numbered in H-DS-001 and its random-model
+      justification is named ("Canfield-Erdos-Pomerance / Dickman-de Bruijn
+      govern integer smoothness; the heuristic transfers that law to Semaev
+      intermediate ideals over F_p in the absence of a proven correspondence").
+      The record is honest that the correspondence is unproven. The transfer is
+      the whole question, and BATCH-028 tests it on a substituted object
+      (RT028-B3, scope section item 1).
+    - >-
+      RANDOM-MODEL TRANSFER, THE SHARPEST FORM. OBS-1 proves the object is not a
+      uniformly random point of the space the null samples: its discriminant is
+      a square with probability 1, measured, 130816/130816, twice. A structured
+      quantity is not a uniformly random integer, and here the structure is not
+      hypothesised but observed. The cheapest computation that exposes it is
+      already named: the support-matched null of RT028-B3.
+    - >-
+      The experiment does not, and does not claim to, address limb (b). A
+      constant-factor claim against rho cannot be tested at these X without the
+      finite-X correction of S6, and OBS-2 measures how large that correction
+      is for ordinary integers.
+  cost_model_challenges:
+    - >-
+      No cost model is asserted, so there is nothing to recompute. The one cost
+      statement in the package -- the budget feasibility reasoning -- referenced
+      a file that does not exist (D2, experiments/EXP-SMTH-002/results/
+      feasibility_report.json). The executor substituted the measured throughput
+      from RUN-SMTH-PILOT-002's manifest and RECORDED the substitution rather
+      than improvising silently. That is correct handling and I endorse it. The
+      successor contract must fix the reference.
+    - >-
+      TOTAL-VS-PER-ATTEMPT: not engaged, because no success probability and no
+      attempt count appear anywhere. If any future work converts a smoothness
+      rate into an early-abort saving, that is the point at which total expected
+      cost = per-attempt cost x inverse success probability must be enforced,
+      and at which the cost of the abort TEST itself must be charged. The
+      contract pre-empts this correctly in interpretation_limits.
+  reduction_and_scope_challenges:
+    - >-
+      No corollary chain is invoked; no cited reduction is instantiated. Nothing
+      to check.
+    - >-
+      AFFECTED-VS-SAFE SCOPE: not inflated. No scheme is named as affected and
+      none as safe. The package's scope_statement is narrower than the run, if
+      anything.
+  proof_architecture_challenges:
+    - >-
+      OBSERVATION-FIBER ATTACK, and it lands. Hold the observation fixed (the
+      z-CDF of ENC-B integers) and vary the underlying object: the treatment
+      pairs occupy a support of density ~1/2 and the null pairs occupy the whole
+      grid, and the observation does not separate them (RT028-B3). Two preimages
+      on opposite sides of the structural question map to the same observation.
+      The missing separator is an arithmetic-preserving encoding -- which the run
+      has in hand as ENC-A and bars from the decision set.
+    - >-
+      QUANTIFIER-ORDER ATTACK. HEUR-DS-1 quantifies over uniform random targets;
+      the measurement fixes one curve, one factor base, no target, and then
+      reads a statistic as if it ranged over the outer quantifier. The witness
+      (the instance) was fixed before the ensemble was formed.
+    - >-
+      METHOD-CEILING ATTACK. The largest claim this design can support under
+      ideal tuning is: "at these two toy field sizes, on these two instances, the
+      z-statistic of ENC-B integers is not separated from that of uniform
+      integers by more than the frozen threshold." Even a perfect run cannot
+      reach the deep-smooth regime (unpowered by construction at n = C(512,2)),
+      cannot reach limb (b) (no finite-X correction), and cannot reach any cost
+      statement (R not measured). The ceiling is far below anything HEUR-DS-1 is
+      load-bearing for, and the contract says so before any datum -- which is to
+      its credit and is also the reason the reading should not be spent as
+      progress.
+    - >-
+      NEARBY-OBJECT ATTACK. The nearest object for which the desired conclusion
+      is false is the ENC-A encoding of the SAME fibre, which separates from the
+      null at 98x the threshold. The design does not distinguish "the fibre
+      behaves like random integers" from "one particular encoding of the fibre
+      does"; the missing problem-specific ingredient is a justification that
+      ENC-B is the faithful representative, which the contract explicitly
+      declines to supply.
+
+  required_controls:
+    - id: RC-1
+      priority: 1
+      control: >-
+        NULL-OBJECT CONTROL AT THE RIGHT SUPPORT. A null arm of (e_1, e_2) drawn
+        uniformly from {e_1^2 - 4 e_2 is a square mod p}, encoded by ENC-B and
+        pushed through the identical pipeline, compared to A-NULL and to A-REAL.
+        Answers RT028-B3 directly and bounds what V-CONSISTENT can ever mean.
+      cost: one arm, ~130816 factorizations, tens of seconds at the run's own
+        measured throughput.
+    - id: RC-2
+      priority: 2
+      control: >-
+        THE DECAY TEST ON THE STATISTIC ITSELF. Increase ONLY the null arm's
+        size (8x = 1046528 draws, ~40 s at the measured 26000/s) and observe
+        whether the CELL-16 statistic D falls like n^(-1/2), as it must if
+        0.004808 is sampling noise from the null side, or plateaus near 0.0048,
+        which would mean the separation is real and the frozen threshold merely
+        failed to resolve it. This is the parameter that is supposed to destroy
+        the reading; a quantity that stays flat when it should decay is the
+        artifact tell of docs/inventor-protocol.md section 3.
+      cost: one enlarged null arm; no factor-base change, no treatment rerun.
+    - id: RC-3
+      priority: 3
+      control: >-
+        DELETE-ONE-x JACKKNIFE over the 512 factor-base elements to MEASURE the
+        variance inflation from pair dependence, and thereby the honest reach of
+        DR-1/DR-2/DR-3 (RT028-B2).
+      cost: bookkeeping on already-computed per-pair values.
+    - id: RC-4
+      priority: 4
+      control: >-
+        MATCHED-NULL POWER ARM: A-POWER against max(u,1)*max(v,1) with u, v
+        uniform on [0,p), which the A-IDENT stream already supplies -- the only
+        arithmetically meaningful test of limb (a) available at this budget
+        (RT028-B3).
+      cost: one arm.
+    - id: RC-5
+      priority: 5
+      control: >-
+        POWER LADDER (RT028-B7): contaminate a null copy at pre-registered
+        fractions eps and report the smallest eps at which DR-1 fires, replacing
+        "has power to reject" with a measured detection floor.
+      cost: one arm per grid point.
+    - id: RC-6
+      priority: 6
+      control: >-
+        GROUP-LAW CHECK of the S_3 roots (RT028-B8) and EXCLUSION-PATH LIVENESS
+        CHECK (RT028-B9). Both are seconds and both convert an assumption into a
+        measurement.
+  counterexample_or_mutation: >-
+    The cheapest single mutation that would discriminate instrument from signal:
+    RC-2. Hold everything fixed, multiply ONLY n_null, and watch D. If D decays
+    as n^(-1/2) the CELL-16 deviation is null-side noise and the reading is a
+    controlled null; if D plateaus near 0.0048 the separation is real, the
+    two-sample threshold merely failed to resolve it, and RT028-B1's one-sample
+    framing was the right one all along. Either outcome is decisive, neither
+    requires touching the treatment arm, and the cost is under a minute of the
+    same factoring the run already did.
+
+  narrowest_supported_statement: >-
+    On 2026-08-02, against a contract frozen and hash-verified before any datum
+    and a null measured at the actual X and committed 26 seconds before the
+    first treatment integer, 1046528 integers below 2^40 were factored with zero
+    exclusions, and at two toy curve instances -- harness.toycurve.generate_
+    instance(seed=4403) at FIELD sizes 16 and 20 bits, p = 62897 and
+    p = 1045963, factor base 512, i<j enumeration of 130816 pairs excluding the
+    diagonal by construction, sympy 1.14.0, one host, one seed, one
+    unreplicated run -- the z = ln(N)/ln(LPF(N)) distribution of the ENC-B
+    integers N = e_1*p + e_2 + 1 formed from the third Semaev summation
+    polynomial's fibre invariants was not separated from that of measured
+    uniform integers on [1, p^2] by the frozen two-sample KS threshold, the
+    frozen empirical-quantile tail rule, or the frozen rate bands at the four
+    powered ladder rungs. THAT IS THE WHOLE OF IT. It is a statement about one
+    encoding of one object at two toy sizes under one calibration choice whose
+    alternatives bracket the observed statistic on both sides. It is not a
+    disposition of HEUR-DS-1, of limb (a) in general, of the deep-smooth
+    regime, of limb (b), of H-DS-001, H-SMTH-001, or of any cost, exponent or
+    scheme. Under docs/inventor-protocol.md section 3 it should be read as a
+    CONTROLLED NULL -- the treatment matched the null object under a projection
+    that provably discards a known structural difference -- rather than as a
+    finding, until RC-1 and RC-2 are run.
+  what_i_do_not_conclude:
+    - >-
+      I do NOT conclude the line is dead, and I would object if anyone read this
+      report that way. The measurement is the first real one in twenty-four
+      batches on this item; the correct response to its limits is RC-1 through
+      RC-6, most of which cost seconds. Premature closure is a failure mode
+      symmetric with overclaiming (docs/inventor-protocol.md section 4), and a
+      count of caveats is not an obstruction.
+    - >-
+      I do NOT conclude the run is invalid, fabricated, or mis-executed. Every
+      integrity check I could verify from the artifacts verified. The producer
+      self-reported nine deviations including the one that could have sunk its
+      own package.
+    - >-
+      I do NOT assert HEUR-DS-1 is false, weakened, or unsupported at any scale,
+      and I use no recollection of the literature to promote or dismiss any
+      reading (DEC-20260731-019 ruling 3). Every number in this report is either
+      read from the snapshot-bound artifacts or computed here from stated
+      closed-form arithmetic.
+  next_concrete_action: >-
+    ONE ACTION: freeze a successor contract under a NEW experiment id whose
+    Phase 1 is RC-2 (enlarge ONLY the null arm 8x at CELL-16 and report whether
+    D decays as n^(-1/2) or plateaus) and whose Phase 2 is RC-1 (the
+    support-matched null implied by OBS-1), with a Coordinator APPROVAL TASK
+    between the freeze and the execution and a non-null `approved_by` in the
+    execution card's completion gate. Both phases together are minutes of
+    compute at the throughput this run measured, both attack the primary cell's
+    reading rather than extending it, and either can falsify the batch's
+    headline. Do NOT re-score EXP-SMTH-4403c4 against it.
+
+  session_independence_statement: >-
+    THIS SESSION SUPPLIES SESSION INDEPENDENCE BUT NOT MODEL INDEPENDENCE under
+    standing basis 0137a051eb5828789eb267fa83c8278086578d4c. It is a separate
+    session from the executor, the freeze task and the Coordinator, and it read
+    only the snapshot-bound artifacts and the code embedded in them; it runs on
+    the same Claude backend as those tasks, so a systematic error shared by that
+    model class would not be caught here. Three-model closure quorum is not
+    obtained or claimed.
+  official_state_assignment: >-
+    NONE. This report assigns no hypothesis status, no evidence strength, no
+    claim tier and no promotion, and it closes no open item. OPEN-BATCH023-A's
+    disposition is the Coordinator's, on the ledger, after the validator's
+    report.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-411037/red_team_report.yaml
+  inputs_read:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/inventor-protocol.md (sections 3, 4, 8 as bound by the role contract)
+    - agents/red-team.md
+    - ledger/decisions/DEC-20260801-011.yaml
+    - ledger/hypotheses/H-DS-001.yaml
+    - ledger/goals/GOAL-ECDLP-001.yaml (targeted: HEUR-DS-1 load-bearing lines, RT047-H2)
+    - ledger/evidence/EV-DS-002.yaml (targeted: RT038-B2 context)
+    - experiments/EXP-SMTH-4403c4/specification.yaml (full)
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/dispatch_queue.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/archives/TASK-20260802-d34ac4/snapshot-receipt.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/authorizations/APPROVAL-DETERMINATION.md
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-6a39f8/{RESULTS.json,run_manifest.json,null_calibration.json,budget_stamps.jsonl}
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/tasks/TASK-20260802-80f5e9/freeze_receipt.json
+    - driver.py, calibrate.py, analyze.py, rss_rerun.py as embedded verbatim in run_manifest.json `code` (hash-verified)
+    - harness/semaev.py (s3_eval, build_factor_base)
+
+  inference:
+    policy: review-adversarial
+    requested_policy: review-adversarial
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the GPT-5.6-family policy aliases
+      in orchestration/model-policies.yaml; subagent frontmatter supports only
+      Claude models, so this session ran on the inherited Claude backend.
+      Recorded, never silently substituted.
+    model_verified: false
+    model_verified_reason: >-
+      The adapter probe `python3 -m orchestration.adapter doctor --probe` was
+      NOT run in this task. The identifier is unverified runtime-reported
+      configuration.
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
