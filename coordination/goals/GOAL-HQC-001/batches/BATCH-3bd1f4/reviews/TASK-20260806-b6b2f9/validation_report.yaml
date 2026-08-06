@@ -1,0 +1,615 @@
+validation_report:
+  id: TASK-20260806-b6b2f9
+  task_id: TASK-20260806-b6b2f9
+  role: validator
+  goal: GOAL-HQC-001
+  batch: BATCH-3bd1f4
+  experiment_id: EXP-HQC-982268
+  validates: TASK-20260806-66e3c3
+  snapshot_commit_validated: b7f81e3ee2a327dcd2a24143466757b0032c26d4
+  snapshot_parent: c2d935942834fd35dd77e3ee9792929597054c3a
+  snapshot_receipt: coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/archives/TASK-20260806-9c206d/snapshot-receipt.json
+  claim_tier: toy
+  independent_session: true
+  reasoning_effort_used: xhigh
+
+  scope_note: >-
+    Reviewed ONLY the Coordinator-committed snapshot at b7f81e3e (verified
+    reachable from HEAD; HEAD was at this commit for the whole session;
+    parent c2d93594 as declared in the snapshot receipt). Refused to treat
+    any working-tree-only artifact as a receipt; none was encountered
+    (working tree was clean at session start, `git status --porcelain`
+    empty). This report validates ONE task: TASK-20260806-66e3c3's two
+    no-new-sampling reliability checks on the "double dilution" formula
+    (conditional-vs-unconditional mubar_{k-1} deviation across k; SE-scaling
+    in-range check). All independent code run for this review is
+    scratch-only (/tmp/claude-.../scratchpad), writes nothing under
+    experiments/, stage_a.py, measure.py, or any producer's task directory,
+    and every quantity below was computed with a FRESH, independently
+    written implementation (exact-rational `fractions.Fraction` arithmetic
+    from the raw histograms, not a copy of reliability_checks.py or
+    measure.py), computed BEFORE reading checks_results.json / checks_report.md
+    in detail, then compared. Draws no conclusion about A17, HQC's DFR, or
+    any standardized parameter set.
+
+  run_ids: []
+  run_ids_note: >-
+    No experiments/ run record exists for this task; per this campaign's
+    convention, coordination-task artifacts are cited by path and hash.
+
+  artifact_checks:
+    - artifact: design.md
+      present: true
+      sha256_matches_snapshot_receipt: true
+      recomputed_sha256: 27800367dbaeba1c6c32d4c8ffe16ac2851999a8bb93249a0da655836c1276a6
+      predates_reliability_checks_py: true
+      note: >-
+        Pre-registration states, before any result was computed, exactly
+        what Check 1 and Check 2 measure, the fail-closed gates, and a
+        binary higher/lower-confidence reading rubric. The rubric turned out
+        not to bind cleanly (both readings applied simultaneously -- see
+        below), and design.md's own Section 1.3 anticipates this possibility
+        ("this task does not conclude that... an extrapolation this task
+        does not attempt") rather than being silently reinterpreted after
+        the fact.
+    - artifact: reliability_checks.py
+      present: true
+      sha256_matches_snapshot_receipt: true
+      recomputed_sha256: f2d3d8a2a69acef9d07b99290c30e69c2e48668a5edc2f4fb4378add63583564
+      reuses_measure_py_read_only_sha256_pinned: true
+      no_randomness_found: true
+      note: >-
+        Read in full. Confirmed no `numpy.random`, no `random.`, no RNG
+        instantiation anywhere in the file -- consistent with the
+        no-new-sampling claim. The only external dependency is a read-only,
+        sha256-pinned `importlib` load of measure.py's
+        `comb_matrix`/`log2_A_from_hists`, used only for Dataset A (Dataset B
+        reads its per-k table directly with no recomputation of comb_matrix
+        arithmetic at all).
+    - artifact: checks_results.json
+      present: true
+      sha256_matches_snapshot_receipt: true
+      recomputed_sha256: 962869f5666875d5216b1bd78f8ee03e5b64cce0d4bfeaec1d13dc4e8d2b1207
+      spot_checked_fields_match_independent_recomputation: true
+    - artifact: checks_report.md
+      present: true
+      sha256_matches_snapshot_receipt: true
+      recomputed_sha256: 5a059b7acc1fe785c4e9119def45da33149a7cd2ca84d1e0de8c77481c26969b
+      note: >-
+        Careful and honest: reports both readings of the pre-registered
+        rubric as simultaneously true rather than rounding to one verdict;
+        explicitly declines to resolve the A-vs-B disagreement or the
+        campaign-level call, exactly as design.md Section 4 committed to in
+        advance.
+    - artifact: run_manifest.yaml
+      present: true
+      sha256_matches_snapshot_receipt: true
+      recomputed_sha256: a7f893b6b49269ebff69bd376b752a631e871744e12392687743428fb769d781
+      command_git_dirty_seeds_environment_present: true
+      dirty_tree_at_run_time: true
+      dirty_tree_explanation_checked: >-
+        Sole dirty entry at run time was this task's own untracked output
+        directory ('?? coordination/.../tasks/'), pre-snapshot -- confirmed
+        against git history: recorded git.commit c2d93594 is exactly the
+        snapshot commit b7f81e3e's declared parent, and the snapshot diff
+        (`git show --stat b7f81e3e`) adds exactly the ten declared paths
+        (design.md, reliability_checks.py, checks_results.json,
+        checks_report.md, run_manifest.yaml, 4 log files, snapshot-receipt.json)
+        and nothing else.
+      no_seed_no_rng_claim_verified: true
+    - artifact: stdout.log / stderr.log / selftest_stdout.log / selftest_stderr.log
+      present: true
+      sha256_matches_snapshot_receipt: true
+    - artifact: snapshot-receipt.json (TASK-20260806-9c206d)
+      present: true
+      commit_reachable_from_HEAD: true
+      parent_matches_declared: true
+      all_path_sha256_recomputed_and_match: true
+
+  independent_reproduction:
+    method: >-
+      Two fully independent computations, written from scratch, NOT derived
+      from reliability_checks.py's code, and run BEFORE reading
+      checks_results.json / checks_report.md's numeric tables in detail:
+      (1) Check 1 Dataset A: loaded measurement_results.json's raw
+      S_histogram (T=10,000,000, n_e=56) directly and computed
+      mu_bar_k = sum_s H_s*C(s,k) / (T*C(n_e,k)) for every k using Python's
+      arbitrary-precision `fractions.Fraction` (no floating-point rounding
+      anywhere in the combinatorics), for k=1..35 (the histogram's full
+      nonzero support). relative_deviation(k) = (mu_bar_{k-1}/mu_bar_k)*q_hat - 1
+      computed the same way, with q_hat itself recomputed exactly from the
+      histogram (not read from the JSON). (2) Check 1 Dataset B: loaded
+      the RAW per-trial S-histogram
+      (primary_matched_pair_analysis.combined_10000.log2_A_comparison.hist_true,
+      T=10,000) -- NOT the pre-aggregated mubar_k_true/mubar_km1_true table
+      the executor's script reads directly -- and recomputed every mu_bar_k
+      from that raw histogram with the identical exact-Fraction method,
+      giving an independent check one level deeper into the data than the
+      executor's own script performs for Dataset B. (3) Check 2: an
+      independently written required_T(k, Delta_p) implementation, spot-
+      checked against all 8 committed delta_p_sensitivity_k17 points and a
+      self-chosen sweep (dp in {1e-5, 1e-3, 0.0082, 0.03, 0.2, 0.9}).
+      (4) A NEW analysis not present in the executor's report: a parametric
+      bootstrap of the Dataset A vs Dataset B disagreement (see
+      cross_dataset_disagreement_investigation below), to determine whether
+      the ~1.75x gap at k=17 is explicable by T=10,000 sampling noise.
+    checks_performed:
+      - name: "Check 1 Dataset A -- exact-Fraction recomputation from raw S_histogram"
+        result: >-
+          Reproduces the executor's per-k relative_deviation table exactly
+          (to displayed precision) at every spot-checked k: k=2: +0.4189%
+          (mine) vs +0.42% (report); k=17: +7.6342% vs +7.63% (checks_results.json:
+          0.07634151754880092, exact digit match); k=26: +27.8093% vs
+          +27.81%; k=35: +659.92% vs +659.92% (5 supporting trials, as
+          reported). Confirmed POSITIVE at every k=2..35, no sign flips,
+          monotonically increasing throughout, matching the executor's
+          headline claim exactly. Also independently cross-checked
+          log2_A_17 = -0.8656665522924349 against measurement_results.json's
+          committed MEASUREMENT.cells[k=17].log2_A_k, abs diff 0.0
+          (bit-identical via the exact-integer combinatorics path, tighter
+          than the executor's own 1e-9 gate).
+      - name: "Check 1 Dataset B -- exact-Fraction recomputation from the RAW hist_true histogram (one level deeper than the executor's script)"
+        result: >-
+          Recomputed mu_bar_k for k=2..30 directly from
+          primary_matched_pair_analysis.combined_10000.log2_A_comparison.hist_true
+          (T=10,000), NOT from the pre-aggregated required_T_derivation.per_k
+          table reliability_checks.py itself reads. Every recomputed mu_bar_k
+          matches the committed per_k table's mubar_k_true to machine
+          precision (relative differences 0 to 2e-16, i.e. floating-point
+          noise only) for all 25 overlapping k values, confirming the
+          committed table is itself a faithful function of the raw
+          histogram, not merely internally self-consistent. relative_deviation(17)
+          = 13.3884%, exact digit match against checks_results.json
+          (0.13388396046433848) and the Red Team's originally reported
+          13.4%. Same positive-monotonic pattern confirmed for k=2..30 (one
+          k further than the executor's k=2..26 table, since the raw
+          histogram in this JSON has nonzero support to s=30): +162.9% at
+          k=27, +839.1% at k=30.
+      - name: "Check 2 -- independent required_T reimplementation"
+        result: >-
+          Reproduces all 8 committed delta_p_sensitivity_k17 points to
+          relative differences of 2e-16 to 3e-15 (machine precision).
+          Reproduces the k=17, Delta_p=0.0082 headline figures exactly:
+          total=0.0015053436..., required_T=432907900.4341... (the "4.33e8"
+          cited in the task background). At a self-chosen sweep
+          (Delta_p in {1e-5, 1e-3, 0.0082, 0.03, 0.2, 0.9}, none of which
+          coincide with the executor's own 61-point logspace grid),
+          T_req*Delta_p^2 is constant to 2.9108727225e+04 at every point,
+          i.e. the same coefficient-of-variation-zero behavior the executor
+          reports (2.47e-16 CV over its own grid). bracket(17) =
+          mu16/mu17 - 1/q_hat = +0.4191662959630871, matching the executor's
+          reported bracket sign and the algebraic identity
+          bracket = relative_deviation/q_hat = 0.13388/0.31941 = 0.4192.
+      - name: "artifact_paths and sha256 recomputation against the snapshot receipt"
+        result: >-
+          All 10 declared paths present, all sha256 hashes recomputed and
+          matched exactly against snapshot-receipt.json (TASK-20260806-9c206d).
+          Commit b7f81e3e verified reachable from HEAD with the declared
+          parent c2d93594.
+
+  metric_recomputations:
+    - metric: "Check 1 monotonic-growth pattern, both datasets"
+      method: exact-Fraction recomputation from raw histograms (see above)
+      result: >-
+        CONFIRMED. Positive at every tested k in both datasets (Dataset A:
+        k=2..35; Dataset B: k=2..30, one k beyond the executor's reported
+        range since the raw histogram supports it), monotonically
+        increasing throughout, no sign flips, steepening sharply as
+        effective sample size collapses at high k in both datasets. This is
+        a robust, reproducible, non-artifact-of-implementation finding.
+    - metric: "Check 2 SE-scaling / T_req arithmetic correctness"
+      method: independent reimplementation, spot sweep
+      result: >-
+        CONFIRMED. No sign error, discontinuity, or blow-up found anywhere
+        in a self-chosen spot sweep spanning 5 orders of magnitude. This
+        establishes the ARITHMETIC is correct across a wide range; per
+        design.md's own stated scope, it says nothing new about whether the
+        underlying i.i.d.-blocks MODELING approximation (Check 1's subject)
+        is itself accurate.
+    - metric: >-
+        cross_dataset_disagreement_investigation (Task deliverable item 2 --
+        NOT computed or attempted by the executor's task, which explicitly
+        declined to adjudicate it)
+      method: >-
+        Parametric bootstrap. Treated Dataset A's empirical S-distribution
+        (T=1e7, by far the better-estimated population S-law available)
+        as ground truth, drew 20,000 independent multinomial(T=10,000, pmf_A)
+        resamples (matching Dataset B's actual sample size exactly), and
+        computed the resulting distribution of relative_deviation(k) for
+        k in {17, 20, 26} using the SAME exact estimator as both datasets.
+      result: >-
+        At k=17: bootstrap mean=9.88%, std=7.29 percentage points; Dataset
+        B's actual observed value (13.39%) sits at the 65.3rd percentile of
+        this simulated distribution -- squarely in the bulk, not an
+        outlier. At k=20: bootstrap mean=18.34%, std=12.11pp; Dataset B's
+        26.40% sits at the 73.1st percentile. At k=26: bootstrap
+        mean=85.65%, std=37.77pp; Dataset B's 118.50% sits at the 77.6th
+        percentile. CONCLUSION: the ~1.75x (k=17) to ~4.3x (k=26)
+        disagreement between Dataset A and Dataset B is fully consistent
+        with, and well explained by, ordinary sampling noise at Dataset B's
+        T=10,000 scale -- it does NOT require a genuine methodological or
+        population-level difference between the two datasets (which do, in
+        fact, draw from different shard ranges: Dataset A used stage_a.py
+        shards 1000-1007 (measure.py, "fresh draws"), Dataset B used shards
+        5000/6000's true-decode path (matched_pair_reanalysis.py) -- both
+        undefected/true-arm PS-R3 draws, same nominal parameter set, no
+        defect injection in either).
+      secondary_finding_not_in_executor_report: >-
+        The bootstrap means (9.88% at k=17, 18.34% at k=20, 85.65% at k=26)
+        are themselves systematically HIGHER than Dataset A's own
+        large-sample point estimates (7.63%, 10.28%, 27.81% respectively)
+        at the SAME k. This indicates the mu_bar_{k-1}/mu_bar_k ratio
+        estimator carries a real, positive finite-sample bias that grows
+        with k (consistent with a ratio-of-small-noisy-quantities estimator,
+        where noise in the denominator inflates E[ratio] above the
+        population ratio by a convexity/Jensen argument). Because this bias
+        scales with effective sample size, it is comparatively small at
+        Dataset A's own k=17 (6.6M effective trials) but becomes
+        non-negligible for Dataset A itself at high k (k>=26, where
+        effective trials fall into the hundreds of thousands and below) and
+        is severe for Dataset B at essentially every k beyond ~15. Practical
+        upshot: even Dataset A's own point estimates at k>=~25-30 should be
+        read as increasingly upward-biased, not merely increasingly noisy,
+        echoing the executor's own caveat about k=35's five supporting
+        trials but extending it earlier in the k range than the executor's
+        report states.
+      resolution_of_task_item_2: >-
+        Neither figure is "the true deviation" in isolation. The T=1e7
+        estimate (+7.63% at k=17) is far more reliable than the T=10,000
+        estimate (+13.39%) because of its ~660x larger effective sample at
+        k=17 and because the bootstrap places the T=10,000 estimate
+        comfortably inside the noise band a T=1e7-scale ground truth would
+        produce at T=10,000. The 13.4% figure the Red Team originally
+        reported and that seeded this whole reliability-check batch should
+        be read, going forward, as a noisy realization consistent with a
+        population value closer to Dataset A's +7.63% (itself very likely a
+        slight upward-biased estimate too, though much less so than
+        Dataset B's).
+
+  control_checks:
+    - control: "fail-closed sha256 pins (measure.py, measurement_results.json, reanalysis_results.json)"
+      pre_registered: true (design.md Section 1.2 items 1-3, 2.2 item 1)
+      correctly_applied: true
+      note: >-
+        Independently recomputed all three sha256 hashes against the files
+        on disk at their read-scope paths; all three match the pins recorded
+        in reliability_checks.py and cross-checked against the upstream
+        snapshot receipts (TASK-20260806-40c805, TASK-20260806-7bbbc8) they
+        claim to be pinned against.
+    - control: "internal cross-checks (q_hat recompute, log2_A_17 cross-check, z_sum recompute, k=17/Delta_p=0.0082 and 8-point sensitivity-table reproduction)"
+      pre_registered: true
+      correctly_applied: true
+      note: >-
+        All reproduced independently above with tighter tolerances than the
+        executor's own gates (exact-Fraction arithmetic vs the executor's
+        float64 + rtol/atol gates).
+    - control: "--selftest-fail-closed demonstrably aborts on a corrupted pin"
+      pre_registered: true
+      correctly_applied: true
+      note: >-
+        Read gate_sha256_pins()'s corrupt=True branch in full: it
+        deliberately substitutes 64 zero characters for measure.py's
+        expected hash and the mismatch check `ok = (actual==expected)`
+        cannot pass. selftest_stdout.log (sha256 e3b0c442... = the SHA-256
+        of the empty string per its own artifact_sha256 table -- WRONG, see
+        note below) is inconsistent with a printed PASS message; resolved
+        by re-reading run_manifest.yaml's own invocations list, which
+        records the selftest's actual stdout separately
+        (selftest_stdout.log, sha256 5668bc74...) as containing the
+        "[selftest] FAIL-CLOSED gate correctly aborted" line -- the
+        e3b0c442... hash belongs to selftest_STDERR.log (empty, as
+        expected for a clean SystemExit), not stdout. No defect found; this
+        was a validator bookkeeping slip while cross-referencing two
+        similarly named files, corrected before this report's own tables
+        above.
+    - control: "no positive control / no null-object control for the deviation-magnitude claim itself"
+      note: >-
+        docs/inventor-protocol.md Section 3's null-object standard applies
+        to a claimed SIGNAL that could be an artifact of the measurement
+        pipeline. Check 1's signal (mu_bar_{k-1}/mu_bar_k departing from
+        1/q_hat) is not a new claim manufactured by this task -- it is a
+        direct, independently-reproduced (both by the executor and, above,
+        by this report from raw histograms) restatement of EV-HQC-b71230's
+        own already-controlled, already-null-tested headline finding (NULL-P
+        fired 0/17 cells at the same T against the same frozen interval;
+        CTRL-ORACLE and CTRL-BS both pass). This task correctly does not
+        re-run those upstream controls (out of scope, no new sampling
+        authorized) and does not claim to.
+    - control: "decay-with-destroying-parameter check (the canonical artifact tell, per AGENTS.md/inventor-protocol Section 3)"
+      note: >-
+        The natural "parameter meant to destroy the signal" here is
+        decreasing effective sample size (increasing k). The signal does
+        NOT decay as effective sample size shrinks -- it GROWS, sharply and
+        monotonically, in both datasets. Per the standing rule this is
+        flagged, not silently passed: a quantity that fails to decay when
+        the parameter meant to destroy it increases is the canonical
+        artifact tell. Read plainly, growth toward higher k IS partly an
+        artifact of shrinking effective sample size (this report's own
+        bootstrap above shows the RATIO ESTIMATOR itself is upward-biased at
+        small effective sample, and that bias grows with k) -- but the
+        signal does NOT vanish in the well-supported regime either: at
+        k=17, Dataset A's 6.6-million-effective-trial estimate is still a
+        clean +7.63%, not a decayed-to-noise value, and it is independently
+        corroborated by EV-HQC-b71230's own 17/17-cell, -42.7-SD,
+        null-controlled measurement at the SAME k=17. The correct reading is
+        therefore MIXED, not a clean pass or fail: the k=17 magnitude itself
+        looks structural (well-supported, controlled elsewhere, consistent
+        across the two independent large-T measurements once sampling noise
+        is accounted for), but the reported GROWTH RATE at k>~25-30 is
+        contaminated by, and should not be trusted apart from, the
+        ratio-estimator's own finite-sample bias.
+
+  heuristic_validation_checks:
+    - check: "pre-registered prediction stated before sampling"
+      result: >-
+        N/A in the strict sense of docs/target-result-profile.md's ρ(u)-style
+        prediction -- this is a reliability check on an existing formula's
+        approximation, not a distribution-level heuristic validation against
+        a closed-form theoretical CDF. design.md nonetheless pre-registers,
+        before any result was computed, exactly what pattern would indicate
+        higher vs. lower confidence (Section 1.3), satisfying the spirit of
+        this check for the task's actual genre.
+    - check: "sample size, seeds, sampling procedure in the manifest; recomputation from raw samples"
+      result: >-
+        PASS. No new sampling occurred (verified: no RNG in
+        reliability_checks.py). Both datasets' sample sizes (T=1e7, T=10,000)
+        and their upstream provenance are in run_manifest.yaml and the
+        pinned source tasks. This report's own recomputation was performed
+        from the RAW S-histograms in both cases (Dataset A:
+        T_arm_diagnostics.S_histogram; Dataset B: the raw hist_true array,
+        one level below what the executor's own script reads), not copied
+        from any pre-aggregated summary.
+    - check: "correspondence validity (substitute-sampling theorem citation)"
+      result: >-
+        N/A -- no correspondence/substitute-sampling trick is used in this
+        task; both datasets are direct measurements of the real (T) sampler.
+    - check: "scale binding -- toy vs crypto scale"
+      result: >-
+        PASS on disclosure. PS-R3 only, explicitly and repeatedly disclaimed
+        as toy scale, no statement about HQC/A17/any standardized parameter
+        set anywhere in the reviewed artifacts. The projected ~1.38e5
+        global-injection figure this batch exists to de-risk is itself
+        toy-scale (PS-R3) and untested even at that scale (see
+        proof_architecture_ladder_check below) -- it is a PROJECTION, not a
+        measurement at any scale, a limitation this report treats as
+        load-bearing, not incidental.
+    - check: "cost-unit honesty / cost bookkeeping"
+      result: >-
+        N/A directly to this task (no concrete-cost table is produced here);
+        the required-T figures this task exists to de-risk (4.33e8, 1.38e5)
+        are trial counts, not a full concrete-cost table with declared units
+        and memory. That table, if one is produced downstream, should
+        declare units and flag the order-of-magnitude uncertainty this
+        report and the Red Team's prior review both establish.
+
+  proof_architecture_ladder_check: >-
+    Per docs/inventor-protocol.md Section 6 (isolate-and-measure assumptions;
+    run the whole pipeline at reduced scale and observe the claimed
+    improvement as a MEASURED ratio, not a projection; name and classify any
+    real-scale cheat; exercise the reproducibility pointer): this batch is
+    Step 1 of that ladder (isolating and separately measuring one named
+    assumption -- the i.i.d.-blocks substitution -- via Check 1, and the
+    arithmetic correctness of a second -- the SE-scaling extrapolation --
+    via Check 2). Step 2 (running the WHOLE pipeline -- an actual global,
+    all-56-block real-sampler injection, even at a small diagnostic T, and
+    observing the ~1.38e5-vs-4.33e8-class speedup as a MEASURED ratio) has
+    NOT been done anywhere in this batch or its predecessors. The ~1.38e5
+    figure remains a projection from an unexecuted pipeline. This is
+    correctly not overclaimed by the executor (checks_report.md Section 5
+    explicitly states this task "does not decide whether the ~1.38e5
+    global-injection projection... is now more or less trustworthy") and is
+    correctly named as the next action in DEC-20260806-d9d395's next_actions
+    item 2 (a diagnostic-scale pilot before the full projected scale). Per
+    the binding instruction in this Validator's own operating rules, the
+    ABSENCE of Step 2 is recorded here as a live limitation of the
+    ~1.38e5 projection's evidentiary weight, not folded into a "passed"
+    verdict on the projection itself -- this report's verdict below is
+    scoped to the two reliability checks actually run, not to the
+    projection.
+
+  central_question_analysis: >-
+    (Task deliverable item 4.) Does the measured, monotonic, k-growing
+    deviation change confidence in the ~1.38e5 global-injection projection
+    DIFFERENTLY than it changes confidence in the 4.33e8 single-block
+    figure? Independent reasoning, reconstructed from the formula's own
+    algebra (cross-checked against both TASK-20260806-e120e8/design.md
+    Section 3.2 and the Red Team's independent re-derivation in
+    red_team_report.md Section 4):
+
+    Delta(log2_A_k)_single = (k/n_e) * (Delta_p/ln2) * bracket(k)
+    Delta(log2_A_k)_global = n_e * (k/n_e) * (Delta_p/ln2) * bracket(k)
+                            = k * (Delta_p/ln2) * bracket(k)
+
+    where bracket(k) = mu_bar_{k-1}/mu_bar_k - 1/q_hat is EXACTLY the
+    quantity Check 1 measures (bracket(k) = relative_deviation(k)/q_hat;
+    algebraically confirmed above and in checks_results.json's own
+    cross-reference note). Critically, bracket(k) is computed directly from
+    the REAL, measured mu_bar_k_true/mu_bar_km1_true values in BOTH
+    formulas -- it is not itself set to zero or otherwise approximated at
+    this step; Check 1's finding that bracket(k) is large and growing
+    (rather than near-zero, as pure i.i.d. blocks would force) is precisely
+    what gives the estimator ANY sensitivity to a marginal defect at all.
+    The genuinely uncertain approximation the Red Team's Section 1
+    identifies is a DIFFERENT, earlier substitution: whether
+    Delta(mu_k) ~= (k/n_e)*Delta_p*mu_bar_{k-1} correctly uses the
+    UNCONDITIONAL mu_bar_{k-1} in place of the true CONDITIONAL restricted
+    moment P(other k-1 blocks fail | the perturbed block fails). Because
+    this substitution enters identically -- via the same shared mu_bar_{k-1}
+    term -- in BOTH the single-block formula (multiplied by k/n_e) and the
+    global formula (multiplied by the full k), any correction to it
+    propagates into Delta(log2_A_k)_single and Delta(log2_A_k)_global by
+    the SAME relative factor. The ratio
+    Delta(log2_A_k)_single / Delta(log2_A_k)_global = k/n_e / k = 1/n_e
+    (hence T_req_single/T_req_global = n_e^2 = 3136) is therefore a PURE
+    consequence of the dilution geometry (how many of the 56 blocks are
+    perturbed) and does NOT depend on getting bracket(k), or the
+    conditional-vs-unconditional substitution feeding it, exactly right.
+    CONCLUSION: the qualitative conclusion (global injection removes the
+    k/n_e dilution and is therefore vastly cheaper than single-block, by
+    ~3 orders of magnitude in required T) is MATHEMATICALLY ROBUST to the
+    magnitude of the i.i.d.-approximation error Check 1 quantified -- this
+    is not merely asserted; it follows from the two formulas sharing the
+    identical bracket(k)/mu_bar_{k-1} terms and differing only by a
+    dilution-geometry prefactor untouched by the approximation question.
+    This independently confirms (via a different, more explicit argument)
+    the reasoning DEC-20260806-d9d395 already stated qualitatively
+    ("the QUALITATIVE conclusion... follows directly from the confirmed
+    formula's structure... and does not depend on resolving the
+    independence-approximation question first").
+
+    WHAT IS NOT ROBUST, and where this report goes beyond confirming the
+    existing record: (1) The ABSOLUTE values of BOTH 4.33e8 and ~1.38e5
+    remain order-of-magnitude uncertain and move TOGETHER (same direction,
+    similar relative magnitude) under any correction to the shared
+    substitution -- the ratio survives, the point estimates do not.
+    (2) The Red Team's own directional guess (red_team_report.md Section
+    1.3: "the most natural reading of the sign... points toward the true
+    required T being smaller than 4.33e8, not larger") rests on an
+    assumption of POSITIVE block-failure clustering ("conditioning on one
+    block failing should make the others more likely to fail too"). This
+    assumption is IN TENSION with this campaign's own already-established,
+    independently-controlled headline finding: EV-HQC-b71230 reports
+    log2_A_k NEGATIVE and increasingly so with k (-6.03e-3 at k=2 falling to
+    -0.981 at k=18), which EV-HQC-b71230's own inference states plainly
+    means block failures are ANTI-correlated, not positively clustered, at
+    every tested order. A positive relative_deviation(k) (mu_bar_k SMALLER
+    than the q*mu_bar_{k-1} i.i.d. prediction, i.e. mu_bar_k trending below
+    q^k) is the same phenomenon restated: this system's own established
+    correlation structure is anti-correlation, growing with k, not positive
+    clustering. Under anti-correlation, conditioning on the perturbed
+    block's failure should make the OTHER k-1 blocks LESS likely to fail
+    (not more), which would mean the model's unconditional-mu_bar_{k-1}
+    substitution OVERSTATES, not understates, Delta(mu_k) -- the opposite
+    sign from what the Red Team's Section 1.3 prose assumed. If this
+    reading is right, the TRUE required-T for BOTH the single-block and the
+    global case is plausibly LARGER than the modeled 4.33e8/1.38e5, not
+    smaller -- i.e. ~1.38e5 could be an UNDERestimate of the true cost, not
+    an overestimate as the Red Team's prose suggested. This is stated here
+    as a heuristic sign argument by analogy (exactly as uncertain in kind as
+    the Red Team's own argument it revises), NOT as a rigorous derivation --
+    resolving it properly requires the Red Team's own named control
+    (splitting F_true/F_def by block-n_e-1 outcome and directly measuring
+    the conditional restricted moment), which remains unrun. It does not
+    change the ROBUST ratio conclusion above; it does sharpen
+    DEC-20260806-d9d395's own recorded "unresolved_confounds" item 3
+    ("whether... a global injection's true required-T [is] higher or lower
+    than 1.38e5 is unresolved; the direction is ambiguous, not settled") by
+    supplying a specific, campaign-evidence-grounded reason to lean toward
+    HIGHER rather than the Red Team's originally-suggested LOWER -- without
+    resolving it.
+
+  independent_reads_on_the_projection: >-
+    (Task deliverable item 6.) This finding does NOT materially threaten the
+    QUALITATIVE conclusion that a global (all-56-block) injection faces a
+    vastly smaller dilution penalty than a single-block injection, and
+    should still be sized as the next experiment ahead of any further V3
+    work -- that conclusion is a robust consequence of the dilution
+    formula's algebraic structure, not of the specific bracket(k) value, and
+    survives the measured approximation error intact. It DOES materially
+    lower confidence that ~1.38e5 (or 4.33e8) is a precise, decision-grade
+    trial count: the deviation is real (independently reproduced from raw
+    data by this report, not merely trusted from the executor's script),
+    grows with k rather than staying bounded near the load-bearing k=17
+    value, and -- per this report's own bootstrap analysis -- even the
+    better-supported T=1e7 estimate likely itself carries some residual
+    upward estimator bias at k>=17 that has not been separately quantified
+    or corrected for. Both ~4.33e8 and ~1.38e5 should continue to be treated
+    as order-of-magnitude planning figures, not point targets -- consistent
+    with, and now somewhat more sharply reasoned than, the caution
+    DEC-20260806-d9d395 already recorded. Sizing an initial global-injection
+    pilot BELOW the full ~1.38e5 projection (as DEC-20260806-d9d395's own
+    next_actions item 2 already specifies) is the right response to this
+    finding, not a pause and not an unqualified green light to size directly
+    against 1.38e5.
+
+  admit_do_not_admit_verdict: >-
+    ADMIT the artifact set (design.md, reliability_checks.py,
+    checks_results.json, checks_report.md, run_manifest.yaml) as an honest,
+    reproducible, fail-closed, no-new-sampling, budget-disciplined record of
+    exactly what was measured. Every numeric claim independently
+    recomputed above matches to the precision claimed or better (this
+    report's exact-Fraction arithmetic is strictly tighter than the
+    executor's own float64 + rtol/atol gates and finds no discrepancy). The
+    report neither overclaims a resolution of the A-vs-B disagreement nor
+    silently rounds the mixed pre-registered-rubric outcome to a single
+    verdict -- both are exactly the disciplined behavior design.md
+    committed to in advance. DO NOT read this ADMIT as validating the
+    ~1.38e5 (or 4.33e8) figure itself as precise -- neither task ever
+    claimed that, and this report's own central_question_analysis above
+    both defends the QUALITATIVE ratio conclusion as robust and flags a
+    plausible, campaign-evidence-grounded reason (anti- not
+    positive-correlation) to suspect the ABSOLUTE figures understate rather
+    than overstate the true required T.
+
+  verdict: passed
+
+  limitations:
+    - >-
+      Toy claim tier throughout, PS-R3 only (n_e=56, n=7187, N=7168, dup=1,
+      m=17). Nothing here is a statement about HQC, A17, any decoding-failure
+      rate, or any standardized parameter set.
+    - >-
+      This report's bootstrap analysis (cross_dataset_disagreement_investigation)
+      is itself a new, unregistered analysis performed during validation, not
+      a check pre-registered in design.md. It is reported as an independent
+      finding, not retrofitted into the executor's pre-registration, and
+      should be treated with the same scrutiny any post-hoc analysis
+      deserves -- though its method (parametric bootstrap under the
+      better-estimated population, matching the smaller dataset's exact
+      sample size) is standard and its qualitative conclusion (disagreement
+      explained by sampling noise) is robust across all three spot-checked k
+      values (17, 20, 26).
+    - >-
+      The Step-2 ladder gap (docs/inventor-protocol.md Section 6): no
+      global-injection pipeline run, even at toy/diagnostic scale, exists
+      anywhere in this campaign's record. The ~1.38e5 figure is a projection
+      from an unexecuted pipeline, not a measured ratio. Per this Validator's
+      binding instructions, this absence is named plainly and is a live
+      limitation on the projection's evidentiary weight -- it does not by
+      itself make either reliability check `failed` (both checks did exactly
+      what they were dispatched to do, correctly, using only already-committed
+      data, and neither claims to substitute for Step 2), but the projection
+      they bear on should not be treated as more than an order-of-magnitude
+      planning figure until Step 2 is run.
+    - >-
+      This report's directional re-reading of the Red Team's sign argument
+      (anti-correlation vs. positive clustering) is itself a heuristic
+      analogy argument, not a rigorous bound. It should not be read as a
+      settled resolution of DEC-20260806-d9d395's unresolved_confounds item
+      3; it sharpens the question and supplies a specific reason to lean
+      toward one direction, no more. The Red Team's own named control
+      (empirically measuring the conditional restricted moment
+      P(other 16 blocks fail | block n_e-1 fails) directly from the already-
+      regenerated F_true/F_def arrays) remains the only way to settle this
+      properly, and it has not been run in this batch either.
+    - >-
+      This report validates the reliability-check task's artifact integrity,
+      recomputation fidelity, and the robustness argument connecting Check 1
+      to the single-vs-global ratio. It does not, and is not authorized to,
+      decide whether the campaign should now proceed to scope a
+      global-injection pilot, at what scale, or do further validation first
+      -- that is the Coordinator's and the Red Team's (TASK-20260806-248cb2)
+      call on this batch's combined evidence.
+
+  artifact_paths:
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/design.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/reliability_checks.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/checks_results.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/checks_report.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/run_manifest.yaml
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/archives/TASK-20260806-9c206d/snapshot-receipt.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measurement_results.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/reanalysis_results.json
+    - ledger/evidence/EV-HQC-036d4b.yaml
+    - ledger/evidence/EV-HQC-b71230.yaml
+    - ledger/decisions/DEC-20260806-d9d395.yaml
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/reviews/TASK-20260806-2cec38/red_team_report.md
+
+  closing_note: >-
+    Validator record. I wrote only inside this task's write_scope. I hold no
+    authority to change status, size a pilot, or otherwise act on this
+    evidence, and I did none of these. This is an independent session's
+    judgement: every quantitative claim above was recomputed from raw source
+    data with a freshly written implementation before this session read the
+    executor's checks_results.json / checks_report.md numeric tables in
+    detail.
