@@ -54,13 +54,14 @@ research_goal:
     max_concurrent: 3
   current_batch_id: BATCH-4b8ad3
   dispatch_queue_path: coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/dispatch_queue.json
-  latest_verified_commit: 26578e1b
-  latest_verified_commit_note: 'UNCHANGED pending this checkpoint''s own ledger archive commit. This
-    edit (status -> active, campaign_budget update, BATCH-4b8ad3 opening) is itself the content of that
-    pending commit; the commit SHA that will carry it is not knowable before the commit exists and must
-    be written back into this field by the committing session once the post-commit verifier accepts it,
-    per AGENTS.md "Durable research commits". Until that SHA is recorded here, this checkpoint is
-    uncommitted and no downstream transition may treat BATCH-4b8ad3''s opening as durable.'
+  latest_verified_commit: 8538964c
+  latest_verified_commit_note: 'The planted-correlation control-arm snapshot commit (TASK-20260806-5a3d0e,
+    claiming TASK-20260806-e19f6c), the last producer artifact this checkpoint verifies. The two review
+    reports (TASK-20260806-9f4b27, TASK-20260806-21c8da) and this ledger archive itself (EV-HQC-db1fd9,
+    DEC-20260806-46a8f3) are committed separately, after this snapshot, per the campaign''s established
+    snapshot-before-review discipline; their own commit SHAs are recorded in git history and in
+    DEC-20260806-46a8f3''s evidence_refs rather than re-duplicated in this field, which tracks the
+    producer-artifact freeze point.'
   batch_checkpoints:
   - batch_id: BATCH-001
     opened_at: '2026-08-02'
@@ -261,6 +262,68 @@ research_goal:
       and the Coordinator, which the validator stated unprompted. No attestation recorded.
     budget_used: 3 of 6 batches. 0 runs executed; runs_authorized was 0 throughout, and the validator
       confirmed the no-run gate independently.
+  - batch_id: BATCH-4b8ad3
+    opened_at: '2026-08-06'
+    closed_at: '2026-08-06'
+    status: closed
+    decision: DEC-20260806-46a8f3
+    disposition: refine
+    evidence: EV-HQC-db1fd9
+    knowledge: []
+    predecessor_gap_note: 'BATCH-6fddee, BATCH-c5703d, and BATCH-0a65c0 (2026-08-06, closed by
+      DEC-20260806-9d8aab, DEC-20260806-980816, and DEC-20260806-2947ba respectively) ran and closed
+      without an entry appended to this batch_checkpoints list, even though BATCH-001..003 above
+      establish the convention. Flagged here rather than silently repeated or silently backfilled:
+      backfilling three batches this session did not run would risk transcribing detail inaccurately.
+      Their outcomes are fully recorded in their own decision and evidence records (cited in next_action
+      and campaign_budget_status above) and in git history; only this summary list is missing the three
+      entries. This entry resumes the convention.'
+    knowledge_promotion: 'NOTHING PROMOTED. A four-instance control-blindness pattern (CTRL-BS,
+      CTRL-POSHOM, CTRL-IDXMAP, and this planted arm) is close to KN-TECH-worthy but held: three of the
+      four instances are within one campaign on one instrument family, so the generalizable claim is not
+      yet shown to transfer. Promote once a V2 arm on the real decoder either repeats or breaks the
+      pattern. No KN-FIND: nothing was measured about HQC this batch.'
+    reviews:
+    - task: TASK-20260806-9f4b27
+      role: validator
+      verdict: ADMIT
+    - task: TASK-20260806-21c8da
+      role: red-team
+      verdict: 'ADMIT the artifacts, subject to two binding corrections; independently, OPEN-6 REMAINS
+        OPEN (injection defeats the arm)'
+    snapshots:
+    - task: TASK-20260806-5a3d0e
+      commit: 8538964c
+      claims: TASK-20260806-e19f6c
+    outcome: 'THE FIRST ATTEMPT TO CLOSE OPEN-6 FAILED ON THE EXACT DEFECT CLASS IT TARGETED, FOR A
+      STRUCTURAL REASON. TASK-20260806-e19f6c built a planted-correlation control arm order-matched to
+      PS-R3, reused measure.py''s estimator/jackknife code directly (sha256-pinned import), and recovered
+      its own closed-form, pre-registered planted value at all 17 tested cells (k=2..18), 72 of 1800
+      authorized core-seconds used. The Validator independently reproduced every value bit-for-bit before
+      reading reported results. The Red Team then defeated the arm: V1 (off-by-one truncation) and V3
+      (last-block-window-read-early) -- the same defect classes already named against CTRL-IDXMAP -- are
+      undetectable by this arm''s homogeneous-block, majority-threshold construction WITH MATHEMATICAL
+      CERTAINTY, for any T, because a single boundary-bit shift can never cross the 64-vote majority
+      margin. Per the batch''s own pre-declared rule, this settles OPEN-6 as OPEN independent of the
+      clean MATCH and both ADMIT verdicts.'
+    defects_found: 'One decisive: the arm never invokes stage_a.py''s real decode_blocks, substituting a
+      from-scratch majority-threshold reimplementation on homogeneous blocks -- disclosed in the arm''s
+      own design.md but understated in its comparison_report.md summary, flagged independently by both
+      reviewers. One minor and unresolved: a run-count discrepancy (2 vs. 3 executions claimed across
+      run_manifest.yaml and comparison_report.md), judged benign by both reviewers given deterministic
+      seeding but not independently audited end-to-end.'
+    process_finding: 'FOURTH CONSECUTIVE INSTANCE, ACROSS THIS CAMPAIGN, OF A CONTROL FOUND STRUCTURALLY
+      BLIND TO THE DEFECT CLASS IT WAS BUILT TO CATCH (after CTRL-BS, CTRL-POSHOM, CTRL-IDXMAP). The
+      pattern: an invariance strong enough to force a control''s null also blinds it to any defect
+      sharing that invariance. Named as a process finding, not yet promoted to knowledge (see
+      knowledge_promotion above).'
+    promotion_gates_status: NONE OF G1-G4 ADDRESSED. No asymptotic-complexity claim of this program's own.
+    quorum_admissibility: NOT ADMISSIBLE. Both reviews were independent sessions under this harness'
+      single resolved backend. No attestation recorded.
+    budget_used: First batch under the removed cap (campaign_budget.maximum_batches now null, per
+      DEC-20260806-7c2f91). 72 of 1800 core-seconds authorized to the executor were used; review budgets
+      were 1800 s each, with the red team measuring roughly 170 s of actual probe compute and no overrun
+      reported by either reviewer.
   related_goals:
   - GOAL-SDITH-001
   scheme_context:
@@ -307,7 +370,34 @@ research_goal:
       both halves against the actual records, because the equivalent Coordinator claim in GOAL-HAWK-001
       BATCH-001 was itself found to be an overread by that batch''s red team. The formal disposition is
       therefore deferred to the BATCH-001 ledger archive, which will have that challenge in hand.'
-  next_action: 'ACTIVE. BATCH-4b8ad3 OPENED under DEC-20260806-7c2f91 (batch cap removed by explicit user
+  next_action: 'ACTIVE. BATCH-4b8ad3 CLOSED under DEC-20260806-46a8f3 (refine). OPEN-6 REMAINS OPEN: the
+    planted-correlation control arm (TASK-20260806-e19f6c) recovered its own closed-form planted value
+    cleanly at all 17 tested cells, but the Red Team (TASK-20260806-21c8da) then defeated it by injecting
+    the same V1 (off-by-one truncation) / V3 (last-block-window-read-early) defect classes already named
+    against CTRL-IDXMAP: both are undetectable by this arm''s homogeneous-block, majority-threshold
+    construction WITH MATHEMATICAL CERTAINTY, for any T -- a structural blind spot, not a power
+    limitation. Per this batch''s own pre-declared rule, that injection settles OPEN-6 as OPEN regardless
+    of the clean MATCH and both reviewers'' ADMIT verdicts (EV-HQC-db1fd9). EXACTLY ONE NEXT ACTION:
+    dispatch a V2 planted-correlation control arm, the Red Team''s named next concrete action -- import
+    stage_a.py''s ACTUAL decode_blocks (the real WHT/Reed-Muller reduction, sha256-pinned, read-only,
+    reused exactly as measure.py already is) instead of a hand-rolled majority threshold, and construct
+    planted blocks with HETEROGENEOUS, decision-boundary-adjacent per-bit content instead of homogeneous
+    all-0/all-1 blocks, so a boundary-index defect has a non-zero chance of being expressed as a decode
+    error. UNTIL THIS EXISTS, the PS-R3 result (EV-HQC-b71230, all 17 cells below their frozen lower
+    bound, -244.1 to -32.4 null SD) still cannot be told apart from a subtly wrong sampler. THE OTHER
+    THREE ITEMS OF DEC-20260806-2947ba''s original resume plan (criterion 1''s missing extrapolation;
+    PS-R3''s second reviewer; the remaining named harness repairs -- fail-open integrity check pattern,
+    shakedown sizing) REMAIN DELIBERATELY NOT SCHEDULED, for the same reason as before: attempting them
+    before OPEN-6 closes risks interpreting a measurement whose sampler integrity is still unresolved.
+    Also carried forward, lower priority: reconcile BATCH-4b8ad3''s unresolved run-count discrepancy (2
+    vs. 3 executions) the next time TASK-20260806-e19f6c''s directory is touched. Claim tier stays TOY;
+    H-HQC-18d1b4 stays PROPOSED; nothing here bears on HQC IND-CCA security, its DFR, or any standardized
+    parameter set. Campaign budget: campaign_budget.maximum_batches is null (unbounded, user-authorized);
+    total_wall_clock_seconds (10,800) remains a live, unresolved-in-exact-figure pause condition that the
+    next batch should account spend against.'
+  superseded_next_action_20260806_batch4b8ad3_opened: 'SUPERSEDED 2026-08-06 by DEC-20260806-46a8f3
+    (BATCH-4b8ad3 closed, refine) and by the next_action above (V2 planted arm named). Preserved verbatim:
+    ACTIVE. BATCH-4b8ad3 OPENED under DEC-20260806-7c2f91 (batch cap removed by explicit user
     authorization), scoped to EXACTLY ONE THING, the first and blocking item of DEC-20260806-2947ba''s
     resume plan: CLOSE OPEN-6. Build a planted-correlation control arm for EXP-HQC-982268 whose log2_A_k
     is derivable IN ADVANCE (a known-answer instance with an explicit, computable joint-dependence
