@@ -63,6 +63,31 @@ GENERATED = (
 # Branches never synced: the trunk itself and anything a human owns by name.
 SKIP_PREFIXES = ("origin/main", "origin/HEAD")
 
+# Kept for unit tests and for any PR-scoped sync wrapper that still filters
+# open pull requests before delegating to branch-based sync.
+SKIP_LABEL = "no-auto-sync"
+
+
+def skip_reason(pr: dict, base: str) -> str | None:
+    """Why this pull request must not be synced, or None to proceed.
+
+    Pure decision logic, kept free of git and network calls so it is testable.
+    """
+    if pr.get("isCrossRepository"):
+        return "fork pull request; GITHUB_TOKEN cannot push to it"
+    if any(label.get("name") == SKIP_LABEL for label in pr.get("labels") or []):
+        return f"labelled {SKIP_LABEL}"
+    if pr.get("baseRefName") != base:
+        return f"targets {pr.get('baseRefName')!r}, not {base!r}"
+    if pr.get("isDraft") and pr.get("mergeable") == "CONFLICTING":
+        return "draft with known conflicts; leave it to its author"
+    return None
+
+
+def marker(pr_number: int, base_sha: str) -> str:
+    """Comment marker, one per pull request per base tip."""
+    return f"<!-- sync-open-branches:{pr_number}:{base_sha[:12]} -->"
+
 
 def run(*args: str, cwd: str | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(args, cwd=cwd or REPO, capture_output=True, text=True)

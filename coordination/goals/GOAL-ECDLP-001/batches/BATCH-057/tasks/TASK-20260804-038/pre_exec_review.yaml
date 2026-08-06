@@ -1,0 +1,201 @@
+pre_exec_review:
+  id: RT-20260804-038
+  task_id: TASK-20260804-038
+  experiment_id: EXP-OIFP-0ca0c9
+  reviewed_at: '2026-08-04'
+  reviewer_role: reviewer
+  sources_read:
+    - experiments/EXP-OIFP-0ca0c9/specification.yaml
+    - ledger/hypotheses/H-OIFP-097d1a.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-055/tasks/TASK-20260804-031/oifp_analysis.md
+
+  # ── 1. BIRTHDAY MITM DESIGN ──────────────────────────────────────────────
+  mitm_design_check:
+    verdict: sound
+    both_endpoints_explicit: true
+    notes: >-
+      Both E and E' are given as explicit inputs (OIFP problem statement; BATCH-055
+      analysis confirms both starting-point obstructions from TASK-20260804-024 are
+      absent for OIFP). The forward walk from E and backward walk from E' are correctly
+      specified. The "backward walk" is a standard random walk from E' on the same
+      isogeny graph — the labelling is terminological, not a directional constraint,
+      and is correct for birthday MITM.
+    elkies_ell3: >-
+      ell=3 is a valid Elkies degree for any prime-order ordinary curve with CM
+      discriminant D where the Kronecker symbol (D/3) = 1. By Chebotarev density,
+      approximately half of all discriminants satisfy this. Skipping instances where
+      (D/3) ≠ 1 (i.e., where 3 is inert or ramified in O_K) is algorithmically valid:
+      those curves simply lack degree-3 isogenies to distinct j-invariant neighbors,
+      so the walk would degenerate. The spec does not state this rejection criterion
+      explicitly, but a competent executor can apply it; flagged as non-blocking below.
+    birthday_math: >-
+      h(D) ~ p^{1/2} gives sqrt(h(D)) ~ p^{1/4}. At bits=20: h(D) ~ 2^10 = 1024,
+      p^{1/4} = 32. Expected collision after L ~ 32 steps from each side (total ~64).
+      At bits=40: h(D) ~ 2^20, p^{1/4} = 1024, expected total ~2048 steps. Correct.
+
+  # ── 2. CONTROLS ─────────────────────────────────────────────────────────
+  control_check:
+    verdict: adequate
+    ctrl_random_walk_baseline:
+      specified: true
+      testable: true
+      expected_outcome_correct: true
+      notes: >-
+        Random walk on a same-size (h(D)-node, degree ell+1) non-isogeny graph should
+        yield birthday collision at the same O(p^{1/4}) scale. Correct. This control
+        distinguishes any algebraic early-termination effect from pure birthday behavior.
+    ctrl_known_isogeny_path:
+      specified: true
+      testable: true
+      expected_outcome_correct: true
+      caveat: >-
+        "Collision at step 1" in the forward direction holds deterministically only if
+        the first forward step enumerates ALL (ell+1) = 4 degree-3 isogeny neighbors of
+        E and checks each against the backward set {E'}. For a single-neighbor random
+        step, the probability of hitting E' is 1/(ell+1) = 1/4, not 1. The Executor
+        should implement this control as a full-neighborhood check (BFS depth 1) or
+        document the probabilistic framing. Non-blocking: the control intent is clear
+        and the planted-pair sanity check is achievable either way.
+
+  # ── 3. SUCCESS / FALSIFICATION THRESHOLDS ───────────────────────────────
+  threshold_check:
+    verdict: well_calibrated
+    bits_20:
+      p_quarter: 32
+      success_bound: 128   # 4 * p^{1/4}
+      falsification_bound: 320   # 10 * p^{1/4}
+      expected_mean_steps: ~64   # birthday paradox 2-sided mean ≈ sqrt(pi/2 * h(D)) ~ 1.25 * p^{1/4} * 2
+      buffer_to_success: "~2x over expected; adequate for birthday-paradox variance"
+      gap_between_zones: "128–320 steps; clear discrimination interval"
+    bits_40:
+      p_quarter: 1024
+      success_bound: 4096
+      falsification_bound: 10240
+      expected_mean_steps: ~2048
+      buffer_to_success: "~2x over expected; adequate"
+    notes: >-
+      Spec correctly states success threshold as "< 4 * 2^5 = 128 steps" (bits=20)
+      and "< 4 * 2^10 = 4096 steps" (bits=40). Arithmetic verified: 4 * (2^bits)^{1/4}
+      = 4 * 2^{bits/4}. At bits=20: 4 * 2^5 = 128. At bits=40: 4 * 2^{10} = 4096.
+      Correct. The falsification criterion ("at either bit size") is sensibly asymmetric:
+      failure at either scale is informative.
+
+  # ── 4. BUDGET ────────────────────────────────────────────────────────────
+  budget_check:
+    verdict: feasible
+    bits_20_expected_wall_clock: "milliseconds per replication (h(D) ~ 1024, ~64 steps each)"
+    bits_40_expected_wall_clock: "seconds per replication (h(D) ~ 2^20, ~2048 steps, microsecond-level field ops)"
+    total_40_reps_estimate: "well under 10 minutes; 2 CPU-hours is very conservative"
+    wall_clock_per_run_300s: "300s budget per run is generous; no concern"
+    budget_arithmetic: >-
+      20 reps × 2 bit-sizes = 40 replications. If packaged as one run (RUN-OIFP-001)
+      internally iterating 40 replications, the 2 CPU-hour total budget is adequate.
+      If separated into 40 individual run directories, 40 × 300s = 12,000s = 3.3
+      hours exceeds the stated 2 CPU-hours; see artifact note below. At the actual
+      computation speed, neither bound is binding.
+
+  # ── 5. CLAIM CEILING ─────────────────────────────────────────────────────
+  claim_ceiling_check:
+    verdict: correct
+    toy_tier_declared: true
+    no_crypto_scale_claim: true
+    no_ecdlp_claim: true
+    ceiling_text_quoted: >-
+      "Toy-tier collision cost measurements at bits={20,40}. NOT claimable: sub-L[1/2]
+      asymptotics at crypto scale; H-OIFP-097d1a status above analyzed; any ECDLP claim."
+    notes: >-
+      Explicitly bars the three most likely overclaim vectors: sub-L[1/2] improvement,
+      premature status promotion, and ECDLP reduction. The analysis (BATCH-055) already
+      establishes that ordinary OIFP MITM at O(p^{1/4}) is SLOWER than index calculus
+      for p > 2^280, so no crypto-relevance inflation is possible. Claim ceiling is
+      appropriate.
+
+  # ── 6. IMPLEMENTATION STATUS ─────────────────────────────────────────────
+  implementation_check:
+    code_exists_in_experiment_dir: false
+    runs_dir_populated: false
+    notes: >-
+      No implementation code found under experiments/EXP-OIFP-0ca0c9/. The runs/
+      directory is empty. This is expected for a review_required (pre-execution)
+      experiment; the Executor's role is to write and run the implementation.
+      The spec provides sufficient mathematical and algorithmic description for a
+      competent executor to implement the experiment using SageMath (EllipticCurve,
+      isogenies, Vélu formulas). No missing dependency blocks execution.
+
+  # ── BLOCKING ITEMS ───────────────────────────────────────────────────────
+  blocking_items: []
+
+  # ── NON-BLOCKING NOTES ───────────────────────────────────────────────────
+  non_blocking_notes:
+    - id: NB-01
+      category: implementation_spec_gap
+      description: >-
+        The Elkies condition for ell=3 is not explicitly stated. When the Kronecker
+        symbol (D/3) is not +1 (i.e., 3 is inert or ramifies in O_K), the 3-isogeny
+        graph on the full class either degenerates or has different structure. The
+        Executor should reject and regenerate instances where (D/3) ≠ 1. Expected
+        acceptance rate ~50%; no budget impact.
+    - id: NB-02
+      category: implementation_spec_gap
+      description: >-
+        Instance generation procedure not specified: how to find a prime p at bits={20,40},
+        how to generate a random ordinary E over F_p, and how to generate E' in the same
+        isogeny class (same trace t). The BATCH-055 analysis specifies "E' = [a]*E for
+        random ideal class [a] in Cl(O_K)" — this procedure should be referenced in the
+        spec for traceability.
+    - id: NB-03
+      category: control_specification
+      description: >-
+        CTRL-KNOWN-ISOGENY-PATH states "MITM finds collision at step 1." This is
+        deterministic only if the first forward step enumerates all (ell+1) = 4 neighbors.
+        For a single-path random walk the probability is 1/(ell+1) = 1/4. Executor should
+        implement this control as a full-neighborhood enumeration at depth 1 (or document
+        the probabilistic version with the appropriate expected step count).
+    - id: NB-04
+      category: artifact_specification
+      description: >-
+        The required_artifacts list names only runs/RUN-OIFP-001/{manifest.json,
+        collision_table.json}. The experiment calls for 20 reps × 2 bit-sizes = 40
+        replications. If all 40 replications are captured in one run (RUN-OIFP-001
+        with a single collision_table.json containing all results), the artifact list
+        is complete and the budget is consistent. If each replication is a separate
+        run directory, 39 run artifacts are missing and the 2 CPU-hour budget may be
+        tight. Executor should clarify the run packaging and, if 40 separate run
+        directories are used, update the required_artifacts list before execution.
+    - id: NB-05
+      category: reproducibility
+      description: >-
+        A single master seed (2026080456) is given. The Executor must derive
+        independent per-replication sub-seeds from this master seed (standard approach:
+        numpy.random.default_rng(seed).spawn(n_reps) or seed + rep_index) to ensure
+        that 20 replications are statistically independent, not identical. This is
+        standard practice; flagged for explicit documentation in the manifest.
+    - id: NB-06
+      category: implementation_spec_gap
+      description: >-
+        No implementation language or library is specified. SageMath is implied (needed
+        for EllipticCurve, is_ordinary, isogenies_prime_degree, etc.) but should be
+        stated. The budget and artifact policy require recording exact dependency versions.
+
+  # ── OVERALL VERDICT ──────────────────────────────────────────────────────
+  verdict: PASS
+  approval_recommendation: true
+  freeze_authorized: true
+  rationale: >-
+    The specification is mathematically correct and internally consistent. The MITM
+    design correctly exploits both-endpoints structure of OIFP (both E and E' are given),
+    distinguishing it from the ECDLP MITM where the backward starting point is undefined.
+    The ell=3 Elkies condition is valid for ~50% of primes; skipping non-Elkies instances
+    is sound. Both controls are well-defined and testable. The success and falsification
+    thresholds are mathematically calibrated (success bound ~2x over the birthday-paradox
+    expected mean; clear gap between the two zones). The claim ceiling is explicit: toy-tier
+    only, no crypto-scale or ECDLP claims. The budget is generous relative to the actual
+    computation cost at bits=20/40. The six non-blocking notes above document
+    implementation gaps and specification clarifications that a competent executor can
+    resolve without returning to the reviewer. None rises to blocking status.
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: "amazon-bedrock/us.anthropic.claude-sonnet-4-6"
+    independent_session: true
+    reasoning_effort: xhigh

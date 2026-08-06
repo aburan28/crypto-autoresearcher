@@ -87,6 +87,30 @@ SUFFIX_LEGACY = r"\d{3}"
 SUFFIX_RANDOM = r"[0-9a-f]{6}"
 SUFFIX = rf"(?:{SUFFIX_LEGACY}|{SUFFIX_RANDOM})"
 
+DUPLICATE_RUN_IDS = os.path.join(REPO, "tools", "duplicate_run_ids.yaml")
+
+
+def _load_duplicate_run_owners() -> dict[str, set[str]]:
+    """run id -> the experiments it occurs under, for ids that collide.
+
+    Frozen by tools/build_duplicate_run_ids.py and held to never grow by
+    tools/test_duplicate_run_ids.py. Read here so a citation of a colliding id
+    can be required to say which experiment it means. Absent file is not fatal:
+    the check simply does not fire, and the must-not-grow test is what notices.
+    """
+    try:
+        document = yaml.safe_load(open(DUPLICATE_RUN_IDS, encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return {}
+    records = (document or {}).get("records") or {}
+    return {
+        rec_id: {o.get("experiment_id") for o in entry.get("occurrences") or []}
+        for rec_id, entry in records.items()
+    }
+
+
+DUPLICATE_RUN_OWNERS = _load_duplicate_run_owners()
+
 ID_PATTERNS = {
     "research_question": re.compile(rf"^RQ-[A-Z]+-{SUFFIX}$"),
     "idea": re.compile(rf"^IDEA-\d{{8}}-{SUFFIX}$"),
@@ -454,6 +478,25 @@ def check_cross_refs(ctx: Ctx):
                 if exp_id not in ctx.ids and exp_id not in ctx.legacy_aliases:
                     ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                              f"experiment '{exp_id}'")
+            # Citing a run id that exists under more than one experiment is
+            # ambiguous unless the record also names which one it means. The
+            # collisions themselves are frozen and disclosed in
+            # tools/duplicate_run_ids.yaml -- they cannot be repaired, because
+            # renumbering rewrites committed manifests. What is NOT tolerable
+            # is a citation nobody can resolve: the claim-tier ceiling below
+            # reads ctx.run_params, which holds whichever colliding manifest
+            # was globbed LAST, so an unqualified citation is checked against a
+            # run the record may never have meant.
+            for run_id in body.get("run_ids") or []:
+                owners = DUPLICATE_RUN_OWNERS.get(run_id)
+                if not owners:
+                    continue
+                named = owners & set(body.get("experiment_ids") or [])
+                if len(named) != 1:
+                    ctx.err(ctx.ids[rec_id],
+                            f"cites run '{run_id}', which exists under "
+                            f"{sorted(owners)}; experiment_ids must name "
+                            f"exactly one of them to resolve the citation")
             # Claim-tier ceiling.
             declared = TIER_ORDER.get(body.get("claim_tier"))
             run_tiers = [tier_of_run(ctx.run_params.get(r, {}))
@@ -756,7 +799,20 @@ def check_knowledge_entries(ctx: Ctx) -> None:
         promotion = body.get("knowledge_promotion")
         if not isinstance(promotion, dict):
             continue
-        for knowledge_id in promotion.get("promoted") or []:
+        for entry in promotion.get("promoted") or []:
+            # Records in the wild write both shapes: a bare `KN-*` id, and a
+            # mapping carrying the id plus a note or action. Take the id from
+            # either. An entry that is neither is a malformed reference, not a
+            # reason to abort the whole run -- an unhashable one used to raise
+            # TypeError here and take every later check down with it.
+            if isinstance(entry, dict):
+                knowledge_id = entry.get("id")
+            else:
+                knowledge_id = entry
+            if not isinstance(knowledge_id, str):
+                ctx.err(ctx.ids[rec_id], "knowledge_promotion entry is not a "
+                                         f"knowledge ID: {entry!r}")
+                continue
             if knowledge_id not in ctx.knowledge:
                 ctx.err(ctx.ids[rec_id], "knowledge_promotion references "
                                          f"unknown entry '{knowledge_id}'")
@@ -1035,10 +1091,51 @@ def check_knowledge_index(ctx: Ctx):
 
 BASELINE_HEADER = """\
 # Grandfathered validation errors — legacy records that predate the
-# validator. Each line matches one error exactly as validate_ledger.py
-# reports it. Lines may only ever be REMOVED (as records are repaired or
+# validator, plus one documented re-anchoring. Each line matches one error
+# exactly as validate_ledger.py reports it.
+#
+# INVARIANT: lines may only ever be REMOVED (as records are repaired or
 # superseded); never add a line to absorb a new violation. Prune stale
 # lines with: python3 tools/validate_ledger.py --update-baseline
+#
+# RE-ANCHOR 2026-08-02, authorized by DEC-20260802-008 as amended by
+# DEC-20260802-009 and DEC-20260802-010, and recorded as a protocol_amendment
+# there. This file was regenerated once, growing from 1138 to 2246 entries.
+# The 1108 added entries are the SET difference against the pre-image, not a
+# subtraction: the validator reported 1110 lines, but EV-SIG-008 cites
+# RUN-EXP-SIG-008-q and -r twice each and a baseline is a set, so two
+# identical lines collapse. Pre-existing debt in these categories only:
+#   680 pre-current-schema run manifests (missing required field, missing
+#       companion artifact, missing code.commit/code.command, invalid
+#       certificate.kind) — repair blocked by tools/check_run_immutability.py
+#   235 run IDs shared across EXP-FCP-001/EXP-FCP-002/EXP-IC-001 — same
+#       block; disclosed in tools/duplicate_run_ids.yaml, which must not grow
+#    69 evidence and decision records citing runs or experiments that do not
+#       register in this repository — disclosed on each affected record
+#    35 evidence records missing direction/strength — disclosed in
+#       ledger/registers/unevidenced-records.yaml; none may support a
+#       hypothesis transition until reviewed
+#    82 knowledge frontmatter pending /curate-knowledge
+#     5 ID area tokens containing digits (RQ/H/EXP-PMA4-001, H/EV-P13-001).
+#       Four report "ID ... does not match ... format"; EXP-PMA4-001 reports
+#       "bad experiment id" instead, because check_experiment returns early on
+#       a malformed id rather than continuing like check_ledger_record. Same
+#       defect, different message, so a message-shaped count splits the
+#       category away from the five records this line names.
+#       These records register and all cross-references resolve; renaming
+#       was refused on cost/risk grounds. The ID patterns were NOT widened,
+#       so a new non-conforming ID still fails.
+#     2 records outside the current schema vocabulary: EV-P13-001's
+#       conditional_on_heuristic proof_status (more precise than the schema
+#       admits) and EXP-MLKEM-004's null approved_by (unfillable without
+#       asserting an approval event no record establishes).
+# No mechanically repairable line was absorbed. Lines naming a record moved by
+# the DEC-20260802-001 relocation were admitted only where the identical
+# message appears in tools/prerelocation_error_snapshot.txt under that
+# record's pre-relocation path — a set-membership test, not a judgement.
+# The full debt stays inspectable with --no-baseline. The only-ever-removed
+# invariant resumes from this point: a later addition is a contract violation,
+# not a second re-anchoring.
 """
 
 

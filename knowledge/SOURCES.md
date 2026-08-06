@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 3 |
-| — of those with the artifact committed | 2 |
-| Per-URL retrieval attempts | 0 |
+| Frozen source packages (`SRC-*`) | 4 |
+| — of those with the artifact committed | 3 |
+| Per-URL retrieval attempts | 1 |
 | — succeeded | 0 |
-| — failed or blocked | 0 |
-| Source artifacts under `inputs/` | 8 |
-| — hash recomputed and matching | 6 |
+| — failed or blocked | 1 |
+| Source artifacts under `inputs/` | 9 |
+| — hash recomputed and matching | 7 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7807 |
-| — with a resolvable external identifier | 2214 |
-| — with no identifier recorded | 5593 |
+| Literature entries (`KN-LIT-*`) | 7809 |
+| — with a resolvable external identifier | 2215 |
+| — with no identifier recorded | 5594 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1318, doi 146, eprint 723, url 27. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1319, doi 146, eprint 723, url 27. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 9, `full_text` 3, `full_text_supplied` 1, `read` 7459, `web` 314.
+`citation_verified` distribution: `False` 21, `True` 9, `full_text` 4, `full_text_supplied` 2, `read` 7459, `web` 314.
 
 ## 1. Frozen source packages
 
@@ -40,9 +40,14 @@ decides whether a later session can re-read what was read here.
 
 | Record | Title | Author | Year | Package | Artifact in repo | Basis | URL | sha256 |
 |---|---|---|---|---|---|---|---|---|
-| SRC-OAI-TEN-PROOFS-2026 | Ten Advances in Mathematics and Theoretical Computer Science | OpenAI | 2026 | `inputs/OAI-TEN-PROOFS-2026` | **no** | no_artifact_found | https://cdn.openai.com/pdf/ten-proofs-oai.pdf | 64b900d5fae6fe22 |
+| SRC-BENNETT-WEAKNESS-2023 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | Michael Timothy Bennett | 2023 | `inputs/BENNETT-WEAKNESS-2023` | yes | declared |  |  |
+| SRC-OAI-TEN-PROOFS-2026 | Ten Advances in Mathematics and Theoretical Computer Science | OpenAI | 2026 | `inputs/OAI-TEN-PROOFS-2026` | **no** | declared | https://cdn.openai.com/pdf/ten-proofs-oai.pdf | 64b900d5fae6fe22 |
 | SRC-P13-PANNY-POC | Proof-of-concept implementation of the Wesolowski 2026 p^{1/3+o(1)} attack on OneEnd | Lorenz Panny |  | `inputs/P13-PANNY-POC` | yes | frozen_path | https://yx7.cc/files/p-one-third.py | 4f43780404a7ab5d |
 | SRC-P13-WESOLOWSKI-2026 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | Benjamin Wesolowski | 2026 | `inputs/P13-WESOLOWSKI-2026` | yes | package_contents |  |  |
+
+Declared reproducibility limitations:
+
+- **SRC-OAI-TEN-PROOFS-2026** — The PDF is not committed, so the sha256 above cannot be recomputed from this repository and no later session can re-read the source these summaries were taken from. This record is an assertion about a read that happened, not a checkable receipt for it -- the contrast is SRC-P13-WESOLOWSKI-2026, whose full text is frozen at inputs/P13-WESOLOWSKI-2026/paper_fulltext.md.
 
 ## 2. Per-URL retrieval attempts
 
@@ -52,6 +57,7 @@ not the same as never having looked.
 
 | Source id | URL | Status | HTTP | Retrieved at | Vendored path |
 |---|---|---|---|---|---|
+| dent-galbraith-hidden.pdf |  | failed |  |  | `inputs/ECTD-TESKE-20260731/sources/dent-galbraith-hidden.pdf` |
 
 ## 3. Source artifacts under `inputs/`
 
@@ -70,6 +76,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 | Path | Bytes | Verdict | Declared sha256 | Fetch marker |
 |---|---|---|---|---|
+| `inputs/BENNETT-WEAKNESS-2023/arxiv-2301.12987v4.pdf` | 211063 | match | b664a4074578629b |  |
 | `inputs/ECTD-TESKE-20260731/sources/defeo-1711.04062.pdf` | 901036 | match | ca0e70abad06f732 |  |
 | `inputs/ECTD-TESKE-20260731/sources/dent-galbraith-hidden.pdf` |  | **never_retrieved** |  | yes |
 | `inputs/ECTD-TESKE-20260731/sources/fght-2016-961.pdf` | 618309 | **present_unhashed** |  | yes |
@@ -98,7 +105,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2214 of 7807 `KN-LIT-*` entries carry an
+2215 of 7809 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1487,6 +1494,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-380ab7 | Full key-recovery cubic-time template attack on Classic McEliece decapsulation | 2025 | `eprint:2024/1694` | web |
 | KN-LIT-381 | A local-global principle for isogenies of prime degree over number fields arXiv:1303.3809v2 [math.NT] 13 Jan 2014 Samuele Anni | 2013 | `arxiv:1303.3809` | read |
 | KN-LIT-382 | A quantum circuit to find discrete logarithms on ordinary binary elliptic curves in depth O(log2 n) | 2013 | `arxiv:1306.1161` | read |
+| KN-LIT-3822a6 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | 2023 | `arxiv:2301.12987v4` | full_text |
 | KN-LIT-383 | A UNIFORM VERSION OF A FINITENESS CONJECTURE FOR CM ELLIPTIC CURVES | 2013 | `arxiv:1305.5241` | read |
 | KN-LIT-384 | Authenticating Computation on Groups: New | 2013 | `eprint:2013/801` | read |
 | KN-LIT-385 | Automatic Security Evaluation and (Related-key) Differential Characteristic Search: Application to SIMON, PRESENT, LBlock | 2013 | `eprint:2013/676` | read |
@@ -2320,7 +2328,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 
 ## 6. Literature citations with no recorded identifier
 
-5593 entries name a source this index cannot resolve to a
+5594 entries name a source this index cannot resolve to a
 retrievable location. They are listed, not dropped and not backfilled by
 guesswork (AGENTS.md rule 5): closing a row means finding the identifier
 and editing the entry, after which this table shrinks on its own.
@@ -7918,6 +7926,7 @@ and editing the entry, after which this table shrinks on its own.
 | KN-LIT-7603 | Linear Descent for Rank-2 and Rank-4 Module-LIP |  | Anonymous submission (unrefereed; venue and date not stated in the text) | full_text_supplied |
 | KN-LIT-80f208 | Explicit bounds for generic decoding algorithms for code-based cryptography | 2009 | WCC | false |
 | KN-LIT-93e8d7 | Error-correcting coding for digital communication | 1981 | book | false |
+| KN-LIT-b875db | Solving the Shortest Vector Problem in 2^{0.7314n+o(n)} Time via Discrete Gaussian Sampling on Superlattices | 2026 | Preprint (unrefereed; no venue, ePrint number, or DOI stated in the supplied text) | full_text_supplied |
 | KN-LIT-b9bba7 | Practical key recovery attacks on two McEliece variants | 2010 | SCC | false |
 | KN-LIT-d1a453 | Recognizing the structure of permuted reducible codes | 2007 | WCC | false |
 
