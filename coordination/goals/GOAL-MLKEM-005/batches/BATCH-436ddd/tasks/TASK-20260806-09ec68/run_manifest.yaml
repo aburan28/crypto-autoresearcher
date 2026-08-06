@@ -1,0 +1,331 @@
+schema: crypto.autoresearch.run_manifest.v1
+task_id: TASK-20260806-09ec68
+batch_id: BATCH-436ddd
+goal_id: GOAL-MLKEM-005
+role: executor
+title: >-
+  B2-A: T2 instrument re-run with a graded projector-side sensitivity
+  demonstration, the unreduced / LLL-only / Gaussian-error-null arms, and a
+  pre-registered ~1/sqrt(beta) decay falsifier tested to beta = 60.
+governed_by: ledger/decisions/DEC-20260805-4823db.yaml next_actions
+supersedes_instrument_of: TASK-20260805-708b70 (BATCH-a51f91)
+generated_at_utc: '2026-08-06T11:26:00Z'
+
+role_note: >-
+  Executor output. OBSERVATIONS ONLY. No status change, no hypothesis
+  disposition, no heuristic validated or refuted, no interpretation beyond the
+  verdicts declared in the frozen pre-registration, and no claim about ML-KEM
+  security or any FIPS 203 parameter set.
+
+# ---------------------------------------------------------------- freeze
+pre_registration:
+  location: b2a.py constant PREREG_MD, reproduced verbatim as Part 1 of b2a_report.md
+  delimiters:
+    begin: '<!-- BEGIN FROZEN PRE-REGISTRATION -->'
+    end: '<!-- END FROZEN PRE-REGISTRATION -->'
+  prereg_sha256: 2893a6b0cebf0a3ff40d779c6f66fb7852cad5830165a93079ddea6e6efd02b6
+  written_utc: '2026-08-06T11:09:20Z'
+  report_file_sha256_at_freeze_time: cd55c149bfd01d48d3416af32d7d160475d2f09097828c3fa90f8e6b1a54f871
+  enforcement: >-
+    `b2a.py --phase measure` re-hashes the bytes between the delimiters out of
+    b2a_report.md and ABORTS with exit 2 before touching a lattice if they do
+    not equal PREREG_SHA256. The run printed
+    "report Part 1 matches PREREG_MD byte for byte: True".
+  how_to_verify_independently: >-
+    Extract the bytes between the two delimiters from b2a_report.md, strip one
+    leading and one trailing newline, sha256 them, and compare with
+    prereg_sha256 above and with b2a_results.json .prereg_sha256. The full text
+    is also carried verbatim in b2a_results.json .prereg_text.
+  freeze_order_evidence: >-
+    Phase `prereg` wrote b2a_report.md at 11:09:20Z; phase `measure` started at
+    11:09:56Z (process start, `ps -o etimes`) and finished at 11:20:27Z. Part 1
+    is byte-identical to the constant compiled into the script that produced
+    every number in Parts 2-11.
+
+# ---------------------------------------------------------------- commands
+runs:
+- run_id: RUN-20260806-09ec68-001
+  kind: protocol run (the one run authorised by the task card)
+  phase_1_command: |
+    cd coordination/goals/GOAL-MLKEM-005/batches/BATCH-436ddd/tasks/TASK-20260806-09ec68
+    PYTHONPATH=<scratchpad>/pkgs python3 b2a.py --phase prereg
+  phase_2_command: |
+    cd coordination/goals/GOAL-MLKEM-005/batches/BATCH-436ddd/tasks/TASK-20260806-09ec68
+    PYTHONPATH=<scratchpad>/pkgs \
+      timeout --signal=KILL 2900 \
+      python3 b2a.py --phase measure --mode full \
+        --out b2a_results.json --workers 4 --core-seconds-budget 3600
+  exit_code: 0
+  started_utc: '2026-08-06T11:09:56Z'
+  finished_utc: '2026-08-06T11:20:27Z'
+  aborted: false
+  aborted_reason: null
+preflight:
+- kind: smoke run, NOT a protocol run
+  command: python3 b2a.py --phase measure --mode smoke --out <scratchpad>/smoke.json
+  cells: [[60, 20]]
+  errors: 16384
+  purpose: >-
+    Exercise every code path and every declared verdict branch (VALID / PARTIAL /
+    INVALID, CONSISTENT / FALSIFIED / NEITHER / NOT APPLICABLE, N1 pass and
+    fail) before the authorised run.
+  output_location: OUTSIDE the repository; no smoke number appears in any deliverable.
+
+# ---------------------------------------------------------------- environment
+environment:
+  repo_commit: c9a7794fad07464b50eafe440c741e38f2e4dff6
+  repo_branch: claude/harness-goals-experiments-g5pt2o
+  repo_dirty_paths:
+  - '?? coordination/goals/GOAL-MLKEM-005/batches/BATCH-436ddd/tasks/'
+  python: 3.11.15 (main, Mar  3 2026, 09:26:23) [GCC 13.3.0]
+  platform: Linux-6.18.5-fc-v18-x86_64-with-glibc2.39
+  nproc: 4
+  numpy: 2.4.6
+  scipy: 1.17.1
+  fpylll: 0.6.4
+  dependency_note: >-
+    The task card states scipy is absent and that a missing dependency is an
+    infrastructure request, not a result. scipy and fpylll (with cysignals) were
+    absent from the interpreter and were installed into a task-local pip
+    --target directory OUTSIDE the repository write scope, at the same versions
+    TASK-20260805-708b70 recorded (fpylll 0.6.4, scipy 1.17.1, numpy 2.4.6).
+    Nothing was vendored into the repository. Version identity with the run
+    being reproduced is what makes the reduction-reproduction check meaningful.
+  packages_installed_to: <scratchpad>/pkgs (outside write_scope, not committed)
+
+# ---------------------------------------------------------------- seeds
+seeds:
+  fplll_basis: 700000 + d*1000 + beta*10 + i        # IDENTICAL to BATCH-a51f91
+  numpy_cbd_error: 20260805 + d  (PCG64)            # IDENTICAL to BATCH-a51f91
+  numpy_haar: 900000 + d*1000 + betap*10 + j        # IDENTICAL to BATCH-a51f91 at betap = beta
+  numpy_graded: 500000 + d*1000 + betap*10 + j      # new in B2-A
+  numpy_gauss_error: 20260806 + d  (PCG64)          # new in B2-A
+  note: These five families are the ONLY sources of randomness in the run.
+  reduction_cache:
+    declared_by_task_card: >-
+      "The expensive BKZ reductions are ALREADY CACHED from BATCH-a51f91 --
+      reuse them, do not recompute."
+    actual_state: >-
+      ABSENT. BATCH-a51f91/tasks/TASK-20260805-708b70/command.txt shows
+      --cache-dir pointing at an ephemeral per-session scratchpad
+      (/tmp/claude-0/.../5cc33d08-.../scratchpad/bkzcache) that no longer
+      exists. No .npz file exists anywhere in the repository.
+    action_taken: >-
+      All 32 reductions recomputed from the same seeds at the same fpylll
+      version (1068.35 of this task's 1723.84 core-seconds), and the
+      reproduction verified against BATCH-a51f91's recorded reduction metadata.
+    outcome: EXACT. 32 of 32 tags, max relative deviation 0.0 in every compared field.
+    infrastructure_recommendation: >-
+      A reduction cache a successor batch is told to reuse must live inside the
+      batch's artifact_paths, or the instruction must read "recompute from the
+      recorded seeds and verify". Recorded for a Coordinator; not acted on here.
+
+# ---------------------------------------------------------------- config
+configuration:
+  cells: [[100, 30], [100, 40], [140, 30], [140, 40]]
+  k: d/2
+  q: 3329
+  error_law: CBD_{eta=2} (FIPS 203), plus an iid N(0,1) law for the null of the null
+  errors_per_cell: 1048576          # 2^20
+  draws_per_arm: 8
+  bases_per_cell: 8
+  reduction: LLL, then BKZ-beta with max_loops=2, pruning-free in-process strategies
+  statistic: R = ||Q^T e||^2 / ||e||^2, Q the orthonormal tail-beta GSO frame
+  quantile_estimator: q_emp(p) = sort(R)[round(p*N)-1]   # frozen in BATCH-a51f91
+  tail_levels: [2^-10, 2^-16]
+  gate: '|mean_A - mean_haar| >= 4 * sqrt(sd_A^2/8 + sd_haar^2/8)'
+  graded_t: [0.0, 0.05, 0.10, 0.25, 0.50, 0.75, 1.00]
+  beta_trend_betas: [30, 40, 50, 60]
+  beta_trend_reduction_held_fixed_at: LLL + BKZ-40
+  arms:
+  - haar_null        # the null arm, seeds identical to BATCH-a51f91
+  - real_bkz         # tail-beta GSO of the LLL+BKZ-beta basis
+  - lll_only         # NEW: tail-beta GSO after LLL, before BKZ
+  - unreduced        # NEW: tail-beta GSO of the raw q-ary basis
+  - graded_t{0,0.05,0.10,0.25,0.50,0.75,1.00}   # NEW sensitivity demonstration
+  - '<all of the above under an iid N(0,1) error>'   # NEW: null of the null
+
+# ---------------------------------------------------------------- budget
+budget:
+  authorised_core_seconds: 4000
+  used_core_seconds: 1723.84
+  used_fraction: 0.431
+  exhausted: false
+  authorised_wall_clock_seconds: 3000
+  used_wall_clock_seconds: 631.26
+  authorised_memory_gb: 4
+  peak_rss_gb_self: 1.142
+  peak_rss_gb_children: 0.061
+  runs_authorised: 1
+  runs_used: 1
+  timings:
+    stage_A_reduction_wall_seconds: 282.56
+    stage_A_reduction_core_seconds: 1068.35
+    per_cell_seconds:
+      d100_b30: {gauss_generate: 2.57, gauss_project_and_stats: 11.57, cbd_generate: 1.82, cbd_project_and_stats: 43.19}
+      d100_b40: {gauss_generate: 1.95, gauss_project_and_stats: 12.73, cbd_generate: 1.66, cbd_project_and_stats: 35.28}
+      d140_b30: {gauss_generate: 3.27, gauss_project_and_stats: 12.72, cbd_generate: 2.65, cbd_project_and_stats: 47.99}
+      d140_b40: {gauss_generate: 3.27, gauss_project_and_stats: 15.36, cbd_generate: 2.76, cbd_project_and_stats: 54.50}
+    mean_bkz_seconds_per_basis:
+      d100_beta30: 0.93
+      d100_beta40: 47.90
+      d140_beta30: 2.47
+      d140_beta40: 79.81
+  budget_bounded_gap:
+    what: the MATCHED real arm at beta > 40 (i.e. BKZ-50 / BKZ-60 reductions)
+    why: >-
+      Measured BKZ growth in this run's own stage A is a factor 51.7 (d=100) and
+      32.3 (d=140) from beta=30 to beta=40. One more step at the same factor
+      puts a single BKZ-50 basis near 2.5e3 s and eight near 2.0e4 core-seconds,
+      about five times the whole 4000 core-second budget for one cell. This is
+      an extrapolation from two points and is labelled as one.
+    what_was_done_instead: >-
+      The beta-trend holds the reduction fixed at LLL+BKZ-40 and varies only
+      beta in {30,40,50,60} on the tail-beta GSO window. That varies only the
+      parameter the falsifier is about.
+    status: INFRASTRUCTURE LIMIT, NOT A RESULT, in either direction.
+
+# ---------------------------------------------------------------- checks
+instrument_checks:
+  reduction_reproduction_vs_BATCH_a51f91:
+    n_compared: 32
+    max_b0_norm_relative_deviation: 0.0
+    max_gso_log2_slope_absolute_deviation: 0.0
+    verdict: EXACT -- the same 32 lattices
+  qr_vs_fpylll_gso_max_relative_error: 7.619107362257697e-07
+  tail_frame_orthonormality_max_abs_dev: 5.565081950820172e-08
+  cbd_per_coordinate_variance: {d100: 0.99990, d140: 1.000096, exact: 1.0}
+  cbd_per_coordinate_fourth_moment: {d100: 2.49961, d140: 2.500359, exact: 2.5}
+  not_a_control: >-
+    Recovering Beta(beta/2,(d-beta)/2) on the Haar arm is an INSTRUMENT CHECK
+    and is never recorded as a control that passed. It is constructed by the
+    theorem, not discovered.
+
+# ---------------------------------------------------------------- verdicts
+declared_verdicts:
+  sensitivity_demonstration:
+    G1_high_end_t0_gate_clears: {d100_b30: true, d100_b40: true, d140_b30: true, d140_b40: true}
+    G1_shift_in_se_of_difference: {d100_b30: 47.80, d100_b40: 66.24, d140_b30: 52.56, d140_b40: 77.24}
+    G2_low_end_t1_gate_does_NOT_clear: {d100_b30: true, d100_b40: true, d140_b30: true, d140_b40: true}
+    G2_shift_in_se_of_difference: {d100_b30: 2.19, d100_b40: 2.03, d140_b30: -1.36, d140_b40: 1.02}
+    G3_monotone_non_increasing_in_t: {d100_b30: false, d100_b40: false, d140_b30: false, d140_b40: false}
+    verdict: {d100_b30: INVALID, d100_b40: INVALID, d140_b30: INVALID, d140_b40: INVALID}
+    dynamic_range_in_se_of_difference: {d100_b30: 46.6, d100_b40: 64.2, d140_b30: 53.7, d140_b40: 75.9}
+    both_ends_exhibited: true
+    self_reported_defect_in_MY_pre_registration: >-
+      G3 required a strict ordering across all seven t. The single step
+      t = 0 -> 0.05 carries 98.8-101.4% of the dynamic range and every later
+      step is <= 0.78 SE, i.e. noise; six exchangeable draws are non-increasing
+      with probability 1/720. The family's own algebra shows why: the expected
+      coordinate overlap is A(t) = (1 + (beta-1)t)/(1 + (d-1)t), whose range
+      midpoint is at t = 1/(d+1) = 0.0099 (d=100) / 0.0071 (d=140), so the
+      grid's first interior point t = 0.05 is already past the informative
+      region. That algebra was available before the run. G3 was therefore very
+      nearly unsatisfiable by construction -- the mirror image of the superseded
+      demonstration's condition that could not fail, and the same DF-3 failure
+      mode. See b2a_report.md Part 6.3.
+    what_was_NOT_done: >-
+      The verdict was NOT re-scored, NOT relaxed, NOT reclassified to PARTIAL
+      (the PARTIAL branch excludes adjacent violations and all violations were
+      adjacent), and the run was NOT repeated on a better grid. Diagnosing my
+      own threshold is not the same as changing it.
+  null_of_the_null:
+    N1_all_arms_within_P1_tolerances: {d100_b30: true, d100_b40: true, d140_b30: true, d140_b40: true}
+    N2_coord_gate_does_NOT_clear_under_gaussian_error: {d100_b30: true, d100_b40: true, d140_b30: true, d140_b40: true}
+    verdict: PASS in all four cells
+  falsifier_1_over_sqrt_beta:
+    tested_at_beta: [30, 40, 50, 60]
+    beyond_30_40: [50, 60]
+    unreduced: {d100: FALSIFIED, d140: FALSIFIED}
+    unreduced_observed_D60_over_D30: {d100: 1.1805, d140: 2.0949}
+    unreduced_predicted: {d100: 0.5345, d140: 0.6030}
+    coord_t0: {d100: NEITHER, d140: NEITHER}
+    coord_t0_observed_D60_over_D30: {d100: 0.7249, d140: 0.7544}
+    lll_only: {d100: NOT APPLICABLE, d140: NOT APPLICABLE}
+    real_bkz40: {d100: NOT APPLICABLE, d140: NOT APPLICABLE}
+    not_applicable_reason: >-
+      D(beta=30) does not clear its own 4*SE gate on those arms, so there is no
+      departure to decay. This branch was declared in advance.
+  P1_P2:
+    null_arm_first: PASS/PASS in all four cells (P1 passes BY CONSTRUCTION; the unit test that is not a control)
+    real_arm: PASS/PASS in all four cells
+    prominently_reported: >-
+      P1 AND P2 EMIT THE SAME VERDICT ON THE NULL ARM AS ON THE REAL ARM IN ALL
+      FOUR CELLS, so the real-arm verdict is NOT read as discriminating.
+    interpretation_status: >-
+      NOT INTERPRETED. The demonstration's pre-registered verdict is INVALID, so
+      by Part 1 Sec. 1.4 this is an INSTRUMENT OUTCOME and no mathematical
+      conclusion is recorded from the real arm.
+
+# ---------------------------------------------------------------- validity
+validity:
+  status: VALID RUN, INSTRUMENT OUTCOME
+  completed: true
+  all_declared_arms_ran: true
+  all_seven_t_values_measured: true
+  both_dynamic_range_ends_exhibited: true
+  falsifier_tested_beyond_30_40: true
+  budget_exhausted: false
+  crashes: 0
+  timeouts: 0
+  infrastructure_failures:
+  - the BKZ reduction cache named by the task card did not exist (recomputed and verified; see seeds.reduction_cache)
+  known_limitations:
+  - The matched real arm was not extended beyond beta = 40 (budget; see budget.budget_bounded_gap).
+  - No t was measured inside [0, 0.02], where the graded family's alignment actually moves.
+  - The faster-than-predicted alignment collapse (measured A(0.05) = 0.380 vs closed form 0.412 at d=100) is not derived.
+  - The block-boundary mechanism proposed for the unreduced arm's beta-growth is consistent with both series but was not tested by varying k.
+  - Nothing at beta = 606, d = 1420 was attempted.
+  - The primal_bdd optimize_d anomaly's downstream significance remains unchecked (carried from BATCH-a51f91).
+
+# ---------------------------------------------------------------- scope
+explicit_non_claims:
+- No ML-KEM break and no claim about ML-KEM security in either direction. Session recovery, not key recovery.
+- No FIPS 203 parameter set is affected or cleared.
+- Nothing measured at d <= 140, beta <= 60 is transported to beta = 606, d = 1420. Four beta points at two d is not a law.
+- No number here is subtracted from the in-repo primal_bdd margins of 2.80 / 6.04 / 1.28 bits.
+- No status change, no hypothesis disposition, no heuristic validated or refuted, no knowledge promotion. AGENTS.md rule 12 remains UNMET and UNWAIVED.
+- P1/P2 were not re-scored against any rule other than the one frozen in BATCH-a51f91; the census was not read as a measured cap.
+- The 27-42 SE departure on the unreduced q-ary arm is a statement about a raw q-ary basis at d <= 140 under a CBD error. It is not evidence about ML-KEM and its own pre-registered decay falsifier FIRED against it.
+
+# ---------------------------------------------------------------- artifacts
+artifacts:
+  b2a.py:
+    sha256: 1c1a9883872aece0a708dd4646645879f0b912ca01ad228c7bc7efcd1212d75c
+    bytes: 46126
+    lines: 997
+  b2a_results.json:
+    sha256: 4d36ca96ea15da25f092bbf680f278ed1515d3feee2e0df0e78f41bac4e875fa
+    bytes: 597937
+  b2a_report.md:
+    sha256: 66b069d8f78c69129c746fd22dcd2c5ad0bf38040dc1f949ff52e9c4bd225436
+    bytes: 34515
+    note: Part 1 is the frozen pre-registration; Parts 2-11 were appended after the run.
+  b2bcd_notes.md:
+    sha256: 46b6318ac3b23c4ff5deca819a0631ad3e759875d66180f8c80a8e0a1ced5ed7
+    bytes: 21976
+    note: B2-B, B2-C, B2-D. Zero new compute; no script run, no number recomputed.
+  run_manifest.yaml:
+    sha256: self
+  artifact_sha256_note: >-
+    Hashes taken after the run and before any archive commit. run_manifest.yaml
+    cannot carry its own hash; the Coordinator's snapshot receipt records it.
+
+inference_provenance:
+  requested_policy: executor-implementation
+  resolved_model_id: claude-opus-5
+  fallback_used: true
+  fallback_note: >-
+    orchestration/model-policies.yaml routes this role to an alias Claude Code
+    cannot resolve; every role in this campaign resolves to claude-opus-5.
+    Recorded per CLAUDE.md model policy, never silently substituted.
+
+write_scope_compliance:
+  declared: coordination/goals/GOAL-MLKEM-005/batches/BATCH-436ddd/tasks/TASK-20260806-09ec68/
+  files_written: [b2a.py, b2a_results.json, b2a_report.md, b2bcd_notes.md, run_manifest.yaml]
+  files_written_outside_scope: none within the repository
+  scratchpad_used: >-
+    <scratchpad> for the pip --target package tree, the smoke-run output, the
+    run logs and analysis helpers. None of it is in the repository and none of
+    it is a deliverable.
+  git_operations_performed: none
