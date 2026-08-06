@@ -57,7 +57,7 @@ research_goal:
     maximum_batches: 8
     total_wall_clock_seconds: 28800
     max_concurrent: 3
-  current_batch_id: BATCH-007
+  current_batch_id: BATCH-008
   dispatch_queue_path_note: >-
     BATCH-003 and BATCH-004 did not use a formal tools/research_dispatch.py
     JSON queue -- their tasks (a pre-freeze Red Team review, then a single
@@ -66,21 +66,23 @@ research_goal:
     BATCH-001/002. No dispatch_queue.json exists under
     coordination/goals/GOAL-SSIQ-001/batches/BATCH-003/ or BATCH-004/.
     Recorded so the absence reads as a process choice, not an oversight.
-  latest_verified_commit: cc786884a485d85224cf44bf9e4aaf85be606e0c
+  latest_verified_commit: a925cf30eadb65f636f06c95ee83cbc02073f857
   latest_verified_commit_note: >-
-    The TASK-20260805-2d8575 snapshot commit (the RUN-SSIQ-a85692-c
+    The TASK-20260805-3abd7d snapshot commit (the RUN-SSIQ-a85692-d
     package), accepted by the dispatcher-equivalent manual check and
-    INDEPENDENTLY RE-VERIFIED by the Validator TASK-20260805-47be12:
-    reachable from HEAD, parent 7f40426b041044b9074f8bf208971786bde83801,
+    INDEPENDENTLY RE-VERIFIED by the Validator TASK-20260805-aeb1ed:
+    reachable from HEAD, parent 0b15e854644f243b59ee7debfd4aba7b19eb544a,
     changed-path set exactly equal to the 10 declared artifacts, all
-    path_sha256 recomputed directly from the git blobs at cc786884 (not
+    path_sha256 recomputed directly from the git blobs at a925cf30 (not
     the working tree). DELIBERATELY NOT ADVANCED to the ledger-archive
     commit carrying this edit, for the same reason as every prior batch:
     that commit has not been through a verifier at the moment it is
     written. Branch commits stop resolving under a squash merge; the
     durable bindings are the path_sha256 maps in the receipts under
     coordination/goals/GOAL-SSIQ-001/batches/*/archives/.
-    PRIOR VERIFIED COMMITS, retained for history: BATCH-005's
+    PRIOR VERIFIED COMMITS, retained for history: BATCH-006's
+    cc786884a485d85224cf44bf9e4aaf85be606e0c (TASK-20260805-2d8575, the
+    RUN-SSIQ-a85692-c package, parent 7f40426b, 10/10 paths); BATCH-005's
     06af9596d623b1d61c6daf6e14ed898ef00c213d (TASK-20260805-8bddd0, the
     RUN-SSIQ-a85692-b package, parent 14b56525, 10/10 paths); BATCH-004's
     299537238f14db622c7e93f52bc19286a7c4bba7 (TASK-20260805-81ffe0, the
@@ -733,6 +735,58 @@ research_goal:
         the identical validation gap, one layer further in, and checking
         that requires the same direct-code-reading discipline GD-9's own
         repair established, applied recursively to the repair itself.
+    - id: GD-11
+      raised_by: [TASK-20260805-b73a2e]
+      severity: medium
+      detail: >-
+        NAMED IN BATCH-007, BY THE RED TEAM, WHILE CLOSING GD-10 -- A
+        DIFFERENT SPECIES THAN GD-4 THROUGH GD-10 (all wrapper/formula/
+        control-comparison-logic defects): a numerical-robustness defect
+        in SHARED LIBRARY CODE, dht.ols_loglog_fit
+        (experiments/EXP-SSIQ-58b642/implementation/descent_hitting_time.py),
+        imported unchanged into every experiment's descent-fit machinery
+        since BATCH-003. Its degeneracy guard (if sxx == 0.0: raise
+        ValueError, checking an exact float equality AFTER summing n
+        copies of log(N) and dividing by n) does not reliably fire on
+        genuinely degenerate designs: whether the sum-then-divide
+        round-trips to bit-identical log(N) depends on log(N)'s specific
+        mantissa bits, unrelated to any property of the actual data.
+        Surfaced when BATCH-007's own GD-10 fix introduced the first test
+        in this campaign's history to exercise a 3-point bootstrap
+        resample (CHECK 3, at the NULL_ARM_MIN_PRIMES=3 floor); the
+        Executor disclosed one instance (N=500, n=3, worked around in
+        CHECK 3's own construction). The Red Team independently
+        reproduced the mechanism from first principles and swept a wider
+        grid, finding it recurs at multiple (N, resample-size)
+        combinations, is NOT merely cosmetic (confirmed to produce a
+        spurious, plausible-looking nonzero gamma at N=611/n=6 using a
+        real campaign value rather than a benign 0.0), and -- materially
+        beyond the original disclosure -- recurs at N=324, which is
+        prime 3889's own real N value, already used in every real-arm
+        bootstrap this campaign has run, at exactly n=3. Both reviewers
+        independently confirmed NO currently-archived real result is
+        contaminated: every real bootstrap to date resampled at n=4 over
+        the fixed set {203,324,478,611}, and the guard correctly fires
+        for all four values at that specific resample size -- but this is
+        a coincidence of that value set and resample size, not a
+        structural guarantee (N=324 IS anomalous at n=3/6/7/8; N=611 is
+        anomalous at every n>=5 tested). The null arm's fit-and-bootstrap
+        branch has never yet executed on real data, so no already-
+        computed null-arm CI is at risk retroactively -- but the next
+        real dispatch that reaches it at a small survivor count including
+        prime 3889 is at genuine, non-hypothetical risk. Fixable at zero
+        new search cost: harden the guard to compare inputs directly
+        (max(xs)==min(xs)) rather than a post-summation derived value.
+      standing_repair_adopted: >-
+        A degeneracy/edge-case guard implemented as an exact
+        floating-point equality check after a summation is not reliable,
+        because IEEE-754 rounding of a sum-then-divide sequence does not
+        always round-trip to bit-identical inputs, independent of whether
+        the underlying data is genuinely degenerate. Compare the INPUTS
+        directly for the exact condition (e.g. max(xs)==min(xs)), or use
+        an epsilon-relative tolerance keyed to the operands' magnitude --
+        never rely on a post-summation exact-zero check as a proxy for
+        input degeneracy.
   completion_criteria:
     - >-
       An exponent-budget decomposition of the archived p^{1/3+o(1)} algorithm
@@ -816,54 +870,52 @@ research_goal:
     filter) on evidence EV-SSIQ-f3ce32; BATCH-006 closed by DEC-20260805-e46f4f
     (revise, GD-10 -- GD-8 fixed and validated on real data; GD-9's wrapper
     fixed in code but its required validation artifact bypasses the wrapper
-    itself, downgrading it to runtime-unvalidated) on evidence EV-SSIQ-028c9f.
+    itself, downgrading it to runtime-unvalidated) on evidence EV-SSIQ-028c9f;
+    BATCH-007 closed by DEC-20260805-6aa5c2 (revise, GD-11 -- GD-10 genuinely
+    closed and independently confirmed by both reviewers, but the new
+    boundary-length test it required surfaced a numerical-robustness defect
+    in shared library code, latent since BATCH-003, affecting a real campaign
+    prime's N value at the exact resample size the fix introduced) on
+    evidence EV-SSIQ-87d21a.
   next_action: >-
-    OPEN BATCH-007 AS A FURTHER VERSIONED AMENDMENT (v4) TO
-    EXP-SSIQ-a85692 -- same contract lineage, same validated delta_E,
-    budget-allocation, and trapped-vertex-filter infrastructure (GD-7 and
-    GD-8 both independently confirmed working in BATCH-005/006). L4
-    remains the only lever whose ceiling meets this goal's target and
-    still the top priority, EXPLICITLY NOT RETIRED despite a zero-survivor
-    outcome at toy scale (a coverage gap is not a named obstruction with
-    an argument, per docs/inventor-protocol.md section 4's closure
-    standard). BATCH-006 found the required validation artifact for GD-9's
-    fix (a synthetic self-test) bypasses the wrapper function
-    c_null_label_comparison_v3 it was built to validate -- named GD-10.
-    THE FIX, RANKED BY THE RED TEAM AND ADOPTED IN DEC-20260805-e46f4f,
-    BOTH ZERO NEW SEARCH COST: (1) fix GD-10 -- build a synthetic self-test
-    that constructs real_per_prime/null_per_prime dicts in the ACTUAL
-    real-data schema (real arm carries N, null arm does not) and calls
-    c_null_label_comparison_v3 itself through BOTH its NOT-EVALUABLE and
-    fit-and-bootstrap branches, with hand-computable expected outputs --
-    must land before any future run's c_null_label_control_failure value
-    is cited as validated machinery; (2) investigate the mechanism behind
-    pervasive trapping (all 4 previously-searched primes exceed 0.5
-    trapped_fraction in BOTH label arms) using already-collected graph/
-    vertex/degree-sequence data from RUN-SSIQ-a85692-b -- is trapping
-    concentrated on specific low-degree vertices, correlated with a
-    graph-structural property independent of N, or an artifact of the
-    greedy tie-break rule -- do this BEFORE spending real search budget on
-    larger N under an unexamined assumption that bigger graphs trap less,
-    since trapped_fraction does NOT monotonically decrease across the 4
-    already-tested N values (0.837, 0.722, 0.820, 0.851 at N=203, 324,
-    478, 611).
-    GOES THROUGH ITS OWN PRE-FREEZE RED TEAM REVIEW WITH GD-10's STANDING
-    REPAIR APPLIED: any required validation artifact's pre-freeze text
-    names the exact function/branch it must call, not just describes the
-    desired behavior in prose.
+    OPEN BATCH-008 WITH TWO PARALLEL, ZERO-NEW-SEARCH-COST ACTIONS, per
+    DEC-20260805-6aa5c2's adoption of the Red Team's own ranking (disjoint
+    data and code paths, neither blocks the other): (1) harden
+    dht.ols_loglog_fit's degeneracy guard (GD-11's fix) -- replace the
+    exact-float sxx==0.0 comparison with max(xs)==min(xs) or an
+    epsilon-relative tolerance, as its own scoped versioned amendment (this
+    is shared library code touching both EXP-SSIQ-58b642 and
+    EXP-SSIQ-a85692, not folded silently into any other amendment) with its
+    own pre-freeze review, and re-run the regression cases that exposed
+    GD-11 (N=324/n=3, N=611/n=6) to confirm the fix; (2) the trapping-
+    mechanism diagnostic, deferred since BATCH-006 (DEC-20260805-e46f4f's
+    original next_actions item 2, unaffected by GD-11 per the Red Team's own
+    confirmation): investigate the mechanism behind pervasive trapping
+    (all 4 previously-searched primes exceed 0.5 trapped_fraction in both
+    label arms, RUN-SSIQ-a85692-b) using already-collected graph/vertex/
+    delta_map data -- is trapping concentrated on specific low-degree
+    vertices, correlated with a graph-structural property independent of N,
+    or an artifact of the greedy tie-break rule -- BEFORE spending real
+    search budget on larger N under an unexamined assumption that bigger
+    graphs trap less, since trapped_fraction does NOT monotonically
+    decrease across the 4 already-tested N values.
+    L4 remains the only lever whose ceiling meets this goal's target and
+    still the top priority, EXPLICITLY NOT RETIRED. GOES THROUGH ITS OWN
+    PRE-FREEZE RED TEAM REVIEW(S) WITH GD-11's STANDING REPAIR APPLIED: any
+    numerical degeneracy/edge-case guard compares inputs directly, never a
+    post-summation derived value, for an exact condition.
     Deferred with revisit conditions, not dropped (AGENTS.md rule 9):
     (i) Widening to larger primes/N is deferred until item (2) above gives
     a specific, evidence-based reason to expect different behavior at
-    larger N. (ii) Retiring lever L4 as exhausted is explicitly NOT
-    chosen; revisit only if items (1)-(2) are completed and either
-    identify a fixable mechanism, or a larger-N attempt with a specific
-    hypothesis also shows pervasive trapping. (iii) REC-1b / M-GRAD via
-    WISDE remains RETIRED. (iv) REC-4, the zero-compute N5 scoping pass,
-    stays open and unscheduled while L4's remaining diagnostic questions
-    are worked. (v) The deferred p != 1 (mod 12) successor from PF-5
-    stays costed higher than the p=1 mod 12 route. (vi) Routing the
-    docs/claims-and-verification.md correction under GD-3 to its owner
-    remains open.
+    larger N. (ii) The rng_seed determinism gap found in BATCH-007 (backlog,
+    add whenever synthetic_self_test_v4 is next touched) stays deferred,
+    lower priority than GD-11. (iii) Retiring lever L4 as exhausted is
+    explicitly NOT chosen. (iv) REC-1b / M-GRAD via WISDE remains RETIRED.
+    (v) REC-4, the zero-compute N5 scoping pass, stays open and unscheduled
+    while L4's remaining diagnostic questions are worked. (vi) The deferred
+    p != 1 (mod 12) successor from PF-5 stays costed higher than the p=1
+    mod 12 route. (vii) Routing the docs/claims-and-verification.md
+    correction under GD-3 to its owner remains open.
   id_corrections:
     - correction: retired-unused task identifiers
       recorded_at: '2026-08-05'
@@ -882,4 +934,4 @@ research_goal:
         entry exists because a silently corrected identifier is
         indistinguishable from a fabricated one in an archive.
   created_at: '2026-08-05T01:00:00Z'
-  updated_at: '2026-08-05T15:20:00Z'
+  updated_at: '2026-08-06T01:50:00Z'
