@@ -1,0 +1,197 @@
+run_manifest:
+  task_id: TASK-20260806-66e3c3
+  role: executor
+  goal: GOAL-HQC-001
+  batch: BATCH-3bd1f4
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  claim_tier: toy
+  title: >-
+    Two cheap, no-new-sampling reliability checks on the "double dilution"
+    formula: (1) conditional-vs-unconditional mubar_{k-1} deviation across a
+    range of k, on two independent already-committed PS-R3 datasets; (2)
+    SE-scaling / required-T formula in-range check across a wide Delta_p
+    sweep and the full k=2..26 range.
+  authorized_by:
+    decision: DEC-20260806-d9d395
+    next_action_item: 1
+  scope_statement: >-
+    PS-R3 only (n_e=56, n=7187, N=7168, dup=1, m=17). Nothing here is a
+    statement about HQC, A17, any decoding-failure rate, or any
+    standardized parameter set.
+
+  no_new_sampling:
+    confirmed: true
+    statement: >-
+      No cryptographic sampler, decode_blocks call, or stage_a.py shard was
+      invoked, regenerated, or drawn anywhere in this task. Both checks
+      compute entirely from two already-committed JSON artifacts
+      (measurement_results.json, reanalysis_results.json) plus a
+      sha256-pinned, read-only import of measure.py's comb_matrix and
+      log2_A_from_hists functions. No random-number generator of any kind
+      is invoked in reliability_checks.py; every reported number is either
+      read directly from an already-committed file or derived from one by
+      deterministic arithmetic. There is no seed to record because there is
+      no draw.
+    files_read_only_no_modification:
+      - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py
+      - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measurement_results.json
+      - coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/reanalysis_results.json
+
+  fail_closed_sha256_pins:
+    - file: measure.py
+      pinned_sha256: a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e67465b24f5dc8
+      pin_source: coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/archives/TASK-20260806-40c805/snapshot-receipt.json
+      verified_match: true
+    - file: measurement_results.json
+      pinned_sha256: 6b2804e36f35a453f524843af6ef40da03e0295aece7fc574e01923f0d575801
+      pin_source: coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/archives/TASK-20260806-40c805/snapshot-receipt.json
+      verified_match: true
+    - file: reanalysis_results.json
+      pinned_sha256: d67c80fedd7e29e8c5dc1838a2003bb235241214103bf6cfbb1d68cde7e5bd35
+      pin_source: coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/archives/TASK-20260806-7bbbc8/snapshot-receipt.json
+      verified_match: true
+
+  invocations:
+    - purpose: fail-closed self-test (deliberately corrupted measure.py pin)
+      command: >-
+        PYTHONDONTWRITEBYTECODE=1 python3 reliability_checks.py
+        --selftest-fail-closed
+      cwd: coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3
+      exit_code: 0
+      result: >-
+        Gate correctly aborted with SystemExit before computing anything
+        ("FAIL-CLOSED: sha256 mismatch on measure.py: expected
+        000...0000, got a4fd1ecb...5dc8"). No checks_results.json was
+        written by this invocation. Not counted as the authorized run; runs
+        no scientific computation and writes no results artifact.
+      stdout_log: selftest_stdout.log
+      stderr_log: selftest_stderr.log
+      wall_seconds_approx: <1
+    - purpose: authorized measurement run (both checks, real committed data)
+      command: >-
+        PYTHONDONTWRITEBYTECODE=1 python3 reliability_checks.py --out-dir .
+      cwd: coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3
+      exit_code: 0
+      wall_seconds: 9.653
+      stdout_log: stdout.log
+      stderr_log: stderr.log
+      output: checks_results.json
+      counted_as_the_one_authorized_run: true
+
+  budget:
+    authorized:
+      wall_clock_seconds: 1800
+      runs_authorized: 1
+      core_seconds: 100
+    used:
+      wall_clock_seconds_authorized_run: 9.653
+      wall_clock_seconds_selftest_invocation_approx: 1
+      runs_used_of_authorized: 1
+      core_seconds: >-
+        Not separately instrumented (no resource.getrusage accounting was
+        added to reliability_checks.py); wall time (9.653s, single-threaded,
+        pure Python/NumPy arithmetic on already-loaded JSON, no
+        multiprocessing) is a safe upper bound on core-seconds actually
+        consumed and is far inside the 100-core-second budget.
+      within_budget: true
+
+  git:
+    commit: c2d935942834fd35dd77e3ee9792929597054c3a
+    branch: claude/hqc-experiments-6unh3p
+    dirty: true
+    dirty_paths_at_run_time:
+      - '?? coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/'
+    dirty_state_explanation: >-
+      The only untracked path at run time was this task's own new output
+      directory. No file outside write_scope
+      (coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/)
+      was created, modified, or deleted. Nothing under experiments/,
+      stage_a.py, measure.py, or any other task's directory was touched.
+
+  environment:
+    python: 3.11.15
+    numpy: 2.4.6
+    platform: Linux-6.18.5-fc-v18-x86_64-with-glibc2.39
+    processor: x86_64
+    randomness_sources: none
+    seeds: none
+    seed_note: >-
+      No pseudo-random number generator is instantiated anywhere in
+      reliability_checks.py. Both checks are deterministic arithmetic on
+      already-committed data; there is nothing to seed.
+
+  validity:
+    status: valid_measurement
+    reason: >-
+      All fail-closed self-integrity gates passed on the authorized run
+      (11 gates: 3 sha256 pins, Dataset A histogram-sum/q_hat-recompute/
+      pinned-fn-q-match/log2_A_17-cross-check, Dataset B q_hat-from-mu1-
+      vs-provenance-string, z_sum recompute, k=17 Delta_p=0.0082
+      reproduction, and the 8-point delta_p_sensitivity_k17 table
+      reproduction). No uncaught exception. Both datasets yielded
+      well over 10 usable k values with finite, nonzero moments
+      (Dataset A: 34 usable k in [2,35]; Dataset B: 25 usable k in
+      [2,26]). The separate fail-closed self-test, run with a
+      deliberately corrupted pin, correctly aborted before any
+      computation.
+    completion_gate_from_dispatch_queue:
+      - "design.md pre-registers what each check measures and what results would indicate high vs. low confidence in the projection, before results are computed": satisfied
+      - "checks_report.md reports both checks' actual measured results, including any k-dependence in the conditional-vs-unconditional deviation": satisfied
+      - "run_manifest.yaml carries command, git commit and dirty-tree state, environment, seeds, timings, validity status, and confirms no new sampling occurred": satisfied (this file)
+
+  certificate:
+    kind: none
+    note: >-
+      Pure measurement/reanalysis of already-committed data. No
+      discrete-log solve or factor-base relation is claimed; certificate
+      discipline (docs/claims-and-verification.md) is not engaged by this
+      task.
+
+  protocol_deviations: []
+  anomalies:
+    - >-
+      Dataset A (T=1e7, higher-precision) and Dataset B (T=10,000, the
+      source of the Red Team's original 13.4% figure) disagree on the
+      k=17 relative-deviation point estimate by a factor of ~1.75 (7.63%
+      vs. 13.39%), with the disagreement growing at higher k and
+      correlated with the two datasets' very different effective sample
+      sizes at each k. This was not anticipated in design.md's binary
+      higher/lower-confidence framing and is reported as a distinct,
+      disclosed fact in checks_report.md Section 2.3, not resolved by
+      this task.
+    - >-
+      The deviation measured in Check 1 grows monotonically and
+      increasingly steeply for k beyond the load-bearing order 17 in
+      both datasets (never shrinks, never flips sign) -- per design.md
+      Section 1.3's pre-registered reading this is the signature
+      associated with LOWER confidence in treating the k=17 figure as
+      representative/bounded, even though the deviation's stable,
+      non-erratic sign and smooth growth are separately consistent with
+      it being a real structural effect rather than noise. Both readings
+      are reported; neither is resolved into a single verdict by this
+      task.
+
+  artifact_sha256:
+    design.md: 27800367dbaeba1c6c32d4c8ffe16ac2851999a8bb93249a0da655836c1276a6
+    reliability_checks.py: f2d3d8a2a69acef9d07b99290c30e69c2e48668a5edc2f4fb4378add63583564
+    checks_results.json: 962869f5666875d5216b1bd78f8ee03e5b64cce0d4bfeaec1d13dc4e8d2b1207
+    checks_report.md: 5a059b7acc1fe785c4e9119def45da33149a7cd2ca84d1e0de8c77481c26969b
+    stdout.log: 07e244da3d71fbd33625325dbd6662e78fdc3526fbe90a0a6f39a57c143b35a0
+    stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    selftest_stdout.log: 5668bc746106bc46cce1207d6966a13b7fe8f5397e0b8f3d621155eba1d53976
+    selftest_stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+  artifact_paths:
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/design.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/reliability_checks.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/checks_results.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/checks_report.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/run_manifest.yaml
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/stdout.log
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/stderr.log
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/selftest_stdout.log
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-3bd1f4/tasks/TASK-20260806-66e3c3/selftest_stderr.log
+
+  started_at_utc: '2026-08-06T23:08:49Z'
+  finished_at_utc: '2026-08-06T23:08:58Z'
