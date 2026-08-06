@@ -1,0 +1,568 @@
+hypothesis:
+  id: H-PATH-7fdef7
+  question_id: RQ-ICEX-001
+
+  statement: >-
+    SCOPE: the single-cell exponent estimator alpha_hat = log(C)/log(ell) frozen
+    in ic_exponent_protocol version ICEX-e2e-exponent-1.0.0-review, evaluated on
+    prime-field toy fixtures at field_bits in {8, 10, 12, 16, 20, 32} (the
+    protocol's own sealed ladder plus its hard_cap_bits of 32), with the
+    protocol's own replica-based confidence rule. CLAIM TIER toy. NO ATTACK, NO
+    EXPONENT MOVED, NO PRIME-FIELD ECDLP CLAIM, NO CRYPTO-SCALE TRANSFER.
+    THE CLAIM. For any algorithm whose charged cost obeys
+    C(ell) = kappa * ell^{alpha_0} * u(ell) with u subpolynomial, the frozen
+    estimator returns
+      alpha_hat(ell) = alpha_0 + log(kappa)/log(ell) + log(u(ell))/log(ell),
+    and the protocol's replica confidence interval has ZERO coverage of the
+    middle term, because kappa is a property of the algorithm and the counter
+    convention and not of the seed. Three consequences, each separately
+    falsifiable:
+      (C-A) THE BIAS. |alpha_hat - alpha_0| >= |log_2 kappa| / b at every cell
+        b = log_2 ell, so one doubling of the counting unit moves the reported
+        exponent by 1/b - which is 0.0625 at the largest sealed cell, larger
+        than any exponent effect the criterion is plausibly asked to resolve.
+      (C-B) THE SCALE-FREE FAILURE. The replica count R at which a Student-t
+        interval on replica alphas first excludes 1/2 for an algorithm whose
+        exponent IS exactly 1/2 satisfies
+        t_{R-1,0.975} * sd(log_2 X) / sqrt(R) < |log_2 kappa + E log_2 X|,
+        an inequality in which b has cancelled. Enlarging the ladder does not
+        help and more replicas make the false exclusion MORE confident. This is
+        the inventor-protocol section 3 artifact tell running in reverse.
+      (C-C) THE NULL FIRES. Matched Pollard rho - exponent exactly 1/2, by
+        theorem, not by measurement - satisfies the protocol's clause
+        primary_CI_entirely_below_1_2 at every ladder cell for which the
+        measured log_2 kappa_rho is negative, at a replica count that is
+        affordable within this goal's budget.
+    THE REPAIR IS PART OF THE CLAIM AND IS PRICED. The two-cell slope estimator
+    alpha_slope = (log_2 C(b2) - log_2 C(b1))/(b2 - b1) cancels kappa
+    identically and returns alpha_0 for any pure power law, at the cost
+    se(alpha_slope) = sqrt(2) * sd(log_2 X) / ((b2-b1) * sqrt(R)); over the
+    sealed span b2-b1 = 8, resolving an effect of 0.05 at two standard errors
+    needs R > 50 * sd(log_2 X)^2 replicas per cell.
+    WHAT THIS HYPOTHESIS DOES NOT CLAIM: that the frozen protocol is invalid as
+    a whole (four of the five clauses of PRED-ALPHA-EXCLUDES-HALF-TOY are
+    untouched and the coordinatewise-dominance clause is convention-robust);
+    that any index-calculus pipeline is better or worse than believed; that
+    GOAL-PATH-001's completion criterion cannot be met, only that the route
+    through the alpha CI needs a different estimator.
+
+  mechanism: >-
+    DERIVED IN THIS RECORD. Nothing is taken from a source that was not opened,
+    and every recalled quantity is labelled.
+
+    STEP 1 - THE ESTIMATOR, QUOTED. The frozen protocol
+    (coordination/goals/GOAL-ICEX-001/batches/BATCH-001/tasks/TASK-20260731-021/
+    ic_exponent_protocol.yaml, READ IN FULL) fixes
+    exponent_definition.per_coordinate_formula as
+      "For each additive cost coordinate c with C_IC[c] > 0 and ell > 1:
+       alpha_coord[c] := log(C_IC[c]) / log(ell)"
+    and confidence_interval_rule as
+      "Across sealed replicas (minimum 3), compute a predeclared CI for
+       alpha_primary (e.g. percentile bootstrap or Student-t on replica
+       alphas)."
+    The estimator is therefore POINTWISE IN ell and the interval is ACROSS SEEDS
+    AT FIXED ell. That reading is the hypothesis's single evidentiary
+    dependency and Stage 0 of EXP-PATH-24be3a exists to confirm it before
+    anything else runs.
+
+    STEP 2 - THE BIAS IDENTITY. Let C(ell) = kappa * ell^{alpha_0} * u(ell).
+    Then log C = log kappa + alpha_0 log ell + log u, so dividing by log ell,
+      alpha_hat(ell) = alpha_0 + log(kappa)/log(ell) + log(u(ell))/log(ell).
+    Base 2 with ell = 2^b gives alpha_hat(b) - alpha_0 = (log_2 kappa +
+    log_2 u)/b. The coefficient 1/b at the sealed cells is 0.1250, 0.1000,
+    0.0833, 0.0625, 0.0500, 0.03125 for b = 8, 10, 12, 16, 20, 32. This is
+    arithmetic and is not a heuristic.
+
+    STEP 3 - THE VARIANCE DECOMPOSITION, WHICH IS WHERE THE CI FAILS. Model the
+    r-th replica at cell b as C_{b,r} = kappa * ell_b^{alpha_0} * X_r with X_r
+    the seed-dependent factor. Then
+      alpha_r = alpha_0 + (log_2 kappa + log_2 X_r) / b,
+      E[alpha_r] = alpha_0 + (log_2 kappa + E log_2 X) / b,
+      Var[alpha_r] = Var(log_2 X) / b^2.
+    A Student-t interval on R replicas has half-width
+    t_{R-1,0.975} * sd(log_2 X) / (b sqrt(R)). Setting the centre's distance
+    from 1/2 against that half-width, for an algorithm with alpha_0 = 1/2:
+      exclusion  <=>  t * sd(log_2 X)/(b sqrt(R)) < |log_2 kappa + E log_2 X| / b
+                 <=>  t * sd(log_2 X)/sqrt(R) < |log_2 kappa + E log_2 X|.
+    b CANCELS. The critical replica count is a property of the algorithm's noise
+    law and its constant, not of the scale. THAT CANCELLATION IS THE CORE OF THE
+    HYPOTHESIS and is the sharpest thing in it to falsify, because it predicts a
+    qualitative invariance rather than a number.
+
+    STEP 4 - INSTANTIATION AT THE NULL. Under the standard random-function
+    heuristic for the rho walk, the iteration count is T = sqrt(ell) * X for a
+    mean-order-one X. With c group operations charged per step,
+    kappa_rho = c * (location constant of X) and alpha_rho(b) = 1/2 +
+    log_2(kappa_rho)/b. TWO TEXTBOOK LOCATION CONSTANTS ARE IN CIRCULATION AND
+    THIS RECORD ASSERTS NEITHER: sqrt(pi/4) = 0.8862 (log_2 = -0.1743) and
+    sqrt(pi/2) = 1.2533 (log_2 = +0.3257). BOTH ARE RECALLED, UNVERIFIED - no
+    source was read for them - and BOTH are measured in the experiment. Nothing
+    in the hypothesis depends on which is right: kappa_rho != 1 under either, so
+    alpha_rho(b) != 1/2 at every finite b. Illustrative values under the first
+    constant at c = 1: 0.4782, 0.4826, 0.4855, 0.4891, 0.4913, 0.4946 at
+    b = 8, 10, 12, 16, 20, 32 - all BELOW 1/2; at c = 2: 0.6032, 0.5826, 0.5688,
+    0.5516, 0.5413, 0.5258 - all ABOVE. Same algorithm, same exponent, opposite
+    verdict, decided by whether the counter charges one or two group operations
+    per walk step, which the protocol does not fix.
+
+    STEP 5 - A THIRD, INDEPENDENT CONVENTION AMBIGUITY. The protocol prescribes
+    a t-interval on REPLICA ALPHAS, i.e. an average of logarithms, so the
+    operative constant is the geometric mean of X. Computing alpha from the mean
+    cost instead uses the arithmetic mean. For a Rayleigh-shaped X these differ
+    substantially (a scratch numerical estimate this session gave
+    E[log_2 X] = 0.0835 and sd(log_2 X) = 0.9254 for Rayleigh(1) - SCOUT-COMPUTED,
+    outside the harness, RE-DERIVE IN-HARNESS BEFORE CITING). The protocol does
+    not fix which reading applies, and the two give different signs of
+    alpha_rho - 1/2 against the sqrt(pi/4) constant.
+
+    STEP 6 - THE REPAIR AND ITS PRICE. alpha_slope = (log_2 C(b2) -
+    log_2 C(b1))/(b2 - b1) is a difference of logarithms of a common factor
+    kappa, so kappa cancels exactly; what remains is alpha_0 + (log_2 u(b2) -
+    log_2 u(b1))/(b2-b1), which vanishes for a pure power law and tends to zero
+    for subpolynomial u as the span grows. With per-cell replica means of
+    standard error sd(log_2 X)/sqrt(R), se(alpha_slope) = sqrt(2) sd(log_2 X) /
+    ((b2-b1) sqrt(R)). Over the sealed span of 8 bits, resolving 0.05 at two
+    standard errors requires sqrt(R) > 7.07 sd(log_2 X), i.e.
+    R > 50 sd(log_2 X)^2. This converts "measure the exponent" into a replica
+    budget the Coordinator can weigh against
+    GOAL-PATH-001.campaign_budget.total_wall_clock_seconds = 86400.
+
+    STEP 7 - WHAT THE OTHER FOUR CLAUSES DO AND DO NOT CATCH.
+    PRED-ALPHA-EXCLUDES-HALF-TOY conjoins the alpha CI with R_gain positivity
+    plus certificates, non-domination of C_IC by C_rho on a predeclared critical
+    set, feed validity, and a claim-boundary echo. Those are admissibility
+    gates: a pipeline can satisfy all four while its alpha is determined by
+    kappa. The one clause that is convention-robust is coordinatewise dominance,
+    because a dominance comparison under identical counter conventions is
+    invariant under a common rescaling of the unit - and the hypothesis's
+    constructive recommendation is that the criterion should lean on that clause
+    rather than on the alpha CI.
+
+  assumptions:
+    - >-
+      THE READING OF THE PROTOCOL. That confidence_interval_rule means an
+      interval over seed replicas at a fixed cell. The verbatim text supports
+      it. If a cross-cell fit was intended, the hypothesis is void as stated and
+      Stage 0 must record that BEFORE any other stage runs.
+    - >-
+      THAT POLLARD RHO'S EXPONENT IS EXACTLY 1/2. Assumed, not measured; it is
+      the fixed reference point that makes a null object possible at all. If a
+      reviewer disputes it, the whole design loses its null and must be rebuilt.
+    - >-
+      THAT THE PROTOCOL'S OWN FIXTURE LADDER AND hard_cap_bits (32) BOUND THE
+      SCALES AT WHICH THE QUESTION IS ASKED. Nothing here is evaluated above
+      b = 32 and nothing may be extrapolated above it.
+    - >-
+      THAT THE RHO IMPLEMENTATION USED AS THE NULL IS A FAITHFUL rho. A broken
+      walk with a different exponent would make the null meaningless, which is
+      why the experiment measures the empirical slope of the rho cost across the
+      ladder and requires it to come out at 1/2 before the null is read.
+
+  proof_search_map:
+    bottleneck: >-
+      The single arrow (charged cost vector at ONE cell) -> (scalar exponent).
+      Every downstream step of the frozen protocol - primary coordinate choice,
+      replica aggregation, t-interval, the five-clause predicate, the
+      Coordinator decision, and GOAL-PATH-001's completion clause 1 - is
+      conditional on that arrow being injective in alpha_0. It is not. Repairing
+      or condemning this one arrow is upstream of the entire Tier-2 aggregation
+      and consumes none of the child goals' budgets.
+    baseline_embedding:
+      parameter_slice: >-
+        kappa = 1 and u == 1, i.e. an algorithm whose charged cost is EXACTLY
+        ell^{alpha_0}. On that slice alpha_hat(ell) = alpha_0 identically at
+        every cell, the frozen estimator is exact, and the protocol's design is
+        correct. This is the exact boundary at which the incumbent estimator
+        reproduces the truth, and the hypothesis is precisely that the boundary
+        is a measure-zero slice no real algorithm occupies.
+      reproduction_check: >-
+        SYMBOLIC, and it is one line: substituting kappa = 1, u == 1 into
+        alpha_hat = alpha_0 + log(kappa)/log(ell) + log(u)/log(ell) gives
+        alpha_0. Additionally a frozen fixture: the synthetic oracle at
+        (alpha_0, kappa) = (0.5, 1) must return alpha_hat = 0.5 at every cell to
+        within the injected noise, at Stage 2, before any biased cell is read. A
+        plot that merely resembles the baseline is not an embedding; this is an
+        exact identity.
+    observation_collision:
+      observable: >-
+        The scalar alpha_hat at one cell, together with its replica CI - i.e.
+        exactly the pair the frozen predicate consumes.
+      distinct_preimage_search: >-
+        THE COLLISION IS CONSTRUCTIBLE, EXACT, AND IS THE WHOLE HYPOTHESIS. Fix
+        b = 16 and a target observable a = 0.45. The following two ground-truth
+        objects produce it identically:
+          OBJECT 1: alpha_0 = 0.45, kappa = 1 - a genuine sub-1/2 exponent.
+          OBJECT 2: alpha_0 = 0.50, kappa = 2^{-0.8} - exponent exactly 1/2,
+            with a constant factor below 1.
+        Both give alpha_hat = 0.45 at b = 16, and with identical seed-noise laws
+        both give identical replica CIs. They lie on OPPOSITE SIDES of the
+        claimed conclusion "the exponent is below 1/2", which is the strongest
+        form of collision inventor-protocol section 8 audit 2 asks for. NO
+        ADDITIONAL CONDITION IN THE FROZEN PROTOCOL SEPARATES THEM: the other
+        four clauses of the predicate are admissibility gates on relations,
+        certificates, dominance and feeds, none of which is a function of kappa
+        versus alpha_0. The slope estimator DOES separate them, and that is the
+        separating condition the repair supplies.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold alpha_hat fixed at a cell and vary the forgotten structure
+          (alpha_0, kappa) along the line alpha_0 + log_2(kappa)/b = const.
+          Search for an intrinsic invariant inside the protocol that
+          distinguishes points on that line.
+        predicted_gain: >-
+          None to any attacker. The gain is the identification of the invariant
+          that DOES distinguish them - the derivative of log C with respect to
+          log ell - which is exactly the slope estimator, so the counterexample
+          search and the repair are the same computation.
+      - transform: representation_reduction
+        proposed_object: >-
+          Move the claim from the model "alpha_hat approximates alpha_0" to the
+          model "log C is affine in log ell with slope alpha_0 and intercept
+          log kappa", where the hypothesis becomes an exact statement about
+          which coefficient a one-point evaluation can identify (the answer:
+          neither, without the other).
+        predicted_gain: >-
+          Turns a vague worry about constants into two coefficients with
+          separate estimators and separate standard errors, and makes the
+          replica budget derivable. Encoding, completeness, soundness, transfer
+          and cost obligations are listed under proof_obligations; the transfer
+          obligation to a real index-calculus cost curve (which need not be
+          affine in log ell at toy scale) is DECLARED UNMET, not deferred.
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER: FORALL algorithms A whose charged cost obeys
+      C = kappa_A ell^{alpha_0(A)} u(ell), FORALL cells b in the sealed ladder,
+      FORALL replica counts R, the frozen estimator's expectation is
+      alpha_0(A) + (log_2 kappa_A + E log_2 X)/b. The witness (the bias) is
+      allowed to depend on A and on b, and DOES; what the hypothesis denies is
+      the uniform conclusion the protocol's predicate needs, namely THERE EXISTS
+      a decision rule on the observable such that FORALL A the rule's verdict
+      agrees with sign(alpha_0(A) - 1/2). The weaker order - FORALL A THERE
+      EXISTS a rule (namely, one told kappa_A in advance) - is trivially
+      satisfiable and is explicitly NOT what the protocol's sealed predicate
+      provides, since the predicate is fixed before the algorithms are.
+      NOTE THE TRAP BEING HUNTED: a bias that is allowed to depend on the
+      instance cannot be removed by a procedure whose only input is a single
+      instance's observable.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: that the frozen single-cell estimator is not identifiable in
+        alpha_0 at b <= 32, with the bias quantified, the replica behaviour of
+        the CI characterised, and one repair priced. It CANNOT certify that toy
+        index calculus does or does not beat rho, cannot move any exponent,
+        cannot bound any solver's cost, cannot establish anything at
+        cryptographic scale, and cannot certify that no single-cell estimator is
+        identifiable (only that this one is not).
+      nearby_object_control: >-
+        THE NEAREST OBJECT ON WHICH THE HOPED-FOR CONCLUSION FAILS IS POLLARD
+        RHO ITSELF, and it is available for free. It is an algorithm of the same
+        shape, on the same curves, at the same cells, under the same counter
+        conventions, whose exponent is 1/2 EXACTLY - so a decision rule claiming
+        to detect "exponent below 1/2" MUST NOT fire on it. If the rule cannot
+        separate rho from a genuinely sub-1/2 pipeline, it has not identified
+        the load-bearing structure. A SECOND nearby object is BSGS, whose
+        exponent is also 1/2 but whose kappa and whose memory coordinate are
+        entirely different, giving an independent check that the bias tracks
+        kappa rather than the algorithm's identity. Both are required arms.
+    proof_obligations:
+      - claim: alpha_hat = alpha_0 + log(kappa)/log(ell) + log(u)/log(ell).
+        responsibility: correctness
+      - claim: kappa is seed-independent, hence contributes zero CI width.
+        responsibility: correctness
+      - claim: The critical replica count R* is independent of b.
+        responsibility: strictness
+      - claim: kappa = 1, u == 1 reproduces the incumbent estimator exactly.
+        responsibility: baseline
+      - claim: alpha_slope recovers planted alpha_0 for every planted kappa.
+        responsibility: feasibility
+      - claim: se(alpha_slope) = sqrt(2) sd(log_2 X)/((b2-b1) sqrt(R)).
+        responsibility: success_probability
+      - claim: Pollard rho's exponent is 1/2 and its implementation is faithful.
+        responsibility: interface
+      - claim: Nothing here transfers above b = 32 or to any ECDLP cost claim.
+        responsibility: scope
+    not_applicable_reason: null
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    DELIBERATELY NULL. There is no complexity claim of any kind. This is an
+    IDENTIFIABILITY AUDIT OF A MEASUREMENT INSTRUMENT. It makes no algorithm
+    faster, moves no exponent, and adds no attack. Pollard rho remains the ECDLP
+    baseline and sota_delta is zero on every attack axis - time, memory, data,
+    queries, advice, preprocessing. dominated_by is not applicable because no
+    Pareto point is claimed.
+
+  heuristic_assumptions:
+    - id: HEUR-EST-1
+      formal_statement: >-
+        FORALL algorithms A in the tested set, FORALL cells b in the sealed
+        ladder, and FORALL replicas r, the charged cost factorises as
+        C_{A,b,r} = kappa_A * ell_b^{alpha_0(A)} * X_r with X_r independent of
+        b and identically distributed across r.
+      random_model_justification: >-
+        The multiplicative form is the standard model for a randomised search
+        whose running time is a scale-free random multiple of its expectation,
+        and for rho it follows from the walk length being sqrt(ell) times a
+        distributional limit. IT IS NOT JUSTIFIED FOR AN INDEX-CALCULUS COST,
+        where the noise mixes a discrete relation count with a continuous solver
+        time, and this record does not pretend otherwise.
+      supporting_results: []
+      validation_experiment_ids: [EXP-PATH-24be3a]
+      falsification_condition: >-
+        The measured sd(log_2 X) for real rho depends on b across the ladder, or
+        the measured cost distribution is not scale-free. Then R* will not be
+        b-invariant, prediction 3 fails, and the clean formula for the replica
+        budget is void. WHAT SURVIVES WITHOUT HEUR-EST-1 is the weaker and still
+        sufficient statement that kappa is not seed-dependent, hence contributes
+        zero CI width regardless of the noise law.
+    - id: HEUR-EST-2
+      formal_statement: >-
+        The seed-dependent factor X for Pollard rho on a prime-order subgroup
+        converges, as ell grows, to a fixed distribution with finite
+        E[log_2 X] and sd(log_2 X), and in particular is not heavy-tailed in
+        log.
+      random_model_justification: >-
+        The random-function heuristic for an r-adding walk gives a Rayleigh-type
+        limit for T/sqrt(ell). RECALLED, UNVERIFIED - no source was read. The
+        scratch values E[log_2 X] = 0.0835, sd(log_2 X) = 0.9254 for Rayleigh(1)
+        are SCOUT-COMPUTED outside the harness and must be re-derived in-harness.
+      supporting_results: []
+      validation_experiment_ids: [EXP-PATH-24be3a]
+      falsification_condition: >-
+        The measured E[log_2 X] and sd(log_2 X) drift systematically with b, or
+        the empirical distribution of log_2 X is not stable across the ladder.
+        The replica-budget formula is then a description of one cell rather than
+        a law.
+    - id: HEUR-EST-3
+      formal_statement: >-
+        Over the sealed ladder b <= 32 the cost of the algorithms under test is
+        approximately a pure power law, i.e. log_2 u(b)/b is negligible against
+        log_2 kappa / b.
+      random_model_justification: >-
+        NONE, AND THIS IS THE WEAKEST LINK IN THE RECORD. At b <= 16 an
+        index-calculus cost is not plausibly asymptotic, and u may be neither
+        subpolynomial nor slowly varying over that range. THE HONEST READING IS
+        THAT THIS CUTS BOTH WAYS AND CUTS THE REPAIR HARDER: if the cost is not
+        a power law at toy scale, the slope estimator is also not measuring an
+        exponent, and the correct conclusion is that NEITHER estimator resolves
+        alpha_0 at these scales - a stronger form of the same finding, and one
+        that must be reported as limiting the proposed repair, not only the
+        incumbent.
+      supporting_results: []
+      validation_experiment_ids: [EXP-PATH-24be3a]
+      falsification_condition: >-
+        The measured log_2 C for real rho is not affine in b across the ladder
+        to within replicate error. Then the power-law model fails for the ONE
+        algorithm where it should hold best, and no claim about index-calculus
+        cost curves may be made at all.
+
+  structural_ingredients:
+    - description: >-
+        Logarithm of a product; the exact cancellation of a common factor in a
+        difference of logarithms.
+      citation: >-
+        Elementary; derived in this record. No citation is asserted and none is
+        needed.
+      role: the bias identity and the slope estimator's unbiasedness
+    - description: >-
+        Student-t interval on R independent observations; its half-width scaling
+        as t_{R-1,0.975}/sqrt(R).
+      citation: >-
+        Standard; the protocol names the method itself
+        (confidence_interval_rule, READ). No external citation is asserted.
+      role: the CI half-width and the b-cancellation in the critical replica count
+    - description: >-
+        Random-function heuristic for the Pollard rho walk length and its
+        distributional limit.
+      citation: >-
+        NOT RETRIEVED AND NOT VERIFIED. RECALLED, UNVERIFIED. It is a CANDIDATE
+        TO TEST, never an authority, and the experiment measures the location
+        and dispersion constants rather than importing them.
+      role: instantiating the null object's kappa and noise law
+
+  reduction_chain:
+    core_problem: >-
+      Decide whether the frozen single-cell exponent estimator identifies
+      alpha_0 at the sealed toy scales, and if not, quantify the bias and price
+      a repair.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY. There is no reduction from this instrument question to
+      any statement about ECDLP hardness, about index-calculus feasibility, or
+      about any curve. A confirmed finding changes how a decision would be made;
+      it does not change what is true about the ECDLP, and any citation toward a
+      hardness statement must carry that gap explicitly.
+
+  predictions:
+    - metric: >-
+        alpha_hat_pointwise minus planted alpha_0 on the synthetic oracle, per
+        cell b in {8,10,12,16,20,32}
+      direction: different
+      minimum_effect: >-
+        EXACTLY log_2(kappa)/b to within injected noise. For kappa = 2^{-8}:
+        -1.0000, -0.8000, -0.6667, -0.5000, -0.4000, -0.2500. A departure
+        falsifies the core identity at seconds of compute.
+    - metric: alpha_slope on the same synthetic data
+      direction: different
+      minimum_effect: >-
+        EXACTLY the planted alpha_0 for every planted kappa, within
+        sqrt(2) sd(log_2 X)/((b2-b1) sqrt(R)). POSITIVE CONTROL - failure here
+        forbids reporting any negative about the incumbent.
+    - metric: >-
+        critical replica count R*(b) at which the t-CI on rho first excludes 1/2
+      direction: different
+      minimum_effect: >-
+        b-INVARIANT within replicate scatter; max(R*)/min(R*) <= 4 across the
+        ladder. A qualitative forced value, not a number.
+    - metric: >-
+        sign of (alpha_rho_hat - 1/2) at c = 1 versus c = 2 charged group
+        operations per walk step
+      direction: different
+      minimum_effect: >-
+        OPPOSITE at every cell under the measured kappa_rho, if that kappa_rho
+        is below 1. If it is above 1, both charges give the same sign, the
+        sign-flip demonstration fails, and the record says so.
+    - metric: >-
+        measured log_2 C for real rho regressed on b across the ladder
+      direction: different
+      minimum_effect: >-
+        Slope 0.500 +/- 0.02. This is HEUR-EST-3's test on the one algorithm
+        where the power law must hold. A slope outside that band means the
+        instrument cannot even confirm rho's known exponent and everything else
+        is void.
+    - metric: >-
+        CI half-width and exclusion verdict as R sweeps {3,10,30,100,300,1000}
+        at a fixed cell on real rho
+      direction: lower
+      minimum_effect: >-
+        Half-width falling as 1/sqrt(R) while the centre moves by less than 20
+        per cent of its distance from 1/2. The exclusion verdict must therefore
+        become MORE confident with more data - the artifact tell stated as a
+        measurement.
+
+  test_boundary:
+    instances:
+      - >-
+        Synthetic cost oracle with planted (alpha_0, kappa) and a declared
+        multiplicative noise law. No curve, no group, no algorithm.
+      - >-
+        Real Pollard rho on deterministic toy prime-field short-Weierstrass
+        curves with prime-order subgroups, one curve per bit size.
+      - >-
+        Real BSGS on the same fixtures, as the second nearby object.
+      - >-
+        NO index-calculus pipeline is built, run, or evaluated. NO ICEX fixture
+        is materialised. NO SDEG, RELN or MONO feed is consumed. This
+        experiment does NOT execute GOAL-ICEX-001 and does not touch its
+        non-execution pin.
+    parameters:
+      field_bits: [8, 10, 12, 16, 20, 32]
+      planted_alpha_0: [0.34, 0.40, 0.45, 0.50, 0.55]
+      planted_log2_kappa: [-8, -2, 0, 2, 8]
+      replica_sweep: [3, 10, 30, 100, 300, 1000]
+      charged_ops_per_walk_step: [1, 2]
+      primary_coordinate: group_operations_add_dbl_mixed_add
+      secondary_coordinates: [memory_words, cpu_time_ns]
+    implementation: >-
+      Pure Python integer arithmetic. Prime-field curve arithmetic implemented
+      directly; no Sage, no Groebner engine, no solver. MEASURED THIS SESSION IN
+      THIS CONTAINER: `import numpy` SUCCEEDS at version 2.4.6; `import sage`
+      FAILS with ModuleNotFoundError, so src/ic_first_fall_fast.py does not
+      load. numpy is optional here and the contract must run without it.
+    budget:
+      stage0_wall_clock_seconds: 1800
+      stage1_wall_clock_seconds: 3600
+      stage2_wall_clock_seconds: 300
+      stage3_wall_clock_seconds: 3600
+      maximum_memory_gb: 2
+
+  falsification_conditions:
+    - >-
+      F1 (ZERO COMPUTE, PRIMARY): Stage 0 finds the frozen protocol specifies a
+      cross-cell fit rather than a pointwise evaluation. The hypothesis is void
+      as stated and the batch records that.
+    - >-
+      F2: the synthetic deviation is not log_2(kappa)/b. The core identity is
+      wrong; withdraw by superseding record.
+    - >-
+      F3: real rho's alpha_hat CI contains 1/2 at every cell at every replica
+      count up to 1000. The bias is empirically negligible at the sealed scales
+      and (C-C) fails, though (C-A) may still hold as algebra.
+    - >-
+      F4: R*(b) falls sharply with b. The b-cancellation is wrong, extending the
+      ladder does fix the problem, and the recommendation changes from "replace
+      the estimator" to "extend the ladder".
+    - >-
+      F5 (POSITIVE CONTROL): alpha_slope fails to recover a planted alpha_0, or
+      real rho's measured slope is outside 0.500 +/- 0.02. The instrument is
+      broken and NO negative result may be reported at all.
+    - >-
+      F6 (NOT A FALSIFICATION, PRE-REGISTERED BEFORE THE RUN): if the toy-range
+      cost of real rho is not affine in b, the honest reading is FIRST that the
+      power-law model does not apply at these scales - which limits the proposed
+      repair at least as much as the incumbent - and only SECOND that the
+      incumbent is biased. This reading is fixed here and may not be selected
+      after seeing the result.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER toy, and no downstream citation may raise it. Everything
+      measured happens at b <= 32.
+    - >-
+      INSTRUMENT FINDING, NOT MECHANISM FINDING. Nothing here supports or
+      weakens any hypothesis about index calculus, Semaev decomposition,
+      relation supply, or ECDLP hardness. It is about the ESTIMATOR.
+    - >-
+      NO STATUS CHANGE to the ICEX protocol, EV-ICEX-001, GOAL-ICEX-001 or
+      GOAL-PATH-001 is proposed or implied (AGENTS.md rule 1). The frozen
+      protocol is immutable; a confirmed defect is carried by a NEW protocol
+      version, never by an edit.
+    - >-
+      THIS EXPERIMENT DOES NOT EXECUTE GOAL-ICEX-001. It materialises no
+      fixture, consumes no feed, and mints no alpha for any index-calculus
+      pipeline. GOAL-ICEX-001's "NO ICEX MEASUREMENT AUTHORIZED" pin is
+      untouched.
+    - >-
+      FOUR OF THE FIVE CLAUSES OF PRED-ALPHA-EXCLUDES-HALF-TOY ARE NOT
+      CHALLENGED, and the protocol's coordinatewise-dominance clause is
+      identified as the convention-robust one. A confirmed finding argues for
+      re-weighting the criterion, not for discarding the protocol.
+    - >-
+      FORWARD GUIDANCE, MANDATORY AND GIVEN: what remains open either way is
+      (i) whether the slope estimator's replica budget fits inside 86400
+      seconds, (ii) whether dominance alone can carry completion clause 1, and
+      (iii) whether a criterion phrased on the ratio C_IC/C_rho at matched
+      cells - where kappa does not cancel but is at least charged symmetrically
+      - is better conditioned than either estimator.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260805-bb4488.yaml
+    - ledger/questions/RQ-ICEX-001.yaml
+    - ledger/goals/GOAL-PATH-001.yaml
+    - ledger/goals/GOAL-ICEX-001.yaml
+    - ledger/evidence/EV-ICEX-001.yaml
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-001/tasks/TASK-20260731-021/ic_exponent_protocol.yaml
+    - docs/inventor-protocol.md
+    - docs/target-result-profile.md
+    - docs/claims-and-verification.md
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml. Recorded, never silently substituted
+      (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; no
+      `python3 -m orchestration.adapter doctor --probe` was run.
