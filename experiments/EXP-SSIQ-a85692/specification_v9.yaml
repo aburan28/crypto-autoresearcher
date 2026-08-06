@@ -105,9 +105,12 @@ experiment:
     pessimistic case, though in practice some are expected to resolve
     quickly, per two_sided_search's own best-first table-growth design),
     total PART A search time is 194 * 0.5 = 97.0 seconds -- roughly 30x
-    SMALLER than v8's own worst-case 2910s bound, and roughly 37x smaller
-    than v8's own actual measured PART A time (277.85s at 15.0s/vertex).
-    Graph reconstruction (~1-2s, per every prior amendment's own measured
+    SMALLER than v8's own worst-case 2910s bound, and roughly 2.9x smaller
+    than v8's own actual measured PART A time (277.85s at 15.0s/vertex;
+    277.85/97.0 = 2.864). PF-2 FIX APPLIED (round 1 pre-freeze review,
+    advisory: the original text here read "roughly 37x smaller," an
+    arithmetic error -- corrected). Graph reconstruction (~1-2s, per every
+    prior amendment's own measured
     figures for this prime's size) is negligible against this bound. This
     amendment's total budget (see budget: below) is sized with generous
     margin over the 97.0s worst-case bound, not tightly to it.
@@ -120,10 +123,68 @@ experiment:
     (well under 120s) is far below the empirically documented ~60-65-minute
     infrastructure kill window, costing nothing in the common case.
   pre_freeze_review:
-    status: pending
-    report: null
-    verdict: null
-    findings_applied: []
+    status: REVIEWED
+    report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-012/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v9.md
+    verdict: >-
+      Round 1: DO-NOT-FREEZE. The core experimental design (isolate
+      budget-truncation as the sole manipulated variable by reusing v8's
+      exact BASE_SEED and per-vertex seed formula) was confirmed sound on
+      direct code trace, the 97.0s worst-case bound and 600s/~6.19x total
+      budget margin were independently re-verified correct, and PART A's
+      comparison design was found to correctly avoid the full-coverage-
+      assumption crash shape that produced v8's PF-1/PF-9. One blocking
+      finding, directly demonstrated against the actual committed
+      RUN-SSIQ-a85692-h artifacts, not merely inferred from spec prose:
+      PF-1, REQUIRED COMPARISON 2 named a source file
+      (raw-result.json) that does not contain new_delta_map at all, and
+      the field's actual location (probe_delta_e_comparison.json) uses a
+      string-keyed format the one genuinely-imported candidate parsing
+      function (load_archived_prime_data) cannot handle -- a live
+      crash-before-artifact-write path (KeyError, directly reproduced) and
+      a live silent-vacuous-comparison path. Fixed below by correcting the
+      source-file citation and adding an explicit, disclosed parsing
+      helper. Three further advisory findings applied in the same pass
+      (PF-2: two wrong "Nx smaller" decorative arithmetic citations,
+      corrected to ~2.9x; PF-3: a reproducibility caveat on exact
+      per-vertex resolved/timed-out counts across hardware; PF-4: the
+      per-vertex budget is a soft, not hard, cap).
+    findings_applied: [PF-1, PF-2, PF-3, PF-4]
+    pf1_summary: >-
+      BLOCKING (round 1). REQUIRED COMPARISON 2 cited "raw-result.json or
+      probe_delta_e_comparison.json" as its source, but RUN-SSIQ-a85692-h's
+      raw-result.json has no new_delta_map field at any level (confirmed
+      by direct read of all 24 top-level keys); the field exists only in
+      probe_delta_e_comparison.json, string-keyed (str(list(v))), not
+      tuple-keyed. load_archived_prime_data, the one genuinely-imported
+      candidate for the needed string-to-tuple round-trip, is hard-wired
+      to a different schema (data["phase_minus1_real_search"][str(prime)]
+      ["delta_map"]) present only in RUN-SSIQ-a85692-b's file -- calling
+      it against RUN-SSIQ-a85692-h's file raises KeyError immediately
+      (directly reproduced). Fixed by citing only
+      probe_delta_e_comparison.json and adding an explicit, disclosed
+      parse_v8_new_delta_map helper performing the tuple(json.loads(key))
+      round-trip plus a collision/injectivity check, matching
+      load_archived_prime_data's own convention but applied to the
+      correct file and schema.
+    pf2_summary: >-
+      ADVISORY (round 1), applied. Two decorative "Nx smaller than v8"
+      wall-clock comparisons were arithmetically wrong ("37x", "6x");
+      corrected to the actual figure, ~2.9x, in both places. The
+      safety-critical 600s-vs-97.0s (~6.19x) margin these sat beside was
+      independently re-verified correct and unaffected by either error.
+    pf3_summary: >-
+      ADVISORY (round 1), applied. Disclosed explicitly that exact
+      per-vertex resolved/timed-out counts under this amendment's 0.5s
+      budget are not bit-for-bit reproducible across different hardware,
+      since where the wall-clock cutoff lands (not just the pinned RNG
+      seed) depends on real machine speed/load -- unlike v8's own 15.0s
+      run, whose 8x margin over the slowest observed vertex made this
+      immaterial.
+    pf4_summary: >-
+      ADVISORY (round 1), minor, applied. Disclosed that
+      PER_VERTEX_BUDGET_SECONDS is a soft cap (checked only between
+      heap-pop iterations), not a hard one, consistent with v8's identical
+      mechanism at a larger margin.
   inputs:
     truncation_probe_search_v9: >-
       PART A ONLY. A new module,
@@ -173,13 +234,44 @@ experiment:
       REQUIRED COMPARISON 2, AGAINST RUN-SSIQ-a85692-h's OWN new_delta_map
       (a SECOND, ZERO-EXTRA-COST comparison unique to this amendment,
       enabled by reusing v8's identical BASE_SEED and per-vertex seed
-      formula): load RUN-SSIQ-a85692-h's own raw-result.json or
-      probe_delta_e_comparison.json new_delta_map field (READ ONLY, not
-      modified). For every vertex resolved in THIS run, compare its
-      delta_e_upper_bound against v8's own value for the IDENTICAL vertex
-      under the IDENTICAL per-vertex RNG seed but a 30x LARGER budget
-      (15.0s vs. 0.5s). Report, in aggregate, over the vertices resolved
-      THIS run: n_value_matches_vs_v8, n_value_differs_vs_v8 (with the same
+      formula). PF-1 FIX APPLIED (round 1 pre-freeze review, BLOCKING: the
+      original text cited "raw-result.json or probe_delta_e_comparison.json"
+      as the source, but RUN-SSIQ-a85692-h's raw-result.json does NOT
+      contain a new_delta_map field at all -- confirmed by direct read of
+      all 24 of its top-level keys; the field exists ONLY in
+      probe_delta_e_comparison.json, and there its keys are
+      str(list(v))-serialized JSON STRINGS, e.g. "[1031, 1095]", never
+      vertex tuples. trapping_diagnostic_v5.load_archived_prime_data --
+      the one genuinely-imported function that performs a
+      string-key-to-tuple round-trip -- is hard-wired to a DIFFERENT
+      schema, data["phase_minus1_real_search"][str(prime)]["delta_map"],
+      which exists in RUN-SSIQ-a85692-b's file but is CONFIRMED ABSENT from
+      every RUN-SSIQ-a85692-h file; calling it against RUN-SSIQ-a85692-h's
+      file raises KeyError: 'phase_minus1_real_search' immediately. CITED,
+      CORRECTED: load ONLY
+      experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-h/probe_delta_e_comparison.json
+      (READ ONLY, not modified) -- NOT raw-result.json, which lacks this
+      field entirely. REQUIRED NEW PARSING STEP, STATED EXPLICITLY, an
+      "(ii) AUTHORIZED, DISCLOSED DUPLICATE" of
+      load_archived_prime_data's own string-to-tuple convention (that
+      function itself cannot be reused here -- different source schema):
+      read the file's top-level new_delta_map object directly (a JSON
+      object of string keys to integer values, NOT nested under
+      phase_minus1_real_search), and for every key, apply
+      tuple(json.loads(key)) to recover the vertex tuple -- e.g.
+      json.loads("[1031, 1095]") == [1031, 1095], then tuple(...) ==
+      (1031, 1095). Perform the SAME collision/injectivity check
+      load_archived_prime_data itself performs (assert the parsed-tuple
+      keyset has the same cardinality as the raw string keyset, i.e. no
+      two distinct string keys parse to the same tuple; raise loudly if
+      not) so a future schema drift fails loudly rather than silently.
+      Only after this parsing step produces a genuine
+      {vertex_tuple: delta_e_value} dict may Comparison 2 proceed. For
+      every vertex resolved in THIS run, compare its delta_e_upper_bound
+      against v8's own PARSED value for the IDENTICAL vertex under the
+      IDENTICAL per-vertex RNG seed but a 30x LARGER budget (15.0s vs.
+      0.5s). Report, in aggregate, over the vertices resolved THIS run:
+      n_value_matches_vs_v8, n_value_differs_vs_v8 (with the same
       full-triple-list convention). THIS COMPARISON ISOLATES A PURE
       TRUNCATION EFFECT, INDEPENDENT OF RNG CHOICE ENTIRELY: since the RNG
       stream is byte-for-byte identical between this run and v8 for every
@@ -224,7 +316,16 @@ experiment:
     EXPLICIT, CODE-VERIFIED FUNCTION-LEVEL DIFF, per GD-9/GD-10's standing
     repair:
       NEW: experiments/EXP-SSIQ-a85692/implementation/delta_e_truncation_probe_v9.py
-      -- defines run_truncation_probe_v9 (PART A only, no PART B driver).
+      -- defines run_truncation_probe_v9 (PART A only, no PART B driver),
+      PLUS a small new helper, parse_v8_new_delta_map(path), an "(ii)
+      AUTHORIZED, DISCLOSED DUPLICATE" of load_archived_prime_data's own
+      string-to-tuple parsing convention (PF-1 FIX APPLIED, round 1
+      pre-freeze review, BLOCKING: load_archived_prime_data itself cannot
+      be reused for RUN-SSIQ-a85692-h's probe_delta_e_comparison.json --
+      different source schema, confirmed by direct read -- so this new,
+      small, explicitly disclosed duplicate performs the identical
+      tuple(json.loads(key)) round-trip plus the identical collision/
+      injectivity check, against the correct file and top-level field).
       GENUINELY IMPORTS, UNCHANGED: compute_delta_e.two_sided_search,
       compute_delta_e.L_PRIMES, compute_delta_e.X_LIST_BOUND;
       trapping_diagnostic_v5.build_graph_for_prime,
@@ -249,7 +350,9 @@ experiment:
       NOT RE-RUN, READ ONLY: RUN-SSIQ-a85692-a through -h and every
       already-archived value stay exactly as committed; this amendment
       reads RUN-SSIQ-a85692-b's raw-result.json (delta_map for p=2437) and
-      RUN-SSIQ-a85692-h's own new_delta_map, for the two required
+      RUN-SSIQ-a85692-h's own probe_delta_e_comparison.json new_delta_map
+      field (PF-1 FIX APPLIED: NOT raw-result.json, which lacks this
+      field), for the two required
       comparisons, but does not modify either.
     New run id RUN-SSIQ-a85692-i. The Executor's own execution_report.yaml
     must confirm this diff list against the code it actually wrote/ran, and
@@ -267,7 +370,33 @@ experiment:
       worst-case bound, generous margin for graph-rebuild overhead and
       per-vertex bookkeeping while remaining bounded and pre-registered,
       not open-ended. Roughly 30x smaller than v8's own worst-case 2910s
-      bound and 6x smaller than v8's own actual measured wall-clock
-      (278.5s).
+      bound and roughly 2.9x smaller than v8's own actual measured
+      wall-clock (278.5s; 278.5/97.0 = 2.871). PF-2 FIX APPLIED (round 1
+      pre-freeze review, advisory: the original text here read "6x
+      smaller," an arithmetic error against the actual-wall-clock figure
+      cited beside it -- corrected).
+      PF-3 FIX APPLIED (round 1 pre-freeze review, advisory): exact
+      per-vertex resolved/timed-out counts under this 0.5s budget are NOT
+      bit-for-bit reproducible across different hardware, unlike v8's own
+      15.0s run (an 8x margin over the slowest observed vertex, which made
+      it effectively immune to this) -- the per-vertex RNG draw SEQUENCE
+      is pinned and deterministic (see amendment_scope's seed-isolation
+      argument), but WHERE in wall-clock time the 0.5s cutoff actually
+      lands for a given vertex depends on real machine speed/load, not
+      only the seed. A re-run of this amendment on different hardware may
+      report a different n_resolved/n_timed_out split even with
+      byte-identical RNG draws; this is disclosed here rather than
+      assumed away.
+      PF-4 FIX APPLIED (round 1 pre-freeze review, advisory, minor): the
+      0.5s PER_VERTEX_BUDGET_SECONDS is a SOFT cap, not a hard one --
+      two_sided_search's timeout check fires only between heap-pop
+      iterations (compute_delta_e.py's build_smooth_table loop), never
+      mid-call, so a single expensive phi_ell evaluation could in
+      principle push one vertex's wall time somewhat past 0.5s. This is
+      the identical mechanism v8's own 15.0s budget relied on, where an
+      ~8x margin over the slowest observed vertex made the distinction
+      immaterial; at this amendment's own tighter budget the distinction
+      is disclosed explicitly, though the aggregate 600s/97.0s (~6.19x)
+      margin makes it very unlikely to threaten the wall-clock cap.
   frozen_at: null
   freeze_note: null
