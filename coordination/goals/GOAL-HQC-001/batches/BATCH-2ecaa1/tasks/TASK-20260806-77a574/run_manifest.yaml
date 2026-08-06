@@ -1,0 +1,258 @@
+run_manifest:
+  task_id: TASK-20260806-77a574
+  role: executor
+  goal: GOAL-HQC-001
+  batch: BATCH-2ecaa1
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  authorizing_decision: DEC-20260806-1ac8fa
+  claim_tier: toy
+
+  scope_statement: >-
+    PILOT ONLY. One parameter set (PS-R3), one defect class (V3,
+    last-block-window-read-early), one injection point (decode_blocks's
+    block window, last block only), 5,000 defect-injected trials paired
+    with 5,000 undefected control trials. NOT the full T_req=3.09e5 run.
+    Nothing here is a statement about HQC, A17, A5, any decoding-failure
+    rate, or any standardized parameter set.
+
+  the_authorized_run:
+    command: >-
+      PYTHONDONTWRITEBYTECODE=1 python3 pilot_injection.py --out-dir .
+    working_directory: coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574
+    exit_code: 0
+    stdout_log: stdout.log
+    stderr_log: stderr.log
+    stderr_empty: true
+    started_at_utc: '2026-08-06T19:24:16Z'
+    finished_at_utc: '2026-08-06T19:24:21Z'
+    runs_authorized: 1
+    runs_used: 1
+
+  uncharged_prior_shakedown:
+    ran: true
+    where: session scratch space (not committed, not a deliverable), out-of-tree
+    what: >-
+      The identical pilot_injection.py, with identical constants (same shard
+      indices 5000/6000, same trial counts), run once to catch
+      implementation bugs before spending the single authorized run. Because
+      the shard indices and seed derivation are identical, this shakedown's
+      log2_Ahat_k values are bit-identical to the authorized run's values
+      (verified directly, field by field, at k=17: -1.0857050120231229 in
+      both) -- this is expected and recorded as a determinism confirmation
+      (the same property CTRL-REPLAY / D5 in stage_a.py itself depends on),
+      not as a second independent measurement. The authorized run's own
+      timing (cpu_seconds) differs slightly from the shakedown's, as
+      expected for wall-clock/CPU-scheduling noise between two separate
+      process invocations of the same deterministic computation.
+    py_compile_check: >-
+      python3 -m py_compile pilot_injection.py, passed, before either
+      invocation.
+
+  git:
+    commit: edaf49466e0cbc4a1d398d787f221923885552bb
+    branch: claude/hqc-experiments-6unh3p
+    dirty_at_run_time: true
+    dirty_paths:
+      - '?? coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/'
+    dirty_note: >-
+      Sole untracked entry is this task's own not-yet-committed output
+      directory -- benign and expected pre-snapshot, identical pattern to
+      every prior task in this campaign's run_manifest.yaml files (e.g.
+      TASK-20260806-77443e's validation_report.yaml records the same thing).
+      The repository tree at the start of this task (before this task's own
+      directory was created) was clean (git status --porcelain returned
+      nothing).
+
+  environment:
+    python: 3.11.15 (main, Mar  3 2026, 09:26:23) [GCC 13.3.0]
+    python_executable: /usr/local/bin/python3
+    platform: Linux-6.18.5-fc-v18-x86_64-with-glibc2.39
+    machine: x86_64
+    numpy: 2.4.6
+    cpu_count: 4
+    affinity: 4
+    third_party_used: [numpy]
+
+  reused_inputs:
+    - path: coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py
+      sha256_expected: 06a0a618432c00fe26c72ecf05a8d89489db61c5183931fdb76a378717681405
+      sha256_actual: 06a0a618432c00fe26c72ecf05a8d89489db61c5183931fdb76a378717681405
+      match: true
+      loaded: importlib.util, read-only, fail-closed on mismatch
+      reused_symbols:
+        - PARAM_SETS (PS-R3 entry)
+        - decode_blocks (called UNMODIFIED, wrapped not edited)
+        - _t_shard (called directly, unmodified; resolves `decode_blocks`
+          via its own module globals at call time, which is how the
+          injection is applied without editing stage_a.py's source)
+        - hist_of, batch_hists, evaluable_k, N_JACK_BATCHES,
+          T_STAB_THRESHOLD, sha_key (indirectly, via _t_shard's own internals)
+      modified_on_disk: false
+    - path: coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py
+      sha256_expected: a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e67465b24f5dc8
+      sha256_actual: a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e67465b24f5dc8
+      match: true
+      loaded: importlib.util, read-only, fail-closed on mismatch
+      reused_symbols: [comb_matrix, log2_A_from_hists]
+      modified_on_disk: false
+  hash_pins_identical_to: >-
+    Both sha256 pins are identical to the values V1/V2/V3 and the
+    cost-model task (TASK-20260806-77443e) independently verified for the
+    same two files, confirmed unchanged throughout this campaign.
+
+  seeds_and_randomness:
+    prng: >-
+      SHA-256 counter mode (stage_a.py's own CTRStream), unmodified. Key
+      derivation is stage_a.py's own sha_key(ps_id, "T", shard, MASTER_SEED),
+      called internally by the unmodified _t_shard -- this task supplies
+      only the shard index, not a new derivation scheme.
+    master_seed: 20260804 (stage_a.py's own MASTER_SEED, unmodified, reused)
+    shard_defected: 5000
+    shard_undefected: 6000
+    shard_warmup_defected: 4900
+    shard_warmup_undefected: 4901
+    shards_disjoint_from_prior_committed_usage: >-
+      Confirmed by reading every committed reference to _t_shard()/shard
+      indices at PS-R3 found in this task's read scope: Stage-A used shards
+      0-3 (per-core) and 900 (calibration); the cost-model benchmark used
+      shard 999; measure.py's T=1e7 production run used shards 1000-1007.
+      5000/6000/4900/4901 do not collide with any of these.
+    injection_invariant_selftest_prng: numpy default_rng(12345), synthetic
+      4x(n_e*n_2) bit array, no real pipeline draws consumed.
+    only_source_of_randomness: the above; no other randomness is used
+      anywhere in pilot_injection.py.
+
+  budget:
+    core_seconds_authorized: 400.0
+    core_seconds_spent: 5.339
+    wall_seconds_authorized: 2700.0
+    wall_seconds_spent: 5.232
+    within_budget: true
+    memory_gb_authorized: 2
+    peak_memory_observed: not separately instrumented; process footprint at
+      5,000-10,000 trials of (56, 7168)-shaped uint8/int arrays is on the
+      order of low tens of MB, far under the 2 GB authorization.
+    cores_used: 1 (no multiprocessing -- _t_shard called directly, single
+      process; trial counts are small enough that multiprocessing overhead
+      would exceed the benefit, and single-process execution avoids any
+      fork/spawn ambiguity in propagating the module-level decode_blocks
+      monkey-patch to worker processes)
+
+  fail_closed_checks:
+    - name: stage_a.py sha256 integrity
+      reads: STAGE_A_PY_EXPECTED_SHA256 (module constant) vs sha256_file(STAGE_A_PY)
+      aborts_on_mismatch: true
+      verified_by: >-
+        deliberate-mismatch dry run inside the authorized run itself
+        (selftest_fail_closed_sha_mismatch(), executed automatically before
+        any real module load), NOT by editing-then-reverting the committed
+        constant (the V1-V3 convention) -- this calls the identical
+        load_module() function with a deliberately wrong expected-hash
+        argument, so the committed pinned constant is never touched, not
+        even transiently. See pilot_results.json.fail_closed_selftests.sha256_pin_mismatch.
+      fired_in_authorized_run: false (the REAL load, with the correct pin,
+        succeeded; only the deliberate-mismatch selftest call fired, as
+        intended)
+    - name: measure.py sha256 integrity
+      reads: MEASURE_PY_EXPECTED_SHA256 (module constant) vs sha256_file(MEASURE_PY)
+      aborts_on_mismatch: true
+      verified_by: same mechanism/function as stage_a.py's check above
+        (load_module() is shared code); not separately dry-run against
+        measure.py specifically, since it is the identical function and
+        the stage_a.py dry run already demonstrates the mechanism aborts
+        on a real mismatch.
+      fired_in_authorized_run: false
+    - name: injection invariant (design.md Section 3)
+      reads: perturbed last-block bit window vs the pre-registered
+        shift-by-1 construction, checked on every defected decode_blocks
+        call (i.e. every trial batch)
+      aborts_on_mismatch: true
+      verified_by: >-
+        deliberate-mismatch dry run
+        (selftest_injection_invariant_fail(), executed automatically
+        inside the authorized run before any real trial data is
+        generated): constructs a wrapper whose actual shift is 2 bit
+        positions while its invariant check still asserts shift-by-1,
+        confirms SystemExit. See
+        pilot_results.json.fail_closed_selftests.injection_invariant_mismatch.
+      fired_in_authorized_run: false (the real injection, correctly
+        constructed, never violated its own invariant; only the
+        deliberate-mismatch selftest fired, as intended)
+  both_selftests_gate_the_run: >-
+    main() raises SystemExit(FAILED_IMPLEMENTATION) immediately if either
+    selftest's verdict is not PASS, before the real module load (sha256
+    selftest) or before the real injection wrapper is used (injection
+    invariant selftest) -- exercised live in the authorized run, not
+    merely asserted.
+
+  results_determinism_check:
+    description: >-
+      log2_Ahat_k at every reported k is bit-identical between the
+      uncharged prior shakedown and the authorized run (same shard indices,
+      same seed derivation, same code) -- confirmed directly at k=17:
+      -1.0857050120231229 in both. Timing (cpu_seconds) differs slightly
+      between the two invocations, as expected (CPU-scheduling noise, not a
+      property of the deterministic computation).
+
+  validity:
+    status: valid_measurement
+    reason: >-
+      All pre-registered mechanically-sound criteria (design.md Section 5)
+      were met: both fail-closed selftests passed, the injection wrapper
+      calls the real unmodified decode_blocks (confirmed by id() identity),
+      D2/D3 hard invariants are clean (0 violations) on both arms, the
+      estimator returns finite log2_Ahat_k at the load-bearing order k=m=17
+      on both arms, and neither arm was truncated by its wall-clock cap.
+    certificate:
+      kind: none
+      reason: >-
+        This run makes no discrete-log-solve or factor-base-relation claim;
+        AGENTS.md/docs/claims-and-verification.md's certificate discipline
+        does not apply. This is a joint-moment estimator measurement on a
+        toy-scale reduced parameter set, not a solve.
+
+  protocol_deviations:
+    - >-
+      An additional undefected paired-control arm (5,000 trials) was run
+      alongside the 5,000 defect-injected trials the dispatch queue named.
+      This is additive, not a substitution: the defect-injected trial count
+      (5,000) is squarely within the pre-registered 2,000-10,000 range on
+      its own. The control arm was added because (a) design.md Section 1
+      states the reason in advance (prior PS-R3 measurements in this
+      campaign show the undefected estimator itself deviates from 0 at
+      finite T, so a bare comparison of the defected arm against the
+      theoretical null 0 would conflate two different effects), and (b) the
+      combined extra compute cost is trivial (the entire run used 5.34 of
+      400 authorized core-seconds). Recorded here as a disclosed protocol
+      choice made and justified BEFORE the run (design.md), not discovered
+      or added after seeing a result.
+    - >-
+      The fail-closed sha256-mismatch demonstration uses a different
+      mechanism than the V1-V3 convention (editing-then-reverting the
+      committed pinned constant): it calls load_module() with a
+      deliberately wrong argument instead, so the committed constants are
+      never touched. Functionally equivalent demonstration of the same
+      fail-closed property; documented as a deliberate, disclosed choice
+      (design.md Section 3, pilot_report.md Section 3), not an unexplained
+      departure from precedent.
+    - >-
+      No multiprocessing pool was used (stage_a.py's own _t_shard and the
+      cost-model benchmark both sometimes call it directly, single-call,
+      exactly as this task does at PS-R3 scale in the cost-model
+      benchmark.py's own tshard = sa._t_shard((ps, 999, n_tshard, ...))
+      pattern) -- single-process execution was chosen specifically to keep
+      the decode_blocks monkey-patch propagation unambiguous (fork/spawn
+      semantics differ and this task's trial counts are cheap enough that
+      parallelism was not needed).
+
+  anomalies: []
+
+  artifact_paths:
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/design.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/pilot_injection.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/pilot_results.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/pilot_report.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/run_manifest.yaml
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/stdout.log
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/stderr.log
