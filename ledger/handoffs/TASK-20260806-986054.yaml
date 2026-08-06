@@ -1,0 +1,163 @@
+handoff:
+  id: TASK-20260806-986054
+  from: coordinator
+  to: executor
+  objective: >-
+    Implement the frozen EXP-ECTD-9e4248 v2 instrumentation (conductor/
+    End-ring computation, vertical Vélu-isogeny construction, matched
+    horizontal-neighbor baseline with same-level certification, GLV
+    instrument, matched rho/BSGS) and run RUN-ECTD-9e4248-impl (smoke on one
+    vertical edge) then RUN-ECTD-9e4248-screen (full >=8-edge screen) exactly
+    as the frozen contract specifies. Reuse EXP-ECTD-001's driver/ meter,
+    rho, and BSGS code unchanged wherever the object is identical; the
+    conductor/volcano/vertical-isogeny logic is genuinely new implementation.
+  uncertainty_reduced: >-
+    Whether the Semaev/FB/Macaulay meter vector already characterized
+    horizontally by H-ECTD-001/EXP-ECTD-001 shows any discontinuity when the
+    measurement crosses a vertical conductor step, against a matched
+    horizontal baseline, under a pre-registered KS test.
+  inputs:
+  - experiments/EXP-ECTD-9e4248/specification.yaml
+  - ledger/hypotheses/H-ECTD-19017a.yaml
+  - ledger/decisions/DEC-20260806-160175.yaml
+  - ledger/evidence/EV-ECTD-14f9a2.yaml
+  - experiments/EXP-ECTD-001/driver (reusable meter/rho/bsgs code)
+  constraints:
+  - Do not edit experiments/EXP-ECTD-9e4248/specification.yaml.
+  - >-
+    HARD REQUIREMENT (spec.inputs.n_bit_range_sampling_requirement,
+    DEC-20260806-4a9604 D3): do NOT reuse driver/fp.py's random_prime
+    unmodified -- it returns an exact-width prime by construction, which is
+    exactly why EXP-ECTD-001 achieved only exactly-40-bit N across every
+    class despite declaring [40,44]. Either fix the sampler to draw p from a
+    genuine [lo_bits,hi_bits] range, or draw a distinct target bit-length per
+    seed from {40,...,60} and pass it per-seed, reporting the achieved
+    per-edge bit-length distribution explicitly in the run manifest. Do not
+    silently repeat the collapse-to-one-bit-width failure.
+  - >-
+    CTRL-HORIZONTAL-BASELINE (spec D2 fix): every horizontal comparison pair
+    must have its conductor recomputed on BOTH endpoints and verified
+    UNCHANGED before being admitted to the horizontal sample; a pair whose
+    conductor differs between endpoints is a misclassified vertical edge,
+    logged and excluded, not silently dropped.
+  - >-
+    CTRL-END-RING-CERTIFICATE is mandatory on every constructed vertical
+    isogeny: independently verify the actual degree and kernel against the
+    claimed conductor step (reuse verify_order_preserved from
+    experiments/EXP-ECTD-001/driver/isogeny.py for the order-preservation
+    half; the conductor recomputation itself is new code).
+  - >-
+    Eight master seeds [301..308]; additional seeds only on edge
+    construction failure (End-ring disagreement, failed order-preservation
+    check, no q-divisible conductor found within the attempt budget),
+    recorded as infrastructure per spec.replication.seed_policy.
+  - >-
+    Prefer the Hilbert-class-polynomial construction route for finding
+    conductor-q curves over random search-and-filter
+    (spec.replication.conductor_search_cost_estimate); if search-and-filter
+    is used as a fallback, report the observed attempts-per-success rate in
+    the run manifest.
+  - >-
+    CTRL-GLV-CHANNEL: the one known GLV/CM curve pair is measured on the
+    SEPARATE endomorphism-evaluation-cost channel only -- any Semaev meter
+    movement on it is recorded but must never be promoted as
+    vertical-discontinuity evidence (invalidation_rules).
+  - >-
+    All seven controls (CTRL-HORIZONTAL-BASELINE, CTRL-GLV-CHANNEL,
+    CTRL-COORDINATE-NULL, CTRL-PERMUTATION, CTRL-END-RING-CERTIFICATE,
+    CTRL-RHO, CTRL-BSGS) plus CTRL-NO-CLASS-INVARIANT-ENDPOINT are mandatory;
+    the latter's precondition (a nominated candidate endpoint) may
+    legitimately never arise -- if so, record it explicitly as a genuine
+    structural N/A in the run report, not left unrecorded (per
+    DEC-20260806-4a9604 finding F-2's disposition on EXP-ECTD-001, which
+    this driver must not repeat).
+  - >-
+    CTRL-RHO: reuse driver/rho_bsgs.py's pollard_rho_plain unchanged. Do NOT
+    cite any negation-map-specific figure for this substitution
+    (CORR-20260806-2f98f4) -- if a negation-folded variant is wanted, it
+    must be actually built and measured, never assumed or backfilled from
+    literature.
+  - >-
+    Decision table has FIVE branches (spec v2, red-team finding D1 fix):
+    discontinuity_nominates_endpoint, continuity_scoped,
+    moderate_effect_unresolved, instrument_void, resource_incomplete.
+    moderate_effect_unresolved is the exact logical complement of the first
+    two, not an enumerated special case -- compute the actual branch from
+    raw KS/ratio data per the frozen conditions, do not skip it.
+  - >-
+    Stop a curve's GB arm at the frozen solver budget; label timeout as
+    infrastructure (AGENTS.md rule 5), never as a mathematical negative.
+  - >-
+    Any claimed solve or relation (including rho/BSGS baseline runs) MUST
+    emit a certificate per docs/claims-and-verification.md and pass
+    independent re-verification before completed_valid; pure measurement
+    runs declare certificate kind: none explicitly.
+  - >-
+    Do not report "trapdoor", "Galbraith path-finding hardness",
+    "isogeny-evaluation hardness", "break", or any crypto-scale language in
+    any artifact; claim_tier stays toy throughout.
+  - >-
+    Pre-register decision_table branches from the frozen spec; do not
+    invent new branches or thresholds.
+  - >-
+    Record exact command, driver version, git commit and dirty-tree state,
+    environment, seeds, requested/resolved model policy, and validity
+    status per run (AGENTS.md Artifact policy).
+  - >-
+    Budget ceiling: wall_clock_seconds_per_run 10800, total_cpu_hours 60,
+    maximum_memory_gb 16, maximum_runs 2 (spec.budget; do not exceed).
+  deliverables:
+  - RUN-ECTD-9e4248-impl run manifest + raw-result.json (smoke on one vertical edge)
+  - RUN-ECTD-9e4248-screen run manifest + raw-result.json with decision_branch
+  - >-
+    Per-edge meter tables (vertical and horizontal), end-ring/conductor
+    certificates, GLV instrument channel receipt, coordinate-null receipts,
+    permutation stability table, matched rho/BSGS receipts
+  - stdout/stderr for both runs
+  artifact_paths:
+  - experiments/EXP-ECTD-9e4248/driver/MANIFEST.md
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-impl/run.yaml
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-impl/environment.json
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-impl/stdout.log
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-impl/stderr.log
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-impl/raw-result.json
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/run.yaml
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/environment.json
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/per_edge_meter_tables.json
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/end_ring_certificates.json
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/glv_instrument_receipt.json
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/coordinate_null_receipts.json
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/permutation_stability_table.json
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/rho_bsgs_receipts.json
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/stdout.log
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/stderr.log
+  - experiments/EXP-ECTD-9e4248/runs/RUN-ECTD-9e4248-screen/raw-result.json
+  archived_by: TASK-20260806-a49026
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: true
+    degraded_allowed: false
+    independent_session_required: false
+    resolved_model_id: claude-sonnet-5
+    fallback_used: true
+    fallback_reason: this harness cannot resolve policy aliases
+    model_verified: false
+  budget:
+    wall_clock_seconds: 21600
+    memory_gb: 16
+    maximum_runs: 2
+  completion_gate:
+  - Both planned runs reach a terminal status
+  - >-
+    decision_branch recorded matches spec.decision_table exactly (all five
+    branches considered), no post-hoc threshold changes
+  - >-
+    All eight controls present with pass/fail (or genuine structural N/A)
+    recorded; CTRL-END-RING-CERTIFICATE result determines instrument_void
+    short-circuit
+  - >-
+    n_bit_range_sampling_requirement satisfied: achieved per-edge bit-length
+    distribution reported explicitly, not asserted from the declared range
+  - No trapdoor/path-finding-hardness/crypto-scale language in any artifact
+  - Every run has command, commit, environment, seeds, and validity status recorded
