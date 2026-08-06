@@ -160,7 +160,10 @@ The conclusions of both claims were correct; only their proofs were defective.
   approximation, norm surjectivity for indefinite maximal orders).
 - Voight, J. *Quaternion Algebras* (2021), Theorem 23.3.7 (Eichler–Brandt formula
   for integral ideal counts).
-- iacr:2026/1318 (HAWK attack; body unavailable as of 2026-08-05; relayed via
-  KN-LIT-7670, KN-LIT-7674, KN-OPEN-028).
+- iacr:2026/1318 (HAWK attack paper body, KN-LIT-7674): body text obtained 2026-08-05.
+  Section 6.3 (Babai reduction with ‖β‖ < O(n^{13/2})) confirms Case C applies.
+  Section 9 (Heuristic 4 and 30/06 correction) confirms the number-field O_F
+  version of the same fractional-ideal infinity principle.
+- DEC-20260805-ed4cd3: Case C confirmed from algorithm structure.
 - Straznickas–Weis (KN-LIT-7592): best known classical attack on HAWK, cost
-  2^{(n/2+1)+o(n)}.
+  2^{(n/2+1)+o(n)}. No sub-exponential advantage established by GuessingGame.

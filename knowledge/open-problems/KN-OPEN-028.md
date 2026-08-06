@@ -3,11 +3,18 @@ id: KN-OPEN-028
 type: open_problem
 title: What is the corrected cost of the nrd-PIP route against HAWK, now that Heuristic 4 has failed and 1-3 are verified?
 tags: [hawk, module-lip, lattice-isomorphism-problem, nrd-pip, principal-ideal-problem, quaternion, lenstra-silverberg, super-polynomial, fractional-ideals, heuristic, retracted-claim, pqc, open, lattice]
-confidence: reported
-status: open
+confidence: read
+status: q1_closed_q2_q3_open
+q1_closure: >-
+  Q1 CLOSED (derivation + paper-body confirmation, 2026-08-05). Case C:
+  algorithm samples bounded-norm β (‖β‖ < O(n^{13/2})) → bounded denominator
+  O_F-ideals → density of "easy" principal ideals → 0 as bound grows →
+  super-polynomial runtime. No sub-exponential advantage over brute force
+  established. See EV-HAWK-c99848 / DEC-20260805-ed4cd3.
 supersedes: KN-OPEN-027
-source_refs: [KN-LIT-7674, KN-LIT-7670, KN-LIT-7592, KN-LIT-7673, KN-LIT-7648, KN-LIT-7671, KN-OPEN-024, KN-OPEN-027, KN-TECH-081, EV-HAWK-001]
+source_refs: [KN-LIT-7674, KN-LIT-7670, KN-LIT-7592, KN-LIT-7673, KN-LIT-7648, KN-LIT-7671, KN-OPEN-024, KN-OPEN-027, KN-TECH-081, EV-HAWK-001, EV-HAWK-c99848]
 added: 2026-08-02
+updated: 2026-08-05
 superseded_by: null
 ---
 
