@@ -1,0 +1,613 @@
+idea:
+  id: IDEA-20260805-45bf55
+  question_id: RQ-ICEX-001
+  added: '2026-08-05'
+  title: >-
+    A fixed attempt cap drives the measured exponent to 0 or to 1 depending on
+    which aggregate is charged: the ICEX protocol charges right-censored
+    attempts at their cap, names TIMEOUT_CENSORED in its terminal vocabulary,
+    and then contains no censoring fraction, no survival estimator and no
+    attempts-per-replica pin -- while its own budget block forces censoring by
+    construction at a ratio of 5.33
+  class: control
+
+  claim: >-
+    The ICEX protocol charges every attempt "including failed and censored
+    attempts" (accounting.stage_definitions.relation_collection) and maps a wall
+    cap to TIMEOUT_CENSORED (budgets.exhaustion_mapping). A search of all 905
+    lines finds the word "censored" exactly twice -- in those two places -- and
+    finds NO censoring fraction metric, NO survival estimator, NO restart
+    convention, and NO pin on attempts per replica. That combination is not a
+    stylistic gap; it makes the reported exponent a function of an
+    infrastructure parameter, and the function is derivable in closed form.
+    Model an attempt's cost as X with survival S, and let the cap be M (in the
+    same units as X). Two different aggregates are consistent with the
+    protocol's text, and it never says which is meant:
+      (a) CHARGED AGGREGATE, sum of min(X_i, M) over the sealed schedule;
+      (b) CHARGED COST PER CERTIFIED SUCCESS, with a restart after a timeout.
+    For the matched Pollard-rho control, where S(t) = exp(-t^2/(2 ell)) and the
+    true group-operation exponent is EXACTLY 1/2, both aggregates have exact
+    closed forms. Writing c = M / sqrt(ell):
+      (a) E[min(X,M)] / E[X] = erf(c / sqrt 2) = 2*Phi(c) - 1;
+      (b) (E[min(X,M)] / P(X <= M)) / E[X]
+          = erf(c/sqrt 2) / (1 - exp(-c^2/2)).
+    SESSION-COMPUTED FORCED TABLE, monotone in OPPOSITE directions, both tending
+    to 1 as c grows:
+      c    = 0.25      0.50      1.00      2.00      4.00
+      (a)  = 0.197413  0.382925  0.682689  0.954500  0.999937
+      (b)  = 6.416425  3.258850  1.735051  1.103896  1.000272
+    The corresponding shifts in the frozen alpha at n = 12 are
+    -0.19506 / -0.11541 / -0.04589 / -0.00560 / -0.00001 for (a) and
+    +0.22348 / +0.14203 / +0.06625 / +0.01188 / +0.00003 for (b). Every entry
+    at c <= 1 is larger in magnitude than the entire quantity the goal is trying
+    to resolve.
+    AND THE ASYMPTOTIC BEHAVIOUR IS WORSE THAN THE LEVEL SHIFT, BECAUSE A FIXED
+    CAP MEANS c SHRINKS AS ell GROWS. With M fixed across the ladder,
+    c = M / sqrt(ell) tends to 0, and for c << 1:
+      (a) E[min(X,M)] -> M, a CONSTANT, so the fitted exponent -> 0;
+      (b) E[min]/P(X<=M) -> M / (M^2/(2 ell)) = 2 ell / M, so the fitted
+          exponent -> 1.
+    The true exponent is 1/2. A fixed cap therefore drives the measurement to
+    either end of [0,1] -- the choice of end being an unstated accounting
+    convention -- on an object whose exponent is known exactly by construction.
+    FINALLY, THE FROZEN BUDGET BLOCK FORCES CENSORING BY ARITHMETIC:
+    budgets.per_attempt_defaults.wall_clock_seconds = 300 and
+    per_campaign_defaults.maximum_attempts = 128 give 38,400 s of attempt
+    budget against per_campaign_defaults.wall_clock_seconds = 7,200 s, a ratio
+    of exactly 5.333. At most 24 full-length attempts fit in a campaign, so any
+    128-attempt schedule either has mean attempt cost <= 56.25 s or is truncated.
+    THIS IS AN AUDIT, NOT AN ATTACK. No exponent is moved, no mechanism is
+    proposed, and no IC measurement is requested: every derivation above and
+    every measurement below uses generic baselines and synthetic cost variables.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE PER-ATTEMPT COST AS A RIGHT-CENSORED RANDOM VARIABLE, together with
+      its terminal code -- the pair (min(X, M), 1{X <= M}) -- followed through
+      the protocol's coordinatewise aggregation into C_IC and then through
+      alpha. The protocol tracks the first component and discards the second at
+      the aggregation step. What is being followed here is the discarded
+      indicator: the censoring pattern is the object, and the claim is that it
+      carries more of the reported exponent than the mathematics does.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: Semaev summation polynomials and any
+      decomposition or relation mechanism; Groebner and solving-degree
+      instrumentation; factor-base geometry; descent trees; endomorphism, GLV,
+      volcano, and isogeny leverage; xedni and lifting; incidence and
+      sum-product bounds; spectral and expander framings; multi-target
+      amortization. No cryptanalytic mechanism is proposed. The lens used is
+      elementary survival analysis applied to a cost accounting rule, and the
+      accounting rule is the object under test.
+    newness_score: >-
+      Right-censoring bias is elementary and universally known in survival
+      analysis; nothing in the mathematics is new. What is not in this corpus is
+      the observation that this program's charging convention creates it, that
+      the direction of the resulting exponent bias is opposite for the two
+      aggregates the frozen text admits, and that a FIXED cap moves the SLOPE
+      rather than the level -- driving a known 1/2 to 0 or to 1. The protocol's
+      own confounders list has twelve entries, including
+      "wall_clock_noise_vs_exact_group_op_counters" and
+      "R_gain_zero_with_fabricated_alpha"; censoring is not among them, and
+      neither is the budget arithmetic. Nearest prior art is
+      IDEA-20260802-007, whose planted-bug ladder measures a detection floor for
+      accounting distortions of 1.25x to 8x; the distortions here are 5.1x at
+      c = 0.25 in aggregate (a) and 6.4x in aggregate (b), i.e. inside that
+      ladder's declared range -- so 007's instrument would DETECT this defect if
+      it were pointed at it, and it has not been. That is a concrete, checkable
+      complementarity rather than a claim of independence.
+    testability_score: >-
+      Maximal, and the control is unusually good: Pollard rho's cost
+      distribution is known in closed form, so the censored and uncensored
+      aggregates can both be computed analytically AND measured, on the same
+      runs, in seconds of pure Python. The budget arithmetic is one division.
+    survival_score: >-
+      The censoring object survives to any scale, because the mechanism is a
+      property of the accounting rule and not of the algorithm. It is at its
+      most dangerous exactly where the program most wants to measure -- the
+      largest cell, where c is smallest -- which is the reverse of a
+      finite-size artifact and is why it will not go away by scaling up.
+
+  mechanism: >-
+    DERIVED IN THIS RECORD; every numeric value is SESSION-COMPUTED from the
+    stated closed forms and is re-derived as stage 1 of the paired experiment.
+
+    SETUP. An attempt has cost X > 0 with survival function S(t) = P(X > t). A
+    cap M truncates it: the charged cost is min(X, M) and the terminal code is
+    TIMEOUT_CENSORED when X > M. Two elementary facts, both exact:
+      E[min(X, M)] = int_0^M S(t) dt,        E[X] = int_0^inf S(t) dt,
+    so E[min(X,M)] <= E[X] ALWAYS, with deficit int_M^inf S(t) dt. The charged
+    aggregate is a lower bound on the true cost of the work attempted, never an
+    unbiased estimate, and the bias is one-sided by a theorem rather than by
+    assumption.
+
+    THE CONTROL WHERE EVERYTHING IS COMPUTABLE. For Pollard rho under the
+    birthday model (HEUR-ICEX-R1, carried by H-ICEX-4ccbaa and re-derived
+    there), S(t) = exp(-t^2 / (2 ell)) in step units. Then
+      E[X] = int_0^inf exp(-t^2/(2 ell)) dt = sqrt(pi ell / 2),
+      E[min(X,M)] = int_0^M exp(-t^2/(2 ell)) dt
+                  = sqrt(pi ell / 2) * erf(M / sqrt(2 ell)),
+      P(X <= M) = 1 - exp(-M^2 / (2 ell)).
+    With c := M / sqrt(ell) the two ratios in the claim follow immediately, and
+    both depend on M and ell ONLY through c. That is the key structural fact:
+    censoring bias is scale-free in c, so it is controllable by scaling the cap
+    with sqrt(ell) and uncontrollable by fixing it.
+
+    THE SLOPE RESULT, WHICH IS THE REAL FINDING. Hold M fixed across the ladder
+    (which is exactly what budgets.per_attempt_defaults does -- 300 wall-clock
+    seconds at every cell). Then c = M / sqrt(ell) falls like ell^{-1/2}.
+      Small-c expansion: erf(x) = 2x/sqrt(pi) + O(x^3), so
+        E[min(X,M)] -> sqrt(pi ell/2) * (2M / (sqrt(pi) sqrt(2 ell))) = M.
+      The charged aggregate SATURATES AT THE CAP. Its log is log M, constant in
+      ell, so the fitted exponent tends to 0.
+      Meanwhile P(X <= M) -> M^2 / (2 ell), so cost per certified success
+        E[min]/P -> M / (M^2/(2 ell)) = 2 ell / M,
+      whose fitted exponent tends to 1.
+    TRUE EXPONENT: EXACTLY 1/2. A single unstated accounting choice therefore
+    selects between a measured 0 and a measured 1 on an object whose answer is
+    known. No mathematics about index calculus is involved; this happens to the
+    baseline.
+
+    WHY THE DIRECTION MATTERS FOR THIS GOAL SPECIFICALLY. The completion
+    criterion asks whether alpha's CI excludes 1/2. Aggregate (a) biases every
+    arm's alpha DOWNWARD, and biases it more at larger ell -- i.e. it
+    manufactures the "alpha < 1/2" verdict the goal is designed to test for.
+    Aggregate (b) biases UPWARD and would manufacture the opposite. The bias is
+    also ASYMMETRIC BETWEEN ARMS, and asymmetric in the direction that favours
+    the treatment: rho and BSGS have light-tailed, tightly concentrated costs
+    (Rayleigh; sd of log2 X = 0.9252 bits, derived in IDEA-20260805-c8524f)
+    while an algebraic relation search is heavy-tailed, so at a common cap the
+    IC arm is censored far more often and receives far more of the discount.
+    An accounting rule that discounts the arm it censors most is not a neutral
+    convention.
+
+    THE INVERSION OF RULE 5. AGENTS.md rule 5 and the protocol's
+    OBL-TERMINAL-VOCABULARY exist to prevent a timeout being read as NEGATIVE
+    mathematical evidence, and that protection is correct and must be kept.
+    What the charging rule does is the mirror image: it converts a timeout into
+    a CHEAP ATTEMPT, i.e. into POSITIVE evidence for the arm that timed out.
+    Both readings are errors and only one is currently guarded against. Stating
+    this is not an argument for charging timeouts as infinite -- that would be
+    the forbidden reading in the other direction. It is an argument for
+    reporting the censoring fraction, for using an aggregate that acknowledges
+    it, and for scaling the cap with sqrt(ell) so that c is constant across the
+    ladder.
+
+    THE BUDGET ARITHMETIC, ZERO COMPUTE, FROM THE FROZEN TEXT.
+      per_attempt_defaults.wall_clock_seconds     = 300
+      per_campaign_defaults.maximum_attempts      = 128
+      per_campaign_defaults.wall_clock_seconds    = 7200
+      128 * 300 = 38,400 s  vs  7,200 s  =>  ratio 5.3333,
+      floor(7200 / 300) = 24 full-length attempts per campaign.
+    So a sealed 128-attempt schedule is feasible only if the mean attempt costs
+    at most 7200/128 = 56.25 s, i.e. only if the per-attempt cap binds on at
+    most a small minority -- or the campaign terminates early and the schedule
+    is itself truncated, which is a SECOND censoring mechanism (censoring of the
+    attempt sequence rather than of the individual attempt) with its own bias.
+    Neither is mentioned in the artifact. This single division is the cheapest
+    decisive check in the whole proposal and it runs before anything else.
+
+    THE REPAIRS, all cheap and all derivable rather than stipulated.
+      R1. Report the censoring fraction q per cell per arm as a mandatory
+          metric. It is free -- the terminal codes are already recorded.
+      R2. Scale the cap with the cell: M = c0 * sqrt(ell) for a declared c0,
+          so that the bias ratio is CONSTANT across the ladder and therefore
+          absorbed into the intercept of a slope fit instead of contaminating
+          the slope. This is the single highest-value change and it costs
+          nothing.
+      R3. Declare which aggregate is reported, (a) or (b), before the seal.
+      R4. When q exceeds a declared threshold, treat alpha as UNDEFINED at that
+          cell, exactly as the protocol already treats R_gain = 0 under
+          OBL-ZERO-RANK-COST. The machinery for an undefined verdict exists;
+          it is simply not wired to this condition.
+      R5. Report a Kaplan-Meier or lower-bound-corrected aggregate alongside the
+          raw one, so the size of the correction is visible rather than assumed
+          small.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      coordination/goals/GOAL-ICEX-001/batches/BATCH-001/tasks/TASK-20260731-021/
+      ic_exponent_protocol.yaml -- READ IN FULL THIS SESSION, and grepped this
+      session for censor / survival / kaplan / truncat / attempts_per_replica.
+      Result recorded verbatim: "censored" occurs at line 402
+      (relation_collection: "including failed and censored attempts") and line
+      736 (exhaustion_mapping: "wall_cap: TIMEOUT_CENSORED"); "survival",
+      "kaplan", and any attempts-per-replica pin do not occur. The budget
+      numbers quoted are from budgets.per_attempt_defaults and
+      per_campaign_defaults verbatim.
+    - >-
+      knowledge/techniques/KN-TECH-035.md -- FIRST 30 LINES READ THIS SESSION.
+      Supplies the program's baseline convention. The rest of the file is NOT
+      READ. KN-LIT-094 is NOT READ -- relayed claim.
+    - >-
+      ledger/proposals/IDEA-20260802-007.yaml -- title, claim and mechanism READ
+      THIS SESSION. Its planted-bug ladder spans injected distortion factors
+      1.25x to 8x with the detection fraction reported per rung. The censoring
+      distortions derived here (5.1x at c = 0.25 for aggregate (a), 6.4x for
+      aggregate (b)) sit inside that range, which makes 007's instrument the
+      natural detector for this defect and makes this proposal a concrete target
+      for it rather than a competitor.
+    - >-
+      The Rayleigh / birthday survival function S(t) = exp(-t^2/(2 ell)) is
+      RECALLED-STANDARD and is RE-DERIVED rather than cited; measuring it is a
+      declared stage. Kaplan-Meier is named as a standard estimator, NOT READ
+      and NOT CITED; the experiment uses the exact closed forms above for the
+      controlled case and reaches for a nonparametric estimator only if the
+      closed form fails validation.
+    - >-
+      NO EXTERNAL LITERATURE SEARCH WAS PERFORMED FOR THIS PROPOSAL. Absence of
+      a prior-art hit is therefore not evidence of novelty; the novelty_status
+      field is "unverified" for exactly this reason.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The sealed attempt cohort {(X_i, terminal_code_i)} --> the coordinatewise
+      aggregate C_IC[c], with the terminal codes retained in the receipts but
+      NOT entering the aggregate, and thence --> alpha.
+    what_is_discarded: >-
+      The censoring indicator and hence the censoring fraction q; the shape of
+      the right tail beyond M; and the distinction between an attempt that cost
+      M and an attempt that was stopped at M.
+    why_genuinely_lossy: >-
+      Genuinely lossy in a way that cannot be undone: min(X, M) with the
+      indicator dropped is not invertible, and the fibre over an observed
+      aggregate contains cohorts with wildly different true costs -- everything
+      from "all attempts finished just under M" to "all attempts were stopped at
+      M and would have run forever".
+    why_compatible_with_the_operations: >-
+      Fully compatible with coordinatewise aggregation, which is why the defect
+      is invisible in the frozen artifact: min(X, M) is a perfectly good
+      additive coordinate and sums correctly. The failure is not in the algebra
+      of the aggregation; it is that the aggregated quantity estimates something
+      other than the cost.
+    is_it_only_a_change_of_coordinates: >-
+      NO, and the check performed was for the MIRROR failure, the
+      constant-projection one. QUESTION ASKED: does the projected quantity
+      retain spread across the instances it is meant to distinguish? ANSWER:
+      IT LOSES ITS SPREAD IN ell PRECISELY WHERE IT MATTERS -- with a fixed cap,
+      E[min(X,M)] tends to the constant M, so the aggregate becomes CONSTANT
+      ACROSS CELLS and the comparator's spread in the growth direction goes to
+      zero. That is exactly the zero-comparator-spread artifact tell, arriving
+      through a route nobody looks at, and it is the structural diagnostic the
+      inventor protocol section 3 asks for: the quantity that should keep
+      growing with ell stops growing, and the parameter meant to reveal
+      structure (ell) instead reveals the cap.
+
+  assumptions:
+    - >-
+      That the protocol's per-attempt wall cap is applied per attempt across
+      the whole ladder at a fixed 300 s, rather than being re-declared per cell
+      at seal time. TEXTUAL SUPPORT: budgets.per_attempt_defaults is a single
+      block with no per-cell override and schedule_obligations does not list a
+      per-cell cap among the fields to be sealed. IF a per-cell cap scaled as
+      sqrt(ell) is intended, repair R2 is already satisfied and the slope half
+      of this proposal is void while the level half, the censoring fraction, the
+      aggregate ambiguity and the budget arithmetic all stand. Stage 0 records
+      which is intended before any measurement.
+    - >-
+      That an attempt's cost distribution has a right tail reaching beyond the
+      cap at the tested cells. For rho this is exactly quantified. For an IC
+      relation search it is asserted rather than measured here and is labelled
+      RELAYED-UNVERIFIED; no IC arm is run and no IC censoring fraction is
+      claimed.
+
+  proof_search_map_note: >-
+    Carried by the paired hypothesis H-ICEX-a2e95b.
+
+  predictions:
+    - metric: >-
+        Ratio of the censored charged aggregate to the uncensored aggregate for
+        matched Pollard rho, at cap multiples c = M/sqrt(ell) in
+        {0.25, 0.5, 1, 2, 4}, pooled over the ladder cells
+      direction: lower
+      minimum_effect: >-
+        FORCED VALUES 0.197413 / 0.382925 / 0.682689 / 0.954500 / 0.999937,
+        each within the Monte Carlo band at the declared replicate count.
+        Derived before any run from erf(c/sqrt 2). Monotone increasing in c. A
+        measured ratio outside the band at any c falsifies either the birthday
+        survival model or the implementation, and which one is decided by the
+        separate goodness-of-fit check below rather than by assumption.
+    - metric: >-
+        Ratio of censored-with-restart cost per certified solve to the
+        uncensored mean, same cells and same c ladder
+      direction: higher
+      minimum_effect: >-
+        FORCED 6.416425 / 3.258850 / 1.735051 / 1.103896 / 1.000272. Monotone
+        DECREASING in c, i.e. the OPPOSITE direction to the first prediction.
+        The pre-registered content is the opposition itself: if both aggregates
+        move the same way, the account is wrong.
+    - metric: >-
+        Fitted ladder slope of log2(charged aggregate) on n for matched rho with
+        a FIXED cap M = 300 equivalent step units held constant across
+        n in {8, 10, 12, 16}
+      direction: lower
+      minimum_effect: >-
+        Predicted to fall strictly below 0.35, against a true exponent of
+        exactly 0.5 and against the uncensored control's fitted slope which must
+        land within its CI of 0.5. The asymptotic forced value is 0; the
+        threshold 0.35 is set conservatively because the ladder is short and c
+        is not yet small at n = 8. A fitted slope inside the uncensored CI
+        refutes the slope half of the proposal.
+    - metric: >-
+        Fitted ladder slope of log2(cost per certified solve) under the same
+        fixed cap
+      direction: higher
+      minimum_effect: >-
+        Predicted strictly above 0.65 against a true 0.5, with asymptotic forced
+        value 1. Together with the previous prediction this is the headline: the
+        SAME runs, differing only in an unstated accounting convention, must
+        straddle the true exponent from both sides.
+    - metric: >-
+        Fitted ladder slope under repair R2, cap scaled as M = c0 sqrt(ell) with
+        c0 = 1, both aggregates
+      direction: different
+      minimum_effect: >-
+        BOTH must return a slope whose CI contains 0.500, because a constant
+        bias ratio is absorbed into the intercept. This is the constructive
+        half and it must fire; if the repair does not restore the slope, the
+        diagnosis is wrong even if the bias is real.
+    - metric: >-
+        Budget feasibility ratio computed from the frozen artifact:
+        maximum_attempts * per_attempt_wall / per_campaign_wall
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 5.3333 (= 128 * 300 / 7200), and floor(7200/300) = 24 attempts.
+        Zero compute, one division, from committed text. Predicted before the
+        stage runs; if the arithmetic does not reproduce, the numbers were
+        misread and the whole budget section is withdrawn.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest-first, each able to terminate the line. STAGE 0
+      (zero compute, minutes): recompute the budget ratio from the frozen text
+      and record whether the per-attempt cap is intended fixed or per-cell. If
+      it is per-cell and sqrt(ell)-scaled, the slope half is void immediately
+      and the record says so. STAGE 1 (zero compute, one page): re-derive
+      E[min(X,M)] = sqrt(pi ell/2) erf(c/sqrt 2), P(X<=M) = 1-exp(-c^2/2), the
+      two ratio families, and the two asymptotic limits 0 and 1. STAGE 2
+      (seconds, pure Python, no dependency): run matched Pollard rho to
+      completion at n in {8,10,12,16}, recording the FULL uncensored step count
+      per attempt; then apply every cap in the c ladder POST HOC to the same
+      recorded costs. This is the design's central economy -- the censored and
+      uncensored arms are the identical runs, so the comparison has no
+      between-arm confound at all. STAGE 3 (minutes): fit the ladder slopes
+      under fixed-M and under sqrt(ell)-scaled-M, both aggregates, and report
+      the four slopes against the true 0.5.
+    controls:
+      - >-
+        NULL OBJECT (same shape, forced value pre-derived, CAN FAIL) -- THE
+        UNCENSORED ARM, c = infinity, on the identical recorded runs. FORCED
+        VALUES: aggregate ratio EXACTLY 1.000, per-success ratio EXACTLY 1.000,
+        fitted slope with CI containing 0.500. This null can genuinely fail: if
+        the uncensored slope does not contain 0.5, the rho implementation is not
+        the algorithm modelled and no censoring conclusion may be drawn from it.
+      - >-
+        POSITIVE CONTROL (if it does not fire, NO negative may be reported) --
+        the c = 0.25 cell, where the derived distortion is 5.1x downward in
+        aggregate (a). The measured ratio must land in the Monte Carlo band
+        around 0.197413. This is the sensitivity demonstration: it shows the
+        instrument CAN see a censoring distortion of the size the account
+        predicts. If a 5x distortion is invisible, nothing about smaller ones
+        may be concluded.
+      - >-
+        GRADED CONTROL, 5 INTERIOR POINTS, MONOTONICITY REPORTED -- the c ladder
+        {0.25, 0.5, 1, 2, 4}. FORCED: aggregate (a) ratio MONOTONE INCREASING to
+        1, aggregate (b) ratio MONOTONE DECREASING to 1, and the two curves
+        approaching 1 from opposite sides with no crossing. Monotonicity is
+        reported as a pass/fail per adjacent pair, so a failure localises to a
+        cap value rather than leaving "the effect did not appear".
+      - >-
+        SURVIVAL-MODEL GOODNESS-OF-FIT CONTROL. Before any ratio is interpreted,
+        the empirical survival of the recorded rho step counts is compared to
+        exp(-t^2/(2 ell)) at each cell. If the model fails, the derived forced
+        values are wrong but the DIRECTION of the bias is not, because
+        E[min(X,M)] <= E[X] holds for every distribution. The record therefore
+        pre-declares which conclusions survive a model failure (the sign and the
+        repairs) and which do not (the specific numbers).
+      - >-
+        NEARBY-OBJECT CONTROL -- BSGS, whose cost is nearly deterministic
+        (ceil(sqrt(ell)) baby steps plus a uniform number of giant steps) rather
+        than heavy-tailed. FORCED: at the same c, BSGS's censoring distortion
+        must be SMALLER than rho's, because a concentrated distribution has less
+        mass beyond any cap set above its mean. This is the closest object where
+        the hoped-for conclusion weakens, and it is included because it cuts
+        against the headline: it shows the effect is a property of the cost
+        DISTRIBUTION, so an arm with concentrated cost is barely affected.
+      - >-
+        ARCHIVE CHECK (zero compute). Prior censoring-fraction measurements in
+        this corpus: NOT FOUND. EV-ICEX-001 records that no ICEX measurement has
+        ever executed. Recorded as unavailable, not as a passed check.
+      - >-
+        VERDICT-ON-THE-NULL-FIRST. The uncensored arm is analysed and its
+        slope written down before any capped arm is examined.
+
+  falsification_conditions:
+    - >-
+      The uncensored control's fitted slope CI does not contain 0.5. The
+      instrument is broken; NO negative may be reported (AGENTS.md rule 5).
+    - >-
+      Measured aggregate ratios do not follow erf(c/sqrt 2) within the Monte
+      Carlo band AND the empirical survival matches exp(-t^2/2ell). The
+      derivation is wrong and is withdrawn.
+    - >-
+      The two aggregates move in the SAME direction with c. The opposition claim
+      is refuted and the record must be rewritten around whichever direction
+      survives.
+    - >-
+      Under a fixed cap the fitted slope stays inside the uncensored CI at every
+      cell. The slope-contamination claim is refuted at this ladder; the level
+      claim may still stand and must be reported separately.
+    - >-
+      Repair R2 (sqrt(ell)-scaled cap) fails to restore a slope CI containing
+      0.5. The diagnosis is wrong even if the bias is real, and the constructive
+      recommendation must be withdrawn.
+    - >-
+      The budget arithmetic does not reproduce 5.3333 and 24. The numbers were
+      misread and that section is withdrawn without prejudice to the rest.
+    - >-
+      Stage 0 establishes that the cap is per-cell and sqrt(ell)-scaled by
+      intent. The slope half is void; the aggregate ambiguity, the missing
+      censoring fraction, and the budget arithmetic stand.
+
+  confounders:
+    - >-
+      POST-HOC CAPPING IS NOT IDENTICAL TO A REAL TIMEOUT. Applying caps after
+      the fact to recorded full costs eliminates the between-arm confound but
+      also eliminates real timeout side effects: partial-state loss, restart
+      overhead, and cache effects. The design accepts this deliberately and says
+      so; it isolates the ACCOUNTING effect, which is what is being audited, and
+      it explicitly does not claim to measure the operational cost of a timeout.
+    - >-
+      WALL CLOCK VERSUS STEP UNITS. The frozen cap is 300 wall-clock seconds
+      while the derivation is in step units. Converting requires a per-step
+      time, which is machine-dependent, so the c ladder is defined directly in
+      step units and the wall-clock cap is translated only for the budget
+      arithmetic. Conflating the two would reintroduce exactly the unit problem
+      IDEA-20260805-c8524f audits.
+    - >-
+      THE IC ARM IS NOT MEASURED, SO THE ASYMMETRY CLAIM IS UNTESTED HERE. The
+      assertion that algebraic relation search is more heavy-tailed than rho is
+      RELAYED-UNVERIFIED, is not measured by this package, and is not used in
+      any forced value. It appears only as motivation and must not be cited as
+      a finding.
+    - >-
+      SELECTION OF THE CAP LADDER. The c values were chosen to span the regime
+      where erf(c/sqrt 2) moves; a different ladder would show a different
+      effect size. This is disclosed rather than presented as neutral, and the
+      monotonicity requirement is what makes the ladder informative rather than
+      cherry-picked.
+    - >-
+      SCOPE. No SDEG, MONO, or RELN feed is consumed, no C_IC is assembled, and
+      no IC campaign is run. The measured arms are generic baselines, which is
+      what keeps this package outside the ICEX measurement ban recorded in
+      DEC-20260731-015 / EV-ICEX-001.
+
+  interpretation_limits:
+    - >-
+      A confirming outcome establishes that a charging convention in one frozen
+      design artifact biases a measured exponent by a derivable amount on a
+      GENERIC BASELINE. It establishes nothing about index calculus, moves no
+      exponent, does not advance or close KN-OPEN-001, and licenses no status
+      change to any record.
+    - >-
+      Toy tier and unraisable. The ladder is 8-16 bits and the arms are generic
+      algorithms.
+    - >-
+      NOTHING HERE ARGUES FOR CHARGING TIMEOUTS AS INFINITE OR FOR TREATING
+      THEM AS NEGATIVE MATHEMATICAL EVIDENCE. AGENTS.md rule 5 and the
+      protocol's OBL-TERMINAL-VOCABULARY stand unqualified. The argument is
+      that the symmetric error -- reading a timeout as a cheap attempt -- is
+      currently unguarded, and that the guard is a reported fraction plus a
+      scaled cap, not a change to how timeouts are classified.
+    - >-
+      The protocol is not superseded or edited by this proposal. If an amendment
+      is warranted it is a new Coordinator record under a new id naming the
+      exact clause (AGENTS.md rule 4).
+
+  heuristic_assumptions:
+    - id: HEUR-ICEX-C1
+      statement: >-
+        The Pollard-rho step count at group order ell has survival function
+        S(t) = exp(-t^2/(2 ell)) (1 + o(1)), hence E[X] = sqrt(pi ell/2) and
+        E[min(X,M)] = sqrt(pi ell/2) erf(M/sqrt(2 ell)).
+      random_model_justification: >-
+        The birthday computation, derived from S(t) rather than imported; the
+        heuristic step is the passage from a structured r-adding walk to a
+        uniform random function, which is known to be imperfect for small r and
+        for which no source is cited here.
+      supporting_results: []
+      validation_experiment_ids: [EXP-ICEX-01a79b]
+      falsification_condition: >-
+        The empirical survival of the recorded step counts departs from
+        exp(-t^2/2ell) beyond the declared Kolmogorov-Smirnov band at any cell.
+        THE SPECIFIC FORCED NUMBERS ARE THEN VOID; the one-sided inequality
+        E[min(X,M)] <= E[X] and the repairs SURVIVE, because they hold for every
+        distribution. This split is declared before the run so that a model
+        failure cannot be used to rescue either side.
+    - id: HEUR-ICEX-C2
+      statement: >-
+        The frozen per-attempt wall cap is constant across the ladder cells
+        rather than scaled with the cell.
+      random_model_justification: >-
+        NOT A DISTRIBUTIONAL ASSUMPTION AT ALL -- it is a reading of a committed
+        artifact, and it is the single reading on which the slope half of the
+        proposal depends. Recorded as a heuristic assumption rather than as a
+        fact precisely because its author is unavailable to confirm it.
+      supporting_results: []
+      validation_experiment_ids: [EXP-ICEX-01a79b]
+      falsification_condition: >-
+        Stage 0 obtains a Coordinator statement that the cap is per-cell and
+        scaled. The slope half is void; the level half, the aggregate
+        ambiguity, the absent censoring fraction and the budget arithmetic
+        stand unaffected.
+
+  target_complexity:
+    time_exponent: >-
+      n/a. NO EXPONENT IS MOVED AND NO ALGORITHM IS PROPOSED. The proposal is
+      about how an exponent is measured, not about what any algorithm costs.
+      Stated plainly because the target-result profile biases toward
+      exponent-moving work: this is not that, and its claim to attention is
+      that it gates the only exponent this goal can report.
+    memory_exponent: n/a -- no algorithm proposed.
+    best_known: >-
+      Unchanged: Pollard rho at 0.886 sqrt(N) group operations under this
+      program's convention (KN-TECH-035).
+    hidden_overhead: >-
+      n/a. The proposal's own cost is one page of derivation plus minutes of
+      pure-Python rho runs, and post-hoc capping means the censored and
+      uncensored arms cost the same as the uncensored arm alone.
+    tradeoff_note: >-
+      The c parameter IS a measurement tradeoff: larger caps buy less bias at
+      the price of longer campaigns, and the derived table prices that trade
+      exactly -- c = 2 buys a bias below 0.006 in alpha at n = 12 for four times
+      the per-attempt budget of c = 1.
+
+  dominated_by: >-
+    n/a (no result claimed). FRONTIER ROWS CHECKED so this null is not the
+    unchecked kind AGENTS.md rule 5 forbids: (i) time -- Pollard rho
+    0.886 sqrt(N), BSGS sqrt(N) processor steps; unaffected, no faster algorithm
+    proposed. (ii) memory -- rho O(1) or 2^theta, BSGS sqrt(N); unaffected.
+    (iii) data/queries -- no oracle model, no queries, no preprocessing, no
+    advice. (iv) full cost / AT^2 -- KN-TECH-035's N^{2/3+o(1)} for BSGS and N
+    for rho; unaffected and quoted rather than improved. No algorithm is
+    proposed so no Pareto point is claimed. On the METHODOLOGICAL question, the
+    incumbent inside this corpus is the frozen charging rule itself; the nearest
+    adjacent instrument is IDEA-20260802-007's planted-bug detection ladder,
+    whose declared 1.25x-8x range CONTAINS the distortions derived here, making
+    it a detector for this defect rather than a competitor. A grep of the ICEX
+    protocol for censoring corrections returned two occurrences of the word and
+    no correction; absence of a search result elsewhere in the corpus is not
+    evidence that none exists.
+  sota_delta: >-
+    No attack; measurement contribution only. Quantitatively the proposal claims
+    four numbers against the status quo: a censoring distortion of 5.07x
+    downward in the charged aggregate and 6.42x upward in cost-per-success at
+    c = 0.25; an asymptotic fixed-cap exponent of 0 for the first aggregate and
+    1 for the second against a true 1/2; an alpha shift at n = 12 ranging from
+    -0.19506 to +0.22348 across the c ladder, every entry at c <= 1 exceeding
+    the effect the goal seeks; and a budget feasibility ratio of 5.3333 in the
+    frozen artifact. None of these four exists in this corpus today, and the
+    protocol's twelve-entry confounders list contains none of them.
+
+  estimated_cost:
+    implementation: low
+    compute: very low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.88 that the derived bias directions and the budget arithmetic survive. It
+    is that high because E[min(X,M)] <= E[X] is a theorem rather than a model,
+    because the two closed forms follow from one integral each, because the
+    budget ratio is a division on committed text, and because the entire
+    measurement uses one set of rho runs with caps applied post hoc, which
+    removes the usual between-arm confound. It is not higher because HEUR-ICEX-C2
+    -- the reading that the cap is fixed rather than per-cell -- is a reading of
+    someone else's artifact and would void the slope half if wrong, because the
+    specific forced numbers depend on the birthday model at small ell where
+    Rayleigh behaviour is roughest, and because a reviewer may hold that the
+    sealed schedules were always going to set caps per cell in practice, which
+    would make the finding a documentation defect rather than a measurement one
+    -- still worth recording, but smaller. Probability that the smallest
+    deliverable lands -- the one-sided inequality, the missing censoring-fraction
+    metric, and the 5.3333 budget ratio, all of which hold under every reading
+    and every distribution -- is about 0.97.

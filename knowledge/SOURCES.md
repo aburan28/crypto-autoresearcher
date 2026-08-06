@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7809 |
+| Literature entries (`KN-LIT-*`) | 7814 |
 | — with a resolvable external identifier | 2215 |
-| — with no identifier recorded | 5594 |
+| — with no identifier recorded | 5599 |
 
 Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1319, doi 146, eprint 723, url 27. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 9, `full_text` 4, `full_text_supplied` 2, `read` 7459, `web` 314.
+`citation_verified` distribution: `False` 21, `True` 9, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7459, `web` 314.
 
 ## 1. Frozen source packages
 
@@ -105,7 +105,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2215 of 7809 `KN-LIT-*` entries carry an
+2215 of 7814 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2328,7 +2328,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 
 ## 6. Literature citations with no recorded identifier
 
-5594 entries name a source this index cannot resolve to a
+5599 entries name a source this index cannot resolve to a
 retrievable location. They are listed, not dropped and not backfilled by
 guesswork (AGENTS.md rule 5): closing a row means finding the identifier
 and editing the entry, after which this table shrinks on its own.
@@ -2337,6 +2337,7 @@ and editing the entry, after which this table shrinks on its own.
 |---|---|---|---|---|
 | KN-LIT-10be29 | An observation on the security of McEliece's public-key cryptosystem | 1988 | Eurocrypt | false |
 | KN-LIT-17708c | On minimum distance decoding of linear codes | 1991 | Fifth joint Soviet-Swedish international workshop on information theory | false |
+| KN-LIT-180ad5 | Side-Channel and Fault-Injection Attacks on Kyber and Dilithium: Survey and New Results | 2022 | IACR ePrint 2022/737 (IEEE Trans. Computers venue unconfirmed from ePrint record) | partial |
 | KN-LIT-1966 | (Almost) Optimal Constructions of UOWHFs from 1-to-1, Regular One-way Functions and Beyond |  |  | read |
 | KN-LIT-1967 | (Batch) Fully Homomorphic Encryption over Integers for Non-Binary Message Spaces |  |  | read |
 | KN-LIT-1968 | (CM) Torsion on Elliptic Curves over Number Fields |  |  | read |
@@ -3777,6 +3778,7 @@ and editing the entry, after which this table shrinks on its own.
 | KN-LIT-3404 | Deterministic Polynomial Time Equivalence between Factoring and Key-Recovery Attack on Takagi’s RSA |  |  | read |
 | KN-LIT-3405 | Deterring Certificate Subversion: Efficient Double-Authentication-Preventing Signatures |  |  | read |
 | KN-LIT-3406 | Developing a Hardware Evaluation Method for SHA-3 Candidates |  |  | read |
+| KN-LIT-340675 | Differential Fault Attack on ML-DSA using Coefficients Computable from Public Information | 2026 | IACR ePrint 2026/1344 | partial |
 | KN-LIT-3407 | Dew: A Transparent Constant-sized Polynomial Commitment Scheme |  |  | read |
 | KN-LIT-3408 | Déjà Q All Over Again: Tighter and Broader Reductions of q-Type Assumptions |  |  | read |
 | KN-LIT-3409 | Déjà Q: Encore! Un Petit IBE |  |  | read |
@@ -5364,6 +5366,8 @@ and editing the entry, after which this table shrinks on its own.
 | KN-LIT-4997 | Multi-Key FHE from LWE, Revisited |  |  | read |
 | KN-LIT-4998 | Multi-key Fully-Homomorphic Encryption in the Plain Model |  |  | read |
 | KN-LIT-4999 | Multi-Key Homomophic Encryption from TFHE |  | IACR Cryptology ePrint Archive | read |
+| KN-LIT-4dadec | Module-Lattice-Based Digital Signature Standard (FIPS 204) | 2024 | NIST Federal Information Processing Standards Publication | partial |
+| KN-LIT-4f3b80 | A Single-Trace Side-Channel Attack on ML-DSA: Practical Full-Key Recovery from a Single Faulty Signature | 2024 | IACR ePrint 2024/238 | partial |
 | KN-LIT-5000 | Multi-Key Homomorphic Authenticators |  |  | read |
 | KN-LIT-5001 | Multi-Key Homomorphic Signatures Unforgeable under Insider Corruption? |  |  | read |
 | KN-LIT-5002 | Multi-Key Searchable Encryption, Revisited |  |  | read |
@@ -7925,6 +7929,7 @@ and editing the entry, after which this table shrinks on its own.
 | KN-LIT-7563 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | 2026 | preprint; full text frozen in-repo at inputs/P13-WESOLOWSKI-2026/paper_fulltext.md (SRC-P13-WESOLOWSKI-2026) | full_text |
 | KN-LIT-7603 | Linear Descent for Rank-2 and Rank-4 Module-LIP |  | Anonymous submission (unrefereed; venue and date not stated in the text) | full_text_supplied |
 | KN-LIT-80f208 | Explicit bounds for generic decoding algorithms for code-based cryptography | 2009 | WCC | false |
+| KN-LIT-8ce0b5 | Rank Bounds for NTT Twiddle-Factor Fault Attacks on ML-DSA (Lean 4 Machine-Checked) | 2026 | IACR ePrint 2026/1188 | partial |
 | KN-LIT-93e8d7 | Error-correcting coding for digital communication | 1981 | book | false |
 | KN-LIT-b875db | Solving the Shortest Vector Problem in 2^{0.7314n+o(n)} Time via Discrete Gaussian Sampling on Superlattices | 2026 | Preprint (unrefereed; no venue, ePrint number, or DOI stated in the supplied text) | full_text_supplied |
 | KN-LIT-b9bba7 | Practical key recovery attacks on two McEliece variants | 2010 | SCC | false |
