@@ -7,35 +7,51 @@ authors:
   - "Gilles Barthe"
   - "Christian Doczkal"
   - "Jelle Don"
-year: null
-venue: null
+  - "Serge Fehr"
+  - "Benjamin Grégoire"
+  - "Yu-Hsuan Huang"
+  - "Andreas Hülsing"
+  - "Yi Lee"
+  - "Xiaodi Wu"
+year: 2023
+venue: "IACR ePrint preprint (CRYPTO 2023 or similar)"
 identifiers:
-  eprint: null
+  eprint: "2023/246"
   doi: null
   arxiv: null
-  url: null
-tags: [hash, lattice, pairing, pqc, provable-security, signature, symmetric]
-confidence: reported
-citation_verified: read
+  url: "https://eprint.iacr.org/2023/246"
+tags: [dilithium, ml-dsa, fiat-shamir-with-aborts, cma-nma, easycrypt, rom, qrom, formal-verification, lattice-signature, pqc, provable-security]
+confidence: abstract_verified
+citation_verified: abstract_read_from_primary_eprint_page
+eprint_id_correction: "2023/246 confirmed 2026-08-05; prior corpus entry had eprint:null (ANO-1 in BATCH-214d98)"
 added: "2026-07-24"
+updated: "2026-08-05"
 superseded_by: null
 ---
 
 ## Contribution
-We extend and consolidate the security justification for the Dilithium signature scheme. In particular, we identify a subtle but crucial gap that appears in several ROM and QROM security proofs for signature schemes that are based on the Fiat-Shamir with aborts paradigm, including Dilithium.
+Extends and consolidates the security justification for the Dilithium signature scheme. Identifies a subtle gap in several ROM and QROM CMA-to-NMA reductions for Fiat-Shamir-with-aborts schemes including Dilithium. Provides fixed proofs and a mechanized EasyCrypt verification.
 
-## Key claims (as reported)
-- The gap lies in the CMA-to-NMA reduction and was uncovered when trying to formalize a variant of the QROM security proof by Kiltz, Lyubashevsky, and Schaffner (Eurocrypt 2018).
-- The gap was confirmed by the authors, and there seems to be no simple patch for it.
-- We provide new, fixed proofs for the affected CMA-to-NMA reduction, both for the ROM and the QROM, and we perform a concrete security analysis for the case of Dilithium to show that the claimed security level is still valid after addressing the gap.
-- Furthermore, we offer a fully mechanized ROM proof for the CMA-security of Dilithium in the EasyCrypt proof assistant.
+## Key claims (abstract-verified, 2026-08-05)
+- Gap in CMA-to-NMA reduction; uncovered when formalizing Kiltz-Lyubashevsky-Schaffner (Eurocrypt 2018) QROM proof.
+- New fixed proofs for CMA-to-NMA in both ROM and QROM.
+- Concrete security analysis shows claimed security level is still valid after the gap is addressed.
+- Fully mechanized ROM proof for CMA-security of Dilithium in EasyCrypt proof assistant.
 
-## Relevance to this program
-Relevant to pairing-based reductions and endomorphism speedups (MOV/Frey-Rück special cases, GLV/GLS) that bound which curve classes are safe baselines.
+## Critical scope note for GOAL-MLDSA-001
+The formal proof covers **CMA security in the ROM/QROM** — a purely cryptographic adversary model where the adversary queries signing oracles and hash oracles but does NOT physically tamper with the device. This proof does **NOT** cover:
+- Physical fault injection (voltage glitch, laser, etc.)
+- Any attack that requires manipulating the signing device's power or clock
+- The Jendral (2024) nonce-erasure voltage-glitch attack (KN-LIT-4f3b80)
+- The Shin et al. (2026) challenge-coefficient DFA (KN-LIT-340675)
 
-## Not verified here
-Entry generated during the 2026-07-24 bulk seeding pass from the local PDF's first two pages. Title/authors/year/venue were parsed heuristically and may be incomplete or mis-segmented; claims are relayed from the paper's abstract without independent verification. Upgrade to a fully verified entry after a careful read.
+Both Lane B hypotheses (H-MLDSA-f3a291, H-MLDSA-c7b4e8) are formally OUTSIDE this proof's scope by adversary-model construction, resolved at abstract level per DEC-20260805-6e3d22.
+
+## Relevance to GOAL-MLDSA-001
+- Primary source for the CMA-to-NMA tightness loss factor needed by IDEA-9c1e04 / EXP-MLDSA-3f7ab2
+- Adversary model boundaries for Lane B fault coverage determination
+- Full text access required for tightness factor; abstract only available here
 
 ## Local copies
-- `downloads/140850158 (1).pdf`
-- `downloads/140850158.pdf`
+- `downloads/140850158 (1).pdf`  (missing — not found on disk 2026-08-05)
+- `downloads/140850158.pdf`  (missing — not found on disk 2026-08-05)
