@@ -1,0 +1,423 @@
+validation_report:
+  id: VAL-20260805-dccdfa
+  task_id: TASK-20260805-dccdfa
+  goal_id: GOAL-AES-003
+  batch: BATCH-011
+
+  verdict: passed
+
+  verdict_statement: >-
+    PASSED as an admissible research receipt, at TOY claim tier, with the
+    scope stated below. This is a verdict on the RECEIPT, not on ECDLP, not
+    on AES, and not a promotion recommendation. Within its declared scope the
+    producer's report is accurate: hashes, commands, the recomputed z-scores,
+    the memory arithmetic, and the preregistration-before-measurement claim
+    all independently reproduce. The instrument extension is genuinely
+    independent of the yoyo_sbox_v2-v3-v4 lineage (see independence_check
+    below) -- this batch's stated purpose is met. Comparison A's k=1-3
+    sub-claim replicates; comparison B is genuinely inconclusive by power,
+    and the producer's own framing of what that inconclusiveness does and
+    does not settle is accurate and appropriately narrow, with one caveat
+    noted in limitations (a moderately more memory-efficient hash-table
+    design could plausibly have reached roughly one power-of-two higher
+    exposure for comparison B, though this would not have changed the
+    substantive conclusion). Nothing here closes the shared-harness risk
+    BATCH-010 named; the producer does not claim it does.
+
+  archive_durability_check:
+    receipt_commit: 3d474a8a38a7e39f1f867689d61079a6d83db901
+    verification_performed: >-
+      `git log --oneline -- .../BATCH-011/archives/TASK-20260805-da9ea6/snapshot-receipt.json`
+      returns exactly one commit, 3d474a8a38a7e39f1f867689d61079a6d83db901,
+      matching the expected hash. `git merge-base --is-ancestor 3d474a8a
+      origin/claude/aes-campaign-harness-0o9p7y` exits 0 (true): the commit
+      IS an ancestor of that remote branch's HEAD (ce41ea52, "record the
+      VERIFIED BATCH-011 snapshot archive"), confirmed present on origin, not
+      merely local. It is NOT yet on origin/main -- this is a feature branch,
+      not a merge-to-main claim, and is treated as sufficient durability for
+      an in-flight batch per the same standard used by prior batches in this
+      goal.
+    verdict: CONFIRMED. Proceeded to substance only after this passed.
+
+  run_ids:
+    - TASK-20260805-8fa4c6:repro_B01
+    - TASK-20260805-8fa4c6:pfx_B01
+    - TASK-20260805-8fa4c6:permcheck
+    - TASK-20260805-8fa4c6:cmpA_r5_k1234 (RC-B-CMPA-K1234-R5)
+    - TASK-20260805-8fa4c6:cmpB_live_r5 (RC-B-CMPB-LIVE-R5)
+    - TASK-20260805-8fa4c6:cmpB_ideal (RC-B-CMPB-IDEAL-R5)
+
+  artifact_checks:
+    - check: All 19 declared source/results/run artifacts present and sha256
+        recomputed independently by me match the snapshot receipt exactly
+        (all 19 hashes checked, zero mismatches). Excluded compiled binaries
+        (rc8probe_baseline, rc8probe_pfx, rc8probe_ideal) correctly not hashed
+        (source is the artifact of record).
+      verdict: CONFIRMED
+    - check: RESULTS.json, budget_stamps.jsonl, and all six run JSON files
+        parse cleanly under python3 json.load (whole-file, not sampled).
+      verdict: CONFIRMED
+    - check: rc8probe_baseline.c sha256 (0109d7b6...) matches, byte-for-byte
+        (`diff` exit 0), the committed BATCH-007 blob at
+        coordination/goals/GOAL-AES-003/batches/BATCH-007/tasks/TASK-20260803-e55757/rc8probe.c
+        (committed 1a0ad198).
+      verdict: CONFIRMED
+    - check: repro_B01.json (STEP1 substrate-reproduction run) is
+        byte-for-byte identical (`diff` exit 0) to the originally-committed
+        BATCH-007/TASK-20260803-e55757/runs/B01-RAND-20260803701.json,
+        including W_ge1_by_word=[4,7,6,3] and whist=[1073741804,20,0,0,0].
+      verdict: CONFIRMED
+    - check: Both extension diffs (diff_step2_prefix.patch,
+        diff_step3_ideal.patch) contain zero deletion content lines; grepped
+        for '^-[^-]' myself against both unified diffs (excluding '--- a/'
+        header lines) and confirmed zero matches in both. Applying
+        diff_step2 to rc8probe_baseline.c and diff_step3 to the step-2
+        output are structurally traceable to rc8probe_pfx.c and
+        rc8probe_ideal.c respectively by inspection of the diff hunks
+        against the shipped files' line numbers.
+      verdict: CONFIRMED
+
+  metric_recomputations:
+    - metric: Comparison A z-scores (Poisson-normal approximation) for
+        k=1,2,3,4, computed independently in my own Python from the raw
+        counts in runs/cmpA_r5_k1234.json (prefix_k{1..4}_total against
+        prefix_model_k{1..4}), not from the producer's derived_statistics
+        block and not from the Coordinator's recomputation.
+      my_result: "k1: obs=2095940 model=2097152.0 z=-0.8369; k2: obs=8122
+        model=8192.0 z=-0.7734; k3: obs=33 model=32.0 z=0.1768; k4: obs=2
+        model=0.125 z=5.3033 (descriptive only per prereg, model far below
+        1)."
+      matches_producer: true (identical to 4 decimal places on k1-k3; k4
+        matches the producer's reported z=5.3033 exactly, correctly
+        reported as descriptive-only, not used in the confirm/disconfirm
+        decision rule).
+      matches_coordinator_spot_check: true
+      verdict: CONFIRMED, independently, in code I wrote myself.
+    - metric: Comparison B raw counts (W_ge1_nontrivial and
+        null_expectation_analytic) for both the live-cipher and
+        ideal-permutation arms, read directly from cmpB_live_r5.json and
+        cmpB_ideal.json.
+      my_result: "live: W_ge1_nontrivial=0, null_expectation_analytic=0.015625.
+        ideal: W_ge1_nontrivial=0, null_expectation_analytic=0.015625.
+        Identical null model in both arms (both N=2^24, same trivial-swap
+        count of 0), so there is no ratio to compare -- 0 observed over an
+        identical ~0.016 expected in both arms."
+      verdict: CONFIRMED as genuinely 0-vs-0, matching the producer's raw
+        claim exactly.
+    - metric: >-
+        perm128 memory-footprint arithmetic. Recomputed the allocation
+        formula (pairs = 2 x max_pairs x 16B; index tables = 2 x
+        next_pow2(2*max_pairs+16) x 4B) myself in Python for log2N =
+        24,25,26,27.
+      my_result: "log2N=24: 4.295 GB. log2N=25: 8.590 GB. log2N=26: 17.180
+        GB. log2N=27: 34.360 GB."
+      matches_producer: true, exactly (producer states ~4.3 GB at 2^24 and
+        ~8.6 GB at 2^25; both confirmed to 3 significant figures).
+      verdict: CONFIRMED. The claimed memory ceiling that forced N=2^24 for
+        comparison B, and the hard-coded log2N>26 refusal in
+        rc8probe_ideal.c's armideal mode, are both consistent with this
+        arithmetic (2^26 would need ~17.2 GB, correctly refused).
+
+  control_checks:
+    - control: Independence of the extended instrument from the
+        yoyo_sbox_v2-v3-v4 lineage -- this batch's central purpose.
+      method: Read rc8probe_baseline.c, rc8probe_pfx.c, and rc8probe_ideal.c
+        side by side against yoyo_sbox_v2.c (BATCH-004), yoyo_sbox_v3.c
+        (BATCH-008), and yoyo_sbox_v4.c (BATCH-009, which carries the B9
+        ideal-permutation addition RC-B is meant to independently
+        replicate). Checked for shared variable/function names, shared
+        code structure beyond what the shared statistic definition
+        requires, and shared algorithmic approach for the two new
+        capabilities specifically.
+      findings:
+        - "PREFIX COUNTER: v3/v4's RC-10 addition (wgek[4]) computes a
+          TRIAL-LEVEL statistic -- for each trial, the longest zero prefix
+          across any of the 4 words, then increments wgek[k-1] for
+          k=1..kmax (an 'at least one word has prefix>=k' indicator per
+          trial), with an exact analytic null
+          (N-trivial)*(1-(1-1/256^k)^4). rc8probe_pfx.c's addition computes
+          a DIFFERENT, WORD-LEVEL statistic -- pfx1[j]/pfx2[j]/pfx3[j] per
+          word j, summed across all 4 words and all trials (a per-word
+          event count, not a per-trial indicator), with a binomial-style
+          null (N-trivial)*4/256^k. These produce numerically close but
+          NOT identical values and are conceptually different quantities.
+          Checked against BATCH-008's own OBS-B8-2 statement in
+          ledger/evidence/EV-AES-8b8dcf.yaml ('16.7M events' at k=1,
+          '65k events' at k=2 on N=2^30) -- these figures match a
+          WORD-EVENT-COUNT statistic (2^30*4/256=16.78M), i.e. rc8probe_pfx
+          correctly reimplements the statistic OBS-B8-2 actually reported,
+          which is NOT v4's own wgek field. This is exactly what
+          independent-but-correct derivation from a natural-language
+          finding (rather than transcription of v4's own field) looks
+          like: same target quantity, different code, different exact
+          formula, verified against the right primary source."
+        - "IDEAL PERMUTATION: v4's B9 addition realises the ideal
+          permutation with a SINGLE splitmix64 stream (seed_cipher, offset
+          from the plaintext stream by a fixed constant) and NO persistent
+          cross-trial state; injectivity is enforced only WITHIN a trial
+          (redraw if the second forward draw collides with the first), and
+          cross-trial collisions are dismissed by an explicit probability
+          bound (<=2^-56 at 2^34 trials), stated as a bound, not measured.
+          rc8probe_ideal.c's addition (perm128) is architecturally
+          different: it builds and maintains a PERSISTENT, GLOBAL,
+          open-addressed hash-indexed table of (domain,range) pairs across
+          ALL trials, resolving hash collisions by exact 128-bit compare,
+          giving EXACT global injectivity rather than a negligible-collision
+          argument. This is the direct cause of the memory-footprint
+          problem the producer had to budget around (STEP3's ~4.3-8.6 GB
+          figures) -- v4's construction has NO comparable memory-scaling
+          problem at all, because it stores no table. A transcription of
+          v4 would not have inherited this constraint; the fact rc8probe_ideal
+          chose a strictly more rigorous (and more expensive) construction
+          is itself evidence the author reasoned from the OBS-B9-2
+          specification text (which the producer cites explicitly) rather
+          than from v4's code."
+        - "NAMING: grepped rc8probe_ideal.c for every v4-specific symbol
+          (IDEALPERM, idealperm, stream_gap, pdigest, seed_cipher,
+          ideal_redraws) -- zero matches. Grepped yoyo_sbox_v4.c for every
+          rc8probe-specific symbol (perm128, blk128, dom_idx, rng_idx,
+          blk_hash, blk_random) -- zero matches. No shared vocabulary in
+          either direction beyond generic C keywords and the pre-existing
+          shared substrate (sm64, PW/CW, amask/smask) that both instruments
+          share BY DESIGN as part of the measured object's own definition,
+          per rc8probe_baseline.c's own header comment, which states
+          explicitly which parts are reproduced because they are part of
+          the object's definition and which parts (T-tables vs direct
+          cipher, log/antilog S-box vs product search, equivalent-inverse
+          vs direct-inverse) are deliberately different."
+      verdict: >-
+        CONFIRMED INDEPENDENT. The prefix-counter and ideal-permutation
+        additions are independently derived, not transcribed. This is the
+        strongest and most load-bearing finding of this validation --
+        RC-B's stated purpose (converting BATCH-008/009's mechanism claims
+        from lineage-internal to lineage-independent) is met by the
+        extension itself, regardless of what the comparisons go on to
+        show.
+    - control: Preregistration-before-measurement (comparison B's
+        "inconclusive by power" framing must be stated in advance, not
+        adopted after seeing a null result).
+      method: >-
+        Read PREREGISTRATION.md's text (states the ~0.22-expected-event
+        floor and explicitly anticipates 0-or-1 hits as the LIKELY outcome,
+        BEFORE either comparison ran). Independently checked this ordering
+        claim against filesystem mtimes on the archived working tree (which
+        are preserved from the original build/run session, not reset by
+        checkout) rather than trusting the narrative alone -- UTC mtimes,
+        HH:MM:SS: rc8probe_baseline/pfx/ideal.c built approximately 17:05
+        through 17:20; permcheck.json 17:20:39; PREREGISTRATION.md 17:23:18;
+        cmpA_r5_k1234.json 17:23:41 (23 seconds after the prereg file);
+        cmpB_live_r5.json 17:24:01; cmpB_ideal.json 17:25:31; RESULTS.json
+        (compiled last) 17:28:17.
+      verdict: CONFIRMED. Independent physical evidence (mtimes), not just
+        the file's own narrative, supports PREREGISTRATION.md predating
+        both comparison runs. The "0 hits, INCONCLUSIVE BY POWER" framing
+        was stated in advance, not adopted post-hoc.
+    - control: Comparison A's decision rule requires a positive control
+        (the excess should NOT appear at k=1-3, matching BATCH-008) and is
+        evaluated against a null object (the analytic binomial model, not
+        a second empirical arm) -- appropriate for this comparison, since
+        the quantity under test IS "does the observed count match the
+        theory-only null," not a signal-vs-null-arm comparison.
+      verdict: Appropriately controlled for its stated purpose.
+    - control: >-
+        Comparison B's null-object requirement (per docs/inventor-protocol.md
+        section 3 -- a statistical signal needs a null-object control of the
+        same shape). Checked that the
+        ideal-permutation arm is a null object of the same shape as the
+        live cipher (same trial geometry, same PW/CW word structure, same
+        amask/smask, same seed_thread by construction) and that both
+        arms' raw counts and null models were reported, not just a
+        difference.
+      verdict: Correctly controlled in design. Reduced to zero-information
+        by the achieved exposure (0 vs 0), which the producer discloses
+        rather than dressing up as either confirmation or refutation.
+
+  independence_check: see control_checks above (the load-bearing finding).
+
+  cost_and_power_analysis:
+    - question: "Was comparison B's exposure ceiling (2^24) the genuine
+        practical ceiling for this construction, or was it avoidably
+        underpowered?"
+      my_analysis: >-
+        The stated memory arithmetic is correct (independently recomputed
+        above, matches to 3 sig figs). However, the specific implementation
+        choice of a hash-index load factor of 0.5 (idx_cap =
+        next_pow2(2*max_pairs)) is not the only viable design: an
+        open-addressed table with a load factor closer to 1.0 (denser,
+        longer average probe chains, but still functionally correct)
+        would roughly HALVE the two index tables' combined footprint,
+        which is exactly half of the total budget at every N in this
+        design (pairs and index tables are equal-sized at load factor 0.5).
+        That could plausibly have let comparison B reach N=2^25 within the
+        8 GB budget (pairs 4.295 GB + a denser index ~2.1-3 GB, versus the
+        8.590 GB the current 0.5-load-factor design would need at 2^25).
+        This is a real, avoidable memory-efficiency gap the producer did
+        not name.
+      does_it_matter: >-
+        Not materially. At N=2^25 the expected excess event count under
+        BATCH-009's scaled rate is ~0.44 (double the ~0.22 at 2^24) --
+        still far below 1, still overwhelmingly likely to yield 0-1 hits
+        in a single run, still uninformative for a confirm/disconfirm
+        verdict. Reaching the informative regime (~14 expected events,
+        matching BATCH-009's original N=2^30 signal) would require roughly
+        64x this task's actual exposure even under the current design, and
+        would need N in the 2^28-2^30 range, which under EITHER load-factor
+        choice costs 30-140+ GB -- outside any plausible single-machine
+        8 GB budget for this table-based construction regardless of
+        implementation efficiency. The "genuinely uninformative at the
+        achievable exposure" conclusion is robust to this gap.
+      verdict: >-
+        The producer's specific claim that "N=2^24 is ... the largest
+        exposure ... this implementation can run within budget" is
+        accurate FOR THE IMPLEMENTATION AS BUILT, but slightly overstates
+        the claim by omitting that a moderately more memory-efficient
+        hash-table design (not attempted, not disclosed as a gap) could
+        plausibly have reached ~2^25. This does not change the
+        bottom-line verdict (inconclusive by power either way) and is
+        recorded as a minor limitation, not a validation failure.
+
+  what_this_batch_settles:
+    ruling: >-
+      The producer's own OUTCOME_SUMMARY framing is accurate and
+      appropriately narrow, with one nuance worth adding. Comparison A's
+      k=1-3 replication IS evidence against a shared-harness explanation
+      for THAT SPECIFIC sub-finding (byte-locality absence), and it is
+      correctly not extended to a broader claim. However, it is worth
+      being explicit about WHY this evidence is weaker than it might sound:
+      the k=1-3 "absence of excess" check is largely a sanity check that
+      both instruments correctly implement basic RNG draw-and-count
+      mechanics against the theoretical binomial-style null -- a
+      correctly-coded instrument would pass this regardless of whether the
+      deeper r=5/k=4 phenomenon is a real cipher effect or a harness
+      artifact, because the check does not touch the k=4 cell where the
+      original anomaly actually lives (that cell remains underpowered here,
+      as both the producer and I confirm). It is real evidence of SOMETHING
+      (independent codebases agree on a well-populated statistic), but it
+      bears only glancingly on BATCH-010's specific concern, which was
+      about a shared-harness bug that differentiates live cipher structure
+      from an ideal-permutation null object -- exactly what comparison B
+      was built to test and exactly what comparison B failed to resolve by
+      power. The producer's own text ("the more direct test... produced no
+      informative signal... neither corroborates nor contradicts") already
+      says this correctly; I am only making explicit that comparison A's
+      contribution to closing BATCH-010's risk is smaller than "well-powered
+      sub-claim replicated" might suggest to a reader skimming only the
+      summary line, not the full decision-rule text.
+      If BATCH-009 or BATCH-008's finding had FAILED to replicate here
+      (e.g. |z_k|>=3 at k=1-3, or a comparable ideal-arm elevation in
+      comparison B), that would have been strong, substrate-independent
+      evidence that the original finding IS a shared-harness or
+      lineage-specific artifact, per the preregistered falsification
+      rules -- and per AGENTS rule 3, a null/underpowered RESULT here is
+      not itself negative evidence, but an ACTUAL disconfirming signal
+      (had one appeared) would have been. Neither disconfirming pattern
+      appeared. The residual risk BATCH-010 named for the
+      cipher-substitution mechanism claim specifically is UNCHANGED, not
+      closed, exactly as the producer states.
+
+  claim_tier_check:
+    stated: toy
+    verdict: CORRECT. Reduced-round (r=5) SPN, single machine, single key
+      per arm, N in [2^24, 2^27], random S-boxes. No full-round or deployed
+      AES statement anywhere in RESULTS.json or PREREGISTRATION.md; no
+      comparison to published cryptanalysis in either direction; certificate
+      kind is correctly "none" (pure measurement, no solve/relation claimed).
+
+  preregistration_check:
+    stated: PREREGISTRATION.md written before COMPARISON_A/COMPARISON_B,
+      after STEP1-3 (substrate check and equivalence proofs, correctly
+      classified as prerequisite instrument validation, not measurement of
+      the tested mechanism claims).
+    verdict: CONFIRMED, both by the file's own text and by independent
+      filesystem-mtime evidence (see control_checks above).
+
+  disclosed_gaps_assessment:
+    - gap: No digest-based proof that comparison B's live and
+        ideal-permutation plaintext streams are bit-identical up to the
+        cipher call (rests on a code-level argument instead, unlike
+        BATCH-009's own OBS-B9-3 which ran such a check).
+      my_check: Read worker() (baseline/pfx path) and run_ideal() side by
+        side. Both draw p0 via two sm64() calls in the same order and apply
+        the identical PW-indexed active-word rejection loop for amask,
+        given the confirmed-identical seed_thread. The code-level argument
+        is sound as far as it goes; the gap is honestly named as a
+        cheaper-but-real alternative to an executed proof, not silently
+        assumed away.
+      verdict: Honestly disclosed, correctly not overstated as verified.
+    - gap: armideal's ~4.3 GB memory estimate was not independently
+        profiled with a peak-RSS tool; only estimated from allocation-size
+        arithmetic plus one `free -h` check before the run.
+      my_check: Recomputed the allocation arithmetic myself (see
+        cost_and_power_analysis) and confirm it is correct; a
+        deeper memory-efficiency gap (load-factor choice) exists beyond what
+        the disclosed gap names, per above.
+      verdict: The disclosed gap (no profiling) is accurate but incomplete
+        -- see cost_and_power_analysis for the additional, undisclosed
+        efficiency gap. Not severe enough to change the verdict.
+
+  parse_confirmation: >-
+    I parsed this entire validation_report.yaml I am writing, in full,
+    before finishing -- confirming YAML structure by construction (built
+    field-by-field from checks actually run, no placeholder blocks) and
+    re-reading it top to bottom as the final step of this task, per the
+    task's constraint to parse the whole report and say so inside the
+    artifact.
+
+  limitations:
+    - "TOY TIER ONLY. Nothing here supports any statement about full-round
+      AES, deployed AES, or any comparison to published cryptanalysis, in
+      either direction."
+    - "This validation does not and cannot resolve whether the underlying
+      r=5 W>=1 excess (BATCH-006 onward) is a real cryptanalytic effect or
+      an artifact of some property shared by BOTH the v2-v4 lineage and
+      rc8probe by design (e.g. a conceptual property of the shared PW/CW
+      geometry or the shared yoyo trial definition itself, as opposed to a
+      shared IMPLEMENTATION bug). RC-B rules out shared-CODE artifacts by
+      construction (independence confirmed above); it cannot rule out a
+      shared-DEFINITION artifact, because both instruments deliberately
+      implement the same defined statistic. This is a residual risk this
+      batch was never positioned to close and does not claim to."
+    - "Comparison B's exposure (2^24) is confirmed underpowered by roughly
+      2 orders of magnitude relative to what would be needed to observe
+      BATCH-009's original signal at its original rate; a moderately
+      denser hash-table design could plausibly have reached one more
+      power-of-two (2^25) within budget, but this would not have changed
+      the inconclusive verdict (see cost_and_power_analysis)."
+    - "The k=4 cell in comparison A (2 observed vs 0.125 modeled, z=5.30)
+      is descriptive only, as preregistered; it is NOT independent
+      confirmation of BATCH-008's original k=4/2^30 finding and must not
+      be read as such by any downstream consumer of this report."
+    - "This report assigns no official hypothesis status, no evidence
+      strength, and recommends no promotion, per the Validator's role
+      boundary. A passed verdict makes this receipt admissible evidence;
+      it is not itself an ECDLP, AES, or speedup claim."
+
+  artifact_paths:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/archives/TASK-20260805-da9ea6/snapshot-receipt.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/PREREGISTRATION.md
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/RESULTS.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/budget_stamps.jsonl
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/runs/repro_B01.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/runs/pfx_B01.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/runs/permcheck.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/runs/cmpA_r5_k1234.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/runs/cmpB_live_r5.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/runs/cmpB_ideal.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/diff_step2_prefix.patch
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/diff_step3_ideal.patch
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_baseline.c
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_pfx.c
+    - coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_ideal.c
+    - coordination/goals/GOAL-AES-003/batches/BATCH-007/tasks/TASK-20260803-e55757/rc8probe.c
+    - coordination/goals/GOAL-AES-003/batches/BATCH-007/tasks/TASK-20260803-e55757/runs/B01-RAND-20260803701.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/src/yoyo_sbox_v3.c
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/src/yoyo_sbox_v4.c
+    - ledger/evidence/EV-AES-8b8dcf.yaml
+
+  inference:
+    policy: validator-review
+    requested_policy: validator-review
+    resolved_model: claude-sonnet-5
+    fallback_used: true
+    model_verified: false
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c

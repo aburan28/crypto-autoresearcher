@@ -84,10 +84,12 @@ Confirm before dispatching workers:
 - Goal record is committed (or about to ride a Coordinator snapshot).
 - `dispatch_queue_path` exists and queue top-level `goal_id` matches.
 - Campaign budget still allows another batch (`maximum_batches`,
-  `total_wall_clock_seconds`, `max_concurrent` ≤ 3). An exhausted budget stops
-  *this campaign*, not the harness: pause the goal and move to the next one via
-  step 8. Never quietly raise a budget to keep a campaign running — a budget
-  extension is a Coordinator decision with a recorded rationale.
+  `total_wall_clock_seconds`, and `max_concurrent` sized to what the
+  environment can run without degrading — see "Concurrency" below). An
+  exhausted budget stops *this campaign*, not the harness: pause the goal and
+  move to the next one via step 8. Never quietly raise a budget to keep a
+  campaign running — a budget extension is a Coordinator decision with a
+  recorded rationale.
 - `next_action` is concrete; empty queue alone does not complete the goal.
 - The working branch exists, is pushed to origin, and has an open PR against
   `main`. If not, create the branch, push it, and open the PR now — do not run
@@ -115,8 +117,8 @@ Execute only tasks listed under the plan's `dispatches` array (Ready Tasks).
 
 Follow `/coordinate-research-goal` for every batch:
 
-1. Start ≤ `max_concurrent` (≤ 3) non-archive ready tasks with disjoint
-   `write_scope`, via the matching subagent role
+1. Start ≤ the queue's declared `max_concurrent` non-archive ready tasks with
+   disjoint `write_scope`, via the matching subagent role
    (`.claude/agents/{coordinator,idea-generator,executor,validator,red-team}.md`).
 2. On producer terminal: Coordinator-only `snapshot` archive alone; verify
    via dispatcher/Git before any review reads artifacts.
@@ -254,11 +256,30 @@ cheaper ones.
 - Record requested policy + resolved model; no silent policy downgrade.
 - Workers do not commit into a shared worktree; Coordinator archive tasks alone
   stage declared paths and must pass post-commit verification.
-- At most three concurrent non-archive tasks; do not fill idle slots without a
-  ranked next action.
+- Concurrency ("Concurrency" note below): do not fill idle slots without a
+  ranked next action, regardless of how high `max_concurrent` is set.
 - Every batch merges `origin/main` into the working branch (never rebases) and
   pushes with an open/updated PR against `main` before the next batch starts;
   never resolve a sync conflict by editing a record.
+
+## Concurrency
+
+The fixed ceiling of three concurrent tasks was REMOVED on the user's
+EXPLICIT DIRECTION of 2026-08-05 ("remove the concurrent limit from the code
+rules") — see `tools/research_dispatch.py`'s `MAX_CONCURRENT_CEILING` for the
+mechanism and its restore path. A dispatch queue's `max_concurrent` field is
+no longer bounded by the tooling; it is bounded by what the Coordinator sets.
+
+That does not make sizing it a formality. GOAL-AES-003 BATCH-002 dispatched
+three producers onto a 4-core machine against that batch's own instruction
+that it wait rather than run degraded: load average reached 13, one
+producer's entire first segment produced zero numbers, another lost five of
+eight trials to timeouts (`DEC-20260802-b226fb` budget_accounting). Removing
+the tooling ceiling removes the thing that used to catch an oversized value
+before dispatch; it does not remove the machine's actual headroom. Check
+available cores/memory before raising `max_concurrent` past what the prior
+ceiling of three assumed, and size to the environment, not to the absence of
+a check.
 
 ## Output after each batch (and on stop)
 
