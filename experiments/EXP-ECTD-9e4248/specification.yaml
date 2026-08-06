@@ -3,16 +3,54 @@ experiment:
   hypothesis_id: H-ECTD-19017a
   goal_id: GOAL-ECTD-001
   source_proposal: IDEA-20260731-017
-  version: 1
+  version: 2
+  revision_note: >-
+    Version 1 (snapshot commit d4d5e8df1341a9be677bdd671300a8af3e8ccbad,
+    immutable history) was reviewed by an independent red-team pass
+    (TASK-20260806-2dcce2, verdict revise) which found five concrete
+    defects. This version fixes all five: D1 (decision_table's false
+    "exhaustive" claim -- added moderate_effect_unresolved branch), D2
+    (CTRL-HORIZONTAL-BASELINE had no same-volcano-level certificate --
+    added one), D3 (the frozen contract never addressed
+    DEC-20260806-4a9604's explicit requirement to fix the exact-width-prime
+    sampling gap before this driver runs -- added as a hard inputs
+    requirement), D4 (budget did not quantify conductor-search cost --
+    added an explicit estimate), D5 (instrument_void's compound AND let a
+    plain GLV instrument failure escape voiding -- split into independent
+    OR'd conditions). No other field changed in substance; the object,
+    decision-table branch semantics for the two original branches, claim
+    ceiling, and controls are otherwise identical to version 1.
+
+    D1's fix was independently re-checked, not just asserted: the first
+    draft of moderate_effect_unresolved (enumerated as "KS does not reject
+    AND some ratio outside [0.1,10]") still left a second gap uncovered
+    (KS REJECTS exchangeability but no single edge individually crosses the
+    100x/d_reg-2 threshold -- a real but diffuse signal). Caught by
+    explicitly enumerating all 6 reachable (ks_rejects, any_edge_ge_100,
+    all_edges_in_band) combinations and checking exactly one branch fires
+    per combination; moderate_effect_unresolved is now defined as the exact
+    logical complement of the other two data-bearing branches, not by
+    enumeration, and verified exhaustive and mutually exclusive over all 6
+    cases by direct enumeration before this version was finalized.
   title: >-
     Vertical-conductor Semaev/Macaulay meter discontinuity screen across
     ordinary F_p isogeny volcanoes, with matched horizontal baseline and KS
     primary statistic
-  status: review_required
-  approved_by: null
+  status: approved
+  approved_by: coordinator
+  approved_by_note: >-
+    Approved by DEC-20260806-160175 in the same commit that fixed all five
+    of TASK-20260806-2dcce2's red-team defects (v1 -> v2). Approval covers
+    the DESIGN CONTRACT only -- no run is authorized by this record alone
+    beyond what /run-experiment's own lifecycle requires; the executor
+    handoff (TASK-20260806-e693bb's successor, minted in this same commit)
+    is the dispatch authorization for implementation.
   frozen: true
   frozen_on: '2026-08-06'
   frozen_by_task: TASK-20260806-e693bb
+  revised_on: '2026-08-06'
+  revised_by_task: TASK-20260806-a62a8b
+  revision_basis: TASK-20260806-2dcce2 (red_team_report.yaml, verdict revise)
   claim_tier: toy
   confirmatory_status: exploratory
   confirmatory_status_note: >-
@@ -72,9 +110,15 @@ experiment:
       at alpha AND >=1 vertical edge has a primary-meter ratio >=100 (or
       d_reg delta >=2). continuity_scoped fires iff all >=8 vertical edges
       have every primary meter ratio in [0.1,10] AND KS does not reject
-      exchangeability. The two branches are mutually exclusive and exhaustive
-      given the completion gate below; a run that completes fewer than 8
-      edges cannot fire either and resolves to resource_incomplete instead.
+      exchangeability. These two branches are mutually exclusive but are NOT
+      individually exhaustive of the completed-edges outcome space (fixed in
+      version 2, per red-team finding D1): a completed run where KS does not
+      reject exchangeability, but at least one edge's ratio lies outside
+      [0.1,10] while none reaches 100, falls into neither -- that residual
+      case is moderate_effect_unresolved below, not silently absorbed into
+      either continuity or discontinuity. A run that completes fewer than 8
+      edges resolves to resource_incomplete instead of any of the three
+      data-bearing branches.
     source: >-
       IDEA-20260731-017; revise conditions independently re-verified applied
       at TASK-20260806-e693bb (see H-ECTD-19017a.yaml notes); HEUR-ECTD-VERT-1
@@ -128,13 +172,49 @@ experiment:
           hardness (Galbraith), non-Semaev private advantages, and DDH
           (IDEA-20260731-018) remain open. NOT a proof that vertical Teske
           analogues are impossible.
+      - id: moderate_effect_unresolved
+        condition: >-
+          >=8 vertical edges complete, valid end-ring certificates on every
+          edge, AND NEITHER discontinuity_nominates_endpoint's condition NOR
+          continuity_scoped's condition holds -- i.e. the exact logical
+          complement of those two branches over the completed-and-valid
+          outcome space, not an enumerated special case. This covers BOTH
+          residual shapes: (i) KS does not reject exchangeability but at
+          least one edge's ratio lies outside [0.1,10] (an outlier ratio
+          too small to matter statistically but present), and (ii) KS DOES
+          reject exchangeability (a real distributional difference exists)
+          yet no single edge individually reaches the >=100x / d_reg-2
+          per-edge threshold (the difference is real but diffuse, not
+          concentrated on one edge). Defined as the complement, not by
+          enumerating cases, specifically to close the gap red-team finding
+          D1 found in version 1's two-branch, non-exhaustive table (an
+          earlier draft of this branch only covered shape (i) and missed
+          shape (ii): KS-rejects-but-no-edge-crosses-100x was still
+          uncovered until this complement formulation).
+        interpretation: >-
+          Neither continuity nor discontinuity is established at the
+          pre-registered thresholds. Shape (i) and (ii) are DISTINGUISHED IN
+          THE RUN REPORT (which shape occurred, and the actual KS statistic
+          and per-edge ratios) even though both file under this one decision
+          branch -- shape (ii) in particular (KS rejects, no edge extreme)
+          is closer to a real but diffuse signal than shape (i), and a
+          reader must not conflate them. Reported as inconclusive at these
+          specific pre-registered thresholds, not smoothed into either
+          scoped branch. Forward guidance: a follow-up with a finer
+          threshold grid or a larger edge sample, not a repeat of this
+          experiment's binary test at the same thresholds.
       - id: instrument_void
         condition: >-
-          End-ring/conductor computation disagrees with the constructed
-          isogeny's actual degree on >1 edge, OR the GLV/CM
+          Either (a) end-ring/conductor computation disagrees with the
+          constructed isogeny's actual degree on >1 edge, OR (b) the GLV/CM
           endomorphism-cost instrument fails its expected move on the known
-          GLV pair while Semaev meters are simultaneously mis-attributed as
-          the discontinuity signal
+          GLV pair -- each independently sufficient (split from a single
+          compound AND in version 1 per red-team finding D5, which let a
+          plain instrument failure escape voiding when no Semaev
+          mis-attribution happened to accompany it). Semaev meters
+          mis-attributed as the discontinuity signal on the GLV pair is a
+          separate, already-covered invalidation_rules violation, not part
+          of this condition.
         interpretation: Harness void; no mathematical claim on H-ECTD-19017a.
       - id: resource_incomplete
         condition: Budget exhaustion before >=8 vertical edges (and their matched horizontal sample) complete
@@ -170,6 +250,26 @@ experiment:
       EXP-ECTD-001 (which has no conductor/volcano logic) -- this is the
       experiment's principal implementation risk and cost driver, named
       explicitly rather than assumed solved.
+    n_bit_range_sampling_requirement: >-
+      HARD REQUIREMENT, per DEC-20260806-4a9604's explicit next_actions
+      instruction and red-team finding D3: this experiment MUST NOT reuse
+      EXP-ECTD-001's driver/fp.py random_prime(bits, rng) unmodified, because
+      it returns a prime of EXACTLY `bits` bits by construction (see its own
+      docstring), which by Hasse's theorem confines the achieved N to a
+      single bit-width regardless of the declared [lo,hi] band -- the exact
+      failure that made EXP-ECTD-001 achieve only exactly-40-bit N across
+      every one of its 6 classes despite declaring [40,44]. Before any run
+      under this experiment, the driver must do ONE of: (a) fix fp.py's
+      sampler to draw p from a genuine [lo_bits, hi_bits] range (e.g. sample
+      a bit-length uniformly from the range first, then a prime of that
+      exact width), or (b) explicitly draw a distinct target bit-length per
+      seed from {40,...,60} and pass that per-seed width to random_prime,
+      reporting the achieved per-edge bit-length distribution in the run
+      manifest rather than asserting the declared [40,60] range was swept.
+      Whichever is chosen, the run report must state the achieved bit-length
+      distribution explicitly (as EV-ECTD-8c098d's F-3 finding required
+      after the fact for EXP-ECTD-001); it must not repeat the same disclosure
+      gap this experiment exists partly to avoid.
     class_invariant_negative_control: >-
       Include one known GLV/CM curve pair as an instrument check confined to
       the SEPARATE endomorphism-evaluation-cost channel; never promoted as
@@ -181,11 +281,26 @@ experiment:
       method: >-
         Matched horizontal ell-isogeny neighbor pairs at the same volcano
         level as each vertical edge's floor curve, using EXP-ECTD-001's own
-        neighbor-walking code unchanged. Expect ratio ~1 (JMV-motivated,
-        already characterized by H-ECTD-001/H-ISO-001).
+        neighbor-walking code for the isogeny construction. Expect ratio ~1
+        (JMV-motivated). Per red-team finding D2: EXP-ECTD-001's
+        neighbors()/build_class() verify only group-order preservation
+        (verify_order_preserved), never conductor/discriminant/volcano
+        level -- for ell in {2,3,5,7} an isogeny is horizontal only when ell
+        does not divide the curve's conductor, which that code never checks.
+        "Already characterized by H-ECTD-001/H-ISO-001" is therefore an
+        overclaim about level-purity and is corrected here: every
+        horizontal-baseline pair must additionally have its conductor
+        recomputed on both endpoints (the same conductor computation
+        CTRL-END-RING-CERTIFICATE requires for vertical edges) and verified
+        UNCHANGED across the pair before it is admitted to the horizontal
+        sample.
       pass_condition: >-
         Horizontal ratio sample collected on >=8 independent pairs, matched
-        in N-bit range to the vertical sample, for the primary KS statistic.
+        in N-bit range to the vertical sample, EACH WITH a verified-unchanged
+        conductor certificate on both endpoints, for the primary KS
+        statistic. A pair whose conductor differs between endpoints is a
+        misclassified vertical edge, not a horizontal control, and is
+        excluded from this sample (and logged, not silently dropped).
     - id: CTRL-GLV-CHANNEL
       method: >-
         One known GLV/CM curve pair, measured on a SEPARATE
@@ -256,7 +371,7 @@ experiment:
       - delta_d_reg_per_edge
       - permutation_stable_discontinuity: boolean
       - end_ring_certificate_verified: boolean
-      - decision_branch: discontinuity_nominates_endpoint | continuity_scoped | instrument_void | resource_incomplete
+      - decision_branch: discontinuity_nominates_endpoint | continuity_scoped | moderate_effect_unresolved | instrument_void | resource_incomplete
     secondary:
       - per_edge_meter_vector_floor_and_crater
       - glv_instrument_endomorphism_cost_channel
@@ -275,6 +390,21 @@ experiment:
       failed order-preservation check, or no q-divisible conductor found
       within the attempt budget); record failures as infrastructure, not
       continuity/discontinuity.
+    conductor_search_cost_estimate: >-
+      Added per red-team finding D4: a random ordinary curve's conductor is
+      divisible by a specific target prime q with probability on the rough
+      order of 1/q per random draw (summed over q in {17,19,23,29,31}, a few
+      percent per curve draw), so naive random search-and-filter could need
+      tens to low hundreds of find_curve_order calls per successful vertical
+      edge -- an unquantified cost in version 1. This experiment's PREFERRED
+      method is therefore NOT random search-and-filter: construct the target
+      curve directly from a chosen CM discriminant whose conductor already
+      contains the desired q (Hilbert class polynomial route), which fixes
+      the conductor by construction rather than searching for it. Random
+      search-and-filter is retained as a fallback only if the construction
+      route proves infeasible within the impl run, and if used, its observed
+      attempts-per-success rate must be reported in the run manifest so the
+      screen run's budget draw is informed by measured data, not assumed.
     independent_instances: 8
     planned_runs:
       - id: RUN-ECTD-9e4248-impl
