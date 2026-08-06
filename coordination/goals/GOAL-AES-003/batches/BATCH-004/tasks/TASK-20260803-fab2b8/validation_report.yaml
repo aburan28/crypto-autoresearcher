@@ -1,0 +1,1214 @@
+validation_report:
+  id: VAL-20260803-fab2b8
+  task_id: TASK-20260803-fab2b8
+  role: validator
+  goal_id: GOAL-AES-003
+  batch: BATCH-004
+  recorded_at: 2026-08-03
+  claim_tier: toy
+  claim_tier_basis: >-
+    Everything checked here is a reduced-round AES-shaped construction. Priority 1
+    is a 4x4-NIBBLE SPN over GF(2^4) at r in {4,5,6,7} on 40 trials per arm.
+    Priority 2 is r=5 of a reduced-round AES-128 permutation at 2^30 to 2^31
+    trials on one machine. Priority 3 is a 6-round toy key-recovery instrument.
+    Nothing in this report is a statement about full-round or deployed AES, and
+    no comparison to published cryptanalysis is made in either direction
+    (RQ-AES-003 R3). No asymptotic or crypto-scale claim is made or implied.
+
+  binding_snapshot:
+    snapshot_task_id: TASK-20260803-9b1482
+    receipt_path: coordination/goals/GOAL-AES-003/batches/BATCH-004/archives/TASK-20260803-9b1482/snapshot-receipt.json
+    commit_sha: 063356d2
+    paths_declared: 101
+    paths_present: 101
+    paths_sha256_matching_receipt_at_first_read: 101
+    paths_sha256_matching_committed_blob: 101
+    method: >-
+      Every declared path was hashed with sha256 from the working tree and,
+      separately, from `git show 063356d2:<path>`. All 101 agreed with the
+      receipt on both routes. The snapshot is therefore a real committed
+      snapshot and not a working-tree assertion, which is the precondition for
+      validating it at all.
+    post_snapshot_worktree_drift_detected: true
+    post_snapshot_worktree_drift_detail: >-
+      At 02:20Z, while this validation was in progress, the rank-3 producer was
+      resumed as a declared "continuation segment 2" and four snapshot-bound
+      paths diverged in the WORKING TREE from their archived digests --
+      TASK-20260803-367b1b/PREREGISTRATION.md (appended to, not edited above the
+      line), budget_stamps.jsonl, runs/arms_timing.txt and runs/commands.txt --
+      together with roughly a dozen new untracked segment-2 artifacts including
+      runs/Y-AES-main-r6.json, runs/Y-R2-main-r6.json, src/yoyo_sbox_v2.c and
+      runs/independent_reference_check.json. The Coordinator recorded the
+      divergence in commit 7aa67759 and declared segment 2 unreviewed and
+      carrying no weight. I ACCEPT that handling and NOTE its cost. Everything
+      validated below is read from commit 063356d2, not from the working tree.
+      NO SEGMENT-2 ARTIFACT IS VALIDATED HERE, in either direction. In
+      particular the producer's own r=6 yoyo decay arms are OUT OF SCOPE for
+      this report; the r=6 decay measurement I report under VC-3.6 is my own,
+      run on my own engine, and was chosen independently before I knew segment 2
+      existed.
+    consequence_for_this_report: >-
+      A reviewer reading this report against the live tree will find four bound
+      files whose digests no longer match. That is expected and is not a defect
+      in the producer package; it is the visible cost of resuming a producer
+      after its own snapshot. The honest statement is that the archive verifies
+      and the worktree does not, and a reader must fetch the commit to reproduce
+      my checks.
+
+  independence:
+    session_independent: true
+    implementation_independent: true
+    model_independent: false
+    basis: >-
+      SESSION AND IMPLEMENTATION INDEPENDENCE ONLY. Under standing basis
+      0137a051eb5828789eb267fa83c8278086578d4c this harness cannot resolve the
+      GPT-5.6-family policy aliases in orchestration/model-policies.yaml, so
+      producer and validator ran on the same resolved model. NOTHING IN THIS
+      REPORT MAY COUNT TOWARD A CLOSURE QUORUM. Implementation independence is
+      real and is the load-bearing part: for Priority 1 I wrote a nibble SPN
+      counter with row-major state, log/antilog GF(2^4) multiplication and a
+      splitmix64 stream (the producer uses column-major indexing,
+      shift-and-add multiplication and xorshift64); for Priority 2 I wrote a
+      BYTE-ORIENTED AES with explicit SubBytes/ShiftRows/MixColumns and no
+      T-tables (the producer uses T-tables), with my own key derivation, my own
+      random-bijection sampler and my own S-box draws.
+
+  run_ids:
+    - VRUN-fab2b8-nib-sweep-18arms
+    - VRUN-fab2b8-matrix-verify
+    - VRUN-fab2b8-yoyo-r5-3arms
+    - VRUN-fab2b8-yoyo-r6-decay-2arms
+    - VRUN-fab2b8-pc-true-reexec
+
+  validator_instruments:
+    - id: vnib
+      language: C
+      purpose: independent GF(2^4) nibble-SPN collision counter for Priority 1
+      differences_from_producer: >-
+        Row-major state s[row][col] rather than the producer's 4*col+row packing;
+        GF(2^4) multiplication by log/antilog tables built from a verified
+        generator rather than shift-and-add; splitmix64 rather than xorshift64;
+        ShiftRows written from the AES specification rather than transcribed.
+        Consequence: the key and base streams differ from the producer's, so
+        trial-by-trial agreement is neither expected nor sought. Only the arm
+        summary statistics are comparable, plus the arms that are deterministic
+        in the sense that every trial returns the same n.
+    - id: vyoyo
+      language: C
+      purpose: independent parameterized-S-box AES yoyo probe for Priority 2
+      differences_from_producer: >-
+        Byte-oriented AES with explicit SubBytes/ShiftRows/MixColumns/AddRoundKey
+        and an explicit InvShiftRows/InvMixColumns decryption, rather than the
+        producer's T-table forward and equivalent-inverse construction; my own
+        key derivation constant; my own random-bijection sampler using an
+        ASCENDING Fisher-Yates loop (the producer's is descending) with the same
+        rejection rule; my own S-box seeds, so my random draws are DIFFERENT
+        bijections from the producer's two.
+    - id: sq_slot rebuilt from snapshot source
+      language: C
+      purpose: re-execution of the Priority 3 positive control
+      differences_from_producer: >-
+        None by design. This is the identical source at sha256
+        13eb85a3a433a7e1d1ce9df292ae696f66075fd55b27ee26c36eb883a7272a79, taken
+        from commit 063356d2, recompiled by me and re-run with the recorded
+        command. The point of this arm is byte-identity, not independence.
+
+  artifact_checks:
+    - id: AC-1
+      what: all 101 snapshot-declared paths present and hash-matched
+      result: PASS
+      detail: >-
+        Verified twice, from the working tree at first read and from the
+        committed blobs at 063356d2. No missing, no extra, no mismatch.
+    - id: AC-2
+      what: producer structured artifacts parse
+      result: PASS
+      detail: >-
+        TASK-20260803-6ba122/RESULTS.json, matrix_verification.json, all 18
+        arms/*.json, runs.jsonl (18 lines) and budget_stamps.jsonl parse with
+        json.load. TASK-20260803-367b1b/RESULTS.json and all runs/*.json parse.
+        I re-ran the parsers myself rather than trusting parse_check.txt.
+    - id: AC-3
+      what: commands, seeds, exit statuses and wall clock recorded per arm
+      result: PASS
+      detail: >-
+        runs.jsonl for rank 1 carries command, seed, layer, trials, exit status
+        and wall seconds for all 18 arms; every exit status is 0. runs/commands.txt
+        and runs/arms_timing.txt for rank 3 carry the six scored yoyo arms plus
+        the positive control with exit 0 and wall seconds. Seeds appear both in
+        the launcher record and echoed inside each arm's own JSON, and they agree.
+    - id: AC-4
+      what: revision and dirty-tree state recorded
+      result: PASS_WITH_NOTE
+      detail: >-
+        Both producers record commit f768a352 and dirty_tree true, including the
+        unresolved .gitignore merge conflict. This is honest. NOTE A DEFECT --
+        TASK-20260803-367b1b/RESULTS.json git_state sets `dirty_tree: true` and
+        `porcelain_line_count: 0` in the same object, which cannot both be true
+        as stated. The prose basis field is the correct one; the integer is
+        wrong. It changes no measurement.
+    - id: AC-5
+      what: resource records
+      result: INCOMPLETE_AS_DECLARED
+      detail: >-
+        Neither producer sampled peak RSS; rank 3 states why (no /usr/bin/time in
+        the image) and argues from allocation sizes that memory was never near
+        the 8 GB cap. I confirm the allocation argument is sound by inspection --
+        nib.c allocates a 2^16 uint32 count array plus a 65537-entry histogram,
+        about 0.5 MB; yoyo_sbox allocates only tables and per-thread job structs.
+        The measurement is missing and is reported as missing, which is the
+        correct handling, but it IS missing.
+    - id: AC-6
+      what: mixing-layer non-singularity gate is armed at run time, not only offline
+      result: PASS
+      detail: >-
+        nib.c contains an in-engine Gaussian rank gate that prints
+        {"error":"MIXING LAYER SINGULAR"} and returns 4 before any counting. All
+        18 arm stderr files carry `engine matrix gate: layer=... rank=4 det=... OK`
+        with det 1 for NZ, 14 for Z1 and 7 for Z4, matching the offline
+        verification. This is a genuine negative-control mechanism, not a claim.
+    - id: AC-7
+      what: sq_slot source byte-identity with BATCH-003
+      result: PASS
+      detail: >-
+        sha256 of BATCH-004 src/sq_slot.c is
+        13eb85a3a433a7e1d1ce9df292ae696f66075fd55b27ee26c36eb883a7272a79 and is
+        equal to the sha256 of BATCH-003/tasks/TASK-20260802-447db8/src/sq_slot.c.
+        `diff` between the two files is empty. src/sq_slot.diff is likewise
+        identical at 61e984e82cee4c5217eec29381e88eea08157d24d23ae26dad7e11e8533fcfd0
+        truncated in the receipt as 61e984e8...; I compared full digests and they
+        match. The producer's claim of byte-identity is CONFIRMED.
+
+  metric_recomputations:
+    - id: MR-1
+      scope: TASK-20260803-6ba122, all 18 arms, all 720 trials
+      what_recomputed: >-
+        For every trial in every arm I re-derived, from the raw occupancy
+        histogram alone -- n as sum over fiber sizes c of hist[c]*C(c,2); n mod 8;
+        the gcd of the nonzero fiber sizes; max_occ; the coset sum
+        sum(c*hist[c]); and the value count sum(hist[c]).
+      result: PASS
+      detail: >-
+        720 of 720 trials reproduce the producer's reported n, n_mod8, n_mod16,
+        max_occ, gcd_nonzero_fibers, all_fibers_div16 and N_check exactly. Both
+        sums equal 65536 on every trial, so no fiber count is dropped or
+        double-counted. The per-arm summary counters trials_n_0mod8 and
+        trials_n_eq_0 recompute from the raw n values on all 18 arms.
+    - id: MR-2
+      scope: TASK-20260803-6ba122 matrix arithmetic
+      what_recomputed: >-
+        Determinant, rank, and two-sided inverse of NZ, Z1, Z4 and of BATCH-001's
+        substitute circulant, over GF(2^4) mod x^4+x+1, in my own arithmetic;
+        determinant computed twice by independent routes (Gaussian pivot product
+        and the full 24-term Leibniz expansion, sign-free in characteristic 2).
+      result: PASS
+      detail: >-
+        NZ = circ(2,3,1,1) has det 1 by both methods, rank 4, and my computed
+        inverse [[14,11,13,9],[9,14,11,13],[13,9,14,11],[11,13,9,14]] satisfies
+        M*Minv = Minv*M = I. Z1 = NZ with entry (0,0) zeroed has det 14 by both
+        methods, rank 4, two-sided inverse verified. Z4 = NZ with (0,0),(1,3),
+        (2,2),(3,1) zeroed has det 7 by both methods, rank 4, two-sided inverse
+        verified. BATCH-001's substitute circ(2,3,0,1) has det 0 by both methods
+        and rank 3, i.e. SINGULAR. Every one of the producer's matrix claims is
+        reproduced exactly by my arithmetic. THE DECAY ARM DOES NOT COLLAPSE --
+        neither Z1 nor Z4 is singular.
+    - id: MR-3
+      scope: TASK-20260803-6ba122 one-zero circulant census
+      what_recomputed: >-
+        Exhaustive enumeration of all base rows over GF(2^4)^4 containing exactly
+        one zero, forming the circulant M[i][t] = row[(t-i) mod 4] and testing
+        singularity by the Leibniz determinant.
+      result: PASS
+      detail: >-
+        13500 such rows, 12660 non-singular. Both integers reproduce exactly.
+        The producer's reading -- that BATCH-001's abort was an unlucky draw and
+        not a structural obstruction -- follows from these numbers.
+    - id: MR-4
+      scope: TASK-20260803-367b1b random S-box construction
+      what_recomputed: >-
+        I re-implemented the DOCUMENTED draw in Python from the recorded seed --
+        splitmix64, descending Fisher-Yates, rejection bound
+        lim = UINT64_MAX - (UINT64_MAX mod m) -- and compared the resulting table
+        to the 256-entry table recorded in runs/sbox_rand_<seed>.json.
+      result: PASS
+      detail: >-
+        R1 (seed 20260803001) and R2 (seed 20260803002) both reproduce
+        BYTE-IDENTICALLY from their seeds. Both are bijections
+        (sorted(table) == range(256)). This is stronger than checking
+        bijectivity alone -- it establishes that the recorded tables are what the
+        documented uniform procedure yields from the recorded seeds, so they were
+        not selected. The rejection rule is correct- accepting r in [0, L-1] where
+        L is the largest multiple of m at or below 2^64 gives exactly L equally
+        likely values with L divisible by m, hence NO MODULO BIAS. R1 has one
+        fixed point, R2 has none, both unremarkable for a random permutation of
+        256 points.
+    - id: MR-5
+      scope: TASK-20260803-367b1b Poisson tail probabilities
+      what_recomputed: >-
+        One-sided Poisson tails P(K >= X | lambda = null) recomputed in exact
+        50-digit decimal arithmetic by direct tail summation rather than as
+        1 - CDF.
+      result: PASS_WITH_NUMERIC_DEFECT
+      detail: >-
+        My values- Y-AES-main K=27 lambda=2, p = 1.796e-21; Y-R1-main K=22, p =
+        5.529e-16; Y-R2-main K=41, p = 9.341e-39; Y-AES-sd K=2 lambda=1,
+        p = 0.2642; Y-R1-sd K=0, p = 1; Y-R2-sd K=4, p = 0.01899. THE VERDICTS
+        ARE UNCHANGED -- all three mains are far below the frozen 1e-6 ALIVE bar
+        and Y-R2-sd is far above it. THE DEFECT- RESULTS.json reports
+        Y-AES-main's tail as exactly 0.0 and Y-R1-main's as 4.441e-16. The first
+        is a floating-point underflow of a 1-CDF computation printed as a
+        literal zero, which is a fabricated-looking number for a quantity that is
+        1.8e-21; the second is off by about 20 percent from the same cancellation.
+        Neither changes a verdict. The snapshot receipt's summary phrase "one-sided
+        p below 1e-15" is CORRECT for all three mains on my exact recomputation.
+    - id: MR-6
+      scope: TASK-20260803-367b1b excess factors
+      what_recomputed: measured W>=1 count divided by the matched analytic null
+      result: PASS
+      detail: >-
+        27/2.0 = 13.5x, 22/2.0 = 11.0x, 41/2.0 = 20.5x for the mains; 2/1.0 = 2.0x,
+        0/1.0 = 0.0x, 4/1.0 = 4.0x for the structure-destroyed controls. The
+        analytic null itself recomputes- nontrivial_trials * 4 * 2^-32 = 2^31 *
+        2^-30 = 2.0 and 2^30 * 2^-30 = 1.0. trivial_swaps_excluded is 0 on every
+        arm, so nontrivial_trials equals trials and the nulls are exact.
+    - id: MR-7
+      scope: TASK-20260803-367b1b positive control histogram
+      what_recomputed: >-
+        The survivor-count histogram and the unique-and-correct count, rebuilt
+        from the four per-diagonal records in runs/PC-TRUE.json.
+      result: PASS
+      detail: >-
+        Diagonal 0 survivors [253] with true_byte 253; diagonal 1 [65] with 65;
+        diagonal 2 [253] with 253; diagonal 3 [122] with 122. Every diagonal has
+        survivor_count 1, unique 1, unique_survivor_is_true_byte 1 and
+        hint_bytes_actually_differing 0. The histogram {1: 4} recomputes exactly,
+        and both frozen predictions P2.1 and P2.2 are met on the artifact.
+
+  reexecutions:
+    - id: RX-1
+      title: independent re-run of the whole Priority 1 decay sweep
+      engine: vnib
+      arms: 12 core arms, r in {4,5,6,7} x layer in {NZ, Z1, Z4}, 40 trials each
+      seeds: mine, 777004 / 777005 / 777006 / 777007 by round count
+      grid_trials_with_n_mod_8_equal_0_out_of_40:
+        producer:
+          r4: {NZ: 40, Z1: 40, Z4: 40}
+          r5: {NZ: 40, Z1: 40, Z4: 40}
+          r6: {NZ: 4, Z1: 9, Z4: 7}
+          r7: {NZ: 7, Z1: 5, Z4: 5}
+        validator:
+          r4: {NZ: 40, Z1: 40, Z4: 40}
+          r5: {NZ: 40, Z1: 40, Z4: 40}
+          r6: {NZ: 7, Z1: 3, Z4: 5}
+          r7: {NZ: 5, Z1: 4, Z4: 8}
+      grid_trials_with_n_equal_0_exactly_out_of_40:
+        producer:
+          r4: {NZ: 40, Z1: 0, Z4: 0}
+          r5: {NZ: 0, Z1: 0, Z4: 0}
+        validator:
+          r4: {NZ: 40, Z1: 0, Z4: 0}
+          r5: {NZ: 0, Z1: 0, Z4: 0}
+      grid_trials_with_all_fibers_divisible_by_16_out_of_40:
+        producer:
+          r4: {NZ: 0, Z1: 40, Z4: 40}
+          r5: {NZ: 0, Z1: 0, Z4: 40}
+          r6: {NZ: 0, Z1: 0, Z4: 0}
+          r7: {NZ: 0, Z1: 0, Z4: 0}
+        validator:
+          r4: {NZ: 0, Z1: 40, Z4: 40}
+          r5: {NZ: 0, Z1: 0, Z4: 40}
+          r6: {NZ: 0, Z1: 0, Z4: 0}
+          r7: {NZ: 0, Z1: 0, Z4: 0}
+      deterministic_arms_reproduced_to_the_integer: >-
+        Three arms return the same n on all 40 trials regardless of key and base,
+        so they can be compared across engines exactly rather than statistically,
+        and all three agree to the integer. Z1 at r=4 gives n = 491520 with
+        max_occ 16 on 40/40 in BOTH engines. Z4 at r=4 gives n = 2147450880 =
+        C(65536,2) with max_occ 65536 on 40/40 in BOTH engines. NZ at r=4 gives
+        n = 0 with max_occ 1 on 40/40 in BOTH engines. These are the strongest
+        cross-engine agreements available in this instrument and they are exact.
+      invalid_trials: 0
+      nonzero_exits: 0
+    - id: RX-2
+      title: independent re-run of the r=5 yoyo mains with a parameterized S-box
+      engine: vyoyo
+      trials_per_arm: 1073741824
+      trials_note: >-
+        2^30, HALF the producer's 2^31, so my matched analytic null is 1.0 rather
+        than 2.0. This was a declared budget choice made before running, not a
+        post-hoc trim, and it costs resolution- my excess factors are quantised
+        in steps of 1/1 rather than 1/2.
+      results:
+        - arm: V-AES-main
+          sbox: real AES S-box
+          rounds: 5
+          W_ge1: 22
+          null: 1.0
+          excess: 22.0
+          poisson_p_ge: 3.421e-22
+          verdict_under_producer_frozen_rule: ALIVE
+        - arm: V-R1-main
+          sbox: my own random bijection, seed 770000501, DIFFERENT from the producer's R1
+          rounds: 5
+          W_ge1: 15
+          null: 1.0
+          excess: 15.0
+          poisson_p_ge: 3.000e-13
+          verdict_under_producer_frozen_rule: ALIVE
+        - arm: V-R2-main
+          sbox: my own random bijection, seed 770000502, DIFFERENT from the producer's R2
+          rounds: 5
+          W_ge1: 22
+          null: 1.0
+          excess: 22.0
+          poisson_p_ge: 3.421e-22
+          verdict_under_producer_frozen_rule: ALIVE
+      reading: >-
+        The r=5 yoyo excess reproduces in a FOURTH implementation (BATCH-002
+        AES-NI, the producer's T-table software probe, and now my byte-oriented
+        software probe) under a FIFTH and SIXTH random bijective S-box that the
+        producer never drew, on keys the producer never used. My AES arm reads
+        22.0x against the producer's 13.5x and BATCH-002's 15.63x; all three sit
+        inside the producer's frozen 8x-25x band, and the spread is what Poisson
+        counting noise at 15 to 27 hits predicts.
+    - id: RX-3
+      title: the r=6 decay control the snapshot package did not contain
+      engine: vyoyo
+      why_i_ran_it: >-
+        docs/inventor-protocol.md section 3 requires asking what the measured
+        quantity SHOULD do as the parameter meant to destroy it increases. The
+        snapshot package has an analytic null and a structure-destroyed control
+        for the yoyo, but NO round-count decay arm for the random S-boxes -- the
+        producer itself listed "r=6 yoyo arms under the random S-boxes (the decay
+        direction)" in checks_that_did_not_run. Without it, an excess that is
+        constant in the round count could not be distinguished from a genuine
+        yoyo signal, and a constant excess is the canonical artifact tell. I ran
+        the arm myself rather than record the gap.
+      arms:
+        - arm: V-R1-r6-decay
+          sbox: my own random bijection, seed 770000501 -- the SAME S-box as V-R1-main
+          rounds: 6
+          trials: 1073741824
+          trivial_swaps_excluded: 1
+          nontrivial_trials: 1073741823
+          W_ge1: 0
+          null: 1.0
+          excess: 0.0
+          poisson_p_ge: 1.0
+          paired_r5_counterpart: V-R1-main at 15 hits
+        - arm: V-AES-r6-decay
+          sbox: real AES S-box
+          rounds: 6
+          trials: 1073741824
+          trivial_swaps_excluded: 0
+          W_ge1: 3
+          null: 1.0
+          excess: 3.0
+          poisson_p_ge: 8.030e-02
+          poisson_p_le_given_15_63x_null: 1.263e-04
+          paired_r5_counterpart: V-AES-main at 22 hits
+      reading: >-
+        THE SIGNAL DECAYS WITH ROUND COUNT UNDER A RANDOM BIJECTIVE S-BOX, WHICH
+        IS WHAT A YOYO SIGNAL MUST DO. Under my random bijection the count falls
+        from 15 hits at r=5 to ZERO at r=6 on the same trial budget. Under the AES
+        S-box it falls from 22 to 3. Neither r=6 arm is remotely ALIVE under the
+        producer's frozen rule- ALIVE needs excess at least 5 with a tail below
+        1e-6, and I measure 0.0x with tail 1.0 and 3.0x with tail 0.080.
+      strict_scoring_against_the_frozen_rule: >-
+        Stated exactly rather than rounded in my favour. V-R1-r6 is DEAD- excess
+        0.0 is at most 2.5 and P(K <= 0 | lambda = 15.63) = 1.6e-7 is below 1e-3.
+        V-AES-r6 is INDETERMINATE, NOT DEAD- its second condition passes,
+        P(K <= 3 | lambda = 15.63) = 1.3e-4 below 1e-3, but its excess of 3.0x
+        exceeds the 2.5x threshold by a single hit. At 2^30 trials with a null of
+        1.0 the excess is quantised in whole units, so 3 hits versus a 2.5x bar is
+        one count of granularity and P(K >= 3 | lambda = 1) = 0.080 is an ordinary
+        Poisson outcome. I record INDETERMINATE because that is what the frozen
+        rule says, and I note that BATCH-002 measured the same object at r=6 at
+        1.50x on 2^32 trials and 0.875x on 2^33, both consistent with mine and
+        both with the resolution mine lacks.
+      what_this_fills: >-
+        The section 3 decay control that the snapshot package did not contain for
+        the random-S-box arms. Before this arm, the random-S-box excess had been
+        measured at ONE round count, and an excess that does not decay as mixing
+        increases is the canonical artifact tell. It decays. The tell is absent.
+      what_this_does_not_do: >-
+        It does not validate the producer's own post-snapshot r=6 arms, which I
+        have not read as evidence and which remain unreviewed. It is a 2^30
+        measurement on my keys and my S-box, not a replication of their numbers.
+    - id: RX-4
+      title: re-execution of the Priority 3 positive control through the same source
+      engine: sq_slot rebuilt by me from the snapshot blob at 063356d2
+      command: >-
+        ./sq_slot attack6n 2b7e151628aed2a6abf7158809cf4f3c
+        53787ef6b300ea19f0a43d4915afd440 6 2 90009 2 0 mask
+      results: >-
+        REPRODUCED EXACTLY. My run of the recompiled snapshot source, with the
+        recorded command, key pair, seed 90009, nstruct 2 and 2 threads, returns
+        diagonal 0 survivors [253] against true byte 253; diagonal 1 [65] against
+        65; diagonal 2 [253] against 253; diagonal 3 [122] against 122. Every
+        diagonal has survivor_count 1, unique 1 and
+        unique_survivor_is_true_byte 1, and hint_bytes_actually_differing is 0 on
+        all four. The histogram is {1: 4}. The surviving (k3,k4) pair counts per
+        structure, 4193 and 35, also match the producer's run. My wall clock was
+        366.6 s against the producer's 231.9 s, explained by CPU contention with
+        my own concurrent yoyo arms; the run is deterministic in its seed so the
+        counts are identical.
+      significance: >-
+        This is a re-execution, not a recomputation from the artifact. The binary
+        built from the byte-identical source DOES emit a non-empty, correct result
+        when the hint is true.
+
+  control_checks:
+    - id: CC-1
+      control: >-
+        NEGATIVE / NULL-OBJECT CONTROL for Priority 1 -- the no-zero-entry layer
+        NZ swept at the identical round counts, with the trial index carrying the
+        same key and base stream across all three layers at a given r.
+      required_by: >-
+        EV-AES-96257a OBS-B3-4, which records that no decay control and no null
+        arm for zero-entry matrices exists anywhere in this campaign.
+      result: PRESENT AND DISCRIMINATING
+      detail: >-
+        This is the control the campaign was missing and it is correctly built.
+        The pairing is real- sweep.sh derives the seed from the round count only,
+        and nib.c consumes the RNG in the same order and quantity for every layer,
+        so trial t at a given r carries identical keys and base across NZ, Z1 and
+        Z4. The control DISCRIMINATES rather than merely existing- it reads 40/40
+        at r=4 and r=5 and drops to chance at r=6 and r=7, which is what makes the
+        zero-entry arms' identical drop informative.
+    - id: CC-2
+      control: >-
+        DECAY CONTROL for Priority 1 -- does the mod-8 property do what it SHOULD
+        do as the round count, the parameter meant to destroy it, increases?
+      result: YES, IN BOTH ENGINES, UNDER ALL THREE LAYERS
+      detail: >-
+        Producer- 40/40/40 at r=5 falling to 4/9/7 at r=6 and 7/5/5 at r=7 against
+        a chance expectation of 5/40. Mine- 40/40/40 at r=5 falling to 7/3/5 at
+        r=6 and 5/4/8 at r=7. Two round counts past the transition, three layers,
+        two independent engines, and no arm anywhere near the F1 bar of 36/40.
+        THE QUANTITY DECAYS WHEN IT SHOULD. This is the check whose absence
+        OBS-B3-4 named, and it is now made.
+      power_caveat_stated_because_no_one_else_states_it: >-
+        40 trials per arm resolves the preregistered contrast (40/40 versus
+        chance) with enormous margin -- P(X >= 36 | p = 1/8, N = 40) = 1.7e-28 --
+        but it CANNOT resolve a modest residual bias. The producer's Z1 at r=6
+        reads 9/40, whose one-sided binomial tail against p = 1/8 is 0.055; taken
+        alone that is a mild upward wobble a careless reader could over-read. My
+        independent Z1 at r=6 reads 3/40, and pooling the two gives 12/80 with
+        tail 0.295. Pooling everything at r=6 across both engines and all three
+        layers gives 35/240 against an expectation of 30, tail 0.19. So "decays to
+        chance" is established at the resolution of 40-trial arms and should be
+        read as "decays to within that resolution", not as "decays to exactly 1/8".
+        No conclusion in this batch depends on the difference.
+    - id: CC-3
+      control: >-
+        POSITIVE CONTROL for Priority 1 -- an instrument that can only ever say
+        "chance" would pass a decay test vacuously.
+      result: PRESENT
+      detail: >-
+        The same engine returns 40/40 at r=4 and r=5 on the same layers it returns
+        chance at r=6, and returns exact structural constants on the deterministic
+        arms (n = 0, n = 491520, n = C(65536,2)). The instrument demonstrably can
+        emit a forced reading, so the r=6 chance readings are informative.
+    - id: CC-4
+      control: >-
+        SINGULARITY GATE for Priority 1 -- a negative control on the instrument
+        itself, reproduced on BATCH-001's original binary.
+      result: PRESENT AND REPRODUCED
+      detail: >-
+        The producer recompiled BATCH-001's mini.c unmodified and its mczero path
+        printed {"error":"MC singular"} and refused to count, reproducing a
+        three-batch-old abort. I independently confirm the mathematical premise --
+        circ(2,3,0,1) is rank 3 over GF(2^4). The abort was correct behaviour.
+        DEFECT NOTED BY THE PRODUCER ITSELF- the four mini_b1 invocations were
+        piped through `tail -1`, so their exit statuses were masked and are not
+        reported. The producer records this as a protocol shortfall rather than
+        asserting exit 0. That is the right handling and I adopt it; the check is
+        weaker than it looks because only stdout was captured.
+    - id: CC-5
+      control: >-
+        WITHIN-WIDTH S-BOX CONTROL for Priority 1 -- six replication arms at r=5
+        and r=6 under a fresh uniformly random 4-bit bijection per trial.
+      result: PRESENT AND CONSISTENT
+      detail: >-
+        40/40/40 at r=5 and 6/5/4 at r=6, i.e. the identical pattern under a
+        random S-box. This is a real control and the producer's verdict section
+        does not lean on it; see the understatement finding U-2.
+    - id: CC-6
+      control: >-
+        NULL-OBJECT CONTROL for Priority 2 -- the analytic null P(W>=1) ~ 4*2^-32
+        per trial, plus the structure-destroyed arms with amask=15.
+      result: PRESENT, WITH ONE ARM OUTSIDE ITS FROZEN BAND
+      detail: >-
+        Y-AES-sd 2 hits against null 1.0; Y-R1-sd 0; Y-R2-sd 4, i.e. 4.0x against
+        a frozen band of at most 2.5x. See the ruling R-5. The analytic null is
+        not itself measured in this package; BATCH-002 measured a PRP null at
+        0.63x and 0.88x of the analytic value at 2^33 trials, so the analytic
+        null is not obviously optimistic, but that is BATCH-002's measurement and
+        not this one's.
+    - id: CC-7
+      control: >-
+        DECAY CONTROL for Priority 2 -- the round-count arm for the random-S-box
+        yoyo signal.
+      result: ABSENT FROM THE SNAPSHOT, SUPPLIED BY ME UNDER RX-3, AND IT PASSES
+      detail: >-
+        See RX-3. The snapshot package measures the random-S-box signal at r=5
+        only. BATCH-002 supplies r=6 and r=10 decay for the AES S-box (7 hits
+        against null 8 at 2^33, and 5 against 8 at r=10), so the AES arm is
+        covered by prior work, but nothing in the campaign showed the RANDOM
+        S-box signal decaying. The producer named this gap in
+        checks_that_did_not_run rather than hiding it, which is to its credit and
+        does not fill it.
+    - id: CC-8
+      control: >-
+        POSITIVE CONTROL for Priority 3 -- the true-hint arm BATCH-003 rank 4
+        never had.
+      result: PRESENT AND CORRECTLY AIMED
+      detail: >-
+        The logical gap it closes is real. BATCH-003's backward-compatibility
+        check compared a false-hint {0:4} against a false-hint {0:4}, which cannot
+        distinguish "correctly empty under a false hint" from "empty for every
+        input". A true-hint arm on the same binary is exactly the discriminating
+        control. See ruling R-8.
+
+  claim_rulings:
+    - id: R-1
+      claim: >-
+        The zero-entry mixing layers Z1 (one zero) and Z4 (four zeros) are
+        NON-SINGULAR over GF(2^4), with det 14 and det 7 and rank 4, while
+        BATCH-001's substitute circulant (2,3,0,1) is SINGULAR with det 0 and
+        rank 3.
+      verdict: CONFIRMED
+      basis: >-
+        MR-2. Reproduced in my own GF(2^4) arithmetic with the determinant
+        computed twice by independent routes and the inverse verified on both
+        sides. The decay arm does not collapse.
+    - id: R-2
+      claim: >-
+        The preregistered falsification pattern F1 -- k(Z1,6) >= 36/40 or
+        k(Z4,6) >= 36/40 while k(NZ,6) <= 15/40 -- WAS NOT OBSERVED, and the
+        survival pattern F2 was.
+      verdict: CONFIRMED
+      basis: >-
+        RX-1 and MR-1. F1 requires at least 36; the producer measured 9 and 7 and
+        I measured 3 and 5. F2 requires all six of k(Z1,5) >= 36, k(Z4,5) >= 36,
+        k(Z1,6) <= 15, k(Z4,6) <= 15, k(NZ,5) >= 36, k(NZ,6) <= 15; the producer
+        measured 40, 40, 9, 7, 40, 4 and I measured 40, 40, 3, 5, 40, 7. All six
+        hold in both engines. THE r=5 HALF OF CORR-20260802-46b73b IS NOT
+        FALSIFIED BY THIS MEASUREMENT, and the falsification was not close.
+      what_this_does_not_mean: >-
+        SURVIVAL IS NOT CONFIRMATION. One preregistered way of being wrong was
+        tested in a 4-bit analogue and did not occur. This does not raise the
+        strength of the r=5 result, does not close OBS-B3-4, and does not license
+        dropping the GF(2^8) r=6 zero-entry arm.
+    - id: R-3
+      claim: >-
+        THE STRONGEST SINGLE ARM -- Z1 at r=5 forces n mod 8 = 0 on 40/40 trials
+        with NO fiber degeneracy at all, gcd of nonzero fiber sizes 1 on 40/40 and
+        max_occ 7 to 9, so at r=5 a zero-entry layer can force the residue without
+        the mechanism OBS-B3-4 proposed.
+      verdict: CONFIRMED
+      basis: >-
+        This is the arm that actually defeats the OBS-B3-4 mechanism, and I
+        verified it directly and separately. In my own engine Z1 at r=5 gives
+        n mod 8 = 0 on 40/40 with 40 DISTINCT values of n, gcd 1 on 40/40, and
+        max_occ ranging 6 to 9 -- a Poisson-shaped histogram indistinguishable in
+        shape from the NZ control at the same round count. The producer's own 40
+        trials give max_occ 7 to 9 and gcd 1 on 40/40, and MR-1 confirms those
+        gcds recompute from the raw histograms. The load-bearing supposition of
+        the OBS-B3-4 worry -- that the residue under a zero-entry layer is forced
+        BY the fiber degeneracy -- is false at r=5 under Z1.
+      scope_limit_that_must_travel_with_it: >-
+        This holds for Z1 and NOT for Z4. Z4 at r=5 carries the divisibility
+        signature on 40/40 trials in both engines with max_occ 80 to 128, so Z4 at
+        r=5 IS the confounded configuration OBS-B3-4 described and its residue
+        must not be read as evidence about round structure. The producer states
+        this itself in open_items. One clean arm and one confounded arm is the
+        honest description.
+    - id: R-4
+      claim: >-
+        The GF(2^8) fiber-divisibility signature reproduces in the nibble analogue
+        exactly under the substitution 256 -> 16.
+      verdict: CONFIRMED
+      basis: >-
+        Independently reproduced to the integer. Z1 at r=4 gives histogram
+        {0: 61440, 16: 4096} and n = 491520 on 40/40 trials in my engine, matching
+        the producer. The stated correspondence checks arithmetically-
+        61440 = 2^16 - 2^12 against 4278190080 = 2^32 - 2^24; 4096 = 2^12 against
+        16777216 = 2^24; and 4096*C(16,2) = 491520 against 16777216*C(256,2) =
+        547608330240. The Z4 r=5 shape correspondence is qualitative rather than
+        exact -- all fiber sizes a multiple of the field size with geometrically
+        decaying bin counts -- and the producer describes it as such rather than
+        claiming an exact match.
+    - id: R-5
+      claim: >-
+        The mod-8 class arithmetic rescales exactly, so the STATEMENT under test
+        is the same statement at both widths -- the classes carry 16^{4-k} instead
+        of 256^{4-k} and all remain multiples of 8.
+      verdict: CONFIRMED WITH A MARGIN CAVEAT THE PRODUCER DID NOT STATE
+      basis: >-
+        The arithmetic is correct and it WAS argued in the preregistration before
+        any counting arm ran, which is the property that matters- it cannot have
+        been fitted to the data. 16^3 = 4096, 16^2 = 256, 16^1 = 16 are all
+        divisible by 8, and the k=1 class contributing 16^3 * N/2 with N = 2^16 is
+        a multiple of 2^26. The k=4 class rests on fact 1, which uses no property
+        of the mixing matrix, so it is width-independent in the same way at both
+        widths.
+      caveat: >-
+        THE MARGIN SHRINKS AND THE PRODUCER DOES NOT SAY SO. At GF(2^8) the
+        smallest class weight is 256 = 2^8, a factor 32 above the modulus 8. At
+        GF(2^4) it is 16 = 2^4, a factor 2 above the modulus. The rescale is
+        therefore valid but the nibble instrument is close to the smallest field
+        width at which this particular argument transfers at all -- at GF(2^2) the
+        k=3 class would carry 4 and the argument would fail outright. This does
+        not affect the verdict, since 16 is divisible by 8, but a reader should
+        know the rescale is comfortable at 8 bits and tight at 4.
+    - id: R-6
+      claim: >-
+        What the nibble analogue can and cannot establish about GF(2^8), as frozen
+        in the producer's section 7 transfer statement.
+      verdict: CONFIRMED, AND THE PRODUCER'S OWN LIMITS ARE THE CORRECT ONES
+      what_it_CAN_establish: >-
+        Three things, and only these. First, that the OBS-B3-4 mechanism -- a
+        zero-entry layer producing fiber degeneracy -- EXISTS in an instrument
+        that demonstrably exhibits the same signature the GF(2^8) M0/M1 histograms
+        show, which is a real and checkable correspondence and not an analogy.
+        Second, that in that instrument the degeneracy is NOT round-count
+        independent- it dies. Third, that at r=5 the residue can be forced with
+        the degeneracy absent (R-3), which is a counterexample to the specific
+        inference OBS-B3-4 worried about. A counterexample to a mechanism is the
+        one thing an analogue CAN deliver cleanly, because it needs only that the
+        mechanism be instantiable, not that it be quantitatively matched.
+      what_it_CANNOT_establish: >-
+        That GF(2^8) M0 or M1 behave the same way at r=6. The specific round count
+        at which the property dies does not transfer, and neither does any
+        quantitative decay threshold. Anything depending on the S-box does not
+        transfer- a 4-bit bijection has different algebraic degree and different
+        differential and linear properties, and this campaign has ALREADY had to
+        record that its MINI-AES results carry no transfer to AES-128 for exactly
+        that reason. The producer cites that precedent itself and applies it
+        against its own result, which is the correct direction to apply it in.
+        Nothing about MDS branch number at 8 bits transfers -- Z1, Z4, M0 and M1
+        are all non-MDS by construction. And nothing about full-round or deployed
+        AES is touched.
+      therefore: >-
+        OBS-B3-4 REMAINS OPEN AT GF(2^8). The single arm that would close it, M0
+        or M1 at r=6 over GF(2^8), was not run and is not closed by anything in
+        this batch. The producer says this in three separate places and does not
+        overreach once. I confirm the gap is open and I confirm the producer
+        correctly refuses to close it.
+    - id: R-7
+      claim: >-
+        The producer's own preregistration error at r=4 -- predicting Z1 and Z4
+        near chance and measuring 40/40 -- does not touch the F1/F2 falsification
+        rule.
+      verdict: CONFIRMED
+      basis: >-
+        I read the frozen decision rule as committed. F1 references k(Z1,6),
+        k(Z4,6) and k(NZ,6). F2 references k(Z1,5), k(Z4,5), k(Z1,6), k(Z4,6),
+        k(NZ,5) and k(NZ,6). NEITHER RULE MENTIONS r=4. The r=4 row of the
+        prediction table is a separate frozen prediction that was scored WRONG,
+        and the producer records it as wrong under M-4 rather than quietly
+        dropping it. What actually broke at r=4 is the exact-zero result -- 40/40
+        under NZ and 0/40 under both Z1 and Z4, in my engine as well as the
+        producer's -- which is precisely what the r=4 half of CORR-20260802-46b73b
+        asserts. So the r=4 half is corroborated by the same arms whose mod-8
+        reading contradicted the producer's prediction. The self-correction is
+        accurate and the error is confined to the producer's own expectation.
+    - id: R-8
+      claim: >-
+        The r=5 yoyo signal survives uniformly random bijective S-boxes -- AES
+        13.5x, R1 11.0x, R2 20.5x at 2^31 trials against a null of 2.0.
+      verdict: CONFIRMED
+      basis: >-
+        MR-4, MR-5, MR-6 and RX-2. The S-boxes are genuine uniform bijections and
+        reproduce byte-identically from their seeds under an unbiased draw. The
+        software AES is correct on the FIPS-197 C.1 known-answer vector and on
+        5120 round-trips, and my own byte-oriented AES reproduces the same KAT
+        ciphertext 69c4e0d86a7b0430d8cdb78070b4c55a. The geometry is right. And
+        the signal reproduces in MY engine on MY keys under TWO FURTHER random
+        bijections that the producer never drew- 22.0x, 15.0x and 22.0x at 2^30
+        against a null of 1.0. Four distinct random bijections have now preserved
+        this signal across two independent software implementations.
+    - id: R-9
+      claim: >-
+        The T-table software AES is correct, pinned by FIPS-197 C.1 and 5120
+        round-trips.
+      verdict: CONFIRMED WITH ONE STATED GAP
+      basis: >-
+        The KAT vector, key 000102...0f and plaintext 00112233445566778899aabbccddeeff
+        to ciphertext 69c4e0d86a7b0430d8cdb78070b4c55a, is the genuine FIPS-197
+        C.1 AES-128 vector and I reproduced it in my own independent
+        implementation. Each random S-box passes the round-trip pin in place of
+        the inapplicable KAT, which is what establishes that dec_r inverts enc_r
+        for that S-box.
+      gap: >-
+        The KAT pins the r=10 map. The round-trip pin establishes that dec_r is
+        the exact inverse of enc_r for every r from 1 to 10, but it CANNOT
+        establish that enc_r for r < 10 is the intended reduced-round map rather
+        than some other self-consistent map, because any bijection inverts itself.
+        In principle a reduced-round off-by-one would pass both pins. In practice
+        the r < 10 path is the same loop with a different bound, and my
+        independently written engine -- which shares no code -- produces the same
+        r=5 statistic in the same range, which is the missing check supplied
+        indirectly. I record it as indirect rather than asserting it was pinned.
+    - id: R-10
+      claim: >-
+        The geometry is plaintext FORWARD ShiftRows diagonals and ciphertext
+        INVERSE ShiftRows diagonals {4*((j-r)%4)+r}, agreeing byte-identically
+        with BATCH-002's geom.json.
+      verdict: CONFIRMED
+      basis: >-
+        BATCH-002 geom.json records PW [[0,5,10,15],[4,9,14,3],[8,13,2,7],
+        [12,1,6,11]] and CW [[0,13,10,7],[4,1,14,11],[8,5,2,15],[12,9,6,3]]. I
+        dumped the geometry from the producer's binary and got the same arrays,
+        and my own independently written engine, given only the index formulas,
+        emits the same arrays again. Three routes agree. This check matters
+        because the preregistration itself notes that a replication in this
+        campaign once read a null purely from getting the geometry wrong.
+    - id: R-11
+      claim: >-
+        Y-R2-sd at 4.0x breached its preregistered structure-destroyed band of at
+        most 2.5x. Does it undermine the ALIVE readings?
+      verdict: >-
+        NO -- ORDINARY FLUCTUATION. The producer's own reading is CONFIRMED, and
+        is if anything slightly more cautious than the arithmetic requires.
+      basis: >-
+        4 hits against a Poisson mean of 1.0 has an exact one-sided tail of
+        P(K >= 4 | lambda = 1) = 0.0190. THREE structure-destroyed arms were run,
+        so the correct look-elsewhere-adjusted quantity is the probability that AT
+        LEAST ONE of three arms reaches 4 or more, which is 1 - (1 - 0.0190)^3 =
+        0.056. A one-in-eighteen event happening once in three tries is not a
+        finding. Meanwhile the ALIVE readings sit at exact tails of 1.8e-21,
+        5.5e-16 and 9.3e-39 against a frozen bar of 1e-6, a separation of five to
+        thirty orders of magnitude. A 4.0x sd reading cannot explain a 20.5x main
+        reading- if some arm-level offset were inflating every arm by 4x, the
+        mains would still be at 3x to 5x their null and the AES main would still
+        disagree with BATCH-002's r=6 and r=10 arms, which sat at the null on the
+        same object.
+      what_it_DOES_cost: >-
+        Resolution, exactly as the producer says. At 2^30 with a null of 1.0, an
+        sd arm can only exclude an excess of roughly 5x or more. It cannot
+        establish that the sd arms sit AT the null, only that they are not near
+        the main-arm excess. The producer's recommendation to re-run the
+        structure-destroyed controls at higher trial counts before anyone leans
+        on them is correct and I endorse it. I did NOT re-run them myself -- see
+        the dropped-work list.
+      credit_where_due: >-
+        The producer flagged an arm that fell outside its own frozen band, in a
+        direction that could only hurt its own headline, and did not soften the
+        band. That is the behaviour the preregistration discipline exists to
+        produce.
+    - id: R-12
+      claim: >-
+        What two draws establish about the space of 256! bijections. The producer
+        says- those two draws preserved the signal, not that every bijection does.
+      verdict: >-
+        CONFIRMED AS STATED, AND THE PRODUCER'S FORMULATION IS THE CORRECT ONE.
+      basis: >-
+        Two draws, or four counting mine, is a sample of measure zero from 256!.
+        What the arms license is an existence-and-absence statement- there exist
+        random bijections, drawn without selection from a verified uniform
+        procedure, under which the r=5 yoyo excess persists at 11x to 22x, and no
+        draw so far has killed it. The correct inferential weight is that a
+        HYPOTHESIS OF STRONG S-BOX DEPENDENCE IS DISFAVOURED, because such a
+        hypothesis predicts that a uniformly random bijection kills the signal and
+        four independent draws did not. It is not the claim that the signal is
+        S-box-invariant, which would need either a proof or a very different
+        experiment. The producer's frozen decision rule was symmetric between
+        H-INDEP and H-DEP with a declared 50/50 prior before measuring, which is
+        what makes the reading admissible at all.
+    - id: R-13
+      claim: >-
+        The campaign-level synthesis- "NOTHING this campaign has found is specific
+        to AES" and "Every result is a fact about SPN round geometry that AES
+        happens to instantiate."
+      verdict: OVERSTATED AS A HEADLINE
+      basis: >-
+        The measured arms support a narrower statement- the r=5 yoyo excess, the
+        r=4 and r=5 counting properties, and the nibble decay pattern all survived
+        the random bijective S-boxes actually drawn. They do not support a
+        universal quantifier over the campaign's findings or over the space of
+        bijections. Two specific overreaches- "NOTHING" and "Every result" are
+        claims about ALL of the campaign's results, including any whose S-box
+        dependence was never measured; and the synthesis is asserted at r=5 with
+        no decay arm for the random S-boxes in the package, so at the time the
+        headline was written the random-S-box object had not been shown to BE a
+        yoyo signal at all.
+      important_qualification: >-
+        THE OVERSTATEMENT IS IN THE HEADLINE FRAMING, NOT IN THE RECORD. The same
+        RESULTS.json carries a what_this_cannot_establish block that states the
+        correct scope explicitly, including the 256! point and the missing decay
+        direction. A reader of the full artifact is not misled. A reader of the
+        HEADLINE or of the snapshot receipt's summary line is. My ruling is
+        against the headline sentence, and the fix is to scope it to the drawn
+        S-boxes and the measured round count, not to retract anything measured.
+    - id: R-14
+      claim: >-
+        The positive control passes- the same sq_slot binary with slotmask=0 and
+        every hint byte from the TRUE key schedule returns {1: 4}, excluding the
+        all-empty regression hypothesis for BATCH-003 rank 4.
+      verdict: CONFIRMED BY RE-EXECUTION
+      basis: >-
+        AC-7, MR-7 and RX-4. The source is byte-identical to BATCH-003's by sha256
+        and by diff. I recompiled it from the snapshot commit and re-ran the
+        recorded command, and reproduced {1: 4} with the same four survivor bytes
+        and the same per-structure surviving-pair counts. The all-empty regression
+        hypothesis for BATCH-003 rank 4 is EXCLUDED- this instrument is
+        demonstrably capable of emitting a non-empty, unique, correct result.
+      scope_limit: >-
+        This establishes capability, nothing more. It does not re-derive
+        BATCH-003 rank 4's slot conclusions, and it does not show that the {0:4}
+        readings under false hints were correct for the right reason -- only that
+        they were not produced by a dead binary. The producer states exactly this
+        limit itself.
+    - id: R-15
+      claim: >-
+        The snapshot receipt's mechanism summary- "all-fibers-divisible holds
+        40/40 at r=4 and r=5, then 0/40 at r=6 and r=7".
+      verdict: >-
+        INACCURATE AS WRITTEN -- a COORDINATOR receipt defect, not a producer one.
+      basis: >-
+        The producer's own divisibility grid, which I recomputed trial by trial
+        under MR-1 and reproduced independently under RX-1, reads- at r=4, NZ 0/40
+        and Z1 40/40 and Z4 40/40; at r=5, NZ 0/40 and Z1 0/40 and Z4 40/40; at
+        r=6 and r=7, 0/40 everywhere. So the signature never holds under the NZ
+        control at any round count, and it does NOT hold for Z1 at r=5. The
+        receipt sentence would imply Z1 at r=5 carries the degeneracy, which would
+        DESTROY the batch's strongest arm; the very next sentence of the same
+        receipt correctly says the opposite. The producer's artifact is right and
+        the receipt prose compressing it is wrong. Recorded so that no downstream
+        record inherits the compressed version.
+    - id: R-16
+      claim: >-
+        The headline "DECAY TRACKS ROUND COUNT, NOT ZERO ENTRIES".
+      verdict: CONFIRMED FOR THE DECAY, TOO STRONG AS A GENERAL STATEMENT
+      basis: >-
+        The decay itself does track round count- all three layers are forced at
+        r=5 and at chance by r=6, in both engines. But zero entries are not inert.
+        At r=4 they change the MECHANISM entirely- the exact-zero result holds
+        40/40 under NZ and 0/40 under Z1 and Z4, while the mod-8 residue is
+        instead forced through fiber divisibility, and under Z4 at r=4 the whole
+        2^16 coset collapses to a single projection value. The accurate statement
+        is that zero entries change the ROUTE by which the residue is forced at
+        low round counts but not WHETHER it decays. The producer's own M-2, M-4
+        and M-5 say exactly this; only the one-line headline compresses it past
+        accuracy.
+
+  understatement_findings:
+    - id: U-1
+      finding: >-
+        THE DECAY EVIDENCE IS STRONGER THAN THE VERDICT SECTION CLAIMS. The F1/F2
+        rule references r=6 only, and the verdict is stated on r=6 only. But the
+        producer also ran r=7 under all three layers and measured 7/5/5 against a
+        chance expectation of 5, and I measured 5/4/8. A decay demonstrated at TWO
+        round counts past the transition is materially stronger than one, because
+        a single post-transition round count cannot distinguish decay from a
+        one-round oscillation. The producer lists r>=8 in checks_that_did_not_run
+        with the reason that two round counts already established the decayed
+        regime -- which is correct -- but then does not use the r=7 arms in the
+        verdict at all.
+    - id: U-2
+      finding: >-
+        THE RANDOM-S-BOX REPLICATION ARMS ARE A REAL CONTROL AND ARE NOT USED.
+        Six arms at r=5 and r=6 under a FRESH uniformly random 4-bit bijection per
+        trial reproduce the entire pattern -- 40/40/40 at r=5, 6/5/4 at r=6, and
+        the same divisibility grid. This shows the r=5 forcing and the r=6 decay
+        are not artefacts of the one fixed 4-bit S-box the core sweep used. The
+        producer reports these arms fully but its verdict and its transfer
+        statement mention them only in passing, as a "within-width control", and
+        the snapshot receipt does not mention them at all. They deserve to be
+        cited beside the core grid.
+    - id: U-3
+      finding: >-
+        THE CROSS-ENGINE AGREEMENT ON THE DETERMINISTIC ARMS IS EXACT AND IS NOT
+        CLAIMED. The producer's checks_that_did_not_run says the occupancy
+        histograms rest on ONE implementation and asks a validator to supply a
+        second. It does not notice that three of its own arms are key-independent
+        -- NZ at r=4 giving n = 0, Z1 at r=4 giving n = 491520, and Z4 at r=4
+        giving n = C(65536,2) -- and therefore ADMIT exact cross-engine
+        comparison despite the incomparable RNG streams. My engine reproduces all
+        three to the integer on 40/40 trials. The producer under-sold what its own
+        artifact made checkable.
+    - id: U-4
+      finding: >-
+        THE Y-R2-sd BREACH IS LESS ALARMING THAN THE PRODUCER PRESENTS IT. The
+        producer reports the per-arm tail of 0.019 and calls for re-running the
+        controls. Correct, but the relevant quantity across three sd arms is 0.056
+        (R-11), which is an entirely ordinary outcome. The producer's caution is
+        the right instinct applied slightly harder than the arithmetic warrants.
+        I record this as understatement rather than let it stand as a live doubt
+        about the batch.
+    - id: U-5
+      finding: >-
+        THE PRODUCERS' BUDGET DISCIPLINE IS BETTER THAN THE RECORDS FORM SUGGESTS.
+        Rank 1 finished at 613 s of a 2400 s budget with 29 of 30 runs used, zero
+        invalid trials and zero nonzero exits, and recorded halted_on_budget false
+        with dropped_work NONE. Rank 3 finished at 2061 s of 2400 s with 15 of 25
+        runs. Neither claims credit for it and neither padded the remaining budget
+        with unpreregistered arms, which is the correct behaviour and the harder
+        one.
+
+  heuristic_validation_checks:
+    - id: HV-1
+      applies: PARTIALLY
+      note: >-
+        Neither package validates a named analytic heuristic in the exemplar style
+        of docs/target-result-profile.md -- there is no Dickman-de Bruijn-style
+        CDF, no smoothness sampling and no correspondence substituting for direct
+        sampling. The applicable analogues are checked instead.
+    - id: HV-2
+      check: pre-registered prediction recorded before or independently of sampling
+      result: PASS
+      detail: >-
+        Rank 1- PREREGISTRATION.md was frozen at elapsed 130 to 336 s per the
+        budget stamps, after the matrix verification (stamp
+        S1_matrix_verification_complete, "No measurement yet") and before the core
+        sweep (stamp S2_core_sweep_complete). Its file mtime sits between the two
+        stamps. Rank 3- frozen at elapsed 264 s per stamp
+        setup_complete_prereg_begin, with the only prior run a throughput
+        calibration whose seed and armid are used by no scored arm and whose
+        counts are reported anyway. Both freeze claims are consistent with every
+        timestamp I can check.
+      residual_weakness: >-
+        There is no CRYPTOGRAPHIC freeze. A single-session producer that writes
+        its own preregistration and its own budget stamps could in principle
+        author both after the fact; the defence here is the snapshot commit, the
+        internal timestamp consistency, and the fact that rank 1's preregistered
+        r=4 prediction is WRONG in the data, which is strong circumstantial
+        evidence of a genuine freeze -- nobody back-dates a prediction they can
+        see is false. I record the weakness because it is structural, not because
+        I have any reason to doubt these two packages.
+    - id: HV-3
+      check: sample size, seeds and sampling procedure in the manifest, recomputable
+      result: PASS
+      detail: >-
+        Rank 1- 40 trials per arm, seeds recorded per arm in runs.jsonl and echoed
+        in each arm JSON, RNG and key/base derivation fully specified in nib.c,
+        pairing across layers verified by inspection of sweep.sh and the RNG
+        consumption order. Rank 3- trial counts, arm seeds, thread seeds, derived
+        keys and the full 256-byte S-box tables are all recorded, and MR-4 shows
+        the tables regenerate from the seeds.
+    - id: HV-4
+      check: substitute-sampling correspondence cites the theorem establishing the claimed distribution
+      result: NOT_APPLICABLE_BUT_ANALOGUE_CHECKED
+      detail: >-
+        No correspondence substitutes for direct sampling. The structurally
+        analogous move is rank 1's use of a GF(2^4) analogue in place of GF(2^8),
+        and it is NOT justified by a theorem -- it is justified by an arithmetic
+        rescaling argument (R-5) plus a measured signature correspondence (R-4).
+        The producer says so explicitly and does not dress the analogue as a
+        theorem. That is the correct handling of a substitution without a theorem
+        behind it, and it is why R-6's limits are as tight as they are.
+    - id: HV-5
+      check: scale binding, with toy-scale validation recorded as a limitation
+      result: PASS
+      detail: >-
+        Both packages declare claim_tier toy with an explicit basis, both restate
+        the toy limit inside their result sections, and rank 1 states three
+        separate times that OBS-B3-4 remains open at GF(2^8). AGENTS rule 7 is
+        satisfied- no toy-scale reading is presented as scale-matched evidence.
+        The parameter sizes do NOT match the scale the underlying claim concerns
+        -- 4 bits against 8 -- and that mismatch is the central recorded
+        limitation rather than a footnote.
+
+  cost_model_checks:
+    - id: CM-1
+      result: NOT_APPLICABLE
+      detail: >-
+        Neither package reports a concrete cost table, an attack complexity, a
+        per-attempt cost or a success probability. Nothing is claimed to be faster
+        than anything. There is therefore no cost unit to declare, no optimistic
+        assumption to flag, and no per-attempt-cost times inverse-success-
+        probability bookkeeping to check. Wall-clock and thread counts are
+        recorded per arm as run metadata, not as a cost model.
+    - id: CM-2
+      result: NO SPEEDUP CLAIMED, SO THE SECTION 6 LADDER IS NOT ENGAGED
+      detail: >-
+        docs/inventor-protocol.md section 6 governs a claimed improvement that
+        cannot be executed at the scale where it would matter. NO IMPROVEMENT IS
+        CLAIMED ANYWHERE IN THIS BATCH -- not a speedup, not a complexity, not a
+        distinguisher advantage against a stated baseline. Both packages are
+        measurement and control work whose purpose is to test the campaign's own
+        prior readings. Step 2 of that ladder, the scaled-down end-to-end run with
+        the improvement appearing as a MEASURED RATIO against a baseline, has
+        nothing to attach to here. I record this explicitly so that no reader
+        mistakes the absence of a ladder audit for a skipped one.
+    - id: CM-3
+      result: RELEVANT SECTION-6 DISCIPLINE THAT DOES APPLY
+      detail: >-
+        Rank 1 IS a scaled-down instance of a measurement that cannot be run at
+        the width where it matters, and the ladder's spirit applies to it. It
+        satisfies the parts that transfer- the assumption under test (fiber
+        degeneracy forcing the residue independently of round count) was isolated
+        and measured separately from everything else; the predicted NEGATIVE cases
+        were checked too (the no-zero-entry control, the r=6 and r=7 decay, the
+        exact-zero break at r=4); and the reproducibility pointer was exercised
+        rather than asserted, since I rebuilt and re-ran the whole sweep from
+        source. What it CANNOT satisfy is the requirement that the scaled-down run
+        be of the SAME SHAPE- 4-bit and 8-bit fields differ in exactly the way
+        R-6 names, and the producer classifies that loss correctly rather than
+        delegating it to a measurement it did not make.
+
+  proof_architecture_checks:
+    - id: PA-1
+      result: NOT_APPLICABLE
+      detail: >-
+        Neither package is a proof-oriented deliverable under
+        docs/inventor-protocol.md section 8. There is no proof_search_map, no
+        claimed boundary specialization reproducing a cited baseline, no
+        strictness witness and no quantifier-order claim, because nothing is
+        proved. proof_status for both is empirical_only.
+    - id: PA-2
+      result: ONE SECTION-8 ANALOGUE IS SATISFIED
+      detail: >-
+        The nearby-object control in the section 8 sense is present in rank 1- the
+        identical implementation is run on the preregistered nearby objects, namely
+        the no-zero-entry layer and the one-zero and four-zero layers, at the same
+        round counts on the same trial streams. That is the check that makes the
+        result discriminating rather than merely positive.
+
+  limitations:
+    - >-
+      SESSION AND IMPLEMENTATION INDEPENDENCE ONLY, NOT MODEL INDEPENDENCE, under
+      standing basis 0137a051eb5828789eb267fa83c8278086578d4c. Nothing in this
+      report may count toward the three-CONCUR closure quorum for GOAL-AES-003.
+    - >-
+      TOY TIER THROUGHOUT. GF(2^4) nibble arms at 40 trials, r=5 AES-shaped arms
+      at 2^30 to 2^31 trials on one machine, one 6-round key-recovery instrument.
+      No statement about full-round or deployed AES, and no comparison to
+      published cryptanalysis in either direction.
+    - >-
+      OBS-B3-4 IS NOT CLOSED. The decay control is a GF(2^4) analogue. It removes
+      one specific reason to disbelieve the r=5 half of CORR-20260802-46b73b, in
+      an instrument shown to exhibit the same fiber signature, and it does not
+      close the byte-width gap. The GF(2^8) M0/M1 r=6 arm remains the measurement
+      that would close it.
+    - >-
+      MY PRIORITY 2 RE-RUNS USED 2^30 TRIALS, HALF THE PRODUCER'S 2^31, a declared
+      budget choice. My excess factors are correspondingly coarser and my Poisson
+      tails weaker, though still 12 to 18 orders of magnitude below the frozen
+      ALIVE bar.
+    - >-
+      I DID NOT RE-RUN THE STRUCTURE-DESTROYED CONTROLS at any trial count, and I
+      did not re-run them at the 2^32 the producer itself asks for. My ruling on
+      the Y-R2-sd breach (R-11) is arithmetic, not a new measurement.
+    - >-
+      I DID NOT VALIDATE ANY SEGMENT-2 ARTIFACT. The producer's post-snapshot r=6
+      yoyo arms, its yoyo_sbox_v2.c and its independent_reference_check.json are
+      outside my binding snapshot and are neither endorsed nor questioned here.
+      My own r=6 decay measurement under RX-3 was chosen and launched
+      independently of them and is not a review of them.
+    - >-
+      NO CRYPTOGRAPHIC PREREGISTRATION FREEZE EXISTS for either package; see
+      HV-2. The freeze rests on internal timestamp consistency and the snapshot
+      commit.
+    - >-
+      PEAK RSS WAS NOT SAMPLED by either producer or by me; the memory records are
+      arguments from allocation size, not measurements.
+    - >-
+      THE 40-TRIAL ARMS CANNOT RESOLVE A SMALL RESIDUAL BIAS at r=6; see the power
+      caveat in CC-2. The preregistered contrast is resolved with enormous margin;
+      "chance" means "within the resolution of 40 trials".
+    - >-
+      A PASSED VALIDATION MEANS THE RECEIPT IS ADMISSIBLE EVIDENCE. It does not
+      support any claim about AES, does not demonstrate a speedup, does not raise
+      any evidence strength and does not authorise promotion. I assign no official
+      state and recommend no promotion; those are the Coordinator's.
+
+  dropped_work:
+    - >-
+      Re-running the structure-destroyed controls at 2^31 or 2^32. I queued a
+      2^31 sd arm, then cancelled it in favour of the r=6 decay control under
+      RX-3, which fills a missing control rather than adding resolution to an
+      existing one. Named as dropped, not omitted.
+    - >-
+      An exact byte-level cross-check of the producer's enc_r against a reference
+      AES for r < 10. Covered indirectly; see the gap in R-9.
+    - >-
+      A j0 sweep at nibble scale, r >= 8 nibble arms, and any GF(2^8) arm. All
+      out of budget and all named by the producers themselves.
+
+  next_measurements_this_report_leaves_on_the_table:
+    - >-
+      THE ONE THAT MATTERS- M0 or M1 at r=6 over GF(2^8). It is the arm that
+      closes OBS-B3-4 and nothing in this batch substitutes for it. Both this
+      report and the rank-1 producer name it as the single open item.
+    - >-
+      The structure-destroyed yoyo controls at 2^32, which the rank-3 producer
+      asked for and neither of us ran.
+    - >-
+      More random bijective S-box draws for the yoyo, if anyone wants to move
+      R-12 from "strong S-box dependence is disfavoured" toward a distributional
+      statement. Four draws is four.
+
+  parse_check:
+    performed: true
+    how: >-
+      This file was loaded with Python's yaml.safe_load after it was written and
+      before this task finished, and the load succeeded. I ran the parser myself
+      on this exact file rather than asserting it parses. BATCH-003's validation
+      report failed to parse on an unquoted colon at line 844; every prose field
+      in this document is a block scalar, and where a colon would otherwise
+      appear inside flow text I have used a hyphen instead.
+    result: PASS
+    parser: python3 yaml.safe_load
+    parsed_at: 2026-08-03
+
+  verdict: passed
+  verdict_basis: >-
+    Both snapshot-bound producer packages are ADMISSIBLE RESEARCH RECEIPTS. The
+    binding snapshot verifies against its commit on all 101 declared paths. Every
+    reported metric I could recompute does recompute from raw artifacts -- 720 of
+    720 nibble trials from their occupancy histograms, both random S-box tables
+    from their seeds, every Poisson tail and every excess factor. Every decisive
+    measurement I re-ran on my own independent implementations reproduces- the
+    matrix arithmetic exactly, the whole decay sweep qualitatively and its three
+    key-independent arms to the integer, the r=5 yoyo excess under two further
+    random bijections, and the positive control byte for byte. The preregistered
+    falsification pattern F1 did not fire and was not close, in either engine.
+    The controls the campaign was missing are present and DISCRIMINATE- the
+    no-zero-entry null object, the round-count decay at two round counts past the
+    transition, and the in-engine singularity gate. The section 3 decay control
+    that WAS missing for the random-S-box yoyo is now supplied by my own RX-3, and
+    the quantity decays as it should.
+  verdict_qualifications_that_must_travel_with_it: >-
+    PASSED MEANS ADMISSIBLE, NOT TRUE AND NOT PROMOTABLE. Four defects are
+    recorded and none is repaired here- the campaign-headline synthesis "nothing
+    this campaign has found is specific to AES" is OVERSTATED against four
+    S-box draws (R-13); the headline "decay tracks round count, not zero entries"
+    is too strong as a general statement, since zero entries change the forcing
+    route at r=4 (R-16); the snapshot receipt's fiber-divisibility summary is
+    INACCURATE against the producer's own grid and would, if inherited, destroy
+    the batch's strongest arm (R-15); and two reported Poisson tails are
+    numerically wrong including one printed as a literal 0.0 (MR-5). None of
+    these changes a measurement or a frozen decision. OBS-B3-4 REMAINS OPEN AT
+    GF(2^8) and this batch does not close it. I assign no official state, no
+    evidence strength, and recommend no promotion.
+  what_a_reader_should_take_from_this_in_one_sentence: >-
+    The r=5 half of CORR-20260802-46b73b was given a genuine chance to fail, in a
+    scaled analogue that demonstrably exhibits the mechanism it was accused of
+    measuring, and it did not fail -- and separately, the r=5 yoyo excess is not a
+    property of the AES S-box, which makes it less interesting as AES
+    cryptanalysis and more interesting as a fact about round geometry.
+
+  artifact_paths:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-fab2b8/validation_report.yaml
+
+  inference:
+    policy: validator-review
+    requested_policy: validator-review
+    resolved_model: claude-opus-5
+    resolved_model_basis: >-
+      Self-reported by the running session's own system context. No adapter probe
+      was executed, so this resolution is NOT independently verified.
+    fallback_used: true
+    fallback_basis: >-
+      orchestration/model-policies.yaml names GPT-5.6-family policy aliases that
+      Claude Code cannot resolve; every subagent in this harness runs
+      model: inherit.
+    model_verified: false
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+    independence_note: >-
+      SESSION and IMPLEMENTATION independence from both producers; NO MODEL
+      independence. Nothing in this report may count toward a closure quorum.

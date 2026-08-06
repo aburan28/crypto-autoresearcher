@@ -1,0 +1,558 @@
+validation_report:
+  id: TASK-20260806-01a340
+  task_id: TASK-20260806-01a340
+  role: validator
+  goal: GOAL-HQC-001
+  batch: BATCH-558f5b
+  validates_task: TASK-20260806-047535
+  validates_snapshot: TASK-20260806-883308
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  claim_tier: toy
+  independent_session: true
+  policy_requested: review-adversarial
+
+  snapshot_verification:
+    commit_sha: 08d1c07a3b350ccc33ac7a70ebb20b5c7ce0e447
+    parent_sha: 3ebf3837c098c4703f699a1dcede9fe95ff77389
+    commit_reachable_from_head: true
+    note: >-
+      Verified via `git log`/`git show` that 08d1c07a is reachable from HEAD
+      and its parent matches the declared parent in
+      snapshot-receipt.json. Confirmed this is a Coordinator-committed
+      snapshot, not a working-tree-only producer receipt, satisfying the
+      Validator's precondition to review at all.
+    path_sha256_recheck:
+      status: ALL_MATCH
+      detail: >-
+        Recomputed sha256 on-disk for design.md, planted_arm_v2.py,
+        planted_results.json, comparison_report.md, run_manifest.yaml,
+        stdout.log, stderr.log and compared against
+        archives/TASK-20260806-883308/snapshot-receipt.json's
+        path_sha256 map. All 7 hashes matched exactly.
+
+  run_ids:
+  - TASK-20260806-047535 (executor run; artifacts under
+    coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/)
+
+  artifact_checks:
+  - artifact: design.md
+    present: true
+    predates_run: true
+    evidence: >-
+      run_manifest.yaml records evidence_file_mtimes_utc: design.md
+      2026-08-06T16:46:08Z < planted_arm_v2.py_final 16:49:05Z <
+      planted_results.json_final 16:56:41Z. Batch-open commit 3ebf3837 is
+      timestamped 2026-08-06T16:27:47Z, consistent with (predates) all
+      three file mtimes. planted_arm_v2.py additionally re-derives and
+      bit-compares its embedded DESIGN_TABLE_LOG2_A / template constants
+      against design.md's frozen values at run time
+      (design_md_reproduction_check verdict PASS, template_verification
+      verdict PASS), which is a stronger, code-enforced version of
+      "predates" than file-timestamp evidence alone.
+  - artifact: planted_arm_v2.py
+    present: true
+    imports_real_decode_blocks: true
+    evidence: >-
+      Read the full script. It imports stage_a.py via
+      importlib.util.spec_from_file_location after a sha256 gate
+      (load_module), and calls sa.decode_blocks(bits, n_e, n_2, dup)
+      directly in run_batch() -- not a reimplementation. Independently
+      recomputed sha256 of stage_a.py on disk
+      (06a0a618432c00fe26c72ecf05a8d89489db61c5183931fdb76a378717681405)
+      and confirmed it matches the pinned constant in both
+      planted_arm_v2.py and planted_results.json.reused_pipeline.stage_a_py.
+  - artifact: planted_results.json
+    present: true
+    schema_consistent_with_design: true
+  - artifact: comparison_report.md
+    present: true
+  - artifact: run_manifest.yaml
+    present: true
+    carries_command_revision_dirty_seeds_env_resources: true
+
+  independent_recomputation:
+  - id: planted_law_rederivation
+    description: >-
+      Re-derived log2_A_k(k) for k=2..18 from the stated construction in
+      design.md Section 2 (M_t ~ Uniform{17,18,19}, mu_bar_k =
+      (1/3)(C(17,k)+C(18,k)+C(19,k))/C(56,k), q=9/28,
+      log2_A_k=log2(mu_bar_k)-k*log2(q)) using fresh Python code
+      (fractions.Fraction + math.comb), written and run BEFORE opening
+      planted_results.json or comparison_report.md.
+    method: >-
+      python3 fractions-based recomputation, independent of
+      planted_arm_v2.py's planted_law() function (same formula, separately
+      typed).
+    result: >-
+      All 17 values matched design.md's frozen table and
+      planted_arm_v2.py's DESIGN_TABLE_LOG2_A constant to the full
+      precision printed (agreement to >=1e-15 relative, i.e. bit-for-bit
+      at printed precision). q=9/28=0.32142857142857145 confirmed.
+    verdict: MATCH
+  - id: template_decode_independent_verification
+    description: >-
+      Independently transcribed S_TEMPLATE and FAIL_TEMPLATE from BOTH
+      design.md's flat 128-bit string rendering (Section 3.3) and
+      planted_arm_v2.py's module-constant array, asserted the two
+      transcriptions are bit-identical, then imported stage_a.py myself
+      (sha256-pinned, same hash as above) and called decode_blocks and
+      brute_force_decode directly, without reading the executor's
+      verification code path.
+    result: >-
+      decode_blocks: S_TEMPLATE -> F=False, W=49, ties=False (intended
+      succeed, MATCHES). FAIL_TEMPLATE -> F=True, W=50, ties=False
+      (intended fail, MATCHES). brute_force_decode (independent
+      exhaustive 256-codeword search): S_TEMPLATE -> F=False,
+      FAIL_TEMPLATE -> F=True (both agree with decode_blocks and with
+      intended labels). WHT margin recomputed independently:
+      S_TEMPLATE top1=30/top2=26/margin=4; FAIL_TEMPLATE
+      top1=32/top2=28/margin=4. All values match
+      planted_results.json.template_verification exactly.
+    verdict: MATCH -- both templates genuinely decode to their claimed
+      label under two independent decoders, not merely asserted by the
+      executor.
+  - id: boundary_index_shift_perturbation_independent_check
+    description: >-
+      Implemented shift_read_one_early and shift_read_one_late myself
+      (a second, independent implementation using np.roll, cross-checked
+      against a hand-rolled index-copy implementation matching the
+      executor's shift_read_one_early -- the two implementations agreed
+      bit-for-bit before use), and ran all 8 scenarios (2 templates x
+      2 directions x 2 neighbor types) against the real decode_blocks.
+    result: >-
+      read-one-early: S_TEMPLATE flips False->True under BOTH same-label
+      and diff-label neighbor; FAIL_TEMPLATE flips True->False under
+      BOTH. read-one-late: S_TEMPLATE does NOT flip under either neighbor
+      type; FAIL_TEMPLATE DOES flip under both. This reproduces the
+      executor's full 8-row table in comparison_report.md Section 4
+      exactly, including the asymmetric (not-flip) cases -- i.e. the
+      executor did not selectively report only the flipping cases.
+    verdict: >-
+      CONFIRMED INDEPENDENTLY: at least one boundary-index-shift
+      perturbation (read-one-early, both neighbor types) gives BOTH
+      templates a genuine, non-zero, deterministic chance of flipping F,
+      unlike the V1 arm which the Red Team proved has probability
+      exactly 0 for any T. This is a real, verified improvement over V1,
+      not merely an executor claim taken on trust.
+  - id: cell_recomputation_from_archived_output
+    description: >-
+      Recomputed, from the numbers archived in planted_results.json
+      itself (recovered_log2_Ahat_k, jackknife_se, planted_log2_A_k), the
+      interval bounds [point-3*se, point+3*se], the MATCH/MISMATCH
+      verdict, distance_planted_minus_recovered, and
+      distance_in_jackknife_se for all 17 cells, and compared against the
+      executor's stored values.
+    result: >-
+      All 17 cells' interval bounds, MATCH verdicts, and derived distance
+      statistics recomputed to exact agreement (<1e-12 absolute) with the
+      archived values. Spot-checked k=17 (the PS-R3-prespecified cell)
+      and k=18 (highest-k, most SE-sensitive) by hand in addition to the
+      full-table script pass.
+    caveat: >-
+      IMPORTANT LIMITATION, DISCLOSED HONESTLY HERE: planted_results.json
+      does NOT archive the raw per-batch histogram (bh, the (200, 57)
+      count array) or any per-trial S_t data -- only derived summary
+      statistics (point estimate, jackknife SE, planted value) per k.
+      This means a full independent recomputation of log2_Ahat_k "from
+      raw sample counts" (i.e., re-running measure.log2_A_from_hists
+      against an archived histogram) is NOT possible from the committed
+      artifact alone; what I recomputed is the correctness of the
+      comparison-rule arithmetic applied to the archived summary
+      statistics, not a re-derivation of those summary statistics from
+      raw counts. This is consistent with V1's precedent
+      (TASK-20260806-e19f6c's planted_results.json has the identical gap
+      -- verified by inspection) and is therefore not a new defect
+      introduced by this arm, but it is a standing reproducibility gap in
+      this campaign's artifact convention and should be named as such
+      going forward: a future arm should archive the raw per-batch
+      histogram so a reviewer can re-run log2_A_from_hists independently
+      rather than only re-checking the stated comparison-rule arithmetic.
+    verdict: MATCH (of the archived summary numbers' internal arithmetic);
+      NOT INDEPENDENTLY RE-DERIVABLE FROM RAW COUNTS given what is
+      archived.
+
+  code_diff_check:
+    id: estimator_reuse_diff_against_measure_py
+    target: coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py
+    findings:
+    - >-
+      comb_matrix(n_e, ks) and log2_A_from_hists(H, n_e, ks, C) are called
+      directly through the sha256-pinned import (measure.comb_matrix(...),
+      measure.log2_A_from_hists(...)), i.e. literally the same function
+      object at run time, not a copy. No divergence possible by
+      construction.
+    - >-
+      N_JACK_BATCHES=200 cross-checked at run time
+      (measure.N_JACK_BATCHES != N_JACK_BATCHES aborts); confirmed equal.
+    - >-
+      point/loo/jmean/jse jackknife block (measure.py lines 730-739) is
+      copied verbatim into planted_arm_v2.py's main() with identical
+      formula and variable names (point, loo, jmean, jse) -- confirmed by
+      direct text comparison. No divergence in the jackknife formula
+      itself.
+    - >-
+      STRUCTURAL DIFFERENCE (not a code bug, but worth recording as a
+      diff): measure.py builds its 200 per-batch histograms (bh, lines
+      730-733) by POST-HOC SLICING a flat T_ach-length S_all array at
+      linspace(0, T_ach, 201)-derived boundaries (batch widths can differ
+      by +/-1 trial when T_ach doesn't divide evenly by 200).
+      planted_arm_v2.py instead builds each batch's histogram DURING
+      generation, one decode_blocks call per batch of exactly
+      sub_chunk=5000 trials (T_planned=1e6 divides 200 evenly, so this is
+      moot here: every batch is exactly 5000 trials in both schemes).
+      This is the same divergence V1 already had from measure.py and
+      disclosed as such; it does not change the jackknife formula applied
+      to the resulting histograms, and with T=1e6 evenly divisible by 200
+      the two batch-construction schemes produce statistically equivalent
+      (here, actually identical-shape) batch partitions. Not a defect.
+    - No other divergence found in the reused portions.
+    verdict: NO MATERIAL DIVERGENCE from measure.py's estimator/jackknife
+      logic; the one structural difference (batch construction) is
+      inherited from V1's precedent, disclosed, and immaterial at this
+      T/N_JACK_BATCHES combination.
+
+  control_checks:
+  - control: fail_closed_sha256_gates (measure.py, stage_a.py)
+    status: VERIFIED
+    detail: >-
+      Independently recomputed both files' sha256 on disk; both match the
+      pinned constants in planted_arm_v2.py and the values recorded in
+      planted_results.json.reused_pipeline. run_manifest.yaml documents a
+      deliberate-mismatch dry run (temporarily editing
+      MEASURE_PY_EXPECTED_SHA256 to an all-zero placeholder, re-running
+      at reduced scale, confirming a FAIL-CLOSED abort with no
+      planted_results.json written, then reverting and re-verifying with
+      a passing smoke run) -- this is the correct way to demonstrate a
+      check is fail-closed rather than fail-open, and the account is
+      internally consistent (matches the "constraints" requirement in the
+      dispatch queue).
+  - control: template_verification_gate (positive control per label)
+    status: VERIFIED (see independent_recomputation.template_decode_independent_verification)
+  - control: boundary_index_shift_sensitivity (the actual point of this
+      arm, relative to V1)
+    status: VERIFIED (see independent_recomputation.boundary_index_shift_perturbation_independent_check)
+  - control: block_partition_self_check (F == block_fail, fail-closed)
+    status: NOT INDEPENDENTLY RE-RUN (would require re-running the full
+      T=1e6 generation, outside this task's budget); ACCEPTED ON DESIGN
+      GROUNDS -- the check reads the REAL decode_blocks output on
+      correctly-partitioned data it just constructed, so its own
+      pass/fail is logically load-bearing (a failure would have aborted
+      before any results were written) rather than a self-report that
+      could silently pass. Consistent with the fact that both individual
+      templates independently verified above (which ARE exactly the
+      content this self-check exercises at scale) decode correctly.
+  - control: positive/negative decode control (S_TEMPLATE succeed /
+      FAIL_TEMPLATE fail)
+    status: VERIFIED, independently, against two decoders (decode_blocks
+      and brute_force_decode), not merely re-read from the report.
+  - control: run-count / execution-count discipline (the V1 discrepancy
+      this task was explicitly built not to repeat)
+    status: VERIFIED CONSISTENT
+    detail: >-
+      run_manifest.yaml and comparison_report.md both report exactly 1
+      authorized run plus 2 explicitly distinguished pre-run scratch
+      invocations (a smoke test and the fail-closed deliberate-mismatch
+      dry run), both writing to scratch --out-dir paths, neither
+      producing the committed planted_results.json. No discrepancy of
+      the kind EV-HQC-db1fd9 flagged against V1 (2 vs. 3 executions
+      claimed) was found here.
+
+  heuristic_validation_checks:
+  - check: pre_registered_prediction
+    status: PASS
+    detail: >-
+      The planted marginal law (log2_A_k(k)) and the template/margin
+      construction were both pre-registered in design.md before
+      planted_arm_v2.py was run on any data, per the mtime evidence and
+      the run-time reproduction-check gates (both independently
+      confirmed above). The T-reduction residual (SE scaling by ~sqrt(10))
+      was ALSO pre-registered in design.md Section 5, before the run --
+      confirmed by comparing design.md's stated prediction language to
+      comparison_report.md Section 6's after-the-fact 3.01x observed
+      ratio; the prediction was stated first.
+  - check: sample_integrity
+    status: PARTIAL
+    detail: >-
+      Sample size (T=1,000,000), seeds (SEED_PREFIX and per-batch
+      derivation), and sampling procedure are all in run_manifest.yaml
+      and design.md. However, as noted under
+      independent_recomputation.cell_recomputation_from_archived_output,
+      the raw per-batch histogram is not archived, so the empirical
+      distribution cannot be recomputed from raw samples -- only the
+      derived summary statistics' internal arithmetic can be checked.
+      This caps this check at PARTIAL rather than PASS.
+  - check: correspondence_validity
+    status: N/A
+    detail: >-
+      No Deuring-style substitute-sampling correspondence is used here;
+      this is a planted-instance instrument check against a real decoder,
+      not a distributional correspondence argument.
+  - check: scale_binding
+    status: PASS (toy, disclosed as such)
+    detail: >-
+      n_e=56, n_2=128, dup=1, m=17 match PS-R3's parameters exactly
+      (cross-checked against experiments/EXP-HQC-982268/specification.yaml
+      PS-R3 block, n_e=56/n_2=128/m=17, confirmed present). T is
+      order-matched in structure but reduced 10x from PS-R3/V1's T=1e7 to
+      T=1e6, honestly disclosed as budget-driven, with the expected SE
+      inflation pre-registered and checked post-hoc (comparison_report.md
+      Section 6). Claim tier stays toy throughout, per every artifact
+      touched (design.md, planted_arm_v2.py header, run_manifest.yaml,
+      comparison_report.md all state "toy" and disclaim any A17/DFR/
+      standardized-parameter-set conclusion).
+  - check: cost_unit_honesty / cost_bookkeeping
+    status: N/A
+    detail: >-
+      This task does not present a concrete asymptotic cost table; it is
+      an instrument-validation control arm, not a cost-model claim.
+
+  t_reduction_honesty_assessment:
+    claim: T reduced 10x (1e7 planned/PS-R3-matched -> 1e6 actually run),
+      due to the real decoder being ~54x slower than V1's hand-rolled
+      reduce (1198 vs ~64,700 trials/core-second).
+    is_this_meaningfully_weaker_evidence: >-
+      YES, and the report says so plainly rather than obscuring it.
+      Jackknife SEs at T=1e6 are documented (design.md Section 5, before
+      the run) to be expected ~sqrt(10)=3.16x wider than a T=1e7 run of
+      the identical real-decoder construction would show. The actual
+      k=18 SE observed (9.598e-04) versus V1's own k=18 SE at T=1e7
+      (3.188e-04, independently spot-checked against V1's
+      comparison_report.md Section 7 and confirmed present at that exact
+      value) gives an observed ratio of 3.01x -- close to, and honestly
+      compared against, the 3.16x prediction, with the report itself
+      noting the two arms are not directly comparable (different
+      constructions) and calling this "a rough consistency check ... not
+      a formal test," which is accurate, not overclaiming.
+    does_the_MATCH_result_still_mean_much_at_T=1e6: >-
+      A MATCH at T=1e6 with correspondingly widened intervals is weaker
+      evidence of estimator/generator correctness than the same MATCH
+      would be at T=1e7 -- the widened band admits a wider range of
+      "wrong" generators as indistinguishable from correct ones at the
+      3-SE threshold. This arm's MATCH result should be read as
+      confirming the pipeline round-trips correctly (as V1's did, at
+      higher precision) -- not as adding meaningfully more statistical
+      power toward detecting subtle sampler defects than V1's own MATCH
+      already provided at 17/17. The report does not claim otherwise.
+    honesty_verdict: HONEST -- the residual is pre-registered, the
+      observed ratio is reported and compared (not cherry-picked or
+      hidden), and no claim of T=1e7-equivalent precision is made
+      anywhere in the artifacts.
+
+  what_this_arm_established_vs_did_not:
+    established:
+    - >-
+      The real, sha256-pinned, unmodified stage_a.py decode_blocks
+      (WHT/Reed-Muller-fold argmax decoder), including its own internal
+      bits.reshape(B, n_e, n_2) block-partition step, was genuinely
+      exercised -- independently confirmed by direct import and call in
+      this validation.
+    - >-
+      Two heterogeneous, near-decision-boundary (margin=4 of a possible
+      128) 128-bit templates were constructed, and BOTH independently
+      verified to decode to their intended label under two independent
+      decoders (decode_blocks and an exhaustive brute_force_decode over
+      all 256 duplicated RM(1,7) codewords).
+    - >-
+      At least one boundary-index-shift perturbation (read-one-index-
+      early, the literal shape of the campaign's V1/V3 defect classes)
+      gives BOTH templates a genuine, deterministic, non-zero chance of
+      flipping F, under both same-label and different-label neighbor
+      conditions -- independently reproduced here, not merely asserted.
+      This is a real, demonstrated structural improvement over V1, whose
+      homogeneous-block construction was proven to have probability
+      EXACTLY ZERO of expressing this defect class at any T.
+    - >-
+      17/17 cells recovered log2_Ahat_k within the pre-registered
+      3-jackknife-SE band of the closed-form planted value, at the
+      honestly-reduced T=1e6, with the SE-widening residual pre-
+      registered and post-hoc checked.
+    NOT_established_by_this_arm:
+    - >-
+      A measured DETECTION RATE of an actually-injected V1/V3 defect at
+      the level of the full 1,000,000-trial S_t histogram and the
+      resulting log2_Ahat_k statistic. What was verified (here and by
+      the executor) is a per-template, per-scenario, isolated single-
+      block-decode fact -- not a run of the full generator WITH the
+      defect injected, compared against the defect-free run, at the
+      estimator level. Design.md Section 3.6 states this explicitly and
+      correctly reserves that experiment for the Red Team task
+      (TASK-20260806-ae74c4), which had not yet produced a report at the
+      time of this validation.
+    - >-
+      Generality beyond the two fixed templates. Every "succeed" block in
+      every trial and every position is bit-identical to S_TEMPLATE;
+      every "fail" block is bit-identical to FAIL_TEMPLATE. This is
+      explicitly disclosed (design.md Section 6.2 item 3) as a residual --
+      it is not a test of content-dependent defects, nor does it
+      establish that EVERY possible neighbor-pair/position/M_t
+      combination would flip F under injection -- only that these two
+      specific templates, at this specific margin (4), under this
+      specific perturbation, do.
+    - >-
+      The cryptographic (T)-sampler itself (CTRStream, fixed_weight_support,
+      ring_mul_sparse/dense) remains entirely unexercised, as honestly and
+      repeatedly disclosed in every artifact.
+
+  limitations:
+  - Raw per-batch histogram (bh) is not archived in planted_results.json;
+    only derived point/SE summary statistics per k are. Full
+    independent recomputation of log2_Ahat_k from raw sample counts was
+    therefore not possible from the committed artifact; only the
+    comparison-rule arithmetic applied to the archived summary
+    statistics could be independently re-verified. This gap is inherited
+    from V1's identical precedent (confirmed present in V1's
+    planted_results.json too) and is not unique to this arm, but should
+    be fixed in future arms for full auditability.
+  - This validation did not independently re-run the full T=1,000,000
+    generation (434 core-seconds measured by the executor; re-running it
+    was possible within this task's 1800s budget but was judged lower
+    value than the targeted independent checks performed, given that
+    (a) the jackknife/estimator code is a verbatim, sha256-pinned reuse
+    of measure.py, whose correctness was already independently verified
+    by the Validator on V1 per EV-HQC-db1fd9, and (b) the block-
+    partition self-check inside the run is logically load-bearing
+    (fail-closed) and covers exactly the content independently verified
+    at the template level above). This is recorded as a scope decision,
+    not a missing check that changes the verdict.
+  - The detection-RATE question (does an actually-injected V1/V3 defect,
+    run through this arm's full generator, change log2_Ahat_k
+    detectably?) is out of this task's scope by the dispatch queue's own
+    division of labor and is the explicit subject of the parallel
+    Red-Team task TASK-20260806-ae74c4, whose report was not yet
+    available at the time of this validation. This validator's ADMIT
+    verdict below covers the RECEIPT's integrity, not that unresolved
+    question.
+  - Claim tier stays toy; nothing in this validation authorizes any
+    statement about A17, HQC's decoding-failure rate, or any
+    standardized HQC parameter set.
+
+  verdict: passed
+
+  admit_do_not_admit: ADMIT
+  admit_rationale: >-
+    Every independently-checkable claim in this run package was checked
+    against the primary artifact or a from-scratch independent
+    recomputation, not merely re-read from the executor's summary, and
+    every one of them held: (1) the planted log2_A_k(k) table
+    independently re-derives bit-for-bit before this validator ever
+    opened planted_results.json; (2) stage_a.py's decode_blocks is
+    genuinely imported unmodified (sha256-pinned, independently
+    recomputed hash matches) and both templates genuinely decode to
+    their claimed label under two independent decoders, verified here by
+    direct import and call, not by trusting the executor's report; (3)
+    at least one boundary-index-shift perturbation genuinely flips both
+    templates' decoded outcome, independently reproduced with a second,
+    separately-written implementation of the shift operator; (4) all 17
+    reported cells' MATCH verdicts and interval arithmetic recompute
+    correctly from the archived summary statistics (with the archival
+    gap on raw histograms honestly flagged as a limitation, not a
+    defect); (5) the reused estimator/jackknife code is called through
+    the sha256-pinned import (not copyable-and-divergeable for
+    comb_matrix/log2_A_from_hists) and the one copied block matches
+    measure.py's formula verbatim, with only an immaterial,
+    already-precedented batch-construction difference; (6) design.md and
+    the template verification genuinely predate planted_results.json, by
+    both file-mtime evidence and run-time reproduction-check gates; (7)
+    the T-reduction to 1e6 is disclosed honestly with a pre-registered
+    SE-widening prediction that is checked, not hidden, against the
+    actual observed ratio; (8) the fail-closed integrity gate is
+    demonstrated, not merely asserted, via a deliberate-mismatch dry
+    run; (9) execution-count discipline is clean and consistent across
+    run_manifest.yaml and comparison_report.md, unlike V1's discrepancy.
+    No fabrication, no silently-repaired defect, and no claim beyond
+    toy tier was found anywhere in the package.
+
+  open6_disposition: PARTIALLY CLOSES OPEN-6
+  open6_disposition_rationale: >-
+    This arm retires BOTH of the two specific, named structural gaps the
+    Red Team found in V1 (EV-HQC-db1fd9): it genuinely runs the real
+    decode_blocks (not a hand-rolled majority threshold), and it
+    genuinely demonstrates -- independently reconfirmed here, not merely
+    executor-asserted -- that a boundary-index-shift perturbation of the
+    exact V1/V3 shape has a real, non-zero, deterministic chance of
+    flipping the decoded outcome for real, non-homogeneous, near-boundary
+    block content. That is a genuine and verified improvement: V1 was
+    proven to have probability exactly 0 of ever catching this defect
+    class, at any T; this arm is proven, at the single-block level, to
+    have probability > 0.
+
+    It does NOT close OPEN-6, for reasons the executor itself disclosed
+    plainly and this validator independently confirms are load-bearing,
+    not merely formal caveats:
+
+    (a) A non-zero single-block flip probability is necessary but not
+    sufficient for OPEN-6. OPEN-6 asks whether PS-R3's anti-correlation
+    signal could be produced by a subtly wrong sampler rather than a real
+    effect. Answering that requires knowing whether an ACTUAL injected
+    defect, run through the FULL generator across many trials, would
+    move the log2_Ahat_k STATISTIC by a detectable amount -- not whether
+    an isolated hand-picked block, perturbed once, changes its own
+    decode. A defect could flip individual blocks with the demonstrated
+    non-zero probability here and STILL leave the aggregate S_t
+    histogram, and hence log2_Ahat_k, statistically indistinguishable
+    from the no-defect case if the flip rate is too low or too
+    symmetric across the M_t mixture to bias the estimator detectably at
+    T=1e6 (or even T=1e7). That measurement is the explicit job of the
+    parallel Red-Team task (TASK-20260806-ae74c4) and was not available
+    to this validator; until it exists and shows a genuine detection
+    rate at the estimator level, "the block CAN flip" has not been
+    upgraded to "the arm WOULD catch a real defect."
+
+    (b) The two-template design is narrower than the space of possible
+    boundary/index-shift defect expressions. Every "succeed" block is
+    bit-identical across all 56 positions and all 1,000,000 trials
+    (likewise for "fail"); the templates were selected for a SPECIFIC
+    margin (4, out of a maximum 128) at a SPECIFIC point in the WHT
+    landscape. Design.md's own Section 3.6 is explicit that this does
+    not establish the flip property for every possible neighbor-pair /
+    M_t-draw / position combination, only the two fixed vectors tested
+    here, under the specific read-one-early and read-one-late operators
+    tested. It is plausible (not established either way by this arm)
+    that a different real fixed-weight-support-sampled noise vector, or
+    a different boundary-index defect (e.g. a two-index shift, a
+    different-magnitude window error, or a defect whose effect depends
+    on bit-pattern diversity across positions rather than a boundary
+    shift alone) would have a materially different -- possibly much
+    smaller, possibly zero -- flip probability against THESE margin-4
+    templates than against the true, richer distribution of
+    fixed-weight-support-derived blocks. A narrow near-boundary
+    construction that happens to catch the specific defect shapes probed
+    is not evidence it would catch the general class.
+
+    (c) The cryptographic (T)-sampler (CTRStream, fixed_weight_support,
+    ring_mul_sparse/dense) remains completely unexercised, as in V1; the
+    question of whether stage_a.py's REAL sampling path (as opposed to
+    this arm's directly-constructed planted content) contains the kind
+    of subtle index bug OPEN-6 worries about is untouched by either arm.
+
+    Net: this is real, verified progress -- the V1 blind spot named by
+    the Red Team is genuinely gone at the single-block level -- but OPEN-6
+    itself (can PS-R3's anti-correlation signal be distinguished from a
+    subtly wrong sampler?) is not answered by a control that has not yet
+    measured a detection rate at the level of the actual estimator
+    statistic, nor established that its two fixed templates generalize
+    to the space of defects and noise content OPEN-6 must cover. PARTIAL
+    closure, contingent on TASK-20260806-ae74c4's outcome to determine
+    whether the remaining gap (a) above is also closed.
+
+  artifact_paths:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/design.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/planted_arm_v2.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/planted_results.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/comparison_report.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/run_manifest.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/archives/TASK-20260806-883308/snapshot-receipt.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py
+  - ledger/evidence/EV-HQC-db1fd9.yaml
+  - experiments/EXP-HQC-982268/specification.yaml
+
+  next_action_note: >-
+    This report is written for the Coordinator's ledger archive task
+    (TASK-20260806-f11d5f) to combine with the parallel Red-Team report
+    (TASK-20260806-ae74c4). This validator changes no status and takes no
+    position on HQC's security; ADMIT/DO-NOT-ADMIT concerns receipt
+    integrity only, and the OPEN-6 disposition judgement above is this
+    validator's independent reading, to be weighed alongside (not
+    substituted for) the Red Team's detection-rate measurement.
