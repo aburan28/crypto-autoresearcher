@@ -1,0 +1,188 @@
+# DRAFT PROTOCOL AMENDMENT, NOT YET FROZEN. Supersedes specification_v4.yaml
+# (v4, frozen 0b15e854, retained unedited) on TWO INDEPENDENT POINTS,
+# bundled into one batch (BATCH-008, the last batch within this goal's
+# current 8-batch campaign_budget) because DEC-20260805-6aa5c2's own
+# next_action names both as parallel, zero-new-search, mutually
+# non-blocking actions using disjoint data and code paths (confirmed by
+# RT-BATCH-007.md Front 6): (A) GD-11's fix -- harden
+# dht.ols_loglog_fit's degeneracy guard; (B) the trapping-mechanism
+# diagnostic deferred since BATCH-006 -- investigate why all
+# previously-searched primes show pervasive greedy-descent trapping,
+# using already-collected graph/delta_map data. Each part is
+# independently reviewable and independently gated; a finding in one
+# does not depend on or block the other.
+experiment:
+  id: EXP-SSIQ-a85692
+  hypothesis_id: H-SSIQ-36e970
+  version: 5
+  title: >-
+    (A) Harden the shared OLS degeneracy guard (GD-11's fix) and (B)
+    diagnose the mechanism behind pervasive greedy-descent trapping
+    (BATCH-008, both zero new search)
+  status: draft
+  approved_by: null
+  amends: EXP-SSIQ-a85692 (version 4, specification_v4.yaml, frozen 0b15e854)
+  amendment_scope: >-
+    PART A touches shared library code (dht.ols_loglog_fit) by
+    SUPERSESSION, never by in-place edit: descent_hitting_time.py stays
+    frozen and byte-for-byte untouched (it is EXP-SSIQ-58b642's own
+    artifact, immutable per AGENTS.md). A NEW module,
+    experiments/EXP-SSIQ-a85692/implementation/ols_hardened.py, defines
+    ols_loglog_fit_v2 (ONLY the degeneracy guard changed: max(xs)==min(xs)
+    replaces the exact-float sxx==0.0 check; every other line
+    byte-identical to the original, diffable) and re-exports
+    bootstrap_gap_ci UNCHANGED (bootstrap_gap_ci itself has no analogous
+    guard and is not implicated in GD-11). Future amendments that need the
+    null-arm or real-arm OLS fit import ols_hardened.ols_loglog_fit_v2;
+    this amendment does NOT retroactively re-run or re-derive any prior
+    batch's already-archived gamma/CI values, which stay exactly as
+    committed (GD-11 does not contaminate them, per EV-SSIQ-87d21a O-4).
+    PART B is a pure re-analysis / graph-reconstruction task: rebuild the
+    already-validated 2-isogeny graphs (build_isogeny_graph.build_graph_bfs,
+    IMPORTED UNCHANGED, same pinned seeds) for the primes with real
+    delta_map data already committed in RUN-SSIQ-a85692-b's raw-result.json
+    (2437, 3889, 5737, 7333; 8893 excluded, partial delta_map coverage
+    only), and compute a STRUCTURAL (not walk-simulation) diagnostic:
+    for each vertex v, is v a graph-structural local minimum of delta_E
+    (delta_map[v] <= delta_map[u] for all neighbours u of v)? This
+    requires NO new delta_E search (delta_map is read directly from the
+    already-committed raw-result.json) and NO re-implementation of
+    greedy_descent_hitting_time (which stays imported unchanged, used
+    only for a cross-check, not the diagnostic's primary computation).
+    Everything else in v1-v4 (B=23/X=23, the delta_E instrument, every
+    budget-allocation formula, trapped_exclusion_filter_v3,
+    c_null_label_comparison_v3, the decision rule, every control) is
+    REUSED UNCHANGED and NOT reopened, restated, or re-run.
+  pre_freeze_review:
+    status: PENDING
+    note: >-
+      Not yet reviewed. The reviewer must, for PART A: (a) confirm
+      ols_hardened.py's ols_loglog_fit_v2 differs from the original
+      ONLY in the degeneracy guard (a line-by-line diff), so no other
+      behavior silently changes; (b) confirm max(xs)==min(xs) is
+      logically equivalent to "all N values in this fit are identical"
+      (the actual degeneracy condition the guard exists to catch) and
+      strictly more reliable than the original under floating-point
+      summation rounding -- construct or cite a case where the two
+      checks disagree and confirm the new one is correct on it (e.g. the
+      N=324/n=3 and N=611/n=6 cases RT-BATCH-007.md already found); (c)
+      confirm this amendment does not silently apply the hardened guard
+      retroactively to any already-archived gamma/CI value (it must not
+      -- those stay exactly as committed, per AGENTS.md immutability).
+      For PART B: (d) confirm the structural local-minimum diagnostic is
+      computed directly from already-committed delta_map data and
+      freshly-but-deterministically rebuilt graphs, with NO new delta_E
+      search of any kind; (e) confirm the rebuilt graphs are verified
+      (e.g. via C-CONNECTIVITY's own floor(p/12) anchor, reused) to be
+      byte-identical in vertex/edge structure to what BATCH-003/004/005/006
+      already validated, not a silently different graph; (f) assess
+      whether the structural local-minimum diagnostic is actually
+      informative about the walk-based trapped_fraction already reported
+      (a vertex being a structural local minimum is necessary but the
+      walk's own non-backtracking/predecessor-exclusion rule could in
+      principle make a non-structural-minimum vertex ALSO walk-trapped in
+      rare cases -- the reviewer should determine whether this gap
+      matters and how it's disclosed if so).
+  inputs:
+    gd11_fix_v5: >-
+      PART A. ols_hardened.py defines: def ols_loglog_fit_v2(N_list,
+      y_list): [BYTE-IDENTICAL to dht.ols_loglog_fit except] the guard
+      "if sxx == 0.0: raise ValueError(...)" is replaced by "if
+      max(xs) == min(xs): raise ValueError(...)" -- checking the INPUT
+      log-values directly for exact equality, independent of any
+      summation/division rounding. Also re-exports
+      bootstrap_gap_ci_v2 = dht.bootstrap_gap_ci (an alias, not a
+      reimplementation -- bootstrap_gap_ci itself calls ols_loglog_fit
+      internally per-resample, so callers needing the hardened guard
+      inside bootstrap resampling must pass ols_loglog_fit_v2 as an
+      explicit parameter or the module wires bootstrap_gap_ci_v2 to call
+      ols_loglog_fit_v2 internally -- STATE EXPLICITLY WHICH, as a
+      required, code-verified diff-list item, not left ambiguous).
+      REQUIRED VALIDATION: a synthetic regression test (independent of
+      any real run's data, same discipline as v4's own
+      synthetic_self_test_v4) reproducing RT-BATCH-007.md's own two named
+      anomaly cases (N=324/repeat=3, N=611/repeat=6, both confirmed
+      anomalous under the ORIGINAL guard) and confirming
+      ols_loglog_fit_v2 correctly raises ValueError on both -- this is
+      the direct, code-verified evidence the hardening actually works,
+      not merely a plausible-sounding replacement.
+    trapping_mechanism_diagnostic_v5: >-
+      PART B. For each of the 4 primes with full delta_map coverage in
+      RUN-SSIQ-a85692-b (2437, 3889, 5737, 7333): rebuild the graph via
+      build_isogeny_graph.build_graph_bfs (IMPORTED UNCHANGED, same
+      pinned seed convention this campaign already uses), load that
+      prime's delta_map from RUN-SSIQ-a85692-b's raw-result.json
+      (phase_minus1_real_search[prime].delta_map, already committed, read
+      only, no new search), and for every vertex v with a resolved
+      delta_E value, compute is_structural_local_min(v) =
+      delta_map[v] <= min(delta_map[u] for u in adjacency[v] if u in
+      delta_map) [vertices with an UNRESOLVED neighbour -- outside the
+      non-F_p-rational search's coverage, or F_p-rational with delta=1
+      by identity -- are handled per a stated, pre-registered rule, not
+      silently dropped]. Report, per prime: the fraction of vertices that
+      are structural local minima, the degree-3 neighbour delta_E
+      distribution for trapped vs non-trapped vertices, and a
+      CROSS-CHECK against the already-reported walk-based
+      greedy_trapped_fraction (re-running greedy_descent_hitting_time,
+      IMPORTED UNCHANGED, on a sample of vertices against the same
+      delta_map, to confirm the structural and walk-based trapped
+      classifications agree on that sample -- quantifying, not assuming,
+      the gap the pre-freeze review's own check (f) asks about).
+      OBJECTIVE_BOUNDARY: this is a DIAGNOSTIC, not a claim. It does not
+      test H-SSIQ-36e970's real-arm prediction, does not gate any
+      decision rule, and does not itself constitute evidence for or
+      against a computable delta_E-gradient. Its purpose is narrowly to
+      inform whether BATCH-009-or-later (if campaign budget is extended)
+      should widen to larger N, investigate the greedy tie-break rule, or
+      neither.
+  required_artifacts:
+    - runs/RUN-SSIQ-a85692-e/manifest.yaml
+    - runs/RUN-SSIQ-a85692-e/raw-result.json
+    - runs/RUN-SSIQ-a85692-e/execution_report.yaml
+    - runs/RUN-SSIQ-a85692-e/source_access_log.yaml
+    - runs/RUN-SSIQ-a85692-e/command.txt
+    - runs/RUN-SSIQ-a85692-e/environment.json
+    - runs/RUN-SSIQ-a85692-e/stdout.log
+    - runs/RUN-SSIQ-a85692-e/stderr.log
+    - runs/RUN-SSIQ-a85692-e/gd11_regression_test.json
+    - runs/RUN-SSIQ-a85692-e/trapping_diagnostic.json
+  required_artifacts_note: >-
+    EXPLICIT, CODE-VERIFIED FUNCTION-LEVEL DIFF, per GD-9/GD-10's standing
+    repair:
+      NEW: experiments/EXP-SSIQ-a85692/implementation/ols_hardened.py
+        (ols_loglog_fit_v2, and the explicit bootstrap_gap_ci wiring
+        named above).
+      NEW: a diagnostic script (e.g. trapping_diagnostic_v5.py)
+        implementing trapping_mechanism_diagnostic_v5, importing
+        build_isogeny_graph.build_graph_bfs and
+        descent_hitting_time.greedy_descent_hitting_time UNCHANGED, by
+        reference.
+      UNCHANGED, NOT MODIFIED: descent_hitting_time.py (v1's original
+        ols_loglog_fit/bootstrap_gap_ci stay exactly as frozen; PART A
+        supersedes by addition, never by edit), compute_delta_e.py,
+        compute_delta_e_v2.py, reanalyze_v3.py, reanalyze_v4_selftest.py,
+        build_isogeny_graph.py.
+      NOT RE-RUN: RUN-SSIQ-a85692-a/-b/-c/-d and every already-archived
+        gamma/CI value stay exactly as committed; this amendment reads
+        RUN-SSIQ-a85692-b's raw-result.json (delta_map only) but performs
+        no delta_E search and does not touch any prior run's own files.
+    New run id RUN-SSIQ-a85692-e. The Executor's own execution_report.yaml
+    must confirm this diff list against the code it actually wrote/ran,
+    and report any discrepancy rather than silently reconciling it.
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.3
+    maximum_memory_gb: 2
+    maximum_runs: 1
+    note: >-
+      Graph reconstruction for 4 primes (~12-120s total, per
+      EXP-SSIQ-58b642's own measured figures, reused unchanged) plus pure
+      arithmetic on already-committed delta_map data. No delta_E search of
+      any kind. Generously sized against the actual work.
+  frozen_at: null
+  freeze_note: >-
+    NOT YET FROZEN. Pending pre-freeze Red Team review (see
+    pre_freeze_review.status above). Do not dispatch to the Executor until
+    a FREEZE or FREEZE-WITH-FIXES verdict is recorded here and this note is
+    updated to name the freeze commit, per this campaign's standing
+    practice since BATCH-003 (GD-4).
