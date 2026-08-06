@@ -1,0 +1,45 @@
+working_directory: /home/user/crypto-autoresearcher
+
+# ---------------------------------------------------------------------
+# EXP-SSIQ-a85692 v5 (BATCH-008), RUN-SSIQ-a85692-e -- BOTH independent
+# parts of specification_v5.yaml, orchestrated by run_batch008.py:
+#   PART A (gd11_fix_v5): ols_hardened.py's two required regression tests,
+#     run via gd11_regression_test.py.
+#   PART B (trapping_mechanism_diagnostic_v5): trapping_diagnostic_v5.py,
+#     rebuilding the four primes' graphs and reading ONLY
+#     RUN-SSIQ-a85692-b/raw-result.json (READ ONLY, never modified) for
+#     delta_map.
+# NO NEW delta_E SEARCH, NO NEW Phi_ell VERIFICATION, NO re-run of any
+# prior batch's own gamma/CI computation. RUN-SSIQ-a85692-a/-b/-c/-d and
+# specification.yaml/-v2/-v3/-v4 are never opened for writing.
+# ---------------------------------------------------------------------
+
+mkdir -p experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-e
+
+ulimit -v 2097152
+timeout 900 python3 experiments/EXP-SSIQ-a85692/implementation/run_batch008.py \
+  --run-dir experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-e \
+  --raw-result-b experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/raw-result.json \
+  > experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-e/stdout.log \
+  2> experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-e/stderr.log
+
+# EXIT_CODE=0 (measured, this invocation).
+
+# ulimit -v 2097152 (2 GiB address space) matches specification_v5.yaml
+# budget.maximum_memory_gb=2. timeout 900 matches
+# specification_v5.yaml budget.wall_clock_seconds_per_run=900. Actual
+# measured wall-clock was 3.085620880126953s (see raw-result.json
+# wall_clock_seconds and manifest.yaml timing block) -- roughly two orders
+# of magnitude under budget, consistent with specification_v5.yaml's own
+# budget.note ("Graph reconstruction for 4 primes (~12-120s total) plus
+# pure arithmetic on already-committed delta_map data. No delta_E search
+# of any kind.").
+
+# run_batch008.py's own two flags (--run-dir, --raw-result-b) are the only
+# CLI arguments; --raw-result-b points at RUN-SSIQ-a85692-b's
+# raw-result.json and is opened in mode "r" ONLY, by
+# trapping_diagnostic_v5.load_archived_prime_data -- confirmed by direct
+# reading, the only open() call on this path uses no write mode. No other
+# prior run's raw-result.json (RUN-SSIQ-a85692-a/-c/-d) is referenced
+# anywhere in this run's code. No network access of any kind this run --
+# see source_access_log.yaml. Single invocation, no prior failed attempts.

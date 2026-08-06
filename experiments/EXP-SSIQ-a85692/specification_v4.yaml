@@ -1,0 +1,263 @@
+# DRAFT PROTOCOL AMENDMENT, NOT YET FROZEN. Supersedes specification_v3.yaml
+# (v3, frozen 7f40426b, retained unedited) on ONE POINT: GD-10, the
+# discovery that v3's own required synthetic self-test (built to validate
+# c_null_label_comparison_v3, GD-9's fix, because real data cannot exercise
+# it -- see v3's own PF-1 finding) never actually calls that function. It
+# calls the underlying ols_loglog_fit/bootstrap_gap_ci library functions
+# directly and re-implements the comparison rule as a second, hand-written
+# copy, bypassing c_null_label_comparison_v3's own cross-dict indexing,
+# min-primes gate, and sorted() ordering step entirely (RT-BATCH-006.md
+# Front 1, Objection 1). A subtly wrong wrapper implementation -- a swapped
+# dict source for N, an off-by-one in min_primes, a missing sort -- would
+# pass v3's self-test unchanged.
+#
+# THIS AMENDMENT REPLACES v3's synthetic self-test with one that calls
+# c_null_label_comparison_v3 ITSELF, through both its branches, with
+# synthetic data constructed in the REAL DATA'S OWN SCHEMA (real_per_prime
+# carries N; null_per_prime does not -- confirmed structurally forced by
+# RUN-SSIQ-a85692-b's own raw-result.json, RT-BATCH-006.md check (a)), so a
+# wrong dict-source choice raises KeyError rather than silently working,
+# and with an UNSORTED null_survivors input, so a missing sorted() step
+# produces a detectably wrong gamma. Zero new search cost: this is
+# synthetic-data-only test construction, the same class of work as v3's
+# own (failed) self-test, done correctly this time. It does NOT re-analyze
+# RUN-SSIQ-a85692-b's real data again (that re-analysis, and its
+# DATA-UNAVAILABLE-BLOCKED outcome, is already archived and unchanged by
+# this amendment) and does NOT touch the trapping-mechanism diagnostic
+# (DEC-20260805-e46f4f's next_actions item 2), which is deferred to
+# BATCH-008 as a separately-scoped amendment, per this campaign's
+# preference for narrow, precisely-specified, independently-reviewable
+# amendments (evident in the v1->v2->v3 lineage's own one-change-at-a-time
+# discipline).
+#
+# This amendment must go through its own pre-freeze Red Team review before
+# freeze, per GD-10's standing repair: the reviewer verifies, by direct
+# code reading of the NEW self-test code (not the prose description below),
+# that it genuinely calls c_null_label_comparison_v3 in both branches, and
+# additionally attempts to construct a MUTATION of c_null_label_comparison_v3
+# (a swapped dict source, an off-by-one, a missing sort) and confirms the
+# new self-test would actually catch it -- the exact discriminating-power
+# check RT-BATCH-006.md performed against v3's self-test and found it
+# failed.
+experiment:
+  id: EXP-SSIQ-a85692
+  hypothesis_id: H-SSIQ-36e970
+  version: 4
+  title: >-
+    A synthetic self-test that actually calls c_null_label_comparison_v3
+    (BATCH-007, fixing GD-10, zero new search)
+  status: approved
+  approved_by: coordinator
+  amends: EXP-SSIQ-a85692 (version 3, specification_v3.yaml, frozen 7f40426b)
+  amendment_scope: >-
+    ONE CHANGE: replace v3's run_synthetic_self_test_v3 (which validates
+    only ols_loglog_fit/bootstrap_gap_ci, redundant with BATCH-005's own
+    real-arm validation, per RT-BATCH-006.md Front 1) with
+    run_synthetic_self_test_v4, which calls c_null_label_comparison_v3
+    itself, through both its NOT-EVALUABLE and fit-and-bootstrap branches,
+    with synthetic data shaped in the real data's own schema. Everything
+    else in v1/v2/v3 (B=23/X=23, the delta_E instrument, the
+    budget-allocation formulas, trapped_exclusion_filter_v3, the decision
+    rule, every control, RUN-SSIQ-a85692-c's own already-archived
+    DATA-UNAVAILABLE-BLOCKED outcome) is REUSED UNCHANGED and NOT
+    reopened, restated, or re-run by this amendment.
+  pre_freeze_review:
+    status: REVIEWED
+    report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-007/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v4.md
+    verdict: FREEZE-WITH-FIXES
+    findings_applied: [PF-1, PF-2, PF-3]
+    pf1_summary: >-
+      BLOCKING, applied. The reviewer traced all three named mutations by
+      hand against the actual unchanged code and found the off-by-one
+      mutation (min_primes gate <= instead of <) produces IDENTICAL output
+      from both CHECK 1 (length 2) and CHECK 2 (length 4) -- neither
+      constructs the one boundary length (exactly NULL_ARM_MIN_PRIMES=3)
+      that distinguishes correct from mutant. Fixed by adding CHECK 3, at
+      exactly that boundary length, asserting evaluable is True.
+    pf2_summary: >-
+      ADVISORY, applied. The reviewer traced that CHECK 2's assertions
+      (ii)-(iv) are analytically invariant to sort order for the
+      deliberately noiseless exact-power-law construction, so only
+      assertion (i) (ascending N_list/primes_used ordering) actually
+      detects a missing/wrong sorted() step. Now stated explicitly as
+      load-bearing and non-droppable for this specific mutation class.
+    pf3_summary: >-
+      ADVISORY, applied. required_artifacts_note now specifies a new
+      entry point/CLI mode that structurally cannot accept or open
+      --run-b, enforcing the "no real data read" claim by the interface
+      rather than by Executor discretion.
+  inputs:
+    synthetic_self_test_v4: >-
+      REPLACES v3's run_synthetic_self_test_v3. Two required checks, both
+      calling c_null_label_comparison_v3 ITSELF (imported, not
+      reimplemented):
+      CHECK 1 (NOT-EVALUABLE branch): construct synthetic real_per_prime
+      (>=4 entries, each carrying an N key, e.g. {2000: {"N": 200}, 3000:
+      {"N": 300}, 5000: {"N": 500}, 7000: {"N": 700}}) and synthetic
+      null_per_prime (matching keys, each carrying greedy_median/
+      random_median but explicitly NO N key, mirroring
+      c_null_label.per_prime's real schema exactly) and a null_survivors
+      list of length 2 (< NULL_ARM_MIN_PRIMES=3). Call
+      c_null_label_comparison_v3(real_per_prime, null_per_prime,
+      null_survivors, rng_seed, ...) and assert the return value's
+      c_null_label_control_failure is EXACTLY the string "NOT-EVALUABLE"
+      and evaluable is False -- via the function's own return value, not a
+      hand-computed prediction of what it should return.
+      CHECK 2 (fit-and-bootstrap branch): construct synthetic
+      real_per_prime and null_per_prime as above but with >=4 entries in
+      null_per_prime's schema-matching dicts (no N key), an UNSORTED
+      null_survivors list (e.g. [7000, 2000, 5000, 3000], deliberately out
+      of ascending order), and greedy_median/random_median values
+      constructed as TWO EXACT POWER LAWS in N (using real_per_prime's own
+      N values, which the function must correctly pull via
+      real_per_prime[p]["N"] for each p in the SORTED null_survivors --
+      this is the specific wiring GD-10 found untested) with known
+      gamma_greedy_synth and gamma_random_synth. Call
+      c_null_label_comparison_v3 with this UNSORTED null_survivors list
+      and assert: (i) the function's own internal sort produces the
+      correct ascending N_list (checkable because each synthetic prime's N
+      is unique and known); (ii) the returned gamma_null_greedy/
+      gamma_null_random match the known exact-power-law exponents to
+      <1e-9 tolerance (hand-computable, an exact power law forces a
+      perfect OLS fit); (iii) the returned m_gap_null_ci_lo/hi both equal
+      the point value gamma_random_synth - gamma_greedy_synth to <1e-9
+      tolerance (an exact power law's bootstrap CI must degenerate to a
+      point, per VAL-BATCH-006.md's own independently-confirmed reasoning);
+      (iv) c_null_label_control_failure matches the pre-registered
+      comparison rule applied to that CI (True if m_gap_null_ci_lo > 0,
+      chosen here to be unambiguously True by construction, so the branch
+      that actually assigns this boolean from real computation is
+      exercised, not merely the branch that returns "NOT-EVALUABLE").
+      PF-2 FIX APPLIED: assertion (i) (the ascending N_list/primes_used
+      ordering) is THE LOAD-BEARING CHECK for a missing-or-incorrect
+      sorted() defect specifically, and must not be dropped or weakened
+      independent of (ii)-(iv). Traced directly: for this check's
+      deliberately noiseless exact-power-law construction,
+      ols_loglog_fit's sum-based gamma and bootstrap_gap_ci's resampling
+      are BOTH INVARIANT to point order -- every valid subset/resample
+      recovers the identical true gamma regardless of whether
+      null_survivors was sorted before use. So (ii)-(iv) would report
+      numerically IDENTICAL values whether or not sorted() ran; only the
+      raw N_list/primes_used field order differs, and (i) alone is what
+      catches a missing/wrong sort. (i)-(iv) are NOT interchangeable
+      evidence for the same class of bug and must all be retained, but a
+      future amendment trimming any of them for redundancy must know (i)
+      is not redundant with the others for this specific mutation.
+      CHECK 3 (fit-and-bootstrap branch, AT THE FLOOR -- PF-1 FIX APPLIED,
+      BLOCKING): construct synthetic real_per_prime/null_per_prime as in
+      CHECK 2 (exact power laws, known gamma_greedy_synth/
+      gamma_random_synth, no N key in null_per_prime) but with a
+      null_survivors list of length EXACTLY NULL_ARM_MIN_PRIMES=3 (not 4,
+      not 2) -- the one length that distinguishes a correct
+      `len(null_survivors) < min_primes` gate from an off-by-one mutant
+      (e.g. `<= min_primes`, requiring >3 rather than >=3): under the
+      correct gate, length-3 survivors clears it (evaluable=True); under
+      the off-by-one mutant, length-3 does NOT clear it
+      (evaluable=NOT-EVALUABLE). CHECK 1 (length 2, one below the floor)
+      and CHECK 2 (length 4, one above) are both INSENSITIVE to this
+      specific mutation -- both report the same result under the correct
+      gate and the off-by-one mutant, which is exactly why this amendment
+      as originally drafted would not have caught it (RT-PREFREEZE-EXP-SSIQ-a85692-v4.md
+      PF-1, independently traced and confirmed by the pre-freeze
+      reviewer). Assert evaluable is True and (ii)-(iv)'s same checks as
+      CHECK 2, at this boundary length specifically -- symmetric with how
+      CHECK 1 already tests the boundary from below.
+      ALL THREE CHECKS CALL c_null_label_comparison_v3 DIRECTLY -- no
+      duplicate, hand-written re-implementation of its internal logic
+      anywhere in the self-test code, per GD-10's standing repair.
+      Report all three checks' full inputs, outputs, and pass/fail
+      verdicts in execution_report.yaml as a distinct section, per v3's
+      own precedent (synthetic_self_test_v3's reporting requirement,
+      inherited unchanged in form).
+    mutation_precondition_v4: >-
+      NEW, GD-10's standing repair applied as a freeze precondition rather
+      than a post-hoc review step: before this amendment is frozen, the
+      pre-freeze reviewer independently confirms (not merely trusts the
+      Executor's future claim) that at least one hand-constructed mutation
+      of c_null_label_comparison_v3's logic -- traced against
+      synthetic_self_test_v4's actual inputs, not executed -- would change
+      CHECK 2's reported outputs. This is a pre-freeze REVIEW step (applied
+      to the code as it will be implemented, described precisely enough in
+      this contract to be traced by hand), not a new required artifact the
+      Executor must produce; the Executor's own job remains implementing
+      exactly what this contract specifies.
+  required_artifacts:
+    - runs/RUN-SSIQ-a85692-d/manifest.yaml
+    - runs/RUN-SSIQ-a85692-d/raw-result.json
+    - runs/RUN-SSIQ-a85692-d/execution_report.yaml
+    - runs/RUN-SSIQ-a85692-d/source_access_log.yaml
+    - runs/RUN-SSIQ-a85692-d/command.txt
+    - runs/RUN-SSIQ-a85692-d/environment.json
+    - runs/RUN-SSIQ-a85692-d/stdout.log
+    - runs/RUN-SSIQ-a85692-d/stderr.log
+    - runs/RUN-SSIQ-a85692-d/self_test_v4.json
+  required_artifacts_note: >-
+    EXPLICIT, CODE-VERIFIED FUNCTION-LEVEL DIFF against
+    experiments/EXP-SSIQ-a85692/implementation/reanalyze_v3.py (v3), per
+    GD-9/GD-10's standing repair:
+      CHANGED: run_synthetic_self_test_v3 is REPLACED by
+        run_synthetic_self_test_v4 (per synthetic_self_test_v4 above) --
+        the old function's body is not reused; the new one calls
+        c_null_label_comparison_v3 directly.
+      NEW, PF-3 FIX APPLIED (entry-point mechanism, not left to Executor
+        discretion): reanalyze_v3.py's current main() takes --run-b as a
+        REQUIRED CLI argument and unconditionally json.load's it before
+        anything else -- if reused unchanged, this would either force
+        RUN-SSIQ-a85692-d to read RUN-SSIQ-a85692-b's raw-result.json
+        (contradicting this note's own "does not read" claim below, a
+        factual mismatch the interface would silently permit) or require
+        an ad-hoc Executor workaround. FIX: add a NEW entry point/CLI mode
+        (e.g. a --self-test-only flag, or a separate script
+        reanalyze_v4_selftest.py) that STRUCTURALLY CANNOT accept or open
+        --run-b -- the "no real data read" claim is enforced by the
+        interface itself, not by Executor discretion, per this campaign's
+        standing precedent (RT-PREFREEZE-EXP-SSIQ-a85692-v2.md /
+        -v3.md's own diff-list precision requirement). Name the exact
+        entry point used in execution_report.yaml.
+      UNCHANGED, REUSED BY REFERENCE, NOT RE-INVOKED ON REAL DATA: this
+        amendment does not read RUN-SSIQ-a85692-b's raw-result.json, does
+        not re-call trapped_exclusion_filter_v3 on real data, and does not
+        touch RUN-SSIQ-a85692-c's already-archived outcome. It is a
+        stand-alone test of c_null_label_comparison_v3 against synthetic
+        inputs only.
+      UNCHANGED, IMPORTED BY REFERENCE: c_null_label_comparison_v3 itself
+        (the function under test, imported/called, not modified),
+        dht.ols_loglog_fit, dht.bootstrap_gap_ci, v1c.apply_decision_rule
+        (not invoked by this amendment, listed for completeness against
+        v3's own diff list).
+      UNCHANGED, NOT INVOKED AT ALL: compute_delta_e_v2.py's search/
+        admission/Phase -1 code; trapped_exclusion_filter_v3 is imported
+        but this amendment does not call it on any real data (only
+        hand-constructed synthetic dicts feed c_null_label_comparison_v3
+        directly, bypassing the filter entirely since the synthetic
+        survivors list is constructed directly, per synthetic_self_test_v4).
+    New run id RUN-SSIQ-a85692-d (RUN-SSIQ-a85692-a/-b/-c and v1/v2/v3
+    spec files stay frozen and untouched). The Executor's own
+    execution_report.yaml must confirm this diff list against the code it
+    actually wrote/ran, and report any discrepancy rather than silently
+    reconciling it.
+  budget:
+    wall_clock_seconds_per_run: 60
+    total_cpu_hours: 0.02
+    maximum_memory_gb: 1
+    maximum_runs: 1
+    note: >-
+      Even smaller than v3's 300s: two calls to an already-imported
+      function on <=4-point synthetic data, no file I/O beyond reading
+      nothing (no raw-result.json read at all) and writing the required
+      artifacts.
+  frozen_at: '2026-08-05'
+  freeze_note: >-
+    FROZEN. Pre-freeze Red Team review
+    (RT-PREFREEZE-EXP-SSIQ-a85692-v4.md) returned FREEZE-WITH-FIXES with
+    three findings; all applied above: PF-1 (BLOCKING -- the reviewer's
+    own mutation_precondition_v4 trace found the off-by-one mutation slips
+    through both original checks; fixed with a third check at the exact
+    boundary length), PF-2 (ADVISORY -- assertion (i) stated explicitly as
+    the sole load-bearing check for a missing-sort defect), PF-3
+    (ADVISORY -- a new entry point structurally enforces "no real data
+    read" rather than relying on Executor discretion). No prediction,
+    tolerance, window, estimator, control or failure consequence in this
+    amendment (or, unamended, in v1/v2/v3) has been touched since this
+    freeze; a further change requires its own versioned protocol
+    amendment.
