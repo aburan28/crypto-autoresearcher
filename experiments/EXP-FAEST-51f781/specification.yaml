@@ -1,0 +1,392 @@
+experiment:
+  id: EXP-FAEST-51f781
+  hypothesis_id: H-FAEST-a55eb3
+  question_id: RQ-FAEST-001
+  goal_id: GOAL-FAEST-001
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  approved_by_absent_reason: >-
+    Only the Coordinator approves an experiment (AGENTS.md rule 1). This is a
+    review_required draft written by the idea-generator; no approved_by field
+    exists and none may be added by this role.
+
+  title: >-
+    Measure the acceptance rate rho and the componentwise conditioning gain G
+    of FAEST's bAVC opening-size filter at the deployed parameter sets, with a
+    T_open = infinity null, a minimum-T_open positive control, a
+    block-contiguous layout control, and a >= 7-point graded T_open sweep
+
+  objective: >-
+    If separately approved and authorized, compute two numbers that do not
+    exist anywhere in this corpus: rho = Pr[revealed(c) <= T_open] over the
+    uniform FAEST challenge space, and
+    G = max over (instance i, value v) of Pr[accept | c_i = v] / rho, where
+    revealed(c) = |union of root-paths of the tau hidden leaves| - 2*tau + 1
+    is the quantity faest-ref's bavc_open compares against T_open. Report the
+    full histogram of revealed(c), the expected honest-signer iteration count
+    2^{w_grind}/rho, and the graded T_open response curve. The controls decide
+    first whether the instrument can see conditioning at all.
+
+  what_this_is_not:
+    - Not a forgery, not a forgery attempt, and not a signature computation.
+    - Not a soundness bound, not a zero-knowledge statement, and not a claim about FAEST's security category.
+    - >-
+      Not a claim about the FAEST v2.0 specification. The specification PDF has
+      NOT been read. Every measurement is about faest-ref at a pinned commit,
+      and a specification/implementation divergence would make these
+      implementation findings.
+    - Not an AES result, not a VOLE result, not a consistency-check soundness result.
+    - >-
+      Not a composition with any other link of the chain. G bounds per-attempt
+      accounting slack FROM THIS SOURCE ALONE; composing it with the
+      consistency-check, commitment or QROM links requires an argument this
+      contract does not make and does not license.
+    - Not approval, freezing, execution authorization, a run, an observation, or evidence.
+
+  claim_ceiling:
+    tier: medium
+    exact_scope_a_run_could_support: >-
+      "For faest-ref at commit <sha>, at the parameter sets actually measured,
+      the bAVC opening-size filter accepts a fraction rho of uniform challenge
+      vectors, its revealed(c) histogram is <H>, and the maximum componentwise
+      conditioning gain is G." NOTHING MORE. The tier is `medium` rather than
+      `toy` for one specific reason and no other: the measurement is exact
+      combinatorics on the DEPLOYED tree shapes (L <= 22528 leaves), not a
+      scaled-down analogue, so no extrapolation across scale occurs. It is NOT
+      `crypto` because it establishes no cryptographic claim of any kind about
+      FAEST -- it measures a filter, and AGENTS.md rule 7 forbids letting a
+      measurement at deployed parameters masquerade as a security result about
+      the deployed scheme.
+
+  inputs:
+    source_pin:
+      repository: https://github.com/faest-sign/faest-ref
+      fetch_channel: >-
+        raw.githubusercontent.com file paths. MEASURED WORKING 2026-08-06:
+        README.md, owf.c, owf.h, faest_impl.c, faest_impl.h, instances.c,
+        instances.h, bavc.c, meson.build all returned HTTP 200. Note that
+        coordination/goals/GOAL-FAEST-001/source-acquisition-probe-20260731.md
+        records github.com/faest-sign/faest-ref as 403 and
+        raw.githubusercontent.com as reachable-but-untried on file paths; this
+        contract uses the channel that was untried. THIS CONTRACT PROPOSES NO
+        CHANGE TO THAT PROBE RECORD OR TO THE GOAL'S PAUSE CONDITIONS.
+      required_commit_sha: >-
+        MUST BE PINNED AT STAGE 0 AND RECORDED. The proposal that motivated
+        this contract read the MOVING ref 'main'; no sha was pinned, and every
+        parameter below is provisional until stage 0 replaces it.
+      required_file_sha256:
+        - bavc.c
+        - instances.c
+        - instances.h
+        - meson.build
+    parameter_sets_to_measure:
+      - faest_128f
+      - faest_128s
+      - faest_em_128f
+      - faest_192f
+      - faest_256f
+    provisional_parameters_read_2026_08_06:
+      faest_128f: {lambda: 128, tau: 16, w_grind: 8, T_open: 110, k: 8, tau1: 8, tau0: 8, L: 3072}
+      faest_128s: {lambda: 128, tau: 11, w_grind: 7, T_open: 102, k: 12, tau1: 0, tau0: 11, L: 22528}
+      faest_em_128f: {lambda: 128, tau: 16, w_grind: 8, T_open: 112}
+      faest_192f: {lambda: 192, tau: 24, w_grind: 8, T_open: 163}
+      faest_256f: {lambda: 256, tau: 32, w_grind: 8, T_open: 246}
+      derivation_of_k_tau1_tau0_L: >-
+        k = floor((lambda - w_grind)/tau) + 1; tau1 = (lambda - w_grind) mod
+        tau; tau0 = tau - tau1; L = tau1*2^k + tau0*2^{k-1}. Verbatim from
+        faest-ref instances.c macros CALC_K, CALC_TAU1, CALC_TAU0, CALC_L.
+    definitions_frozen_before_execution:
+      pos_in_tree: >-
+        pos_in_tree(i, j) = L - 1 + tau*j + i for j < 2^{k-1}, and
+        L - 1 + tau*2^{k-1} + tau1*(j mod 2^{k-1}) + i otherwise.
+      revealed: >-
+        revealed(c) = |union over i of {pos_in_tree(i, c_i) and all its
+        ancestors}| - 2*tau + 1, ancestors via parent(alpha) = (alpha-1)/2,
+        root = 0.
+      accept: revealed(c) <= T_open.
+      rho: Pr[accept] over c uniform on C = product_i [0, N_i).
+      G: max over (i, v) of Pr[accept | c_i = v] / rho.
+    seeds:
+      master_seed: 5177810
+      seed_derivation_rule: >-
+        Per-cell seed = int.from_bytes(sha256(ascii(domain || "|" || cell_label
+        || "|" || decimal(replicate_index))).digest()[:8], "big"), with
+        domain = "EXP-FAEST-51f781/v1". Challenge components are drawn by
+        SLICING bits from a SHAKE256 stream keyed by that seed: exactly k bits
+        for instances with N_i = 2^k and k-1 bits for the rest, consumed in
+        instance order. All N_i are powers of two, so bit-slicing is exactly
+        uniform and no rejection sampling is needed. A third party reproduces
+        every challenge bit-for-bit from (domain, cell_label, replicate_index).
+      replicate_indices: [0, 1, 2]
+    sample_sizes:
+      monte_carlo_samples_per_cell: 2000000
+      exact_dp_switch_rule: >-
+        If the estimated tail mass Pr[revealed > T_open] is below 1e-4 at
+        2e6 samples, Monte Carlo is ABANDONED for that cell and replaced by
+        exact dynamic programming over the tree (accumulating the distribution
+        of |S| level by level). A Monte-Carlo rho whose tail is unresolved MUST
+        NOT be reported as a value; it is reported as an upper bound with its
+        effective sample size.
+
+  arms_and_controls:
+    treatment: >-
+      Deployed cells: for each parameter set, sample challenges, compute
+      revealed(c), report the histogram, rho, and G by exhaustive conditioning
+      over every (instance i, admissible value v).
+    measured_null: >-
+      NULL-A, T_open = infinity, IDENTICAL CODE PATH, same seeds, same sample
+      sizes. FORCED VALUES DERIVED BEFORE THE RUN: rho = 1.000000 EXACTLY and
+      log2(G) = 0.000000 EXACTLY, because the conditioning event is the whole
+      space. THIS NULL CAN FAIL: any deviation is a defect in the union-of-paths
+      counter or the conditioning estimator.
+    structural_null: >-
+      NULL-B, block-contiguous layout: replace pos_in_tree by
+      "instance i owns leaf slots [offset_i, offset_i + N_i)" with
+      offset_i = sum of N_j for j < i, keeping L, tau, N_i and T_open
+      identical. FORCED PREDICTION STATED BEFORE THE RUN: hidden leaves from
+      distinct instances can never be adjacent, so min revealed(c) RISES and
+      log2(G) FALLS relative to the deployed interleaved layout. If the two
+      layouts give statistically indistinguishable histograms, the interleaving
+      is not the mechanism and the causal explanation in H-FAEST-a55eb3 is
+      refuted even if its numbers stand.
+    positive_control: >-
+      POS-1, T_open = revealed_min (the smallest value admitting any challenge
+      at all, determined in stage 1). The accepted set is then exactly the
+      maximally clustered challenges and log2(G) MUST be large -- at minimum
+      log2(1/rho), which at that threshold is many bits. IF log2(G) IS NEAR
+      ZERO IN THIS CELL, THE ESTIMATOR CANNOT DETECT CONDITIONING EVEN WHEN
+      CONDITIONING IS MAXIMAL, AND NO NEGATIVE RESULT MAY BE REPORTED FROM ANY
+      CELL OF THIS EXPERIMENT.
+    graded_control: >-
+      GRAD-1, >= 7 points: T_open in {revealed_min, p10, p25, p50, p75, p90,
+      deployed, revealed_max} of the measured revealed(c) distribution.
+      Report rho(T) and log2 G(T) at each. REQUIRED MONOTONICITY: rho(T)
+      non-decreasing, log2 G(T) non-increasing, both reaching (1, 0) at
+      T = revealed_max. A single inversion at adjacent points is reported as a
+      localisation of a defect, not smoothed over.
+    ordering_control: >-
+      NULL-A, NULL-B, POS-1 and the entropy-identity check are executed,
+      recorded, and HASH-COMMITTED before any deployed-cell treatment number is
+      computed or looked at. The commitment (sha256 of the control results
+      file) is written into the run record before treatment execution begins.
+    comparability_policy: >-
+      Cross-parameter-set comparison of rho is FORBIDDEN except through the
+      graded curve, because the sets differ in tau, k, L and T_open
+      simultaneously. Only faest_128f versus faest_em_128f is a controlled
+      comparison (identical shape, T_open 110 versus 112) and it is the only
+      cross-set difference this contract may attribute to T_open.
+
+  metrics:
+    primary:
+      - >-
+        rho(parameter_set): acceptance rate at the deployed T_open, with
+        Monte-Carlo standard error or an exact rational value.
+      - >-
+        log2(G)(parameter_set): componentwise conditioning gain in bits, with
+        the maximising (instance, value) pair named.
+    secondary:
+      - revealed(c) histogram per cell, with min, max, and the seven reported percentiles.
+      - revealed_max and revealed_min per parameter set (measured or exactly bounded).
+      - expected_signer_iterations = 2^{w_grind}/rho per parameter set.
+      - entropy_identity_residual = log2|C| + w_grind - lambda for all twelve sets.
+      - rho and log2(G) for NULL-A, NULL-B, POS-1 and every graded point.
+      - >-
+        The challenge-decoding audit: whether faest-ref derives indices by bit
+        slicing or by modular reduction, quoted from the source.
+
+  heuristic_under_test: HEUR-FE-1
+
+  preregistered_prediction:
+    quantity: >-
+      (i) entropy_identity_residual; (ii) revealed_max at faest_128f versus
+      T_open = 110; (iii) rho at the deployed T_open; (iv) log2(G); (v) the
+      NULL-A forced pair.
+    formula: >-
+      (i) log2|C| + w_grind - lambda where log2|C| = tau1*k + tau0*(k-1);
+      predicted EXACTLY 0 for all twelve sets, by the identity
+      tau*(k-1) + tau1 = lambda - w_grind.
+      (ii) revealed(c) = |S| - 2*tau + 1 with |S| the union of root-paths;
+      predicted revealed_max > 110 at faest_128f, with derived bracket
+      [~8, <=128] from the clustered and spread extremes.
+      (iii) 0 < rho < 1 strictly, and rho > 2^{-8} (a signer needing more than
+      2^{16} iterations would contradict FAEST's published performance and
+      indicate a modelling error, not a property of FAEST).
+      (iv) log2(G) > 0 strictly. NO MAGNITUDE IS PREREGISTERED and none may be
+      supplied after the data are seen.
+      (v) NULL-A: rho = 1.000000 and log2(G) = 0.000000 exactly.
+    source: >-
+      Derived in H-FAEST-a55eb3 mechanism (a)-(f) from faest-ref bavc.c and
+      instances.c read on 2026-08-06, plus the branching-type count for a
+      subtree (t leaves => t-1 two-child nodes => |S|-2t+1 one-child nodes).
+      NO EXTERNAL SOURCE IS CITED AND NONE IS NEEDED.
+
+  scale_relevance:
+    tier: medium
+    justification: >-
+      The measurement is performed at the DEPLOYED tree shapes (L up to 22528
+      leaves, at most 45055 nodes), so there is no extrapolation across scale
+      and no toy-to-crypto inference. What does NOT transfer is any security
+      meaning: the numbers describe a filter, and their bearing on FAEST's
+      soundness or zero-knowledge requires reading the specification, which
+      this contract does not do.
+    correspondence: >-
+      null -- direct computation on the deployed object; no sampling
+      correspondence is used or needed.
+
+  tail_checks:
+    - >-
+      Compare the measured revealed_max against the derived combinatorial upper
+      bound (1+2+4+...) + tau*(depth - floor(log2 tau)) - 2*tau + 1. A measured
+      value ABOVE the bound is impossible and indicates a counter defect.
+    - >-
+      Compare the measured revealed_min against the clustered-challenge
+      construction (all components equal). The measured minimum must be <= the
+      constructed value.
+    - >-
+      Verify on 1000 random challenges that revealed(c) equals the number of
+      nodes a direct re-implementation of bavc_open's Step 19-25 emission loop
+      would output. The two counts must agree exactly on every one.
+
+  replication:
+    seeds: [0, 1, 2]
+    independent_instances: 5
+    planned_runs: 1
+    interpretation: >-
+      Three seeds per cell over five parameter sets. Seed-to-seed spread of rho
+      must be REPORTED BEFORE any cross-cell difference is discussed; if the
+      spread is comparable to a reported difference, the difference is noise
+      and must be reported as such.
+
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 2
+    maximum_memory_gb: 2
+    maximum_runs: 1
+    no_network_after_stage_0: true
+
+  stopping_rules:
+    - Do not execute unless separately approved, frozen, archived and authorized by the Coordinator.
+    - >-
+      STOP AT STAGE 0 if the pinned commit's bavc.c, instances.c or meson.build
+      differ materially from the definitions frozen in `inputs`. A differing
+      source voids every derived number; the correct response is a superseding
+      contract, not an edit.
+    - >-
+      STOP AFTER STAGE 1 IF revealed_max <= T_open at every deployed set. The
+      filter is unreachable, rho = 1, and the experiment terminates having
+      produced its scoped negative. THIS IS THE CHEAPEST DECISIVE GATE AND IT
+      RUNS BEFORE ANY SAMPLING.
+    - >-
+      STOP if NULL-A does not return exactly (rho, log2 G) = (1.000000,
+      0.000000). Report the defect; report no other number.
+    - >-
+      STOP if POS-1 returns log2(G) near zero. The instrument cannot detect
+      maximal conditioning and no negative may be reported.
+    - Stop on any budget, memory or wall-clock exhaustion, reporting the stage reached.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any treatment number computed or read before the control results file is hash-committed.
+    - Any Monte-Carlo rho reported as a value when its tail mass is below 1e-4 at the sampled size.
+    - Any use of a dependency outside the Python 3.11 standard library.
+    - Any comparison across parameter sets not permitted by the comparability policy.
+    - Any citation of G composed with another link of the chain.
+
+  success_criterion: >-
+    THIS DRAFT HAS NO SUCCESS OUTCOME BECAUSE IT IS NOT AUTHORIZED TO RUN. If a
+    later, separately approved and frozen successor is executed, it SUCCEEDS
+    when all of the following hold: (1) the pinned source matches the frozen
+    definitions; (2) the entropy-identity residual is exactly 0 at all twelve
+    sets; (3) NULL-A returns exactly (1.000000, 0.000000); (4) POS-1 returns a
+    large log2(G); (5) the graded sweep is monotone at every adjacent pair;
+    (6) all three tail checks pass; and (7) rho and log2(G) are reported at
+    every deployed cell with seeds, sample sizes and errors. SUCCESS IS
+    INDEPENDENT OF WHETHER rho < 1 OR log2(G) > 0: a run that establishes
+    rho = 1 at every deployed set has succeeded and has delivered the scoped
+    negative "the bAVC opening filter does not condition the FAEST challenge
+    space at the deployed parameters", which is a deliverable for
+    GOAL-FAEST-001's barrier horn.
+
+  falsification_criterion: >-
+    H-FAEST-a55eb3 is falsified at the tested scope if (a) revealed_max <=
+    T_open at every deployed set, killing (H1)-(H3); or (b) rho < 1 while
+    log2(G) = 0 within error at every deployed set, killing (H2) alone; or
+    (c) the entropy-identity residual is nonzero anywhere, voiding the macro
+    reading; or (d) NULL-B reproduces the deployed layout's log2(G), refuting
+    the stated causal mechanism. Each of (a)-(d) closes exactly the scope
+    tested -- one implementation, one commit, the listed parameter sets -- and
+    none licenses a statement about FAEST's specification or security.
+
+  outcomes:
+    no_execution_authorization: >-
+      The only current disposition. review_required draft; no run, no
+      observation, no evidence, no mathematical inference.
+    filter_is_binding: >-
+      rho < 1 and log2(G) > 0. Deliverable: two numbers plus the histogram, and
+      a precisely stated question for whoever reads the specification -- does
+      the analysis quantify over C, over A, or over the retry-loop-induced
+      distribution? NO FORGERY CLAIM.
+    filter_is_vacuous: >-
+      rho = 1. Deliverable: a scoped negative with the measured revealed_max
+      and T_open quoted, closing this link for the tested commit and
+      parameter sets, with forward guidance naming what remains open (whether
+      any OTHER FAEST-internal rejection or retry conditions the challenge).
+    conditioning_neutral: >-
+      rho < 1, log2(G) = 0. Deliverable: honest signing costs 1/rho extra
+      iterations (a performance fact) while a uniform-challenge forgery model
+      is safe on this axis (a security-relevant negative).
+    infrastructure_or_integrity_failure: >-
+      A fetch failure, a moved ref, a crash, or a budget exhaustion is an
+      INFRASTRUCTURE outcome. It is reported as such, it leaves every question
+      open, and it is NEVER negative evidence about FAEST or about
+      H-FAEST-a55eb3 (AGENTS.md rule 5).
+
+  stage_order_and_terminating_stage:
+    - >-
+      STAGE 0 (zero compute, minutes): pin the commit sha; record per-file
+      sha256; re-read pos_in_tree, bavc_open Steps 5-25, reconstruct_keys, the
+      parameter macros, and the challenge-decoding step. CAN TERMINATE THE RUN
+      (source mismatch).
+    - >-
+      STAGE 1 (pen and paper plus seconds): verify the entropy identity at all
+      twelve sets; enumerate the heap tree for each measured set and confirm
+      leaf indices and depths; construct the clustered extreme (all components
+      equal) and a maximally spread challenge and evaluate revealed(c) on both;
+      determine revealed_min and revealed_max exactly or by a proved bound.
+      CAN TERMINATE THE RUN -- this is the cheapest decisive gate: if
+      revealed_max <= T_open the whole line ends here at essentially zero cost.
+    - >-
+      STAGE 2 (minutes): controls first -- NULL-A, NULL-B, POS-1 -- then hash
+      commit. CAN TERMINATE THE RUN (control failure).
+    - >-
+      STAGE 3 (minutes to an hour): deployed cells and the graded sweep;
+      Monte Carlo with the exact-DP switch rule; three seeds per cell.
+
+  required_artifacts:
+    - Frozen approved specification and a freeze receipt binding its sha256.
+    - Pinned faest-ref commit sha and per-file sha256 for bavc.c, instances.c, instances.h, meson.build.
+    - The verbatim source excerpts of pos_in_tree, bavc_open Steps 5-25 and the challenge decoder.
+    - Control results file and its sha256 commitment, timestamped before treatment execution.
+    - Per-cell raw revealed(c) histograms, seeds, sample counts and effective tail sample sizes.
+    - rho and log2(G) per cell with errors and the maximising (i, v) pair.
+    - The graded sweep table with monotonicity verdicts at each adjacent pair.
+    - Tail-check outputs, including the 1000-challenge agreement test against a direct emission-loop re-implementation.
+    - Complete environment record: Python version, platform, and an explicit statement that no non-stdlib module was imported.
+
+  approval_requirements:
+    - Independent review confirms the definitions in `inputs` match the pinned source line by line.
+    - Independent review confirms the null, positive and graded controls can actually fail.
+    - Coordinator separately approves and freezes a successor contract without editing this draft.
+    - >-
+      Coordinator decides separately whether reaching faest-ref over
+      raw.githubusercontent.com bears on GOAL-FAEST-001's pause condition #2.
+      THIS CONTRACT ASSERTS NOTHING ABOUT THAT AND CHANGES NOTHING.
+
+  approval_status: >-
+    Pending Coordinator review. No approved_by field is present because this
+    draft is not approved and this role may not approve it.
+
+  assigned_to: executor
