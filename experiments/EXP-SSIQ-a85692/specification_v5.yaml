@@ -1,0 +1,369 @@
+# DRAFT PROTOCOL AMENDMENT, NOT YET FROZEN. Supersedes specification_v4.yaml
+# (v4, frozen 0b15e854, retained unedited) on TWO INDEPENDENT POINTS,
+# bundled into one batch (BATCH-008, the last batch within this goal's
+# current 8-batch campaign_budget) because DEC-20260805-6aa5c2's own
+# next_action names both as parallel, zero-new-search, mutually
+# non-blocking actions using disjoint data and code paths (confirmed by
+# RT-BATCH-007.md Front 6): (A) GD-11's fix -- harden
+# dht.ols_loglog_fit's degeneracy guard; (B) the trapping-mechanism
+# diagnostic deferred since BATCH-006 -- investigate why all
+# previously-searched primes show pervasive greedy-descent trapping,
+# using already-collected graph/delta_map data. Each part is
+# independently reviewable and independently gated; a finding in one
+# does not depend on or block the other.
+experiment:
+  id: EXP-SSIQ-a85692
+  hypothesis_id: H-SSIQ-36e970
+  version: 5
+  title: >-
+    (A) Harden the shared OLS degeneracy guard (GD-11's fix) and (B)
+    diagnose the mechanism behind pervasive greedy-descent trapping
+    (BATCH-008, both zero new search)
+  status: approved
+  approved_by: coordinator
+  amends: EXP-SSIQ-a85692 (version 4, specification_v4.yaml, frozen 0b15e854)
+  amendment_scope: >-
+    REVISED AFTER PRE-FREEZE REVIEW (RT-PREFREEZE-EXP-SSIQ-a85692-v5.md,
+    DO-NOT-FREEZE on the original draft, PF-1/PF-4/PF-5 blocking, all
+    applied below; PF-6/PF-7/PF-8 advisory, all applied). PART A touches
+    shared library code by SUPERSESSION, never by in-place edit:
+    descent_hitting_time.py stays frozen and byte-for-byte untouched (it
+    is EXP-SSIQ-58b642's own artifact, immutable per AGENTS.md). A NEW
+    module, experiments/EXP-SSIQ-a85692/implementation/ols_hardened.py,
+    defines TWO functions, not one: ols_loglog_fit_v2 (identical to the
+    original except the degeneracy guard: max(xs)==min(xs) replaces the
+    exact-float sxx==0.0 check) AND, PF-1 FIX APPLIED, a GENUINELY NEW
+    bootstrap_gap_ci_v2 -- NOT an alias to dht.bootstrap_gap_ci, a
+    distinct function with its own resampling loop (necessarily
+    duplicating dht.bootstrap_gap_ci's loop structure, since
+    descent_hitting_time.py cannot be edited) that calls
+    ols_loglog_fit_v2 for BOTH its per-resample fits (fg, fr), not the
+    original ols_loglog_fit. This is the fix that actually matters: the
+    pre-freeze review found dht.bootstrap_gap_ci calls ols_loglog_fit by
+    its bare module-global name inside the resampling loop, with no
+    parameter to inject an alternate fit function -- so a plain alias
+    would have made PART A's hardening unreachable from any bootstrap
+    resample, exactly the call path where GD-11's confirmed
+    spurious-gamma failure occurs. Future amendments that need the
+    null-arm or real-arm OLS fit with bootstrap CI import
+    ols_hardened.bootstrap_gap_ci_v2 (which internally uses
+    ols_loglog_fit_v2), not dht.bootstrap_gap_ci. This amendment does NOT
+    retroactively re-run or re-derive any prior batch's already-archived
+    gamma/CI values, which stay exactly as committed (GD-11 does not
+    contaminate them, per EV-SSIQ-87d21a O-4).
+    PART B is a pure re-analysis / graph-reconstruction task: rebuild the
+    already-validated 2-isogeny graphs (build_isogeny_graph.build_graph_bfs,
+    IMPORTED UNCHANGED, same pinned seeds) for the primes with real
+    delta_map data already committed in RUN-SSIQ-a85692-b's raw-result.json
+    (2437, 3889, 5737, 7333; 8893 excluded, partial delta_map coverage
+    only), and compute a STRUCTURAL (not walk-simulation) diagnostic:
+    for each vertex v, is v a graph-structural local minimum of delta_E
+    (delta_map[v] <= delta_map[u] for all neighbours u of v)? This
+    requires NO new delta_E search (delta_map is read directly from the
+    already-committed raw-result.json) and NO re-implementation of
+    greedy_descent_hitting_time (which stays imported unchanged, used
+    for a required, EXHAUSTIVE cross-check per PF-6's fix, not a sample).
+    Everything else in v1-v4 (B=23/X=23, the delta_E instrument, every
+    budget-allocation formula, trapped_exclusion_filter_v3,
+    c_null_label_comparison_v3, the decision rule, every control) is
+    REUSED UNCHANGED and NOT reopened, restated, or re-run.
+  pre_freeze_review:
+    status: REVIEWED
+    report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-008/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v5.md
+    round2_report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-008/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v5-round2.md
+    verdict: >-
+      Round 1: DO-NOT-FREEZE (original draft, PF-1/PF-4/PF-5 blocking).
+      Round 2 (after PF-1/PF-4/PF-5/PF-6/PF-7/PF-8 applied): FREEZE-WITH-FIXES
+      (PF-9 blocking, PF-10/PF-11 advisory) -- round 1's three blocking
+      fixes were independently re-traced and CONFIRMED to genuinely hold
+      (the reviewer hand-executed the bootstrap wiring, the key round-trip,
+      and reasoned through the graph-rebuild check), but one new defect
+      (PF-9) was found: originating in round 1's OWN required-fix prose
+      (not the Coordinator's implementation of it), which named
+      "n_resolved/n_vertices" as interchangeable when they are different
+      archived quantities. PF-9 applied below.
+    findings_applied: [PF-1, PF-4, PF-5, PF-6, PF-7, PF-8, PF-9, PF-10, PF-11]
+    pf1_summary: >-
+      BLOCKING (round 1), applied and CONFIRMED HOLDING (round 2,
+      independently traced line-by-line against the actual frozen
+      bootstrap_gap_ci and hand-executed against the N=324/n=3 case).
+      dht.bootstrap_gap_ci calls ols_loglog_fit by its bare module-global
+      name inside its resampling loop with no injection parameter -- the
+      original draft's "alias" binding would have made PART A's
+      hardening unreachable from any bootstrap resample, a hollow fix of
+      the same shape as GD-9/GD-10. Fixed by writing a genuinely new
+      bootstrap_gap_ci_v2 with its own resampling loop, threading
+      ols_loglog_fit_v2 through both per-resample fits.
+    pf4_summary: >-
+      BLOCKING (round 1), applied and CONFIRMED HOLDING (round 2,
+      independently executed the tuple(json.loads(key)) round-trip and
+      confirmed exact int-typed recovery). delta_map's on-disk keys are
+      str(list(v)) JSON-string-serialized vertex tuples; no prior code in
+      this repository has ever reverse-parsed this format. The exact
+      conversion procedure is now stated. See PF-9 below: the round-trip
+      procedure itself was correct; the downstream coverage assertion's
+      comparison target was not, until PF-9's fix.
+    pf5_summary: >-
+      BLOCKING (round 1), applied and CONFIRMED ADEQUATE (round 2: "the
+      best available check given no adjacency was ever archived,"
+      residual risk explicitly weighed and accepted). C-CONNECTIVITY's
+      floor(p/12) anchor is a vertex-count check only and cannot verify
+      edge structure, and no prior run persisted adjacency data to diff
+      against regardless. Reframed to "independently verified correct"
+      (via M-DEGSEQ, reused, plus the archived per-prime vertex count)
+      rather than the unachievable "byte-identical to an unrecorded prior
+      state." Strengthened further by PF-11 below.
+    pf6_summary: >-
+      ADVISORY (round 1), applied and CONFIRMED ADEQUATE (round 2:
+      computationally negligible for graphs <=611 vertices). The
+      walk-trapped/structural-local-minimum equivalence is exact and
+      provable from greedy_descent_hitting_time's own documented
+      invariant, not an open empirical question -- the cross-check now
+      runs on every resolved vertex, not a sample, since any disagreement
+      is conclusively a bug in this amendment's own code.
+    pf7_summary: >-
+      ADVISORY, applied. All four primes this amendment uses have full
+      delta_map coverage, so the unresolved-neighbour branch cannot
+      execute this batch -- stated explicitly, with the branch specified
+      to raise loudly (not silently handle) if unexpectedly reached.
+    pf8_summary: >-
+      ADVISORY, applied. The structural-local-minimum fraction and the
+      archived walk-based trapped_fraction are stated explicitly as
+      related-but-generally-different statistics (many-to-one funneling
+      inflates trapped_fraction relative to raw local-minimum density),
+      not corroborating measurements of the same quantity.
+    pf9_summary: >-
+      BLOCKING, NEW (round 2). Round 1's own required-fix text (for PF-4)
+      named "n_resolved/n_vertices" as an interchangeable comparison
+      target for the coverage assertion -- but they are DIFFERENT
+      archived quantities (n_resolved 194/306/460/594 excludes
+      F_p-rational vertices; n_vertices 203/324/478/611, independently
+      confirmed == len(delta_map) exactly, includes them). The
+      Coordinator's revision faithfully implemented round 1's prose to
+      the letter, propagating round 1's own unverified error forward --
+      as specified before this fix, the assertion would have halted with
+      an error on all four primes even on a fully correct rebuild. Fixed
+      by naming ONLY n_vertices, never n_resolved, with an explicit note
+      distinguishing the two fields.
+    pf10_summary: >-
+      ADVISORY, applied. The bootstrap_gap_ci_v2 regression test's
+      construction mechanism (N_list = [N]*n, n identical copies of the
+      anomalous value) is now stated explicitly rather than left
+      implicit, independently confirmed correct by the round-2 reviewer.
+    pf11_summary: >-
+      ADVISORY, applied. The coverage assertion's delta_map key-set match
+      (once corrected per PF-9) is now credited explicitly as a SECOND,
+      independent vertex-set-fidelity check alongside M-DEGSEQ + count,
+      catching a same-count/same-degree vertex substitution that
+      M-DEGSEQ + count alone could not.
+  inputs:
+    gd11_fix_v5: >-
+      PART A. ols_hardened.py defines TWO functions. (1)
+      ols_loglog_fit_v2(N_list, y_list): BYTE-IDENTICAL to
+      dht.ols_loglog_fit except the guard "if sxx == 0.0: raise
+      ValueError(...)" is replaced by "if max(xs) == min(xs): raise
+      ValueError(...)" -- checking the INPUT log-values directly for
+      exact equality, independent of any summation/division rounding.
+      (2) PF-1 FIX APPLIED, bootstrap_gap_ci_v2(N_list,
+      median_greedy_list, median_random_list, rng, n_boot=2000): a
+      GENUINELY NEW function, NOT an alias -- ports dht.bootstrap_gap_ci's
+      resampling loop structure verbatim (same PRIMES-as-resampling-unit
+      design, same n_boot default, same percentile-based CI extraction)
+      but calls ols_loglog_fit_v2 (not the original ols_loglog_fit) for
+      BOTH per-resample fits (fg, fr) inside the loop, and catches the
+      SAME ValueError the hardened guard now raises more reliably,
+      discarding that resample exactly as the original does for a
+      caught ValueError. This is the actual fix: the call path where
+      GD-11's confirmed spurious-gamma failure occurs is INSIDE
+      bootstrap_gap_ci's resampling loop, not in a standalone
+      ols_loglog_fit call, so hardening only ols_loglog_fit_v2 without a
+      corresponding bootstrap_gap_ci_v2 that actually calls it would
+      leave every future bootstrap CI computation unprotected.
+      REQUIRED VALIDATION, TWO PARTS, both independent of any real run's
+      data (same discipline as v4's own synthetic_self_test_v4): (i) a
+      standalone-function regression test reproducing RT-BATCH-007.md's
+      own two named anomaly cases (N=324/repeat=3, N=611/repeat=6, both
+      confirmed anomalous under the ORIGINAL guard) and confirming
+      ols_loglog_fit_v2 correctly raises ValueError on both; (ii) A
+      SEPARATE, REQUIRED test that calls bootstrap_gap_ci_v2 (not only
+      the standalone function) with resample data constructed so that at
+      least one resample draw reproduces the N=324/n=3 or N=611/n=6
+      anomaly pattern, and confirms that resample is correctly discarded
+      from the returned CI (not silently contributing a spurious gap
+      value) -- this is the direct, code-verified evidence that the fix
+      actually reaches the call path it exists to protect, not merely
+      that the standalone function works in isolation. PF-10 FIX APPLIED
+      (round 2, advisory): the construction mechanism is N_list = [N]*n
+      (n identical copies of the single anomalous N value, e.g.
+      [324,324,324] for the n=3 case) -- this guarantees EVERY resample
+      draw is degenerate regardless of the RNG's specific draw, the
+      cheapest and most direct construction, independently confirmed
+      correct against the actual guard by the pre-freeze reviewer.
+    trapping_mechanism_diagnostic_v5: >-
+      PART B. For each of the 4 primes with full delta_map coverage in
+      RUN-SSIQ-a85692-b (2437: 203 vertices, 3889: 324, 5737: 478, 7333:
+      611 -- all four already confirmed m_coverage_all_vertices_fraction
+      == 1.0, PF-7's finding): rebuild the graph via
+      build_isogeny_graph.build_graph_bfs (IMPORTED UNCHANGED, same
+      pinned seed convention this campaign already uses). PF-4 FIX
+      APPLIED, KEY-FORMAT BRIDGE STATED EXPLICITLY: RUN-SSIQ-a85692-b's
+      raw-result.json stores delta_map with keys serialized as
+      str(list(v)) (e.g. the vertex tuple (1031, 1095) is stored as the
+      JSON string key "[1031, 1095]"); convert each archived key back to
+      a vertex tuple via tuple(json.loads(key)) before matching against
+      the rebuilt graph's own tuple-keyed vertex set -- this exact
+      round-trip has never been implemented elsewhere in this
+      repository and must not be improvised ad hoc. REQUIRED COVERAGE
+      ASSERTION, PF-9 FIX APPLIED (round 2 pre-freeze finding: round 1's
+      own required-fix text named "n_resolved/n_vertices" as
+      interchangeable, but they are DIFFERENT archived quantities --
+      n_resolved counts only non-F_p-rational vertices resolved via real
+      search, EXCLUDING the F_p-rational vertices that resolve for free
+      via the delta_E=1 identity; n_vertices (== len(delta_map) exactly,
+      independently confirmed against raw-result.json) includes both).
+      NAME ONLY n_vertices, NEVER n_resolved, AS THE COMPARISON TARGET:
+      executed before any statistic is computed, the number of delta_map
+      keys successfully matched against the rebuilt graph's vertex set
+      MUST equal that prime's already-archived n_vertices count (2437:
+      203, 3889: 324, 5737: 478, 7333: 611 -- already sitting in the same
+      raw-result.json this diagnostic reads, at
+      phase_minus1_real_search[prime].n_vertices) -- halt with an
+      explicit error, not a silent partial result, if it does not match
+      exactly. Reading n_resolved (194/306/460/594) for this comparison
+      is a DISTINCT, INCORRECT quantity that would halt the assertion on
+      all four primes even on a fully correct rebuild -- do not use it
+      here.
+      GRAPH-REBUILD VERIFICATION, PF-5 FIX APPLIED (reframed from the
+      unachievable "byte-identical to an unrecorded prior state," since
+      no prior run persisted adjacency data to diff against): re-run
+      degree_sequence_check (M-DEGSEQ, IMPORTED UNCHANGED) on all four
+      rebuilt graphs, and cross-check each prime's rebuilt vertex COUNT
+      against that SAME prime's specific already-archived count above
+      (not merely the generic floor(p/12) formula) -- report the rebuild
+      as "independently verified correct" only if both checks pass, and
+      halt with an explicit error otherwise. PF-11 FIX APPLIED (round 2,
+      advisory): this is a SECOND, INDEPENDENT check alongside the
+      coverage assertion's own vertex-set matching above -- the coverage
+      assertion's delta_map key set functions as an implicit archived
+      vertex-set snapshot (not merely a count), so a same-count,
+      same-degree vertex substitution that M-DEGSEQ + count alone could
+      not detect would still surface as a coverage-assertion mismatch;
+      the two checks together, not either alone, are what "independently
+      verified correct" refers to.
+      For every vertex v with a resolved delta_E value (all vertices,
+      per the coverage assertion above), compute is_structural_local_min(v)
+      = delta_map[v] <= min(delta_map[u] for u in adjacency[v]) -- PF-7
+      FIX APPLIED: the "unresolved neighbour" branch cannot execute on
+      this batch's data (full coverage confirmed for all four primes);
+      if it is EVER reached, RAISE LOUDLY (do not silently handle or
+      drop) since an unresolved neighbour against this specific,
+      already-verified-complete data would itself signal a stale read or
+      wrong prime, not a legitimate data gap. Report, per prime: the
+      fraction of vertices that are structural local minima, and the
+      degree-3 neighbour delta_E distribution for local-minimum vs
+      non-local-minimum vertices.
+      REQUIRED CROSS-CHECK, PF-6 FIX APPLIED (run on EVERY resolved
+      vertex, not a sample -- the walk-trapped/structural-local-minimum
+      equivalence is EXACT and provable directly from
+      greedy_descent_hitting_time's own documented invariant: a
+      strict-descent walk's predecessor always has strictly greater
+      delta than the current vertex, so it can never be excluded from a
+      smaller-delta candidate set by the non-backtracking rule -- making
+      "trapped at w" and "w is a structural local minimum" logically
+      equivalent for every vertex, unconditionally; any observed
+      disagreement is THEREFORE CONCLUSIVELY A BUG in this amendment's
+      own is_structural_local_min or key-matching code, most likely
+      PF-4's key-format issue if unresolved, never a mechanism finding):
+      re-run greedy_descent_hitting_time (IMPORTED UNCHANGED) starting
+      from every resolved vertex against the same delta_map, and confirm
+      its own "trapped" flag agrees with is_structural_local_min(start)
+      for every single vertex tested; halt with an explicit error, not a
+      silently-reported disagreement count, if any vertex disagrees.
+      PF-8 FIX APPLIED: state explicitly, in the reported output, that
+      "fraction of structural local minima" and the already-archived
+      "greedy_trapped_fraction" (descent_metrics.per_prime[p].greedy_trapped_fraction
+      in RUN-SSIQ-a85692-b) are RELATED BUT GENERALLY DIFFERENT
+      STATISTICS (per the cross-check's own exact equivalence, a walk's
+      trapped ENDPOINT is always a structural local minimum, but
+      many-to-one funneling of walk paths onto the same local minimum
+      inflates the population-level trapped_fraction relative to the raw
+      local-minimum density among all vertices) -- do not present the two
+      numbers as corroborating measurements of the same quantity.
+      OBJECTIVE_BOUNDARY: this is a DIAGNOSTIC, not a claim. It does not
+      test H-SSIQ-36e970's real-arm prediction, does not gate any
+      decision rule, and does not itself constitute evidence for or
+      against a computable delta_E-gradient. Its purpose is narrowly to
+      inform whether BATCH-009-or-later (if campaign budget is extended)
+      should widen to larger N, investigate the greedy tie-break rule, or
+      neither.
+  required_artifacts:
+    - runs/RUN-SSIQ-a85692-e/manifest.yaml
+    - runs/RUN-SSIQ-a85692-e/raw-result.json
+    - runs/RUN-SSIQ-a85692-e/execution_report.yaml
+    - runs/RUN-SSIQ-a85692-e/source_access_log.yaml
+    - runs/RUN-SSIQ-a85692-e/command.txt
+    - runs/RUN-SSIQ-a85692-e/environment.json
+    - runs/RUN-SSIQ-a85692-e/stdout.log
+    - runs/RUN-SSIQ-a85692-e/stderr.log
+    - runs/RUN-SSIQ-a85692-e/gd11_regression_test.json
+    - runs/RUN-SSIQ-a85692-e/bootstrap_gap_ci_v2_regression_test.json
+    - runs/RUN-SSIQ-a85692-e/trapping_diagnostic.json
+    - runs/RUN-SSIQ-a85692-e/trapped_vs_structural_crosscheck.json
+  required_artifacts_note: >-
+    EXPLICIT, CODE-VERIFIED FUNCTION-LEVEL DIFF, per GD-9/GD-10's standing
+    repair:
+      NEW: experiments/EXP-SSIQ-a85692/implementation/ols_hardened.py --
+        TWO functions: ols_loglog_fit_v2 (hardened degeneracy guard) AND
+        bootstrap_gap_ci_v2 (PF-1 FIX: a GENUINELY NEW function with its
+        own resampling loop, NOT an alias to dht.bootstrap_gap_ci, calling
+        ols_loglog_fit_v2 for both per-resample fits).
+      NEW: a diagnostic script (e.g. trapping_diagnostic_v5.py)
+        implementing trapping_mechanism_diagnostic_v5, including the
+        PF-4 key-format conversion (tuple(json.loads(key))), the PF-4
+        coverage assertion, the PF-5 graph-rebuild verification
+        (degree_sequence_check + archived per-prime vertex count), and
+        the PF-6 exhaustive (not sampled) trapped-vs-structural
+        cross-check -- importing build_isogeny_graph.build_graph_bfs,
+        build_isogeny_graph.degree_sequence_check, and
+        descent_hitting_time.greedy_descent_hitting_time UNCHANGED, by
+        reference.
+      UNCHANGED, NOT MODIFIED: descent_hitting_time.py (v1's original
+        ols_loglog_fit/bootstrap_gap_ci stay exactly as frozen; PART A
+        supersedes by addition, never by edit), compute_delta_e.py,
+        compute_delta_e_v2.py, reanalyze_v3.py, reanalyze_v4_selftest.py,
+        build_isogeny_graph.py.
+      NOT RE-RUN: RUN-SSIQ-a85692-a/-b/-c/-d and every already-archived
+        gamma/CI value stay exactly as committed; this amendment reads
+        RUN-SSIQ-a85692-b's raw-result.json (delta_map only) but performs
+        no delta_E search and does not touch any prior run's own files.
+    New run id RUN-SSIQ-a85692-e. The Executor's own execution_report.yaml
+    must confirm this diff list against the code it actually wrote/ran,
+    and report any discrepancy rather than silently reconciling it.
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.3
+    maximum_memory_gb: 2
+    maximum_runs: 1
+    note: >-
+      Graph reconstruction for 4 primes (~12-120s total, per
+      EXP-SSIQ-58b642's own measured figures, reused unchanged) plus pure
+      arithmetic on already-committed delta_map data. No delta_E search of
+      any kind. Generously sized against the actual work.
+  frozen_at: '2026-08-06'
+  freeze_note: >-
+    FROZEN, AFTER TWO PRE-FREEZE REVIEW ROUNDS. Round 1
+    (RT-PREFREEZE-EXP-SSIQ-a85692-v5.md) returned DO-NOT-FREEZE, catching
+    a real hollow-fix risk (PF-1: the original bootstrap_gap_ci_v2 design
+    was a plain alias to the unhardened original, making GD-11's fix
+    unreachable from any actual bootstrap resample) plus two further
+    blocking gaps (PF-4, PF-5). All six round-1 findings applied. Round 2
+    (RT-PREFREEZE-EXP-SSIQ-a85692-v5-round2.md) independently re-traced
+    all three round-1 blocking fixes by direct execution and hand-tracing
+    and CONFIRMED each genuinely holds, while finding one new blocking
+    defect (PF-9) -- traceable to an error in round 1's OWN required-fix
+    prose, not the Coordinator's implementation of it, propagated forward
+    faithfully. All three round-2 findings (PF-9 blocking, PF-10/PF-11
+    advisory) applied. No prediction, tolerance, window, estimator,
+    control or failure consequence in this amendment (or, unamended, in
+    v1-v4) has been touched since this freeze; a further change requires
+    its own versioned protocol amendment.

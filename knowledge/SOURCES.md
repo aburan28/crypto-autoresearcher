@@ -26,12 +26,12 @@ a hash it cannot is an assertion by the session that recorded it.
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
 | Literature entries (`KN-LIT-*`) | 7818 |
-| — with a resolvable external identifier | 2220 |
-| — with no identifier recorded | 5598 |
+| — with a resolvable external identifier | 2219 |
+| — with no identifier recorded | 5599 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1321, doi 146, eprint 726, url 27. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1321, doi 146, eprint 725, url 27. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 9, `abstract_read_from_primary_eprint_page` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7459, `web` 317.
+`citation_verified` distribution: `False` 21, `True` 9, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7460, `web` 317.
 
 ## 1. Frozen source packages
 
@@ -106,7 +106,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2220 of 7818 `KN-LIT-*` entries carry an
+2219 of 7818 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1507,7 +1507,6 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-389 | CRITERIA FOR IRREDUCIBILITY OF MOD p REPRESENTATIONS OF FREY CURVES | 2013 | `arxiv:1309.4748` | read |
 | KN-LIT-38b647 | Reduction from sparse LPN to LPN, Dual Attack 3.0 | 2024 | `eprint:2023/1852` | web |
 | KN-LIT-390 | Easy scalar decompositions for efficient scalar multiplication on elliptic curves and genus 2 Jacobians | 2013 | `arxiv:1310.5250` | read |
-| KN-LIT-3907 | Fixing and Mechanizing the Security Proof of Fiat-Shamir with Aborts and Dilithium | 2023 | `eprint:2023/246` | abstract_read_from_primary_eprint_page |
 | KN-LIT-391 | ENDOMORPHISM ALGEBRAS OF FACTORS OF CERTAIN HYPERGEOMETRIC JACOBIANS | 2013 | `arxiv:1304.6202` | read |
 | KN-LIT-392 | EXPLICIT POINTS ON THE LEGENDRE CURVE II | 2013 | `arxiv:1307.4251` | read |
 | KN-LIT-393 | Families of fast elliptic curves from Q-curves | 2013 | `arxiv:1305.5400` | read |
@@ -2334,7 +2333,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 
 ## 6. Literature citations with no recorded identifier
 
-5598 entries name a source this index cannot resolve to a
+5599 entries name a source this index cannot resolve to a
 retrievable location. They are listed, not dropped and not backfilled by
 guesswork (AGENTS.md rule 5): closing a row means finding the identifier
 and editing the entry, after which this table shrinks on its own.
@@ -4285,6 +4284,7 @@ and editing the entry, after which this table shrinks on its own.
 | KN-LIT-3904 | Fine-Tuning Groth-Sahai Proofs |  |  | read |
 | KN-LIT-3905 | Fine-tuning the ISO/IEC Standard LightMAC |  |  | read |
 | KN-LIT-3906 | First-Order Side-Channel Attacks on the Permutation Tables Countermeasure |  |  | read |
+| KN-LIT-3907 | Fixing and Mechanizing the Security Proof of Fiat-Shamir with Aborts and Dilithium |  |  | read |
 | KN-LIT-3908 | Fixing Cracks in the Concrete: Random Oracles with Auxiliary Input, Revisited |  |  | read |
 | KN-LIT-3909 | Flash Memory ‘Bumping’ Attacks |  |  | read |
 | KN-LIT-3910 | Flashproofs: Efficient Zero-Knowledge Arguments of Range and Polynomial Evaluation with Transparent Setup |  |  | read |
