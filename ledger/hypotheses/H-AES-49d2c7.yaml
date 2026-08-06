@@ -1,0 +1,651 @@
+hypothesis:
+  id: H-AES-49d2c7
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  source_idea_id: IDEA-20260805-86e431
+
+  statement: >-
+    SCOPE: the full 2^32 diagonal-coset collision object of the GOAL-AES-003
+    BATCH-001 count5 pre-registration -- input set V = the full coset of D_0,
+    output projection pi_{j0} onto the inverse-ShiftRows diagonal ID_{j0}, C1
+    reduced-round convention, AES-shaped SPN over GF(2^8) with a configurable
+    column-preserving mixing matrix, r in {2,3,4,5,6,7,10}. CLAIM TIER toy. NO
+    ATTACK, NO KEY RECOVERY, NO EXPONENT MOVED, NO STATEMENT ABOUT FULL-ROUND OR
+    DEPLOYED AES, NO COMPARISON TO PUBLISHED CRYPTANALYSIS IN EITHER DIRECTION.
+    THE HYPOTHESIS IS IN THREE PARTS OF DECREASING STRENGTH, AND THE DECREASE IS
+    DELIBERATE AND STATED RATHER THAN HIDDEN.
+    (A) UNCONDITIONAL AND EXACT, r = 5. Define, for column col in {0,1,2,3},
+          G_col(a)[i] = M[i][t_i] * S( b_col[t_i] XOR a * v_col[t_i] ),
+          t_i = (col - j0 + i) mod 4,  v_col = M[:, (-col) mod 4],
+        where b is the base of the round-2 image coset of M_0 and M is the
+        mixing matrix, and set H(a_0,a_1,a_2,a_3) = XOR_col G_col(a_col) on
+        (F_2^8)^4. THEN
+          n_5(K, b, j0, M) = sum_v C(m_v, 2),  m_v = |H^{-1}(v)|,  EXACTLY,
+        for every key, base, excluded index and admissible mixing matrix. The
+        claim is an integer equality, not a fit. It follows in one line from the
+        committed count5 section 3.5 condition together with the F_2-linearity
+        of GF(2^8) constant multiplication, which makes
+        g_col(a,a') = G_col(a) XOR G_col(a'). Consequences: n_5 is computable
+        with NO CIPHER CALL beyond two rounds on one text; the committed
+        residue result n_5 = 0 mod 8 is a corollary; and each trial carries an
+        exact value near 2^31 against a null spread of about 2^15.5, i.e. of
+        order 31 bits, rather than the 3 bits of a mod-8 reading.
+    (B) TESTABLE AND EXPECTED TO BITE, S-BOX SENSITIVITY. Because H is built
+        from the S-box, the exact value n_5 differs between the AES S-box and a
+        uniform random bijective S-box on the same instance, while the residue
+        mod 8 does not. DEC-20260802-9bda5c ruling 3 correctly scoped the
+        RESIDUE result as following from round geometry alone, reproduced with
+        random bijective S-boxes at 120/120. Part (B) predicts that the EXACT
+        channel is the one place that scoping does not reach. IT DOES NOT CLAIM
+        THE DIFFERENCE IS USEFUL, ONLY THAT IT EXISTS AND IS MEASURABLE.
+    (C) MEASURED AND EXPECTED TO FAIL, r = 6. At r = 6 nothing is forced -- the
+        campaign's own section 3.6 says why -- and part (A) DOES NOT EXTEND.
+        What remains is the exact-value statistic read empirically: the
+        population mean deviation of n_6 from (2^32 - 1)/2 and the dispersion
+        index Var(n_6)/E[n_6], measured over K >= 24 independent (key, base, j0)
+        arms against a matched 10-round-AES permutation control at IDENTICAL
+        2^32 data complexity. THE PRE-REGISTERED NULL IS NO DIFFERENCE. A
+        difference above 4 empirical standard errors, together with the
+        round-count decay check across r in {4,5,6,7,10}, the forward-diagonal
+        sibling null and the stated resolution of 2^-15.50 per arm, would meet
+        completion criterion C3 for a data-path object at r = 6. NO SUCH
+        DIFFERENCE IS PREDICTED, ASSERTED OR EXPECTED, and the honest prior is
+        0.10.
+
+  mechanism: >-
+    DERIVED IN-REPO. Artifacts read:
+    coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/count5/PREREGISTRATION.md
+    sections 2, 2.1, 3.1-3.6, 4 and 5, its raw.jsonl, and
+    coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-142a4b/cnt.c
+    with its raw.jsonl. NO EXTERNAL SOURCE WAS READ AND NONE IS CITED.
+
+    THE COMMITTED SETUP, RESTATED AND NOT RE-DERIVED. V is the full 2^32 coset
+    of the plaintext diagonal D_0. After round 1 the state set is a full coset
+    of the column space C_0; after round 2 a full coset of M_0 = MC(SR(C_0));
+    and by the committed section 3.2 column m of that state is
+    w[:, m] = b_m XOR a_m * v_m with v_m = M[:, (-m) mod 4] and the four free
+    bytes a_m ranging independently over GF(2^8). So A = (a_0,a_1,a_2,a_3)
+    parameterises the coset bijectively and is a relabelling of the plaintext.
+
+    THE COMMITTED r = 5 CONDITION. Section 3.5: the r=5 collision condition on
+    ID_{j0} is sum_col g_col(a_col, a'_col) = 0 in GF(2^8)^4 with
+    g_col(a,a')[i] = M[i][t] * f_{col,t}(a,a'), t = (col - j0 + i) mod 4, and
+    f_{col,t}(a,a') = S(b_col[t] XOR a*v_col[t]) XOR S(b_col[t] XOR a'*v_col[t]).
+
+    THE ONE NEW LINE. f is a XOR of two one-argument terms and multiplication by
+    a fixed GF(2^8) constant is F_2-linear, hence distributes over XOR.
+    Therefore g_col(a, a') = G_col(a) XOR G_col(a') with G_col as defined in the
+    statement, and the condition becomes XOR_col G_col(a_col) = XOR_col
+    G_col(a'_col), i.e. H(A) = H(A'). The colliding pairs of the r=5 cipher on V
+    are EXACTLY the colliding pairs of H, so
+      n_5 = sum_v C(m_v, 2) = (sum_v m_v^2 - 2^32)/2.
+    The orbit argument of section 3.5 -- exchanging coordinates between A and A'
+    on any subset leaves every unordered pair {a_col, a'_col} and hence the
+    condition invariant, giving orbits of 8 at k = 4 -- reappears as the
+    invariance of H's fibres under the same exchange, so n_5 = 0 mod 8 is
+    recovered as a corollary rather than replaced.
+
+    WHAT THE SURROGATE COSTS AND WHY IT IS NOT AN ATTACK. Building H needs the
+    16 bytes of the round-2 coset base b, obtainable from two rounds of
+    encryption on one text or equivalently from the first three round keys, plus
+    the four mixing-matrix columns and the S-box: about 2^11 S-box evaluations
+    total. Evaluating the fibre sizes is 2^32 iterations of three XORs, one
+    table read and one increment into a 2^32-entry uint8 occupancy array
+    (4 GiB, inside the measured 15 GB envelope; the committed r=5 arm records
+    max occupancy 12, so uint8 does not saturate -- AN EXPLICIT SATURATION GUARD
+    IS STILL MANDATORY, because uint8 saturation at a true occupancy of 2^24
+    VOIDED this campaign's r=3 control once already). THE SURROGATE CONSUMES THE
+    KEY. It predicts; it recovers nothing; it is an instrument and never an
+    attack, and any citation implying otherwise is a claim-tier violation.
+
+    THE FORCED NULL AND THE RESOLUTION, WHICH RQ-AES-003 R4(1) REQUIRES IN THE
+    SAME SENTENCE AS ANY CLAIM. For a map from 2^32 inputs into 2^32 values
+    behaving as a uniform random function,
+      E[n] = C(2^32,2)/2^32 = (2^32 - 1)/2 = 2147483647.5,
+      sd[n] = about sqrt(E) = 46341 = 2^15.50,
+    so ONE full-coset arm resolves a relative deviation of 2^-15.50 and K
+    independent arms resolve 2^-15.50/sqrt(K). Against this campaign's
+    key-indexed influence probe at 2^-8.8 that is 22 bits sharper, and it is why
+    this object rather than that one is the live C3 route.
+
+    WHAT THE COMMITTED DATA ALREADY SAYS WHEN READ AS AN EXACT VALUE. ARITHMETIC
+    PERFORMED BY THE PROPOSING SESSION ON COMMITTED INTEGERS FROM BATCH-001
+    count5/raw.jsonl. NOT A RUN, NOT EVIDENCE, NOT INDEPENDENTLY REPRODUCED;
+    recomputing it is stage 1 of EXP-AES-f9f4d9.
+      seven AES r=5 arms: 2147430696, 2147459328, 2147193296, 2147610584,
+        2147427792, 2147022152, 2147144880
+      deviations from 2147483647.5: -52952, -24320, -290352, +126937, -55856,
+        -461496, -338768; mean -156686; empirical sample sd 209292;
+        dispersion index Var/E = 20.4 against the uniform-null value 1
+      two AES r=6 arms: 2147492183, 2147448644 -> +8536, -35004
+      one 10-round control arm: 2147422794 -> -60854
+      one forward-diagonal sibling arm at r=5: 2147467586 -> -16062
+      one independent-round-key null at r=5: 2147660512 -> +176865
+    READ HONESTLY AND WITHOUT INFLATION: on the EMPIRICAL scale the r=5 mean
+    shift is about -2.0 standard errors at K = 7 and IS NOT SIGNIFICANT; the
+    dispersion excess is the larger effect and is itself only a factor of about
+    3 above the value 8 that a naive orbit-of-8 model would give. NOTHING IS
+    CLAIMED FROM THESE NUMBERS. They establish that the exact channel is not
+    empty and that K = 7 with unverified arm independence cannot settle it,
+    which is the design input for the experiment and nothing more. THE
+    INDEPENDENCE OF THOSE SEVEN ARMS IS NOT ESTABLISHED and must be settled from
+    the committed rk_sha256 and base fields before any pooled statistic is
+    quoted: EV-AES-d8a13e records BATCH-002's two r=5 arms being two projections
+    of the SAME 2^32 ciphertexts differing only in j0, a defect the validator
+    had to repair once already.
+
+    WHERE THIS STOPS. At r = 6 the condition pulls back through two full rounds
+    and round 3 mixes across columns, so neither the per-column decomposition
+    nor the free-inactive-column factor survives; the committed section 3.6 says
+    exactly this and calls r = 5 "the deepest round at which the property is
+    forced by this derivation". PART (A) THEREFORE DOES NOT EXTEND TO r = 6 AND
+    THIS HYPOTHESIS DOES NOT CLAIM IT DOES. Part (C) is an empirical population
+    statement with a matched control, and it is written weaker on purpose.
+
+  assumptions:
+    - >-
+      That the committed section 3.5 condition is stated correctly. Part (A) is
+      a one-line consequence OF THAT STATEMENT; if the statement is wrong the
+      surrogate is wrong, and the exact-reproduction gate is precisely the check.
+      The document already carries one acknowledged cosmetic index-convention
+      error (D-ERR-1) and the campaign has one committed projection
+      mis-specification on record (GATE-RR78-1), so this is a live risk.
+    - >-
+      That cnt.c and count5.c compute what their comments say. The surrogate is
+      an INDEPENDENT third derivation, so a disagreement localises to one of
+      three rather than being ambiguous.
+    - >-
+      That the seven committed r=5 arms are independent enough to average. NOT
+      ASSUMED; established from rk_sha256 and base as a stage-1 obligation, with
+      the honest possibility that some share ciphertexts.
+    - >-
+      That the AES-NI C path may be charged for the r=6 arms. NOT ASSUMED:
+      RQ-AES-003 forbids charging any measurement to it until it agrees with the
+      pinned harness across r = 3-7 with a machine-readable receipt. Stage 4 is
+      gated on that receipt existing.
+
+  proof_search_map:
+    bottleneck: >-
+      The readout. Every r=5 and r=6 statement in this campaign is bottlenecked
+      on a 3-bit-per-trial residue, while the measurement that produced it is an
+      integer near 2^31 with a null spread of 2^15.5. The bottleneck is not
+      compute, not the cipher and not the envelope: the number was never read.
+    baseline_embedding:
+      parameter_slice: >-
+        r = 4 must give n_4 = 0 (H injective, by the committed section 3.4's
+        all-four-columns-forced-equal argument); r = 2 with j0 = 0 must give 0
+        and with j0 != 0 must give 9223372034707292160; r = 3 must give
+        36028794871480320. The last two are exact 63- and 55-bit integers,
+        committed and independently re-measured by the BATCH-001 validator after
+        the producer's own r=3 control was VOIDED by counter saturation.
+      reproduction_check: >-
+        SYMBOLIC PLUS FROZEN FIXTURE, and it is an equality rather than a
+        resemblance. Symbolically the surrogate must return n_4 = 0 without
+        special-casing. As a fixture it must reproduce each committed r=5
+        integer EXACTLY, including the BATCH-002 soft-engine arm n = 2147411968
+        under mixing matrix 00030101010203010101020303010102 and the
+        independent-round-key null arm n = 2147660512. A near miss is a failure.
+    observation_collision:
+      observable: >-
+        n_r mod 8 (the campaign's) versus n_r itself (this hypothesis's).
+      distinct_preimage_search: >-
+        TWO COLLISIONS IN THE CAMPAIGN'S OBSERVABLE ARE ALREADY COMMITTED AND
+        THEY ARE THE ARGUMENT FOR CHANGING IT.
+        (i) The independent-round-key null arm and the AES arms BOTH read
+        residue 0 at r = 5, as the derivation requires since it uses no
+        key-schedule property. The residue cannot separate AES-128's real key
+        schedule from eleven independent uniform round keys.
+        (ii) DEC-20260802-9bda5c ruling 3 records the wider collision: uniformly
+        random bijective S-boxes reproduce both the r=4 and r=5 properties at
+        120/120, so the residue cannot separate the AES S-box from a random
+        bijection either.
+        Two ground-truth objects on opposite sides of "is this about AES" share
+        the observable. That is a direct identifiability falsifier for any
+        AES-specific reading of the residue, and part (B) proposes the exact
+        value as the additional condition that might separate them -- proposes,
+        and measures, and does not assert.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Move the r=5 statistic from "collision count of a 5-round cipher on a
+          coset" to "collision count of a XOR of four 256-entry tables", where
+          the hypothesis is an exact integer equality. ENCODING: A parameterises
+          the coset bijectively (committed section 3.2). COMPLETENESS: every
+          colliding cipher pair is a colliding H pair. SOUNDNESS: and
+          conversely, by the same equivalence. TRANSFER: proved at r = 5,
+          DECLARED UNPROVED at r = 6. COST LOSS: none; the surrogate performs
+          strictly fewer operations per input than the cipher engines.
+        predicted_gain: >-
+          A per-trial forced value of order 31 bits instead of 3; a cipher-free
+          cross-instrument anchor that settles by derivation the confound
+          EV-AES-d8a13e lists as unresolved; and an S-box-sensitive reading of
+          an object currently scoped as S-box-independent.
+      - transform: stronger_compositional_invariant
+        proposed_object: >-
+          Retain the whole fibre-size multiset {m_v} -- the occupancy histogram
+          cnt.c already prints and every committed arm already carries -- rather
+          than the single symmetric function n. More state than the conclusion
+          needs, which is the point.
+        predicted_gain: >-
+          A second family of statistics (higher histogram moments) at zero extra
+          measurement cost, each with its own forced Poisson value. Whether any
+          separates r=6 from the control is exactly what is unknown.
+    quantifier_order: >-
+      PART (A), CLAIMED IN THIS ORDER AND NO WEAKER ONE: THERE EXISTS one closed
+      form -- the surrogate H, fixed and parameter-free once (K, b, j0, M) are
+      given -- such that FOR ALL keys K, bases b, excluded indices j0 and
+      admissible mixing matrices M, the computed n_5 EQUALS the measured n_5
+      exactly. The witness may not be re-fitted per instance. The weaker order,
+      FOR ALL instances THERE EXISTS a formula, is trivially satisfiable, is
+      explicitly NOT claimed, and is NOT admissible as a result.
+      PART (C), DELIBERATELY WEAKER AND WRITTEN THAT WAY: no FOR ALL over
+      instances is claimed at r = 6. The r=6 statement is about a POPULATION
+      MEAN over a declared sampling distribution of keys and bases, with a
+      matched control drawn the same way, and it will be written as a population
+      statement or not at all. Reading part (C) with part (A)'s quantifier would
+      be the laundering this block exists to prevent.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: (i) an exact cipher-free predictor of n_5 for the AES-shaped
+        SPN family at the tested mixing matrices, validated on a declared number
+        of instances; (ii) a MEASURED bound in bits on any mean shift or
+        dispersion excess of n_6 against a matched 10-round permutation control
+        at 2^32 data. IT CANNOT certify that no r=6 distinguisher exists -- that
+        is the universal impossibility claim RQ-AES-003 R6 forbids -- and it
+        certifies nothing about full-round AES. It moves NO exponent and
+        produces NO attack.
+      nearby_object_control: >-
+        TWO, BOTH REQUIRED. (a) THE OBJECT WHERE THE HOPED-FOR CONCLUSION IS
+        KNOWN FALSE: the same coset and projection under 10-round AES-128, the
+        campaign's own permutation surrogate, which must show no mean shift and
+        dispersion index 1.00. If the r=6 statistic cannot be separated from it,
+        the method has not found the load-bearing structure and NO r=6 claim may
+        be made. (b) THE OBJECT WHERE THE RESIDUE IS KNOWN TO SURVIVE BUT THE
+        S-BOX IS GONE: a uniform random bijective S-box, which
+        DEC-20260802-9bda5c ruling 3 established reproduces the residue at
+        120/120. The surrogate predicts a different exact value there while
+        predicting the same residue; if the exact values coincide across 20
+        instances, part (B) is dead at zero compute.
+    proof_obligations:
+      - claim: "g_col(a,a') = G_col(a) XOR G_col(a'), from the committed section 3.5."
+        responsibility: correctness
+      - claim: "n_5 equals the collision count of H, exactly, for all (K,b,j0,M)."
+        responsibility: correctness
+      - claim: "The surrogate reproduces every committed r=5 integer to the digit."
+        responsibility: baseline
+      - claim: "n_4 = 0 follows from injectivity of H; the surrogate returns it unforced."
+        responsibility: baseline
+      - claim: "E[n] = (2^32-1)/2 and sd = 2^15.50 for the uniform-random-map null."
+        responsibility: correctness
+      - claim: "Occupancy counters cannot saturate; an explicit guard is present."
+        responsibility: runtime
+      - claim: "Arm independence is established from rk_sha256 and base, not assumed."
+        responsibility: interface
+      - claim: >-
+          Part (A) does not extend to r = 6; every r=6 statement is a population
+          statement with a matched control.
+        responsibility: scope
+      - claim: >-
+          The surrogate consumes the key and is an instrument, never an attack.
+        responsibility: scope
+    not_applicable_reason: null
+
+  rerandomization: null
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Deliberately null. NO complexity claim of any kind is made. Part (A) is an
+    exact combinatorial identity about an instrument; part (C) is a measurement
+    with a stated resolution. Neither makes any cipher easier to attack, neither
+    moves an exponent, and sota_delta on every attack axis -- time, memory,
+    data, queries, advice -- is zero. dominated_by is recorded on the source
+    idea as unresolvable in this environment per RQ-AES-003 R5, never null.
+
+  heuristic_assumptions:
+    - id: HEUR-E1
+      formal_statement: >-
+        NONE IS LOAD-BEARING FOR PART (A). The identity n_5 = collision count of
+        H is a consequence of the committed section 3.5 condition plus
+        F_2-linearity of GF(2^8) constant multiplication. It is proved, not
+        assumed, and validated by exact integer equality against committed
+        measurements rather than by a distributional test.
+      random_model_justification: >-
+        Not applicable: no random model is invoked for part (A). This entry
+        exists to record that part (A) is UNCONDITIONAL where parts (B) and (C)
+        are not.
+      supporting_results: []
+      validation_experiment_ids: [EXP-AES-f9f4d9]
+      falsification_condition: >-
+        Any committed r=5 integer the surrogate does not reproduce exactly.
+    - id: HEUR-E2
+      formal_statement: >-
+        For a 10-round AES-128 permutation restricted to a 2^32 coset of D_0 and
+        projected to the 32 bits of ID_{j0}, the fibre-size multiset is
+        distributed as independent Poisson(1) counts to within sampling error at
+        2^32 buckets, so E[n] = (2^32 - 1)/2 and Var(n) = E[n].
+      random_model_justification: >-
+        The standard occupancy computation for 2^32 draws into 2^32 cells. The
+        permutation structure of the underlying 128-bit map contributes a
+        correction of relative order 2^-96, because the coset is a 2^-96
+        fraction of the block space. Named formally because EVERY r=6 threshold
+        depends on it and it would be unsound stated as fact.
+      supporting_results: []
+      validation_experiment_ids: [EXP-AES-f9f4d9]
+      falsification_condition: >-
+        Measured control dispersion index outside [0.6, 1.6] at K = 24, or a
+        control mean deviation exceeding 3 empirical standard errors. Either
+        refutes HEUR-E2 and VOIDS every r=6 threshold built on it. THE SINGLE
+        COMMITTED CONTROL ARM (n = 2147422794, -1.31 Poisson sd) IS ONE DATUM
+        AND IS EXPLICITLY NOT A DISTRIBUTION; two keys is not a distribution
+        either, as completion criterion C3 already says in its own words.
+    - id: HEUR-E3
+      formal_statement: >-
+        The exact value n_5 depends on the S-box: the map H built from the AES
+        S-box and the map built from a uniform random bijection give different
+        collision counts on the same instance.
+      random_model_justification: >-
+        H is literally a function of the S-box, so equality of the counts would
+        be a coincidence rather than a consequence -- but "different maps have
+        different collision counts" is NOT a theorem, and asserting it as one
+        would be exactly the error this program's controls exist to catch.
+      supporting_results: []
+      validation_experiment_ids: [EXP-AES-f9f4d9]
+      falsification_condition: >-
+        Equal exact counts across 20 independent instances. Part (B) is then
+        dead and must be withdrawn.
+    - id: HEUR-E4
+      formal_statement: >-
+        The empirical per-arm spread of n_r, not the Poisson spread, is the
+        correct standard error for every population statement in part (C).
+      random_model_justification: >-
+        Forced by this campaign's own committed data: the seven r=5 arms give an
+        empirical dispersion index of about 20 against a Poisson value of 1.
+        Using the Poisson standard error would understate the spread by about a
+        factor of 4.5 and MANUFACTURE significance. Whether the r=6 population
+        is over-dispersed is unknown and is measured.
+      supporting_results: []
+      validation_experiment_ids: [EXP-AES-f9f4d9]
+      falsification_condition: >-
+        A measured r=6 or control dispersion index consistent with 1.00 at
+        K = 24, in which case the Poisson error is admissible for that family
+        and the switch is recorded before any threshold is applied, never after.
+
+  structural_ingredients:
+    - description: >-
+        The splitting g_col(a,a') = G_col(a) XOR G_col(a'), converting a
+        two-argument per-column condition into a one-argument table.
+      citation: >-
+        Derived in this record from the committed count5 PREREGISTRATION.md
+        section 3.5. No external citation is asserted and none was read.
+      role: turns the r=5 collision count into an exactly computable quantity
+    - description: >-
+        The occupancy histogram already emitted by cnt.c ("Reports the occupancy
+        histogram, N, and n = sum_v C(m_v,2) with the independent cross-check
+        n_alt = (sum_v m_v^2 - N)/2") and present in every committed arm.
+      citation: >-
+        coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-142a4b/cnt.c,
+        lines 20 and 258-261, and the occ_hist field of every raw.jsonl record.
+      role: the stronger invariant, already paid for and never read
+    - description: >-
+        The uniform-random-map occupancy null, E[n] = (2^32-1)/2, sd 2^15.50.
+      citation: >-
+        Elementary; derived in this record.
+      role: the forced null and the source of the stated resolution in bits
+
+  reduction_chain:
+    core_problem: >-
+      Compute, rather than merely measure, the r=5 coset-collision count of the
+      AES-shaped SPN family; and read the exact value at r = 6 against a matched
+      permutation control with a stated resolution.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY. Nothing here reduces to a statement about full-round
+      AES, about any attack, or about the published frontier. The committed
+      residue result n_5 = 0 mod 8 is recovered as a corollary of part (A), but
+      that is a re-derivation of an existing committed result inside this
+      campaign and is recorded as exactly that, not as a new one.
+
+  predictions:
+    - metric: >-
+        E1 -- number of committed r=5 arms whose exact n_5 the cipher-free
+        surrogate reproduces to the digit
+      direction: higher
+      minimum_effect: >-
+        ALL OF THEM, at least 8: the seven BATCH-001 AES arms and the BATCH-002
+        soft-engine arm n = 2147411968 under matrix
+        00030101010203010101020303010102. A SINGLE MISMATCH falsifies part (A)
+        or implicates one of the three engines, and either is a first-class
+        result rather than a setback.
+    - metric: >-
+        E2 -- surrogate reproduction of the independent-round-key null arm at
+        r = 5, n = 2147660512
+      direction: different
+      minimum_effect: >-
+        EXACT. This is the sharpest single test: it changes the key schedule
+        while leaving the derivation's hypotheses intact, and the surrogate must
+        hit it with no special case.
+    - metric: >-
+        E3 -- surrogate value at r = 4
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0, with no special-casing, reproducing the committed n_4 = 0.
+        A non-zero value contradicts a committed exhaustive measurement and
+        routes to a correction record.
+    - metric: >-
+        E4 -- surrogate wall clock per 2^32 configuration, measured, against the
+        committed soft-engine 549.69 s for the same object
+      direction: lower
+      minimum_effect: >-
+        Below 180 s, i.e. at least a 3x reduction, with measured peak RSS below
+        6 GiB. A floor, not a hope: the surrogate performs strictly fewer
+        operations per input than the T-table engine.
+    - metric: >-
+        E5 -- exact-value separation between the AES S-box and a uniform random
+        bijective S-box at r = 5, same key, base, j0 and mixing matrix, over 20
+        instances
+      direction: different
+      minimum_effect: >-
+        The two surrogate outputs must DIFFER in at least 19 of 20 instances
+        while BOTH residues mod 8 are 0. Typical |difference| predicted to be of
+        order the null spread, about 4.6e4. Coincidence in a majority of
+        instances falsifies part (B).
+    - metric: >-
+        E6 (PRIMARY, AND THE ONLY C3-RELEVANT ONE) -- mean deviation of n_6 from
+        2147483647.5 over K >= 24 independent arms, minus the same statistic for
+        a matched 10-round AES control at K >= 24 arms and identical 2^32 data
+      direction: different
+      minimum_effect: >-
+        PRE-REGISTERED NULL: no difference. DECISION VALUE: |difference| > 4 x
+        the combined EMPIRICAL standard error (HEUR-E4; the Poisson error is NOT
+        used). At K = 24 and an empirical per-arm sd of 2.1e5 the resolution of
+        the difference is about 6.1e4, i.e. 2^-15.1 of the count, AND THAT
+        RESOLUTION IS STATED IN THE SAME SENTENCE AS ANY CLAIM (RQ-AES-003
+        R4(1)). NO DIFFERENCE IS PREDICTED. Honest prior 0.10.
+    - metric: >-
+        E7 -- dispersion index D_r = Var(n_r)/E[n_r] at r = 5, 6, 7 and at the
+        10-round control
+      direction: lower
+      minimum_effect: >-
+        FORCED AT THE CONTROL: D_10 = 1.00 within relative error
+        sqrt(2/(K-1)) = 0.29 at K = 24. MONOTONICITY REQUIRED:
+        D_5 >= D_6 >= D_7 >= D_10 within error. A dispersion index that does NOT
+        decay as r rises is the canonical artifact tell of
+        docs/inventor-protocol.md section 3 and VOIDS the whole reading. At
+        r = 5 the surrogate COMPUTES D_5 exactly over the same arms, so it is a
+        forced value there and a measurement elsewhere.
+    - metric: >-
+        E8 -- sibling null: exact value and dispersion of the FORWARD-diagonal
+        projection D_{j0} at r = 5, wrong ShiftRows handedness, same shape, same
+        32 bits, same data
+      direction: different
+      minimum_effect: >-
+        PREDICTED at the uniform null: mean deviation within 3 empirical
+        standard errors of zero and D consistent with 1.00, while the AES arm at
+        the same r is not. This ISOLATES the output geometry rather than merely
+        discriminating structured from unstructured, which is the distinction
+        V-804-1 has left undischarged for three consecutive batches. The single
+        committed reading (n = 2147467586, residue 2) is one datum, not a
+        distribution.
+
+  test_boundary:
+    instances:
+      - >-
+        The committed arms of BATCH-001 count5/raw.jsonl (aes_r3, aes_r4,
+        aes_r5 x 7, aes_r6 x 2, null_sibling_fwd_diag, null_randperm_aes10,
+        null_indep_roundkeys) and BATCH-002 TASK-20260802-142a4b/raw.jsonl,
+        used as a FIXTURE for the surrogate rather than re-measured.
+      - >-
+        New surrogate evaluations at K >= 24 independent (key, base, j0) at
+        r = 5, cipher-free.
+      - >-
+        New cipher arms at r = 6 and at 10 rounds, K >= 24 each, plus r = 7 and
+        the forward-diagonal sibling null, at 2^32 texts per arm.
+      - >-
+        Twenty paired instances with the AES S-box and with uniform random
+        bijective S-boxes, surrogate only.
+    parameters:
+      cipher: AES-shaped SPN over GF(2^8), C1 convention, AES-128 key schedule unless stated
+      round_counts: [2, 3, 4, 5, 6, 7, 10]
+      coset: full 2^32 coset of the plaintext diagonal D_0
+      projection: inverse-ShiftRows diagonal ID_{j0}, j0 in {0,1,2,3}
+      texts_per_arm: 4294967296
+      independent_arms_minimum_per_family: 24
+      mixing_matrices: ["AES MixColumns", "00030101010203010101020303010102"]
+      null_model: uniform random map, E[n] = 2147483647.5, sd 46341 = 2^15.50
+      occupancy_counter_width_bits: 8
+    implementation: >-
+      A new cipher-free surrogate written for this hypothesis, plus the
+      committed cnt.c and count5.c engines rebuilt from their committed sources.
+      The proposing session has no shell for the executing environment and DID
+      NOT compute artifact digests; the Executor records instrument paths and
+      sha256 values at setup. THE AES-NI PATH IS UNPINNED ACROSS r = 3-7 AND NO
+      MEASUREMENT MAY BE CHARGED TO IT UNTIL A MACHINE-READABLE PINNING RECEIPT
+      EXISTS (RQ-AES-003 specification-pinning constraint).
+    budget:
+      stage_0_and_1_wall_clock_seconds: 3600
+      stage_0_and_1_compute: "surrogate build plus <= 10 fixture evaluations"
+      stage_2_wall_clock_seconds: 1800
+      stage_3_wall_clock_seconds: 5400
+      stage_4_wall_clock_seconds_ceiling: 12000
+      stage_4_note: >-
+        Stage 4 is NOT authorized by this record; only the Coordinator approves
+        execution (AGENTS.md rule 1). Its feasibility depends entirely on the
+        AES-NI pinning receipt: at the committed soft-engine rate of about 550 s
+        per arm, 48 arms would need about 26400 s and DO NOT FIT; at the
+        reported AES-NI rate of about 53 s per sweep they need about 2500 s and
+        do. If the receipt does not exist, stage 4 is reported as OUT OF SCOPE
+        FOR EXECUTION and NOT estimated (AGENTS.md rule 9). GOAL-AES-003's
+        instruction that a batch WAITS rather than run degraded is binding:
+        BATCH-002 overran by roughly 5700 s when it was treated as advisory.
+
+  falsification_conditions:
+    - >-
+      F1 (THE PRIMARY FALSIFIER, NEAR-ZERO COMPUTE). Any committed r=5 integer
+      the surrogate does not reproduce exactly. Part (A) is refuted, or the
+      committed section 3.5 is wrong, or one of the three engines is. The line
+      stops and the disagreement -- localised to one of three by construction --
+      is the deliverable.
+    - >-
+      F2. The surrogate returning a non-zero value at r = 4. H is then not
+      injective while reproducing r = 5, a contradiction routed to a correction
+      record rather than absorbed.
+    - >-
+      F3. The AES S-box and a uniform random bijection giving the SAME exact
+      n_5 in a majority of 20 instances. Part (B) is dead: the exact channel
+      carries no S-box information and the object is S-box-independent at every
+      precision, not only at mod 8.
+    - >-
+      F4. The 10-round control showing a mean shift beyond 3 empirical standard
+      errors or a dispersion index outside [0.6, 1.6] at K = 24. HEUR-E2 fails,
+      the construction is non-uniform, and NO arm in this family -- including
+      the campaign's committed ones -- may be read as a distinguisher.
+    - >-
+      F5. A dispersion index or mean deviation that does NOT decay across
+      r = 5, 6, 7 and the 10-round control. Artifact tell; the entire reading is
+      void, per docs/inventor-protocol.md section 3.
+    - >-
+      F6. Occupancy counter saturation at any arm. invalid_measurement, NEVER a
+      negative observation (AGENTS.md rule 5). This has already happened once in
+      this campaign and voided an r=3 control.
+    - >-
+      F7. Arm independence not establishable from the committed rk_sha256 and
+      base fields. No pooled statistic over the committed arms may then be
+      quoted at all, and the population work starts from newly generated arms.
+    - >-
+      F8 (THE PLANNED NEGATIVE, PRE-REGISTERED BEFORE ANY GATE). If part (C)
+      returns no difference -- the expected outcome at prior 0.10 -- the
+      deliverable is NOT "r = 6 is dead". It is a MEASURED BOUND: the largest
+      mean shift and dispersion excess excluded at r = 6, stated in bits with
+      K and the resolution named, plus the forward guidance naming which
+      statistics remain unread on the same arms (higher histogram moments,
+      j0-paired differences, key-family structure). A negative that does not
+      produce that bound HAS NOT FINISHED. The negative disposition is a
+      DELIVERABLE, not a failure, and under GOAL-AES-003 P2 it asserts nothing
+      about AES beyond the exact arms measured.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER toy and it may not be raised by any downstream citation.
+      Reduced-round only. NO statement about full-round or deployed AES under
+      any outcome (RQ-AES-003 R6).
+    - >-
+      NO COMPARISON TO PUBLISHED CRYPTANALYSIS IN EITHER DIRECTION (R3,
+      symmetric). Nothing here is claimed novel and nothing is claimed known.
+      The proposing session's recollection that a multiple-of-8 property and a
+      mixture structure exist in the public literature is RECALLED, UNVERIFIED,
+      and may be used neither to promote nor to dismiss any part of this record.
+    - >-
+      THE SURROGATE IS AN INSTRUMENT, NOT AN ATTACK. It consumes the key via the
+      round-2 coset base. It recovers nothing and distinguishes nothing by
+      itself.
+    - >-
+      PART (A) DOES NOT EXTEND TO r = 6 BY DERIVATION, and the campaign's own
+      committed section 3.6 says why. Stated twice on purpose.
+    - >-
+      A CONFIRMED SURROGATE DOES NOT UPGRADE THE r=5 RESULT'S SCOPE.
+      DEC-20260802-9bda5c ruling 3 stands: the r=4 and r=5 properties follow
+      from round geometry and were reproduced with random bijective S-boxes at
+      120/120, and every future description must say so. If part (B) survives,
+      that is a NEW and NARROWER statement about the exact value, never a
+      retraction of the ruling about the residue.
+    - >-
+      NO STATUS CHANGE to any evidence record or decision is proposed or
+      implied. Corrections supersede; they never edit (AGENTS.md rule 4).
+    - >-
+      A MODELLED COST IS CAPPED AT `analyzed` HERE (RQ-AES-003 R6). Every
+      timing figure this hypothesis quotes from committed records is quoted, not
+      re-measured, and every new one must be measured with peak RSS beside it.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260805-86e431.yaml
+    - ledger/proposals/IDEA-20260805-c8c0d4.yaml
+    - ledger/questions/RQ-AES-003.yaml
+    - ledger/goals/GOAL-AES-003.yaml
+    - ledger/evidence/EV-AES-005.yaml
+    - ledger/evidence/EV-AES-d8a13e.yaml
+    - coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/count5/PREREGISTRATION.md
+    - coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/count5/raw.jsonl
+    - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-142a4b/cnt.c
+    - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-142a4b/raw.jsonl
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+    - docs/target-result-profile.md
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; all roles run model: inherit under
+      standing basis 0137a051eb5828789eb267fa83c8278086578d4c. Recorded, never
+      silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; no
+      `python3 -m orchestration.adapter doctor --probe` was run here.
