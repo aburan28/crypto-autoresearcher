@@ -1,0 +1,470 @@
+idea:
+  id: IDEA-20260805-244f78
+  question_id: RQ-SQISIGN-39f231
+  added: '2026-08-05'
+  title: >-
+    The byte-budget completeness certificate: seal the SQIsign published-data
+    inventory by proving the declared component list reconstructs
+    PUBLICKEY_BYTES, SECRETKEY_BYTES and SIGNATURE_BYTES exactly, and report
+    the two residuals that appear when you try
+  class: control
+
+  claim: >-
+    An inventory of what a verifier receives is normally an unfalsifiable list:
+    nothing tells you an item is missing. SQIsign's specification supplies the
+    missing check for free, because it states both the component-by-component
+    binary format (Section 4.6) and the resulting total sizes (Table 4, and
+    Appendix B PUBLICKEY_BYTES / SECRETKEY_BYTES / SIGNATURE_BYTES). The
+    inventory is COMPLETE if and only if the sum of the declared component
+    encodings equals the stated total, exactly, at all three security levels.
+    This proposal makes that arithmetic the acceptance gate on the inventory
+    that GOAL-SQISIGN-002 needs before any attack-template work, and reports
+    the reconciliation this session actually performed against the specification
+    text it read: the signature budget closes EXACTLY at NIST-I (148) and
+    NIST-V (292) and MISSES BY 4 BYTES at NIST-III (formula gives 220, stated
+    224); the secret-key budget closes at all three levels only under a reading
+    of Appendix B's formula that uses 5 x FP_ENCODED_BYTES where the extracted
+    text shows 4. Both residuals are stated here BEFORE any further work,
+    because a residual found after the inventory is written is indistinguishable
+    from a residual manufactured to justify it.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE BYTE. Each mathematical object in SQIsign is followed not through the
+      isogeny computation but through the wire encoding: field element ->
+      FP_ENCODED_BYTES, curve -> Montgomery coefficient A in F_{p^2} ->
+      EC_CURVE_ENCODED_BYTES, 2x2 integer matrix -> 4 x floor((e_rsp+7)/8),
+      quaternion ideal -> nrd plus four coefficients, torsion-basis hint -> one
+      byte. The tracked quantity is the running byte count, and the terminal
+      observation is whether it lands on the specification's own stated total.
+    established_families_off_limits: >-
+      Off-limits as the primary lens for this proposal: Kani / higher-dimensional
+      embedding (KN-TECH-026), torsion-point adaptive attacks (GPST), the
+      Deuring / KLPT algebraic route (KN-TECH-028), lattice reduction, generic
+      claw and meet-in-the-middle search, side-channel and fault analysis, and
+      transcript-versus-simulation distinguishing (which belongs to
+      GOAL-SQISIGN-001 and is excluded by this goal's non_duplication block).
+      None of these is used. The lens is the ENCODING SPECIFICATION, which is
+      the one part of a submission that is machine-checkable against itself.
+    newness_score: >-
+      The arithmetic is trivial; what is not present in this corpus, and what
+      the scouting sweep found absent program-wide, is the use of a scheme's own
+      size table as a COMPLETENESS CERTIFICATE for a data-surface inventory. The
+      corpus holds no experiment of this shape for any of the 45 goals, and
+      GOAL-SQISIGN-002's Red Team is explicitly directed at inventory
+      completeness with no instrument proposed for it. This supplies one.
+    testability_score: >-
+      Maximal and nearly free. Every input is an integer printed in the
+      specification; the check is addition. It has already been run once, by
+      hand, in producing this record, and it already returned a non-trivial
+      answer.
+    survival_score: >-
+      The object survives to the end of the encoding by construction. Its
+      weakness is the opposite one: byte counts are a coarse projection and can
+      be right while the semantic inventory is wrong. That limit is stated in
+      interpretation_limits rather than hidden, and the semantic side is carried
+      by IDEA-20260805-c4ae3d.
+
+  mechanism: >-
+    READ SOURCE. All figures below are taken from "SQIsign Algorithm
+    specifications and supporting documentation, Version 2.0.1", July 7 2025,
+    fetched 2026-08-06 from https://sqisign.org/spec/sqisign-20250707.pdf
+    (HTTP 200, 1,087,080 bytes), and extracted with a pure-zlib stream
+    extractor written for this session because pdftotext is absent and pypdf
+    raises pyo3_runtime.PanicException on import in this container. TEXT
+    EXTRACTION DAMAGE IS POSSIBLE AND IS THE PRIMARY CONFOUNDER; every figure
+    below is therefore a CANDIDATE TO CHECK against the PDF rendered normally
+    and against the reference implementation's headers, and that check is stage
+    1 of the paired experiment.
+
+    STATED SIZES (Table 4, and Appendix B). Public key / secret key / signature
+    in bytes: NIST-I 65 / 353 / 148; NIST-III 97 / 529 / 224; NIST-V 129 / 701 /
+    292. Appendix B gives FP_ENCODED_BYTES = 32 / 48 / 64, FP2_ENCODED_BYTES =
+    EC_CURVE_ENCODED_BYTES = 64 / 96 / 128, TORSION_2POWER_BYTES = 32 / 48 / 63,
+    f = 248 / 376 / 500, e_rsp = 126 / 192 / 253, e_chl = 122 / 184 / 247,
+    lambda = 128 / 192 / 256.
+
+    PUBLIC KEY. Section 4.6: pk is E_pk (Montgomery coefficient A in F_{p^2})
+    concatenated with hint_pk (one byte). Appendix B: PUBLICKEY_BYTES = 1 +
+    EC_CURVE_ENCODED_BYTES. 1 + 64 = 65, 1 + 96 = 97, 1 + 128 = 129. CLOSES
+    EXACTLY AT ALL THREE LEVELS. The whole per-key published surface is one
+    curve plus one byte.
+
+    SIGNATURE. Section 4.6 lists exactly seven components: E_aux (curve), n_bt
+    (one byte), r_rsp (one byte), M_chl (2x2 integer matrix, each component
+    floor((e_rsp+7)/8) bytes), chl (lambda/8-byte integer), hint_aux (one byte),
+    hint_chl (one byte). Appendix B: SIGNATURE_BYTES = 4 +
+    EC_CURVE_ENCODED_BYTES + 4*floor((e_rsp+7)/8) + lambda/8, in which the
+    leading 4 is exactly the four one-byte fields. Evaluating:
+      NIST-I:   4 + 64  + 4*floor(133/8)=4*16=64  + 16 = 148 = stated 148. OK.
+      NIST-III: 4 + 96  + 4*floor(199/8)=4*24=96  + 24 = 220 vs stated 224. MISS BY 4.
+      NIST-V:   4 + 128 + 4*floor(260/8)=4*32=128 + 32 = 292 = stated 292. OK.
+    RESIDUAL R1: four bytes at NIST-III and nowhere else. Four bytes is exactly
+    one extra byte per M_chl component, i.e. exactly what floor((e_rsp+7)/8) =
+    25 rather than 24 would produce, i.e. e_rsp in [193,200] rather than the
+    tabulated 192. But e_rsp is defined as ceil(log2(sqrt(p))) and
+    log2(65*2^376 - 1) = 382.0224..., giving ceil(191.0112) = 192, which is what
+    Appendix B tabulates. So the specification's stated NIST-III signature size,
+    its stated formula, and its stated e_rsp cannot all three be right as
+    extracted. The stated total 224 appears twice independently in the extracted
+    text (Table 4 row and Appendix B row), which makes extraction damage on the
+    total less likely than damage on the formula or on e_rsp -- but that is a
+    likelihood, not a finding, and settling it is a stage of the experiment.
+
+    SECRET KEY. Section 4.6: sk is pk, then the ideal I_sk, then the 2x2 integer
+    matrix M_sk with each component TORSION_2POWER_BYTES bytes. Section 4.6
+    also states that an ideal is encoded as nrd(I) (one FP_ENCODED_BYTES
+    integer) concatenated with four FP_ENCODED_BYTES integers for the quaternion
+    coefficients -- five field-sized integers in total. Appendix B's formula as
+    extracted reads SECRETKEY_BYTES = PUBLICKEY_BYTES + 4*FP_ENCODED_BYTES +
+    4*TORSION_2POWER_BYTES, which evaluates to 65+128+128 = 321, 97+192+192 =
+    481, 129+256+252 = 637 -- WRONG AT ALL THREE LEVELS against the stated 353 /
+    529 / 701. Replacing 4 by 5, as Section 4.6's own ideal encoding requires,
+    gives 65+160+128 = 353, 97+240+192 = 529, 129+320+252 = 701 -- EXACT AT ALL
+    THREE. RESIDUAL R2: the Appendix B secret-key formula as extracted is
+    inconsistent with the specification's own Section 4.6 encoding and with its
+    own table, and the unique repair that fits all three levels is the 5x
+    reading. This is very likely extraction damage on a single digit and is
+    reported as such, NOT as a defect in the specification.
+
+    WHY THE ARITHMETIC IS AN INVENTORY GATE AND NOT BOOKKEEPING. GOAL-SQISIGN-
+    002's first completion criterion asks for an itemized inventory of every
+    curve, torsion basis and point image a verifier receives. An inventory can
+    be wrong in exactly one dangerous way: an omitted item. A list has no
+    internal check against omission. The byte total does: an omitted component
+    with a non-zero encoding makes the sum too small, and a hallucinated
+    component makes it too large. At NIST-I and NIST-V the seven declared
+    signature components account for 148 and 292 bytes with NOTHING LEFT OVER,
+    which is a positive, quantitative statement that no eighth field exists at
+    those levels. That is the strongest form the first completion criterion can
+    take, and it costs nothing.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      READ, PRIMARY, THIS SESSION. SQIsign specification v2.0.1, July 7 2025,
+      https://sqisign.org/spec/sqisign-20250707.pdf. All numbers above come from
+      it. NOTE A SCOPE CORRECTION FOR THE COORDINATOR: this document
+      self-describes as "the present round-2 SQIsign submission" (Section 1.3).
+      GOAL-SQISIGN-002 and RQ-SQISIGN-39f231 both assume the existence of a
+      distinct ROUND-3 specification. Whether one exists is UNVERIFIED; the
+      sqisign.org spec directory as surfaced by search on 2026-08-06 carries
+      versions 2.0 (2025-02-05) and 2.0.1 (2025-07-07) only. This also bears on
+      the goal's second pause_condition, which contemplates the sources being
+      unobtainable: they are obtainable, and were obtained.
+    - >-
+      NOT READ -- relayed claim. NIST IR 8610, the second-round status report,
+      is reported (via GOAL-SQISIGN-002 and RQ-SQISIGN-39f231, themselves
+      sourced from a 2026-08-04 search excerpt) to state that SQIsign avoids the
+      auxiliary torsion-point information exploited against SIKE. This record
+      does not rely on that sentence and does not verify it.
+    - >-
+      NOT READ -- relayed claim, and ADJACENT PRIOR ART THAT MUST BE CHECKED
+      BEFORE ANY NOVELTY IS ASSERTED ABOUT M_chl. The 2026-08-05 scouting brief
+      records ePrint 2026/1305 as claiming SQIsign is not SUF-CMA, with concrete
+      malleability in the v2.0 specification via a basis-change matrix negatable
+      mod 2^N. That is a claim about M_chl, which is the largest single item in
+      this inventory. Nothing here confirms, denies, or depends on it, and
+      fetching it is a declared stage of the paired experiment.
+    - >-
+      IN-CORPUS, READ BY A PRIOR SESSION. KN-TECH-028 (Deuring / KLPT /
+      SQIsign) states that SQIsign "reveals NO torsion images". That statement
+      is about the ROUND-1 design and is examined, not assumed, by
+      IDEA-20260805-c4ae3d.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Full signature or key (a tuple of curves, matrices, ideals and hints over
+      F_{p^2}) --> the integer vector of its component encoding lengths, and
+      then --> their sum.
+    what_is_discarded: >-
+      Every algebraic value. Two signatures with completely different curves,
+      matrices and hints project to the identical length vector.
+    why_genuinely_lossy: >-
+      Maximally lossy on the algebra: the fibre over an observed length vector
+      is essentially the entire message space. This is the same shape as the
+      determinant-ideal audit in IDEA-20260805-e805b6, and it is deliberate --
+      the projection is not intended to carry secret information, it is intended
+      to carry STRUCTURAL information about the format.
+    why_compatible_with_the_operations: >-
+      Compatible with concatenation, which is the only operation the encoding
+      performs: length(a || b) = length(a) + length(b), exactly, with no
+      carries, because Section 4.6 fixes every component width per instance.
+      This is why the projection propagates deterministically and why the total
+      is a hard equality rather than an estimate.
+    is_it_only_a_change_of_coordinates: >-
+      No, and the failure mode checked for here is THE MIRROR ONE -- a
+      projection so lossy it is constant across instances and therefore
+      informative about nothing. THE CHECK RETURNED NEGATIVE, i.e. the
+      projection is not constant in the direction that matters: the comparator
+      here is not across instances (where the length vector IS constant, by
+      design, since SQIsign has fixed-length keys and signatures) but across
+      SECURITY LEVELS and across DECLARED-VERSUS-STATED, and in that direction
+      the spread is non-zero and was measured: two of three levels close to
+      zero residual and one does not. A statistic that returns 0, 4, 0 across
+      its three cells has demonstrably non-zero spread and can fail. Had all
+      three closed, the correct report would have been a controlled null: the
+      certificate passed and told us only that the format is self-consistent.
+    identifiability_note: >-
+      The projection cannot distinguish an item that is present but semantically
+      mis-described from an item that is correctly described. Byte-completeness
+      is necessary, not sufficient, for inventory correctness. IDEA-20260805-
+      c4ae3d carries the sufficiency side.
+
+  assumptions:
+    - >-
+      That the extracted text faithfully reproduces the PDF's tables. This is
+      the dominant risk and stage 1 of the experiment exists to remove it. Two
+      independent occurrences of the NIST-III signature size (Table 4 and
+      Appendix B) both extracted as 224, which is weak corroboration and is
+      recorded as weak.
+    - >-
+      That Table 4 and the Appendix B constants describe the SAME encoding as
+      Section 4.6, rather than an implementation with padding or alignment. The
+      exact closure at NIST-I and NIST-V is evidence that they do, since padding
+      would have to be zero at two levels and four bytes at one.
+    - >-
+      That "the published-data surface" for this goal means what crosses the
+      wire, not what an implementation happens to hold in memory. Stated so a
+      reviewer can reject it: an attack that consumes a value never transmitted
+      is out of this goal's scope by construction and belongs to a side-channel
+      lane that does not exist here.
+
+  predictions:
+    - metric: >-
+        pubkey_budget_residual: PUBLICKEY_BYTES(level) minus the sum of the
+        component encodings declared in Section 4.6, at levels I, III, V
+      direction: different
+      minimum_effect: >-
+        EXACTLY (0, 0, 0). Derived before any further work from 1 +
+        EC_CURVE_ENCODED_BYTES = 65, 97, 129. Any non-zero entry means the
+        public-key inventory has a missing or spurious item and the whole
+        downstream audit is blocked until it is found.
+    - metric: >-
+        signature_budget_residual: SIGNATURE_BYTES(level) minus the sum of the
+        seven declared components, at levels I, III, V
+      direction: different
+      minimum_effect: >-
+        EXACTLY (0, 4, 0), predicted here before the experiment runs. This is
+        the pre-registration that matters: a later run reporting (0, 0, 0)
+        falsifies this record's reading of the specification and localises the
+        error to the extraction; a run reporting a residual at NIST-I or NIST-V
+        falsifies it in the other direction and means an eighth signature field
+        exists.
+    - metric: >-
+        secretkey_budget_residual under the Section 4.6 ideal encoding (five
+        field-sized integers), at levels I, III, V
+      direction: different
+      minimum_effect: >-
+        EXACTLY (0, 0, 0). If instead the Appendix B formula as extracted
+        (4*FP_ENCODED_BYTES) is what the document really says, the residuals are
+        (32, 48, 64) and the specification contains a real internal
+        inconsistency rather than an extraction artifact. Both outcomes are
+        recorded; neither is a security claim.
+    - metric: >-
+        eighth_field_count: number of signature or public-key fields present in
+        the reference implementation's serialisation but absent from Section 4.6
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0 predicted. Any value above 0 is the single most consequential
+        possible outcome of this proposal, because every downstream conclusion
+        of GOAL-SQISIGN-002 is conditioned on the inventory being complete.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first, each able to terminate. STAGE 0 (minutes,
+      zero compute): re-fetch the specification PDF, record its SHA-256, and
+      re-extract Table 4 and Appendix B by a SECOND, independent method, so the
+      numbers are not hostage to one extractor. STAGE 1 (minutes, pure integer
+      arithmetic in Python): evaluate all three budgets at all three levels and
+      report the nine residuals against the pre-registered (0,0,0), (0,4,0),
+      (0,0,0). STAGE 2 (minutes): fetch the reference implementation's public
+      headers from the SQIsign GitHub organisation and compare its
+      CRYPTO_PUBLICKEYBYTES / CRYPTO_SECRETKEYBYTES / CRYPTO_BYTES constants and
+      its serialisation routine's field list against Section 4.6. STAGE 3
+      (minutes): parse one KAT triple per level from the submission package if
+      obtainable, and check the observed byte lengths. Stage 1 alone can
+      terminate the proposal; stage 2 is what converts "the document is
+      self-consistent" into "the deployed format matches the document".
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE, WITH A FORCED VALUE DERIVED BEFORE THE
+        RUN AND ABLE TO FAIL: apply the identical budget procedure to a scheme
+        whose specification is already in this corpus and whose sizes are
+        independently known -- concretely, run it against SQIsign's OWN NIST-I
+        public key, where the answer 1 + 64 = 65 is forced and where any other
+        answer indicts the procedure rather than the scheme. Stronger null:
+        apply the procedure to a DELIBERATELY MUTILATED copy of Section 4.6 with
+        one component deleted, and require the residual to become exactly that
+        component's width. If deleting a field does not move the residual, the
+        procedure is not measuring completeness and no completeness claim may be
+        made.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR: the
+        NIST-III signature cell. This session's reading says the residual there
+        is 4 and not 0. If a re-run returns 0 at NIST-III while returning 0 at
+        the other two, the instrument has no demonstrated ability to produce a
+        non-zero residual on real input and NO COMPLETENESS CLAIM MAY BE
+        RECORDED from it -- only the mutilated-copy null would then license one,
+        and it must be run.
+      - >-
+        GRADED CONTROL, THREE INTERIOR POINTS, MONOTONICITY REPORTED: delete 1,
+        2 and 3 of the seven signature components in turn from the declared list
+        and check that the residual grows monotonically and equals the sum of
+        the deleted widths at every step. This localises a failure to a specific
+        component rather than leaving "the budget did not close".
+      - >-
+        ORDERING CONTROL: the predicted residual vector (0,4,0) is committed in
+        this record, which is written before the experiment is approved, and is
+        cited by the experiment contract. It may not be revised after any run.
+    required_metrics:
+      - SHA-256 of the fetched PDF and the exact fetch URL and HTTP status
+      - the nine residuals, as signed integers, with the arithmetic shown
+      - the reference implementation's three size constants with file and line
+      - the residual under each of the seven single-component deletions
+      - a statement of which extraction method produced each figure
+
+  falsification_conditions:
+    - >-
+      The re-extraction shows NIST-III's signature size is 220, not 224. This
+      record's headline residual then evaporates, the whole discrepancy was
+      extraction damage, and that is recorded as a correction to this record
+      rather than buried.
+    - >-
+      A non-zero residual appears at NIST-I or NIST-V. The seven-component
+      signature inventory is then incomplete and every downstream statement in
+      GOAL-SQISIGN-002 is blocked until the eighth item is named.
+    - >-
+      The single-component-deletion control fails to move the residual. The
+      procedure is then not a completeness test and must not be described as
+      one.
+    - >-
+      The reference implementation's size constants disagree with the
+      specification. The document and the artefact then describe different
+      published surfaces, and the goal must say which one it is auditing.
+
+  confounders:
+    - >-
+      PDF EXTRACTION DAMAGE, and it is the dominant one. Numbers in a
+      multi-column LaTeX table are the single most fragile thing for a
+      stream-level extractor, and the extracted Appendix B table interleaves the
+      three security levels as an undelimited digit run ("148224292"), which is
+      precisely the format in which a transposition would be invisible.
+    - >-
+      VERSION DRIFT. v2.0.1 is dated 2025-07-07 and self-describes as round-2.
+      If a round-3 document exists, its Section 4.6 may differ and every number
+      here is then about the wrong document. Establishing which document is the
+      Round-3 submission is stage 0 work and is a deliverable in its own right.
+    - >-
+      CONFIRMATION PRESSURE. A residual is a satisfying thing to find. The
+      pre-registered prediction (0,4,0) is stated so that finding NO residual is
+      a falsification of this record rather than a quiet non-event.
+    - >-
+      IMPLEMENTATION-VERSUS-SPECIFICATION. A reference implementation may pad,
+      align, or add a version byte without the specification mentioning it. That
+      would make the specification's inventory complete and the deployed
+      inventory incomplete, and the two must be reported separately.
+
+  interpretation_limits:
+    - >-
+      THIS IS A DOCUMENTARY RESULT, NOT AN EXPERIMENTAL ONE, and not an attack.
+      Nothing here bears on the hardness of any problem, moves any exponent, or
+      says anything about SQIsign's security. It establishes only whether an
+      inventory is complete.
+    - >-
+      A closed budget is NECESSARY and NOT SUFFICIENT for inventory correctness.
+      It cannot detect a component that is present, correctly sized, and
+      wrongly described. Semantic correctness is IDEA-20260805-c4ae3d's burden.
+    - >-
+      A four-byte residual at NIST-III is a documentation or extraction question
+      until proven otherwise. It must not be written up as a defect in SQIsign,
+      and under no reading is it a vulnerability.
+    - >-
+      Claim tier: documentary. No run at any scale can raise it.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE IS LOAD-BEARING. Every step is integer arithmetic on integers
+        printed in the source document. There is no distributional claim, no
+        random model, and no asymptotics. This entry exists to record that fact
+        explicitly rather than leave the field empty, and to record that the one
+        genuine assumption is EVIDENTIARY, not mathematical: that the extracted
+        text equals the document.
+      rigorous_support: >-
+        Concatenation is length-additive; all component widths are fixed per
+        instance by Section 4.6 and Appendix B.
+      validation_plan: >-
+        Independent re-extraction by a second method, plus comparison against the
+        reference implementation's compiled-in size constants. Both are declared
+        stages of EXP-SQISIGN-e10747.
+
+  proof_search_map_note: >-
+    Not a proof-oriented proposal; no theorem, bound, certificate family,
+    reduction or closure argument is claimed. The proof_search_map obligation
+    under docs/inventor-protocol.md section 8 is carried by the paired
+    hypothesis H-SQISIGN-c0488f, which does make a closure-shaped claim. This
+    record is a measurement audit and states so rather than filling a map with
+    non-applicable entries.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this audit. No algorithm is proposed and NO EXPONENT IS MOVED. The
+      honest statement required by docs/target-result-profile.md: this proposal
+      moves no exponent and is worth running anyway, because it is the
+      acceptance gate on a deliverable (the inventory) that three other
+      completion criteria of GOAL-SQISIGN-002 are downstream of, and because it
+      costs minutes.
+    memory_exponent: n/a
+    best_known: >-
+      For the underlying hard problem, the specification's own Section 10.2.1
+      states Otilde(p^{1/2}) classical and Otilde(p^{1/4}) quantum for the
+      endomorphism ring problem, hence Otilde(2^lambda) and Otilde(2^{lambda/2}).
+      That figure is not used or contested here; see IDEA-20260805-2acde5, which
+      does contest it.
+    hidden_overhead: n/a
+    tradeoff_note: n/a
+
+  dominated_by: >-
+    n/a (no result claimed). Rows checked before writing that, across time,
+    memory and data/queries: (i) the endomorphism-ring frontier as the
+    specification states it, Otilde(p^{1/2}) time with LOW MEMORY classically
+    and Otilde(p^{1/4}) quantumly (spec Section 10.2.1, READ); (ii) the
+    p^{1/3+o(1)} time AND memory point of the frozen Wesolowski text at
+    inputs/P13-WESOLOWSKI-2026/paper_fulltext.md, whose own concrete table names
+    SQIsign NIST-I/III/V rows at time >= 2^106.5 / 2^157.5 / 2^204.2 and memory
+    >= 2^92.5 / 2^138.6 / 2^181.3 (via docs/target-result-profile.md, READ);
+    (iii) the Kani/SIDH poly-time point, which requires published torsion images
+    and is the subject of IDEA-20260805-c4ae3d; (iv) the corpus itself --
+    ledger/proposals, ledger/hypotheses and experiments/ hold NO record in area
+    SQISIGN of any kind, so there is no internal frontier to dominate. This
+    proposal sits on none of those axes because it produces no attack. Absence
+    of a corpus record is not evidence that no prior work exists (AGENTS.md
+    knowledge-retrieval policy).
+  sota_delta: >-
+    No attack; documentary and measurement contribution only. Quantitatively:
+    it converts an unfalsifiable list into a list carrying nine integer
+    residuals with pre-registered values, at a cost of minutes, and it has
+    already produced one non-zero residual (4 bytes, NIST-III) and one
+    formula-versus-table inconsistency (secret key, all levels) before any
+    approved run. Zero on every attack axis: time, memory, data, queries,
+    advice, preprocessing.
+
+  estimated_cost:
+    implementation: low
+    compute: negligible
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.60 that the (0,4,0) signature-residual prediction survives independent
+    re-extraction. It is not higher because a stream-level PDF extractor
+    reconstructing an interleaved three-column numeric table is exactly the
+    failure mode that produces a spurious 4, and because the alternative reading
+    (stated 220, extracted 224) requires only one transposed digit in a run of
+    nine. It is not lower because the same extractor reproduced Table 4 and
+    Appendix B CONSISTENTLY WITH EACH OTHER at two independent locations in the
+    document, reproduced NIST-I and NIST-V exactly under the same formula, and
+    reproduced every other Appendix B constant in a way that closes the
+    public-key budget at all three levels. Separately: 0.97 that the experiment
+    reaches a decisive reading, because every stage is minutes and none needs a
+    solver, and 0.05 that an eighth undeclared signature field exists.
