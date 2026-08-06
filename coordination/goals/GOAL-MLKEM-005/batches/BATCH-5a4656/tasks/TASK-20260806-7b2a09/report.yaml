@@ -1,0 +1,675 @@
+schema: crypto.autoresearch.validation_report.v1
+task_id: TASK-20260806-7b2a09
+role: validator
+goal_id: GOAL-MLKEM-005
+batch_id: BATCH-5a4656
+reviewed_snapshot: 8a121df975c8665b7b7a62436b228822d4fe9545
+reviewed_producers:
+  - TASK-20260806-b51ac8   # B2-A: repaired C3 instrument (P3/P4/P5, D-1)
+  - TASK-20260806-4810e2   # B2-B: the C1 bound
+  - TASK-20260806-3b0337   # B2-C: normative-gap write-up
+  - TASK-20260806-9918cd   # B2-D: acquisition procedure + retrieval check
+archived_by: TASK-20260806-04303a
+recorded_at: "2026-08-06"
+
+verdict: ADMISSIBLE_WITH_DEFECTS
+
+verdict_meaning: >-
+  Admissible means the four receipts are usable as evidence of what they say
+  they are evidence of, at the scope they declare. It does not support any
+  ML-KEM claim, does not demonstrate a speedup, does not validate any
+  heuristic, and does not authorise a status change or a promotion.
+  AGENTS.md rule 12 remains UNMET and UNWAIVED and this report changes the
+  status of no EV-MLKEM-* record and no KN-* entry. The mechanism studied is
+  SESSION recovery, not key recovery; no number in this package or in this
+  report may be subtracted from the in-repo primal_bdd margins of
+  2.80 / 6.04 / 1.28 bits. My own independent re-derivation of B2-A's P3,
+  P4 and P5 (Sections 1-3 below) CONFIRMS the reported figures exactly; the
+  D-1 defect claim is CONFIRMED both empirically and mathematically. Two
+  defects found are severity `material` (B2-D's causal attribution, and the
+  Coordinator's uncritical repetition of it); none reverses a producer's
+  own conclusion or the C1/C2/C3 status this batch reports.
+
+scope_of_this_review:
+  read: >-
+    Only the Coordinator-committed snapshot 8a121df975c8665b7b7a62436b228822d4fe9545,
+    which I confirmed exists (git cat-file -t), resolves, and is an ancestor
+    of the working-tree HEAD (5c445c9e...), before reading anything from it.
+    The working tree is exactly one commit ahead of 8a121df9: a disclosed
+    self-referential binding commit (5c445c9e, "coordination: bind
+    TASK-20260806-6c5a4b snapshot receipt") that touches ONLY
+    snapshot_receipt.json (filling in commit_sha/parent_sha/path_sha256,
+    which the 8a121df9 blob itself carries as null/{}) and dispatch_queue.json
+    (marking the archive task completed). Verified via
+    `git diff --name-only 8a121df9 5c445c9e` (exactly those 2 paths) and by
+    independently recomputing sha256 of all 21 declared producer/receipt
+    paths via `git show 8a121df9:<path>` against snapshot_receipt.json's
+    path_sha256 (0 mismatches, 21/21 match). Producer content read via the
+    Read tool from the working tree is therefore byte-identical to the
+    committed snapshot for every path this report cites; spot-checked
+    directly for results.json, report.md, census.json.
+    For context on the repair this batch performs, also read
+    BATCH-a51f91/TASK-20260805-708b70 (the prior, failed T2 instrument) and
+    BATCH-a51f91/TASK-20260805-9672b3 (T3, the already-verified conversion
+    instrument B2-B reuses, including its full verification.json).
+  re_derived_independently: true
+  code_shared_with_producers: none
+  validator_scripts_written_from_scratch: 3
+  compute_runs_used: 0
+  budget_declared: {wall_clock_seconds: 3600, memory_gb: 4, maximum_runs: 1}
+  budget_respected: true
+  independence_note: >-
+    Procedural only. This validator session and every one of B2-A/B2-B/B2-C/
+    B2-D's own receipt.json inference.resolved_model_id fields read
+    claude-sonnet-5; per this session's own system context I am also
+    Sonnet 5. Independent session, independently written code and reasoning,
+    no code or numbers shared with any producer.
+
+# ---------------------------------------------------------------------------
+snapshot_integrity:
+  - id: I1
+    claim: "snapshot_receipt.json declares 21 producer/receipt paths with sha256, bound by commit 5c445c9e"
+    status: reproduced
+    method: "Recomputed sha256 of every declared path from `git show 8a121df9:<path>`."
+    result: "21/21 match at the commit; 0 mismatches, 0 missing."
+  - id: I2
+    claim: "commit 8a121df9 exists, resolves, has parent da16e6d3, and is reachable from HEAD"
+    status: reproduced
+    result: >-
+      `git cat-file -t` returns "commit"; `git log -1 --format='%H %P' 8a121df9`
+      gives parent da16e6d3d4274304fcf4f3a42f81d63bab88ca4a exactly as
+      declared in the archive; `git merge-base --is-ancestor 8a121df9 HEAD`
+      succeeds.
+  - id: I3
+    claim: "the working tree beyond 8a121df9 does not touch any producer artifact"
+    status: reproduced
+    result: >-
+      `git rev-list --count 8a121df9..HEAD` = 1; that one commit
+      (5c445c9e) touches exactly snapshot_receipt.json and
+      dispatch_queue.json (`git diff --name-only`), and its diff on
+      snapshot_receipt.json is exactly the null->filled commit_sha/parent_sha/
+      path_sha256 fields the binding_note itself describes. No producer file
+      differs between 8a121df9 and the working tree.
+  - id: I4
+    claim: "snapshot verification status"
+    status: reproduced_with_caveat
+    result: >-
+      snapshot_receipt.json (as bound by 5c445c9e) records
+      verification.status: bound_pending_verifier. I performed the
+      equivalent hash/parent/scope checks by hand (I1-I3) and they pass;
+      that is a validator recomputation, not the dispatcher's own
+      GitRepositoryVerifier acceptance. Not a new defect (same convention
+      used, and flagged the same way, in BATCH-a51f91's own validator
+      report DEF-10).
+  - id: I5
+    claim: "producer dirty-tree state at run time"
+    status: reproduced
+    result: >-
+      All four producers record git commit a582a799135e34e0968087feab4e92867693f1c4,
+      branch claude/mlkem-campaign-005, dirty-tree limited to this batch's
+      own untracked task directory (its sibling producers' in-flight work),
+      consistent across all four receipt.json files.
+
+# ---------------------------------------------------------------------------
+B2A_TASK-20260806-b51ac8_repaired_C3_instrument:
+  items:
+  - id: B2A-1
+    claim: "P4 (Gaussian null-of-the-null) holds in all four cells, max deviation 0.06-0.88 SE against a 4-SE budget"
+    status: reproduced
+    method: >-
+      INDEPENDENTLY RE-DERIVED from results.json raw per-draw data
+      (cells.*.arms.gaussian_null_of_null.per_draw[i].p2em10.ratio -- NOT
+      the summary block), computed mean/sd(ddof=1)/SE/deviation from
+      scratch with my own script (rederive_p3_p4_p5.py, notes.md Sec 1).
+    result: >-
+      Exact match in all four cells to the digits shown: dev/SE =
+      0.732885 / 0.878785 / 0.060324 / 0.517036, all PASS against 4 SE.
+      Range 0.06-0.88 SE CONFIRMED.
+  - id: B2A-2
+    claim: "P3 (coordinate-aligned vs Haar, SE-of-the-difference) holds in all four cells by 46.8-73.2 SE against a 4-SE gate"
+    status: reproduced_with_correction
+    method: >-
+      INDEPENDENTLY RE-DERIVED from raw per-draw graded['t0.00'] and
+      graded['t1.00'] data (not the summary block); computed mean_t0,
+      sd_t0, mean_t1, sd_t1, unpaired SE, signed shift, and SE-multiple
+      from scratch.
+    result: >-
+      Exact match in all four cells: shift/SE = 46.815800 / 73.145511 /
+      52.939560 / 53.990135, all PASS at >=4 SE (46.8-73.1 SE range
+      confirmed -- see DEF-3: the UPPER bound "73.2" quoted in my own
+      launch instructions and in the Coordinator's commit message is a
+      rounding error; the true maximum (73.14551134617912) rounds to 73.1,
+      not 73.2. Report.md's own text never states "73.2"; it states "73.15"
+      (2dp, correct) and "47-74 SE" (integer rounding, correct). Does not
+      change the PASS verdict at 4 SE either way.)
+  - id: B2A-3
+    claim: "P5 falsifier: measured decay ratios 0.8926/0.8903 vs predicted 0.8018/0.8257, direction-consistent, magnitude 7.8-11.3% off"
+    status: reproduced
+    method: >-
+      INDEPENDENTLY RE-DERIVED departure = my own P3 shift (not the
+      report's), computed departure(beta40)/departure(beta30) at each d,
+      compared against prediction_frozen.json's pre-registered prediction.
+    result: >-
+      Exact match: measured ratios 0.892575/0.890255 (rounds to
+      0.8926/0.8903), predicted 0.801784/0.825723 (rounds to 0.8018/0.8257),
+      relative discrepancy 11.3237%/7.8152% (rounds to 11.3%/7.8%). Both
+      cells: departure positive in both cells, decay in the predicted
+      direction, no artifact tell.
+  - id: B2A-4
+    claim: >-
+      D-1 (unnormalised G matrix in the graded family) affects ONLY interior
+      t-points, leaving t=0/t=1 -- and every P1-P5 figure -- bit-for-bit
+      identical between run 1 and run 2
+    status: reproduced
+    method: >-
+      Bit-for-bit JSON comparison, run entirely by me
+      (compare_run1_run2.py, notes.md Sec 4a), of results.json vs
+      results_run1_raw.json across P4_gaussian_null_of_null, P3_sensitivity,
+      verdict_on_the_real_arm, verdict_on_the_null_arm_FIRST, arms.real,
+      arms.coord_aligned, arms.haar_null, arms.gaussian_null_of_null,
+      arms.graded['t0.00'/'t1.00'], forced_values, P5_falsifier_adjudication,
+      and frozen_prediction, in all four cells (44 field-group comparisons).
+      This is a STRONGER check than the report's own claim: I additionally
+      diffed forced_values and the raw arms sub-objects, not just the
+      summary P-blocks.
+    result: >-
+      44/44 field groups bit-for-bit identical. The 5 interior t-points
+      (0.05/0.10/0.25/0.50/0.75) x 4 cells = 20/20 DIFFER, matching the
+      described "cliff" collapse exactly (run1 interior means already near
+      1.00/Haar-like by t=0.05). Run1's monotone_nonincreasing flag is False
+      in exactly 3 of 4 cells (d100_b40, d140_b30, d140_b40) and True in 1
+      (d100_b30) -- an EXACT match to receipt.json's "3 of 4 cells failed
+      strict monotonicity" claim. unreduced_qary and lll_only arms (which
+      don't touch E_S/G) are identical between runs in all 4 cells, as
+      expected. CONFIRMED.
+  - id: B2A-5
+    claim: >-
+      "standard unpivoted QR is invariant under independent positive
+      per-column rescaling of its input, in the way that leaves t=0 and
+      t=1 unaffected while changing 0<t<1"
+    status: reproduced
+    method: >-
+      Re-derived from first principles (notes.md Sec 4b), independent of
+      the producer's own docstring argument, then checked against
+      measure.py's actual build_graded_Q implementation (lines 180-216).
+    result: >-
+      MATHEMATICALLY CORRECT. At t=0 the mixed matrix is E_S exactly (G
+      does not appear); trivially unaffected by any rescaling of G. At t=1
+      the matrix is G alone; independent positive per-column rescaling of
+      a full-rank matrix does not change the column SPACE it spans (each
+      column is only rescaled along its own line), and the orthogonal
+      projector onto a fixed subspace is unique regardless of which
+      orthonormal basis represents it, so R = e^T P e is provably
+      unaffected. At interior t, each column is a WEIGHTED SUM of an E_S
+      column and a G column; rescaling the G component alone changes the
+      relative weight of the two terms and hence the DIRECTION of the sum
+      (they are not parallel), so the per-column-rescaling-invariance
+      argument does not apply there -- correctly matching what I observed
+      empirically in B2A-4 (only interior points move). measure.py's code
+      implements exactly what the docstring describes.
+  - id: B2A-6
+    claim: "artifact set and hashes as declared in snapshot_receipt.json"
+    status: reproduced
+    result: "All 21 files verified byte-identical to the 8a121df9 git blobs (see snapshot_integrity I1)."
+  - id: B2A-7
+    claim: "protocol runs, budget, seeds, environment as declared in receipt.json/command.txt/environment.json"
+    status: reproduced
+    method: >-
+      Cross-read stdout_run2.log (frozen-prediction header, P5 tail, [done]
+      line) against results.json and receipt.json's own figures; checked
+      stderr_run1.log/stderr_run2.log sha256 against the known sha256 of an
+      empty file (e3b0c44298fc1c...855).
+    result: >-
+      Consistent throughout: wall=256.55s peak_rss=2.433GB in stdout_run2.log
+      matches results.json/receipt.json exactly; both stderr logs are
+      genuinely empty (0 bytes, correct empty-file hash); command.txt's two
+      blocks match the receipt's description of run1 (unnormalised G) vs
+      run2 (fixed, cache-reused, 0.1s stage A) exactly.
+  limitation: >-
+    receipt.json's D-1 entry additionally cites specific principal-angle
+    diagnostic numbers (67.7 deg / 81.2 deg / 89.1 deg at t=0.01/0.02/0.05)
+    from a standalone script explicitly described as "not part of
+    measure.py" and not among the delivered artifacts. I cannot
+    independently verify those three specific numbers. They are
+    illustrative motivation for the fix, not load-bearing for the D-1
+    conclusion, which I verified independently of them (B2A-4, B2A-5).
+  diagnostic_not_a_defect: >-
+    P3's "unpaired SE is conservative" justification rests on a plausibility
+    claim about the sign of a correlation between t=0 and t=1 draws that
+    cannot be confirmed from only 8 points. My own check found sample
+    correlations ranging from -0.57 to +0.72 across the four cells --
+    consistent with a true correlation near 0 but not confirmable either
+    way at this n. Immaterial: every alternative SE I computed, including
+    the smallest, still leaves P3 passing by tens of SE.
+
+# ---------------------------------------------------------------------------
+B2B_TASK-20260806-4810e2_C1_bound:
+  - id: B2B-1
+    claim: "R20/R21 bounding_mechanism quotes, section numbers"
+    status: reproduced
+    method: "Read census.json rows R20, R21 directly and diffed against bound.md's quoted text."
+    result: "Verbatim match, including 'Sec. 6'/'Sec. 3' section numbers."
+  - id: B2B-2
+    claim: "the lane (a) X=0 bound is curvature-independent (uses only the sign of f'', not its magnitude)"
+    status: reproduced
+    method: "Re-derived from first principles (notes.md Sec 5), independent of bound.md's own prose."
+    result: >-
+      CORRECT, and doubly so. For M=1, log2(M)=0 is pure arithmetic, no
+      convexity needed. The general inequality G <= log2(M) for M>1 needs
+      only the SIGN of f'' (convexity) to license the tangent-line
+      argument, not its magnitude -- which lane (a) never evaluates
+      numerically anyway. bound.md's own additional argument ("a selection
+      over one candidate is not a selection") is an even more elementary,
+      convexity-independent justification of the same X=0 result. "No f''
+      table applies to this lane" is justified.
+  - id: B2B-3
+    claim: "single-target reference costs (log2rop, beta, d for Kyber512/768/1024) quoted from T3"
+    status: reproduced
+    method: "Read T3's results.json baselines block directly."
+    result: >-
+      140.1994731076207/389/1005, 200.9587149140538/606/1420,
+      270.7236234535225/855/1867 -- all match exactly.
+  - id: B2B-4
+    claim: "receipt.json's matches_T3_receipt_declared_hash: true for T3's results.json and verification.json"
+    status: reproduced
+    method: "Read T3's own receipt.json artifacts list directly."
+    result: >-
+      T3's own declared sha256 for results.json (9d2cedc97def...) and
+      verification.json (7e56af508982...) both match B2-B's
+      sha256_recomputed_by_this_task values exactly.
+  - id: B2B-5
+    claim: "f'' sensitivity table figures (0.27416-0.28039 bits/block, 4.14-6.51% overstatement; 3/2/3 anomalous intervals, max drop 2)"
+    status: reproduced_with_defect
+    method: "Read T3's verification.json checks V5, V6, V7 directly and diffed every number against fpp_sensitivity.json."
+    result: >-
+      Every numeric VALUE is byte-exact correct against verification.json
+      (9 numbers checked digit-for-digit). DEFECT (DEF-1, below): the
+      ols_residual_sd_bits/ols_residual_sd_blocks figures in Sections A and
+      B are attributed (reused_from) to checks V7 and V5 respectively; in
+      T3's actual verification.json those two fields live under
+      V6_slope_of_the_optimiser_vs_the_linearised_slope, not V5 or V7 (V5
+      has only anomalous-pair counts; V7 has only the OLS bits-per-block
+      figures, no residual sd). Citation mislabeling only; no fabricated
+      value.
+  - id: B2B-6
+    claim: "CM-2 objection addressed: C_query/C_storage/C_selection named as explicit unquantified >=0 terms"
+    status: reproduced
+    result: "bound.md Sec 5 states this explicitly and correctly scopes every priced figure as a lower bound on C_reduction alone."
+  - id: B2B-7
+    claim: "zero new BKZ reductions, zero new estimator calls"
+    status: reproduced
+    result: >-
+      receipt.json's commands_executed_this_task lists only sha256sum and a
+      JSON-validity check; no estimator import anywhere in the deliverables.
+
+# ---------------------------------------------------------------------------
+B2C_TASK-20260806-3b0337_normative_gap_writeup:
+  items:
+  - id: B2C-1
+    claim: "every quoted row/clause traces verbatim to a BATCH-a51f91 source"
+    status: reproduced
+    method: >-
+      Spot-checked 13 rows/clauses directly against census.json (not
+      against finding.md's own paraphrase, per the mandate to check
+      several, not just the first): R01, R03, R09, R10, R11, R12, R13, R14,
+      R20, R21, R22, R23, R24.
+    result: >-
+      13/13 matched verbatim, including section numbers, and including the
+      R13 two-limb delegation quote whose bold emphasis finding.md correctly
+      flags as its own addition (confirmed '**' absent from the raw
+      census.json string).
+  - id: B2C-2
+    claim: "CX-1's row-classification total (2+2+2+8=14) matches census.json"
+    status: reproduced
+    result: "census.json row_counts.deployment_mode = 14; distribution_sentence's own '6 fix M=1' bucket (R09,R12,R14,R20,R21,R22) matches the 2+2+2 split exactly."
+  - id: B2C-3
+    claim: "explicit non-claims section present and not hedged"
+    status: reproduced
+    result: "Section 7 present, states plainly no vulnerability is demonstrated at any count and the gap is documentation-absence, not unsafety evidence."
+  - id: B2C-4
+    claim: "draft status and rule-12 gate stated in the document's own header"
+    status: reproduced
+    result: "Header explicitly labels the document UNPROMOTED DRAFT and states rule 12 UNMET/UNWAIVED."
+  defects_found: none
+
+# ---------------------------------------------------------------------------
+B2D_TASK-20260806-9918cd_acquisition_procedure:
+  - id: B2D-1
+    claim: "route/status/content-type/byte-count/page-count reproduce the red team's reported values exactly"
+    status: reproduced
+    method: "Read receipt.json's own logged curl output and corrected_acquisition_table.md's Part B comparison table directly."
+    result: >-
+      HTTP 200, application/pdf, 1,832,736 bytes (all 5 fetches), 17 pages
+      (all 5 fetches, via /Type/Page count cross-checked against
+      /Type/Pages/Count) -- all match RT-20260806-d008e0's reported values
+      exactly. Route correctly identified as locations[1] (TU/e), not
+      best_oa_location (ACM, 403).
+  - id: B2D-2
+    claim: "sha256 does not reproduce the red team's value, and does not even reproduce across this task's own 5 fetches"
+    status: reproduced
+    result: >-
+      5 distinct sha256 values across 5 fetches of the identical URL, none
+      matching the red team's reported hash, verified with 3 independent
+      hashing tools (sha256sum, openssl dgst, python hashlib). Byte-diff
+      isolates the difference to an 81-byte region inside PDF
+      /FontDescriptor /FontName subset-tag strings, not document content.
+      These are genuine, carefully cross-checked raw measurements; no basis
+      to doubt them as measurements.
+  - id: B2D-3
+    claim: >-
+      the hash-instability is "a genuine hash-instability finding... in the
+      TU/e repository's per-request serving" (acquisition_procedure.md;
+      repeated in the Coordinator's own commit-message headline)
+    status: overclaimed
+    method: >-
+      Cross-read receipt.json's network_environment block (all fetches
+      routed through this sandboxed harness's own pre-configured
+      egress/TLS-interception proxy) against acquisition_procedure.md's and
+      the Coordinator's phrasing.
+    result: >-
+      DEFECT (DEF-2, material). The causal attribution to the TU/e server
+      specifically is not adequately controlled: every one of B2-D's
+      fetches went through this environment's pre-configured local proxy
+      (disclosed in this session's own environment context as present for
+      ALL outbound HTTPS here), a plausible alternative source of small
+      per-request byte differences that was never tested. No null-object
+      control was run (e.g. re-fetching an unrelated, presumably stable
+      resource multiple times through the same proxy, to see whether
+      similar instability is generic to the local path rather than specific
+      to the TU/e server). receipt.json's own diagnosis is appropriately
+      hedged ("does not assert this as a confirmed root cause... most
+      parsimonious explanation"); acquisition_procedure.md states the same
+      finding WITHOUT that hedge, as an established server property -- an
+      internal inconsistency between B2-D's own two deliverables. The
+      Coordinator's commit-message headline inherits the unhedged version
+      (see DEF-4). Does not affect route/status/byte-count/page-count/
+      document-identity, which are all independently reproduced and
+      accurate, nor the correctly-preserved scope caveat (CCS'21 published
+      version vs. ePrint PDF, restated verbatim from the red team's own
+      words). The defect is in the strength of a causal claim that then
+      gets institutionalized forward as acquisition_procedure.md's "Hash
+      stability... now a required check" section.
+  - id: B2D-4
+    claim: "scope caveat (published CCS'21 version vs ePrint 2021/1351 PDF) preserved correctly"
+    status: reproduced
+    result: >-
+      corrected_acquisition_table.md restates the caveat verbatim from the
+      red team's own words, with the DOI, and states explicitly "the two
+      may differ in content; this task asserts only what it directly read."
+
+# ---------------------------------------------------------------------------
+coordinator_commit_audit:
+  note: >-
+    Read `git log -1 --format=%B 8a121df9` in full (mandate item 6) and
+    checked every quoted producer figure against the artifact it cites,
+    given this program's documented history of Coordinator commit-message
+    defects (ten prior, including CE-1's fabricated "30-100x" figure in the
+    immediately preceding batch's own snapshot commit).
+  findings:
+    - id: DEF-3
+      severity: minor
+      what: >-
+        Commit message and snapshot_receipt.json's producer_headlines state
+        B2-A's P3 range as "46.8-73.2 SE". The true maximum
+        (73.14551134617912) rounds to 73.1 at one decimal place, not 73.2
+        (checked directly: round(73.14551134617912, 1) == 73.1 in Python).
+        The string "73.2" appears in no producer artifact I read -- B2-A's
+        own report.md states only "73.15" (2dp, correct) and "47-74 SE"
+        (integer rounding, correct). A small rounding slip, not a
+        fabrication; does not change any pass/fail verdict since both 73.1
+        and 73.2 clear the 4-SE gate by more than an order of magnitude.
+    - id: DEF-4
+      severity: material
+      what: >-
+        The commit message's B2-D paragraph repeats "a genuine
+        hash-instability finding... in the TU/e repository's per-request
+        serving... not smoothed over" as settled fact, without carrying
+        forward B2-D's own receipt.json hedge ("does not assert this as a
+        confirmed root cause"). See B2D-3 above; this is the same defect
+        surfacing at the archival/summary level, which the mandate
+        specifically asked me to check with the skepticism due any
+        Coordinator commit message.
+  everything_else_checked_and_matched: >-
+    P4's 0.06-0.88 SE range; P5's 0.8926/0.8903 vs 0.8018/0.8257 and
+    7.8-11.3% figures; B2-B's 0.27416-0.28039 bits/block and 4.14-6.51%
+    overstatement figures and the 3/2/3 anomalous-interval counts; B2-C's
+    row-classification counts (2 firm / 2 caveated / 2 per-handshake / 8
+    count-unstated); B2-D's route/status/byte-count/page-count reproduction
+    figures; the coordinator_amendment documenting B2-A's 8 undeclared
+    provenance files (verified against receipt.json's own
+    extra_files_beyond_the_declared_five and file_sha256 -- accurate and
+    well-justified). Parent commit da16e6d3 verified as the actual git
+    parent of 8a121df9. This is a marked improvement over the prior batch's
+    commit (DEC-20260805-4823db CE-1: a wholly fabricated figure present in
+    no producer artifact); this commit's only numeric issues are one
+    one-digit rounding slip (DEF-3) and one attribution-hedge loss (DEF-4),
+    neither a fabrication.
+
+# ---------------------------------------------------------------------------
+defects:
+  - id: DEF-1
+    severity: minor
+    where: "TASK-20260806-4810e2/fpp_sensitivity.json Sections A and B; bound.md Sec 4"
+    what: >-
+      ols_residual_sd_bits (Section A) and ols_residual_sd_blocks (Section
+      B) are attributed to T3 verification.json checks
+      V7_estimator_own_bits_per_block_vs_card_0292 and
+      V5_staircase_monotonicity_corrected respectively. Both figures
+      actually live under check V6_slope_of_the_optimiser_vs_the_linearised_slope
+      in T3's committed verification.json (V5 carries only anomalous-pair
+      counts/drops; V7 carries only the OLS bits-per-block figures, no
+      residual sd). All nine numeric values quoted (3 sets x 3 fields)
+      verified byte-exact correct against verification.json; only the
+      check-ID citation is wrong for two of those fields.
+    material: false
+    reverses_a_conclusion: false
+  - id: DEF-2
+    severity: material
+    where: "TASK-20260806-9918cd/acquisition_procedure.md 'Hash stability' section; corrected_acquisition_table.md"
+    what: >-
+      The hash-instability finding's causal attribution to "the TU/e
+      repository's per-request serving" / "a real... property of... the
+      TU/e repository server" is asserted as fact without a null-object
+      control ruling out this sandboxed environment's own pre-configured
+      egress/TLS-interception proxy (through which every fetch was routed,
+      per receipt.json's own network_environment block) as an alternative
+      source of the observed per-fetch byte differences. receipt.json's own
+      diagnosis is appropriately hedged; acquisition_procedure.md is not --
+      an internal inconsistency within B2-D's own deliverables. The
+      underlying raw measurements (byte counts, page counts, 5 distinct
+      sha256 values, 3-tool cross-check) are accurate and not fabricated.
+      Material because acquisition_procedure.md institutionalizes the
+      unhedged attribution as a forward-binding procedural rule.
+    material: true
+    reverses_a_conclusion: false
+  - id: DEF-3
+    severity: minor
+    where: "commit 8a121df9 message; snapshot_receipt.json producer_headlines (B2-A paragraph)"
+    what: >-
+      B2-A's P3 range stated as "46.8-73.2 SE"; correct one-decimal
+      rounding of the true maximum (73.14551134617912) is 73.1. Not present
+      in any producer artifact. Does not change any verdict.
+    material: false
+    reverses_a_conclusion: false
+  - id: DEF-4
+    severity: material
+    where: "commit 8a121df9 message; snapshot_receipt.json producer_headlines (B2-D paragraph)"
+    what: >-
+      Repeats B2-D's unhedged hash-instability attribution ("a genuine...
+      finding... in the TU/e repository's per-request serving... not
+      smoothed over") as settled fact, losing the hedge B2-D's own
+      receipt.json carries. Same underlying issue as DEF-2, surfacing again
+      at the Coordinator summary level.
+    material: true
+    reverses_a_conclusion: false
+
+defects_that_reverse_a_producer_conclusion: none
+overclaims_found: >-
+  1 (DEF-2/DEF-4: B2-D's hash-instability root-cause attribution, and the
+  Coordinator's repetition of it, both overclaim beyond what a null-object
+  control would support -- neither invents a number).
+fabrications_found: none
+scope_violations_found: none
+
+# ---------------------------------------------------------------------------
+controls_and_null_objects:
+  inventor_protocol_section_3_check: >-
+    B2-A's P4 arm IS the required null-of-the-null control for the repaired
+    C3 instrument: it applies the coordinate-aligned projector to a
+    rotation-invariant (Gaussian) error law, under which the marginal law
+    of R is EXACTLY Beta for any fixed projector, so P4 must return 1.000
+    within sampling noise if the instrument is sound -- it does, in all
+    four cells (B2A-1), and the card's own completion_gate required P4 be
+    adjudicated BEFORE P3/P5/the real arm, which report.md honours in
+    order. This is the correctly-designed null this campaign's prior
+    instrument (BATCH-a51f91 T2) lacked. B2-A's falsifier (P5) is the
+    "does the signal decay when the parameter meant to destroy it grows"
+    check the protocol requires, and it is checked and reported honestly
+    even though the magnitude misses the naive formula by 7.8-11.3% (B2A-3)
+    -- not rounded away, not silently rescued.
+  the_one_place_this_check_was_missing: >-
+    B2-D's hash-instability finding (DEF-2) is exactly the pattern this
+    check exists to catch: an unusual signal (sha256 instability) reported
+    without the identical measurement run against a null object of the
+    same shape (an unrelated resource fetched through the same local
+    network path) to see whether the parameter that should distinguish
+    "TU/e-specific" from "generic to this environment's proxy" was varied.
+    It was not varied, and the causal claim is accordingly overclaimed
+    (see DEF-2).
+
+heuristic_validation_checks:
+  applicable: yes
+  pre_registered_prediction: >-
+    prediction_frozen.json is written and its sha256 recorded, per its own
+    frozen_prediction_verified/frozen_prediction_sha256 fields cross-checked
+    in-process by measure.py at both run starts (confirmed in
+    stdout_run1.log/stdout_run2.log's FROZEN PRE-REGISTERED PREDICTION
+    header, timestamped 2026-08-06T15:43:11Z, before either run started at
+    15:48:15Z/16:02:06Z). P1-P5, including the falsifier's numeric
+    prediction at both beta values, are all frozen before any research
+    number -- confirmed directly from the timestamps.
+  sample_integrity: >-
+    Sample size (2^20 CBD_eta2 errors per basis, shared across arms), seeds
+    (five explicit families, all deterministic functions of (d,beta,index),
+    printed in results.json.seed_scheme), and the sampling procedure are in
+    prediction_frozen.json and results.json. I recomputed the empirical
+    statistics (P3, P4, P5) from the raw per-draw arrays myself, not copied
+    from the report (Sections 1-3 above).
+  correspondence_validity: not_applicable
+    # No substitute-sampling correspondence (e.g. Deuring) is used by this
+    # experiment; the graded family Q_t interpolates directly between the
+    # coordinate-aligned and Haar projectors on the actual object under
+    # study, and I re-derived (B2A-5) why that interpolation is
+    # mathematically well-founded at its endpoints.
+  scale_binding: >-
+    d in {100,140}, beta in {30,40} -- toy scale throughout, explicitly and
+    repeatedly disclosed as such in every producer artifact (report.md Sec
+    9, receipt.json scope_statements, prediction_frozen.json
+    scope_constraints_binding_on_the_report). Nothing is transported to
+    beta=606/d=1420; I found no instance where a toy-scale number is
+    presented as scale-matched evidence.
+  cost_unit_honesty: >-
+    B2-B's fpp_sensitivity.json declares its unit (bits/block, blocks) in
+    every field name and labels the whole table "MODEL READOUT, NOT A
+    MEASUREMENT" throughout. Memory is reported alongside time in B2-A's
+    receipt.json (peak_rss_gb 2.434 against a 6 GB budget).
+  cost_bookkeeping: >-
+    B2-B's bound.md Sec 5 explicitly separates C_reduction (priced) from
+    C_query/C_storage/C_selection (unquantified, named as >=0 line items),
+    and states every bit figure in the document as a LOWER bound on
+    attacker cost from the reduction term alone -- it does not compute a
+    total expected cost as if success were certain, and does not attempt
+    one, since no M is sourced for the lane where a total would be needed.
+
+what_this_package_does_NOT_establish:
+  - "No ML-KEM break, no security claim in either direction, no FIPS 203 parameter set affected or cleared."
+  - "No heuristic validated. B2-A's own report.md Sec 6 explicitly states P1/P2's real-arm pass carries little independent information beyond BATCH-a51f91's own finding, since the real arm is statistically indistinguishable from Haar at this sample size/tail depth -- P1/P2 cannot, by construction, tell 'genuinely Beta' apart from 'too small a departure for this rule to see'."
+  - "No ceiling on M in the count-unstated lane; B2-B correctly declines to substitute an illustrative figure."
+  - "No speedup, no exponent moved, no concrete-cost claim, no attack costed end to end."
+  - "Nothing at beta = 606, d = 1420."
+  - "Rule 12 UNMET and UNWAIVED. No EV-MLKEM-* or KN-* status change is proposed or made by any of the four producers or by this report."
+
+recommended_next_actions_for_the_coordinator:
+  - "Correct DEF-3 (73.2 -> 73.1) wherever this batch's headline is repeated downstream."
+  - "Record DEF-2/DEF-4 as a correction to the hash-instability attribution: state it as 'this environment's serving of this URL is not sha256-stable across repeated fetches, cause unconfirmed (server-side regeneration vs. this harness's own egress proxy both remain open)', not as a settled TU/e-server-specific property, until a null-object control (repeat-fetching an unrelated stable resource through the same proxy) is run."
+  - "Correct DEF-1's citation (V6, not V5/V7) if fpp_sensitivity.json is ever reused or cited again."
+  - "None of the above changes any C1/C2/C3 adjudication this batch reports; that adjudication is the Coordinator's ledger-archive act, not mine."
+
+official_status_changes: none
+official_status_changes_note: >-
+  This report proposes no EV-MLKEM-* or KN-* status change, per AGENTS.md
+  rule 12 (UNMET and UNWAIVED) and this task's own constraints. Findings
+  only.
+
+inference:
+  requested_policy: review-xhigh
+  requested_policy_note: >-
+    The dispatch card names the legacy alias review-xhigh, which AGENTS.md
+    carries forever as an alias of review-adversarial.
+  resolved_model_id: claude-sonnet-5
+  runtime: "Claude Code (claude-agent-sdk subagent, model: inherit)"
+  fallback_used: true
+  fallback_allowed: true
+  fallback_reason: >-
+    orchestration/model-policies.yaml names GPT-5.6-family aliases that
+    Claude Code cannot resolve; per CLAUDE.md the subagents run
+    model: inherit.
+  degraded_allowed: false
+  degraded_requirements: []
+  reasoning_effort: null
+  model_verified: false
+  model_verified_note: >-
+    `python3 -m orchestration.adapter doctor --probe` was not run by this
+    task, so the identifier is unverified configuration in the sense of
+    AGENTS.md.
+  independent_session: true
+  independence_note: >-
+    Independence here is PROCEDURAL, not model-level: this validator and
+    all four producers of this batch resolve to the same model
+    (claude-sonnet-5). Every number in this report was re-derived from
+    primary artifacts and independently written code (rederive_p3_p4_p5.py,
+    compare_run1_run2.py), which is the only independence available under
+    this harness. It is not the independence AGENTS.md rule 12 requires,
+    and rule 12 remains unmet.
+
+environment:
+  python: "3.11.15"
+  platform: "Linux-6.18.5-fc-v18-x86_64-with-glibc2.39"
+  numpy: (used for re-derivation; see notes.md for the exact scripts)
+  validator_scripts:
+    - "rederive_p3_p4_p5.py -- independent P3/P4/P5 recomputation from raw per-draw arrays"
+    - "compare_run1_run2.py -- bit-for-bit run1-vs-run2 JSON diff for the D-1 defect claim"
+    - "verify_hashes.py -- snapshot path_sha256 recomputation from git blobs"
+  scripts_location: >-
+    session scratchpad (outside the repository; not part of the declared
+    artifact set). Full source and full stdout transcripts of the first two
+    are reproduced verbatim in notes.md.
+
+artifact_paths:
+  - coordination/goals/GOAL-MLKEM-005/batches/BATCH-5a4656/tasks/TASK-20260806-7b2a09/report.yaml
+  - coordination/goals/GOAL-MLKEM-005/batches/BATCH-5a4656/tasks/TASK-20260806-7b2a09/notes.md
+
+completion_gate:
+  every_quantitative_claim_statused: true
+  claims_statused: 27
+  reproduced: 18
+  reproduced_with_correction_or_defect: 3
+  overclaimed: 2
+  not_applicable: 1
+  explicit_verdict: ADMISSIBLE_WITH_DEFECTS
+  numbered_defects: 4
+  material_defects: 2
+  minor_defects: 2
+  p3_p4_independently_recomputed_not_merely_reread: true
+  p3_p4_result: CONFIRMS the reported figures exactly (see B2A-1, B2A-2 and notes.md Sec 1-2)
+  p5_independently_recomputed: true
+  p5_result: CONFIRMS the reported figures exactly (see B2A-3 and notes.md Sec 3)
+  d1_defect_independently_verified: true
+  d1_result: >-
+    CONFIRMED both empirically (44/44 P1-P5-relevant field groups
+    bit-identical run1-vs-run2; 20/20 interior points differ as described)
+    and mathematically (the QR-invariance argument re-derived from first
+    principles and checked against measure.py's actual code)
+  no_repair_performed: true
+  no_git_commit_run: true
+  wrote_only_within_write_scope: true
