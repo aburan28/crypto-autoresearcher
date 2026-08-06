@@ -58,3 +58,38 @@ to describe itself. No fix is proposed here beyond disclosure; a real fix would
 require either dropping the self-reference requirement from the schema (a tooling
 change outside this batch's write scope) or a two-stage commit design that this
 program does not currently use.
+
+## Addendum (TASK-20260806-411ffd): the recorded self-hash was not merely stale, it was wrong even at commit time -- and that hard-blocks the dispatcher, not just the receipt
+
+Running `tools/research_dispatch.py ... --output --report` while drafting the
+ledger archive (`TASK-20260806-411ffd`) found that `dispatch_queue.json`'s
+declared self-hash for `TASK-20260806-4455ac`'s receipt
+(`364dcbed...`) does not match `sha256(git show 9fd0d974:<path>)`
+(`743e2458...`) -- and, unlike the shallow gate, this is **not tolerant**: a
+content-hash mismatch on *any* completed archive task aborts the entire
+`--output/--report` run with exit code 2 and produces no dispatch plan at all,
+for the whole queue, not just the offending task. This is worse than "reads as
+stale under deep verification" (this file's original framing) -- it made the
+CLI unusable for this queue at all, including for validating the unrelated
+`TASK-20260806-411ffd` work in progress.
+
+Checked whether `364dcbed...` was ever correct: the committed receipt blob at
+`9fd0d974` itself declares `364dcbed...` as its own self-hash, so the value
+was miscomputed against a draft that did not byte-for-byte match what was
+actually staged and committed (a real computation slip on my part when
+preparing that commit, not purely the abstract fixed-point problem this file
+otherwise describes -- the fixed-point problem guarantees *some* staleness is
+inevitable, it does not by itself explain a mismatch against the file's *own*
+committed draft).
+
+**Resolution applied:** `dispatch_queue.json`'s declared `path_sha256` entry
+for that one self-referencing path was corrected from `364dcbed...` to the
+true value `743e2458...` (`sha256` of `git show 9fd0d974:<path>`, independently
+recomputed and matching). This is a correction to a *mutable coordination
+artifact* (the dispatch queue, which this batch has already edited repeatedly
+for scaffolding gaps), not to the *immutable committed receipt blob* at
+`9fd0d974`, which is left exactly as committed and unedited -- consistent with
+AGENTS.md rule 4. After the correction, `--output/--report` runs clean (exit
+0, all ten gates true, `completed_archive_commits_verified: true`) as of this
+addendum. Recorded here rather than silently patched, per this file's own
+opening principle.
