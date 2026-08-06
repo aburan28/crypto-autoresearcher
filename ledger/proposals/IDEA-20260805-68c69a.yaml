@@ -1,0 +1,457 @@
+idea:
+  id: IDEA-20260805-68c69a
+  question_id: RQ-XEDN-004
+  added: '2026-08-05'
+  title: >-
+    The XEDN height calibration control returned False on 424 of 424 surfaces
+    and was made non-blocking: deg b = 10 has arithmetic genus 2, so the
+    control's own expected value is wrong, and the archived growth
+    coefficients say so to three digits
+  class: measurement_calibration
+
+  claim: >-
+    `run_census.sage` carries a calibration check, `height_control(P, nmax)`,
+    which passes only if deg_t x(nP) equals h * n^2 for h in {2,3}. Re-reading
+    the two committed run artifacts in this session, that check evaluated on
+    424 surfaces across EXP-XEDN-006 (p = 7,13,19,31) and EXP-XEDN-007
+    (p = 31), and `ok_num` was True on ZERO of them. The census did not treat
+    that as an instrument failure: `analyze_surface` records
+    `height_ctrl_soft: True` and admits the surface anyway, with the comment
+    that the check "is preferred but not required for deg-x=3 sections". The
+    reason it fails is structural and derivable, not incidental. The Shioda
+    canonical height on an elliptic surface of arithmetic genus chi is
+    hhat(P) = 2*chi + 2*(P.O) - sum_v contr_v(P); the values {2,3} the check
+    tests against are the chi = 1 values inherited from the deg b <= 6 goals
+    GOAL-XEDN-001 and GOAL-XEDN-002, whereas deg b = 10 forces chi = 2 and a
+    base value of 4. The archive confirms this to three digits without any new
+    computation: the `height_ctrl.deg_num` arrays take exactly six distinct
+    values over the 424 surfaces, with quadratic growth coefficients
+    10/3 (394 surfaces), 17/6 (20), 8/3 (4), 7/3 (4), 13/6 (1) and 5/3 (1) --
+    every one of which is 4 minus a sum of standard local fibre contributions
+    with denominator dividing 6 (10/3 = 4 - 2/3; 17/6 = 4 - 2/3 - 1/2;
+    8/3 = 4 - 2/3 - 2/3; 7/3 = 4 - 1 - 2/3; 13/6 = 4 - 1 - 1/2 - 1/3 or
+    4 - 2/3 - 2/3 - 1/2; 5/3 = 4 - 2/3 - 2/3 - 2/3). Not one is 2 or 3. The
+    correct instrument is available at no new theoretical cost -- use
+    hhat(P) = lim_n deg_t x(nP)/n^2 as the height and
+    <P,Q> = (hhat(P+Q) - hhat(P) - hhat(Q))/2 as the pairing -- and it repairs,
+    in one change, the other visible pathology in the archive: the census's
+    naive-degree Gram reports corank 0 on all 14 relation-bearing
+    configurations while simultaneously verifying a relation on each, which is
+    impossible for any genuine positive-definite pairing.
+
+  object_first_candidate:
+    tracked_object: >-
+      The CANONICAL HEIGHT of a section as a rational number with its
+      denominator: hhat(P) = 2*chi - sum_v contr_v(P), followed as
+      section -> x-degree growth sequence (deg_t x(nP))_{n=1..N} -> quadratic
+      growth coefficient -> the rational 2*chi - hhat, i.e. the total local
+      contribution -> the multiset of reducible-fibre types it decomposes into.
+      The denominator is the informative part: it is a fingerprint of the
+      reducible fibres, which is a genuine invariant of the surface, unlike the
+      coefficient bound.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: the deg-a / deg-b degree-shape ladder,
+      free-x enumeration as a search strategy, relation-coefficient census as a
+      metric, specialisation verification, xedni lifting, and index calculus.
+      This proposal refuses to run another census. It proposes to fix the
+      instrument the previous four censuses used and to report what the fixed
+      instrument says about artifacts that already exist on disk.
+    newness_score: >-
+      The height formula is textbook and is claimed as nothing else. What is
+      new here is entirely local and entirely checkable: that this program's
+      own calibration control has a 0/424 pass rate, that the failure is
+      structural rather than noisy, and that the corrected quantity is
+      recoverable from data already committed. A "0 out of 424" is not the kind
+      of fact that needs a novelty argument.
+    testability_score: >-
+      Maximal for the first half -- the pass rate and the six growth
+      coefficients are re-extractions from committed JSON, executable in
+      seconds in pure Python with no dependencies. Moderate for the second
+      half: recomputing hhat for EVERY enumerated section (rather than one per
+      surface) needs elliptic-curve arithmetic over F_p(t), which must be
+      written from scratch because Sage is absent from this container (verified
+      this session).
+    survival_score: >-
+      The object survives all the way and has genuine spread: six distinct
+      values in the archive already, against one for the coefficient metric.
+      That contrast is the argument for switching metrics.
+
+  mechanism: >-
+    DERIVED IN-REPO WHERE POSSIBLE; the height formula itself is RECALLED and
+    labelled.
+
+    (A) WHAT THE CONTROL TESTS. `height_control(P, nmax)` computes
+    deg_t num x(nP) and deg_t x(nP) for n = 1..nmax and returns ok_num True iff
+    the first sequence equals 2*n^2 for all n, or equals 3*n^2 for all n. That
+    is a check for a section of canonical height exactly 2 or exactly 3 under
+    the normalisation deg_t x(nP) = hhat(P) * n^2 + O(1). It is a good check.
+    It is aimed at the wrong constants.
+
+    (B) WHY 2 AND 3 ARE THE WRONG CONSTANTS HERE. RECALLED, UNVERIFIED, AND THE
+    FIRST THING THE EXPERIMENT VERIFIES: for an elliptic surface with section
+    group MW and arithmetic genus chi, the Shioda height is
+    hhat(P) = 2*chi + 2*(P.O) - sum_v contr_v(P), with contr_v drawn from the
+    standard Kodaira table (I_n: i(n-i)/n; III: 1/2; IV: 2/3; I*_n: 1 or
+    1 + n/4; IV*: 4/3; III*: 3/2). A Weierstrass model y^2 = x^3 + a(t)x + b(t)
+    with deg a <= 4, deg b <= 6 is a rational elliptic surface (chi = 1), and
+    an integral section has hhat = 2 - sum contr, so {2,3} is a sensible test
+    there and that is precisely the window GOAL-XEDN-001 / GOAL-XEDN-002 used.
+    With deg b = 10 the model has chi = 2, base value 4, and no integral
+    section can have hhat = 2 or 3 unless its total local contribution is
+    exactly 2 or 1 -- possible but not typical. The control was inherited
+    across a degree raise that changed the constant it tests.
+
+    (C) THE ARCHIVE ALREADY CONTAINS THE CORRECTED NUMBERS. Fitting
+    deg_num[n]/n^2 at n = 6 on the six distinct committed arrays gives
+    10/3, 17/6, 8/3, 7/3, 13/6, 5/3. Every one is of the form 4 - c with c a
+    sum of standard contributions and denominator dividing 6. That is a FORCED
+    VALUE the archive passes: had the base been 2 or 3, the observed
+    coefficients would have had to be at most 3, and 10/3 > 3 refutes chi = 1
+    by itself, on 394 of 424 surfaces. Nothing new needed to be run to learn
+    this; it was in the committed JSON.
+
+    (D) THE SECOND PATHOLOGY THE SAME FIX REPAIRS. `height_gram(pts)` builds
+    a matrix from `h_naive(P) = max(deg num x, deg den x)`, treating it as
+    though the parallelogram identity held. It does not: only the canonical
+    height is a quadratic form, and the naive degree differs from it by a
+    bounded but nonzero correction. The consequence is visible in the archive:
+    across all 14 relation-bearing configurations, `corank` is 0 and
+    `max_abs_coeff_gram` is null, so the matrix never detected the relation
+    that the group-law search verified on the same points. A genuine
+    positive-definite pairing on s vectors satisfying a nontrivial relation has
+    rank <= s - 1. The spec's response was to demote the Gram to "diagnostic
+    only"; the correct response is to compute the right matrix. This also
+    removes the exhaustive coefficient product entirely: with the true Gram,
+    the relation module is ker G over Q intersected with Z^s, and LLL on that
+    kernel returns the shortest relation without any coefficient ceiling --
+    which is exactly the ceiling IDEA-20260805-4efae0 identifies as making the
+    hypothesis unfalsifiable.
+
+    (E) WHAT THE CORRECTED INSTRUMENT MEASURES THAT THE OLD ONE COULD NOT.
+    Three quantities, all with non-degenerate spread and none of them recorded
+    in any EV-XEDN record: (i) the canonical height of every enumerated
+    section, hence the local-contribution multiset, hence the reducible-fibre
+    type census of the family -- a genuine geometric invariant; (ii) the corank
+    of each configuration, which is the number of INDEPENDENT relations, the
+    quantity a relation-collection cost model would actually charge; (iii) the
+    covolume of the section lattice, which with (ii) determines the shortest
+    relation exactly. The lane has been reporting the one quantity that is
+    pinned by lattice geometry (see IDEA-20260805-5a9d2c) and none of the three
+    that are not.
+
+    (F) NOT A CLOSURE. Nothing here says the XEDN geometry is uninteresting or
+    that the goal's verdict is wrong. It says one control failed uniformly, was
+    softened rather than repaired, and that repairing it is cheap and yields
+    strictly more information than another census would.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      Shioda's height pairing and the Kodaira local contribution table are
+      RECALLED, UNVERIFIED. No paper was read for this record; no theorem
+      number, volume, page, or author attribution is asserted. Verifying both
+      -- the formula hhat = 2*chi + 2*(P.O) - sum contr_v and the contribution
+      values -- is stage 1 of the paired experiment, and the archive supplies a
+      strong internal check: the six observed growth coefficients must all be
+      expressible as 4 minus a sum drawn from the table, which they are.
+    - >-
+      No external literature is otherwise needed. Every number quoted in this
+      record comes from committed in-repository artifacts read this session.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      section P --> the sequence (deg_t x(nP))_n --> its quadratic growth
+      coefficient hhat(P) --> the rational 2*chi - hhat(P) --> the multiset of
+      local contributions realising it.
+    what_is_discarded: >-
+      The polynomials x(t) and y(t) entirely; the position of P in the section
+      group; every section of the same height maps to the same value.
+    why_genuinely_lossy: >-
+      Genuinely lossy: on a rational elliptic surface with no reducible fibres,
+      all integral sections have the same height, so the fibre of the
+      projection is the whole 240-element root set. It is NOT a change of
+      coordinates. It is compatible with the group law in the strong sense that
+      matters: hhat is a quadratic form, so the retained part propagates
+      deterministically under addition via the polarisation identity -- which
+      is exactly the property `h_naive` lacks and is why the census's Gram is
+      not a Gram.
+    is_it_only_a_change_of_coordinates: >-
+      No. The mirror failure -- constancy -- was checked explicitly and does
+      NOT fire: the committed archive already exhibits six distinct values
+      (10/3, 17/6, 8/3, 7/3, 13/6, 5/3) over 424 surfaces, so the comparator
+      has real spread. That is the contrast with the coefficient metric, whose
+      spread over the same archive is zero.
+
+  assumptions:
+    - >-
+      That deg_t x(nP)/n^2 converges to the Shioda canonical height. Heuristic
+      assumption H1 below, with a validation plan. The archive's arrays are
+      consistent with it at n <= 12 to three digits.
+    - >-
+      That deg b = 10, deg a <= 2 gives chi = 2 for the minimal model. This is
+      the derivation's load-bearing arithmetic-geometry step, it is RECALLED,
+      and the experiment verifies it by an independent route: the observed base
+      value must be 4, and 10/3 on 394 of 424 surfaces already excludes 2 and 3.
+    - >-
+      That the archived arrays were computed on sections of the surface they
+      are recorded against. Taken from the committed structure of the JSON;
+      not independently re-derived, because Sage is absent.
+
+  proof_search_map_note: >-
+    This proposal is instrument repair rather than a theorem, asymptotic bound,
+    certificate family, reduction, or closure argument, so no separate
+    proof_search_map is required of it. Where it does make a derivable claim
+    (chi = 2, base value 4), that claim is carried by hypothesis
+    H-XEDN-58867e's method-ceiling and baseline-reproduction audits, whose
+    baseline slice is exactly the deg b <= 6 / chi = 1 window where the
+    inherited control DOES pass.
+
+  predictions:
+    - metric: >-
+        height_control_pass_rate over all surfaces in the two committed
+        raw-result.json files
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 out of 424. Re-extraction is seconds; a nonzero count means
+        this record misread the archive and must be corrected.
+    - metric: >-
+        distinct_growth_coefficients: the set of values of deg_num[n]/n^2
+        at n = 6 across the archive
+      direction: different
+      minimum_effect: >-
+        EXACTLY {10/3, 17/6, 8/3, 7/3, 13/6, 5/3}, with multiplicities
+        394, 20, 4, 4, 1, 1.
+    - metric: >-
+        base_value_consistency: the fraction of distinct observed growth
+        coefficients expressible as 4 - c with c a finite sum of standard
+        Kodaira local contributions
+      direction: higher
+      minimum_effect: >-
+        6 out of 6. This is the forced value that tests chi = 2. If any
+        observed coefficient is NOT so expressible -- or if all six are also
+        expressible as 2 - c or 3 - c, which would make the test vacuous -- the
+        derivation is wrong or the test has no power, and either must be
+        reported before anything else.
+    - metric: >-
+        corrected_corank on the 14 relation-bearing configurations, computed
+        from the canonical-height Gram
+      direction: higher
+      minimum_effect: >-
+        >= 1 on all 14. This is forced: a verified nontrivial relation among s
+        sections forces rank <= s - 1. The archived naive Gram gives 0 on all
+        14. If the corrected Gram also gives 0 anywhere, the canonical-height
+        computation is wrong there and no downstream statement may be made.
+    - metric: >-
+        shortest_relation_agreement: on the 14 configurations, whether the
+        LLL-reduced kernel of the corrected Gram contains the recorded
+        group-law relation vector
+      direction: higher
+      minimum_effect: >-
+        14 out of 14. A disagreement means either the corrected Gram or the
+        recorded relation is wrong, and the resulting contradiction is routed
+        to a correction record rather than absorbed.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first, stage 0 able to end the line.
+      STAGE 0 (seconds, pure Python, no dependencies): re-extract the pass rate
+      and the six growth coefficients from the committed JSON. If the pass rate
+      is not 0/424, STOP and correct this record.
+      STAGE 1 (pen and paper, hours, zero compute): verify the height formula
+      and the Kodaira contribution table from first principles or a source that
+      can actually be obtained; decompose each of the six observed values;
+      report any that resist decomposition.
+      STAGE 2 (pure Python, hours of implementation, minutes of compute):
+      implement F_p(t) arithmetic and the elliptic-curve group law over it from
+      scratch, compute hhat for EVERY enumerated section on the 14
+      relation-bearing configurations, build the canonical-height Gram, and
+      report corank and the LLL-reduced kernel.
+      STAGE 3 (optional, minutes): use the corrected Gram to re-derive the
+      shortest relation with NO coefficient ceiling, and compare to the
+      recorded value.
+    controls:
+      - >-
+        NULL OBJECT (same shape, forced value pre-derived, CAN fail). Apply the
+        identical growth-coefficient extraction to sections on a deg b = 6,
+        deg a <= 4 surface (chi = 1), where the forced base value is 2, and the
+        control's inherited {2,3} test SHOULD pass. Forced prediction: pass
+        rate strictly greater than 0 on that family. It can fail -- if it fails
+        there too, the diagnosis is not "chi changed" but "the control is
+        broken outright", which is a different and more serious finding.
+      - >-
+        POSITIVE CONTROL (the effect MUST appear). A section whose canonical
+        height is known by construction: take any enumerated section P and
+        compute hhat(2P) from the growth sequence of 2P. The quadratic form
+        forces hhat(2P) = 4 * hhat(P) exactly. If the implementation does not
+        reproduce that factor of 4, it cannot compute heights and no negative
+        may be reported from any arm. A second positive control, equally
+        forced: <P,P> from the polarisation identity must equal hhat(P).
+      - >-
+        GRADED CONTROL, >= 3 interior points, monotonicity reported. Compute
+        hhat estimates from truncations at n <= 4, 6, 8, 10, 12 and report the
+        convergence of |estimate - final| against n. The prediction is MONOTONE
+        DECREASING like O(1/n^2) if the normalisation is right. A quantity that
+        does not decay as n increases is the artifact tell and would mean the
+        growth is not quadratic at all.
+      - >-
+        CONTRADICTION CONTROL. The corrected corank must be >= 1 exactly where
+        a relation is recorded and may be 0 elsewhere. If corrected corank is
+        >= 1 on configurations where NO relation was found, those are the
+        surfaces the old instrument missed and they are a separate deliverable.
+      - >-
+        ARCHIVE CHECK. All prior measurements of section height in this
+        program: `height_ctrl` in EXP-XEDN-006/007 (available, and the subject
+        of this proposal) and whatever EXP-XEDN-002/003/004/005 recorded, which
+        stage 0 must enumerate rather than assume.
+    required_metrics:
+      - height_control pass rate with denominator, per experiment
+      - distinct growth coefficients with multiplicities and their contribution decompositions
+      - per-section hhat on the 14 configurations, with truncation-convergence diagnostics
+      - corrected Gram, corank, covolume, and LLL-reduced kernel per configuration
+      - the chi = 1 null arm's pass rate
+
+  falsification_conditions:
+    - >-
+      The pass rate is not 0/424. The headline is wrong.
+    - >-
+      Any observed growth coefficient is not expressible as 4 minus a sum of
+      standard local contributions. The chi = 2 derivation is wrong.
+    - >-
+      All six observed coefficients are ALSO expressible as 2 - c or 3 - c with
+      admissible c. The test has no power and must be replaced before any
+      conclusion is drawn -- a vacuous check is exactly the failure being
+      audited and this proposal must not commit it.
+    - >-
+      The chi = 1 null arm also fails the {2,3} control. The diagnosis
+      "inherited constant" is wrong and the control is broken independently of
+      chi.
+    - >-
+      hhat(2P) != 4 * hhat(P) in the implementation. The instrument is not
+      computing a quadratic form and nothing may be reported.
+
+  confounders:
+    - >-
+      TRUNCATION. hhat is a limit and the archive supplies only n <= 12. The
+      fits are clean to three digits, but a slowly converging correction could
+      shift a value between two admissible rationals with denominator 6. The
+      graded convergence control exists to bound this.
+    - >-
+      MINIMALITY. chi is a property of the MINIMAL model. If the Weierstrass
+      model y^2 = x^3 + a x + b with deg a <= 2, deg b = 10 is non-minimal at
+      some place, chi is smaller than 2 and the base value changes. The
+      experiment must check minimality rather than assume it; this is the
+      single most likely way the chi = 2 claim is wrong.
+    - >-
+      ONE SECTION PER SURFACE. The archive measured `height_ctrl` on the first
+      section with h_naive in {2,3}, else the first section, so the 424 arrays
+      are not a sample over sections and the six-value census is over surfaces,
+      not over sections. Stage 2 fixes this; until it runs, the multiplicities
+      quoted here are per-surface and must be labelled so.
+    - >-
+      IMPLEMENTATION FROM SCRATCH. Writing F_p(t) elliptic arithmetic without
+      Sage introduces a fresh bug surface. The two forced positive controls
+      (hhat(2P) = 4 hhat(P); polarisation self-consistency) exist to catch it,
+      and neither may be skipped.
+
+  interpretation_limits:
+    - >-
+      No status change to any record is proposed or implied. A 0/424 control
+      pass rate is a measurement about an instrument; whether it changes any
+      conclusion is a Coordinator decision on a superseding record, not this
+      one.
+    - >-
+      A repaired height instrument does NOT by itself change what H-XEDN-005
+      says. It changes what can be measured about it, and it removes the
+      coefficient ceiling that IDEA-20260805-4efae0 shows makes the hypothesis
+      unfalsifiable as executed. The three proposals are complements.
+    - >-
+      Toy scale. No ECDLP cost, exponent, or crypto-scale claim of any kind is
+      made or implied.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For the enumerated free-x sections, deg_t x(nP) = hhat(P)*n^2 + O(n),
+        so deg_t x(nP)/n^2 -> hhat(P), the Shioda canonical height.
+      rigorous_support: >-
+        RECALLED, UNVERIFIED as a theorem. Empirically supported in-repo: the
+        424 committed arrays fit c*n^2 to three digits at six distinct c, and
+        the census's own control was written on the same normalisation (it
+        tests h*n^2), so the normalisation is not this proposal's invention.
+      validation_plan: >-
+        The graded truncation control (n <= 4,6,8,10,12) plus the two forced
+        identities hhat(2P) = 4*hhat(P) and <P,P> = hhat(P).
+    - id: H2
+      statement: >-
+        y^2 = x^3 + a(t)x + b(t) over F_p(t) with a != 0, deg a <= 2,
+        deg b = 10 and nonzero discriminant has a minimal elliptic surface
+        model of arithmetic genus chi = 2, hence base height value 2*chi = 4.
+      rigorous_support: >-
+        RECALLED, UNVERIFIED. Independently corroborated in-repo without using
+        the recalled statement: the observed growth coefficient 10/3 exceeds 3
+        on 394 of 424 surfaces, which excludes any base value of 2 or 3 for a
+        section with nonnegative total local contribution.
+      validation_plan: >-
+        Check minimality of the model at every place, compute the discriminant
+        degree, and confirm the base value from the maximum observed hhat
+        rather than from the recalled formula.
+    - id: H3
+      statement: >-
+        The local contributions contr_v take values in the standard Kodaira
+        table, so 2*chi - hhat lies in the additive monoid generated by
+        {1/2, 2/3, 3/4, 4/5, 5/6, 1, 4/3, 3/2, ...}.
+      rigorous_support: >-
+        RECALLED, UNVERIFIED. The six observed values are all consistent with
+        it, which is a check and not a proof.
+      validation_plan: >-
+        Compute the actual fibre types on the 14 configurations from the
+        discriminant factorisation and Tate's algorithm, and confirm the
+        predicted contribution decomposition surface by surface. A mismatch
+        localises the error to a specific fibre.
+
+  target_complexity:
+    time_exponent: >-
+      n/a. NO EXPONENT MOVED, NONE CLAIMED. Instrument repair on a toy-scale
+      census.
+    memory_exponent: n/a.
+    best_known: Pollard rho for the ECDLP, untouched.
+    hidden_overhead: n/a.
+    tradeoff_note: n/a.
+
+  dominated_by: >-
+    n/a (no result claimed). Rows checked across time, memory and data/queries:
+    no algorithm and no cost point is proposed. On the question of whether the
+    height instrument has already been corrected or its failure rate recorded,
+    the following were read and none does: EXP-XEDN-006 and EXP-XEDN-007
+    specifications, EV-XEDN-005, EV-XEDN-006, DEC-20260730-001,
+    DEC-20260730-002, KN-FIND-010, KN-FIND-011, GOAL-XEDN-003 and its three
+    attestations, and both committed raw-result.json files. Absence of a search
+    result is not evidence of absence; the knowledge index was not queried, and
+    EXP-XEDN-002/003/004/005 artifacts were not read in this session.
+  sota_delta: >-
+    No attack; instrument contribution only. Quantitatively: replaces a metric
+    whose comparator spread across the committed archive is 0 (14 of 14
+    relations report infinity-norm 1) with one whose spread is already 6
+    distinct values across 424 surfaces, and repairs a diagnostic that
+    currently reports a mathematically impossible corank (0 where >= 1 is
+    forced) on 14 of 14 configurations.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 0.90
+  honest_prior_of_survival_reasoning: >-
+    0.90 that the calibration finding stands, i.e. that the 0/424 pass rate is
+    real and structural. It is that high because the pass rate and the six
+    growth coefficients were extracted directly from committed JSON in this
+    session, because 10/3 > 3 alone excludes the tested constants on 394 of 424
+    surfaces without needing any recalled theory, and because the code's own
+    comment concedes the deviation and softens the check rather than explaining
+    it. It is not higher because the chi = 2 attribution is RECALLED and could
+    be defeated by non-minimality of the Weierstrass model at some place, which
+    is a real and untested possibility, and because a limit fitted at n <= 12
+    can be off. Separately, only about 0.6 that the from-scratch F_p(t)
+    implementation in stage 2 reaches the corrected Gram within the budget --
+    that is the expensive half and it is deliberately placed last.

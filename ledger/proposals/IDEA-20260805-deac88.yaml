@@ -1,0 +1,577 @@
+idea:
+  id: IDEA-20260805-deac88
+  question_id: RQ-FIND-001
+  added: '2026-08-05'
+  title: >-
+    The comparative-consistency test for flattened exponents: a claim boundary
+    is a number, and a caret lost in transcription turns 2^45 into 245 -- one
+    sentence in this corpus already reads "reduces the required data from 245
+    known plaintexts to 226 chosen plaintexts"
+  class: control
+
+  claim: >-
+    RQ-FIND-001's decision target is a set of findings "with claim boundaries
+    no stronger than the cited EV/DEC scope". A claim boundary is, in almost
+    every case, A NUMBER -- p <= 1009, 2^64 operations, 2^128 security. This
+    proposal claims that a specific, mechanical, ORDERS-OF-MAGNITUDE
+    transcription failure is present in the corpus that supplies those numbers,
+    that it is detectable WITHOUT ANY EXTERNAL SOURCE by a forced-value test
+    derived below, and that its rate has never been measured. The failure is
+    EXPONENT FLATTENING: superscript markup lost on ingest maps the token 2^k
+    to the decimal string "2"+str(k), so 2^64 becomes 264 and 2^45 becomes 245.
+    The magnitude error is not a rounding error; it is a factor of
+    2^k / (2*10^d) which for k = 64 is about 1.3 x 10^17. A cost comparison
+    performed on a flattened number inverts, and this program performs cost
+    comparisons constantly. The detector proposed is NOT a keyword scan: naive
+    scanning is measurably useless here (SESSION-COMPUTED probe over 7814 files
+    in knowledge/literature/: 1152 three-and-four-digit integers appear in
+    complexity-adjacent lines, of which 54.8 percent lead with the digit 2 --
+    but so do 67.0 percent of the 34609 in non-complexity lines, because
+    publication years 2008-2020 saturate both bands, so the leading-digit
+    signal has the WRONG SIGN and any Benford-style estimator built on it would
+    be an artifact). The detector is instead the COMPARATIVE-CONSISTENCY TEST:
+    inside a single sentence carrying a comparative verb ("reduces X to Y",
+    "improves X to Y", "from X down to Y"), the flattening hypothesis and the
+    plain reading make INCOMPATIBLE predictions about whether the sentence is
+    worth writing, and the incompatibility is computable from the sentence
+    alone. A worked instance, found by direct read in this session and quoted
+    verbatim from knowledge/literature/KN-LIT-5121.md: "When the block size is
+    64 bits, our attack reduces the required data from 245 known plaintexts to
+    226 chosen plaintexts." Plain reading: a reduction by a factor 245/226 =
+    1.084, which no author writes a sentence about. Flattened reading:
+    2^45 -> 2^26, a reduction by 2^19 = 524288, which is a headline. The
+    proposal is to derive that test properly, control it, and measure the rate.
+
+  object_first_candidate:
+    tracked_object: >-
+      A NUMERIC MAGNITUDE TOKEN, followed through the ingestion pipeline:
+      source PDF or HTML glyph run -> extracted character stream -> the
+      "Relayed key claims" body of a KN-LIT entry -> a downstream cost
+      comparison in an idea, hypothesis, evidence record or decision. The token
+      is the object; the pipeline's operation on it is a projection that is
+      supposed to be the identity and is not. Everything in this proposal is a
+      statement about that one object's fate, which is what keeps it from
+      becoming a general "data quality" complaint.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: every cryptanalytic family in the
+      program's taxonomy -- index calculus, lattice reduction, ISD, algebraic
+      solving degree, isogeny, MQ, symmetric trail search. This proposal
+      contains no cryptanalysis and must not acquire any. Also deliberately
+      off-limits as the primary lens: LLM-based or semantic re-reading of the
+      corpus, which is the obvious move and the wrong one -- it is unbounded,
+      unauditable, and cannot produce a forced value. The whole design
+      constraint is that the discriminator be arithmetic and quotable.
+    newness_score: >-
+      The observation that this corpus contains flattened exponents is NOT
+      new to this session: the ANGLE-BRIEF reports KN-LIT-2141 recording 264
+      where the publisher abstract reads 2^64, and attributes the census idea
+      to KN-OPEN-3f7a21, whose own text is said to name it as its cheapest
+      first step. That is RELAYED and is credited, not claimed. What is new is
+      (a) that the obvious detector is measurably wrong -- the leading-digit
+      enrichment runs backwards, 0.548 in complexity context against 0.670
+      outside it, so the natural estimator would have concluded the opposite of
+      the truth; and (b) the comparative-consistency test, which is
+      source-free, per-instance, and forced. Neither appears anywhere in the
+      corpus, and (a) in particular is the reason the census has been "cheap
+      and obvious" for a fortnight and still not done correctly.
+    testability_section: >-
+      Very high and entirely local. The corpus is on disk, the detector is a
+      regex plus integer arithmetic, and the confirmation channel exists: this
+      session's scouting measured arXiv abstract and PDF pages, ePrint ABSTRACT
+      pages, and author-hosted PDFs all returning 200, with only
+      eprint.iacr.org/YYYY/NNNN.pdf blocked. So a flagged record can usually be
+      adjudicated against the publisher's own abstract rather than argued about.
+    survival_score: >-
+      The tracked object survives ingestion in the overwhelming majority of
+      cases -- that is the null hypothesis and it is probably close to true.
+      The proposal's value does not depend on the rate being large: a measured
+      rate of 3 in 7814 with two of them in records cited by cost reasoning is
+      a more useful result than a hand-waved "the corpus is unreliable", and a
+      measured rate of zero would retire the concern at a cost of one day.
+
+  mechanism: >-
+    THE PROJECTION AND ITS INVERSE. Let a source carry the value v = c * 2^k
+    (or c * 10^k) rendered with superscript markup. Ingestion applies
+    pi: rendered glyphs -> plain characters. When the markup is dropped rather
+    than converted, pi(2^k) = concat("2", dec(k)) =: s. The map is injective on
+    the relevant band -- from s one recovers k = int(s[1:]) uniquely -- so
+    NOTHING IS DESTROYED BY THE PROJECTION ITSELF. What is destroyed is the
+    TYPE: s is now indistinguishable, as a character string, from a genuine
+    decimal integer of the same digits. The recoverable content and the
+    unrecoverable content are therefore cleanly separated, and that separation
+    is what makes a source-free test possible at all.
+
+    WHY THE OBVIOUS DETECTOR FAILS, WITH NUMBERS. If flattening were common,
+    complexity-adjacent text would be enriched in strings of the form "2"+dec(k)
+    for k in a plausible exponent band. Under a null of genuine integers,
+    leading-digit frequencies follow Benford, P(lead = 2) = log10(3/2) =
+    0.17609. SESSION-COMPUTED over knowledge/literature/ (7814 files, glob
+    published, run outside the harness and to be re-run inside it): among 1152
+    three-and-four-digit integers on lines matching a complexity vocabulary,
+    the leading-2 share is 0.548; among 34609 such integers on lines that do
+    not match, it is 0.670. Both are enormously above Benford and the
+    complexity-context share is LOWER than the null share. The cause is
+    immediate on inspection: publication years 2008-2020 are four-digit
+    integers beginning with 2 and they dominate both bands (the top candidate
+    counts are 256 x70, then 2016 x22, 2017 x20, 2013 x18, 2012 x17). A
+    leading-digit or Benford estimator over this corpus measures the density of
+    citations, not of flattenings. THIS IS THE MIRROR-FAILURE CHECK PERFORMED
+    AND FAILED BY THE OBVIOUS INSTRUMENT, and recording it is half the value of
+    this proposal: an agent who ran the "cheap and obvious" census would have
+    produced a confidently wrong number.
+
+    THE COMPARATIVE-CONSISTENCY TEST, DERIVED. Restrict to sentences carrying a
+    binary comparative frame: a verb in {reduces, improves, lowers, brings,
+    drops, decreases} together with a "from X ... to Y" or "X ... down to Y"
+    pattern, where X and Y both match ^(2|10)\d{1,3}$. Define
+      rho_plain = X / Y
+      rho_flat  = 2^(int(X[1:]) - int(Y[1:]))     (base 10 for the "10" family)
+    An author writes a comparative sentence to report an improvement. Two
+    forced observations follow. (1) If the plain reading is correct, rho_plain
+    must be large enough to be worth reporting; a claimed improvement with
+    rho_plain < 2 is a sentence no author writes. (2) If the flattened reading
+    is correct, rho_flat is 2^(k_X - k_Y), which for any k_X > k_Y + 7 is at
+    least 128. The two readings are therefore separated by a computable
+    quantity, and the test FLAGS exactly when rho_plain < 2 AND rho_flat >= 2^8.
+    Both thresholds are frozen here, before any corpus-wide run. Note what the
+    test does NOT need: the source, the year, the venue, the units, or any
+    model of what "typical" complexities look like. It needs one sentence.
+
+    THE PRE-REGISTERED SEED INSTANCE, QUOTED VERBATIM. From
+    knowledge/literature/KN-LIT-5121.md, read in this session: "When the block
+    size is 64 bits, our attack reduces the required data from 245 known
+    plaintexts to 226 chosen plaintexts." Here X = 245, Y = 226,
+    rho_plain = 1.084 < 2 and rho_flat = 2^(45-26) = 2^19 = 524288 >= 256, so
+    the frame fires. FORCED PRE-REGISTRATION: any implementation of this test
+    that does not flag KN-LIT-5121 is broken and its corpus numbers are void.
+    This is a positive control drawn from the corpus itself rather than
+    planted, and it costs nothing. IMPORTANT SCOPE NOTE: firing the test is NOT
+    a finding that the entry is wrong. The entry's correctness is settled by
+    the publisher's abstract, which is a stage of the experiment, not a claim
+    here. It is entirely possible that the SOURCE PAPER itself is being
+    paraphrased loosely and the numbers were never 2^45 and 2^26.
+
+    A SECOND, INDEPENDENT FRAME, FOR RECALL. Not every flattening sits in a
+    comparative. The unit frame fires on ^(2|10)\d{1,3}$ immediately followed
+    by a complexity unit ("operations", "queries", "known plaintexts", "chosen
+    plaintexts", "gates", "bits of security", "time", "classical operations")
+    AND outside the year band [1970, 2035] AND not equal to a power of two
+    already (256, 512, 1024 are genuine values and must be excluded by
+    construction, which is why the "256 x70" hits above are correctly not
+    candidates). This frame has lower precision than the comparative frame and
+    its output is reported SEPARATELY, never pooled, so that a reader can see
+    which number rests on which discriminator.
+
+    COST BOOKKEEPING. Per-record cost: one regex pass, microseconds. Inverse
+    success probability: unknown a priori, which is exactly what is being
+    measured; the seed instance gives a lower bound of 1 hit in 7814 files, so
+    a full pass costing minutes yields at least one adjudicable case. The
+    expensive step is not detection but ADJUDICATION -- fetching the publisher
+    abstract for each flag -- which is why the flag count must be small, which
+    is why precision is designed in rather than filtered afterwards. If the
+    comparative frame returns more than 60 flags, the budget stops at the first
+    60 by a pre-declared ordering (record id ascending) rather than by
+    cherry-picking the striking ones.
+
+    THE LINK BACK TO THIS GOAL, STATED PLAINLY SO IT CAN BE CONTESTED.
+    RQ-FIND-001 governs claim boundaries. The promoted entries KN-FIND-017..027
+    state theirs numerically ("Toy p <= 1009, m in {3,4,5}"; "MV_6 = 125829120
+    = 5!*2^20"; "MV_m = (m-1)!*2^((m-1)(m-2))") and those, on the reads
+    performed this session, carry their carets intact. The exposure is not in
+    the findings; it is in the LITERATURE the findings and every future
+    ideation cite, and in the arithmetic those citations feed. That is the
+    honest statement of relevance and it is weaker than "this fixes the
+    findings".
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      knowledge/literature/KN-LIT-5121.md (READ, the quoted sentence read
+      verbatim in this session). The source paper it summarises was NOT
+      identified, NOT fetched and NOT read; whether 245 and 226 are flattened
+      2^45 and 2^26 is a HYPOTHESIS TO CHECK, not an established fact, and the
+      check is a stage of the experiment.
+    - >-
+      knowledge/literature/KN-LIT-2141.md (Guo-Johansson), reported by this
+      session's ANGLE-BRIEF as recording 264 where the publisher abstract reads
+      2^64. NOT READ -- relayed claim. It is the second pre-registered
+      adjudication target precisely because it was found by a different route
+      and would provide an independent confirmation of the phenomenon.
+    - >-
+      KN-OPEN-3f7a21, reported by the ANGLE-BRIEF as naming this census as its
+      own cheapest first step and as recording 7457 of 7666 entries carrying
+      citation_verified: read with zero backing artifacts present. NOT READ.
+      Every figure attributed to it here is relayed at second hand; stage 0
+      reads the entry and either credits it properly or corrects this record.
+    - >-
+      The corpus-scale figures in this proposal (7814 files, 1152 / 34609
+      integers, 0.548 / 0.670 leading-2 shares) are SESSION-COMPUTED by a
+      one-pass script run outside the harness on 2026-08-05. They are not
+      evidence, they have not been reviewed, and reproducing them in-harness
+      with the glob published is stage 1.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Rendered numeric expression with markup --> plain character string.
+      Concretely 2^k --> "2"+dec(k).
+    what_is_discarded: >-
+      The TYPE annotation only: that the trailing digits are an exponent rather
+      than low-order digits. The digits themselves survive intact.
+    why_genuinely_lossy: >-
+      This is the interesting case and the audit must be honest about it: as a
+      map on STRINGS the projection is INJECTIVE on the exponent band -- k is
+      recoverable from s as int(s[1:]) -- so on its own it discards nothing.
+      The loss is entirely in the loss of DISCRIMINATION against the ambient
+      population of genuine decimal integers, i.e. the fibre of the observable
+      "the string 245" contains both the flattened 2^45 and the genuine integer
+      245. This is a genuine identifiability failure and it is the precise
+      reason a source-free test must work by CONTEXT (the comparative frame)
+      rather than by the token.
+    is_it_only_a_change_of_coordinates: >-
+      As a map on the token alone: YES, and this is exactly the
+      (Delta, Pi) = (x xor y, x*y) failure the inventor protocol names -- a
+      re-encoding from which the original is recoverable, so a detector that
+      looks only at the token has gained nothing and can only guess. Naming
+      this failure is what forced the design away from token statistics and
+      toward the comparative frame, where the discriminating information is the
+      SENTENCE's own comparative verb, which the projection genuinely cannot
+      supply. The proposal's whole method rests on having failed this test in
+      the obvious formulation and then finding a formulation that passes it.
+    mirror_failure_checked: >-
+      The mirror failure -- a statistic so lossy it is constant across
+      instances -- was checked EMPIRICALLY and the obvious statistic FAILS IT
+      IN A WORSE WAY THAN CONSTANCY: the leading-digit share is not constant
+      but ANTI-CORRELATED with the target (0.548 in complexity context versus
+      0.670 outside), so it would have produced a confident wrong sign. The
+      comparative frame's comparator spread is checked differently: rho_plain
+      and rho_flat are per-sentence and, on the seed instance, differ by a
+      factor of 4.8 x 10^5, which is the opposite of zero spread. Both checks
+      are reported.
+
+  assumptions:
+    - >-
+      That authors write comparative sentences to report improvements worth
+      reporting. This is the load-bearing pragmatic assumption behind the
+      rho_plain < 2 threshold. It is falsifiable: a corpus of correctly
+      rendered comparatives (the null object below) whose rho values cluster
+      near 1 would refute it directly.
+    - >-
+      That superscript loss is the dominant flattening mechanism, rather than
+      LaTeX braces surviving as "2^{64}" or "2**64". Stage 1 counts the
+      surviving-markup forms as well, so that a rate of zero flattenings can be
+      distinguished from a pipeline that never lost markup in the first place.
+    - >-
+      That publisher abstract pages remain reachable. The scouting measurement
+      that they are is from this session and is a network condition, not a
+      mathematical fact. If a flagged record's abstract cannot be obtained, the
+      record is reported as UNADJUDICATED, never as confirmed or refuted.
+
+  predictions:
+    - metric: >-
+        seed_instance_flagged: whether the frozen comparative-consistency test
+        flags KN-LIT-5121's quoted sentence
+      direction: higher
+      minimum_effect: >-
+        FORCED: flagged. rho_plain = 245/226 = 1.0841 < 2 and
+        rho_flat = 2^19 = 524288 >= 256. If the implementation does not flag
+        it, the implementation does not implement the frozen test and every
+        corpus number from that run is void.
+    - metric: >-
+        comparative_frame_flag_count over knowledge/literature/ at the
+        published glob
+      direction: higher
+      minimum_effect: >-
+        >= 1, and that lower bound is already met by the seed instance, so the
+        prediction with content is the SHAPE: the count is predicted to be
+        between 1 and 60. A count above 200 would mean the frame is firing on
+        something systematic other than flattening and the frame must be
+        diagnosed before any rate is reported. A count of exactly 1 (only the
+        seed) is a real and reportable outcome meaning the phenomenon is rare.
+    - metric: >-
+        adjudicated_precision: of the flagged records whose publisher abstract
+        could be fetched, the fraction whose abstract confirms the flattened
+        reading
+      direction: higher
+      minimum_effect: >-
+        NO NUMBER IS PRE-REGISTERED HERE AND THAT IS DELIBERATE -- the honest
+        state is that this quantity has never been measured and inventing a
+        threshold would be a fabrication. What IS pre-registered is the
+        reporting rule: precision is reported with its denominator, with the
+        unadjudicated count stated beside it, and a precision below 0.5 is
+        reported as a refutation of the frame's usefulness rather than
+        explained away.
+    - metric: >-
+        graded_recall: on a scratch copy with correctly rendered 2^k
+        comparatives mechanically flattened at injection rates
+        {0, 0.05, 0.20, 0.50}, the detector's recovered rate
+      direction: higher
+      minimum_effect: >-
+        FORCED at the endpoints: exactly 0 recovered at injection rate 0 (a
+        detector that reports flattenings in a clean corpus is measuring
+        itself), and the recovered rate must be MONOTONE NON-DECREASING across
+        the four cells. Pre-registered slope target: the recovered rate is
+        within a factor 2 of the injected rate at 0.20 and 0.50. A flat or
+        non-monotone curve localises the failure to the frame rather than to
+        the corpus.
+    - metric: >-
+        leading_digit_replication: the leading-2 shares in complexity and
+        non-complexity contexts, recomputed in-harness
+      direction: different
+      minimum_effect: >-
+        PREDICTED 0.548 and 0.670 respectively, to within +/- 0.02, with the
+        complexity share BELOW the non-complexity share. This is a
+        pre-registered replication of a session measurement and it can fail; if
+        it does, the argument that the obvious detector is unusable has to be
+        rebuilt.
+
+  minimal_test:
+    design: >-
+      Five stages, cheapest first, pure Python plus bounded network, no solver.
+      STAGE 0 (reading, ~1 hour, zero compute): read KN-OPEN-3f7a21 and correct
+      or credit this record's relayed attributions; freeze the regexes, the two
+      thresholds (rho_plain < 2, rho_flat >= 2^8), the year-band exclusion
+      [1970, 2035], the genuine-power-of-two exclusion set, the flag ordering
+      rule and the 60-flag budget cap, by hash, before any corpus pass. STAGE 1
+      (instrument, seconds): the seed-instance check, the null object, and the
+      graded control. If the seed instance is not flagged, STOP. STAGE 2
+      (census, minutes): run both frames over the published glob; replicate the
+      leading-digit measurement; report counts, never rates without
+      denominators. STAGE 3 (adjudication, hours, bounded): fetch publisher
+      abstracts for the flagged records in the pre-declared order up to the cap;
+      record per-record CONFIRMED / REFUTED / UNADJUDICATED with the URL and the
+      fetch status code. STAGE 4 (consequence, ~1 hour): for each CONFIRMED
+      record, enumerate the records that cite it and state, for each, whether
+      the flattening changes the direction of any comparison made there. That
+      last step is the only one that turns a typography finding into a research
+      finding, and it must be done record by record, never in aggregate.
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE (can genuinely fail). A set of
+        comparative sentences with CORRECTLY rendered exponents -- "reduces the
+        data complexity from 2^45 to 2^26" -- assembled by taking the flagged
+        sentences and restoring the carets, plus any correctly rendered
+        comparatives already present in the corpus. FORCED VALUE DERIVED BEFORE
+        THE RUN: the detector must flag EXACTLY ZERO of them, because the
+        tokens no longer match ^(2|10)\d{1,3}$. This null can fail -- a sloppy
+        regex that strips punctuation would match "2^45" as "245" and fire on
+        every one -- and catching exactly that is why it is here.
+      - >-
+        POSITIVE CONTROL, IN-CORPUS AND UNPLANTED (must fire). KN-LIT-5121's
+        sentence, quoted above, with its forced arithmetic. Additionally, if
+        stage 0's read of the ANGLE-BRIEF's relayed KN-LIT-2141 claim holds up,
+        that record is a second unplanted positive. If NEITHER fires, no
+        negative census result may be reported at all: a detector that finds
+        nothing in a corpus where a hit was found by hand has not demonstrated
+        it could have found anything.
+      - >-
+        GRADED CONTROL, 4 CELLS, MONOTONICITY REPORTED. Injection rates
+        {0, 0.05, 0.20, 0.50} of mechanical flattening applied to a scratch
+        copy, with the recovered rate reported per cell and the 0-cell forced
+        to exactly 0. Three interior points localise whether a failure is in
+        detection sensitivity (low recall at every nonzero rate) or in
+        specificity (nonzero recovery at rate 0).
+      - >-
+        CONTEXT NULL FOR THE LEADING-DIGIT ARM. The non-complexity-context
+        integer population is itself the matched null for the complexity-context
+        one: same corpus, same records, same token lengths, differing only in
+        the line's vocabulary. Its measured leading-2 share of 0.670 is what
+        makes the complexity share of 0.548 uninterpretable as evidence of
+        flattening, and that comparison is reported as the primary result of
+        that arm rather than the raw share.
+      - >-
+        ORDERING CONTROL. The flag ordering (record id ascending) and the
+        60-flag cap are frozen in stage 0, so the adjudication set is
+        determined before any flag is read. This is the specific defence
+        against reporting the three most striking hits and calling it a census.
+      - >-
+        ADJUDICATION-FAILURE DISPOSITION. A record whose abstract returns 403,
+        404 or a timeout is UNADJUDICATED and is counted in its own column.
+        Network failure is infrastructure signal and is never evidence that the
+        record is correct (AGENTS.md rule 3).
+    required_metrics:
+      - the frozen regexes, thresholds and exclusion sets, with their hash, recorded before stage 2
+      - the published glob and the file count it returns
+      - comparative-frame and unit-frame flag counts, reported separately and never pooled
+      - per-flag adjudication table: record id, quoted sentence, rho_plain, rho_flat, source URL, HTTP status, verdict
+      - the four graded cells with recovered rate against injected rate
+      - the two leading-digit shares with their denominators
+      - for each CONFIRMED flattening, the list of citing records and a per-record statement of whether any comparison there changes direction
+
+  falsification_conditions:
+    - >-
+      The detector does not flag KN-LIT-5121's sentence. The implementation
+      does not implement the frozen test; nothing may be reported.
+    - >-
+      The null object of correctly rendered comparatives produces any flag at
+      all. The detector is matching on digits rather than on the absence of
+      markup and its precision is unknowable.
+    - >-
+      The graded control recovers a nonzero rate at injection rate 0. The
+      detector manufactures its own signal.
+    - >-
+      Adjudicated precision below 0.5 on a denominator of at least 8. The
+      comparative frame is not a usable discriminator and the proposal's
+      central method is refuted; the honest write-up is that the census cannot
+      be done source-free at acceptable precision, which is itself worth
+      recording because it is the reason to spend the budget differently.
+    - >-
+      Stage 0's read of KN-OPEN-3f7a21 reveals that this census has already
+      been executed. The proposal is a rediscovery and is withdrawn in favour
+      of the prior record.
+
+  confounders:
+    - >-
+      PUBLICATION YEARS. Measured to dominate the four-digit band in both
+      contexts. Excluded by the frozen [1970, 2035] band, but the exclusion
+      also blinds the detector to any genuine flattened exponent whose value
+      falls in that band -- 2^16 renders as 216 (outside), 2^20 as 220
+      (outside), but a "10^20" flattens to 1020 and a "2^015" would not occur.
+      The blind spot is stated rather than hidden and the count of tokens
+      excluded by the band is a reported metric.
+    - >-
+      GENUINE POWERS OF TWO. 256, 512, 1024, 128 are ubiquitous genuine values
+      (256 alone appears 70 times in the probe). They are excluded by
+      construction, and that exclusion removes real flattenings of 2^56 and
+      2^12 along with them. Also stated, also counted.
+    - >-
+      PARAPHRASE, NOT TRANSCRIPTION. The KN-LIT bodies are model-written
+      summaries, not extracted text. A number may be wrong because the
+      summariser paraphrased badly, not because markup was lost. The
+      adjudication step distinguishes these only when the abstract is
+      obtainable; when it is not, the record is UNADJUDICATED and no mechanism
+      is attributed.
+    - >-
+      SELECTION BY STRIKINGNESS. The seed instance was found by reading probe
+      output, i.e. by exactly the process this proposal warns against. It is
+      therefore used as a POSITIVE CONTROL, whose job is to demonstrate
+      sensitivity, and is EXCLUDED from the precision denominator. Including it
+      would be double counting.
+    - >-
+      BLAST-RADIUS INFLATION. It is tempting to argue from one confirmed
+      flattening to "the corpus is unreliable". Stage 4 exists to prevent that:
+      the consequence of a flattening is measured record by record, and a
+      confirmed flattening in a record that nothing cites has a blast radius of
+      zero and must be reported as such.
+
+  interpretation_limits:
+    - >-
+      A confirmed flattening is a finding about a KN-LIT ENTRY, never about the
+      source paper, whose authors wrote the exponent correctly. No record
+      produced here may be phrased so as to attribute an error to an author.
+    - >-
+      This proposal moves no exponent and makes no cryptanalytic claim. It
+      bears on GOAL-FIND-001 only through RQ-FIND-001's "claim boundaries"
+      clause, and that link is argued above rather than assumed; a reviewer who
+      rejects the link should say so, and the proposal's fallback home is the
+      cross-cutting corpus-integrity lane.
+    - >-
+      NO EDIT to any KN-LIT entry is proposed. Corrections supersede
+      (AGENTS.md rule 2); the deliverable is a new register plus, where
+      warranted, superseding entries authored under Coordinator authority, not
+      by this proposal.
+    - >-
+      A census over knowledge/literature/ says nothing about ledger/ or
+      experiments/, which have not been probed and are not claimed about.
+
+  heuristic_assumptions:
+    - id: HA-1
+      statement: >-
+        (Pragmatic) A comparative sentence reporting an improvement of factor
+        less than 2 between two same-length integers is more likely to be a
+        flattened exponential comparison than a genuine one.
+      rigorous_support: >-
+        Not a theorem and not presented as one. Support is structural: the
+        comparative verb is authorial intent made explicit, and an author who
+        writes "reduces from X to Y" has asserted that X/Y matters. The
+        threshold 2 is a frozen choice, not a fitted one, and its sensitivity
+        is reportable by re-running at 1.5 and 3 AFTER the primary result is
+        committed.
+      validation_plan: >-
+        Directly validated by the null object (correctly rendered comparatives
+        must produce rho values that do NOT cluster below 2) and by adjudicated
+        precision against publisher abstracts. If correctly rendered
+        comparatives routinely show rho_plain < 2, HA-1 is refuted and the
+        frame collapses.
+    - id: HA-2
+      statement: >-
+        (Distributional, NOT load-bearing, recorded so it is not smuggled in)
+        Genuine integers in technical prose approximately follow Benford's law,
+        P(lead = d) = log10(1 + 1/d), P(lead = 2) = 0.17609.
+      rigorous_support: >-
+        Standard for scale-invariant populations. It is explicitly NOT relied
+        on for any conclusion: the session probe shows the corpus violates it
+        grossly in both contexts, and the proposal's response is to abandon the
+        estimator that needed it, not to patch the estimator.
+      validation_plan: >-
+        The measured shares 0.548 and 0.670 are reported against the Benford
+        value as a demonstration that the assumption fails here, which is the
+        only use made of it.
+
+  target_complexity:
+    time_exponent: >-
+      n/a -- NO EXPONENT MOVES and the proposal says so plainly. What it
+      touches is the integrity of the exponents this program READS. The
+      argument for running it is that a lost caret is a factor of order 10^17
+      inside precisely the magnitude comparisons that decide which directions
+      this program abandons, and that the corpus supplying those exponents has
+      7814 entries of which, per relayed report, 95 percent carry a bulk-seed
+      caveat.
+    memory_exponent: n/a -- no algorithm.
+    best_known: >-
+      No incumbent. There is no detector, no census and no measured rate; the
+      current state of knowledge is one relayed anecdote (KN-LIT-2141) and, as
+      of this session, one directly read instance (KN-LIT-5121).
+    hidden_overhead: >-
+      Adjudication is network-bound and partly blocked (ePrint PDFs 403), so a
+      nonzero UNADJUDICATED column is expected and budgeted rather than treated
+      as failure.
+    tradeoff_note: n/a.
+
+  dominated_by: null
+  dominated_by_search_note: >-
+    null asserted only after checking, with the checks listed so they can be
+    attacked. TIME: no tool in tools/ performs any numeric-integrity check --
+    the directory was listed and contains id allocation, index builders,
+    dispatch, hygiene, merge/sync and validation, none of which parses numbers
+    out of KN-LIT bodies. MEMORY: not a dimension of this object; the census is
+    a single streaming pass and no alternative with smaller footprint exists to
+    dominate it. DATA/QUERIES: the comparative frame requires ZERO external
+    queries, which is strictly the minimum, and is therefore not dominated on
+    the query axis by any source-based method; the adjudication stage's queries
+    are bounded by the frozen 60-flag cap. NOT CHECKED and recorded as such:
+    whether KN-OPEN-3f7a21 or any correction record already contains a
+    completed census -- stage 0 performs that read, and a hit supersedes this
+    dominated_by with the prior record's id and withdraws the proposal.
+  sota_delta: >-
+    Quantitative against a measured zero baseline. Corpus-wide flattening rate
+    known before: unmeasured, with 1 relayed instance and 1 directly read
+    instance. After: a count with a published denominator over 7814 files, an
+    adjudicated precision with its own denominator, and a per-record blast
+    radius for every confirmed case. Detector performance is characterised
+    rather than asserted: recall at three nonzero injection rates and a forced
+    zero at rate 0. Secondary and independently useful: the leading-digit
+    estimator is measured and RETIRED (0.548 in context against 0.670 out of
+    it), so the next agent who reaches for the obvious method has a number
+    telling them not to. Cost: one working day, minutes of compute, at most 60
+    abstract fetches.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    0.90 that the comparative-consistency test flags at least one genuine
+    flattening confirmed against a publisher abstract -- it is that high only
+    because the seed instance already exists and the arithmetic on it is
+    forced, and it is not 1.0 because KN-LIT-5121's source has not been
+    identified and the sentence may be a bad paraphrase rather than a lost
+    caret. 0.45 that the corpus-wide confirmed count exceeds 5: not lower
+    because the bodies are bulk-generated from PDFs by a pipeline that plainly
+    dropped markup at least once, not higher because a single pipeline that
+    handled 7814 files probably handled most of them the same way, so the true
+    rate is likely either near zero or large, and the probe's failure to show
+    a token-level signal is weak evidence for the near-zero branch. 0.25 that
+    any confirmed flattening turns out to change the direction of a comparison
+    in a citing record -- most citations are bibliographic. That last number is
+    the proposal's real risk and it is stated rather than buried.

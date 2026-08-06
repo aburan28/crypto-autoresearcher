@@ -1,0 +1,501 @@
+idea:
+  id: IDEA-20260805-3c957e
+  question_id: RQ-MLKEM-002
+  added: '2026-08-05'
+  title: >-
+    32 divides every ML-KEM ciphertext length: a one-line arithmetic obstruction
+    that makes most of the strict neighborhood provably empty, converts
+    second_impl_unavailable into a scoped negative with a named obstruction, and
+    identifies the successor population the goal never searched
+  class: theory
+
+  claim: >-
+    Every FIPS 203 ciphertext length is an exact multiple of 32 bytes, because
+    L = 32*(du*k + dv): a 256-coefficient polynomial encoded at d bits per
+    coefficient occupies exactly 32*d bytes, and a ciphertext is k such
+    polynomials at du bits plus one at dv bits. CONSEQUENCE, forced and
+    parameter-free: any comparison routine whose vector body consumes w bytes
+    per iteration with w DIVIDING 32 covers the ciphertext exactly, its
+    remainder path executes ZERO iterations, and its coverage-deficit silent set
+    is EMPTY at every ML-KEM parameter set, no matter what its remainder code
+    does or fails to do. The coverage-defect class is therefore ARITHMETICALLY
+    UNREACHABLE for w in {1, 2, 4, 8, 16, 32}, which is the width of essentially
+    every portable, SSE and AVX2 comparison in circulation. It becomes reachable
+    only at w >= 64, and then only selectively: w = 64 leaves a 32-byte
+    remainder at ML-KEM-1024 and nothing at ML-KEM-512 or ML-KEM-768; w = 128
+    leaves 64 bytes at ML-KEM-768 and 32 at ML-KEM-1024. GOAL-MLKEM-002 searched
+    a strict neighborhood, found it empty, recorded second_impl_unavailable, and
+    closed. This proposal supplies the missing half of that verdict: a large part
+    of the emptiness was FORCED BY ARITHMETIC rather than discovered by search,
+    and the honest successor population -- comparison code whose effective vector
+    stride does not divide 32, i.e. AVX-512 zmm-width and 2x-unrolled ymm bodies
+    and their SVE/RVV analogues -- was never in the search order at all. That
+    converts an infrastructure non-answer into an inventor-protocol section 4
+    closure: named obstruction, argument, forward guidance.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE RESIDUE L mod w -- the number of trailing ciphertext bytes left
+      unconsumed by a w-byte-strided vector body -- tracked as a function of the
+      pair (parameter set, stride) rather than of any implementation. It is the
+      arithmetic shadow of the silent set, and it is computable with no
+      implementation in hand at all, which is exactly the property the goal's
+      search predicate lacked.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: (a) SOURCE-SYNTACTIC neighborhood
+      predicates -- "fixed-bound hand-written vector comparison tails" and every
+      variant of it -- because they are the thing this proposal replaces; (b)
+      the multi-class differential generator family (EXP-MLKEM-003..006) used as
+      a discovery instrument; (c) any repair of the instrument-adequacy control,
+      which EV-MLKEM-010 settled for GNU ld --wrap on linux/amd64 and which this
+      proposal consumes rather than revisits; (d) all cryptanalytic lenses and
+      all physical side channels, excluded by RQ-MLKEM-002's constraints.
+    newness_score: >-
+      The identity L = 32*(du*k + dv) is elementary and certainly known to
+      implementers. What is not in this corpus is its use as a SEARCH-SPACE
+      OBSTRUCTION: the observation that it makes an entire defect class
+      unreachable for the common stride widths, and therefore that the goal's
+      empty-neighborhood verdict is over-determined. Neither GOAL-MLKEM-001 nor
+      GOAL-MLKEM-002 nor any of EV-MLKEM-005..010 mentions divisibility of L by
+      any stride width.
+    testability_score: >-
+      Complete and free at the arithmetic level -- three integers and a modulus
+      sweep. The empirical half (does any public ML-KEM implementation use a
+      stride not dividing 32) is a source census, bounded by how many
+      repositories can be fetched, and is honestly reported as a floor on what
+      exists rather than an inventory of what exists.
+    survival_score: >-
+      The obstruction survives to the standard itself and to every future
+      parameter set of the same encoding shape, because it is a statement about
+      ByteEncode and not about any implementation. It dissolves only for a
+      hypothetical parameter set whose ciphertext is not a whole number of
+      encoded polynomials.
+
+  mechanism: >-
+    DERIVED HERE; ARITHMETIC EXECUTED ON THIS MACHINE AND REPRODUCED IN THE
+    PAIRED EXPERIMENT UNDER A FROZEN SCRIPT.
+
+    (1) THE IDENTITY. FIPS 203 encodes a polynomial with 256 coefficients at d
+    bits per coefficient into 256*d/8 = 32*d bytes. A ciphertext is
+    c = (c1, c2) where c1 is k such encodings at d = du and c2 is one at d = dv.
+    Hence L = 32*(du*k + dv), an exact multiple of 32 for every parameter set of
+    this shape, for every k, du, dv. THE ENCODING RULE IS RECALLED FROM FIPS 203
+    AND IS A CANDIDATE TO CHECK, NOT AN AUTHORITY. The three concrete lengths it
+    predicts -- 768, 1088, 1568 for (k,du,dv) = (2,10,4), (3,10,4), (4,11,5) --
+    are independently corroborated inside this repository by EV-MLKEM-005, whose
+    measured NEON silent cardinalities are exactly 384, 544 and 784 (half of
+    each length) and whose AVX2 silent set at ML-KEM-1024 is exactly
+    {1536..1567}. Confirming the encoding rule and the parameter triples against
+    the published standard is stage S1c of the paired experiment.
+
+    (2) THE OBSTRUCTION. Write a blocked comparison as: consume floor(L/w) full
+    blocks of w bytes; then handle the remaining L mod w bytes on a separate
+    code path. The coverage-deficit defect class -- the class in which the
+    remainder path is absent, mis-bounded, or unreachable -- can only produce a
+    nonempty silent set when L mod w > 0. By (1), 32 divides L, so
+      w in {1, 2, 4, 8, 16, 32}  ==>  L mod w = 0  ==>  silent set EMPTY,
+    unconditionally, at every ML-KEM parameter set, regardless of the remainder
+    code. The remainder path in such an implementation is DEAD CODE at ML-KEM
+    lengths: it can be arbitrarily broken and no differential conformance test
+    conducted at ML-KEM ciphertext lengths -- single-byte, multi-byte, aligned,
+    lane-boundary, or otherwise -- has any power to detect it. This is a
+    zero-power statement about the instrument, derived before any run.
+
+    (3) THE REACHABLE CELLS, COMPUTED. With L = (768, 1088, 1568):
+      w = 8, 16, 32 : L mod w = (0, 0, 0)      -- unreachable everywhere
+      w = 64        : L mod w = (0, 0, 32)     -- reachable at ML-KEM-1024 only
+      w = 128       : L mod w = (0, 64, 32)    -- reachable at 768 and 1024
+      w = 256       : L mod w = (0, 64, 32)    -- identical to w = 128
+      w = 512       : L mod w = (256, 64, 544)
+    Two facts to carry: the map w -> L mod w is NOT monotone, so a wider vector
+    unit is not uniformly more exposed; and w = 128 and w = 256 are
+    indistinguishable at the standardized lengths, a second identifiability
+    collision of the same kind as the one IDEA-20260805-1beeca records for
+    C-BND(1536) versus C-COV(64).
+
+    (4) WHY THIS BEARS DIRECTLY ON THE GOAL'S VERDICT. The strict preference
+    order of EXP-MLKEM-009 (analysis/second_implementation_selection.md, read
+    here) rejected BoringSSL for "length-parameterized CRYPTO_memcmp", PQClean
+    avx2 for a "len/32 intrinsic loop + scalar remainder", PQClean aarch64 for a
+    "runtime-length scalar loop", and mlkem-native and aws-lc for
+    "length-parameterized portable compare". Read against (2): the PQClean AVX2
+    verify is w = 32, and its scalar remainder loop `for (i = 0; i < len; i++)`
+    after `len -= 32*i` executes ZERO iterations at all three ML-KEM lengths.
+    So that candidate was rejected on a syntactic ground (the bound is `len`,
+    not a literal) while being, independently, IMMUNE to the coverage-defect
+    class on arithmetic grounds. The two rejections coincide, and the record
+    gives only the first. Every strict-order rejection recorded in that file is
+    of a w <= 32 or scalar routine, and every one of them is arithmetically
+    incapable of exhibiting a coverage deficit at ML-KEM lengths. The strict
+    neighborhood was, for those candidates, EMPTY BY THEOREM.
+
+    (5) WHAT THIS DOES NOT SHOW, STATED BEFORE ANYONE OVERREADS IT. It does not
+    show that ML-KEM comparison code is correct: two other defect classes are
+    untouched. A BOUND-LITERAL defect (a hardcoded compare length below L) is
+    stride-independent and reachable at any parameter set. A REDUCTION-DEFICIT
+    defect (complete coverage, incomplete reduction of the SIMD accumulator) is
+    stride- and parameter-set-independent, and is the mechanism that the
+    archived pre-fix NEON numbers 384 / 544 / 784 = L/2 exhibit exactly. Both
+    remain fully reachable, and the second is the subject of
+    IDEA-20260805-ee2018. What is closed is one class, on one axis, by one
+    identity, with its boundary stated.
+
+    (6) THE FORWARD GUIDANCE, WHICH IS THE DELIVERABLE. The correct successor
+    population for the isolation-versus-systemic question about coverage
+    deficits is: implementations whose comparison consumes 64 or more bytes per
+    iteration -- AVX-512 zmm bodies, 2x-unrolled ymm bodies (which is what the
+    audited wolfSSL routine may itself be, unresolved by IDEA-20260805-1beeca),
+    SVE with a 512-bit or wider vector length, and RVV at LMUL settings whose
+    effective stride exceeds 32 bytes -- evaluated at ML-KEM-1024 first, because
+    that is the unique standardized parameter set where w = 64 is exposed. That
+    population is defined by a machine-checkable property of the compiled
+    artifact rather than by a phrase about source style, so it can be decided
+    without a taste judgement, which is what the strict predicate could not do.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      experiments/EXP-MLKEM-009/analysis/second_implementation_selection.md
+      (this repository, READ). Source of all five verbatim strict-order
+      rejections quoted in mechanism (4), of
+      strict_fixed_bound_disposition = empty_preferred_public_neighborhood, and
+      of the inlined PQClean verify.c body showing the `len/32` intrinsic loop
+      and the trailing scalar remainder.
+    - >-
+      EV-MLKEM-005 (this repository, READ). Source of the archived silent-set
+      numbers used as corroboration of the three ciphertext lengths.
+    - >-
+      EV-MLKEM-010 and GOAL-MLKEM-002 (this repository, READ). Source of the
+      closing disposition second_impl_unavailable, of criterion 2's disjunctive
+      form ("...or an explicit infrastructure unavailability is recorded after
+      exhausting the preference order"), and of the standing instruction not to
+      paraphrase EV-MLKEM-008/009/010 as H-MLKEM-004 support.
+    - >-
+      FIPS 203, the ByteEncode/Compress specification and the parameter table
+      (k, du, dv) for the three parameter sets. NOT READ -- RECALLED,
+      UNVERIFIED. This is the single load-bearing external input and checking it
+      is stage S1c of the paired experiment. If the encoding rule is not
+      32*d bytes per polynomial, mechanism (1) fails and this proposal is
+      withdrawn.
+    - >-
+      Vector register widths (SSE 16 B, AVX2 32 B, AVX-512 64 B) and the
+      existence of SVE / RVV variable-length vector units. RECALLED,
+      UNVERIFIED as to any specific implementation's use of them. No claim is
+      made here that any named library uses a stride above 32; establishing that
+      is the census stage and its result may well be "none found", which is a
+      valid and reportable outcome.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      A comparison implementation --> its effective vector stride w --> the
+      residue vector (L mod w) over the standardized L = (768, 1088, 1568).
+    what_is_discarded: >-
+      Everything except one integer per implementation: the algorithm, the
+      instruction selection, the constant-time discipline, whether the remainder
+      path exists, whether it is correct, the reduction, and all behaviour at
+      non-ML-KEM lengths.
+    why_genuinely_lossy: >-
+      Extremely lossy, and its fibres are non-singleton in a way that is proved
+      rather than asserted: w = 128 and w = 256 have identical residue vectors
+      (0, 64, 32) at the standardized lengths, and every w in {1,2,4,8,16,32}
+      collapses to the single vector (0, 0, 0). The projection therefore cannot
+      recover w, let alone the implementation.
+    why_compatible_with_the_operations: >-
+      The retained quantity propagates deterministically under the operation the
+      target actually applies -- selecting a parameter set -- since L mod w is a
+      closed form in (L, w) with no dependence on anything discarded. That is
+      precisely why the obstruction can be stated for implementations that have
+      not been written yet.
+    is_it_only_a_change_of_coordinates: >-
+      NO -- checked in both directions and the answer is worth stating carefully.
+      It is not the (Delta, Pi) = (x xor y, x*y) failure: w is not recoverable
+      from the residue vector, so information is genuinely destroyed. THE MIRROR
+      FAILURE IS THE REAL RISK HERE AND IT PARTIALLY FIRES: restricted to the
+      sub-family w in {1,2,4,8,16,32}, the projection is IDENTICALLY (0, 0, 0)
+      -- zero comparator spread, constant across instances. In most proposals
+      that would be fatal. Here the constancy IS the result: a projection that
+      is provably constant on a sub-family is exactly an obstruction theorem for
+      that sub-family, and the proposal's whole content is where the constancy
+      stops. Spread is nonzero over the full family, since (0,0,0), (0,0,32),
+      (0,64,32) and (256,64,544) are all realized, so the object is not globally
+      degenerate.
+
+  assumptions:
+    - >-
+      That the FIPS 203 encoding rule is exactly 32*d bytes per 256-coefficient
+      polynomial. LOAD-BEARING, RECALLED, UNVERIFIED, and checked in stage S1c.
+    - >-
+      That "effective vector stride" is a well-defined property of a compiled
+      comparison routine. It is not always: a routine may mix widths, may be
+      software-pipelined, or may have its stride changed by the compiler. The
+      census stage records the stride it observed together with the toolchain,
+      and reports ambiguity as ambiguity.
+    - >-
+      That the coverage-deficit class is worth separating from the bound-literal
+      class at all. If the two are the same thing in practice -- the resolution
+      IDEA-20260805-1beeca seeks -- then the obstruction proved here applies only
+      to the coverage half and the record says so.
+
+  proof_search_map_note: >-
+    This proposal states an obstruction (a small theorem plus a closure claim),
+    so it is proof-oriented, and the four required audits -- baseline
+    reproduction, observation collision, quantifier order, method ceiling with
+    nearby-object control -- are carried in full on the paired hypothesis
+    H-MLKEM-d9062d rather than duplicated here. Two of them are already visible
+    above: the collision (w = 128 versus w = 256) and the method ceiling
+    (mechanism (5), which names the two classes this obstruction does not touch).
+
+  predictions:
+    - metric: >-
+        L_mod_32: max over the three standardized parameter sets of
+        (ciphertext length mod 32)
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0, at all three, with no tolerance. If any ML-KEM ciphertext
+        length is not a multiple of 32 the identity is wrong and the proposal is
+        withdrawn in full.
+    - metric: >-
+        reachable_cell_count: the number of (w, parameter set) cells with
+        L mod w > 0, over w in {1,2,4,8,16,32,64,128,256} and the three
+        standardized parameter sets (27 cells)
+      direction: different
+      minimum_effect: >-
+        EXACTLY 5, derived before any run: (64, 1024), (128, 768), (128, 1024),
+        (256, 768), (256, 1024). All 18 cells with w <= 32 are forced to 0. Any
+        other count means the arithmetic table was computed wrongly.
+    - metric: >-
+        strict_order_immunity: the fraction of the five candidates recorded as
+        rejected under the strict fixed-bound order in
+        EXP-MLKEM-009/analysis/second_implementation_selection.md whose
+        comparison stride, read from source, divides 32
+      direction: higher
+      minimum_effect: >-
+        Predicted 5/5, i.e. every strict-order rejection is ALSO immune to the
+        coverage-defect class on arithmetic grounds, so the syntactic rejection
+        and the arithmetic immunity coincide on the whole recorded search. A
+        value below 5/5 is the more interesting outcome: it would mean at least
+        one rejected candidate WAS in the reachable region and was excluded for
+        the wrong reason, which would be a direct defect in the goal's search.
+    - metric: >-
+        census_reachable_population: the number of publicly fetchable ML-KEM
+        implementations whose comparison routine has effective stride >= 64
+        bytes on some supported target
+      direction: higher
+      minimum_effect: >-
+        NO NUMBER IS PREDICTED, and that refusal is deliberate. The honest
+        pre-registration is: this is a FLOOR-ONLY census, its result is
+        "at least n found among the repositories fetched", and 0 is a fully
+        acceptable and reportable outcome that would say the reachable region is
+        currently unpopulated -- which is a much stronger and better-scoped
+        statement than second_impl_unavailable, because it names why.
+
+  minimal_test:
+    design: >-
+      Three stages, cheapest first. STAGE A (zero compute, minutes): compute the
+      27-cell residue table and the five reachable cells under a frozen script,
+      and check L mod 32 = 0 at all three parameter sets. This stage alone
+      delivers the obstruction and can terminate the line if it fails. STAGE B
+      (reading, no build): verify L = 32*(du*k + dv) and the parameter triples
+      against FIPS 203, replacing the RECALLED-UNVERIFIED label with a citation
+      or recording that the standard could not be obtained; and read the stride
+      of each of the five recorded strict-order rejections from its pinned
+      source to evaluate strict_order_immunity. STAGE C (census, bounded by
+      fetch budget): enumerate publicly fetchable ML-KEM implementations,
+      classify the comparison stride of each on each supported backend, and
+      report the reachable-region population as a FLOOR with the fetch list
+      attached.
+    controls:
+      - >-
+        NULL OBJECT (same shape, forced value pre-derived, CAN FAIL). A
+        non-ML-KEM buffer length that is NOT a multiple of 32 -- concretely
+        L = 1600 and L = 1000 -- run through the identical residue computation.
+        Forced: 1600 mod 64 = 0 but 1600 mod 128 = 64 and 1600 mod 32 = 0, while
+        1000 mod 32 = 8, so the w <= 32 row is NONZERO there. If the table
+        reports zeros for the w <= 32 row at L = 1000, the computation is wrong
+        and nothing may be concluded. This null can fail and is the check that
+        the zeros at ML-KEM lengths are a property of those lengths and not of
+        the script.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR. The
+        archived AVX2 pre-fix cell. The obstruction predicts that a coverage
+        defect is reachable at ML-KEM-1024 for w = 64 and gives its size as
+        exactly 32 bytes; EV-MLKEM-005 measured exactly 32 silent indices,
+        {1536..1567}, at that cell and zero at the other two. If the derived
+        reachable-cell table does not contain (64, ML-KEM-1024) with size 32,
+        the derivation contradicts a committed thrice-read measurement and no
+        conclusion may be drawn until that is resolved.
+      - >-
+        GRADED CONTROL, SEVEN INTERIOR POINTS, MONOTONICITY REPORTED. Sweep
+        w over {1,2,4,8,16,32,64,128,256,512} at each parameter set and report
+        the residue. The pre-registered qualitative finding is NON-MONOTONICITY:
+        at ML-KEM-768 the residue goes 0 (w=32), 0 (w=64), 64 (w=128), 64
+        (w=256), 64 (w=512). A report that presents the sweep as monotone
+        increasing in w has been computed wrongly, and a report that presents it
+        as monotone decreasing has been computed wrongly in the other direction.
+      - >-
+        ARCHIVE CHECK (zero compute). State whether any prior record in the
+        corpus asserts anything about ciphertext-length divisibility or stride.
+        The answer expected is none; if one is found, this proposal is a
+        duplicate and says so.
+    required_metrics:
+      - the 27-cell residue table with the script and its hash
+      - the five reachable cells listed explicitly
+      - stride classification of each of the five recorded strict-order rejections, with the source line quoted
+      - the FIPS 203 citation for the encoding rule, or a recorded failure to obtain it
+      - the census fetch list, with every repository that was attempted and every fetch that failed
+
+  falsification_conditions:
+    - >-
+      Any ML-KEM ciphertext length not divisible by 32. The identity is wrong,
+      the obstruction evaporates, and the proposal is withdrawn.
+    - >-
+      A coverage-deficit defect exhibited by a w <= 32 routine at an ML-KEM
+      ciphertext length. The obstruction is then false as stated and the error
+      must be located: either the routine's effective stride is not what it was
+      classified as, or "coverage deficit" was misdefined.
+    - >-
+      strict_order_immunity below 5/5. Not a falsification of the arithmetic,
+      but a falsification of the reading in mechanism (4) that the goal's search
+      was uniformly inside the unreachable region; report it as such and name
+      which candidate was misclassified.
+    - >-
+      FIPS 203 cannot be obtained. INFRASTRUCTURE outcome (AGENTS.md rule 5),
+      never evidence about the mathematics. Stage A still stands on the three
+      byte lengths corroborated inside this repository, and the record says the
+      identity is corroborated but not verified against the standard.
+
+  confounders:
+    - >-
+      COMPILER-DETERMINED STRIDE. Auto-vectorization can give a scalar source
+      loop a 16- or 32-byte stride, and can constant-propagate a `len` parameter
+      into a fixed bound when the call site knows L. Stride is therefore a
+      property of a compiled artifact plus a toolchain, not of source text, and
+      the census must record both. This confound cuts in the proposal's favour
+      -- it is a further argument against source-syntactic predicates -- so it is
+      flagged rather than relied upon.
+    - >-
+      CENSUS COVERAGE IS A FLOOR. "No implementation with stride >= 64 was
+      found" is a statement about what was fetched. It must never be written as
+      "no such implementation exists"; AGENTS.md's retrieval policy says exactly
+      this and it is repeated here because the goal's own
+      second_impl_unavailable is an instance of the temptation.
+    - >-
+      THE OBSTRUCTION IS ABOUT ONE DEFECT CLASS. Restating it as "ML-KEM
+      comparison code is safe at w <= 32" would be a serious overread and is
+      forbidden by this record's own interpretation limits.
+    - >-
+      ML-KEM-1024 SELECTIVITY MAY LOOK LIKE A SECURITY CLAIM. That
+      ML-KEM-1024 is the uniquely exposed parameter set for w = 64 is an
+      arithmetic fact about 1568 mod 64, not a statement that ML-KEM-1024 is
+      weaker. No such statement is made.
+
+  interpretation_limits:
+    - >-
+      NOT AN ATTACK, NOT AN ORACLE, NOT AN EXPLOITATION PATH, NOT A COST
+      ESTIMATE, NOT A STATEMENT ABOUT MLWE HARDNESS OR PASSIVE ML-KEM SECURITY.
+      RQ-MLKEM-002's constraints bind unchanged, including the requirement that
+      any newly observed conformance defect is escalated to the coordinator and
+      published by no agent.
+    - >-
+      NO STATUS CHANGE is proposed for GOAL-MLKEM-002 or any of its records. The
+      goal's completion criteria were met as written; this record concerns what
+      the resulting verdict does and does not say about the ecosystem.
+    - >-
+      THE CLOSURE THIS PROPOSAL OFFERS IS SCOPED AND IS NOT AN IMPOSSIBILITY
+      CLAIM. Named obstruction: 32 | L. Argument: mechanism (1)-(2). Scope: the
+      coverage-deficit class only, for strides dividing 32, at the three
+      standardized parameter sets, for single- and multi-byte differential
+      probing conducted at ciphertext length. Forward guidance: the w >= 64
+      population, the bound-literal class, and the reduction-deficit class all
+      remain open, and the last of these is where the archived NEON numbers
+      actually live.
+    - >-
+      Claim tier laboratory / toy; not raisable by citation.
+
+  heuristic_assumptions:
+    - id: HEUR-DIV-1
+      statement: >-
+        FOR ALL FIPS 203 parameter sets, the ciphertext length in bytes equals
+        32*(du*k + dv), hence is divisible by 32.
+      rigorous_support: >-
+        Not heuristic in form -- it is an arithmetic consequence of ByteEncode
+        packing 256 coefficients at d bits into 32*d bytes -- but it is
+        heuristic in PROVENANCE here, because the encoding rule is recalled and
+        not read. Corroboration available in-repo: the three lengths implied,
+        768 / 1088 / 1568, are each independently consistent with EV-MLKEM-005's
+        measured silent cardinalities (384, 544, 784 as exact halves; 1568-1536
+        = 32 for the AVX2 cell).
+      validation_plan: >-
+        Stage B reads FIPS 203 and either cites the clause or records that the
+        document could not be obtained. Until then every downstream sentence
+        carries the RECALLED-UNVERIFIED label.
+    - id: HEUR-DIV-2
+      statement: >-
+        A comparison routine whose vector body has effective stride w and whose
+        input length satisfies L mod w = 0 has an empty coverage-deficit silent
+        set at that L, independent of the content of its remainder path.
+      rigorous_support: >-
+        Immediate: with L mod w = 0 the remainder path is entered with zero
+        bytes remaining and contributes nothing, so every input byte is consumed
+        by the full-block path. The only way to break it is for the block path
+        itself to be defective, which is a different class (bound-literal or
+        reduction-deficit) and is excluded by the statement's own scope.
+      validation_plan: >-
+        Compile a comparator with a deliberately sabotaged remainder path and a
+        stride of 32, measure its silent set at all three ML-KEM lengths, and
+        confirm it is EMPTY at all three while being NONEMPTY at L = 1000. This
+        is a positive-and-negative pair on the same object and is carried into
+        the paired experiment as arm CTRL-DEADTAIL.
+
+  target_complexity:
+    time_exponent: >-
+      n/a. THIS PROPOSAL MOVES NO EXPONENT and no attack cost, and says so
+      plainly rather than dressing a conformance audit as cryptanalysis.
+      RQ-MLKEM-002 forbids attack-cost estimation outright. Its value is that it
+      converts a three-batch procedural non-answer into a stated obstruction with
+      a named successor population, at the cost of one arithmetic table.
+    memory_exponent: n/a
+    best_known: n/a -- no competing statement exists in this corpus.
+    hidden_overhead: >-
+      n/a for the arithmetic. The census stage's cost is entirely fetch and
+      read time and is bounded by an explicit repository list.
+    tradeoff_note: n/a
+
+  dominated_by: >-
+    n/a (no result claimed; no attack, no cost, no Pareto point across time,
+    memory, or data/queries, because no algorithm is proposed). Rows checked for
+    a prior statement of this obstruction, all inside this repository on
+    2026-08-05: GOAL-MLKEM-002 and its four batch checkpoints; RQ-MLKEM-002;
+    EV-MLKEM-005 through EV-MLKEM-010; IDEA-20260724-001 and IDEA-20260724-002;
+    experiments/EXP-MLKEM-009/analysis/second_implementation_selection.md;
+    H-MLKEM-002 through H-MLKEM-009. None mentions ciphertext-length
+    divisibility, stride width, or dead remainder paths. No external search was
+    performed and no external novelty is claimed; absence of a search result is
+    not evidence of absence (AGENTS.md retrieval policy).
+  sota_delta: >-
+    No attack; scope and search-design contribution only. Quantitatively: it
+    proves 18 of 27 (stride, parameter-set) cells unreachable for one defect
+    class at zero compute, identifies the remaining 5 nonzero cells by name, and
+    replaces a disjunctive procedural disposition that carries zero bits about
+    isolation-versus-systemic with an obstruction that carries a definite,
+    falsifiable claim. Against the goal's own criterion 2 it does not answer the
+    isolation question; it makes clear which part of that question was
+    arithmetically settled before any search began.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.9 that HEUR-DIV-1 and HEUR-DIV-2 both hold and the obstruction stands as
+    stated. It is that high because the encoding arithmetic is elementary and
+    because three independent in-repo measurements are consistent with the three
+    lengths it predicts; it is not higher because the encoding rule itself is
+    recalled rather than read, and one wrong recollection about ByteEncode would
+    take the whole record with it. Separately, 0.35 that the census finds any
+    publicly fetchable ML-KEM comparison with effective stride >= 64 bytes:
+    AVX-512 ML-KEM comparison code is plausible but this record has no evidence
+    that it exists, and a null census is the expected and fully reportable
+    outcome. And 0.25 that strict_order_immunity comes back below 5/5, which
+    would be the sharpest single finding available from the whole proposal.
