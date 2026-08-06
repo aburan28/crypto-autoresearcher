@@ -23,8 +23,8 @@ experiment:
     graph-edge spatial-autocorrelation signal (ANOM-1) survive removing
     the search procedure's own shared RNG and shrinking time budget?
     (BATCH-011)
-  status: draft
-  approved_by: null
+  status: approved
+  approved_by: coordinator
   amends: EXP-SSIQ-a85692 (version 7, specification_v7.yaml, frozen 6bdaecb8dc2851126744a6608e14b003e7dc4916)
   amendment_scope: >-
     A SINGLE PART. Targets ONE prime only, p=2437 -- deliberately the SAME
@@ -161,7 +161,7 @@ experiment:
       killed two of three attempts at a similar scale in this exact
       experiment's own history) and four further advisory findings
       (PF-4, PF-5, PF-6, PF-8).
-    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-5, PF-6, PF-8, PF-9, PF-10, PF-11]
+    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-5, PF-6, PF-8, PF-9, PF-10, PF-11, PF-12, PF-13]
     pf1_summary: >-
       BLOCKING (round 1). PART B fed PART A's possibly-partial new
       delta_map directly into delta_e_permutation_null_control_v7.
@@ -252,6 +252,69 @@ experiment:
       now states explicitly that neither half of PF-6's confound was
       tested under that outcome, not merely that "no result" was
       produced.
+    round3_report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-011/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v8-round3.md
+    round3_verdict: >-
+      FREEZE-WITH-FIXES. Dedicated hunt for a THIRD independent path to
+      the same catastrophic outcome (real compute spent, PART B crashes
+      before an interpretable result), given round 1 found PF-1 and round
+      2 found PF-9 as two DIFFERENT paths to that identical outcome. No
+      third blocking crash path found. PF-9's fix (round 2) RE-VERIFIED
+      HOLDING with a complete POSITIVE argument, not merely absence of a
+      counterexample: graph["vertices"] is provably duplicate-free (built
+      from a Python set in build_graph_bfs), the F_p-rational and
+      non-F_p-rational construction loops are a deterministic,
+      mutually-exclusive partition of that exact list under is_in_fp (a
+      pure function), so len(new_delta_map) == len(graph["vertices"]) ==
+      203 cannot be reached except by exact one-to-one vertex coverage --
+      independently re-confirmed against RUN-SSIQ-a85692-b's own archived
+      delta_map (203 keys, 194 non-F_p-rational, 9 F_p-rational, matching
+      exactly). Two further access patterns, neither examined by rounds 1
+      or 2, were traced and both shown structurally safe once PF-9's gate
+      passes: the "neighbour guard" in local_min_and_depth (safe because
+      adjacency and vertices share the same BFS provenance, so every
+      adjacency entry is provably a vertices member), and the 1000-trial
+      permutation loop itself (safe because shuffle+zip is
+      length-preserving, so full coverage transfers automatically once
+      the gate holds, regardless of the loop's exact implementation).
+      Three mutation classes attempted against these three access
+      patterns; all three structurally impossible, none constructible.
+      Two new NON-BLOCKING advisory findings of the same class PF-9 was
+      (an implicit-but-unstated construction step, both proven harmless
+      under the design as written): PF-12 (the permutation-trial
+      shuffle/zip construction was described only by cross-reference to
+      "the identical procedure," not restated explicitly, since it is new
+      code for v8 rather than literally imported from run_for_prime) and
+      PF-13 (the new vertex-identity-bearing JSON output shape was
+      JSON-safe as literally specified, but did not foreclose an
+      Executor's natural but broken shortcut of dumping a vertex-tuple-
+      keyed dict directly, which would TypeError after all compute is
+      spent). Both applied in this same pass. No further pre-freeze round
+      required.
+    pf12_summary: >-
+      ADVISORY, NEW (round 3), applied. The 1000-trial permutation loop
+      (shuffle + zip onto vertices) is new code v8's driver must write,
+      not literally imported from delta_e_permutation_null_control_v7.
+      run_for_prime (only depth0_fraction and summary_stats are
+      genuinely imported); the draft's "run the IDENTICAL procedure"
+      phrasing overstated code-identity for this one piece. Provably
+      harmless regardless (the safety property transfers via a
+      length-invariant, not code reuse), but fixed by stating the
+      base_values/shuffle/zip construction explicitly as an "(ii)
+      AUTHORIZED, DISCLOSED DUPLICATE" of run_for_prime's own inline
+      logic, matching this file's own established convention for its
+      other non-importable pieces.
+    pf13_summary: >-
+      ADVISORY, NEW (round 3), defensive, applied. probe_delta_e_
+      comparison.json's new (vertex, archived_value, new_value) triples
+      output is JSON-safe as literally specified (vertex nested as a list
+      value, never a dict key), so no crash is implied by the text as
+      written -- but nothing foreclosed the natural shortcut of also
+      dumping new_delta_map directly as a {vertex: value} dict, which
+      would raise TypeError at write time, after all real compute is
+      spent. Fixed by requiring every vertex-keyed artifact output in
+      this amendment to use the IDENTICAL str(list(v))-keyed convention
+      compute_delta_e_v2.py's own delta_map_json_safe already
+      established, cited explicitly rather than left unstated.
   inputs:
     probe_delta_e_search_v8: >-
       PART A. A new module, e.g.
@@ -349,6 +412,22 @@ experiment:
       DIFFERENT valid upper bounds under different RNG draws for the same
       vertex -- itself evidence about the search's own determinism
       properties, reported honestly regardless of what PART B finds.
+      PF-13 FIX APPLIED (round 3 pre-freeze review, advisory, defensive):
+      each (vertex, archived_value, new_value) triple's vertex is a
+      tuple, and JSON-safe ONLY as long as it appears NESTED INSIDE the
+      triple as a list element (a value), never as a dict key -- Python's
+      json module encodes a tuple exactly like a list wherever it appears
+      as a value. This applies to EVERY vertex-keyed artifact output this
+      amendment writes, not only n_value_differs: a raw tuple MUST NEVER
+      be written directly as a JSON dict key (e.g. dumping new_delta_map
+      itself as {vertex: value} would raise TypeError at write time, only
+      after all real compute for this run is already spent). Any output
+      that must associate a value with a vertex AS A KEY uses the
+      IDENTICAL str(list(v))-keyed convention compute_delta_e_v2.py's own
+      delta_map_json_safe already established (compute_delta_e_v2.py
+      lines 291-303: delta_map_json_safe = {str(list(k)): v for k, v in
+      delta_map.items()}), reused here as the required convention rather
+      than left unstated.
     probe_permutation_null_control_v8: >-
       PART B, DEPENDENT ON PART A's new delta_map. PF-1 FIX APPLIED
       (round 1 pre-freeze review, BLOCKING: the original draft fed PART
@@ -385,7 +464,7 @@ experiment:
       IF len(new_delta_map) == 203 does PART B proceed:
       using the delta_map PART A computed (NOT the archived one), reuse
       the SAME p=2437 graph (already rebuilt in PART A; not rebuilt
-      twice) and run the IDENTICAL procedure specification_v7.yaml
+      twice) and run the SAME statistical procedure specification_v7.yaml
       already established: is_structural_local_min(v)/depth(v)
       (GENUINELY IMPORTED, delta_e_permutation_null_control_v7.
       depth0_fraction, UNCHANGED -- this function takes delta_map/
@@ -406,6 +485,24 @@ experiment:
       if PART A's comparison finds few value differences); summary_stats
       (GENUINELY IMPORTED, delta_e_permutation_null_control_v7.
       summary_stats, UNCHANGED) over the resulting NULL_DEPTH0_FRACTIONS.
+      PF-12 FIX APPLIED (round 3 pre-freeze review, advisory): the
+      1000-trial permutation loop itself is an "(ii) AUTHORIZED, DISCLOSED
+      DUPLICATE" of delta_e_permutation_null_control_v7.run_for_prime's
+      own inline logic -- run_for_prime is NOT imported by v8 (only
+      depth0_fraction and summary_stats are, per required_artifacts_note
+      below), so this loop is new code the Executor writes for this
+      amendment, not code reused by reference, and is stated here
+      explicitly rather than only by cross-reference to "the identical
+      procedure": for each of the N_TRIALS=1000 trials, construct
+      base_values = list(new_delta_map.values()) once before the trial
+      loop begins, then per trial take a shuffled COPY of base_values via
+      the single freshly-constructed random.Random(PERMUTATION_SEED)
+      instance's own .shuffle(values) method (never re-seeding per
+      trial), and build permuted_map = dict(zip(vertices, values))
+      before calling depth0_fraction(permuted_map, vertices, adjacency)
+      -- IDENTICAL in structure to run_for_prime's own construction
+      (delta_e_permutation_null_control_v7.py lines 301-360), reused here
+      as an explicit step rather than left implicit.
       REQUIRED HEADLINE COMPARISON (PF-6's own falsification test,
       answered here for the first time in this campaign, ONLY IF the
       coverage gate above passed): does this NEW REAL_DEPTH0_FRACTION,
@@ -539,5 +636,51 @@ experiment:
       prime's size) and the 1000-trial permutation control (PART B,
       ~1s per RT-BATCH-010's own measured 4-second/4000-trial baseline)
       are both negligible against the search budget.
-  frozen_at: null
-  freeze_note: null
+  frozen_at: '2026-08-06'
+  freeze_note: >-
+    FROZEN after THREE pre-freeze review rounds -- the deepest review this
+    campaign has run for a single amendment, proportionate to this being
+    the first amendment since specification_v4.yaml to spend real,
+    non-recoverable delta_E search compute. Round 1 (DO-NOT-FREEZE) found
+    two blocking defects on independent grounds: PF-1 (PART B's imported
+    depth0_fraction would crash on any unresolved vertex, discarding the
+    entire compute spend) and PF-2 (the draft mis-cited compute_delta_e.py
+    instead of compute_delta_e_v2.py as the ORIGINAL procedure the
+    archived comparison data was actually produced by -- an error that
+    had already propagated silently through specification_v7.yaml's own
+    PF-6 text before being caught here), plus five advisories (PF-3
+    through PF-6, PF-8). Round 2 (DO-NOT-FREEZE) independently
+    re-verified PF-1/PF-2's fixes holding, then found a NEW blocking
+    defect, PF-9, reproducing PF-1's exact catastrophic failure shape
+    through a DIFFERENT, undetected path (the F_p-rational vertices'
+    "resolve for free" wiring was never a required construction step, so
+    a literal implementation could omit 9 of 203 delta_map entries even
+    at 100% non-F_p-rational coverage) -- the clearest instance in this
+    lineage of one crash path's fix leaving an adjacent path open,
+    directly motivating round 3's explicit third-path hunt. Round 3
+    (FREEZE-WITH-FIXES) re-verified PF-9's fix HOLDING with a complete,
+    re-derivable POSITIVE safety argument (not merely absence of a
+    counterexample), traced two further access patterns neither round 1
+    nor round 2 needed to examine (the depth0_fraction/local_min_and_depth
+    "neighbour guard," and the 1000-trial permutation loop's own
+    construction) and showed both structurally safe once PF-9's gate
+    holds, and attempted three concrete mutation classes against all
+    three access patterns, none constructible. Round 3 found no further
+    blocking defect -- only two narrow, provably-harmless advisories of
+    the same class PF-9 was (PF-12, PF-13), both applied in this freeze
+    pass. This is the first round in this amendment's three-round history
+    to end without a directly constructible path to discarding the real
+    compute spend; no further pre-freeze round is required before
+    dispatch. Coordinator approval rests on: round 1's report
+    (RT-PREFREEZE-EXP-SSIQ-a85692-v8.md), round 2's report
+    (RT-PREFREEZE-EXP-SSIQ-a85692-v8-round2.md), and round 3's report
+    (RT-PREFREEZE-EXP-SSIQ-a85692-v8-round3.md), each independently
+    re-deriving its findings from direct reads of the draft and the
+    actual implementation files it imports or must reimplement, never
+    trusted from a prior round's own prose. This freeze authorizes the
+    Executor to spend this amendment's budgeted real compute
+    (wall_clock_seconds_per_run: 3600, total_cpu_hours: 1.0); it makes no
+    claim about H-SSIQ-36e970, a delta_E-gradient's existence, or a
+    p^{1/4} algorithm, and no claim about PF-6's own confound until
+    RUN-SSIQ-a85692-h actually executes and its result is independently
+    reviewed.
