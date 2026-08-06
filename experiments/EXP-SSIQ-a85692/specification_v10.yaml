@@ -44,8 +44,8 @@ experiment:
     per-vertex budget grows from v9's too-severe 0.5s toward the observed
     1.14993s natural-completion floor, testing RT-BATCH-012's own
     falsifiable prediction? (BATCH-013)
-  status: draft
-  approved_by: null
+  status: approved
+  approved_by: coordinator
   amends: EXP-SSIQ-a85692 (version 9, specification_v9.yaml, frozen d729af05328f7e40fe466f4e4d473298e246db8f)
   amendment_scope: >-
     THREE INDEPENDENT PART-A-ONLY BUDGET PASSES OVER ONE SHARED GRAPH (no
@@ -66,7 +66,23 @@ experiment:
     did) exactly once; graph_identity_verification is a SINGLE top-level
     field in the required artifact, not repeated per sweep point, and the
     IDENTICAL graph object (not rebuilt) is reused across all three sweep
-    points below.
+    points below. STEP (0)'S OWN FAILURE MODE, PF-10 FIX APPLIED (round 2
+    pre-freeze review, advisory: PF-1's own fix moved graph setup outside
+    the sweep loop, creating a failure boundary round 1 never had reason
+    to examine; left unstated, this was correct by omission but not by
+    explicit instruction, in a document otherwise stating every other
+    failure boundary explicitly): step (0) is explicitly NOT wrapped in
+    any try/except -- if build_graph_for_prime or verify_graph_identity
+    raises here, the exception propagates UNCAUGHT and the run terminates
+    with NO truncation_sweep_comparison.json written at all, before any
+    sweep point is ever attempted. This is an infra/setup failure under
+    AGENTS.md rule 3 (never negative mathematical evidence, and NEVER to
+    be recorded as a sweep_point_error for any budget), mirroring
+    delta_e_truncation_probe_v9.py's own TruncationProbeError docstring
+    convention ("a genuinely unanticipated halt condition this frozen
+    contract does not itself specify a recovery path for"). An Executor
+    must NOT generalize PF-2's per-sweep-point try/except (below) to
+    cover step (0).
     THEN, PER SWEEP POINT b in [0.6, 0.8, 1.0] (seconds), EACH SWEEP
     POINT'S ENTIRE BUNDLE WRAPPED IN ITS OWN EXCEPTION HANDLER, PF-2 FIX
     APPLIED (round 1 pre-freeze review, BLOCKING: the original draft's
@@ -223,7 +239,7 @@ experiment:
       required statistical-power framing for any future histogram-shift
       citation; PF-8: required well-defined empty-histogram handling at
       n_resolved=0).
-    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-5, PF-6, PF-7, PF-8]
+    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-5, PF-6, PF-7, PF-8, PF-9, PF-10]
     pf1_summary: >-
       BLOCKING (round 1). The draft asserted "rebuilt ONCE" in inputs
       and "rebuilt three times, once per sweep point" in both
@@ -284,6 +300,47 @@ experiment:
       reporting logic produce a well-defined empty result ({}, 0, 0) at
       n_resolved=0 for any sweep point, an outcome not yet known and
       plausible at b=0.6.
+    round2_report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-013/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v10-round2.md
+    round2_verdict: >-
+      FREEZE-WITH-FIXES. All four round-1 blocking findings (PF-1 through
+      PF-4) independently re-verified genuinely, fully fixed against the
+      real underlying code (run_truncation_probe_v9's actual signature
+      and body, Fp2Field.frobenius's actual method, a full-file grep for
+      any surviving "three times"/non-existent-import references), not
+      merely against the corrected prose's own internal consistency. The
+      round's own targeted new question (does reusing
+      run_truncation_probe_v9 pull in an unexpected side effect) was
+      checked directly and does not materialize -- the function is pure,
+      no disk I/O, no internal graph-identity call. Two new advisory
+      findings: PF-9, the comparison-logic functions
+      (compare_against_archived, compare_against_v8) were never
+      classified in required_artifacts_note's own completeness
+      standard despite being equally reusable as the search-loop
+      function PF-3 already fixed; PF-10, step (0)'s own failure mode
+      (uncaught, terminates the run, an infra failure per AGENTS.md rule
+      3) was correct by omission but never stated explicitly, a residual
+      risk given the document's otherwise pervasive wrap-everything
+      emphasis. Both applied in this same pass; neither risks two
+      good-faith Executors producing structurally incompatible
+      artifacts, so no third dedicated round was required.
+    pf9_summary: >-
+      ADVISORY, NEW (round 2), applied. required_artifacts_note's
+      function-level diff never classified compare_against_archived or
+      compare_against_v8 -- both already genuinely reusable, pure
+      functions -- as either imported or an authorized duplicate.
+      Fixed by adding both to the genuine-import list and stating
+      explicitly how non_fp_rational_set (required by both, not
+      returned by run_truncation_probe_v9's own output) is derived from
+      the graph object once, at step (0).
+    pf10_summary: >-
+      ADVISORY, NEW (round 2), applied. Step (0)'s own failure mode
+      (graph build/identity-verify, now outside the sweep loop per
+      PF-1's fix) was correct by omission -- PF-2's try/except is
+      explicitly scoped to steps (1)-(7) only -- but never stated
+      explicitly. Fixed by adding one explicit sentence: step (0) is
+      not wrapped in any try/except, an exception there propagates
+      uncaught and terminates the run with nothing written, and this is
+      an infra failure under AGENTS.md rule 3, never a sweep_point_error.
   inputs:
     truncation_sweep_search_v10: >-
       THREE INDEPENDENT PART-A-ONLY BUDGET PASSES OVER ONE SHARED,
@@ -335,7 +392,28 @@ experiment:
       budget-dependent module constant, and is unconditionally,
       genuinely reusable -- the disjunction is pre-resolved here toward
       genuine import, called identically for all three sweep points with
-      the same fixed path).
+      the same fixed path). BOTH COMPARISONS' MATCHING/DIFFING LOGIC
+      ITSELF ALSO GENUINELY IMPORTS AND CALLS
+      delta_e_truncation_probe_v9.compare_against_archived(new_delta_map,
+      archived_delta_map, non_fp_rational_set) AND
+      delta_e_truncation_probe_v9.compare_against_v8(new_delta_map,
+      v8_delta_map, non_fp_rational_set), UNCHANGED -- PF-9 FIX APPLIED
+      (round 2 pre-freeze review, advisory: the original draft named only
+      the two data-LOADING helpers as genuinely imported
+      (load_archived_prime_data, parse_v8_new_delta_map) but never
+      addressed the actual comparison/diffing LOGIC itself; direct code
+      read confirms compare_against_archived and compare_against_v8 are
+      both pure functions, parameterized entirely by their arguments,
+      referencing no module-level constant -- already genuinely reusable,
+      exactly the same shape PF-3 and PF-5 already established for this
+      module's other functions, closing the identical duplicate-code-drift
+      risk for this document's last remaining unaddressed reuse
+      opportunity). non_fp_rational_set (required by both functions,
+      not returned directly by run_truncation_probe_v9's own output
+      dict) is derived once, cheaply, as {v for v in graph["vertices"] if
+      not graph["field"].is_in_fp(v)} -- computed from the already-built
+      graph object (step (0), not per sweep point), stated explicitly
+      here rather than left for the Executor to discover.
       REQUIRED VALUE HISTOGRAM AND CONJUGATE-PAIR REPORTING (per sweep
       point, inside that sweep point's own try block, the genuinely new
       cross-sweep analysis): for each sweep point's own resolved
@@ -406,7 +484,13 @@ experiment:
       IMPORTS, UNCHANGED: delta_e_truncation_probe_v9.
       run_truncation_probe_v9 (PF-3's fix -- the per-vertex search loop
       itself, called directly, never reimplemented),
-      delta_e_truncation_probe_v9.parse_v8_new_delta_map (PF-5's fix);
+      delta_e_truncation_probe_v9.parse_v8_new_delta_map (PF-5's fix),
+      delta_e_truncation_probe_v9.compare_against_archived,
+      delta_e_truncation_probe_v9.compare_against_v8 (PF-9's fix, round
+      2 pre-freeze review -- both comparison/diffing functions,
+      confirmed pure and unconditionally reusable, called directly
+      rather than reimplemented, closing the same duplicate-code-drift
+      risk PF-3 closed for the search loop);
       trapping_diagnostic_v5.build_graph_for_prime,
       trapping_diagnostic_v5.load_archived_prime_data;
       delta_e_independent_rng_probe_v8.verify_graph_identity (called
@@ -464,5 +548,42 @@ experiment:
       (proportionate to running three sweep points instead of one) but
       remains far smaller than v8's own 3600s budget for a single
       full-coverage 15.0s-per-vertex run.
-  frozen_at: null
-  freeze_note: null
+  frozen_at: '2026-08-06'
+  freeze_note: >-
+    FROZEN after TWO pre-freeze review rounds. Round 1 (DO-NOT-FREEZE)
+    found four blocking defects, all directly demonstrated against the
+    committed spec text and real underlying code: PF-1, a direct self-
+    contradiction on whether the graph is rebuilt once or three times;
+    PF-2, a write-order/failure-isolation discipline scoped to
+    Comparison 2 only when its own stated intent was broader, leaving
+    PART A and the new histogram/conjugate-pair code unprotected against
+    a crash-discards-already-valid-results failure mode now concretely
+    worse than any prior amendment's (three formerly-independent runs
+    sharing one artifact); PF-3, a false "code-verified" justification
+    for an unnecessary new duplicate search function, when v9's own
+    run_truncation_probe_v9 was already genuinely reusable unchanged;
+    PF-4, a citation of a non-existent module-level import
+    (build_isogeny_graph.frobenius; frobenius is actually an Fp2Field
+    instance method). All four fixed: graph rebuild moved outside the
+    sweep loop; each sweep point's entire bundle wrapped in its own
+    try/except with incremental accumulation; the new module directly
+    imports and calls run_truncation_probe_v9 rather than duplicating
+    it; the frobenius citation corrected. Four advisories (PF-5 through
+    PF-8) applied in the same pass. Round 2 (FREEZE-WITH-FIXES)
+    independently re-verified all four blocking fixes against the real
+    code (not the corrected prose) and found two new advisories: PF-9,
+    the comparison-logic functions were never classified in
+    required_artifacts_note's own completeness standard despite being
+    equally reusable; PF-10, step (0)'s own failure mode was correct by
+    omission but never stated explicitly. Both applied in this same
+    pass; neither risked two good-faith Executors producing structurally
+    incompatible artifacts, so no third round was required. This freeze
+    authorizes the Executor to spend this amendment's budgeted real
+    compute (wall_clock_seconds_per_run: 1200, total_cpu_hours: 0.4,
+    worst-case bound 465.6s across three sweep points, ~2.58x margin,
+    independently re-verified correct in both rounds); it makes no claim
+    about H-SSIQ-36e970, a delta_E-gradient's existence, or a p^{1/4}
+    algorithm, and no claim about whether the resolved-value
+    distribution actually shifts toward the true population mix until
+    RUN-SSIQ-a85692-j actually executes and its result is independently
+    reviewed.
