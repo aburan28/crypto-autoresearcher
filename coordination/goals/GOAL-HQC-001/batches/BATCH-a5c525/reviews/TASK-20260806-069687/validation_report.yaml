@@ -1,0 +1,594 @@
+validation_report:
+  id: TASK-20260806-069687
+  task_id: TASK-20260806-069687
+  role: validator
+  goal: GOAL-HQC-001
+  batch: BATCH-a5c525
+  validates_task: TASK-20260806-77443e
+  validates_snapshot: TASK-20260806-f238a2
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  claim_tier: toy
+  independent_session: true
+  policy_requested: review-adversarial
+
+  scope_note: >-
+    This task reviews a COST MODEL and small calibration benchmark for a
+    real-sampler defect-injection experiment that has NOT yet been run. No
+    defect was injected, no measurement of A17/HQC's DFR is made or implied,
+    here or in the reviewed artifacts. This report's verdicts concern the
+    cost model's trustworthiness as a planning artifact only.
+
+  snapshot_verification:
+    commit_sha: e784c8bad8f3d2577a146a7355cbce01393613af
+    parent_sha: 0cb23defa57b5ca3a7b35a295fa2f5bac70f36c5
+    commit_reachable_from_head: true
+    commit_is_ancestor_of_head: true
+    note: >-
+      Verified with `git merge-base --is-ancestor e784c8ba HEAD` (true) and
+      `git log --graph` showing e784c8ba's direct parent is 0cb23def, matching
+      snapshot-receipt.json's declared parent_sha exactly. This is a
+      Coordinator-committed snapshot, not a working-tree-only producer
+      receipt -- the precondition to validate at all is met. Current
+      repository HEAD (5c357a15...) postdates this snapshot by further
+      commits from this batch's own review dispatch, which is expected.
+    path_sha256_recheck:
+      status: ALL_MATCH
+      detail: >-
+        Recomputed sha256 on disk for all 6 committed files (cost_model.md,
+        benchmark.py, benchmark_results.json, run_manifest.yaml, stderr.log,
+        stdout.log) and compared against
+        archives/TASK-20260806-f238a2/snapshot-receipt.json's path_sha256
+        map. All 6 hashes matched exactly, byte for byte.
+    stage_a_py_hash_check:
+      status: MATCH
+      detail: >-
+        Independently recomputed sha256 of
+        coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py
+        on disk: 06a0a618432c00fe26c72ecf05a8d89489db61c5183931fdb76a378717681405.
+        Matches both benchmark_results.json's stage_a_sha256 field and the
+        value my own independent re-benchmark script asserted before running
+        (see independent_rebenchmark below).
+
+  run_ids:
+  - TASK-20260806-77443e (executor calibration benchmark; artifacts under
+    coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/)
+
+  artifact_checks:
+  - artifact: cost_model.md
+    present: true
+    labels_measured_vs_modeled_consistently: true
+    evidence: >-
+      Every numeric claim in cost_model.md is tagged MEASURED (this task),
+      MEASURED (prior batch), or MODELED, and spot-checking a sample of each
+      category against benchmark_results.json / specification.yaml /
+      GOAL-HQC-001.yaml confirmed the tags are accurate (see
+      metric_recomputations and cost_model_checks below). No number is
+      presented as measured that was not actually run.
+  - artifact: benchmark.py
+    present: true
+    imports_real_stage_a_functions_unmodified: true
+    evidence: >-
+      Read the full script. It imports stage_a.py read-only via
+      importlib.util (never opens it for writing), calls
+      sa.fixed_weight_support, sa.CTRStream, sa.ring_mul_sparse,
+      sa.support_to_int, sa.decode_blocks, and sa._t_shard directly (never
+      reimplements them), and uses a benchmark-exclusive domain tag
+      (BENCH-TASK-77443e) and vector tags (bv0..bv4) distinct from every
+      real-arm domain (T, NULL-M, NULL-P, CTRL-BS; v0..v4) stage_a.py itself
+      uses -- confirmed by reading _t_shard's own vector-tag literals
+      (b"v0".."v4") directly in stage_a.py and comparing byte-for-byte
+      against benchmark.py's BENCH_VEC_TAGS. No draw collision is possible.
+  - artifact: benchmark_results.json
+    present: true
+    schema_consistent_with_cost_model_citations: true
+  - artifact: run_manifest.yaml
+    present: true
+    carries_command_revision_dirty_seeds_env_resources: true
+    evidence: >-
+      Command, git commit/dirty-state (dirty_at_run_time: true, sole
+      untracked entry being this task's own not-yet-committed output
+      directory -- benign and expected pre-snapshot), environment
+      (Python 3.11.15, numpy 2.4.6, 4 cores/affinity), seeds
+      (MASTER_SEED=20260804 reused only as a domain-separation input, with a
+      benchmark-exclusive arm tag), and resource usage (5.97 wall-s / 5.69
+      core-s against 1800 wall-s / 600 core-s authorized) are all present and
+      internally consistent with benchmark_results.json's own totals.
+
+  independent_rebenchmark:
+  - id: on_host_pipeline_recheck
+    description: >-
+      Wrote an INDEPENDENT script (not copied from benchmark.py), imported
+      stage_a.py read-only after re-asserting its sha256, and re-timed the
+      real pipeline at PS-R3 (n=7187, n_e=56, omega=45/51/51) using a
+      benchmark-exclusive domain tag distinct from both the real arms and
+      from the executor's own BENCH-TASK-77443e tag
+      (VALIDATOR-TASK-069687 / zz0..zz4). Independently re-verified
+      ring_mul_sparse against ring_mul_dense on a fresh CTRStream draw
+      before timing anything (passed). Ran on the same host as the executor.
+    result: >-
+      Test A (same order as the executor's benchmark.py: stages_summed
+      timed first, then _t_shard): stages_summed = 679.4 t/cs,
+      full-pipeline _t_shard = 2155.9 t/cs at N=1500 trials. This
+      reproduces the executor's reported PS-R3 figures (788.4 and 2227.2
+      t/cs) closely -- same order of magnitude, same qualitative gap
+      (my ratio 3.17x vs the executor's 2.83x), on an independently
+      written script with different domain tags, different trial count
+      (1500 vs 2000/2000), and no shared code with benchmark.py. This
+      independently corroborates that the reported numbers are real and
+      reproducible on this host, not a one-off fluke.
+  - id: order_reversal_probe
+    description: >-
+      To test the executor's disclosed-but-unresolved 2.6-2.8x anomaly
+      directly (rather than accepting it as unexplained), reversed the
+      measurement order: ran _t_shard FIRST in a fresh process, then
+      stages_summed SECOND, at the same PS-R3 parameters and trial count.
+    result: >-
+      _t_shard first: 2181.5 t/cs (essentially unchanged from when it ran
+      second in Test A -- 2155.9 vs 2181.5). stages_summed SECOND (now
+      warm, after _t_shard had already exercised the same underlying
+      functions): 1668.9 t/cs -- roughly 2.5x FASTER than when
+      stages_summed ran cold/first (679.4 t/cs), and much closer to
+      _t_shard's own figure. This is the key finding: the gap is
+      substantially an ORDER/WARM-UP effect, not an intrinsic property of
+      the "_t_shard" code path being faster than the "call the same
+      functions separately" code path.
+  - id: decode_blocks_specific_warmup_isolation
+    description: >-
+      The executor's own cost_model.md section 2.1 names a SPECIFIC
+      hypothesis: "decode_blocks was not given an equivalent warm-up" as
+      the plausible mechanism. Tested this directly by calling
+      decode_blocks on a fixed 200x7168 random-bit array twice in a row in
+      a fresh process (first-ever call vs immediately-repeated warm call),
+      isolating decode_blocks alone from everything else in the pipeline.
+    result: >-
+      First-ever call: 0.034626 s. Warm call, same input size, immediately
+      after: 0.035218 s -- warm call was NOT faster (slightly slower, within
+      timer noise). decode_blocks alone shows NO measurable first-call
+      penalty. This INDEPENDENTLY REFUTES the executor's specific
+      "decode_blocks lacks warm-up" mechanism as the primary explanation --
+      my data disagrees with the executor's own stated hypothesis on this
+      specific point, even though it agrees with the executor's broader
+      "warm-up/cold-start" framing at the pipeline level (see next result).
+  - id: steady_state_convergence
+    description: >-
+      Ran stages_summed and _t_shard back-to-back for 4 repetitions in the
+      same process (no warmup reset between reps) to see whether the gap
+      persists or closes once the whole pipeline (not just decode_blocks)
+      is genuinely warm.
+    result: >-
+      Ratio (t_shard/stages_summed) across 4 reps: 1.374, 1.290, 1.253,
+      1.202 -- monotonically narrowing from the executor's disclosed
+      2.6-2.8x toward roughly 1.2x, but NOT fully closing to 1.0x even
+      after 4 warm repetitions (~6000 total trials). This means: (a) most
+      of the executor's disclosed discrepancy is a cold-start artifact of
+      a short single-process calibration run, consistent with the
+      executor's general framing; (b) the specific decode_blocks-only
+      mechanism the executor named is not it (see previous result) -- the
+      more likely mechanism, consistent with what I observe, is CPython
+      3.11's specializing adaptive interpreter (PEP 659), which requires
+      repeated execution of a bytecode site before "quickening" it to a
+      faster specialized form, compounded by structural differences
+      between stages_summed's per-stage Python-level list construction and
+      _t_shard's tighter single-pass loop; (c) even at steady state a
+      genuine ~1.2-1.4x structural gap between the two measurement methods
+      remains and does not fully vanish -- so neither the pessimistic
+      788 t/cs figure NOR treating the optimistic 2,227 t/cs figure as
+      exactly the true marginal per-instance cost is quite right; the
+      actual long-run production figure is the best available anchor (next
+      item).
+  - id: which_figure_is_more_trustworthy
+    assessment: >-
+      For PLANNING a real run at T on the order of 1e5-1e7 trials (i.e. the
+      scale any actual PS-R3-scale experiment would run), the OPTIMISTIC
+      figure (~2,168-2,227 t/cs) is the more trustworthy basis, not the
+      pessimistic 788 t/cs figure. Reasoning: (i) my own controlled
+      reversal experiment shows the 788 t/cs figure is inflated by a
+      cold-start/warm-up artifact specific to measuring a SHORT, separately
+      timed sequence of stages in a single, young process -- exactly the
+      kind of artifact a real run (which executes the identical code path
+      millions of times in one long-lived process) would overwhelmingly
+      amortize past within its first few hundred trials; (ii) the
+      2,168 t/cs figure is not merely a calibration-probe number -- it is
+      the throughput of an ACTUAL production-scale T=1e7 run
+      (EV-HQC-b71230, 4,613.91 core-seconds, 8 shards x 1,250,000 trials),
+      which by construction cannot be a cold-start artifact since it ran
+      for over a thousand wall-seconds; (iii) three further independent
+      prior-batch measurements (2,061 / 2,090 / 2,168 t/cs) and this
+      review's own _t_shard cross-check (2,155.9-2,181.5 t/cs) all cluster
+      in the same band. The executor's choice to use 788 t/cs as a
+      conservative "affordability floor" is a reasonable and appropriately
+      cautious practice for a go/no-go decision, and I do not fault it --
+      but I judge the 788 t/cs figure itself to be an artifact of this
+      specific small calibration script's design, not a realistic estimate
+      of true per-instance cost at the scale a real experiment would run.
+      This distinction does not change any affordability conclusion in this
+      report (see below), since even the pessimistic bound leaves PS-R3
+      trivially affordable.
+
+  metric_recomputations:
+  - id: wilson_ci_sizing_recompute
+    description: >-
+      Independently recomputed cost_model.md section 4.1's Wilson-CI-style
+      required-T table (n ~ z^2 p(1-p)/w^2, z=1.96) at both ends of the
+      stated 8.8%-20.1% detection-rate range and all three stated
+      half-widths (1.0pp, 0.5pp, 0.2pp), from the formula and inputs
+      alone, without consulting the reported answer first.
+    result: >-
+      w=1.0pp: p=8.8% -> 3083.3 (reported 3,083, match); p=20.1% -> 6169.7
+      (reported 6,170, match). w=0.5pp: p=8.8% -> 12,333.1 (reported
+      12,333, match); p=20.1% -> 24,678.8 (reported 24,678, match; the
+      cost model's adopted headline figure of "T ~ 24,700" is a
+      reasonable round of this exact value). w=0.2pp: p=8.8% -> 77,081.5
+      (reported 77,080, match); p=20.1% -> 154,242.5 (reported 154,240,
+      match). All six recomputed values match the reported table to
+      rounding. This is a normal approximation to a Wilson interval (not
+      an exact score-interval inversion), correctly labeled as such by the
+      cost model; adequate for planning at these sample sizes.
+  - id: t_req_spec_citation_verification
+    description: >-
+      Read experiments/EXP-HQC-982268/specification.yaml's own
+      sample_size_derivation block directly (not via the cost model's
+      citation) to confirm the cited T_req(PS-R3, k=m=17) = 3.09e5 figure
+      is genuine, pre-registered in the frozen contract, and not misapplied
+      from a different (set, k) cell.
+    result: >-
+      Confirmed genuine and correctly applied. specification.yaml lines
+      585-588 read verbatim: "- set: PS-R3 / k: 17 / T_req: 3.09e5 /
+      SE_at_allocated_T: 0.008" -- an exact match to cost_model.md's
+      citation, at the correct (set=PS-R3, k=17=m) cell, not borrowed from
+      a different set. Cross-checked every other T_req figure the cost
+      model cites against the same spec block: PS-A k=2 (1.18e5), PS-A k=3
+      (1.61e7), PS-A k=m=16 (2.06e42), PS-R1 k=m=16 (2.91e7), PS-R5 k=m=30
+      (2.72e6) -- all six match specification.yaml's own
+      sample_size_derivation.derived_values verbatim. None is misapplied.
+  - id: t_req_scope_caveat_check
+    description: >-
+      Checked whether T_req=3.09e5 is actually a defect-DETECTION power
+      calculation, as the dispatch queue's framing might suggest, or
+      something narrower.
+    result: >-
+      It is narrower, and the cost model discloses this itself in section
+      4.2 rather than overclaiming it: T_req is the spec's own
+      pre-registered sample size for resolving the NATURAL, undefected
+      log2_Ahat_k estimator to its own stated precision (SE=0.008 bits at
+      k=m). It is NOT a power calculation for detecting an injected
+      defect of unknown effect size on that same estimator -- the cost
+      model explicitly states "the T actually needed to detect an
+      injected defect's effect...is unmeasured and unmeasurable without
+      running the injection." I agree with this self-assessment: T_req is
+      a reasonable order-of-magnitude anchor (it is the sample size at
+      which the estimator itself becomes precise enough that a real
+      effect COULD be seen, if one exists at a magnitude comparable to
+      the frozen SE), but it is not a substitute for an actual power
+      calculation against a specific injected effect size, and the
+      Coordinator's go/no-go record should not read "139-392 core-seconds
+      is proven sufficient to detect the defect" -- only "sufficient to
+      reach the estimator's own designed precision at the load-bearing
+      k=m order." This is a genuine, disclosed limitation of the anchor,
+      not a computational error.
+
+  cost_model_checks:
+  - id: reduced_parameter_tranche_table_5a
+    description: Recomputed every cell of cost_model.md section 5.a from raw throughput x tranche.
+    result: >-
+      500cs: 500*788.39=394,195 (reported 394,195, match); 500*2168=
+      1,084,000 and 500*2227.24=1,113,620 (reported "1,084,000-1,113,620",
+      match). 2000cs and 6500cs tranches recomputed identically and match
+      (1,576,780; 4,336,000-4,454,480; 5,124,535; 14,092,000-14,477,057).
+      T_req(PS-R3)=3.09e5 at 788.39 t/cs = 392.0cs (reported 392, match); at
+      2227.24 t/cs = 138.75cs (reported 139, match). Wilson block-sizing
+      T=24,700 at both bounds = 31.3cs / 11.1cs (reported "11-31", match).
+      All arithmetic in section 5.a is correct.
+  - id: standardized_parameter_table_5b
+    description: >-
+      Recomputed every cell of cost_model.md section 5.b, specifically
+      checking whether a constant per-instance cost is assumed across
+      parameter sets of very different scale (the flagged risk in this
+      task's own instructions) or whether each set's OWN benchmarked
+      throughput is used.
+    result: >-
+      NOT a constant-cost assumption -- confirmed each parameter set's row
+      uses that SET's OWN measured throughput, not PS-R3's. PS-A k=2:
+      1.18e5/683.261=172.7 (reported 173, match); 1.18e5/1661.84=71.0
+      (reported 71, match). PS-A k=3: 1.61e7/683.261=23,563.3 (reported
+      23,563, EXACT match to the decimal); 1.61e7/1661.84=9,687.7
+      (reported 9,688, match). PS-A k=m=16: 2.06e42/683.261=3.015e39
+      (reported "~3.0e39", match); 3.40e41/1661.84=2.046e38 (reported
+      "~2.0e38 (best case)", match). PS-R1 k=m=16: 2.91e7/2114.97=13,759.6
+      (reported 13,760, match); 2.91e7/2528.45=11,509.6 (reported 11,510,
+      match). PS-R3 k=m=17: already checked above. This is methodologically
+      correct: no hidden constant-per-instance-cost assumption was found.
+  - id: standardized_parameter_table_5b_PS_R5_row_defect
+    description: Recomputed the PS-R5 row specifically.
+    result: >-
+      T_req(PS-R5,k=m=30)=2.72e6. Pessimistic:
+      2.72e6/1284.26=2,118.0 (reported "2,118 core-s", match). Optimistic:
+      2.72e6/1583.6554=1,717.5cs -- but the reported cell reads
+      "1,584-1,717 core-s", presented as a RANGE. This is an ARITHMETIC
+      TABLE DEFECT, not merely a rounding difference: 1,584 is PS-R5's
+      raw MEASURED THROUGHPUT figure (trials/core-second, from section 2's
+      own table, "full pipeline real _t_shard" column, PS-R5 row =
+      "1,584"), not a cost-in-core-seconds figure at all -- it appears the
+      throughput number was pasted into the cost cell instead of, or
+      alongside, the correctly computed cost (1,717). The true optimistic
+      cost for this row is the single value ~1,717 core-seconds; there is
+      no legitimate second throughput bound for PS-R5 the way there is for
+      PS-R3 (whose range legitimately draws on the cross-validated
+      2,100-2,230 band from three prior-batch measurements). This is a
+      genuine, identifiable defect in the cost table's construction. It
+      does NOT change any conclusion in this report or (on my reading) the
+      cost model's own recommendation: PS-R5 was already correctly
+      excluded from the recommended affordable scope in section 7 either
+      way, and the corrected single value (1,717cs) is consistent with
+      section 7's own text ("in the higher tranches, PS-R5" falls within
+      plausible remaining budget). Flagged as a correction the Coordinator
+      or a future revision should make, not as grounds to reject the
+      artifact.
+  - id: injection_point_mechanical_description
+    description: >-
+      Read stage_a.py directly at the four cited line ranges (CTRStream.below
+      lines 198-203/198-204 in my read, fixed_weight_support lines 206-219,
+      ring_mul_sparse lines 236-241, decode_blocks reshape at line 296) to
+      confirm each is genuinely a small, local, single-line-to-few-line
+      change as claimed, not requiring new machinery.
+    result: >-
+      Confirmed for all four. CTRStream.below (line 198-203 in the
+      committed stage_a.py) is a 6-line function whose return statement is
+      the only line a boundary defect would touch. fixed_weight_support
+      (lines 206-219) is a 14-line function whose `for i in range(n - w,
+      n)` loop header is the only line a V1-class off-by-one would touch.
+      ring_mul_sparse (lines 236-241) is a 6-line function; the described
+      "last accumulated element" conditional is a small, local addition
+      inside its existing loop. decode_blocks's reshape (line 296,
+      `blk = bits.reshape(B, n_e, n_2)`) is a single line; the described
+      window-shift is a slicing change to the array feeding that line. No
+      new sampler, decoder, estimator, or control machinery would need to
+      be written for any of the four -- confirmed by reading, matching the
+      cost model's own claim.
+
+  budget_reconciliation:
+  - id: campaign_running_total_recheck
+    description: >-
+      Independently recomputed the executor's own derived remaining-budget
+      figure (~4,978s) against ledger/goals/GOAL-HQC-001.yaml's own text,
+      reading the ledger directly rather than trusting the cost model's
+      citation.
+    result: >-
+      Confirmed each component. GOAL-HQC-001.yaml's
+      superseded_next_action_20260806_batch0a65c0_paused entry states
+      verbatim "roughly 7,000 of 10,800 wall-clock seconds remain UNSPENT"
+      at BATCH-0a65c0's close -> spent-through-BATCH-0a65c0 = 10,800-7,000
+      = ~3,800s, matching the cost model's figure exactly.
+      batch_checkpoints entries for the three subsequent batches give
+      executor core-seconds used: BATCH-4b8ad3 "72 of 1800...were used"
+      (72.0), BATCH-558f5b "434.3 of 1800...(24 percent)" (434.3),
+      BATCH-f8050e "946.3 of 1800...across two runs (53 percent)" (946.3)
+      -- sum 1,452.6, matching the cost model exactly. Red-team probe
+      compute disclosed in the same three batch_checkpoints entries:
+      "roughly 170 s" (BATCH-4b8ad3), "roughly 4.2 minutes" = 252s
+      (BATCH-558f5b), "roughly 148 s" (BATCH-f8050e) -- sum ~570s, matching
+      the cost model's ~569.7s to within the same rounding. Total:
+      3,800+1,452.6+569.7 = 5,822.3; remaining = 10,800-5,822.3 = 4,977.7,
+      matching the cost model's "~4,978" almost exactly. This is a
+      correctly grounded, correctly summed lower-bound estimate, explicitly
+      and honestly flagged (by the executor) as excluding unitemized
+      validator/Coordinator session overhead, which is accurate -- this
+      review's own compute time, and every prior review's compute time in
+      this campaign, is likewise not itemized against the 10,800s total
+      anywhere in the ledger. The figure is a genuine lower bound on spend,
+      i.e. an upper bound on remaining budget; the true remaining budget is
+      probably somewhat smaller than 4,978s once all review overhead is
+      counted, which if anything makes the standardized-parameter
+      infeasibility conclusions (below) more conservative, not less.
+  - id: budget_matters_for_the_go_no_go_call
+    result: >-
+      The exact remaining-budget figure barely matters for the PS-R3-scale
+      recommendation: 139-392 core-seconds is trivially affordable whether
+      remaining budget is 4,978s, the dispatch queue's looser ~4,300s
+      approximation, or a materially smaller true figure after full review
+      overhead is counted -- it would take an order-of-magnitude budget
+      error to threaten this conclusion. It matters a great deal for the
+      standardized-parameter figures: PS-A k=3 (9,688-23,563cs) and PS-R1
+      k=m=16 (11,510-13,760cs) both already exceed the executor's own
+      generous lower-bound remaining-budget estimate, so a smaller true
+      remaining-budget figure only strengthens, never weakens, the
+      conclusion that those runs are not affordable at this campaign's
+      current budget.
+
+  heuristic_validation_checks:
+  - id: preregistered_prediction_not_this_tasks_object
+    result: >-
+      This task's own deliverable is a cost model, not a heuristic-validation
+      measurement -- there is no new preregistered prediction to check here.
+      The RELEVANT preregistered prediction (log2 A_k = 0 under A17, at each
+      set's own k=m) belongs to experiments/EXP-HQC-982268/specification.yaml,
+      already frozen and approved before this batch, and this task correctly
+      CITES rather than re-derives it (see t_req_scope_caveat_check above).
+      N/A beyond that citation check.
+  - id: correspondence_validity
+    result: >-
+      Not applicable. This benchmark exercises the real generation path
+      directly (no substitute sampler, no correspondence-based proxy); the
+      "correspondence" checks in agents/validator.md's heuristic-validation
+      section govern a different situation (e.g. the Deuring correspondence)
+      that does not arise here.
+  - id: scale_binding
+    result: >-
+      Correctly and repeatedly disclosed as toy scale throughout cost_model.md
+      and run_manifest.yaml, with an explicit statement (section 5.b) that
+      PS-R1/R3/R5 use dup=1, not HQC-3's/HQC-5's real deployed dup (3/5),
+      and that this task's read scope does not contain the true deployed
+      values, so it does not fabricate them (AGENTS.md rule 5 compliance
+      confirmed by inspection -- no dup=3/5 figures for PS-R3/PS-R5 appear
+      anywhere in the reviewed artifacts).
+
+  fabrication_check: >-
+    No fabricated commands, outputs, timings, statistics, or citations found.
+    Every MEASURED figure traces to benchmark_results.json (verified by
+    hash-checked snapshot and independently reproduced in kind by this
+    review's own re-benchmark); every "MEASURED (prior batch)" figure traces
+    to a specific, checkable prior-batch artifact path and was spot-checked
+    against ledger/goals/GOAL-HQC-001.yaml and specification.yaml directly by
+    this review, not merely re-cited; every MODELED figure is disclosed as
+    such and its arithmetic recomputes correctly (with the one PS-R5 table
+    labeling defect noted above, which is a copy/formatting error, not a
+    fabrication).
+
+  admit_verdict: ADMIT
+  admit_verdict_rationale: >-
+    All required artifacts are present, hash-verified against the
+    Coordinator's snapshot receipt (all 6 files, byte-for-byte), and the
+    snapshot commit is reachable from HEAD with the declared parent. The
+    self-integrity gate genuinely ran and passed against the real,
+    unmodified stage_a.py (hash-confirmed independently). This review's own
+    independently written re-benchmark reproduces the executor's qualitative
+    and approximate quantitative findings on the same host, and this
+    review's own targeted probes (order reversal, decode_blocks isolation,
+    steady-state repetition) independently corroborate the general
+    cold-start/warm-up explanation for the disclosed 2.6-2.8x anomaly while
+    refining it: the executor's specific "decode_blocks lacks warm-up"
+    mechanism is not supported by my data, but the broader "short,
+    single-process calibration benchmark is not representative of
+    steady-state throughput at real scale" conclusion is, and matters more
+    for planning than the specific mechanism. The Wilson-CI sizing table
+    recomputes exactly from its stated formula and inputs. Every T_req
+    figure cited from experiments/EXP-HQC-982268/specification.yaml is
+    genuine and correctly applied to its own (set, k) cell -- none is
+    misapplied from a different context. The reduced-parameter cost table
+    (section 5.a) and the bulk of the standardized-parameter cost table
+    (section 5.b) recompute correctly, using each parameter set's own
+    benchmarked throughput rather than a constant-per-instance-cost
+    assumption across scales. The campaign running-budget total (~4,978s
+    remaining, lower bound) is correctly grounded in and summed from the
+    ledger's own batch_checkpoints text. One genuine but non-disqualifying
+    defect was found: the PS-R5 row of the standardized-parameter table
+    (section 5.b) mixes a throughput figure (1,584 t/cs) into a
+    cost-in-core-seconds cell, producing a spurious "1,584-1,717 core-s"
+    range where a single value (~1,717cs) belongs -- flagged above as a
+    correction, not grounds for rejection, since it does not affect any
+    conclusion the cost model or this report draws. The disclosed limitation
+    that T_req=3.09e5 sizes the NATURAL estimator's own precision rather
+    than constituting a defect-specific power calculation is honestly
+    stated by the artifact itself, not overclaimed, and I concur with that
+    self-assessment rather than treating it as a defect.
+
+  affordability_assessment:
+    ps_r3_scale_realsampler_injection:
+      verdict: AFFORDABLE
+      rationale: >-
+        139-392 core-seconds to reach the spec's own pre-registered T_req at
+        PS-R3's load-bearing k=m=17, under either throughput bound this
+        review independently corroborates -- a trivial fraction (under 8
+        percent even at the pessimistic bound) of the ~4,978s lower-bound
+        remaining campaign budget this review independently reconciles
+        against the ledger. Doubling for a paired undefected control arm
+        (278-784cs) remains comfortably affordable. This verdict is robust
+        to which throughput figure (788 or 2,227 t/cs) is used and to
+        material uncertainty in the exact remaining-budget figure.
+      caveat: >-
+        Affordability of the COMPUTE alone is not the same as affordability
+        of an admissible RESULT. This report does not assess whether the
+        remaining budget also covers the independent review cycle and a
+        possible repair-and-rerun (every prior batch in this campaign has
+        needed at least one correction) -- that assessment is properly the
+        Red Team's per this batch's dispatch queue, and I defer to it rather
+        than duplicating it.
+    standardized_parameter_realsampler_injection:
+      verdict: INFEASIBLE_TO_MARGINAL_DEPENDING_ON_ORDER
+      rationale: >-
+        Not a single verdict -- the standardized-parameter table spans
+        roughly 40 orders of magnitude. PS-A's own true load-bearing order
+        (k=m=16, at HQC-1's real q) costs ~2.0e38-3.0e39 core-seconds:
+        INFEASIBLE in the strong sense (not "over this campaign's budget"
+        but astronomically beyond any plausible computational budget,
+        consistent with this campaign's own prior structural-infeasibility
+        finding). PS-A's k=3 (9,688-23,563cs) and PS-R1's true k=m=16
+        (11,510-13,760cs) both exceed the ~4,978s remaining-budget lower
+        bound by roughly 2-5x: NOT AFFORDABLE at this campaign's current
+        budget, though not astronomically infeasible either -- reachable
+        with a budget increase or across multiple campaigns. PS-A's k=2
+        (71-173cs) is affordable but does not reach the load-bearing k=m
+        order, so a result there would not bear on A17 at HQC-1's own
+        moment order. PS-R5's k=m=30 (2,118-1,717cs, corrected single
+        value) is technically inside the remaining budget but would consume
+        35-45 percent of the ENTIRE remaining campaign budget in one run,
+        leaving little room for a paired control or a repair cycle: MARGINAL
+        at best, not comfortably affordable the way PS-R3 is.
+      caveat: >-
+        None of PS-R1/PS-R3/PS-R5 use HQC-3's/HQC-5's true deployed
+        duplication multiplicity (dup=3/5); they are order-matched proxies
+        at dup=1, a gap the cost model discloses rather than papers over.
+        Even an affordable order-matched-proxy run at PS-R5 would not
+        constitute a measurement at HQC-5's real deployed parameters.
+
+  limitations:
+  - >-
+    This review's independent re-benchmark ran at N=1,500 trials per probe
+    (smaller than the executor's 2,000 at PS-R3), sufficient to reproduce
+    the qualitative and approximate quantitative pattern but not to the
+    executor's own precision -- adequate for this review's purpose (probing
+    the ANOMALY's mechanism, not re-measuring the headline throughput
+    figure to high precision).
+  - >-
+    This review did not re-run the executor's PS-A/PS-R1/PS-R5 benchmarks
+    (only PS-R3, the primary target and the set with prior-batch
+    cross-validation available); the arithmetic checks in cost_model_checks
+    above verify those rows' INTERNAL consistency against
+    benchmark_results.json's own reported throughput figures, not an
+    independent re-timing at those parameter sets.
+  - >-
+    The steady_state_convergence probe (4 repetitions, ~6,000 total trials)
+    narrows but does not fully close the stages_summed-vs-_t_shard gap to
+    1.0x (residual ~1.2-1.4x); this review does not have a complete,
+    certain mechanistic explanation for that residual gap, only a plausible
+    one (CPython 3.11's specializing adaptive interpreter plus structural
+    loop differences) -- stated as a hypothesis, not a proven finding, and
+    weaker than the disqualified decode_blocks-specific hypothesis was
+    strong.
+  - >-
+    This review takes no position on A17, HQC's decoding-failure rate, or
+    any standardized HQC parameter set, and changes no research status. The
+    admit_verdict and affordability_assessment above are this validator's
+    independent reading, to be weighed alongside (not substituted for) the
+    parallel Red Team report (TASK-20260806-e13ecc) by the Coordinator's
+    ledger archive task (TASK-20260806-d1b743).
+  - >-
+    The go/no-go decision itself, and any budgeted scope for a follow-on
+    real-sampler injection task, is the Coordinator's to make -- this report
+    verifies the cost model's arithmetic and methodology and states an
+    independent affordability read; it does not authorize, recommend for
+    dispatch, or select a parameter set for any experiment.
+
+  verdict: passed
+  verdict_note: >-
+    "passed" in the schema sense of agents/validator.md: the cost model and
+    its supporting benchmark are admissible planning evidence (ADMIT above).
+    This is a claim about the RECEIPT's integrity and arithmetic, not an
+    endorsement of the PARTIAL-GO recommendation cost_model.md section 7
+    offers (which this report neither adopts nor rejects -- that judgement,
+    weighed against the Red Team's parallel review, belongs to the
+    Coordinator).
+
+  artifact_paths:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/cost_model.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/benchmark.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/benchmark_results.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/tasks/TASK-20260806-77443e/run_manifest.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-a5c525/archives/TASK-20260806-f238a2/snapshot-receipt.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py
+  - experiments/EXP-HQC-982268/specification.yaml
+  - ledger/evidence/EV-HQC-163374.yaml
+  - ledger/decisions/DEC-20260806-0995d5.yaml
+  - ledger/goals/GOAL-HQC-001.yaml
+
+  next_action_note: >-
+    This report is written for the Coordinator's ledger archive task
+    (TASK-20260806-d1b743) to combine with the parallel Red Team report
+    (TASK-20260806-e13ecc). This validator changes no status, makes no
+    go/no-go call, and takes no position on HQC's security. The
+    independent re-benchmark script and its raw output are retained at
+    this session's scratchpad (not committed, per this task's write_scope
+    restriction to the reviews/ directory only) and can be reproduced from
+    the description in independent_rebenchmark above against the same
+    hash-pinned stage_a.py.
