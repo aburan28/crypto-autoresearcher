@@ -1,0 +1,182 @@
+coordinator_decision:
+  id: DEC-20260805-6aa5c2
+  context: >-
+    GOAL-SSIQ-001 BATCH-007 closes. It executed a frozen v4 amendment
+    (specification_v4.yaml, EXP-SSIQ-a85692) that replaced BATCH-006's
+    non-functional synthetic self-test with one that genuinely calls
+    c_null_label_comparison_v3 (GD-9's wrapper), through three checks
+    including a new boundary-length case the pre-freeze review's own
+    hand-traced mutation found necessary. GD-10 is confirmed closed by
+    both reviewers via direct code reading and independent re-execution.
+    The Red Team, investigating the Executor's own disclosed floating-
+    point anomaly (ANOM-1) further than the disclosure itself, found it
+    is broader than reported and named a new defect, GD-11, against
+    shared library code. Recorded as EV-SSIQ-87d21a, on
+    TASK-20260805-aeb1ed ADMIT-WITH-CONDITIONS and TASK-20260805-b73a2e
+    CHALLENGE.
+  decision: revise
+  decision_note: >-
+    revise, not approve outright, despite GD-10 being a clean, confirmed
+    closure. The reason is GD-11: a genuine, reproducible defect in
+    dht.ols_loglog_fit's degeneracy guard (an exact-float sxx==0.0 check
+    that does not reliably detect degenerate designs due to IEEE-754
+    summation rounding), found as a direct consequence of this batch's
+    own new boundary-length check (n=3) exercising a resample size no
+    prior real dispatch had reached. Both reviewers independently
+    confirmed no currently-archived real number is contaminated -- this is
+    not a retraction of any prior batch's results. But the Red Team's
+    wider grid sweep found the anomaly recurs at N=324 (prime 3889's own
+    real N value, used in every real-arm bootstrap to date) at exactly
+    n=3, and can produce a plausible-looking spurious nonzero gamma, not
+    merely a benign zero. This is a live, concrete exposure for the next
+    real dispatch that reaches the null arm's fit-and-bootstrap branch,
+    not a hypothetical one. A code fix is recommended but not applied by
+    this decision; it is BATCH-008's next action, hence revise rather than
+    approve.
+  target_ids:
+    - GOAL-SSIQ-001
+    - RQ-SSIQ-9702af
+    - EXP-SSIQ-a85692
+    - EV-SSIQ-87d21a
+    - TASK-20260805-0c809b
+    - TASK-20260805-aeb1ed
+    - TASK-20260805-b73a2e
+  evidence_refs:
+    - EV-SSIQ-87d21a
+  rationale:
+    - id: D-1
+      statement: >-
+        GD-10 IS GENUINELY CLOSED, INDEPENDENTLY CONFIRMED BY BOTH
+        REVIEWERS THROUGH DIRECT CODE READING, INDEPENDENT RE-EXECUTION,
+        AND INDEPENDENT MUTATION TESTING -- NOT BY TRUSTING A PASSING
+        REPORT. All three checks in the corrected self-test call
+        c_null_label_comparison_v3 directly (no hand-written duplicate);
+        CHECK 3's null_survivors list has length exactly 3, the boundary
+        the pre-freeze review's own hand-traced mutation showed was
+        necessary; both reviewers independently re-executed the
+        min_primes off-by-one mutation and confirmed CHECK 3 (and only
+        CHECK 3) discriminates it. The new entry point's isolation from
+        real data is confirmed structurally (AST-parsed transitive import
+        chain, zero module-level file I/O), not merely by absence of
+        invocation this run.
+      confidence: high
+    - id: D-2
+      statement: >-
+        A NEW DEFECT IS NAMED, GD-11, AGAINST SHARED LIBRARY CODE
+        (dht.ols_loglog_fit, experiments/EXP-SSIQ-58b642/implementation/descent_hitting_time.py),
+        IMPORTED UNCHANGED SINCE BATCH-003, INDEPENDENT OF AND LOWER IN
+        THE STACK THAN GD-9/GD-10's WRAPPER-LEVEL CONCERNS. The Executor's
+        own disclosure (ANOM-1) named one synthetic value (N=500, n=3);
+        the Red Team independently reproduced the mechanism from first
+        principles (an exact-float comparison after floating-point
+        summation, unreliable purely as a function of log(N)'s specific
+        mantissa bits, unrelated to any property of the actual data) and
+        swept a wider grid, finding it recurs at multiple (N, resample-
+        size) combinations, is not merely cosmetic (confirmed to produce
+        a spurious, plausible-looking nonzero gamma at N=611/n=6 using a
+        real campaign value), and -- materially beyond the original
+        disclosure -- recurs at N=324, which is prime 3889's own real N
+        value already used in every real-arm bootstrap this campaign has
+        run, at exactly n=3.
+      severity: medium
+      standing_repair_adopted: >-
+        A degeneracy/edge-case guard implemented as an exact
+        floating-point equality check (== 0.0) after a summation is not
+        reliable, because IEEE-754 rounding of a sum-then-divide sequence
+        does not always round-trip to bit-identical inputs, independent
+        of whether the underlying data is genuinely degenerate. Any
+        future numerical guard in this campaign's code should compare the
+        INPUTS directly for exact equality (e.g. max(xs)==min(xs)) or use
+        an epsilon-relative tolerance keyed to the operands' magnitude,
+        not rely on a post-summation exact-zero check.
+    - id: D-3
+      statement: >-
+        NO CURRENTLY-ARCHIVED REAL RESULT IS CONTAMINATED, CHECKED
+        DIRECTLY BY BOTH REVIEWERS, NOT ASSUMED. Every real-arm bootstrap
+        this campaign has run (RUN-SSIQ-a85692-b's descent_metrics) used
+        n=4 over the fixed N-set {203,324,478,611}, and the guard fires
+        correctly for all four values at that specific resample size. The
+        null arm's fit-and-bootstrap branch has never yet executed on
+        real data (survivor count was 0 in every prior batch, below the
+        floor). Both reviewers emphasize this non-contamination is a fact
+        about this particular value set at this particular resample size,
+        not a structural guarantee -- N=324 IS anomalous at other
+        resample sizes (n=3, 6, 7, 8), and N=611 is anomalous at every
+        n>=5 tested.
+      confidence: high
+    - id: D-4
+      statement: >-
+        THE EXECUTOR'S CHECK-3 WORKAROUND (excluding N=500 from the
+        synthetic construction) WAS LEGITIMATE FOR CHECK 3's OWN NARROW
+        PURPOSE (the min_primes gate) AND WAS DISCLOSED, NOT HIDDEN --
+        both reviewers confirm this, and the Coordinator's own precommit
+        check flagged it for independent review rather than silently
+        endorsing it. But the Red Team's scoping caution is adopted: CHECK
+        3's "all_checks_pass: true" validates the gate and the fit/CI
+        arithmetic for the SPECIFIC N-values chosen (which are known,
+        because of that choice, not to trigger GD-11), not the general
+        numerical robustness of the underlying library functions at n=3
+        for arbitrary real trapped_exclusion_filter_v3 output -- that
+        question is exactly what GD-11 names and remains open. Any
+        successor record must not read CHECK 3's pass as validating that
+        broader claim.
+  limitations:
+    - >-
+      This batch makes no claim about H-SSIQ-36e970's real-arm
+      prediction, about whether a delta_E-gradient exists, or about a
+      p^{1/4} algorithm's existence, likelihood, or proximity.
+    - >-
+      GD-11 does not invalidate any archived real result (D-3), but
+      remains a live, unfixed exposure for the next real dispatch that
+      reaches the null arm's fit-and-bootstrap branch at a small survivor
+      count including prime 3889.
+    - >-
+      A new, lower-severity, uncaught mutation (silently dropped
+      rng_seed threading) is recorded as backlog, not blocking -- no
+      existing claim depends on that property being tested.
+    - >-
+      Model independence remains absent and unverifiable in this
+      environment, unchanged from every prior batch. Evidence strength
+      stays capped at preliminary campaign-wide.
+  next_actions:
+    - >-
+      SINGLE NEXT ACTION, TWO PARALLEL PARTS (disjoint data and code
+      paths, per the Red Team's own confirmation neither blocks the
+      other) -- BATCH-008: (1) [zero new search] harden
+      dht.ols_loglog_fit's degeneracy guard (replace the exact-float
+      sxx==0.0 check with max(xs)==min(xs) or an epsilon-relative
+      tolerance) as its own scoped versioned amendment with its own
+      pre-freeze review (this is a change to shared, frozen library code,
+      not folded silently into any other amendment), and re-run the
+      regression cases that exposed GD-11 (N=324/n=3, N=611/n=6) to
+      confirm the fix; (2) [zero new search, unaffected by (1)] the
+      trapping-mechanism diagnostic deferred from BATCH-006/007
+      (DEC-20260805-e46f4f's original next_actions item 2): investigate
+      the mechanism behind pervasive trapping using already-collected
+      graph/vertex/delta_map data from RUN-SSIQ-a85692-b -- is trapping
+      concentrated on specific low-degree vertices, correlated with a
+      graph-structural property independent of N, or an artifact of the
+      greedy tie-break rule.
+    - >-
+      NOT CHOSEN, WITH REVISIT CONDITIONS (AGENTS.md rule 9). (i) The
+      rng_seed determinism gap (O-2 on EV-SSIQ-87d21a) is deferred to
+      backlog -- add whenever synthetic_self_test_v4 is next touched, not
+      urgent since no archived claim depends on it. (ii) Widening to
+      larger primes/N remains deferred until the trapping-mechanism
+      diagnostic gives a specific, evidence-based reason to expect
+      different behavior at larger N (unchanged from BATCH-006's
+      reasoning). (iii) Retiring lever L4 as exhausted remains explicitly
+      NOT chosen.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      Nothing promoted; this batch's findings are infrastructure/defect-
+      naming, not evidence toward any hypothesis. AN EIGHTH KNOWLEDGE
+      CANDIDATE IS NOW QUEUED campaign-wide, distinct from the prior
+      seven: "a degeneracy guard implemented as an exact floating-point
+      equality check after a summation is unreliable -- compare the
+      inputs directly, not a post-summation derived value, for an exact
+      condition." All eight promote together when a genuinely different
+      model becomes available to re-check them.
+  decided_by: coordinator
+  decided_at: '2026-08-05'
