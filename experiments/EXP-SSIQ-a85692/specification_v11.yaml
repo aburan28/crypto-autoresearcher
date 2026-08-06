@@ -27,6 +27,19 @@
 # amendment in this lineage, which this amendment's own new cross-check
 # (below) directly measures rather than assumes.
 #
+# PRE-FREEZE REVIEW ROUND 1 (RT-PREFREEZE-EXP-SSIQ-a85692-v11.md,
+# FREEZE-WITH-FIXES): three fixes applied below -- FIX-1 (a previously
+# unstated, now-named premise about RUN-SSIQ-a85692-b's own completeness,
+# required for the natural-completion cross-check's exact-equality
+# prediction to be well-founded, verified against real archived data
+# rather than assumed); FIX-2 (value_histogram_and_conjugate_pairs is
+# reused a SECOND time per sweep point, not merely once); FIX-3 (the
+# n_naturally_completed+n_still_truncated==n_resolved check is a
+# non-raising, explicitly-reported boolean, not a Python assert). None of
+# the three changes this amendment's execution mechanics, imports,
+# failure-isolation discipline, or budget arithmetic, all independently
+# re-verified correct in round 1; no second round is required.
+#
 # THIS AMENDMENT REQUIRES NEW delta_E SEARCH COMPUTATION, sized and justified
 # explicitly below. campaign_budget.maximum_batches remains uncapped (user
 # direction, "No budget constraints," ledger/goals/GOAL-SSIQ-001/goal.yaml)
@@ -44,8 +57,8 @@ experiment:
     testing RT-BATCH-013's own falsifiable prediction and directly measuring
     the truncated/naturally-completed split via each vertex's own timed_out
     flag? (BATCH-014)
-  status: draft
-  approved_by: null
+  status: approved
+  approved_by: coordinator
   amends: EXP-SSIQ-a85692 (version 10, specification_v10.yaml, frozen ca905c2482e00fef5b0bdc6902b43a77a43c8d5c)
   amendment_scope: >-
     TWO INDEPENDENT PART-A-ONLY BUDGET PASSES OVER ONE SHARED GRAPH (no PART
@@ -111,36 +124,88 @@ experiment:
     two disjoint sets: NATURALLY-COMPLETED (timed_out is False -- the
     search reached its own internal stopping condition strictly before this
     sweep point's budget elapsed, so per EV-SSIQ-48d274's own derivation
-    the returned value IS the confirmed true minimum, not merely a valid
-    upper bound) and STILL-TRUNCATED (timed_out is True -- budget elapsed
-    before the search's own stopping condition, so the returned value is a
-    valid-but-possibly-non-minimal upper bound, identical in kind to every
-    v9/v10 sweep point). Report, per sweep point: n_naturally_completed,
-    n_still_truncated (these two sum to n_resolved for that sweep point --
-    an internal-consistency assertion this amendment REQUIRES the Executor
-    to check and report the outcome of, not silently assume holds), and
-    the FALSIFIABLE PREDICTION this cross-check exists to test:
+    the returned value IS the confirmed true minimum WITHIN THIS RUN'S OWN
+    search domain, not merely a valid upper bound) and STILL-TRUNCATED
+    (timed_out is True -- budget elapsed before the search's own stopping
+    condition, so the returned value is a valid-but-possibly-non-minimal
+    upper bound, identical in kind to every v9/v10 sweep point).
+    NAMED PREMISE P-11a (FIX-1, RT-PREFREEZE-EXP-SSIQ-a85692-v11.md round
+    1, required for the falsifiable prediction below to be well-founded,
+    NEVER PREVIOUSLY STATED IN THIS LINEAGE despite being load-bearing for
+    every prior "archived == true value" framing, including RT-BATCH-013
+    O-4's own "the TRUE archived population"): RUN-SSIQ-a85692-b's own
+    archived delta_map values for p=2437 are THEMSELVES domain-exhaustive
+    (i.e. RUN-SSIQ-a85692-b's own per-vertex searches, via
+    compute_delta_e_v2.run_phase_minus1_on_confirmatory_set, also reached
+    their own internal stopping condition, not a budget cutoff) -- a
+    DIFFERENT claim from what this amendment's own timed_out cross-check
+    establishes about THIS run's search. RUN-SSIQ-a85692-b's own artifact
+    never recorded a per-vertex timed_out flag, so P-11a is not directly
+    verifiable from that run's own data; it is supported CIRCUMSTANTIALLY
+    (this Coordinator's own independent re-derivation, confirmed identical
+    to RT-PREFREEZE-EXP-SSIQ-a85692-v11.md's own figures) by
+    RUN-SSIQ-a85692-b/raw-result.json's phase_minus1_real_search["2437"]:
+    aggregate_seconds_available_at_prime_start=3600.0 against
+    wall_seconds_used=284.88387155532837 total across all 194 resolved
+    vertices (average ~1.47s/vertex, consistent with this lineage's own
+    observed 1.15-1.70s natural-completion range) -- since that run's own
+    per-vertex time_budget_seconds argument starts near 3600s and shrinks
+    only by actually-elapsed time, it is highly implausible any individual
+    vertex's own search there approached its own budget cap before its own
+    heap emptied. P-11a is therefore treated as TRUE for p=2437 under
+    RUN-SSIQ-a85692-b specifically, on this circumstantial basis, NOT
+    verified directly -- named explicitly here rather than left implicit,
+    per this lineage's own PF-3/PF-6 convention for physical/wall-clock
+    premises.
+    Report, per sweep point: n_naturally_completed, n_still_truncated, and
+    an EXPLICIT, NON-RAISING boolean field
+    natural_completion_partition_consistent reporting whether
+    n_naturally_completed + n_still_truncated == n_resolved holds for that
+    sweep point (FIX-3: this is a REPORTED FIELD, never a Python assert --
+    an assert here would be caught by the enclosing per-sweep-point
+    try/except and DISCARD that sweep point's otherwise-valid Comparison
+    1/Comparison 2/histogram results along with it, exactly the failure
+    mode PF-2 exists to prevent; matches
+    value_histogram_and_conjugate_pairs's own established anomaly-
+    reporting precedent, which never raises on an internal-consistency
+    finding either), and the FALSIFIABLE PREDICTION this cross-check
+    exists to test, CONDITIONAL ON NAMED PREMISE P-11a above:
     EVERY naturally-completed vertex's new_delta_map value MUST equal
     RUN-SSIQ-a85692-b's own archived_delta_map value for that vertex
     EXACTLY (a strictly SHARPER claim than v10's own "never smaller"
     derivation -- v10 proved new_value >= archived_value always; this
     predicts new_value == archived_value specifically for the
     naturally-completed subset, which is what "the search reached its own
-    confirmed-true-minimum stopping condition" actually means). Report
+    confirmed-true-minimum stopping condition" actually means, GIVEN P-11a
+    holds for the value being compared against). Report
     n_naturally_completed_matching_archived and
     n_naturally_completed_NOT_matching_archived (the latter MUST be 0 under
     the frozen prediction; if it is ever nonzero, report every such vertex
     by coordinate, its new value, its archived value, and its full
     per-vertex record -- this would be a striking, adversarially valuable
-    result, either overturning EV-SSIQ-48d274's own derivation or revealing
-    that "timed_out" does not mean what this amendment assumes it means,
-    and must be surfaced loudly, never silently reconciled or omitted).
+    result, with THREE possible explanations that must all be named rather
+    than assumed away, per FIX-1: (i) overturning EV-SSIQ-48d274's own
+    derivation, (ii) revealing that "timed_out" does not mean what this
+    amendment assumes it means, or (iii) P-11a failing for that specific
+    vertex -- i.e. RUN-SSIQ-a85692-b's own archived value for that vertex
+    was itself a non-exhaustive upper bound, which would neither overturn
+    EV-SSIQ-48d274 nor reveal a timed_out misunderstanding. Surfaced
+    loudly either way, never silently reconciled or omitted).
     Also report, per sweep point, the delta_E VALUE HISTOGRAM restricted to
-    the naturally-completed subset alone (a dict from value to count,
-    EMPTY {} if n_naturally_completed==0 -- explicitly well-defined at zero,
-    the identical PF-8 discipline v10 established, applied here without
-    needing a review round to discover it), to directly observe whether
-    delta_E>=5 values appear there for the first time in this lineage.
+    the naturally-completed subset alone, via a SECOND call to the same
+    genuinely-imported delta_e_truncation_sweep_v10.
+    value_histogram_and_conjugate_pairs(naturally_completed_set,
+    new_delta_map, field) -- FIX-2: this function is called TWICE per
+    sweep point, once on the full resolved_non_fp_set (item 7 above) and
+    once on the naturally-completed subset alone (this item), both genuine
+    reuses of the identical imported function, never a hand-written
+    duplicate of any slice of its logic -- taking only its own histogram
+    field from this second call's return value (a dict from value to
+    count, EMPTY {} if n_naturally_completed==0 -- explicitly well-defined
+    at zero, the identical PF-8 discipline v10 established, and already
+    exercised by this function's own existing empty-input handling, so no
+    new zero-case logic is needed), to directly observe whether delta_E>=5
+    values appear there for the first time in this lineage.
     STATISTICAL-POWER FRAMING REQUIRED (v10's own PF-7 discipline, applied
     here without needing a review round to discover it): any statement, in
     this amendment's own execution_report.yaml or any future citation, of
@@ -179,9 +244,65 @@ experiment:
     bound -- but the bound itself assumes zero natural completions, the
     conservative case, and the budget below is sized against it.
   pre_freeze_review:
-    status: PENDING
-    report: null
-    verdict: null
+    status: REVIEWED
+    report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-014/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v11.md
+    verdict: >-
+      Round 1: FREEZE-WITH-FIXES. Execution mechanics (imports, per-sweep-
+      point failure isolation including the new natural-completion
+      cross-check, graph-rebuild-once discipline, budget arithmetic) all
+      independently re-verified correct against the real committed code
+      (delta_e_truncation_sweep_v10.py, delta_e_truncation_probe_v9.py,
+      delta_e_independent_rng_probe_v8.py, trapping_diagnostic_v5.py,
+      compute_delta_e.py, compute_delta_e_v2.py, all read in full) --
+      zero blocking findings. Three fixable gaps found and applied in this
+      same pass: PF-11a (the falsifiable prediction implicitly relied on
+      an unstated second premise about RUN-SSIQ-a85692-b's own
+      completeness, unverifiable directly from that run's own artifact
+      but independently re-derived as circumstantially true by this
+      Coordinator from its raw wall-clock/budget figures, then named
+      explicitly as premise P-11a); PF-11b (required_artifacts_note
+      under-declared value_histogram_and_conjugate_pairs as called once
+      per sweep point when the new cross-check requires a second,
+      distinct call on a different vertex subset -- a real ambiguity on a
+      code path, b=1.1s, guaranteed to execute on every run); PF-11c (the
+      natural-completion partition's internal-consistency check was
+      ambiguous between a raising assert, which would discard an
+      otherwise-valid sweep point's results on failure, and a
+      non-raising reported field -- resolved toward the latter,
+      matching value_histogram_and_conjugate_pairs's own established
+      anomaly-reporting precedent). None of the three fixes changes this
+      amendment's execution mechanics, imports, or budget arithmetic, all
+      independently re-verified correct in round 1 -- per the review's
+      own explicit next_concrete_action, a second round is required only
+      if PF-11b/PF-11c resolve toward new duplicate code or a raising
+      assert, and both were resolved the other way (genuine reuse; a
+      reported field), so no second round is required.
+    findings_applied: [PF-11a, PF-11b, PF-11c]
+    pf11a_summary: >-
+      Applied. Named premise P-11a explicitly in amendment_scope and
+      inputs: RUN-SSIQ-a85692-b's own archived values are themselves
+      domain-exhaustive, supported circumstantially (not verified
+      directly, since that run recorded no per-vertex timed_out flag) by
+      this Coordinator's own independent re-derivation of
+      RUN-SSIQ-a85692-b/raw-result.json's phase_minus1_real_search["2437"]
+      fields (aggregate_seconds_available_at_prime_start=3600.0 vs
+      wall_seconds_used=284.88387155532837 across 194 vertices), matching
+      RT-PREFREEZE-EXP-SSIQ-a85692-v11.md's own figures exactly. A third
+      possible explanation for a nonzero
+      n_naturally_completed_NOT_matching_archived (P-11a failing for that
+      specific vertex) is now named alongside the original two.
+    pf11b_summary: >-
+      Applied. delta_e_truncation_sweep_v10.value_histogram_and_conjugate_pairs
+      is now stated explicitly as called TWICE per sweep point (once per
+      item (7), once per item (8) on the naturally-completed subset),
+      both genuine reuses, never a hand-written duplicate; required_artifacts_note's
+      parenthetical corrected to match.
+    pf11c_summary: >-
+      Applied. The n_naturally_completed+n_still_truncated==n_resolved
+      check is now specified as an explicit, non-raising boolean field
+      (natural_completion_partition_consistent), never a Python assert,
+      preventing an internal-consistency check from discarding an
+      otherwise-valid sweep point's results.
   inputs:
     floor_straddling_sweep_search_v11: >-
       TWO INDEPENDENT PART-A-ONLY BUDGET PASSES OVER ONE SHARED, ONCE-BUILT
@@ -284,8 +405,13 @@ experiment:
       trapping_diagnostic_v5.load_archived_prime_data;
       delta_e_independent_rng_probe_v8.verify_graph_identity (called once);
       delta_e_truncation_sweep_v10.value_histogram_and_conjugate_pairs
-      (called once per sweep point -- the first reuse of a v10-defined
-      function anywhere in this lineage). MAY, at the Executor's own
+      (FIX-2, RT-PREFREEZE-EXP-SSIQ-a85692-v11.md round 1: called TWICE
+      per sweep point, not once -- once on the full resolved_non_fp_set
+      per item (7), once on the naturally-completed subset alone per item
+      (8)'s own required histogram; both are genuine reuses of the
+      identical imported function, never a hand-written duplicate of any
+      slice of its logic -- the first reuse of a v10-defined function
+      anywhere in this lineage). MAY, at the Executor's own
       discretion, ALSO genuinely import delta_e_truncation_sweep_v10.
       vertex_json_safe and delta_e_truncation_sweep_v10.delta_map_json_safe
       (both trivial, pure, already-defined JSON-safety helpers) rather
@@ -325,5 +451,43 @@ experiment:
       vertices are predicted to complete naturally in less than their full
       budget -- that prediction is this amendment's own core test, not an
       assumption the budget relies on for safety margin.
-  frozen_at: null
-  freeze_note: null
+  frozen_at: '2026-08-06'
+  freeze_note: >-
+    FROZEN after ONE pre-freeze review round (FREEZE-WITH-FIXES on round
+    1 itself, not DO-NOT-FREEZE -- unlike v10, no second round is
+    required by this lineage's own convention, since a FREEZE-WITH-FIXES
+    verdict authorizes freeze once its named fixes are applied, and here
+    all three (PF-11a/b/c) resolved toward the low-risk options the
+    review itself identified as not requiring re-review). Execution
+    mechanics -- every cited import, the graph-rebuild-once discipline,
+    per-sweep-point failure isolation extended correctly to the new
+    natural-completion cross-check, and the worst-case budget arithmetic
+    (194*(1.1+1.2)=446.2s, 1000s/0.33-CPU-hour budget, ~2.24x margin) --
+    were independently verified correct against the real, already-
+    committed implementation files (delta_e_truncation_sweep_v10.py,
+    delta_e_truncation_probe_v9.py, delta_e_independent_rng_probe_v8.py,
+    trapping_diagnostic_v5.py, compute_delta_e.py,
+    compute_delta_e_v2.py), not merely trusted from the draft's own
+    prose. The three applied fixes: PF-11a names, for the first time in
+    this lineage despite being load-bearing for every prior "archived ==
+    true value" framing, the previously-unstated premise that
+    RUN-SSIQ-a85692-b's own archived values are themselves domain-
+    exhaustive, supported circumstantially (this Coordinator's own
+    independent re-derivation of that run's raw budget/wall-clock
+    figures, matching the review's own figures exactly) rather than
+    verified directly, since that run recorded no per-vertex timed_out
+    flag; PF-11b corrects an under-declared function-reuse count
+    (value_histogram_and_conjugate_pairs is called TWICE per sweep point,
+    not once) on a code path (b=1.1s) this run is certain to exercise;
+    PF-11c specifies the natural-completion partition's internal-
+    consistency check as a non-raising reported field, never a Python
+    assert, so an internal-consistency finding can never discard an
+    otherwise-valid sweep point's results. This freeze authorizes the
+    Executor to spend this amendment's budgeted real compute
+    (wall_clock_seconds_per_run: 1000, total_cpu_hours: 0.33, worst-case
+    bound 446.2s across two sweep points, ~2.24x margin, independently
+    re-verified correct); it makes no claim about H-SSIQ-36e970, a
+    delta_E-gradient's existence, or a p^{1/4} algorithm, and no claim
+    about whether any vertex actually completes naturally at b=1.2s, or
+    what value it resolves to, until RUN-SSIQ-a85692-k actually executes
+    and its result is independently reviewed.
