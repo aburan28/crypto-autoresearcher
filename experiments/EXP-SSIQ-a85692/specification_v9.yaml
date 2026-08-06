@@ -33,8 +33,8 @@ experiment:
     genuinely truncate (per-vertex budget well below observed completion
     times) reopen the value-difference channel RT-BATCH-011 showed v8's
     full-budget probe never actually tested? (BATCH-012)
-  status: draft
-  approved_by: null
+  status: approved
+  approved_by: coordinator
   amends: EXP-SSIQ-a85692 (version 8, specification_v8.yaml, frozen 2c17b69ec52f636ce894881f9f52fd91d1bff25f)
   amendment_scope: >-
     A SINGLE PART, PART A ONLY -- deliberately NO PART B (permutation-null
@@ -148,7 +148,7 @@ experiment:
       corrected to ~2.9x; PF-3: a reproducibility caveat on exact
       per-vertex resolved/timed-out counts across hardware; PF-4: the
       per-vertex budget is a soft, not hard, cap).
-    findings_applied: [PF-1, PF-2, PF-3, PF-4]
+    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-5]
     pf1_summary: >-
       BLOCKING (round 1). REQUIRED COMPARISON 2 cited "raw-result.json or
       probe_delta_e_comparison.json" as its source, but RUN-SSIQ-a85692-h's
@@ -185,6 +185,39 @@ experiment:
       PER_VERTEX_BUDGET_SECONDS is a soft cap (checked only between
       heap-pop iterations), not a hard one, consistent with v8's identical
       mechanism at a larger margin.
+    round2_report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-012/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v9-round2.md
+    round2_verdict: >-
+      FREEZE-WITH-FIXES. PF-1's fix independently re-verified correct and
+      complete by direct execution against RUN-SSIQ-a85692-h's real
+      committed artifacts (the tuple(json.loads(key)) round-trip applied
+      to all 203 real keys: zero collisions, zero parse failures; the
+      disclosed collision check confirmed verbatim identical to
+      load_archived_prime_data's real source). PF-2's corrected arithmetic
+      independently re-verified exactly correct. PF-3/PF-4 confirmed
+      accurate with no new claims. One new advisory finding, PF-5: the fix
+      closed the specific schema-mismatch crash PF-1 named but not the
+      general architectural pattern behind it (this lineage's own
+      established main() architecture writes all artifacts only at the
+      end, with no failure isolation between steps -- the identical shape
+      that made v8's own PF-1/PF-9 catastrophic) -- traced and confirmed
+      dormant, not live, for this run's actual fixed inputs (full
+      203/203 coverage in the comparison target, zero collisions in the
+      source file), so non-blocking, but applied in this same pass per
+      the reviewer's own recommendation.
+    pf5_summary: >-
+      ADVISORY, NEW (round 2), applied. The fix for PF-1 closed the
+      specific KeyError/schema-mismatch trigger but left the general
+      write-order pattern that produced it unaddressed: a Comparison-2
+      failure of ANY kind could still discard PART A's own already-valid,
+      more important result, since this lineage's own main()-style
+      architecture writes all artifacts only at the end with no failure
+      isolation. Fixed by requiring PART A's core measurement and
+      Comparison 1's result be captured before Comparison 2 is attempted,
+      and requiring Comparison 2's own code be wrapped so any exception is
+      caught and recorded as a comparison_2_error field rather than
+      propagating uncaught -- extending v8's own PF-1/PF-9 coverage-gate
+      discipline from gating PART B's execution to gating Comparison 2's
+      ability to erase PART A's result.
   inputs:
     truncation_probe_search_v9: >-
       PART A ONLY. A new module,
@@ -281,6 +314,31 @@ experiment:
       effect -- a genuinely different diagnostic axis than Comparison 1,
       which conflates budget and RNG-source in the same way v8's own
       Comparison did.
+      REQUIRED WRITE-ORDER / FAILURE-ISOLATION DISCIPLINE, PF-5 FIX APPLIED
+      (round 2 pre-freeze review, advisory: this lineage's own established
+      main()-style architecture -- delta_e_independent_rng_probe_v8.py's
+      own main(), which this amendment's driver is explicitly modeled on --
+      computes every step in memory and writes all artifacts only at the
+      very end, with no isolation between steps; this is the identical
+      architectural shape that made v8's own PF-1/PF-9 catastrophic, where
+      an unrelated downstream failure discarded PART A's own already-valid
+      result before anything was written. Round 2 traced the concrete
+      triggers for THIS run's real inputs and found them closed -- but the
+      general pattern is worth closing explicitly, not only its one
+      currently-live trigger): PART A's own core measurement (n_resolved,
+      n_timed_out, coverage_fraction, new_delta_map) and Comparison 1's
+      result MUST be captured into the run's in-memory result object
+      BEFORE Comparison 2's new parsing step is attempted, and Comparison
+      2's own parsing/comparison code MUST be wrapped so that ANY
+      exception it raises (not only the specific schema-mismatch PF-1
+      named) is caught and recorded as a comparison_2_error field
+      (string, the exception's own message) in the written output, rather
+      than propagating uncaught and discarding PART A's and Comparison 1's
+      own already-computed, more important results. This extends v8's own
+      PF-1/PF-9 coverage-gate discipline (which gated PART B's *execution*
+      on a coverage check) to gate Comparison 2's *ability to erase*
+      PART A's result, not merely to fix the one input schema that made it
+      crash in round 1 of this amendment's own review.
       JSON SAFETY (PF-13's convention, inherited unchanged): every
       vertex-keyed artifact output uses the IDENTICAL str(list(v))-keyed
       convention compute_delta_e_v2.py's own delta_map_json_safe already
@@ -398,5 +456,42 @@ experiment:
       immaterial; at this amendment's own tighter budget the distinction
       is disclosed explicitly, though the aggregate 600s/97.0s (~6.19x)
       margin makes it very unlikely to threaten the wall-clock cap.
-  frozen_at: null
-  freeze_note: null
+  frozen_at: '2026-08-06'
+  freeze_note: >-
+    FROZEN after TWO pre-freeze review rounds, proportionate to this
+    amendment's much smaller real-compute spend (worst case 97.0s) than
+    v8's own three-round review (worst case 2910s). Round 1
+    (DO-NOT-FREEZE) found one blocking defect: PF-1, REQUIRED COMPARISON
+    2 -- this amendment's own stated headline differentiator over v8's
+    own review -- cited a source file (raw-result.json) that does not
+    contain the field it names, with the one genuinely-importable
+    candidate parser hard-wired to an incompatible schema, creating a
+    live crash-before-artifact-write path and a live silent-vacuous-
+    result path, both directly demonstrated against the real committed
+    RUN-SSIQ-a85692-h artifacts, not merely inferred from prose. Fixed
+    by correcting the source-file citation and adding an explicit,
+    disclosed tuple(json.loads(key)) parsing helper with a collision
+    check. Three advisory findings (PF-2 arithmetic, PF-3 hardware-
+    reproducibility caveat, PF-4 soft-cap disclosure) applied in the
+    same pass. Round 2 (FREEZE-WITH-FIXES) independently re-verified
+    PF-1's fix by directly re-running the specified parsing round-trip
+    against all 203 real keys in the real committed file (zero
+    collisions, zero parse failures) and by reading load_archived_
+    prime_data's actual source to confirm the disclosed collision check
+    matches it verbatim -- not by re-reading the corrected prose as
+    self-evidently true. Found one new advisory finding (PF-5): the fix
+    closed the specific crash trigger but not the general write-order
+    pattern behind it (this lineage's own established architecture
+    writes all artifacts only at the end with no failure isolation
+    between steps -- the identical shape that made v8's own PF-1/PF-9
+    catastrophic), traced and confirmed dormant for this run's actual
+    fixed inputs, applied in this same pass as a zero-cost textual
+    addition extending v8's own coverage-gate discipline. This freeze
+    authorizes the Executor to spend this amendment's budgeted real
+    compute (wall_clock_seconds_per_run: 600, total_cpu_hours: 0.2,
+    worst-case bound 97.0s, ~6.19x margin, independently re-verified
+    correct in both rounds); it makes no claim about H-SSIQ-36e970, a
+    delta_E-gradient's existence, or a p^{1/4} algorithm, and no claim
+    about the truncation-mutation question itself until
+    RUN-SSIQ-a85692-i actually executes and its result is independently
+    reviewed.
