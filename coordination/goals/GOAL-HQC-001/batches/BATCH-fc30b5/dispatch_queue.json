@@ -1,0 +1,400 @@
+{
+  "schema": "crypto.autoresearch.dispatch_queue.v1",
+  "goal_id": "GOAL-HQC-001",
+  "batch_id": "BATCH-fc30b5",
+  "objective": "Resolve the pilot's statistical ambiguity cheaply, per DEC-20260806-9a4551's next_actions items 1-2: a matched-pair reanalysis of TASK-20260806-77a574's already-collected pilot data (no new sampling), and a real required-T derivation from the defect's own measured local effect size (the Red Team's 10.7 percent flip rate at the injected block, not the undefected estimator's T_req). This batch does NOT authorize a positive-control pilot (item 3) or the full T_req run -- those remain gated on this batch's outcome.",
+  "max_concurrent": 3,
+  "tasks": [
+    {
+      "id": "TASK-20260806-e120e8",
+      "role": "executor",
+      "state": "queued",
+      "priority": 1,
+      "depends_on": [],
+      "review_required": true,
+      "title": "Matched-pair reanalysis of the pilot's existing data, plus a defect-specific required-T derivation",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-8d4d48/validation_report.yaml",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-92aecb/red_team_report.md",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py",
+        "ledger/evidence/EV-HQC-67a6ec.yaml",
+        "ledger/decisions/DEC-20260806-9a4551.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/design.md",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/matched_pair_reanalysis.py",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/reanalysis_results.json",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/reanalysis_report.md",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/run_manifest.yaml"
+      ],
+      "budget": {
+        "wall_clock_seconds": 1800,
+        "runs_authorized": 1,
+        "core_seconds": 200
+      },
+      "handoff": {
+        "id": "TASK-20260806-e120e8",
+        "from": "coordinator",
+        "to": "executor",
+        "objective": "Two deliverables, both derived from TASK-20260806-77a574's ALREADY-COLLECTED pilot data -- no new (T)-sampling is authorized or needed: (1) recompute the defected-vs-undefected comparison using a MATCHED-PAIR design (same underlying random draws, decoded once true and once defected, as the Red Team's TASK-20260806-92aecb probe demonstrated is possible and far tighter) instead of the pilot's original disjoint-shard design, at k=m=17 and across the full reported k range; (2) derive the actual required T for THIS specific defect (V3, last-block-only) at THIS injection point, using the Red Team's measured 10.7 percent local flip rate as the effect-size input to a proper power calculation for the PROPAGATED (estimator-level, not block-level) statistic -- not by reusing the undefected pipeline's T_req, which answers a different question.",
+        "uncertainty_reduced": "Whether the pilot's clean null at k=17 (z=-0.466, EV-HQC-67a6ec) reflects a genuine near-zero propagated effect or was simply invisible to an avoidably weak comparison design -- resolving this determines whether the campaign's next action is scaling to the full run, a positive-control pilot, or something else.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/pilot_results.json (the raw defected and undefected trial data already collected -- reuse it, do not regenerate it)",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-92aecb/red_team_report.md (the matched-pair method and the 10.7 percent local effect-size measurement this task must reuse and build on, not reinvent)",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/ (measure.py's comb_matrix, log2_A_from_hists, jackknife formulas -- reuse via sha256-pinned import as every prior batch has)"
+        ],
+        "constraints": [
+          "NO NEW (T)-SAMPLING. This task works entirely from TASK-20260806-77a574's already-collected pilot_results.json (and, if the matched-pair method requires access to raw per-trial decode outcomes not present in that summary file, regenerate ONLY the same already-used shards deterministically via stage_a.py's real _t_shard with the SAME seeds the pilot used -- reproducing existing data, not collecting new data -- and say explicitly that this is what you did).",
+          "REUSE THE RED TEAM'S MATCHED-PAIR METHOD, do not reinvent it: read TASK-20260806-92aecb's red_team_report.md closely for exactly how the matched-pair comparison was constructed (same random draws decoded once true, once defected) and reproduce that method, extending it to the full k range and re-verifying it against the Validator's and Red Team's own reported numbers as a sanity check before reporting new results.",
+          "FOR THE REQUIRED-T DERIVATION: state your power/precision target explicitly (e.g. a specific z-threshold and desired detection probability), derive the propagated effect size at the log2_Ahat_k level implied by the 10.7 percent local flip rate (not just restate the local rate), and compute the T needed for that effect to be reliably distinguished from the null under the MATCHED-PAIR design's tighter SE (not the pilot's original wider one).",
+          "STATE PLAINLY whether the matched-pair reanalysis, on its own, resolves the ambiguity (i.e., whether it now shows a clear signal or a clear null) or whether it remains genuinely ambiguous even under the tighter design -- do not round an intermediate result to a clean conclusion.",
+          "FAIL-CLOSED: any self-integrity check must actually abort on a real mismatch.",
+          "YOU ARE THE EXECUTOR: OBSERVATIONS ONLY. Report the matched-pair statistics and the required-T derivation as facts. Do NOT make the campaign-level call (positive control vs. full run vs. something else) -- that is the Coordinator's and reviewers' job next. Claim tier stays toy.",
+          "Do not touch experiments/EXP-HQC-982268/specification.yaml, stage_a.py, measure.py, or any other task's directory. Write only under your own task directory. Only one run is authorized."
+        ],
+        "deliverables": [
+          "design.md",
+          "matched_pair_reanalysis.py",
+          "reanalysis_results.json",
+          "reanalysis_report.md",
+          "run_manifest.yaml"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/"
+        ],
+        "archived_by": "TASK-20260806-7bbbc8",
+        "inference": {
+          "policy": "executor-implementation",
+          "reasoning_effort": null,
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "design.md exists and states the power/precision target for the required-T derivation before results are reported",
+          "matched_pair_reanalysis.py reuses measure.py's estimator code via sha256-pinned import and the Red Team's matched-pair method, cited explicitly",
+          "reanalysis_report.md states whether the ambiguity is resolved (clear signal, clear null) or remains genuinely ambiguous, and gives the derived required-T for this specific defect and injection point",
+          "run_manifest.yaml carries command, git commit and dirty-tree state, environment, seeds, timings, validity status, and states explicitly whether any data was regenerated (deterministically, same seeds) versus purely reanalyzed from pilot_results.json"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-7bbbc8",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 2,
+      "depends_on": [
+        "TASK-20260806-e120e8"
+      ],
+      "review_required": false,
+      "title": "Snapshot the matched-pair reanalysis before review",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/archives/TASK-20260806-7bbbc8/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/archives/TASK-20260806-7bbbc8/snapshot-receipt.json"
+      ],
+      "budget": {
+        "wall_clock_seconds": 900,
+        "runs_authorized": 1
+      },
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": [
+          "TASK-20260806-e120e8"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": [
+          "EXP-HQC-982268"
+        ]
+      },
+      "handoff": {
+        "id": "TASK-20260806-7bbbc8",
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Freeze the matched-pair reanalysis artifacts before either review is dispatched.",
+        "uncertainty_reduced": "Whether reviewers read artifacts frozen by construction rather than by argument.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/"
+        ],
+        "constraints": [
+          "Runs alone.",
+          "Stage by exact pathspec.",
+          "This commit MUST precede both TASK-20260806-f743ae and TASK-20260806-2cec38."
+        ],
+        "deliverables": [
+          "snapshot-receipt.json"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/archives/TASK-20260806-7bbbc8/"
+        ],
+        "archived_by": "TASK-20260806-7bbbc8",
+        "inference": {
+          "policy": "coordinator-orchestration-code",
+          "reasoning_effort": null,
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 900,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "Commit reachable from HEAD with declared parent",
+          "Changes exactly the declared paths",
+          "Hashes match"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-f743ae",
+      "role": "validator",
+      "state": "queued",
+      "priority": 3,
+      "depends_on": [
+        "TASK-20260806-e120e8",
+        "TASK-20260806-7bbbc8"
+      ],
+      "review_required": false,
+      "title": "Validate the matched-pair reanalysis and required-T derivation",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-92aecb/red_team_report.md",
+        "ledger/evidence/EV-HQC-67a6ec.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/reviews/TASK-20260806-f743ae/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/reviews/TASK-20260806-f743ae/validation_report.yaml"
+      ],
+      "budget": {
+        "wall_clock_seconds": 1800,
+        "runs_authorized": 1
+      },
+      "handoff": {
+        "id": "TASK-20260806-f743ae",
+        "from": "coordinator",
+        "to": "validator",
+        "objective": "Independently recompute the matched-pair statistic from pilot_results.json (or the deterministically-regenerated same-seed data) and the required-T derivation, and confirm the reanalysis genuinely used the Red Team's matched-pair method rather than a different or weaker method presented as equivalent.",
+        "uncertainty_reduced": "Whether the reanalysis's stated resolution (or continued ambiguity) is trustworthy enough to determine the campaign's next step.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-92aecb/red_team_report.md"
+        ],
+        "constraints": [
+          "Independent session. Recompute the matched-pair diff/SE/z yourself from the same underlying data, before consulting the reported conclusion.",
+          "Confirm no new (T)-sampling occurred, or if same-seed data was regenerated, confirm it is bit-identical to the original pilot's data.",
+          "Independently check the required-T derivation's power/precision target and arithmetic.",
+          "State an explicit ADMIT / DO-NOT-ADMIT verdict.",
+          "State your own independent read: does the matched-pair reanalysis resolve the ambiguity (and in which direction), or does genuine ambiguity remain?",
+          "You verify; you do not change status."
+        ],
+        "deliverables": [
+          "validation_report.yaml"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/reviews/TASK-20260806-f743ae/"
+        ],
+        "archived_by": "TASK-20260806-908795",
+        "inference": {
+          "policy": "review-adversarial",
+          "reasoning_effort": "xhigh",
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        },
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "An independently recomputed matched-pair statistic",
+          "An independent check of the required-T derivation",
+          "An explicit ADMIT / DO-NOT-ADMIT verdict",
+          "An explicit resolved/still-ambiguous judgement"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-2cec38",
+      "role": "red-team",
+      "state": "queued",
+      "priority": 3,
+      "depends_on": [
+        "TASK-20260806-e120e8",
+        "TASK-20260806-7bbbc8"
+      ],
+      "review_required": false,
+      "title": "Red-team the matched-pair reanalysis: does it actually settle the question this batch exists to answer?",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-92aecb/red_team_report.md",
+        "ledger/evidence/EV-HQC-67a6ec.yaml",
+        "ledger/decisions/DEC-20260806-9a4551.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/reviews/TASK-20260806-2cec38/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/reviews/TASK-20260806-2cec38/red_team_report.md"
+      ],
+      "budget": {
+        "wall_clock_seconds": 1800,
+        "runs_authorized": 1
+      },
+      "handoff": {
+        "id": "TASK-20260806-2cec38",
+        "from": "coordinator",
+        "to": "red-team",
+        "objective": "You (a prior instance of your role) identified this exact reanalysis as the cheap next step. Attack whether it was actually executed correctly and whether it genuinely resolves the ambiguity you found, or whether a new, subtler issue remains.",
+        "uncertainty_reduced": "Whether the campaign now has enough information to choose between the original stopping rule's branches (full run vs. PAUSE), or whether a positive-control pilot (item 3 of DEC-20260806-9a4551) is still needed.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/tasks/TASK-20260806-e120e8/",
+          "ledger/decisions/DEC-20260806-9a4551.yaml"
+        ],
+        "constraints": [
+          "Independent session. Verify the matched-pair method used here is genuinely the same rigor as your own prior probe, not a superficially similar but weaker approximation.",
+          "If the reanalysis reports a resolved result (clear signal or clear null), stress-test it: does it hold up under your own independent recomputation, and does the required-T derivation actually follow from the stated effect size and power target, or does it contain an optimistic assumption?",
+          "If the reanalysis reports continued ambiguity, confirm that is genuine and not an artifact of an avoidable weakness in HOW the matched-pair method was applied this time.",
+          "State an explicit ADMIT / DO-NOT-ADMIT verdict.",
+          "State your own independent recommendation for the campaign's actual next action: proceed to the full T_req run, dispatch the positive-control pilot (item 3), or something else -- with reasoning.",
+          "Report any budget overrun rather than trimming your attack short."
+        ],
+        "deliverables": [
+          "red_team_report.md"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/reviews/TASK-20260806-2cec38/"
+        ],
+        "archived_by": "TASK-20260806-908795",
+        "inference": {
+          "policy": "review-adversarial",
+          "reasoning_effort": "xhigh",
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        },
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "A stress-test of the reanalysis's method and arithmetic",
+          "An explicit ADMIT / DO-NOT-ADMIT verdict",
+          "An explicit recommended next action with reasoning"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-908795",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 4,
+      "depends_on": [
+        "TASK-20260806-f743ae",
+        "TASK-20260806-2cec38",
+        "TASK-20260806-7bbbc8"
+      ],
+      "review_required": false,
+      "title": "Ledger archive: reanalysis evidence, ambiguity disposition, and batch/goal checkpoint",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/archives/TASK-20260806-908795/",
+        "ledger/evidence/",
+        "ledger/decisions/",
+        "ledger/goals/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/archives/TASK-20260806-908795/ledger-receipt.json"
+      ],
+      "budget": {
+        "wall_clock_seconds": 900,
+        "runs_authorized": 1
+      },
+      "archive": {
+        "kind": "ledger",
+        "source_task_ids": [
+          "TASK-20260806-e120e8",
+          "TASK-20260806-f743ae",
+          "TASK-20260806-2cec38"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": []
+      },
+      "handoff": {
+        "id": "TASK-20260806-908795",
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Commit both independent reviews of the matched-pair reanalysis plus a new evidence and decision record, apply the original stopping rule now that (hopefully) the ambiguity is resolved -- or name the positive-control pilot as the next action if it is not -- then checkpoint GOAL-HQC-001 with exactly one next action.",
+        "uncertainty_reduced": "What the reanalysis licenses the campaign to decide next: the full T_req run, a positive-control pilot, or a PAUSE review.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/reviews/TASK-20260806-f743ae/",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/reviews/TASK-20260806-2cec38/",
+          "ledger/evidence/EV-HQC-67a6ec.yaml",
+          "ledger/decisions/DEC-20260806-9a4551.yaml"
+        ],
+        "constraints": [
+          "Runs alone.",
+          "Mint new EV-HQC-* and DEC-YYYYMMDD-* IDs with tools/allocate_id.py --next, --check each before use.",
+          "If both reviews agree the ambiguity is resolved with a clear signal or clear null, apply DEC-20260806-1ac8fa's original stopping rule accordingly (full run if sound and null; treat a genuine signal per AGENTS.md rule 4/6 evidence rules -- do not overclaim from one toy run).",
+          "If either review finds continued ambiguity, or the reviews disagree in a way not cleanly resolvable, the next action is the positive-control pilot (DEC-20260806-9a4551 item 3) -- do not default to the full run under continued ambiguity.",
+          "Claim tier stays toy regardless of outcome.",
+          "Update ledger/goals/GOAL-HQC-001.yaml: batch_checkpoints entry for BATCH-fc30b5, latest_verified_commit, and exactly one next action."
+        ],
+        "deliverables": [
+          "ledger-receipt.json",
+          "a new EV-HQC-* evidence record",
+          "a new DEC-YYYYMMDD-* decision record",
+          "GOAL-HQC-001.yaml checkpoint"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-fc30b5/archives/TASK-20260806-908795/"
+        ],
+        "archived_by": "TASK-20260806-908795",
+        "inference": {
+          "policy": "coordinator-orchestration-code",
+          "reasoning_effort": null,
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 900,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "Commit verifies against git",
+          "Declared record IDs in filenames and record_ids",
+          "An explicit ambiguity-resolution disposition with rationale",
+          "GOAL-HQC-001.yaml checkpoint carries exactly one next action"
+        ]
+      }
+    }
+  ]
+}
