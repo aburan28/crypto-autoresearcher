@@ -48,144 +48,315 @@ experiment:
   approved_by: null
   amends: EXP-SSIQ-a85692 (version 9, specification_v9.yaml, frozen d729af05328f7e40fe466f4e4d473298e246db8f)
   amendment_scope: >-
-    THREE INDEPENDENT PART-A-ONLY RUNS (no PART B, same reasoning as v9:
-    a partial-coverage delta_map has no principled domain for
-    depth0_fraction), against the SAME prime and SAME rebuilt graph every
-    amendment since v5 has used, p=2437, via
-    trapping_diagnostic_v5.build_graph_for_prime(2437, 20260805). PER SWEEP
-    POINT b in [0.6, 0.8, 1.0] (seconds): (1) rebuild the graph (IMPORTED
-    UNCHANGED); re-run the two-part graph-identity verification via
-    delta_e_independent_rng_probe_v8.verify_graph_identity (GENUINELY
-    IMPORTED, UNCHANGED, exactly as v9 did) BEFORE any delta_E search
-    begins for that sweep point; (2) wire all 9 F_p-rational vertices to
-    new_delta_map[v]=1 unconditionally BEFORE the search loop (IDENTICAL
-    required construction step to v8/v9's own PF-9 fix); (3) for every
-    non-F_p-rational vertex, construct a FRESH random.Random instance via
-    delta_e_independent_rng_probe_v8.derive_per_vertex_seed (GENUINELY
-    IMPORTED, UNCHANGED, IDENTICAL BASE_SEED=20260811 v8/v9 both used --
-    the SAME deliberate design choice v9 made, extended across all three
-    sweep points: holding the per-vertex RNG stream IDENTICAL across v8,
-    v9, and every point in this sweep isolates budget as the ONLY
-    manipulated variable throughout this entire lineage, not merely within
-    one run) and call compute_delta_e.two_sided_search with
-    time_budget_seconds=b, a FIXED constant per sweep point (never a
-    function of elapsed/remaining time, and never shared across sweep
-    points -- each of the three runs is fully independent, using the
-    SAME per-vertex seeds but a DIFFERENT fixed budget); (4) record,
-    per vertex, per sweep point: resolved (bool), delta_e_upper_bound
-    (int or None), wall_seconds (float), timed_out (bool); (5) REQUIRED
-    REPORTING per sweep point: n_resolved, n_timed_out, coverage_fraction
-    (identical denominator convention to v8/v9: n_resolved / 194); (6)
-    REQUIRED COMPARISON 1 per sweep point, against RUN-SSIQ-a85692-b's
-    archived delta_map (via trapping_diagnostic_v5.load_archived_prime_data,
-    GENUINELY IMPORTED, UNCHANGED, READ ONLY) -- IDENTICAL in structure to
-    v9's own Comparison 1; (7) REQUIRED COMPARISON 2 per sweep point,
+    THREE INDEPENDENT PART-A-ONLY BUDGET PASSES OVER ONE SHARED GRAPH (no
+    PART B, same reasoning as v9: a partial-coverage delta_map has no
+    principled domain for depth0_fraction), against the SAME prime,
+    p=2437, via trapping_diagnostic_v5.build_graph_for_prime(2437,
+    20260805). GRAPH REBUILD/RE-VERIFY HAPPENS EXACTLY ONCE, PF-1 FIX
+    APPLIED (round 1 pre-freeze review, BLOCKING: the original draft
+    stated "rebuilt ONCE" in one place and "rebuilt three times, once per
+    sweep point" in two other places, a direct self-contradiction two
+    good-faith Executors could resolve differently, producing structurally
+    incompatible artifacts -- RESOLVED toward the "ONCE" design, the more
+    defensible on its own stated efficiency grounds, since the graph does
+    not depend on budget): (0) BEFORE the sweep loop begins, rebuild the
+    graph (IMPORTED UNCHANGED) exactly once and re-run the two-part
+    graph-identity verification via delta_e_independent_rng_probe_v8.
+    verify_graph_identity (GENUINELY IMPORTED, UNCHANGED, exactly as v9
+    did) exactly once; graph_identity_verification is a SINGLE top-level
+    field in the required artifact, not repeated per sweep point, and the
+    IDENTICAL graph object (not rebuilt) is reused across all three sweep
+    points below.
+    THEN, PER SWEEP POINT b in [0.6, 0.8, 1.0] (seconds), EACH SWEEP
+    POINT'S ENTIRE BUNDLE WRAPPED IN ITS OWN EXCEPTION HANDLER, PF-2 FIX
+    APPLIED (round 1 pre-freeze review, BLOCKING: the original draft's
+    write-order/failure-isolation discipline covered only Comparison 2,
+    mirroring v9's own PF-5 scope exactly, while its own stated intent
+    ("a failure at one budget must never affect the other two") was
+    broader than that mechanism -- neither PART A itself nor the new
+    histogram/conjugate-pair reporting code, both unprotected in the
+    original draft, had ever been exercised in this lineage before, and
+    the single combined required artifact implied a write-once-at-the-end
+    architecture under which sweep point 3's failure could discard sweep
+    points 1 and 2's already-valid, real-compute-backed results -- a
+    worse outcome than any prior single-point amendment's failure mode.
+    FIXED by wrapping each sweep point's COMPLETE bundle, not merely
+    Comparison 2, in its own outer try/except): (1) wire all 9
+    F_p-rational vertices to new_delta_map[v]=1 unconditionally BEFORE
+    the search loop (IDENTICAL required construction step to v8/v9's own
+    PF-9 fix); (2) for every non-F_p-rational vertex, construct a FRESH
+    random.Random instance via delta_e_independent_rng_probe_v8.
+    derive_per_vertex_seed (GENUINELY IMPORTED, UNCHANGED, IDENTICAL
+    BASE_SEED=20260811 v8/v9 both used -- the SAME deliberate design
+    choice v9 made, extended across all three sweep points: holding the
+    per-vertex RNG stream IDENTICAL across v8, v9, and every point in
+    this sweep isolates budget as the ONLY manipulated variable
+    throughout this entire lineage) and call compute_delta_e.
+    two_sided_search with time_budget_seconds=b, a FIXED constant per
+    sweep point (never a function of elapsed/remaining time, and never
+    shared across sweep points); (3) record, per vertex, per sweep
+    point: resolved (bool), delta_e_upper_bound (int or None),
+    wall_seconds (float), timed_out (bool); (4) REQUIRED REPORTING per
+    sweep point: n_resolved, n_timed_out, coverage_fraction (identical
+    denominator convention to v8/v9: n_resolved / 194); (5) REQUIRED
+    COMPARISON 1 per sweep point, against RUN-SSIQ-a85692-b's archived
+    delta_map (via trapping_diagnostic_v5.load_archived_prime_data,
+    GENUINELY IMPORTED, UNCHANGED, READ ONLY) -- IDENTICAL in structure
+    to v9's own Comparison 1; (6) REQUIRED COMPARISON 2 per sweep point,
     against RUN-SSIQ-a85692-h's own new_delta_map (v8's non-truncated
-    15.0s-budget probe) -- IDENTICAL in structure and parsing convention to
-    v9's own Comparison 2 (load ONLY probe_delta_e_comparison.json, apply
-    tuple(json.loads(key)) with the same collision check, PF-1's fix from
-    v9's own round-1 pre-freeze review, reused here unchanged); (8)
-    REQUIRED WRITE-ORDER / FAILURE-ISOLATION DISCIPLINE, IDENTICAL to v9's
-    own PF-5 fix, extended across all three sweep points independently:
-    each sweep point's own PART A result and Comparison 1 result MUST be
-    captured before that sweep point's Comparison 2 is attempted, and each
-    sweep point's Comparison 2 code MUST be wrapped so any exception
-    becomes a recorded comparison_2_error field for THAT sweep point only,
-    never discarding any other sweep point's already-computed results --
-    the three sweep points are fully independent in both computation and
-    failure isolation, so a failure at one budget must never affect the
-    other two.
+    15.0s-budget probe) -- IDENTICAL in structure and parsing convention
+    to v9's own Comparison 2 (load ONLY probe_delta_e_comparison.json,
+    apply tuple(json.loads(key)) with the same collision check, PF-1's
+    fix from v9's own round-1 pre-freeze review, reused here unchanged);
+    (7) REQUIRED CROSS-SWEEP REPORTING (below) for this sweep point.
+    STEPS (1) THROUGH (7) ABOVE, FOR ONE SWEEP POINT, ARE ALL INSIDE THAT
+    SWEEP POINT'S OWN try BLOCK: if ANY exception is raised anywhere in
+    steps (1)-(7) for sweep point b, catch it, record a sweep_point_error
+    field (string, the exception's message) for THAT sweep point alone,
+    and CONTINUE to the next sweep point in the list -- never let one
+    sweep point's failure prevent another, already-attempted-or-yet-to-
+    be-attempted sweep point's own independent try block from running or
+    from having its own successful result written. Accumulate each sweep
+    point's outcome (full result, or a sweep_point_error record)
+    INCREMENTALLY into a list as each sweep point completes (success or
+    failure), and make the final combined artifact write unconditional on
+    how many of the three sweep points actually succeeded -- 0, 1, 2, or
+    3 successes must all produce a valid, honestly-reported
+    truncation_sweep_comparison.json.
     REQUIRED CROSS-SWEEP REPORTING (the genuinely new analysis this
-    amendment adds beyond a mechanical repeat of v9 three times): for
-    each sweep point, report the FULL delta_e_upper_bound VALUE HISTOGRAM
-    of its own resolved non-F_p-rational vertices (not merely
-    n_resolved), and compare that histogram's shape against
-    RUN-SSIQ-a85692-b's own true archived population histogram over the
-    same 194-vertex domain (delta_E=2: 34/194=17.5%, delta_E=3:
-    70/194=36.1% the modal value, delta_E>=4: 90/194=46.4% -- this
-    Coordinator's own independently-reproduced figures, matching
-    RT-BATCH-012's identical histogram exactly). This directly tests
-    RT-BATCH-012's own falsifiable prediction (Front 2(b)/"Counterexample
-    or mutation"): if the resolved-value distribution remains dominated
-    by delta_E=2 far out of proportion to its 17.5% population share EVEN
-    AT b=1.0 (the sweep's most generous point, still below the 1.14993s
-    natural-completion floor), that is a genuinely surprising result the
+    amendment adds beyond a mechanical repeat of v9 three times, per
+    sweep point, inside that sweep point's own try block per the
+    failure-isolation discipline above): report the FULL
+    delta_e_upper_bound VALUE HISTOGRAM of this sweep point's own
+    resolved non-F_p-rational vertices (not merely n_resolved) -- a
+    dict from value to count, EMPTY ({}) if n_resolved==0 for this sweep
+    point, PF-8 FIX APPLIED (round 1 pre-freeze review, advisory: require
+    this empty-histogram case to be an explicitly-handled, well-defined
+    output, not an assumed-away edge case, since v10 is drafted before
+    any of the three sweep points' actual n_resolved values are known,
+    and b=0.6 -- only modestly above v9's 0.5s, which produced
+    n_resolved=8 -- could plausibly resolve very few or zero vertices) --
+    and compare that histogram's shape against RUN-SSIQ-a85692-b's own
+    true archived population histogram over the same 194-vertex domain
+    (delta_E=2: 34/194=17.5%, delta_E=3: 70/194=36.1% the modal value,
+    delta_E>=4: 90/194=46.4% -- this Coordinator's own independently-
+    reproduced figures, matching RT-BATCH-012's identical histogram
+    exactly). This directly tests RT-BATCH-012's own falsifiable
+    prediction (Front 2(b)/"Counterexample or mutation"): if the
+    resolved-value distribution remains dominated by delta_E=2 far out
+    of proportion to its 17.5% population share EVEN AT b=1.0 (the
+    sweep's most generous point, still below the 1.14993s natural-
+    completion floor), that is a genuinely surprising result the
     best-first-search selection-effect mechanism does NOT predict, worth
     flagging explicitly rather than assumed away; if it shifts toward the
     true population mix as b grows, that CONFIRMS the traced mechanism
     and, separately, whether the confirmed shift also breaks v9's own
     Frobenius-conjugate-pairing degeneracy (are the resolved sets at
     higher budgets still exclusively conjugate pairs, or does that
-    correlation weaken too) MUST be reported explicitly, using the
-    IDENTICAL frobenius(x)=(a, p-b) check RT-BATCH-012 applied
-    (build_isogeny_graph.py's own frobenius function, GENUINELY IMPORTED,
-    UNCHANGED) -- never silently omitted, since RT-BATCH-012 named this
-    as a SEPARATE, compounding limitation from the value-extremity bias,
-    not merely a restatement of it.
+    correlation weaken too) MUST be reported explicitly, using
+    graph["field"].frobenius(v) -- PF-4 FIX APPLIED (round 1 pre-freeze
+    review, BLOCKING: the original draft cited "build_isogeny_graph.
+    frobenius" as a directly-importable module-level name; no such name
+    exists -- frobenius is Fp2Field.frobenius(self, x), an instance
+    method reachable ONLY via the already-imported graph object's own
+    field, graph["field"].frobenius(v), exactly the form v9's own code
+    and RT-BATCH-012's own trace already used) -- never silently
+    omitted, since RT-BATCH-012 named this as a SEPARATE, compounding
+    limitation from the value-extremity bias, not merely a restatement
+    of it. STATISTICAL-POWER FRAMING REQUIRED, PF-7 FIX APPLIED (round 1
+    pre-freeze review, advisory): any statement, in this amendment's own
+    execution_report.yaml or any future citation, of a histogram shift
+    toward the true population mix MUST report n_resolved and the
+    conjugate-pair-corrected effective sample size (per
+    n_conjugate_pairs_among_resolved below) alongside it, never a bare
+    percentage comparison -- the identical statistical-power discipline
+    RT-BATCH-012 applied to v9's own 0/8 result.
+    CROSS-HARDWARE REPRODUCIBILITY CAVEAT, PF-6 FIX APPLIED (round 1
+    pre-freeze review, advisory): this amendment's "every budget stays
+    below the observed 1.14993s floor, so every vertex is guaranteed
+    genuinely truncated at every sweep point" premise rests on comparing
+    THIS run's (RUN-SSIQ-a85692-j's) wall-clock behavior against a
+    DIFFERENT run's (RUN-SSIQ-a85692-h's) hardware-measured floor --
+    inheriting v9's own PF-3 finding that exact per-vertex wall-clock
+    cutoff behavior is not bit-for-bit reproducible across hardware. On
+    sufficiently different hardware, even the direction of this guarantee
+    could in principle weaken, though this is very unlikely given the
+    ~13-70% margin between the largest sweep point (1.0s) and the
+    observed 1.15-1.70s natural-completion range.
     BUDGET JUSTIFICATION (REQUIRED, since this is NOT zero new search
     cost): worst case per sweep point b, if EVERY one of 194 vertices
     consumes its FULL budget without resolving, total search time for
     that point is 194*b. At b=1.0 (the largest sweep point), worst case
     is 194.0s; summed across all three points (0.6+0.8+1.0=2.4s/vertex
     aggregate), the worst-case TOTAL search time across the entire sweep
-    is 194*2.4 = 465.6 seconds. Graph reconstruction runs three times
-    (once per sweep point, ~1-2s each per every prior amendment's own
-    measured figures) and is negligible against this bound.
+    is 194*2.4 = 465.6 seconds. Graph reconstruction runs EXACTLY ONCE
+    (~1-2s per every prior amendment's own measured figures, per PF-1's
+    fix above -- NOT three times) and is negligible against this bound.
   pre_freeze_review:
-    status: pending
-    report: null
-    verdict: null
-    findings_applied: []
+    status: REVIEWED
+    report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-013/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v10.md
+    verdict: >-
+      Round 1: DO-NOT-FREEZE. The core experimental design (three
+      intermediate budgets, all independently re-verified strictly below
+      the observed 1.14993s natural-completion floor, correctly isolating
+      budget as the sole manipulated variable via v8/v9's already-audited
+      seed formula) was confirmed sound, and the self-conjugate-vertex
+      edge case the conjugate-pair reporting logic depends on was proven
+      impossible at p=2437 (no fix needed). Four blocking findings, all
+      textual, zero new compute: PF-1, the draft directly contradicted
+      itself on whether the graph is rebuilt once or three times; PF-2,
+      the write-order/failure-isolation discipline covered only
+      Comparison 2 per sweep point, leaving PART A and the new
+      histogram/conjugate-pair code unprotected against exactly the
+      failure shape that made v8's own PF-1/PF-9 catastrophic, now
+      concretely worse since three formerly-independent runs share one
+      combined artifact; PF-3, the stated justification for a new,
+      generalized search function was false on direct code read --
+      v9's own run_truncation_probe_v9 already takes budget as a
+      parameter and is already genuinely reusable unchanged; PF-4, a
+      citation of "build_isogeny_graph.frobenius" as a directly-
+      importable module-level name that does not exist (frobenius is an
+      Fp2Field instance method). All four fixed below. Four further
+      advisory findings applied in the same pass (PF-5: pre-resolved an
+      unnecessary reuse disjunction toward genuine import; PF-6:
+      restated v9's own cross-hardware reproducibility caveat; PF-7:
+      required statistical-power framing for any future histogram-shift
+      citation; PF-8: required well-defined empty-histogram handling at
+      n_resolved=0).
+    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-5, PF-6, PF-7, PF-8]
+    pf1_summary: >-
+      BLOCKING (round 1). The draft asserted "rebuilt ONCE" in inputs
+      and "rebuilt three times, once per sweep point" in both
+      amendment_scope's PROCEDURE list and its own BUDGET JUSTIFICATION
+      paragraph -- an internal self-contradiction two good-faith
+      Executors could resolve differently, producing structurally
+      incompatible artifacts. Fixed by moving graph rebuild/identity
+      re-verification outside the sweep loop entirely (runs exactly
+      once, before any sweep point), with graph_identity_verification as
+      a single top-level artifact field, and correcting both other
+      "three times" references to match.
+    pf2_summary: >-
+      BLOCKING (round 1). The write-order/failure-isolation discipline
+      was scoped to Comparison 2 only, per sweep point, mirroring v9's
+      own PF-5 exactly -- but its own stated intent ("a failure at one
+      budget must never affect the other two") was broader than that
+      mechanism, and neither PART A nor the new histogram/conjugate-pair
+      code (unprecedented in this lineage) was protected, with a single
+      combined required artifact implying a write-once-at-the-end
+      architecture under which one sweep point's crash could discard
+      others' already-valid results. Fixed by wrapping each sweep
+      point's ENTIRE bundle (PART A + both comparisons + histogram/
+      conjugate-pair analysis) in its own try/except recording a
+      sweep_point_error field for that budget alone, with incremental
+      accumulation so the final artifact write is unconditional on how
+      many sweep points succeeded.
+    pf3_summary: >-
+      BLOCKING (round 1). required_artifacts_note's justification for a
+      new "generalized" search function was false: v9's own
+      run_truncation_probe_v9 already takes per_vertex_budget_seconds as
+      an explicit parameter, never referencing the module-level
+      constant internally. Fixed by requiring this amendment's new
+      module to genuinely import and call run_truncation_probe_v9
+      directly for the per-vertex search loop, with zero
+      reimplementation.
+    pf4_summary: >-
+      BLOCKING (round 1). "build_isogeny_graph.frobenius" was cited as a
+      directly-importable module-level name; no such name exists --
+      frobenius is Fp2Field.frobenius, an instance method reachable only
+      via graph["field"].frobenius(v). Fixed by correcting the citation
+      throughout amendment_scope, inputs, and required_artifacts_note.
+    pf5_summary: >-
+      ADVISORY (round 1), applied. Pre-resolved the parse_v8_new_delta_map
+      reuse disjunction toward genuine import, confirmed unconditionally
+      safe on direct code read.
+    pf6_summary: >-
+      ADVISORY (round 1), applied. Restated v9's own PF-3 cross-hardware
+      wall-clock reproducibility caveat for this amendment's "every
+      vertex guaranteed truncated at every sweep point" premise.
+    pf7_summary: >-
+      ADVISORY (round 1), applied. Required that any future citation of
+      a cross-sweep histogram-shift finding report n_resolved and the
+      conjugate-pair-corrected effective sample size alongside it, not a
+      bare percentage comparison, matching RT-BATCH-012's own
+      statistical-power discipline.
+    pf8_summary: >-
+      ADVISORY (round 1), applied. Required the histogram/conjugate-pair
+      reporting logic produce a well-defined empty result ({}, 0, 0) at
+      n_resolved=0 for any sweep point, an outcome not yet known and
+      plausible at b=0.6.
   inputs:
     truncation_sweep_search_v10: >-
-      THREE INDEPENDENT PART-A-ONLY RUNS (see amendment_scope for full
-      procedure). A new module, delta_e_truncation_sweep_v10.py, defines
-      run_truncation_probe_for_budget(graph, base_seed, per_vertex_budget_seconds)
-      -- a GENERALIZED version of v9's own run_truncation_probe_v9, taking
-      per_vertex_budget_seconds as an explicit PARAMETER rather than a
-      module constant (this is the one genuine code change relative to
-      v9's own design: v9's own PER_VERTEX_BUDGET_SECONDS was a fixed
-      module-level constant, not reusable across multiple budget values
-      in one run without either three separate frozen amendments or this
-      generalization -- disclosed here explicitly, not silently
-      introduced). SWEEP_BUDGETS = [0.6, 0.8, 1.0] is a FIXED, PRE-
-      REGISTERED list (never computed or adjusted at runtime). For each
-      b in SWEEP_BUDGETS, in order, call
-      run_truncation_probe_for_budget(graph, BASE_SEED=20260811, b),
-      producing that sweep point's own independent new_delta_map,
-      coverage figures, and per_vertex_records. The graph is rebuilt ONCE
-      and its identity re-verified ONCE at the start (not once per sweep
-      point -- IDENTICAL graph object reused across all three sweep
-      points, since it does not depend on the budget and rebuilding it
-      three times would add cost with no diagnostic value); the identity
-      re-verification result is reported once and applies to all three
-      sweep points.
-      REQUIRED COMPARISONS (per sweep point, both Comparison 1 against
-      RUN-SSIQ-a85692-b's archived delta_map and Comparison 2 against
-      RUN-SSIQ-a85692-h's own new_delta_map, IDENTICAL structure and
-      parsing convention to v9's own Comparisons 1/2, GENUINELY IMPORTED
-      where v9's own helper functions are reusable: trapping_diagnostic_v5.
-      load_archived_prime_data for Comparison 1; a small parsing helper
-      for Comparison 2 IDENTICAL to v9's own parse_v8_new_delta_map,
-      either genuinely imported from delta_e_truncation_probe_v9.py if
-      its function signature permits reuse without modification, or
-      restated as an authorized disclosed duplicate if v9's own function
-      is too tightly coupled to its module-level constants to import
-      cleanly -- the Executor's own execution_report.yaml must state
-      which approach was taken and why).
+      THREE INDEPENDENT PART-A-ONLY BUDGET PASSES OVER ONE SHARED,
+      ONCE-BUILT GRAPH (see amendment_scope for the full procedure,
+      including the PF-1 graph-rebuild-once fix and the PF-2
+      per-sweep-point failure-isolation fix). A new module,
+      delta_e_truncation_sweep_v10.py, defines the sweep driver. PF-3 FIX
+      APPLIED (round 1 pre-freeze review, BLOCKING: the original draft's
+      justification for a new, generalized search function --
+      "v9's own PER_VERTEX_BUDGET_SECONDS was a fixed module-level
+      constant, not reusable... without... this generalization" -- is
+      FALSE on direct code read: delta_e_truncation_probe_v9.
+      run_truncation_probe_v9(graph, base_seed, per_vertex_budget_seconds)
+      already takes budget as its explicit third parameter, used
+      directly at its only internal call site, and never references the
+      module-level PER_VERTEX_BUDGET_SECONDS constant inside its own
+      body -- it is ALREADY genuinely reusable, unchanged, across
+      arbitrary budget values): the per-vertex search loop for EVERY
+      sweep point GENUINELY IMPORTS AND CALLS
+      delta_e_truncation_probe_v9.run_truncation_probe_v9(graph,
+      base_seed, b) DIRECTLY, UNCHANGED -- no new, parallel
+      reimplementation of the per-vertex search loop, the F_p-rational
+      wiring step, or the fresh-per-vertex-RNG construction is written;
+      this amendment's only genuinely new code is the sweep-loop driver
+      (iterating SWEEP_BUDGETS, calling run_truncation_probe_v9 once per
+      budget, applying the PF-2 per-sweep-point try/except), the two
+      REQUIRED COMPARISONS' driving logic, and the REQUIRED VALUE
+      HISTOGRAM AND CONJUGATE-PAIR REPORTING (below), none of which
+      existed in v9. SWEEP_BUDGETS = [0.6, 0.8, 1.0] is a FIXED,
+      PRE-REGISTERED list (never computed or adjusted at runtime). For
+      each b in SWEEP_BUDGETS, in order, within that sweep point's own
+      try block (per amendment_scope's PF-2 fix), call
+      delta_e_truncation_probe_v9.run_truncation_probe_v9(graph,
+      BASE_SEED=20260811, b), producing that sweep point's own
+      independent new_delta_map, coverage figures, and
+      per_vertex_records.
+      REQUIRED COMPARISONS (per sweep point, inside that sweep point's
+      own try block, both Comparison 1 against RUN-SSIQ-a85692-b's
+      archived delta_map and Comparison 2 against RUN-SSIQ-a85692-h's
+      own new_delta_map, IDENTICAL structure and parsing convention to
+      v9's own Comparisons 1/2): Comparison 1 GENUINELY IMPORTS AND
+      CALLS trapping_diagnostic_v5.load_archived_prime_data, UNCHANGED.
+      Comparison 2 GENUINELY IMPORTS AND CALLS
+      delta_e_truncation_probe_v9.parse_v8_new_delta_map(path), UNCHANGED
+      -- PF-5 FIX APPLIED (round 1 pre-freeze review, advisory: the
+      original draft left this reuse as an open disjunction between
+      genuine import and a restated duplicate; direct code read confirms
+      parse_v8_new_delta_map takes only a path argument, references no
+      budget-dependent module constant, and is unconditionally,
+      genuinely reusable -- the disjunction is pre-resolved here toward
+      genuine import, called identically for all three sweep points with
+      the same fixed path).
       REQUIRED VALUE HISTOGRAM AND CONJUGATE-PAIR REPORTING (per sweep
-      point, the genuinely new cross-sweep analysis): for each sweep
-      point's own resolved non-F_p-rational vertices, report the full
-      delta_e_upper_bound value histogram (a dict from value to count),
-      and report whether the resolved set's vertices form exact
-      Frobenius-conjugate pairs (using build_isogeny_graph.frobenius,
-      GENUINELY IMPORTED, UNCHANGED) -- report n_resolved,
+      point, inside that sweep point's own try block, the genuinely new
+      cross-sweep analysis): for each sweep point's own resolved
+      non-F_p-rational vertices, report the full delta_e_upper_bound
+      value histogram (a dict from value to count, EMPTY {} if
+      n_resolved==0 for this sweep point -- PF-8's fix, see
+      amendment_scope), and report whether the resolved set's vertices
+      form exact Frobenius-conjugate pairs using graph["field"].
+      frobenius(v) -- PF-4 FIX APPLIED (round 1 pre-freeze review,
+      BLOCKING: the original draft cited "build_isogeny_graph.frobenius"
+      as a directly-importable module-level name; no such name exists --
+      frobenius is Fp2Field.frobenius(self, x), an instance method
+      reachable ONLY via graph["field"].frobenius(v), the already-
+      imported graph object's own field, exactly the form v9's own code
+      and RT-BATCH-012's own trace already used) -- report n_resolved,
       n_conjugate_pairs_among_resolved, n_resolved_without_a_paired_
-      partner_in_resolved_set (a vertex whose frobenius(v) is NOT itself
-      in the resolved set this sweep point -- this is the concrete,
-      falsifiable signal that the v9 pairing artifact is breaking down as
-      budget grows, since a genuinely independent-in-outcome pair would
-      not always resolve together).
+      partner_in_resolved_set (a vertex whose graph["field"].frobenius(v)
+      is NOT itself in the resolved set this sweep point -- this is the
+      concrete, falsifiable signal that the v9 pairing artifact is
+      breaking down as budget grows, since a genuinely independent-in-
+      outcome pair would not always resolve together).
       JSON SAFETY (PF-13's convention, inherited unchanged from v8/v9):
       every vertex-keyed artifact output uses the str(list(v))-keyed
       convention; a raw tuple is never written directly as a JSON dict
@@ -215,35 +386,55 @@ experiment:
     - runs/RUN-SSIQ-a85692-j/truncation_sweep_comparison.json
   required_artifacts_note: >-
     EXPLICIT, CODE-VERIFIED FUNCTION-LEVEL DIFF, per GD-9/GD-10's standing
-    repair:
+    repair. PF-3 FIX APPLIED (round 1 pre-freeze review, BLOCKING: the
+    original draft's stated justification for a new, generalized search
+    function -- that v9's PER_VERTEX_BUDGET_SECONDS "was a fixed
+    module-level constant, not reusable... without... this
+    generalization" -- was FALSE on direct code read of
+    delta_e_truncation_probe_v9.py:147; run_truncation_probe_v9 already
+    takes budget as an explicit parameter and is already genuinely
+    reusable unchanged. CORRECTED below: this amendment's new module
+    contains NO reimplementation of the per-vertex search loop):
       NEW: experiments/EXP-SSIQ-a85692/implementation/delta_e_truncation_sweep_v10.py
-      -- defines run_truncation_probe_for_budget (a generalized,
-      budget-parameterized version of v9's own run_truncation_probe_v9;
-      the ONE genuine code-level generalization this amendment makes
-      relative to v9, disclosed explicitly here and in amendment_scope),
-      the per-sweep-point Comparison 1/Comparison 2 driver, and the
-      value-histogram/conjugate-pair reporting logic (new, no v9
-      equivalent). GENUINELY IMPORTS, UNCHANGED: compute_delta_e.
-      two_sided_search, compute_delta_e.L_PRIMES, compute_delta_e.
-      X_LIST_BOUND; trapping_diagnostic_v5.build_graph_for_prime,
+      -- defines ONLY the sweep-loop driver (iterating SWEEP_BUDGETS,
+      calling delta_e_truncation_probe_v9.run_truncation_probe_v9 once
+      per budget inside a per-sweep-point try/except per PF-2's fix),
+      the per-sweep-point Comparison 1/Comparison 2 driver (calling
+      genuinely-imported v9/trapping_diagnostic_v5 functions, not
+      reimplementing them), and the value-histogram/conjugate-pair
+      reporting logic (genuinely new, no v9 equivalent). GENUINELY
+      IMPORTS, UNCHANGED: delta_e_truncation_probe_v9.
+      run_truncation_probe_v9 (PF-3's fix -- the per-vertex search loop
+      itself, called directly, never reimplemented),
+      delta_e_truncation_probe_v9.parse_v8_new_delta_map (PF-5's fix);
+      trapping_diagnostic_v5.build_graph_for_prime,
       trapping_diagnostic_v5.load_archived_prime_data;
-      delta_e_independent_rng_probe_v8.derive_per_vertex_seed,
-      delta_e_independent_rng_probe_v8.verify_graph_identity;
-      build_isogeny_graph.frobenius, build_isogeny_graph.
-      degree_sequence_check (the latter via verify_graph_identity's own
-      import). Does NOT import or call
-      compute_delta_e.run_phase_minus1_on_confirmatory_set,
+      delta_e_independent_rng_probe_v8.verify_graph_identity (called
+      once, per PF-1's fix -- derive_per_vertex_seed is NOT separately
+      imported here, since it is only ever called from inside
+      run_truncation_probe_v9's own already-imported body, not by this
+      amendment's own new code directly). PF-4 FIX APPLIED (round 1
+      pre-freeze review, BLOCKING: build_isogeny_graph.frobenius does
+      not exist as a module-level name): the conjugate-pair check uses
+      graph["field"].frobenius(v) -- Fp2Field.frobenius, an instance
+      method reached via the already-imported/already-built graph
+      object's own field, NOT a standalone module import; no
+      "build_isogeny_graph.frobenius" import appears anywhere in this
+      module. build_isogeny_graph.degree_sequence_check is reached only
+      indirectly, via verify_graph_identity's own internal import, not
+      re-imported directly by this module. Does NOT import or call
+      compute_delta_e.two_sided_search directly (that call lives inside
+      the genuinely-imported run_truncation_probe_v9, not reimplemented
+      here), compute_delta_e.run_phase_minus1_on_confirmatory_set,
       compute_delta_e_v2.run_phase_minus1_on_confirmatory_set,
       delta_e_permutation_null_control_v7's depth0_fraction/summary_stats
       (NO PART B in this amendment, same as v9), or
       delta_e_independent_rng_probe_v8's/delta_e_truncation_probe_v9's own
       driver functions (run_probe_delta_e_search_v8,
-      run_probe_permutation_null_control_v8, run_truncation_probe_v9,
-      main) anywhere.
+      run_probe_permutation_null_control_v8, v9's own main) anywhere.
       UNCHANGED, NOT MODIFIED: every implementation file this lineage has
-      ever frozen, including delta_e_truncation_probe_v9.py (read here
-      ONLY if its own parse_v8_new_delta_map function is genuinely
-      reusable without modification; never edited or re-run regardless).
+      ever frozen, including delta_e_truncation_probe_v9.py (imported
+      from, never edited or re-run).
       NOT RE-RUN, READ ONLY: RUN-SSIQ-a85692-a through -i and every
       already-archived value stay exactly as committed; this amendment
       reads RUN-SSIQ-a85692-b's raw-result.json (archived delta_map for
