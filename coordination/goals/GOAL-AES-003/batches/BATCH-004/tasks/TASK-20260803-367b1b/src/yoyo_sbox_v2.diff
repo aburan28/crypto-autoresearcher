@@ -1,0 +1,33 @@
+--- src/yoyo_sbox.c	2026-08-03 01:29:06.291207955 +0000
++++ src/yoyo_sbox_v2.c	2026-08-03 02:21:15.990187268 +0000
+@@ -321,6 +321,30 @@
+         printf("]\n}\n");
+         return 0;
+     }
++    if(!strcmp(argv[1],"vec")){
++        /* SEGMENT 2 ANCHOR MODE (added in yoyo_sbox_v2.c only): dump enc_r for
++           r=1..10 on a fixed key/plaintext so an independent implementation can
++           check EVERY round count, not just r=10. */
++        uint64_t ss; load_sbox(argv[2],&ss);
++        if(!verify_bijective_and_invert()){ printf("{\"bijective\":false}\n"); return 1; }
++        build_tables();
++        uint8_t k[16],pt[16];
++        for(int i=0;i<16;i++){ k[i]=(uint8_t)(0x10+i); pt[i]=(uint8_t)(0xa0+i); }
++        printf("{\n  \"sbox_spec\": \"%s\",\n  \"key\": \"",argv[2]);
++        for(int i=0;i<16;i++) printf("%02x",k[i]);
++        printf("\",\n  \"pt\": \"");
++        for(int i=0;i<16;i++) printf("%02x",pt[i]);
++        printf("\",\n  \"enc_by_round\": {");
++        sched s2; sched_init(k,&s2);
++        for(int r=1;r<=10;r++){
++            uint8_t c[16]; enc_r(pt,c,&s2,r);
++            printf("%s\n    \"%d\": \"",r>1?",":"",r);
++            for(int i=0;i<16;i++) printf("%02x",c[i]);
++            printf("\"");
++        }
++        printf("\n  }\n}\n");
++        return 0;
++    }
+     if(!strcmp(argv[1],"pin")){
+         uint64_t ss; int is_aes=load_sbox(argv[2],&ss);
+         int bij=verify_bijective_and_invert(); build_tables();
