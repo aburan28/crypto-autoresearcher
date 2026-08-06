@@ -1,0 +1,631 @@
+idea:
+  id: IDEA-20260805-bf6448
+  question_id: RQ-SDITH-001
+  added: '2026-08-05'
+  title: >-
+    Grinding slack in the MPCitH transform: the interior optimum of the
+    two-strategy forgery cost is a forced value that removes HALF the naive
+    security bits, and whether SDitH already charges it is decidable in
+    milliseconds by exact rational arithmetic
+  class: audit
+
+  claim: >-
+    A parallel-repetition MPCitH signature with tau repetitions, N parties per
+    repetition, and first-phase cheating probability p offers an adversary a
+    continuum of mixed strategies indexed by tau' -- cheat in the first phase on
+    tau' repetitions and in the second phase on the remaining tau - tau' -- with
+    total cost min over tau' of [ 1/P_1(tau', tau, p) + N^{tau - tau'} ], where
+    P_1 is the upper binomial tail. The NAIVE bound, min(tau log2(1/p),
+    tau log2 N), is the tau' = tau and tau' = 0 endpoints, and the interior
+    optimum is strictly and substantially below both. Derived here with exact
+    rational arithmetic: at N = 256, p = 1/256, the interior optimum removes
+    7.41, 15.78, 31.98, 69.22 and 140.59 bits at tau = 2, 4, 8, 16 and 32
+    respectively, and at tau = 17 -- a plausible SDitH-shaped operating point --
+    the naive bound reads 136 bits while the true cost is 64.02 bits, with the
+    optimal adversary grinding tau* = 9 of the 17 repetitions. The ratio
+    (true / naive) sits in [0.446, 0.537] for N = 256 across tau in [2, 64] and
+    falls to 0.257 at N = 2: THE ATTACK REMOVES ROUGHLY HALF THE EXPONENT, MORE
+    WHEN N IS SMALL. The audit is therefore a single decidable question:
+    does SDitH's claimed forgery security equal the interior optimum at its own
+    (tau, N, p), or the endpoint? If the interior -- the expected and honourable
+    outcome -- the derivation is recorded, the grinding half of
+    GOAL-SDITH-001's objective is answered in the negative with a computation
+    rather than a reassurance, and a reusable instrument exists for every MPCitH
+    goal in the program. If the endpoint, the slack is enormous and the finding
+    is a forgery-cost error worth tens of bits.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE ADVERSARY'S STRATEGY SPLIT tau', followed as a free parameter through
+      the cost function. Not the signature, not the transcript, not the MPC
+      protocol: the integer tau' in {0, ..., tau} that says how many of the tau
+      parallel repetitions the forger attacks in the first phase (by grinding
+      the first challenge) versus the second (by guessing the party to open).
+      The tracked quantity is the pair of costs (grinding cost, guessing cost)
+      as tau' moves, and the object of interest is where their sum is minimized.
+      A security bound that fixes tau' before quantifying over adversaries has
+      simply not tracked this object, and that is the failure this proposal
+      hunts.
+    established_families_off_limits: >-
+      Declared off-limits as the primary lens: (1) syndrome decoding and every
+      decoding attack -- this proposal deliberately does not touch the hardness
+      assumption, so that a finding here is independent of whether d-split SD is
+      as hard as plain SD; (2) ISD in any form; (3) algebraic attacks on the MPC
+      protocol's arithmetic; (4) side channels, faults, and implementation
+      attacks; (5) generic hash-function attacks (collision, multi-target
+      preimage) -- these are a separate and additive budget and mixing them in
+      would double-count; (6) the GGM-tree and VOLE machinery, which is a real
+      and unattacked cross-family angle but is a different object and belongs in
+      its own record. What is left is exactly the transform's own soundness
+      arithmetic, which is the smallest object that can carry the goal's
+      grinding question.
+    newness_score: >-
+      THE ATTACK IS NOT NEW AND THIS RECORD DOES NOT PRETEND IT IS. A
+      two-strategy forgery optimization against parallel-repeated 5-round
+      Fiat-Shamir identification is recalled to be a standard and well-known
+      result, attributed in memory to Kales and Zaverucha; that attribution is
+      RECALLED-UNVERIFIED and no citation is asserted. Every serious MPCitH
+      design since is believed to account for it. What IS new in this program is
+      that the corpus contains no MPCitH forgery-cost computation of any kind,
+      no record of the formula, and no instrument that evaluates it -- so the
+      goal's own question ("whether the MPCitH transform's soundness leaves any
+      grinding slack") currently has no way to be answered other than by
+      trusting the specification. Building the instrument converts trust into
+      arithmetic, and the instrument serves GOAL-MQOM-001 and GOAL-FAEST-001
+      unchanged.
+    testability_score: >-
+      Maximal, and the cheapest thing in this session's output. The cost
+      function is a finite minimization over tau + 1 integers of a sum of two
+      exact rationals. Python's fractions module evaluates the whole tau <= 64
+      grid in well under a second with no floating point anywhere in the
+      decision path. No dependency: this container has numpy 2.4.6 and does not
+      have sympy (measured this session); neither is required.
+    survival_score: >-
+      The object survives exactly as far as the two-phase structure does. It is
+      defined for a 5-round protocol with one grindable challenge and one
+      party-index challenge. It does not survive into a 3-round design with a
+      single challenge, and it does not by itself cover an adversary who mixes
+      strategies WITHIN a repetition rather than across repetitions -- a
+      possibility the audit must state and check rather than assume away.
+
+  mechanism: >-
+    DERIVED AND COMPUTED IN THIS RECORD with exact rational arithmetic. The
+    STRUCTURE of the cost function is RECALLED-UNVERIFIED and its verification
+    against a primary source is Stage 0 of the paired experiment; every NUMBER
+    below was computed here from that structure and is reproducible from the
+    formula alone.
+
+    THE SETUP. A 5-round MPCitH identification protocol, repeated tau times in
+    parallel and made non-interactive by Fiat-Shamir. Per repetition the forger
+    has two ways to cheat. FIRST-PHASE cheating: submit a false witness and hope
+    the MPC checking protocol's first challenge accepts it anyway; this succeeds
+    per repetition with probability p (the false-positive rate of the check).
+    SECOND-PHASE cheating: run honestly, then hope the second challenge asks to
+    open the one party the forger corrupted; probability 1/N. Because the
+    challenges are hash outputs, the forger GRINDS: he re-hashes until the first
+    challenge is favourable on as many repetitions as he wants, then grinds the
+    second challenge for the rest.
+
+    THE COST FUNCTION. Fix a target tau'. The forger grinds the first challenge
+    until at least tau' of the tau repetitions pass phase one; the expected
+    number of hash trials is 1/P_1(tau', tau, p) where
+      P_1(tau', tau, p) = sum_{i = tau'}^{tau} C(tau, i) p^i (1 - p)^{tau - i}
+    is the upper binomial tail. He then needs the second challenge to be
+    favourable on the remaining tau - tau' repetitions, at cost N^{tau - tau'}.
+    Total:
+      cost(tau) = min_{0 <= tau' <= tau} [ 1/P_1(tau', tau, p) + N^{tau - tau'} ].
+    THE MINIMUM IS OVER tau', AND tau' IS THE ADVERSARY'S CHOICE. That is the
+    whole content, and it is also the quantifier-order attack: a bound that
+    evaluates only tau' = 0 or tau' = tau, or that fixes tau' before quantifying
+    over adversaries, is a bound on a strictly weaker adversary class.
+
+    THE NAIVE BOUND IS THE TWO ENDPOINTS. tau' = 0 gives 1 + N^tau; tau' = tau
+    gives p^{-tau} + 1. So the naive product bound is
+    min(tau log2(1/p), tau log2 N) bits, and it is exactly what one writes down
+    by multiplying per-repetition soundness errors. The interior optimum is
+    strictly below it whenever tau >= 2 and 0 < p < 1 < N, and the gap is the
+    GRINDING SLACK.
+
+    RESULT 1 -- THE SLACK, COMPUTED. Exact rational arithmetic, this record,
+    at N = 256 and p = 1/256:
+      tau =  1 : naive   8.00, true   8.01, slack -0.01, tau* = 0
+      tau =  2 : naive  16.00, true   8.59, slack  7.41, tau* = 1
+      tau =  4 : naive  32.00, true  16.22, slack 15.78, tau* = 2
+      tau =  8 : naive  64.00, true  32.02, slack 31.98, tau* = 4
+      tau = 16 : naive 128.00, true  58.78, slack 69.22, tau* = 9
+      tau = 17 : naive 136.00, true  64.02, slack 71.98, tau* = 9
+      tau = 32 : naive 256.00, true 115.41, slack 140.59, tau* = 18
+    The slack is monotone increasing in tau and reaches 141 bits at tau = 32.
+    Note tau = 1: the slack is -0.01, i.e. ZERO to within the additive constant,
+    because with a single repetition there is no interior point to occupy. That
+    is a forced value and it is the proposal's null.
+
+    RESULT 2 -- THE STRUCTURAL FACT: ROUGHLY HALF THE EXPONENT. At p = 1/N the
+    two strategies cost the same per repetition and one might expect the mixture
+    to gain nothing. It gains half. Computed here, ratio true/naive:
+      N = 256 : tau =  2, 4, 8, 16, 32, 48, 64 ->
+                0.5366, 0.5070, 0.5003, 0.4592, 0.4508, 0.4476, 0.4458
+      N =  32 : 0.5593, 0.5116, 0.4844, 0.4394, 0.4217, 0.4174, 0.4138
+      N =   2 : 0.8685, 0.5946, 0.4283, 0.3360, 0.2838, 0.2656, 0.2575
+    The mechanism is transparent once seen: at the optimum the forger splits the
+    repetitions roughly in half, paying about (tau/2) log2(1/p) on one side and
+    about (tau/2) log2 N on the other, and pays only the LARGER of the two
+    rather than their sum -- so the exponent halves. The additional erosion
+    below 1/2 comes from the binomial multiplicity C(tau, tau'), which is a free
+    gift to the grinder and grows fastest when N is small; at N = 2 it drives
+    the ratio to 0.2575. The optimal split obeys
+      tau* / tau -> log2 N / (log2 N + log2(1/p))  plus a binomial correction,
+    which at p = 1/N predicts 1/2; the computed tau*/tau values are 0.500 at
+    small tau rising to 0.562 (N = 256) and 0.750 (N = 2), the excess over 1/2
+    being exactly that correction. THIS IS A FORCED VALUE WITH A DERIVED
+    DIRECTION: tau* must be at least ceil(tau/2) whenever p >= 1/N, and the
+    excess must be larger for smaller N.
+
+    RESULT 3 -- WHAT THE AUDIT ACTUALLY DECIDES. Because the slack is 70+ bits
+    at plausible operating points, no designer can have chosen tau against the
+    naive bound and still claimed 128-bit security; the arithmetic would be off
+    by more than half. THE EXPECTED FINDING IS THEREFORE THAT THERE IS NO SLACK,
+    and the audit's value lies in three things it produces on the way: (a) the
+    derivation the goal asks for, in place of an inherited assurance; (b) the
+    exact tau* the specification's parameters imply, which is the adversary's
+    optimal strategy and is not usually published; (c) a check on whether the
+    specification's tau was chosen with any MARGIN over the interior optimum, or
+    exactly at it -- a scheme sitting exactly at lambda has no slack in either
+    direction and a tweak to N or p in the Round-3 revision moves it
+    immediately, which is a live concern given the goal's recorded
+    round3_tweaks_due date.
+
+    RESULT 4 -- THE QUANTIFIER-ORDER AUDIT, WHICH COSTS NOTHING AND IS SEPARATE
+    FROM THE ARITHMETIC. Write the soundness claim with explicit quantifiers.
+    The correct form is: FOR ALL adversaries A making at most Q hash queries,
+    the forgery probability is at most Q / cost(tau) where cost(tau) already
+    contains the minimum over tau'. The defective form is: THERE EXISTS tau'
+    such that FOR ALL A ... -- which permits the analysis to fix the split
+    before the adversary chooses it. Reading the specification's soundness
+    statement for which form it uses is a pen-and-paper check with a binary
+    answer, and it is independent of every number above: a specification could
+    have the right number by inheritance and the wrong statement, or the right
+    statement and a stale number.
+
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_grepped:
+      - ledger/ for any MPCitH, Fiat-Shamir, soundness or forgery-cost record
+      - knowledge/ for a technique entry on parallel-repetition soundness
+      - the session ANGLE-BRIEF's F8 (MPC-in-the-Head) table
+    grep_results:
+      - >-
+        No forgery-cost computation, no soundness-error record, and no MPCitH
+        technique entry surfaced in areas SDITH, MQOM or FAEST.
+      - >-
+        The ANGLE-BRIEF's F8 table proposes a quantifier-order audit for FAEST's
+        numbered chain and notes "the goal's framing invites it and no record
+        performs it". This proposal performs the analogous audit for SDitH and
+        adds the arithmetic the brief does not name.
+    conclusion: >-
+      NOT NOVEL EXTERNALLY, ALMOST CERTAINLY. The attack is standard and this
+      record says so in its own claim field. Novel WITHIN this corpus, and the
+      corpus novelty screen is discounted per the ANGLE-BRIEF's finding that the
+      literature corpus's citation_verified field is unreliable at scale.
+
+  literature_context:
+    - >-
+      KALES-ZAVERUCHA-STYLE FORGERY ATTACK ON 5-ROUND PARALLEL-REPEATED
+      FIAT-SHAMIR: RECALLED-UNVERIFIED. The cost function
+      min_{tau'} [ 1/P_1(tau', tau, p) + N^{tau - tau'} ] is written from memory.
+      NO AUTHOR, VENUE, YEAR, THEOREM NUMBER OR PAGE IS ASSERTED. It is a
+      candidate to check, never an authority, and Stage 0 of the paired
+      experiment is to check it against a primary source. If the real formula
+      differs -- for instance if the grinding cost is 1/P_1 raised to some power,
+      or if the two phases are not independent -- every number in this record is
+      void and must be recomputed, which is why the numbers are presented as
+      consequences of a stated formula rather than as facts about SDitH.
+    - >-
+      SDitH SPECIFICATION: NOT READ. tau, N, p, the claimed forgery security,
+      and the security proof's quantifier structure are ALL UNKNOWN to this
+      record. The (tau, N, p) triples above are ILLUSTRATIVE shapes chosen to
+      span plausible MPCitH regimes and are not represented as SDitH's.
+    - >-
+      ePrint 2026/629 on MQOM's secret-key-root correlated GGM-tree optimization
+      being outside its proof: NOT READ, RELAYED by the session ANGLE-BRIEF. It
+      is named here only to mark that a SECOND, independent soundness question
+      exists for this family and is deliberately excluded from this proposal's
+      object.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      A complete forgery strategy (which repetitions to attack, in which phase,
+      with which witness, against which hash queries)  -->  the single integer
+      tau', the number of repetitions attacked in the first phase.
+    what_is_discarded: >-
+      Which repetitions, which false witnesses, which party indices, the order
+      of hash queries, and every adaptive choice the forger makes. The fibre
+      over a fixed tau' contains C(tau, tau') choices of which repetitions,
+      times the entire space of witnesses and query schedules.
+    why_genuinely_lossy: >-
+      Genuinely lossy and non-invertible: tau' is a single integer in
+      {0, ..., tau} summarizing a strategy space of astronomically larger size.
+    why_compatible_with_the_operations: >-
+      The cost of the strategy depends on the discarded data ONLY through tau',
+      by symmetry of the parallel repetitions -- every repetition is
+      statistically identical, so which ones are chosen cannot matter, and the
+      binomial coefficient C(tau, tau') that counts the choices appears in
+      P_1 exactly because they are all equally good. The retained part therefore
+      determines the cost deterministically, which is the compatibility the
+      lossy-projection test requires.
+    is_it_only_a_change_of_coordinates: >-
+      CHECKED FOR, AND IT IS NOT -- and here the check has real force. The
+      projection would be a mere reparametrization if the cost were a monotone
+      function of tau', because then the optimum would sit at an endpoint and
+      tracking tau' would add nothing to tracking "which of the two attacks is
+      cheaper". It is not monotone: the two terms move in opposite directions
+      (1/P_1 increases in tau', N^{tau - tau'} decreases), the minimum is
+      INTERIOR, and the interior value is 70+ bits below both endpoints at the
+      computed operating point. The non-degeneracy of the projection is
+      therefore demonstrated numerically rather than assumed, and it is exactly
+      what makes the object worth tracking.
+    mirror_failure_checked: >-
+      CHECKED. The mirror failure would be a slack that is constant across
+      (tau, N, p) -- a number produced by the apparatus rather than by the
+      parameters. It is not: the slack takes the values -0.01, 7.41, 15.78,
+      31.98, 69.22 and 140.59 across a single tau sweep at fixed (N, p), and the
+      ratio to the naive bound ranges from 0.868 to 0.258 across N. Wide
+      comparator spread, demonstrated.
+
+  assumptions:
+    - >-
+      That the transform is 5-round with exactly two grindable challenge phases
+      and that the forger's two strategies are as described. RECALLED-UNVERIFIED
+      as a description of SDitH specifically. A 3-round or hypercube-collapsed
+      variant has different arithmetic and Stage 0 determines which applies.
+    - >-
+      That p, the first-phase false-positive rate, is a single number
+      independent across repetitions. If p is instance-dependent, or if the
+      repetitions share randomness, the binomial tail is the wrong model and the
+      audit must report that rather than evaluate it.
+    - >-
+      That grinding cost is measured in hash evaluations and that these are the
+      dominant cost. Generic hash security (collision, multi-target preimage)
+      is a SEPARATE additive budget and is deliberately excluded so that the
+      two are not double-counted; the specification's total claim presumably
+      takes a minimum over both and the audit reports them separately.
+    - >-
+      That an adversary mixing strategies WITHIN a repetition gains nothing
+      beyond the across-repetition mixture. NOT ESTABLISHED. It is the most
+      likely place a real gap would hide and it is a declared check, not an
+      assumption to be waved through.
+
+  predictions:
+    - metric: >-
+        grinding slack in bits at tau = 1, any (N, p): naive bound minus the
+        exact interior optimum
+      direction: lower
+      minimum_effect: >-
+        AT MOST 0.0, i.e. non-positive, forced, because with tau = 1 the
+        minimization ranges over only the two endpoints and no interior point
+        exists. Computed here: -0.01 at (N, p) = (256, 1/256) and -0.58 at
+        (2, 1/2). This is the null and it CAN FAIL: an implementation that
+        mis-indexes the tail sum, or that omits the +1 additive terms, returns a
+        positive slack here.
+    - metric: >-
+        grinding slack in bits at (tau, N, p) = (64, 2, 1/2)
+      direction: higher
+      minimum_effect: >-
+        47.52 bits, within 0.05. This is the positive control and the effect
+        MUST appear. If the instrument returns under 20 bits here it cannot
+        detect grinding slack at all and NO negative conclusion about SDitH may
+        be drawn from it.
+    - metric: >-
+        monotonicity of the slack across the graded sweep tau in
+        {1, 2, 4, 8, 16, 32} at N = 256, p = 1/256
+      direction: higher
+      minimum_effect: >-
+        Strictly increasing, matching the pre-registered values -0.01, 7.41,
+        15.78, 31.98, 69.22, 140.59 to within 0.05 bits each. A non-monotone
+        point localizes an implementation fault to a specific tau.
+    - metric: >-
+        ratio (exact interior optimum) / (naive product bound) at p = 1/N,
+        N = 256, for tau in [2, 64]
+      direction: lower
+      minimum_effect: >-
+        Within the band [0.44, 0.54] at every tau in that range, decreasing in
+        tau. Derived here: 0.5366, 0.5070, 0.5003, 0.4592, 0.4508, 0.4476,
+        0.4458. A value outside the band falsifies the "half the exponent"
+        structural account.
+    - metric: >-
+        optimal split fraction tau*/tau at p = 1/N
+      direction: higher
+      minimum_effect: >-
+        AT LEAST 0.5 at every cell, with the excess above 0.5 strictly larger at
+        N = 2 than at N = 256. Derived here: N = 256 gives 0.500 rising to
+        0.562; N = 2 gives 0.500 rising to 0.750. This is a forced DIRECTION
+        derived from the binomial-multiplicity argument, and a tau*/tau below
+        0.5 anywhere refutes that argument.
+    - metric: >-
+        SDitH's claimed forgery security minus the exact interior optimum at
+        SDitH's own (tau, N, p), once Stage 0 supplies them
+      direction: different
+      minimum_effect: >-
+        Predicted to lie within 2 bits of zero -- i.e. the specification already
+        charges the interior optimum, as any competent MPCitH design since the
+        attack became known would. A POSITIVE value above 10 bits is grinding
+        slack of the size this goal exists to look for and would be a forgery-
+        cost finding; a NEGATIVE value above 10 bits means the specification is
+        conservative by that much, which is also a result and is reported with
+        the same weight rather than discarded as uninteresting.
+
+  minimal_test:
+    design: >-
+      Exact rational arithmetic in the Python standard library. Stages ordered
+      cheapest first; Stage 2 alone can settle the headline.
+      STAGE 0 (reading, no compute): obtain an SDitH specification; transcribe
+      tau, N, p and the claimed forgery security with a page reference; quote
+      the soundness statement VERBATIM and classify its quantifier order.
+      Separately, obtain a primary source for the forgery cost function and
+      check the formula recalled above against it. Both fetches may fail; a
+      failure is infrastructure signal, never mathematical evidence, and the
+      remaining stages run regardless on the illustrative grid.
+      STAGE 1 (milliseconds): the null, the positive control and the graded
+      sweep, run and committed BEFORE any SDitH parameter is evaluated.
+      STAGE 2 (milliseconds): evaluate the interior optimum at SDitH's
+      parameters if available; report slack, tau*, and the comparison against
+      the claimed security.
+      STAGE 3 (pen and paper): the quantifier-order classification, and the
+      within-repetition mixing check -- can a forger do better by cheating
+      partially inside a repetition than by the across-repetition split?
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE (tau = 1). Same code path, same formula,
+        no interior point available. FORCED VALUE derived before the run: slack
+        <= 0, computed as -0.01 at (256, 1/256) and -0.58 at (2, 1/2). It can
+        fail, and the ways it fails are specific and known: an off-by-one in the
+        tail sum's lower limit, or dropping the additive +1 terms, both produce
+        a positive number here.
+      - >-
+        SECOND NULL (p = 0, no first-phase cheating possible). Then P_1 is zero
+        for every tau' >= 1, only tau' = 0 is admissible, and the cost is
+        forced to exactly 1 + N^tau -- the pure guessing attack, with slack
+        exactly 0 against the naive bound tau log2 N. This separates "grinding
+        exists" from "grinding helps".
+      - >-
+        POSITIVE CONTROL, THE EFFECT MUST APPEAR: (tau, N, p) = (64, 2, 1/2),
+        forced value 47.52 bits of slack. A regime chosen so the interior
+        optimum is unmistakable. If the instrument does not fire here, nothing
+        it says about SDitH is admissible.
+      - >-
+        GRADED CONTROL, 4 INTERIOR POINTS, MONOTONICITY REPORTED. tau in
+        {1, 2, 4, 8, 16, 32} at N = 256, p = 1/256, pre-registered slack values
+        -0.01, 7.41, 15.78, 31.98, 69.22, 140.59, and pre-registered tau* values
+        0, 1, 2, 4, 9, 18. Reporting tau* alongside the slack is what makes the
+        control diagnostic: a slack that grows while tau* stays pinned at an
+        endpoint means the minimization is not exploring the interior and the
+        instrument is broken in a way a slack-only report would hide.
+      - >-
+        SECOND GRADED AXIS (N in {2, 32, 256} at p = 1/N). Pre-registered
+        ratios given in the mechanism. The direction of the N-dependence -- more
+        erosion at smaller N -- is derived from the binomial multiplicity and is
+        an independent prediction of the same mechanism, so agreeing on the tau
+        axis while disagreeing on the N axis localizes the error to the
+        multiplicity term.
+      - >-
+        ORDERING CONTROL. Run and commit the null, the positive control and both
+        graded sweeps BEFORE any SDitH parameter is read or evaluated, so that
+        no threshold can be adjusted once the specification's claimed number is
+        known.
+      - >-
+        EXACTNESS CONTROL. All tail sums in Fraction arithmetic; a float
+        recomputation is reported alongside and any disagreement above 1e-9 in
+        the log2 is an integrity failure. Binomial tails at tau = 64 with
+        p = 1/256 underflow double precision, and a float implementation would
+        silently return the wrong tau*.
+    required_metrics:
+      - exact cost(tau), tau*, and slack per cell, as rationals
+      - naive endpoint bound per cell and the ratio to the exact optimum
+      - the two graded sweeps with explicit monotonicity verdicts
+      - null and positive-control values against their forced targets
+      - verbatim quotation of the specification's soundness statement with a page
+        reference, and its quantifier-order classification, or a recorded failed fetch
+      - the within-repetition mixing check, with its argument
+
+  falsification_conditions:
+    - >-
+      Positive slack at tau = 1. The implementation is wrong and every other
+      number is void.
+    - >-
+      The positive control at (64, 2, 1/2) returns under 20 bits. No negative
+      about SDitH may be reported.
+    - >-
+      The graded sweep is non-monotone or misses a pre-registered value by more
+      than 0.05 bits.
+    - >-
+      tau*/tau falls below 0.5 at p = 1/N anywhere. The binomial-multiplicity
+      account is refuted.
+    - >-
+      Stage 0 finds the recalled cost function is not the right one. Every
+      number in this record is withdrawn and recomputed; the record is
+      superseded, not edited.
+    - >-
+      SDitH's claimed forgery security exceeds the interior optimum by more than
+      10 bits. The "no slack" prediction is falsified and the finding is a
+      forgery-cost error, which under AGENTS.md rule 12 routes to independent
+      review-breakthrough at max before it goes anywhere else.
+
+  confounders:
+    - >-
+      THE RECALLED FORMULA IS THE DOMINANT CONFOUNDER. Every number rests on a
+      cost function written from memory. Stage 0 exists to remove it and the
+      audit must not report an SDitH conclusion on the recalled form alone.
+    - >-
+      PARAMETER DRIFT. SDitH has a recorded Round-3 tweak deadline; a tweak that
+      changes N, tau or the MPC check changes p and moves the optimum. Any
+      conclusion is scoped to the exact parameter version read, with its date.
+    - >-
+      HASH BUDGET DOUBLE-COUNTING. The grinding cost and the generic hash
+      security are separate budgets and the specification's headline number is
+      presumably a minimum over both. Reporting the grinding number alone as
+      "the security" would be an error in this record's own direction.
+    - >-
+      WITHIN-REPETITION MIXING IS UNMODELLED. If a forger can cheat partially
+      inside a repetition the true optimum is at most the computed one, so the
+      audit's number is an UPPER bound on the adversary's cost and a
+      specification matching it exactly could still be optimistic. Stated
+      because it works against the comfortable conclusion.
+    - >-
+      A CONFIRMING RESULT IS THE CHEAP ONE. "The specification already charges
+      this" is the expected outcome and reads as diligence. The positive control
+      and the pre-registered 10-bit falsifier exist so that reaching it costs
+      something.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER: a derivation about a cost function plus, if Stage 0 succeeds,
+      an arithmetic comparison against a transcribed claim. It is not a forgery,
+      produces no forged signature, and under
+      docs/claims-and-verification.md may not be reported as a break at any
+      tier. A claimed forgery would require a certificate that a verifier
+      re-checks, and none is produced here.
+    - >-
+      A "no slack" outcome does NOT establish that SDitH's forgery security is
+      correct. It establishes that ONE known attack is charged correctly at ONE
+      transcribed parameter set. The GGM-tree/VOLE soundness question, the
+      within-repetition mixing question, and every implementation question
+      remain untouched.
+    - >-
+      Nothing here bears on syndrome-decoding hardness. That independence is
+      deliberate: it means a finding here would survive whatever
+      IDEA-20260805-cbd93d concludes, and vice versa.
+    - >-
+      FORWARD GUIDANCE, MANDATORY EVEN IF THE PREDICTION HOLDS. What remains
+      open: (a) within-repetition strategy mixing; (b) the GGM-tree correlated-
+      seed question that the ANGLE-BRIEF relays as being outside MQOM's proof
+      and which shares machinery with SDitH-v2 and FAEST -- one object, three
+      goals; (c) whether the specification's tau leaves any MARGIN above lambda
+      or sits exactly at it, which decides how fragile the Round-3 tweak window
+      is; (d) the same computation for MQOM and FAEST, for which this instrument
+      is unchanged.
+
+  heuristic_assumptions:
+    - id: HEUR-SDITH-BF6-1
+      statement: >-
+        NOT LOAD-BEARING FOR THE ARITHMETIC. Given the cost function, every
+        number in this record is an exact rational computation with no
+        distributional assumption, no asymptotic, and no fitted parameter. The
+        heuristic content is entirely in whether the cost function is the right
+        one, which is an EVIDENTIARY question resolved by reading a source, not
+        a mathematical one resolved by an argument.
+      rigorous_support: >-
+        The binomial tail is exact; the minimization is over a finite set; the
+        arithmetic is in Fraction.
+      validation_plan: >-
+        Stage 0's source check, plus the tau = 1 and p = 0 nulls which test the
+        implementation independently of the source.
+    - id: HEUR-SDITH-BF6-2
+      statement: >-
+        INDEPENDENCE ACROSS REPETITIONS. The tau parallel repetitions have
+        independent first-phase outcomes, so the number passing phase one is
+        Binomial(tau, p) and P_1 is its upper tail.
+      rigorous_support: >-
+        Follows if the repetitions use independent randomness, which is the
+        standard construction. It FAILS if a hypercube or seed-tree optimization
+        correlates them -- and MPCitH designs do exactly that kind of
+        optimization for bandwidth, which is why this is written down as a
+        heuristic and not as a fact.
+      validation_plan: >-
+        Read the construction in Stage 0 and state whether the repetitions share
+        randomness. If they do, the binomial model is wrong and the audit
+        reports that as its finding rather than evaluating a formula that does
+        not apply. THIS IS THE MOST LIKELY PLACE THIS RECORD IS WRONG.
+    - id: HEUR-SDITH-BF6-3
+      statement: >-
+        NO BETTER STRATEGY. The across-repetition split exhausts the forger's
+        options, so the computed minimum is the true forgery cost rather than an
+        upper bound on it.
+      rigorous_support: >-
+        NONE. This is asserted by the standard analysis and is not verified
+        here. Within-repetition mixing and adaptive re-grinding of already-
+        settled repetitions are two named routes to a cheaper attack.
+      validation_plan: >-
+        Stage 3's pen-and-paper check. If it cannot be discharged, every
+        computed cost is reported as an UPPER BOUND on the forger's cost, and
+        the comparison against the specification's claim is reported with that
+        direction attached.
+
+  target_complexity:
+    time_exponent: >-
+      This proposal moves no exponent of its own; it computes one that already
+      exists and asks whether it was charged. The quantity computed IS an
+      exponent -- 64.02 bits versus a naive 136 at the illustrative operating
+      point -- so the audit operates at exponent granularity even though it
+      contributes no improvement. If SDitH's specification were found to use the
+      naive bound, the exponent it claims would be wrong by a factor of about
+      two, which would be an exponent-level finding; the honest prior on that is
+      low and is stated below.
+    memory_exponent: >-
+      The grinding attack is memoryless: it is a stream of hash evaluations with
+      O(1) state. Memory is therefore NOT a constraint on this adversary and the
+      full-cost concerns of IDEA-20260805-43d6df do not apply -- worth stating
+      explicitly, because it means the forgery route cannot be discounted by
+      memory charging the way a memory-heavy decoding route can, and a scheme
+      whose two attack routes are one memory-bound and one memory-free has an
+      asymmetry its security estimate should reflect.
+    best_known: >-
+      For forgery against an MPCitH signature at these parameters, the best
+      known is exactly this attack (RECALLED-UNVERIFIED). No better is claimed
+      and none is proposed.
+    hidden_overhead: >-
+      One, named: the constant hidden in "cost of a hash evaluation", which
+      differs between the grinding attack and the generic hash bound and which
+      the specification's own accounting presumably normalizes. Not modelled
+      here; the comparison is bit-for-bit against whatever the specification
+      counts.
+    tradeoff_note: >-
+      There is a real tradeoff and it is the object: grinding cost against
+      guessing cost, indexed by tau'. The whole proposal is the observation that
+      the optimum is interior.
+
+  dominated_by: >-
+    n/a (no attack claimed, no Pareto point occupied). Rows checked before
+    asserting this: TIME -- no MPCitH forgery-cost record exists anywhere in
+    this corpus, verified by grep across ledger/ and knowledge/ for MPCitH,
+    Fiat-Shamir, soundness and forgery-cost terms in the SDITH, MQOM and FAEST
+    areas; MEMORY -- the attack is memoryless, so there is no memory-frontier
+    row that could dominate it and none to check; DATA/QUERIES -- the relevant
+    axis IS hash queries and it is the quantity being computed, so the frontier
+    row is the attack itself. External literature NOT searched from this
+    session; the attack is believed standard and a published treatment certainly
+    exists, which is stated in the claim rather than hidden here.
+  sota_delta: >-
+    Quantitative, and honestly small on the attack axis and large on the
+    instrument axis. ATTACK AXIS: zero. No improvement to any known forgery
+    attack is proposed, and the attack itself is recalled to be standard.
+    INSTRUMENT AXIS: this program currently has no way to answer the grinding
+    half of GOAL-SDITH-001's objective except by trusting a specification it has
+    not read; after this, it has an exact-rational evaluator with a validated
+    null, a validated positive control at 47.52 bits, and two graded axes, that
+    runs in milliseconds and serves GOAL-MQOM-001 and GOAL-FAEST-001 without
+    modification. MAGNITUDE OF WHAT IS BEING CHECKED: 71.98 bits of slack at the
+    illustrative tau = 17 operating point -- so the check is not a formality
+    even though its expected answer is reassuring.
+
+  estimated_cost:
+    implementation: low
+    compute: negligible
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.10 that SDitH's specification leaves grinding slack above 10 bits. It is
+    not lower because the corpus has no record of SDitH's forgery accounting at
+    all, because the goal's own objective raises the question and a
+    coordinator's question is weak evidence that someone thought it live,
+    because the scheme has a Round-3 tweak window in which parameters move and a
+    stale number can survive a tweak, and because HEUR-SDITH-BF6-2 identifies a
+    concrete mechanism -- correlated randomness from a seed-tree or hypercube
+    optimization -- by which the standard binomial accounting could be the wrong
+    model rather than merely a stale one. It is not higher because the attack is
+    standard, every serious MPCitH design is believed to charge it, and a
+    designer who did not would be off by more than a factor of two in the
+    exponent, which does not survive peer review or a NIST round. Separately:
+    0.95 that the run reaches a decisive number on the ILLUSTRATIVE grid, since
+    that needs no source at all; but only 0.55 that it reaches a decisive number
+    ABOUT SDitH, because that requires Stage 0 to obtain a specification and the
+    goal record already carries a pause condition anticipating that it may not.

@@ -1,0 +1,614 @@
+idea:
+  id: IDEA-20260805-43d6df
+  question_id: RQ-SDITH-001
+  added: '2026-08-05'
+  title: >-
+    The memory-charged ISD baseline, and the re-optimization error that makes
+    every naive charging of a published ISD cost WRONG BY 6 TO 10 BITS in a
+    single named direction
+  class: cost-model
+
+  claim: >-
+    Every ISD cost table in the literature reports the optimum of a
+    two-parameter family (p, l) taken under FREE MEMORY. The obvious way to
+    build a memory-charged baseline -- take the published optimum and add the
+    memory penalty to it -- is WRONG, and wrong in a direction that makes the
+    charged baseline look worse for the attacker than it is. The correct
+    procedure re-optimizes (p, l) UNDER the charge, and the charged optimum is a
+    genuinely different point: derived in this record, at three illustrative
+    parameter sets, the free optimum moves from (p,l) = (4,4) to (2,2), from
+    (4,4) to (2,2), and from (10,34) to (6,22), and the memory exponent falls
+    from 28.1 to 15.0 bits, 30.0 to 16.0 bits, and 34.5 to 22.6 bits. Charging
+    at the un-re-optimized point over-charges by 9.61, 9.18 and 6.48 bits
+    respectively. Second, and pointing the other way: at these parameter sets
+    Dumer STILL BEATS PRANGE ONCE MEMORY IS CHARGED -- by 10.28, 12.12 and 18.47
+    bits -- so the hope recorded in this session's ANGLE-BRIEF, that full cost
+    might reorder which exponent is the baseline for SDitH, HQC and Classic
+    McEliece simultaneously, is FALSE at Dumer level at these shapes. Both
+    halves are deliverables: GOAL-SDITH-001's next_action asks for the charged
+    baseline, not for an attack, and a charged baseline whose construction
+    procedure is itself audited is worth more than one that inherits an
+    arithmetic error from the first line.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE (time exponent, memory exponent) PAIR AS A FUNCTION OF THE ALGORITHM'S
+      INTERNAL PARAMETERS -- not the scalar cost. The tracked object is the
+      parametric curve (p, l) -> (log2 T(p,l), log2 M(p,l)) traced by a single
+      ISD variant as its own tuning parameters range, followed through the
+      charging functional. Published tables collapse this curve to one point by
+      minimizing T at M = free; charging is a DIFFERENT functional on the SAME
+      curve, and its minimizer is a different point. Tracking the curve rather
+      than the point is the entire content: it is what makes the re-optimization
+      error visible, and a scalar-cost framing cannot see it.
+    established_families_off_limits: >-
+      Declared off-limits as the primary lens: (1) inventing a new ISD variant
+      of any kind -- no representation technique, no nearest-neighbour search,
+      no new collision structure; (2) index calculus, which for SD is ISD
+      renamed; (3) algebraic modelling; (4) quantum ISD, where the corpus's own
+      note is that recent gains are constant-factor and must be labelled so;
+      (5) any structural exploitation of the d-split, which belongs to
+      IDEA-20260805-cbd93d and is deliberately held OUT of this proposal so the
+      baseline is built on the plain-SD object first, exactly as
+      GOAL-SDITH-001's next_action instructs. This proposal proposes no attack
+      and no algorithm. It audits a measurement procedure.
+    newness_score: >-
+      Charging memory is not new -- KN-TECH-035 exists, was read this session,
+      and is the corpus's own vehicle. What is not in this corpus, verified by
+      the ANGLE-BRIEF's independent grep and confirmed against the SDITH area
+      here, is ANY executed charged ISD baseline at all: three goals
+      (SDITH-001, HQC-001, MCE-001) name it as deliverable number one and none
+      has an experiment. What is not obviously anywhere is the re-optimization
+      error stated as a QUANTIFIED, DIRECTIONAL defect in the standard charging
+      procedure, with the size of the error derived before any run.
+    testability_score: >-
+      Very high and entirely self-contained: the cost model is written out in
+      full below, every formula is elementary and derived in this record, and
+      the whole grid search over (p, l) at three parameter sets runs in under a
+      second of pure-Python integer arithmetic. No solver, no library. The
+      container has numpy 2.4.6 and does NOT have sympy (measured this session);
+      neither is needed.
+    survival_score: >-
+      The object survives as far as the cost model is honest, and no further.
+      Its declared failure boundary is sharp: this record models PRANGE and
+      DUMER/STERN only. MMT, BJMM and May-Ozerov are NOT READ and NOT MODELLED,
+      and since they are exactly the variants whose advantage is most
+      memory-bought, the headline "Dumer still beats Prange when charged" cannot
+      be extended to them without doing that work. Said differently: the object
+      is fine, the parameter sets are illustrative, and the variant coverage is
+      the weak axis.
+
+  mechanism: >-
+    DERIVED IN THIS RECORD. Every number below was computed here. The cost model
+    is DECLARED, not taken from a source, and its provenance is stated at each
+    line so that a reviewer can attack the model rather than the arithmetic.
+
+    THE CHARGING MODELS, DECLARED. Three, reported side by side, never collapsed
+    to one:
+      M0 (free memory)  : cost = T, the raw operation count. This is the model
+                          published ISD tables use.
+      M1 (access latency): a random access into a store of M cells costs
+                          sqrt(M) time units, because a two-dimensional layout
+                          of M cells has diameter ~sqrt(M) and a signal must
+                          cross it. Sequential streaming is not charged. Cost is
+                          the resulting total time.
+      M2 (area-time-squared): cost exponent = log2 M + 2 log2 T, reported as a
+                          separate column because it is not commensurable with
+                          M0 or M1 and comparing it against them as if it were a
+                          time is the standard way to produce a meaningless
+                          number.
+    M1 IS THE LOAD-BEARING MODEL and it is the one that must pass a baseline
+    reproduction check before it is used on anything.
+
+    BASELINE REPRODUCTION AUDIT -- RUN, AND PASSED, IN THIS RECORD. KN-TECH-035
+    (READ this session, front matter and Method section) states the corpus's
+    anchor: baby-step giant-step needs n^{1/2} processor steps but has full cost
+    n^{2/3+o(1)}. Does M1 reproduce it? BSGS with a table of m elements costs
+    m sequential writes plus n/m random lookups at sqrt(m) each, so
+      cost(m) = m + (n/m) sqrt(m) = m + n m^{-1/2}.
+    Differentiating, the optimum is m = (n/2)^{2/3} and cost = O(n^{2/3}).
+    Numerically, computed here by direct search over log2 m:
+      n = 2^64  : optimal log2 m = 42,  log2 cost = 43.58  (2e/3 = 42.7)
+      n = 2^128 : optimal log2 m = 85,  log2 cost = 86.27  (2e/3 = 85.3)
+      n = 2^256 : optimal log2 m = 170, log2 cost = 171.58 (2e/3 = 170.7)
+    M1 reproduces both the exponent 2/3 AND the optimal table size n^{2/3}, with
+    the residual ~0.9 bits being the factor-2 constant the exponent hides. THE
+    AUDIT PASSES. This matters: a charging model that failed the program's own
+    anchor would produce SDitH numbers nobody could use, and checking it costs
+    nothing. KN-LIT-094 (Wiener) itself is NOT READ; the anchor is taken from
+    KN-TECH-035's own statement of it.
+
+    THE ISD COST MODEL, DECLARED LINE BY LINE.
+    Prange. Iterations C(n,w)/C(n-k,w); per-iteration cost (n-k)^2 n field
+    operations for the Gaussian elimination (DECLARED; the standard amortized
+    variants reduce this and doing so LOWERS Prange, i.e. makes the comparison
+    below more favourable to Prange, so the choice is conservative in the
+    direction that would falsify this record's second headline); memory
+    n(n-k) field elements, polynomial.
+    Dumer/Stern with parameters (p, l). Per-iteration success
+      P(p,l) = C(k+l, p) C(n-k-l, w-p) / C(n, w);
+    two lists of size L = C((k+l)/2, p/2) (q-1)^{p/2}; expected collisions
+    L^2/q^l; per-iteration cost (n-k)^2 n + (2L + L^2/q^l) * A, where A = 1
+    under M0 and A = sqrt(2L) under M1; memory 2L cells.
+    Total time is per-iteration cost divided by P. Optimize over p even,
+    2 <= p <= 24, and 0 <= l < 50.
+
+    RESULT 1 -- THE OPTIMUM MOVES. Computed here at three ILLUSTRATIVE parameter
+    sets (SDitH's real parameters are NOT READ; these are shapes, not claims):
+      A: n=256,  k=128, w=80,  q=256
+         Prange              log2 T = 128.78, log2 M = 15.00
+         Dumer free-optimal  log2 T = 114.11, log2 M = 28.06, (p,l) = (4,4)
+         Dumer M1-optimal    log2 T = 118.50, log2 M = 15.02, (p,l) = (2,2)
+      B: n=512,  k=256, w=120, q=256
+         Prange              log2 T = 171.67, log2 M = 17.00
+         Dumer free-optimal  log2 T = 153.76, log2 M = 30.02, (p,l) = (4,4)
+         Dumer M1-optimal    log2 T = 159.55, log2 M = 16.01, (p,l) = (2,2)
+      C: n=1024, k=512, w=80,  q=2
+         Prange              log2 T = 112.83, log2 M = 19.00
+         Dumer free-optimal  log2 T =  83.60, log2 M = 34.50, (p,l) = (10,34)
+         Dumer M1-optimal    log2 T =  94.36, log2 M = 22.58, (p,l) = (6,22)
+    The structural statement, which is what to remember: UNDER SQRT-M CHARGING
+    THE OPTIMAL DUMER DEGENERATES TOWARD SMALL-MEMORY OPERATION. In the F_q
+    cases the charged optimum's memory falls to essentially Prange's working-set
+    size. That is a qualitative fact about the family, not a constant.
+
+    RESULT 2 -- THE RE-OPTIMIZATION ERROR, WHICH IS THE POINT OF THE PROPOSAL.
+    Charge the FREE optimum under M1 without re-optimizing -- the procedure a
+    careful analyst would naturally follow, taking a published table row and
+    adding the memory penalty:
+      A: log2 T = 128.12 against the true charged optimum 118.50 -> 9.61 bits
+         OVER-CHARGED
+      B: log2 T = 168.73 against 159.55 -> 9.18 bits OVER-CHARGED
+      C: log2 T = 100.84 against  94.36 -> 6.48 bits OVER-CHARGED
+    The error is one-sided by construction -- charging a non-minimizer of the
+    charged functional can only overstate the charged minimum -- so it is not
+    noise that averages out, and it is 6 to 10 bits, which is the size of the
+    entire gap the exercise is trying to measure. A charged baseline built the
+    naive way would report that memory charging nearly erases Dumer's advantage
+    (A: 128.12 versus Prange's 128.78 -- a 0.66-bit advantage, which reads as
+    "the ranking is about to flip") when the true charged advantage is 10.28
+    bits. THE NAIVE PROCEDURE PRODUCES THE HEADLINE THE PROGRAM WAS HOPING FOR,
+    AND IT IS AN ARTIFACT.
+
+    RESULT 3 -- THE HOPED-FOR REORDERING DOES NOT HAPPEN AT DUMER LEVEL. Charged
+    advantage of Dumer over Prange under M1: 10.28, 12.12 and 18.47 bits at A, B
+    and C. Charging shrinks the advantage (from 14.67, 17.91, 29.23) but does not
+    reverse it. This session's ANGLE-BRIEF proposes as its number-three angle
+    that under full cost "an ISD variant whose advantage is purely memory may
+    lose to plain Prange, which reorders which exponent is the baseline at HQC,
+    Classic McEliece and SDitH simultaneously." At Dumer level, at these shapes,
+    THAT IS FALSE, and recording it as false is the honest deliverable. Whether
+    it is false for MMT/BJMM/May-Ozerov -- whose memory exponents are far larger
+    and which are therefore the real test of the hypothesis -- is NOT DETERMINED
+    HERE, because those variants are NOT READ and NOT MODELLED. The proposal is
+    explicit that this is where the answer actually lives.
+
+    WHY THE ERROR EXISTS AT ALL, MECHANISTICALLY. T(p,l) and M(p,l) are both
+    increasing in p and the merge cost L^2/q^l is decreasing in l while L is
+    increasing in it. Free-memory optimization pushes p up until the collision
+    term balances the list-building term; the charge multiplies BOTH terms by
+    sqrt(2L), which is itself increasing in p, so the charged objective has a
+    strictly steeper penalty in p and its minimizer sits at smaller p. The gap
+    between the two minima is second-order in the curvature of log T around the
+    free optimum -- which is exactly why it is a few bits rather than a few
+    hundred, and exactly why it is invisible unless you look for it.
+
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_grepped:
+      - knowledge/techniques/KN-TECH-035.md (read), KN-TECH-044.md (exists, not read)
+      - knowledge/open-problems/KN-OPEN-017.md (exists; named by the ANGLE-BRIEF as
+        stating that no source in this corpus computes a crossover under full cost)
+      - ledger/ for any SDITH/HQC/MCE experiment or evidence record
+    grep_results:
+      - >-
+        No experiment or evidence record exists in areas SDITH, HQC or MCE. The
+        ANGLE-BRIEF reports the same by independent grep and adds that
+        GOAL-MCE-001's checkpoint records TASK-20260803-f3aece reading an
+        Esser-Bellini table and DECLINING TO TRANSCRIBE IT.
+      - >-
+        KN-TECH-035 supplies the charging doctrine and the BSGS anchor but
+        contains no ISD content.
+    conclusion: >-
+      The charging doctrine is established in this corpus; its application to
+      ISD has never been executed here. The re-optimization error is elementary
+      convex-analysis bookkeeping and may well be folklore in the coding
+      community; NO CLAIM OF EXTERNAL NOVELTY IS MADE and the external
+      literature was not searched from this session.
+
+  literature_context:
+    - >-
+      KN-TECH-035, "Full-cost accounting - charging memory, wiring, and
+      communication": READ this session (front matter plus Method and "Why this
+      program needs it"). Supplies the BSGS anchor n^{1/2} steps versus
+      n^{2/3+o(1)} full cost, which is used above as the baseline-reproduction
+      target for model M1. Its own source KN-LIT-094 (Wiener) is NOT READ and no
+      claim is attributed to Wiener directly.
+    - >-
+      SDitH SPECIFICATION: NOT READ. n, k, w, q, d and the claimed security
+      levels are unknown to this record. All three parameter sets above are
+      ILLUSTRATIVE shapes, chosen to span an F_q regime and a binary regime, and
+      are not represented as SDitH's.
+    - >-
+      ESSER-BELLINI CONCRETE ISD TABLES, and the MMT / BJMM / May-Ozerov
+      literature generally: NOT READ. NOT RELAYED EITHER -- no figure from them
+      appears anywhere in this record. Their absence is the declared limit of
+      Result 3 and reading them is a named stage of the paired experiment.
+    - >-
+      QUANTUM ISD CIRCUIT IMPROVEMENTS: NOT READ; the ANGLE-BRIEF relays that a
+      2026 result improves qubit and Toffoli counts by roughly a fifth and is
+      explicitly constant-factor. Nothing in this proposal depends on it and no
+      figure from it is used.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      A full ISD algorithm instance (variant, all tuning parameters, all
+      implementation choices)  -->  the pair (log2 T, log2 M) at its own
+      optimum, plus the parametric curve that pair traces.
+    what_is_discarded: >-
+      Everything about how the algorithm works: which lists it builds, what
+      representation technique it uses, how it verifies candidates, its constant
+      factors below the declared model, its cache behaviour, its parallel
+      structure. Two entirely different algorithms with the same (T, M) curve are
+      indistinguishable under this projection.
+    why_genuinely_lossy: >-
+      Extremely lossy and non-invertible: the fibre over a single (T, M) point
+      contains an unbounded family of algorithms. There is no route back from
+      the pair to the algorithm.
+    why_compatible_with_the_operations: >-
+      The charging functionals M0, M1 and M2 are functions of (T, M) alone by
+      construction, so the retained part propagates deterministically through
+      exactly the operation being studied. This is the one property the
+      projection needs and it holds by definition of the charge.
+    is_it_only_a_change_of_coordinates: >-
+      CHECKED FOR, AND IT IS NOT -- but the check is subtler here than in the
+      counting proposal and deserves the space. Reporting (T, M) instead of T is
+      not merely re-coordinatizing a scalar, because the charged optimum is a
+      DIFFERENT POINT of the parametric family, not a rescaling of the same
+      point. That is precisely what Result 2 demonstrates numerically: if the
+      charge were a change of coordinates the free optimum would remain optimal
+      and the re-optimization error would be exactly 0. It is 6 to 10 bits. The
+      demonstration that the projection is not a reparametrization is therefore
+      an OUTPUT of the proposal rather than an assumption of it.
+    mirror_failure_checked: >-
+      CHECKED. The mirror failure would be a charged cost that is essentially
+      constant across ISD variants -- if every variant's charged cost collapsed
+      to the same number, the charging would be measuring the parameter set and
+      not the algorithm, and the comparator spread would be zero. It does not:
+      across the three illustrative sets the charged Dumer-versus-Prange gap
+      takes the distinct values 10.28, 12.12 and 18.47 bits, and within one
+      parameter set the charged and free optima differ in both coordinates.
+      Non-zero spread, demonstrated rather than assumed.
+
+  assumptions:
+    - >-
+      That sqrt(M) is the right latency exponent for a random access into an
+      M-cell store. This is a two-dimensional-layout assumption. A
+      three-dimensional layout gives M^{1/3} and a fully idealized RAM gives 1.
+      All three are cheap to evaluate and the paired experiment evaluates all
+      three rather than choosing; the M1 result is reported as one column of a
+      table, never as "the" charged cost.
+    - >-
+      That list construction is a random-access operation (hash-table insertion)
+      and therefore charged. If a variant can be implemented with sorted
+      streaming merges the build is sequential and only the probe phase pays.
+      This is an implementation question with a real answer and it is a declared
+      stage; the sensitivity of the conclusion to it is reported.
+    - >-
+      That the Gaussian elimination is not charged for memory access. Its
+      working set is polynomial and its access pattern is regular; charging it
+      would change Prange too, and in the same direction, so the comparison is
+      insensitive to this choice at first order.
+    - >-
+      That the published tables optimize under free memory. RECALLED-UNVERIFIED
+      as a general statement about the literature; it is certainly true of the
+      asymptotic exponent tables and is the assumption the re-optimization error
+      is stated against. A table that already optimizes under a charge would not
+      exhibit the error, and Stage 0 checks which kind any transcribed table is.
+
+  predictions:
+    - metric: >-
+        BSGS full-cost exponent recovered by model M1, by direct search over
+        table size at n = 2^64, 2^128, 2^256
+      direction: different
+      minimum_effect: >-
+        log2 cost within 1.0 bits of 2e/3, and optimal log2 m within 1.0 of
+        2e/3, at all three sizes. Derived here as 43.58/86.27/171.58 against
+        42.67/85.33/170.67, and 42/85/170 against 42.7/85.3/170.7. THIS GATE
+        RUNS FIRST AND CAN TERMINATE THE WHOLE LINE: a charging model that
+        cannot reproduce the program's own anchor may not be used to charge
+        anything.
+    - metric: >-
+        re-optimization error, in bits, at each illustrative parameter set:
+        (charged cost at the free optimum) minus (charged cost at the charged
+        optimum)
+      direction: higher
+      minimum_effect: >-
+        STRICTLY POSITIVE at every parameter set -- this is forced, since the
+        charged optimum minimizes the charged objective -- and predicted to
+        exceed 3 bits at all three. Derived here: 9.61, 9.18, 6.48. A value
+        under 1 bit at all three would mean the effect is real but negligible
+        and the proposal's headline should be downgraded to a footnote. A value
+        of exactly 0 anywhere means the two optima coincide there, which is
+        possible and would be informative about where the curvature vanishes.
+    - metric: >-
+        movement of the optimal (p, l) from the free charge to the M1 charge
+      direction: different
+      minimum_effect: >-
+        The charged optimum's p must be STRICTLY LESS THAN the free optimum's p
+        at every parameter set where the free optimum has p > 2. Derived here:
+        (4,4) -> (2,2), (4,4) -> (2,2), (10,34) -> (6,22). If p does not move,
+        the mechanism's account of why the error exists is wrong even if the
+        error is not.
+    - metric: >-
+        charged advantage of Dumer over Prange under M1, in bits, at each
+        illustrative set
+      direction: higher
+      minimum_effect: >-
+        STRICTLY POSITIVE, predicted between 8 and 20 bits. Derived here: 10.28,
+        12.12, 18.47. A NEGATIVE value at any set -- Prange winning once charged
+        -- falsifies this prediction and CONFIRMS the ANGLE-BRIEF's hoped-for
+        reordering, which would be the more interesting outcome and is
+        pre-registered here precisely so it cannot be claimed after the fact.
+    - metric: >-
+        memory exponent of the M1-optimal Dumer relative to Prange's working set
+      direction: lower
+      minimum_effect: >-
+        Within 4 bits of Prange's log2 M at the F_q parameter sets. Derived
+        here: 15.02 against 15.00, and 16.01 against 17.00. This is the
+        qualitative claim that charged Dumer degenerates to small-memory
+        operation, and it is falsified if the charged optimum still holds a
+        list more than 16 bits larger than Prange's matrix.
+
+  minimal_test:
+    design: >-
+      Pure-Python integer and float arithmetic, no dependencies. Stages ordered
+      cheapest first; stage 1 can end the line.
+      STAGE 0 (reading, no compute): obtain an SDitH specification and
+      transcribe (q, n, k, w) with a page reference; separately attempt to
+      obtain one concrete ISD cost table and record whether it optimizes under a
+      memory charge. Both are allowed to fail and a failure is infrastructure
+      signal, never mathematical evidence.
+      STAGE 1 (seconds): the BSGS baseline-reproduction gate for M1, M1' (cube
+      root) and M0. If M1 misses the n^{2/3} anchor by more than 1 bit, STOP --
+      the model is not usable and that is the finding.
+      STAGE 2 (seconds): the (p, l) grid at the illustrative sets and, if Stage 0
+      succeeded, at SDitH's real parameters, under all charging models, reporting
+      the full table rather than a chosen column.
+      STAGE 3 (seconds): the re-optimization error and the Prange comparison.
+      STAGE 4 (declared, not budgeted here): transcribe and re-cost MMT, BJMM and
+      May-Ozerov. This is where the reordering question is actually decided and
+      it is NOT attempted in this proposal.
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE (l = 0, p = 2, no lists). Dumer with these
+        parameters degenerates to essentially Lee-Brickell with a trivial merge,
+        whose memory is polynomial. FORCED VALUE, derived before the run: the
+        re-optimization error at a parameter set whose FREE optimum is already
+        (2,0) must be EXACTLY 0, because the free and charged optima coincide.
+        This null can fail -- an implementation that adds a memory penalty
+        unconditionally, or that mis-computes L at p = 2, returns a nonzero
+        value. Construct such a parameter set deliberately and check.
+      - >-
+        POSITIVE CONTROL, THE EFFECT MUST APPEAR (BSGS). Baby-step giant-step is
+        the canonical memory-bought algorithm and KN-TECH-035 states its charged
+        exponent independently of this record. The instrument MUST return the
+        2/3 exponent and the n^{2/3} optimal table size. If it does not, the
+        charging code is broken and NO charged ISD number may be reported at
+        all. Derived targets: log2 cost 43.58 / 86.27 / 171.58 and optimal
+        log2 m 42 / 85 / 170 at n = 2^64 / 2^128 / 2^256.
+      - >-
+        SECOND POSITIVE CONTROL (unbounded memory exponent). Construct a
+        synthetic algorithm whose memory grows as 2^{cn} with c large; its
+        charged cost must diverge from its free cost by exactly c*n/2 bits under
+        M1. A closed-form check on the charging arithmetic itself, independent
+        of any ISD formula.
+      - >-
+        GRADED CONTROL, >= 3 INTERIOR POINTS, MONOTONICITY REPORTED. Sweep the
+        latency exponent alpha in {0, 1/6, 1/4, 1/3, 1/2, 2/3} with access cost
+        M^alpha, and report the charged optimum's p, its memory exponent, and
+        the charged Dumer-Prange gap at each. PRE-REGISTERED SHAPE: p must be
+        non-increasing in alpha, the memory exponent must be non-increasing in
+        alpha, and the Dumer-Prange gap must be non-increasing in alpha, with
+        alpha = 0 reproducing the free-memory table EXACTLY. A non-monotone
+        point localizes a fault to a specific alpha instead of leaving "the
+        charging did something odd", and the alpha at which the gap crosses zero
+        -- if it does within [0, 2/3] -- IS the answer to the reordering
+        question in a form that does not depend on choosing a model.
+      - >-
+        ORDERING CONTROL. Compute and commit the entire free-memory table
+        (M0 column) before the charged columns are computed or looked at, so
+        that no charged number can be tuned against a desired ranking.
+    required_metrics:
+      - BSGS gate: optimal log2 m and log2 cost at three sizes, against the 2/3 anchor
+      - full (p, l) optimum per parameter set per charging model, with log2 T and log2 M
+      - re-optimization error in bits per parameter set
+      - charged and free Dumer-Prange gap per parameter set
+      - the alpha-sweep table with an explicit monotonicity verdict and any crossing point
+      - source-provenance record for every transcribed parameter, or a failed-fetch record
+
+  falsification_conditions:
+    - >-
+      M1 fails to reproduce the BSGS n^{2/3} anchor within 1 bit. The charging
+      model is refuted before it is used, and that IS the result -- it would
+      mean the program's charging doctrine and its arithmetic realization
+      disagree, which is worth more than any SDitH number.
+    - >-
+      The re-optimization error is under 1 bit at all parameter sets. The
+      headline is downgraded from "the standard procedure is wrong by 6 to 10
+      bits" to "the standard procedure is very slightly wrong", and the record
+      must say so.
+    - >-
+      The charged optimum's p does not fall below the free optimum's p. The
+      mechanistic account is wrong and must be withdrawn even if the error
+      persists.
+    - >-
+      The charged Dumer-Prange gap is negative at any illustrative set. The
+      third prediction is falsified and the reordering hypothesis is CONFIRMED
+      at Dumer level, which reverses this proposal's conclusion and raises the
+      priority of Stage 4 sharply.
+    - >-
+      The alpha-sweep is non-monotone in any of the three reported quantities.
+      An implementation fault, localized to the offending alpha.
+
+  confounders:
+    - >-
+      VARIANT COVERAGE IS THE DOMINANT CONFOUNDER. Prange and Dumer are the two
+      variants modelled. The reordering hypothesis is about the variants with
+      the LARGEST memory exponents, which are exactly the ones not modelled. A
+      negative answer at Dumer level is weak evidence about BJMM and must never
+      be reported as though it settled the family.
+    - >-
+      MODEL CHOICE. sqrt(M) versus M^{1/3} versus free is a choice, and the
+      answer depends on it. The alpha-sweep exists so the dependence is reported
+      as a curve rather than hidden inside a single chosen column.
+    - >-
+      COST-MODEL CONSERVATISM CUTS BOTH WAYS. The declared Gaussian-elimination
+      cost (n-k)^2 n is generous; the standard amortization lowers it and lowers
+      Prange more than Dumer, which would SHRINK the charged Dumer advantage.
+      This is stated because it works against this record's own conclusion and
+      must not be quietly omitted.
+    - >-
+      ILLUSTRATIVE PARAMETERS ARE NOT SDitH'S. Three shapes are not a survey.
+      Every conclusion is scoped to the shapes actually evaluated until Stage 0
+      supplies the real ones.
+    - >-
+      A CHARGED BASELINE IS STILL A BASELINE, NOT A SECURITY LEVEL. Converting
+      any of these numbers into a statement about SDitH's security requires the
+      real parameters, the best variant, and the scheme's own reduction, none of
+      which this proposal supplies.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER: cost-model derivation. No decoding is performed, no
+      certificate is produced, no instance is solved. Under
+      docs/claims-and-verification.md nothing here may be reported as a break, a
+      weakness, or a security level, and the conclusion is scoped to the exact
+      variants, parameter sets and charging models evaluated.
+    - >-
+      "Dumer still beats Prange when charged" is scoped to Dumer, to the three
+      illustrative shapes, and to the declared model. It is NOT a statement that
+      full-cost accounting fails to reorder ISD, and it must not be cited as
+      one.
+    - >-
+      The re-optimization error is a statement about a PROCEDURE, not about any
+      published paper. No published table is accused of committing it; the claim
+      is that a downstream analyst charging a published optimum would.
+    - >-
+      FORWARD GUIDANCE. What remains open: (a) MMT/BJMM/May-Ozerov under the same
+      charge, which is where the reordering question lives; (b) whether any
+      published concrete table already optimizes under a charge, which Stage 0
+      may answer; (c) the crossing alpha, if any, at which Prange becomes the
+      charged baseline -- a single number that would answer the reordering
+      question in a model-independent way and that this proposal's graded control
+      is designed to produce.
+
+  heuristic_assumptions:
+    - id: HEUR-SDITH-43D-1
+      statement: >-
+        ACCESS-LATENCY EXPONENT. A random access into a store of M cells costs
+        Theta(M^{1/2}) time in a two-dimensional physical layout, and this is
+        the correct charge for the list operations of a Dumer-style ISD.
+      rigorous_support: >-
+        The geometric part is standard: M cells in a plane occupy area
+        Theta(M) and have diameter Theta(M^{1/2}); a signal crossing it takes
+        that long. What is NOT rigorous is that this per-access charge is the
+        right aggregate model for a pipelined, parallel implementation, where
+        many accesses may be in flight. KN-TECH-035 is the corpus's authority
+        and its own source (Wiener) is not read here.
+      validation_plan: >-
+        The BSGS baseline-reproduction gate IS this heuristic's test, and it is
+        a real one: the model was NOT tuned to hit 2/3, and it hits both the
+        exponent and the optimal table size. The alpha-sweep then reports the
+        conclusion's sensitivity across the whole range rather than defending a
+        point.
+    - id: HEUR-SDITH-43D-2
+      statement: >-
+        MODEL FIDELITY. The declared Prange and Dumer cost expressions are
+        faithful enough that the DIFFERENCE between the free and charged optima
+        is preserved, even where their absolute values are not.
+      rigorous_support: >-
+        None beyond the structural argument in the mechanism's last paragraph:
+        the error is second-order in the curvature of log T near the free
+        optimum, and curvature is a more robust feature of a cost model than its
+        level. This is an argument, not a proof, and it is the weakest link in
+        the record.
+      validation_plan: >-
+        Recompute the re-optimization error under two deliberately different
+        Gaussian-elimination cost choices, (n-k)^2 n and (n-k)^2, and report
+        both. If the error changes by more than a bit between them, the
+        robustness argument is refuted and the number must be reported with that
+        spread attached.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS MOVED BY THIS PROPOSAL, and it does not pretend otherwise.
+      It computes which exponent should be treated as the baseline. That said,
+      the quantity it computes is an exponent-level quantity, not a cofactor: 6
+      to 10 bits of procedural error, and 10 to 18 bits of charged Dumer
+      advantage, are differences in the security exponent at the parameter sets
+      evaluated, and the crossing-alpha the graded control looks for would be an
+      exponent statement about which algorithm is the baseline.
+    memory_exponent: >-
+      Reported for every point, which is the whole proposal. Prange log2 M =
+      15/17/19 at the three sets; Dumer free-optimal 28.06/30.02/34.50; Dumer
+      M1-optimal 15.02/16.01/22.58.
+    best_known: >-
+      For plain SD at these sizes, the best known is a representation-technique
+      variant (MMT/BJMM/May-Ozerov) whose free-memory exponent is below Dumer's
+      and whose memory exponent is above it. NOT READ, NOT MODELLED, NO FIGURE
+      QUOTED. That is the honest state and it is the reason Result 3 is scoped
+      to Dumer.
+    hidden_overhead: >-
+      Declared rather than hidden: the Gaussian-elimination cost choice, the
+      treatment of list construction as random access, and the exclusion of
+      candidate-verification cost. Each is named, each has a stated direction of
+      effect, and the two with a plausible alternative are evaluated both ways.
+    tradeoff_note: >-
+      The proposal IS a time-memory tradeoff analysis. The alpha-sweep is the
+      tradeoff curve and reporting it as a curve rather than a point is the
+      methodological contribution.
+
+  dominated_by: >-
+    n/a (no attack claimed, no Pareto point occupied). Rows checked before
+    asserting this, across all three axes: TIME -- no ISD experiment or evidence
+    record exists in this corpus (verified by area grep and independently by the
+    session ANGLE-BRIEF); MEMORY -- KN-TECH-035 (read) and KN-TECH-044 (exists,
+    not read) are the corpus's charging vehicles and contain no ISD costing;
+    DATA/QUERIES -- SD is a single-instance problem with no query axis and no
+    frontier row exists to check. External literature NOT searched this session;
+    a published charged ISD table may exist and its absence here is not evidence
+    of absence in the world.
+  sota_delta: >-
+    Quantitative. (1) Against the program's prior state: three goals name a
+    memory-charged ISD baseline as deliverable number one and the corpus
+    contains ZERO such computations; this supplies one, with its charging model
+    validated against the program's own BSGS anchor to within 1 bit. (2) Against
+    the naive construction of that same baseline: 9.61, 9.18 and 6.48 bits of
+    one-sided over-charge removed at the three illustrative sets -- large enough
+    to invert the qualitative reading at set A, where the naive procedure reports
+    a 0.66-bit Dumer advantage and the correct one reports 10.28 bits. (3)
+    Against the external state of the art: ZERO, presumed, and stated as such --
+    no new algorithm, no new bound, nothing a coding theorist would call a
+    result.
+
+  estimated_cost:
+    implementation: low
+    compute: negligible
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.90 that the re-optimization error survives review as a real and
+    quantitatively material effect. It is not higher because HEUR-SDITH-43D-2 is
+    an argument rather than a proof, because the effect's size depends on a cost
+    model this record declares rather than sources, and because a reviewer who
+    rejects the sqrt(M) charge rejects the number along with it -- the
+    alpha-sweep mitigates but does not remove that. It is not lower because the
+    effect is FORCED to be non-negative by the definition of a minimum, because
+    the charging model passed a baseline-reproduction check it was not tuned
+    for, and because the mechanism gives a structural reason for the direction
+    (the charge is increasing in p, so the charged minimizer has smaller p) that
+    is independent of the arithmetic. Separately: 0.35 that the ANGLE-BRIEF's
+    reordering hypothesis survives at MMT/BJMM level once Stage 4 is done --
+    stated explicitly so that this record's Dumer-level negative is not mistaken
+    for a closure of that question.
