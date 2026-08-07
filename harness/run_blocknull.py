@@ -1419,6 +1419,22 @@ def ctrl_twist(pool: Pool, rows: list[dict]) -> dict:
 # ==========================================================================
 
 
+def _partition_of(rung_geometry: dict) -> frozenset:
+    """The block partition as a set of trace-sets, IGNORING block ids.
+
+    Two rungs realize the same partition when their blocks hold the same
+    classes, whatever order the block ids happen to run in. Comparing the
+    id-KEYED composition dict instead reported R5_PERCLASS as not collapsed
+    onto R4_NBAND_w4 at POOL_A, POOL_B and POOL_D, where both rungs realize the
+    identical all-singleton partition and differ only in whether the ids are
+    ordered by N band or by trace (RUN-INSTR-85b102-pool{A-c,B-b,D}, whose
+    `_collapsed_onto_predecessor` field is superseded by the collapse audit in
+    RUN-INSTR-85b102-scorecard-c).
+    """
+    return frozenset(frozenset(v) for v in
+                     rung_geometry["block_composition_by_trace"].values())
+
+
 def s4_ladder(pool: Pool, values: dict, B: int = PRIMARY_B,
               progress=None) -> dict:
     """Every (pool, functional, rung) cell, both statistics.
@@ -1546,8 +1562,8 @@ def s4_ladder(pool: Pool, values: dict, B: int = PRIMARY_B,
     collapsed = {}
     for i in range(1, len(N_LADDER)):
         prev, cur = N_LADDER[i - 1], N_LADDER[i]
-        collapsed[cur] = (rung_geo[cur]["block_composition_by_trace"]
-                          == rung_geo[prev]["block_composition_by_trace"])
+        collapsed[cur] = (_partition_of(rung_geo[cur])
+                          == _partition_of(rung_geo[prev]))
 
     return {
         "stage": "S4", "pool": pool.name, "B": B,
@@ -2185,25 +2201,76 @@ def prediction_scorecard(bundles: dict, s1: dict, s2: dict) -> dict:
         }
 
     # ---- P4 ----
-    off = []
+    p_off, r_emp_off, r_cf_off = [], [], []
+    cells_checked = 0
+    max_dev_emp = max_dev_cf = 0.0
     for pname, b in bundles.items():
         L = b["ladder"]
         for k in L["functionals"]:
             for stat in ("weighted", "unweighted"):
                 c = L["cells"][f"{pname}|{k}|R5_PERCLASS|{stat}|B{L['B']}"]
+                cells_checked += 1
                 if c["p_lower"] != 1.0:
-                    off.append(f"{pname}|{k}|{stat}|p_lower={c['p_lower']!r}")
-                rr = c["variance_ratio_R_empirical"]
-                if rr is not None and rr != 1.0 and c["T_obs"] != 0.0:
-                    off.append(f"{pname}|{k}|{stat}|R={rr!r}")
+                    p_off.append(f"{pname}|{k}|{stat}|p_lower={c['p_lower']!r}")
+                if c["T_obs"] == 0.0:
+                    continue                       # `order`: ratio is 0/0
+                for key, bucket in (("variance_ratio_R_empirical", r_emp_off),
+                                    ("variance_ratio_R_closed_form", r_cf_off)):
+                    rr = c[key]
+                    if rr is None or rr == 1.0:
+                        continue
+                    bucket.append({"cell": f"{pname}|{k}|{stat}", "R": rr,
+                                   "R_minus_1": rr - 1.0})
+                    if key.endswith("empirical"):
+                        max_dev_emp = max(max_dev_emp, abs(rr - 1.0))
+                    else:
+                        max_dev_cf = max(max_dev_cf, abs(rr - 1.0))
+    sub = {
+        "p_hat_exactly_1.0_bitwise":
+            {"score": "MET" if not p_off else "NOT MET",
+             "cells_checked": cells_checked, "violations": p_off},
+        "ratio_exactly_1_bitwise_against_the_EMPIRICAL_null_mean":
+            {"score": "MET" if not r_emp_off else "NOT MET",
+             "violation_count": len(r_emp_off),
+             "max_abs_R_minus_1": max_dev_emp,
+             "violations": r_emp_off[:10]},
+        "ratio_exactly_1_bitwise_against_the_CLOSED_FORM_null_mean":
+            {"score": "MET" if not r_cf_off else "NOT MET",
+             "violation_count": len(r_cf_off),
+             "max_abs_R_minus_1": max_dev_cf,
+             "violations": r_cf_off[:10]},
+    }
+    literal4 = ("MET" if not (p_off or r_emp_off or r_cf_off) else "NOT MET")
     sc["predictions"]["P4"] = {
         "statement": "R5_PERCLASS: p-hat EXACTLY 1.0 and ratio exactly 1, every "
                      "functional, every pool. Zero tolerance.",
         "sample": "IN-SAMPLE at POOL-A, OUT-OF-SAMPLE at POOL-B/C/D",
-        "deciding_numbers": {"pools_scored": sorted(bundles),
-                             "violations": off[:30],
-                             "violation_count": len(off)},
-        "score": "MET" if not off else "NOT MET"}
+        "score": literal4,
+        "sub_clauses": sub,
+        "deciding_numbers": {
+            "pools_scored": sorted(bundles),
+            "cells_checked": cells_checked,
+            "p_hat_violations": len(p_off),
+            "ratio_violations_vs_empirical_mean": len(r_emp_off),
+            "ratio_violations_vs_closed_form": len(r_cf_off),
+            "max_abs_R_minus_1_vs_empirical_mean": max_dev_emp,
+            "max_abs_R_minus_1_vs_closed_form": max_dev_cf},
+        "decomposition_note":
+            "REPORTED AS TWO SUB-CLAUSES BECAUSE THEY FAIL AND PASS "
+            "DIFFERENTLY, AND THE EXECUTOR SCORES BOTH RATHER THAN CHOOSING. "
+            "The p-hat clause is met at zero tolerance: p_lower is bitwise 1.0 "
+            "in every cell checked, which is also the contract's stopping rule "
+            "and its tail check, and both passed at all four pools. The ratio "
+            "clause is not met bitwise: R = T_obs / null_mean comes out 1 to "
+            "within one or two units in the last place. The cause is the "
+            "DENOMINATOR, not the test -- at a degenerate rung all B null draws "
+            "are bitwise identical, and numpy's pairwise summation of B "
+            "identical doubles divided by B does not return that double "
+            "exactly, so the empirical mean sits an ulp off T_obs. The "
+            "closed-form denominator is computed by the definitional two-pass "
+            "route and lands an ulp off in a smaller number of cells. Both "
+            "counts and the maximum deviation are given above so a reviewer can "
+            "judge the clause rather than take a verdict."}
 
     # ---- P5 ----
     tw = {}
@@ -2991,6 +3058,11 @@ def _stage_scorecard(args) -> int:
     for k in sorted(sc["predictions"]):
         say(f"   {k}: {sc['predictions'][k]['score']} "
             f"[{sc['predictions'][k].get('sample')}]")
+        for name, v in (sc["predictions"][k].get("sub_clauses") or {}).items():
+            say(f"        sub-clause {name}: {v['score']}")
+    summary = _cross_pool_summary(bundles)
+    say("-- cross-pool summary --")
+    say(json.dumps(summary, indent=1, default=str))
 
     sc8 = _sc8(bundles)
     say("-- SC8 utility clause --")
@@ -2999,20 +3071,35 @@ def _stage_scorecard(args) -> int:
     finished = time.time()
     metrics = {"stage": "scorecard (S6)",
                "pools_scored": sorted(bundles),
+               "pool_run_ids": {n: b["run_id"] for n, b in bundles.items()},
                "pools_missing": [n for n in ("POOL_A", "POOL_B", "POOL_C",
                                              "POOL_D") if n not in bundles],
                "scores": {k: v["score"] for k, v in sc["predictions"].items()},
+               "sub_clause_scores": {
+                   k: {n: vv["score"] for n, vv in (v.get("sub_clauses") or {}).items()}
+                   for k, v in sc["predictions"].items() if v.get("sub_clauses")},
                "sc8": sc8,
+               "cross_pool_summary": summary,
                "certificate_note": CERTIFICATE_NOTE}
+    if args.supersedes:
+        metrics["supersedes"] = args.supersedes
+        metrics["supersedes_reason"] = args.supersedes_reason
     raw = {"stage": "scorecard", "scorecard": sc, "sc8": sc8,
-           "parameters": {"pools": sorted(bundles)},
+           "cross_pool_summary": summary,
+           "parameters": {"pools": sorted(bundles),
+                          "pool_run_ids": {n: b["run_id"]
+                                           for n, b in bundles.items()},
+                          "gates_run": args.gates_run,
+                          "supersedes": args.supersedes},
            "curve_id": "n/a (emission stage)"}
-    run_id = _emit("85b102-scorecard", metrics, raw, "\n".join(log) + "\n",
+    run_id = _emit(args.suffix or "85b102-scorecard", metrics, raw,
+                   "\n".join(log) + "\n",
                    "python3 -m harness.run_blocknull --stage scorecard",
                    started, finished, "completed", valid=True)
     say(f"wrote {run_id}")
     _dump(run_id, "prediction_scorecard.json", sc)
     _dump(run_id, "results.json", {"scorecard": sc, "sc8": sc8,
+                                   "cross_pool_summary": summary,
                                    "metrics": metrics})
     _dump(run_id, "rung_table.json",
           {n: b["ladder"]["rung_geometry"] for n, b in bundles.items()})
@@ -3041,6 +3128,105 @@ def _stage_scorecard(args) -> int:
             w.writerow([n, f"experiments/{EXPERIMENT_ID}/runs/{b['run_id']}"
                            f"/per_curve.csv"])
     return 0
+
+
+def _cross_pool_summary(bundles: dict) -> dict:
+    """Per-rung realized size, power, nuisance budget and delta*, per pool.
+
+    Observations only. No rung is adopted, recommended or retired here.
+    """
+    out: dict = {}
+    for name, b in bundles.items():
+        L, C = b["ladder"], b["controls"]
+        rows = {}
+        for r in RUNGS:
+            g = L["rung_geometry"][r]
+            no, s0, cp = (C["CTRL_NULLOBJ"][r], C["CTRL_SIZE0"][r],
+                          C["CTRL_POWER"][r])
+            rows[r] = {
+                "delta_max_N": g["delta_max_N"],
+                "n_blocks": g["n_blocks"],
+                "blocks_with_ge_2_classes": g["blocks_with_ge_2_classes"],
+                "blocks_with_ge_3_classes": g["blocks_with_ge_3_classes"],
+                "degenerate": g["degenerate"],
+                "nuisance_budget_weighted":
+                    L["nuisance_budget_by_rung"][r]["weighted"],
+                "nuisance_budget_unweighted":
+                    L["nuisance_budget_by_rung"][r]["unweighted"],
+                "realized_size_CTRL_NULLOBJ": no["realized_size"],
+                "CTRL_NULLOBJ_rejections": no["rejections"],
+                "CTRL_NULLOBJ_inside_interval":
+                    no["inside_exact_binomial_interval"],
+                "realized_size_CTRL_SIZE0": s0["realized_size"],
+                "CTRL_SIZE0_rejections": s0["rejections"],
+                "CTRL_SIZE0_inside_interval":
+                    s0["inside_exact_binomial_interval"],
+                "CTRL_SIZE0_forced_by_degeneracy": s0["forced_by_degeneracy"],
+                "power_curve": {k: v["power"] for k, v in cp["curve"].items()},
+                "power_at_0.8": cp["curve"]["0.8"]["power"],
+                "delta_star": cp["delta_star"],
+                "two_class_block": cp["two_class_block"],
+                "within_block_corr_u_N": cp["within_block_corr_u_N"],
+                "power_cost_vs_R0_FREE": cp["power_cost_vs_R0_FREE"],
+                "reports_a_result": bool(
+                    no["inside_exact_binomial_interval"]
+                    and (s0["inside_exact_binomial_interval"]
+                         or s0["forced_by_degeneracy"])),
+            }
+        # SC5 collapse audit, recomputed from the committed block compositions.
+        geo = L["rung_geometry"]
+        audit, strict = {}, {}
+        for i in range(1, len(N_LADDER)):
+            prev, cur = N_LADDER[i - 1], N_LADDER[i]
+            same = _partition_of(geo[cur]) == _partition_of(geo[prev])
+            nb_prev = L["nuisance_budget_by_rung"][prev]["weighted"]
+            nb_cur = L["nuisance_budget_by_rung"][cur]["weighted"]
+            audit[cur] = {
+                "collapsed_onto_predecessor_partition_compare": bool(same),
+                "collapsed_onto_predecessor_as_recorded_in_the_pool_run":
+                    L["collapsed_onto_predecessor"].get(cur),
+                "predecessor": prev,
+                "nuisance_predecessor": nb_prev, "nuisance_here": nb_cur,
+                "strictly_decreased": bool(nb_cur < nb_prev),
+                "sc5_clause_satisfied": bool(nb_cur < nb_prev or same),
+            }
+            strict[cur] = audit[cur]["sc5_clause_satisfied"]
+        out[name] = {
+            "sc5_collapse_audit": audit,
+            "sc5_nuisance_clause_satisfied_at_every_step": bool(all(strict.values())),
+            "sc5_audit_note":
+                "Recomputed here from each pool run's committed "
+                "block_composition_by_trace. It SUPERSEDES the "
+                "_collapsed_onto_predecessor field inside the pool run records, "
+                "which compared block-id-keyed dicts and therefore missed that "
+                "R5_PERCLASS realizes the same all-singleton partition as "
+                "R4_NBAND_w4 wherever R4 is already degenerate. No measured "
+                "number changes; only this boolean does.",
+            "prime": b["pool"].p, "n_curves": b["pool"].n,
+            "n_classes": b["pool"].K, "delta_pool": b["pool"].delta_pool,
+            "traces": [int(t) for t in b["pool"].traces],
+            "run_id": b["run_id"],
+            "acceptance_interval":
+                [C["exact_binomial_acceptance_interval"]["lo"],
+                 C["exact_binomial_acceptance_interval"]["hi"]],
+            "replicates": C["replicates"], "control_B": C["B"],
+            "finest_non_degenerate_rung_N_ladder":
+                L["finest_non_degenerate_rung_N_ladder"],
+            "finest_non_degenerate_rung_all_rungs":
+                L["finest_non_degenerate_rung_all_rungs"],
+            "uncalibrated_rungs": C["uncalibrated_rungs"],
+            "by_rung": rows,
+            "tail_checks": {c["check"]: c["result"] for c in b["tail_checks"]},
+            "tail_check_refined": {
+                c["check"]: {k: v for k, v in c.items()
+                             if k.endswith("_indicator")}
+                for c in b["tail_checks"]
+                if any(k.endswith("_indicator") for k in c)},
+            "contamination_gap": L["contamination_gap"],
+            "monotonicity_verdicts": {
+                k: v["verdict"] for k, v in L["monotonicity"].items()},
+        }
+    return out
 
 
 def _sc8(bundles: dict) -> dict:
