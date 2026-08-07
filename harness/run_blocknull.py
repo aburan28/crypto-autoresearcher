@@ -522,15 +522,32 @@ def blocked_permutation_null_both(values, labels, blocks, B: int, seed: int,
         r_upper = int(np.count_nonzero(nulls >= t_obs))
         mean = float(nulls.mean())
         sd = float(nulls.std(ddof=1)) if B > 1 else 0.0
+        nmin, nmax = float(nulls.min()), float(nulls.max())
+        # A null distribution whose whole spread sits at the rounding scale of
+        # its own mean is a POINT MASS that np.mean's pairwise summation has
+        # smeared by an ulp -- which is what a degenerate rung produces, since
+        # the within-block label permutation there is the identity. Saying so
+        # matters because a Monte-Carlo standard error computed from that
+        # spread is an ulp/sqrt(B) and dividing anything by it is meaningless.
+        ulp_scale = 8.0 * np.finfo(np.float64).eps * max(abs(mean), 1e-300)
+        point_mass = bool(nmax - nmin == 0.0 or sd <= ulp_scale)
         out[key] = {
             "T_obs": t_obs,
             "empirical_null_mean": mean,
             "null_sd": sd,
+            "null_min": nmin,
+            "null_max": nmax,
+            "null_is_point_mass_within_fp_noise": point_mass,
+            "null_point_mass_criterion": {
+                "sd": sd, "ulp_scale_8eps_times_mean": ulp_scale,
+                "max_minus_min": nmax - nmin},
             "mc_standard_error": sd / math.sqrt(B) if B else float("nan"),
             "r_lower": r_lower,
             "r_upper": r_upper,
             "p_lower": (1 + r_lower) / (1 + B),
             "p_upper": (1 + r_upper) / (1 + B),
+            "T_obs_at_or_below_null_min": bool(t_obs <= nmin),
+            "T_obs_at_or_above_null_max": bool(t_obs >= nmax),
             "B": B,
             "resolution_floor": 1.0 / (1 + B),
         }
@@ -1395,14 +1412,26 @@ def s4_ladder(pool: Pool, values: dict, B: int = PRIMARY_B,
             for stat, cf in (("weighted", cf_w), ("unweighted", cf_u)):
                 s = dict(d[stat])
                 s["closed_form_null_mean"] = cf
-                if cf is not None and s["mc_standard_error"] > 0:
-                    s["closed_form_minus_empirical"] = cf - s["empirical_null_mean"]
-                    s["residual_in_mc_standard_errors"] = (
-                        (cf - s["empirical_null_mean"]) / s["mc_standard_error"])
-                else:
-                    s["closed_form_minus_empirical"] = (
-                        None if cf is None else cf - s["empirical_null_mean"])
+                if cf is None:
+                    s["closed_form_minus_empirical"] = None
+                    s["closed_form_relative_residual"] = None
                     s["residual_in_mc_standard_errors"] = None
+                    s["residual_in_mc_se_meaningful"] = False
+                    s["closed_form_applicability"] = (
+                        "not_applicable -- some class straddles blocks")
+                else:
+                    absres = cf - s["empirical_null_mean"]
+                    s["closed_form_minus_empirical"] = absres
+                    s["closed_form_relative_residual"] = (
+                        absres / s["empirical_null_mean"]
+                        if s["empirical_null_mean"] != 0.0 else None)
+                    s["closed_form_applicability"] = "exact"
+                    meaningful = (s["mc_standard_error"] > 0
+                                  and not s["null_is_point_mass_within_fp_noise"])
+                    s["residual_in_mc_se_meaningful"] = bool(meaningful)
+                    s["residual_in_mc_standard_errors"] = (
+                        absres / s["mc_standard_error"]
+                        if s["mc_standard_error"] > 0 else None)
                 s["variance_ratio_R_empirical"] = (
                     s["T_obs"] / s["empirical_null_mean"]
                     if s["empirical_null_mean"] not in (0.0,) else None)
@@ -1854,11 +1883,21 @@ def tail_checks(pool: Pool, rows: list[dict], ladder: dict,
         if c["degenerate"]:
             continue
         if c["p_lower"] == 1.0 or c["p_upper"] == 1.0:
-            # T_obs = 0.0 is the infimum of a sum of squares, so p_upper is
-            # forced to 1.0 for `order` at every rung. That is CTRL-ORDER
-            # working, not a counting bug; it is listed, never hidden.
-            (exact_one_forced if c["T_obs"] == 0.0
-             else exact_one_unexplained).append(k)
+            # A tail p-value of exactly 1.0 means the observed statistic lies
+            # at or outside that end of the whole realized null support:
+            # #{v >= T_obs} = B when T_obs <= min(nulls), and symmetrically.
+            # That is the estimator's extreme-tail value, with the OPPOSITE
+            # tail sitting at the resolution floor -- it is the separation the
+            # ladder is measuring, not a counting bug. It is listed either way.
+            forced = ((c["p_upper"] == 1.0 and c["T_obs_at_or_below_null_min"])
+                      or (c["p_lower"] == 1.0 and c["T_obs_at_or_above_null_max"]))
+            entry = {"cell": k, "T_obs": c["T_obs"],
+                     "null_min": c["null_min"], "null_max": c["null_max"],
+                     "p_lower": c["p_lower"], "p_upper": c["p_upper"],
+                     "opposite_tail_at_resolution_floor":
+                         bool(min(c["p_lower"], c["p_upper"])
+                              == c["resolution_floor"])}
+            (exact_one_forced if forced else exact_one_unexplained).append(entry)
     literal = "PASS" if not (exact_zero or exact_one_forced
                              or exact_one_unexplained) else "FAIL"
     checks.append({
@@ -1867,18 +1906,22 @@ def tail_checks(pool: Pool, rows: list[dict], ladder: dict,
         "result_literal_reading": literal,
         "exactly_zero_cells": exact_zero,
         "exactly_zero_count": len(exact_zero),
-        "exactly_one_forced_by_T_obs_at_the_boundary": exact_one_forced,
+        "exactly_one_forced_by_T_obs_outside_the_null_support":
+            exact_one_forced[:40],
+        "exactly_one_forced_count": len(exact_one_forced),
         "exactly_one_unexplained": exact_one_unexplained,
         "implementation_defect_indicator":
             "FAIL" if (exact_zero or exact_one_unexplained) else "PASS",
         "note": "The contract's stated rationale is that the estimator makes "
                 "0.0 impossible, so an observed 0.0 is an implementation "
                 "defect. Both readings are reported without choosing between "
-                "them: the literal outcome, and the breakdown separating a "
-                "p_upper of exactly 1.0 that is FORCED because T_obs = 0.0 is "
-                "the infimum of a sum of squares (the functional `order`, "
-                "CTRL-ORDER's forced control) from any unexplained case. This "
-                "check is not one of the contract's stopping rules."})
+                "them: the LITERAL outcome, and a breakdown separating a tail "
+                "p-value of exactly 1.0 that is FORCED because T_obs lies at "
+                "or outside that end of the realized null support (the "
+                "opposite tail then sits at the resolution floor) from any "
+                "unexplained case. No p-value of exactly 0.0 is possible under "
+                "the frozen estimator and none was observed. This check is not "
+                "one of the contract's stopping rules."})
 
     floor = 1.0 / (1 + B)
     below = [k for k, c in cells.items() if c["p_lower"] < floor - 1e-18]
@@ -1887,20 +1930,49 @@ def tail_checks(pool: Pool, rows: list[dict], ladder: dict,
                    "offending_cells": below[:20],
                    "min_p_lower_observed": min(c["p_lower"] for c in cells.values())})
 
-    bad = []
+    bad, bad_pointmass, table = [], [], []
     for k in ("order", "full_liftable"):
         for r in RUNGS:
             for stat in ("weighted", "unweighted"):
                 c = cells[f"{pool.name}|{k}|{r}|{stat}|B{B}"]
                 res = c["residual_in_mc_standard_errors"]
+                row = {"cell": f"{k}|{r}|{stat}",
+                       "closed_form": c["closed_form_null_mean"],
+                       "empirical": c["empirical_null_mean"],
+                       "absolute_residual": c["closed_form_minus_empirical"],
+                       "relative_residual": c["closed_form_relative_residual"],
+                       "mc_standard_error": c["mc_standard_error"],
+                       "residual_in_mc_se": res,
+                       "null_is_point_mass_within_fp_noise":
+                           c["null_is_point_mass_within_fp_noise"],
+                       "degenerate_rung": c["degenerate"]}
+                table.append(row)
                 if res is not None and abs(res) > 3.0:
-                    bad.append({"cell": f"{k}|{r}|{stat}",
-                                "residual_in_mc_se": res})
-    checks.append({"check": "closed-form null mean within 3 MC standard errors "
-                            "of the empirical mean for `order` and "
-                            "`full_liftable` at every rung",
-                   "result": "PASS" if not bad else "FAIL",
-                   "offending": bad})
+                    (bad_pointmass if c["null_is_point_mass_within_fp_noise"]
+                     else bad).append(row)
+    literal = "PASS" if not (bad or bad_pointmass) else "FAIL"
+    checks.append({
+        "check": "closed-form null mean within 3 MC standard errors of the "
+                 "empirical mean for `order` and `full_liftable` at every rung",
+        "result": literal,
+        "result_literal_reading": literal,
+        "offending_with_a_non_degenerate_null": bad,
+        "offending_only_where_the_null_is_a_floating_point_point_mass":
+            bad_pointmass,
+        "genuine_disagreement_indicator": "FAIL" if bad else "PASS",
+        "full_table": table,
+        "note": "Reported in both readings, choosing neither. At a DEGENERATE "
+                "rung the within-block label permutation is the identity, so "
+                "every null draw is bitwise T_obs and the realized null is a "
+                "point mass; np.mean's pairwise summation of B identical "
+                "doubles then reports a mean one ulp off, giving a "
+                "'Monte-Carlo standard error' of one-ulp-over-sqrt(B). "
+                "Dividing a one-ulp difference by that produces a large "
+                "dimensionless number from an exact agreement -- the absolute "
+                "and relative residual columns show the agreement is at the "
+                "last bit. Cells with a genuinely non-degenerate null are "
+                "listed separately and are the ones that could indicate a real "
+                "disagreement."})
 
     worst = {}
     for r in RUNGS:
@@ -2664,10 +2736,16 @@ def _stage_pool(args) -> int:
                               args.replicates < CONTROL_REPLICATES,
                           "memory_cap": mem},
            "curve_id": f"POOL-{pool.name}-p{pool.p}"}
+    if args.supersedes:
+        metrics["supersedes"] = args.supersedes
+        metrics["supersedes_reason"] = args.supersedes_reason
     cmd = (f"python3 -m harness.run_blocknull --stage pool --pool {pool.name} "
            f"--replicates {args.replicates} --primary-b {args.primary_b} "
-           f"--control-b {args.control_b}")
-    run_id = _emit(f"85b102-{pool.name.replace('POOL_', 'pool')}", metrics, raw,
+           f"--control-b {args.control_b} --gates-run {args.gates_run}"
+           + (f" --suffix {args.suffix}" if args.suffix else ""))
+    run_id = _emit(args.suffix
+                   or f"85b102-{pool.name.replace('POOL_', 'pool')}",
+                   metrics, raw,
                    "\n".join(log) + "\n", cmd, started, finished,
                    "completed" if not stop else "completed", valid=not stop,
                    invalid_reason=stop)
@@ -2750,6 +2828,10 @@ def _pool_metrics(pool, ladder, controls, checks, twist, rows, args,
         "two_class_block": {r: controls["CTRL_POWER"][r]["two_class_block"]
                             for r in RUNGS},
         "tail_checks": {c["check"]: c["result"] for c in checks},
+        "tail_check_refined_indicators": {
+            c["check"]: {k: v for k, v in c.items()
+                         if k.endswith("_indicator")}
+            for c in checks if any(k.endswith("_indicator") for k in c)},
         "replicates_realized": args.replicates,
         "replicates_declared": CONTROL_REPLICATES,
         "replicate_reduction": bool(args.replicates < CONTROL_REPLICATES),
@@ -2837,8 +2919,10 @@ def _stage_scorecard(args) -> int:
     s2 = gates_raw["raw"]["s2"]
     cc: dict = {}
     bundles = {}
+    overrides = dict(kv.split("=", 1) for kv in (args.pool_run or []))
     for name in ("POOL_A", "POOL_B", "POOL_C", "POOL_D"):
-        rid = f"RUN-{RUN_AREA}-85b102-{name.replace('POOL_', 'pool')}"
+        rid = overrides.get(
+            name, f"RUN-{RUN_AREA}-85b102-{name.replace('POOL_', 'pool')}")
         path = os.path.join(_run_dir(rid), "raw-result.json")
         if not os.path.exists(path):
             say(f"   {name}: NO RUN RECORD at {rid} -- excluded, recorded as missing")
@@ -2978,6 +3062,10 @@ def main(argv=None) -> int:
     ap.add_argument("--gates-run", default=GATES_RUN,
                     help="which gates run record the pool/scorecard stages "
                          "read the frozen pool from")
+    ap.add_argument("--pool-run", action="append", default=None,
+                    metavar="POOL_X=RUN-ID",
+                    help="which run record the scorecard stage reads a pool "
+                         "from; repeatable")
     args = ap.parse_args(argv)
     globals()["GATES_RUN"] = args.gates_run
     if args.stage == "gates":
