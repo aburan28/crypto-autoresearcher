@@ -356,8 +356,9 @@ Every subgroup and its cosets plainly form a block system.
 Conversely, let \(B\) be a block containing \(0\). For any \(b\in B\), the
 translate \(b+B\) contains \(b\), so it intersects \(B\). The block property
 forces \(b+B=B\). Hence \(B\) is closed under translation by its elements.
-In particular, \(0\in B\), \(b+B=B\) implies \(b+b'\in B\), and taking
-\(b'=0\) in \((-b)+B\) shows \(-b\in B\). Thus \(B\) is a subgroup. ∎
+In particular, \(b+B=B\) implies \(b+b'\in B\) for every \(b'\in B\).
+Because \(0\in b+B=B\), there is some \(c\in B\) with \(b+c=0\), so
+\(c=-b\in B\). Thus \(B\) is a subgroup. ∎
 
 ### Corollary 10 (many quadratic decompositions)
 
