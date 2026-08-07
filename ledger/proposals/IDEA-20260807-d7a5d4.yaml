@@ -1,0 +1,641 @@
+idea:
+  id: IDEA-20260807-d7a5d4
+  question_id: RQ-MTGT-2cabee
+  added: '2026-08-07'
+  title: >-
+    harness/transport.py -- THE MISSING INSTRUMENT, WITHOUT WHICH NO L13
+    EXPERIMENT CAN RUN AT ALL: the harness contains ZERO isogeny code (verified
+    by grep across harness/*.py), the program's only prior "advice transfer"
+    script never constructs or evaluates an isogeny, and so the lane's central
+    question has never been executable; this record specifies a class enumerator,
+    a Velu constructor and evaluator with an explicit FIELD-OPERATION COUNTER, a
+    dual, a shortest-path search, and a re-verifiable T1 CERTIFICATE FAMILY that
+    a validator can check without trusting the transport code
+  class: tooling
+
+  claim: >-
+    (A) THE GAP, ESTABLISHED BY GREP AND BY READING, NOT BY IMPRESSION.
+    `grep -rin "isogeny\|velu" harness/` returns hits in harness/README.md only
+    and ZERO hits in any of harness/toycurve.py, semaev.py, rho.py,
+    endomorphism_la.py, runner.py, run.py, fixed_curve_preprocessing.py. The
+    program can generate toy curves, run Pollard rho, build Semaev factor bases,
+    measure S_3 decompositions and write immutable run records -- and it cannot
+    move a single point from one curve to another. Meanwhile
+    experiments/EXP-ISADV-001/advice_transfer.py, the one artifact named in the
+    corpus as an isogeny-transfer probe, was read in full for this batch: it
+    groups curves by #E(F_p) (correct), then picks a generator on each member
+    INDEPENDENTLY via first_point() and compares x-coordinate sets. It contains
+    no isogeny construction and no isogeny evaluation. It also has no
+    contract.md, no specification.yaml and no ledger experiment record
+    (ideas/catalogue-20260805/SCREENING.md line 175). CONSEQUENCE: every claim in
+    lane L13 about transport is, today, unexecutable, and the lane's prior
+    "scoped negative on transfer" was produced by an instrument that could not
+    have observed transport in either direction.
+
+    (B) WHAT THE MODULE MUST PROVIDE, AS A SPECIFICATION AND NOT A WISH LIST.
+      B1. CLASS ENUMERATION. Given p and a trace t, enumerate all F_p-curves
+        (a, b) with #E = p + 1 - t, up to F_p-isomorphism, recording the
+        j-invariant of each so that isomorphic duplicates are visible and never
+        silently counted as distinct classmates.
+      B2. RATIONAL KERNEL SEARCH. For a small prime ell, find the F_p-rational
+        subgroups of order ell of E, i.e. the Frobenius-stable order-ell
+        subgroups. At toy scale this is a direct search over the ell-torsion.
+      B3. VELU CONSTRUCTION AND EVALUATION. From a kernel, produce the codomain
+        curve and the rational maps (f(x), g(x)*y), and evaluate them at a point.
+        Velu construct-and-evaluate is about 6*ell field operations
+        (KN-LIT-780, relayed); the module must MEASURE this, not assume it.
+      B4. THE FIELD-OPERATION COUNTER. Every multiplication, inversion, addition
+        and squaring in the transport path is counted, in a register SEPARATE
+        from the group-operation counter that harness/rho.py already maintains.
+        THIS IS THE SINGLE MOST IMPORTANT REQUIREMENT IN THE RECORD: the whole
+        lane's cost model turns on charging isogeny construction ONCE and isogeny
+        evaluation PER POINT, and a module that reports only wall clock cannot
+        support any of it.
+      B5. THE DUAL. Given phi, produce phi-hat with phi-hat o phi = [deg phi].
+        Required by the target-pullback mode (IDEA-20260807-a127ab Mode B), which
+        is the mode the lane's cost model says dominates.
+      B6. SHORTEST PATH. Breadth-first search over the enumerated class using the
+        constructed small-ell edges, returning the path and its (L, ell_max). A
+        path search that returns a needlessly long path silently inflates every
+        transport cost figure in the lane.
+      B7. THE CERTIFICATE. See (C).
+      B8. TABLE TRANSPORT. Given a list of (point, scalar) pairs and phi, return
+        the transported list plus the per-entry certificate outcomes.
+
+    (C) THE CERTIFICATE FAMILY, WHICH IS WHAT MAKES THE MODULE TRUSTWORTHY. Per
+    docs/claims-and-verification.md the run wrapper must re-verify claims
+    independently of the solver. For transport the certificate has four parts,
+    all cheap and all checkable without re-running the transport code:
+      C1 CODOMAIN: the image curve (a', b') is nonsingular and
+        #E'(F_p) = #E(F_p), i.e. the declared codomain is in the class.
+      C2 MODULAR: for a prime-degree step, Phi_ell(j(E), j(E')) = 0 for the
+        classical modular polynomial. At the small ell this lane uses, Phi_ell is
+        a fixed known polynomial and the check is a polynomial evaluation. THIS
+        IS THE CHECK THAT AN INDEPENDENT VALIDATOR CAN RUN WITHOUT ANY OF THE
+        TRANSPORT CODE, and it is the reason the certificate family is worth
+        specifying rather than improvising.
+      C3 INSTANCE: phi(P) != O, [N]phi(P) == O, and phi(Q) == [k]phi(P) for the
+        toy instance's known k. This is T1 made checkable.
+      C4 DUAL: phi-hat(phi(R)) == [deg phi]R for a sample of points, including at
+        least one point of order N.
+      A transported table entry additionally carries C5: [r_i]phi(P) ==
+      phi(R_i), recomputed by a scalar multiplication that does NOT call the
+      transport routine.
+      An arm whose certificate fails is INVALID under AGENTS.md rule 5 -- an
+      infrastructure outcome -- and is never recorded as negative mathematical
+      evidence about transport.
+
+    (D) THE KNOWN-ANSWER TESTS, WHICH MUST PASS BEFORE ANY MEASUREMENT. Written
+    here so they cannot be relaxed later:
+      D1. ell = 2 from a rational 2-torsion point: kernel {O, T} with T = (x0, 0);
+        the constructed codomain must satisfy Phi_2(j, j') = 0.
+      D2. Composition with the dual is multiplication by deg phi (C4), tested on
+        20 random points per constructed isogeny.
+      D3. The class enumerated by trace must be CONNECTED by the constructed
+        small-ell edges. If it is not, either the enumeration or the edge
+        construction is incomplete, and every "shortest path" figure is wrong.
+      D4. ell = 1 IDENTITY AND ISOMORPHISM: an F_p-isomorphism (x, y) ->
+        (u^2 x, u^3 y) must be constructible and must transport a table with
+        retention exactly 1.000 and zero degree change. This is the positive
+        control that IDEA-20260807-0e8977 and IDEA-20260807-465744 both require.
+      D5. NEGATIVE: given two curves of DIFFERENT trace, the path search must
+        return "no path" rather than any path. A module that manufactures a path
+        between different classes invalidates every null control in the lane.
+      D6. FIELD-OPERATION COUNTER CALIBRATION: transporting S points must cost
+        S times the single-point cost plus the one-time construction, to within
+        5%. A counter whose total is not affine in S is not separating
+        construction from evaluation and cannot support the lane's cost model.
+
+    (E) WHAT THE MODULE MUST NOT DO. It must not modify any existing harness
+    module -- toycurve.py, rho.py, semaev.py, runner.py are relied on by
+    committed run records and their behaviour is frozen. It must not import from
+    experiments/. It must emit run records through harness/runner.py's existing
+    write_run so that provenance, git state, seeds and environment are captured
+    identically to every other run in the program. And it must not contain any
+    ECDLP solving logic: transport is a map, the solvers already exist, and
+    mixing them is how a transport bug becomes an apparent speedup.
+
+  resource_label: >-
+    audit: consumes no resource. A tooling record asserts no mechanism. It
+    ENABLES the R4/R8 records of this lane (IDEA-20260807-a127ab, e0ddc6, 0e8977,
+    406fef, 465744) and the R1/R4 measurements of 465744, and it is the
+    dependency every one of them has in common.
+
+  admissibility: admissible
+
+  admissibility_argument: >-
+    Tooling consumes no resource and therefore cannot fail the admissibility
+    filter of DECOMPOSITION.md section 2. It is worth recording, though, that the
+    module is capable of producing an INADMISSIBLE measurement if misused: a
+    script that applies phi to points of G and reports a retention rate is, taken
+    alone, exactly the pattern the filter closes. The module's certificate design
+    (C) does not prevent that -- nothing in code can -- so this record's
+    obligation is to state it: harness/transport.py enables both the admissible
+    M-instance accounting and the inadmissible single-instance reading, and which
+    one a run is doing is determined by the experiment contract, not by the
+    module.
+
+  discriminated_from:
+    - >-
+      experiments/EXP-ISADV-001/advice_transfer.py -- no isogeny construction, no
+      isogeny evaluation, no generator correspondence, no contract, no ledger
+      record, no field-operation counter, and its "transfer" arm samples random
+      multiples of an independently chosen generator on a classmate. It is a
+      correct implementation of the NULL and this record does not supersede it;
+      the new module must reproduce that null as one of its arms
+      (IDEA-20260807-0e8977 ARM N3).
+    - >-
+      experiments/EXP-JMV-004/cost_model.py -- a deterministic ANALYTIC cost
+      model for the Jao-Miller-Venkatesan reduction, with no curve arithmetic at
+      all. It computes what a walk WOULD cost under stated per-step models; this
+      module MEASURES what one does cost. The two are complementary and the JMV
+      scouting note's per-step model caveat (O(ell^3) in the general ordinary
+      setting, not O(sqrt(ell))) is the calibration this module can settle
+      empirically at toy scale.
+    - >-
+      harness/endomorphism_la.py -- endomorphism-side linear algebra on ONE
+      curve. Different map (endomorphism, not isogeny), different codomain (the
+      same curve), and it does not construct rational maps.
+    - >-
+      coordination/goals30/drafts/cluster_07_transfer_G30-019..021.md -- an
+      earlier draft naming a "G30-019 isogeny-graph builder" as a shared module
+      supplying explicit ell-isogenies for a transport condition. That module is
+      a DRAFT PLAN, not code: no such file exists under harness/ or experiments/.
+      This record should be read as the batch-cb71b5 specification of what that
+      draft anticipated, and if the draft is ever implemented the two must be
+      reconciled rather than duplicated.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE EXPLICIT ISOGENY phi AS A DATA OBJECT -- codomain (a', b'), kernel
+      polynomial, rational maps (f, g), degree, and a field-operation cost
+      record -- carried through the pipeline and certifiable at every stage.
+    lossiness: >-
+      LOSSY relative to the abstract isogeny: the object records the maps and the
+      degree and forgets the ideal class, the volcano level, the endomorphism
+      ring, and every other arithmetic attribute of the edge. That is
+      deliberate -- the lane's questions need the MAP and not the ARITHMETIC of
+      the edge, and carrying the arithmetic would invite the R3 lanes' questions
+      into a tooling record where they do not belong.
+    propagation: >-
+      LOSSY-PROJECTION TEST, RUN AND PASSED. Composition of edges propagates the
+      object deterministically: degrees multiply, maps compose, and the
+      field-operation cost adds. What is discarded (the ideal class) is discarded
+      compatibly with composition, since composing two edges needs only their
+      maps. The object is NOT a change of coordinates: two distinct edges can
+      share a codomain and are distinguished by their kernels, so the
+      representation genuinely loses and genuinely propagates.
+    survival_score: >-
+      Survives composition to arbitrary path length, with the degree and cost
+      accumulating. Dies at gcd(deg, N) != 1, where the induced map on G stops
+      being injective and the T1 certificate C3 fails -- which is exactly the
+      condition the certificate is designed to catch.
+
+  mechanism: >-
+    STEP 1 -- MODULE SKELETON AND FIELD-OPERATION COUNTER FIRST. Implement the
+    counter before any curve code, and wrap the field arithmetic so that no
+    operation can bypass it. A counter added afterwards always undercounts.
+    STEP 2 -- B1 CLASS ENUMERATION with j-invariant recording, tested on the
+    primes already used by advice_transfer.py (101, 211, 431) so the enumeration
+    can be compared against a known prior artifact.
+    STEP 3 -- B2/B3 KERNEL SEARCH AND VELU, starting with ell = 2 from rational
+    2-torsion, then ell = 3, 5, 7. Gate on D1 (Phi_ell check) before proceeding.
+    STEP 4 -- B5 DUAL, gated on D2.
+    STEP 5 -- B6 PATH SEARCH, gated on D3 (connectivity) and D5 (no cross-class
+    path).
+    STEP 6 -- B7 CERTIFICATE, all five parts, with an independent verifier
+    function that imports NOTHING from the transport code path.
+    STEP 7 -- B8 TABLE TRANSPORT plus D6 (counter affinity in S).
+    STEP 8 -- D4 ISOMORPHISM ARM, which supplies the ell = 1 positive control the
+    rest of the lane depends on.
+    STEP 9 -- EMIT RUN RECORDS through harness/runner.py write_run, with the
+    per-run metrics listed in required_metrics, and archive the whole battery as
+    the frozen fixture that every later L13 run must pass.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Run 2026-08-07. Commands:
+      (1) grep -rn "isogeny\|velu" harness/ -i
+      (2) grep -rn "ISADV" . and full read of advice_transfer.py
+      (3) glob experiments/EXP-ISADV-001/**
+      (4) grep -rn "isogeny-graph builder\|G30-019" coordination/ research_goals_20260723.md
+      (5) grep -rn "modular polynomial\|Phi_ell" . --glob '!research_digest/**'
+    results: >-
+      (1) ZERO isogeny or Velu code in any harness module; the only hit is
+      harness/README.md prose.
+      (2)/(3) EXP-ISADV-001 consists of exactly two files, advice_transfer.py and
+      smoke_results.json; the script applies no isogeny.
+      (4) The G30-019 isogeny-graph builder is named in draft planning documents
+      as a shared module dependency; no implementation exists in the tree.
+      (5) Modular polynomials appear in the JMV cost-model discussion as the
+      O(ell^3) per-step neighbour-finding method; no code computes or uses one.
+    verdict: >-
+      ADAPTATION. Velu's formulas, modular polynomials and breadth-first search
+      are textbook. Nothing mathematical is new. What is new is that this program
+      would, for the first time, be able to apply an isogeny to a point and count
+      what it cost -- and that the certificate family is designed so a validator
+      can check the result without trusting the code that produced it.
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING, AND THE MODULE IS JUDGED BY ITS NULLS RATHER THAN BY
+    ITS FEATURES.
+    (1) CROSS-CLASS NULL (D5): two curves of different trace. The path search
+      must return "no path". A module that returns a path here silently converts
+      every null arm in the lane into a treatment arm.
+    (2) DEGENERACY NULL: phi = identity (D4 at u = 1). Transport must be the
+      identity on points, the field-operation counter must read zero for
+      evaluation, and retention must be exactly 1.000.
+    (3) BROKEN-MAP NULL: a deliberately corrupted rational map (wrong sign, wrong
+      constant, wrong codomain). Every one must be caught by certificate part C2
+      or C3. An uncaught corruption means the certificate is decorative.
+    (4) SELF-COMPARISON NULL: E' = E with j(E') = j(E) and a claimed degree > 1.
+      Certificate C2 must reject unless Phi_ell(j, j) = 0 genuinely holds, which
+      is the case the module must handle correctly rather than by accident.
+    DECAY PARAMETER: ell, and path length L. The measured field-operation cost of
+    evaluation must GROW with ell (predicted ~6*ell per point) and with L
+    (predicted additive across steps). A cost that does not grow with ell means
+    the counter is not instrumenting the Velu inner loop, and every cost figure
+    the lane produces would be flat and meaningless -- the canonical artifact
+    tell in its instrumentation form.
+
+  assumptions:
+    - >-
+      Toy scale, p up to ~2^{16} for full class enumeration and ~2^{20} for
+      single-edge work, pure Python with sympy/numpy and no Sage. Class
+      enumeration is O(p^2) in the naive (a, b) sweep and is the binding cost;
+      the record does not assume a smarter enumerator exists in this harness.
+    - >-
+      For small ell the F_p-rational order-ell subgroups can be found by direct
+      search over the ell-torsion at toy scale. At cryptographic scale they
+      cannot, which is exactly the JMV004 caveat that the general ordinary
+      setting needs modular polynomials at O(ell^3); the module is a toy
+      instrument and does not claim otherwise.
+    - >-
+      Velu construct-and-evaluate at about 6*ell field operations and sqrt-Velu
+      at O~(sqrt(ell)) are relayed from KN-LIT-780, a bulk-seeded entry marked
+      "not verified here". Confidence: reported. The module MEASURES the constant
+      rather than assuming it, and a measured value materially different from 6
+      is a finding about the implementation, not about Velu.
+    - >-
+      Classical modular polynomials Phi_ell for ell in {2, 3, 5, 7} are fixed
+      known polynomials that can be embedded as literals and checked by
+      evaluation. Embedding a literal is not a citation and the literals must be
+      validated against D1 on curves whose isogeny is constructed independently.
+    - >-
+      harness/runner.py, toycurve.py, rho.py and semaev.py are FROZEN and are not
+      modified. Any behaviour the new module needs from them is used through
+      their existing interfaces.
+
+  proof_search_map:
+    bottleneck: >-
+      Certificate part C2, the modular-polynomial check. It is the only part of
+      the certificate that is INDEPENDENT of the transport code path -- C1, C3
+      and C4 all evaluate maps the module produced -- so it is the part that
+      carries the trust. If C2 cannot be made to work for the degrees the lane
+      needs, the certificate family degrades from "independently verifiable" to
+      "self-consistent", which is a materially weaker guarantee and must be
+      declared as such.
+    baseline_embedding:
+      parameter_slice: >-
+        ell = 2 with a rational 2-torsion point, on a curve where the codomain
+        can be computed by hand.
+      reproduction_check: >-
+        The module's codomain must match the hand computation exactly, and
+        Phi_2(j, j') must evaluate to 0 exactly in F_p. Exact equality, not
+        approximate. A mismatch halts implementation before ell = 3.
+    observation_collision:
+      observable: >-
+        "The certificate passes."
+      distinct_preimage_search: >-
+        REQUIRED. A certificate passes both when the transport is correct AND
+        when the map is the identity mislabelled as degree ell. The
+        disambiguators are D4 (the identity arm, where the counter must read zero
+        evaluation cost) and the C2 modular check (Phi_ell(j, j) is generically
+        nonzero, so an identity mislabelled as an ell-isogeny fails C2). Shipping
+        the module without both is prohibited by this record.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Represent the isogeny by its rational maps plus a cost record, rather
+          than by its ideal class or its position in the volcano.
+        predicted_gain: >-
+          Makes evaluation, composition and cost accounting all local operations
+          on one data object, and keeps the R3 arithmetic questions out of a
+          tooling module where they would create dependencies the lane does not
+          need.
+      - transform: stronger_invariant
+        proposed_object: >-
+          Certify with the modular polynomial rather than with a recomputation of
+          the module's own maps.
+        predicted_gain: >-
+          Converts a self-consistency check into an independently verifiable one,
+          which is the difference between a certificate and a log line under
+          docs/claims-and-verification.md.
+    quantifier_order: >-
+      INTENDED: FORALL constructed isogenies phi output by the module, FORALL
+      points R in the domain, the certificate parts C1-C4 hold; and FORALL pairs
+      of curves with different trace, the path search returns "no path".
+      The DANGEROUS weaker reading, NOT claimed: EXISTS a phi for which the
+      certificate holds -- which a single hand-checked example would satisfy and
+      which would say nothing about the module. The audit obligation is that the
+      certificate is run on EVERY constructed isogeny in EVERY run, not on a
+      sample, and that this is enforced in code rather than by convention.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "This map is an F_p-isogeny of the declared degree between the declared
+        curves, it carries the declared instance to the declared instance with
+        the same k, and evaluating it at one point cost the recorded number of
+        field operations." It can NEVER certify that the path found is shortest
+        (only that it is a path), that the class enumeration is complete (only
+        that what it found is connected), or anything at all about cryptographic
+        scale.
+      nearby_object_control: >-
+        A rational map of the correct degree that is NOT an isogeny -- e.g. the
+        Velu maps with one coefficient perturbed. It must fail C2 and C4. If the
+        module accepts it, the certificate is not identifying isogenies, only
+        checking arithmetic consistency.
+    proof_obligations:
+      - claim: The constructed codomain satisfies Phi_ell(j, j') = 0.
+        responsibility: correctness
+      - claim: phi-hat o phi = [deg phi] on sampled points including one of order N.
+        responsibility: correctness
+      - claim: phi(Q) = [k]phi(P) for the known toy k.
+        responsibility: correctness
+      - claim: The enumerated class is connected by the constructed edges.
+        responsibility: completeness
+      - claim: No path is returned between curves of different trace.
+        responsibility: soundness
+      - claim: Transport cost is affine in the number of transported points.
+        responsibility: runtime
+      - claim: The certificate verifier imports nothing from the transport code path.
+        responsibility: soundness
+      - claim: No existing harness module is modified.
+        responsibility: scope
+
+  predictions:
+    - metric: Phi_ell(j(E), j(E')) for every constructed prime-degree edge
+      direction: different
+      minimum_effect: EXACTLY 0 in F_p, on 100% of constructed edges. Any nonzero value halts the line.
+    - metric: phi-hat(phi(R)) == [deg phi]R on sampled points
+      direction: higher
+      minimum_effect: 100% pass, including at least one point of order N per edge.
+    - metric: connectivity of the trace-enumerated class under constructed edges
+      direction: higher
+      minimum_effect: >-
+        One connected component, on every enumerated toy class. More than one
+        means either the enumeration or the edge set is incomplete and every path
+        length reported by the lane would be wrong.
+    - metric: cross-class path search
+      direction: lower
+      minimum_effect: >-
+        "No path" on 100% of different-trace pairs. A single manufactured path
+        voids every null control in the lane.
+    - metric: measured field operations per transported point, versus ell
+      direction: higher
+      minimum_effect: >-
+        Linear in ell with a fitted slope in [2, 20] field operations per unit
+        of ell -- a band chosen to bracket the ~6*ell figure relayed from
+        KN-LIT-780 without assuming it. A slope indistinguishable from zero means
+        the counter is not instrumenting the inner loop.
+    - metric: total transport cost versus number of transported points S
+      direction: different
+      minimum_effect: >-
+        Affine in S to within 5%, with a nonzero intercept equal to the measured
+        construction cost. This is the measurement that the lane's entire Mode A
+        versus Mode B comparison rests on.
+    - metric: broken-map detection
+      direction: higher
+      minimum_effect: 100% of injected corruptions caught by C2 or C3.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (hours, implementation): the counter, B1 enumeration, and B2/B3 at
+      ell = 2 only.
+      STAGE 1 (minutes, HARD GATE): D1 -- one ell = 2 isogeny with
+      Phi_2(j, j') = 0 checked exactly, and C3 checked against a toy instance
+      with known k. THIS IS THE CHEAPEST POSSIBLE PROOF THAT THE PROGRAM CAN
+      TRANSPORT A POINT AT ALL, and it is a capability the program does not
+      currently have.
+      STAGE 2 (minutes): D2 dual, D4 isomorphism arm, D5 cross-class null.
+      STAGE 3 (low hours): ell in {3, 5, 7}, D3 connectivity on enumerated toy
+      classes, D6 counter affinity, and the broken-map injections.
+      STAGE 4 (hours): archive the whole battery as a frozen fixture, with run
+      records emitted through harness/runner.py.
+    controls:
+      - cross-class null (no path)
+      - identity/isomorphism degeneracy arm (zero evaluation cost, retention 1.000)
+      - injected broken maps (must be caught)
+      - self-comparison arm (same j, claimed degree > 1)
+      - independent certificate verifier with no transport-code imports
+      - ell sweep as the cost-counter decay test
+    required_metrics:
+      - Phi_ell evaluation per edge
+      - dual composition pass rate, with at least one order-N point per edge
+      - connected-component count per enumerated class
+      - path length L and ell_max per constructed path
+      - field operations for construction and for per-point evaluation, separately
+      - fitted slope of per-point cost against ell, with confidence interval
+      - fitted affinity of total cost against S, with intercept
+      - broken-map detection rate
+      - wall clock and peak memory per run
+
+  falsification_conditions:
+    - >-
+      Phi_ell(j, j') is nonzero for a constructed edge. The construction is
+      wrong; halts the line. Implementation fault, not a mathematical result.
+    - >-
+      The dual composition fails on any point of order N. The dual is wrong and
+      Mode B is unavailable to the lane.
+    - >-
+      A trace-enumerated class is disconnected under the constructed edges. Either
+      the enumeration or the edge construction is incomplete; every path-length
+      figure is void until it is resolved, and the incompleteness must be
+      reported rather than worked around by adding larger ell until it connects.
+    - >-
+      The path search returns a path between curves of different trace. Every
+      null control in the lane is compromised.
+    - >-
+      Per-point cost is flat in ell. The counter is not instrumenting the Velu
+      inner loop; every cost figure in the lane is meaningless.
+    - >-
+      Total cost is not affine in S. Construction and evaluation are not
+      separated, which is the exact distinction the lane's Mode A / Mode B
+      comparison depends on.
+    - >-
+      Enumeration at the target primes exceeds the time or memory budget.
+      INFRASTRUCTURE outcome (AGENTS.md rule 5), recorded as such, and not
+      evidence about anything.
+
+  confounders:
+    - >-
+      ISOMORPHIC DUPLICATES. A naive (a, b) sweep returns many curves per
+      isomorphism class. Without recording j-invariants, a "class of 20 members"
+      may be 4 curves counted 5 ways, and every M-dependence figure in the lane
+      inherits the error.
+    - >-
+      NON-RATIONAL ell-TORSION. For many small ell the ell-torsion points are not
+      F_p-rational even when a rational order-ell SUBGROUP exists. A search that
+      looks only for rational POINTS will miss edges and produce a disconnected
+      class. This is the toy-scale shadow of the JMV004 caveat and it is the most
+      likely cause of a D3 failure.
+    - >-
+      COUNTER BYPASS. Any field arithmetic done with raw Python ints outside the
+      wrapper is uncounted. The counter must be structural, not sprinkled.
+    - >-
+      COST ATTRIBUTION. Construction cost charged per point instead of once
+      inflates Mode A by S; charged once when it should be per path deflates it.
+      One convention, declared, and D6 is the test.
+    - >-
+      SMALL-p DEGENERACIES. At p ~ 101 there are curves with unusual automorphism
+      groups and the ell-torsion structure is atypical. Primes must be chosen so
+      that the class has at least 4 distinct j-invariants, and that criterion must
+      be declared in advance.
+    - >-
+      SUPERSINGULAR CONTAMINATION. A trace-based enumeration will collect
+      supersingular curves when t = 0 mod p. They must be excluded explicitly, as
+      advice_transfer.py already does, and the exclusion recorded.
+
+  interpretation_limits:
+    - >-
+      A tooling record produces no evidence about transport, the isogeny class,
+      or the ECDLP. It produces a capability and a certificate family. Passing
+      every known-answer test means the instrument works, nothing more.
+    - >-
+      The module is toy-scale by construction: full class enumeration is O(p^2)
+      and rational-kernel search is a direct torsion search. Neither scales, and
+      no figure it produces licenses a crypto-scale statement.
+    - >-
+      The measured Velu constant is a property of this Python implementation, not
+      of Velu's formulas. Cross-implementation comparisons are invalid.
+    - >-
+      The module enables the inadmissible single-instance reading as easily as
+      the admissible M-instance one. Which a run is doing is set by its contract,
+      and this record does not and cannot enforce it.
+
+  reachability_gate: >-
+    THE MODULE IS THE INSTRUMENT THAT MAKES THE GATE MEASURABLE, WHICH IS ITS
+    SECOND-MOST-VALUABLE PROPERTY. Every other L13 record prices path-finding
+    from an ASSUMPTION -- p^{1/4+o(1)} claw-finding steps at a per-step cost of
+    O(ell^3), O(ell^2) or O(sqrt(ell)) depending on which model applies, a range
+    that research/JMV004_branch_a_scouting_20260726.md (SCOUTING, not evidence)
+    shows spans 2^{19.8} to 2^{85.8} for the JMV reduction at 256 bits. With B6
+    and B4 in place, the toy-scale path length distribution and the per-step
+    field-operation cost become MEASURED quantities rather than assumed ones, at
+    least in the regime where the class is enumerable. That does not settle the
+    crypto-scale question -- nothing at toy scale can -- but it converts the
+    lane's most load-bearing assumption from unexamined to calibrated, and it is
+    the concrete route by which heuristic H1 of IDEA-20260807-a127ab gets its
+    toy-scale validation arm.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; the module solves nothing. Its own costs:
+      class enumeration O(p^2) point counts in the naive sweep, kernel search
+      O(ell^2) to O(p) per curve at toy scale, Velu construction O(ell) and
+      evaluation O(ell) field operations per point, path search O(V + E) over the
+      enumerated class.
+    memory_exponent: >-
+      O(|class|) curve records plus O(ell) kernel data plus O(S) for a
+      transported table. Negligible at toy scale; the binding constraint is the
+      O(p^2) enumeration time, not memory.
+    best_known: >-
+      For the ATTACK problem, unchanged and untouched: parallel rho at
+      0.886*sqrt(N) with O(1) memory (KN-TECH-001, KN-TECH-006),
+      automorphism-discounted on CM curves (KN-TECH-018), BSGS at sqrt(N) time
+      and memory with N^{2/3+o(1)} full cost (KN-TECH-031, KN-TECH-035),
+      Bernstein-Lange preprocessing at S = T = N^{1/3} on the
+      Corrigan-Gibbs--Kogan frontier (KN-LIT-013), Kuhn-Struik multi-target rho
+      at sqrt(M*N). For the TOOLING problem, the best known instrument is a
+      general-purpose computer algebra system (Sage), which this harness
+      deliberately does not use; the module is strictly weaker than Sage and its
+      justification is that it is available here and instrumented for cost.
+    hidden_overhead: >-
+      The O(p^2) enumeration is the hidden cost and it caps every L13 experiment
+      at primes where a full class sweep is affordable. Also hidden: the
+      likelihood that D3 connectivity fails at small ell because rational
+      order-ell subgroups are scarce, forcing larger ell and inflating measured
+      transport costs in a way that is an artifact of toy scale rather than a
+      property of isogeny classes.
+    tradeoff_note: >-
+      Not applicable -- no attack, no tradeoff. The one engineering tradeoff
+      worth recording: instrumenting every field operation costs perhaps an order
+      of magnitude in wall clock, and this record chooses the counter over the
+      speed, because the lane's claims are cost claims and an uninstrumented fast
+      module would be useless to it.
+
+  dominated_by: >-
+    AS AN ATTACK: mounts none. Dominated on every axis by every row of the
+    prime-field frontier -- parallel rho (0.886*sqrt(N) time, O(1) memory), the
+    automorphism-discounted variant on CM curves, BSGS (sqrt(N) time and memory,
+    N^{2/3+o(1)} full cost), Bernstein-Lange preprocessing (N^{1/3}/N^{1/3}), and
+    Kuhn-Struik multi-target rho (sqrt(M*N)). Checked across time, memory and
+    data/queries.
+    AS AN INSTRUMENT: dominated by Sage on capability, correctness assurance and
+    speed, and by any mature isogeny library on all three. It is NOT dominated on
+    the two axes that matter here: it is available inside this harness (no Sage
+    per the batch constraints) and it counts field operations separately for
+    construction and evaluation, which general libraries do not. The incumbent in
+    this repository is experiments/EXP-ISADV-001/advice_transfer.py, which this
+    module dominates on every axis, including by being able to apply an isogeny
+    at all.
+  sota_delta: >-
+    ZERO against every attack baseline; tooling produces no speedup. Capability
+    delta, quantitatively: takes the program from 0 isogeny evaluations possible
+    to an arbitrary number; adds 5 certificate parts (C1-C5) of which 1 (the
+    modular-polynomial check) is independently verifiable without the transport
+    code; adds 2 separate cost registers (construction once, evaluation per
+    point) where the program previously had 1 group-operation register and none
+    for field operations; and unblocks 5 proposals in this batch
+    (IDEA-20260807-a127ab, e0ddc6, 0e8977, 406fef, 465744), none of which is
+    executable without it.
+
+  estimated_cost:
+    implementation: high
+    compute: low
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.90 that ell = 2 and ell = 3 edges with passing Phi_ell certificates are
+    working within a day of implementation -- Velu at small ell from a rational
+    kernel is standard and short. 0.60 that D3 connectivity holds at
+    ell <= 7 on the first enumerated classes; scarce rational order-ell subgroups
+    at small p are the most likely failure and would force larger ell or a
+    modular-polynomial neighbour search, which is a materially larger build.
+    0.85 that the field-operation counter passes its affinity test once
+    structural rather than sprinkled. ~0.00 attack value, by construction.
+    RANKED HIGH DESPITE HAVING NO SCIENTIFIC CONTENT, and the reason is the
+    honest one: five of the nine proposals in this lane are unexecutable without
+    it, the program has spent a prior cycle recording a "scoped negative on
+    transfer" from an instrument that could not observe transport, and the single
+    cheapest way to stop that from recurring is to build the thing that can.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json;
+    all 126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-MTGT-2cabee
+    - RQ-INSTR-f8faa0
+    - RQ-JMV-001
+    - KN-TECH-001
+    - KN-TECH-005
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-TECH-031
+    - KN-TECH-035
+    - KN-TECH-056
+    - KN-TECH-080
+    - KN-LIT-013
+    - KN-LIT-780
+    - IDEA-20260807-a127ab
+    - IDEA-20260807-e0ddc6
+    - IDEA-20260807-0e8977
+    - IDEA-20260807-406fef
+    - IDEA-20260807-465744

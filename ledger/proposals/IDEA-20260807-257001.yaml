@@ -1,0 +1,575 @@
+idea:
+  id: IDEA-20260807-257001
+  question_id: RQ-INSTR-f8faa0
+  added: '2026-08-07'
+  title: >-
+    A TRANSPORT CERTIFICATE THAT DOES NOT RE-RUN VELU: certify the transported
+    instance rather than the map, by (i) recomputing the target curve's trace with
+    an independent character sum, (ii) checking [N]phi(P) = O with phi(P) != O, and
+    (iii) recomputing [k]phi(P) and comparing to phi(Q) -- and state precisely what
+    the existing verify_transport cannot detect, since its check is invariant under
+    post-composing phi with any automorphism or scalar of the target
+  class: tooling
+
+  claim: >-
+    (A) THE LOGICAL MOVE THAT MAKES THIS CHEAP AND RIGOROUS. A transport claim is
+    usually stated as "phi is an isogeny E -> E' and I applied it". Certifying THAT
+    is expensive: it requires certifying a rational map, its kernel, its degree and
+    its separability. But no lane needs it. What T1 of
+    analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md actually asserts is
+    that the TRANSPORTED INSTANCE is a valid ECDLP instance on a curve in the same
+    F_p-isogeny class with the same k. That statement decomposes into three
+    independently checkable facts, none of which mentions phi:
+      T-C1  E' is a non-singular curve over F_p and lies in the same F_p-isogeny
+            class as E, i.e. trace(E') = trace(E) -- Tate's theorem, and the trace
+            is computable by a character sum with no isogeny code in the loop;
+      T-C2  P' lies on E', P' != O, and [N]P' = O; since N is prime, P' has order
+            exactly N;
+      T-C3  Q' lies on E' and [k]P' = Q'.
+    If T-C1, T-C2 and T-C3 hold, then (E', P', Q') IS an ECDLP instance of order N
+    on a curve F_p-isogenous to E whose solution is k -- REGARDLESS of how P' and Q'
+    were produced, and regardless of whether the map that produced them was an
+    isogeny, a composition of one with an automorphism, or a lucky accident. The
+    certificate therefore has no dependence on the transport implementation at all.
+    This is the same move that makes discrete-log certificates cheap in
+    docs/claims-and-verification.md: check the witness, not the search.
+
+    (B) WHAT THE COMMITTED VERIFIER DOES AND WHAT IT CANNOT SEE. Read at
+    harness/isogeny_class.py::verify_transport on 2026-08-07 (re-verify against the
+    tree at execution time; the harness is being edited concurrently). It computes
+    fP = velu_image(E, kernel_pts, P) and fQ = velu_image(...), derives (a2, b2)
+    from velu_odd(E, kernel_pts[0], ell), and then checks with toycurve's own
+    arithmetic that fP and fQ are on E2, that E2.mul(N, fP) is None, and that
+    E2.mul(k, fP) == fQ. Its docstring says "Independent of whatever produced the
+    isogeny". Two precise limitations follow.
+      (B1) THE IMAGES ARE NOT INDEPENDENT. If the lane's transport was computed by
+        velu_image and velu_odd -- which is the only transport in the harness -- then
+        the verifier recomputes the images with the SAME code. What is independent is
+        the scalar multiplication and the curve-membership test, which is real and
+        valuable, not the map.
+      (B2) THE dlog CHECK IS BLIND TO A WHOLE ORBIT OF WRONG MAPS, PROVABLY.
+        Suppose psi = [lambda] o phi for any lambda coprime to N, or psi = -phi
+        (the case lambda = -1, which is exactly what a sign error in the y-component
+        of velu_image would produce). Then [k]psi(P) = [k][lambda]phi(P) =
+        [lambda][k]phi(P) = [lambda]phi(Q) = psi(Q). The check passes identically.
+        More generally the check is invariant under post-composition with any map
+        that acts on the image subgroup as multiplication by a scalar -- and by
+        H-ENDO-001 EVERY endomorphism of E' acts on a prime-order subgroup as
+        exactly such a scalar. So on G the check cannot distinguish phi from
+        [lambda] o phi for any lambda. This is not a defect to be repaired by a
+        better dlog check; it is a structural consequence of the very fact the
+        campaign's admissibility filter is built on, and the right response is to
+        stop asking the certificate to identify phi.
+      (B3) THE ONE CHEAP CHECK THAT IS MISSING AND IS FULLY INDEPENDENT. The
+        verifier never recomputes trace(E2). harness/isogeny_class.py already
+        contains trace_of_frobenius(p, a, b), an exact O(p) character sum that
+        shares no code with Velu. Requiring trace(E2) == trace(E) certifies T-C1
+        outright, catches any error in velu_odd's (a2, b2) that happens to leave the
+        images on the wrong curve consistently, and costs one numpy sum. Its absence
+        is the single highest-value gap in the current certificate.
+
+    (C) THE SECOND, DEGREE-FAITHFUL LAYER, OPTIONAL AND LABELLED AS SUCH. T-C1
+    certifies same-class but not same-degree. When a lane needs the DEGREE (L13's
+    preprocessing-transfer question turns on it), add
+      T-C4  Phi_ell(j(E), j(E')) = 0 in F_p, where Phi_ell is the classical modular
+            polynomial.
+    This certifies that E and E' are ell-isogenous over the algebraic closure, uses
+    only j-invariants -- harness/isogeny_class.py::j_invariant already computes them
+    -- and is completely independent of Velu. Phi_2, Phi_3, Phi_5, Phi_7 are small
+    enough to embed as literal coefficient tables. T-C4 is an ADDED claim with its
+    own status, never a prerequisite for T-C1 through T-C3.
+
+    (D) THE HONESTY CLAUSE THAT MUST TRAVEL WITH THE CERTIFICATE. T-C3 uses k. The
+    verifier therefore knows the secret, which at toy scale it does because
+    ECDLPInstance carries it. THIS IS A HARNESS-INTEGRITY CERTIFICATE, NOT AN ATTACK
+    ARTIFACT, and no record may present a passing transport certificate as evidence
+    that a transport is usable by an adversary who does not know k. An attacker
+    transporting an instance gets T-C1 and T-C2 for free and cannot check T-C3 at
+    all. That asymmetry belongs in the certificate schema as a field, not in a
+    footnote.
+
+    (E) WHAT EACH OUTCOME MEANS, DECLARED BEFORE RUNNING.
+      All of T-C1..T-C3 pass: the transported instance is valid and any lane may use
+        it, with the k-knowledge clause attached.
+      T-C1 fails: the target curve is not in the class. Either velu_odd is wrong or
+        the kernel was not a rational subgroup. The run is invalid_measurement, not
+        a negative observation.
+      T-C2 fails with P' = O: P landed in the kernel, so gcd(deg, N) != 1 and T1's
+        hypothesis is violated. A legitimate and informative outcome; the instance is
+        skipped and counted.
+      T-C3 fails while T-C1 and T-C2 pass: the map is not a homomorphism on G, which
+        given (B2)'s invariance is a strong signal and means a real bug. This is the
+        certificate's highest-information failure and it has never been exercised.
+
+  resource_label: >-
+    audit: consumes no resource. It instruments R4 (the isogeny graph) as used by
+    L1 and L13, and it certifies the T1 transport theorem's application rather than
+    consuming it.
+  admissibility: admissible
+  admissibility_argument: >-
+    No oracle is defined and no attack is mounted, so the Layer-0 filter does not
+    bite. Note the sharper point: this record uses H-ENDO-001's scalar-action fact
+    NEGATIVELY, as the reason the dlog check cannot identify phi. The filter that
+    closes attack lanes is here a theorem about what a certificate can see, which is
+    the correct use of it in an audit lane.
+
+  discriminated_from:
+    - >-
+      harness/isogeny_class.py::verify_transport as committed. Same three checks
+      plus a trace recomputation, minus the claim of independence from the map, plus
+      an explicit statement of the invariance class the dlog check cannot see, plus
+      the optional modular-polynomial degree layer, plus the k-knowledge clause.
+      The committed verifier is a strict subset and is retained as the inner check.
+    - >-
+      docs/claims-and-verification.md's certificate kinds discrete_log and
+      decomposition. This proposes a THIRD kind, isogeny_transport, whose statement
+      is a pair of curves and a pair of instances rather than a single witness. The
+      independence rule ("the verifier recomputes from scratch using the curve
+      arithmetic module, not by trusting the solver's internal state") is inherited
+      verbatim and is what the trace recomputation implements.
+    - >-
+      KN-TECH-025 (SIDH torsion-point images). That is about publishing phi(P) for
+      auxiliary torsion being a cryptographic weakness; this is about verifying that
+      an internally computed phi(P) is what the harness says it is. Same syntax,
+      unrelated content, and no attack is implied by either direction here.
+    - >-
+      IDEA-20260807-a4f5c5, which fault-injects the CERTIFICATE PIPELINE in
+      harness/runner.py. This record defines the certificate's CONTENT. Both are
+      needed: a well-defined certificate that the wrapper never checks is decoration,
+      and a well-checked certificate that certifies the wrong thing is worse.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE TRANSPORTED INSTANCE (E', P', Q', N, k) together with the pair
+      (trace(E), trace(E')). Not the isogeny; the instance and the class label.
+    lossiness: >-
+      GENUINELY LOSSY, and lossy in exactly the direction that makes it certifiable.
+      It forgets phi entirely -- the kernel, the degree, the rational functions, the
+      dual -- retaining only the target curve, two points and two integers. What it
+      discards is discarded compatibly with the campaign's operations: by T1 every
+      degree-coprime-to-N isogeny acts the same way on the instance, so the whole
+      orbit {[lambda] o phi} collapses to one retained object, and the retained part
+      still propagates deterministically under composition of transports (traces
+      compose trivially, and k is preserved at every step).
+    propagation: >-
+      Under composing two transports the certificate composes: trace equality is
+      transitive, order is preserved, and k is preserved. Under a transport whose
+      degree shares a factor with N it does NOT propagate -- P' can be O -- and that
+      is exactly the case T-C2 catches. Under a change of Weierstrass model on the
+      target it propagates through the substitution (u^2 x, u^3 y).
+    survival_score: >-
+      Survives arbitrary transport implementations, arbitrary degrees, arbitrary
+      composition depth, and the substitution of one isogeny for another in the same
+      scalar orbit. Dies as a claim about phi itself, which is why this record stops
+      claiming that.
+
+  mechanism: >-
+    STEP 1 -- SCHEMA. Add certificate kind isogeny_transport to
+    docs/claims-and-verification.md's set, with statement fields: source curve
+    (p, a, b), target curve (p, a2, b2), N, k, P, Q, P_image, Q_image, claimed
+    degree, optional kernel x-coordinates, and the mandatory boolean
+    verifier_knows_secret: true with the clause of (D) as a fixed string.
+
+    STEP 2 -- VERIFIER, IN toycurve-ONLY CODE. A function verify_isogeny_transport
+    that imports EllipticCurve and trace_of_frobenius and NOTHING from the Velu
+    path. It checks: non-singularity of both curves; P, Q on E and P_image, Q_image
+    on E'; trace_of_frobenius(p, a2, b2) == trace_of_frobenius(p, a, b);
+    P_image != O and E'.mul(N, P_image) is None; E'.mul(k, P_image) == Q_image; and
+    that N is prime. Every failure returns a named reason, never a bare False.
+
+    STEP 3 -- WIRE IT INTO THE RUN WRAPPER. Extend harness/runner.py::_verify with
+    the new kind, so a failed transport certificate makes the run
+    completed_invalid exactly as a failed discrete_log does. Until this is done, a
+    transport certificate is advisory and must be labelled advisory in any record
+    that cites it.
+
+    STEP 4 -- THE MUTATION SUITE, WHICH IS THE ACTUAL EXPERIMENT. Nine planted
+    faults, each of which the verifier must reject with the correct named reason,
+    and two which it must ACCEPT because they are not faults of the instance:
+      MUST REJECT: target curve singular; target curve with a different trace;
+        P_image off the target curve; P_image = O; P_image of order a proper divisor
+        of N (constructible by multiplying by a cofactor); Q_image off the curve;
+        k off by one; k replaced by k + N (must be accepted, see below -- moved);
+        N replaced by a composite.
+      MUST ACCEPT (the invariance class of (B2), and these are the interesting
+        cases): P_image and Q_image both negated -- because -phi is also a valid
+        transport and the transported instance is genuinely valid; P_image and
+        Q_image both multiplied by the same lambda coprime to N -- same reason; k
+        replaced by k + N -- same scalar mod N.
+    The MUST-ACCEPT list is the point: it is the certificate declaring, in
+    executable form, the exact equivalence class it cannot and should not
+    distinguish. That declaration is the deliverable that stops a future record from
+    reading a passing transport certificate as "phi was verified".
+
+    STEP 5 -- OPTIONAL DEGREE LAYER. Embed Phi_2, Phi_3, Phi_5, Phi_7 as literal
+    tables; check Phi_ell(j(E), j(E')) = 0 mod p; validate the tables by confirming
+    Phi_ell(j, j) factors as expected on a handful of known ell-isogenous toy pairs
+    produced by the existing Velu path. A table transcription error must be caught
+    by that validation before the layer is used, and the layer is reported as a
+    separate boolean, never folded into the main verdict.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      Commands run 2026-08-07: rg -il "Velu|isogeny transport|transport
+      certificate|transported instance" over the repository (40 files, capped);
+      full reads of harness/isogeny_class.py, harness/runner.py,
+      harness/toycurve.py, docs/claims-and-verification.md; reads of
+      knowledge/techniques/KN-TECH-025.md and the DECOMPOSITION T1 statement.
+    results: >-
+      A transport certificate EXISTS: harness/isogeny_class.py::TransportCertificate
+      and ::verify_transport, with the order and dlog checks already implemented.
+      docs/claims-and-verification.md defines exactly two certificate kinds,
+      discrete_log and decomposition, and harness/runner.py::_verify handles exactly
+      those two. NO record in ledger/, knowledge/, docs/ or analysis/ states that
+      the dlog check is invariant under post-composition with a scalar, proposes a
+      trace recomputation as the class-membership certificate, proposes a
+      modular-polynomial degree layer, or records the k-knowledge asymmetry. Searches
+      for "modular polynomial" in harness/ return only isogeny_class.py's j-invariant
+      helpers, so Phi_ell is not present anywhere in the harness.
+    verdict: adaptation
+  novelty_status_note: >-
+    ADAPTATION. Tate's theorem, Velu, and modular polynomials are classical and
+    nothing about them is claimed as new. What is new to this program is the
+    reframing -- certify the instance and the class label rather than the map -- and
+    the executable declaration of the equivalence class the certificate cannot
+    distinguish. No external novelty claimed.
+
+  null_object_control: >-
+    MANDATORY. The NULL OBJECT is a NON-TRANSPORT of the same shape: a curve E'' at
+    the same p with the SAME order N but a DIFFERENT trace where that is possible,
+    or failing that a random curve at the same p, together with a point pair
+    (P'', Q'') built to satisfy [k]P'' = Q'' by construction (take any P'' of order
+    N and set Q'' = [k]P''). This object satisfies T-C2 and T-C3 perfectly and fails
+    T-C1. If the verifier accepts it, T-C1 is not doing its job and the certificate
+    is worthless as a class-membership claim -- which is the whole reason the trace
+    recomputation is being added.
+    DECAY PARAMETER: the isogeny degree ell. As ell grows past the point where
+    gcd(ell, N) != 1 becomes possible, the T-C2 failure rate (P' landing in the
+    kernel) must RISE in a way predicted by the arithmetic; and the composition
+    depth d of chained transports is the second decay parameter -- the certificate's
+    pass rate must be exactly 1 at every depth for correct code, so ANY decay in
+    pass rate with depth is a bug signature and not a mathematical fact. A pass rate
+    that decays with depth while every individual step passes would indicate
+    accumulating state in the transport implementation and is the canonical artifact
+    tell for this instrument.
+
+  assumptions:
+    - >-
+      Tate: two elliptic curves over F_p are F_p-isogenous if and only if they have
+      the same number of F_p-points. Classical; used as the definition of the class
+      throughout GOAL-ENDO-001 and not re-derived.
+    - >-
+      T1 as stated in DECOMPOSITION.md section 3: for phi of degree coprime to N,
+      phi restricted to G is an injective homomorphism, phi(Q) = [k]phi(P), and
+      phi(P) has order N. Marked [fact] there; used here only to motivate the
+      checks, which stand on their own.
+    - >-
+      N is prime, so P' != O together with [N]P' = O gives order exactly N. The
+      verifier tests primality of N rather than assuming it.
+    - >-
+      trace_of_frobenius's character sum is correct. This is itself an instrument
+      and is validated against EllipticCurve.order() by exhaustive agreement at
+      small p before being used as a certificate.
+    - >-
+      Toy scale: the character sum is O(p), so T-C1 costs O(p) per transport. At
+      p around 2^12 this is negligible; at p around 2^20 it is the dominant cost of
+      the certificate and the modular-polynomial layer becomes the cheaper route.
+
+  proof_search_map:
+    bottleneck: >-
+      T-C1. Everything else is arithmetic on points; the class-membership claim is
+      the only part that needs a theorem, and the theorem is Tate's.
+    baseline_embedding:
+      parameter_slice: >-
+        p = 4001, one ordinary trace from the RUN-ICINV-p4001-a enumeration, ell = 3
+        or 5, one instance with N prime and gcd(ell, N) = 1.
+      reproduction_check: >-
+        The new verifier must return the identical verdict to
+        harness/isogeny_class.py::verify_transport on every transport that verifier
+        currently accepts, on a frozen fixture of at least 20 transports. Any
+        disagreement is a discrepancy to be resolved before the new verifier is
+        trusted, in whichever direction it points.
+    observation_collision:
+      observable: >-
+        The certificate verdict (a boolean plus a reason string).
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED; it is Step 4's MUST-ACCEPT list. phi and
+        -phi and [lambda] o phi are distinct ground-truth maps with the same
+        observable. The collision is not a falsifier here because the certificate's
+        claim is about the INSTANCE and not about the map -- but it would be a fatal
+        falsifier for any record that read the certificate as identifying phi, and
+        making that explicit in executable form is the point of the exercise.
+    quantifier_order: >-
+      Intended: FOR ALL transports produced by any implementation, IF the verifier
+      accepts, THEN (E', P', Q') is an ECDLP instance of order N on a curve
+      F_p-isogenous to E with solution k. The verifier's acceptance is universally
+      quantified over implementations, which is what "independent" must mean.
+      The reading NOT claimed, and explicitly disclaimed: IF the verifier accepts
+      THEN the specific map used was an isogeny of the claimed degree. That
+      implication is false, by (B2), for degree, and only recoverable for the degree
+      via the optional T-C4 layer.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "(E', P', Q') is a valid ECDLP instance of prime order N on a curve with the
+        same trace as E, and its solution is the same k." It can never certify which
+        isogeny was used, that any isogeny was used, that the degree is what was
+        claimed (without T-C4), or that an attacker without k could have checked it.
+      nearby_object_control: >-
+        The NULL OBJECT above: a same-order, different-trace curve with a
+        by-construction valid (P'', Q'', k). A verifier that cannot distinguish it
+        from a genuine transport has not identified the load-bearing structure,
+        which is the class membership.
+    proof_obligations:
+      - claim: Same trace implies F_p-isogenous (Tate).
+        responsibility: correctness
+      - claim: N prime, P' != O, [N]P' = O implies ord(P') = N.
+        responsibility: correctness
+      - claim: The dlog check is invariant under phi -> [lambda] o phi.
+        responsibility: soundness
+      - claim: The verifier shares no code with the Velu path.
+        responsibility: independence
+      - claim: trace_of_frobenius agrees with exhaustive point counting at small p.
+        responsibility: baseline
+      - claim: Every reported acceptance carries the k-knowledge clause.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        number of the nine MUST-REJECT mutations that the CURRENT
+        verify_transport accepts
+      direction: higher
+      minimum_effect: >-
+        At least one, and specifically the different-trace mutation, since
+        verify_transport never recomputes the target trace and derives (a2, b2) from
+        velu_odd rather than checking them. Pre-registered: if it rejects all nine,
+        this record's central gap claim is falsified and the trace layer becomes a
+        redundancy rather than a repair -- still worth adding, but a much smaller
+        contribution, and the record says so in advance.
+    - metric: >-
+        number of the three MUST-ACCEPT mutations that either verifier rejects
+      direction: lower
+      minimum_effect: >-
+        Zero. A rejection of the negated-image or scaled-image transport would mean
+        the verifier is enforcing a property of the map that the instance claim does
+        not need, which is a different kind of defect and would also be reportable.
+    - metric: >-
+        agreement between the new verifier and verify_transport on 20 frozen
+        genuine transports
+      direction: different
+      minimum_effect: >-
+        Exact agreement on all 20 required before the new verifier is used anywhere.
+        Any disagreement halts and is investigated.
+    - metric: >-
+        certificate pass rate as a function of chained transport depth d = 1..8
+      direction: different
+      minimum_effect: >-
+        Exactly 1 at every depth for correct code. Any decay is a bug signature, not
+        a mathematical result, and is reported as an implementation finding under
+        AGENTS.md rule 5 rather than as evidence about transport.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute, HARD GATE, and it is the cheapest discriminator in this
+      whole record): construct on paper the mutation psi = -phi and verify
+      algebraically that [k]psi(P) = psi(Q) holds identically. If it does not, the
+      invariance claim (B2) is wrong and the record is superseded. This costs
+      nothing and settles the central structural claim.
+      STAGE 1 (minutes): validate trace_of_frobenius against
+      EllipticCurve.order() exhaustively at p = 101 and p = 1009 over all curves.
+      STAGE 2 (an hour): write verify_isogeny_transport in toycurve-only code; run
+      it and verify_transport on 20 frozen genuine transports at p = 4001 and
+      require exact agreement.
+      STAGE 3 (an hour): the twelve-mutation suite against BOTH verifiers; tabulate
+      accept/reject and the reason strings.
+      STAGE 4 (an hour): the null object -- same N, different trace, valid
+      (P'', Q'', k) -- against both verifiers.
+      STAGE 5 (hours, optional): the Phi_ell layer with its own table validation.
+    controls:
+      - null object with same order, different trace, by-construction valid dlog
+      - the three MUST-ACCEPT mutations, declaring the invariance class
+      - trace_of_frobenius validated against exhaustive point counting
+      - chained transports at depth 1 to 8, pass rate must be identically 1
+      - the existing verify_transport run beside the new one on every fixture
+    required_metrics:
+      - accept/reject and reason string per (verifier, mutation)
+      - agreement count on the 20 frozen genuine transports
+      - null-object verdict for both verifiers
+      - trace recomputation cost per transport, in seconds and as a fraction of the
+        transport cost
+      - pass rate versus chain depth
+      - Phi_ell layer verdict, reported separately, if Stage 5 runs
+
+  falsification_conditions:
+    - >-
+      Stage 0 fails: [k](-phi(P)) != -phi(Q). The invariance claim is false and this
+      record's diagnosis of verify_transport is withdrawn.
+    - >-
+      trace_of_frobenius disagrees with exhaustive point counting anywhere at
+      p = 101 or 1009. The proposed T-C1 layer is built on a broken instrument and
+      cannot be used until that is resolved.
+    - >-
+      The two verifiers disagree on any of the 20 genuine transports. One of them is
+      wrong; nothing is certified until it is known which.
+    - >-
+      The current verify_transport rejects all nine MUST-REJECT mutations. The gap
+      claim is falsified; the trace layer is a redundancy, and the record says so.
+    - >-
+      Chained-transport pass rate falls below 1 at any depth. An implementation
+      finding under AGENTS.md rule 5, never evidence about transport mathematics.
+    - >-
+      A Phi_ell table fails its own validation on known ell-isogenous pairs. The
+      degree layer is withdrawn rather than reported with a caveat.
+
+  confounders:
+    - >-
+      SHARED-CODE ILLUSION. If verify_isogeny_transport ever imports from the Velu
+      path, the independence claim evaporates silently. The import list is part of
+      the certificate's contract and must be asserted in the test suite, not merely
+      intended.
+    - >-
+      TRACE COST AT LARGER p. T-C1 is O(p). At p beyond about 2^18 it dominates the
+      transport itself, which will tempt a future implementer to cache traces; a
+      cached trace is not a recomputation and would void the independence. Caching
+      must be forbidden or the cache must be keyed by (p, a, b) and validated.
+    - >-
+      k-KNOWLEDGE LEAKING INTO A CLAIM. T-C3 uses the secret. A record that cites a
+      passing certificate as evidence about attacker-side transport cost has made an
+      error the certificate cannot catch; only the schema field and the fixed clause
+      can.
+    - >-
+      SUPERSINGULAR AND ANOMALOUS EDGE CASES. At t = 0 or t = 1 the class structure
+      differs and N may not be prime. The verifier tests N's primality; the fixture
+      set must include at least one skipped instance so the skip path is exercised.
+    - >-
+      THE KERNEL-GENERATOR ORDER GAP. Read on 2026-08-07,
+      harness/isogeny_class.py::find_kernel_generator returns R = [cofactor]P
+      without checking [ell]R = O, so when ell^2 divides the order it can return a
+      point of order ell^2 and velu_odd will then be handed a non-subgroup. This is
+      upstream of the certificate and would produce a target curve that fails T-C1,
+      which is precisely how the trace layer would catch it -- an argument for the
+      layer and a defect for IDEA-20260807-a4f5c5's suite to confirm.
+
+  interpretation_limits:
+    - >-
+      A passing certificate certifies the INSTANCE and the CLASS LABEL, and nothing
+      about the map. Any record reading it as verification of phi is overclaiming.
+    - >-
+      T-C3 requires k. Nothing here says anything about what an attacker who does
+      not know k can verify.
+    - >-
+      Toy tier. The certificate scheme is scale-free but the O(p) trace check is
+      not, and no claim is made about how it behaves at cryptographic p.
+    - >-
+      Nothing here is an attack, a speedup, or a cost claim. The transport theorem
+      T1 is elementary and this record only makes its application checkable.
+
+  reachability_gate: >-
+    REQUIRED AND ANSWERED, since this record does move between curves. A single
+    small-degree transport at toy scale costs O(ell) group operations for the kernel
+    plus O(ell) per image plus O(p) for the T-C1 trace check, so reaching a RANDOM
+    neighbour is cheap. Reaching a SPECIFIED curve is the vectorization problem of
+    T5 and costs about sqrt(h) classically at best; nothing in this record shortens
+    that, and the certificate deliberately says nothing about it. The certificate's
+    cost must be charged into any lane that transports many instances: at L13's
+    multi-target amortisation the O(p) trace check per transport is the dominant
+    term at toy scale and must appear in that lane's cost model rather than being
+    treated as free verification.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED OR MOVED. Certificate cost per transport:
+      O(log N) group operations for T-C2 and T-C3, plus O(p) field operations for
+      the T-C1 character sum, plus O(1) for T-C4 if the modular-polynomial layer is
+      used. T-C4 is asymptotically the cheaper class check and becomes preferable
+      above about p = 2^18.
+    memory_exponent: >-
+      O(1) beyond the two curves and four points; the character sum is computed
+      streaming or with an O(p) table that harness/isogeny_class.py already caches
+      per p.
+    best_known: >-
+      Attack frontier unchanged: parallel rho at 0.886*sqrt(N) time and O(1) memory
+      (KN-TECH-001, KN-TECH-006), automorphism-discounted rho on CM curves
+      (KN-TECH-018), BSGS at sqrt(N) time and sqrt(N) memory. For the CERTIFICATE the
+      incumbent is harness/isogeny_class.py::verify_transport.
+    hidden_overhead: >-
+      The O(p) trace check is the hidden cost and it is disclosed here because it is
+      the term a future implementer will be tempted to cache away, which would void
+      the independence the certificate exists for. The modular-polynomial layer's
+      hidden cost is the correctness of a transcribed coefficient table, which is
+      why that layer carries its own validation gate.
+    tradeoff_note: >-
+      A genuine tradeoff exists between the two class checks: T-C1 is O(p) and
+      degree-agnostic; T-C4 is O(1) given a table and degree-faithful but covers only
+      the ell for which a table is embedded. A lane should use T-C1 at toy p and T-C4
+      when p grows or when the degree itself is the claim.
+
+  dominated_by: >-
+    AS AN ATTACK: mounts none; dominated on every axis by every row of the
+    prime-field frontier -- parallel rho at 0.886*sqrt(N) time with O(1) memory
+    (KN-TECH-001, KN-TECH-006), automorphism-discounted rho on CM curves
+    (KN-TECH-018), BSGS at sqrt(N) time and sqrt(N) memory. Checked across time,
+    memory and data/queries; nothing is contested because no discrete logarithm is
+    computed and the certificate consumes k rather than producing it.
+    AS A CERTIFICATE: the incumbent is harness/isogeny_class.py::verify_transport.
+    This proposal dominates it on SOUNDNESS (it adds the independent class check
+    that catches a wrong target curve) and on HONESTY (it declares the equivalence
+    class it cannot distinguish, in executable form). It is dominated by the
+    incumbent on COST -- the added O(p) character sum per transport -- and on
+    MATURITY, since the incumbent exists and this does not. It is also dominated on
+    STATEMENT STRENGTH by any scheme that certifies phi itself; no such scheme is
+    proposed here, and the record's position is that certifying phi is not what T1
+    needs.
+  sota_delta: >-
+    Zero speedup against any attack baseline; no exponent moves. Instrument delta,
+    quantitatively: adds one independent check (trace equality, O(p) field
+    operations, zero new dependencies since trace_of_frobenius is already in the
+    module) that closes the class-membership hole; converts an implicit and
+    unstated invariance -- the dlog check is blind to the entire orbit
+    {[lambda] o phi : gcd(lambda, N) = 1}, of size phi_euler(N) which is N - 1 for
+    prime N -- into three executable MUST-ACCEPT test cases; adds a certificate kind
+    to a schema that currently has two; and supplies an O(1) degree-faithful
+    alternative for ell in {2,3,5,7} that becomes the cheaper check above about
+    p = 2^18.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.97 that Stage 0's algebra confirms the invariance -- it is two lines and I
+    have written them out in (B2). 0.85 that the current verify_transport accepts
+    the different-trace mutation, since it never recomputes the trace and derives
+    the target from velu_odd. 0.9 that the trace layer costs less than 10 percent of
+    the transport at p = 4001. 0.5 on the find_kernel_generator order gap actually
+    firing on a toy fixture, since it needs ell^2 dividing the order. The likeliest
+    honest headline is small and solid: "the campaign's transport certificate was
+    missing its class check, the check costs one character sum, and here is the
+    equivalence class the certificate provably cannot see."
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json; all
+    126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-INSTR-f8faa0
+    - GOAL-ENDO-001
+    - analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md
+    - docs/claims-and-verification.md
+    - docs/inventor-protocol.md
+    - harness/isogeny_class.py
+    - harness/toycurve.py
+    - harness/runner.py
+    - H-ENDO-001
+    - KN-FIND-b7e091
+    - KN-TECH-025
+    - KN-TECH-006
+    - KN-TECH-018
+    - RUN-ICINV-p4001-a
+    - IDEA-20260807-a4f5c5
