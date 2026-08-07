@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7818 |
-| — with a resolvable external identifier | 2219 |
+| Literature entries (`KN-LIT-*`) | 7819 |
+| — with a resolvable external identifier | 2220 |
 | — with no identifier recorded | 5599 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1321, doi 146, eprint 725, url 27. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1321, doi 146, eprint 726, url 27. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 9, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7460, `web` 317.
+`citation_verified` distribution: `False` 21, `True` 9, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7460, `web` 317.
 
 ## 1. Frozen source packages
 
@@ -106,7 +106,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2219 of 7818 `KN-LIT-*` entries carry an
+2220 of 7819 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2025,6 +2025,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-7670 | Cryptanalysis of HAWK: a Guessing Game | 2026 | `eprint:2026/1318` | web |
 | KN-LIT-7671 | Exploiting the complexity of Lattice Isomorphism Problem via Irreducible Decomposition | 2026 | `eprint:2026/1139` | web |
 | KN-LIT-7672 | Revisiting the Concrete Security of Falcon-type Signatures | 2026 | `eprint:2026/096` | web |
+| KN-LIT-7674 | Cryptanalysis of HAWK: a Guessing Game (with 30/06 correction) | 2026 | `eprint:2026/1318` | body_read_from_user_provided_text |
 | KN-LIT-7675 | Revisiting the Security of Approximate FHE with Noise-Flooding Countermeasures | 2025 | `eprint:2024/424` | web |
 | KN-LIT-768 | From the Hardness of Detecting Superpositions to Cryptography: Quantum Public Key Encryption and Commitments | 2020 | `arxiv:2009.07450` | read |
 | KN-LIT-769 | Hardness of LWE on General Entropic Distributions? | 2020 | `eprint:2020/119` | read |
@@ -7953,5 +7954,6 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `arxiv:1711.04062` | KN-LIT-560, KN-LIT-7632 |
 | `eprint:2015/573` | KN-LIT-475, KN-LIT-7607 |
 | `eprint:2023/1618` | KN-LIT-1117, KN-LIT-132 |
+| `eprint:2026/1318` | KN-LIT-7670, KN-LIT-7674 |
 | `eprint:2026/366` | KN-LIT-7667, KN-LIT-7c2620 |
 | `url:cdn.openai.com/pdf/ten-proofs-oai.pdf` | KN-LIT-7637, KN-LIT-7640 |
