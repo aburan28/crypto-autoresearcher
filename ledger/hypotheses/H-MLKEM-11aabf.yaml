@@ -1,0 +1,234 @@
+hypothesis:
+  id: H-MLKEM-11aabf
+  question_id: RQ-MLKEM-001
+
+  statement: >-
+    CLAIM TIER: derivation for the exact fibre-census identities; medium for
+    the block-size conversion (exact FIPS 203 parameters, no toy
+    extrapolation, but a labelled model readout rather than a measured attack
+    cost). NO ATTACK, NO KEY RECOVERY, NO MESSAGE RECOVERY, NO SECURITY
+    CLAIM. Two conjuncts, each separately falsifiable.
+    (C1, EXACT CENSUS) For Compress_d(x) = round(2^d x / q) mod 2^d with
+    q = 3329: at d_u = 11, exactly 767 residues have a singleton fibre and
+    1281 have a 2-element fibre (767 + 2*1281 = 3329); at d_u = 10, fibres
+    are of size 3 (767 of them) or 4 (257 of them); at d_v in {4, 5} the
+    fibre-size spread is under 0.5%, a graded internal control the mechanism
+    must reproduce. At d = 12 every fibre is a singleton (2^12 > q) and the
+    conditional-noise mutual information I(delta; bin) is exactly 0.
+    (C2, THE BLOCK-SIZE READOUT) Recomputing the ciphertext-side uSVP block
+    size under three models -- (M0) single marginal rounding variance, (M1)
+    per-class rescaling, (M2) clean-samples-only with reduced sample count --
+    gives beta(M1), beta(M2) < beta(M0) for ML-KEM-1024, by 2 to 4 core-SVP
+    bits at the K of the campaign's declared cost model, and by under 1 bit
+    for ML-KEM-512/768 (d_u = 10, no singletons). THE EXPECTED VERDICT IS
+    CLOSED: the ciphertext-side lattice carries Var(e1) + Var(delta_u)
+    against the key-side Var(e) alone, so it starts from a materially worse
+    position and the measured gain does not close that gap; recording the
+    CLOSED verdict with the exact number is the deliverable.
+
+  mechanism: >-
+    Compress_d has non-uniform fibres over Z_q because q is not a power of
+    two. The map c |-> S(c) = {i : Compress_{d_u}^{-1}(c_i) is a singleton}
+    is a subset of coordinate indices computable from the ciphertext alone,
+    with no secret and no oracle -- structurally lossy (c has ~2^{d_u n k}
+    values, S(c) has 2^{nk}) and non-invertible. The honest treatment of the
+    resulting ciphertext-side lattice is therefore not "LWE plus i.i.d.
+    rounding noise" but a two-class mixture whose class labels are public: the
+    clean (singleton-fibre) coordinates are exact CBD-only LWE samples, and a
+    partial dimension reduction, not a rescaling, is the correct model. This
+    is distinct from EV-MLKEM-004's use of the same Compress/Decompress
+    semantics inside a decryption-failure marginal, where the compression
+    error is integrated OUT over the fibre; here the fibre is instead
+    CONDITIONED ON using the public label an attacker or estimator can read
+    off the transmitted ciphertext -- exactly the step a failure-rate
+    computation must never take.
+
+  assumptions:
+    - >-
+      The norm-ratio-to-block-size conversion instrument used for (M0),
+      (M1), (M2) is the same instrument already carrying a known-answer test
+      elsewhere in this program (the pinned sage-free lattice-estimator
+      harness); using a different, unpinned instrument would void the
+      cross-model comparison.
+    - >-
+      No ML-KEM secret, key, or ciphertext content beyond the public
+      Compress output is generated or used anywhere in this hypothesis's
+      test; sampling is over synthetic residues/coefficients only.
+    - >-
+      Uniform sampling of coefficients for the census control is chosen so a
+      sign-bookkeeping error cannot be masked by small coefficients; the
+      census identities themselves are exact and hold for arbitrary
+      coefficients, so this is a robustness choice, not a load-bearing
+      assumption of C1.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical/derivational, not proof-search-oriented in the sense
+      of docs/inventor-protocol.md section 8: C1 is a closed-form integer
+      census with no open bottleneck to search for, and C2 is a labelled
+      readout of an existing pinned conversion instrument under three
+      declared noise models, not a novel algorithmic construction with a
+      quantifier structure to map.
+
+  rerandomization: null
+
+  asymptotic_claim: null
+
+  heuristic_assumptions:
+    - id: HEUR-MLKEM-11aabf-1
+      formal_statement: >-
+        The per-class rescaling model (M1) and the clean-samples-only model
+        (M2) are faithful lattice-noise models for the singleton/doublet
+        mixture, in the sense that the resulting block-size estimate under
+        the pinned estimator tracks the true (unknown) attack cost at least
+        as well as the single-marginal model (M0) does.
+      random_model_justification: >-
+        Argued structurally, not by a random-object appeal: the singleton
+        coordinates carry EXACTLY zero compression noise by the exact
+        Decompress(Compress(x)) = x identity on a singleton fibre, so
+        modelling them as CBD-only samples is not an approximation but a
+        consequence of the census; the open question is only whether the
+        conversion instrument correctly propagates a reduced/reweighted
+        noise vector into a block-size estimate, which is an instrument
+        question, not a modelling one.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-18c6e9]
+      falsification_condition: >-
+        beta(M2) >= beta(M0) at any parameter set -- the conditioning does
+        not help even on its own lattice, and the lane closes at the first
+        step with the conditioning shown load-bearing-in-name-only.
+
+  structural_ingredients:
+    - description: >-
+        The exact fibre census of Compress_d over Z_q for q = 3329,
+        d in {4, 5, 10, 11, 12}, derived directly from FIPS 203's
+        Compress/Decompress definitions.
+      citation: >-
+        inputs/MLKEM-DUAL-SOURCES-20260802/fips203, and independently
+        re-derived by the idea-catalogue red-team pass
+        (ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md section 4c,
+        item 1); no external citation is asserted beyond the pinned FIPS 203
+        source already in this repository's inputs.
+      role: >-
+        supplies the exact singleton/doublet counts that C1 asserts and that
+        the block-size conversion in C2 consumes
+    - description: >-
+        The pinned norm-ratio-to-block-size conversion instrument and its
+        known-answer control, already established for use in this campaign.
+      citation: tools/sage_free_estimator (as pinned in EXP-MLKEM-bfdb63)
+      role: converts the three noise models into comparable core-SVP bit figures
+
+  reduction_chain:
+    core_problem: >-
+      Determine the honest ciphertext-side noise model for FIPS 203's
+      Compress_{d_u} output at d_u = 11 and its effect, if any, on the
+      ciphertext-side uSVP block size relative to the key-side lattice.
+    corollaries: []
+
+  predictions:
+    - metric: >-
+        singleton_fibre_count at d_u = 11 (exact integer census over all
+        3329 residues)
+      direction: different
+      minimum_effect: >-
+        EXACTLY 767, with 1281 doublet fibres, summing to 767 + 2*1281 = 3329
+        exactly; zero tolerance, integer identity.
+    - metric: >-
+        decompress_compress_roundtrip agreement on singleton fibres (all 767
+        residues at d_u = 11)
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 767 of 767 exact matches, and for no residue in a doublet
+        fibre except the fibre's own representative.
+    - metric: d_u = 10 fibre-size census
+      direction: different
+      minimum_effect: exactly 767 fibres of size 3 and 257 of size 4, zero tolerance.
+    - metric: mutual_information I(delta; bin) at d = 12
+      direction: lower
+      minimum_effect: exactly 0 (every fibre a singleton, 2^12 > q = 3329).
+    - metric: beta(M1), beta(M2) relative to beta(M0) at ML-KEM-1024
+      direction: lower
+      minimum_effect: >-
+        a reduction of 2 to 4 core-SVP bits under the declared K-sensitivity
+        table, reported alongside the sensitivity table itself.
+    - metric: beta(M1), beta(M2) relative to beta(M0) at ML-KEM-512/768
+      direction: lower
+      minimum_effect: under 1 bit (d_u = 10, no singleton fibres present).
+    - metric: >-
+        beta(ciphertext-side, best of M0/M1/M2) relative to beta(key-side)
+      direction: higher
+      minimum_effect: >-
+        NO SPECIFIC MARGIN IS PREDICTED beyond "still worse"; the expected
+        verdict is that the ciphertext-side lattice remains materially worse
+        positioned than the key-side lattice at every parameter set (CLOSED),
+        which is the deliverable, recorded with the exact number rather than
+        assumed.
+
+  test_boundary:
+    instances:
+      - >-
+        The exact Compress_d fibre census over Z_q, q = 3329, for
+        d in {4, 5, 10, 11, 12}, computed directly from FIPS 203's
+        Compress/Decompress definitions -- zero lattice compute.
+      - >-
+        Synthetic ciphertext-side and key-side noise vectors under the three
+        declared models (M0, M1, M2) fed through the pinned conversion
+        instrument to produce comparable core-SVP block-size figures.
+      - >-
+        NOT IN SCOPE: any real ML-KEM key, ciphertext, secret, decapsulation
+        call, timing measurement, or chosen-ciphertext oracle.
+    parameters:
+      q: 3329
+      d_values: [4, 5, 10, 11, 12]
+      models: [M0_single_marginal, M1_per_class_rescaling, M2_clean_samples_only]
+    implementation: >-
+      Pure integer/exact arithmetic for the census (a loop over 3329
+      residues, ~150 lines); the block-size conversion reuses the pinned
+      sage-free estimator harness already established in this campaign.
+    budget: {}
+
+  falsification_conditions:
+    - >-
+      F(a) The singleton count at d_u = 11 is not 767, or the d_u = 10 census
+      does not match 767 fibres of 3 and 257 of 4 -- the census is wrong and
+      nothing about C2 follows until it is fixed.
+    - >-
+      F(b) beta(M2) >= beta(M0) at any tested parameter set -- the
+      conditioning does not help even on its own lattice, and the lane closes
+      at the first step (HEUR-MLKEM-11aabf-1's falsification condition).
+    - >-
+      F(c) beta(ciphertext-side, best model) >= beta(key-side) at every
+      parameter set -- this is the EXPECTED outcome, recorded as a closure
+      with a number, not a defect of the hypothesis.
+    - >-
+      F(d) the d = 12 degenerate gate does not return every fibre a
+      singleton with I(delta;bin) = 0 exactly -- instrument defect, no
+      disposition drawn from any other cell until repaired.
+
+  interpretation_limits:
+    - >-
+      No entry-level statement is made or permitted about recovering any key
+      or any message; the deliverable is a noise-model correction and its
+      price under one named conversion instrument.
+    - >-
+      C1 is exact integer arithmetic on actual FIPS 203 parameters (medium
+      tier, no toy extrapolation); C2 is a labelled block-size readout under
+      the pinned estimator and is never to be quoted as a measured attack
+      cost or as a revision of any published security estimate.
+    - >-
+      Does not touch and does not contradict GOAL-MLKEM-005's proven
+      convexity ceiling G <= log2 M; this hypothesis concerns the noise
+      model of a single ciphertext's u-side compression, unrelated to
+      best-of-M ciphertext selection.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260807-05e12c.yaml
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/M1.md
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md
+    - ledger/evidence/EV-MLKEM-004.yaml
+    - ledger/hypotheses/H-MLKEM-001.yaml
+    - ledger/goals/GOAL-MLKEM-005.yaml
+    - ledger/questions/RQ-MLKEM-001.yaml

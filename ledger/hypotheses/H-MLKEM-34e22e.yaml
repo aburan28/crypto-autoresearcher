@@ -1,0 +1,225 @@
+hypothesis:
+  id: H-MLKEM-34e22e
+  question_id: RQ-MLKEM-001
+
+  statement: >-
+    CLAIM TIER: control. A generator-power result for a named class with an
+    exact tail probability, plus two bracketing degenerate gates with
+    analytically known outputs. NO ATTACK, NO KEY RECOVERY, NO SECURITY
+    CLAIM. No implementation is named and no defect is asserted to exist.
+    One conjunct plus two calibration gates, each separately falsifiable.
+    (C1, THE EXACT BINOMIAL TAIL) FIPS 203 Algorithm 7 (SampleNTT) accepts a
+    12-bit XOF-derived candidate iff it is < q = 3329, probability
+    p = 3329/4096 = 0.812744; a 168-byte SHAKE128 block yields 56 groups,
+    hence 112 candidates. For an implementation that pre-squeezes a FIXED
+    number k of blocks rather than looping until 256 acceptances,
+    P(k blocks suffice) = P(Bin(112k, 0.812744) >= 256). At k = 3:
+    P(short) = 0.0083276925 exactly (336 candidates drawn); at k = 4:
+    P(short) = 2.22e-32. Per key generation, P(>=1 wrong matrix entry among
+    k^2 entries) = 0.032897 / 0.072501 / 0.125236 at
+    ML-KEM-512/768/1024 (k^2 = 4/9/16), requiring 138 / 62 / 35 key
+    generations for 99% detection power at the three parameter sets under a
+    fixed-3-block implementation.
+    (GATE a, DEGENERATE, ACCEPT-EVERYTHING) With the acceptance bound set to
+    4096, 3 blocks always suffice, so the fixed-3-block build and the
+    reference must agree on EVERY entry: measured detection rate EXACTLY
+    0.000000.
+    (GATE b, DEGENERATE, p = 0.5) With the acceptance bound set to 2048,
+    P(3 blocks suffice) = 6.5e-23, so measured detection rate EXACTLY
+    1.000000 on every entry.
+
+  mechanism: >-
+    This is a THIRD defect mechanism class, distinct from comparison
+    truncation (GOAL-MLKEM-002's gate) and from decapsulation-key field
+    integrity (the M3-8 companion hypothesis, H-MLKEM-232843): sampler
+    budget, living in key generation and encapsulation rather than
+    decapsulation. The forced numbers follow from exact binomial arithmetic
+    with no simulation required, and the two degenerate acceptance-bound
+    settings (4096 and 2048) bracket the instrument with analytically known
+    outputs (0 and 1 respectively) BEFORE any real-implementation number is
+    read, which is the same before-the-treatment-arm calibration discipline
+    already used in this campaign's op-count instrument
+    (EXP-MLKEM-bfdb63's ordering_control).
+
+  assumptions:
+    - >-
+      The reference sampler's own empirical block-consumption histogram
+      matches the binomial tail's 0.812744 acceptance rate within a
+      chi-squared interval -- this validates the acceptance probability as
+      IMPLEMENTED, not merely as recalled from the specification, and is a
+      required calibration step, not an optional check.
+    - >-
+      Comparing ek (black-box) rather than the full matrix Â removes the
+      need to reach inside the target implementation but loses per-entry
+      resolution, so the detection-power table (138/62/35) applies to the
+      Â-visible variant and must be recomputed upward before being quoted for
+      a black-box comparison.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical/derivational: C1 is exact binomial arithmetic with a
+      closed form, computable without simulation, and the two calibration
+      gates are analytically known degenerate cases. No open bottleneck or
+      novel construction is being searched for.
+
+  rerandomization: null
+
+  asymptotic_claim: null
+
+  heuristic_assumptions:
+    - id: HEUR-MLKEM-34e22e-1
+      formal_statement: >-
+        The measured per-entry acceptance/rejection behaviour of a
+        conforming reference SampleNTT implementation follows
+        Bin(112k, p) with p = 3329/4096 exactly, for the number of blocks
+        k actually consumed before 256 acceptances, i.e. the XOF output is
+        modelled as producing i.i.d. uniform 12-bit candidates for the
+        purpose of the rejection step.
+      random_model_justification: >-
+        SHAKE128 is a cryptographic XOF; modelling its output stream as
+        producing independent uniform 12-bit windows for the purpose of a
+        rejection sampler is the standard modelling assumption FIPS 203's
+        own analysis relies on, not a novel assumption introduced here. It
+        is stated as a numbered heuristic rather than silently assumed
+        because the experiment's own known-answer gate (the reference
+        histogram vs. the binomial tail) is the check that would catch its
+        failure.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-37ba27]
+      falsification_condition: >-
+        The reference sampler's own empirical block-consumption histogram
+        departs from the binomial-tail prediction by more than a chi-squared
+        interval over a declared sample size -- the acceptance model is
+        wrong (wrong candidate packing, wrong block rate, or a non-standard
+        XOF rate) and the whole table is void until repaired.
+
+  structural_ingredients:
+    - description: >-
+        FIPS 203 Algorithm 7 (SampleNTT): 3-byte groups, two 12-bit
+        candidates per group, acceptance iff < q = 3329, looping to 256
+        accepted coefficients; SHAKE128's 168-byte block size.
+      citation: >-
+        inputs/MLKEM-DUAL-SOURCES-20260802/fips203, independently
+        re-verified by the idea-catalogue red-team pass
+        (ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md section 4c,
+        item 3: 168 bytes -> 56 groups -> 112 candidates per block,
+        p = 0.812744, P(short|3 blocks) = 0.0083277, n = 62 at k = 3).
+      role: >-
+        supplies the exact per-block acceptance probability and candidate
+        count that the binomial tail in C1 is built from
+    - description: >-
+        Baseline-invisible synthetic control precedent, whose two degenerate
+        settings here are forced by arithmetic rather than by protocol
+        repair.
+      citation: ledger/evidence/EV-MLKEM-007.yaml
+      role: >-
+        supplies the nearest-neighbour instrument this hypothesis
+        distinguishes itself from (a repaired precedence design vs. a
+        binomially forced bracket)
+
+  reduction_chain:
+    core_problem: >-
+      Determine whether a fixed-block-budget XOF-squeeze implementation of
+      SampleNTT can be distinguished, by exact binomial arithmetic and
+      bracketed by two analytically known degenerate gates, from a
+      conforming loop-until-256 implementation.
+    corollaries: []
+
+  predictions:
+    - metric: P(3 blocks suffice) under Bin(336, 0.812744)
+      direction: different
+      minimum_effect: exactly 0.9916723075, i.e. P(short) = 0.0083276925.
+    - metric: P(4 blocks suffice) under Bin(448, 0.812744)
+      direction: different
+      minimum_effect: exactly 1 minus 2.22e-32.
+    - metric: >-
+        key generations required for 99% detection power at
+        ML-KEM-512/768/1024 under a fixed-3-block implementation
+      direction: different
+      minimum_effect: exactly 138 / 62 / 35 respectively.
+    - metric: measured detection rate under GATE a (acceptance bound 4096)
+      direction: lower
+      minimum_effect: exactly 0.000000; any non-zero rate proves the harness detects something other than the budget.
+    - metric: measured detection rate under GATE b (acceptance bound 2048)
+      direction: higher
+      minimum_effect: exactly 1.000000 on every entry.
+    - metric: >-
+        reference sampler's empirical block-consumption histogram vs. the
+        binomial-tail prediction
+      direction: different
+      minimum_effect: >-
+        agreement within a chi-squared interval over a declared sample size;
+        this is HEUR-MLKEM-34e22e-1's calibration check.
+
+  test_boundary:
+    instances:
+      - >-
+        A reference FIPS 203 SampleNTT implementation and a mutated
+        fixed-block-budget variant, compared over N key generations from
+        random seeds, N = 138/62/35 by parameter set for 99% power
+        (Â-visible variant).
+      - >-
+        The two degenerate acceptance-bound settings (4096 and 2048) applied
+        to the same reference-vs-fixed-budget comparison, as calibration
+        gates run before the real-parameter comparison.
+      - >-
+        NOT IN SCOPE: any production/vendor implementation by name, any
+        claim about a deployed build, any timing side channel.
+    parameters:
+      q_standard: 3329
+      block_bytes: 168
+      candidates_per_block: 112
+      acceptance_probability_standard: 0.812744
+      gate_a_acceptance_bound: 4096
+      gate_b_acceptance_bound: 2048
+      fixed_block_budget_tested: 3
+      n_key_generations: {ML-KEM-512: 138, ML-KEM-768: 62, ML-KEM-1024: 35}
+    implementation: >-
+      A reference SampleNTT, a mutated fixed-budget variant, and a
+      comparison harness; exact binomial computation requires no
+      simulation.
+    budget: {}
+
+  falsification_conditions:
+    - >-
+      F10-a: the measured P(short at 3 blocks) departs from 0.0083276925 by
+      more than its binomial interval over 10^4 entries -- the acceptance
+      model is wrong (wrong candidate packing, wrong block rate, or a
+      non-standard XOF rate) and the whole table is void.
+    - >-
+      F10-b: either degenerate gate misses its exact value (GATE a nonzero,
+      or GATE b not exactly 1) -- instrument failure, no disposition drawn
+      from any other cell.
+    - >-
+      F10-c: no implementation in the audited neighbourhood uses a fixed
+      block budget -- record the class as empty in that neighbourhood,
+      exactly as second_impl_unavailable is recorded elsewhere, and never
+      paraphrase it as evidence that samplers are correct.
+
+  interpretation_limits:
+    - >-
+      No implementation is named and no defect is asserted to exist; the
+      deliverable is a generator-power result for a named class with an exact
+      tail probability plus two bracketing degenerate gates.
+    - >-
+      A clean instrument calibration (both gates pass) licenses only the
+      statement that the detection harness correctly distinguishes a
+      fixed-3-block sampler from a conforming one on synthetic acceptance
+      bounds; it licenses no claim about any real implementation absent a
+      separate, explicitly scoped comparison.
+    - >-
+      Does not touch and does not contradict GOAL-MLKEM-005's proven
+      convexity ceiling G <= log2 M; this hypothesis concerns per-key-
+      generation sampler correctness, unrelated to best-of-M ciphertext
+      selection against a shared reduced basis.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260807-331ae5.yaml
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/M3.md
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md
+    - ledger/evidence/EV-MLKEM-007.yaml
+    - ledger/goals/GOAL-MLKEM-005.yaml
+    - ledger/questions/RQ-MLKEM-001.yaml

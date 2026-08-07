@@ -1,0 +1,320 @@
+experiment:
+  id: EXP-MLKEM-18c6e9
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-MLKEM-11aabf
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  batch_id: null
+  assigned_to: executor
+  title: >-
+    Review-required contract: exact Compress_d fibre census at FIPS 203
+    parameters, plus a labelled ciphertext-side vs key-side block-size
+    readout under three declared noise models
+
+  objective: >-
+    If separately approved, frozen and authorized: (1) recompute the exact
+    Compress_d fibre census for d in {4, 5, 10, 11, 12} at q = 3329 directly
+    from FIPS 203's Compress/Decompress definitions; (2) verify the
+    Decompress(Compress(x)) = x identity on every singleton-fibre residue at
+    d_u = 11 and on no non-representative residue of a doublet fibre; (3)
+    feed three declared ciphertext-side noise models (M0 single marginal, M1
+    per-class rescaling, M2 clean-samples-only) plus the key-side baseline
+    through the pinned norm-ratio-to-block-size conversion instrument and
+    print all four beta values with the K-sensitivity table. This contract is
+    an instrument design and a pre-execution declaration. No run has
+    happened.
+
+  what_this_is_not:
+    - Not an attack on ML-KEM, not a key recovery, not a message recovery, and not a certificate of any kind.
+    - Not a claim that any speedup or weakness exists in any real implementation; it recomputes an exact census and reads off a labelled model conversion.
+    - Not a security estimate, not a revision of any published cost row, and not a statement about MLWE hardness.
+    - Not an approval, a freezing, an execution authorization, a run, an observation, or evidence.
+    - Not a use of any ML-KEM secret, key, or decapsulation oracle anywhere; every quantity is computable from the public Compress/Decompress definitions and synthetic noise vectors.
+
+  claim_ceiling:
+    tier: medium
+    exact_scope_a_run_could_support: >-
+      MEDIUM for the exact fibre census (real FIPS 203 parameters, no toy
+      extrapolation); TOY/LABELLED-MODEL-READOUT for the block-size
+      conversion. A completed run could support, at most: (1) the exact
+      singleton/doublet counts at d_u in {10, 11} and the fibre-size spread
+      at d_v in {4, 5}, all as integer identities; (2) the
+      Decompress(Compress(x)) = x roundtrip on every residue in scope; (3) a
+      table of beta(M0), beta(M1), beta(M2), beta(key-side) under the pinned
+      conversion instrument, with the K-sensitivity table alongside it. NOTHING
+      ELSE. In particular no outcome may be quoted as a speedup against any
+      ML-KEM attack, as an exponent, as a crypto-scale result, or as evidence
+      about any deployed parameter set's actual security margin.
+
+  inputs:
+    compress_definition:
+      formula: "Compress_d(x) = round(2^d x / q) mod 2^d"
+      modulus_q: 3329
+      d_values: [4, 5, 10, 11, 12]
+      source: inputs/MLKEM-DUAL-SOURCES-20260802/fips203
+    census_scope:
+      d_u_values: [10, 11]
+      d_v_values: [4, 5]
+      residues: "all 3329 residues in Z_q, exhaustive, no sampling"
+    noise_models:
+      M0_single_marginal: >-
+        The ciphertext-side rounding noise is modelled as one marginal
+        variance applied uniformly to every coordinate, ignoring the
+        singleton/doublet split.
+      M1_per_class_rescaling: >-
+        Each coordinate's rounding-noise variance is rescaled by its own
+        fibre-class variance (zero for singleton-fibre coordinates,
+        the doublet-fibre variance for the rest), without dropping any
+        coordinate.
+      M2_clean_samples_only: >-
+        Singleton-fibre coordinates are treated as exact (their compression
+        noise removed and the sample retained as a CBD-only LWE equation);
+        the effective sample count for the ciphertext-side lattice is
+        reduced accordingly.
+    key_side_baseline:
+      construction: >-
+        The unmodified key-side LWE noise model at the same parameter set,
+        with Var(e) alone, printed in the same table as the ciphertext-side
+        figures so the comparison is visible rather than implied.
+    seeds:
+      master_seed: 3329811
+      domain: "EXP-MLKEM-18c6e9/v1"
+      seed_derivation_rule: >-
+        ASCII bytes of domain || "|" || label || "|" || decimal(d) || "|" ||
+        decimal(counter), hashed with SHA-256; digest integers interpreted
+        big-endian unsigned and reduced mod q by rejection sampling (discard
+        any 16-bit window >= floor(65536/q)*q, then take the remainder
+        mod q). Labels are exactly one of {"census-x", "roundtrip-check",
+        "noise-M0", "noise-M1", "noise-M2", "noise-keyside"}. This rule
+        reproduces every instance bit-for-bit from
+        (master_seed, domain, label, d, counter) and nothing else.
+    estimator_stage:
+      harness: tools/sage_free_estimator
+      lattice_estimator_pin: 3e48ef421ec256afddb3e7d2249a77eab6e9ba12
+      known_answer_control_required: true
+      known_answer_control_note: >-
+        Exact equality is the bar, not a tolerance, per the harness's own
+        README standard. The control MUST be executed in this run and its
+        verbatim output archived; a README transcript is not a passed
+        control and may not be cited as one.
+
+  arms_and_controls:
+    treatment: >-
+      The census arm (exhaustive, all 3329 residues, d in {4, 5, 10, 11,
+      12}) plus the three ciphertext-side noise-model arms (M0, M1, M2) fed
+      through the pinned conversion instrument.
+    measured_null: >-
+      The d = 12 degenerate gate: 2^12 = 4096 > q = 3329, so every fibre must
+      be a singleton. FORCED VALUE DERIVED BEFORE THE RUN: 3329 of 3329
+      singleton fibres, I(delta; bin) = 0 exactly. THIS NULL CAN FAIL if the
+      census implementation has an off-by-one or modulus error.
+    positive_control: >-
+      The d_v in {4, 5} rows, whose fibre-size spread is under 0.5% by
+      derivation -- a graded internal control that must reproduce a near-flat
+      spread, distinguishing the sharp d_u = 11 effect from an artifact of
+      the census method itself.
+    key_side_comparison_control: >-
+      The key-side baseline (Var(e) alone) computed through the SAME pinned
+      conversion instrument in the SAME run, so beta(key-side) is never taken
+      from a different instrument or a different session than
+      beta(ciphertext-side, *).
+    ordering_control: >-
+      The census (treatment) and the d = 12 null are generated,
+      counted, and hash-committed BEFORE any block-size number from the
+      conversion instrument is read. The census correctness gate must pass
+      before the estimator stage is entered.
+    comparability_policy: >-
+      No beta figure from this contract may be compared with any figure
+      from EXP-MLKEM-bfdb63, from any other EXP-MLKEM-* record, or from any
+      external estimator output, except by being computed through the same
+      pinned instrument in this run. A shared parameter name does not imply
+      a shared quantity.
+
+  stages_cheapest_first:
+    - id: stage-1-census
+      cost: "zero lattice compute, seconds; a loop over 3329 integers"
+      content: >-
+        Compute the exact Compress_d fibre census for d in {4, 5, 10, 11,
+        12} and the Decompress(Compress(x)) = x roundtrip check on every
+        singleton-fibre residue at d_u = 11.
+      can_terminate_run: true
+      termination_rule: >-
+        Any census mismatch against the frozen predicted counts, or any
+        roundtrip failure on a singleton-fibre residue, halts the package at
+        this point with a derivation-tier negative and no further compute
+        spent.
+    - id: stage-2-degenerate-gate
+      cost: "zero lattice compute, seconds"
+      content: >-
+        Run the d = 12 degenerate gate and confirm 3329 of 3329 singleton
+        fibres and I(delta; bin) = 0 exactly.
+      can_terminate_run: true
+      termination_rule: >-
+        A failure of this gate is an instrument defect and halts the package
+        before any noise-model conversion is attempted.
+    - id: stage-3-conversion
+      cost: "minutes, requires the pinned sage-free estimator; network required"
+      content: >-
+        Run the known-answer control verbatim, then compute beta(M0),
+        beta(M1), beta(M2), and beta(key-side) at each of the three FIPS 203
+        parameter sets, with the K-sensitivity table.
+      can_terminate_run: false
+      termination_rule: >-
+        Unavailability of the estimator checkout halts stage 3 only. The
+        package then reports stages 1-2 (the exact census and roundtrip
+        checks) and states the block-size comparison as not measured. THIS
+        IS AN INFRASTRUCTURE OUTCOME AND IS NEVER NEGATIVE MATHEMATICAL
+        EVIDENCE.
+
+  metrics:
+    primary:
+      - "singleton_fibre_count: exact count per d, against the frozen prediction."
+      - "roundtrip_agreement: count of exact Decompress(Compress(x)) = x matches on singleton-fibre residues at d_u = 11, out of 767."
+      - "beta_table: beta(M0), beta(M1), beta(M2), beta(key-side) per parameter set, with the K-sensitivity table."
+    secondary:
+      - "d_v fibre-size spread (percentage) at d_v in {4, 5}, as the graded internal control."
+      - "mutual_information I(delta; bin) per d, with the d = 12 value checked against exactly 0."
+      - "beta(M1)/beta(M2) minus beta(M0), in bits, per parameter set."
+
+  heuristic_under_test: HEUR-MLKEM-11aabf-1
+
+  preregistered_prediction:
+    quantity: >-
+      (i) singleton_fibre_count at d_u in {10, 11}; (ii) roundtrip_agreement
+      at d_u = 11; (iii) I(delta; bin) at d = 12; (iv) beta(M1), beta(M2)
+      relative to beta(M0) and to beta(key-side).
+    formula: >-
+      (i) exactly 767 singletons and 1281 doublets at d_u = 11 (767 +
+      2*1281 = 3329); exactly 767 fibres of size 3 and 257 of size 4 at
+      d_u = 10.
+      (ii) 767 of 767, exactly, zero tolerance.
+      (iii) exactly 0.
+      (iv) beta(M1), beta(M2) < beta(M0) by 2 to 4 core-SVP bits at
+      ML-KEM-1024, by under 1 bit at ML-KEM-512/768; beta(ciphertext-side,
+      best of M0/M1/M2) is expected to remain >= beta(key-side) at every
+      parameter set (the CLOSED verdict).
+    source: >-
+      All four derived in H-MLKEM-11aabf (statement conjuncts C1, C2) and
+      independently re-verified by the idea-catalogue red-team pass
+      (ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md section 4c,
+      item 1). NO EXTERNAL SOURCE IS CITED FOR THE BLOCK-SIZE MAGNITUDE
+      BEYOND THE PINNED ESTIMATOR ITSELF, and no theorem number, page or
+      table from any paper is asserted anywhere in this contract.
+
+  scale_relevance:
+    tier: medium
+    justification: >-
+      The census is computed at the ACTUAL FIPS 203 parameters (q = 3329,
+      d_u/d_v as standardized), so it is not a toy extrapolation, which is
+      why claim_ceiling.tier is medium rather than toy. The block-size
+      conversion, however, is a labelled readout of a pinned model
+      instrument -- it contains no real key, no real ciphertext, no
+      decapsulation, and no attack -- and must never be reported as a
+      crypto-scale attack measurement. The two tiers are kept explicitly
+      separate throughout this contract.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Extreme-residue check: verify the roundtrip identity at residues
+      {0, 1, q-1} explicitly and separately from the bulk 767-residue sweep,
+      since boundary residues are where an off-by-one modulus error is
+      maximally visible.
+    - >-
+      d = 12 degenerate check (the measured_null arm): must return 3329 of
+      3329 singletons and I = 0 exactly before any other cell is reported.
+
+  replication:
+    seeds: [3329811, 3329812, 3329813]
+    independent_instances: 3
+    interpretation: >-
+      The census and roundtrip checks are exact integer identities and must
+      be seed-INDEPENDENT: any seed-to-seed variation in the census count is
+      an implementation defect, not a distribution, and is invalid_measurement.
+      The synthetic noise-vector sampling used only for the M0/M1/M2 numeric
+      demonstration (not for the exact census) is repeated across 3 seeds to
+      confirm the conversion instrument's own numeric stability.
+
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 1
+    maximum_memory_gb: 2
+    maximum_runs: 3
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, archived, and authorized.
+    - Stop the whole package on any census mismatch at any d.
+    - Stop the whole package if the d = 12 degenerate gate does not return exactly 3329 of 3329 singletons.
+    - Stop stage 3 if the known-answer control does not reproduce its reference values with delta exactly 0.
+    - Stop at the first budget, memory, or wall-clock ceiling and record what was covered rather than truncating silently.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any change to the census definition, the d-value grid, or the noise-model formulas after any number has been observed.
+    - Any seed-to-seed variation in the exact census or roundtrip counts.
+    - Any comparison of a beta figure with a published cost row outside this run's own pinned-instrument computation.
+    - Citation of the sage-free harness's README output in place of a control executed in this run.
+
+  success_criterion: >-
+    This contract has no current success outcome because it is not
+    authorized for execution. IF a separately approved, frozen successor is
+    executed, its only positive disposition is: the census matches the frozen
+    prediction exactly at every d; the roundtrip check passes 767 of 767 at
+    d_u = 11; the d = 12 gate returns 3329 of 3329 singletons and I = 0; and
+    either the beta table is produced with its K-sensitivity table and the
+    known-answer control passes, or stage 3's unavailability is recorded as
+    an infrastructure outcome with stages 1-2 reported alone. THAT
+    DISPOSITION ESTABLISHES NO ATTACK, NO COST IMPROVEMENT, NO EXPONENT, AND
+    NO CRYPTO-SCALE OR DEPLOYED-SCHEME CONCLUSION.
+
+  falsification_criterion: >-
+    H-MLKEM-11aabf is falsified, in whole or in the named part, by any of:
+    (F-a) a singleton count at d_u = 11 not equal to 767, or a d_u = 10
+    census not matching 767 fibres of 3 and 257 of 4 -- the census is wrong
+    and C2 cannot be evaluated until it is fixed;
+    (F-b) beta(M2) >= beta(M0) at any parameter set -- the conditioning does
+    not help even on its own lattice, and the lane closes at the first step;
+    (F-c) beta(ciphertext-side, best model) >= beta(key-side) at every
+    parameter set -- the EXPECTED outcome, reported as a closure with a
+    number, not a falsification of the hypothesis's own predicted verdict;
+    (F-d) the d = 12 degenerate gate fails -- instrument defect, no
+    disposition drawn from any other cell.
+    A stage-3 infrastructure failure is NOT a falsification of anything; it
+    is an instrument-availability outcome that forbids reporting the beta
+    table, not evidence against the hypothesis.
+
+  outcomes:
+    no_execution_authorization: >-
+      The only current disposition: a review_required draft. No run, no
+      observation, no evidence, no inference.
+    future_complete_readout: >-
+      Only after separate approval, freezing, authorization, and valid
+      execution; scoped medium-tier-census / toy-model-readout only and never
+      an ML-KEM attack claim.
+    infrastructure_or_integrity_failure: >-
+      A timeout, crash, absent estimator checkout, unavailable network, or
+      missing dependency is recorded as INFRASTRUCTURE SIGNAL and is NEVER
+      negative mathematical evidence against H-MLKEM-11aabf or against any
+      ML-KEM proposition (AGENTS.md rule 5).
+
+  required_artifacts_if_later_authorized:
+    - Frozen approved specification with a freeze receipt binding its SHA-256.
+    - The exact per-d census table (fibre sizes and counts) as a raw artifact.
+    - The roundtrip-check log for every singleton-fibre residue at d_u = 11.
+    - The d = 12 degenerate-gate log.
+    - "Stage-3 only: the known-answer control's verbatim stdout, the estimator commit, and the beta table with its K-sensitivity rows."
+    - Manifest, environment, exact argv, stdout, stderr, timestamps, and resource measurements.
+    - Snapshot archive followed by independent validation and red-team review.
+
+  approval_requirements:
+    - Independent review confirms the census derivation and the d = 12 degenerate-gate prediction before any compute is authorized.
+    - Independent review confirms the three noise-model formulas (M0, M1, M2) are correctly and distinctly specified.
+    - Coordinator separately approves and freezes a successor contract without editing this draft.
+
+  approval_status: >-
+    Pending review. No approved_by field is present because this draft is
+    not approved and only the Coordinator may approve it (AGENTS.md rule 1).
