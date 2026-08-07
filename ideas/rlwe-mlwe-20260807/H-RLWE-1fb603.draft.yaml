@@ -1,0 +1,126 @@
+# STAGING DRAFT — not a ledger record. Promote via Coordinator only.
+# ID verified free 2026-08-07 with tools/allocate_id.py --check.
+hypothesis:
+  id: H-RLWE-1fb603
+  question_id: RQ-RLWE-912fdb
+  title: >-
+    Arora-Ge is starved by exactly 0 ring-supplied independent equations
+  statement: >-
+    For R-LWE over R = Z[x]/(x^n+1) with bounded symmetric error support [-B,B],
+    the Arora-Ge Macaulay matrix built from (i) the m plain sample equations,
+    (ii) their Galois-conjugate images under all t in (Z/2n)*, (iii) pairwise
+    products of sample equations, and (iv) short-multiplier combinations
+    c = x^i +/- x^j (||c||_1 = 2) applied to sample equations, has rank equal
+    to the rank obtained from an UNSTRUCTURED control with matched equation and
+    variable counts, at every (n,q,B,m,degree D) tested. Equivalently: the ring
+    supplies zero algebraically independent equations beyond what an
+    unstructured Arora-Ge instance of the same size would have.
+  mechanism: >-
+    For all t in (Z/2n)*, the conjugation permutation P_t is a SIGNED
+    permutation of coordinates: P_t * Neg(a) = Neg(sigma_t(a)) * P_t, where
+    Neg(a) is the negacyclic matrix representing multiplication by a. Because
+    the error support [-B,B] is symmetric about 0, the degree-(2B+1)
+    annihilator polynomial satisfies prod_k(-A-k) = (-1)^(2B+1) * prod_k(A-k):
+    conjugation returns the SAME polynomial up to a global sign. The Galois
+    orbit of size n per sample therefore collapses to exactly 1 independent
+    equation, not n. This is a proof, not a heuristic, and is why the deficit
+    is not a free parameter to be measured -- it is derived.
+  assumptions: []
+  proof_search_map:
+    bottleneck: >-
+      The claim that conjugation returns the same polynomial up to sign,
+      because that step is exactly what removes the entire Galois-orbit
+      contribution the mechanism was hoping to find.
+    baseline_embedding:
+      parameter_slice: unstructured Arora-Ge with matched equation and variable counts
+      reproduction_check: >-
+        rank(Macaulay(unstructured, m equations, N variables, degree D)) at
+        n in {2,4,8,16}, cross-checked against the exact formula for a generic
+        (non-structured) system of the same shape
+    observation_collision:
+      observable: rank of the Macaulay matrix over F_q
+      distinct_preimage_search: >-
+        search for ANY equation source (products, higher-order Galois twists,
+        mixed rotation-conjugate combinations) that raises rank above the
+        unstructured baseline; none found in prior toy-scale search
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: P_t as a signed permutation matrix
+        predicted_gain: n-fold reduction of the Galois orbit to 1 equation
+    quantifier_order: >-
+      FOR ALL n (power of 2), FOR ALL t in (Z/2n)*, FOR ALL sample equations e:
+      the conjugate of e under t is +/- e as polynomials over the Macaulay
+      basis. NOT an existence claim -- the deficit-zero result must hold at
+      every t, not just some.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        Rank increase is exactly 0 from the four listed equation sources, at
+        the degrees Arora-Ge would use against ML-KEM's bounded CBD error.
+        This does not rule out an as-yet-unconsidered fifth equation source.
+      nearby_object_control: >-
+        Test whether NON-symmetric error supports (which the mechanism's proof
+        does not cover) behave differently -- if the deficit reopens there,
+        that isolates symmetry as the load-bearing assumption rather than
+        ring structure generally.
+    proof_obligations:
+      - claim: P_t*Neg(a) = Neg(sigma_t(a))*P_t for all t in (Z/2n)*
+        responsibility: correctness
+      - claim: rank increase is exactly 0 across four equation sources at n in {2,4,8,16}
+        responsibility: scope
+      - claim: >-
+          the result is specific to symmetric bounded support and need not
+          hold for asymmetric or unbounded-tail error distributions
+        responsibility: scope
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions: []
+  structural_ingredients:
+    - description: negacyclic representation of multiplication in Z[x]/(x^n+1)
+      citation: standard; not independently sourced here
+      role: shows conjugation acts as a signed permutation
+  reduction_chain:
+    core_problem: Arora-Ge algebraic attack on bounded-error LWE
+    corollaries:
+      - problem: whether ring structure helps or hurts the algebraic attack lane on M-LWE/R-LWE
+        reduction_ref: not_applicable -- this hypothesis IS the result, not a downstream corollary
+        asymptotics_preserved: not_applicable
+  predictions:
+    - metric: rank_increase_vs_unstructured_control
+      direction: different
+      minimum_effect: equals_0
+    - metric: galois_orbit_size_per_sample
+      direction: lower
+      minimum_effect: from_n_to_1
+  test_boundary:
+    instances:
+      - n in {2,4,8,16}, q small prime > 2B+1, B in {1,2,3} (covers ML-KEM's eta_1 in {2,3}), m up to n
+    parameters:
+      degree_D: 5 for B=2 (ML-KEM-768/1024 shape), 7 for B=3 (ML-KEM-512 shape)
+    implementation: exact rank over F_q, e.g. sympy Matrix.rank or Gaussian elimination in exact arithmetic
+    budget:
+      wall_clock_seconds_per_run: 600
+      maximum_runs: 200
+  falsification_conditions:
+    - >-
+      ANY equation source (the four listed, or a fifth discovered during
+      execution) raises the Macaulay rank strictly above the unstructured
+      control's rank, at any tested (n,q,B,m,D).
+    - >-
+      The signed-permutation identity P_t*Neg(a) = Neg(sigma_t(a))*P_t fails
+      for any t, n tested -- this would mean the mechanism itself is wrong,
+      not just the conclusion.
+  interpretation_limits:
+    - >-
+      This closes the ALGEBRAIC (Arora-Ge) attack lane for symmetric bounded
+      error. It says nothing about lattice-reduction attacks, and nothing
+      about asymmetric error distributions.
+    - >-
+      A toy-scale (n<=16) rank computation is hypothesis-supporting, not by
+      itself a proof; the proof obligation above (the signed-permutation
+      identity) is what elevates this beyond a table, and that identity is
+      checked at the same toy scale, not derived once for all n in this
+      hypothesis record. A general-n symbolic proof is the natural follow-up
+      and is cheap (induction on the negacyclic structure).
+  status: proposed
+  proposed_by: session
