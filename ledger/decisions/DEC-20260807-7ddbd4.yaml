@@ -1,0 +1,157 @@
+coordinator_decision:
+  id: DEC-20260807-7ddbd4
+  goal_id: GOAL-ECDLP-001
+  batch_id: null
+  recorded_by_task: null
+  archived_by: null
+  decided_by: top-level session
+  decided_by_note: >-
+    NOT an independent Coordinator subagent. The user invoked /run-experiment against
+    EXP-FBST-190234 while it carried status `designed_not_run` and `approved_by: null`.
+    Per that skill's own step 1, this should have stopped as a specification_error; it
+    was reported as one, and the user then explicitly instructed the approval gate be
+    waived for this session rather than routed through Coordinator review. This decision
+    records that waiver plainly rather than letting the run's provenance be inferred.
+    AGENTS.md rule 1 (only the Coordinator approves experiments) is not met by this run.
+  decided_at: '2026-08-07'
+
+  context: >-
+    /run-experiment was invoked with no target specified. Of the four specifications
+    written in the prior turn, none carried Coordinator approval; the user was asked to
+    choose between routing EXP-FBST-190234 through proper Coordinator approval or
+    explicitly waiving the gate, and chose the waiver. During execution the originally
+    specified point-arithmetic method was replaced by a faster, partly-exact FFT method
+    (see specification.yaml amendment_v2), and a real methodological flaw in the first
+    implementation of THAT redesign was caught and corrected before any commit.
+
+  decision: support
+  decision_scope: >-
+    CONFIRMED, SCOPED, TOY TIER, AND NOT INDEPENDENTLY REVIEWED.
+
+    (1) THE MAIN QUESTION IS ANSWERED. Paper section 11 Question 2 asked whether any
+    factor-base statistic varies across curves at matched size, given that the mean
+    (KN-FIND-007) and the summation fibre (KN-FIND-a8990a Theorem C) do not. The answer
+    is yes: at matched EXACT curve order N and factor-base size B, the standard
+    "smallest-x" index-calculus factor base shows differing coverage in 88% of same-N
+    curve groups found in this sweep, and differing RELATION RANK -- a rank-deficient
+    base on one curve where an identically-sized base is full rank on another curve of
+    the same order -- in 5 of 240 such groups, always at the smallest B tested.
+
+    (2) THE RESULT IS DISENTANGLED, NOT JUST OBSERVED. The three constructions that read
+    only the abstract group order N (`uniform_random`, `sidon_dl`, `small_multiples`)
+    were engineered to be IDENTICAL across any two curves sharing that order (seeded by a
+    hash of (N,B,name) rather than a globally-advancing RNG) and the run confirms this
+    held with zero exceptions across 848 same-N groups. Only `smallest_x`, which alone
+    reads the curve's actual Weierstrass x-coordinate, varies. This turns "these three
+    constructions carry no curve information" from an assumption into a checked
+    invariant, and isolates the effect to coordinate-dependence rather than something
+    deeper.
+
+    (3) A REAL METHODOLOGICAL FLAW WAS CAUGHT MID-SESSION, BEFORE COMMIT, AND IS RECORDED
+    RATHER THAN SILENTLY FIXED. The first implementation grouped "across-curve variance"
+    by prime p. Curves sharing a prime generally have different orders N, so p-grouping
+    conflated across-curve variance with across-N variance, and made pure-N-dependent
+    constructions LOOK curve-dependent when the variation was really N drifting across
+    the sample. This was caught by noticing that `small_multiples` (which cannot,
+    structurally, depend on anything but N) still showed apparent "across-curve" spread
+    under p-grouping. The flawed run was never committed and is not part of this record's
+    evidence; only the corrected, N-grouped version is.
+
+    (4) THE ORIGINAL PREDICTION WAS PARTLY WRONG, AND THAT IS RECORDED TOO. H-FBST-c8a080
+    guessed relation rank was "the most likely statistic to show curve dependence."
+    Coverage varies far more often (88% of groups) than rank (2%). The rarer rank effect
+    is the operationally sharper one, but the hypothesis's own ranking of which statistic
+    would carry the effect was backwards, and EV-FBST-8949fc says so rather than reading
+    the confirmation as also confirming the mechanism paragraph.
+
+    (5) NO EXPLOITABLE LEVER IS CLAIMED. The mechanism is mundane: `smallest_x` is
+    defined via an arbitrary coordinate embedding, not an intrinsic group invariant, so
+    two abstractly-isomorphic curves have no reason to agree on it. Nothing here predicts
+    which curves will be favourable without measuring them, and an attacker does not
+    choose the target curve. This confirms a scope boundary the theorems left open; it
+    does not weaken either theorem or suggest a new attack surface.
+
+  target_ids:
+    - GOAL-ECDLP-001
+    - H-FBST-c8a080
+    - EXP-FBST-190234
+    - EV-FBST-8949fc
+
+  rationale:
+    - >-
+      The exact-N grouping is the whole result. Without it, the finding would be
+      unfalsifiable noise (as the discarded p-grouped draft showed); with it, three
+      constructions are PROVEN invariant and one is shown, with a concrete mechanism, not
+      to be.
+    - >-
+      The FFT redesign is not merely faster -- it removed an entire class of bookkeeping
+      (the summation-polynomial degenerate locus) that the point-arithmetic method of
+      v1 would have needed, because posing the problem additively in Z/N has no
+      geometric analogue of "root at infinity". That simplification is why the positive
+      control (mean = B^m/N exactly) could be checked as an ALGEBRAIC IDENTITY on every
+      one of 4200 cells rather than approximately on a sampled subset.
+    - >-
+      The rank-deficiency result (5/240 groups, all at B=16) is the more consequential
+      of the two findings despite being rarer, because coverage differences are a
+      nuisance while a rank-deficient factor base is an operational fact about whether
+      the standard linear-algebra stage of index calculus solves at all for that specific
+      curve using that specific base -- which is a real property of real index calculus,
+      here quantified rather than merely known to exist in principle.
+    - >-
+      Recording the discarded p-grouped draft's flaw, rather than only shipping the
+      fixed version, is deliberate: a reader trusting "across-curve variance" without
+      checking what was held fixed would repeat exactly this mistake, and the
+      specification's amendment_v2 exists so they do not have to discover it independently.
+
+  evidence_refs:
+    - EV-FBST-8949fc
+    - experiments/EXP-FBST-190234/runs/RUN-FBST-190234-001/raw-result.json
+
+  limitations:
+    - No independent review of any kind. AGENTS.md rule 12 not met.
+    - No Coordinator approval of the specification or its v2 amendment. AGENTS.md rule 1
+      not met; explicitly waived by the user for this session.
+    - Toy scale, N up to ~4099 (12 bits). No claim about cryptographic-scale curves.
+    - Same-N groups arose incidentally from independent sampling, not a deliberate search
+      for repeats; group depths are mostly 2-3, one reaches 8. Estimates of the coverage
+      spread's distribution and the rank-deficiency rate are correspondingly loose.
+    - m = 3 only; recognizability and subgroup-aligned constructions not measured
+      (subgroup-aligned is vacuous on the prime-order curves this whole battery uses).
+    - No ECDLP hardness claim of any kind, and no exploitable lever is identified.
+
+  next_actions:
+    - >-
+      A properly constituted Coordinator should decide whether EXP-FBST-190234's v2
+      amendment and this run retroactively satisfy approval, or whether the specification
+      needs formal re-approval before its result may be cited beyond this program's own
+      internal ledger.
+    - >-
+      A deliberate same-N curve search (rather than incidental birthday-paradox
+      collisions) would sharpen both the coverage-spread distribution and the
+      rank-deficiency rate well beyond this run's group depths of 2-8.
+    - >-
+      Extend relation-rank measurement to m = 4; the current code only implements it at
+      m = 3 (see specification.yaml amendment_v2).
+    - >-
+      Mint RQ-FBST-* properly; this hypothesis and EXP-KDUAL-8f0b69's both currently
+      point at RQ-MONO-001 for lack of a better question record, which both records flag
+      as wrong rather than hide.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      Nothing promoted. A single unreviewed run with incidental (not deliberately
+      targeted) same-N replication, however clean the disentangling, should not become a
+      durable KN-FIND before an independent check -- especially given that this exact
+      experiment already caught one of its own confounds mid-session. The result is
+      recorded fully in EV-FBST-8949fc and is available to cite from there.
+
+  pareto_integrity:
+    dominated_by: Pollard rho at exponent 1/2
+    sota_delta:
+      time_exponent: not_applicable
+      memory_exponent: not_applicable
+    note: No cost claim; no exploitable lever identified.
+
+  claim_ceiling: toy
+  official_research_state_changed: false

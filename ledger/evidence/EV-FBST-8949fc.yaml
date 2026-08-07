@@ -1,0 +1,163 @@
+evidence:
+  id: EV-FBST-8949fc
+  hypothesis_id: H-FBST-c8a080
+  experiment_ids: [EXP-FBST-190234]
+  run_ids: [RUN-FBST-190234-001]
+  recorded_at: '2026-08-07'
+  type: empirical
+  direction: supports
+  strength: preliminary
+  strength_note: >-
+    `preliminary`: one implementation, one seed, three primes, 300 curves, and the
+    positive result rests on same-order collisions found INCIDENTALLY within a sweep not
+    designed to target them (see boundaries). It is a clean, disentangled result within
+    those limits, not a settled one.
+  claim_tier: toy
+  certificate_refs: []
+  proof_status: empirical_only
+  proof_refs:
+    - experiments/EXP-FBST-190234/specification.yaml
+    - experiments/EXP-FBST-190234/runs/RUN-FBST-190234-001/raw-result.json
+
+  observations:
+    - id: OBS-1
+      text: >-
+        POSITIVE CONTROL, EXACT. Mean of the FFT decomposition-count array equals
+        B^3/N to within 1e-6 (in practice: exact after rounding, per-cell) on all 4200
+        curve-cells (3 primes x 4 B-values x 4 constructions x ~100 curves, minus
+        degenerate Sidon-set misses). Zero gate failures. This is an algebraic identity,
+        not a measurement, and its universal success is the check that the FFT method is
+        implemented correctly, not itself a finding.
+    - id: OBS-2
+      text: >-
+        THE DISENTANGLING RESULT, WHICH IS PROVEN, NOT JUST OBSERVED. Grouping by exact
+        curve order N (not by prime p, which conflates order-drift with curve identity --
+        see specification.yaml amendment_v2), 848 groups of >= 2 curves sharing an exact
+        N were found in this sweep. For `uniform_random`, `sidon_dl` and
+        `small_multiples` -- the three constructions that read only N, never the curve's
+        actual (A, B) coefficients -- EVERY SUCH GROUP was identical across curves, with
+        zero exceptions. This was engineered to be true (those constructions are seeded
+        by a hash of (N, B, name), not by a globally-advancing RNG) and the run confirms
+        the engineering did what it was meant to: these constructions carry provably zero
+        curve information beyond N.
+    - id: OBS-3
+      text: >-
+        THE POSITIVE RESULT. `smallest_x` -- the one construction that reads the curve's
+        actual x-coordinate arithmetic -- is NOT invariant at fixed N. Of 240 same-N
+        groups, 212 (88.3%) showed differing coverage across curves sharing the exact
+        same order. Spread (max-min coverage within a group): median 0.031, mean 0.045,
+        max 0.238 (at N=1049, B=24). This is the disjunctive claim of H-FBST-c8a080
+        CONFIRMED: at matched (N, B, m), a factor-base statistic varies across curves.
+    - id: OBS-4
+      text: >-
+        THE OPERATIONALLY SHARPER RESULT. 5 of 240 same-N `smallest_x` groups showed
+        differing RELATION RANK, not just coverage -- e.g. N=3919, B=16: ranks
+        [16, 16, 15] across three curves of that exact order; N=3947, B=16: one rank-15
+        curve among eight rank-16 curves. A rank of 15 against a factor base of size 16
+        means the smallest-x base is RANK-DEFICIENT for that specific curve: the standard
+        linear-algebra stage of index calculus, given only relations from this
+        construction on this curve, cannot solve for all 16 unknowns without further
+        relations, even though it can on every other curve of the identical order. ALL
+        five deficient groups were at B=16; none occurred at B=24, 32 or 48, consistent
+        with rank saturating well before B approaches N/2 or so at those sizes and
+        leaving no room for a curve-specific deficiency to show.
+    - id: OBS-5
+      text: >-
+        SCALE OF THE EFFECT, HONESTLY BOUNDED. Coverage varies in 88% of matched groups;
+        rank varies in only 2% (5/240), and only at the smallest B tested. The prediction
+        "relation rank is the most likely statistic to show curve dependence" is
+        therefore NOT supported as stated -- coverage shows curve dependence far more
+        often. What IS supported is that rank dependence, though rarer, is the
+        operationally sharper of the two: a coverage difference of 0.03 is a nuisance: a
+        rank deficiency of 1 in 16 can be the difference between a linear system solving
+        and not solving.
+
+  inference: >-
+    H-FBST-c8a080's main disjunctive claim is confirmed at toy scale: on the factor-base
+    locus, at matched curve order N and factor-base size B, a real statistic --
+    `smallest_x` coverage, and in a smaller fraction of cases its relation rank -- varies
+    across curves. This is a genuine answer to paper section 11 Question 2 (does ANY
+    statistic vary where the fibre theorems say nothing must), and it is a real
+    complement, not a contradiction, to those theorems: `KN-FIND-007` fixes the MEAN
+    yield and `KN-FIND-a8990a` Theorem C fixes the summation FIBRE, and neither result is
+    challenged by anything here. What varies is a property of a SPECIFIC construction
+    (`smallest_x`, an ordinary index-calculus-style threshold base) applied to a SPECIFIC
+    curve, which is a coarser object than either theorem constrains.
+
+    The mechanism is now understood, and it is mundane rather than deep, which is worth
+    saying plainly rather than oversold: `smallest_x` is defined via the curve's explicit
+    Weierstrass coordinate embedding, an artifact of the (A, B) presentation, not an
+    intrinsic group-theoretic invariant. Two curves of the same order N are abstractly
+    isomorphic as groups but are NOT isomorphic as pointed Weierstrass curves with a
+    common x-coordinate function, so a construction defined via that coordinate has no
+    reason to transport between them, and the disentangling test (OBS-2) shows precisely
+    that every construction which DOES respect the abstract group structure alone
+    (uniform, Sidon, small-multiples) is provably invariant. The finding is therefore not
+    "curves are secretly different in some deep arithmetic way" but "coordinate-dependent
+    factor-base constructions are, unsurprisingly once stated this way, coordinate-
+    dependent" -- confirmed rather than assumed, and with one concrete operational
+    consequence (rank deficiency) rather than zero.
+
+    This does NOT identify an exploitable lever. Nothing here shows how to predict,
+    without measuring, which curves will have low coverage or rank-deficient bases, and
+    an attacker does not get to choose the target curve. It answers the question the
+    paper left open (something on the factor-base locus DOES vary by curve) without
+    reopening either theorem, and it narrows the "most likely carrier" guess in
+    H-FBST-c8a080's own mechanism paragraph, which named relation rank as most likely
+    when coverage turned out to vary far more often.
+
+  boundaries:
+    - >-
+      Toy scale: N up to ~4099 (12 bits). Nothing here bears on cryptographic-scale
+      curves, and the effect sizes measured (coverage spreads up to 0.24, rank
+      deficiencies of 1) have no established scaling behavior with N -- that is
+      unmeasured and should not be extrapolated in either direction.
+    - >-
+      Same-N groups were found INCIDENTALLY within a sweep of independently-sampled
+      curves (100 per prime, birthday-paradox collisions over an order range of width
+      ~4*sqrt(p)), not by a deliberate search for curves of one target order. Group sizes
+      are mostly 2-3 curves; the deepest is 8 (N=3947). A study that deliberately hunted
+      for many curves of one fixed order would give tighter estimates of the coverage
+      spread's distribution and the rank-deficiency rate.
+    - >-
+      m = 3 only, for BOTH the FFT statistics and relation rank (relation rank is
+      unimplemented at m=4 in this code; see specification.yaml amendment_v2 and the
+      spec's original falsification note about m=4 being future work).
+    - >-
+      `recognizability` (cost of a factor-base membership test) and the
+      `subgroup_aligned` construction from the v1 specification are NOT measured in this
+      run; both are explicit scope reductions of the redesign, not oversights.
+    - >-
+      Nothing here bears on ECDLP hardness. A rank-5%-of-the-time-deficient
+      `smallest_x` base is a standard, already-known operational property of index
+      calculus (real implementations already collect more relations than B for exactly
+      this reason); this experiment quantifies it at toy scale, it does not discover
+      that relation collection can fall short.
+
+  unresolved_confounds:
+    - >-
+      NO INDEPENDENT REVIEW. No validator, no red team, no second implementation. Rule 12
+      not met. This record supersedes an internal draft that conflated N-variation with
+      curve-variation, caught and corrected within this same session before any commit
+      (see specification.yaml amendment_v2) -- which is itself the strongest argument for
+      an independent check, since the same kind of confound could remain undetected in
+      what is reported here.
+    - >-
+      The `smallest_x` construction as implemented breaks x-coordinate ties by ascending
+      DL value (see code docstring), a specific but not the only reasonable convention;
+      a threshold-based definition (all points with x below some t) is the more standard
+      index-calculus convention and was not what was measured here. The qualitative
+      finding (coordinate-dependence exists) should be robust to this choice; the
+      quantitative spread numbers might not be.
+    - >-
+      Rank deficiency was checked only up to residue budget 20*B; a deficiency FOUND is
+      real (the deterministic search either exhibits B independent relations within that
+      budget or it does not, and finding fewer than B is a fact about that budget, not a
+      proof that no more exist beyond it). At B=16 the budget is 320 residues against
+      N ~ 1000-4000, i.e. 8-32% of Z/N examined -- NOT a large fraction. A rank reported
+      as full (16) at this budget is therefore not a proof of full rank against the
+      whole group, and a rank reported as deficient could in principle recover to full
+      rank with a larger budget. The five deficiencies in OBS-4 stand as found; the
+      absence of more at larger B is correspondingly weaker evidence than it looks.
+
+  reviewed_by: none

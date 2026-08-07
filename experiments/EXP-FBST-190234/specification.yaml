@@ -1,16 +1,57 @@
 experiment:
   id: EXP-FBST-190234
   hypothesis_id: H-FBST-c8a080
-  version: 1
+  version: 2
   title: >-
     Is there ANY factor-base statistic that varies across curves at matched (p, B, m)?
     A search for a lever in the half of the design space the conservation and
     complete-splitting theorems leave free
-  status: designed_not_run
+  status: completed_without_coordinator_approval
   status_note: >-
-    DESIGNED AND NOT RUN. Specified in the same session that produced the theorems it
-    tests against; no result is claimed. Runnable as written with no dependencies beyond
-    the standard library, at the budget below.
+    NOT `approved`. `/run-experiment` was invoked against this specification while it
+    carried `status: designed_not_run` and `approved_by: null`; the user explicitly
+    waived the Coordinator-approval gate for this session rather than routing the spec
+    through Coordinator review, and this record says so rather than silently treating the
+    waiver as approval. No Coordinator subagent has reviewed this specification, its
+    v2 amendment, or its result. AGENTS.md rule 1 (only the Coordinator approves
+    experiments) is not met.
+
+  amendment_v2: >-
+    v1 (below, preserved) specified point arithmetic over E(F_p) directly, reusing the
+    summation-polynomial machinery of EXP-SMON-e5cbe6. v2 replaces the METHOD, not the
+    QUESTION: every curve here has prime order N, so E(F_p) \ {O} is in bijection with
+    Z/N via the discrete log to a generator, and decomposition counts over a DL-indicator
+    are then exact via one FFT (self-convolution), rather than symbolic. This is faster,
+    exact rather than sampled for two of the four target metrics, and has no geometric
+    degenerate locus at all. It costs the "recognizability" metric (about the
+    x-coordinate REPRESENTATION, not reachable from an abstract DL) and the
+    "subgroup-aligned" construction (vacuous on prime-order curves, which this whole
+    battery uses). Both losses are scope narrowings, recorded here rather than silently
+    dropped; see code/factorbase_stats.py's module docstring for the full derivation.
+
+    A SECOND, more consequential correction was made mid-run, before any result was
+    committed, and is recorded rather than smoothed over: the first implementation
+    grouped "across-curve variance" by PRIME p. Curves sharing a prime generally have
+    DIFFERENT orders N (curve order varies with the Weierstrass coefficients even at
+    fixed p), so p-grouping silently conflated across-CURVE variance with across-N
+    variance. Three of the four constructions (`uniform_random`, `sidon_dl`,
+    `small_multiples`) are pure functions of N and never read the curve's actual
+    arithmetic, so grouping by p made them LOOK curve-dependent when the variation was
+    really coming from N drifting across the group. The fix has two parts: (1) those
+    three constructions are now seeded by a hash of (N, B, construction-name) rather than
+    a globally-advancing sweep RNG, so two curves sharing the same N are GUARANTEED to
+    receive the identical base -- turning "these carry no curve information" from an
+    assumption into a checked invariant; (2) the relation-rank search was resampling
+    random targets from a shared, continuously-advancing RNG, which let estimator noise
+    (which random targets happened to be tried) masquerade as curve- or
+    construction-dependence; it is now a DETERMINISTIC scan over residues
+    r = 0, 1, ..., min(N, 20B)-1 in that fixed order, with incremental rank tracking, so
+    it depends only on (D, N) and nothing else. The corrected primary evidence is the
+    EXACT-N test: groups of curves in the sweep that happen to share the same order,
+    compared construction by construction. A byproduct is that the p-grouped summary
+    (still emitted, `per_construction_summary_BY_P_not_N...`) is retained in the raw
+    output but explicitly labelled as not the test that answers the hypothesis, precisely
+    so a future reader does not repeat the mistake this run started from.
 
   objective: >-
     Question 2 of papers/semaev-conservation-specialization/paper.tex, section 11, is the
@@ -139,9 +180,13 @@ experiment:
     must be recorded with its power, not as "no effect".
 
   required_artifacts:
+    - code/factorbase_stats.py
+    - runs/RUN-FBST-190234-001/{manifest.yaml, raw-result.json, stdout.log, stderr.log}
+
+  required_artifacts_v1_as_specified:
     - code implementing all five constructions and the four statistics
     - per-cell noise floors, computed from the null before any comparison
     - the mean-yield control table
 
-  assigned_to: unassigned
+  assigned_to: top-level session
   approved_by: null
