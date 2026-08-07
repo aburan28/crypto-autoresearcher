@@ -355,11 +355,30 @@ def main(argv=None) -> int:
         print(f"  W={d['window']:6d} ({d['window_fraction_of_p']:.3f} p)  "
               f"within-class count-var={d['mean_within_class_count_variance']:10.3f}  "
               f"perm p={d['permutation_p_value']:.4f}")
+    # The identity is #liftable_x = (#E - 1 + z)/2 with z the 2-torsion count.
+    # #E is class-invariant and z is not, so the full-field within-class variance
+    # of the COUNT is predicted to be Var(z)/4 -- NOT zero. The first version of
+    # this check tested `< 1e-9` and therefore printed "NOT explained by the
+    # trace identity -- investigate" on runs where the identity in fact held to
+    # 3e-14. The threshold was wrong, not the identity. See CORR-20260807-2c9ae4.
     full = decay[str(args.p)]
-    decay_verdict = ("consistent with the trace identity: the signal is exactly "
-                     "the class-invariant character sum and carries no attack content"
-                     if full["mean_within_class_count_variance"] < 1e-9 else
-                     "NOT explained by the trace identity -- investigate")
+    zvars = [statistics.variance([r["two_torsion_x"] for r in per_class[t]["rows"]])
+             for t in per_class if len(per_class[t]["rows"]) > 1]
+    predicted = (sum(zvars) / len(zvars) / 4.0) if zvars else 0.0
+    observed = full["mean_within_class_count_variance"]
+    residual = abs(observed - predicted)
+    decay_verdict = (
+        f"FULLY EXPLAINED by the liftable-count identity: observed within-class "
+        f"count variance {observed:.12g} matches the predicted Var(z)/4 = "
+        f"{predicted:.12g} to {residual:.3g}. The full-field liftable count is a "
+        f"function of (#E, z) alone; #E is the class invariant and z is the "
+        f"2-torsion structure, so the quantity carries no attack content."
+        if residual < 1e-9 else
+        f"NOT explained by the identity: observed {observed:.12g} vs predicted "
+        f"Var(z)/4 = {predicted:.12g}, residual {residual:.3g} -- investigate")
+    decay["identity_check"] = {"observed": observed, "predicted_var_z_over_4":
+                               predicted, "residual": residual,
+                               "holds": residual < 1e-9}
     print("  verdict:", decay_verdict)
     finished = time.time()
 

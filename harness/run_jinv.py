@@ -43,7 +43,7 @@ from . import isogeny_class as ic
 from .runner import RunResult, write_run
 from .toycurve import EllipticCurve, Point
 
-EXP_JINV = "EXP-JINV-6c5b8e"
+EXP_JINV = "EXP-JINV-dd60d3"   # supersedes EXP-JINV-6c5b8e (confounded sampler)
 EXP_EWALK = "EXP-EWALK-cc0353"
 
 x1, x2, x3 = sympy.symbols("x1 x2 x3")
@@ -139,7 +139,11 @@ def run_jinv(p: int, fb_size: int, n_targets: int, seed: int) -> dict:
         for rec in fam[name][:6 if name != "generic" else 12]:
             E = rec.curve()
             fb = ex.factor_base_fixed_size(E, fb_size)
-            tg = ex._targets(E, n_targets, seed)
+            # UNIFORM sampler. The j-families compared here have DIFFERENT
+            # traces -- j=0 forces D_0=-3, so they must -- and the hash-and-lift
+            # sampler's acceptance is a function of #E, so it would make the
+            # target sets systematically different per arm. CORR-20260807-a05e1e.
+            tg = ex.targets_uniform(E, rec.order, n_targets, seed)
             costs = [groebner_cost(E, fb, T) for T in tg]
             cert = None
             for T in tg:
@@ -177,6 +181,12 @@ def run_jinv(p: int, fb_size: int, n_targets: int, seed: int) -> dict:
         summary[name]["gb_seconds_ratio_vs_generic"] = (
             summary[name]["gb_seconds_mean"] / base if base else None)
     return {"p": p, "fb_size": fb_size, "n_targets": n_targets,
+            "target_sampler": "targets_uniform",
+            "supersedes": ("EXP-JINV-6c5b8e / RUN-JINV-p1009-a, whose Groebner "
+                           "timing comparison used the confounded hash-and-lift "
+                           "sampler; the exact S_3 monomial-support counts in "
+                           "that run are symbolic and use no targets, so they "
+                           "stand unchanged"),
             "arms": arms, "summary": summary}
 
 

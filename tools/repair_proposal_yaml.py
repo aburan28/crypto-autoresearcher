@@ -10,7 +10,16 @@ Both are ordinary YAML footguns, not content problems:
      Fix: double-quote the item.
 
 The tool touches only UNPARSEABLE files, only the offending lines, and never
-changes wording. It refuses to run on a file that already parses, and it
+changes wording.
+
+KNOWN COST, recorded rather than hidden: folding a plain list item into a block
+scalar preserves the TEXT but not the STRUCTURE. Where an author wrote a
+`proof_obligations` entry as a mapping whose value contained ": ", the repaired
+file carries a single string "claim: ... responsibility: ..." instead of a
+two-key mapping. IDEA-20260807-5f5ace is the known instance (its author flagged
+it). The proposal schema is not machine-enforced, so this does not fail
+validation, but a consumer that reads proof_obligations as mappings must handle
+both shapes. It refuses to run on a file that already parses, and it
 verifies the file parses after the edit -- reverting if it does not. Proposals
 are pre-commit drafts here; a file that does not parse is not yet a record.
 
