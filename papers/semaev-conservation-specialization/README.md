@@ -2,8 +2,12 @@
 
 Manuscript draft. **Not submitted, not posted, and not cleared for either.**
 
-- `paper.tex` — the manuscript (LaTeX, `article`, needs only `amsmath/amssymb/amsthm/
-  mathtools/geometry/hyperref/booktabs`).
+- `paper.tex` — the manuscript (LaTeX, `article`; needs only `lmodern`,
+  `amsmath/amssymb/amsthm`, `mathtools`, `booktabs`, `geometry`, `hyperref`).
+  **This is the single source.** `arxiv/` stages it rather than copying it.
+- `arxiv/` — the arXiv submission package: `make -f Makefile.arxiv` stages,
+  compiles, guards and tarballs. See `arxiv/SUBMISSION.md` for the metadata and
+  the three things that must happen before uploading.
 - Verification code and artifacts: `../../experiments/EXP-SMON-e5cbe6/`
 - Ledger: `H-SMON-db677d`, `EV-SMON-9c1c23`, `DEC-20260807-64df6a`,
   `CORR-20260807-652652`, `KN-FIND-a8990a`.
@@ -43,10 +47,15 @@ does the opposite.
    function fields or arithmetic geometry at Lemma 2.3 (Artin's theorem for a quotient
    by a finite group acting faithfully) and Lemma 3.2 (properness of the preimage of
    `E[2]`, in characteristic 2 where `E[2]` is non-reduced).
-2. **Novelty is not adjudicated.** `eprint.iacr.org` returned HTTP 403 to every request
-   from the environment this was written in, including Semaev's own 2004/031. Section 9
-   lists exactly what a reader with access must check. The searches that *were* possible
-   surfaced nothing stating Theorem 3.4 or 4.2, which is weak evidence and not a claim.
+2. **Novelty is not established** (though the check is now much better than it was).
+   Three treatments that each set up the basic theory of `S_m` in detail were read in
+   full text — Semaev arXiv:1504.01175, Kosters–Yeo arXiv:1503.08001, and
+   Amadori–Pintore–Sala *Finite Fields Appl.* 51 (2018) — and none discusses the Galois
+   group, splitting field, monodromy, or the factorization type of a specialized fibre.
+   Section 9 says exactly that and invites pointers, rather than claiming priority.
+   `eprint.iacr.org` was 403 from this environment, so Semaev 2004/031 was read only
+   through those three; that changed no attribution, since Amadori–Pintore–Sala
+   Theorem 2 restates its content with attribution.
 
 ## Reproducing the verification
 
@@ -60,11 +69,9 @@ should be reproduced byte for byte. Content hashes are in that run's `manifest.y
 
 ## Building
 
-`paper.tex` **has not been compiled** — no LaTeX toolchain is present in the
-environment where it was written. Its structure was checked programmatically (balanced
-environments, no dangling `\ref`/`\cite`), but it has never been typeset, so expect the
-usual first-compile friction.
+Compiles clean with pdfLaTeX (TeX Live 2023): 15 pages, three passes, no errors,
+no warnings, all fonts embedded Type 1.
 
 ```sh
-latexmk -pdf paper.tex
+cd arxiv && make -f Makefile.arxiv pdf
 ```
