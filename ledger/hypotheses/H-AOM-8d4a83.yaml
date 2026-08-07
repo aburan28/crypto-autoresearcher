@@ -1,0 +1,220 @@
+hypothesis:
+  id: H-AOM-8d4a83
+  question_id: RQ-ECDLP-002
+  proposal_id: IDEA-20260806-530fdd
+  added: '2026-08-06'
+  statement: >-
+    CONJECTURE AOM. There is a threshold function T(p) such that for every
+    degree d < T(p) and every constant oracle arity t, every degree-d algebraic
+    oracle -- one answering queries defined by polynomials of total degree at
+    most d in the affine coordinates of previously obtained group elements -- is
+    simulable in the generic group model with overhead poly(d, t, log p). The
+    threshold is predicted to track T(p) ~ p^{1/t}. Under the conjecture,
+    Semaev's summation polynomial sits at the exact coordinate d = 2^{m-2},
+    t = m, and point-decomposition index calculus is the study of one point on
+    that axis rather than an unindexed idea.
+  mechanism: >-
+    The generic simulator answers an AOM_d query by committing a fresh formal
+    logarithm and checking consistency. Its per-query failure probability is
+    bounded by the number of F_p-points on the queried variety divided by the
+    subgroup order: Bezout gives d^t, and Lang-Weil sharpens it for absolutely
+    irreducible systems. The threshold T(p) is the d at which d^t stops being
+    negligible against N ~ p, i.e. roughly p^{1/t}.
+    The conjecture converts the program's five separate simulability verdicts
+    (KN-FIND-002, KN-FIND-b7e091 and the IDEA-20260726/27 series) from a tally
+    into a statement quantified over one integer, which is what
+    docs/inventor-protocol.md section 4 demands and what KN-OPEN-019 asks for.
+    THREE THINGS MUST HOLD OR THE MODEL IS WRONG, AND ALL THREE ARE CHEAP:
+    the same ladder instantiated over F_p^* must NOT certify hardness (index
+    calculus really does beat the generic bound there); MOV/Frey-Ruck and
+    Smart's anomalous attack must be locatable and not blocked, since their
+    power comes from group-ORDER structure rather than coordinate structure; and
+    d = 1 must reproduce Shoup's simulator exactly.
+  assumptions:
+    - >-
+      Prime-field short-Weierstrass curve with prime-order subgroup,
+      Pohlig-Hellman hygiene applied (KN-TECH-030), so no small-subgroup
+      structure is available.
+    - >-
+      "Coordinates" means affine (x, y) in a NAMED curve model. The model is not
+      model-independent: a change of curve model changes degrees, so a threshold
+      measured in one model does not transfer. Recorded as a defect of the model
+      to be measured, not hidden.
+    - >-
+      Constant arity t. The statement is FALSE as a uniform claim if t may grow
+      with p, and the experiment must not let it.
+    - Bezout and Lang-Weil are used as quoted standard results, neither re-derived.
+  proof_search_map:
+    bottleneck: >-
+      The per-query failure probability of the generic simulator on a degree-d
+      condition over coordinates it has not committed to. Everything else is
+      bookkeeping; this single bound decides whether the threshold is p^{1/t} or
+      something far smaller.
+    baseline_embedding:
+      parameter_slice: d = 1, t = 2 -- the plain generic group model of KN-TECH-005
+      reproduction_check: >-
+        Symbolic: the simulator at d = 1 must literally be Shoup's. Plus a frozen
+        fixture: measured query count to solve a toy ECDLP in the implemented
+        AOM_1 must match the sqrt(N) prediction within the pre-registered band at
+        the same toy primes used for the program's rho baselines.
+    observation_collision:
+      observable: the pair (d, simulation overhead) assigned to an oracle
+      distinct_preimage_search: >-
+        Find two oracles with identical (d, t, variant) whose true simulability
+        differs. The pairing oracle on an embedding-degree-1 curve versus on a
+        generic curve is the first candidate and is cheap: same degree, opposite
+        consequence. A collision with no declared separating condition refutes
+        the conjecture as stated.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          "Is this oracle non-generic" restated as the numeric condition
+          d >= T(p), with separate encoding, completeness, soundness and
+          cost-loss obligations.
+        predicted_gain: falsifiability over one integer axis, not attack cost
+      - transform: boundary_lift
+        proposed_object: >-
+          Enlarge IDEA-20260726-004's per-oracle simulability certificate into a
+          certificate that ALL oracles of degree <= d are simulable.
+        predicted_gain: one certificate replaces an unbounded sequence of them
+    quantifier_order: >-
+      Intended: EXISTS T(.) FORALL p FORALL d < T(p) FORALL arity t = O(1)
+      FORALL oracles f of degree <= d EXISTS a simulator with overhead
+      poly(d, t, log p). The vacuous weakening FORALL f EXISTS T -- letting the
+      threshold depend on the oracle -- must NOT be claimed, and the audit
+      obligation is to check at every step that the simulator's construction
+      depends on f only through its degree and arity.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "Below degree T(p), no oracle helps beyond the generic bound." It can
+        NEVER certify ECDLP hardness: the standard model is AOM_infinity and the
+        theorem is silent there.
+      nearby_object_control: >-
+        F_p^*, where index calculus DOES beat the generic bound. The ladder must
+        be instantiable there and must FAIL to certify hardness. A model that
+        "proves" hardness for F_p^* has identified nothing.
+    proof_obligations:
+      - claim: AOM_1 is exactly the generic group model of KN-TECH-005.
+        responsibility: baseline
+      - claim: Per-query simulator failure probability is bounded by d^t / N.
+        responsibility: success_probability
+      - claim: Simulator overhead is poly(d, t, log p) below the threshold.
+        responsibility: runtime
+      - claim: The three oracle variants (bit, pt, enum) are kept distinct.
+        responsibility: interface
+      - claim: The F_p^* instantiation does not certify hardness.
+        responsibility: scope
+      - claim: MOV and Smart are located and not blocked.
+        responsibility: correctness
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-AOM-1
+      formal_statement: >-
+        For a degree-d, arity-t polynomial system over F_p defining a variety V,
+        #V(F_p) = d^{t-1} p^{dim V} (1 + O(d^c p^{-1/2})), i.e. the queried
+        systems behave like uniformly random systems of their degree.
+      random_model_justification: >-
+        The rigorous side is Lang-Weil for absolutely irreducible varieties
+        together with the Bezout bound d^t on total degree; the heuristic side is
+        the random-variety model for the specific systems queried.
+      supporting_results:
+        - Lang-Weil estimate (quoted standard; not re-read in this session)
+        - Bezout bound (quoted standard; not re-read in this session)
+      validation_experiment_ids: [EXP-AOM-e057f7]
+      falsification_condition: >-
+        Exhaustively counted #V(F_p) at toy p departing from the Lang-Weil
+        envelope by more than the predicted O(d^c p^{-1/2}) term.
+    - id: HEUR-AOM-2
+      formal_statement: >-
+        Simulator query failures are independent across queries up to the union
+        bound, so the total failure probability over Q queries is at most
+        Q * d^t / N.
+      random_model_justification: >-
+        The single-query bound is the standard Schwartz-Zippel argument used in
+        generic-group proofs; independence across queries is the assumption, and
+        it is where generic-model proofs usually need care.
+      supporting_results:
+        - KN-TECH-005 (generic group model and the square-root lower bound)
+      validation_experiment_ids: [EXP-AOM-e057f7]
+      falsification_condition: >-
+        Instrumented failure rate materially ABOVE the union bound at any swept
+        d. A rate far BELOW it means the bound is loose and the threshold
+        estimate is conservative, which is reported rather than quietly improved.
+  structural_ingredients:
+    - description: Shoup's generic group model and its square-root lower bound.
+      citation: KN-TECH-005
+      role: supplies AOM_1 and the bound the conjecture transports upward
+    - description: Semaev summation polynomials, degree 2^{m-2} per variable.
+      citation: KN-TECH-002
+      role: supplies the coordinate at which index calculus sits on the ladder
+  reduction_chain:
+    core_problem: >-
+      Whether a non-generic ECDLP algorithm can exist below a stated coordinate
+      degree.
+    corollaries: []
+  predictions:
+    - metric: fitted threshold exponent of T(p) versus p, per arity t
+      direction: different
+      minimum_effect: >-
+        Fitted exponent within 0.1 of 1/t across at least four toy primes
+        spanning a factor 16 in p. A threshold independent of p refutes the
+        mechanism.
+    - metric: simulator overhead on Semaev S_m queries versus matched random systems
+      direction: different
+      minimum_effect: >-
+        Identical within a factor 2. A material gap means Semaev structure, not
+        degree, drives simulability, refuting the model's central claim.
+    - metric: recorded simulability verdicts inconsistent with the conjectured threshold
+      direction: different
+      minimum_effect: >-
+        0 of the recorded verdicts (KN-FIND-002, KN-FIND-b7e091, the
+        IDEA-20260726/27 series). Any inconsistency is a finding about those
+        prior verdicts and is reported as such.
+  test_boundary:
+    instances: >-
+      Toy prime-field curves at the primes already used for the program's rho
+      baselines, plus F_p^* at matched sizes for the nearby-object control.
+    parameters:
+      variants: [AOM_d_bit, AOM_d_pt, AOM_d_enum]
+      d_sweep: 1 upward until the failure rate crosses the pre-registered band
+      arities: [2, 3]
+      semaev_arities: [3, 4]
+    implementation: >-
+      Instrumented generic simulator with two independent implementations
+      required to agree on query counts for a frozen seed.
+    budget:
+      total_cpu_hours: 120
+      maximum_memory_gb: 16
+  falsification_conditions:
+    - >-
+      The F_p^* instantiation certifies hardness. The model is refuted outright;
+      the record is superseded, not amended.
+    - The model blocks MOV or Smart. Same disposition.
+    - >-
+      An observation collision is found with no declared separating condition.
+      The conjecture as stated is refuted.
+    - >-
+      Measured T(p) does not track p^{1/t}. The threshold mechanism is wrong; the
+      ladder may survive as a taxonomy but the theorem does not.
+    - >-
+      A degree-polylog(p) oracle is exhibited that is provably not simulable with
+      poly overhead. THE CONJECTURE IS REFUTED AND THIS IS THE BEST OUTCOME IN
+      THE RECORD: it would be a new non-generic handle below the Semaev degree.
+  interpretation_limits:
+    - >-
+      A simulation theorem below T(p) transports the generic bound below T(p) and
+      nowhere else. It is not an ECDLP hardness result.
+    - >-
+      Locating Semaev at d = 2^{m-2} states where it sits, not that it is
+      infeasible. Cost stays with KN-OPEN-001 and the ICEX/DREG lanes.
+    - >-
+      Toy-scale thresholds bound the instrument. No statement about a 256-bit
+      curve follows.
+    - >-
+      Curve-model dependence is a property of the model, not an artifact of the
+      experiment; every threshold names its model.
+  status: specified
+  proposed_by: idea-generator
+  specified_by: coordinator
+  specified_at: '2026-08-06'

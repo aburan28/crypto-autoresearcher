@@ -1,0 +1,310 @@
+experiment:
+  id: EXP-REPL-1d1287
+  hypothesis_id: H-REPL-6c431d
+  version: 1
+  title: >-
+    Scrambled-group control for learned representations of elliptic-curve
+    points: does a trained model extract any coordinate structure, measured
+    against a null that preserves the group and destroys the coordinates
+  status: approved
+  objective: >-
+    Measure the held-out advantage over chance of a neural predictor of a
+    discrete-logarithm bit, trained identically on (i) real curve-point
+    encodings and (ii) a scrambled group with the same group order and
+    equal-length random labels, across three capacities, four presentations and
+    two toy curve sizes; and decide, at a pre-registered 5-sigma threshold,
+    whether the model extracts coordinate structure. Secondary objective: place
+    every trained model on the (S, T) preprocessing frontier against an equal-S
+    precomputed table reproduced in the same harness.
+
+  experiment_class: control
+
+  inputs:
+    curves: >-
+      Two prime-field short-Weierstrass curves with prime-order subgroups of
+      2^20 and 2^28 elements, generator fixed. Curve parameters, point counts
+      and generators frozen into curves.json before any training run.
+    target: >-
+      MSB of the logarithm, i.e. the indicator [k < N/2]. Chosen for
+      measurability. NO predictor-to-solver reduction is assumed or claimed;
+      the experiment measures structure extraction, not bit security.
+    presentations:
+      - affine_xy_limbs: x and y as fixed-width limb sequences
+      - x_only_limbs: x alone
+      - projective_jacobian_limbs: a randomised projective representative
+      - scrambled_labels: >-
+          THE NULL. A PRF-driven random bijection from the subgroup to
+          bit-strings of the SAME length as the affine_xy_limbs encoding. The
+          group is untouched; the coordinates are gone. This is the only
+          difference between the two arms.
+    capacities: >-
+      Three parameter counts per architecture, spanning at least two orders of
+      magnitude, with the largest chosen so it can memorise the full training
+      split at the 2^20 curve -- memorisation must be REACHABLE so the held-out
+      protocol is visibly doing work.
+    architectures: [MLP over concatenated limbs, small transformer over limb tokens]
+    dataset_construction: >-
+      For each curve and presentation, the pairs (encoding(kP), MSB(k)) for k in
+      the training split. Splits are BY LOGARITHM and disjoint. Two split modes
+      are run and reported separately: random_by_logarithm, and
+      contiguous_block_by_logarithm. The second exists because the discrete
+      logarithm is randomly self-reducible and adjacent logarithms are one group
+      operation apart, so a random split can place near-neighbours on both sides
+      and produce a held-out number that reflects local interpolation rather
+      than structure. Reporting only the random split would be the single
+      easiest way to manufacture a false positive here.
+    heldout_size: >-
+      At least 10^6 examples at the 2^28 curve and at least 4 * 10^5 at the 2^20
+      curve, giving a binomial standard error on the advantage below 0.0008 and
+      0.0013 respectively -- so a 5-sigma threshold corresponds to a detectable
+      advantage of about 0.004 and 0.007. Sample size is derived from the
+      smallest effect worth resolving, not chosen for convenience.
+
+  controls:
+    - id: C1_scrambled_group
+      description: >-
+        THE PRIMARY MEASUREMENT, not a supplementary check. Identical
+        architecture, capacity, budget, schedule, seeds and early-stopping rule;
+        only the dataset differs. Group preserved, coordinates destroyed.
+        BLOCKING for interpretation: no curve-arm number may be reported without
+        its matched scrambled-arm number in the same table row.
+    - id: C2_shuffled_labels
+      description: >-
+        Real curve encodings with targets randomly permuted, destroying the
+        input-output relation. Held-out advantage must fall to chance within
+        3 standard errors. BLOCKING: anything above chance means the evaluation
+        protocol leaks and every number in the experiment is void.
+    - id: C3_planted_leaky_encoding
+      description: >-
+        A synthetic presentation in which 4 bits of k are XORed into low bits of
+        the label. The pipeline MUST reach at least 0.10 advantage over chance.
+        BLOCKING: a pipeline that has never detected structure cannot support a
+        negative result. This is the control most often missing from work in
+        this area and it is the reason a null here would mean anything.
+    - id: C4_capacity_ladder
+      description: >-
+        Three capacities per architecture. The metric must respond to capacity
+        on C3 (the planted control) in the expected direction, confirming that
+        capacity is a live variable rather than saturated by an implementation
+        limit.
+    - id: C5_table_attack_reproduction
+      description: >-
+        Implement the table-based preprocessing attack that saturates
+        S * T^2 = Omega(N) and confirm at the 2^20 curve that it achieves the
+        predicted T for its S. BLOCKING for the frontier comparison in the
+        secondary objective; without it the (S, T) placement is ungrounded.
+    - id: C6_seed_variance
+      description: >-
+        Five seeds per configuration on the scrambled arm FIRST, to measure
+        training variance and, if it exceeds the binomial floor by more than a
+        factor 3, to recompute the 5-sigma comparison band from the measured
+        variance BEFORE any curve-versus-scrambled comparison is scored. Running
+        this first is deliberate: deriving the band after seeing the curve arm
+        would let the threshold be chosen to fit the result.
+
+  independent_variables:
+    - presentation (4 levels, one of which is the scrambled null)
+    - capacity (3 levels)
+    - architecture (2 levels)
+    - curve size (2 levels)
+    - held-out split mode (2 levels)
+
+  metrics:
+    primary:
+      - >-
+        heldout_advantage: measured accuracy minus 0.5 on the held-out split,
+        per configuration, with a binomial confidence interval and the measured
+        seed variance from C6.
+      - >-
+        structure_gap: heldout_advantage(curve presentation) minus
+        heldout_advantage(scrambled), per matched cell, with its combined
+        standard error and its multiple of the pre-registered threshold.
+    secondary:
+      - training_set_accuracy, reported separately and never as a headline
+      - advantage as a function of training-set size, per dataset
+      - S in bits at the named storage precision, and compressed size
+      - T in online group operations for any model used as a predictor
+      - (S, T) position against the reproduced table attack of C5
+      - wall-clock, GPU-hours and peak memory per training run
+
+  measured_vs_modeled:
+    measured:
+      - all held-out advantages, training accuracies and their intervals
+      - seed variance
+      - S in bits, both raw and after lossless compression
+      - the reproduced table attack's achieved T at its S
+    modeled:
+      - >-
+        the preprocessing bound S * T^2 = Omega(epsilon N), from
+        Corrigan-Gibbs-Kogan as verified at Stage 0
+      - >-
+        the binomial standard error at the declared held-out sizes
+    rule: >-
+      Measured and modeled numbers never share a column. The frontier plot marks
+      the bound as a modeled curve and every trained model as a measured point.
+
+  optimistic_assumptions:
+    - >-
+      S is counted as parameters times storage precision. BIAS: OVERSTATES the
+      advice for a compressible model, which makes the model look BETTER
+      positioned than it is. Direction: flatters the learned arm. Mitigated by
+      also reporting the compressed size and using the smaller of the two.
+    - >-
+      Training cost is excluded from the (S, T) accounting, as the preprocessing
+      model conventionally does. BIAS: flatters the learned arm substantially --
+      producing the advice may cost more than the attack it enables. Stated in
+      the results report, not only here.
+    - >-
+      Early stopping uses a held-out slice disjoint from the reported held-out
+      set. BIAS: none intended, but any overlap would inflate the reported
+      advantage, so the disjointness is an artifact to be verified rather than
+      asserted.
+  optimistic_assumption_rule: >-
+    Any table produced under the assumptions above is labeled a BOUND on what
+    the learned arm could achieve, not a prediction of what it does, and the
+    list is reproduced in the results report with the direction of each bias.
+
+  heuristic_under_test: HEUR-REPL-1
+  preregistered_prediction:
+    quantity: >-
+      structure_gap -- the held-out advantage on a real curve presentation minus
+      that on the scrambled group, at matched architecture, capacity, budget,
+      schedule and seed.
+    formula: >-
+      structure_gap = 0, within 5 combined standard errors, in every one of the
+      matched cells (3 capacities x 2 architectures x 2 curve sizes x 2 split
+      modes x 3 real presentations).
+    source: >-
+      H-REPL-6c431d, resting on the generic-model preprocessing bound recorded
+      in IDEA-20260806-94676a. Frozen before any training run. The 5-sigma
+      threshold and the sample sizes that realise it are part of this frozen
+      prediction; recomputing the band from C6's measured variance is the ONLY
+      permitted adjustment, it happens before the curve arm is scored, and it
+      may only widen the band.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Subgroup sizes 2^20 and 2^28 are chosen so held-out sets are a large
+      fraction of the group and generalisation is directly measurable rather
+      than inferred, and so the largest model can reach memorisation -- which
+      makes the held-out protocol visibly load-bearing. NOTHING measured here
+      extrapolates to a cryptographic curve. What carries is the preprocessing
+      bound, which is a theoretical statement and not an output of this
+      experiment. Resulting evidence is capped at claim_tier toy under every
+      outcome, including a positive one.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      The single best-performing configuration across the entire grid, reported
+      with its exact cell coordinates, so that a lone outlier among ~72 cells is
+      visible as a multiple-comparisons artifact rather than a discovery. With
+      72 cells, one 3-sigma excursion is expected; the 5-sigma threshold and the
+      reproduction-across-all-cells requirement exist for this reason and are
+      stated here rather than derived after the fact.
+    - >-
+      The contiguous-block split's advantage compared against the random
+      split's, per cell. A gap between them localises interpolation across
+      near-neighbours rather than structure, and is reported explicitly.
+    - >-
+      The most compressible trained model, with its compressed S and its
+      recomputed frontier position -- the case where the advice budget is
+      smallest and the bound bites hardest.
+
+  replication:
+    seeds: [11, 22, 33, 44, 55]
+    independent_instances: 5
+    note: >-
+      5 seeds per configuration. C6 runs the scrambled arm's seeds FIRST to fix
+      the comparison band. Curve-arm and scrambled-arm runs are paired on seed
+      so the difference is taken within seed, which removes the training-variance
+      term from the paired comparison and is why 5 seeds suffice.
+
+  budget:
+    wall_clock_seconds_per_run: 5400
+    total_cpu_hours: 200
+    total_gpu_hours: 60
+    maximum_memory_gb: 32
+    maximum_runs: 400
+
+  stopping_rules:
+    - >-
+      Stop a training run at its wall-clock cap and record it as budget-limited,
+      NOT as a completed observation. A cell with any budget-limited run is
+      reported as unresolved rather than scored, since a truncated curve-arm run
+      paired with a completed scrambled-arm run manufactures a false negative.
+    - >-
+      Stop the whole experiment at the total_gpu_hours cap, reporting completed
+      cells and naming the incomplete ones. No interpolation across missing cells.
+    - >-
+      Stop and escalate immediately if any real presentation shows structure_gap
+      above 5 sigma in a completed cell: the remaining budget is redirected to
+      reproducing that cell across capacities, seeds and split modes before
+      anything else is run. A positive is reproduced before it is extended.
+
+  invalidation_rules:
+    - >-
+      C2 (shuffled labels) above chance invalidates the entire experiment.
+    - >-
+      C3 (planted leaky encoding) not detected invalidates every NEGATIVE
+      conclusion; positives, if any, survive but are reported with the caveat.
+    - >-
+      Any overlap between the early-stopping slice and the reported held-out set
+      invalidates the affected runs.
+    - >-
+      Any difference between the curve arm and the scrambled arm other than the
+      dataset -- schedule, seed, budget, preprocessing, tokenisation --
+      invalidates the pair.
+    - >-
+      Crashes, OOM and driver failures are INFRASTRUCTURE outcomes under
+      AGENTS.md rule 5, recorded as such, never scored as evidence about
+      structure.
+
+  success_criterion: >-
+    C2, C3, C5 and C6 pass, and the experiment reports structure_gap with its
+    combined standard error for every completed matched cell, together with the
+    (S, T) frontier placement of every trained model against the reproduced
+    table attack. The experiment SUCCEEDS as an instrument whichever way
+    structure_gap comes out; it fails only if a blocking control fails or if
+    more than 15 percent of matched cells are unresolved by budget.
+
+  falsification_criterion: >-
+    H-REPL-6c431d is REFUTED if structure_gap exceeds 5 combined standard errors
+    in every one of the matched cells at all three capacities and both curve
+    sizes, under both split modes. A gap in some cells but not others is
+    reported as INCONCLUSIVE and triggers the reproduction protocol in the
+    stopping rules -- it is explicitly NOT scored as a refutation, because with
+    ~72 cells a scattered excursion is the expected behaviour of the multiple
+    comparisons rather than a finding. Separately, a model landing strictly
+    inside the preprocessing frontier, verified against C5, refutes the bound's
+    applicability to this model class and is escalated for independent
+    review-adversarial before any statement is made.
+
+  required_artifacts:
+    - frozen curves.json and the PRF key and construction for the scrambling bijection
+    - per-run manifest with command, git commit, dirty-tree state, environment,
+      dependency versions, seed, and the resolved model policy and backend
+    - dataset split manifests proving held-out disjointness and early-stopping-slice
+      disjointness, for both split modes
+    - per-run held-out predictions sufficient to recompute the advantage independently
+    - training-set accuracy, reported separately
+    - control outcomes C1-C6 with pass/fail and measured values
+    - C6 seed-variance measurement and the resulting comparison band, timestamped
+      before any curve-arm scoring
+    - S in bits raw and compressed, per model
+    - the reproduced table attack's (S, T) measurements
+    - a measured-vs-modeled table, columns never mixed
+    - the optimistic-assumption list reproduced in the results report with the
+      direction of each bias
+
+  assigned_to: executor
+  approved_by: coordinator
+  approved_at: '2026-08-06'
+  approval_note: >-
+    APPROVED 2026-08-06 by coordinator on explicit user confirmation of the
+    frozen contract. The protocol is now FROZEN: any change requires a versioned
+    protocol_amendment in this experiment's amendments/ directory. The
+    preregistered_prediction in particular is frozen and is never re-scored
+    against a revised formula; runs already executed are never silently
+    re-scored.
