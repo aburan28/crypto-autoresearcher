@@ -444,6 +444,7 @@ class _Layout:
                                   dtype=np.int64)
         self.K = len(self.cls_sizes)
         self.ge2 = self.cls_sizes >= 2
+        self.ge2_idx = [int(j) for j in np.flatnonzero(self.ge2)]
         self.sizes_f = self.cls_sizes.astype(np.float64)
         self.denom_w = float(self.n - self.K)
         self.n_ge2 = int(self.ge2.sum())
@@ -452,7 +453,20 @@ class _Layout:
         return np.asarray(values, dtype=np.float64)[self.blk_order]
 
     def statistics(self, pc: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """(T_weighted, T_unweighted) for a (chunk, n) array in CLASS order."""
+        """(T_weighted, T_unweighted) for a (chunk, n) array in CLASS order.
+
+        THE FINAL SUM OVER CLASSES IS AN EXPLICIT LEFT-TO-RIGHT ACCUMULATION
+        AND NOT `ndarray.sum(axis=1)`, AND THAT IS NOT A STYLE CHOICE.
+        `np.add.reduceat` returns a (rows, K) array whose contiguity depends on
+        `rows`, and numpy switches between a pairwise and a strided reduction
+        accordingly -- so `SS[:, ge2].sum(axis=1)` returned a DIFFERENT LAST BIT
+        for a one-row observed array than for a 2083-row null chunk. That
+        one-ulp difference made p_lower at R5_PERCLASS come out at the
+        resolution floor instead of exactly 1.0 for three functionals at POOL_B
+        (RUN-INSTR-85b102-poolB, superseded). Accumulating column by column is
+        elementwise on each column, so it is exact per element and independent
+        of the number of rows.
+        """
         for s, sz in zip(self.cls_offsets, self.cls_sizes):
             pc[:, s:s + sz].sort(axis=1)
         S = np.add.reduceat(pc, self.cls_offsets, axis=1)
@@ -461,12 +475,18 @@ class _Layout:
         np.subtract(pc, rep, out=pc)
         np.multiply(pc, pc, out=pc)
         SS = np.add.reduceat(pc, self.cls_offsets, axis=1)
-        t_w = SS.sum(axis=1) / self.denom_w
+        rows = pc.shape[0]
+        t_w = np.zeros(rows, dtype=np.float64)
+        for j in range(self.K):
+            t_w += SS[:, j]
+        t_w /= self.denom_w
         if self.n_ge2:
-            t_u = (SS[:, self.ge2] / (self.sizes_f[self.ge2] - 1.0)).sum(axis=1) \
-                / self.n_ge2
+            t_u = np.zeros(rows, dtype=np.float64)
+            for j in self.ge2_idx:
+                t_u += SS[:, j] / (self.sizes_f[j] - 1.0)
+            t_u /= self.n_ge2
         else:
-            t_u = np.full(pc.shape[0], np.nan)
+            t_u = np.full(rows, np.nan)
         return t_w, t_u
 
     def observed(self, values) -> tuple[float, float]:
@@ -475,6 +495,24 @@ class _Layout:
         pc = vb[self.cls_perm][None, :].copy()
         t_w, t_u = self.statistics(pc)
         return float(t_w[0]), float(t_u[0])
+
+    def observed_shape_invariance(self, values, rows: int = 8) -> dict:
+        """Self-check: T_obs must not depend on the array shape it is computed in.
+
+        This is the check whose absence let the POOL_B R5_PERCLASS defect
+        through. It costs microseconds and it runs on every cell.
+        """
+        vb = self.values_in_block_order(values)
+        one = self.statistics(vb[self.cls_perm][None, :].copy())
+        many = self.statistics(
+            np.repeat(vb[self.cls_perm][None, :], rows, axis=0).copy())
+        return {"rows_compared": rows,
+                "weighted_shape_invariant": bool(one[0][0] == many[0][0]),
+                "unweighted_shape_invariant": bool(one[1][0] == many[1][0]),
+                "weighted_one_row": float(one[0][0]),
+                "weighted_many_rows": float(many[0][0]),
+                "unweighted_one_row": float(one[1][0]),
+                "unweighted_many_rows": float(many[1][0])}
 
 
 def _chunk_size(B: int, n: int) -> int:
@@ -496,6 +534,7 @@ def blocked_permutation_null_both(values, labels, blocks, B: int, seed: int,
     lay = layout if layout is not None else _Layout(labels, blocks)
     vb = lay.values_in_block_order(values)
     t_obs_w, t_obs_u = lay.observed(values)
+    shape_check = lay.observed_shape_invariance(values)
 
     nulls_w = np.empty(B, dtype=np.float64)
     nulls_u = np.empty(B, dtype=np.float64)
@@ -550,6 +589,7 @@ def blocked_permutation_null_both(values, labels, blocks, B: int, seed: int,
             "T_obs_at_or_above_null_max": bool(t_obs >= nmax),
             "B": B,
             "resolution_floor": 1.0 / (1 + B),
+            "t_obs_shape_invariance_check": shape_check,
         }
     return out
 
@@ -1987,6 +2027,18 @@ def tail_checks(pool: Pool, rows: list[dict], ladder: dict,
                    "result": "PASS" if all(v["consistent"] for v in worst.values())
                              else "FAIL",
                    "by_rung": worst})
+
+    bad = [k for k, c in cells.items()
+           if not (c["t_obs_shape_invariance_check"]["weighted_shape_invariant"]
+                   and c["t_obs_shape_invariance_check"]
+                   ["unweighted_shape_invariant"])]
+    checks.append({"check": "T_obs is invariant to the array shape it is "
+                            "computed in (self-check for the defect that "
+                            "produced RUN-INSTR-85b102-poolB)",
+                   "result": "PASS" if not bad else "FAIL",
+                   "offending_cells": bad[:20],
+                   "offending_count": len(bad),
+                   "cells_checked": len(cells)})
 
     dmax = [ladder["rung_geometry"][r]["delta_max_N"] for r in N_LADDER]
     checks.append({"check": "Delta_max non-increasing along R0 -> R2 -> R3 -> "
