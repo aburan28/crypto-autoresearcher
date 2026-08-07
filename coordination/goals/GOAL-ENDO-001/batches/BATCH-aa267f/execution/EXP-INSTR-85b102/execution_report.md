@@ -85,6 +85,17 @@ Informational second row: those files already differed from `origin/main`
 carries the campaign's own sampler correction, which this contract cites
 (`CORR-20260807-9f83be`) rather than introduces. That is context, not the claim.
 
+**Concurrency cross-check.** Each run's diff used `HEAD` at the moment it ran,
+and `HEAD` moved during execution because a concurrent agent committed to this
+same branch (`a3cbcd22`, an `EXP-ICINV-4d33aa` execution report and
+implementation note; `7cc34bea`, two `CORR-*` ledger records). Neither touched
+any harness file. Re-verified after all runs completed, **against the approval
+commit `02487c1918fca88051b5ff3bf3248e648d9857a8` specifically**:
+`git diff 02487c19 HEAD` is **empty** for all four frozen files and **11/11**
+frozen functions hash identical — verdict **ZERO BEHAVIOURAL CHANGE**. The
+receipt therefore holds against the commit the contract was approved at, not
+merely against whatever `HEAD` happened to be per run.
+
 ---
 
 ## 3. Run inventory
