@@ -1,0 +1,407 @@
+validation_report:
+  id: VAL-20260805-9f21c4
+  task_id: TASK-20260805-234661
+
+  verdict_written_first: >-
+    VERDICT: invalid. The task card names a Coordinator-committed snapshot at
+    coordination/goals/GOAL-AES-003/batches/BATCH-010/archives/TASK-20260805-50dc8a/
+    snapshot-receipt.json and instructs the Validator to check it before reading
+    the red team report it binds. That file does not exist anywhere in the
+    repository (checked by direct path and by `find` across the whole tree), no
+    "archives" directory exists under BATCH-010 at all, and the red team's own
+    artifact, coordination/goals/GOAL-AES-003/batches/BATCH-010/tasks/
+    TASK-20260805-a13fce/red_team_report.yaml, is untracked in git (`git status
+    --porcelain` reports it under `??`; `git log` on its exact path returns no
+    commits at any revision). The only committed artifact under BATCH-010 is the
+    Coordinator's dispatch_queue.json (commit e59dd4c8, "open GOAL-AES-003
+    BATCH-010..."), which opens the batch but does not snapshot the red team's
+    report. Per this role's binding operating rule -- "Read only the
+    Coordinator-committed snapshot named by the task card. Refuse to validate a
+    working-tree-only producer receipt." -- and per AGENTS.md's Durable Research
+    Commits section ("Research is not durable merely because it appears in a
+    working tree... Every... red-team report... must be assigned to exactly one
+    archival task. A missing, dirty, malformed, or scope-expanding commit blocks
+    downstream review... it is an evidence-integrity failure, not a mathematical
+    result"), this report cannot certify the red-team package as an admissible,
+    durable receipt. That is the primary and controlling finding.
+
+    Because the task's completion_gate nonetheless requires rulings on the
+    weakest-link, instrument-lineage, and shared-key findings, and because the
+    substantive content is independently checkable against artifacts that ARE
+    committed (the three EV-AES-* records, DEC-20260805-9a1c47, the four CORR
+    records, yoyo_sbox_v2/v3/v4 source and diffs, and BATCH-005's RESULTS.json),
+    this report performs that substantive check below as an ADVISORY shadow
+    review. It is explicitly not a certification that the red_team_report.yaml
+    artifact itself is an admissible receipt -- it cannot be, absent a snapshot
+    commit -- and the Coordinator must not treat any finding below as
+    superseding the invalid verdict on admissibility. The Coordinator's fix is
+    mechanical: run the snapshot-commit archival task for TASK-20260805-a13fce's
+    output before any further review consumes it as if it were durable.
+
+  parse_confirmation: >-
+    This report was written after reading, in full: AGENTS.md; agents/validator.md;
+    the BATCH-010 dispatch_queue.json task card for TASK-20260805-234661; the
+    red_team_report.yaml (all ~550 lines, parsed as YAML and read end to end, not
+    sampled); DEC-20260805-9a1c47, EV-AES-8b8dcf, EV-AES-e4c091 in full; the
+    worker()/build_geom()/enc_r/dec_r regions of yoyo_sbox_v2.c; the full
+    v3-to-v4 unified diff; and BATCH-005's RESULTS.json (targeted sections plus a
+    programmatic extraction of every D-AES-K arm and the T2/T3 statistics). It
+    was parsed whole, not just the region last touched, before this verdict was
+    finalized.
+
+  run_ids: []
+  artifact_checks:
+    - claim: >-
+        Snapshot receipt exists at coordination/goals/GOAL-AES-003/batches/
+        BATCH-010/archives/TASK-20260805-50dc8a/snapshot-receipt.json.
+      result: FAILED. Path does not exist; no archives/ directory exists under
+        BATCH-010 at all.
+    - claim: red_team_report.yaml is a durable, committed artifact.
+      result: FAILED. `git status --porcelain` shows it untracked; `git log`
+        against its exact path returns zero commits; only dispatch_queue.json
+        under BATCH-010 is committed (e59dd4c8).
+    - claim: The evidence records and decision the red team's report is bound to
+        review (EV-AES-a47618, EV-AES-8b8dcf, EV-AES-e4c091, DEC-20260805-9a1c47)
+        are themselves committed and clean.
+      result: PASSED. `git log -1` on each resolves to committed revisions
+        (EV-AES-e4c091 and DEC-20260805-9a1c47 both at 576b0ee8); `git status
+        --porcelain` on the ledger paths is empty.
+    - claim: rc8probe.c's cited source sha256
+        (0109d7b6ac0e8e62092cbb64f2c454bfd0c5f1ffdba17f410de6b9a124df52b0)
+        matches the file on disk.
+      result: PASSED. `sha256sum` on
+        coordination/goals/GOAL-AES-003/batches/BATCH-007/tasks/TASK-20260803-e55757/rc8probe.c
+        reproduces the cited digest exactly.
+    - claim: >-
+        valprobe.c's M2 result (29 hits, analytic null 2.0, 14.5x, r=5, amask=2,
+        2^31 trials) is recorded as cited in TASK-20260803-cddc64's
+        validation_report.yaml.
+      result: PASSED. Lines 414, 460-465 of that report record W_ge1_nontrivial
+        = 29, null 2.0, ratio 14.5x, matching the quote exactly.
+    - claim: >-
+        The v3->v4 diff touches only enc_r/dec_r call sites (wrapped in new
+        if(J->idealperm) branches) plus new logging fields, leaving the
+        amask-draw/rejection loop, trivial-swap detector, smask-swap loop, and
+        W>=1 counting predicate byte-identical between branches.
+      result: PASSED. Full unified diff read; the only structural changes inside
+        worker() are (a) an order-sensitive pdigest accumulator that reads but
+        does not write p0/p1, (b) an if/else wrapping the two enc_r calls and the
+        two dec_r calls with ideal-permutation oracle logic, and (c) an
+        RC-11 hit-index logging block gated on the existing W>=1 test. The
+        amask rejection loop, the CW-indexed swap/trivial-swap detector, and the
+        PW-indexed W-counting loop are textually unchanged between v3 and v4 and
+        run unconditionally in both cipher models.
+    - claim: >-
+        PW[j][row] and CW[j][row] are correctly-formed, disjoint bijective
+        partitions of the 16-byte state, matching FIPS-197 ShiftRows diagonals
+        as documented in the source header.
+      result: PASSED by direct inspection. build_geom() sets
+        PW[j][row]=4*(((j+row)%4+4)%4)+row; for a fixed row, as j ranges 0..3,
+        (j+row) mod 4 takes each value in {0,1,2,3} exactly once, so PW assigns
+        each of the 16 byte positions to exactly one (j,row) pair; the same
+        holds for CW under (j-row) mod 4. No overlap, no gap.
+    - claim: >-
+        D-AES-K1/K2/K3 (BATCH-005) carry three distinct key_hex values and read
+        W_ge1 = 14, 14, 8 at r=5/amask=1/smask=1/aes/2^30.
+      result: PASSED. Programmatic walk of RESULTS.json confirms key_hex
+        bdf3823182ad657dab3d556b3886ba72 / 58146703b42fca722bc0ab918cd1409b /
+        144e2584001beec873a02a29e6156875 with W_ge1 14/14/8 respectively.
+    - claim: T2 (key main effect) p=0.24734580566758235; T3 (full cell
+        homogeneity) p=0.45730017978460535, both quoted by the red team as
+        0.247/0.457.
+      result: PASSED. Exact values found at RESULTS.json lines 1152 and 1176.
+    - claim: >-
+        DEC-20260805-9a1c47's next_actions text reads "...their results now
+        compose into a single narrative (the r=5 excess is a certainty-free
+        real phenomenon, localised to the full word, not S-box-specific, and
+        not a probe-geometry artifact)..." as quoted by the red team's
+        claim_under_review.
+      result: PASSED. Verbatim match against the committed record (lines
+        122-126 of DEC-20260805-9a1c47.yaml).
+    - claim: >-
+        EV-AES-8b8dcf's hypothesis_id_note reads "measures the INSTRUMENT'S
+        NULL MODEL... not a cipher property" as quoted by the red team.
+      result: PASSED. Verbatim match (lines 5-9 of EV-AES-8b8dcf.yaml).
+
+  metric_recomputations:
+    - claim: P(X >= 14 | Poisson(15.48)) = 0.681 (OBS-B8-7's percentile figure).
+      recomputed: 0.6811403904651812, independently in this session. MATCHES.
+    - claim: RC-C's five-point AES mean is 12.3 ((14+14+8+13.5+12)/5).
+      recomputed: 12.3. MATCHES.
+    - claim: >-
+        RC-A's stated exposure (2^20-2^24 trials) is adequate to obtain a
+        meaningful comparison of "which trials hit" between v4 and an
+        independent reimplementation.
+      recomputed: >-
+        NOT ADEQUATE AS STATED. The campaign's own established AES rate at
+        r=5/amask=1/smask=1 is ~14 hits per 2^30 trials, i.e. ~1.304e-8 per
+        trial. Expected hits at 2^24 trials = 16,777,216 * 1.304e-8 ~= 0.22;
+        at 2^27 ~= 1.75; at 2^29 ~= 7.0. At the exposure the red team names,
+        a single run has roughly an 80% chance of observing ZERO hit trials
+        at all, at which point "agreement on which trials hit" is vacuously
+        true and the control supplies no discriminating power for the
+        specific rare event (W>=1) the interaction-class bug would corrupt.
+        Getting a handful of comparable hit events for a real agree/disagree
+        test needs exposure closer to 2^28-2^30, not 2^20-2^24. This does not
+        undermine RC-A's logic or its rank-1 priority (see control_checks
+        below), only its stated cost, which is understated by roughly a
+        factor of 16-64x in trial count if it is meant to reliably produce
+        comparable events.
+
+  control_checks:
+    - control: >-
+        Positive/negative-control structure across BATCH-007/008/009 (the
+        "composed claim" under review).
+      finding: >-
+        The red team's central claim -- that BATCH-008's two exclusions
+        (byte-locality, S-box-specificity) are not independent null-object
+        controls in the inventor-protocol section 3 sense because both run
+        through the SAME unmodified generative harness (amask-draw-with-
+        rejection, trivial-swap detector, W-counting predicate), while
+        BATCH-009's ideal-permutation substitution IS a genuine independent
+        control -- is CORRECT and independently verified by direct source
+        inspection (see artifact_checks above: v3->v4 diff leaves that
+        harness code untouched; only enc_r/dec_r calls are branched). This
+        finding is not an overstatement; if anything it strengthens the
+        campaign's own composed narrative once stated correctly, exactly as
+        the red team argues in ruling (3).
+    - control: >-
+        The "residual risk class" (a shared-harness bug conditional on
+        interaction with real round-function structure) named in ruling (4)
+        and instrument_lineage_risk.
+      finding: >-
+        PARTIALLY SOUND, mechanically checked against the actual code and
+        found to be OVERSPECIFIED in its illustrative example. The general
+        CLASS of risk is real and correctly identified as untested: since the
+        amask/trivial-swap/W-counting code is bit-identical across the "aes"
+        and "ideal" branches, no control currently run could distinguish a
+        genuine round-5 signal from a harness bug whose false-positive rate
+        happens to depend on whether the underlying byte stream has actual
+        cipher structure to interact with. That reasoning is valid and this
+        report confirms it.
+
+        However, the SPECIFIC illustrative mechanism named -- "an aliasing
+        between the PW/CW index tables and the branch structure MC/SR induce"
+        -- is not shown to be mechanically live in this code, and on
+        inspection appears not to be. PW/CW are correctly-formed disjoint
+        bijections (verified above) consumed ONLY as byte indices into the
+        harness's own p1[]/c0[]/c1[]/d[] arrays at the trial's I/O boundary.
+        The actual MixColumns/ShiftRows implementation lives entirely inside
+        the T0-T3/U0-U3 tables inside enc_r/dec_r, which worker() calls as an
+        opaque function; there is no code path in worker() where the PW/CW
+        tables and the T/U-table internals are jointly referenced, so no
+        literal indexing/memory "aliasing" between them is possible in this
+        implementation as written. The red team does flag this as "for
+        instance" (i.e. illustrative, not asserted as a located bug), which
+        is the correct epistemic hedge, but the specific phrase overstates
+        its own mechanistic precision: what is actually live and unruled-out
+        is better described as "an unlocated defect in the harness's own
+        rejection/counting logic whose apparent rate could differ between
+        structured and unstructured input for reasons not yet identified,"
+        not a specific aliasing between two named table structures that do
+        not, in fact, share a code path. This is a real but narrow
+        correction: it does not change the closure ruling (the class of risk
+        the report is actually worried about is genuine and unruled-out
+        regardless of which illustrative example is used to name it), but a
+        Coordinator repeating this finding forward should drop the specific
+        "PW/CW-vs-MC/SR aliasing" phrasing as a demonstrated mechanism and
+        keep only the more general, and correctly unruled-out, class.
+    - control: >-
+        Shared-key risk and the absence-claim search discipline
+        (CORR-20260803-8fa302).
+      finding: >-
+        CONFIRMED as searched and found false, matching the red team's own
+        report. Independently re-derived: D-AES-K1/K2/K3 read 14/14/8 under
+        three distinct key_hex values (bdf38231.../58146703.../144e2584...),
+        Y-AES-main and B0-AES-REF add two more elevated readings (~13.5, 12),
+        and BATCH-005's own T2/T3 statistics (p=0.247, p=0.457) show no
+        detected key main effect, all independently reproduced in this
+        session from RESULTS.json rather than copied from the report under
+        review. The red team performed the absence-claim search discipline
+        the task asked of it (point 6 of its own report) rather than
+        asserting the negative outright, which is the correct procedure per
+        CORR-20260803-8fa302.
+
+  heuristic_validation_checks: []
+  heuristic_validation_checks_note: >-
+    Not applicable. RQ-AES-003's records under review carry hypothesis_id:
+    null by design (instrument/exclusion measurements, not heuristic-
+    conditional claims in the docs/target-result-profile.md sense); none
+    states a numbered heuristic, a Dickman-de-Bruijn-style theoretical
+    prediction, or a Deuring-style correspondence substitution. Confirmed by
+    reading all three evidence records' hypothesis_id_note fields directly.
+
+  cost_model_checks: []
+  cost_model_checks_note: >-
+    Not applicable. No asymptotic-complexity or attack-cost table is made by
+    any record under review; all are toy-tier measurement/derivation records
+    about a campaign-specific SPN statistic.
+
+  proof_architecture_checks: []
+  proof_architecture_checks_note: >-
+    Not applicable in the KN-TECH-080 sense (no proof_search_map is claimed
+    or required here); the red team's own proof_architecture_challenges
+    section (observation-fiber attack, quantifier-order attack) is reviewed
+    under control_checks and the deliverables below instead, since it
+    concerns the composed empirical claim, not a theorem or reduction.
+
+  deliverable_rulings:
+    weakest_link_ruling: >-
+      CORRECT AS STATED, AND NOT IN TENSION WITH BATCH-009's INDEPENDENT
+      VALIDATION. The task prompt that dispatched this review asserted
+      BATCH-009's construction "was itself checked line-by-line by an
+      independent validator (TASK-20260803-bc660a)." That citation is WRONG:
+      TASK-20260803-bc660a is BATCH-008's validator per EV-AES-8b8dcf's own
+      reviewed_by field; BATCH-009's actual independent validator, per
+      EV-AES-e4c091's reviewed_by field, is TASK-20260803-1f6b64. This error
+      originates in the dispatching prompt, not in the red team report, which
+      never cites either task ID. Corrected here for the record.
+
+      With the correct citation substituted, there is still no tension. The
+      red team's weakest-link case explicitly concedes BATCH-009's
+      construction passed independent line-by-line review ("BATCH-009's
+      null-object substitution... is the genuinely independent exclusion, and
+      it does real, previously-uncredited work"), and its "least cumulatively
+      scrutinized" point (b) is stated precisely as ONE independent review
+      versus v2's three-plus batches of scrutiny -- an accurate, narrower
+      claim about cumulative review depth over time, not a claim that the one
+      review that did happen was inadequate. "Internally correct given what
+      the code implements" and "not yet corroborated by a codebase outside
+      the v2-v3-v4 lineage" are two different, compatible axes, and the red
+      team keeps them separate correctly. The weakest-link ruling holds.
+    instrument_lineage_ruling: >-
+      LARGELY HOLDS, with the qualification recorded under control_checks
+      above (the illustrative "PW/CW aliasing" mechanism is not demonstrated
+      live in the code; the more general class of risk it is meant to
+      illustrate is real and correctly unruled-out). The claim that three
+      genuinely independent, spec-derived codebases exist (rc8probe.c,
+      valprobe.c, deriv_check.py/verify_derivation.py) and that one of them
+      (valprobe.c, via TASK-20260803-cddc64's M2 finding) independently
+      corroborates the raw existence of the r=5 excess at a DIFFERENT amask
+      and key is independently verified here (sha256 match on rc8probe.c;
+      exact figures reproduced from the validator's own report). The
+      narrower claim -- that BATCH-008's byte-locality and BATCH-009's
+      cipher-substitution mechanisms specifically have NOT been tested
+      outside the v2-v3-v4 lineage -- was not independently re-searched by
+      this report (no prefix-counter or ideal-permutation mode was found by
+      filename search in rc8probe.c's directory, consistent with the claim,
+      but this report did not exhaustively grep every campaign file for such
+      logic under another name). Recorded as a LIMITATION below rather than
+      confirmed to the same standard as the other findings in this section.
+    shared_key_ruling: >-
+      HOLDS. Independently re-derived from BATCH-005's RESULTS.json rather
+      than trusted from the report: five distinct AES-keyed arms at
+      r=5/amask=1/smask=1 (14, 14, 8, ~13.5, 12), no detected key main effect
+      (T2 p=0.247), no detected full-cell heterogeneity (T3 p=0.457). The red
+      team's secondary finding -- that OBS-B8-7 used only 2 of these 5
+      already-available data points -- is also independently confirmed: the
+      mean of all five (12.3) versus the 27-arm random-S-box mean (15.48) is
+      qualitatively similar to the 2-point comparison OBS-B8-7 actually made,
+      so the understatement is real but does not appear to change OBS-B8-7's
+      conclusion, matching the red team's own non-urgent framing of it.
+    closure_ruling_proportionality: >-
+      PROPORTIONATE ON ITS FACE ("further pursuit warranted, not closure"
+      correctly avoids both premature closure and unbounded continuation,
+      names a concrete test boundary and revisit condition per
+      docs/inventor-protocol.md's closure standard), BUT this report cannot
+      certify it as an official ruling because the artifact making it is not
+      durably committed (see verdict above). Substantively, RC-B, RC-C, and
+      RC-D are proportionate to what they claim to test. RC-A is
+      directionally correct and correctly ranked first but its stated
+      exposure (2^20-2^24) understates the trial count actually needed for
+      the check to have power against the rare event in question by roughly
+      16-64x (see metric_recomputations); a Coordinator adopting RC-A as
+      written should raise its exposure toward 2^28-2^30, or better, target
+      the reimplementation directly at the specific trial indices already
+      present in v4's existing hits[] logs from its 2^30-2^33 runs (cheaper
+      than a fresh run at adequate exposure, since it needs only to reproduce
+      a known, bounded set of indices rather than generate a full new
+      stream).
+
+  overstatement_or_understatement_audit:
+    - direction: red team OVERSTATED
+      finding: >-
+        The "PW/CW index tables aliasing with MC/SR branch structure"
+        illustrative mechanism in ruling (4) and instrument_lineage_risk is
+        not shown to be mechanically possible in the actual code as written;
+        no code path joins PW/CW consumption with the T/U-table SB+SR+MC
+        implementation. The underlying general risk class remains real and
+        correctly unruled-out; only the specific named example overreaches.
+    - direction: red team UNDERSTATED
+      finding: >-
+        RC-A's proportionality claim ("cheapest... no large-N run needed")
+        is optimistic: at its stated 2^20-2^24 exposure the check has weak
+        power to produce even one comparable hit event given the campaign's
+        own established ~1.3e-8/trial rate, undercutting the "cheap and
+        sufficient" framing the report gives it, though not its correctness
+        as the right kind of check or its rank-1 priority.
+    - direction: red team correctly self-flagged, confirmed accurate, not an
+        overstatement in either direction
+      finding: >-
+        The claim_under_review quote from DEC-20260805-9a1c47, the
+        hypothesis_id_note quote from EV-AES-8b8dcf, the valprobe.c M2
+        figures, the rc8probe.c hash, the D-AES-K1/K2/K3 readings, and the
+        T2/T3 p-values were all independently re-derived in this session
+        from the cited committed artifacts and matched exactly. No
+        fabrication or misquotation was found anywhere the source material
+        was checkable against a durably committed record.
+    - direction: neutral process finding, not attributable to the red team
+      finding: >-
+        The dispatching task's own premise (point 3 of its "YOUR SPECIFIC
+        PRIORITIES") misattributes BATCH-009's independent validator as
+        TASK-20260803-bc660a; the correct id, per EV-AES-e4c091's own
+        reviewed_by field, is TASK-20260803-1f6b64. bc660a validated
+        BATCH-008. This error did not originate in, and is not repeated by,
+        the red team report itself.
+
+  limitations:
+    - >-
+      PRIMARY: this report validates content against durably committed
+      ledger and source artifacts wherever such artifacts exist, but the red
+      team report under nominal review is itself uncommitted, and the
+      snapshot receipt the task card names does not exist. The verdict above
+      is controlled by that fact, not by the substantive quality of the
+      content, which this report found largely accurate on independent
+      re-derivation.
+    - >-
+      This report did not exhaustively re-search the whole repository for a
+      prefix-counter or ideal-permutation mode outside the v2-v3-v4 lineage;
+      it relied on directory-scoped inspection of the three named
+      independent codebases (rc8probe.c, valprobe.c via its validator
+      report, deriv_check.py/verify_derivation.py were not opened directly)
+      plus the red team's own SEARCH_RECORD-style claim. The
+      instrument_lineage_ruling above is recorded as partially, not fully,
+      independently confirmed for that reason.
+    - >-
+      TOY TIER. Nothing in this report supports, refutes, or extrapolates
+      any statement about full-round or deployed AES, and no comparison to
+      published cryptanalysis is made in either direction.
+    - >-
+      This report assigns no official state, no evidence strength, and
+      recommends no promotion. All findings are advisory to the Coordinator.
+    - >-
+      Session independence only; NOT model independence. Nothing in this
+      report counts toward a closure quorum.
+
+  inference:
+    policy: review-adversarial
+    requested_policy: review-adversarial
+    resolved_model: claude-sonnet-5
+    fallback_used: true
+    model_verified: false
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+
+  parse_confirmation_final: >-
+    This entire report has been re-read in full, top to bottom, before being
+    finalized: the verdict is written first and is non-placeholder (invalid,
+    with a stated controlling reason); every deliverable the task card
+    requires (weakest-link ruling, instrument-lineage check, shared-key
+    check, closure proportionality, both-direction overstatement audit) is
+    present above; and every quoted figure or citation reused from the red
+    team report was independently re-derived from a committed source in this
+    session rather than copied.
+
+  verdict: invalid
+
+  artifact_paths:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-010/tasks/TASK-20260805-234661/validation_report.yaml

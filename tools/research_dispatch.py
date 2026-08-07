@@ -15,6 +15,29 @@ from typing import Any, Protocol, Sequence
 
 SCHEMA = "crypto.autoresearch.dispatch_queue.v1"
 PLAN_SCHEMA = "crypto.autoresearch.dispatch_plan.v1"
+
+# Hard ceiling on queue.max_concurrent. REMOVED (None = uncapped) on the
+# user's EXPLICIT DIRECTION of 2026-08-05: "remove the concurrent limit from
+# the code rules." Previously fixed at 3. THE AUTHORIZATION IS THE USER'S AND
+# IT IS NOT A COORDINATOR SELF-GRANT, same footing as the maximum_batches
+# amendment on GOAL-AES-003's campaign_budget.
+#
+# What this does NOT relax: a queue must still declare a positive integer
+# max_concurrent; write_scope conflict detection and archive-must-run-alone
+# isolation are unaffected; nothing here waives per-task budgets or the
+# review requirement on claim-changing results.
+#
+# The risk this ceiling existed to bound is on the record, not removed by
+# removing the check: GOAL-AES-003 BATCH-002 ran three producers on a 4-core
+# machine against the goal's own instruction that a batch wait rather than
+# run degraded, load average reached 13, one producer's entire first segment
+# produced zero numbers and another lost five of eight trials to timeouts
+# (DEC-20260802-b226fb budget_accounting). A queue that raises
+# max_concurrent above the machine's real headroom will reproduce that
+# failure; the Coordinator dispatching it is responsible for sizing it to
+# the environment, the same way sizing was always the Coordinator's job
+# within the old ceiling.
+MAX_CONCURRENT_CEILING: int | None = None
 ROLES = {
     "coordinator",
     "executor",
@@ -355,8 +378,12 @@ def validate_queue(
     if "goal_id" in queue:
         require_text(queue, "goal_id", "queue")
     maximum = queue.get("max_concurrent")
-    if not isinstance(maximum, int) or isinstance(maximum, bool) or not 1 <= maximum <= 3:
-        raise DispatchError("queue.max_concurrent must be an integer 1..3")
+    if not isinstance(maximum, int) or isinstance(maximum, bool) or maximum < 1:
+        raise DispatchError("queue.max_concurrent must be a positive integer")
+    if MAX_CONCURRENT_CEILING is not None and maximum > MAX_CONCURRENT_CEILING:
+        raise DispatchError(
+            f"queue.max_concurrent must be an integer 1..{MAX_CONCURRENT_CEILING}"
+        )
     tasks = queue.get("tasks")
     if not isinstance(tasks, list) or not tasks:
         raise DispatchError("queue.tasks must be a nonempty list")
@@ -673,7 +700,13 @@ def select(
             if task["state"] in TERMINAL_STATES
         ],
         "gates": {
-            "concurrency_cap_respected": len(selected) <= queue["max_concurrent"] <= 3,
+            "concurrency_cap_respected": (
+                len(selected) <= queue["max_concurrent"]
+                and (
+                    MAX_CONCURRENT_CEILING is None
+                    or queue["max_concurrent"] <= MAX_CONCURRENT_CEILING
+                )
+            ),
             "all_selected_dependencies_completed": all(
                 not blockers(task, by_id) for task in selected
             ),
