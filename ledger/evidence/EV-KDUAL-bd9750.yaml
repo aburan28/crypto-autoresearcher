@@ -1,0 +1,123 @@
+evidence:
+  id: EV-KDUAL-bd9750
+  hypothesis_id: H-KDUAL-d0ae7e
+  experiment_ids: [EXP-KDUAL-8f0b69]
+  run_ids: [RUN-KDUAL-8f0b69-001]
+  recorded_at: '2026-08-07'
+  type: theoretical
+  type_note: >-
+    Recorded as `theoretical` rather than `empirical` because the determination is a read
+    of a pinned source tree, not a measurement. Nothing was executed, no estimate was
+    produced, and no number in KN-FIND-015 was recomputed.
+  direction: supports
+  strength: strong
+  strength_note: >-
+    `strong` is unusual for an unreviewed single-session result and is justified narrowly:
+    the claim is a BINARY presence/absence fact about a content-addressed source tree,
+    checkable in one command by anyone, with a negative control that passes. It is not a
+    statistical claim and has no sampling error. It would be refuted by exhibiting a
+    decoding cost term in the same commit.
+  claim_tier: crypto
+  claim_tier_note: >-
+    `crypto` because the OBJECT is crypto-scale (ML-KEM/Kyber at NIST levels 1/3/5) and
+    the finding it re-scopes is quoted at those parameters. NO attack was run and NO
+    security claim is made in either direction; an estimator audit is not a cryptanalytic
+    certificate.
+  certificate_refs: []
+  proof_status: not_applicable
+  proof_refs:
+    - experiments/EXP-KDUAL-8f0b69/runs/RUN-KDUAL-8f0b69-001/raw-result.json
+    - experiments/EXP-KDUAL-8f0b69/runs/RUN-KDUAL-8f0b69-001/source/
+    - experiments/EXP-KDUAL-8f0b69/specification.yaml
+
+  observations:
+    - id: OBS-1
+      text: >-
+        Nine source files of lattice-estimator at the pinned commit
+        3e48ef421ec256afddb3e7d2249a77eab6e9ba12 -- the commit KN-FIND-015 used -- were
+        fetched by SHA (hence content-addressed) and archived under the run directory
+        with their own sha256 values. A case-insensitive scan for decod|polar|syndrome
+        returns ZERO hits in every file except reduction.py.
+    - id: OBS-2
+      text: >-
+        reduction.py's 19 hits are all the same object under three spellings: 17 literal
+        `list_decoding`, plus "ListDecoding" at line 742 ("We default to 'ListDecoding'
+        (i.e. BDGL16)") and "list decoding" at line 965. That is BDGL16 nearest-neighbour
+        search INSIDE sieving -- lattice decoding, not decoding of a linear code, and not
+        Carrier's T_dec. Code-based decoding hits across the whole package: ZERO.
+    - id: OBS-3
+      text: >-
+        The dual cost model in lwe_dual.py, class MATZOV, method cost(), documented as
+        "Theorem 7.6", is
+            rop = T_sample + T_guess,
+            T_guess = coeff * (2a/sqrt(e))^k_enum * 2^(k_enum*H)
+                             * (T_fft(k_fft, p) + T_table(N)).
+        TWO terms: short-vector sampling, and enumeration-plus-FFT guessing.
+    - id: OBS-4
+      text: >-
+        Carrier et al. Theorem 4.1, as recorded and independently recomputed in
+        KN-FIND-016, is
+            T = T_sample + R * (N * T_dec + T_FFT).
+        THREE components, including an explicit per-sample decoding cost T_dec and a
+        repetition factor R. Neither appears anywhere in the estimator, in any form.
+    - id: OBS-5
+      text: >-
+        NEGATIVE CONTROL, PASSED. The same scan applied to a feature that IS present --
+        the FFT guessing stage -- returns 54 hits in lwe_dual.py, including T_fftf,
+        size_fft and fft_solver. The procedure detects what is there; the zero for
+        decoding is a fact about the source, not about the procedure.
+
+  inference: >-
+    lattice-estimator at the commit KN-FIND-015 pinned implements the MATZOV-2022 dual
+    attack and does not implement, and carries no cost term for, the coded dual attack of
+    Carrier et al. The preregistered prediction of EXP-KDUAL-8f0b69 is confirmed.
+
+    This resolves the caveat that decided what KN-FIND-015 means. Its measurement --
+    primal_bdd beating dual_hybrid+fft at all three Kyber parameter sets -- is a true
+    statement about the public instrument and carries NO weight against Carrier's paper,
+    because the instrument does not model the attack the paper is about. KN-FIND-015's
+    own headline ("Dual does not win under the public MATZOV instrument") is correctly
+    scoped; the risk is in its table, which places a "Carrier claim" column beside
+    estimator outputs and invites the comparison the source read forbids.
+
+    The corpus should therefore NOT carry "dual does not beat primal on Kyber" as a
+    finding about dual attacks. It carries a finding about lattice-estimator.
+
+  boundaries:
+    - >-
+      This is a determination about ONE commit of ONE estimator. It says nothing about
+      whether Carrier's attack works, whether its cost model is right, or whether Kyber's
+      margins are what NIST states. KN-FIND-016 already established that Carrier's Table
+      5.1 arithmetic is internally consistent; this finding is orthogonal to that.
+    - >-
+      Only the PRIMARY metric of EXP-KDUAL-8f0b69 was run. The secondary metrics -- the
+      term-by-term Theorem 4.1 comparison and the pq-crystals core-SVP reproduction --
+      require SageMath, which is not installable in this environment, and remain UNRUN.
+      The run record is marked `completed_primary_metric_only` for that reason.
+    - >-
+      No security claim in either direction. An estimator comparison is not a
+      cryptanalytic certificate and must never be quoted as one.
+
+  unresolved_confounds:
+    - >-
+      NOT INDEPENDENTLY REVIEWED. Rule 12 not met. The mitigation specific to this
+      finding is that it is cheap to check: one curl and one grep against a
+      content-addressed commit, and the archived source is in the run directory.
+    - >-
+      A RESIDUAL THIS READ DOES NOT EXPLAIN, and which should not be lost.
+      KN-FIND-015's table also fails to reproduce MATZOV-2022's OWN headline numbers --
+      estimator 143.79 / 203.79 / 273.82 against MATZOV's 137.5 / 193.5 / 257.8, gaps of
+      6.3 / 10.3 / 16.0 bits -- using the very class documented as implementing MATZOV
+      Theorem 7.6. The missing coded-dual stage explains the gap to CARRIER; it does not
+      explain the gap to MATZOV. Candidate causes not investigated here: the cost model
+      passed to short_vectors, the sieve-dimension assumption beta_sieve ~ beta noted in
+      the source, or a difference in how success probability is charged. This is a live
+      question and is arguably now the most interesting one in the lattice lane.
+    - >-
+      The scan is lexical. A decoding stage implemented without any of the words
+      decod/polar/syndrome would be missed. The OBS-3 reading of MATZOV.cost is the
+      structural check that backs up the lexical one -- a two-term cost has nowhere to
+      put a per-sample decoding cost and a repetition factor -- but a reader who wants
+      certainty should read the method rather than trust the grep.
+
+  reviewed_by: none
