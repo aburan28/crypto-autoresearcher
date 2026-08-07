@@ -1,0 +1,357 @@
+validation_report:
+  id: VAL-20260807-endo001-523510
+  task_id: TASK-20260807-validator-endo001-523510
+  scope: >
+    Narrow re-dispatch per Coordinator instructions: four specific numeric
+    claims from coordination/goals/GOAL-ENDO-001/batches/BATCH-523510/SYNTHESIS.md
+    only. No open-ended repository exploration performed. Two prior
+    Validator/Red-Team dispatches on this campaign were killed by a provider
+    session limit before writing reports; this report is written and saved
+    incrementally after each item specifically to survive that failure mode.
+  snapshot:
+    commit: c9c27221
+    branch: claude/ecdlp-endomorphism-analysis-4m2w3z
+    verified_head_matches: true
+    note: >
+      Working tree has untracked dirs not part of this snapshot
+      (experiments/EXP-INSTR-2d32ba/runs/RUN-INSTR-p4001-degenfix,
+      experiments/EXP-INSTR-2d32ba/runs/RUN-INSTR-p6007-degenfix,
+      experiments/EXP-JINV-dd60d3/runs/RUN-JINV-p1009-degenfix). None of the
+      four checks below reference these IDs; they were not used as evidence.
+  run_ids:
+    - RUN-MTGT-p50021sweep
+    - RUN-MTGT-p60013sweep
+    - RUN-EWALK-p100057-20seeds
+    - RUN-ICINV-p4001-fixed
+    - RUN-ICINV-p6007-fixed
+  checks:
+    - id: CHECK-1-targets_uniform_fix
+      claim_checked: >
+        harness/exp_icinv.py targets_uniform correctly finds the
+        highest-order candidate point among up to max_candidates liftable
+        x-coordinates, fixing the degenerate-point bug (CORR-20260807-9f83be);
+        spot check on curve p=4001,a=2175,b=1450 should yield ~300 distinct
+        targets from targets_uniform(E,3972,300,20260807), not ~1.
+      verdict: PASS
+      evidence:
+        - "Read harness/exp_icinv.py:312-370 (_point_order, targets_uniform).
+          _point_order implements the standard 'order from a known multiple'
+          reduction: for each distinct prime q | n, repeatedly divides the
+          running candidate o by q while (o/q)*P is still the identity
+          (E.mul(...) is None). This is a correct, standard algorithm."
+        - "targets_uniform scans x = 2 .. E.p-1 (up to max_candidates
+          successful lifts), computes each lifted point's exact order via
+          _point_order, and keeps the point of largest order seen, stopping
+          early only if a full-order (cyclic-generator) point is found. It
+          then derives targets as E.mul(h % gen_order, G) for the retained
+          highest-order G. This matches the described fix exactly."
+        - "Ran the exact prescribed one-liner: `python3 -c \"from
+          harness.toycurve import EllipticCurve; from harness import
+          exp_icinv as ex; E=EllipticCurve(4001,2175,1450);
+          tg=ex.targets_uniform(E,3972,300,20260807); print(len(set(tg)))\"`
+          -> printed 275 (close to 300, not near 1: PASS per the stated
+          threshold)."
+        - "Confirmed E.order() for this curve is 3972, matching the `order`
+          argument used in the spot check (rules out a mismatched/fabricated
+          test parameter)."
+        - "Reproduced the internal search loop to expose the actual base
+          point/order found: G=(4,1712), gen_order=1986 (exactly half of
+          3972, i.e. the group is non-cyclic and this single-generator
+          sampler reaches its largest cyclic subgroup, 200/200 candidates
+          exhausted without finding a full-order point -- consistent with
+          the docstring's stated, honestly-declared limitation)."
+        - "Independently confirmed the OLD bug narrative: the first liftable
+          x is x=3, giving point (3,0), and E.mul(2,(3,0)) is None, i.e. it
+          really is a 2-torsion point of order exactly 2 (via
+          _point_order too). This matches the synthesis's and the code
+          docstring's account of the original defect."
+        - "Sanity-checked the 275/300 distinct count against a birthday-
+          collision approximation for uniform sampling from a group of size
+          gen_order=1986: expected distinct ~= 1986*(1-exp(-300/1986)) =
+          278.4, closely matching the observed 275. This confirms 275 is the
+          expected result of correct uniform sampling over a group of order
+          1986, not a sign of residual degeneracy."
+      notes: >
+        Fix verified both by code reading and by independent re-execution,
+        including reproducing the pre-fix bug on the same curve to confirm
+        the defect narrative is real (not just the fix). No discrepancy
+        found.
+    - id: CHECK-2-mtgt_crossover
+      claim_checked: >
+        harness/run_mtgt2.py build_table_incremental costs one E.add per
+        entry (not a scalar mult); harness/isogeny_class.py velu_odd raises
+        on even ell; independent re-run at p=50021, ells 3/7/13 shows ratios
+        all > 1.0 (transport losing), growing with ell.
+      verdict: PASS
+      evidence:
+        - "harness/run_mtgt2.py:53-64 build_table_incremental: loop body is
+          exactly `R = E.add(R, P); out.append((R, s))` per entry -- one
+          point addition, no E.mul/double-and-add. Confirmed by direct
+          reading, contrasted in-file with build_table_batch (line 44-50,
+          the deliberately-kept 'INFLATED' comparison baseline using
+          `E.mul(s, P)` per entry)."
+        - "harness/isogeny_class.py:388-413 velu_odd: first statement is
+          `if ell % 2 == 0: raise ValueError(...)`, with a docstring
+          explaining exactly the prior silent-identity-map defect (D1) this
+          replaces. Confirmed by direct reading."
+        - "Ran the exact prescribed command: `python3 -m harness.run_mtgt2
+          --p 50021 --table-size 200 --ells 3,7,13 --no-write`. Output:
+          ell=3 ratio=1.572, ell=7 ratio=4.836, ell=13 ratio=9.168; all
+          `certified=True`, `same_class=True`; crossover_ell_estimate=None
+          (no ell in range where transport wins)."
+        - "Cross-checked shape against the committed run
+          experiments/EXP-MTGT-952db3/runs/RUN-MTGT-p50021sweep
+          (command.txt confirms --table-size 400, full ell sweep
+          3..31): committed ratios ell=3:1.471, ell=7:4.765, ell=13:9.636,
+          ..., ell=31:21.554, strictly increasing with ell throughout. My
+          independent re-run at table-size 200 (1.572 / 4.836 / 9.168)
+          matches the committed run's values at matching ell within ~10%
+          (consistent with timing noise / different table_size / different
+          machine load, not a discrepancy in the claim), and reproduces the
+          same monotone-growing-with-ell shape."
+        - "The synthesis's stated range '~1.5x at ell=3 to ~21x at ell=31'
+          matches the committed run's actual ratios (1.471 and 21.554)
+          essentially exactly -- not a rounding-favorable exaggeration."
+      notes: >
+        Both code-level claims (incremental-table-cost, even-ell guard) and
+        the qualitative sweep-shape claim (transport loses everywhere,
+        monotonically worse with ell, no crossover in range) independently
+        reproduce. Minor incidental observation (not part of the four
+        checks, not blocking): raw-result.json's top-level 'raw' payload
+        does not itself carry command/revision, but command.txt and
+        manifest.yaml alongside it in the run directory do -- provenance is
+        present, just split across files rather than inlined in the metrics
+        JSON.
+    - id: CHECK-3-ewalk_seed_distribution
+      claim_checked: >
+        harness/run_ewalk3.py run_distribution correctly aggregates
+        observed_speedup_quotient_over_plain and
+        observed_over_incremental_ceiling per seed without double-counting
+        or mode mixups; independent re-run at p=100057 shows j0/j1728
+        ratio-to-ceiling means roughly in [0.8,1.3].
+      verdict: PASS
+      evidence:
+        - "harness/run_ewalk3.py:61-78 run_distribution: for each kind, the
+          inner loop `for s, res in per_seed.items()` visits each seed
+          exactly once and does exactly one `.get(f'{kind}:speedup')` per
+          seed, appending at most one value per seed to `speedups` /
+          `ratios_to_ceiling`. Structurally cannot double-count (single dict
+          returned by .get, one append per outer-loop iteration, not a
+          list/per-row loop)."
+        - "Traced the source of that dict to harness/run_ewalk2.py:269-291:
+          `obs = pl['mean_steps'] / qt['mean_steps']` where pl/qt are the
+          mode-filtered ('plain'/'quotient') aggregates built at lines
+          254-268 via `[r for r in rows if r['mode'] == mode]` -- an
+          explicit mode filter, not positional/index-based, so modes cannot
+          be silently swapped. `incremental = sqrt(aut_used/2)`,
+          `observed_over_incremental_ceiling = obs/incremental`. Semantics
+          match the claimed quantities exactly, with the sqrt(2)
+          negation-quotient adjustment explicitly commented and justified
+          (both arms already quotient by negation)."
+        - "fruitless_by_kind_mode aggregation (lines 80-97) filters
+          `row['mode'] == mode` explicitly per row before appending --
+          confirmed not mixing modes; correctly labelled n_samples (not
+          n_seeds) since multiple curves can appear per seed per kind."
+        - "Ran the exact prescribed command: `python3 -m harness.run_ewalk3
+          --p 100057 --seeds 5 --trials 12 --no-write`. Output: j0
+          ratio_to_ceiling mean=1.0242 (min 0.7339, max 1.2576), j1728
+          ratio_to_ceiling mean=1.0857 (min 0.9856, max 1.1896) -- both
+          means within the stated [0.8, 1.3] band, consistent with 'on the
+          ceiling'. generic arm exactly 1.0 on every seed (deterministic
+          code-path identity, as documented)."
+        - "Cross-checked against the committed run
+          experiments/EXP-EWALK-5ca18c/runs/RUN-EWALK-p100057-20seeds
+          (command.txt: `--p 100057 --seeds 20 --trials 24`): j0
+          ratio_to_ceiling mean=1.0043 (sd 0.1128, min 0.809, max 1.282),
+          j1728 mean=1.0442 (sd 0.1059, min 0.868, max 1.193) --
+          matches the synthesis's quoted numbers verbatim (exact match, not
+          just 'roughly'). n_seeds_exceeding_ceiling_by_15pct: j0=2/20,
+          j1728=3/20 -- matches synthesis's '2/20 (j=0) and 3/20 (j=1728)'
+          exactly."
+        - "Also verified the fruitless-cycle sub-claim from the same
+          committed run: fruitless_by_kind_mode shows generic 40/40 and
+          j1728 40/40 samples at exactly zero, j0 38/40 -- matches
+          synthesis's '38-40/40 samples at exactly zero in every arm'
+          exactly. generic_arm_exactly_1_every_seed: true, matching the
+          'generic arm confirmed deterministic' claim."
+      notes: >
+        Aggregation logic, semantics of the two named fields, and every
+        numeric sub-claim in the N5 synthesis section reproduce exactly
+        against the committed run, and the independent re-run (different,
+        smaller seed/trial budget) is directionally and magnitude-consistent.
+    - id: CHECK-4-saturation_density_independence
+      claim_checked: >
+        harness/run_saturation.py decomposition_rate_m3_with_size faithfully
+        replicates exp_icinv.decomposition_rate_m3's sum-set logic plus size;
+        monotonic_decay boolean logic in run() is not inverted; the two
+        committed run records (RUN-ICINV-p4001-fixed, RUN-ICINV-p6007-fixed)
+        show density_to_ratio values roughly matching synthesis's claimed
+        [1.3,3.6] range with no decreasing trend.
+      verdict: PASS
+      evidence:
+        - "AST-level structural diff (not eyeballing) of
+          exp_icinv.decomposition_rate_m3 vs
+          run_saturation.decomposition_rate_m3_with_size: every statement
+          body (pts construction, two-set, three-set loops) is identical
+          except the final return, where the size version adds exactly one
+          extra tuple element `len(three)` (the |3V| sum-set size). This
+          is a faithful copy plus the size, exactly as claimed -- confirmed
+          programmatically, not just by reading."
+        - "harness/run_saturation.py:126-130 monotonic_decay: `all(rows[i]
+          >= rows[i+1] - 1e-9 for adjacent i, skipping inf)`. Since `rows`
+          is built as `[measure_at_density(...) for fb in fb_sizes]` in the
+          exact order fb_sizes is given (increasing in both committed
+          runs' configs), this correctly tests whether variance_ratio is
+          non-increasing as density increases -- the direction is NOT
+          inverted (True = decays, False = does not decay)."
+        - "Read both committed run records directly:
+          experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-p4001-fixed and
+          .../RUN-ICINV-p6007-fixed. p4001 density_to_ratio spans
+          [1.907, 3.588] across 13 densities 0.024-0.973; p6007 spans
+          [1.320, 3.237] across 11 densities 0.030-0.874. Combined range
+          [1.32, 3.59] matches the synthesis's quoted '[1.3, 3.6]' almost
+          to the decimal."
+        - "Recomputed variance_ratio_decays_monotonically_with_density from
+          the raw 'rows' arrays using the exact formula from run_saturation.py,
+          independently of the stored metrics field: got False for both
+          p4001 and p6007, matching the committed 'variance_ratio_decays_
+          monotonically_with_density: false' field in both records exactly.
+          Also confirmed densities are strictly increasing in row order in
+          both files (precondition for the adjacent-pair test to be
+          meaningful)."
+        - "The row-closest-to-1/3! values quoted in the synthesis
+          ('ratio 1.918 at p=4001, 1.591 at p=6007') match the committed
+          records' row_closest_to_operating_density.variance_ratio fields
+          exactly (1.9182028291085371 and 1.5907407945357595)."
+        - "Arithmetically recomputed variance_ratio = observed_variance /
+          binomial_null_variance from the two raw components for both
+          closest-rows: recomputed values match the reported
+          variance_ratio field to full float precision in both cases
+          (not merely a plausible-looking number)."
+        - "Null-object-control check (AGENTS.md / operating-rules
+          requirement): the binomial null (NULL-B, observed_variance vs
+          mean_rate*(1-mean_rate)/n_targets) is the null object of the same
+          shape (independent-Bernoulli-trials model at the same n_targets
+          and rate), and density is explicitly named as 'the parameter
+          meant to destroy' a saturation artifact (as density -> 1, the
+          sum-set covers the whole group and any curve-specific structure
+          should wash out). The measured ratio does NOT decay to null (~1)
+          as density increases -- it stays materially >1 across the whole
+          swept range, including at the two highest densities tested
+          (0.973 -> 3.332 at p4001; 0.874 -> 2.675 at p6007). This is
+          exactly the 'canonical artifact tell' the operating rules warn
+          about, and the synthesis explicitly addresses it rather than
+          hiding it: it states plainly that this refutes the
+          saturation-artifact explanation and leaves the residual cause as
+          an open question, without escalating to any attack-cost or
+          speedup claim (sota_delta: zero is stated explicitly in the
+          synthesis's 'Scope and honesty' section)."
+      notes: >
+        Every sub-claim (code fidelity, boolean-logic direction, numeric
+        range, monotonicity verdict, and the specific quoted ratios) is
+        independently confirmed against the two named run records, several
+        by direct recomputation from raw fields rather than by trusting the
+        stored summary metrics. The null-object-control framing required by
+        the operating rules is present and honestly reported (does not
+        decay when it should under the tested hypothesis, and the report
+        says so rather than suppressing it or overclaiming further).
+  metric_recomputations:
+    - "Check 1: reproduced targets_uniform's internal search loop to expose
+      G=(4,1712), gen_order=1986; confirmed E.order()=3972 matches the
+      order argument used; confirmed 275/300 distinct matches a birthday-
+      collision approximation for uniform sampling over a group of size
+      1986 (expected ~278.4)."
+    - "Check 2: independently re-ran the sweep at p=50021, table-size=200,
+      ells 3/7/13, and compared against the committed run's table-size=400
+      values at the same ells (within ~10%, consistent with timing noise)."
+    - "Check 3: independently re-ran the seed-distribution walk at
+      p=100057, 5 seeds/12 trials; separately recomputed the committed
+      20-seed run's j0/j1728 ratio-to-ceiling means and
+      n_seeds_exceeding_ceiling_by_15pct fractions, which match the
+      synthesis's quoted figures exactly."
+    - "Check 4: AST-diffed the two sum-set functions; recomputed
+      monotonic_decay from raw per-density rows independently of the
+      stored field (matched, False/False); arithmetically recomputed
+      variance_ratio = observed_variance/binomial_null_variance from raw
+      components for both primes' closest-to-1/3! rows (matched to full
+      float precision)."
+  control_checks:
+    - "Check 2: committed and re-run rows both report
+      transport_certificate_verified=True and same_isogeny_class=True on
+      every measured ell -- the transport correctness certificate was not
+      itself in question for this dispatch's scope, but its presence and
+      True value in both the committed record and my independent re-run is
+      noted as a passing positive-control signal alongside the timing
+      claim."
+    - "Check 3: the generic arm is confirmed (by direct re-execution) to be
+      an exact code-path identity (speedup exactly 1.0 on every seed in
+      both the committed 20-seed run and my independent 5-seed re-run),
+      matching its documented role as a self-check rather than independent
+      evidence -- this is functioning as the negative/degenerate control
+      the synthesis says it is, and it was verified to actually behave that
+      way rather than merely asserted."
+    - "Check 4: the binomial-null (NULL-B) comparison functions as the
+      null-object control against which the reported over-dispersion is
+      measured; see the null-object-control note under CHECK-4 evidence for
+      the AGENTS.md-mandated 'does the effect decay under its destroying
+      parameter' analysis, which the synthesis passes honestly (reports
+      non-decay rather than hiding or overclaiming it)."
+    - "No other positive/negative controls (e.g. full artifact-hash
+      verification of every file in EXP-MTGT-952db3 / EXP-EWALK-5ca18c /
+      EXP-ICINV-55c2d8, dirty-tree/environment audits, or the N1/N2
+      sections of the synthesis) were in scope for this dispatch and were
+      NOT checked here; see limitations."
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+  verdict: passed
+  limitations:
+    - "SCOPE: this report validates ONLY the four specific claims the
+      dispatching task named (targets_uniform fix; MTGT crossover
+      code+numbers; EWALK seed-distribution aggregation+numbers;
+      saturation-sweep density-independence code+numbers). It is not a
+      full validation of BATCH-523510. In particular it does NOT cover:
+      the N1 (this dispatch itself) / N2 (NULL-C characterisation)
+      narrative sections of SYNTHESIS.md; full artifact-hash verification
+      of every file under experiments/EXP-MTGT-952db3,
+      EXP-EWALK-5ca18c, EXP-ICINV-55c2d8 or their predecessors;
+      dirty-tree/environment/resource-record audits beyond the incidental
+      command.txt checks noted above; or the CORR-20260807-3ee25d /
+      CORR-20260807-9f83be correction records' own bookkeeping. Per the
+      dispatching task's explicit instruction, no open-ended exploration
+      of the wider repository was performed."
+    - "The working tree at the time of this review contained untracked,
+      uncommitted directories (experiments/EXP-INSTR-2d32ba/runs/
+      RUN-INSTR-p4001-degenfix, .../RUN-INSTR-p6007-degenfix,
+      experiments/EXP-JINV-dd60d3/runs/RUN-JINV-p1009-degenfix) that are
+      NOT part of snapshot c9c27221. They were not read or used as
+      evidence for any of the four checks, consistent with the rule
+      against validating working-tree-only receipts."
+    - "This report's PASSED verdict is scoped strictly to the four named
+      claims being independently reproducible and internally consistent
+      with their code and committed run records. Per the Validator
+      contract, a passed validation report makes these four receipts
+      admissible evidence; it does NOT support an ECDLP claim, does NOT
+      demonstrate a speedup, and does NOT authorize promotion or closure of
+      GOAL-ENDO-001 or any of its hypotheses -- all of which the synthesis
+      itself already disclaims (claim_tier: toy, sota_delta: zero)."
+    - "All four independent re-executions were run in the current
+      environment (Python 3.11, same machine as the harness's own
+      environment.json records) rather than in a separately reconstructed
+      environment; this is a difference of degree, not of kind, from a
+      from-scratch rebuild, and is noted for completeness."
+  artifact_paths:
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-523510/SYNTHESIS.md
+    - harness/exp_icinv.py
+    - harness/toycurve.py
+    - harness/run_mtgt2.py
+    - harness/isogeny_class.py
+    - harness/run_ewalk3.py
+    - harness/run_ewalk2.py
+    - harness/run_saturation.py
+    - experiments/EXP-MTGT-952db3/runs/RUN-MTGT-p50021sweep/raw-result.json
+    - experiments/EXP-MTGT-952db3/runs/RUN-MTGT-p50021sweep/command.txt
+    - experiments/EXP-EWALK-5ca18c/runs/RUN-EWALK-p100057-20seeds/raw-result.json
+    - experiments/EXP-EWALK-5ca18c/runs/RUN-EWALK-p100057-20seeds/command.txt
+    - experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-p4001-fixed/raw-result.json
+    - experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-p6007-fixed/raw-result.json
