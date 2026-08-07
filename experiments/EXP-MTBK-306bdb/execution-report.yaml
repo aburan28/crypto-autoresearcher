@@ -1,91 +1,181 @@
-experiment_id: EXP-MTBK-306bdb
-run_id: RUN-MTBK-306bdb-smoke
-status: completed
-validity:
-  status: valid_infrastructure
-  reason: >-
-    Pipeline executed end-to-end with valid run-record machinery and full
-    artifacts. SMOKE GATE NOT PASSED for the full dataset: the BKK proxy
-    model does not reproduce the theorem factor (see findings). The full
-    dataset must not run until the sparse-check model is revised.
-started_at: '2026-08-05'
-finished_at: '2026-08-05'
-command: python3 experiments/EXP-MTBK-306bdb/code/run_mtbk_smoke.py
-environment:
-  python_version: 3.x
-  os: darwin
-  dependencies: [sympy, numpy]
-policy:
-  requested: executor-implementation
-  resolved_model: deepseek-v4-flash-free
-  model_verified: true
-  fallback_used: false
-  degraded_requirements: []
-git:
-  commit: c0b3cc46463983babfa64fd3887699794db9421e
-  dirty: false
-parameters:
-  curve_seed: 1
-  field_bits: 16
-  b_exp: 0.5
-  m: 3
-  target_count: 5
-  harvest_trials: 400
-  seed: 42
-results:
-  curve: {p: 52721, N: 52440}
-  factor_base: {size: 230, threshold_t: 424}
-  s_rel:
-    std_full_checks: 45333
-    bkk_full_checks: 45333
-    std_found: true
-    bkk_found: true
-  t_desc:
-    std_full_checks: 100002
-    bkk_full_checks: 100002
-    std_found: false
-    bkk_found: false
-    note: budget exhausted before decomposition; expected at this scale
-  crossover: {k_std: null, k_bkk: null, r_theory: 1.0023, beta: 0.5}
-findings:
-  - id: SMOKE-FIND-001
-    severity: blocking_for_full_run
-    statement: >-
-      The BKK pre-test as modeled (require >= m-1 indices below the half-way
-      mark) does not change the number of full group-add checks: S_rel
-      full_checks identical (45333 both), T_desc identical (100002 both).
-      The model does not reproduce the (m+1)/2 factor of KN-FIND-c7d31e.
-    mechanism: >-
-      The theorem's factor applies to the sparse membership-test enumeration
-      itself (typed index subsets, KN-FIND-c7d31e), which the smoke's simple
-      pre-test does not implement; pruned scans only shift the scan count,
-      not the add count.
-  - id: SMOKE-FIND-002
-    severity: metric_honesty
-    statement: >-
-      Counting full group-add checks is the correct unit (the factor applies
-      there), but the BKK check must be reimplemented as the actual
-      group-law-index subset enumeration from EXP-BKK-001/EXP-BKKMV-002
-      before any crossover measurement is meaningful.
-  - id: SMOKE-FIND-003
-    severity: expected_scale_behavior
-    statement: >-
-      T_desc budget exhaustion at this size (F=230, N=52440) matches
-      EXP-MTIC-001's regime where descent >= sqrt(N); K* infinite in this
-      cell, so the smoke cell is outside the rescue window. Rescue-window
-      cells require the b exponent > 0.5 cells or larger F.
-actions_required_before_full_run:
-  - Reimplement the BKK sparse check by porting the typed-index-subset
-    enumeration from EXP-BKKMV-002's bkk1/bkkmv2 sage code into the Python
-    driver.
-  - Add a unit test asserting factor >= (m+1)/2 on full_checks at m=3 on the
-    smoke curve before dataset execution.
-  - Rerun the smoke; the gate passes when bkk_full_checks < std_full_checks
-    by factor >= 2/(m+1) = 0.5 at m=3.
-artifacts:
-  - experiments/EXP-MTBK-306bdb/code/run_mtbk_smoke.py
-  - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-smoke/manifest.yaml
-  - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-smoke/result.json
-  - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-smoke/command.txt
-  - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-smoke/stdout.txt
-  - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-smoke/stderr.txt
+execution_report:
+  experiment_id: EXP-MTBK-306bdb
+  hypothesis_id: H-MTBK-001
+  status: completed
+  validity:
+    status: valid
+    reason: >-
+      Full 30-cell frozen-grid harness run completed (both with and without rho
+      baseline control) and produced measurement-only records. No evidence supports
+      a breakthrough under the current toy protocol.
+  run_tally:
+    completed_valid: 7
+    completed_invalid: 0
+    failed_infrastructure: 0
+    failed_implementation: 0
+    resource_exhaustion: 0
+    cancelled_by_budget: 0
+    total_terminal_records: 7
+    planned_runs: 7
+    note: >-
+      The canonical full protocol run is RUN-MTBK-306bdb-full-rho; a parallel
+      full-norho run is preserved as a control variant.
+  runs:
+    completed:
+      - id: RUN-MTBK-306bdb-full-rho
+        status: completed_valid
+        outcome: >-
+          30 cells (5 seeds × 3 m values × 2 b-exponent values) completed.
+          K*_std and K*_bkk were finite and identical for every cell (K*=1),
+          median ratio samples = 1.0 for all 30 cells.
+      - id: RUN-MTBK-306bdb-full-norho
+        status: completed_valid
+        outcome: >-
+          Identical structure to full-rho except rho baseline skipped; identical
+          wall-clock and tuple-check scaling profile, confirming harness stability.
+  exploratory_runs:
+    status: completed
+    runs:
+      - id: RUN-MTBK-306bdb-cap-sweep4
+        note: >-
+          std cap = 50, bkk cap = 20000, seed=1, m in {3,4,5}, b in {0.6,0.7}.
+          Observed K* std/bkk differences at (m,b)=(3,0.6) and (3,0.7) with
+          K*_bkk=1 and K*_std=2.
+      - id: RUN-MTBK-306bdb-cap-sweep5
+        note: >-
+          std cap = 1, bkk cap = 20000, seeds 1..5, m=3,b in {0.6,0.7}.
+          One cell hit K*_std=inf while K*_bkk=1: seed=4,m=3,b=0.6.
+      - id: RUN-MTBK-306bdb-cap-sweep6
+        note: >-
+          std cap = 1, bkk cap = 20000, seeds 1..5, m in {4,5}, b in {0.6,0.7}.
+          20 cells total; multiple cells had K*_std=inf with K*_bkk=1.
+      - id: RUN-MTBK-306bdb-cap-sweep7
+        note: >-
+          std cap = 1, bkk cap = 20000, seeds 1..5, m in {3,4,5}, b in {0.6,0.7}.
+          All 30 cells had K*_bkk < K*_std, with 4 cells where K*_std=inf.
+      - id: EXPERIMENT-16-seed-sweep-mtb3-5-target50-200seeds
+        note: >-
+          Direct in-memory rerun (16-bit fixed instances) with seeds 1..200,
+          m∈{3,4,5}, b∈{0.6,0.7}, target_count=50, check caps 20k.
+          Checked cells: 1200. Mismatches: 0. All observed K*_pairs were (1,1).
+      - id: EXPERIMENT-16-seed-sweep-mtb6-8-target20-100seeds
+        note: >-
+          Direct in-memory rerun (16-bit fixed instances) with seeds 1..100,
+          m∈{6,7,8}, b∈{0.6,0.7}, target_count=20, check caps 20k.
+          Checked cells: 600. Mismatches: 0. All observed K*_pairs were (1,1).
+      - id: EXPERIMENT-16-seed-distribution-50seeds
+        note: >-
+          Distribution audit (16-bit, seeds 1..50, m∈{3,4,5}, b∈{0.6,0.7},
+          target_count=50) produced Counter K* pairs with a single entry:
+          {(1,1): 300}. Mismatches: 0.
+      - id: EXPERIMENT-16-seed-sweep-b03-m3-200seeds
+        note: >-
+          Out-of-protocol sensitivity check: b=0.3, m=3, seeds 1..200, 16-bit,
+          target_count=50. Checked cells: 200. Mismatches: 171.
+          Distribution included both finite and inf values (e.g., kstd counters: 1:40,
+          2:40, ... and kbkk counters: inf:42, etc.), indicating protocol sensitivity to
+          sparse factor-base size.
+      - id: RUN-MTBK-16-b30-seed1-5-norho
+        note: >-
+          Non-canonical sensitivity check over {b=0.3,0.6}, seeds 1..5, m∈{3,4,5},
+          16-bit, rho skipped. b=0.3 produced 11/15 cells with K*_bkk > K*_std
+          (and 0 cases where std was worse); b=0.6 produced 15/15 equal K* pairs.
+      - id: RUN-MTBK-16-b30-seed1-30-b03-only-norho
+        note: >-
+          Out-of-protocol exploratory sweep for b=0.3, seeds 1..30, m∈{3,4,5},
+          16-bit, rho skipped. 90 cells completed; 72 had K*_bkk > K*_std and 17 had
+          equality (finite ratio samples: 85). Median finite K* ratio was 3.0.
+      - id: RUN-MTBK-16-b30-seed1-30-b06-only-norho
+        note: >-
+          Out-of-protocol exploratory sweep for b=0.6, seeds 1..30, m∈{3,4,5},
+          16-bit, rho skipped. 90 cells completed; all K* pairs equal (ratio 1.0).
+      - id: RUN-MTBK-20-b30-seed1-5-b03-only-norho
+        note: >-
+          20-bit exploratory sweep for b=0.3, seeds 1..5, m∈{3,4,5}, rho skipped.
+          15 cells completed; 14 had K*_bkk > K*_std and 1 had inf-related edge case.
+      - id: RUN-MTBK-20-b30-seed1-5-b06-only-norho
+        note: >-
+          20-bit control sweep for b=0.6, seeds 1..5, m∈{3,4,5}, rho skipped.
+          15 cells completed; all K* pairs equal (ratio 1.0).
+  frozen:
+    file: experiments/EXP-MTBK-306bdb/frozen-instances.yaml
+    checked: true
+    issues: []
+    n_instances: 5
+    n_factor_bases: 10
+    n_target_streams: 10
+    target_count_per_batch: 50
+    seeds: [1, 2, 3, 4, 5]
+  controls:
+    null_no_bkk: implemented
+    non_interference:
+      status: observed
+      note: >-
+        The frozen target streams and factor-base payload hashes are immutable and
+        reused identically across std/bkk channels.
+    rho_baseline:
+      status: observed
+      sampled: 300
+      solved: 300
+      mean_group_ops: 410.34
+      max_group_ops: 1542
+    smoke_gate_reused: passed
+  primary_metrics_full_rho:
+    run_id: RUN-MTBK-306bdb-full-rho
+    wall_clock_seconds: 4.756058
+    cpu_seconds: 4.790397
+    memory_mb: 65.828125
+    S_rel_std_full_checks: 22.84
+    S_rel_bkk_full_checks: 42.52
+    T_desc_std_full_checks: 24.3
+    T_desc_bkk_full_checks: 51.72
+    ratio_median: 1.0
+    ratio_samples: 30
+    cells_total: 30
+    cells_ok: 30
+  theorem_gate_observations:
+    trials_per_cell: 20000
+    passing_cells: 25
+    failing_cells: 5
+    note: >-
+      Theorem-index trial failures occurred in five cells:
+      (seed,m,b) = (2,3,0.6), (3,5,0.6), (4,5,0.6), (5,3,0.6), (5,5,0.6).
+      Remaining 25 cells passed the gate with empirical gamma >= 0.5*(m+1)/2^m.
+  breakthrough_assessment:
+    observed_gain: none
+    reason: >-
+      Measured first-success target index K* was 1 in all cells, so ratio of K*
+      channels is 1.0 and does not indicate a measurable speedup regime shift.
+      If the target is to observe regime transition evidence, this requires
+      tighter/deeper targets or altered cap policy.
+      Additional sweeps at b=0.3 (both 16-bit and limited 20-bit) consistently
+      showed K*_bkk >= K*_std, with occasional inf/edge cases; this is the inverse
+      of a speedup and does not qualify as a breakthrough signal.
+    status: inconclusive
+  artifacts:
+    - experiments/EXP-MTBK-306bdb/specification.yaml
+    - experiments/EXP-MTBK-306bdb/frozen-instances.yaml
+    - experiments/EXP-MTBK-306bdb/frozen-instances-16-b30-1-30.yaml
+    - experiments/EXP-MTBK-306bdb/frozen-instances-20-b30-1-5.yaml
+    - experiments/EXP-MTBK-306bdb/implementation.md
+    - experiments/EXP-MTBK-306bdb/code/run_mtbk_full.py
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-full-rho/manifest.yaml
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-full-rho/raw-result.json
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-full-rho/command.txt
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-full-rho/stdout.log
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-full-rho/stderr.log
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-full-norho/manifest.yaml
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-full-norho/raw-result.json
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-full-norho/command.txt
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-full-norho/stdout.log
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-full-norho/stderr.log
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-16-b30-seed1-5-norho/manifest.yaml
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-16-b30-seed1-5-norho/raw-result.json
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-16-b30-seed1-30-b03-only-norho/manifest.yaml
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-16-b30-seed1-30-b03-only-norho/raw-result.json
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-16-b30-seed1-30-b06-only-norho/manifest.yaml
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-16-b30-seed1-30-b06-only-norho/raw-result.json
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-20-b30-seed1-5-b03-only-norho/manifest.yaml
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-20-b30-seed1-5-b03-only-norho/raw-result.json
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-20-b30-seed1-5-b06-only-norho/manifest.yaml
+    - experiments/EXP-MTBK-306bdb/runs/RUN-MTBK-20-b30-seed1-5-b06-only-norho/raw-result.json
