@@ -1,0 +1,144 @@
+experiment:
+  id: EXP-KDUAL-8f0b69
+  hypothesis_id: H-KDUAL-d0ae7e
+  version: 1
+  title: >-
+    Is the Kyber dual-versus-primal gap a property of the attack or of the instrument?
+    Determine whether lattice-estimator's dual_hybrid models the coded/polar decoding
+    step at all, before any further comparison is drawn from it
+  status: designed_not_run
+  status_note: >-
+    DESIGNED AND NOT RUN. It cannot be run in the environment where it was written:
+    lattice-estimator requires SageMath, which is not installable here. Every number
+    below is a specification, and NO result is claimed. This record exists so the
+    decisive question is written down in falsifiable form rather than left as a caveat
+    inside KN-FIND-015.
+
+  objective: >-
+    KN-FIND-015 reports that under pinned MATZOV costing, Kyber's dual_hybrid+fft does
+    NOT beat primal_bdd at any of the three parameter sets (140.20/143.79 at Kyber512,
+    200.96/203.79 at 768, 270.72/273.82 at 1024), against Carrier's claimed
+    139.5/195.1/259.7 and MATZOV-2022's 137.5/193.5/257.8. The finding itself states the
+    caveat that decides its meaning and does not resolve it:
+
+      lattice-estimator's `dual_hybrid` may simply not implement the coded-dual
+      improvement Carrier's paper is about.
+
+    If it does not, KN-FIND-015 is evidence about the PUBLIC INSTRUMENT and carries no
+    weight against the paper -- and the sentence "dual does not win" must be re-scoped
+    accordingly wherever it is cited. If it does, the non-reproduction is a substantive
+    disagreement about a deployed parameter set and is the most cryptographically
+    consequential result in this corpus. The two readings are opposite and the corpus
+    currently cites the finding without distinguishing them.
+
+  inputs:
+    parameters:
+      lattice_estimator_commit: 3e48ef421ec256afddb3e7d2249a77eab6e9ba12
+      carrier_repo_commit: 9c1367f
+      schemes: [Kyber512, Kyber768, Kyber1024]
+      cost_model: RC.MATZOV
+    required_software:
+      - SageMath (lattice-estimator dependency; NOT AVAILABLE in the authoring environment)
+      - kevin-carrier/CodedDualAttack at commit 9c1367f
+
+  controls:
+    - >-
+      INSTRUMENT VALIDATION FIRST. Reproduce the official pq-crystals
+      security-estimates classical core-SVP column (118/183/256) with primal_usvp under
+      RC.ADPS16 before reading anything else. KN-FIND-015 reports this reproduces within
+      1 bit; if it does not reproduce here, the environment is wrong and no comparison
+      may be drawn.
+    - >-
+      SOURCE-LEVEL READ, NOT A BENCHMARK. The primary determination is made by reading
+      lattice-estimator's dual_hybrid implementation for the presence or absence of a
+      decoding/coding stage, not by comparing output numbers. Numbers cannot distinguish
+      "modelled and cheaper" from "not modelled".
+    - >-
+      NEGATIVE CONTROL ON THE READ. Identify at least one estimator feature that IS
+      present (e.g. the FFT step in dual_hybrid+fft) and confirm the same reading
+      procedure detects it. A procedure that finds nothing everywhere finds nothing here.
+
+  independent_variables: [attack family, parameter set, cost model]
+
+  metrics:
+    primary:
+      - "binary: does lattice-estimator's dual_hybrid model a coded/decoding stage?"
+      - if yes, the per-stage cost breakdown compared against Carrier Theorem 4.1
+        T = Tsample + R*(N*Tdec + TFFT), term by term
+      - if no, the list of Carrier stages absent from the estimator
+    secondary:
+      - reproduction residual against pq-crystals core-SVP (bits)
+      - reproduction residual against KN-FIND-015's own table (bits)
+
+  preregistered_prediction:
+    quantity: presence of a decoding stage in dual_hybrid's cost model
+    formula: >-
+      Stated before looking: the estimator's dual_hybrid is expected NOT to model polar
+      or any other code-based decoding, because the coded dual attack post-dates the
+      estimator's dual implementation. If that is right, KN-FIND-015 must be re-scoped
+      from "dual does not win" to "the public estimator's dual does not win, and it does
+      not implement the attack in question".
+    source: KN-FIND-015's own unresolved caveat; KN-FIND-016; KN-OPEN-016
+
+  scale_relevance:
+    tier: crypto
+    justification: >-
+      This is one of the few items in this corpus that touches deployed parameters
+      (ML-KEM/Kyber at NIST levels 1/3/5). The tier is crypto because the OBJECT is
+      crypto-scale, not because any attack is executed: nothing here runs an attack, and
+      no security claim may be made from an estimator comparison in either direction.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      If the decoding stage IS modelled, check whether the discrepancy against Carrier
+      concentrates in one Theorem 4.1 term. A discrepancy spread evenly across terms
+      suggests a costing-convention difference; one concentrated in Tdec suggests a
+      genuine modelling disagreement.
+    - >-
+      Cross-check against KN-FIND-016's finding that Table 5.1 is internally consistent:
+      any explanation of the gap must be compatible with the paper's own arithmetic
+      being sound, which KN-FIND-016 established.
+
+  replication:
+    seeds: []
+    independent_instances: 0
+
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 2
+    maximum_memory_gb: 8
+    maximum_runs: 3
+
+  stopping_rules:
+    - Stop after the binary determination. Do not proceed to a cost comparison if the
+      decoding stage is absent -- there is nothing to compare.
+
+  invalidation_rules:
+    - Failure to reproduce the pq-crystals core-SVP column within 1 bit invalidates the
+      environment and therefore every number produced in it.
+    - A different lattice-estimator commit than the pinned one invalidates comparison
+      with KN-FIND-015.
+
+  success_criterion: >-
+    A documented, source-referenced answer to whether lattice-estimator's dual_hybrid
+    models a coded/decoding stage, with the instrument validated against pq-crystals
+    first, and with KN-FIND-015's claim re-scoped in whichever direction the answer
+    requires.
+
+  falsification_criterion: >-
+    The prediction is falsified if lattice-estimator's dual_hybrid does model a
+    coded/decoding stage comparable to Carrier's. In that case KN-FIND-015's
+    non-reproduction stands as a substantive disagreement and should be escalated
+    rather than re-scoped.
+
+  required_artifacts:
+    - source excerpt and commit-pinned line references for the dual_hybrid cost model
+    - the pq-crystals reproduction table
+    - a term-by-term Theorem 4.1 comparison, if and only if the decoding stage is present
+
+  assigned_to: unassigned
+  approved_by: null
+  blocked_on: >-
+    SageMath. Any session with Sage and network access to the two pinned repositories can
+    run this. It is the single highest-value unrun item in this corpus.

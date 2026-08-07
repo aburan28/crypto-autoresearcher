@@ -1,0 +1,147 @@
+experiment:
+  id: EXP-FBST-190234
+  hypothesis_id: H-FBST-c8a080
+  version: 1
+  title: >-
+    Is there ANY factor-base statistic that varies across curves at matched (p, B, m)?
+    A search for a lever in the half of the design space the conservation and
+    complete-splitting theorems leave free
+  status: designed_not_run
+  status_note: >-
+    DESIGNED AND NOT RUN. Specified in the same session that produced the theorems it
+    tests against; no result is claimed. Runnable as written with no dependencies beyond
+    the standard library, at the budget below.
+
+  objective: >-
+    Question 2 of papers/semaev-conservation-specialization/paper.tex, section 11, is the
+    live direction left by that paper. Two theorems fix half the design space:
+    KN-FIND-007 fixes the MEAN decomposition yield at binom(B+m-1,m)/N for every factor
+    base of size B, and KN-FIND-a8990a Theorem C fixes the summation fibre to totally
+    split on the factor-base locus at every m. Corollary 5.2 of the paper says fibre
+    statistics are constant there. It does NOT say no statistic is.
+
+    This experiment searches the complement: at matched (p, B, m), across many curves and
+    many factor-base constructions, does ANY of coverage, multiplicity dispersion,
+    relation rank, or recognizability vary beyond sampling noise? A positive answer is a
+    lever candidate and reopens a direction the paper closes only partially. A negative
+    answer at this scale strengthens the paper's negative claim without proving it.
+
+  inputs:
+    parameters:
+      field_bits: [10, 11, 12]
+      primes: [1009, 2003, 4001]
+      arities_m: [3, 4]
+      factor_base_sizes_B: [16, 24, 32, 48]
+      curves_per_cell: 32
+      factor_base_constructions:
+        - uniform random x-coordinates of rational points (the null)
+        - smallest-x (the standard index-calculus threshold base)
+        - Sidon / B_h greedy (maximises coverage at matched size, per KN-FIND-007)
+        - small-multiples {[i]G} (minimises coverage, per KN-FIND-007)
+        - subgroup-aligned, where a nontrivial subgroup exists
+
+  controls:
+    - >-
+      MEAN YIELD IS THE POSITIVE CONTROL, AND IT MUST SHOW ZERO EXCESS VARIANCE.
+      KN-FIND-007 proves the mean is identical across constructions at matched B. If the
+      instrument reports variation in the mean, the instrument is broken and every other
+      number in the run is void. This is the single most important line in this contract.
+    - >-
+      MATCHED (p, B, m) ACROSS CONSTRUCTIONS. Comparing a structured base at one size
+      against a random base at another measures the size, not the structure.
+    - >-
+      SHUFFLED-BASE NULL. For each structured construction, a size-matched base drawn
+      uniformly from the same rational points, so "structured versus random" is measured
+      rather than "this curve versus that curve".
+    - >-
+      DEGENERATE-LOCUS EXCLUSION. The paper's Proposition 3.9 locus is excluded before
+      any statistic is computed; at m=4, 962 of 8000 factor-base samples in
+      RUN-SMON-e5cbe6-001 were degenerate, which is not negligible at these primes.
+
+  independent_variables: [curve, factor-base construction, B, m, prime]
+
+  metrics:
+    primary:
+      - coverage: fraction of targets R in E(F_p) with at least one m-term decomposition
+      - multiplicity dispersion: variance and Gini of the decomposition count over targets
+      - relation rank: rank over Z/N of the relation matrix from a fixed relation budget
+      - excess variance of each statistic across curves at matched cell, against the
+        binomial/sampling null
+    secondary:
+      - mean yield (the positive control; must be exactly binom(B+m-1,m)/N)
+      - recognizability proxy: cost of the factor-base membership test per construction
+      - the coverage headroom actually attained, against the min(1, mu) ceiling
+
+  preregistered_prediction:
+    quantity: excess across-curve variance of each statistic at matched (p, B, m)
+    formula: >-
+      Mean yield: EXACTLY zero excess variance (theorem, not prediction).
+      Coverage: nonzero variance ACROSS CONSTRUCTIONS (KN-FIND-007 measured a Sidon
+      coverage ratio of 1.1071 and a small-multiples ratio of 0.0021), but the question
+      here is variance ACROSS CURVES at a fixed construction, which is predicted to be
+      consistent with sampling noise.
+      Relation rank: predicted to be the statistic most likely to show curve dependence,
+      because it is the one quantity in the paper's table that neither theorem touches.
+    source: >-
+      KN-FIND-007 consequences (1)-(3); KN-FIND-a8990a Theorem C and Corollary 5.2;
+      paper section 7 table, "free" half.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Primes to 4001. A curve-dependent statistic found here would be a lead requiring
+      re-measurement at larger scale before it meant anything; a null here is evidence
+      only about this range. Neither outcome may be quoted above toy tier.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Report the per-cell sampling-noise floor explicitly, computed from the null, before
+      comparing any structured construction against it. A "difference" smaller than the
+      floor is not a difference, and the floor is what the m=3 relation-rate work in
+      KN-FIND-c41ea9 found itself limited by ("per curve the statistic is Poisson noise
+      at p >= 431 and supports nothing").
+    - >-
+      For any statistic that does show excess variance, check whether it correlates with
+      the trace t, with #E(F_p) mod small primes, or with j-invariant class -- an excess
+      variance with no interpretable driver is more likely an artifact.
+
+  replication:
+    seeds: [20260807, 20260808, 20260809]
+    independent_instances: 3
+
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 2
+    maximum_memory_gb: 4
+    maximum_runs: 3
+
+  stopping_rules:
+    - Fixed cell grid, declared above. No cell is added after seeing a result.
+    - If the mean-yield control shows any variation, stop and repair the instrument.
+
+  invalidation_rules:
+    - Mean-yield control failure voids the run (instrument fault, not evidence).
+    - Any cell whose degenerate-locus exclusion removes more than 25% of samples is
+      reported separately and not pooled.
+
+  success_criterion: >-
+    Every statistic is reported with its sampling-noise floor and its across-curve excess
+    variance at matched (p, B, m), with the mean-yield control at exactly zero, so that
+    the paper's open Question 2 has a measured answer at this scale in one direction or
+    the other.
+
+  falsification_criterion: >-
+    The paper's implicit expectation -- that nothing on the factor-base locus varies with
+    the curve -- is falsified if any statistic shows across-curve excess variance
+    significant at the declared floor, on more than one prime, with an interpretable
+    driver. Conversely the search is a scoped null if no statistic does, and that null
+    must be recorded with its power, not as "no effect".
+
+  required_artifacts:
+    - code implementing all five constructions and the four statistics
+    - per-cell noise floors, computed from the null before any comparison
+    - the mean-yield control table
+
+  assigned_to: unassigned
+  approved_by: null

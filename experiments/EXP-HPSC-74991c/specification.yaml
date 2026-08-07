@@ -1,0 +1,139 @@
+experiment:
+  id: EXP-HPSC-74991c
+  hypothesis_id: H-HPSC-e76e8e
+  version: 1
+  title: >-
+    Reconcile the three recorded readings of the H-PSEUDO constant C(p), with the
+    curve sample size MATCHED across primes, and test the functional FORM of C(p)
+    rather than refitting its exponent
+  status: completed_without_coordinator_approval
+  status_note: >-
+    NOT `approved`. No Coordinator subagent approved this. Authored, run and recorded by
+    the top-level session on 2026-08-07, with no independent validator or red team.
+
+  objective: >-
+    The corpus records three incompatible readings of one quantity. KN-FIND-d4f820 fits
+    the MEAN of C over curves and reports C ~ p^0.055. KN-FIND-4c9e71 reports the
+    ADVERSARIAL MAX, first as "bounded ~4, NOT growing", then corrects itself to "BOTH
+    mean and max scale as ~p^0.079". KN-FIND-e7a3b1 states p^0.079 as the empirical
+    characterization. KN-FIND-5c1a03 and KN-FIND-f8c290 then lean on the resulting yield
+    error term being negligible at crypto scale, which is exponent-sensitive.
+
+    Two defects motivate a re-measurement rather than a re-reading. (i) The prior sample
+    counts were wildly unmatched across primes -- KN-FIND-4c9e71's own table records 152
+    curves at p=1009 against 6 at p=50021 -- and the maximum of a sample is a function of
+    sample size, so a max-over-curves compared across primes at 152 versus 6 draws is not
+    a comparison of the same statistic. (ii) KN-FIND-d4f820 records a partial k-range at
+    two of its four primes, which biases the max downward at exactly those points.
+
+    Beyond reconciling the number, this experiment asks the question no record asks:
+    is a POWER LAW the right model at all? The textbook heuristic for a pseudorandom
+    subset of size B in Z/N gives max_k |1hat_F(k)| ~ sqrt(B log N), i.e. C ~ sqrt(log p),
+    a logarithm. Over a range of p spanning a few hundred, sqrt(log p) and a small power
+    are nearly indistinguishable -- and they disagree by orders of magnitude at 2^256,
+    which is the only place the fit is ever used.
+
+  inputs:
+    parameters:
+      field_bits: [10, 12, 13, 16, 17, 18, 19]
+      primes: [1009, 4001, 9001, 50021, 100003, 200003, 400009]
+      curves_per_prime: 24
+      curve_selection: random A,B with #E(F_p) prime, order verified by [N]P = O
+      threshold: t = floor(p/2), so |F_t| ~ N/2
+      k_range: full 1..N-1 via FFT
+
+  controls:
+    - >-
+      MATCHED SAMPLE SIZE. Exactly 24 curves at every prime. This is the control the
+      prior measurements lacked, and it is the reason this experiment exists.
+    - >-
+      FULL k-RANGE at every prime. No truncation, so the max is the true max.
+    - >-
+      INDEPENDENT ORDER CHECK. Every curve's order N is verified by [N]P = O with a
+      scalar multiplication that does not reuse the counting code. A wrong N truncates
+      the group walk and silently inflates C; the first draft of this code had exactly
+      that defect and produced C = 20.7, which the walk-coverage gate now catches.
+    - >-
+      WALK COVERAGE GATE. |F_t|/N must lie in (0.3, 0.7) or the run aborts. This turns a
+      silent corruption into a loud failure.
+
+  independent_variables: [prime, curve]
+
+  metrics:
+    primary:
+      - fitted power-law exponent of C_mean(p), with bootstrap 95% CI
+      - fitted power-law exponent of C_max(p), with bootstrap 95% CI
+      - whether the recorded values 0.079 and 0.055 lie inside those intervals
+    secondary:
+      - RMS residual of four competing models (power law, sqrt(log), log, constant)
+      - the spread of those models' extrapolations to p = 2^256
+      - whether mean and max share an exponent within CI
+
+  preregistered_prediction:
+    quantity: the fitted exponent of C_max(p) and of C_mean(p)
+    formula: >-
+      If KN-FIND-4c9e71's correction is right, BOTH exponents are ~0.079 and 0.079 lies
+      inside both CIs. If KN-FIND-d4f820 is right for the mean, the mean exponent is
+      ~0.055. These are mutually exclusive for the mean and jointly testable.
+    source: KN-FIND-4c9e71 (corrected), KN-FIND-d4f820, KN-FIND-e7a3b1
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Largest prime 400009 (18.6 bits). The fit spans ~8.6 bits and is used in the corpus
+      to extrapolate to 256 bits. That ratio is itself the finding; nothing here licenses
+      a crypto-scale assertion, and the model comparison exists precisely to show that
+      the extrapolation is not determined by the data.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      The four models are compared on RMS residual in C itself, not in log C, so they are
+      commensurable. Each has two free parameters, so no model is advantaged by
+      flexibility.
+    - >-
+      Bootstrap resamples CURVES WITHIN each prime, which propagates the per-prime
+      sampling noise into the exponent rather than treating the per-prime summary as
+      exact.
+
+  replication:
+    seeds: [20260807]
+    independent_instances: 0
+    independent_instances_note: >-
+      One implementation. It does NOT reuse the code that produced KN-FIND-d4f820 or
+      KN-FIND-4c9e71, so it is an independent implementation of the same statistic -- but
+      it was written by the same agent that is interpreting it.
+
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 0.01
+    maximum_memory_gb: 2
+    maximum_runs: 1
+
+  stopping_rules:
+    - Single run. No adaptive extension of the prime ladder after seeing the fit.
+
+  invalidation_rules:
+    - A walk-coverage gate failure invalidates the run; it is an implementation fault,
+      not evidence about H-PSEUDO (AGENTS.md rule 3).
+    - Any curve whose order fails [N]P = O invalidates that curve.
+
+  success_criterion: >-
+    Both exponents are estimated with bootstrap CIs, and the model comparison reports
+    RMS residuals and 2^256 extrapolations for all four models, so that the corpus's
+    recorded values can be checked against an interval rather than against a point.
+
+  falsification_criterion: >-
+    The recorded characterization C ~ p^0.079 is falsified for a statistic if 0.079 lies
+    outside that statistic's bootstrap 95% CI. Symmetrically, C ~ p^0.055 is falsified
+    for the mean if 0.055 lies outside the mean's CI. If a power law has strictly and
+    materially lower RMS residual than sqrt(log) and log, the power-law model survives;
+    if the three are within noise of each other, the corpus's extrapolation is
+    unsupported by its own data regardless of which exponent is fitted.
+
+  required_artifacts:
+    - code/hpseudo_scaling.py
+    - runs/RUN-HPSC-74991c-001/{manifest.yaml, raw-result.json, stdout.log, stderr.log}
+
+  assigned_to: top-level session
+  approved_by: null
