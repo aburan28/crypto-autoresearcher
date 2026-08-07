@@ -654,8 +654,12 @@ def baseline_reproduction(p: int, cells: dict, role: str, n_curves: int) -> dict
     op_fb = fg.operating_row(by_fb)
     op_vr = by_fb[op_fb]["stats"]["pooled"]["ratio"] if op_fb is not None else None
     mono = fg.monotonic_decay([r["variance_ratio_measured"] for r in rows])
-    applies = p in fg.BASELINE_PRIMES
-    target = fg.BASELINE_COMMITTED_OPERATING_VR.get(p)
+    # The blocking control is defined on the PRIMARY class only: the committed
+    # EV-ENDO-10109d numbers were measured there. Evaluating it on the NULL-R
+    # class would report a failed blocking gate for a comparison the contract
+    # never states (defect DEF-1, corrected under new run ids).
+    applies = (p in fg.BASELINE_PRIMES) and role == "primary"
+    target = fg.BASELINE_COMMITTED_OPERATING_VR.get(p) if role == "primary" else None
     checks = {
         "every_row_in_band_1_3_to_3_6": bool(all(r["in_band_1_3_to_3_6"] for r in rows)),
         "monotonic_decay_is_false": bool(mono is False),
@@ -673,9 +677,11 @@ def baseline_reproduction(p: int, cells: dict, role: str, n_curves: int) -> dict
         "p": p, "class_role": role, "arm": "A0", "seed": fg.SEED_PRIMARY,
         "T": fg.TARGET_COUNT_PRIMARY, "n_curves": n_curves,
         "gate_applies_at_this_prime": applies,
-        "gate_applies_note": ("the contract states the baseline-reproduction control at "
-                              "p=4001 and p=6007 only; p=2003 has no committed counterpart "
-                              "and is reported without a gate"),
+        "gate_applies_note": ("the contract states the baseline-reproduction control for "
+                              "Arm A0 on the PRIMARY class at p=4001 and p=6007 only. "
+                              "p=2003 has no committed counterpart, and the NULL-R class is "
+                              "not the object EV-ENDO-10109d measured; both are reported "
+                              "here without a gate."),
         "committed_run_parameters": (None if not committed else
                                      {"n_targets": committed["n_targets"],
                                       "trace": committed["trace"],
@@ -924,11 +930,21 @@ def load_run(run_id: str) -> dict:
     return out
 
 
+# DEF-1, recorded rather than patched over: the first stage-2 runs
+# (RUN-ICINV-fg-nullr-p*) evaluated the baseline-reproduction control on the
+# NULL-R class, where the contract does not define it, and so carry a
+# `gate_passed: false` for a comparison that was never asked for. Their
+# MEASUREMENTS are unaffected and they remain in the ledger; the corrected
+# stage-2 runs carry a new id, which is the only way to correct an immutable
+# run record.
+NULLR_RUN_TAG = "nullr-v2"
+
+
 def run_id_for(stage, p) -> str:
     if stage == 1:
         return f"RUN-ICINV-fg-stage1-p{p}"
     if stage == 2:
-        return f"RUN-ICINV-fg-nullr-p{p}"
+        return f"RUN-ICINV-fg-{NULLR_RUN_TAG}-p{p}"
     if stage == 3:
         return f"RUN-ICINV-fg-primary-p{p}"
     return "RUN-ICINV-fg-decision"
