@@ -1,0 +1,208 @@
+hypothesis:
+  id: H-REPL-6c431d
+  question_id: RQ-ECDLP-002
+  proposal_id: IDEA-20260806-94676a
+  added: '2026-08-06'
+  statement: >-
+    A neural model trained to predict a bit of the discrete logarithm from the
+    coordinate representation of an elliptic-curve point extracts ZERO
+    coordinate structure: its held-out advantage over chance is statistically
+    indistinguishable from that of the identical architecture, budget and
+    schedule trained on a SCRAMBLED GROUP -- the same cyclic group under a
+    random bijective relabelling into strings of equal length, which preserves
+    the group exactly and destroys coordinates exactly. The falsifier is a
+    curve-minus-scrambled advantage gap exceeding 5 combined standard errors,
+    reproduced at three model capacities and two curve sizes.
+  mechanism: >-
+    A trained model is S bits of advice computed from the public curve
+    description, consulted by an online procedure. That is the discrete
+    logarithm with preprocessing, and for a GENERIC algorithm the
+    Corrigan-Gibbs-Kogan bound S * T^2 = Omega(epsilon * N) applies and is tight
+    -- a plain precomputed table saturates it with no learning in it. The bound
+    is a generic-model statement, so the ONLY way a learned model escapes it is
+    by reading coordinates, i.e. by being TYPE III (representation-dependent) in
+    the trichotomy of IDEA-20260806-c5d183.
+    THE SCRAMBLED GROUP ISOLATES EXACTLY THAT AND NOTHING ELSE. It leaves the
+    group intact and removes the coordinates, so the difference between the two
+    training runs is precisely the coordinate structure available to the model.
+    Equal performance means the model is generic, the bound applies verbatim,
+    and the whole lane is a time-memory tradeoff already occupied by a table.
+    A gap means the loophole is live and there is a concrete artifact to
+    interrogate for WHICH structure it found.
+    The exact version of the target is not in question and is not what is being
+    tested: an exact linearising embedding exists (z(kP) = (cos 2 pi k/N,
+    sin 2 pi k/N), with T_h a rotation) and evaluating it IS the discrete
+    logarithm. Only the approximate case has any content.
+  assumptions:
+    - >-
+      The model's parameters count as advice at their storage precision. A
+      heavily compressible model carries LESS information than its parameter
+      count suggests, which makes the bound bite harder, not less -- so the
+      assumption is conservative in the direction that matters.
+    - >-
+      The scrambling bijection is drawn with a cryptographic-quality PRF so no
+      residual structure survives relabelling. A weak scramble leaks and makes
+      the null too easy to beat.
+    - >-
+      Toy curve sizes only (subgroup order 2^20 and 2^28), so that held-out sets
+      are a large fraction of the group and generalisation is measurable rather
+      than inferred.
+    - >-
+      The target bit is a convenience for measurement, NOT a dependency: this
+      hypothesis does not rest on any predictor-to-solver reduction for that
+      bit. A measured gap would be evidence of extractable coordinate structure
+      regardless of whether that bit is a hardcore bit.
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical control experiment. No theorem, asymptotic bound, certificate
+      family, reduction, or closure argument is proposed here. The one imported
+      theoretical statement (the preprocessing bound) is used to SIZE the lane
+      in the accompanying cost table and is verified from primary text at
+      Stage 0; it is not re-derived and no new bound is claimed.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-REPL-1
+      formal_statement: >-
+        Under the null (the model extracts no coordinate structure), the
+        held-out advantage over chance on the real curve and on the scrambled
+        group are draws from the same distribution, whose standard deviation is
+        that of a binomial proportion at the held-out sample size, up to a
+        training-variance term estimated from repeated seeds.
+      random_model_justification: >-
+        If the coordinate encoding carries no learnable signal about the target
+        bit, then the map from label to bit is, from the model's perspective, an
+        arbitrary function of an unstructured input -- the same situation the
+        scrambled group presents by construction. The heuristic content is the
+        TRAINING-VARIANCE term: two runs of the same architecture on the same
+        data differ by more than binomial noise, and the assumption is that this
+        excess is comparable across the two datasets.
+      supporting_results:
+        - >-
+          The binomial standard error for a proportion at the declared held-out
+          size, which is exact and supplies the floor.
+        - >-
+          The Corrigan-Gibbs-Kogan preprocessing bound as recorded in
+          IDEA-20260806-94676a, which is what makes the null the expected
+          outcome for a generic model. RECALLED; verified at Stage 0.
+      validation_experiment_ids: [EXP-REPL-1d1287]
+      falsification_condition: >-
+        Training variance measured across seeds on the scrambled group exceeding
+        the binomial floor by more than a factor 3, which would mean the
+        comparison band is dominated by training noise rather than by sampling
+        and the 5-sigma threshold must be recomputed from the measured variance
+        BEFORE any curve-versus-scrambled comparison is scored. This is handled
+        by the seed-replication stage, which runs first for exactly this reason.
+  structural_ingredients:
+    - description: >-
+        The discrete logarithm with preprocessing and its bound
+        S * T^2 = Omega(epsilon N), together with the matching table-based
+        algorithm that saturates it.
+      citation: >-
+        Corrigan-Gibbs and Kogan, as recorded in IDEA-20260806-94676a.
+        RECALLED, NOT RE-READ; Stage 0 verifies the statement, its
+        success-probability dependence, and its tightness before any number
+        derived from it is reported.
+      role: >-
+        Sizes the lane and identifies the single loophole the experiment tests
+    - description: >-
+        The propagation trichotomy forcing every non-trivial lens into
+        partial-action, branching, or representation-dependent form.
+      citation: IDEA-20260806-c5d183
+      role: >-
+        Identifies coordinate dependence (Type III) as the only escape from the
+        generic bound, which is what the scrambled group isolates
+  reduction_chain:
+    core_problem: >-
+      Whether a learned representation of elliptic-curve points extracts
+      coordinate structure relevant to the discrete logarithm.
+    corollaries: []
+  predictions:
+    - metric: >-
+        held-out advantage over chance on the real curve MINUS that on the
+        scrambled group, at matched architecture, budget and schedule
+      direction: different
+      minimum_effect: >-
+        Zero within 5 combined standard errors, at all three capacities and both
+        curve sizes. A gap exceeding 5 sigma reproduced across all six cells is
+        the falsifier and opens the lane.
+    - metric: held-out advantage on the shuffled-label null
+      direction: different
+      minimum_effect: >-
+        Chance, within 3 standard errors. Anything above refutes the evaluation
+        protocol, not the hypothesis, and voids every other number.
+    - metric: held-out advantage on the planted-leaky-encoding control
+      direction: higher
+      minimum_effect: >-
+        At least 0.10 above chance. Failure means the pipeline cannot detect
+        structure that is definitely present, and NO negative result may be
+        reported from it.
+    - metric: >-
+        the trained model's (S, T) position against an equal-S precomputed table
+      direction: different
+      minimum_effect: >-
+        At or behind the table on both axes. A model strictly inside the
+        preprocessing frontier at toy size, verified against the reproduced
+        table attack, would falsify the bound's applicability and is the
+        strongest possible outcome.
+  test_boundary:
+    instances: >-
+      Two prime-field short-Weierstrass curves with prime-order subgroups of
+      2^20 and 2^28 elements, generator fixed and frozen. Inputs are point
+      encodings; targets are a bit of the logarithm.
+    parameters:
+      subgroup_sizes_log2: [20, 28]
+      target: >-
+        the most significant bit of k, i.e. the indicator [k < N/2]. Chosen for
+        measurability; the hypothesis does not depend on it being a hardcore bit
+        and no such claim is made.
+      presentations: [affine_xy_limbs, x_only_limbs, projective_jacobian_limbs, scrambled_labels]
+      capacities: [small, medium, large]
+      architectures: [MLP, small transformer over limb tokens]
+      heldout_split_modes: [random_by_logarithm, contiguous_block_by_logarithm]
+    implementation: >-
+      One training pipeline, one evaluation protocol, applied identically to
+      every dataset. The dataset is the ONLY thing that varies between the
+      curve arm and the scrambled arm; identical seeds, identical schedules,
+      identical early-stopping rule.
+    budget:
+      total_gpu_hours: 60
+      total_cpu_hours: 200
+      maximum_memory_gb: 32
+  falsification_conditions:
+    - >-
+      A curve-minus-scrambled advantage gap exceeding 5 combined standard errors
+      at all three capacities and both curve sizes. The hypothesis is REFUTED,
+      the Type III loophole is live, and the successor is the presentation
+      ablation that identifies which coordinate structure carries the gap.
+    - >-
+      The shuffled-label null exceeds chance. The evaluation protocol leaks;
+      the hypothesis is neither supported nor refuted and nothing is reported.
+    - >-
+      The planted-leaky-encoding control is not detected. The pipeline cannot
+      detect structure; a null result from it is uninformative and may not be
+      recorded as support.
+    - >-
+      Measured training variance on the scrambled arm exceeds the binomial floor
+      by more than a factor 3 and the comparison band is not recomputed from it.
+      Procedural invalidation, not a result.
+  interpretation_limits:
+    - >-
+      A null result is about ONE task, two architectures, three capacities, four
+      presentations, two toy curve sizes and one training budget. It is NOT a
+      statement about machine learning and must never be summarised as one.
+    - >-
+      The preprocessing bound that makes the null expected is a GENERIC-model
+      statement. It does not bind a demonstrably coordinate-reading model, which
+      is exactly why the scrambled-group control exists.
+    - >-
+      Toy scale. Nothing measured here extrapolates to a cryptographic curve;
+      what would carry is the bound, not the measurement.
+    - >-
+      Held-out advantage is not an attack. Even a measured gap is a
+      distinguisher of unknown exploitability and would require its own record
+      with full-cost accounting before any security consequence is stated.
+  status: specified
+  proposed_by: idea-generator
+  specified_by: coordinator
+  specified_at: '2026-08-06'

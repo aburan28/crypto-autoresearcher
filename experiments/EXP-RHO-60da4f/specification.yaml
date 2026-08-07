@@ -1,0 +1,309 @@
+experiment:
+  id: EXP-RHO-60da4f
+  hypothesis_id: H-RHO-bc6ea6
+  version: 1
+  title: >-
+    Fully charged net gain of the negation-quotient Pollard rho walk as a
+    function of the fruitless-cycle escape rule: locating the sign-change
+    threshold in field multiplications
+  status: approved
+  objective: >-
+    Measure, in F_p multiplications and against an un-quotiented Teske r-adding
+    baseline instrumented in the same harness, the fully charged cost of the
+    {+-1}-quotient rho walk across an enumerated grid of fruitless-cycle escape
+    rules, and locate the escape-rule setting at which the net gain crosses 1.0.
+    Secondary objective: measure the per-step fruitless-cycle rate against the
+    pre-registered 1/(2r) prediction, and test the size-independence of the cost
+    ratio across three subgroup sizes.
+
+  experiment_class: cost_model_measurement
+
+  inputs:
+    curves: >-
+      Three randomly generated prime-field short-Weierstrass curves, one per
+      target size, each with a prime-order subgroup of the stated bit length,
+      Aut(E) = {+-1}, and j not in {0, 1728}. Curve parameters, the point count,
+      and the subgroup generator are frozen into the specification directory as
+      curves.json before any run and are never regenerated.
+    subgroup_sizes_log2: [32, 40, 48]
+    curve_model: >-
+      Jacobian coordinates for the walk step; affine only for the frozen
+      distinguished-point test. Named in every reported number. No number in
+      this experiment may be reported in "group operations".
+    cost_unit: >-
+      F_p multiplications, with squarings counted separately at their measured
+      ratio and inversions counted separately at their measured ratio. A single
+      scalar "M-equivalent" total is also reported, with the conversion factors
+      recorded per platform rather than assumed.
+    r_values: [4, 8, 16, 20, 32]
+    distinguished_point_bits: [8, 12, 16]
+    escape_rules:
+      - id: none
+        description: no cycle detection; positive control, expected absorption
+      - id: deterministic_representative_break
+        description: >-
+          on detecting a repeated class, apply a fixed alternative branch chosen
+          by a function of the current class only (memoryless)
+      - id: periodic_check_k
+        description: >-
+          check for a cycle every k steps and apply the representative break;
+          k in {2, 4, 8, 16, 32}
+      - id: lookahead_double_step
+        description: >-
+          apply two branch steps when the one-step image would be the negation
+          of the current class
+      - id: branch_reselect_on_collision
+        description: >-
+          reselect the branch by a second partition function of the current
+          class when the primary branch would cycle
+    memorylessness_filter: >-
+      Every escape rule above is a function of the CURRENT class only. A rule
+      depending on walk history is inadmissible and is rejected before
+      measurement, because it breaks the distinguished-point collision semantics
+      that the van Oorschot-Wiener baseline requires (KN-TECH-006). The
+      rejection count is reported.
+
+  controls:
+    - id: C1_baseline_reproduction
+      description: >-
+        Un-quotiented Teske r = 20 adding walk measured in the SAME harness at
+        all three sizes, and required to reproduce this program's recorded
+        convention (0.886*sqrt(n) group operations, van Oorschot-Wiener
+        parallelisation, fully charged, KN-TECH-006) within +-8 percent after
+        conversion into the field-multiplication unit. BLOCKING.
+    - id: C2_random_oracle_walk
+      description: >-
+        A walk driven by a keyed hash into the group, which realises the ideal
+        random-map constant by construction. Any candidate beating it by more
+        than the derived band falsifies the measurement rather than the band.
+        BLOCKING.
+    - id: C3_no_escape_positive_control
+      description: >-
+        The negation-quotient walk with escape rule `none`. It MUST become
+        absorbed in fruitless cycles and fail to terminate within the step
+        budget. This is the control that shows the cycle problem exists and that
+        the instrument can see it. BLOCKING.
+    - id: C4_two_implementations
+      description: >-
+        Two independent implementations of the walk harness must agree exactly
+        on the step sequence and on the operation counts for a frozen seed at
+        the smallest size, before any comparison is reported. BLOCKING.
+    - id: C5_canonicalisation
+      description: >-
+        Candidates are canonicalised up to relabelling of the partition cells
+        and up to the {+-1} action, so the same walk is not scored twice as
+        distinct configurations. Duplicate-collapse count is reported.
+
+  independent_variables:
+    - escape_rule (6 families, 10 concrete settings including the periodic-k sweep)
+    - r (5 values)
+    - distinguished_point_bits (3 values)
+    - subgroup_size_log2 (3 values)
+
+  metrics:
+    primary:
+      - >-
+        net_gain_ratio: (fully charged M-equivalent cost of the un-quotiented
+        C1 baseline) divided by (fully charged M-equivalent cost of the
+        quotient walk), per configuration, per size. Greater than 1 is a gain.
+      - >-
+        sign_change_setting: the escape-rule setting(s) at which net_gain_ratio
+        crosses 1.0, reported per size, or the explicit statement that no
+        crossing occurs inside the tested grid.
+      - >-
+        best_net_gain_ratio: the maximum over the grid, per size, compared
+        against the sqrt(2) target of 1.4142 and against the 1.35 decision
+        threshold of H-RHO-bc6ea6.
+    secondary:
+      - per_step_fruitless_cycle_rate, per r, per size, against 1/(2r)
+      - escape_overhead_fraction: share of total M-equivalents spent in detection and escape
+      - collision_constant: measured steps / sqrt(N/2), i.e. walk-quality degradation
+      - per_block_cost_attribution: step, DP predicate, cycle detect, escape, memory traffic
+      - peak_rss_bytes and distinguished-point table size, per configuration
+      - inadmissible_rule_rejections and duplicate_collapse_count
+
+  measured_vs_modeled:
+    measured:
+      - all M-equivalent operation counts, from instrumented runs with manifests
+      - per-step fruitless-cycle rate
+      - collision constant
+      - peak_rss_bytes
+    modeled:
+      - >-
+        the 1/(2r) cycle-rate prediction (derivation recorded in H-RHO-bc6ea6,
+        verified symbolically at Stage 0)
+      - >-
+        the sqrt(pi N / 2) and sqrt(pi N / 4) collision-law scales, from the
+        classical random-map law
+      - >-
+        the 0.886*sqrt(n) baseline convention, from KN-TECH-006
+    rule: >-
+      Measured and modeled numbers never share a column in any reported table.
+      Every modeled number names its formula and its source.
+
+  optimistic_assumptions:
+    - >-
+      Squaring/multiplication and inversion/multiplication ratios are measured
+      once per platform and held fixed. BIAS: understates the cost of
+      escape rules that change the mix of operations. Direction: flatters
+      escape-heavy rules.
+    - >-
+      Memory traffic is charged by distinguished-point table size and access
+      count, not by measured cache behaviour. BIAS: understates real cost for
+      large DP tables. Direction: flatters low-DP-bit configurations.
+    - >-
+      Parallelisation is modeled as near-linear per KN-TECH-006 rather than
+      measured on a cluster. BIAS: flatters every configuration equally, so it
+      biases the ABSOLUTE numbers but should cancel in the ratio -- and that
+      cancellation is an assumption, stated here, not a fact.
+    - >-
+      Curve arithmetic is not assembly-optimised. BIAS: inflates absolute cost;
+      should cancel in the ratio.
+  optimistic_assumption_rule: >-
+    Every table produced under the assumptions above is labeled a BOUND, not a
+    prediction, and the list is reproduced in the results report with the
+    direction of each bias.
+
+  heuristic_under_test: HEUR-RHO-1
+  preregistered_prediction:
+    quantity: >-
+      Per-step probability that an r-branch adding walk on the {+-1} quotient
+      enters a fruitless 2-cycle.
+    formula: >-
+      P_cycle(r) = 1/(2r) + O(1/N), independent of the class and the step index.
+    source: >-
+      Derived in H-RHO-bc6ea6 from the branch-collision count under the
+      random-map model that KN-TECH-006's baseline convention already assumes
+      (Teske r-adding walk analysis). The derivation is verified symbolically at
+      Stage 0 and frozen here before any run. It is NOT adjusted afterwards; a
+      revision requires a protocol_amendment.
+  secondary_preregistered_prediction:
+    quantity: best achievable net gain of the negation quotient
+    formula: >-
+      best_net_gain_ratio < 1.35 at every tested size, against a naive target of
+      sqrt(2) = 1.4142.
+    source: >-
+      H-RHO-bc6ea6's central claim. Frozen before execution.
+
+  scale_relevance:
+    tier: medium
+    justification: >-
+      Subgroup sizes 2^32 to 2^48 permit complete rho runs with many replicates
+      but are far below cryptographic size. What is claimed to transfer is a
+      CONSTANT RATIO, and its transfer rests on HEUR-RHO-2 (size-independence),
+      which this experiment tests directly across three sizes rather than
+      assuming. If HEUR-RHO-2 fails, every constant is scoped to its own size
+      and the resulting evidence record is capped at that size. Resulting
+      evidence may not exceed claim_tier medium under any outcome.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      The longest observed fruitless cycle, compared against the geometric-tail
+      prediction implied by P_cycle(r). A single cycle far longer than the tail
+      predicts indicates a structural cycle the 2-cycle model does not cover,
+      and must be reported rather than trimmed.
+    - >-
+      The single worst-case run per configuration (highest M-equivalent cost),
+      reported alongside the mean, since a rule with a good mean and a heavy
+      tail is not usable in a parallel deployment where the slowest processor
+      sets the wall clock.
+    - >-
+      The smallest observed net_gain_ratio across all configurations, to confirm
+      the sign change is a genuine crossing and not a single noisy point.
+
+  replication:
+    seeds: [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597]
+    independent_instances: 16
+    note: >-
+      16 independent walks per (escape_rule, r, dp_bits, size) cell. At the two
+      smaller sizes this gives a standard error on the mean cost of roughly 25
+      percent of one standard deviation of the rho length distribution, which is
+      heavy-tailed; the reported comparison is therefore on the MEDIAN with a
+      bootstrap interval, and the mean is reported alongside it rather than
+      instead of it. Cells whose bootstrap intervals overlap are reported as
+      indistinguishable, not ranked.
+
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 240
+    maximum_memory_gb: 8
+    maximum_runs: 7200
+
+  stopping_rules:
+    - >-
+      Stop a single walk at 64 * sqrt(N/2) steps without a collision and record
+      it as a censored observation, NOT as a completed run. Censored fractions
+      are reported per cell; a cell with more than 10 percent censoring is
+      reported as unresolved rather than being scored with the censored runs
+      dropped, since dropping them is exactly what produces a spurious win.
+    - >-
+      Stop the whole experiment at the total_cpu_hours cap. A cap-terminated
+      grid reports its completed cells and names the incomplete ones; it never
+      interpolates across them.
+    - >-
+      Stop the largest size (2^48) if the two smaller sizes already show the
+      sign change at a consistent setting AND HEUR-RHO-2 holds at the
+      pre-registered band across them, freeing budget for denser sampling near
+      the crossing.
+
+  invalidation_rules:
+    - >-
+      Any BLOCKING control (C1-C4) failing invalidates every comparison in the
+      affected size, and no net_gain_ratio may be reported for it.
+    - >-
+      Disagreement between the two implementations on the frozen seed
+      invalidates the entire run set until reconciled.
+    - >-
+      A crash, timeout, or memory exhaustion is an INFRASTRUCTURE outcome under
+      AGENTS.md rule 5, recorded as such, and is never scored as a cost result
+      for the configuration that hit it.
+    - >-
+      Any escape rule discovered mid-run to depend on walk history invalidates
+      its cells; the rule is recorded as inadmissible with its reason.
+
+  success_criterion: >-
+    All BLOCKING controls pass, and the experiment reports for each of the three
+    sizes: (i) net_gain_ratio with a bootstrap interval for every completed grid
+    cell, (ii) best_net_gain_ratio compared against 1.35 and against sqrt(2),
+    (iii) either the located sign-change setting or the explicit statement that
+    no crossing occurs inside the tested grid, and (iv) the measured cycle rate
+    against 1/(2r). The experiment SUCCEEDS as an instrument whichever way those
+    numbers come out; it fails only if a blocking control fails or if more than
+    10 percent of cells are unresolved by censoring or budget.
+
+  falsification_criterion: >-
+    H-RHO-bc6ea6 is REFUTED if best_net_gain_ratio is at or above 1.35 at all
+    three sizes with non-overlapping bootstrap intervals -- the negation map
+    then essentially achieves its target and there is no meaningful shortfall to
+    explain. HEUR-RHO-1 is separately refuted if the measured cycle rate differs
+    from 1/(2r) by more than a factor 2 at any tested r, or varies with N.
+    HEUR-RHO-2 is separately refuted by a significant fitted drift in the ratio
+    across sizes. Each refutation is independent: HEUR-RHO-1 failing does not
+    refute the central claim, and the record must not conflate them.
+
+  required_artifacts:
+    - frozen curves.json with parameters, point counts and generators
+    - per-run manifest with command, git commit, dirty-tree state, environment,
+      dependency versions, seed, resolved model policy and backend
+    - raw per-run operation counters (mul, sqr, inv) and step counts
+    - per-run censoring flag and reason
+    - fruitless-cycle event log with cycle lengths
+    - peak_rss_bytes and DP table size per run
+    - control outcomes C1-C5 with pass/fail and measured values
+    - the two implementations' frozen-seed agreement record
+    - platform operation-ratio calibration (sqr/mul, inv/mul) with its measurement
+    - a measured-vs-modeled table, columns never mixed
+    - the optimistic-assumption list reproduced in the results report with the
+      direction of each bias
+
+  assigned_to: executor
+  approved_by: coordinator
+  approved_at: '2026-08-06'
+  approval_note: >-
+    APPROVED 2026-08-06 by coordinator on explicit user confirmation of the
+    frozen contract. The protocol is now FROZEN: any change requires a versioned
+    protocol_amendment in this experiment's amendments/ directory. The
+    preregistered_prediction in particular is frozen and is never re-scored
+    against a revised formula; runs already executed are never silently
+    re-scored.
