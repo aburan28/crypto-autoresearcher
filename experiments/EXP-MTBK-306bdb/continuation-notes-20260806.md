@@ -236,3 +236,12 @@ Full `20-lowb` m610 high-cap (`m={6,7,8,9,10}`, `b=0.24`, `cap=500k`) tranche ov
 - `n_safe_lt=0` (all lt observations are timeout-compromised and `unsafe`).
 
 Conclusion update: the full high-cap `m610,b=0.24` low-b 20-bit sweep over seeds `1..15` remains protocol-negative (`K_star_bkk < K_star_std` with no timeout-safe channel control is still 0 cells).
+
+### `RUN-MTBK-20-lowb-1-15-b22-m610-cap500k-norho`
+
+Expanded high-cap coverage to the neighboring `b=0.22` setting:
+
+- Command: `python3 experiments/EXP-MTBK-306bdb/code/run_mtbk_full.py --frozen experiments/EXP-MTBK-306bdb/frozen-instances-20-lowb-1-15.yaml --run-suffix 20-lowb-1-15-b22-m610-cap500k-norho --out-root experiments/EXP-MTBK-306bdb --seeds 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 --cell-ms 6,7,8,9,10 --b-exps 0.22 --check-cap-std 500000 --check-cap-bkk 500000 --skip-rho`
+- Outcome: `75` cells, `lt=0`, `eq=4`, `gt=71`, `safe_lt=0`, `unsafe_lt=0`.
+
+Thus, `b=0.22` also shows no protocol-safe low-b improvement at high cap under this `m610` slice.
