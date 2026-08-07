@@ -1,3 +1,31 @@
+> ## ⚠ THE N3 SECTION IS UNDER AN IDENTIFIED, UNTESTED CONFOUND — READ `CORR-20260807-d78e2f`
+>
+> **§N3's headline — that the within-class over-dispersion is "real, persistent
+> and density-independent" rather than an artifact — must not be cited as
+> established.** A mechanism capable of manufacturing the entire effect has since
+> been measured and was never controlled for:
+>
+> `targets_uniform` samples a **cyclic subgroup**, and `r` (the cubic's rational
+> root count, which *varies within an isogeny class*) fixes the reachable
+> fraction exactly — `r=1 → 100%`, `r=3 → 50%`, deterministic, zero variance
+> within strata, replicated at p = 2003, 4001, 6007. So roughly half of every
+> measured class was sampled from **half its group** while the rest was sampled
+> from all of it. That produces excess within-class variance, and it produces it
+> *density-independently*, because coverage is a property of the group rather
+> than of the factor base.
+>
+> This does **not** mean the finding is wrong — no experiment has yet run against
+> the confound. It means the finding is not supported at the strength claimed.
+> `EXP-ICINV-4d33aa` (batch `BATCH-aa267f`) is designed to resolve it three ways:
+> sampler artifact / real `r` effect / neither.
+>
+> **Unaffected:** §N4 (transport cost) and §N5 (walk ceiling) use no target
+> sampler and stand as written. §N2's characterisation stands. The between-class
+> null was not obviously affected but has not been re-checked either.
+>
+> Text left unedited per AGENTS.md rule 4; this header plus `CORR-20260807-d78e2f`
+> is its correct reading.
+
 # BATCH-523510 synthesis — GOAL-ENDO-001 (follow-up to BATCH-cb71b5)
 
 Coordinator synthesis, producer artifact, pre-independent-review. Executes next
