@@ -297,3 +297,28 @@ Combined across all three tranches (`1..15` seeds), this `m610`, `b=0.15`, `chec
 - No protocol-safe `K_star_bkk < K_star_std` evidence emerged in this window.
 
 This does not yet include `cap=500k` for `b=0.15`, but it removes the seed-tranche ambiguity seen earlier from low-cap-only data: at `cap=100k`, the entire `m610` low-b tranche for `b=0.15` is strictly non-improving under timeout-safe controls.
+
+### 2026-08-07 continuation: full `b=0.15` `m610` high-cap-comparison sweep (`check_cap=500k`)
+
+To complete the same frontier at higher cap, I ran the remaining micro-sweeps and the matching seeded tranches:
+
+- `RUN-MTBK-20-lowb-1-5-b15-m6-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-1-5-b15-m7-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-1-5-b15-m8-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-1-5-b15-m9-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-1-5-b15-m10-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-2-5-m6-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-2-5-m7-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-2-5-m8-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-2-5-m9-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-2-5-m10-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-6-10-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-11-15-b15-m610-cap500k-norho`
+
+Summary for the completed full `b=0.15`, `m610`, `cap=500k`, seeds `1..15` sweep:
+
+- `n_total=75`
+- `n_lt=0`, `n_eq=53`, `n_gt=22`
+- `n_safe_lt=0`, `n_unsafe_lt=0`
+
+No protocol-safe improvements were observed (`K_star_bkk < K_star_std` with timeout-safe controls remained 0 cells). This extends the 100k-comparison result to higher cap: `b=0.15` remains non-improving across the full tested 20-bit low-b low-exponent frontier.
