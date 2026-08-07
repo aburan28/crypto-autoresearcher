@@ -41,12 +41,22 @@ complexity estimate. Section 5.1 explains at length why complete splitting is *n
 algorithm — it solves for the last coordinate given the others, while relation search
 does the opposite.
 
-## Two blockers before this goes anywhere
+## One blocker, and one downgraded
 
-1. **No independent proof review has been obtained.** Point a reader experienced in
-   function fields or arithmetic geometry at Lemma 2.3 (Artin's theorem for a quotient
-   by a finite group acting faithfully) and Lemma 3.2 (properness of the preimage of
-   `E[2]`, in characteristic 2 where `E[2]` is non-reduced).
+1. **No peer review by a credentialed mathematician has been obtained.** An independent
+   review pass (fresh context, no role in producing the proofs, tasked adversarially with
+   finding a gap — full report at
+   `experiments/_reviews/proofreview-20260807-followups.md`) read Lemma 2.3 and Lemma
+   3.2 line by line, independently re-derived the characteristic-free invariant-theory
+   facts Lemma 2.3 needs rather than trusting them, and separately verified Lemma 3.2's
+   properness argument is insensitive to `E[2]`'s non-reducedness in characteristic 2. It
+   passed both lemmas and Theorem 3.4 as stated in every characteristic, and found one
+   real scope gap (Corollary 3.8's `m ≥ 4` case needed `char ≠ 2` stated on the corollary
+   itself, not just in §5.2 three pages later) — now fixed in `paper.tex`. This is real,
+   adversarial, independently-derived scrutiny, not a rubber stamp — but it is not peer
+   review by a human expert in function fields or arithmetic geometry, and obtaining that
+   remains the one real blocker before this manuscript's mathematics should be treated as
+   settled.
 2. **Novelty is not established** (though the check is now much better than it was).
    Three treatments that each set up the basic theory of `S_m` in detail were read in
    full text — Semaev arXiv:1504.01175, Kosters–Yeo arXiv:1503.08001, and

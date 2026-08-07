@@ -1,0 +1,111 @@
+evidence:
+  id: EV-FBST-019dbd
+  hypothesis_id: H-FBST-c8a080
+  experiment_ids: [EXP-FBST-190234]
+  run_ids: [RUN-FBST-190234-002]
+  recorded_at: '2026-08-07'
+  type: empirical
+  type_note: >-
+    Zero new curve sampling or relation search: this analyzes the (A,B,N,rank) data
+    already present in the committed `RUN-FBST-190234-002/raw-result.json`. Requested by
+    an independent red-team review (`experiments/_reviews/redteam-report-20260807-followups.yaml`,
+    finding against `EV-FBST-8949fc`/`EV-FBST-394e55`) which pointed out that "cannot
+    predict without measuring" was an ASSERTED scope boundary in those two records, not a
+    TESTED one, and that the already-collected 280-curve dataset could test it at zero
+    additional cost.
+  direction: neutral
+  direction_note: >-
+    `neutral` because the result is a null: it neither supports nor weakens
+    H-FBST-c8a080's disjunctive claim (already confirmed by EV-FBST-8949fc/394e55). It
+    tests a SEPARATE, narrower claim -- the "cannot predict without measuring" boundary
+    statement inside those records' own limitations sections -- and finds no evidence
+    against it, which converts that statement from asserted to tested.
+  strength: preliminary
+  strength_note: >-
+    A single scan, 6 candidate invariants, 14 positive cases. Underpowered to detect
+    anything but a large effect, and explicitly not corrected-for-multiple-comparisons
+    beyond reporting the Bonferroni threshold alongside the raw p-values, per the
+    red-team's own framing ("report a null result plainly if none is found").
+  claim_tier: toy
+  certificate_refs: []
+  proof_status: empirical_only
+  proof_refs:
+    - experiments/EXP-FBST-190234/code/correlation_scan.py
+    - experiments/EXP-FBST-190234/code/correlation_scan_result.json
+
+  observations:
+    - id: OBS-1
+      text: >-
+        Six cheap, well-defined invariants were computed for each of the 280 curves in
+        RUN-FBST-190234-002 (p=4001, so each invariant is derivable from the already-
+        recorded (A, B) Weierstrass coefficients with no new curve arithmetic beyond
+        computing the j-invariant, itself one modular exponentiation): quadratic-residue
+        class of A, of B, and of the j-invariant; parity of A's and B's canonical [0,p)
+        representative; and whether A > B under that same representative. Each was tested
+        against the smallest_x rank-deficiency label at B=16 (14 deficient of 280) via a
+        2x2 contingency table and an exact Fisher two-sided test (own implementation, exact
+        hypergeometric enumeration -- feasible here since every table has row/column sums
+        under 300).
+    - id: OBS-2
+      text: >-
+        RESULT: NO INVARIANT REACHES EVEN THE UNCORRECTED p<0.05 THRESHOLD. Fisher p-values:
+        QR(A) 1.000, QR(B) 0.0555, QR(j) 1.000, A odd 0.584, B odd 0.788, A>B 1.000. The
+        Bonferroni threshold for 6 tests at alpha=0.05 is 0.0083; nothing approaches it,
+        including the closest case.
+    - id: OBS-3
+      text: >-
+        THE ONE SUGGESTIVE, NOT SIGNIFICANT, LEAD. QR(B) -- whether the Weierstrass
+        B-coefficient is a quadratic residue mod p -- has the largest odds ratio (3.50: 11
+        of 14 deficient curves have QR(B)=true, versus 136 of 266 non-deficient) and the
+        smallest p-value (0.0555), but this is short of even the unadjusted 0.05 threshold,
+        let alone the multiple-comparisons-corrected one. With only 14 positive cases total,
+        a single contingency table this close to the boundary is exactly the kind of result
+        that should be named as a WEAK LEAD worth revisiting with more data, not treated as
+        a finding.
+
+  inference: >-
+    This scan does not find evidence that smallest_x rank-deficiency correlates with any
+    of the six cheap curve invariants tested. That is a genuine, if weak, test of the
+    "cannot predict without measuring" boundary in EV-FBST-8949fc/EV-FBST-394e55 -- it does
+    not prove no predictive invariant exists (six invariants, 14 positive cases, one prime,
+    is a narrow search), but it is real evidence in place of an unexamined assumption, and
+    it found nothing an attacker (or a curve-selection heuristic) could presently exploit
+    among the invariants tried. The QR(B) near-miss is recorded rather than discarded
+    because a future deeper look (more curves, or a targeted test of QR(B) alone with
+    higher power) is cheap and this scan does not rule it out -- it only fails to confirm it
+    here.
+
+  boundaries:
+    - >-
+      Six invariants, one prime (p=4001), 14 positive cases. A much larger sample (the
+      existing 280-curve dataset already exhausted for this prime) or a wider invariant set
+      (e.g. explicit CM discriminant class, torsion structure, Frobenius trace mod small
+      primes beyond what distinguishing N already encodes) was not attempted.
+    - >-
+      This is exploratory, not confirmatory: no invariant was pre-registered before looking
+      at the data, unlike the falsification-style predictions elsewhere in this program.
+      That is appropriate for a scan explicitly framed as hunting for a lead, and is stated
+      here so the result is not read as more rigorous than it is.
+    - >-
+      Nothing here bears on ECDLP hardness. Even if QR(B) or a related invariant were
+      eventually confirmed predictive, red-team's own assessment (which this record does not
+      dispute) is that the underlying mechanism -- occasional rank deficiency in a specific
+      textbook factor-base construction -- does not accelerate ECDLP; a predictive invariant
+      would at most let an implementer pre-screen which of several equally valid target
+      representations gives a friendlier factor base, a minor operational convenience, not
+      an attack.
+
+  unresolved_confounds:
+    - >-
+      NO INDEPENDENT REVIEW of this specific scan (though it was itself commissioned BY an
+      independent red-team review of the records it extends -- an unusual but sound
+      provenance: the check was requested by an outside pass, not self-initiated).
+    - >-
+      The exact hypergeometric Fisher test was implemented from scratch rather than taken
+      from a statistics library (none available in this environment); it was not
+      cross-checked against a reference implementation, though the method (direct
+      enumeration of the hypergeometric distribution, summing tail probabilities at or below
+      the observed table's likelihood) is standard and the code is short enough to audit
+      directly.
+
+  reviewed_by: none

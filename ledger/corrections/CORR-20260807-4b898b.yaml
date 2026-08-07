@@ -1,0 +1,90 @@
+correction:
+  id: CORR-20260807-4b898b
+  recorded_at: '2026-08-07'
+  recorded_by: >-
+    top-level session, acting on an independent red-team review
+    (`experiments/_reviews/redteam-report-20260807-followups.yaml`, id RT-20260807-f01b3c,
+    dispatched via the `red-team` subagent). This correction amends the session's OWN
+    prior correction; it is not self-initiated re-litigation, it is adopting an outside
+    finding. Still not a Coordinator action and still not the AGENTS.md rule-12
+    independent review this whole chain lacks -- the red-team report says so explicitly
+    in its own `task_id_note` and `required_controls`.
+  type: mischaracterized_residual_wrong_object_compared
+  supersedes: []
+  corrects:
+    - ledger/corrections/CORR-20260807-169c13.yaml
+  record_type: claim
+  record_id: CORR-20260807-169c13
+
+  field: >-
+    CORR-20260807-169c13 "additional_corrections" entry on KN-FIND-015's comparison
+    against MATZOV-2022's own headline numbers
+  prior_value: >-
+    "NOT CORRECTED -- ESCALATED. This gap of 6.3 / 10.3 / 16.0 bits is NOT explained by
+    the missing coded-dual stage, because the estimator class in question is documented
+    as implementing MATZOV Theorem 7.6 and is being compared against MATZOV's own
+    headline. Something else is responsible. Candidates, none investigated here: the
+    cost model passed to `short_vectors`, the `beta_sieve ~ beta` assumption the source
+    itself flags in a comment, or how success probability is charged. ... THIS is the
+    live question in the lattice lane."
+  corrected_value: >-
+    THE ESCALATION COMPARED THE WRONG OBJECT, AND THE "LIVE QUESTION" FRAMING IS
+    PREMATURE. `lattice-estimator` at the pinned commit contains THREE distinct paths that
+    "MATZOV Theorem 7.6" could refer to, and they are not interchangeable:
+
+    (1) `MATZOV` in `le_lwe_dual.py` -- a standalone class whose `cost()` classmethod is
+    literally docstring-labeled "Theorem 7.6" and is callable via the module-level
+    instance `matzov = MATZOV()` (line 689).
+
+    (2) `dual_hybrid` in `le_lwe_dual.py` -- the `DualHybrid`-class-based HYBRID attack
+    (guess some coordinates via a zeta-split, reduce the rest, then FFT-distinguish),
+    with an optional `fft=True` flag invoking [AC:GuoJoh21]'s FFT distinguisher. THIS is
+    what `dual_hybrid(fft=True)` names, and it is a related but DIFFERENT construction
+    from (1) -- a hybrid zeta-split-plus-FFT attack, not the direct guess-plus-FFT formula
+    Theorem 7.6 states.
+
+    (3) `dual_hybrid` in `le_lwe.py`'s `LWE.estimate` convenience API -- a THIRD naming
+    path that in fact ALIASES to (1): `from .lwe_dual import matzov as dual_hybrid`.
+
+    The prior correction's residual claim traced KN-FIND-015's actual reproduction script,
+    `experiments/EXP-MLKEM-015/implementation/reproduce_estimates.py` line 16, and it
+    imports `from estimator.lwe_dual import dual_hybrid` -- object (2), the HYBRID
+    construction, NOT object (1), the literal Theorem-7.6 object. The prior correction's
+    "not explained" framing implicitly assumed KN-FIND-015 had called object (1) and
+    failed to reproduce it; it had not made that call at all. Whether object (1) called
+    directly reproduces MATZOV-2022's headline (137.5/193.5/257.8) more closely than
+    object (2) does is UNCHECKED, not negative -- this correction narrows the claim to
+    "unchecked", it does not claim the gap is resolved.
+
+    THIS IS NOT YET RESOLVED. It cannot be resolved without SageMath, which remains
+    unavailable in this environment (the same blocker CORR-20260807-169c13 and
+    EXP-KDUAL-8f0b69 both name). The concrete unblocking step, once Sage is available:
+    call `estimator.lwe_dual.matzov(params)` directly for Kyber512/768/1024 and compare
+    its `log2(rop)` against 137.5/193.5/257.8. If the gap closes to near zero, the
+    "residual not explained" item was an object-naming confusion (`dual_hybrid+fft` vs
+    `matzov`), of exactly the same family the prior correction itself diagnosed for
+    Carrier's coded-dual attack -- not a live reproduction failure of a published cost.
+    If the gap persists against the literal Theorem-7.6 object, THEN the "live question"
+    framing is confirmed and should stand.
+
+  reason: >-
+    A correction that itself compares the wrong object and calls the resulting gap
+    "the live question in the lattice lane" is exactly the kind of overreach the rest of
+    this session has tried to guard against. The error was caught by an independent
+    review specifically tasked with pressure-testing this correction, not by the session
+    that wrote it -- which is the argument for having commissioned that review in the
+    first place, and is recorded here rather than quietly fixed, since the mistake and
+    the mechanism that caught it are both worth keeping visible.
+
+  evidence_artifacts:
+    - experiments/_reviews/redteam-report-20260807-followups.yaml
+    - experiments/EXP-MLKEM-015/implementation/reproduce_estimates.py
+    - experiments/EXP-KDUAL-8f0b69/runs/RUN-KDUAL-8f0b69-001/source/le_lwe_dual.py
+    - experiments/EXP-KDUAL-8f0b69/runs/RUN-KDUAL-8f0b69-001/source/le_lwe.py
+
+  caveat: >-
+    The identification of objects (1)/(2)/(3) above was independently re-read and
+    confirmed line-by-line by this session against the archived source in
+    `experiments/EXP-KDUAL-8f0b69/runs/RUN-KDUAL-8f0b69-001/source/le_lwe_dual.py` and
+    `le_lwe.py` before this correction was filed -- it is not taken on the red-team
+    report's word alone. The actual `matzov(params)` numeric comparison remains unrun.
