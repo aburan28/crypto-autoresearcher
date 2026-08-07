@@ -1,0 +1,114 @@
+hypothesis:
+  id: H-AES-5c1c01
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  proposal_id: IDEA-20260807-4ee607
+  statement: >-
+    The byte-coincidence rate of a two-round (r = 3, 4) AES-128 exchange /
+    mixture structure is fully explained by the slope-generic fibre-size
+    histogram of x -> S(x) + a*x taken over all 256 slopes a (with no
+    AES-specific bonus attributable to the particular MixColumns
+    coefficients): the ratio of measured coincidence rate to the rate
+    predicted from the frozen fibre histogram is 1.00 +/- resolution in both
+    an AES-MixColumns arm and an alternative-MDS arm, and the ratio between
+    the two arms equals the ratio predicted from their two respective fibre
+    histograms. For Inv itself (the S-box's non-affine core), the fibre
+    histogram is exactly the conic bound: max_b N(a,b) = 2 for every nonzero
+    slope a.
+  mechanism: >-
+    Graph(Inv) over GF(2^8) is the conic xy = 1 together with the origin, so
+    every GF(2^8)-line meets it in at most 2 points: N_Inv(a,b) =
+    #{x : Inv(x) + a*x = b} <= 2 for all a != 0. The AES S-box is L o Inv with
+    L a GF(2)-affine map, and L is the operative obstruction that lets the
+    fibre-size histogram of S(x) + a*x exceed the Inv conic's uniform bound
+    of 2 -- the same L-not-Inv boundary KN-FIND-028 Fact 2 establishes for
+    collinearity of difference vectors, here appearing on the map's graph
+    rather than on collinearity. Because the event "two branches of an
+    exchange or mixture structure coincide after one MixColumns-fed-forward
+    S-box" is exactly N(a,b) >= 2 with a a MixColumns coefficient, the
+    per-slope fibre histogram IS the exact per-byte coincidence law, and the
+    hypothesis is that the specific MixColumns coefficients {01,02,03} (and
+    their inverses {09,0b,0d,0e}) carry no special coincidence-inducing
+    property beyond what their position in the slope-generic histogram
+    already predicts.
+  assumptions:
+    - The alternative-MDS comparison arm (an invertible all-nonzero matrix
+      drawn from slopes at the fibre-histogram extremes, max = 8 and max = 4)
+      is a valid, non-AES-specific matched structure for isolating whether
+      MixColumns's particular coefficient choice matters, versus merely
+      whether AN MDS-like diffusion layer is present.
+    - The frozen Stage-0 fibre-histogram digest (computed once, exhaustively,
+      no AES query, standard library only) is treated as ground truth against
+      which both Stage-1 arms are compared; any discrepancy in the Stage-0
+      recomputation itself would be an instrument defect, not a finding about
+      AES.
+  proof_search_map:
+    not_applicable_reason: >-
+      The Inv-conic bound (N_Inv(a,b) <= 2) is an exact, elementary algebraic
+      fact about GF(2^8) inversion re-derivable in one line and used here only
+      as a known-answer gate, not as the object of a proof-search
+      decomposition; the hypothesis's substantive content (whether the
+      MixColumns coefficients are coincidence-generic) is empirical and
+      measured, not proved. docs/inventor-protocol.md section 8 machinery is
+      not invoked beyond that gate.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions: []
+  structural_ingredients: []
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: "measured/predicted byte-coincidence ratio, AES-MixColumns arm, r in {3,4}, 2^30 structures"
+      direction: different
+      minimum_effect: >-
+        1.00 +/- resolution (target band [0.9, 1.1] per the source entry's own
+        falsifier F9-a).
+    - metric: "measured/predicted byte-coincidence ratio, alternative-MDS arm, r in {3,4}, 2^30 structures"
+      direction: different
+      minimum_effect: "1.00 +/- resolution, same band as the AES arm."
+    - metric: "arm-A / arm-B ratio versus the ratio predicted from the two frozen fibre histograms"
+      direction: different
+      minimum_effect: "within 3 sigma of the fibre-histogram-predicted ratio (F9-b band)."
+    - metric: "known-answer gate: max_b N(a,b) for Inv, all nonzero a"
+      direction: different
+      minimum_effect: "exactly 2, with zero exceptions (the conic statement, exact and hard pass/fail)."
+    - metric: "known-answer gate: N(0,b) for S, all b"
+      direction: different
+      minimum_effect: "exactly 1 for every b (S is a bijection; 256 fibres of size 1)."
+  test_boundary:
+    instances: ["AES-128 with real MixColumns, and AES-128-shaped structure with an alternative all-nonzero invertible MDS matrix, at r in {3,4}"]
+    parameters:
+      stage0_slopes: 256
+      stage1_structures_per_arm: 1073741824  # 2^30
+      arms: [AES_MixColumns, alternative_MDS_extreme_slopes, PRP, r10_decay, random_bijective_S_box]
+      round_counts: [3, 4]
+    implementation: >-
+      Stage 0: exhaustive fibre-histogram build over all 256 slopes and 256
+      values, frozen and digested (2^16 operations, milliseconds). Stage 1:
+      two matched arms at r = 3, 4 with 2^30 structures each.
+    budget:
+      charged_operations_stage0: "256 * 256 = 2^16"
+      charged_operations_stage1_per_arm_round: "2^31 AES operations"
+      estimated_wall_clock_seconds: 240
+      note: "~30 s/core per (arm, round); 2 rounds x 4 arms ~= 4 core-minutes total, per the source entry's own charged-cost derivation. Memory < 10 MB."
+  falsification_conditions:
+    - "F9-a: measured/predicted outside [0.9, 1.1] in either arm -- the slope-local model does not govern the coincidence rate, and the residual is the finding."
+    - "F9-b: arm-A / arm-B ratio departs from the fibre-histogram prediction by more than 3 sigma -- the MixColumns coefficients are doing something the fibre law does not capture."
+    - "F9-c: the Inv gate returns any N > 2 -- instrument void (the conic statement is exact and its failure invalidates the run, not the mathematics)."
+  interpretation_limits:
+    - No claim of a break, key recovery against a fielded parameter set, or
+      any relation to published cryptanalysis in either direction. Ceiling
+      control, scoped exactly to AES-128 at r in {3,4} plus the r=1 exhaustive
+      S-box-level construction.
+    - The predicted outcome is explicitly a negative one ("MixColumns
+      coefficients are unexceptional"); the downstream experiment's
+      success_criterion must remain genuinely falsifiable in either direction
+      via F9-a/F9-b/F9-c and must not be worded so that the negative outcome
+      is the only reachable disposition.
+    - A confirmed negative here (ratio 1.00 in both arms) closes only the
+      question of whether THESE SPECIFIC MixColumns coefficients are
+      coincidence-special relative to the slope-generic law; it says nothing
+      about full-round AES or about any other diffusion-layer property.
+  status: proposed
+  proposed_by: idea-generator

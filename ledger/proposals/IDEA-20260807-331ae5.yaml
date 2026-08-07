@@ -1,0 +1,98 @@
+idea:
+  id: IDEA-20260807-331ae5
+  question_id: RQ-MLKEM-001
+  added: '2026-08-07'
+  title: >-
+    The XOF block-budget defect class in SampleNTT, bracketed by two
+    degenerate gates with analytically known outputs
+  class: control
+
+  claim: >-
+    FIPS 203 Algorithm 7 (SampleNTT) reads 3 XOF bytes at a time from SHAKE128
+    output, forms two 12-bit candidates per group, and accepts each iff it is
+    < q = 3329 (probability 3329/4096 = 0.812744), looping until 256
+    coefficients are accepted. A 168-byte SHAKE128 block yields 56 groups,
+    hence 112 candidates. An implementation that instead pre-squeezes a FIXED
+    number of blocks (a performance-motivated shape in hardware, constant-time
+    rewrites, or fixed-output XOF accelerators) silently produces a wrong
+    matrix entry Â_{i,j} on the tail of the distribution whenever fewer than
+    256 candidates were accepted. Exact binomial arithmetic gives P(3 blocks
+    short of 256 accepted) = P(Bin(336, 0.812744) < 256) = 0.0083276925 (i.e.
+    a fixed-3-block sampler is wrong on 0.83% of matrix entries), so the
+    per-key-generation detection requirement is P(>=1 wrong entry) =
+    0.032897 / 0.072501 / 0.125236 at ML-KEM-512/768/1024 (k^2 = 4/9/16
+    entries), giving 138 / 62 / 35 key generations for 99% detection power at
+    the three parameter sets. Two degenerate settings of the acceptance bound
+    (4096, accept everything, forcing detection rate exactly 0; 2048, p =
+    0.5, forcing detection rate exactly 1) bracket the instrument with
+    analytically known outputs on both sides. No implementation is named and
+    no defect is asserted to exist; a null (no implementation in the audited
+    neighbourhood uses a fixed block budget) is a legitimate
+    second_impl_unavailable-style disposition, not evidence that samplers are
+    correct. sota_delta 0.
+
+  mechanism: >-
+    This is a THIRD defect mechanism class distinct from comparison
+    truncation (GOAL-MLKEM-002's gate) and from decapsulation-key field
+    integrity (the M3-8 companion proposal): sampler budget, living in key
+    generation and encapsulation rather than decapsulation. The forced
+    numbers follow directly from the exact binomial tail P(k blocks suffice)
+    = P(Bin(112k, 0.812744) >= 256) with no simulation required; the
+    two-bracket construction (accept-everything and p = 0.5) gives exact
+    integer/analytic verdicts (0 and 1 respectively) that calibrate the
+    detection harness before any real-implementation number is read, which is
+    the same before-the-treatment-arm discipline used elsewhere in this
+    program (cf. the ordering_control pattern in EXP-MLKEM-bfdb63).
+
+  novelty_status: unverified
+
+  question_id: RQ-MLKEM-001
+  source_refs:
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/M3.md
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/DEDUP.md
+    - ledger/evidence/EV-MLKEM-007.yaml
+    - ledger/goals/GOAL-MLKEM-005.yaml
+    - ledger/questions/RQ-MLKEM-001.yaml
+
+  review_refs: []
+
+  disposition: proposed
+  disposition_note: >-
+    Initial ledger recording of a proposal that already passed an internal,
+    non-ledger idea-catalogue dedup pass and a red-team adversarial pass
+    (REDTEAM.md section 4c, "STRONGEST -- entries I could not break", item 3;
+    the binomial arithmetic -- 168 bytes -> 56 groups -> 112 candidates per
+    block, p = 3329/4096, P(short|3 blocks) = 0.0083277, n = 62 key
+    generations for 99% power at k = 3, and the two degenerate-gate exact
+    outputs -- was independently re-verified there). It has NOT yet had
+    independent ledger-level review (VAL-*/RT-* against a committed run), so
+    disposition is `proposed`, not accepted, and no experiment attached to it
+    may execute until separately approved.
+
+  interpretation_limits:
+    - >-
+      No implementation is named and no defect is asserted to exist; the
+      deliverable is a generator-power result for a named class with an exact
+      tail probability plus two bracketing degenerate gates, not a claim
+      about any deployed sampler.
+    - >-
+      If no implementation in the audited neighbourhood uses a fixed block
+      budget, the correct disposition is that the class is empty in that
+      neighbourhood, recorded exactly as second_impl_unavailable is recorded
+      elsewhere in this program, and never paraphrased as evidence that
+      samplers in general are correct.
+    - >-
+      This proposal does not touch and does not contradict GOAL-MLKEM-005's
+      proven convexity ceiling G <= log2 M; it concerns per-key-generation
+      sampler correctness at key-generation and encapsulation time, a
+      different mechanism class from best-of-M lattice attacks, and claims no
+      exponent-level or M-dependent gain.
+    - >-
+      The black-box variant (comparing ek rather than Â) loses per-entry
+      resolution, so the stated detection-power table applies to the
+      Â-visible variant only and must be recomputed (upward) before being
+      quoted for a black-box harness.
+
+  recorded_by: coordinator
+  recorded_at: '2026-08-07'

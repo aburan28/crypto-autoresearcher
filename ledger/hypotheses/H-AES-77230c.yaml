@@ -1,0 +1,128 @@
+hypothesis:
+  id: H-AES-77230c
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  proposal_id: IDEA-20260807-5ed21f
+  statement: >-
+    The AES-128 key schedule's permanent-zero bit-influence incidence set at
+    round r >= 5 (measured by MEAS-RT-D as a density of 0.78125 = 25/32 over
+    16384 cells) equals, cell for cell, a certified subset Z_pred computed
+    purely from GF(2)-linear algebra on the sigma-relaxed round-key variety
+    (the master-key-influence matrix A_K and the sigma-difference-influence
+    matrix A_sigma), with no reference to the S-box or to the Rcon sequence
+    anywhere in the computation: |Z_pred| = 3584 exactly for AES-128 at
+    r >= 5. Consequently, substituting a uniformly random 8-bit bijection for
+    the S-box (real wiring, real Rcon), or zeroing/shuffling Rcon (real
+    S-box, real wiring), leaves the measured zero-cell density at 0.78125
+    within the binomial sampling band at 200000 keys; the same predictor
+    reproduces AES-192's 0.8750 and AES-256's 0.78125 with no per-key-size
+    tuning.
+  mechanism: >-
+    The permanent-zero incidence set Z_r = {(b,b') : flipping master bit b
+    never flips round-key bit b' of RK_r} is a property of the key schedule
+    AS A FAMILY OF FUNCTIONS, invariant under relabelling and with 2^128
+    keys mapping to one Z_r. In the sigma-relaxed model, the flip
+    propagates as ΔRK = A_K e_b XOR A_sigma Δsigma, so a cell (b,b') is
+    certifiably permanently zero when (A_K)_{b',b} = 0 AND row b' of A_sigma
+    is zero on every sigma-coordinate that b can reach under a conservative
+    (over-inclusive) reachability relation; this construction yields
+    Z_pred subset-of Z_true by design, making the equality |Z_pred| = 3584
+    an informative, checkable claim rather than an assumed identity. Because
+    A_K and A_sigma are built without ever evaluating the S-box or adding
+    Rcon, the entire predicted zero set is, by construction, independent of
+    both -- MEAS-RT-D's own retracted symbolic derivation failed exactly
+    because an OR-based dependency closure cannot represent XOR
+    cancellation, so the zeros are cancellations rather than missing paths,
+    and this GF(2)-linear route is offered as the correct route through
+    exactly that failure.
+  assumptions:
+    - The conservative reachability relation used to build Z_pred (assuming
+      bit b reaches every sigma-step at or after its first reachable step) is
+      over-inclusive in the direction that keeps Z_pred subset-of Z_true; this
+      is stated as a design choice, not verified independently within this
+      hypothesis, and its correctness is exactly what the r=0 and r=1
+      known-answer gates test.
+    - >-
+      The A_K/A_sigma matrix construction is the same linear-algebra build
+      catalogue entry A2-1 specifies (dedup row 21: "SEQUENCE A2-1 first").
+      A2-1 is not a committed ledger record in this repository at the time of
+      this hypothesis; the downstream experiment must construct A_K/A_sigma
+      itself as an internal prerequisite stage, re-derivable from the AES-128/
+      192/256 key-schedule definitions alone, rather than citing an
+      unavailable upstream artifact.
+  proof_search_map:
+    not_applicable_reason: >-
+      The GF(2)-linear construction of Z_pred is exact algebra with a proved
+      containment direction (Z_pred subset-of Z_true by construction of the
+      reachability relation), but the hypothesis's decisive claim -- that the
+      containment is EQUALITY at r >= 5 for the measured key sizes, and that
+      the residual is S-box/Rcon-independent -- is tested empirically against
+      MEAS-RT-D's sampled density and the two substitution arms, not proved.
+      docs/inventor-protocol.md section 8 machinery is not invoked beyond the
+      construction argument itself.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions: []
+  structural_ingredients: []
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: "|Z_pred| for AES-128 at r >= 5"
+      direction: different
+      minimum_effect: "exactly 3584 (matching MEAS-RT-D's measured 3584/16384 = 0.78125 density)."
+    - metric: "measured zero-cell density, random-bijective-S-box substitution arm, real wiring, real Rcon, 200000 keys"
+      direction: different
+      minimum_effect: "0.78125 within +/- 3 binomial standard deviations at 200000 keys."
+    - metric: "measured zero-cell density, Rcon-zeroed substitution arm, real S-box, real wiring, 200000 keys"
+      direction: different
+      minimum_effect: "0.78125 within +/- 3 binomial standard deviations at 200000 keys."
+    - metric: "predictor applied to AES-192 and AES-256 with no per-key-size tuning"
+      direction: different
+      minimum_effect: "reproduces 0.8750 (AES-192) and 0.78125 (AES-256) respectively."
+    - metric: "known-answer gate: Z_0 (identity round)"
+      direction: different
+      minimum_effect: "exactly the 16256 off-diagonal cells of a 128x128 identity pattern, zero diagonal cells, in every arm."
+    - metric: "known-answer gate: r = 1 zero set for bits of W[0], W[1], W[2]"
+      direction: different
+      minimum_effect: "matches the hand-computable fixed-XOR-chain result exactly."
+  test_boundary:
+    instances: ["AES-128 key schedule", "AES-192 key schedule", "AES-256 key schedule"]
+    parameters:
+      keys_sampled: 200000
+      arms: [real_AES, random_bijective_S_box_real_wiring_real_Rcon, real_S_box_Rcon_zero]
+      rounds_examined: "all rounds of the schedule, r = 0 and r = 1 as known-answer gates, r >= 5 as the decisive comparison"
+    implementation: >-
+      Preprocessing: build A_K/A_sigma (128x128 bit matrices per round per
+      arm, reused not rebuilt across arms of the same key size). Sampler:
+      200000 keys x 128 flips x 11 rounds per arm (~2.8e8 key expansions per
+      arm), 3 arms. No plaintexts, no encryption, no oracle calls.
+    budget:
+      estimated_wall_clock_seconds: 1800
+      note: >-
+        Charged at roughly 10-30 minutes on 4 cores per the source entry's own
+        derivation, well inside a 1600 s task budget line; peak RSS under
+        100 MB.
+  falsification_conditions:
+    - "F2-a: |Z_pred| < 3584 and the residual cells are NOT reproduced by the random-S-box arm -- part of the zero set is a genuine S-box-specific cancellation, the sigma-relaxed explanation is incomplete, and the residual is a new object."
+    - "F2-b: |Z_pred| > 3584 -- the reachability relation is not conservative, i.e. the instrument is wrong, not the idea."
+    - "F2-c: the random-S-box arm's density differs from 0.78125 by more than +/- 3 binomial sd at 200000 keys -- the pattern is S-box-specific and the prediction is dead."
+    - "F2-d: the r = 0 gate fails in any arm -- instrument failure, nothing may be reported."
+  interpretation_limits:
+    - No claim of a break, key recovery against a fielded parameter set, or
+      any relation to published cryptanalysis in either direction. Ceiling
+      toy, scoped to the exact instrument, key sizes (128/192/256), sample
+      count (200000 keys) and seeds.
+    - This is a statement about the key schedule as a standalone algebraic
+      object over its full length, explicitly distinct from a statement about
+      the cipher at full round count (A2.md OL-2); it is not owned by and
+      does not touch GOAL-AES-002.
+    - An empirical density match within binomial bands over 200000 keys is
+      not a proof of exact S-box/Rcon independence and must not be reported
+      as one.
+    - The A2-1 sequencing dependency named in DEDUP.md row 21 is discharged
+      internally by this experiment's own prerequisite construction stage,
+      not by citing a separate committed A2-1 ledger record, because none
+      currently exists; this substitution is disclosed rather than silent.
+  status: proposed
+  proposed_by: idea-generator

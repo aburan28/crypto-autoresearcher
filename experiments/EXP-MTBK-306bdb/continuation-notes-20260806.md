@@ -245,3 +245,80 @@ Expanded high-cap coverage to the neighboring `b=0.22` setting:
 - Outcome: `75` cells, `lt=0`, `eq=4`, `gt=71`, `safe_lt=0`, `unsafe_lt=0`.
 
 Thus, `b=0.22` also shows no protocol-safe low-b improvement at high cap under this `m610` slice.
+
+### 2026-08-06 continuation: full `b=0.2` high-cap sweep (`m610`, `cap=500k`, seeds `1..15`)
+
+To close the final `b=0.2` frontier under the high-cap control:
+
+- `RUN-MTBK-20-lowb-1-5-b20-m610-cap500k-norho`
+  - Command: `python3 experiments/EXP-MTBK-306bdb/code/run_mtbk_full.py --frozen experiments/EXP-MTBK-306bdb/frozen-instances-20-lowb-1-5.yaml --run-suffix 20-lowb-1-5-b20-m610-cap500k-norho --out-root experiments/EXP-MTBK-306bdb --seeds 1,2,3,4,5 --cell-ms 6,7,8,9,10 --b-exps 0.2 --check-cap-std 500000 --check-cap-bkk 500000 --skip-rho`
+  - Outcome: `25` cells, `lt=0`, `eq=1`, `gt=24`, `safe_lt=0`, `unsafe_lt=0`.
+
+- `RUN-MTBK-20-lowb-6-10-b20-m610-cap500k-norho`
+  - Command: `python3 experiments/EXP-MTBK-306bdb/code/run_mtbk_full.py --frozen experiments/EXP-MTBK-306bdb/frozen-instances-20-lowb-6-10.yaml --run-suffix 20-lowb-6-10-b20-m610-cap500k-norho --out-root experiments/EXP-MTBK-306bdb --seeds 6,7,8,9,10 --cell-ms 6,7,8,9,10 --b-exps 0.2 --check-cap-std 500000 --check-cap-bkk 500000 --skip-rho`
+  - Outcome: `25` cells, `lt=0`, `eq=0`, `gt=25`, `safe_lt=0`, `unsafe_lt=0`.
+
+- `RUN-MTBK-20-lowb-11-15-b20-m610-cap500k-norho`
+  - Command: `python3 experiments/EXP-MTBK-306bdb/code/run_mtbk_full.py --frozen experiments/EXP-MTBK-306bdb/frozen-instances-20-lowb-11-15.yaml --run-suffix 20-lowb-11-15-b20-m610-cap500k-norho --out-root experiments/EXP-MTBK-306bdb --seeds 11,12,13,14,15 --cell-ms 6,7,8,9,10 --b-exps 0.2 --check-cap-std 500000 --check-cap-bkk 500000 --skip-rho`
+  - Outcome: `25` cells, `lt=1`, `eq=0`, `gt=24`, `safe_lt=0`, `unsafe_lt=1`.
+  - The single `lt` cell (`seed=14,m=8`) was timeout-affected (`std` descent timed out at the bkk-improving index `K*=4`), so it is protocol-unsafe.
+
+Combined full `b=0.2`, `m610`, `cap=500k` sweep over seeds `1..15`:
+
+- `n_total=75`, `n_lt=1`, `n_eq=1`, `n_gt=73`.
+- `n_safe_lt=0`, `n_unsafe_lt=1`.
+- No protocol-safe improvements (`K_star_bkk < K_star_std`).
+ 
+Conclusion: `b=0.2` remains protocol-negative under the same `m610`, timeout-hardened high-cap protocol checks; no safe candidate improvement emerged across all 75 cells.
+
+### 2026-08-07 continuation: full `b=0.15` `m610` high-cap-comparison sweep (`check_cap=100k`)
+
+To close whether low-b `b=0.15` had timeout-only artifacts, I completed three disjoint seed-tranche sweeps:
+
+- `RUN-MTBK-20-lowb-1-5-b15-m610-cap100k-norho`
+  - Command: `python3 experiments/EXP-MTBK-306bdb/code/run_mtbk_full.py --frozen experiments/EXP-MTBK-306bdb/frozen-instances-20-lowb-1-5.yaml --run-suffix 20-lowb-1-5-b15-m610-cap100k-norho --out-root experiments/EXP-MTBK-306bdb --seeds 1,2,3,4,5 --cell-ms 6,7,8,9,10 --b-exps 0.15 --check-cap-std 100000 --check-cap-bkk 100000 --skip-rho`
+  - Outcome: `25` cells, `lt=0`, `eq=24`, `gt=1`, `safe_lt=0`, `unsafe_lt=0`.
+  - `ratio_median=--` (`ratio_samples=0`).
+
+- `RUN-MTBK-20-lowb-6-10-b15-m610-cap100k-norho`
+  - Command: `python3 experiments/EXP-MTBK-306bdb/code/run_mtbk_full.py --frozen experiments/EXP-MTBK-306bdb/frozen-instances-20-lowb-6-10.yaml --run-suffix 20-lowb-6-10-b15-m610-cap100k-norho --out-root experiments/EXP-MTBK-306bdb --seeds 6,7,8,9,10 --cell-ms 6,7,8,9,10 --b-exps 0.15 --check-cap-std 100000 --check-cap-bkk 100000 --skip-rho`
+  - Outcome: `25` cells, `lt=0`, `eq=16`, `gt=9`, `safe_lt=0`, `unsafe_lt=0`.
+  - `ratio_median=1.0` (`ratio_samples=2`).
+
+- `RUN-MTBK-20-lowb-11-15-b15-m610-cap100k-norho`
+  - Command: `python3 experiments/EXP-MTBK-306bdb/code/run_mtbk_full.py --frozen experiments/EXP-MTBK-306bdb/frozen-instances-20-lowb-11-15.yaml --run-suffix 20-lowb-11-15-b15-m610-cap100k-norho --out-root experiments/EXP-MTBK-306bdb --seeds 11,12,13,14,15 --cell-ms 6,7,8,9,10 --b-exps 0.15 --check-cap-std 100000 --check-cap-bkk 100000 --skip-rho`
+  - Outcome: `25` cells, `lt=0`, `eq=20`, `gt=5`, `safe_lt=0`, `unsafe_lt=0`.
+  - `ratio_median=--` (`ratio_samples=0`).
+
+Combined across all three tranches (`1..15` seeds), this `m610`, `b=0.15`, `check_cap=100k` sweep gives:
+
+- `n_total=75`, `n_lt=0`, `n_eq=60`, `n_gt=15`.
+- `n_safe_lt=0`, `n_unsafe_lt=0`.
+- No protocol-safe `K_star_bkk < K_star_std` evidence emerged in this window.
+
+This does not yet include `cap=500k` for `b=0.15`, but it removes the seed-tranche ambiguity seen earlier from low-cap-only data: at `cap=100k`, the entire `m610` low-b tranche for `b=0.15` is strictly non-improving under timeout-safe controls.
+
+### 2026-08-07 continuation: full `b=0.15` `m610` high-cap-comparison sweep (`check_cap=500k`)
+
+To complete the same frontier at higher cap, I ran the remaining micro-sweeps and the matching seeded tranches:
+
+- `RUN-MTBK-20-lowb-1-5-b15-m6-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-1-5-b15-m7-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-1-5-b15-m8-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-1-5-b15-m9-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-1-5-b15-m10-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-2-5-m6-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-2-5-m7-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-2-5-m8-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-2-5-m9-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-2-5-m10-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-6-10-b15-m610-cap500k-norho`
+- `RUN-MTBK-20-lowb-11-15-b15-m610-cap500k-norho`
+
+Summary for the completed full `b=0.15`, `m610`, `cap=500k`, seeds `1..15` sweep:
+
+- `n_total=75`
+- `n_lt=0`, `n_eq=53`, `n_gt=22`
+- `n_safe_lt=0`, `n_unsafe_lt=0`
+
+No protocol-safe improvements were observed (`K_star_bkk < K_star_std` with timeout-safe controls remained 0 cells). This extends the 100k-comparison result to higher cap: `b=0.15` remains non-improving across the full tested 20-bit low-b low-exponent frontier.
