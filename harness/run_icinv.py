@@ -29,7 +29,7 @@ from . import isogeny_class as ic
 from . import exp_icinv as ex
 from .runner import RunResult, curve_id, write_run
 
-EXP_ICINV = "EXP-ICINV-180a0d"
+EXP_ICINV = "EXP-ICINV-9b1f7c"   # supersedes EXP-ICINV-180a0d (confounded sampler)
 EXP_INSTR = "EXP-INSTR-2d32ba"
 
 
@@ -141,7 +141,9 @@ def measure_class(recs, fb_m2: int, fb_m3: int, window: int, targets: int,
         E = rec.curve()
         fb2 = ex.factor_base_fixed_size(E, fb_m2)
         fb3 = ex.factor_base_fixed_size(E, fb_m3)
-        tg = ex._targets(E, targets, seed)
+        # UNIFORM sampler: the hash-and-lift sampler encodes #E and so
+        # confounds every between-class comparison (CORR-20260807-a05e1e).
+        tg = ex.targets_uniform(E, rec.order, targets, seed)
         h2, t2 = ex.decomposition_rate_m2(E, fb2, tg)
         h3, t3 = ex.decomposition_rate_m3(E, fb3, tg)
         out.append({
@@ -155,6 +157,10 @@ def measure_class(recs, fb_m2: int, fb_m3: int, window: int, targets: int,
             "s3_support": ex.s3_monomial_support(rec.p, rec.a, rec.b),
             "two_torsion_x": ex.two_torsion_x_count(rec.p, rec.a, rec.b),
             "full_liftable": len(ex.factor_base_window(E, rec.p)),
+            "eff_m2": ex.decomposition_efficiency(
+                h2 / t2 if t2 else float("nan"), rec.order, len(fb2), 2),
+            "eff_m3": ex.decomposition_efficiency(
+                h3 / t3 if t3 else float("nan"), rec.order, len(fb3), 3),
         })
     return out
 
@@ -313,7 +319,14 @@ def main(argv=None) -> int:
 
     # NULL-C: does the isogeny-class grouping carry information?
     perm = {}
-    for fn, key in (("decomp_rate_m2", "rate_m2"), ("decomp_rate_m3", "rate_m3"),
+    # NULL-C is run on the ORDER-NORMALISED efficiency, not the raw rate. A raw
+    # rate is ~ |mV| / #E and #E differs between classes by construction, so a
+    # permutation null on raw rates detects the group order and reports it as
+    # structure. Both are reported; only the efficiency rows are evidence.
+    for fn, key in (("decomp_efficiency_m2", "eff_m2"),
+                    ("decomp_efficiency_m3", "eff_m3"),
+                    ("decomp_rate_m2_RAW_confounded_by_order", "rate_m2"),
+                    ("decomp_rate_m3_RAW_confounded_by_order", "rate_m3"),
                     ("liftable_density", "liftable_density")):
         groups = {t: [r[key] for r in per_class[t]["rows"]]
                   for t in per_class}
@@ -321,10 +334,15 @@ def main(argv=None) -> int:
                                                   seed=args.seed)
         perm[fn] = {"observed_mean_within_variance": obs,
                     "null_mean": nullmean, "p_value": pval,
+                    "is_evidence": not fn.endswith("RAW_confounded_by_order"),
                     "interpretation":
-                        ("class grouping reduces within-group variance"
-                         if pval < 0.05 else
-                         "class grouping carries no detectable information")}
+                        (("class grouping reduces within-group variance"
+                          if pval < 0.05 else
+                          "class grouping carries no detectable information")
+                         + ("" if not fn.endswith("RAW_confounded_by_order") else
+                            " -- BUT THIS ROW IS NOT EVIDENCE: the raw rate is "
+                            "confounded by #E, which differs between classes by "
+                            "construction; read the efficiency row instead"))}
         print(f"\n NULL-C {fn}: obs={obs:.6g} null={nullmean:.6g} p={pval:.4f} "
               f"-> {perm[fn]['interpretation']}")
     # DECAY TEST: is the liftable-density class signal just the trace?
@@ -346,6 +364,9 @@ def main(argv=None) -> int:
     finished = time.time()
 
     raw = {"p": args.p, "params": vars(args), "census": census,
+           "target_sampler": "targets_uniform (multiples of a base point)",
+           "supersedes": "EXP-ICINV-180a0d, which used the confounded "
+                         "hash-and-lift sampler; see CORR-20260807-a05e1e",
            "per_class": per_class, "permutation_null": perm,
            "window_decay": decay, "decay_verdict": decay_verdict,
            "instrument_control_ref": EXP_INSTR}
