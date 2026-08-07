@@ -18,7 +18,7 @@ help:
 	@echo "verify (free, offline)"
 	@echo "  make check           everything below"
 	@echo "  make check-harness   config, role bindings, eval suites, dispatch"
-	@echo "  make check-ledger    ledger, run immutability, knowledge corpus"
+	@echo "  make check-ledger    ledger, run immutability, certificates, knowledge corpus"
 	@echo "                       (currently RED: some KN-LIT-* entries predating"
 	@echo "                        the tags requirement are missing 'tags')"
 	@echo "  make test            the full test suite"
@@ -70,6 +70,7 @@ check-harness:
 check-ledger: check-merge
 	$(PYTHON) tools/validate_ledger.py
 	$(PYTHON) tools/check_run_immutability.py
+	$(PYTHON) tools/verify_certificates.py
 
 # Absolute gate, and deliberately ordered first: conflict markers and
 # unparseable records make every check after this one meaningless. A record

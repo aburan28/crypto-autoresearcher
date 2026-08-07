@@ -57,8 +57,37 @@ Rules:
 - **`kind: none`** is used for pure measurement runs (e.g. recording Gröbner
   solving degree without claiming a solve); those have nothing to certify, and
   that is stated explicitly rather than left blank.
-- Certificates are stored in the run's `raw-result.json` and summarized in the
-  manifest's `result.certificate`. They are immutable like the rest of the run.
+- Certificates are stored in the run's `raw-result.json` (or, for
+  higher-volume runs, a per-run `certificates.json` batch of per-target
+  certificates) and summarized in the manifest's `result.certificate`. They
+  are immutable like the rest of the run.
+
+### CI enforcement
+
+`tools/verify_certificates.py` is the independent verifier this section
+requires, run as its own CI step (`.github/workflows/validate.yml`) and via
+`make check-ledger`. It shares no code with `harness/` or `src/` — a
+verifier built from the same curve-arithmetic module as a solver could not
+catch a bug in that module, which would defeat the point of independence.
+For every `discrete_log` and `decomposition` certificate found under
+`experiments/*/runs/` (in either on-disk format above) it recomputes `k*P`
+or the point sum from the statement's own `curve`/`P`/`Q`/`k` or
+`target`/`summands` fields and fails the build if the recomputation
+disagrees — regardless of what `certificate.verified` claims. This is
+stricter than the ledger schema check in `tools/validate_ledger.py`, which
+only confirms `certificate.verified is True` is present; it does not
+recompute anything, so a solver bug that writes `verified: true` over a
+wrong witness previously passed CI undetected.
+
+The tool also cross-checks that a manifest claiming a nonzero-count
+`discrete_log`/`decomposition` certificate is actually backed by a
+statement somewhere (a claim with no statement to check is exactly as
+unverifiable as a wrong one). Pre-existing unparseable run artifacts are
+grandfathered by exact path in `tools/verify_certificates_baseline.txt`,
+prune-only, on the same discipline as `tools/validate_ledger_baseline.txt`
+and `tools/merge_hygiene_baseline.txt` — a run artifact is immutable
+(AGENTS.md rule 4), so a listed file is repaired by superseding its `RUN`
+id, never by editing the file the baseline entry points at.
 
 ## Claim-tier ceiling
 
