@@ -337,12 +337,25 @@ DEVIATIONS_ALWAYS = [
                  "scoring Arm B later than Arm A0 requires either a second sum-set pass "
                  "(invalid) or holding every sum set in memory (about 1 GB at p=6007, against "
                  "a 4 GB cap)."),
-        "resolved_as": ("one shared pass per (curve, fb_size) scores every arm, and the "
-                        "baseline gate is evaluated and written BEFORE any Arm B statistic is "
-                        "computed, aggregated or reported. On a gate failure the run is "
-                        "written status invalid with the defect, no Arm B aggregate is "
-                        "produced, and the driver halts before any further prime."),
+        "resolved_as": ("one shared pass per (curve, fb_size) scores every arm. STATED "
+                        "EXACTLY, because an earlier wording of this deviation overstated "
+                        "it: the per-cell aggregates for every arm are computed inside the "
+                        "sweep, and the baseline gate is then evaluated and written BEFORE "
+                        "any Arm B statistic is READ, aggregated into a persistence or "
+                        "stratification verdict, or reported as an arm contrast. On a gate "
+                        "failure the run is written status invalid with the defect, the Arm "
+                        "B cell aggregates are dropped from the run record, NO persistence "
+                        "or stratification statistic is computed for that prime, and the "
+                        "driver halts. Raw per-curve hit counts for every arm are RETAINED "
+                        "(measurements are never discarded), and residual Arm B ratios "
+                        "remain visible in that run's tail-check material; they are not read "
+                        "as a verdict anywhere and the decision rule refuses to compute one "
+                        "for that prime."),
         "decided_before_any_measurement": True,
+        "wording_correction_note": ("runs written before this correction carry the earlier, "
+                                    "overstated wording in their manifests; the runs "
+                                    "themselves are unchanged and the behaviour described "
+                                    "here is what the code did in all of them"),
     },
     {
         "id": "D4",
@@ -369,6 +382,59 @@ DEVIATIONS_ALWAYS = [
                         "which are the quantities the metrics block defines as "
                         "variance_ratio_by_r_stratum."),
         "decided_before_any_measurement": True,
+    },
+    {
+        "id": "D7",
+        "severity": "material -- a stopping rule was not honoured in time",
+        "what": ("SR3 says that if the baseline-reproduction control fails, STOP. The "
+                 "stage-3 runs at p=6007 and p=2003 were launched in a single shell "
+                 "invocation, so the p=2003 run had already executed to completion before "
+                 "the p=6007 gate result could be read."),
+        "resolved_as": ("recorded, not hidden. RUN-ICINV-fg-primary-p2003 exists and is "
+                        "reported; it was executed after a gate failure that SR3 says should "
+                        "have stopped the experiment. It changes no verdict: the terminal "
+                        "state is INVALID on the p=6007 baseline failure whatever p=2003 "
+                        "shows. No stage-3 run was launched at any prime after the failure "
+                        "was read, except the p=6007 re-run required to correct DEF-2 in the "
+                        "very record that carries the failure."),
+        "decided_before_any_measurement": False,
+    },
+    {
+        "id": "DEF-1",
+        "severity": "defect in this Executor's code, corrected under new run ids",
+        "what": ("The first stage-2 runs (RUN-ICINV-fg-nullr-p2003/-p4001/-p6007) evaluated "
+                 "the baseline-reproduction control on the NULL-R class, where the contract "
+                 "defines it only for Arm A0 on the PRIMARY class, and so carry a misleading "
+                 "`gate_passed: false` for a comparison that was never asked for."),
+        "resolved_as": ("the gate now also requires class_role == 'primary'. The v1 records "
+                        "stay in the ledger; their MEASUREMENTS are unaffected and were "
+                        "verified bit-identical to the corrected runs' per-curve tables and "
+                        "cell aggregates at all three primes."),
+        "decided_before_any_measurement": False,
+    },
+    {
+        "id": "DEF-2",
+        "severity": "FABRICATED STATISTIC in this Executor's code (AGENTS.md rule 9), "
+                    "corrected under new run ids",
+        "what": ("The committed EV-ENDO-10109d per-row variance ratios were transcribed into "
+                 "this harness as float literals, and 22 of the 24 literals had FABRICATED "
+                 "low-order digits: only the two operating rows had been copied from a "
+                 "full-precision dump and the rest were filled in to plausible precision from "
+                 "a 4-decimal print."),
+        "resolved_as": ("the literals are deleted. `load_committed_baseline` now reads the "
+                        "values from the committed run records at run time and binds them by "
+                        "SHA-256, so there is no transcription step to get wrong. Every run "
+                        "written against the literals is superseded by a new run id and "
+                        "retained."),
+        "impact": ("NO GATE VERDICT CHANGED: the three baseline checks read only measured "
+                   "values and the contract's own stated targets 1.918 and 1.591. What was "
+                   "corrupted is the `committed_variance_ratio`, `delta_vs_committed` and "
+                   "`exact_match_with_committed` columns -- and the error UNDER-reported the "
+                   "reproduction: with the true values, Arm A0 at p=4001 matches the "
+                   "committed run at 13/13 rows with delta exactly 0.0, not 1/13. Runs at "
+                   "p=2003 are unaffected because that prime has no committed counterpart, "
+                   "so no committed value ever entered their artifacts."),
+        "decided_before_any_measurement": False,
     },
     {
         "id": "D6",
@@ -627,7 +693,7 @@ def cells_for(rows, arms, role):
 
 def baseline_reproduction(p: int, cells: dict, role: str, n_curves: int) -> dict:
     """Arm A0 against the committed EV-ENDO-10109d values, ROW BY ROW."""
-    committed = fg.COMMITTED_BASELINE_ROWS.get(p)
+    committed = fg.load_committed_baseline(p)
     rows = []
     by_fb = {}
     for fb in fg.FB_SIZES:
@@ -683,11 +749,21 @@ def baseline_reproduction(p: int, cells: dict, role: str, n_curves: int) -> dict
                               "not the object EV-ENDO-10109d measured; both are reported "
                               "here without a gate."),
         "committed_run_parameters": (None if not committed else
-                                     {"n_targets": committed["n_targets"],
+                                     {"run_id": committed["run_id"],
+                                      "source_path": committed["source_path"],
+                                      "source_sha256": committed["source_sha256"],
+                                      "n_targets": committed["n_targets"],
                                       "trace": committed["trace"],
                                       "order": committed["order"],
                                       "n_curves": committed["n_curves"],
-                                      "fb_sizes": sorted(committed["rows"])}),
+                                      "fb_sizes": sorted(committed["rows"]),
+                                      "monotonic_decay": committed["monotonic_decay"],
+                                      "operating_fb": committed["operating_fb"],
+                                      "operating_variance_ratio":
+                                          committed["operating_variance_ratio"]}),
+        "committed_values_provenance": (
+            "read at run time from the committed run record named above and bound by its "
+            "SHA-256; not transcribed into source (see DEF-2)"),
         "frozen_run_parameters": {"n_targets": fg.TARGET_COUNT_PRIMARY,
                                   "fb_sizes": fg.FB_SIZES},
         "parameter_mismatch_with_committed_run": (
@@ -937,7 +1013,12 @@ def load_run(run_id: str) -> dict:
 # MEASUREMENTS are unaffected and they remain in the ledger; the corrected
 # stage-2 runs carry a new id, which is the only way to correct an immutable
 # run record.
-NULLR_RUN_TAG = "nullr-v2"
+NULLR_RUN_TAG = "nullr-v3"
+# DEF-2 (fabricated committed-baseline literals, see exp_icinv_fullgroup
+# COMMITTED_BASELINE_RUNS): every run whose baseline-reproduction.json was
+# written against those literals is superseded. That is stage 2 v1/v2 at all
+# three primes and stage 3 v1 at all three primes; they stay in the ledger.
+PRIMARY_RUN_TAG = "primary-v2"
 
 
 def run_id_for(stage, p) -> str:
@@ -946,7 +1027,7 @@ def run_id_for(stage, p) -> str:
     if stage == 2:
         return f"RUN-ICINV-fg-{NULLR_RUN_TAG}-p{p}"
     if stage == 3:
-        return f"RUN-ICINV-fg-primary-p{p}"
+        return f"RUN-ICINV-fg-{PRIMARY_RUN_TAG}-p{p}"
     return "RUN-ICINV-fg-decision"
 
 
@@ -1010,6 +1091,16 @@ def evaluate_decision_rule(stage1s: dict, stage2s: dict, stage3s: dict) -> dict:
     key = f"seed={fg.SEED_PRIMARY}|T={fg.TARGET_COUNT_PRIMARY}"
     per_prime = {}
     for p, s in sorted(stage3s.items()):
+        if "persistence" not in s["data"]["raw"]:
+            per_prime[p] = {
+                "F_p": None, "binary": None, "yields_verdict": False,
+                "no_verdict_reason": (
+                    "SR3: this prime's Arm A0 failed the baseline-reproduction control, so "
+                    "the run halted and NO Arm B persistence statistic was computed. The "
+                    "arm contrast would be meaningless and is not reported as one."),
+                "baseline_checks": s["data"]["raw"]["baseline_reproduction"]["checks"],
+                "rows": []}
+            continue
         ps = s["data"]["raw"]["persistence"][key]
         per_prime[p] = {
             "F_p": ps["F_p"], "binary": ps["per_prime_binary"],
@@ -1034,7 +1125,7 @@ def evaluate_decision_rule(stage1s: dict, stage2s: dict, stage3s: dict) -> dict:
     aggregate = (None if len(verdicts) < 2 or (len(verdicts) == 2 and n_persist == n_collapse)
                  else ("PERSISTS" if n_persist > n_collapse else "COLLAPSES"))
 
-    s_positive_primes = [p for p, v in per_prime.items() if v["S_prime_positive"]]
+    s_positive_primes = [p for p, v in per_prime.items() if v.get("S_prime_positive")]
     S = ("POSITIVE" if len(s_positive_primes) >= fg.S_PRIME_COUNT else "NEGATIVE")
 
     if invalidations:
@@ -1055,7 +1146,7 @@ def evaluate_decision_rule(stage1s: dict, stage2s: dict, stage3s: dict) -> dict:
     # sensitivity, ALWAYS reported (never used to select a state)
     sensitivity = {}
     for p, s in sorted(stage3s.items()):
-        for k, ps in s["data"]["raw"]["persistence"].items():
+        for k, ps in s["data"]["raw"].get("persistence", {}).items():
             sensitivity.setdefault(k, {})[p] = {
                 "F_p": ps["F_p"], "binary": ps["per_prime_binary"],
                 "S_prime_positive": ps["S_prime_positive"],
@@ -1272,17 +1363,36 @@ def main(argv=None) -> int:
 
         else:                                            # decide
             missing = []
+            resolution = {}
             s1s, s2s, s3s = {}, {}, {}
             for p in fg.PRIMES_REQUIRED:
                 for stage, store in ((1, s1s), (2, s2s), (3, s3s)):
                     rid = run_id_for(stage, p)
                     if not os.path.exists(os.path.join(RUNS_ROOT, rid, "raw-result.json")):
+                        # DEF-2 superseded the stage-3 runs at the two primes where
+                        # the baseline gate applies. p=2003 has no committed
+                        # counterpart, so its baseline table never contained a
+                        # committed value and its v1 record is unaffected; SR3 had
+                        # already fired by then, so no v2 was generated for it.
+                        alt = (f"RUN-ICINV-fg-primary-p{p}" if stage == 3 else None)
+                        if alt and os.path.exists(os.path.join(RUNS_ROOT, alt,
+                                                               "raw-result.json")):
+                            store[p] = load_run(alt)
+                            resolution[f"stage{stage}|p={p}"] = {
+                                "used": alt, "preferred_missing": rid,
+                                "why": ("the preferred corrected record does not exist; "
+                                        "this prime has no committed baseline counterpart, "
+                                        "so DEF-2 never entered its artifact, and SR3 had "
+                                        "already fired when the correction was made")}
+                            continue
                         missing.append(rid)
                     else:
                         store[p] = load_run(rid)
+                        resolution[f"stage{stage}|p={p}"] = {"used": rid}
             if missing:
                 raise PreconditionRefusal(f"missing stage run records: {missing}")
             dec = evaluate_decision_rule(s1s, s2s, s3s)
+            dec["source_run_resolution"] = resolution
             raw = {"decision": dec,
                    "sources": {rid["run_id"]: {"path": rid["path"], "sha256": rid["sha256"]}
                                for store in (s1s, s2s, s3s) for rid in store.values()},
@@ -1307,9 +1417,15 @@ def main(argv=None) -> int:
             print(f"  aggregate persistence: {dec['aggregate_persistence']} "
                   f"{dec['majority_counts']}   stratification: {dec['stratification_verdict']}")
             for p, v in sorted(dec["per_prime"].items()):
+                if v.get("no_verdict_reason"):
+                    print(f"    p={p}: NO PERSISTENCE VERDICT -- {v['no_verdict_reason']}")
+                    continue
                 print(f"    p={p}: F_p={v['F_p']} -> {v['binary']} "
                       f"(rows {v['n_rows']}, inconclusive {v['n_inconclusive']}, "
                       f"S_positive={v['S_prime_positive']})")
+            for inv in dec["invalidations"]:
+                print(f"    INVALIDATION: {inv['rule']}"
+                      + (f" (p={inv['p']})" if "p" in inv else ""))
 
     except BaselineGateFailure as exc:
         status, valid = "completed_invalid", False

@@ -87,34 +87,59 @@ BASELINE_VR_BAND = (1.3, 3.6)
 BASELINE_OPERATING_TOLERANCE = 0.25
 BASELINE_COMMITTED_OPERATING_VR = {4001: 1.918, 6007: 1.591}
 BASELINE_PRIMES = [4001, 6007]
-# The committed EV-ENDO-10109d rows, read from
-#   experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-p4001-fixed/raw-result.json
-#   experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-p6007-fixed/raw-result.json
-# and transcribed here so `baseline-reproduction.json` is a row-by-row
-# comparison rather than a single scalar. NOTE, AND IT IS NOT A DETAIL: the
-# committed p=6007 run used T=500 and the factor-base grid
-# {5,6,7,8,9,10,11,12,14,17,21}, NEITHER of which is the grid this contract
-# freezes (T=400, {4,...,22}). Rows without a counterpart are reported as
-# having none; they are never silently aligned.
-COMMITTED_BASELINE_ROWS = {
-    4001: {"n_targets": 400, "trace": 30, "order": 3972, "n_curves": 138,
-           "rows": {4: 2.1030679850180666, 5: 1.9068143511250134,
-                    6: 2.0473906008527827, 7: 2.393577866756777,
-                    8: 1.9182028291085371, 9: 2.0054846150242,
-                    10: 2.3579506681872894, 11: 2.2477242789412374,
-                    12: 2.4770078203411916, 13: 2.297683516432952,
-                    15: 3.2087787456904895, 18: 3.5880846319074,
-                    22: 3.331686858316221},
-           "monotonic_decay": False, "operating_fb": 8},
-    6007: {"n_targets": 500, "trace": 8, "order": 6000, "n_curves": 140,
-           "rows": {5: 1.3204048255043845, 6: 1.5831929945532,
-                    7: 1.3469683062506494, 8: 1.5739226268073232,
-                    9: 1.5907407945357595, 10: 1.9827669252242545,
-                    11: 1.9005815131530494, 12: 2.163606225746478,
-                    14: 2.960461401278709, 17: 3.2372629838437,
-                    21: 2.675275434430607},
-           "monotonic_decay": False, "operating_fb": 9},
-}
+# The committed EV-ENDO-10109d runs, READ FROM THEIR OWN RUN RECORDS AT RUN TIME
+# and bound by SHA-256. They are deliberately NOT transcribed into this file.
+#
+# DEFECT DEF-2, DISCLOSED RATHER THAN REPAIRED IN SILENCE. The first version of
+# this module carried these rows as hardcoded float literals, and 22 of the 24
+# literals had FABRICATED low-order digits: only the two operating rows had been
+# copied from a full-precision dump, and the rest were filled in to plausible
+# precision from a 4-decimal print. That is a fabricated statistic under
+# AGENTS.md rule 9. It did not touch any gate verdict -- the three baseline
+# checks read only measured values and the contract's own stated targets 1.918
+# and 1.591 -- but it corrupted the `committed_variance_ratio`,
+# `delta_vs_committed` and `exact_match_with_committed` columns of
+# `baseline-reproduction.json`, and in particular under-reported the exactness of
+# the p=4001 reproduction. Every run written with the fabricated literals is
+# superseded by a new run id and retained. Reading the numbers from the record
+# removes the transcription step, and therefore this failure mode, entirely.
+COMMITTED_BASELINE_RUNS = {4001: "RUN-ICINV-p4001-fixed",
+                           6007: "RUN-ICINV-p6007-fixed"}
+COMMITTED_BASELINE_EXPERIMENT = "EXP-ICINV-55c2d8"
+
+
+def load_committed_baseline(p: int) -> dict | None:
+    """The committed EV-ENDO-10109d density sweep at p, from its own run record.
+
+    NOTE, AND IT IS NOT A DETAIL: the committed p=6007 run used T=500 and the
+    factor-base grid {5,6,7,8,9,10,11,12,14,17,21}, NEITHER of which is the grid
+    this contract freezes (T=400, {4,...,22}). Rows without a counterpart are
+    reported as having none; they are never silently aligned.
+    """
+    import json
+    import os
+    rid = COMMITTED_BASELINE_RUNS.get(p)
+    if rid is None:
+        return None
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(repo, "experiments", COMMITTED_BASELINE_EXPERIMENT,
+                        "runs", rid, "raw-result.json")
+    with open(path, "rb") as f:
+        blob = f.read()
+    d = json.loads(blob)["raw"]
+    return {
+        "run_id": rid,
+        "source_path": os.path.relpath(path, repo),
+        "source_sha256": hashlib.sha256(blob).hexdigest(),
+        "n_targets": d["n_targets"], "trace": d["target_trace"],
+        "order": d["order"], "n_curves": d["n_curves"],
+        "rows": {r["fb_size"]: r["variance_ratio"] for r in d["rows"]},
+        "mean_densities": {r["fb_size"]: r["mean_density_3V_over_order"]
+                           for r in d["rows"]},
+        "monotonic_decay": d["variance_ratio_decays_monotonically_with_density"],
+        "operating_fb": d["row_closest_to_operating_density"]["fb_size"],
+        "operating_variance_ratio": d["row_closest_to_operating_density"]["variance_ratio"],
+    }
 
 ARMS_PRIMARY_CLASS = ["A0", "A1", "B"]
 ARMS_NULLR_CLASS = ["A0", "A1", "B", "C"]
