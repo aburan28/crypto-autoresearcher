@@ -124,8 +124,15 @@ def arm_a_no_oracle(E: EllipticCurve, F: List[Point], m: int) -> Dict:
 
 
 def arm_b_x_oracle(E: EllipticCurve, F: List[Point], m: int) -> Dict:
-    """Arm B: x-oracle MITM."""
+    """Arm B: x-oracle MITM.
+
+    Yield denominator is |F|^m (the full enumeration space), per specification.
+    MITM reduces verification cost but the enumeration space is the same as
+    exhaustive search — this ensures cross-arm yield consistency.
+    """
     t0 = time.perf_counter()
+    F_size = len(F)
+    enumeration_space = F_size ** m  # |F|^m — spec-mandated denominator
 
     if m != 3:
         raise NotImplementedError("Only m=3 implemented")
@@ -172,7 +179,8 @@ def arm_b_x_oracle(E: EllipticCurve, F: List[Point], m: int) -> Dict:
     wall_clock = time.perf_counter() - t0
 
     return {
-        "tuples_enumerated": candidates_verified,
+        "tuples_enumerated": enumeration_space,  # |F|^m per spec
+        "candidates_verified": candidates_verified,  # secondary metric (MITM filtered)
         "relations_found": relations_found,
         "relations_verified": relations_found,
         "oracle_queries": oracle_queries,
@@ -185,8 +193,15 @@ def arm_b_x_oracle(E: EllipticCurve, F: List[Point], m: int) -> Dict:
 
 
 def arm_c_random_predictor(E: EllipticCurve, F: List[Point], m: int, seed: int) -> Dict:
-    """Arm C: random predictor MITM (run-matched with B)."""
+    """Arm C: random predictor MITM (run-matched with B).
+
+    Yield denominator is |F|^m (the full enumeration space), per specification.
+    MITM reduces verification cost but the enumeration space is the same as
+    exhaustive search — this ensures cross-arm yield consistency.
+    """
     t0 = time.perf_counter()
+    F_size = len(F)
+    enumeration_space = F_size ** m  # |F|^m — spec-mandated denominator
 
     if m != 3:
         raise NotImplementedError("Only m=3 implemented")
@@ -249,7 +264,8 @@ def arm_c_random_predictor(E: EllipticCurve, F: List[Point], m: int, seed: int) 
     wall_clock = time.perf_counter() - t0
 
     return {
-        "tuples_enumerated": candidates_verified,
+        "tuples_enumerated": enumeration_space,  # |F|^m per spec
+        "candidates_verified": candidates_verified,  # secondary metric (MITM filtered)
         "relations_found": relations_found,
         "relations_verified": relations_found,
         "oracle_queries": oracle_queries,
@@ -489,15 +505,32 @@ def main():
         std_delta = statistics.stdev(deltas) if len(deltas) > 1 else 0.0
         n = len(deltas)
         # 95% CI: mean ± t_{0.025, n-1} * std/sqrt(n)
-        # For n >= 30, t ≈ 1.96; for smaller n, use lookup
-        if n >= 30:
-            t_val = 1.96
-        elif n >= 10:
-            t_val = 2.262  # t_{0.025, 9}
-        elif n >= 5:
-            t_val = 2.776  # t_{0.025, 4}
+        # Use exact t-values for df = n-1. For n=40, df=39, t=2.023.
+        # NOTE: We use the t-distribution rather than the normal approximation
+        # (z=1.96) because n=40 is moderate and the t-distribution properly
+        # accounts for uncertainty in the variance estimate.
+        #
+        # Non-independence caveat: The 40 "cells" share the same curve per prime
+        # (4 primes × 10 cells each). Arms A and B are deterministic given the
+        # curve — only Arm C varies with seed. So the 5 seed replicates within
+        # a (prime, b) group are NOT fully independent for Arms A and B. The
+        # effective sample size for Δ is closer to 8 (4 primes × 2 b-values)
+        # independent groups, not 40. We report n=40 for transparency but flag
+        # this; the CI should be interpreted as descriptive, not inferential.
+        # For df=39: t_{0.025,39} = 2.023
+        t_table = {
+            3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365,
+            8: 2.306, 9: 2.262, 10: 2.228, 15: 2.131, 20: 2.086,
+            25: 2.060, 30: 2.042, 39: 2.023, 40: 2.021, 60: 2.000,
+            120: 1.980, 1000: 1.962,
+        }
+        df = n - 1
+        if df in t_table:
+            t_val = t_table[df]
         else:
-            t_val = 3.182  # t_{0.025, 3}
+            # Find nearest df in table
+            nearest = min(t_table.keys(), key=lambda k: abs(k - df))
+            t_val = t_table[nearest]
         se = std_delta / math.sqrt(n) if n > 0 else 0.0
         ci_low = mean_delta - t_val * se
         ci_high = mean_delta + t_val * se
@@ -595,10 +628,19 @@ def main():
         f"    mean: {round(mean_delta, 8) if deltas else 0.0}",
         f"    std: {round(std_delta, 8) if len(deltas) > 1 else 0.0}",
         f"    n: {len(deltas)}",
+        f"    df: {len(deltas) - 1 if deltas else 0}",
+        f"    t_critical: {t_val if deltas else 0.0}",
+        f"    t_statistic: {round(t_stat, 4) if deltas else 0.0}",
+        f"    se: {round(se, 8) if deltas else 0.0}",
         f"    ci_95_low: {round(ci_low, 8) if deltas else 0.0}",
         f"    ci_95_high: {round(ci_high, 8) if deltas else 0.0}",
-        f"    t_statistic: {round(t_stat, 4) if deltas else 0.0}",
         f"    statistically_significant: {significant}",
+        "    non_independence_note: >-",
+        "      Arms A and B are deterministic given the curve (seed-independent).",
+        "      Only Arm C varies with seed. The 5 replicates within each (prime, b)",
+        "      group share the same Arm A and Arm B values, so the effective sample",
+        "      size for Δ is closer to 8 independent groups (4 primes × 2 b-values)",
+        "      than 40. The CI is descriptive, not inferential.",
         "",
         "  per_arm_aggregates:",
     ]
