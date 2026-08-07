@@ -1,0 +1,568 @@
+idea:
+  id: IDEA-20260807-34754f
+  question_id: RQ-INSTR-f8faa0
+  added: '2026-08-07'
+  title: >-
+    THE CAMPAIGN'S ISOGENY-CLASS NULL, DEFINED: replace the free label-permutation
+    null with a nested variance-components design whose permutation is stratified
+    on the group order N and on the quadratic-twist pairing, because the campaign's
+    own committed run RUN-ICINV-p4001-a already shows the free permutation
+    reporting a 664x within-class variance reduction at W = p for a quantity that
+    is a deterministic function of N and the 2-torsion count
+  class: control
+
+  claim: >-
+    (A) THE INSTRUMENT AS BUILT. harness/exp_icinv.py::permutation_null pools the
+    measured values of every curve across the selected isogeny classes, shuffles
+    them freely, re-partitions them into groups of the SAME SIZES, and reports the
+    fraction of shuffles whose mean within-group variance is at or below the
+    observed one. harness/run_icinv.py calls it "NULL-C: does the grouping by
+    isogeny class carry any information?" and prints
+    "class grouping reduces within-group variance" whenever p < 0.05.
+
+    (B) WHY THE FREE PERMUTATION IS THE WRONG NULL, STATED AS ARITHMETIC AND NOT AS
+    AN OPINION. At fixed p an isogeny class is indexed by its trace t, and
+    N = #E(F_p) = p + 1 - t is CONSTANT within the class and DIFFERENT between
+    classes. Any functional that depends on N therefore has a between-class
+    component that has nothing to do with isogeny structure. A free permutation
+    mixes N values across the shuffled groups, so the null distribution of within-
+    group variance is inflated by exactly that component, the observed within-class
+    variance sits below it, and the test fires. The test is then detecting
+    "different classes have different group orders", which is the definition of an
+    isogeny class, not a discovery about it.
+
+    (C) THIS IS NOT HYPOTHETICAL; IT IS IN THE COMMITTED RUN. RUN-ICINV-p4001-a
+    (EXP-ICINV-180a0d, commit e34afdd0c3137c038042cae7c68495c700977afd) selected
+    traces 30, -30, 18, -18 at p = 4001 and measured the full-field liftable-x
+    density. Its own window_decay block at W = 4001 records
+    observed_mean_within_variance = 1.557881769803647e-08 against
+    null_mean = 1.0357263552475702e-05, a ratio of 1/664, with
+    permutation_p_value = 0.0. But the same run verifies the archived identity
+    #{x : x^3+ax+b is a square} = (#E(F_p) - 1 + z)/2 on every row
+    (_liftable_identity_holds: identity_verified), where z is the 2-torsion
+    x-count. Within a class #E is constant, so at W = p the functional is
+    (const + z)/2 and its within-class variance is exactly Var(z)/4; between
+    classes #E differs by up to 60 at these traces, so the between-class spread of
+    the count is up to 30. The 664x is the group order. It is not evidence of
+    anything.
+
+    (D) THE FIX IS A DESIGN, NOT A CORRECTION FACTOR. Three layers, each of which
+    can be checked separately:
+      LAYER 1 -- MAKE THE FUNCTIONAL N-FREE BY CONSTRUCTION WHERE POSSIBLE. The
+        factor base is already size-controlled (factor_base_fixed_size). Extend the
+        same discipline to the target population: decomposition_rate_m2 and _m3
+        already build the EXACT sum set, so the exact decomposition probability
+        |sums| / #E(F_p) is available at zero extra cost and the sampled-target
+        estimator can be dropped. Report both the rate (N-dependent) and the raw
+        count |sums| (N-free); the raw count is the primary quantity.
+      LAYER 2 -- NEST THE VARIANCE. The isogeny class is coarser than the
+        j-invariant, which is coarser than the F_p-isomorphism class, which is
+        coarser than the choice of Weierstrass model and factor-base offset.
+        Decompose
+          Var_total = V_between_class + V_between_j_within_class
+                      + V_between_model_within_j + V_within_model,
+        by measuring, for a fixed set of curves, (i) every curve of the class,
+        (ii) both twists of each j where they lie in the class, (iii) several
+        F_p-isomorphic models (u^4 a, u^6 b) of the same curve, and (iv) several
+        factor-base start offsets on the same model. V_between_class is
+        interpretable ONLY relative to the three levels beneath it: if
+        V_between_j_within_class is not larger than V_between_model_within_j, the
+        class explains nothing beyond the model.
+      LAYER 3 -- STRATIFY THE PERMUTATION. Permute class labels only within strata
+        matched on the nuisance covariates: (i) N, banded so that the band width is
+        below the measured within-class standard deviation of the functional; and
+        (ii) the quadratic-twist pairing, because class(t) and class(-t) consist of
+        the quadratic twists of one another and share |D| = t^2 - 4p, hence share
+        h(O) and hence share class size. RUN-ICINV-p4001-a exhibits this exactly:
+        two_torsion_x has variance 1.0053951126626468 in BOTH class 30 and class
+        -30 (n = 138 each) and 0.9896907216494846 in BOTH class 18 and class -18
+        (n = 98 each). Values that are structurally duplicated across paired groups
+        are not exchangeable, and a permutation null assumes exchangeability.
+
+    (E) WHICH NULL THIS PROPOSAL RECOMMENDS, AND WHY. RECOMMENDED: the
+    twist-block-stratified label permutation on an N-free functional (Layers 1+3),
+    with the nested decomposition (Layer 2) reported alongside it. Reasons, in
+    order. (i) It preserves the class-size profile automatically, because a
+    permutation of labels preserves the multiset of group sizes; the alternative
+    "curves from different classes with N of the same bit length" does not, since
+    class size is h(O) and varies by a factor of several across traces. (ii) At
+    fixed p a bit-length match is nearly vacuous, since every class has
+    N in [p+1-2sqrt(p), p+1+2sqrt(p)] and almost all of them share a bit length --
+    it controls for nothing that is not already controlled, while the actual
+    nuisance, the up-to-4sqrt(p) spread in N, survives it untouched. (iii) The
+    permutation gives an EXACT finite-sample null with no distributional
+    assumption, which the binomial null (NULL-B) does not. (iv) Blocking on the
+    twist pair removes the exchangeability violation that is visibly present in the
+    committed run. The bit-length-matched between-class comparison and the free
+    permutation are both still RUN AND REPORTED, as diagnostics: the gap between
+    the free and stratified permutation p-values IS the measure of N-contamination,
+    and reporting it is how the campaign shows its null is doing work.
+
+    (F) WHAT THIS DOES NOT CLAIM. It does not claim the L1 result is wrong. It
+    claims that the currently reported liftable-density signal is not yet
+    attributable to isogeny structure, and it supplies the design under which the
+    same measurement would become attributable. If the stratified permutation still
+    fires, that is a real and interesting result and this proposal will have made
+    it citable.
+
+  resource_label: 'audit: consumes no resource'
+  admissibility: admissible
+  admissibility_argument: >-
+    L14 mounts no attack and consumes no non-generic resource, so the Layer-0
+    filter of DECOMPOSITION.md section 2 does not apply to it: there is no oracle
+    to simulate and no claim about ECDLP cost. It instruments the R1/R2/R4
+    functionals of L1 and the R3/R4 stratification of L2. Nothing here is closed by
+    KN-FIND-b7e091 or H-ENDO-001 because nothing here asserts a group-operation
+    advantage of any kind.
+
+  discriminated_from:
+    - >-
+      harness/exp_icinv.py::permutation_null (NULL-C as committed). Same statistic,
+      different null: this proposal blocks the permutation on N and on the twist
+      pairing and adds the nested decomposition. The committed version is retained
+      and reported as the free-permutation diagnostic.
+    - >-
+      NULL-A as described in harness/exp_icinv.py's module docstring
+      ("between-class at matched N bit-length ... Controls for p but NOT for N ...
+      Reported, never used alone"). This proposal's point is that the SAME
+      criticism applies verbatim to NULL-C, which the docstring does not say, and
+      that bit-length matching is the weaker of the two available N controls.
+    - >-
+      harness/exp_icinv.py::binomial_null_verdict (NULL-B). NULL-B tests
+      over-dispersion of one class against sampling noise and needs no second
+      class; it cannot answer "does the class grouping carry information", which is
+      the question this proposal's null is for. The two are complementary, and
+      Layer 1 makes NULL-B degenerate for the decomposition counts by removing the
+      sampling step entirely.
+    - >-
+      IDEA-20260806-e4f96e's matched-random-system null. That matches a POLYNOMIAL
+      SYSTEM on shape; this matches a CURVE SET on group order and twist structure.
+      Different objects, same protocol obligation.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE VARIANCE COMPONENT ATTRIBUTABLE TO THE ISOGENY CLASS: the quantity
+      V_between_class in the four-level nested decomposition of a cost functional
+      over (class, j, model, factor-base offset).
+    lossiness: >-
+      GENUINELY LOSSY. It forgets the curve, the j-invariant, the model, the factor
+      base and every measured value, retaining one non-negative number per
+      functional. What it discards is discarded compatibly with the campaign's
+      operations: transport along an isogeny moves a curve within a class and so
+      cannot change V_between_class, while a change of Weierstrass model moves a
+      curve within the third level and so cannot change it either. The retained
+      part therefore propagates deterministically under exactly the two operations
+      L1 and L11 apply.
+    propagation: >-
+      Under adding curves to a class it converges (the class is finite and fully
+      enumerated, so it converges to the exact value). Under enlarging the pooled
+      set with new classes it changes, which is why the pool must be declared
+      before measurement. Under a change of functional it does not propagate at
+      all, which is why each functional carries its own decomposition.
+    survival_score: >-
+      Survives change of p, change of class, change of factor-base rule, and change
+      of model. Dies as soon as the functional is redefined, and dies silently if
+      the permutation is not stratified -- which is the failure this record
+      documents.
+
+  mechanism: >-
+    STEP 1 -- FREEZE THE POOL BEFORE MEASURING. Declare p, the trace-selection rule
+    and the number of control classes in the contract. Record the realized N spread
+    max(N) - min(N) over the pooled classes and the bound 4*sqrt(p): at p = 4001
+    the bound is 253 (6.3 percent of N) and the realized value at traces
+    {30,-30,18,-18} is 60 (1.5 percent). Note the selection confound explicitly:
+    run_icinv.pick_classes selects the LARGEST ordinary classes, and class size is
+    h(O), which is correlated with the arithmetic of D = t^2 - 4p and hence with
+    the 2-torsion structure that drives several functionals. Selection on class
+    size is not selection on the outcome, but it is not neutral either, and the
+    record must say so.
+
+    STEP 2 -- MAKE THE PRIMARY FUNCTIONALS N-FREE. Return |sums| from
+    decomposition_rate_m2 and _m3 alongside the hit count, and make the raw
+    sum-set size the primary quantity with the rate secondary. This removes the
+    binomial sampling variance entirely, which STRICTLY INCREASES the instrument's
+    power and therefore strictly increases the danger from an uncorrected N
+    confound -- a prediction this proposal makes explicitly in `predictions`.
+
+    STEP 3 -- BUILD THE NESTED DESIGN. For each curve in the target class, measure
+    the functional at R factor-base offsets on each of M F_p-isomorphic models
+    (u^4 a, u^6 b) for M declared values of u. Estimate the four variance
+    components by the standard nested (Type-I) sums of squares. Report all four,
+    always, in the same table.
+
+    STEP 4 -- STRATIFIED PERMUTATION. Partition the pooled curves into blocks: one
+    block per {t, -t} twist pair, sub-blocked by N band if more than two pairs are
+    pooled. Permute class labels WITHIN blocks only. Statistic: the size-weighted
+    mean within-group variance (weighting fixes the unequal-group-size bias the
+    committed unweighted mean carries). p-value estimator: (1 + #{v <= obs}) /
+    (1 + B), which cannot return 0 -- the committed estimator returns 0.0 at five
+    of six windows in RUN-ICINV-p4001-a, and 0.0 is not a valid p-value.
+
+    STEP 5 -- REPORT THE CONTAMINATION GAP. Publish free-permutation p, stratified
+    p, and the ratio of observed to null variance under both. The campaign's honest
+    headline is the pair, not either number alone.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      Commands run 2026-08-07 in /home/user/crypto-autoresearcher:
+      grep -ril "permutation null" ledger/ knowledge/ docs/ analysis/ ;
+      grep -ril "matched.{0,10}bit.?length|shuffle.{0,20}label" (rg -i) over the
+      repository ; direct reads of harness/exp_icinv.py, harness/run_icinv.py,
+      harness/isogeny_class.py, and the committed manifest and raw-result.json of
+      RUN-ICINV-p4001-a.
+    results: >-
+      Permutation nulls are widely used in this repository's prior work (matches in
+      research_goals_20260723.md, ideas/catalogue-20260805/A1-index-calculus.md,
+      inputs/idea_generation_20260718_batch6.md, and
+      analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md line 164 for
+      L5), so the technique is not new here. The committed NULL-C is a free
+      permutation. NO record in ledger/, knowledge/, docs/ or analysis/ states that
+      the free permutation is contaminated by the group order N, proposes blocking
+      on the quadratic-twist pairing, or gives a nested variance decomposition
+      below the class level. harness/exp_icinv.py's own docstring flags the N
+      problem for NULL-A and not for NULL-C.
+    verdict: adaptation
+  novelty_status_note: >-
+    ADAPTATION, and the adaptation is the blocking structure, not the permutation.
+    The quantitative demonstration that the confound is live at 664x in the
+    campaign's own committed run is, as far as this screen reaches, not recorded
+    anywhere in this repository. No claim of novelty against the external
+    statistics literature is made: stratified permutation and nested variance
+    components are textbook.
+
+  null_object_control: >-
+    MANDATORY AND SELF-REFERENTIAL, since this proposal IS a null design; the null
+    for the null is a NULL-OBJECT CLASS. Construct a set of curves at the same p
+    that is NOT an isogeny class but has the same size profile and the same N
+    spread: take the enumerated class, then relabel each curve with a synthetic
+    "class" drawn to match the true class-size multiset while forcing the synthetic
+    grouping to be independent of the trace. The stratified permutation must NOT
+    fire on this object at the declared level. DECAY PARAMETER: the number of
+    permutation blocks. As blocking becomes finer (from one block, i.e. the free
+    permutation, to one block per twist pair to one block per narrow N band), any
+    N-driven signal must DECAY monotonically toward the unblocked-nuisance level; a
+    signal that survives the finest blocking is the candidate real effect. A
+    reported signal that does NOT decay as blocking is refined is the canonical
+    artifact tell of docs/inventor-protocol.md section 3, and here it would mean
+    the nuisance is something other than N and has not yet been named.
+
+  assumptions:
+    - >-
+      Tate: two curves over F_p are F_p-isogenous iff they have the same trace.
+      Used to define the class; standard and not re-derived here.
+    - >-
+      Within a class N is exactly constant. Elementary, since N = p + 1 - t.
+    - >-
+      class(t) and class(-t) consist of quadratic twists of one another and have
+      equal size. The equal-size half is CONSISTENT WITH the committed run
+      (n = 138, 138, 98, 98 at traces 30, -30, 18, -18) and with h(O) depending on
+      t only through D = t^2 - 4p; it is stated here as a checkable prediction the
+      experiment must confirm, not as a quoted theorem.
+    - >-
+      The measured functionals' within-class distributions have finite variance and
+      the curves within a block are exchangeable under the null. The second half is
+      exactly what blocking is for and is itself tested by the null-object class.
+    - >-
+      Toy scale only: complete enumeration of every isomorphism class at p costs
+      O(p^2) character-sum work in harness/isogeny_class.py, so the design is
+      confined to p of order 2^12 to 2^14 in pure Python. At those p the largest
+      prime factor of N is around 12 bits, so NO functional measured here is an
+      attack cost at any scale that matters. This is a measurement about structure,
+      not about cost.
+
+  proof_search_map:
+    bottleneck: >-
+      The exchangeability argument. Everything else is bookkeeping; the null's
+      validity rests entirely on the claim that, under H0, curves within a block
+      are exchangeable with respect to the measured functional.
+    baseline_embedding:
+      parameter_slice: >-
+        p = 4001, traces {30, -30, 18, -18}, fb_m2 = 40, fb_m3 = 13, window = 400,
+        targets = 400, seed = 20260807 -- exactly the parameters of
+        RUN-ICINV-p4001-a.
+      reproduction_check: >-
+        Re-run the free permutation on that slice and reproduce
+        permutation_p_values {decomp_rate_m2: 0.538, decomp_rate_m3: 0.062,
+        liftable_density: 0.0005} and window_decay's six cells exactly. If the
+        committed numbers do not reproduce, the instrument question is an artifact
+        question and this proposal halts until the discrepancy is recorded.
+    observation_collision:
+      observable: >-
+        The stratified permutation p-value.
+      distinct_preimage_search: >-
+        REQUIRED. Find two pooled sets with the same stratified p-value, one where
+        the grouping is the true isogeny class and one where it is the synthetic
+        null-object class. A collision is expected and is the calibration: it fixes
+        the p-value's resolution at the campaign's sample sizes and is what makes
+        a non-significant result reportable as a bound rather than as "no effect".
+    quantifier_order: >-
+      Intended: FOR ALL declared functionals C, FOR ALL pooled sets S of complete
+      isogeny classes at a fixed p, THERE EXISTS a blocking B(S) such that the
+      permutation distribution of the within-group variance statistic under B is a
+      valid null for "class membership is independent of C given the block".
+      The dangerous weaker reading, NOT claimed: FOR ALL C THERE EXISTS S -- letting
+      the pooled set be chosen after seeing C. Step 1's freeze exists to forbid it.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At this p, on these completely enumerated classes, with these functionals,
+        class membership explains no variance beyond the block structure, down to
+        an effect of size delta*" -- where delta* comes from
+        IDEA-20260807-efc8de. It can NEVER certify exact invariance, and it can
+        never certify anything at a p it did not enumerate.
+      nearby_object_control: >-
+        The SYNTHETIC NULL-OBJECT CLASS (same sizes, trace-independent grouping).
+        A design that cannot distinguish the true class from it has not identified
+        the load-bearing structure and is measuring the size profile.
+    proof_obligations:
+      - claim: Within a class, N is exactly constant.
+        responsibility: correctness
+      - claim: class(t) and class(-t) have equal size and are twist-paired.
+        responsibility: correctness
+      - claim: The blocked permutation preserves the group-size multiset.
+        responsibility: soundness
+      - claim: The (1+r)/(1+B) estimator is a valid p-value.
+        responsibility: soundness
+      - claim: >-
+          The free-permutation result at W = p on RUN-ICINV-p4001-a is explained by
+          the N difference plus the archived liftable-count identity.
+        responsibility: baseline
+
+  predictions:
+    - metric: >-
+        stratified-permutation p-value for full-field liftable density on the
+        RUN-ICINV-p4001-a pool, versus the committed free-permutation p-value 0.0
+      direction: higher
+      minimum_effect: >-
+        The stratified p-value rises above 0.05. Pre-registered: if it stays below
+        0.05 after blocking on the twist pair AND on N, the signal is NOT the group
+        order and the campaign has a real target -- which would be the more
+        interesting outcome and is why this is worth running.
+    - metric: >-
+        ratio observed/null of within-class variance for full-field liftable
+        density, free permutation versus stratified permutation
+      direction: higher
+      minimum_effect: >-
+        From the committed 1/664 to within a factor of 2 of 1 under stratification.
+        A residual below 1/4 after full blocking would be a genuine class effect at
+        this p.
+    - metric: >-
+        V_between_j_within_class divided by V_between_model_within_j for each
+        functional
+      direction: different
+      minimum_effect: >-
+        Report per functional. Below 2 means the isogeny class explains nothing
+        beyond the Weierstrass model and the L1 lane's headline must say so.
+    - metric: >-
+        free-permutation p-value for the EXACT decomposition count |sums| (Layer 1,
+        no target sampling) versus for the sampled rate
+      direction: lower
+      minimum_effect: >-
+        THE COUNTERINTUITIVE ONE, PRE-REGISTERED SO IT CANNOT BE CLAIMED AFTERWARDS:
+        removing sampling noise should make the free permutation MORE significant,
+        not less, because the N confound is no longer masked by binomial noise. A
+        drop of the p-value toward 0 on the exact count while the stratified
+        p-value stays flat is direct confirmation that the free permutation is
+        measuring N.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute, hard gate): re-derive, on paper, that at W = p the
+      liftable count is (N - 1 + z)/2 and confirm against the committed
+      raw-result.json that mean-over-classes of Var(z)/4 equals the reported
+      full_field_liftable_within_class_count_variance. The arithmetic to check:
+      Var(z) = 1.0053951126626468 for traces +-30 and 0.9896907216494846 for
+      traces +-18, so the mean of Var(z)/4 over the four classes is
+      0.24938572928901642 against a reported 0.24938572928898783. If this does not
+      hold, the identity or the reporting is wrong and everything downstream waits.
+      STAGE 1 (minutes): re-run the free permutation on the frozen slice and
+      reproduce the committed p-values.
+      STAGE 2 (minutes): implement twist-pair blocking and the (1+r)/(1+B)
+      estimator; recompute. This single stage is the cheapest valid discriminator
+      between "the class carries information" and "the classes have different N",
+      because it changes ONE thing and needs no new measurement at all.
+      STAGE 3 (an hour): add the exact sum-set counts and re-run both permutations.
+      STAGE 4 (hours): the nested design at M = 3 models and R = 4 offsets on the
+      target class only.
+      STAGE 5 (zero compute): the synthetic null-object class through the identical
+      pipeline; it must not fire.
+    controls:
+      - synthetic null-object class matched on the class-size multiset
+      - free permutation retained and reported as the contamination diagnostic
+      - bit-length-matched between-class comparison, reported and explicitly
+        labelled as the weaker N control
+      - the isomorphism-model level of the nested design, as the noise floor
+    required_metrics:
+      - free and stratified permutation p-values per functional, with (1+r)/(1+B)
+      - observed and null within-group variance under both permutations
+      - realized N spread over the pool and the bound 4*sqrt(p)
+      - all four nested variance components per functional
+      - per-class size, trace, N, and Var(two_torsion_x) for the twist-pair check
+      - exact sum-set sizes |sums| for m = 2 and m = 3
+
+  falsification_conditions:
+    - >-
+      Stage 0's arithmetic fails: the reported full-field within-class variance is
+      not the mean of Var(z)/4. Then either the identity is false or the reporting
+      is mis-wired, and this proposal's diagnosis of the 664x is withdrawn.
+    - >-
+      Stage 1 does not reproduce the committed permutation p-values on the frozen
+      slice. Instrument instability; nothing is concluded.
+    - >-
+      The synthetic null-object class fires under the stratified permutation. The
+      blocking is wrong and no result may be reported from it.
+    - >-
+      class(t) and class(-t) do not have equal size at other p. The twist-pair
+      blocking loses its justification and must be replaced by explicit |D|
+      matching.
+    - >-
+      The stratified permutation still fires on the true classes at the declared
+      level after full blocking. This proposal's central claim -- that the current
+      signal is the group order -- is then FALSE, and the campaign has a genuine
+      within-class effect to chase. This is a real falsifier with a real
+      probability and it is the reason to run the test.
+
+  confounders:
+    - >-
+      SELECTION ON CLASS SIZE. pick_classes takes the largest ordinary classes;
+      class size is h(O), correlated with the arithmetic of D = t^2 - 4p and hence
+      with 2-torsion structure. Not selection on the outcome, but not neutral. The
+      remedy is to pre-register the trace list and to report results for a
+      size-randomly-selected pool as a secondary arm.
+    - >-
+      TWIST DUPLICATION. Several functionals are exactly twist-invariant (the
+      2-torsion x-count is, since x^3 + a d^2 x + b d^3 = d^3 f(x/d)), so their
+      values are duplicated across paired classes. Blocking handles it; ignoring it
+      inflates significance.
+    - >-
+      UNEQUAL GROUP SIZES. The committed statistic is an unweighted mean of
+      per-group variances over groups of sizes 138, 138, 98, 98, which weights the
+      small classes up. Size weighting is required.
+    - >-
+      p-VALUE FLOOR. With B = 1000 or 2000 permutations the estimator cannot
+      resolve below 1/(B+1); five of six committed windows report exactly 0.0. Any
+      multiplicity correction across lanes needs a finer B, which is
+      IDEA-20260807-caf061's problem.
+    - >-
+      SHARED SEED. All curves use the same target seed by design
+      (harness/exp_icinv.py::_targets), which is correct for removing a per-curve
+      degree of freedom but makes the per-curve measurements positively correlated
+      through the shared x-sequence. Layer 1 removes this entirely by dropping
+      sampling.
+
+  interpretation_limits:
+    - >-
+      Toy tier. p of order 2^12; the largest prime factor of N is around 12 bits.
+      Nothing here is an attack cost and nothing extends to medium or crypto scale.
+    - >-
+      A non-significant stratified permutation is a BOUND, not "no effect", and the
+      bound's size comes from IDEA-20260807-efc8de. Reporting it without that
+      number is an overclaim.
+    - >-
+      This governs the class-level null only. It says nothing about whether the
+      functionals measured are attack-relevant, which is L1's and L11's question.
+    - >-
+      Nothing here bears on H-STR-002 in either direction; no displacement rank,
+      relation matrix or phi-invariant factor base is measured.
+
+  reachability_gate: >-
+    NOT APPLICABLE AS AN ATTACK, and stated rather than omitted. This proposal
+    moves between curves only in the sense that it enumerates a class that is
+    already fully enumerated by harness/isogeny_class.py at toy p, at O(p^2) cost.
+    It proposes no walk, reaches for no specified curve, and therefore never
+    touches T5. If a within-class effect DID survive stratification, T5 would
+    immediately become binding on any attack reading of it, and this record does
+    not license skipping that gate.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED OR MOVED. Instrument cost: complete enumeration
+      is O(p^2) field operations in harness/isogeny_class.py; the nested design
+      multiplies the per-curve functional cost by M*R; the stratified permutation
+      is B evaluations of a variance over the pooled set, negligible beside the
+      measurement.
+    memory_exponent: >-
+      O(class size * M * R) floats, kilobytes at toy scale. The dominant memory is
+      the sum set in decomposition_rate_m3, O((2B)^2) points.
+    best_known: >-
+      For prime-field ECDLP: parallel Pollard rho with distinguished points at
+      0.886*sqrt(N) group operations and O(1) memory (KN-TECH-001, KN-TECH-006);
+      the automorphism-discounted variant on CM curves (KN-TECH-018); BSGS at
+      sqrt(N) time and sqrt(N) memory. None is changed by anything here.
+    hidden_overhead: >-
+      The O(p^2) enumeration is the hidden cost and it is the reason the design
+      lives at p around 2^12 to 2^14. At those sizes every "attack-cost functional"
+      is degenerate as an attack cost. This is disclosed here because it bounds
+      what the whole L1 lane can ever say from complete enumeration.
+    tradeoff_note: >-
+      Not applicable; no algorithm is produced. The only tradeoff is statistical:
+      finer blocking costs power, and the power lost is exactly quantified by the
+      minimum detectable effect of IDEA-20260807-efc8de.
+
+  dominated_by: >-
+    AS AN ATTACK: mounts none, so it is dominated on every axis by every row of the
+    prime-field frontier -- parallel rho at 0.886*sqrt(N) time and O(1) memory
+    (KN-TECH-001, KN-TECH-006), automorphism-discounted rho on CM curves
+    (KN-TECH-018), and BSGS at sqrt(N) time and sqrt(N) memory. Checked across
+    time, memory and data/queries; there is no axis on which this proposal
+    competes, because it computes no discrete logarithm.
+    AS AN INSTRUMENT: the incumbent is harness/exp_icinv.py::permutation_null as
+    exercised by RUN-ICINV-p4001-a. This proposal dominates it on VALIDITY (it
+    controls the one nuisance that is constant within a class and different between
+    classes by definition) and on REPORTING (a p-value that can be nonzero, and an
+    effect size beside it). It is dominated by the incumbent on COST -- the nested
+    arm multiplies measurement by M*R -- and on MATURITY, since the incumbent has a
+    committed run and this has none.
+  sota_delta: >-
+    Zero speedup against any attack baseline; no exponent moves. Instrument delta,
+    quantitatively: converts one uncontrolled permutation p-value into a pair
+    (free, stratified) plus a four-way variance decomposition; removes a nuisance
+    whose demonstrated magnitude in the committed run is a factor of 664 in the
+    observed-to-null variance ratio at W = p and whose bound at p = 4001 is a
+    6.3 percent spread in N (4*sqrt(p)/(p+1)) with a realized 1.5 percent at the
+    selected traces; replaces a p-value estimator that returned exactly 0.0 at five
+    of six windows with one that cannot; and eliminates the binomial sampling
+    variance of the decomposition rate (about 2.4e-2 in rate units at rate 0.35 and
+    400 targets) by computing the rate exactly.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.9 that Stage 0's arithmetic confirms the 664x is the group order plus the
+    2-torsion term -- the check is exact and I have already matched the reported
+    0.24938572928898783 to 13 significant figures against the mean of Var(z)/4 from
+    the same file. 0.75 that the stratified permutation raises the liftable-density
+    p-value above 0.05. 0.35 that the exact-count arm shows the predicted
+    counterintuitive drop, since it depends on the relative size of two effects I
+    have bounded but not measured. Roughly 0.2 that some functional survives full
+    stratification, which is the outcome worth the whole campaign.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json; all
+    126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-INSTR-f8faa0
+    - GOAL-ENDO-001
+    - analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+    - harness/exp_icinv.py
+    - harness/run_icinv.py
+    - harness/isogeny_class.py
+    - EXP-ICINV-180a0d
+    - RUN-ICINV-p4001-a
+    - EXP-INSTR-2d32ba
+    - RUN-INSTR-p4001-a
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-FIND-b7e091
+    - IDEA-20260806-e4f96e
