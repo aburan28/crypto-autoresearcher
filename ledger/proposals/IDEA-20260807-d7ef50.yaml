@@ -1,0 +1,145 @@
+idea:
+  id: IDEA-20260807-d7ef50
+  question_id: RQ-FIND-001
+  added: '2026-08-07'
+  title: The evidence schema has NO question_id field, so 49 EV-SSI-* records bear on RQ-SSI-001
+    and none can be traced to it; worse, the field that should carry linkage is misused -- two
+    evidence records put IDEA-* proposal ids in the hypothesis_id slot -- and every zero-evidence
+    count the program uses to choose its next batch inherits the error
+  class: tooling
+  claim: 'RQ-SSI-001 carries 22 proposals and, through GOAL-SSI-001, produced 49 EV-SSI-* records
+    across roughly 46 batches. A precomputed coverage scan nonetheless lists RQ-SSI-001 among
+    26 of 52 questions with ZERO evidence records. THE COUNT IS AN ARTIFACT OF THE SCHEMA, NOT
+    OF THE RESEARCH: `grep -l ''RQ-SSI-001'' ledger/evidence/*.yaml` returns nothing, because
+    the evidence template in templates/research-records.md has no question_id field at all and
+    only a handful of records carry one as an ad-hoc extension. The field that should carry linkage
+    is actively misused: EV-SSI-001 and EV-SSI-042 put `hypothesis_id: IDEA-20260725-001` and
+    `hypothesis_id: IDEA-20260729-001` -- PROPOSAL ids in a HYPOTHESIS slot -- while EV-SSI-0eb0b1,
+    EV-SSI-8aaad0 and EV-SSI-59f7a2 set hypothesis_id: null with a prose note. Those records were
+    HONEST about it (EV-SSI-0eb0b1''s hypothesis_note explains that naming a hypothesis ''would
+    invite exactly the inference the record disclaims'') but nothing was added in its place, so
+    the honesty cost the records their linkage entirely. There is no machine-followable path from
+    any conclusion in that campaign back to the question it bears on, which is what AGENTS.md
+    rule 6 and the /research-status skill depend on.'
+  mechanism: 'Add `question_id` (and optionally `goal_id`, already used ad hoc by EV-WESO-b6ceff)
+    to the evidence schema; make it REQUIRED; and have tools/validate_ledger.py check both that
+    it resolves and that any value in hypothesis_id matches ^H- rather than ^IDEA-. Backfill by
+    SUPERSESSION, never by edit -- run records and evidence records are immutable. The cheap first
+    move needs no schema change at all: emit a report listing every evidence record whose hypothesis_id
+    is null or non-H-prefixed, grouped by the question it actually bears on, which immediately
+    quantifies the damage and gives the backfill its work list.'
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-07'
+    grep_results:
+    - The evidence template has no question_id field; only a handful of records carry one ad hoc.
+    - The validator's REQUIRED list for evidence is [id, hypothesis_id, run_ids, direction, strength,
+      claim_tier, proof_status, proof_refs] -- no question linkage, and no type check on hypothesis_id's
+      prefix.
+    - DOCUMENTED_NULL_OK already permits a null hypothesis_id when a sibling note documents it,
+      which is the right accommodation for control and screening records but leaves them with
+      no linkage at all.
+    conclusion: Screened against ledger/proposals, ledger/hypotheses and knowledge/; external
+      novelty UNVERIFIED.
+  object_first_candidate:
+    established_families_off_limits: 'OFF-LIMITS: any research claim. This is harness work.'
+    tracked_object: The citation graph edge from an evidence record to the question it bears on.
+    one_step_propagation_rule: Each new evidence record adds one edge if the field is present
+      and required, and none if it is not.
+    newness_score: Zero as mathematics. It restores citability for ~49 records in one campaign
+      alone and removes a systematic false negative from every coverage count.
+  lossy_projection_identifiability_audit:
+    projection: an evidence record -> the question it bears on.
+    what_is_discarded: Everything else about the record.
+    is_it_only_a_change_of_coordinates: 'NO in the operative sense: the edge does not currently
+      exist, so adding it creates information rather than re-expressing it. Honest caveat: this
+      is infrastructure and produces no research finding.'
+    mirror_failure_check: 'CHECKED. The report must be able to come out empty. It will not: EV-SSI-001
+      and EV-SSI-042 are known to carry IDEA- ids in the hypothesis slot, so at least two rows
+      are forced.'
+  null_object_control:
+    primary_null: RUN THE REPORT ACROSS ALL 286 EVIDENCE RECORDS, not only the SSI campaign, and
+      report the per-campaign rate. If every campaign is equally affected the defect is schema-wide;
+      if only one is, it is a local practice problem and the fix is different.
+    secondary_nulls:
+    - 'FORCED ROWS: EV-SSI-001 and EV-SSI-042 must appear.'
+    - 'IMMUTABILITY GATE: no existing record is edited; corrections supersede (AGENTS.md rule
+      2).'
+  assumptions: []
+  predictions:
+  - metric: number of evidence records with null or non-H-prefixed hypothesis_id
+    direction: higher
+    minimum_effect: At least two are known; the report gives the true count and its distribution
+      across campaigns.
+  - metric: number of research questions whose true evidence count differs from their traceable
+      count
+    direction: higher
+    minimum_effect: RQ-SSI-001 alone is off by up to 49.
+  minimal_test:
+    design: Emit the report first (no schema change); then propose the schema addition and the
+      two validator checks; then backfill by supersession, campaign by campaign, starting with
+      the largest discrepancy.
+    controls:
+    - all-campaign scan as the discrimination null
+    - forced rows
+    - immutability gate
+    required_metrics:
+    - per-record linkage status
+    - per-campaign rate
+    - per-question true-versus-traceable evidence count
+  falsification_conditions:
+  - 'Only the SSI campaign is affected: the defect is local practice, and the fix is guidance
+    rather than schema.'
+  - 'All campaigns are affected: the schema is the cause and the addition is warranted.'
+  - 'The report is empty: the coverage scan that prompted this record was wrong and that is the
+    finding.'
+  confounders:
+  - Some evidence legitimately bears on no single hypothesis -- screening reviews, multi-lane
+    batch records, cost-model refinements -- and forcing a hypothesis id on them would reintroduce
+    exactly the inference those records disclaim. question_id is the right field precisely because
+    it can be answered honestly where hypothesis_id cannot.
+  - Backfilling by supersession creates new records, which changes counts again; state the convention.
+  interpretation_limits:
+  - This is infrastructure. It supports no mathematical claim.
+  - Schema changes to templates/research-records.md and to the validator are Coordinator-scope
+    changes and are proposed here, not made.
+  heuristic_assumptions:
+  - id: HEUR-LINK-1
+    statement: A required question_id is answerable for every evidence record, including control
+      and screening records.
+    rigorous_support: None; the accommodation may need a documented-null path like the existing
+      DOCUMENTED_NULL_OK mechanism.
+    validation_plan: The all-campaign report reveals how many records could not answer it.
+  target_complexity:
+    time_exponent: n/a
+    memory_exponent: n/a
+    best_known: n/a
+    hidden_overhead: n/a
+    tradeoff_note: n/a
+  dominated_by: n/a (no attack claimed); harness integrity.
+  sota_delta: ZERO. Restores citability for ~49 records in one campaign alone and removes a systematic
+    false negative from every zero-evidence count the program uses to decide where to spend its
+    next batch -- including the count that framed this session's own gap survey.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 0.99 that the report finds a material discrepancy, since two rows
+    are forced by inspection. 0.7 that the defect is schema-wide rather than local. 0.5 that a
+    schema change is adopted, which is a Coordinator decision this record cannot make.
+  source_refs:
+  - RQ-SSI-001
+  - EV-SSI-001
+  - EV-SSI-042
+  - EV-SSI-0eb0b1
+  - EV-SSI-59f7a2
+  - EV-SSI-8aaad0
+  - EV-WESO-b6ceff
+  - KN-FIND-030
+  discriminated_from:
+  - 'KN-FIND-030 (directory-scan ID allocation is not concurrency-safe): a different harness defect,
+    already fixed by tools/allocate_id.py. This one is about linkage, not allocation.'
+  status: proposed
+  proposed_by: idea-generator
+  id_allocation_provenance: minted 2026-08-07 with python3 tools/allocate_id.py --next idea --date
+    20260807 and confirmed free with --check before use; no state was scanned for a maximum
