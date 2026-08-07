@@ -1,0 +1,208 @@
+hypothesis:
+  id: H-RHO-bc6ea6
+  question_id: RQ-ECDLP-002
+  proposal_id: IDEA-20260806-37eab9
+  added: '2026-08-06'
+  statement: >-
+    For prime-field curves with the {+-1} automorphism, the negation-quotient
+    Pollard rho walk does NOT achieve its naive sqrt(2) gain, and the shortfall
+    is a measurable function of the fruitless-cycle escape rule: there exists a
+    threshold in the escape-rule parameter space at which the fully charged net
+    gain, measured in field multiplications against an un-quotiented Teske
+    r-adding baseline in the same harness, CROSSES 1.0 -- i.e. the negation map
+    becomes a net LOSS. The location of that threshold is the deliverable; the
+    hypothesis is that it exists inside the tested parameter range and that no
+    escape rule reaches 1.35x (the sqrt(2) target minus a 5 percent band).
+  mechanism: >-
+    The negation map identifies A with -A, so the walk runs on about N/2
+    classes and the birthday argument predicts a sqrt(2) reduction in steps.
+    Two effects eat that gain and they act in opposite places in the cost model:
+      (1) CYCLING. On classes, an r-adding step can map a class to its own
+          negation and back. For an r-branch adding walk the probability that a
+          step is immediately undone is about 1/(2r) per step -- DERIVED IN THIS
+          RECORD FROM THE BRANCH-COLLISION COUNT AND VERIFIED SYMBOLICALLY AT
+          STAGE 0, not quoted. Over the roughly sqrt(pi N / 4) steps of a
+          quotient walk this produces many short cycles, each of which halts
+          progress until detected and escaped. Without escape the walk is
+          absorbed and never terminates.
+      (2) ESCAPE COST AND WALK DISTORTION. Detection costs a comparison per step
+          or a periodic check; escape costs a modified step. Worse, escaping
+          perturbs the walk away from the ideal random map, which raises the
+          collision constant -- so the escape rule pays twice, once in
+          per-step arithmetic and once in the constant it degrades.
+    The hypothesis is that these two effects are jointly large enough to be
+    measurable and, for some escape rules in the tested space, large enough to
+    reverse the sign of the gain.
+  assumptions:
+    - >-
+      The generic square-root bound (KN-TECH-005) holds, so no exponent
+      movement is available and the entire hypothesis concerns a constant.
+    - >-
+      The comparison baseline is this program's recorded convention:
+      0.886*sqrt(n) group operations, van Oorschot-Wiener parallelisation
+      assumed, fully charged (KN-TECH-006).
+    - >-
+      The curve has Aut(E) = {+-1}. Curves with j = 0 or j = 1728 have larger
+      automorphism groups, different cycle structure, and are OUT OF SCOPE.
+    - >-
+      Costs are counted in F_p multiplications with the curve model named. Step
+      counts alone are not admissible as a comparison unit.
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical cost measurement. No theorem, asymptotic bound,
+      certificate family, reduction, or closure argument is proposed, so the
+      section-8 audits have no object to run against. The one derived quantity
+      (the 1/(2r) cycle rate) is verified symbolically at Stage 0 and is
+      recorded as a pre-registered prediction rather than as a proof obligation.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-RHO-1
+      formal_statement: >-
+        For an r-branch adding walk on the {+-1}-quotient of a prime-order
+        subgroup of size N, the per-step probability of entering a fruitless
+        2-cycle is 1/(2r) + O(1/N), independent of the starting class and of the
+        step index, uniformly over r in the tested range.
+      random_model_justification: >-
+        The branch index of a step is determined by a partition of the class
+        set; for a well-distributed partition the branch of the current class
+        and the branch of its image behave like independent uniform draws from r
+        values, so the probability that a step is immediately undone by the
+        negation is the probability of drawing the same branch, times the
+        one-half chance the class representative flips sign. This imitates the
+        standard random-map model already assumed by the baseline convention in
+        KN-TECH-006.
+      supporting_results:
+        - >-
+          Teske's r-adding walk analysis as recorded in KN-TECH-006 (well-chosen
+          r-adding walks reach the ideal random-walk constant), supplying the
+          random-map model this heuristic extends to the quotient.
+        - >-
+          The classical random-map collision law sqrt(pi N / 2), supplying the
+          step-count scale against which the cycle count is measured.
+      validation_experiment_ids: [EXP-RHO-60da4f]
+      falsification_condition: >-
+        Measured per-step fruitless-cycle rate differing from 1/(2r) by more
+        than a factor 2 at any tested r, or showing a dependence on N across the
+        three tested sizes. Either refutes HEUR-RHO-1; the escape-rule
+        comparison remains valid but its interpretation as "cycle rate drives
+        the shortfall" is withdrawn.
+    - id: HEUR-RHO-2
+      formal_statement: >-
+        The fully charged cost ratio of a quotient walk to the un-quotiented
+        baseline is independent of N above a threshold size, so a ratio measured
+        at N ~ 2^32, 2^40 and 2^48 transfers to cryptographic N.
+      random_model_justification: >-
+        The collision law fixes the sqrt(N) shape, so only a multiplicative
+        constant is at stake; the heuristic is that a specific walk's deviation
+        from the ideal is a size-independent constant rather than drifting. This
+        is how Teske's result is normally read, and this experiment measures it
+        rather than inheriting it.
+      supporting_results:
+        - >-
+          KN-TECH-006's baseline convention, which asserts a size-independent
+          constant.
+        - >-
+          KN-TECH-052 (fitting and extrapolating cost exponents from bounded
+          experiments), supplying the fitting discipline.
+      validation_experiment_ids: [EXP-RHO-60da4f]
+      falsification_condition: >-
+        A fitted drift term in the ratio versus log N that is significant at the
+        pre-registered band across the three sizes. Refutes HEUR-RHO-2 and caps
+        every reported constant to the exact size at which it was measured --
+        which would itself be a reportable finding about the baseline
+        convention.
+  structural_ingredients:
+    - description: >-
+        The {+-1} automorphism of a short-Weierstrass curve and the induced walk
+        on the quotient class set.
+      citation: KN-TECH-018 (endomorphism and automorphism speedups, GLV/GLS, negation)
+      role: supplies the sqrt(2) target and the cycle mechanism
+    - description: >-
+        Van Oorschot-Wiener parallel collision search with distinguished points,
+        which requires a MEMORYLESS walk; every escape rule tested must preserve
+        that property.
+      citation: KN-TECH-006 (parallel collision search and distinguished points)
+      role: constrains the admissible escape-rule space and fixes the baseline
+  reduction_chain:
+    core_problem: >-
+      The constant factor of the fully charged parallel rho baseline for
+      prime-field ECDLP.
+    corollaries: []
+  predictions:
+    - metric: net gain ratio of the best escape rule versus the un-quotiented baseline
+      direction: lower
+      minimum_effect: >-
+        Strictly below 1.35 at every tested size. A measured ratio at or above
+        1.35 refutes the hypothesis and means the negation map essentially
+        achieves its sqrt(2) target.
+    - metric: >-
+        existence of an escape-rule setting with net gain below 1.0
+      direction: different
+      minimum_effect: >-
+        At least one setting inside the tested parameter grid, at all three
+        sizes. Finding none within the grid does not refute the hypothesis
+        outright but caps it to "no sign change inside the tested range", which
+        must be reported in exactly those words.
+    - metric: per-step fruitless-cycle rate
+      direction: different
+      minimum_effect: >-
+        Within a factor 2 of 1/(2r) at every tested r, with no dependence on N.
+  test_boundary:
+    instances: >-
+      Randomly generated prime-field short-Weierstrass curves with prime-order
+      subgroups at three sizes, Aut(E) = {+-1}, j not in {0, 1728}, verified by
+      point counting before use.
+    parameters:
+      subgroup_sizes_log2: [32, 40, 48]
+      r_values: [4, 8, 16, 20, 32]
+      curve_model: Jacobian coordinates, named in every reported number
+      escape_rules:
+        - none (positive control; expected to be absorbed)
+        - deterministic_representative_break
+        - periodic_check_interval_k for k in {2, 4, 8, 16, 32}
+        - lookahead_double_step
+        - branch_reselect_on_collision
+      distinguished_point_bits: [8, 12, 16]
+    implementation: >-
+      Instrumented walk harness counting F_p multiplications, squarings and
+      inversions separately, with two independent implementations required to
+      agree on a frozen seed before any comparison is reported.
+    budget:
+      total_cpu_hours: 240
+      maximum_memory_gb: 8
+  falsification_conditions:
+    - >-
+      The harness fails to reproduce the KN-TECH-006 baseline convention within
+      the pre-registered band at all three sizes. Instrument failure; no
+      comparison may be reported.
+    - >-
+      The no-escape control does NOT become absorbed in fruitless cycles. The
+      cycle mechanism as modelled is wrong and the whole hypothesis is
+      withdrawn by a superseding record.
+    - >-
+      Any escape rule achieves net gain at or above 1.35 at all three sizes.
+      The hypothesis is refuted: the negation map does achieve its target.
+    - >-
+      An escape rule is found that violates memorylessness yet is scored as a
+      winner. A design error, not a result -- such a rule cannot be used with
+      van Oorschot-Wiener parallelisation and must be excluded before scoring.
+  interpretation_limits:
+    - >-
+      Constant factors only. Nothing here touches the exponent, which is fixed
+      by KN-TECH-005.
+    - >-
+      Scoped to the named curve model, the tested sizes, the enumerated escape
+      rules and the stated charging convention. A different curve model changes
+      per-step costs by a factor of two to three and can reverse any conclusion.
+    - >-
+      Toy-to-medium scale. HEUR-RHO-2 is what would carry a constant to
+      cryptographic size, and this experiment tests it rather than assuming it;
+      if it fails, every reported constant is scoped to its own size.
+    - >-
+      Curves with extra automorphisms are out of scope and no statement is made
+      about them.
+  status: specified
+  proposed_by: idea-generator
+  specified_by: coordinator
+  specified_at: '2026-08-06'
