@@ -14,23 +14,79 @@ analysis:
     b_values: [0.4, 0.5]
     seeds: [1, 2, 3, 4, 5]
 
+  pseudo_replication_structure:
+    description: >-
+      Arms A and B are deterministic given the curve parameters (prime, b);
+      they do not vary with seed. Only Arm C (random predictor) varies with
+      seed. Therefore, within each (prime, b) group, the 5 cell-level deltas
+      are NOT independent — they share identical Y_A and Y_B values. The
+      correct unit of analysis is the group mean (n=8 groups: 4 primes × 2
+      b-values), not the cell-level value (n=40).
+    total_cells: 40
+    independent_groups: 8
+    grouping_factors: [prime, b]
+    group_keys:
+      - {prime: 101, b: 0.4}
+      - {prime: 101, b: 0.5}
+      - {prime: 103, b: 0.4}
+      - {prime: 103, b: 0.5}
+      - {prime: 107, b: 0.4}
+      - {prime: 107, b: 0.5}
+      - {prime: 211, b: 0.4}
+      - {prime: 211, b: 0.5}
+    group_means:
+      - {prime: 101, b: 0.4, mean_delta: 0.0148148148}
+      - {prime: 101, b: 0.5, mean_delta: 0.0077000000}
+      - {prime: 103, b: 0.4, mean_delta: 0.0184027778}
+      - {prime: 103, b: 0.5, mean_delta: 0.0120750000}
+      - {prime: 107, b: 0.4, mean_delta: 0.0252314815}
+      - {prime: 107, b: 0.5, mean_delta: 0.0084500000}
+      - {prime: 211, b: 0.4, mean_delta: 0.0023703704}
+      - {prime: 211, b: 0.5, mean_delta: 0.0071127369}
+
   overall_delta:
-    mean: 0.01201965
-    std: 0.00690898
-    n: 40
-    df: 39
-    t_critical: 2.023
-    t_statistic: 11.0029
-    se: 0.00109241
-    ci_95_low: 0.00980971
-    ci_95_high: 0.01422959
-    statistically_significant: True
-    non_independence_note: >-
-      Arms A and B are deterministic given the curve (seed-independent).
-      Only Arm C varies with seed. The 5 replicates within each (prime, b)
-      group share the same Arm A and Arm B values, so the effective sample
-      size for Δ is closer to 8 independent groups (4 primes × 2 b-values)
-      than 40. The CI is descriptive, not inferential.
+    # Grand mean is identical under both analyses (0.01201965) because
+    # balanced groups (5 cells each) make the grand mean equal to the
+    # mean of group means.
+
+    # --- NAIVE (incorrect): treats 40 cells as independent ---
+    naive:
+      n: 40
+      df: 39
+      mean: 0.01201965
+      std: 0.00690898
+      se: 0.00109241
+      t_statistic: 11.0029
+      t_critical: 2.0227
+      ci_95_low: 0.00981004
+      ci_95_high: 0.01422926
+      p_value: 1.5965e-13
+      statistically_significant: True
+      validity: INVALID_pseudo_replication
+
+    # --- CORRECTED: uses 8 group-level means as independent units ---
+    corrected:
+      n: 8
+      df: 7
+      mean: 0.01201965
+      std: 0.00728698
+      se: 0.00257634
+      t_statistic: 4.6654
+      t_critical: 2.3646
+      ci_95_low: 0.00592764
+      ci_95_high: 0.01811166
+      p_value: 2.2999e-03
+      statistically_significant: True
+      validity: VALID
+
+    conclusion: >-
+      The x-oracle advantage (Δ = Y_A − Y_C > 0) is statistically significant
+      under the corrected analysis (t(7) = 4.665, p = 0.0023). The naive
+      analysis overstates precision by a factor of ~2.4 in SE (0.00109 vs
+      0.00258) and understates the CI width by the same factor, but the
+      qualitative conclusion is unchanged: the oracle-assisted arms
+      consistently outperform the random predictor across all tested
+      (prime, b) configurations.
 
   per_arm_aggregates:
     Y_A:
