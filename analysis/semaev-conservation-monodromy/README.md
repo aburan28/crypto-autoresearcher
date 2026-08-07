@@ -5,8 +5,8 @@ or cryptographic claim is made by this directory.
 
 This dossier narrows the proposed paper to one theorem package:
 
-> For a nonsingular short-Weierstrass elliptic curve in characteristic greater
-> than three, the generic one-variable Semaev polynomial is a signed-sum Kummer
+> For a nonsingular short-Weierstrass elliptic curve in characteristic zero
+> or greater than three, the generic one-variable Semaev polynomial is a signed-sum Kummer
 > cover. Its splitting field is the fixed field of simultaneous sign reversal,
 > its monodromy is the regular elementary abelian group
 > \((C_2)^{m-2}\), and its finite-field specializations obey an all-or-nothing
