@@ -1,0 +1,296 @@
+experiment:
+  id: EXP-AES-442a7f
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-AES-42c479
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  batch_id: null
+  assigned_to: executor
+  title: >-
+    Review-required contract: across-key overdispersion phi = Var_K(N)/E_K(N)
+    of the CAND-ND-1 truncated-differential hit count, AES-128, r in
+    {3,4,5,6,10}, three-point M scaling plus known-answer gates A/B
+
+  objective: >-
+    If separately approved, frozen and authorized: reuse the CAND-ND-1
+    inverse-ShiftRows-diagonal collision readout to measure, per key, the
+    truncated-differential hit count N over M pairs, accumulate the
+    across-key overdispersion index phi = Var_K(N)/E_K(N) at m = 2^12 keys and
+    M in {2^16, 2^18, 2^20}, at round counts r in {3,4,5,6,10}, alongside a
+    matched-PRP (independent-round-keys) arm and a fixed-key resampling arm
+    with disjoint pair seeds. This contract is an instrument design and a
+    pre-execution declaration. No run has happened.
+
+  what_this_is_not:
+    - Not an attack on AES, not a key recovery, not a distinguisher
+      certificate, and not a claim about full-round or deployed AES.
+    - Not a claim about AES-192 or AES-256; those key sizes are explicitly an
+      open gap named by the source proposal and are not measured here.
+    - Not a relation to any named baseline mechanism, published attack, or
+      the published state of the art in either direction.
+    - Not an approval, a freezing, an execution authorization, a run, an
+      observation, or evidence.
+
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: >-
+      TOY ONLY. A completed run could support, at most: (1) that phi - 1 is
+      positive at r = 5 and r = 6 for at least M = 2^20, and that the excess
+      scales approximately linearly across M in {2^16, 2^18, 2^20} at
+      m = 2^12 keys, AES-128, using the specific CAND-ND-1 readout; (2) that
+      the r = 3 known-answer gate reads phi = 0.000 exactly; (3) that the r =
+      4 count is identically 0 for every key, correctly flagged as
+      degenerate; (4) that the matched-PRP arm reads phi = 1.000 within its
+      theoretical band. NOTHING ELSE. No outcome may be quoted as a hull
+      distinguisher, a key-recovery precursor, an exponent, a crypto-scale
+      result, or a statement about deployed AES.
+
+  inputs:
+    cipher: "AES-128, real key schedule"
+    round_counts: [3, 4, 5, 6, 10]
+    m_keys: 4096
+    M_pairs_per_key: [65536, 262144, 1048576]
+    readout: "CAND-ND-1: collision on the inverse-ShiftRows-diagonal CW[j], reused code path shared with its already-verified deterministic r=4 behavior"
+    seeds:
+      master_seed: 4427921
+      domain: "EXP-AES-442a7f/v1"
+      seed_derivation_rule: >-
+        ASCII bytes of domain || "|" || label || "|" || decimal(round) || "|"
+        || decimal(M) || "|" || decimal(key_index) || "|" || decimal(counter),
+        hashed with SHA-256; digest interpreted big-endian unsigned, keys and
+        pair inputs derived by rejection sampling. Labels are exactly one of
+        {"key", "pair-plain-a", "pair-plain-b"}. This rule reproduces every
+        instance bit-for-bit from (master_seed, domain, label, round, M,
+        key_index, counter) and nothing else.
+    counting_convention:
+      per_key_hit_count: "N = number of pairs, out of M, whose CAND-ND-1 collision fires"
+      streaming_variance: "Welford's online algorithm across the m keys of one (round, M) cell; no numpy"
+      memory: "one 64-bit counter per key, under 1 MB"
+
+  arms_and_controls:
+    treatment: >-
+      Real-key-schedule AES-128 arm. Per (round, M) cell: m = 4096 keys, M
+      pairs per key, CAND-ND-1 hit count N per key, phi computed across the
+      4096 per-key counts.
+    matched_prp_arm: >-
+      Independent-round-keys arm (11 independently drawn round keys per
+      "key" instead of one AES-128 key schedule), identical readout and
+      counting convention. KNOWN-ANSWER GATE B: must read
+      phi = 1.000 +/- 3*sqrt(2/(m-1)) = 1.000 +/- 0.066 at m = 4096.
+    fixed_key_resampling_arm: >-
+      One fixed key, disjoint pair seeds, repeated 4096 times to build a
+      within-key sampling-variance reference. REQUIRED to separate across-key
+      variance from within-key sampling variance, without which phi is
+      uninterpretable; reported alongside every (round, M) cell.
+    r10_decay_arm: >-
+      Round count 10 (still reduced-round, NOT full-round AES-128's 10
+      physical rounds re-labelled as a full-round claim -- stated explicitly
+      because r=10 is the campaign's canonical decay/artifact-tell round
+      within the reduced-round harness). phi expected to show no linear-in-M
+      hull signature surviving decay; a non-decaying phi at r=10 is treated
+      as an artifact tell per RQ-AES-001 null-object-control discipline.
+    known_answer_gate_a: >-
+      r = 3, diagonal input difference. The statistic saturates by derivation
+      (D6), so the count is key-independent and phi MUST read exactly 0.000
+      -- no variance at all. A nonzero phi at r = 3 is an instrument fault and
+      voids the session (no other round may be reported in that run).
+    known_answer_gate_b: >-
+      Matched-PRP arm, m = 4096: phi = 1.000 +/- 0.066 (see matched_prp_arm
+      above).
+    degenerate_flag_gate: >-
+      r = 4: the count is exactly 0 for every key, so phi is the
+      indeterminate form 0/0. The instrument MUST emit an explicit degenerate
+      flag, NOT a number. This is exactly the failure mode that produced the
+      withdrawn influence-density closure named in the source catalogue, and
+      it is trapped by construction here.
+    ordering_control: >-
+      Known-answer gates A and B, and the r=4 degenerate-flag check, are
+      evaluated and committed BEFORE the r=5/r=6 treatment cells are read. If
+      either gate fails, the treatment cells for that run are not reported.
+
+  stages_cheapest_first:
+    - id: stage-1-gates
+      cost: "seconds, one core"
+      content: >-
+        Run r=3 known-answer gate A, r=4 degenerate-flag gate, and the
+        matched-PRP known-answer gate B at m=4096, M=2^16 only (cheapest M).
+      can_terminate_run: true
+      termination_rule: >-
+        A nonzero r=3 phi, a non-degenerate r=4 reading, or a gate-B reading
+        outside its band halts the package here with an instrument-void
+        verdict and zero further compute spent.
+    - id: stage-2-single-M-treatment
+      cost: "~15 minutes, 4 cores, per the source entry's own charged-cost derivation"
+      content: >-
+        r in {5,6} treatment arm plus fixed-key resampling arm at M = 2^20
+        only, to get a first phi reading before committing to the full
+        three-point scaling sweep.
+      can_terminate_run: true
+      termination_rule: >-
+        phi <= 1.07 at both r=5 and r=6 at M=2^20 already satisfies
+        falsifier F7-a; the package may report this bound and stop without
+        running the M=2^16/2^18 points, since the scaling claim is moot once
+        the largest-M point shows no measurable excess.
+    - id: stage-3-M-scaling
+      cost: "~45 minutes total, 4 cores, per the source entry's own charged-cost derivation"
+      content: >-
+        Complete the three-point M sweep {2^16, 2^18, 2^20} at r in {5,6},
+        plus the r=10 decay arm at all three M, to test the linear-in-M
+        scaling prediction.
+      can_terminate_run: false
+      termination_rule: >-
+        Runs to completion or to the declared wall-clock/CPU budget ceiling;
+        a budget halt is infrastructure signal, never negative mathematical
+        evidence.
+
+  metrics:
+    primary:
+      - "phi(round, M): Var_K(N)/E_K(N) across m=4096 keys, per (round, M) cell, real-AES arm."
+      - "phi_excess_scaling: linear-regression slope and R^2 of (phi - 1) against M across the three M points, at r=5 and r=6."
+      - "phi_r3_gate: value at r=3 (must be exactly 0.000)."
+      - "r4_degenerate_flag: boolean, must be true (not a numeric phi)."
+    secondary:
+      - "phi_matched_prp: value and band-membership at every (round, M) cell."
+      - "phi_fixed_key_resampling: within-key sampling-variance reference at every (round, M) cell."
+      - "phi_r10: decay-arm reading at every M."
+      - "counter self-consistency: sum of per-key N equals the independently recomputed total pair count."
+
+  heuristic_under_test: null
+
+  preregistered_prediction:
+    quantity: "phi - 1 at r in {5,6} across M in {2^16,2^18,2^20}; phi at r=3; degenerate status at r=4; phi at the matched-PRP arm."
+    formula: >-
+      phi = 1 + M*Var_K(p)/E_K(p) under the clustered-hull mechanism, giving
+      phi - 1 approximately linear in M when Var_K(p)/E_K(p) is
+      M-independent; phi = 1 exactly under the single-characteristic
+      mechanism; phi = 0.000 exactly at r=3 by derivation D6's saturation
+      argument; phi undefined (0/0, flagged) at r=4 because N is identically
+      0.
+    source: >-
+      H-AES-42c479 mechanism section, itself transcribing catalogue entry
+      A1-7's own derivation (ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/A1.md
+      lines 564-570). No external source is cited for any of this.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      AES-128 at m=4096 keys and M up to 2^20 pairs per key is a toy-scale
+      statistical measurement of a single dimensionless second-moment ratio;
+      it is not an attack, contains no adaptive access beyond the declared
+      chosen-plaintext pair construction, and reaches no claim about
+      full-round or deployed AES. The reduced-round scope (r <= 10 within
+      this harness's parameterisable-round-count implementation) is the
+      RQ-AES-001 ceiling and is not exceeded.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Extreme-M consistency: the M=2^16 stage-1 reading and the M=2^16 point
+      re-measured inside the full stage-3 sweep (different seed sub-range)
+      must agree within Monte Carlo noise; a systematic mismatch is
+      invalid_measurement.
+    - >-
+      r=10 decay check: phi at r=10 must show no growing-in-M trend matching
+      the r=5/r=6 signature; a decay failure is the canonical artifact tell
+      per RQ-AES-001 null-object-control discipline and forbids reporting
+      the r=5/r=6 excess as a hull finding.
+
+  replication:
+    seeds: [4427921, 4427922, 4427923]
+    independent_instances: 3
+    interpretation: >-
+      Three independent seed sets reseed the key sample and the pair
+      construction identically; because phi is a statistic over a
+      finite-sample Monte Carlo draw, seed-to-seed variation IS expected and
+      is reported as a spread, not treated as a defect (unlike a deterministic
+      op-count contract). The known-answer gates (phi_r3, r4 degenerate flag)
+      must be seed-invariant exactly; any seed-dependence there is
+      invalid_measurement.
+
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 4
+    maximum_memory_gb: 2
+    maximum_runs: 3
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, and authorized under GOAL-AES-001's active batch.
+    - Stop before any treatment cell is read if the known-answer gates (A, B) and the r=4 degenerate-flag check are not committed with their digests.
+    - Stop the whole package on any nonzero r=3 phi reading.
+    - Stop the whole package if the r=4 reading is non-degenerate (i.e. if any key produces a nonzero N at r=4, which would itself be a distinct finding requiring its own report, not a silent continuation).
+    - Stop stage 3 (M-scaling sweep) if stage 2's M=2^20 point already satisfies falsifier F7-a (phi <= 1.07 at both r=5 and r=6); report the bound and stop.
+    - Stop at the first budget, memory, or wall-clock ceiling and record what was covered rather than truncating silently.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any change to M values, m, round counts, or the phi decision thresholds after any number has been observed.
+    - Use of numpy or any non-streaming variance accumulator for the primary phi statistic (the source contract requires hand-written, unit-tested streaming accumulation).
+    - Absence of the pre-treatment commitment of the known-answer gates and the matched-PRP arm.
+    - Reporting a numeric phi at r=4 instead of the required degenerate flag.
+    - Comparing any phi reading with a published or recalled cryptanalytic figure.
+
+  success_criterion: >-
+    This contract has no current success outcome because it is not
+    authorized for execution. IF a separately approved, frozen successor is
+    executed, its only positive disposition is: gate A reads exactly 0.000 at
+    r=3; the r=4 gate emits the degenerate flag; gate B (matched-PRP) reads
+    within its band; phi - 1 is positive at r=5 and r=6 for at least M=2^20
+    AND the excess is approximately linear in M across the three-point sweep
+    (not merely positive at one point); the r=10 decay arm shows no matching
+    growth. THAT DISPOSITION ESTABLISHES NO ATTACK, NO KEY RECOVERY, NO
+    DISTINGUISHER CERTIFICATE, AND NO CRYPTO-SCALE OR DEPLOYED-SCHEME
+    CONCLUSION -- it establishes only that the hull, if present, manifests
+    as key-dependent probability variance at this M, m, in this specific
+    readout. The outcome is genuinely undetermined in advance: the source
+    catalogue entry's own risk_band is "conservative" (not an expected-CLOSED
+    entry), so a positive, a flat, or a null reading are all live
+    possibilities and none is pre-encoded as the disposition.
+
+  falsification_criterion: >-
+    H-AES-42c479 is falsified, in whole or in the named part, by any of:
+    (F7-a) phi <= 1.07 at r=5 and r=6 across all three M values -- no
+    measurable hull enhancement at M=2^20, m=4096; reported as a bound with
+    both numbers in the same sentence;
+    (F7-b) phi - 1 > 0 but flat in M -- an offset, i.e. an artifact or a
+    key-schedule effect, not a hull; reported as such and never re-explained
+    after the fact;
+    (F7-c) known-answer gate A returns nonzero, gate B falls outside its
+    band, or the r=4 gate returns a number instead of a flag -- instrument
+    void, no result of any sign may be reported.
+
+  outcomes:
+    no_execution_authorization: >-
+      The only current disposition: a review_required draft. No run, no
+      observation, no evidence, no inference.
+    future_complete_readout: >-
+      Only after separate approval, freezing, authorization, and valid
+      execution under GOAL-AES-001; scoped toy-only, AES-128, r in
+      {3,4,5,6,10}, and never a hull-existence, distinguisher, or key-recovery
+      claim by itself.
+    infrastructure_or_integrity_failure: >-
+      A timeout, crash, or implementation failure is recorded as
+      INFRASTRUCTURE SIGNAL and is NEVER negative mathematical evidence
+      against H-AES-42c479 or IDEA-20260807-3d9c9f (AGENTS.md rule 5).
+
+  required_artifacts_if_later_authorized:
+    - Frozen approved specification with a freeze receipt binding its SHA-256.
+    - Per-(round, M) raw per-key N values for every arm, one JSON object per line, keys sorted, UTF-8, sufficient for independent phi recomputation.
+    - Known-answer gate A/B and r=4 degenerate-flag digests, committed before any treatment cell is read.
+    - The linear-regression fit (slope, intercept, R^2) of phi-1 against M at r=5 and r=6, with the raw three points.
+    - Manifest, environment, exact argv, stdout, stderr, timestamps, and resource measurements.
+    - Snapshot archive followed by independent validation and red-team review.
+
+  approval_requirements:
+    - Independent review confirms the phi mechanism derivation (Poisson-mixture overdispersion) and the D6 saturation argument for gate A before any compute is authorized.
+    - Independent review confirms the matched-PRP and fixed-key-resampling arms actually isolate across-key from within-key variance.
+    - Coordinator separately approves and freezes a successor contract without editing this draft.
+    - GOAL-AES-001's active batch (current_batch_id) has capacity for this task under its campaign budget before dispatch.
+
+  approval_status: >-
+    Pending review. No approved_by field is present because this draft is
+    not approved and only the Coordinator may approve it (AGENTS.md rule 1).
+  approved_by: null

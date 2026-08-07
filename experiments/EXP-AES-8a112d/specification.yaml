@@ -1,0 +1,197 @@
+experiment:
+  id: EXP-AES-8a112d
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-AES-814f55
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  batch_id: null
+  assigned_to: executor
+  title: >-
+    Review-required contract: GHASH weighted-aggregate transfer, isolating
+    the weight-partition class (constant-on-fibres vs not) rather than
+    re-testing the absorbed A2-4 affine-combiner identity
+
+  objective: >-
+    If separately approved, frozen and authorized: reuse EXP-AES-7ecc87's
+    counter coset and, for a declared set of GF(2^128) weight sequences
+    (H=1, H=x, random H, a 2-valued weight sequence, an all-distinct weight
+    sequence), compute both the unweighted aggregate and the weighted digest
+    at r in {3,4,5,10}, and determine whether the weight PARTITION (not H's
+    algebraic size) is the discriminator for set-aggregate transfer into the
+    tag. This contract is an instrument design and a pre-execution
+    declaration. No run has happened.
+
+  what_this_is_not:
+    - Not a forgery, not an authentication break, not a weak-key claim.
+    - Not a re-test of A2-4's affine-combiner identity, which is used and not re-tested here.
+    - Not a claim about full-round or deployed AES-GCM under any outcome.
+    - Not an approval, freezing, execution authorization, run, observation, or evidence.
+
+  claim_ceiling:
+    tier: medium
+    exact_scope_a_run_could_support: >-
+      MEDIUM for the algebraic fibre-constancy vanishing condition (exact and
+      general to any weighted digest, not only GHASH). TOY for each measured
+      arm. A completed run could support, at most: (1) that the H=1 weighted
+      digest equals the unweighted aggregate bit-for-bit; (2) that the r=3
+      unweighted aggregate over the column coset is exactly zero; (3) that
+      random H produces a digest consistent with 2^-128 all-zero read rate;
+      (4) which of the 2-valued and all-distinct weight arms restores or
+      destroys transfer. NOTHING ELSE. No forgery, no authentication break,
+      no statement about full-round or deployed AES-GCM.
+
+  inputs:
+    cipher:
+      variant: "AES-GCM, C1 reduced-round convention"
+      round_counts: [3, 4, 5, 10]
+    coset: "A2-5's column-3 counter coset, reused (requires EXP-AES-7ecc87's stage-2 known-answer gates to have passed)"
+    weight_arms:
+      - "H = 1 (free known-answer gate: collapses to plain XOR)"
+      - "H = x"
+      - "random H drawn uniformly from GF(2^128) \\ {0,1}"
+      - "2-valued weight sequence on even-size blocks of the coset"
+      - "all-distinct weight sequence"
+    seeds:
+      master_seed: 8a112d001
+      domain: "EXP-AES-8a112d/v1"
+      seed_derivation_rule: >-
+        ASCII bytes of domain || "|" || label || "|" || decimal(r) || "|" ||
+        decimal(counter), hashed SHA-256, digest interpreted big-endian and
+        reduced by rejection sampling. Labels are exactly one of
+        {"h1","hx","hrand","h2val","hdist"}.
+
+  arms_and_controls:
+    treatment: "weighted digest under each of the 5 weight arms"
+    measured_null: "unweighted aggregate (XOR of all block outputs), computed identically alongside every weighted arm"
+    known_answer_gate_a: "H=1 weighted digest must equal the unweighted aggregate bit-for-bit in 100% of trials, or the field arithmetic is wrong"
+    known_answer_gate_b: "at r=3 with the column coset, the unweighted aggregate must be exactly zero in the same binary; if not, neither reading may be reported"
+    sibling_null: "2-valued weight arm isolates weight-constancy on fibres rather than 'H is not 1'; if it fails to restore transfer, the mechanism named is wrong"
+    decay_control: "r=10 must be uniform in every arm"
+
+  stages_cheapest_first:
+    - id: stage-1-derivation
+      cost: "zero compute, minutes"
+      content: "Re-check the fibre-constancy vanishing condition algebraically for a general weighted digest."
+      can_terminate_run: true
+      termination_rule: "A defect in the algebra ends the contract here with no compute spent."
+    - id: stage-2-known-answer-gates
+      cost: "seconds"
+      content: "H=1 vs unweighted equality gate; r=3 zero-aggregate gate; both in the same binary."
+      can_terminate_run: true
+      termination_rule: "Either gate failing halts the package; no weighted reading may be reported."
+    - id: stage-3-full-sweep
+      cost: "~30-45 minutes on 4 cores (rides A2-5's sweeps, one extra GF(2^128) MAC per block)"
+      content: "All 5 weight arms x 4 round counts, plus decay control at r=10."
+      can_terminate_run: false
+      termination_rule: "Budget ceiling halts the sweep at the point reached; partial coverage is reported, never estimated."
+
+  metrics:
+    primary:
+      - "digest_agreement: bit-for-bit match between H=1 weighted digest and unweighted aggregate."
+      - "all_zero_read_rate: fraction of trials with all-zero digest, per (weight arm, r)."
+    secondary:
+      - "2-valued vs all-distinct arm divergence at r=3."
+      - "decay-control read at r=10 for every arm."
+
+  heuristic_under_test: HEUR-AES-814f55-1
+
+  preregistered_prediction:
+    quantity: "digest_agreement at H=1; all_zero_read_rate at r=3,4 for random H; 2-valued vs all-distinct divergence."
+    formula: >-
+      digest_agreement(H=1) = 100%; all_zero_read_rate(random H, r<=4) ~
+      2^-128 per trial; all_zero_read_rate(2-valued, r=3) = 1.0 (transfer
+      restored); all_zero_read_rate(all-distinct, r=3) < 1.0 (transfer
+      destroyed).
+    source: >-
+      Derived in H-AES-814f55 mechanism section from GF(2^128)-linear
+      aggregate fibre-constancy algebra. No external source cited.
+
+  scale_relevance:
+    tier: medium
+    justification: >-
+      The fibre-constancy vanishing condition is algebraic and holds at
+      every dimension, so it is a derivation check. The measured arms are
+      toy-scale reduced-round sweeps (r<=5, decay at r=10); the ceiling on
+      each measured arm stays toy even though the algebraic condition itself
+      is medium-tier.
+    correspondence: null
+
+  tail_checks:
+    - "2-valued vs all-distinct weight arm divergence must be observed at r=3, or the fibre-constancy discriminator is wrong (F9-c)."
+    - "decay control: r=10 must read uniform null in every arm, no exceptions."
+
+  replication:
+    seeds: [8a112d001, 8a112d002, 8a112d003]
+    independent_instances: 3
+    interpretation: >-
+      Three seeds per (weight arm, r) cell for the random-H and structured-
+      weight arms; H=1 and H=x are deterministic and require no seed
+      variation beyond the underlying coset's seeds.
+
+  budget:
+    wall_clock_seconds_per_run: 2700
+    total_cpu_hours: 3
+    maximum_memory_gb: 1
+    maximum_runs: 3
+    maximum_workers: 4
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, archived, and authorized under a batch of GOAL-AES-001.
+    - Stop before any weighted reading if EXP-AES-7ecc87's diagonal known-answer gate has not itself passed.
+    - Stop the whole package if known-answer gate (a) or (b) fails.
+    - Stop at the first budget, memory, or wall-clock ceiling and record what was covered rather than truncating silently.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any change to the weight-arm definitions or the decision rule after any number has been observed.
+    - Treating this contract's result as a re-test of A2-4's affine-combiner identity.
+    - Absence of the H=1 known-answer gate or the r=3 zero-aggregate gate.
+
+  success_criterion: >-
+    This contract has no current success outcome because it is not authorized
+    for execution. IF a separately approved, frozen successor is executed,
+    its only positive disposition is: H=1 digest equals the unweighted
+    aggregate bit-for-bit; the r=3 unweighted aggregate reads exactly zero;
+    random H reads consistent with 2^-128 all-zero rate; the 2-valued arm
+    restores transfer and the all-distinct arm destroys it; and r=10 reads
+    null in every arm. THAT DISPOSITION ESTABLISHES NO FORGERY, NO
+    AUTHENTICATION BREAK, AND NO STATEMENT ABOUT FULL-ROUND OR DEPLOYED
+    AES-GCM.
+
+  falsification_criterion: >-
+    H-AES-814f55 is falsified, in whole or in the named part, by any of:
+    F9-a the H=1 arm does not reproduce the unweighted balance; F9-b the
+    random-H arm reads all-zero in more than a 2^-128-consistent fraction of
+    trials -- the strongest and most interesting failure available; F9-c the
+    2-valued-weight arm behaves like the all-distinct arm -- the
+    fibre-constancy condition is the wrong condition; F9-d gate (b) fails --
+    nothing may be reported.
+
+  outcomes:
+    no_execution_authorization: "The only current disposition: a review_required draft. No run, no observation, no evidence."
+    future_complete_readout: "Only after separate approval, freezing, authorization and valid execution under a GOAL-AES-001 batch; medium/toy-tier result only, never a forgery or authentication claim."
+    infrastructure_or_integrity_failure: >-
+      A timeout, crash, or missing dependency is INFRASTRUCTURE SIGNAL and is
+      NEVER negative mathematical evidence against H-AES-814f55 (AGENTS.md
+      rule 5).
+
+  required_artifacts_if_later_authorized:
+    - Frozen approved specification with a freeze receipt binding its SHA-256.
+    - Raw per-cell records: (weight_arm, r, seed, trial ordinal, unweighted_aggregate, weighted_digest), one JSON object per line.
+    - The H=1 known-answer gate log and the r=3 zero-aggregate gate log.
+    - Manifest, environment, exact argv, stdout, stderr, timestamps, resource measurements.
+    - Snapshot archive followed by independent validation and red-team review.
+
+  approval_requirements:
+    - Independent review confirms the fibre-constancy algebra before any compute is authorized.
+    - Independent review confirms the 2-valued and all-distinct weight arms can actually diverge.
+    - Coordinator separately approves and freezes a successor contract without editing this draft.
+    - EXP-AES-7ecc87 must be separately approved and its stage-2 gates must have passed before this contract's coset reuse is valid.
+
+  approval_status: >-
+    Pending review. No approved_by field is present because this draft is
+    not approved and only the Coordinator may approve it (AGENTS.md rule 1).

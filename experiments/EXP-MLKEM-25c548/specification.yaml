@@ -1,0 +1,297 @@
+experiment:
+  id: EXP-MLKEM-25c548
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-MLKEM-232843
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  batch_id: null
+  assigned_to: executor
+  title: >-
+    Review-required contract: byte-level dk key-mutation generator over
+    H(ek) and z, the forced 4-row 2-bit signature table, and the
+    z-constant positive control invisible to the incumbent ciphertext
+    generator by construction
+
+  objective: >-
+    If separately approved, frozen and authorized: build a key-mutation
+    generator that flips one byte of dk = dk_PKE || ek || H(ek) || z at a
+    time (768k + 96 bytes per parameter set), decapsulates one valid and one
+    invalid ciphertext per mutation, records the 2-bit (a, r) signature per
+    byte index, and checks it against the forced 4-row table; separately,
+    build a synthetic z-constant build and confirm the incumbent
+    ciphertext-only generator (GOAL-MLKEM-002's gate) produces the empty
+    silent set on it while this generator produces exactly 32 of 32 z-region
+    indices at (0,0). This contract is an instrument design and a
+    pre-execution declaration. No run has happened.
+
+  what_this_is_not:
+    - Not an attack on ML-KEM, not a key recovery, not a solve, and not a certificate of any kind.
+    - Not a claim that any named production implementation is defective; no production implementation is named anywhere in this contract.
+    - Not a security estimate and not a revision of any published cost row.
+    - Not an approval, a freezing, an execution authorization, a run, an observation, or evidence.
+    - Not a reopening or status change of GOAL-MLKEM-002, KN-FIND-001, or EV-MLKEM-005/010; this contract runs, if authorized, only under GOAL-MLKEM-005.
+
+  claim_ceiling:
+    tier: control
+    exact_scope_a_run_could_support: >-
+      CONTROL ONLY. A completed run could support, at most: (1) that a
+      reference conforming implementation produces the forced 4-row (a, r)
+      signature table over dk, with the z region reading (0,1) at exactly 32
+      indices at every parameter set; (2) that the incumbent
+      ciphertext-only generator produces the empty silent set on a
+      z-constant synthetic build while this key-mutation generator produces
+      exactly 32 of 32 z-region indices at (0,0); (3) that flipping a
+      dk_PKE secret byte reads (1,0) as the reachability gate requires.
+      NOTHING ELSE. In particular no outcome may be quoted as a defect
+      finding against any named implementation, as a timing or side-channel
+      result, or as evidence about any deployed build.
+
+  inputs:
+    dk_layout:
+      formula: "dk = dk_PKE || ek || H(ek) || z"
+      byte_counts_by_k: {512: 800, 768: 1184, 1024: 1568}
+      region_byte_counts: {dk_PKE: "384k", ek_copy: 32, H_ek: 32, z: 32}
+      source: inputs/MLKEM-DUAL-SOURCES-20260802/fips203
+    mutation_protocol:
+      unit: single byte, one XOR-flip against the original byte value
+      coverage: every byte index of dk, exhaustively (768k + 96 per parameter set)
+      observation: >-
+        for each mutated dk, decapsulate exactly one fixed valid ciphertext
+        and one fixed invalid (randomly perturbed, precommitted) ciphertext;
+        record (a_i, r_i) = (output differs from the unmutated-dk baseline
+        on the valid ciphertext, output differs on the invalid ciphertext)
+    z_constant_control:
+      construction: >-
+        A synthetic build whose implicit-rejection value z is overwritten by
+        a fixed constant at decapsulation time, independent of the actual dk
+        z-field bytes.
+      forced_baseline_generator_result: >-
+        The incumbent ciphertext-only mutation generator (GOAL-MLKEM-002's
+        gate) is predicted to return the EMPTY silent set on this build,
+        because it never mutates dk and therefore cannot exercise z at all.
+    interposition:
+      mechanism: "GNU ld --wrap"
+      platform: linux/amd64
+      note: >-
+        Instrument adequacy is admitted ONLY under this discipline, per
+        EV-MLKEM-010; dlopen and call-site macro interposition are explicitly
+        out of scope for any result claimed under this contract.
+    seeds:
+      master_seed: 3298001
+      domain: "EXP-MLKEM-25c548/v1"
+      seed_derivation_rule: >-
+        ASCII bytes of domain || "|" || label || "|" || decimal(k) || "|" ||
+        decimal(byte_index), hashed with SHA-256; digest integers
+        interpreted big-endian unsigned. Labels are exactly one of
+        {"valid-ct", "invalid-ct", "z-const-build"}. This rule reproduces
+        every instance bit-for-bit from (master_seed, domain, label, k,
+        byte_index) and nothing else.
+
+  arms_and_controls:
+    treatment: >-
+      The reference-implementation byte-mutation sweep over all dk indices,
+      at each of the three parameter sets, producing the (a_i, r_i)
+      signature table.
+    measured_null: >-
+      The z-constant build under the incumbent ciphertext-only generator.
+      FORCED VALUE DERIVED BEFORE THE RUN: the empty silent set (zero
+      detections), because the incumbent generator never touches dk. THIS
+      NULL CAN FAIL if the incumbent generator is measured to indirectly
+      exercise z through some path not accounted for in this derivation.
+    positive_control: >-
+      The z-constant build under THIS contract's key-mutation generator.
+      FORCED VALUE: exactly 32 of 32 z-region indices read (0,0) (no change
+      on either ciphertext, since z is now fixed regardless of the mutated
+      dk byte) and zero indices read (0,1). MUST fire, or the generator
+      cannot see its own designed target.
+    secret_byte_reachability_control: >-
+      Flipping a byte within dk_PKE's secret material must read (1,0) at
+      that index (gate c). Failure localises a defect in the decapsulation
+      harness's reachability wiring, not in the signature model.
+    ordering_control: >-
+      The z-constant control (both null and positive-control readings) is
+      generated, counted, and hash-committed BEFORE the full reference-build
+      sweep is read. If the two z-constant readings do not diverge as
+      predicted, the harness discriminates nothing and must be repaired
+      before the treatment sweep is interpreted.
+    output_channel_integrity_control: >-
+      Confirm the harness observes the returned shared secret bytes
+      themselves, not a status code or other side channel, by checking that
+      a KNOWN-benign no-op mutation (flipping a byte and flipping it back)
+      returns identically to the unmutated baseline. If every region reads
+      (1,1) instead of the forced table, this control has failed and no row
+      is trustworthy (F8-c).
+
+  stages_cheapest_first:
+    - id: stage-1-derivation
+      cost: "zero compute, ~30 min"
+      content: >-
+        Write out the forced 4-row table derivation from FIPS 203's dk
+        layout and decapsulation algorithm; a reviewer briefed to find a
+        counterexample attacks it.
+      can_terminate_run: true
+      termination_rule: >-
+        A defect in the derivation ends the contract here with a
+        derivation-tier negative and no compute spent.
+    - id: stage-2-z-constant-controls
+      cost: "minutes"
+      content: >-
+        Build the z-constant synthetic build, run both the incumbent
+        ciphertext-only generator and this contract's key-mutation generator
+        against it, and confirm the forced null/positive-control divergence.
+      can_terminate_run: true
+      termination_rule: >-
+        Failure of either control halts the package here; no full sweep is
+        run against an uncalibrated harness.
+    - id: stage-3-full-sweep
+      cost: "seconds of compute per parameter set; ~14,000 decapsulations total across all three"
+      content: >-
+        Run the exhaustive byte-mutation sweep over dk at each parameter
+        set and produce the (a_i, r_i) signature table plus the
+        z-region-cardinality check.
+      can_terminate_run: false
+      termination_rule: >-
+        A budget, memory, or wall-clock ceiling truncation is reported as
+        coverage achieved, not as a completed sweep, and is an
+        infrastructure outcome.
+
+  metrics:
+    primary:
+      - "signature_table: (a_i, r_i) per byte index per parameter set, compared against the forced 4-row prediction."
+      - "z_region_zero_one_count: number of z-region indices reading (0,1), against the forced value 32."
+      - "z_constant_null_detection_count: silent-set size of the incumbent ciphertext-only generator against the z-constant build, against the forced value 0."
+      - "z_constant_positive_control_count: count of z-region indices reading (0,0) under this generator against the z-constant build, against the forced value 32."
+    secondary:
+      - "dk_PKE secret-byte reachability check result, against the forced (1,0)."
+      - "no-op mutation output-channel integrity check result."
+      - "region-boundary consistency: every dk_PKE, ek-copy, and H(ek) index reads (1,0), with any deviation reported by exact byte index."
+
+  heuristic_under_test: HEUR-MLKEM-232843-1
+
+  preregistered_prediction:
+    quantity: >-
+      (i) the full (a_i, r_i) signature table; (ii) the z-region (0,1) count;
+      (iii) the z-constant null and positive-control readings.
+    formula: >-
+      (i) dk_PKE, ek copy, H(ek) all (1,0); z region uniquely (0,1); no other
+      pattern appears anywhere.
+      (ii) exactly 32 at every parameter set.
+      (iii) incumbent generator: 0 detections (empty silent set); this
+      generator: exactly 32 of 32 z-region indices at (0,0).
+    source: >-
+      All derived in H-MLKEM-232843 (statement conjunct C1) and
+      independently re-derived by the idea-catalogue red-team pass
+      (ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md section 4c,
+      item 2). NO EXTERNAL SOURCE IS CITED beyond FIPS 203 itself, already
+      pinned in this repository's inputs.
+
+  scale_relevance:
+    tier: control
+    justification: >-
+      This is an instrument-power result over a reference implementation at
+      the actual FIPS 203 byte layout, not an attack or a security
+      measurement; the tier is control because a null result (the forced
+      table observed) certifies nothing about implementation correctness
+      beyond the tested mutation set, and no production implementation is
+      named.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Boundary-index check: verify the (a, r) signature at the exact byte
+      indices adjacent to each region boundary (dk_PKE/ek, ek/H(ek),
+      H(ek)/z, and z/end-of-dk) separately from the bulk sweep, since a
+      field-offset-by-one error is maximally visible there.
+
+  replication:
+    seeds: [3298001, 3298002, 3298003]
+    independent_instances: 3
+    interpretation: >-
+      The signature table is a deterministic function of the mutation and
+      the fixed valid/invalid ciphertext pair; the sweep must be
+      seed-INDEPENDENT for a fixed ciphertext pair, and repeated across 3
+      independently drawn (valid, invalid) ciphertext pairs to confirm the
+      signature does not depend on which valid/invalid pair was chosen. Any
+      pair-to-pair variation in the signature table (other than the
+      expected identical result) is invalid_measurement, not a distribution.
+
+  budget:
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 1
+    maximum_memory_gb: 2
+    maximum_runs: 3
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, archived, and authorized.
+    - Stop before the full sweep is read if the z-constant null and positive-control readings are not committed with their digests.
+    - Stop the whole package if the output-channel integrity control fails (every region reads (1,1)).
+    - Stop at the first budget, memory, or wall-clock ceiling and record coverage achieved rather than truncating silently.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any change to the dk layout, the mutation protocol, or the forced-table prediction after any number has been observed.
+    - Any interposition mechanism other than GNU ld --wrap on linux/amd64.
+    - Absence of the pre-treatment commitment of the z-constant null and positive-control arms.
+    - Citation of a prior session's transcript in place of a control executed in this run.
+
+  success_criterion: >-
+    This contract has no current success outcome because it is not
+    authorized for execution. IF a separately approved, frozen successor is
+    executed, its only positive disposition is: the output-channel integrity
+    control passes; the z-constant null and positive-control readings match
+    their forced values exactly; the secret-byte reachability gate reads
+    (1,0); and the full signature table matches the forced 4-row prediction
+    exactly, with the z-region (0,1) count exactly 32 at every parameter set.
+    THAT DISPOSITION ESTABLISHES NO DEFECT FINDING AGAINST ANY NAMED
+    IMPLEMENTATION AND NO SECURITY CLAIM.
+
+  falsification_criterion: >-
+    H-MLKEM-232843 is falsified, in whole or in the named part, by any of:
+    (F8-a) the conforming build's z-region (0,1) count is not exactly 32 --
+    either the instrument is broken (its own gate fails) or a genuine
+    defect is present, and these two possibilities must be distinguished
+    before publishing either;
+    (F8-b) the z-constant control is not detected as predicted by either
+    generator -- the generator is inadequate for its own positive control
+    and the class is undecidable by it;
+    (F8-c) every region reads (1,1) -- the harness is observing something
+    other than the returned shared secret, and no row is trustworthy until
+    this is ruled out.
+    An infrastructure truncation of the sweep is NOT a falsification; it is
+    a coverage outcome.
+
+  outcomes:
+    no_execution_authorization: >-
+      The only current disposition: a review_required draft. No run, no
+      observation, no evidence, no inference.
+    future_complete_readout: >-
+      Only after separate approval, freezing, authorization, and valid
+      execution; scoped control-tier only, naming no production
+      implementation unless a specific future contract explicitly adds one
+      under its own approval.
+    infrastructure_or_integrity_failure: >-
+      A timeout, crash, or missing dependency is recorded as INFRASTRUCTURE
+      SIGNAL and is NEVER negative mathematical evidence against
+      H-MLKEM-232843 or against any ML-KEM proposition (AGENTS.md rule 5).
+
+  required_artifacts_if_later_authorized:
+    - Frozen approved specification with a freeze receipt binding its SHA-256.
+    - The stage-1 derivation note with the reviewer's attack recorded.
+    - Pre-treatment commitment digests for the z-constant null and positive-control arms.
+    - Raw per-byte signature records: (parameter_set, byte_index, region, a_i, r_i), one JSON object per line, keys sorted, UTF-8.
+    - The output-channel integrity control's log.
+    - Manifest, environment, exact argv, stdout, stderr, timestamps, and resource measurements.
+    - Snapshot archive followed by independent validation and red-team review.
+
+  approval_requirements:
+    - Independent review confirms the forced 4-row table derivation before any compute is authorized.
+    - Independent review confirms the z-constant null and positive-control forced values and that the harness can actually distinguish them.
+    - Coordinator separately approves and freezes a successor contract without editing this draft.
+
+  approval_status: >-
+    Pending review. No approved_by field is present because this draft is
+    not approved and only the Coordinator may approve it (AGENTS.md rule 1).
