@@ -1,0 +1,597 @@
+validation_report:
+  id: VAL-20260806-e41417
+  task_id: TASK-20260806-5bc785
+  role: validator
+  independent_session: true
+  reviewed_task: TASK-20260806-983eed
+  reviewed_snapshot_task: TASK-20260806-4455ac
+  goal_id: GOAL-ECTD-001
+  batch_id: BATCH-fca4e2
+  experiment_id: EXP-ECTD-001
+  hypothesis_id: H-ECTD-001
+  produced_at: '2026-08-06'
+  reviewed_commit: 9fd0d97433e6d1a2600b6e8cf507dce8f1d5cd58
+  run_ids: [RUN-ECTD-001-impl, RUN-ECTD-001-screen]
+
+  policy_and_model_metadata:
+    requested_policy: review-adversarial
+    resolved_model_id: claude-sonnet-5
+    independent_session: true
+    note: >-
+      I did not originate, edit, or execute the reviewed run artifacts. I read
+      the Coordinator-committed snapshot at 9fd0d974 exactly (not the working
+      tree, though I confirmed they currently match), and I wrote exactly the
+      two files in my declared write_scope.
+
+  claim_ceiling_restated: >-
+    TOY ONLY. claim_tier stays toy throughout, exactly as the frozen contract
+    requires. Nothing in this review or the package it reviews supports an
+    ECDLP claim, a speedup claim, a trapdoor claim, or any crypto-scale
+    reading. My verdict is about receipt, control, and recomputation
+    integrity only, not about what the evidence means for H-ECTD-001.
+
+  # ============================================================
+  # 1. COMMIT / ARTIFACT INTEGRITY
+  # ============================================================
+  artifact_checks:
+    - id: AC-1
+      check: Commit reachability and parentage
+      result: >-
+        PASS. 9fd0d97433e6d1a2600b6e8cf507dce8f1d5cd58 is an ancestor of
+        current HEAD on claude/ectd-batch003-4cwbrq (git merge-base
+        --is-ancestor confirmed). Its parent is
+        4a9bb91ef3aed4473f5f58c3f18ca7fec26aa1ad ("GOAL-ECTD-001 BATCH-fca4e2
+        opened"), matching both run.yaml's code.commit field and the
+        snapshot-receipt's parent_sha.
+    - id: AC-2
+      check: Commit contains exactly the declared 39 files
+      result: >-
+        PASS. `git show --name-only 9fd0d974` lists exactly 23 driver files +
+        15 run files + 1 snapshot-receipt.json = 39 paths, matching
+        TASK-20260806-983eed's declared artifact_paths plus the archive's own
+        receipt. No extra, no missing.
+    - id: AC-3
+      check: Independent sha256 recomputation of every declared path against the snapshot receipt
+      result: >-
+        PASS on all 38 non-self-referencing entries (I recomputed sha256 of
+        every git blob at 9fd0d974 for every path in
+        snapshot-receipt.json's path_sha256 except the receipt's own
+        self-entry, and all 38 match exactly). The receipt's self-entry is a
+        documented, structurally-unavoidable limitation
+        (SELF-REFERENCING-RECEIPT-FINDING.md, read and not re-litigated per
+        task instructions); I independently confirmed its scope is narrow
+        (it affects only that one entry) by excluding it and finding zero
+        mismatches elsewhere -- this is a real, independent confirmation of
+        the finding's own "not worse than BATCH-002 precedent" claim, not a
+        repetition of it.
+    - id: AC-4
+      check: Run count
+      result: 'PASS. Exactly 2 runs (RUN-ECTD-001-impl, RUN-ECTD-001-screen), matching spec.replication.planned_runs and spec.budget.maximum_runs=2.'
+    - id: AC-5
+      check: Manifest schema completeness (AGENTS.md Artifact policy)
+      result: >-
+        PASS. Both run.yaml carry: exact command, git commit + dirty-tree
+        state (dirty: true, honestly recorded -- driver code existed only in
+        the working tree at execution time, before the atomic snapshot
+        commit), environment (OS/python/deps), input parameters and seeds,
+        model-policy/provenance block (correctly marked not-applicable/no-LLM
+        for this deterministic numeric run, with the executor SESSION's own
+        model provenance recorded separately at the task level in
+        dispatch_queue.json), timing, resources (peak_rss_bytes/cpu_seconds
+        recorded null WITH an explicit non-fabrication reason, not silently
+        omitted or invented), result.metrics/valid/certificate, and an
+        artifacts list matching what is actually present on disk.
+    - id: AC-6
+      check: Seed integrity
+      result: >-
+        PASS. Screen: master_seeds=[201,202,203,204,205], no duplicates, no
+        omissions. Impl: master_seed=201. All class-construction retries
+        (attempts_used 1-4 per class) are logged in attempts_log with
+        outcome and elapsed_s, and are explicitly treated as infrastructure
+        per spec.replication.seed_policy, never as homogeneity evidence.
+        class_construction_failures is empty in the screen run (every master
+        seed eventually succeeded).
+
+  # ============================================================
+  # 2. INDEPENDENT RECOMPUTATION (byte-level, not read-and-trust)
+  # ============================================================
+  metric_recomputations:
+    - id: MR-1
+      what: Full independent re-execution of the self-test suite
+      method: >-
+        Extracted the 23 committed driver files into a fresh directory in a
+        separate process and ran `python3 -m driver.selftest_basic`,
+        `selftest_divpoly`, `selftest_semaev`, `selftest_isogeny`,
+        `selftest_groebner` myself, in the order MANIFEST.md prescribes.
+      result: >-
+        ALL FIVE PASS in my own execution: group-law closure and
+        order-finder (brute-force vs BSGS agreement on 4 curves over F_97),
+        division-polynomial roots vs brute-force torsion points (ell=2,3,5,7),
+        S3/S4/xDBL/xADD vs real curve arithmetic (200+199+200+200 checks),
+        isogeny neighbor order-preservation (25 source curves, ell in
+        {2,3,5,7}, every neighbor brute-force re-verified), and Buchberger GB
+        ideal-membership on 30 random systems + 1 hand-checkable case. This
+        independently confirms the core mathematical building blocks are
+        correct, not merely asserted by the Executor.
+    - id: MR-2
+      what: Full byte-exact independent reproduction of one entire class (class_seed_203) of RUN-ECTD-001-screen
+      method: >-
+        Wrote a standalone script against the same committed driver code,
+        using master_seed=203 and the exact seed_for()/parameter formulas
+        read from run_screen.py, and ran the full class-construction ->
+        meters -> planted-check -> rho/bsgs pipeline myself from a cold
+        process, independently of anything the Executor computed.
+      result: >-
+        BYTE-EXACT MATCH against the committed artifacts on every value
+        checked: p=590747043083, N=590747387479, a0=238213594088,
+        b0=224970007638, attempts_used=1 (matches raw-result.json exactly);
+        semaev_m3_relation_density stats {median 0.0, max
+        0.028645833333333332, argmax [63], ratio inf, outlier_hit true}
+        (matches planted_control_receipt.json exactly); groebner {median 14,
+        min 14, delta_d 0.0, outlier_hit false} and macaulay {median 2, max
+        2, ratio 1.0, outlier_hit false} (both exact matches); per-curve
+        records for curve 0 and curve 63 (planted) in
+        per_class_meter_tables.json match field-for-field; and the matched
+        rho/bsgs receipt -- G=[384081957293,256808248879],
+        Q=[133579941113,390182300225], k_found=385572745437 for BOTH solvers
+        -- matches rho_bsgs_receipts.json's class_seed_203 entry exactly. As
+        a side benefit, this also cross-validated the two independently
+        coded run scripts against each other: RUN-ECTD-001-impl's logged
+        "first seed curve" (a=169463401123, b=580506224749, N=905905049963,
+        for the shared master_seed=201, offset-0 case) matches
+        RUN-ECTD-001-screen's class_seed_201 attempt-0 log line exactly, a
+        cross-check neither script was written to produce deliberately.
+    - id: MR-3
+      what: CTRL-RHO / CTRL-BSGS spot-check via independent k*G recomputation
+      method: >-
+        Extracted only driver/curve.py + driver/fp.py + driver/__init__.py
+        into an isolated directory and called curve.py's own
+        `on_curve(P,a,b,p)` and `scalar_mul(k,P,a,p)` (confirmed signature:
+        no `b` parameter) directly, on 3 receipts (RUN-ECTD-001-impl's
+        curve, RUN-ECTD-001-screen class_seed_201, and the independently
+        reproduced class_seed_203 above).
+      result: >-
+        PASS on all 3. G and Q are genuinely on y^2=x^3+ax+b mod p in every
+        case, and curve.scalar_mul(k_found, G, a, p) == Q for both the rho
+        and bsgs k_found values in every case (they also agree with each
+        other and with k_true_for_bookkeeping_only, which is never touched
+        by the verifier). This is on top of MR-2's full independent
+        re-derivation of one complete rho/bsgs receipt from raw seeds.
+    - id: MR-4
+      what: Independent recomputation of the screen run's decision_branch from raw data against spec.decision_table
+      result: See decision_branch_recomputation below.
+
+  # ============================================================
+  # 3. DECISION_BRANCH RECOMPUTATION (the central task)
+  # ============================================================
+  decision_branch_recomputation:
+    screen_run:
+      executor_claimed: scoped_homogeneity
+      my_independent_recomputation: scoped_homogeneity
+      matches: true
+      method: >-
+        Recomputed directly from raw per_class_meter_tables.json,
+        planted_control_receipt.json, null_arm_receipts.json, and
+        permutation_stability_table.json (not from raw-result.json's stated
+        decision_branch field), against spec.decision_table's branch
+        conditions verbatim.
+      findings:
+        - >-
+          CTRL-PLANTED-OUTLIER: recovered=true in all 5 classes (raw data:
+          argmax=[63] on all 3 density/probability meters, ratio "inf"
+          against a flat-zero real-curve median, in every one of the 5
+          classes). Since recovered everywhere, instrument_void is correctly
+          ruled out.
+        - >-
+          heavy_tail_hit: for every class, the ONLY meters clearing the
+          outlier threshold (R>=100 / delta_d>=2) are the 3 density/
+          probability meters, and in every single case the sole winning
+          curve is index 63 -- the deliberately planted curve. Across all
+          320 real (non-planted) curves in the 5 completed classes, zero
+          ever registered as an outlier on any of the 5 primary meters (the
+          3 density meters are flat zero for every real curve; the 2
+          Groebner/Macaulay meters are exactly tied at d_reg=14,
+          rank_defect=2 for literally all 64 curves in every class, real and
+          planted alike -- zero measured variance). So there is no genuine,
+          non-planted heavy-tail candidate anywhere in the raw data, and
+          heavy_tail_hit does not fire, independent of the Executor's own
+          confirmed_outlier_meters computation, which I independently
+          recomputed by hand from the raw stats and reproduced as empty in
+          every class.
+        - >-
+          scoped_homogeneity: raw factor10_homogeneous is False in literally
+          every one of the 5 classes -- but this is a NECESSARY, by-design
+          consequence of the mandatory planted-outlier control being present
+          in every class (CTRL-PLANTED-OUTLIER's job is precisely to violate
+          [0.1,10]x homogeneity), not evidence of a real class-level
+          anomaly. spec.decision_table's literal text for this branch
+          ("All >=5 classes factor-10 homogeneous on every primary meter")
+          does not explicitly exclude the deliberately planted curve, which
+          creates a genuine textual gap whenever CTRL-PLANTED-OUTLIER is
+          enacted in every class (the spec's CTRL-PLANTED-OUTLIER control
+          text only strictly requires planting "in at least one class").
+          I resolve this the same way spec.falsification_criterion itself
+          resolves it -- its own phrase is "scoped_homogeneity under valid
+          planted control", which only parses if the homogeneity check is
+          read as applying to the non-planted population, symmetric with how
+          heavy_tail_hit's "outlier" must exclude planted-only wins (else
+          CTRL-PLANTED-OUTLIER passing would trivially ALSO satisfy
+          heavy_tail_hit on every valid run). Applying that reading
+          independently (excluding curve 63 from both the outlier and the
+          homogeneity determination in every class), all 5 classes'
+          non-planted populations are exactly homogeneous (flat zero on the
+          3 density meters, exact ties on the 2 algebraic meters), so
+          scoped_homogeneity's substantive condition holds.
+        - >-
+          Permutation null did not manufacture false outliers: independently
+          confirmed from raw permutation_stability_table.json across all 200
+          logged trials (5 classes x 5 meters x 8 trials) -- stable=true in
+          every case. The only meters with a real winner (the 3 density
+          meters) always recover exactly {63} after unshuffling; the 2 tied
+          meters recover the full 64-way tie set, also trivially stable.
+        - >-
+          Null gates: independently confirmed from raw null_arm_receipts.json
+          across all 35 logged gates (5 classes x [3 outside-class density
+          gates + 2 outside-class algebraic gates + 2 degree-profile gates])
+          -- gate_pass=true in every case.
+      caveat_disclosed_by_executor: >-
+        The Executor's own raw-result.json carries decision_branch_caveat
+        explaining exactly this tension (raw factor10_homogeneous=False
+        despite the branch choice) rather than concealing it. I independently
+        verified the caveat's factual claims (the planted curve is the sole
+        argmax everywhere; confirmed_outlier_meters is empty everywhere) and
+        found them accurate.
+      residual_finding_for_the_coordinator: >-
+        spec.decision_table's branch text should be amended for future
+        EXP-ECTD-001-family batches to state explicitly that both the
+        outlier and homogeneity determinations exclude curves nominated
+        under CTRL-PLANTED-OUTLIER. As written, the literal text is
+        satisfiable by neither branch whenever the planted control is
+        enacted in every class, which this run's design (planting in all 5,
+        stronger than the spec's "at least one class" floor) does. This is a
+        spec-drafting gap, not an executor defect -- both the Executor and I
+        resolve it the same way, and that resolution is internally
+        consistent with the spec's own falsification_criterion wording.
+
+    impl_run:
+      executor_claimed: resource_incomplete
+      my_independent_recomputation: resource_incomplete
+      matches: true
+      method: >-
+        Recomputed from raw planted_control (recovered=true),
+        confirmed_non_planted_outlier_meters (empty, independently verified
+        against per-meter stats the same way as the screen run), and the
+        class count (1, by design).
+      findings:
+        - >-
+          This is a single-class instrumentation smoke test by design (per
+          spec.replication.planned_runs' own purpose text for
+          RUN-ECTD-001-impl), not a budget-exhaustion event: wall_seconds
+          169.8s against a 7200s/run ceiling. spec.decision_table has only 4
+          pre-registered branches and none of them literally describes "a
+          designed single-class run below the >=5-class floor". Among the 4,
+          resource_incomplete ("Budget exhaustion before >=5 classes
+          complete") is the closest available label, and is what I
+          independently reach given the same forced choice. Both run.yaml
+          and raw-result.json's log prominently and repeatedly disclose that
+          this is NOT a failure but the designed scope of this run, with the
+          >=5-class determination deferred to RUN-ECTD-001-screen.
+        - >-
+          I flag, as the Executor itself does, that the label's literal
+          condition text ("budget exhaustion") does not accurately describe
+          what happened here. I recommend spec.decision_table gain a fifth
+          branch (e.g. designed_partial_scope) for future two-run designs
+          of this shape, so a smoke-test run does not have to borrow a label
+          whose stated condition it did not meet.
+
+  # ============================================================
+  # 4. CONTROL CHECKS
+  # ============================================================
+  control_checks:
+    - id: CTRL-PLANTED-OUTLIER
+      pass_fail: PASS
+      basis: >-
+        Recovered=true in all 5 screen classes and the impl class (raw
+        planted_control_receipt.json / raw-result.json), independently
+        cross-checked by MR-2's full from-scratch reproduction of
+        class_seed_203. This gates the whole run per spec.stopping_rules; it
+        held everywhere, so instrument_void does not apply. This is the
+        first thing I checked, per the task's own instruction that it gates
+        everything else.
+    - id: CTRL-PERMUTATION / TAIL-ECTD-PERM-STABLE
+      pass_fail: PASS
+      basis: >-
+        All 200 logged permutation trials across both runs are stable=true
+        in the raw permutation_stability_table.json. The only curve that is
+        ever a winner under any primary meter is the planted curve (index
+        63), and it is stable under all trials in every class.
+    - id: CTRL-OUTSIDE-CLASS
+      pass_fail: PASS
+      basis: >-
+        All 25 outside-class gates (5 classes x 5 meters) in raw
+        null_arm_receipts.json show gate_pass=true; the outside-class
+        sample never independently clears the outlier threshold on any
+        meter where the real (planted-inclusive) class does.
+    - id: CTRL-DEGREE-PROFILE
+      pass_fail: PASS
+      basis: >-
+        All 10 degree-profile gates (5 classes x 2 algebraic meters) show
+        gate_pass=true; this gate is largely vacuous here because the 2
+        algebraic meters never register a real outlier at this parameter
+        regime (see the meter-constancy finding below), but it is genuinely
+        computed against a real random-system null on every class, not
+        defaulted.
+    - id: CTRL-RHO
+      pass_fail: PASS (with a named, unrelated documentation defect -- see PD-9b below)
+      basis: >-
+        A valid, independently-verified discrete-log certificate exists per
+        completed class (5/5 screen classes + the impl class), spot-checked
+        by me on 3 receipts via direct recomputation with curve.py's own
+        scalar_mul, and fully re-derived from scratch for class_seed_203.
+        The plain (non-negation) rho substitution is a disclosed protocol
+        deviation, not a silent one, and CTRL-RHO's own pass_condition
+        ("valid rho receipt per completed class N; baseline only") does not
+        require the negation optimization specifically, so the actual data
+        satisfies the control. See finding PD-9b for a serious, separate
+        problem with the deviation's stated JUSTIFICATION.
+    - id: CTRL-BSGS
+      pass_fail: PASS
+      basis: >-
+        Reported alongside rho in every receipt, independently verified by
+        me the same way. bsgs and rho agree on k_found in every case
+        checked.
+    - id: CTRL-NO-CLASS-INVARIANT-ENDPOINT
+      pass_fail: N/A (structural), documentation gap flagged
+      basis: See item 8 finding below.
+
+  # ============================================================
+  # 5. NAMED FINDINGS (defects, ambiguities, and reasoned rulings)
+  # ============================================================
+  findings:
+    - id: F-1
+      severity: material
+      title: >-
+        CTRL-RHO's stated empirical justification ("~2.5% degenerate
+        collisions, >500x sqrt(N) step counts" for a negation-map Pollard
+        rho) has zero supporting evidence anywhere in the committed package
+        and appears to be a fabricated statistic.
+      what_i_checked: >-
+        Grepped all 23 committed driver files plus both runs' stdout.log and
+        stderr.log for "negation", "fruitless", "degenerate", "2.5%", "500x".
+        The ONLY implementation present anywhere in the codebase is
+        `pollard_rho_plain` (driver/rho_bsgs.py); there is no negation-map
+        implementation, no commented-out prior version, no selftest, and no
+        numeric log or receipt anywhere in the package that could have
+        produced the stated "~2.5%" or ">500x" figures. Both runs' stdout
+        and stderr logs contain zero mentions of negation, degenerate
+        collisions, or fruitless cycles.
+      assessment: >-
+        This is a specific, quantified empirical claim ("This driver's first
+        negation-folded implementation was measured to hit... empirically,
+        ~2.5% of Floyd steps produced a degenerate (unusable) collision, and
+        some runs needed >500x the sqrt(N) step budget") presented as fact
+        in both MANIFEST.md and rho_bsgs.py's module docstring, with no
+        artifact of any kind backing it. Per AGENTS.md rule 9 ("Agents must
+        not fabricate commands, outputs, timings, statistics, citations, or
+        successful runs") and rule 5 ("missing data stays missing and is
+        reported as such"), this is a genuine integrity defect, not a
+        documentation nit. It answers the task's own framing directly: this
+        is an UNVERIFIED EXCUSE, not a measured one.
+      scope_of_impact: >-
+        Narrow but real. The underlying METHODOLOGICAL CHOICE (plain rho
+        instead of negation rho) is legitimately disclosed as a protocol
+        deviation and does not itself violate CTRL-RHO's pass_condition; the
+        actual rho/bsgs DATA used anywhere in the decision_branch
+        determination is independently verified by me to be genuine and
+        byte-reproducible (MR-2, MR-3). What is fabricated is confined to
+        the prose EXPLANATION for the choice, describing a measurement of a
+        code path that, per all available evidence, was never built or run
+        in this codebase. This does not change my recomputed decision_branch
+        for either run, but it must not be repeated or cited as a real
+        measurement in any future record, and I recommend a superseding
+        correction to MANIFEST.md / rho_bsgs.py's docstring (either strike
+        the specific figures, or actually build, run, and log the
+        negation-variant measurement they claim to describe).
+    - id: F-2
+      severity: minor
+      title: >-
+        CTRL-NO-CLASS-INVARIANT-ENDPOINT is entirely absent from every
+        committed artifact, not recorded even as N/A; on the merits it is a
+        legitimate structural N/A, but the batch's own completion_gate text
+        is not literally satisfied.
+      what_i_checked: >-
+        Grepped all 23 driver files for "class_invariant", "anomalous",
+        "embedding_degree", "MOV", "smooth_order", and "endpoint": found
+        zero executable detector code anywhere. Grepped every other
+        committed artifact (raw-result.json for both runs, MANIFEST.md,
+        every receipt file) for "CTRL-NO-CLASS-INVARIANT-ENDPOINT" and
+        related terms: zero mentions anywhere -- not even an "N/A" ruling.
+      my_own_reasoned_verdict: >-
+        On the merits, this IS a legitimate structural N/A, not a skipped
+        check. spec.what_this_experiment_is_NOT is explicit: "Not a
+        trapdoor construction (no secret path, no public-detection test)."
+        EXP-ECTD-001 never nominates a secret endpoint E_s under any
+        decision_branch outcome -- even run_impl.py's own heavy_tail_hit
+        interpretation text explicitly disclaims endpoint/trapdoor status
+        and defers any such nomination to "a separate path-hiding/detection
+        EXP." CTRL-NO-CLASS-INVARIANT-ENDPOINT's pass_condition text is
+        entirely about "nominated secret endpoints" -- a category this
+        experiment's design structurally never produces. There is nothing
+        for an embedding-degree/anomalous/MOV detector to be run against
+        here; its precondition never arises, so its absence reflects the
+        absence of the precondition, not an omitted check. I therefore do
+        NOT count this as a gate failure on the merits.
+      procedural_gap: >-
+        However, the batch's stated completion_gate is "All seven controls
+        present with pass/fail recorded" -- and this control is not present
+        with anything recorded, not even N/A, anywhere in the 39-file
+        commit. That is a real, if narrow, documentation-completeness gap
+        relative to the gate's literal wording. I recommend the Coordinator
+        require an explicit N/A note (with the reasoning above) be added to
+        the record in a future amendment, but I do not treat this gap as
+        invalidating the run package, since the underlying substantive
+        reasoning is independently verifiable from the frozen spec text
+        itself and no meaningful check was actually skipped.
+    - id: F-3
+      severity: minor
+      title: >-
+        The disclosed N-bit-range deviation ("[40,44], the low end of the
+        frozen [40,56] range") understates how narrow the achieved scope
+        actually is: N is exactly 40 bits in every single observed case,
+        never 41-44.
+      what_i_checked: >-
+        Confirmed from run_screen.py / run_impl.py source that
+        N_BITS_LO=40, N_BITS_HI=44 are passed to
+        isogeny_class.find_seed_curve as the acceptance range for the curve
+        ORDER N. Independently checked the bit length of every N value in
+        the raw data: all 5 completed screen classes (957629010769,
+        802006433191, 590747387479, 1033168874009, 635624163397) and the
+        impl class (905902646351) are all exactly 40 bits; every logged
+        attempt (successful and failed, ~15 total across both runs) is also
+        annotated "(40b)" in the run logs. Zero instances at 41-44 bits.
+      root_cause: >-
+        The BASE FIELD PRIME p is drawn via `fp.random_prime(N_BITS_LO,
+        prng)`, which returns a prime of EXACTLY N_BITS_LO=40 bits (not a
+        range). By Hasse's theorem, N = p+1-t with |t| <= 2*sqrt(p) <
+        2^20.5, so for a p fixed at exactly 40 bits, N is mathematically
+        confined to essentially the 40-bit window (p+1+-2^20.5 stays far
+        below 2^41). N_BITS_HI=44 as passed to find_seed_curve is therefore
+        structurally near-unreachable given how p is sampled elsewhere in
+        the same code -- this is not a bug in the sense of producing wrong
+        numbers, but the disclosure's framing ("uses the low end of that
+        allowed range (40-44 bits)") reads as implying some exploration of
+        a 5-bit window, when the achieved scope is a single bit-length.
+      assessment: >-
+        Compliant with the LETTER of the frozen n_bit_range=[40,56] (40 is
+        within it), and disclosed as a deviation (not silent). But the
+        disclosure text itself is not fully accurate about how narrow the
+        realized scope is, and should be corrected in a superseding note so
+        a future reader does not assume any 41-44 bit coverage occurred.
+    - id: F-4
+      severity: informational
+      title: >-
+        groebner_solving_degree_d_reg=14 and macaulay_rank_defect_at_first_fall=2
+        are identical across all curves. I independently assess this as a
+        plausible genuine finding, not a hidden aliasing bug.
+      basis_of_my_own_view: >-
+        I read groebner.py and macaulay.py in full: both operate on the
+        genuinely curve-dependent m=2 Semaev system {S3(x1,x2,x_R_rep),
+        g(x1), g(x2)} built from each curve's own (a,b,p) and a per-curve
+        random target R_rep. For a FIXED support/degree profile (fb_size=8
+        frozen, 2 variables, generator degrees fixed by the Semaev/FB
+        construction), the degree of regularity / first-fall degree is a
+        combinatorial invariant of the term structure under genericity,
+        essentially independent of the specific coefficient values, for as
+        long as no non-generic coincidence occurs -- an extremely robust
+        phenomenon for small bivariate systems. This is consistent with, and
+        independently corroborated by, this corpus's own
+        knowledge/findings/KN-FIND-c41ea9.md, which independently establishes
+        that the m=3 Semaev summation-cover cycle type and factor-base fibre
+        splitting are governed by fixed algebraic/group-theoretic structure
+        rather than per-curve coefficients. I therefore agree with the
+        dispatching session's spot-check finding of no aliasing bug, on
+        independent mathematical grounds, not merely by deferring to it.
+      residual_note: >-
+        Whatever its cause, the practical consequence is that these 2 of the
+        5 primary meters carried zero discriminating power in this toy-scale
+        configuration (fb_size=8) -- they can never register an outlier
+        here. That is worth recording as an instrument limitation for future
+        EXP-ECTD-001-family batches (e.g. a larger fb_size or more variables
+        may be needed for these two meters to be informative), not as a red
+        flag against this run's validity.
+    - id: F-5
+      severity: informational
+      title: No trapdoor / crypto-scale / exponent-improvement language found.
+      basis: >-
+        Grepped all 39 committed files for "trapdoor", "crypto-scale",
+        "cryptographically relevant", "exponent improvement", "break
+        ecdlp", "solve ecdlp", "deployed curve". The only match anywhere is
+        the phrase "not a trapdoor claim" in run_impl.py's own reasoning log
+        for the (unreached in the screen run) heavy_tail_hit branch -- a
+        negation/prohibition statement, exactly the disclaimer the frozen
+        contract requires, not a claim.
+
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+
+  limitations:
+    - >-
+      I did not re-execute all 5 screen classes from scratch (only
+      class_seed_203, chosen because it needed no seed retries and is
+      therefore the cleanest to reproduce); the other 4 classes are verified
+      by hash-integrity + internal-consistency + spot-checked rho/bsgs
+      receipts, not by full independent re-derivation. Given the byte-exact
+      match on the one class I did fully reproduce, plus 3/3 independent
+      rho/bsgs spot checks passing, plus all 5 self-tests passing
+      independently, I judge this a reasonable and sufficient sampling
+      within the time available, not a full guarantee that every one of the
+      320 real curves' meter values is individually free of error.
+    - >-
+      I did not independently verify that every curve in every class has
+      genuinely prime order N (I trust curve.find_curve_order's
+      agreement-based BSGS witness scheme, which selftest_basic.py exercises
+      against brute-force point counting at small scale, and fp.py's
+      deterministic Miller-Rabin witness set, which selftest_basic.py also
+      exercises) -- re-deriving primality/order for all 320+ curves
+      independently was out of scope for the time available.
+    - >-
+      I take no position on whether spec.decision_table's textual gap around
+      planted-curve-in-every-class homogeneity (F-1 in the decision_branch
+      section) should itself block a future promotion decision; I flag it
+      for the Coordinator and note that both the Executor and I resolve it
+      identically and consistently with the spec's own falsification_criterion
+      wording.
+    - >-
+      This review does not address H-ECTD-001's truth, does not claim
+      scoped_homogeneity as a family-wide result, and does not authorize
+      promotion. Per AGENTS.md, a passed validation is admissible evidence
+      only.
+
+  verdict: valid
+
+  verdict_rationale: >-
+    The run package is an admissible research receipt. Commit integrity is
+    fully verified (exact file set, all 38 non-self-referencing declared
+    hashes independently recomputed and matched, commit reachable with the
+    expected parent). Both runs carry schema-complete manifests with honest
+    (not fabricated) seed, environment, and resource records. I independently
+    recomputed the decision_branch for both runs directly from raw per-class
+    data against spec.decision_table's conditions -- not by reading the
+    stated field -- and reached the SAME branches the Executor reports
+    (scoped_homogeneity for the screen run, resource_incomplete for the impl
+    run), including working through a genuine textual gap in the
+    decision_table's literal wording that the Executor disclosed rather than
+    concealed. CTRL-PLANTED-OUTLIER (the gating control) is genuinely
+    recovered in every completed class; CTRL-PERMUTATION, CTRL-OUTSIDE-CLASS,
+    and CTRL-DEGREE-PROFILE all genuinely pass on the raw data across every
+    logged gate; CTRL-RHO and CTRL-BSGS receipts are independently
+    reproduced byte-for-byte for one full class and spot-verified for two
+    more via direct k*G recomputation. All 5 self-tests independently
+    re-executed and passed. CTRL-NO-CLASS-INVARIANT-ENDPOINT is, on the
+    merits I independently worked out from the frozen spec text, a genuine
+    structural N/A rather than a skipped check, though its complete absence
+    from the artifacts (not even an N/A note) is a real documentation gap.
+    Set against this: F-1 is a serious, named integrity defect -- the
+    CTRL-RHO deviation's stated empirical justification is unsupported by
+    any artifact and reads as a fabricated statistic under AGENTS.md rule 9
+    -- but it is confined to a narrative aside that does not feed into the
+    decision_branch or any control's pass/fail determination, both of which
+    I independently re-derived from the underlying raw numbers rather than
+    from that narrative. I am reporting it with full severity rather than
+    silently downgrading the verdict past what the actual evidentiary
+    content supports, and I recommend the Coordinator require it be
+    corrected via a superseding note before this package is cited as
+    precedent for future protocol deviations.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECTD-001/batches/BATCH-fca4e2/reviews/TASK-20260806-5bc785/validation_report.yaml
+    - coordination/goals/GOAL-ECTD-001/batches/BATCH-fca4e2/reviews/TASK-20260806-5bc785/validation_notes.md
+
+  handoff_to_coordinator: >-
+    Report path:
+    coordination/goals/GOAL-ECTD-001/batches/BATCH-fca4e2/reviews/TASK-20260806-5bc785/validation_report.yaml
+    Recommend routing to the ledger archive task
+    (archived_by: TASK-20260806-411ffd per the task card) for durable commit.
+    I change no research status; that is the Coordinator's act alone under
+    AGENTS.md rule 1.

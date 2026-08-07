@@ -1,0 +1,121 @@
+correction:
+  id: CORR-20260805-1c9e4a
+  recorded_at: '2026-08-05'
+  record_type: schema
+  record_id: MERGE-HYGIENE-SURFACED-PROOF-SCHEMA-GAPS
+  field: proof_status_and_experiment_required_fields
+  decided_by: coordinator
+
+  context: >-
+    Surfaced by the branch-hygiene merge of origin/main into
+    claude/aes-campaign-harness-0o9p7y (commit range 6ce76815..96c37502).
+    tools/validate_ledger.py's required-field and enum checks are stricter on
+    main than they were when these three records were written; merging main
+    forward, as this branch is required to do before every batch, makes those
+    stricter checks apply to records already on this branch. Recorded here
+    rather than worked around, per the standing rule that a merge conflict or
+    consequence is never resolved by editing the record it lands on.
+
+  finding_1_a_genuine_authoring_defect_mine:
+    record: EV-AES-a47618
+    what: >-
+      proof_status: derived_and_independently_reworked. NOT A VALID VALUE. The
+      schema's enum is certificate | derivation | empirical_only |
+      not_applicable, and has been since before this session -- this is not a
+      new rule, it is a value I invented without checking the enum, and
+      tools/validate_ledger.py was not run against this record before it was
+      committed and pushed in 502ef1c5.
+    the_correct_value: >-
+      derivation. The record's own content supports this: proof_refs already
+      cites PREREGISTRATION.md (the rederivation) and the validation report
+      (the independent rework), which is exactly what proof_status: derivation
+      exists to describe. Nothing about the record's substance changes; only
+      the enum value it should have carried from the start.
+    disposition: >-
+      NOT REPAIRED IN PLACE. The record is immutable and this correction states
+      the intended value rather than writing it. validate_ledger.py has no
+      documented-override mechanism for an enum field (unlike the
+      hypothesis_id-null allowance CORR-20260802-009 established), so this FAIL
+      will persist against the pushed record PERMANENTLY, the same way BATCH-001
+      and BATCH-005's ledger archives stay published-but-not-official. That is
+      the accepted cost of not rewriting a published record, stated plainly
+      rather than hidden.
+    how_it_was_caught: >-
+      Running tools/validate_ledger.py after the required post-merge
+      re-validation, which this session had not run before -- every archive
+      commit this session verified against tools/research_dispatch.py, the
+      dispatch-queue verifier, but not against the repo-wide ledger schema
+      validator. That gap is itself worth naming: dispatch-queue verification
+      and ledger-schema validation are two different tools checking two
+      different things, and passing one says nothing about the other.
+
+  finding_2_and_3_pre_existing_legacy_gaps_not_introduced_this_session:
+    - record: EV-AES-c66a80
+      what: >-
+        missing required field 'proof_status'; missing required field
+        'proof_refs'. Written in BATCH-004, before this session, absent from
+        origin/main (this record exists only on the AES branch's own history),
+        so it was never checked against main's current required-field list
+        until this merge.
+      disposition: >-
+        NOT REPAIRED HERE. Filling proof_status/proof_refs correctly requires
+        judgement about what BATCH-004's evidence actually rests on -- a
+        certificate, a derivation, or empirical-only -- which this correction
+        will not invent. Left as disclosed legacy debt for whichever
+        Coordinator next touches BATCH-004's record, or for a dedicated repair
+        task; recorded here so it is not silently absorbed.
+    - record: EXP-SMTH-e932e8
+      what: >-
+        missing required field 'status'; missing required field 'metrics';
+        missing required field 'success_criterion'. An ECDLP smoothness
+        contract from an earlier campaign, deliberately frozen without
+        approved_by/evidence_eligible fields by its own design (per this
+        session's prior notes); also absent from origin/main.
+      disposition: >-
+        NOT REPAIRED HERE. Out of this session's scope -- this is an
+        EXP-SMTH-* contract under GOAL-ECDLP-001, not GOAL-AES-003, and
+        inventing status/metrics/success_criterion for a frozen specification
+        would be fabricating content the freeze deliberately omitted for
+        reasons this correction does not have context to second-guess.
+
+  finding_4_unrelated_to_this_branch_disclosed_only:
+    record: experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/manifest.yaml
+    what: run.code.command missing (not reproducible)
+    verified: >-
+      FAILS IDENTICALLY on a clean checkout of origin/main itself, confirmed by
+      running tools/validate_ledger.py against a detached worktree at
+      origin/main before this correction was written. Not introduced by this
+      branch, not introduced by this merge, and not in main's own baseline
+      file either. Outside GOAL-AES-003 and outside this session's authority to
+      fix. Disclosed and left untouched.
+
+  what_this_correction_does_not_do: >-
+    IT DOES NOT TOUCH tools/validate_ledger_baseline.txt. That file's own
+    stated invariant is that lines may only be REMOVED as records are repaired
+    or superseded, and NEVER added to absorb a new violation. All four findings
+    above are left as visible validator failures rather than grandfathered,
+    consistent with that invariant and with this campaign's standing practice
+    of recording defects rather than suppressing them.
+
+  status_effects:
+    hypothesis_status_changed: false
+    evidence_strength_changed: false
+    claim_tier_changed: false
+  edits_are_additive_or_schema_only: true
+  supersedes: null
+  superseded_by: null
+
+  verification: >-
+    python3 tools/validate_ledger.py reports these four errors as new against
+    the merged tree; EV-AES-a47618's proof_refs already cite
+    PREREGISTRATION.md and validation_report.yaml, supporting `derivation` as
+    the intended value; EXP-DREG-001's failure reproduces identically on a
+    detached worktree at origin/main.
+
+  inference:
+    policy: coordinator-orchestration-code
+    requested_policy: coordinator-orchestration-code
+    resolved_model: claude-sonnet-5
+    fallback_used: true
+    model_verified: false
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
