@@ -21,6 +21,7 @@ import os
 import platform
 import resource
 import subprocess
+import sys
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -43,6 +44,123 @@ def git_state() -> tuple[str, bool]:
     # written -- are intentionally ignored.
     dirty = bool(_git("status", "--porcelain", "--untracked-files=no"))
     return commit, dirty
+
+
+def _sha256_file(path: str) -> str | None:
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def _sha256_at_head(rel: str) -> str | None:
+    """sha256 of a path's content AT HEAD, or None if absent there."""
+    blob = subprocess.run(["git", "show", f"HEAD:{rel}"], cwd=REPO,
+                          capture_output=True)
+    if blob.returncode != 0:
+        return None
+    return hashlib.sha256(blob.stdout).hexdigest()
+
+
+def executed_source_files() -> list[str]:
+    """Repo-relative .py files this process actually imported.
+
+    Derived from `sys.modules` rather than from a declared list, so it records
+    what RAN instead of what someone remembered to declare. The entry script is
+    included even when it is executed as `__main__`.
+    """
+    seen: set[str] = set()
+    candidates = [getattr(m, "__file__", None) for m in list(sys.modules.values())]
+    candidates.append(sys.argv[0] if sys.argv else None)
+    for f in candidates:
+        if not f:
+            continue
+        p = os.path.realpath(f)
+        if not p.endswith(".py") or not p.startswith(REPO + os.sep):
+            continue
+        seen.add(os.path.relpath(p, REPO))
+    return sorted(seen)
+
+
+def source_provenance() -> dict:
+    """Pin every source file this run executed, by content hash.
+
+    GOAL-ENDO-001 next action N6 (open since DEC-20260807-c8aa8b, promoted to
+    blocking by CORR-20260807-0f5d56): `code.commit` plus a `dirty` flag does
+    NOT identify the code that ran. Seventeen of EXP-ICINV-4d33aa's nineteen
+    measurement runs recorded `dirty: true` with no per-file binding, which is
+    why one EXP-INSTR-85b102 root cause is permanently unrecoverable -- the
+    pre-repair source no longer exists anywhere.
+
+    Content hashes fix this without forcing a commit-before-run workflow: an
+    untracked file that is committed later still matches the hash recorded
+    here, and a file that is edited later provably does not. `status` says how
+    each file stood relative to HEAD at run time:
+
+        clean          -- tracked, and identical to HEAD
+        modified       -- tracked, but differs from HEAD
+        untracked      -- not in HEAD at all (a new module, the usual case for
+                          a harness written in the same session that ran it)
+        unreadable     -- could not be hashed; the run is NOT pinned
+
+    `all_pinned` is the field a reviewer should read: it is True when every
+    executed source file was hashed, whatever its git status. `all_clean` is
+    the stricter claim that the recorded commit alone reproduces the run.
+    """
+    files: dict[str, dict] = {}
+    for rel in executed_source_files():
+        digest = _sha256_file(os.path.join(REPO, rel))
+        if digest is None:
+            files[rel] = {"sha256": None, "status": "unreadable"}
+            continue
+        head = _sha256_at_head(rel)
+        if head is None:
+            status = "untracked"
+        elif head == digest:
+            status = "clean"
+        else:
+            status = "modified"
+        files[rel] = {"sha256": digest, "status": status}
+    statuses = [v["status"] for v in files.values()]
+    return {
+        "files": files,
+        "file_count": len(files),
+        "all_pinned": bool(files) and "unreadable" not in statuses,
+        "all_clean": bool(files) and set(statuses) <= {"clean"},
+        "modified": sorted(k for k, v in files.items() if v["status"] == "modified"),
+        "untracked": sorted(k for k, v in files.items() if v["status"] == "untracked"),
+        "unreadable": sorted(k for k, v in files.items() if v["status"] == "unreadable"),
+        "note": (
+            "Every executed source file is pinned by sha256 (N6). `commit` "
+            "alone does not identify this run's code when `dirty` is true; "
+            "these hashes do, and they stay valid after the files are "
+            "committed."),
+    }
+
+
+def untracked_source_vs_output() -> dict:
+    """Split untracked paths into SOURCE and OUTPUT.
+
+    The original N6 defect: `git_state()` ignores untracked files wholesale
+    because run outputs are untracked while being written -- which also hides
+    an untracked .py that the run imported. Outputs live under
+    `experiments/*/runs/`; source does not.
+    """
+    raw = _git("ls-files", "--others", "--exclude-standard")
+    untracked = [p for p in raw.splitlines() if p]
+    source, output = [], []
+    for p in untracked:
+        parts = p.split("/")
+        is_output = (len(parts) >= 3 and parts[0] == "experiments"
+                     and parts[2] == "runs")
+        (output if is_output else source).append(p)
+    code_source = [p for p in source if p.endswith(".py")]
+    return {
+        "untracked_source_code": sorted(code_source),
+        "untracked_other_count": len(source) - len(code_source),
+        "untracked_output_count": len(output),
+    }
 
 
 def environment() -> dict:
@@ -135,9 +253,29 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
         raise FileExistsError(
             f"run {run_id} already exists at {run_dir}; run records are "
             f"immutable -- supersede with a new RUN id, do not overwrite")
-    os.makedirs(run_dir)
-
     commit, dirty = git_state()
+    provenance = source_provenance()
+    # N6, promoted to BLOCKING by CORR-20260807-0f5d56. A run whose executed
+    # source cannot be pinned by content hash is unreproducible in a way no
+    # later commit can repair -- exactly the failure that made one
+    # EXP-INSTR-85b102 root cause permanently unrecoverable. Refuse it. Note
+    # this fires on UNREADABLE source only: an untracked or modified file is
+    # pinned by its hash and is fine, which is what keeps the ordinary
+    # write-a-module-then-run-it workflow working.
+    #
+    # CHECKED BEFORE makedirs, DELIBERATELY. Refusing after creating the
+    # directory would leave an empty RUN id behind in a tree whose whole
+    # discipline is that run ids are immutable and never reused -- and the
+    # wrapper's own FileExistsError would then block the retry. A test pins
+    # this ordering.
+    if not provenance["all_pinned"]:
+        raise RuntimeError(
+            f"refusing to write {run_id}: executed source is not pinnable "
+            f"(unreadable: {provenance['unreadable'] or 'none imported'}). "
+            f"A manifest that cannot bind its own code to a hash is not a "
+            f"reproduction package (GOAL-ENDO-001 N6).")
+
+    os.makedirs(run_dir)
     ru = resource.getrusage(resource.RUSAGE_SELF)
     # ru_maxrss is KB on Linux, bytes on macOS.
     peak_rss = ru.ru_maxrss * (1024 if platform.system() == "Linux" else 1)
@@ -161,7 +299,9 @@ def write_run(exp_id: str, exp_area: str, result: RunResult, *,
             "id": run_id,
             "experiment_id": exp_id,
             "status": final_status,
-            "code": {"commit": commit, "dirty": dirty, "command": command},
+            "code": {"commit": commit, "dirty": dirty, "command": command,
+                     "source": provenance,
+                     "untracked": untracked_source_vs_output()},
             "inference": _inference_block(),
             "environment": environment(),
             "inputs": {
