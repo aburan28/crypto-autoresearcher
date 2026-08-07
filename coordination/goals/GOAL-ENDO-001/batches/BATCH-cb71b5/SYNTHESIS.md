@@ -1,3 +1,27 @@
+> ## ⚠ SUPERSEDED IN PART — READ `CORR-20260807-3ee25d` FIRST
+>
+> This document was written **before** independent review. The Red Team found ten
+> material defects and **five of the findings below are withdrawn or refuted**.
+> The text is left unedited (AGENTS.md rule 4: corrections supersede, never
+> overwrite); this header is its correct reading, and the adjudicated position is
+> `EV-ENDO-e8d3e5` + `DEC-20260807-c8aa8b` (disposition: **revise**).
+>
+> | Section | Status |
+> |---|---|
+> | §3 "the isogeny-class grouping carries no detectable information" | **WITHDRAWN.** The permutation null is a between-class *mean* detector (power 1.00 at a 0.9% shift) and is blind to within-class structure. |
+> | §3 relation yield reduces to invariants | **REFUTED.** Under the corrected sampler, yield is over-dispersed within class at both m and both primes — §5 prediction 1 fails. |
+> | §3 walk speedup "94.7% of the ceiling, never above" | **WITHDRAWN.** One draw; the 8-seed mean 1.7344±0.2046 sits *on* the ceiling, 3/8 seeds exceed it, and the fruitless-cycle attribution is contradicted by the run's own zero counter. |
+> | §3 "transport at ~1/6 the cost of rebuilding" | **REFUTED.** The rebuild baseline was inflated ~12× (double-and-add per entry for consecutive multiples). Transport loses at every odd ℓ tested. |
+> | §3 j-invariant Gröbner cost "~3%" | **WRONG NUMBER.** Measured movement is under 1%; the only ~3% quantity is basis *size* for j=1728, at +3.41% (larger). |
+> | §3 volcano level | **Survives on the correct variable**, but the batch's "level" was the 2-torsion count resolving 2 of 5 levels; the Red Team re-ran it properly (p=0.3115) with n=3 at the crater. |
+>
+> **Still standing:** the S₃ monomial-support counts (9/10/13, exact and
+> hand-re-derived), the liftable-count identity and its Var(z)/4 consequence
+> (2.9×10⁻¹⁴), the Hurwitz-Kronecker-certified enumerator, and transport
+> *correctness* at odd ℓ. Also note §8's review-status paragraph is stale: the
+> Validator produced **nothing**, so this batch has no independent run-integrity
+> validation at all.
+
 # BATCH-cb71b5 synthesis — GOAL-ENDO-001
 
 Coordinator synthesis of the opening batch of the endomorphism / isogenous-curve /

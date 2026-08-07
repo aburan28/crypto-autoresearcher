@@ -129,6 +129,15 @@ def contract_from_idea(idea: dict, exp_id: str) -> tuple[dict, list[str]]:
     contract = {"experiment": {
         "id": exp_id,
         "hypothesis_id": None,
+        # validate_ledger.DOCUMENTED_NULL_OK permits a null hypothesis_id ONLY
+        # when accompanied by this note. The note is not a formality: it is what
+        # stops a reader mistaking an unminted hypothesis for an overlooked field.
+        "hypothesis_id_note": (
+            "No hypothesis exists for this contract and none is invented. "
+            "GOAL-ENDO-001 carries no active hypothesis; a proposal is not a "
+            "hypothesis. This contract is DRAFT and NOT APPROVED; the "
+            "/design-experiment step that mints a specified hypothesis from the "
+            "parent IDEA has not been run."),
         "derived_from_idea": idea["id"],
         "question_id": idea.get("question_id"),
         "goal_id": "GOAL-ENDO-001",
