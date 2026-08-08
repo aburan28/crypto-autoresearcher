@@ -365,11 +365,16 @@ finite-scale checks.
 
 **Outcome — finding upheld, its fix overstated where it was written down.**
 `EV-FALSIFY-896f80`. KN-FIND-030 is accurate about both collisions and its
-remedy works. But AGENTS.md **rule 14** and CLAUDE.md both say a random token
-"scans no state and so **cannot converge**" — a universal negative about a
-randomised algorithm, and false. `allocate_id.py`'s own docstring states it
-correctly ("collide only by drawing the same value out of 16**6"), so the code
-is honest and the contract documents are not.
+remedy works. But **AGENTS.md rule 14** says a random token "scans no state and
+so **cannot converge**" — a universal negative about a randomised algorithm, and
+false. `allocate_id.py`'s own docstring states it correctly ("collide only by
+drawing the same value out of 16**6").
+
+*Corrected in `CORR-20260808-438ecd`*: this entry originally said CLAUDE.md
+"repeats it verbatim". It does not — `grep -c` returns **0**. CLAUDE.md says the
+tool "draws a token **without scanning state**, then `--check` it before use",
+which is accurate and names the mitigation in the same sentence. **One** document
+overstates the fix, not two.
 
 The margin nobody had written down: namespace 16⁶ per family, **1,275** random
 tokens in use, worst family 181, so P(next collides) ≈ **1.08e-05**. Within one
