@@ -231,6 +231,10 @@ Only these end the run itself:
 - The user asks to stop.
 - Every goal is terminal and none of the three portfolio-refill paths above
   yields a justified campaign.
+- An attempted Amazon Bedrock resolution. Refuse it before inference and
+  reroute only to an allowed backend that satisfies the same model policy. If
+  none exists, report a harness-wide infrastructure stop; fallback or downgrade
+  permission never authorizes Bedrock.
 - A harness-wide integrity failure that makes *any* durable work impossible:
   no resolvable backend for a `degradable: false` policy, a repository that
   cannot be pushed, or a ledger that will not validate on `main`. Report the
@@ -254,6 +258,8 @@ cheaper ones.
 - Infra failures/timeouts are not mathematical counterevidence.
 - Toy-curve results never become crypto-scale claims.
 - Record requested policy + resolved model; no silent policy downgrade.
+- Never use Amazon Bedrock. OpenCode and the inference adapter must reject any
+  Bedrock provider, backend, endpoint, or model before a request is sent.
 - Workers do not commit into a shared worktree; Coordinator archive tasks alone
   stage declared paths and must pass post-commit verification.
 - Concurrency ("Concurrency" note below): do not fill idle slots without a

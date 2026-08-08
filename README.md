@@ -127,6 +127,12 @@ make doctor           # what is missing, before anything costs money
 per backend, role-binding drift, and suite health, then prints the specific
 next command for whatever is blocking. Everything is offline and free.
 
+Amazon Bedrock is disabled as a cost guardrail. OpenCode disables the provider
+and defaults to OpenAI models, while the repository adapter rejects any Bedrock
+backend, endpoint, or model identifier before inference. Use an allowed
+configured backend such as `openai` or `local`; historical run receipts remain
+immutable.
+
 ```sh
 cp .env.example .env                      # fill in one key; .env is gitignored
 autoresearch backends                     # endpoints, key variables, what is bound
