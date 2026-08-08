@@ -48,7 +48,29 @@ A falsification harness without null objects is capable of refuting a correct
 theorem convincingly. Premature refutation is a failure mode symmetric with
 premature closure, and this program is the thing most likely to commit it.
 
-**2. Evidence only.** Every probe files evidence. None edits a finding, changes
+**2. Read the corrections before the finding.** The corpus is versioned by
+supersession, never by edit, so *a finding's own file is not the current state of
+its claim.* Before any probe, sweep for records that already amend the target and
+record the result in the run manifest:
+
+```sh
+T=KN-FIND-xxxxxx
+grep -rl "$T" ledger/corrections/ 2>/dev/null
+grep -n '^superseded_by:' knowledge/findings/$T.md
+grep -rl "$T" ledger/evidence/ ledger/decisions/ 2>/dev/null | head
+```
+
+This rule exists because F-1 broke it. `EV-FALSIFY-440677` reported the
+generic-vs-every gap in KN-FIND-a1f3c2's proof sketch as an *unrepaired* defect.
+`CORR-20260807-652652` had recorded the same defect the day before, more sharply
+— it names the omitted load-bearing step (σ_all must be the *whole* kernel, i.e.
+the 2^(m-2) signed sums pairwise distinct at the generic point) and observes that
+the independence assertion is the very statement it is offered as a reason for —
+and it *supplies the missing proof* as Lemma 3.2. Withdrawn in
+`CORR-20260808-3d4031`. A probe that skips this sweep may not assert that any
+defect is unrepaired.
+
+**3. Evidence only.** Every probe files evidence. None edits a finding, changes
 a hypothesis status, or supersedes a record — only the Coordinator may
 (AGENTS.md rule 1), corrections supersede rather than overwrite (rule 4), and a
 result contradicting a `proved`/`theorem` record needs independent
@@ -120,10 +142,20 @@ group embeds in `C_2^k` by construction. Positive control: `S_m` vanishes on
 genuine relations.
 
 **Outcome — claim survives.** 0/906 violations at m=4, 0/368 at m=5, primes
-11–103, all controls clean. `EV-FALSIFY-440677`. This is a non-refutation, not
-a proof: the recorded proof sketch still argues "generic" and still concludes
-"every", and uniform sampling would miss an exceptional locus of density below
-~1/300.
+11–103, all controls clean. `EV-FALSIFY-440677`. A non-refutation, not a proof:
+uniform sampling would miss an exceptional locus of density below ~1/300.
+
+**Partly withdrawn — `CORR-20260808-3d4031`.** This record also claimed the
+proof sketch's generic-vs-every gap was *unrepaired*. It was not:
+`CORR-20260807-652652` had already identified it and supplied the missing step
+(Lemma 3.2, `papers/semaev-conservation-specialization/paper.tex`), and
+`KN-FIND-a8990a` Theorem A now derives (Z/2)^(m-2) with arithmetic = geometric
+monodromy in every characteristic via Artin's theorem. What the run does
+contribute is **independent corroboration**: a8990a's finite-scale dichotomy
+("totally split, or 2^(m-3) quadratics, never anything else") is exactly the
+admissible-shape test, and this run confirms it on 1,274 specializations with a
+separate implementation and its own null object, against a8990a's own 241,643.
+That matters because a8990a states plainly that rule 12 is not met for it.
 
 ### F-2 — KN-FIND-c7d31e, BKK Speedup Theorem (D2)
 
