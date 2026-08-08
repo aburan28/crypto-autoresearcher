@@ -136,6 +136,36 @@ a per-TARGET rate, which runs 0.61 → 1.000 as B goes 10 → 40 at fixed m, and
 curve-free null object brackets every reported value at multiplicity 1–2.
 `EV-FALSIFY-2a5e46`.
 
+### F-4 — KN-FIND-2a8b7e, geometrically growing BKK speedup (D4)
+
+The finding fits `γ_m ≈ 0.86·0.68^(m-2)` across four rows, concludes
+`speedup ≈ 1.72·1.36^(m-2)` "geometrically growing", and extrapolates
+m=6 → 5.9x, m=7 → 8.0x, m=8 → 10.9x. Its four rows are measured at
+**B = 54, 18, 12, 10** — B falls as m rises.
+
+**Outcome — growth law refuted, confounded with B.** Holding B fixed, the
+per-step ratio the finding fits at a constant 0.68 becomes 0.754 / 0.829 /
+**1.096** (B=12), 0.893 / 1.280 / 1.127 (B=18), 1.004 / 1.290 / 1.002 (B=24) —
+rising toward and past 1.0, not decaying. Mechanism: mean multiplicity rises
+1.10 → 95.04 at B=24 and per-target success saturates at exactly 1.0000, so
+shrinking B as m grows is what keeps the quantity off its ceiling.
+
+The resulting geometric law also contradicts `KN-FIND-c7d31e`'s **proved linear**
+`(m+1)/2` — ratio 1.27 at m=4 rising to 2.42 at m=8, diverging without bound —
+while that finding states it "provides the combinatorial foundation for the
+empirical improvements in KN-FIND-2a8b7e". At most one can hold.
+`EV-FALSIFY-67150b`.
+
+### F-9 — corpus-wide contradiction sweep (D3)
+
+**Outcome — executed, two groups returned.** A mechanical sweep for quantities
+quoted at more than one value returned `C(p)` (→ F-3) and `speedup` (→ F-4).
+Both pointers led to real defects. The sweep's regex is deliberately crude and
+its recall is a floor, not an estimate: it groups by the symbol immediately
+preceding a numeral, so a quantity named differently in two records is invisible
+to it. Two hits from one crude pass is a lower bound on what a careful pass
+would find.
+
 ### F-3 — KN-FIND-d4f820 / e7a3b1 / 4c9e71, the constant `C(p)` (D3)
 
 Three live findings, none superseded, record `p^0.055`, `p^0.079`, and
@@ -164,16 +194,6 @@ most to strain against. Same admissible-shape test, same null object.
 **Refuted if** any enumerated family yields an inadmissible shape.
 **Note:** a clean result here still does not repair the quantifier gap in the
 recorded proof; it only removes the places a counterexample was most likely.
-
-### F-4 — KN-FIND-2a8b7e, "~3–5x at crypto scale" (D4)
-
-Measure the claimed speedup as a function of B and m at several toy primes and
-check whether it is stable in the parameters the extrapolation holds fixed. F-2
-already showed the *related* per-target quantity is not a constant at all.
-**Refuted if** the quoted 3–5x moves materially with B at fixed m, since the
-crypto-scale figure names no B. **Null:** the same measurement on a random
-abelian group of the same order — any part of the speedup surviving there is
-combinatorial, not elliptic.
 
 ### F-5 — KN-FIND-c7d31e end-to-end cost (D4)
 
@@ -217,15 +237,6 @@ carrying `confidence: proved`; a repair inherits the proof status of what it
 repaired, and KN-FIND-9d2f56 is confirmed above as one of the nine D6 records
 whose `proof_refs` name only itself.
 
-### F-9 — Corpus-wide contradiction sweep (D3, cheap, do first)
-
-F-3 found a live three-way numerical disagreement by reading three titles. That
-was luck. Do it systematically: extract every numeric constant and exponent
-from every finding, group by the quantity named, and list every group whose
-values disagree by more than their stated uncertainty. **Refuted if** the sweep
-returns nothing, which would mean F-3 was isolated. Expect otherwise; the
-`gamma_m`, `C(p)`, `K*` and speedup families are each quoted in several records.
-
 ### F-10 — Reproduce the corpus's own reported numbers (D2, highest yield per hour)
 
 For every finding carrying a table, re-run the measurement from its recorded
@@ -235,8 +246,9 @@ program and needs no new mathematics.
 
 ## Priority
 
-1. **F-9, F-10** — mechanical, no new mathematics, and both defects found so far
-   surfaced this way.
+1. **F-10** — mechanical, no new mathematics. Every defect found so far surfaced
+   from re-running a recorded table. F-9 is done and fed F-3 and F-4; a second,
+   less crude pass over quantity names is still worth one hour.
 2. **F-6** — applies a rule the corpus already adopted to closures that predate
    it; a wrong closure suppresses a live research lane, which is the costliest
    error class here.
