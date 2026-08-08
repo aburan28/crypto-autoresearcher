@@ -420,26 +420,6 @@ constant sits a stable 1.300× above the random null at every prime.
 Each states the target, the defect class, the decisive observation, and the
 null object. Written before execution so the outcome cannot be chosen after.
 
-### F-5 — KN-FIND-c7d31e end-to-end cost (D4)
-
-The speedup counts sweep work only. Re-cost with target generation and linear
-algebra included. **Refuted if** the end-to-end advantage at realistic
-relation counts falls below the quoted `(m+1)/2`. **Null:** set the sweep cost
-to zero and confirm the model then reproduces exactly `(m+1)/2`, which
-localises any discrepancy to the omitted terms.
-
-
-
-The corpus's own closure standard (`docs/inventor-protocol.md`) requires a
-named obstruction, an argument, and forward guidance; a count of
-screened-and-rejected approaches is a fatigue report whose honest status is
-`unverified`, and that rule explicitly binds the program's own standing
-closures. Audit each of the six against it. **Refuted if** any is supported
-only by "we tried it and it did not work". Same audit for KN-FIND-7e4b90
-(`proved_negative`, "blocked for ordinary prime-field ECDLP") and for
-KN-OPEN-009's closure by KN-FIND-a1f3c2 — F-1 leaves that closure resting on an
-argument whose quantifier step is unrepaired.
-
 ### F-7 — GGM simulability claims, KN-FIND-002 / b7e091 / 982fdf (D1, D6)
 
 These assert closure of oracle *classes* — "GGM-simulable with O(1) overhead",
@@ -471,6 +451,42 @@ stands as written.
 Why the asymmetry bites: rule 4 means the corpus is *read forward* from an old
 record to its repairs, and immutability guarantees the stale record stays put to
 be found first. `check_currency.py` now covers all four mechanisms.
+
+### F-5 — end-to-end BKK cost (D4) — **BLOCKED ON UPSTREAM, not skipped**
+
+`EV-FALSIFY-4144a5`. The record F-5 would audit, `EV-SEMAEV-7f7d22`, **does not
+exist** — it is a *reserved* identifier. `DEC-20260806-08b9ed` says it "remains
+correctly reserved and bound by BATCH-122". No decision treats it as evidence.
+
+And F-5's thesis is **already on the record**: `KN-FIND-ac28ed` (2026-08-06,
+before F-5 was written) requires that it "be pre-registered against exact
+rational arithmetic with the linear-algebra and memory terms included" and
+downgrades the β-transfer's "provable" label to a model assumption. Running a
+cost model now would pre-empt a scheduled pre-registration and repeat the
+already-recorded-diagnosis error of `CORR-20260808-733115`.
+
+*Almost filed and wrong*: "five records cite evidence that doesn't exist" reads
+as decisions resting on nothing. Checking them refutes it — they say *reserved*.
+Sixth would-be false finding, caught by checking.
+
+### Correction to a figure this program kept citing
+
+"259 pre-existing validator errors" has been used here as shorthand for corpus
+disorder. It is not. The count is 256 and the composition is what matters: 56
+missing-field, 45 missing run artifact, 33 run missing-field, 19 evidence→unknown
+run, 17 certificate-kind, 11 expected-`run`-key. That is **legacy schema debt in
+run manifests**, which `validate_ledger.py`'s own comments put at ~680
+pre-current-schema manifests.
+
+The dangling references are mostly a **file-format mismatch**: 32 unknown-ref
+errors name 12 ids, and `RUN-YIELD-004/-005/-006`, `RUN-OIFP-001` all *exist*
+with `manifest.**json**` where `check_run()` globs only `manifest.**yaml**`.
+RUN-OIFP-001 even ships command.txt, environment.json and both logs — a complete
+package in the wrong serialisation.
+
+Not harmless, though: a run whose manifest the validator cannot read is a run
+whose controls and certificate discipline go **unchecked** — which matters for
+exactly the reasons this program exists.
 
 ### F-1b — special families, re-scoped then run (D1)
 
