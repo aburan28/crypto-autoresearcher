@@ -22,6 +22,10 @@ import sympy
 import yaml
 
 REPO = Path(__file__).resolve().parents[3]
+# Make the repository-local harness importable when the frozen command is
+# launched from the repository root or from an isolated worktree.
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
 FROZEN = REPO / "experiments" / "EXP-ENDO-001" / "frozen-instances.yaml"
 RUN_ID = "RUN-ECDLP-fce71d-001"
 EXP_ID = "EXP-ECDLP-fce71d"
