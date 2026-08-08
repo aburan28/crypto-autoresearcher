@@ -1,0 +1,205 @@
+idea:
+  id: IDEA-ISO-a4c8e1
+  question_id: SG-ECDLP-002
+  added: '2026-08-07'
+  title: >-
+    Extension-field isogeny bridge: use F_{p^k}-isogenies (k>1) to cross trace
+    classes, since the Tate theorem applies only to F_p-isogenies; however, the
+    cost of finding an F_{p^k}-isogeny from a generic curve to a special curve
+    is Omega(p^{1/2}) for any known algorithm, matching Pollard rho before any
+    special-curve saving is applied
+  class: mechanism
+
+  claim: >-
+    The Tate isogeny theorem states that ordinary F_p-isogenies preserve trace
+    of Frobenius, blocking transfer between trace classes. However, over extension
+    fields F_{p^k} with k>1, ordinary and supersingular curves can become isogenous
+    (their extended-field point counts can coincide).
+
+    MECHANISM: (1) Lift E/F_p to E/F_{p^k}. (2) Find an F_{p^k}-isogeny from
+    E/F_{p^k} to a special curve E'/F_{p^k} (e.g., anomalous over F_{p^k}).
+    (3) Solve DLP on E' using the special-curve algorithm. (4) Transfer solution
+    back to E via the isogeny.
+
+    OBSTRUCTION: The cost of finding an F_{p^k}-isogeny between arbitrary curves
+    is Omega(p^{k/2}) for any known algorithm (this is the supersingular isogeny
+    problem, which is hard classically). For k=2, this is Omega(p), which is
+    WORSE than Pollard rho's O(p^{1/2}). For k=1, we're back to F_p-isogenies,
+    which the Tate theorem blocks.
+
+    Even if we restrict to ordinary-ordinary isogenies over F_{p^k}, the cost
+    of finding a short path in the F_{p^k}-isogeny graph is Omega(p^{k/2}) by
+    the same random-graph hitting-time heuristic as the F_p case.
+
+    CONCLUSION: The extension-field bridge costs Omega(p^{k/2}) >= Omega(p^{1/2})
+    for k>=1, matching or exceeding Pollard rho. No improvement.
+
+  mechanism: >-
+    (1) Lift E/F_p to E/F_{p^k} (trivial, just view E over the extension).
+    (2) Find an F_{p^k}-isogeny phi: E -> E' where E' is special (e.g., anomalous
+        over F_{p^k}, meaning #E'(F_{p^k}) = p^k).
+    (3) Solve DLP on E'(F_{p^k}) using Smart's p-adic attack (cost O(log p^k)).
+    (4) Transfer solution: if phi(P) = P' and phi(Q) = Q', then log_P(Q) on E
+        can be recovered from log_{P'}(Q') on E' via the isogeny degree.
+
+    The bottleneck is step (2): finding the F_{p^k}-isogeny. For k=1, the Tate
+    theorem blocks this (no F_p-isogeny exists between different trace classes).
+    For k>1, the cost is Omega(p^{k/2}) for any known algorithm.
+
+  novelty_status: known
+  novelty_note: >-
+    Extension-field isogenies are a standard technique in pairing-based cryptography
+    and SIDH. The cost of finding isogenies over extension fields is well-studied
+    and is known to be hard (this is the basis of isogeny-based cryptography).
+
+  avoids_tate_obstruction: true
+  avoids_tate_obstruction_reason: >-
+    The Tate theorem applies only to F_p-isogenies. Over F_{p^k} with k>1, curves
+    from different F_p-trace classes can become isogenous. However, the cost of
+    finding such isogenies is the obstruction.
+
+  assumptions:
+    - >-
+      The cost of finding an F_{p^k}-isogeny between arbitrary curves is
+      Omega(p^{k/2}) for any known algorithm. This is based on the hardness
+      of the supersingular isogeny problem and random-graph hitting-time heuristics.
+    - >-
+      The special-curve algorithm (e.g., Smart's attack) on E'(F_{p^k}) costs
+      O(log p^k) group operations.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The F_{p^k}-isogeny graph behaves like a random regular graph, so the
+        hitting time to a sparse special set is exponential in the set's density.
+      rigorous_support: >-
+        Random regular graph distance heuristics; Pizer (1990) showed supersingular
+        isogeny graphs are Ramanujan graphs (optimal expanders).
+      validation_plan: >-
+        At toy scale (bits=20, k=2), compute the F_{p^2}-isogeny graph for 100
+        random curves and measure the distance to anomalous curves. Compare to
+        random-graph hitting-time prediction.
+
+  predictions:
+    - metric: extension_isogeny_cost
+      direction: higher
+      minimum_effect: >-
+        The cost of finding an F_{p^k}-isogeny is Omega(p^{k/2}). For k=2,
+        this is Omega(p) >> Pollard rho's O(p^{1/2}).
+    - metric: total_transfer_cost
+      direction: higher
+      minimum_effect: >-
+        Total cost = C_path + C_special = Omega(p^{k/2}) + O(log p^k) = Omega(p^{k/2}).
+        For k>=1, this is >= Omega(p^{1/2}) = Pollard rho.
+
+  minimal_test:
+    design: >-
+      At bits=20, k=2: (1) Generate 10 random curves E/F_p. (2) Lift to E/F_{p^2}.
+      (3) Attempt to find an F_{p^2}-isogeny to an anomalous curve over F_{p^2}
+      using BFS up to degree 1000. (4) Measure the cost (number of isogenies
+      explored). (5) Compare to Pollard rho cost at bits=20.
+    controls:
+      - >-
+        For k=1, verify that no F_p-isogeny exists between different trace classes
+        (Tate theorem confirmation).
+      - >-
+        For k=2, verify that the F_{p^2}-isogeny graph is connected (ordinary
+        and supersingular curves are isogenous over F_{p^2}).
+    required_metrics:
+      - isogeny_finding_cost (number of isogenies explored)
+      - total_transfer_cost vs Pollard rho cost
+
+  falsification_conditions:
+    - >-
+      If an F_{p^k}-isogeny to a special curve can be found at cost < p^{1/2}
+      for some k>1, the mechanism is viable. This would be surprising and would
+      require a new algorithm for isogeny finding.
+    - >-
+      If the F_{p^k}-isogeny graph has unexpected structure (e.g., short paths
+      to special curves), the random-graph heuristic is wrong.
+
+  confounders:
+    - >-
+      Special primes p (e.g., p = 2^k - 1) might have unusual isogeny graph
+      structure. Test on random primes, not special ones.
+
+  interpretation_limits:
+    - >-
+      A positive result (cheap F_{p^k}-isogeny) would apply to all curves, not
+      just a special family. This would be a major breakthrough.
+    - >-
+      Does not apply to standardized curves unless they use special primes.
+
+  dominated_by: >-
+    Pollard rho at exponent 1/2. The extension-field bridge costs Omega(p^{k/2})
+    >= Omega(p^{1/2}) for k>=1, matching or exceeding rho.
+  sota_delta:
+    time_exponent: not_applicable
+    memory_exponent: not_applicable
+    data_or_query_exponent: not_applicable
+    note: >-
+      For k>=1, the mechanism costs Omega(p^{k/2}) >= Omega(p^{1/2}) = Pollard rho.
+      No improvement. The mechanism is dominated by rho for all k>=1.
+
+  target_complexity:
+    time_exponent: k/2 for k>=1 (worse than rho for k>1, same for k=1)
+    memory_exponent: 0 (same as rho)
+    best_known: 1/2 (Pollard rho)
+    hidden_overhead: >-
+      The isogeny-finding algorithm has polylog(p) overhead, but the dominant
+      term is p^{k/2}.
+    tradeoff_note: >-
+      No time-memory tradeoff; the mechanism is a search for an isogeny path.
+
+  estimated_cost:
+    implementation: medium (requires F_{p^2}-isogeny graph computation)
+    compute: medium (10 curves at bits=20, k=2)
+
+  recommended_priority: low
+  novelty_status: known
+
+  proof_search_map:
+    bottleneck: >-
+      Step (2): finding an F_{p^k}-isogeny to a special curve. Cost is Omega(p^{k/2})
+      for any known algorithm.
+    baseline_embedding:
+      parameter_slice: >-
+        Generic prime-order curves E/F_p with prime-order subgroup of order N ~ p.
+      reproduction_check: >-
+        At bits=20, k=2, verify that F_{p^2}-isogeny finding costs >= p.
+    observation_collision:
+      observable: >-
+        Isogeny-finding cost as a function of k and p.
+      distinct_preimage_search: >-
+        Find two curves with the same p but different isogeny-finding costs
+        (should not exist; cost depends only on p and k).
+    constructive_transforms:
+      - transform: boundary_lift
+        proposed_object: >-
+          A new algorithm for finding F_{p^k}-isogenies at cost < p^{k/2}.
+        predicted_gain: >-
+          If such an algorithm existed, it would break isogeny-based cryptography
+          (SIDH, CSIDH). No such algorithm is known.
+    quantifier_order: >-
+      FOR ALL k>=1 and generic p, DOES THERE EXIST an algorithm for finding
+      F_{p^k}-isogenies at cost < p^{k/2}? Answer: NO (no known algorithm).
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        Extension-field isogeny bridge costs Omega(p^{k/2}) >= Omega(p^{1/2})
+        for k>=1, matching or exceeding Pollard rho.
+      nearby_object_control: >-
+        For k=1, the Tate theorem blocks the mechanism entirely (no F_p-isogeny
+        exists between different trace classes).
+    proof_obligations:
+      - claim: Isogeny-finding cost is Omega(p^{k/2})
+        responsibility: feasibility (no known algorithm beats this)
+      - claim: Random-graph hitting-time heuristic applies
+        responsibility: size (toy-scale validation)
+    not_applicable_reason: >-
+      The mechanism costs Omega(p^{k/2}) >= Omega(p^{1/2}) for k>=1, matching
+      or exceeding Pollard rho. No improvement.
+
+  scope: >-
+    Applies to ordinary prime-field curves E/F_p with prime-order subgroup of
+    order N. For k>=1, the mechanism costs Omega(p^{k/2}) >= Omega(p^{1/2}),
+    matching or exceeding Pollard rho. No improvement for any k>=1.
