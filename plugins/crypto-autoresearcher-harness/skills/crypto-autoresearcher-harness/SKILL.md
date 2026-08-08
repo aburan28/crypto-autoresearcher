@@ -50,6 +50,13 @@ and does not expose credential values. A failed preflight is an operational
 blocker, not evidence about an ECDLP hypothesis. Report the exact failed check
 and the doctor-recommended remediation before proceeding.
 
+If the doctor failure is limited to an unconfigured `api_direct` credential or
+model, an authenticated native Codex or Claude Code session may satisfy the
+runtime requirement. Verify that native session through the documented runtime
+probe or login-status check, record its model provenance in produced artifacts,
+and still refuse any session whose resolved provider is Bedrock. Binding,
+dependency, repository-integrity, and policy failures remain blockers.
+
 ## 2. Read the governing state before doing work
 
 Read the following in every fresh campaign or resumed session:

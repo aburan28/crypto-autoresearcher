@@ -89,7 +89,29 @@ class Config:
     def runtime_table(self) -> dict[str, Any]:
         return self.providers.get("runtimes", {})
 
+    @property
+    def forbidden_provider_substrings(self) -> list[str]:
+        governance = self.providers.get("governance", {})
+        return [str(value).casefold() for value in
+                governance.get("forbidden_provider_substrings", [])]
+
+    def assert_inference_target_allowed(self, *values: object,
+                                        context: str = "inference target") -> None:
+        """Fail before resolution when a cost-prohibited provider is named."""
+        for value in values:
+            if value is None:
+                continue
+            normalized = str(value).casefold()
+            for token in self.forbidden_provider_substrings:
+                if token and token in normalized:
+                    reason = (self.providers.get("governance", {}) or {}).get(
+                        "reason", "provider is forbidden by repository policy")
+                    raise ConfigError(
+                        f"{context} {value!r} is forbidden by cost policy "
+                        f"(matched {token!r}): {reason}")
+
     def backend(self, name: str) -> dict[str, Any]:
+        self.assert_inference_target_allowed(name, context="backend")
         try:
             return self.backend_table[name]
         except KeyError:
@@ -116,8 +138,12 @@ class Config:
         backend = self.backend(backend_name)
         override = backend.get("base_url_env")
         if override and env.get(override):
-            return env[override].rstrip("/")
-        return str(backend["base_url"]).rstrip("/")
+            base_url = env[override].rstrip("/")
+        else:
+            base_url = str(backend["base_url"]).rstrip("/")
+        self.assert_inference_target_allowed(
+            base_url, context=f"backend {backend_name} resolved endpoint")
+        return base_url
 
     def default_backend(self, env: dict[str, str] | None = None) -> str:
         env = os.environ if env is None else env
@@ -231,6 +257,9 @@ def validate(config: Config) -> None:
     if not isinstance(backends, dict) or not backends:
         raise ConfigError("providers.yaml declares no backends")
     for name, backend in backends.items():
+        config.assert_inference_target_allowed(
+            name, backend.get("display_name"), backend.get("base_url"),
+            backend.get("base_url_env"), context=f"backend {name}")
         for field in ("wire", "base_url", "api_key_env"):
             if not backend.get(field):
                 raise ConfigError(f"backend {name} is missing `{field}`")
@@ -266,6 +295,10 @@ def validate(config: Config) -> None:
                 raise ConfigError(
                     f"binding {backend_name}.{policy_id} names a model but is "
                     f"marked unbound")
+            if binding.get("model"):
+                config.assert_inference_target_allowed(
+                    binding["model"],
+                    context=f"binding {backend_name}.{policy_id} model")
             caps = binding.get("capabilities") or {}
             ceiling = caps.get("max_reasoning_effort")
             if binding.get("model") and ceiling not in order:

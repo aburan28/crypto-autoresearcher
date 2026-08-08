@@ -1,0 +1,220 @@
+experiment:
+  id: EXP-PTH-9f1440
+  title: "NC2b-SLOPE: Synthetic slope null test of assumption L1 \u2014 multiply the\
+    \ committed null series by ell^s for s in {0.4, 0.8} and require the corrected\
+    \ estimator to recover the known slope contribution within 0.75 bits"
+  hypothesis_id: H-WESO-001
+  status: approved
+  approved_by: coordinator
+  approval:
+    task_id: TASK-20260804-c802a9
+    goal_id: GOAL-P13-001
+    batch_id: BATCH-403f13
+    approved_at: '2026-08-04'
+    authority: Coordinator only (AGENTS.md, "Roles"). This approval authorises execution
+      by TASK-20260804-241b87. It changes no hypothesis status, promotes nothing,
+      and lifts no prohibition.
+    frozen: true
+    freeze_rule: This contract is written before any datum of the NC2b-SLOPE run exists.
+      All inputs are committed values from RUN-PEC-49c773-a; this experiment generates
+      no new measurements. A needed change is a SUPERSEDING contract under a new EXP
+      id.
+  context: 'DEC-20260802-48c72c adjudication B records a defect of EXP-PEC-49c773''s
+    NC2b gate: the 0.75-bit tolerance derivation contains NO VARIANCE TERM, so the
+    PASS at 0.271670 bits is about 1.4 noise half-widths, not a 0.478-bit cushion.
+    More fundamentally, the gate tests LEVEL RETENTION only (it evaluates the estimator
+    at alpha=0 on a flat series) and has NO POWER against assumption L1 (the extrapolation
+    from ell <= 211 to ell ~ B_opt). A flat series extrapolates trivially under any
+    reasonable estimator. NC2b-SLOPE supplies the missing test: a synthetic series
+    with a KNOWN non-zero slope (obtained by multiplying the committed flat null by
+    ell^s) exercises the part of the estimator that L1 is about. If the corrected
+    estimator correctly recovers the slope contribution s*log2(B_opt) for two non-trivial
+    values of s, that is evidence the estimator does not systematically distort slope-driven
+    contributions. If it does not recover them within tolerance, the estimator has
+    a bias that would affect any slope-dependent c value.'
+  objective: Test whether the corrected estimator of EXP-PEC-49c773 correctly recovers
+    a known non-zero slope contribution (s*log2(B_opt)) when applied to a synthetic
+    series with known exponent s in {0.4, 0.8}. This is a zero-compute arithmetic
+    test on 47 committed values already on record.
+  what_this_experiment_cannot_do:
+  - Validate L1 in full generality. L1 asserts the power law extends across ~7.5 unmeasured
+    octaves at NIST-I. This test checks only that the estimator correctly RECOVERS
+    slope contributions within the measured ell range (up to ell=211). A pass cannot
+    claim the law extends beyond ell=211.
+  - Generate new measurements. Every number used here already exists in the committed
+    record; this is pure arithmetic.
+  - Change any hypothesis status or standing prohibition.
+  inputs:
+    committed_null_series:
+      source: experiments/EXP-PEC-49c773/runs/RUN-PEC-49c773-a/raw-result.json
+      commit: 84356221fbb448127245539e944c896a6e97cee5
+      field: controls.C-NULL.per_ell_per_entry
+      description: '47 per-ell null per-entry costs (ell 2..211), each the median
+        over 8 j-values, in counted F_{p^2} multiplications. These are the values
+        at p3 = 1099511627563 (p ~ 2^40). Status: READ-ONLY.'
+      ref_null:
+        value_bits: 12.2595
+        provenance: "DEC-20260802-48c72c official_positions.per_entry_cost_calibration:\
+          \ \"REF_null = 12.2595 MEASURED bits above the assumed 1\". This is the\
+          \ W-MID OLS intercept of the null series (log2(A_null) at ell=1, where gamma_null\
+          \ \u2248 -0.013). The Executor reads the committed raw-result.json and confirms\
+          \ this value before proceeding."
+    corrected_estimator_law:
+      source: experiments/EXP-PEC-49c773/specification.yaml section 6
+      law: "c(level, series, window, alpha=0)\n  = [ log2(A) + gamma * log2(B_opt(level))\
+        \ ] / sqrt(log2(p_level))\nwhere (log2 A, gamma) are the OLS intercept and\
+        \ slope of log2(median per_entry) vs log2(ell) on the declared window, and\
+        \ alpha=0 is used because the null series was measured at the primary prime\
+        \ p3 and no p-scaling term is needed."
+      pairing_rule: 'BINDING from EXP-PEC-49c773: intercept always paired with the
+        slope of the same fit of the same series over the same window.'
+    b_opt_constants:
+      source: experiments/EXP-PEC-49c773/specification.yaml section 6, constants
+      table:
+      - field: SQIsign NIST-I
+        log2p: 256
+        log2_B_opt: 14.200000000000001
+      - field: SQIsign NIST-III
+        log2p: 384
+        log2_B_opt: 17.8
+      - field: SQIsign NIST-V
+        log2p: 512
+        log2_B_opt: 20.900000000000002
+      - field: log2p = 576
+        log2p: 576
+        log2_B_opt: 22.3
+      - field: log2p = 768
+        log2p: 768
+        log2_B_opt: 26.1
+  procedure:
+    step_1_verify_inputs:
+      action: Read the committed raw-result.json from RUN-PEC-49c773-a and verify
+        its SHA-256 against the committed hash 13f8f3fa55dc2dfeabe29d4d01f60d5d69370485fae523b208a7b53e6128add6.
+        If the hash disagrees, STOP and report an integrity finding.
+      output: the 47 per-ell null per-entry values N(ell) and their ell labels
+    step_2_confirm_ref_null:
+      action: "Refit log2(N(ell)) on log2(ell) by OLS over W-MID (ell >= 11, 43 values).\
+        \ Record the fitted intercept log2(A_null_refit) and slope gamma_null_refit.\
+        \ The expected values from DEC-20260802-48c72c: gamma_null \u2248 -0.013241522288809005\
+        \ on W-MID, log2(A_null) \u2248 12.2595. If the refit intercept differs from\
+        \ 12.2595 by more than 0.05 bits, record it as a finding (but do not void\
+        \ the experiment)."
+      output: log2(A_null_refit), gamma_null_refit, REF_null_used (the refit intercept)
+    step_3_form_synthetic_series:
+      action: 'For each s in {0.4, 0.8}: form the synthetic series S_s(ell) = N(ell)
+        * ell^s at each of the 47 ell values. These are the inputs to the estimator.'
+      note: "S_s(ell) has known approximate slope s (because N(ell) is approximately\
+        \ flat) and known approximate level REF_null (because log2(N(ell)) is approximately\
+        \ REF_null). The OLS fit of log2(S_s(ell)) on log2(ell) should give gamma_s_hat\
+        \ \u2248 s and log2(A_s_hat) \u2248 REF_null."
+    step_4_apply_estimator:
+      action: "For each s in {0.4, 0.8} and each window W in {W-ALL, W-MID}: 1. Fit\
+        \ OLS of log2(S_s(ell)) on log2(ell) over the window. 2. Record the OLS estimates\
+        \ (log2(A_s_hat), gamma_s_hat) and their\n   analytic 95% CIs.\n3. For each\
+        \ field size (NIST-I through log2p=768), evaluate the\n   corrected law at\
+        \ alpha=0:\n     estimated_numerator = log2(A_s_hat) + gamma_s_hat * log2(B_opt)\n\
+        4. Compute the predicted numerator:\n     predicted_numerator = REF_null_used\
+        \ + s * log2(B_opt)\n5. Record the recovery error:\n     error = |estimated_numerator\
+        \ - predicted_numerator|"
+      note: The comparison is on the NUMERATOR of the corrected law (in bits) rather
+        than on c directly, because the numerator is the slope-and-level contribution
+        that L1 is actually about. The conversion c = numerator / sqrt(log2 p) is
+        a fixed scale factor that does not affect the test.
+    step_5_evaluate_gates:
+      action: "For each s and each field size: check whether error <= 0.75 bits (the\
+        \ NC2b tolerance from EXP-PEC-49c773). Record a per-(s, field-size) verdict.\
+        \ The BATCH GATE is: all ten (2 s values \xD7 5 field sizes) verdicts are\
+        \ PASS."
+  preregistered_predictions:
+    derivation: These values are derived from committed constants (B_opt table from
+      EXP-PEC-49c773, REF_null from RUN-PEC-49c773-a) and are recorded before execution.
+      The Executor verifies them from the committed data.
+    tolerance: 0.75
+    predicted_numerators:
+      s_0_4:
+        NIST_I_log2p_256: 17.9395
+        NIST_III_log2p_384: 19.3795
+        NIST_V_log2p_512: 20.6195
+        log2p_576: 21.1795
+        log2p_768: 22.6995
+      s_0_8:
+        NIST_I_log2p_256: 23.6195
+        NIST_III_log2p_384: 26.4995
+        NIST_V_log2p_512: 28.9795
+        log2p_576: 30.0995
+        log2p_768: 33.1395
+    note_on_prediction_accuracy: "N(ell) is not perfectly flat (gamma_null \u2248\
+      \ -0.013), so the OLS fit of S_s(ell) will give gamma_s_hat \u2248 s + gamma_null\
+      \ \u2248 s - 0.013 and log2(A_s_hat) will differ slightly from REF_null. The\
+      \ resulting prediction error from this non-flatness is about |gamma_null| *\
+      \ log2(B_opt) \u2248 0.19 bits at NIST-I, which is well within the 0.75-bit\
+      \ tolerance. The Executor accounts for this by using REF_null_used = log2(A_null_refit)\
+      \ from step 2 rather than the nominal 12.2595."
+  gate:
+    id: NC2b-SLOPE-G1
+    pass_condition: "ALL ten recovery errors (2 s values \xD7 5 field sizes) are <=\
+      \ 0.75 bits on W-MID."
+    fail_condition: ANY recovery error > 0.75 bits on W-MID.
+    consequence_of_fail: The corrected estimator has a systematic bias in recovering
+      slope contributions that is large enough to be detected on synthetic data with
+      known answers. This is evidence that L1's extrapolation bias, if present, would
+      be amplified rather than neutralised by the estimator. Report as a FINDING.
+      Do not void the run; report the failed gate plainly.
+    consequence_of_pass: The corrected estimator correctly propagates the slope contribution
+      through to the numerator at the charged ell. This is evidence that the estimator
+      does not introduce a large bias when L1 holds (the slope extrapolates). It does
+      NOT test whether L1 holds; it tests whether the estimator would correctly represent
+      a signal if L1 held.
+    what_a_pass_cannot_claim: A pass CANNOT be cited as validation of L1. L1 is about
+      the true cost curve extending beyond ell=211; a synthetic object built from
+      the committed range says nothing about ell > 211. A pass validates the INSTRUMENT
+      against a known input, not the assumption.
+  section_8_assessment:
+    applicable: false
+    reason: NC2b-SLOPE is a zero-compute arithmetic check on an instrument (the corrected
+      estimator), not a theorem, bound, reduction, or closure argument. The four audits
+      of section 8 are inapplicable. This determination is stated explicitly rather
+      than omitted.
+  standing_prohibitions_applicable:
+  - 'SP-1 (PERMANENT): c = 0.864 and variants non-citable as estimates'
+  - 'SP-10 (PERMANENT): alpha=1 is DERIVED and MECHANISM-INCONSISTENT from prior run;
+    every alpha=1 row inherits that label until NC2d-PROPER retires it'
+  - 'SP-12: the NC2b-G1 PASS may not be restated as validation of the corrected law'
+  - 'MA-7: the NC2b-SLOPE gate, even if passed, does not validate L1'
+  resource_budget: &id001
+    wall_clock_seconds: 300
+    memory_gb: 1
+    maximum_runs: 1
+    note: Zero new measurements. Pure arithmetic on 47 committed numbers.
+  required_artifacts:
+    run_receipt:
+    - runs/RUN-P13-NC2b-a/manifest.yaml
+    - runs/RUN-P13-NC2b-a/raw-result.json
+    - runs/RUN-P13-NC2b-a/execution_report.yaml
+    - runs/RUN-P13-NC2b-a/command.txt
+    - runs/RUN-P13-NC2b-a/environment.json
+    - runs/RUN-P13-NC2b-a/stdout.log
+    - runs/RUN-P13-NC2b-a/stderr.log
+    implementation:
+    - implementation/nc2b_slope.py
+  completion_gate:
+  - manifest.yaml exists and parses
+  - SHA-256 of RUN-PEC-49c773-a raw-result.json verified and recorded
+  - Recovery errors reported for both s values at all five field sizes
+  - Gate verdict (NC2b-SLOPE-G1) stated as PASS or FAIL
+  - REF_null_refit value recorded
+  inference_policy:
+    policy: executor-implementation
+    fallback_allowed: true
+    degraded_allowed: true
+    amendment: INFAMEND-20260802-P13-002
+  version: 1
+  metrics: []
+  budget: *id001
+  success_criterion: null
+  success_criterion_note: The archived record was observational and declared no success
+    criterion; this correction preserves that absence explicitly.
+  falsification_criterion: null
+  falsification_criterion_note: The archived approved contract did not state a separate
+    falsification criterion; this correction records that defect explicitly and does
+    not invent one.
