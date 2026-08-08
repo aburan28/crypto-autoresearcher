@@ -37,12 +37,23 @@ Qdrant  ──►  retrieval service  ──►  FastMCP
 cd kb
 make install-all                  # core + qdrant + mcp + aws + dev
 make qdrant-up                    # docker: qdrant on :6333
-export CRYPTO_KB_QDRANT_URL=http://localhost:6333
+cp .env.example .env              # already points at :6333
 
 make slice                        # stage this repo's records → ingest → status
 make search Q="negative results for Semaev decomposition over prime fields"
 make eval-slice && make evaluate  # hybrid vs dense vs sparse, against the gates
 ```
+
+Agents reach it through MCP, and **Claude Code needs no setup beyond the two
+commands above**: `.mcp.json` at the repository root is this server, committed,
+with a relative `--directory` so every worktree resolves it, and `uv run`
+builds `kb/.venv` on first launch. Codex and OpenCode snippets are in
+`clients/`. Put machine-specific settings in `kb/.env`, never in a client
+config — a value set there overrides `.env` and has to be maintained per
+client.
+
+The index is derived and starts empty; `make slice` is what fills it. Skip it
+and every tool returns nothing, correctly and unhelpfully.
 
 Without Docker, point `CRYPTO_KB_QDRANT_URL` at a directory instead
 (`export CRYPTO_KB_QDRANT_URL=./.kb-index`). That runs Qdrant embedded but
@@ -126,34 +137,36 @@ Three findings from building the evaluation set, each measured:
 
 ## Measured results
 
-Against the evaluation corpus slice (415 documents, 1,518 chunks) and the
-32-question set in `tests/retrieval_eval/questions.jsonl`:
+Measured 2026-08-08 against the **frozen** evaluation slice
+(`crypto_kb/eval/corpus_manifest.txt`: 625 paths, 610 of which carry the
+frontmatter needed to stage) and the 32-question set in
+`tests/retrieval_eval/questions.jsonl`:
 
 | metric | hybrid | dense only | sparse only |
 | --- | ---: | ---: | ---: |
-| recall@5 | **0.870** | 0.826 | 0.913 |
-| recall@10 | 0.913 | 0.870 | 0.913 |
-| MRR | **0.764** | 0.673 | 0.748 |
-| nDCG@10 | **0.797** | 0.718 | 0.783 |
-| exact-identifier recall@5 | 1.000 | 1.000 | 1.000 |
-| general recall@5 | 0.786 | 0.714 | 0.857 |
+| recall@5 | 0.826 | 0.826 | **0.870** |
+| recall@10 | **0.913** | 0.870 | **0.913** |
+| MRR | **0.759** | 0.673 | 0.732 |
+| nDCG@10 | **0.792** | 0.718 | 0.772 |
+| exact-identifier recall@5 | **1.000** | **1.000** | 0.889 |
+| general recall@5 | 0.714 | 0.714 | **0.857** |
 | filter correctness | 1.000 | 1.000 | 1.000 |
 | source attribution | 1.000 | 1.000 | 1.000 |
 | duplicate rate | 0.000 | 0.000 | 0.000 |
-| median context tokens | 1,832 | 1,724 | 2,059 |
+| median context tokens | 1,822 | 1,756 | 2,007 |
 
 Against the plan's gates, **five of six pass and one does not**:
 
 ```text
 exact identifiers recall@5     1.000   ≥ 0.95    pass
-general questions recall@5     0.786   ≥ 0.80    FAIL
+general questions recall@5     0.714   ≥ 0.80    FAIL
 filter correctness             1.000   = 1.00    pass
 source attribution             1.000   ≥ 0.95    pass
 duplicate result rate          0.000   < 0.15    pass
-median retrieved context       1,832   < 5,000   pass
+median retrieved context       1,822   < 5,000   pass
 ```
 
-The miss is three questions out of fourteen, and they are the same kind:
+The miss is four questions out of thirty-two, and they are the same kind:
 vocabulary the pinned dependency-free embedder has no way to bridge. The
 clearest is a query asking about a *"generic-group simulable"* representation
 against a document that says *"GGM-simulable"* — no lexical overlap and no
@@ -162,13 +175,32 @@ encoder, and it is now measurable rather than assumed: set
 `CRYPTO_KB_DENSE_BACKEND=sentence-transformers`, bump the collection, and
 re-run `make evaluate`.
 
+### Why the slice is frozen
+
+These numbers are lower than the ones first recorded here (recall@5 0.870,
+general 0.786), and **no retrieval code changed between the two runs**. The
+slice was defined by globs, and six of the eight were open-ended:
+`ledger/evidence/EV-*.yaml` matched 137 files when the baseline was set and
+299 five days later, `knowledge/findings/KN-FIND-*.md` 31 and then 57. The
+corpus grew 430 → 625 documents, more documents competed for the same top-5,
+and recall fell. A measured baseline that any unrelated commit can move is not
+measuring retrieval.
+
+So the slice is now an explicit manifest of repository-relative paths and the
+globs are only the recipe used to regenerate it. `crypto-kb eval-manifest`
+reports drift; `--write` freezes it deliberately, after which the labels are
+re-checked and the baseline re-measured with the run that justifies it. A
+manifest path that has been deleted is an error, not a silent shrink.
+
 Two other honest readings of that table:
 
-- **Sparse alone beats hybrid on raw recall@5** on this corpus (0.913 vs
-  0.870), while hybrid wins on ranking quality (MRR, nDCG@10). This corpus is
-  unusually identifier-dense, which favours lexical matching. Hybrid is kept
-  because ranking quality is what a top-6 budget actually spends, but the
-  claim is checked by a test rather than asserted.
+- **Sparse alone beats hybrid on general recall@5** on this corpus (0.857 vs
+  0.714), while hybrid wins on ranking quality (MRR, nDCG@10) and on exact
+  identifiers (1.000 vs 0.889). This corpus is unusually identifier-dense,
+  which favours lexical matching. Hybrid is kept because ranking quality is
+  what a top-6 budget actually spends, and because dropping the dense side
+  would cost the exact-identifier gate; the claim is checked by a test rather
+  than asserted.
 - **Unsupported-answer rate is not measured.** It is a property of an answer,
   and this harness retrieves without answering. What is measured is the
   precondition: whether the passages needed to support an answer came back.
@@ -178,7 +210,9 @@ Two other honest readings of that table:
 
 ```bash
 crypto-kb stage-repo ..          # repository records → corpus layout + sidecars
-crypto-kb stage-repo .. --eval-slice   # just the fixed evaluation corpus
+crypto-kb stage-repo .. --eval-slice   # just the frozen evaluation corpus
+crypto-kb eval-manifest ..       # how the frozen slice differs from the globs today
+crypto-kb eval-manifest .. --write     # freeze it again, deliberately
 crypto-kb ingest [KEY|PREFIX]    # idempotent; --force to re-ingest
 crypto-kb search "query" [--json] [--source-type paper] [--mode dense|sparse]
 crypto-kb context <chunk_id> [--before 2 --after 2]
@@ -259,7 +293,7 @@ kb/
 
 ```bash
 make test-fast   # unit tests, no corpus build (~0.3s)
-make test        # full suite: builds a 415-document corpus and queries it (~60s)
+make test        # full suite: builds a 610-document corpus and queries it (~60s)
 ```
 
 186 tests. The integration and evaluation tests run against real repository

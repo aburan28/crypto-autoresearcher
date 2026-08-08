@@ -29,6 +29,20 @@ Code specifically.
   - `experiments/` — frozen contracts and immutable run artifacts
   - `knowledge/` — curated long-term corpus (literature, techniques,
     internal findings, open problems)
+- **Retrieval** (`.mcp.json` → `kb/`): a read-only MCP server exposing
+  `search_knowledge`, `get_context`, `get_source`, and `find_related` over a
+  derived index of the corpus. `.mcp.json` is committed and its `--directory`
+  is relative, so every worktree gets the same server with no editing, and
+  `uv run` builds `kb/.venv` on first launch. Machine-specific settings —
+  `CRYPTO_KB_QDRANT_URL` above all — go in `kb/.env` (gitignored), never in
+  the client config, which would override it.
+
+  **The index is derived and starts empty.** `make -C kb qdrant-up`, then
+  `crypto-kb stage-repo .` and `crypto-kb ingest`; with `:memory:` configured
+  the server answers every question with nothing and says why only in its
+  startup log. When and how agents must query it — and the prohibition on any
+  agent writing to it — is AGENTS.md "Knowledge retrieval policy", which binds
+  regardless of runtime.
 
 ## Non-negotiable rules (summary of AGENTS.md)
 

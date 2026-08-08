@@ -1,0 +1,154 @@
+idea:
+  id: IDEA-20260808-f7e6e7
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-CRYPTO-001
+  title: Multi-target does not rescue prime-field index calculus — against the correct Kuhn-Struik
+    baseline sqrt(T*N), an exhaustive-solver index calculus loses at every target count T,
+    and the (T, sigma) admission condition is a single inequality.
+  class: cost-model
+  claim: 'Solving T discrete logs in one group of order N does NOT cost T*sqrt(N); multi-target
+    rho with a shared distinguished-point table costs about sqrt(T*N) (Kuhn-Struik). Using
+    that as the baseline and E1-03''s cost frame, the T-target index-calculus total is C_rel
+    + C_LA + T * C_descent = m! N B^{(m-1)(sigma-1)} + m B^2 + T m! N B^{(m-1)sigma - m}.
+    CLAIM A, negative and exact within the model. At sigma = 1 the first term is m!*N independent
+    of B and m, so index calculus beats sqrt(T*N) only if T > (m!)^2 N, i.e. only when the
+    number of targets exceeds the group order — impossible, since T <= N and at T = Theta(N)
+    the logs are obtainable by enumeration anyway. Therefore no target count rescues an exhaustive-solver
+    prime-field index calculus, and the multi-target crossover K* for that regime is INFINITE,
+    not merely large. CLAIM B, the admission condition. Amortisation does relax the requirement
+    once sigma < 1: the condition becomes m! N B^{(m-1)(sigma-1)} < sqrt(T*N) with 2 beta
+    < log_N sqrt(TN), which for T = N^{tau} gives sigma < 1 - (1 - (1+tau)/2)/(beta(m-1)).
+    Stated cleanly: each additional decade of targets buys exactly a (1+tau)/2 shift in the
+    budget exponent, and nothing more. That inequality is the honest replacement for the informal
+    "index calculus wins if you have enough targets".'
+  mechanism: 'Relation collection and linear algebra are one-time costs shared across targets;
+    only the descent is per-target. But the one-time cost at sigma = 1 is m!*N, which is above
+    the multi-target rho baseline sqrt(T*N) for every T <= N. The reason is structural: the
+    solver''s exhaustive cost exactly cancels the factor-base-size gain (E1-03), so there
+    is no B at which the shared cost drops below N.'
+  why_not_a_renamed_known_approach: 'IDEA-20260726-001 and H-IC-001 asked empirically whether
+    K* is finite and reported a decreasing T_desc/sqrt(N) trend, which was subsequently weakened;
+    this record supplies the closed-form reason and the correct baseline, so the empirical
+    question does not need to be re-run in that form. IDEA-20260807-406fef flags that "M discrete
+    logs do not cost M*sqrt(N)"; this record uses that correction as an input and derives
+    the (T, sigma) admission condition, which that record does not state. It is not a re-run
+    of RQ-ICEX''s alpha-confidence-interval instrument: no estimator is proposed, the statement
+    is algebraic.'
+  predictions:
+  - observable: the multi-target crossover K* under an exhaustive solver
+    metric: smallest T at which amortised index calculus beats sqrt(T*N)
+    predicted: infinite (no admissible T <= N)
+  - observable: measured T_desc / sqrt(N) trend in a beta sweep
+    metric: the quantity H-IC-001 reported as decreasing
+    predicted: the decrease is a beta-sweep artifact of the uncharged solve; recomputing with
+      the solve charged makes it flat
+  - observable: sensitivity of the admission condition to tau
+    metric: d(sigma_max)/d(tau) at fixed beta, m
+    predicted: 1/(2 beta (m-1)); at beta = 1/4, m = 5 this is 2, so ten decades of targets
+      buy a sigma budget shift of 2 * (log_N of ten decades), which is negligible at crypto
+      N — the honest conclusion is that amortisation is a weak lever, not a strong one
+  minimal_test: 'Zero compute for both claims. One cheap confirmation: instrument the existing
+    toy IC harness to report the shared cost (relations + linear algebra) separately from
+    the per-target descent, and check that the shared cost is flat in B at fixed N with an
+    exhaustive solver, which is the observable signature of the cancellation.'
+  controls:
+  - Kuhn-Struik multi-target rho control implemented and measured on the same instances, rather
+    than a T * single-target rho control, which is the error this record targets.
+  - Charge everything in the single unit of IDEA-20260802-007.
+  confounders:
+  - Descent cost per target can be lowered by a larger factor base while the shared cost rises;
+    reporting only the descent makes IC look good. Both must be reported.
+  - Distinguished-point table memory for multi-target rho must be charged (KN-TECH-035), or
+    the baseline is understated and IC looks better than it is.
+  falsification_conditions:
+  - A measured toy configuration where amortised IC with an exhaustive solver beats sqrt(T*N)
+    at any T => Claim A is wrong and the cost frame must be repaired.
+  - The shared cost is measured to vary with B under an exhaustive solver => the cancellation
+    identity of E1-03 is wrong, which invalidates several records at once.
+  interpretation_limits: Claim A is exact inside the stated model (relation count ~B, sparse
+    linear algebra, uniform targets, solver cost a power of B). It is not a statement about
+    extension fields, where sigma is effectively 0 and multi-target amortisation genuinely
+    helps.
+  assumptions:
+  - Kuhn-Struik multi-target rho at sqrt(T*N) with a shared distinguished-point table.
+  - E1-03's cost frame.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: Multi-target rho achieves sqrt(T*N) up to constants for T up to N^{1/2}, with
+      the distinguished-point table sized to the number of targets.
+    rigorous_ingredient: The birthday count for T targets in one group is exactly T*N/2 pairs,
+      giving the sqrt(T*N) shape; the constant depends on the walk.
+    distribution_imitated: Standard parallel-collision-search analysis (KN-TECH-006, van Oorschot-Wiener).
+    validation_route: 'Toy N in [2^20, 2^30], T in {1, 4, 16, 64}: measure group operations
+      to solve all T logs and fit the exponent against 1/2 in (T*N). Label toy.'
+    tail_checks: The fitted exponent must be 0.5 +/- 0.03; a systematic departure means the
+      baseline implementation is wrong and every comparison against it is void.
+  target_complexity:
+    time_exponent: No new algorithm. The record fixes the comparator at sqrt(T*N) and states
+      the admission condition; the index-calculus exponent is E1-03's master formula unchanged.
+    memory_exponent: Multi-target rho needs a distinguished-point table of size about sqrt(T*N)/w
+      for w processors, which must be charged; index calculus needs N^{beta}. The comparison
+      is therefore not memory-free on either side.
+    best_known_baseline: Kuhn-Struik multi-target rho sqrt(T*N); single-target rho 0.886 sqrt(N)
+      (KN-TECH-006); BSGS N^{1/2}.
+    hidden_overhead_disclosure: m! is superpolynomial in the large-m regime and is what makes
+      Claim A's threshold (m!)^2 N rather than N.
+    time_memory_tradeoff: Both sides have a memory knob; the honest comparison is on the (time,
+      memory, T) surface, and this record supplies the index-calculus face of it.
+  sota_delta: 'Zero as an attack. Negative as a correction: it removes multi-target amortisation
+    as a rescue for the programme''s own index-calculus lane and gives the exact condition
+    under which amortisation would matter, which is a screening rule rather than an experiment.'
+  dominated_by: 'Kuhn-Struik multi-target rho at sqrt(T*N) dominates exhaustive-solver index
+    calculus at every T. Frontier rows checked: single-target rho/vOW, BSGS, multi-target
+    rho, preprocessing frontier S*T^2 = N (which is a different model — free preprocessing
+    — and is not claimed or contradicted here), special-curve attacks.'
+  estimated_cost: '"Implementation low; compute low."'
+  recommended_priority: medium
+  honest_prior_of_survival: ~0.9 that Claim A holds inside the model. ~0.7 that stating it
+    changes how the ICEX and MTGT lanes are budgeted, which is the practical value.
+  novelty_status: screened
+  novelty_screen: Screened against EXISTING_PROPOSALS.txt (all RQ-MTGT-2cabee, RQ-ICEX-001
+    and RQ-ECDLP-002 rows), EXISTING_HYPOTHESES.txt (H-IC-001), KNOWLEDGE_BARRIERS.txt, KN-FIND-007.
+    No record states the (T, sigma) admission condition or the infinite-K* consequence at
+    sigma = 1. External literature UNVERIFIED (no web access this session).
+  discriminated_from: IDEA-20260726-001 / H-IC-001 (empirical K* question, weakened — this
+    gives the closed form and the correct baseline); IDEA-20260807-406fef (correct multi-target
+    baseline, used as an input); IDEA-20260731-010 and IDEA-20260731-013 (amortisation accounting
+    for T targets — those compare constructions, this fixes the admission inequality in sigma).
+  source_refs:
+  - KN-TECH-006, KN-TECH-035, KN-FIND-007 (in-repo)
+  - IDEA-20260807-406fef, IDEA-20260726-001 (corpus)
+  proof_search_map:
+    bottleneck: '"Whether the one-time cost of relation collection can be amortised below
+      the multi-target rho baseline."'
+    baseline_embedding:
+      parameter_slice: '"T = 1 must reproduce the single-target statement of E1-03."'
+      reproduction_check: '"Symbolic substitution T = 1 recovers max(C_rel, C_LA) vs sqrt(N)."'
+    observation_collision:
+      observable: '"amortised cost per target"'
+      distinct_preimage_search: Distinct (B, m) with the same amortised cost at sigma = 1
+        — an intended collision that shows beta and m sweeps carry no information in this
+        regime.
+    constructive_transforms:
+    - transform: specialization_pack
+      proposed_object: '"the (tau, sigma, beta, m) admission inequality"'
+      predicted_gain: '"replaces an open-ended amortisation argument with one screening test"'
+    quantifier_order: FOR ALL T <= N and FOR ALL B, m, IF sigma = 1 THEN amortised index-calculus
+      cost exceeds sqrt(T*N). EXISTS (T, sigma, beta, m) satisfying the stated inequality
+      IFF amortised index calculus beats the multi-target baseline.
+    method_ceiling:
+      strongest_certifiable_claim: '"A comparator statement inside a stated cost model; never
+        a lower bound on ECDLP."'
+      nearby_object_control: Extension fields, where sigma is effectively 0 and the same inequality
+        predicts that amortisation does help — matching the published behaviour of Gaudry-Diem,
+        which is the control that the inequality is not vacuously negative.
+    proof_obligations:
+    - claim: '"shared cost is m!*N at sigma = 1, independent of B and m"'
+      responsibility: runtime
+    - claim: '"multi-target baseline is sqrt(T*N) with memory charged"'
+      responsibility: baseline
+    - claim: '"the admission inequality in (tau, sigma, beta, m)"'
+      responsibility: strictness

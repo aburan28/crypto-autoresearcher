@@ -1,0 +1,130 @@
+idea:
+  id: IDEA-20260808-5d8b39
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-HQC-001
+  goal_id: GOAL-HQC-001
+  title: HQC's inner Reed-Muller block length does not scale with the security level, so two
+    of the three factors of the DFR model are measurable at DEPLOYED parameters today - factorise
+    the 3.4e41-trial barrier instead of reducing it
+  class: measurement
+  claim: 'BATCH-003 priced direct DFR measurement at T_req about 1/DFR (3.4e41 / 6.8e59 /
+    8.4e79 trials) and the campaign responded by reducing parameters. That infeasibility is
+    not uniform across the model. The inner code is [384, 8, 192] at HQC-1 and [640, 8, 320]
+    at HQC-3 and HQC-5 - the same tiny lengths at every security level, because security is
+    carried by n, omega and the outer shortened-RS code, not by n_2 - and its failure rate
+    p_i is about 2^-10.8 / 2^-14.1 / 2^-11.3 (Table 11). CLAIM: writing DFR = E_pi[Pr(N >=
+    delta_e + 1 | pi)] over the block-weight profile pi, the entire 40-to-80 order-of-magnitude
+    infeasibility lives in the OUTER factor; the inner factor p_i(w) is measurable on a grid
+    at deployed block length with about 10^7 trials per grid point, and the law of pi is measurable
+    at deployed n by sparse convolution. Only the conditional-independence step remains modelled.'
+  mechanism: 'Rare-event cost multiplies along the chain p* -> p_i (Prop. 6.1.3/6.1.4) ->
+    binomial tail over n_e blocks (Theorem 6.1), but measurability does not: p_i is a 2^-11
+    event on a length-384 vector, while the outer stage is a 16-fold coincidence costing 2^128.
+    Conditioning on pi makes the split exact, Pr(fail) = sum_pi Pr(pi) Pr(fail | pi), with
+    per-block factors p_i(w_j). Computing e'' at n = 17669 is a sparse convolution of omega
+    x omega_r terms modulo n and costs microseconds, so Pr(pi) is directly samplable at the
+    deployed parameter set.'
+  why_not_a_renamed_known_approach: 'Not importance sampling or splitting: no tilted measure
+    and no likelihood ratio, the factorisation is exact. Not the campaign''s PS-R1/PS-R3 reduced
+    -parameter programme, which shrinks n and n_e so the whole chain is observable and then
+    must extrapolate; nothing is shrunk here. The new content is the observation that n_2
+    is constant across security levels.'
+  predictions:
+  - observable: Measured p_i(w) at true inner block length, on a grid of block weights w.
+    metric: log2 p_i at w = round(n_2 p*) versus Prop. 6.1.4's value.
+    predicted: Within 0.3 bits of Table 11's -10.79 / -14.14 / -11.30; a gap above 1 bit is
+      a decoder or transcription defect and is itself the finding.
+  - observable: Empirical block-weight profile law at deployed n.
+    metric: Chi-square against multivariate hypergeometric at matched W, plus the maximum
+      block weight.
+    predicted: Accept in the bulk; the max-block-weight tail is the discriminating statistic
+      because that is where the outer tail draws its mass.
+  - observable: DFR reconstructed from the measured factors versus Theorem 6.1.
+    metric: log2 ratio at HQC-1/3/5.
+    predicted: Non-zero and signed, with C1-02 predicting the sign; agreement within 1 bit
+      would be strong independent corroboration of the published model.
+  minimal_test: Measure p_i(w) for w on a grid spanning n_2 p* minus 3 sd to plus 6 sd with
+    10^7 trials per point, using stage_a.py's decode_blocks imported by sha256 pin (confirmed
+    by two independent reviewers in BATCH-558f5b to be the real WHT/Reed-Muller decoder).
+    Separately sample 10^6 realisations of e' at n = 17669 and record block-weight profiles.
+    Convolve in exact rationals. Budget order 10^3 core-seconds, inside the roughly 4,973
+    seconds remaining.
+  controls:
+  - DECODER-IDENTITY CONTROL - import decode_blocks by hash rather than reimplement; BATCH-4b8ad3's
+    V1 arm was defeated for exactly that substitution.
+  - NULL PROFILE - feed the measured p_i(w) grid an i.i.d. BSC(p*) profile; the reconstruction
+    must reproduce Theorem 6.1's binomial tail exactly, else the pipeline is wrong rather
+    than the model.
+  - GRID-EDGE CONTROL - report the fraction of outer-tail mass carried by grid points with
+    fewer than 30 observed failures; above 10 percent the grid is too coarse.
+  confounders:
+  - p_i(w) is a sufficient statistic only under within-block conditional uniformity; if that
+    fails the factorisation leaks.
+  - The truncation l = n - n_e n_2 injects H-HQC-d46460's forced (1 - 2p*)^l channel into
+    the profile law; report l per cell and check the forced decay reproduces.
+  - Table 11's p* is printed to four decimals and is raised to a 16th power downstream; re-derive
+    p* rather than reusing the printed value.
+  falsification_conditions:
+  - Measured p_i at true block length disagrees with Prop. 6.1.4 by more than 1 bit and the
+    disagreement survives the decoder-identity control.
+  - The max-block-weight tail is so heavy that the reconstruction is dominated by grid points
+    beyond the measured range.
+  - Within-block conditional uniformity fails measurably, so the factorisation is not exact.
+  interpretation_limits: Two measured factors out of three does not make the DFR a crypto-scale
+    measurement; the composition still rests on a named conditional law and AGENTS.md rule
+    7 binds. Honest headline - the inner factor of HQC's DFR model is now measured at the
+    deployed parameter set and agrees or disagrees with Prop. 6.1.4 by X bits, plus a reconstructed
+    DFR labelled conditional.
+  assumptions:
+  - n_2 is in {384, 640} at all three parameter sets, per KN-LIT-b9e1a8 Table 5.
+  - stage_a.py's decode_blocks implements the specification's inner decoder.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: Conditioned on block j having weight w_j, the inner decoder fails with probability
+      p_i(w_j), independently across blocks and independently of which pattern realises w_j.
+    rigorous_ingredient: Exactly true when the error restricted to a block is uniform among
+      weight-w_j patterns, which holds by construction for a uniform fixed-weight support.
+    distribution_imitated: The urn model - uniform allocation of a fixed number of balls given
+      cell counts.
+    validation_route: At deployed n, sample e' and compare the empirical failure rate of blocks
+      realising weight w_j through the true product distribution against synthetic uniform
+      weight-w_j patterns. Both sides are measurable at deployed parameters, so this is crypto-scale
+      for the conditional law only.
+    tail_checks: Repeat restricted to the largest 1 percent of block weights, where the outer
+      tail draws its mass.
+  target_complexity:
+    time_exponent: Measurement cost drops from Theta(1/DFR) = 2^128 trials to about 2^24 trials,
+      an exponent reduction of roughly 104 in the MEASUREMENT. No attack exponent is claimed
+      or moved.
+    memory_exponent: O(n) per trial; negligible.
+    best_known_baseline: BATCH-003's verdict of structural infeasibility (3.4e41 / 6.8e59
+      / 8.4e79 trials) and the campaign's reduced-parameter response.
+    hidden_overhead_disclosure: The 2^104 saving is bought with exactly one conditional-independence
+      assumption, stated as HA-1 rather than buried.
+    time_memory_tradeoff: Embarrassingly parallel, no memory pressure, linear speedup.
+  sota_delta: Would give GOAL-HQC-001 its first measurement at deployed parameters after eight
+    batches whose own checkpoints repeatedly record that nothing was measured about HQC. Moves
+    the measurable fraction of the DFR chain from zero to two of three factors.
+  dominated_by: 'Partially dominated by the specification itself - Table 11 already reports
+    inner-code simulations at the true block lengths. What is NOT dominated is the p_i(w)
+    GRID and the profile law, neither of which Table 11 contains. Inside the corpus nothing
+    dominates: PS-R1/PS-R3 measure a joint moment at reduced parameters and both reviewers
+    judged that lineage exhausted (DEC-20260806-0995d5); IDEA-20260801-011 proposes reduced-parameter
+    DFR measurement, which this supersedes for the inner factor. External literature unscreened.'
+  estimated_cost: Implementation LOW (reuses stage_a.py). Compute LOW-MEDIUM, order 10^3 core-seconds.
+  recommended_priority: high
+  honest_prior_of_survival: About 0.8 that the inner measurement completes and agrees with
+    Prop. 6.1.4; about 0.4 that the full reconstruction constrains the outer tail non-trivially.
+  novelty_status: unverified
+  novelty_screen: Screened against IDEA-20260801-011, 20260805-15258a, baa4da, db5afa, H-HQC-18d1b4/1d9b21/d46460,
+    GOAL-HQC-001 checkpoints BATCH-001..BATCH-2ecaa1, KNOWLEDGE_BARRIERS.txt, and my own C1.yaml.
+    Web unavailable.
+  discriminated_from: IDEA-20260801-011 (measures DFR at reduced parameters; this measures
+    the inner factor at deployed parameters and never reduces it). C1-03 in C1.yaml (a two-sided
+    bound needing no sampling; this is a measurement architecture).
+  source_refs:
+  - KN-LIT-b9e1a8 (Table 5 parameters, Table 11 inner simulations, Prop. 6.1.3/6.1.4, Theorem
+    6.1)
+  - GOAL-HQC-001 BATCH-003 and BATCH-558f5b checkpoints (T_req figures; decode_blocks validation)

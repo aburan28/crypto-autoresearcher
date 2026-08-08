@@ -1,0 +1,157 @@
+idea:
+  id: IDEA-20260808-721f2b
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MQOM-001
+  goal_id: GOAL-MQOM-001
+  title: Compute the OPTIMAL forger's cost exactly by dynamic programming over the TCitH challenge
+    structure at toy (lambda, N, tau, w), instead of bounding it -- the gap between the measured
+    optimum and the published bound is the tightness GOAL-MQOM-001 asks for, and it is a combinatorial
+    computation with no cryptography in it
+  class: measurement
+  claim: 'MQOM''s forgery security rests on a Fiat-Shamir bound for a multi-round protocol
+    with tau parallel repetitions, N-party (or N-leaf) challenges, and w bits of grinding.
+    The published bound is an upper bound on the best forger, obtained by the standard Kales-Zaverucha
+    two-phase argument (attack the first challenge on some repetitions, the second on the
+    rest). CLAIM: at parameters small enough that the challenge space is enumerable, the EXACT
+    optimal forger cost is computable by dynamic programming over the joint challenge distribution
+    -- state = (number of repetitions already satisfied in phase 1, budget spent) -- and the
+    ratio (published bound) / (measured optimum) is a directly measurable tightness factor.
+    FURTHER CLAIM: that ratio is not 1, and its logarithm grows with tau, so the bound''s
+    slack is a function of tau rather than a constant; this is discriminating because the
+    two candidate explanations -- "the KZ split is optimal and the bound is tight" versus
+    "the optimum is a mixed strategy the two-phase argument does not capture" -- predict a
+    ratio of exactly 1 and a tau-growing ratio respectively.'
+  mechanism: The Kales-Zaverucha argument fixes a strategy shape (choose tau_1, grind phase
+    1, then grind phase 2) and optimises within it. The true optimum is over ALL strategies,
+    including adaptive ones that re-randomise after partial success and mixed ones that hedge
+    between phases. For small (N, tau) the whole strategy space is a finite Markov decision
+    process whose optimal value is computable exactly. Nothing about MQ hardness enters; the
+    computation is about the protocol's challenge structure alone, which is why it is cheap
+    and why its answer is exact.
+  why_not_a_renamed_known_approach: 'Nearest known method: the Kales-Zaverucha forgery attack
+    and its refinements, which produce a strategy and hence a lower bound on the optimum,
+    paired with the proof''s upper bound. This record computes the optimum itself at small
+    parameters, closing the interval rather than widening it. Nearest internal record: IDEA-20260805-7abf04
+    defines a static Fiat-Shamir slack functional S_FS = tau(log2 N - 1) + w - lambda read
+    off four published integers. That is an arithmetic identity on the spec''s own design
+    inequality; this record computes an OPTIMAL STRATEGY and its cost, which the functional
+    cannot see -- a design inequality met with equality is consistent with both a tight and
+    a loose bound.'
+  predictions:
+  - observable: ratio (published bound) / (DP-computed optimal forger cost) at toy cells (N,
+      tau, w) in {(4,6,0), (4,8,0), (8,6,0), (4,6,8), (8,8,8)}
+    metric: ratio, and log2 of it in bits
+    predicted: Strictly greater than 1, i.e. the bound is not tight, with log2(ratio) increasing
+      in tau. A ratio of exactly 1 at every cell means the KZ shape is optimal and the bound
+      is tight, which is a clean positive result for MQOM.
+  - observable: the optimal strategy's phase-1 split tau_1
+    metric: integer
+    predicted: Different from the KZ-optimal tau_1 at at least one cell. Agreement everywhere
+      supports tightness.
+  - observable: sensitivity of the optimum to the grinding budget w
+    metric: bits of forgery cost per bit of w
+    predicted: Strictly less than 1 bit gained per bit of w spent above some threshold, i.e.
+      grinding saturates. A linear-forever response would mean grinding is undervalued in
+      the design inequality.
+  minimal_test: Pure combinatorics, no crypto, minutes. Implement the TCitH challenge structure
+    at toy (N, tau, w) exactly as the MQOM specification defines it (this requires reading
+    Section 4's protocol description and the soundness statement verbatim). Build the DP over
+    states (i, j) = (repetitions satisfied in phase 1, repetitions satisfied in phase 2) with
+    transition probabilities from the challenge distribution, and compute the minimum expected
+    number of hash queries to a forgery. Compare against the published bound evaluated at
+    the same toy parameters. Sweep tau and N.
+  controls:
+  - 'IDEAL-PROTOCOL NULL: run the identical DP on a protocol whose soundness error is exactly
+    1/N^tau by construction (a single non-interactive challenge of that size). The DP must
+    return exactly N^tau, confirming the DP is correct before it is trusted on TCitH.'
+  - 'KZ-STRATEGY CONTROL: evaluate the KZ strategy inside the same DP framework. Its value
+    must be an upper bound on the DP optimum; if the DP returns something worse than KZ, the
+    DP is wrong.'
+  - 'w = 0 CONTROL: with no grinding the published bound has a known closed form; the DP must
+    reproduce the relationship exactly.'
+  - 'TAU-SWEEP: the ratio must respond to tau. A ratio flat in tau is the artifact tell.'
+  confounders:
+  - The DP's state space must capture everything the adversary can adapt on; an under-specified
+    state space silently restricts the strategy class and produces a spuriously tight ratio.
+    The state space must be justified against the protocol's transcript structure explicitly.
+  - Toy N and tau (4-8 and 6-8) are far from published values; the ratio's growth in tau may
+    not extrapolate, and the record must present a growth curve rather than an extrapolated
+    number.
+  - MQOM v2.1 is the latest published specification as of this program's records; a Round-3
+    specification is due 2026-08-14 and may change the protocol. The record must be run against
+    whichever text is actually read and must name it.
+  - Counting hash queries is not counting bit operations; the conversion must be stated or
+    the comparison to a lambda-bit level is meaningless.
+  falsification_conditions:
+  - The DP fails the ideal-protocol null or returns a value worse than the KZ strategy.
+  - The ratio is exactly 1 at every cell (bound tight; a positive result for MQOM, recorded
+    as such).
+  - The ratio does not respond to tau.
+  interpretation_limits: 'This measures the tightness of a bound at toy parameters. It is
+    NOT a forgery attack and produces no forged signature. A loose bound is not a break: the
+    true optimum could still be above the claimed level. The result is a tightness curve plus
+    the optimal strategy shape, and any extrapolation to published (N, tau, w) is labelled
+    an extrapolation.'
+  assumptions:
+  - The MQOM protocol's challenge structure can be read from the specification precisely enough
+    to model it.
+  - The adversary's cost is dominated by hash queries at these parameters.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: The DP state (repetitions satisfied per phase, budget spent) is a sufficient
+      statistic for the optimal forger, i.e. no additional transcript information improves
+      the optimum, for the TCitH structure as specified.
+    rigorous_ingredient: For a protocol whose challenges are independent across repetitions
+      and uniform, the per-repetition success indicators are exchangeable and the count is
+      a sufficient statistic by symmetry -- a proved reduction of the strategy space, not
+      an assumption, PROVIDED independence holds.
+    distribution_imitated: Exchangeability / sufficiency for i.i.d. Bernoulli trials.
+    validation_route: 'At the smallest cell (N=4, tau=3), enumerate the FULL strategy space
+      by brute force and compare against the DP optimum. TOY SCALE and deliberately so: the
+      brute force validates the sufficiency claim exactly at one point.'
+    tail_checks: If brute force beats the DP even by one query, sufficiency fails -- which
+      would itself be a significant finding about the protocol, because it would mean the
+      repetitions are not independent (see IDEA-20260805-cec9b6's note on correlated GGM trees).
+  target_complexity:
+    time_exponent: No attack. The measured quantity is a ratio of two costs at toy parameters.
+      The DP itself costs O(tau^2 * budget) states, negligible.
+    memory_exponent: DP table, O(tau^2 * budget) entries -- kilobytes.
+    best_known_baseline: The published TCitH/Fiat-Shamir forgery bound in MQOM's specification,
+      evaluated at the same toy parameters, and the Kales-Zaverucha strategy's cost.
+    hidden_overhead_disclosure: Hash queries versus bit operations; and the DP assumes free
+      arithmetic between queries, which flatters the adversary and therefore makes any measured
+      tightness gap an UPPER bound on the true gap. Direction of the bias is stated.
+    time_memory_tradeoff: Not applicable.
+  sota_delta: 'No attack. Quantitatively: a measured tightness factor in bits at each toy
+    cell, with a growth curve in tau, against a published bound. If the factor is zero everywhere
+    the deliverable is "the bound is tight at toy scale", which is precisely half of GOAL-MQOM-001''s
+    second completion horn.'
+  dominated_by: 'n/a (no result claimed). For completeness, frontier rows checked on the forgery
+    axis: IDEA-20260805-7abf04 (static slack functional), IDEA-20260805-cec9b6 (missing EUF-CMA
+    proof and correlated-tree concern), IDEA-20260801-018 (toy TCitH advantage measurement),
+    and the published bound itself. None computes an optimal strategy.'
+  estimated_cost: 'Implementation low: a DP over a few thousand states plus a brute-force
+    enumerator for the smallest cell. Compute low: minutes. The cost is the specification
+    read.'
+  recommended_priority: high
+  honest_prior_of_survival: 'That the DP is implementable from the spec: ~0.75 (depends entirely
+    on how precisely the protocol''s challenge structure is written). That the measured ratio
+    exceeds 1: ~0.6. That it grows with tau: ~0.45. That the exercise produces a defensible
+    tightness statement either way: ~0.85.'
+  novelty_status: unverified
+  novelty_screen: EXISTING_PROPOSALS.txt (all five RQ-MQOM rows), EXISTING_HYPOTHESES.txt
+    (H-MQOM-a0a477, H-MQOM-a45638), REJECTED_TITLES.txt, DEFERRED_TITLES.txt, CATALOGUE_TITLES.txt,
+    KNOWLEDGE_BARRIERS.txt, and the titles/claims of IDEA-20260805-7abf04, -cec9b6, -be7738,
+    -7d97be, IDEA-20260801-018. WEB NOT CHECKED.
+  discriminated_from: 'IDEA-20260805-7abf04: a static integer functional read off four published
+    numbers; computes no strategy. IDEA-20260805-cec9b6: the missing EUF-CMA proof and the
+    correlated GGM tree; a proof-existence question, not a strategy optimisation. IDEA-20260801-018:
+    measures "the actual forgery advantage of the TCitH transform at toy parameters" without
+    an optimal-strategy computation or a bound-ratio.'
+  source_refs:
+  - MQOM specification v2.1 (dated 2025-09-22 per this program's own records; NO Round-3 specification
+    existed as of 2026-08-05 per H-MQOM-a0a477) -- REQUIRED READ.
+  - Kales-Zaverucha two-phase Fiat-Shamir forgery attack -- RECALLED as the standard argument;
+    not located in the corpus and not cited as a result.
