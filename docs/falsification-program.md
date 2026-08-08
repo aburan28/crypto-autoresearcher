@@ -166,6 +166,25 @@ preceding a numeral, so a quantity named differently in two records is invisible
 to it. Two hits from one crude pass is a lower bound on what a careful pass
 would find.
 
+### F-10a — KN-FIND-ac28ed, exact-arithmetic K* corrections (D2)
+
+A *correction* record carrying `confidence: proved`. Its dangerous failure mode
+is not a wrong correction but an **incomplete audit** — a third bad cell nobody
+caught. All 18 cells of the BATCH-121 table recomputed in exact rationals, plus
+an IEEE-double recomputation as a cause control.
+
+**Outcome — verifies completely, the first such record in this program.** Three
+cells disagree with the committed tables and collapse to exactly the **two**
+distinct corrections it names (`K*(std)` is m-independent, so its one error
+appears once per table). No third exists. The stated cause is confirmed rather
+than assumed: float reproduces the committed 2001 and 126 exactly, and a
+representability control shows every disagreement sits at t=0.9 while all three
+binary-exact t=0.5 cells (134, 100, 80) were committed correctly.
+
+One **minor traceability defect**: it attributes the K* formulas to
+KN-FIND-c7d31e, which contains zero occurrences of "K*". They are in
+`BATCH-121/tasks/TASK-20260805-005` §B.2–B.3. `EV-FALSIFY-e983ed`.
+
 ### F-3 — KN-FIND-d4f820 / e7a3b1 / 4c9e71, the constant `C(p)` (D3)
 
 Three live findings, none superseded, record `p^0.055`, `p^0.079`, and
@@ -240,9 +259,18 @@ whose `proof_refs` name only itself.
 ### F-10 — Reproduce the corpus's own reported numbers (D2, highest yield per hour)
 
 For every finding carrying a table, re-run the measurement from its recorded
-parameters and compare. F-2 and F-3 both began here and both found the defect
-in the first table they touched. This is the single highest-yield item in the
-program and needs no new mathematics.
+parameters and compare. F-2, F-3 and F-4 all began here.
+
+**Inventory: 17 findings carry markdown tables.** Five are done — `c7d31e`,
+`2a8b7e`, `d4f820`/`e7a3b1`/`4c9e71` (as F-2, F-4, F-3) and `ac28ed` (F-10a).
+Twelve remain, largest first: `a8990a` (10 rows), `012` (6), `029` (5), `030`
+(5), `528ca0` (5), `014` (4), `031` (4), `ff4a46` (4), `013` (3), `015` (3),
+`5c1a03` (3), `93d1aa`.
+
+Reproduce with `falsify/run_kstar.py` as the pattern for closed-form tables and
+`falsify/probes.py` for measured ones. Note that four of the five done so far
+were defective; do not read that base rate into the remaining twelve, since the
+five were chosen by the F-9 sweep and by claim strength, not at random.
 
 ## Priority
 
