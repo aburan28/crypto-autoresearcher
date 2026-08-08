@@ -79,7 +79,7 @@ def build_factor_base(E: EllipticCurve, B: int) -> List[Point]:
     return points
 
 
-def arm_a_no_oracle(E: EllipticCurve, F: List[Point], m: int) -> Dict:
+def arm_a_no_oracle(E: EllipticCurve, F: List[Point], m: int, tuples_attempted: int) -> Dict:
     """Arm A: exhaustive enumeration, no MITM."""
     t0 = time.perf_counter()
     relations = 0
@@ -101,6 +101,7 @@ def arm_a_no_oracle(E: EllipticCurve, F: List[Point], m: int) -> Dict:
     
     return {
         "tuples_enumerated": tuples_enumerated,
+        "tuples_attempted": tuples_attempted,
         "relations_found": relations,
         "relations_verified": relations,
         "oracle_queries": 0,
@@ -111,7 +112,7 @@ def arm_a_no_oracle(E: EllipticCurve, F: List[Point], m: int) -> Dict:
     }
 
 
-def arm_b_x_oracle(E: EllipticCurve, F: List[Point], m: int) -> Dict:
+def arm_b_x_oracle(E: EllipticCurve, F: List[Point], m: int, tuples_attempted: int) -> Dict:
     """Arm B: x-oracle MITM."""
     t0 = time.perf_counter()
     
@@ -162,6 +163,7 @@ def arm_b_x_oracle(E: EllipticCurve, F: List[Point], m: int) -> Dict:
     
     return {
         "tuples_enumerated": candidates_verified,  # Candidate tuples verified
+        "tuples_attempted": tuples_attempted,
         "relations_found": relations_found,
         "relations_verified": relations_found,
         "oracle_queries": oracle_queries,
@@ -173,7 +175,7 @@ def arm_b_x_oracle(E: EllipticCurve, F: List[Point], m: int) -> Dict:
     }
 
 
-def arm_c_random_predictor(E: EllipticCurve, F: List[Point], m: int, seed: int) -> Dict:
+def arm_c_random_predictor(E: EllipticCurve, F: List[Point], m: int, seed: int, tuples_attempted: int) -> Dict:
     """Arm C: random predictor MITM (run-matched with B)."""
     t0 = time.perf_counter()
     
@@ -233,6 +235,7 @@ def arm_c_random_predictor(E: EllipticCurve, F: List[Point], m: int, seed: int) 
     
     return {
         "tuples_enumerated": candidates_verified,
+        "tuples_attempted": tuples_attempted,
         "relations_found": relations_found,
         "relations_verified": relations_found,
         "oracle_queries": oracle_queries,
@@ -275,7 +278,8 @@ def main():
     
     # Expected relations baseline: |F|^m / N (random model)
     F_size = len(F)
-    expected_relations = (F_size ** m) / N
+    tuples_attempted = F_size ** m
+    expected_relations = tuples_attempted / N
     expected_yield = 1.0 / N  # yield = relations / tuples = (|F|^m/N) / |F|^m
     print(f"  Expected relations: |F|^m/N = {F_size}^{m}/{N} ≈ {expected_relations:.4f}")
     print(f"  Expected yield: 1/N = 1/{N} ≈ {expected_yield:.6f}")
@@ -284,32 +288,34 @@ def main():
     results = {}
     
     print("\n[3/4] Running Arm A (no-oracle, exhaustive)...")
-    results["A"] = arm_a_no_oracle(E, F, m)
+    results["A"] = arm_a_no_oracle(E, F, m, tuples_attempted)
     results["A"]["arm"] = "A"
     results["A"]["oracle_type"] = "none"
-    print(f"  Tuples: {results['A']['tuples_enumerated']}")
+    print(f"  Tuples attempted/verified: {results['A']['tuples_attempted']}/{results['A']['tuples_enumerated']}")
     print(f"  Relations: {results['A']['relations_found']}")
-    print(f"  Yield: {results['A']['relations_found'] / results['A']['tuples_enumerated']:.6f}")
+    print(f"  Yield: {results['A']['relations_found'] / results['A']['tuples_attempted']:.6f}")
     print(f"  Time: {results['A']['wall_clock_seconds']}s")
     
     print("\n[3/4] Running Arm B (x-oracle, MITM)...")
-    results["B"] = arm_b_x_oracle(E, F, m)
+    results["B"] = arm_b_x_oracle(E, F, m, tuples_attempted)
     results["B"]["arm"] = "B"
     results["B"]["oracle_type"] = "x_coordinate"
     print(f"  Oracle queries: {results['B']['oracle_queries']}")
     print(f"  Hash table hits: {results['B']['hash_table_hits']}")
     print(f"  Relations: {results['B']['relations_found']}")
-    print(f"  Yield: {results['B']['relations_found'] / results['B']['tuples_enumerated']:.6f}")
+    print(f"  Tuples attempted/verified: {results['B']['tuples_attempted']}/{results['B']['tuples_enumerated']}")
+    print(f"  Yield: {results['B']['relations_found'] / results['B']['tuples_attempted']:.6f}")
     print(f"  Time: {results['B']['wall_clock_seconds']}s")
     
     print("\n[3/4] Running Arm C (random predictor, MITM)...")
-    results["C"] = arm_c_random_predictor(E, F, m, seed)
+    results["C"] = arm_c_random_predictor(E, F, m, seed, tuples_attempted)
     results["C"]["arm"] = "C"
     results["C"]["oracle_type"] = "random_predictor"
     print(f"  Oracle queries: {results['C']['oracle_queries']}")
     print(f"  Hash table hits: {results['C']['hash_table_hits']}")
     print(f"  Relations: {results['C']['relations_found']}")
-    print(f"  Yield: {results['C']['relations_found'] / results['C']['tuples_enumerated']:.6f}")
+    print(f"  Tuples attempted/verified: {results['C']['tuples_attempted']}/{results['C']['tuples_enumerated']}")
+    print(f"  Yield: {results['C']['relations_found'] / results['C']['tuples_attempted']:.6f}")
     print(f"  Time: {results['C']['wall_clock_seconds']}s")
     
     # Control checks
@@ -324,7 +330,7 @@ def main():
     print(f"  PRNG collision free: {prng_ok}")
     
     # Check 3: baseline consistency
-    Y_A = results["A"]["relations_found"] / results["A"]["tuples_enumerated"]
+    Y_A = results["A"]["relations_found"] / results["A"]["tuples_attempted"]
     baseline_ok = (Y_A >= expected_yield / 4) and (Y_A <= expected_yield * 4)
     print(f"  Baseline consistency (Y_A within factor 4 of B^m/N): {baseline_ok}")
     print(f"    Y_A = {Y_A:.6f}, expected ≈ {expected_yield:.6f}")
@@ -334,7 +340,7 @@ def main():
     
     # Compute yields
     for arm in ["A", "B", "C"]:
-        tuples = results[arm]["tuples_enumerated"]
+        tuples = results[arm]["tuples_attempted"]
         rels = results[arm]["relations_found"]
         results[arm]["yield"] = rels / tuples if tuples > 0 else 0.0
     
