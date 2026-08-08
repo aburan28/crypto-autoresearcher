@@ -1,0 +1,133 @@
+idea:
+  id: IDEA-20260808-5a748c
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  title: Price t0. The public key publishes only t1, so a key-only adversary faces an MLWE
+    instance whose effective error is the 2^13 truncation, not s2 — the core-SVP gap between
+    the t1-only and full-t instances IS the security value of t0.
+  class: measurement
+  claim: 'RECALLED FIPS 204: q = 8380417, d = 13, pk = (rho, t1) with t1 = Power2Round_d(A
+    s1 + s2). From pk alone an adversary sees 2^13 t1 = A s1 + s2 - t0 with t0 in (-2^12,
+    2^12], so per-coordinate error sd is about 2^12/sqrt(3) ~ 2364, against sd(s2) ~ 1.4 (eta
+    = 2) or ~2.6 (eta = 4). CLAIM: the primal block size for the t1-ONLY instance exceeds
+    that for the full-t instance by Delta beta > 0 at every parameter set, and Delta beta
+    in core-SVP bits is exactly the security value of t0. The published MLWE estimate uses
+    full t (a documented conservative choice); Delta beta is the never-stated size of that
+    conservatism, and it converts GOAL-MLDSA-002''s "t0 is recoverable from a small number
+    of signatures" into a COSTED first stage of key recovery.'
+  mechanism: Power2Round discards the low 13 bits. Modelling t1 as clean MLWE with error s2
+    substitutes a product measure for an instance whose dominant noise term is the truncation,
+    2^12 times wider than s2's support. log2(q/sigma) falls from about 22.5 to about 11.8,
+    which is a first-order change in the primal success condition and is expected to move
+    beta substantially. The point is that TWO DIFFERENT lattice problems carry one name, and
+    which one an adversary faces depends on whether that adversary has seen signatures — a
+    real deployment distinction, since certificates publish keys long before signatures accumulate.
+  why_not_a_renamed_known_approach: 'Nearest known: the Dilithium documentation''s own remark
+    that estimating MLWE with the whole t public is conservative — a caveat, not a quantity.
+    Nearest corpus: IDEA-20260805-630606 and H-MLDSA-2ae88d own t0 RECOVERY (how many signatures);
+    IDEA-20260805-bb52fa owns the exact bound ||<<c t0>>||_inf <= tau 2^{d-1}. None prices
+    t0 in security units, and without a price a recovery count is uninterpretable.'
+  predictions:
+  - observable: Primal block size for the MLWE instance with error (s2 - t0), t0 uniform on
+      the exact Power2Round range, versus error s2, at ML-DSA-44/65/87 under one pinned estimator
+      and cost model, memory charged identically in both rows.
+    metric: Delta beta and its core-SVP bit value.
+    predicted: Delta beta > 0 at all three sets, expected in the tens of bits. Delta beta
+      near zero would mean the truncation is cryptanalytically decorative and is the informative
+      negative.
+  - observable: Monotonicity sweep of d from 0 to 13, and the independent-t0 null (t0 resampled
+      independently of the key so t1 carries no information about s1).
+    metric: Delta beta(d); beta for the null.
+    predicted: Delta beta(d) monotone increasing, vanishing at d = 0. The null must be UNSOLVABLE
+      at any beta; a finite beta for the null means the pipeline scores noise and every row
+      is void.
+  minimal_test: One pinned estimator, one afternoon. (1) Read d, q, eta, k, l from FIPS 204.
+    (2) Build both parameterisations and evaluate the primal attack under one pinned memory-charged
+    cost model. (3) Run the independent-t0 null and the d-sweep. (4) Report six rows plus
+    the null, with Delta beta in bits.
+  controls:
+  - Independent-t0 null (mandatory before any Delta beta is believed).
+  - d-sweep monotonicity, vanishing at d = 0.
+  - Baseline reproduction: the full-t row must reproduce the published ML-DSA MLWE estimate
+      under the same model.
+  confounders:
+  - 't0 is not exactly uniform: Power2Round''s centred representative and reduction mod q
+    make the low-bit law depend on t. Use the exact fibre law or state the approximation and
+    bound it.'
+  - Estimators may not accept a wide-uniform-plus-eta error. Model the exact variance and
+    note the law is nearly uniform, not Gaussian — a stated modelling choice.
+  - A large Delta beta does NOT mean ML-DSA is stronger than claimed; it means the published
+    claim describes the easier of two problems, deliberately.
+  falsification_conditions:
+  - Delta beta <= 2 bits everywhere — t0 is cryptanalytically worthless; lane closed with
+    a number.
+  - The null returns a finite comparable beta, or Delta beta does not vanish at d = 0 — instrument
+    failure, nothing interpretable.
+  interpretation_limits: 'Crypto-parameter arithmetic, MODEL-tier conclusion: an estimator
+    readout inheriting GSA, dimensions-for-free and core-SVP heuristics. It says which of
+    two problems the published number describes, not whether ML-DSA is secure. ROUTING: this
+    estimates a lattice problem, so under GOAL-MLDSA-002''s own non_duplication rule it belongs
+    to GOAL-MLDSA-001 and must be handed to GOAL-MLDSA-002 only as the security UNIT for its
+    t0 measurement.'
+  assumptions:
+  - FIPS 204 publishes t1 only, d = 13, Power2Round as recalled — to be read from primary
+    text.
+  - A pinned estimator build with a declared, memory-charged cost model is inherited, not
+    invented.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: The primal block size for an MLWE instance with error law s2 - t0 depends on
+      that law only through its variance, to within one block size, uniformly over the three
+      FIPS 204 parameter sets.
+    rigorous_ingredient: The primal success condition compares a projected NORM against a
+      Gram-Schmidt length; norms of sums of independent coordinates are governed by variance
+      at leading order.
+    distribution_imitated: The Gaussian error model used by every published estimator, which
+      is exactly the variance-only assumption.
+    validation_route: Re-run with the exact discrete convolution versus a matched-variance
+      Gaussian and report the block-size difference. The corpus bounds an analogous ML-KEM
+      effect at under 0.3 core-SVP bits (catalogue M1-4), which is the comparison point.
+    tail_checks: Report the difference at the smallest and largest parameter set; growth with
+      dimension invalidates the variance-only summary.
+  target_complexity:
+    time_exponent: 2^{0.292 beta_full} versus 2^{0.292 beta_t1only}; the deliverable is the
+      difference, not a new algorithm.
+    memory_exponent: 2^{0.2075 beta} in both rows, charged identically or the comparison is
+      meaningless.
+    best_known_baseline: The published ML-DSA MLWE estimate, i.e. the full-t row.
+    hidden_overhead_disclosure: Everything hidden in core-SVP is hidden identically in both
+      rows, so the DIFFERENCE is more robust than either absolute figure — the main methodological
+      argument for making the deliverable a difference.
+    time_memory_tradeoff: Identical in both rows; not a discriminating axis here.
+  sota_delta: No attack improved. First stated price of t0 in core-SVP bits, and the quantity
+    that lets GOAL-MLDSA-001 and GOAL-MLDSA-002 compose.
+  dominated_by: 'n/a (no attack-cost result claimed). Checked against the three t0 records
+    (IDEA-20260805-630606, -bb52fa, H-MLDSA-2ae88d) and the three assumption records (IDEA-20260801-008,
+    -20260805-5194f9, -591f9d): none produces a security price for t0 on any axis, so none
+    dominates.'
+  estimated_cost: 'Implementation: low (estimator configuration). Compute: low, minutes to
+    hours.'
+  recommended_priority: high
+  honest_prior_of_survival: P(Delta beta > 10 bits) ~ 0.75 — the noise-rate change is large
+    and hard to argue away. P(a published number for this conservatism already exists somewhere)
+    ~ 0.3, the main novelty risk. P(it changes how the two ML-DSA goals are sequenced) ~ 0.5,
+    which is the real value.
+  novelty_status: unverified
+  novelty_screen: 'Read: EXISTING_PROPOSALS.txt (all RQ-MLDSA rows), EXISTING_HYPOTHESES.txt
+    (H-MLDSA-2ae88d, -12f563, -d1e509), CATALOGUE_TITLES.txt, KNOWLEDGE_BARRIERS.txt, GOAL-MLDSA-001.yaml
+    and GOAL-MLDSA-002.yaml in full, my own L1.yaml. WEB NOT SCREENED.'
+  discriminated_from: IDEA-20260805-630606 / H-MLDSA-2ae88d measure how many signatures recover
+    t0; this measures what t0 is WORTH once recovered, in the unit that makes the count interpretable.
+    IDEA-20260805-bb52fa proves a norm bound on <<c t0>>; it does not price the truncation.
+  lossy_projection_test: 'PASSES. Tracked object: the pair (effective error variance, available
+    sample count) of the instance visible to the adversary — two scalars, discarding all of
+    A, s1, s2, t0. Discarded compatibly, because the primal success condition consumes exactly
+    those two scalars plus the dimension and they propagate deterministically into the block-size
+    inversion. Tracking t itself loses nothing and is not a new object.'
+  source_refs:
+  - GOAL-MLDSA-001.yaml, GOAL-MLDSA-002.yaml (corpus, read in full).
+  - Catalogue entry M1-4 via CATALOGUE_TITLES.txt — the exact-CBD scoring ceiling used as
+    the comparison point for HA-1.

@@ -41,7 +41,7 @@ def stage_repo(
     repo_root: Path = typer.Argument(Path("."), help="Repository to stage into the corpus."),
     limit_per_rule: Optional[int] = typer.Option(None, help="Cap documents per staging rule."),
     eval_slice: bool = typer.Option(
-        False, "--eval-slice", help="Stage only the fixed evaluation slice (~415 documents)."
+        False, "--eval-slice", help="Stage only the frozen evaluation slice (corpus_manifest.txt)."
     ),
 ) -> None:
     """Copy this repository's records into the corpus layout with derived sidecars.
@@ -55,14 +55,20 @@ def stage_repo(
 
     settings = _settings()
     store = build_store(settings)
-    rules = RULES
     if eval_slice:
-        from crypto_kb.eval.corpus import eval_rules
+        if limit_per_rule is not None:
+            typer.echo("--limit-per-rule truncates the slice the labels were written against")
+            raise typer.Exit(2)
+        # Through build_eval_corpus, not eval_rules(): the globs are only the
+        # recipe the manifest was frozen from, so staging by glob here would
+        # measure `make evaluate` against a different corpus than the suite.
+        from crypto_kb.eval.corpus import build_eval_corpus
 
-        rules = eval_rules()
-    staged = stage_repository(
-        repo_root.resolve(), store, rules=rules, limit_per_rule=limit_per_rule
-    )
+        staged = build_eval_corpus(repo_root.resolve(), store)
+    else:
+        staged = stage_repository(
+            repo_root.resolve(), store, rules=RULES, limit_per_rule=limit_per_rule
+        )
     by_type: dict[str, int] = {}
     for document in staged:
         key = document.metadata["source_type"]
@@ -331,6 +337,46 @@ def worker(
         start_metrics_server(settings.metrics_port)
     worker = IngestionWorker(build_pipeline(settings), settings=settings)
     worker.run(max_batches=batches)
+
+
+@app.command("eval-manifest")
+def eval_manifest(
+    repo_root: Path = typer.Argument(Path("."), help="Repository the slice is drawn from."),
+    write: bool = typer.Option(False, "--write", help="Freeze today's candidates as the slice."),
+) -> None:
+    """Show, or deliberately regenerate, the frozen evaluation corpus slice.
+
+    Without ``--write`` this reports how the frozen slice differs from what the
+    globs match today -- which is the drift that would otherwise move a
+    measured baseline without any retrieval code changing.
+    """
+    from crypto_kb.eval.corpus import (
+        MANIFEST_PATH,
+        discover_eval_paths,
+        load_manifest,
+        write_manifest,
+    )
+
+    root = repo_root.resolve()
+    if write:
+        paths = write_manifest(root)
+        typer.echo(f"froze {len(paths)} documents into {MANIFEST_PATH}")
+        typer.echo("re-check tests/retrieval_eval/questions.jsonl labels, then re-measure BASELINE")
+        return
+
+    frozen = load_manifest()
+    candidates = discover_eval_paths(root)
+    added = sorted(set(candidates) - set(frozen))
+    removed = sorted(set(frozen) - set(candidates))
+    typer.echo(f"{len(frozen)} documents frozen in {MANIFEST_PATH}")
+    typer.echo(f"{len(candidates)} match the globs today")
+    typer.echo(f"  +{len(added)} not in the slice, -{len(removed)} in the slice but gone")
+    for path in added[:10]:
+        typer.echo(f"  + {path}")
+    for path in removed[:10]:
+        typer.echo(f"  - {path}")
+    if removed:
+        raise typer.Exit(1)
 
 
 @app.command()
