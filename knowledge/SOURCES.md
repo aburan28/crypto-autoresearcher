@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7819 |
-| — with a resolvable external identifier | 2220 |
-| — with no identifier recorded | 5599 |
+| Literature entries (`KN-LIT-*`) | 7827 |
+| — with a resolvable external identifier | 2222 |
+| — with no identifier recorded | 5605 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1321, doi 146, eprint 726, url 27. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1321, doi 146, eprint 726, url 29. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 9, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7460, `web` 317.
+`citation_verified` distribution: `False` 21, `True` 9, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7468, `web` 317.
 
 ## 1. Frozen source packages
 
@@ -106,7 +106,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2220 of 7819 `KN-LIT-*` entries carry an
+2222 of 7827 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -162,6 +162,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-045 | Lattice Attacks on Digital Signature Schemes | 2001 | `doi:10.1023/a:1011214926272` | web |
 | KN-LIT-046 | Factoring polynomials with rational coefficients (the LLL algorithm) | 1982 | `doi:10.1007/bf01457454` | web |
 | KN-LIT-047 | Lattice basis reduction - Improved practical algorithms and solving subset sum problems (BKZ) | 1994 | `doi:10.1007/bf01581144` | web |
+| KN-LIT-0471e7 | Introduction to Topics in Computational Number Theory Inspired by Peter L. Montgomery | 2017 | `url:www.cambridge.org/9781107109353` | read |
 | KN-LIT-048 | New directions in nearest neighbor searching with applications to lattice sieving (BDGL) | 2016 | `eprint:2015/1128` | web |
 | KN-LIT-049 | Generating Hard Instances of Lattice Problems (the SIS problem) | 1996 | `doi:10.1145/237814.237838` | web |
 | KN-LIT-050 | On Lattices, Learning with Errors, Random Linear Codes, and Cryptography (the LWE problem) | 2009 | `doi:10.1145/1568318.1568324` | web |
@@ -1293,6 +1294,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-198 | Isogenies of elliptic curves and the Morava stabilizer group | 2005 | `arxiv:0508079` | read |
 | KN-LIT-199 | ON THE EMBEDDING PROBLEM FOR 2+ S4 REPRESENTATIONS | 2005 | `arxiv:0507381` | read |
 | KN-LIT-19cf36 | On insecurity of cryptosystems based on generalized Reed-Solomon codes | 1992 | `doi:10.1515/dma.1992.2.4.439` | web |
+| KN-LIT-1b6203 | Factoring into coprimes in essentially linear time | 2004 | `url:cr.yp.to/papers.html#dcba` | read |
 | KN-LIT-1c9474 | HQC-RMRS, an instantiation of the HQC encryption framework with a more efficient auxiliary error-correcting code | 2020 | `arxiv:2005.10741` | read |
 | KN-LIT-1d7668 | Classic McEliece key generation on RAM constrained devices | 2022 | `eprint:2022/1613` | web |
 | KN-LIT-1d8337 | Masking large keys in hardware: a masked implementation of McEliece | 2015 | `eprint:2015/924` | web |
@@ -2334,13 +2336,14 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 
 ## 6. Literature citations with no recorded identifier
 
-5599 entries name a source this index cannot resolve to a
+5605 entries name a source this index cannot resolve to a
 retrievable location. They are listed, not dropped and not backfilled by
 guesswork (AGENTS.md rule 5): closing a row means finding the identifier
 and editing the entry, after which this table shrinks on its own.
 
 | ID | Title | Year | Venue | Verified |
 |---|---|---|---|---|
+| KN-LIT-0cbb26 | Montgomery Multiplication on the Cell | 2012 | preprint (EPFL) | read |
 | KN-LIT-10be29 | An observation on the security of McEliece's public-key cryptosystem | 1988 | Eurocrypt | false |
 | KN-LIT-17708c | On minimum distance decoding of linear codes | 1991 | Fifth joint Soviet-Swedish international workshop on information theory | false |
 | KN-LIT-180ad5 | Side-Channel and Fault-Injection Attacks on Kyber and Dilithium: Survey and New Results | 2022 | IACR ePrint 2022/737 (IEEE Trans. Computers venue unconfirmed from ePrint record) | partial |
@@ -7936,10 +7939,15 @@ and editing the entry, after which this table shrinks on its own.
 | KN-LIT-7603 | Linear Descent for Rank-2 and Rank-4 Module-LIP |  | Anonymous submission (unrefereed; venue and date not stated in the text) | full_text_supplied |
 | KN-LIT-80f208 | Explicit bounds for generic decoding algorithms for code-based cryptography | 2009 | WCC | false |
 | KN-LIT-8ce0b5 | Rank Bounds for NTT Twiddle-Factor Fault Attacks on ML-DSA (Lean 4 Machine-Checked) | 2026 | IACR ePrint 2026/1188 | partial |
+| KN-LIT-91b680 | A Survey of Chosen-Prefix Collision Attacks | 2021 | chapter in Computational Cryptography, CUP (revised form) | read |
 | KN-LIT-93e8d7 | Error-correcting coding for digital communication | 1981 | book | false |
 | KN-LIT-b875db | Solving the Shortest Vector Problem in 2^{0.7314n+o(n)} Time via Discrete Gaussian Sampling on Superlattices | 2026 | Preprint (unrefereed; no venue, ePrint number, or DOI stated in the supplied text) | full_text_supplied |
 | KN-LIT-b9bba7 | Practical key recovery attacks on two McEliece variants | 2010 | SCC | false |
+| KN-LIT-be0bfd | The Matrix Reloaded: Multiplication Strategies in FrodoKEM | 2021 | Proceedings of the 20th International Conference on Cryptology and Network Security (CANS 2021) | read |
 | KN-LIT-d1a453 | Recognizing the structure of permuted reducible codes | 2007 | WCC | false |
+| KN-LIT-f37d84 | Definite Orthogonal Modular Forms: Computations, Excursions, and Discoveries | 2026 | ANTS-XV proceedings (preprint form in downloads) | read |
+| KN-LIT-fb9929 | Low-Latency Elliptic Curve Scalar Multiplication |  | manuscript (author's page, draft) | read |
+| KN-LIT-fd27c2 | Analysis and Optimization of Cryptographically Generated Addresses |  | manuscript (EPFL/ENAC preprint) | read |
 
 ## 7. Identifiers claimed by more than one entry
 
