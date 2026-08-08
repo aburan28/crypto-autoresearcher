@@ -1,0 +1,72 @@
+idea:
+  id: IDEA-20260808-a3f7c1
+  date: '2026-08-08'
+  question_id: RQ-ECDLP-002
+  batch_id: BATCH-b84625
+  title: >-
+    Y-coordinate oracle for guided decomposition: use oracle to CONSTRUCT
+    candidates rather than filter them
+  mechanism: >-
+    Instead of using an x-oracle to filter candidates in a MITM framework
+    (which BATCH-284817 showed has negative marginal contribution), use a
+    y-coordinate oracle to CONSTRUCT candidates. Given a partial decomposition
+    (m-1) points, query the oracle for the y-coordinate that would complete a
+    relation, form the complete point, and check if it lies in the factor base.
+    This is a generative use of the oracle, not a filtering use. The oracle
+    answers: "given x_1, ..., x_{m-1}, what y_m makes (x_1,...,x_{m-1},x_m) a
+    valid relation?" The search becomes: enumerate (m-1)-tuples, query oracle
+    for y_m, check if (x_m, y_m) is in factor base. This avoids the MITM
+    obstruction because the oracle is used to construct, not to filter.
+  predictions:
+    - metric: Y_guided / Y_exhaust
+      direction: higher
+      minimum_effect: >-
+        Constant factor m (e.g., 3.0 at arity m=3). The guided search constructs
+        m times as many valid relations per unit of enumeration space because
+        each oracle query targets a specific completion rather than sampling
+        blindly.
+  test_boundary:
+    instances:
+      - m=3, primes {101, 103, 107, 211}, b in {0.4, 0.5}, seeds 1-5
+    parameters:
+      claim_tier: toy
+      field_bits: 7-8
+    implementation: >-
+      Modify experiments/EXP-SEMAEV-f48dd1/implementation/full_grid.py to add
+      Arm D: y-coordinate oracle guided construction. Compare against Arm A
+      (exhaustive) and Arm B (x-oracle MITM, already measured).
+    budget:
+      wall_clock_seconds_per_run: 120
+      total_wall_clock_seconds: 3600
+  falsification_conditions:
+    - >-
+      Y_guided / Y_exhaust <= 1.0: the y-coordinate oracle provides no
+      construction advantage over exhaustive search.
+    - >-
+      Y_guided / Y_exhaust < m - epsilon: the advantage is sub-linear in m,
+      suggesting the oracle's guidance is not effective.
+    - >-
+      Null control (random y-coordinate) yields same ratio: the advantage comes
+      from the oracle's correctness, not from the construction pattern itself.
+  interpretation_limits:
+    - >-
+      Toy-scale only (7-8 bit prime fields); no claim about cryptographic-scale
+      parameters (AGENTS.md rule 7).
+    - >-
+      Constant factor only; no asymptotic exponent change. Both guided and
+      exhaustive search have the same asymptotic complexity O(|F|^m).
+    - >-
+      Dominated by Pollard rho at any reasonable parameter choice. This is a
+      measurement of oracle-guided construction efficiency, not a crypto-scale
+      attack.
+  dominated_by:
+    - IDEA-20260808-3f8a2b (x-oracle MITM, now closed with obstruction)
+    - IDEA-20260808-7c4e9d (true-null control analysis, now closed)
+  sota_delta: >-
+    No asymptotic improvement over Pollard rho. Constant-factor measurement at
+    toy scale. Structurally distinct from MITM: generative use rather than
+    filtering use. Avoids the x-oracle MITM obstruction by using the oracle to
+    construct candidates rather than filter them.
+  novelty_status: novel
+  proposed_by: idea-generator
+  status: proposed

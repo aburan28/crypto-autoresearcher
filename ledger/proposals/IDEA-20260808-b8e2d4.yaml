@@ -1,0 +1,85 @@
+idea:
+  id: IDEA-20260808-b8e2d4
+  date: '2026-08-08'
+  question_id: RQ-ECDLP-002
+  batch_id: BATCH-b84625
+  title: >-
+    Full-point oracle for algebraic construction: use oracle returning complete
+    points (x, y) to construct relations algebraically
+  mechanism: >-
+    Use an oracle that returns complete points (x, y) on the curve, not just
+    x-coordinates. The oracle answers: "given a partial decomposition, what
+    complete point (x_m, y_m) would make the sum equal to the target?" The
+    search becomes: enumerate (m-1)-tuples, query oracle for (x_m, y_m), check
+    if both x_m and y_m satisfy the factor-base membership condition. Three
+    variants: (1) random oracle (returns random point), (2) factor-base oracle
+    (returns point in factor base), (3) structured oracle (returns point
+    satisfying algebraic relation). Variant 2 is the most promising: if the
+    oracle returns a point in the factor base, the probability of completing a
+    relation is exponentially large ~ (m!·N)/B^m. This avoids the MITM
+    obstruction because the oracle is used for algebraic construction, not
+    coordinate filtering.
+  predictions:
+    - metric: Y_full / Y_exhaust
+      direction: higher
+      minimum_effect: >-
+        VARIANT 2 (factor-base oracle): exponentially large advantage ~
+        (m!·N)/B^m. The oracle's factor-base constraint makes each query
+        exponentially more likely to complete a relation.
+    - metric: Y_variant1 / Y_exhaust
+      direction: higher
+      minimum_effect: >-
+        VARIANT 1 (random oracle): no advantage (null baseline).
+    - metric: Y_variant3 / Y_exhaust
+      direction: higher
+      minimum_effect: >-
+        VARIANT 3 (structured oracle): intermediate advantage, depends on
+        algebraic structure.
+  test_boundary:
+    instances:
+      - m=3, primes {101, 103, 107, 211}, b in {0.4, 0.5}, seeds 1-5
+    parameters:
+      claim_tier: toy
+      field_bits: 7-8
+    implementation: >-
+      Modify experiments/EXP-SEMAEV-f48dd1/implementation/full_grid.py to add
+      three new arms: Arm D1 (random oracle), Arm D2 (factor-base oracle),
+      Arm D3 (structured oracle). Compare against Arm A (exhaustive).
+    budget:
+      wall_clock_seconds_per_run: 120
+      total_wall_clock_seconds: 3600
+  falsification_conditions:
+    - >-
+      Y_variant2 / Y_exhaust <= 1.0: the factor-base oracle provides no
+      construction advantage.
+    - >-
+      Y_variant2 / Y_exhaust < (m!·N)/B^m - epsilon: the advantage is
+      sub-exponential, suggesting the oracle's factor-base constraint is not
+      effective.
+    - >-
+      Y_variant1 / Y_exhaust > 1.0: the random oracle provides an advantage,
+      suggesting the advantage comes from the construction pattern, not the
+      oracle's constraint.
+  interpretation_limits:
+    - >-
+      Toy-scale only (7-8 bit prime fields); no claim about cryptographic-scale
+      parameters (AGENTS.md rule 7).
+    - >-
+      Exponential advantage at toy scale does not imply exponential advantage at
+      crypto scale. The (m!·N)/B^m factor may not extrapolate.
+    - >-
+      Dominated by Pollard rho at any reasonable parameter choice. This is a
+      measurement of oracle-guided algebraic construction efficiency, not a
+      crypto-scale attack.
+  dominated_by:
+    - IDEA-20260808-3f8a2b (x-oracle MITM, now closed with obstruction)
+    - IDEA-20260808-7c4e9d (true-null control analysis, now closed)
+  sota_delta: >-
+    No asymptotic improvement over Pollard rho. Exponential-factor measurement
+    at toy scale. Structurally distinct from MITM: algebraic construction from
+    oracle outputs, not coordinate filtering. Avoids the x-oracle MITM
+    obstruction by using the oracle for algebraic construction rather than
+    filtering.
+  novelty_status: novel
+  proposed_by: idea-generator
+  status: proposed
