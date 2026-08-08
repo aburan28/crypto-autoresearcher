@@ -230,6 +230,29 @@ the file is **still tracked** — `.gitignore` does not apply to tracked files a
 `git rm --cached` was never run. Rebuilding the index still dirties a tracked
 file on every branch, which is the conflict the documented fix says it removed.
 
+### F-10c — KN-FIND-030, ID-allocation concurrency (D1, in a contract document)
+
+**Outcome — finding upheld, its fix overstated where it was written down.**
+`EV-FALSIFY-896f80`. KN-FIND-030 is accurate about both collisions and its
+remedy works. But AGENTS.md **rule 14** and CLAUDE.md both say a random token
+"scans no state and so **cannot converge**" — a universal negative about a
+randomised algorithm, and false. `allocate_id.py`'s own docstring states it
+correctly ("collide only by drawing the same value out of 16**6"), so the code
+is honest and the contract documents are not.
+
+The margin nobody had written down: namespace 16⁶ per family, **1,275** random
+tokens in use, worst family 181, so P(next collides) ≈ **1.08e-05**. Within one
+family the birthday probability is 2.93% at N=1,000 and 52.5% at N=5,000. Dated
+families reset daily and are safe; the undated ones — `KN-LIT-`, `KN-TECH-`,
+`BATCH-`, per-area `EXP-`/`EV-` — accumulate forever, and `KN-LIT-` sits beside
+7,832 literature files.
+
+Controls passed: `--check` returns "REFUSE: taken" on an occupied id and "OK" on
+a free one; 100 `--next` draws gave 0 occupied. So mint-then-check catches
+collisions against *committed* state within one worktree — and cannot catch two
+worktrees minting concurrently, which is precisely the case rule 14 calls
+impossible. Small is not the same claim as cannot.
+
 ### F-10a — KN-FIND-ac28ed, exact-arithmetic K* corrections (D2)
 
 A *correction* record carrying `confidence: proved`. Its dangerous failure mode
