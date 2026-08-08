@@ -32,7 +32,7 @@ wrong step nobody can see. This program supplies the second.
 Standard-library integer arithmetic is exact, which is the whole opportunity:
 the claims are arithmetic, and the tests below cost minutes.
 
-## The two rules that make a falsification admissible
+## The three rules that make a falsification admissible
 
 **1. No refutation without a passing null control.** A probe that has not been
 shown to stay silent on an object where the claim is TRUE by construction
@@ -48,17 +48,22 @@ A falsification harness without null objects is capable of refuting a correct
 theorem convincingly. Premature refutation is a failure mode symmetric with
 premature closure, and this program is the thing most likely to commit it.
 
-**2. Read the corrections before the finding.** The corpus is versioned by
-supersession, never by edit, so *a finding's own file is not the current state of
-its claim.* Before any probe, sweep for records that already amend the target and
-record the result in the run manifest:
+**2. Establish the record is current before probing it.** The corpus is
+versioned by supersession, never by edit, so *a finding's own file is not the
+current state of its claim.* Run the checker, which covers all three mechanisms:
 
 ```sh
-T=KN-FIND-xxxxxx
-grep -rl "$T" ledger/corrections/ 2>/dev/null
-grep -n '^superseded_by:' knowledge/findings/$T.md
-grep -rl "$T" ledger/evidence/ ledger/decisions/ 2>/dev/null | head
+python3 experiments/EXP-FALSIFY-d770c1/falsify/check_currency.py KN-FIND-xxxxxx
 ```
+
+Three mechanisms are in use and **a check on any one has silent false
+negatives** (`EV-FALSIFY-f367ec`):
+
+| Mechanism | Example | Trap |
+|---|---|---|
+| `superseded_by` | 52 of 58 findings | **5 findings lack the field entirely**; `.get()` returns the same as for a current record |
+| `status:` + `withdrawn_by:` | KN-FIND-031, withdrawn | its `superseded_by` is null, so a supersession check calls it current |
+| a record in `ledger/corrections/` | KN-FIND-a1f3c2 | nothing is written back into the finding |
 
 This rule exists because F-1 broke it. `EV-FALSIFY-440677` reported the
 generic-vs-every gap in KN-FIND-a1f3c2's proof sketch as an *unrepaired* defect.
@@ -67,8 +72,11 @@ generic-vs-every gap in KN-FIND-a1f3c2's proof sketch as an *unrepaired* defect.
 the 2^(m-2) signed sums pairwise distinct at the generic point) and observes that
 the independence assertion is the very statement it is offered as a reason for —
 and it *supplies the missing proof* as Lemma 3.2. Withdrawn in
-`CORR-20260808-3d4031`. A probe that skips this sweep may not assert that any
+`CORR-20260808-3d4031`. A probe that skips this check may not assert that any
 defect is unrepaired.
+
+A clean result is not proof a record is current. It proves the three *known*
+mechanisms are clean, which is the most a mechanical check can say.
 
 **3. Evidence only.** Every probe files evidence. None edits a finding, changes
 a hypothesis status, or supersedes a record — only the Coordinator may
@@ -197,6 +205,30 @@ its recall is a floor, not an estimate: it groups by the symbol immediately
 preceding a numeral, so a quantity named differently in two records is invisible
 to it. Two hits from one crude pass is a lower bound on what a careful pass
 would find.
+
+### F-10b — corpus currency and metadata exposure (D6-adjacent)
+
+Found while applying rule 2 to the next F-10 target. Two integrity defects,
+neither touching any mathematical claim, both cheap to fix. `EV-FALSIFY-f367ec`.
+
+**Currency is marked three incompatible ways** (table under rule 2), and five
+findings — `010`, `011`, `4e7a92`, `720727`, `d1c853` — carry no `superseded_by`
+field *at all*, three of them no status field either. Field-absent and
+explicitly-null are different facts; collapsing them is the bug.
+
+**`KN-FIND-528ca0` has no YAML front matter** — the only one of 58 — so it is
+absent from `knowledge/INDEX.md` entirely (the index names 57 of 58). Its
+headline content is a **scope correction**: the theorem holds for *indefinite*
+quaternion algebras and explicitly does NOT apply to HAWK's totally definite
+algebra. A restriction on where a theorem applies is the thing most worth
+surfacing to a later reader, and it is exactly what no metadata reader or
+`search_knowledge` query can currently see.
+
+**Separately**: CLAUDE.md says generated artifacts "are never committed" and
+`knowledge/INDEX.md` is gitignored. The path *is* in `.gitignore` (line 134) but
+the file is **still tracked** — `.gitignore` does not apply to tracked files and
+`git rm --cached` was never run. Rebuilding the index still dirties a tracked
+file on every branch, which is the conflict the documented fix says it removed.
 
 ### F-10a — KN-FIND-ac28ed, exact-arithmetic K* corrections (D2)
 
