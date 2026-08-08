@@ -56,14 +56,15 @@ current state of its claim.* Run the checker, which covers all three mechanisms:
 python3 experiments/EXP-FALSIFY-d770c1/falsify/check_currency.py KN-FIND-xxxxxx
 ```
 
-Three mechanisms are in use and **a check on any one has silent false
-negatives** (`EV-FALSIFY-f367ec`):
+**Four** mechanisms are in use and **a check on any one has silent false
+negatives** (`EV-FALSIFY-f367ec`, `EV-FALSIFY-2feed0`):
 
 | Mechanism | Example | Trap |
 |---|---|---|
 | `superseded_by` | 52 of 58 findings | **5 findings lack the field entirely**; `.get()` returns the same as for a current record |
 | `status:` + `withdrawn_by:` | KN-FIND-031, withdrawn | its `superseded_by` is null, so a supersession check calls it current |
 | a record in `ledger/corrections/` | KN-FIND-a1f3c2 | nothing is written back into the finding |
+| **a repair filed as a sibling finding** | `ff4a46` repairs `9d2f56` | not in `ledger/corrections/`; **0 of 7 targets link back** |
 
 This rule exists because F-1 broke it. `EV-FALSIFY-440677` reported the
 generic-vs-every gap in KN-FIND-a1f3c2's proof sketch as an *unrepaired* defect.
@@ -463,7 +464,27 @@ arguable. **Refuted if** an enumerated oracle is a strict predecessor the
 argument says cannot exist. **Null:** run the same enumeration against a
 deliberately non-minimal oracle and confirm the checker flags it.
 
-### F-8 — KN-FIND-9d2f56 / ff4a46, Betti-Yield "exact condition" (D1)
+### F-8a — repairs filed as sibling findings (D7-adjacent)
+
+Found while applying rule 2 to F-8's target. A finding can be repaired by
+**another finding** rather than by a `ledger/corrections/` record, and that link
+is one-directional in **every** instance: 7 relationships, target links back in
+**0**. `KN-FIND-012` is targeted by *three* repairs (013, 014, 031) plus three
+corrections — six documents amend it, and it points at none.
+`EV-FALSIFY-2feed0`.
+
+This program walked into it: `ac28ed` repairs `c7d31e`, and F-2 probed `c7d31e`
+without having read `ac28ed`. The cost was a **missing cross-reference, not a
+wrong claim** — ac28ed corrects the K\* cells and downgrades the β-transfer
+label, a different matter from F-2's estimand mismatch, and it states it makes
+"no claim that the BKK speedup theorem is invalidated". `EV-FALSIFY-2a5e46`
+stands as written.
+
+Why the asymmetry bites: rule 4 means the corpus is *read forward* from an old
+record to its repairs, and immutability guarantees the stale record stays put to
+be found first. `check_currency.py` now covers all four mechanisms.
+
+### F-8 — KN-FIND-9d2f56 / ff4a46, Betti-Yield "exact condition" (D1) — NOT YET RUN
 
 An exact-condition claim is an iff and fails if either direction fails.
 Construct toy complexes on both sides of the stated threshold and check both

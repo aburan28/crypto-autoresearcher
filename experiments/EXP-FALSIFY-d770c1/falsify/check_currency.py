@@ -82,6 +82,29 @@ def currency(record_id, root='.'):
         out['notes'].append('a correction may amend, repair or withdraw -- READ IT; '
                             'it does not necessarily set current=False')
 
+    # MECHANISM 4: a repair filed as a SIBLING FINDING rather than as a record
+    # in ledger/corrections/. KN-FIND-ff4a46 is "Wording repair for
+    # KN-FIND-9d2f56"; it names 9d2f56 eight times and 9d2f56 names it zero. A
+    # sweep found 7 such relationships in the corpus and the target links back in
+    # 0 of them, so a reader arriving at the repaired record sees nothing. This
+    # is invisible to the corrections check above because the repair is a
+    # finding, not a correction.
+    repairs = []
+    fdir = os.path.join(root, 'knowledge', 'findings')
+    rx = re.compile(r'\b(repair|correct|supersed|amend|revis|align)\w*\b', re.I)
+    for sib in sorted(glob.glob(os.path.join(fdir, '*.md'))):
+        sid = os.path.basename(sib)[:-3]
+        if sid == record_id:
+            continue
+        head = open(sib, errors='ignore').read()[:1200]
+        if record_id in head and rx.search(head):
+            repairs.append(sid)
+    if repairs:
+        out['signals'].append(f'repaired by sibling finding(s): {repairs}')
+        out['notes'].append('a sibling repair is NOT in ledger/corrections/ and the '
+                            'target usually does not link back -- READ the repairing '
+                            'record before using this one')
+
     # coordination/** is where this repository's REASONING lives -- task
     # analyses, red-team notes, batch syntheses. Those are working notes, not
     # authoritative records, so a hit here never sets current=False. It means
