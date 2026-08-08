@@ -230,6 +230,30 @@ the file is **still tracked** — `.gitignore` does not apply to tracked files a
 `git rm --cached` was never run. Rebuilding the index still dirties a tracked
 file on every branch, which is the conflict the documented fix says it removed.
 
+### F-10d — KN-FIND-a8990a, Semaev cover structure (D2 reproduction)
+
+**Outcome — verifies in every particular checked.** `EV-FALSIFY-66f32d`. The
+headline "241643 good specializations with zero exceptions" recomputes exactly
+from the archived artifact: 16,737 (C2_C4 sampled) + 224,906 (C6 exhaustive).
+Zero exceptions verified rather than accepted — `mixed_patterns = 0`,
+`max_factor_degree_seen = 2`, `one_pattern_per_class = True` everywhere. Both
+null-control rates match: NULL-A rejects at **86.31%**, NULL-B at **51.09%**
+against the quoted "86% and 51%".
+
+*Checker's own near-error, recorded:* naively summing all blocks gives 257,750
+and looks like a 16,107 discrepancy. C5 tests a **different** consequence
+(factor-base locus splitting), so excluding it is correct. The record's
+arithmetic was right and the first pass of this check was wrong.
+
+This is the best-made record met under this question: it self-declares
+`confidence: derivation` not `proved`, states plainly that rule 12 is unmet and
+novelty unadjudicated, ships executable code beside the claim, and reports nulls
+its own instrument rejects at 86%. `RUN-FALSIFY-d770c1-001` independently
+corroborates the same dichotomy on 1,274 specialisations with no shared code —
+which matters precisely because rule 12 is unmet. The remaining gap is the one
+the record names itself: a reviewer reading Theorem A and Lemma 3.2, not more
+finite-scale checks.
+
 ### F-10c — KN-FIND-030, ID-allocation concurrency (D1, in a contract document)
 
 **Outcome — finding upheld, its fix overstated where it was written down.**
