@@ -1,0 +1,167 @@
+idea:
+  id: IDEA-20260808-4f83f6
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MLDSA-ffa0f5
+  goal_id: GOAL-MLDSA-002
+  title: 'ML-DSA''s signing-only rejections split cleanly into PUBLIC and SECRET ones: the
+    LowBits check is a public function of (z, c, pk) by the identity w - c s2 = A z - c t,
+    but the ||<<c t0>>|| and hint-weight checks are not — so the accepted CHALLENGE distribution
+    is t0-biased and the transcript is simulatable from (pk, t0) and not from pk alone. Measure
+    the bias.'
+  class: control
+  claim: 'RECALLED FIPS 204 Algorithm 7 rejections: (R1) ||z||_inf >= gamma_1 - beta_c; (R2)
+    ||LowBits(w - c s2)||_inf >= gamma_2 - beta_c; (R3) ||<<c t0>>||_inf >= gamma_2; (R4)
+    hint weight > omega. CLAIM, in two exactly-checkable parts. (A) R2 is a PUBLIC predicate:
+    w - c s2 = A y - c s2 = A(z - c s1) - c s2 = A z - c(A s1 + s2) = A z - c t, so R2 depends
+    on the secret only through the public t; hence conditioning on R2 cannot bias z given
+    c, and the standard uniformity argument is exact for R1 and R2. (B) R3 depends on c and
+    t0 ONLY, so it does not bias z given c — but it DOES bias the accepted challenge distribution,
+    making the empirical law of accepted c a t0-dependent deviation from uniform on B_tau;
+    and R4 depends on t0 AND z jointly. CONSEQUENCE: the accepted transcript is simulatable
+    from (pk, t0) and NOT from pk alone, which is exactly why FIPS 204 must assert that t0
+    need not be secret. The measurable deliverable is the size of the challenge-law deviation,
+    per signature, with a null in which t0 is resampled independently of the key.'
+  mechanism: 'Rejection sampling is conditioning. Conditioning on a predicate that is a function
+    of published data cannot leak (that is the content of part A, and the identity w - c s2
+    = A z - c t is the reason ML-DSA''s argument works at all). Conditioning on a predicate
+    that is a function of a withheld quantity DOES bias the conditioned variables. ||<<c t0>>||_inf
+    is a signed sum of tau negacyclic shifts of t0, so acceptance probability varies across
+    B_tau in a way determined by t0''s own autocorrelation structure: challenges whose support
+    pattern aligns with large partial sums of t0 are rejected more often. The channel is therefore
+    a support-pattern-indexed frequency deviation, observable from a public transcript with
+    no inversion of the hint at all.'
+  why_not_a_renamed_known_approach: 'Nearest corpus records: IDEA-20260805-031ce2 (do signatures
+    violating signing-only rejections still verify?), IDEA-20260805-630606 and H-MLDSA-2ae88d
+    (t0 reconstruction from the HINT), IDEA-20260805-bb52fa (the exact bound ||<<c t0>>||_inf
+    <= tau 2^{d-1}), H-MLDSA-2d4123 (the four rejection predicates as a scope). All of those
+    examine the hint or the predicate; none partitions the four rejections into public and
+    secret ones via the A z - c t identity, and none measures the induced CHALLENGE-law deviation,
+    which needs no hint decoding whatsoever.'
+  predictions:
+  - observable: Empirical frequency, over T signatures under one key, of each of the 256 coefficient
+      positions appearing in supp(c), and of each sign, compared against uniform on B_tau.
+    metric: Chi-square statistic and per-position log-frequency-ratio, with the null run at
+      matched T.
+    predicted: A statistically significant deviation whose per-position pattern CORRELATES
+      with a stated functional of t0 (e.g. the running partial sums of |t0|), with correlation
+      increasing in T. Zero deviation would mean R3's acceptance probability is effectively
+      constant over B_tau, which would itself be a clean finding and would close the channel.
+  - observable: 'NULL CONTROL: the same statistic where t0 is resampled independently of the
+      key.'
+    metric: The same chi-square and the correlation with the TRUE t0.
+    predicted: Deviation from uniform may persist (any fixed t0 biases something), but the
+      CORRELATION WITH THE TRUE t0 must vanish. A correlation surviving the null is an artifact
+      of the estimator and voids the measurement.
+  - observable: Rejection rate attributable to each of R1-R4 separately, at ML-DSA-44/65/87.
+    metric: Per-condition rejection rate with a confidence interval, or an upper bound with
+      its sample size if zero.
+    predicted: R3 and R4 rates are small but nonzero; this directly serves GOAL-MLDSA-002's
+      first completion criterion, which asks for exactly these rates.
+  minimal_test: One reference implementation, unmodified and unfaulted. (1) Read Algorithm
+    7 and the four predicates from FIPS 204 primary text and RESOLVE the algorithm/line numbering
+    question the goal record flags as open. (2) Verify the identity w - c s2 = A z - c t symbolically
+    — this is part A and costs nothing. (3) Instrument the signer to record which predicate
+    fired on each rejected attempt, and log accepted c. (4) Run the independent-t0 null FIRST,
+    per the goal's next_action. (5) Report per-predicate rejection rates and the challenge-law
+    deviation with its correlation to t0.
+  controls:
+  - INDEPENDENT-t0 NULL, run before any leak is believed (the goal's own instruction).
+  - PREDICATE-ABLATION: disable R3 alone and confirm the challenge-law deviation vanishes;
+      that isolates R3 as the cause rather than R1/R2/R4.
+  - MULTI-KEY CONTROL: repeat under several keys; the deviation pattern must change with t0
+      and not be a fixed artifact of B_tau's encoding.
+  confounders:
+  - B_tau is sampled by SampleInBall from a seeded hash; any bias in that sampler is confounded
+    with the rejection-induced bias. Measure the PRE-rejection challenge law from the same
+    implementation as an additional null.
+  - R4 couples z and t0, so a deviation could arise from R4 rather than R3; the ablation control
+    is what separates them.
+  - Per the goal record, the rejection rate may be small enough that the required sample size
+    exceeds the campaign budget. Size the sample BEFORE committing; an unmet sample size is
+    a budget outcome, never evidence of absence.
+  falsification_conditions:
+  - The accepted-challenge law is indistinguishable from uniform at the achievable T — the
+    channel is closed at that sensitivity, reported as an upper bound with its sample size.
+  - The deviation survives the independent-t0 null with correlation intact — artifact; nothing
+    interpretable.
+  - Ablating R3 does not remove the deviation — the mechanism is misattributed.
+  interpretation_limits: NOT A BREAK, and the record must be unreadable as one. Part A is
+    a two-line identity (derivation tier). Part B measures a channel to t0, which FIPS 204
+    already declares need not be secret; the measurement's value is quantitative, and its
+    security meaning depends entirely on L1b-02's price for t0. No statement about MLWE, MSIS
+    or SelfTargetMSIS may appear in any resulting package — the goal record makes any such
+    statement a defect regardless of what was measured.
+  assumptions:
+  - The four rejection predicates and the identity w - c s2 = A z - c t are as recalled from
+    FIPS 204; step (1) is the gate.
+  - A conformant reference signer is available and can be instrumented without altering its
+    distribution.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: The acceptance probability of R3 as a function of c in B_tau is well approximated
+      by a function of the pair (support pattern, sign pattern) through a single scalar summary,
+      namely max_j |sum over supp(c) of +/- t0 shifted|, uniformly over keys.
+    rigorous_ingredient: The exact bound ||<<c t0>>||_inf <= tau 2^{d-1}, already established
+      in this corpus at IDEA-20260805-bb52fa, plus the fact that c has exactly tau nonzero
+      coefficients in {-1, +1}, which makes c t0 an exact signed sum of tau shifts — no approximation
+      in the object itself.
+    distribution_imitated: 'The classical maximum-of-a-random-walk law: a signed sum of tau
+      shifts behaves like a tau-step walk, so its maximum obeys a reflection-principle tail.'
+    validation_route: 'Exact enumeration at REDUCED n (n in {16, 32}) with the true eta and
+      d: compute the acceptance indicator for every c in a sampled subset of B_tau and regress
+      it on the scalar summary. TOY SCALE in n, labelled; the tau and d values can be kept
+      at their FIPS 204 values, so only the ring degree is reduced.'
+    tail_checks: The acceptance event is a MAXIMUM over 256 coordinates, so check the upper
+      tail of the walk maximum specifically rather than its mean; report the most-rejected
+      and least-rejected challenge classes.
+  target_complexity:
+    time_exponent: NOT AN ATTACK. The measurable is a per-signature leak rate about t0, and
+      the relevant complexity is the SIGNATURE COUNT T needed to distinguish the accepted-challenge
+      law from uniform at a stated power — T scales as 1/(deviation)^2 by the standard chi-square
+      rate.
+    memory_exponent: O(1) per signature; the statistic is a 256-bin histogram.
+    best_known_baseline: The hint-based t0 reconstruction that FIPS 204 asserts needs "a small
+      number of signatures". If that route needs far fewer signatures than this channel, this
+      channel is DOMINATED and should be reported as such rather than promoted.
+    hidden_overhead_disclosure: The chi-square rate assumes independence across signatures,
+      which holds only if y is freshly random per attempt; the hedged mode's derandomisation
+      must be checked.
+    time_memory_tradeoff: Not applicable.
+  sota_delta: 'Part A: a clean public/secret partition of the four rejections with a one-line
+    proof, which the corpus does not currently state. Part B: a second, hint-free channel
+    to t0 with a measured rate. Zero against any hard problem.'
+  dominated_by: 'LIKELY DOMINATED, and I say so up front: the hint-based reconstruction (IDEA-20260805-630606,
+    H-MLDSA-2ae88d) probably recovers t0 from far fewer signatures than a challenge-frequency
+    statistic. Checked those two rows plus IDEA-20260805-031ce2, -bb52fa and H-MLDSA-2d4123.
+    The part that is NOT dominated is the public/secret partition (part A), which is a structural
+    statement no cost row supersedes, and the per-predicate rejection rates, which are the
+    goal''s own completion criterion.'
+  estimated_cost: 'Implementation: low-medium (instrumenting a reference signer). Compute:
+    medium — the sample size is the cost driver and must be sized first.'
+  recommended_priority: medium
+  honest_prior_of_survival: P(part A's identity is exactly right) ~ 0.9 — it is elementary
+    algebra and is the reason the scheme's argument works. P(the challenge-law deviation is
+    detectable at a budget-feasible T) ~ 0.4. P(it beats the hint route on signature count)
+    ~ 0.1. The part worth having is A plus the rejection rates, both of which are cheap.
+  novelty_status: unverified
+  novelty_screen: 'Read: EXISTING_PROPOSALS.txt (all RQ-MLDSA-ffa0f5 rows), EXISTING_HYPOTHESES.txt
+    (H-MLDSA-2ae88d, -2d4123), CATALOGUE_TITLES.txt, KNOWLEDGE_BARRIERS.txt, GOAL-MLDSA-002.yaml
+    in full, my own L1.yaml. WEB NOT SCREENED.'
+  discriminated_from: IDEA-20260805-031ce2 asks whether violating signatures still verify
+    (a verifier question); this asks what the rejections do to the SIGNER's output law. IDEA-20260805-630606
+    recovers t0 from the hint; this uses the challenge frequencies and touches no hint. H-MLDSA-2d4123
+    scopes the four predicates; this partitions them by an algebraic identity and assigns
+    a distinct observable to each side.
+  lossy_projection_test: 'PASSES. Tracked object: the empirical frequency vector of accepted
+    challenges over B_tau — a 256-bin (plus sign) histogram distilled from the full transcript,
+    discarding every z, every hint, every message. The fibre is enormous. Discarded compatibly,
+    because R3''s acceptance predicate is a function of c and t0 alone, so the retained histogram
+    is exactly the marginal that predicate acts on and it propagates deterministically under
+    the rejection loop. Tracking the transcript itself loses nothing and is the incumbent.'
+  source_refs:
+  - GOAL-MLDSA-002.yaml and RQ-MLDSA-ffa0f5 (corpus, read in full) — including its instruction
+    to run the independent-t0 null before believing any leak.
+  - IDEA-20260805-bb52fa (corpus proposal index) — the exact ||<<c t0>>||_inf bound used as
+    HA-1's rigorous ingredient.

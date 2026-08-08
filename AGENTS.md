@@ -85,6 +85,15 @@ tool surface.
 13. A persistent research goal may be marked `completed` only on the concurring judgement of **three independently-resolved models**. See "Goal closure quorum".
 14. Every record identifier carries a **random 6-hex suffix**, minted via `python3 tools/allocate_id.py --next <type> --area|--date <x>` and confirmed with `--check` before use — e.g. `DEC-20260802-0edaee`. The legacy `\d{3}` form remains valid forever (those records are immutable) but **no new record may use it**. Never allocate by grepping for `max+1`: that asks committed state for a maximum, every concurrent worktree gets the same answer, and they mint the same identifier for different records — discovered only at merge time when both are already immutable. A random token scans no state and so cannot converge. `--sequential` is legacy-only and must never mint a record that will be merged. Identifiers no longer sort into creation order; use `added`/`recorded_at` or git history for chronology.
 15. **An identifier remap is a last resort, not a repair.** Renaming a record that a *completed* archive names in its binding fields (`artifact_paths`, `write_scope`, `archive.path_sha256`, `archive.record_ids`, or the bound commit message) breaks that archive permanently — the commit is immutable, so its declared set and the live tree can never be reconciled. Before any remap, check whether the identifier appears in a completed archive's binding fields; if it does, supersede the record instead of renaming it.
+16. **Amazon Bedrock is prohibited as a cost guardrail.** No runtime, agent,
+    workflow, fallback, or model probe may select a provider, backend, endpoint,
+    or model identifier containing `bedrock` (case-insensitive). Refuse before
+    making a network request. API-backed `openai` and `local` runtimes are
+    allowed, as are authenticated direct Codex and Claude Code sessions whose
+    resolved provider is not Bedrock. Lack of any allowed API or direct runtime
+    is a terminal infrastructure stop, never permission to use Bedrock.
+    Historical receipts that record prior Bedrock use remain immutable and
+    must not be rewritten.
 
 ## Research-direction integrity and auditability
 

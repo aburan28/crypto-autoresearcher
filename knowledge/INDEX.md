@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-8007 entries.
+8009 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -63,6 +63,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-d4f820 | H-PSEUDO empirical measurement — DL character sum constant C(p) ~ p^{0.055} at toy prime-field scale | internal_finding | preliminary_empirical |  | hpseudo character-sum fourier discrete-log semaev factor-base toy-scale scaling |
 | KN-FIND-e7a3b1 | H-PSEUDO proof approaches — all six standard analytic methods are closed; H-PSEUDO is a new open problem | internal_finding | proved_negative |  | hpseudo character-sum proof-attempts ddh bgs weil weyl michel-venkatesh open-problem |
 | KN-FIND-f8c290 | Semaev index calculus complexity is tight — achievable lower bound confirmed at toy scale | internal_finding | preliminary_empirical |  | semaev index-calculus achievability complexity-tight prime-field ecdlp toy-scale |
+| KN-FIND-ff4a46 | Wording repair for KN-FIND-9d2f56: align with corrected H-PSEUDO orientation | internal_finding | proved |  | betti-yield h-pseudo wording-repair kn-find-9d2f56 orientation-fix |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
 | KN-LIT-002 | Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem | literature | reported | web | gaudry index-calculus point-decomposition weil-restriction extension-field ecdlp |
 | KN-LIT-003 | On the discrete logarithm problem in elliptic curves | literature | reported | web | diem index-calculus extension-field subexponential ecdlp complexity |
@@ -7922,6 +7923,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-026 | How large is the concrete security discount from module/ring structure, and does it grow with better techniques? | open_problem | reported | open | module-lwe ring-lwe lwe structure hybrid-attack coefficient-isometry sparse-secret fhe kyber ml-kem concrete-security cost-model symmetry open lattice |
 | KN-OPEN-027 | Is HAWK's module-LIP assumption reachable through nrd-PIP, and do the four heuristics hold? | open_problem | reported | open | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg heuristic unverified-heuristic pqc concrete-security open lattice |
 | KN-OPEN-028 | What is the corrected cost of the nrd-PIP route against HAWK, now that Heuristic 4 has failed and 1-3 are verified? | open_problem | read | closed_all_questions_answered | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg super-polynomial fractional-ideals heuristic retracted-claim pqc open lattice |
+| KN-OPEN-2c095b | Is the multiplicative-order deficit of a curve-derived lambda a fact about CM arithmetic, or a fact about small integers? | open_problem | unverified | open | ecdlp ordinary-curves cm endomorphism kernel-field multiplicative-order matched-null null-design heuristic-validation toy-scale open |
 | KN-OPEN-3f7a21 | Can this program's literature corpus support its own citation_verified markings, when 7457 of 7666 entries claim read against a downloads/ tree that has never existed in the repository? | open_problem | reported | open | corpus-integrity provenance citation-verified seeding novelty-screen knowledge-base meta open tooling audit |
 | KN-OPEN-875d43 | Does weakness beat description length as a hypothesis-selection proxy under a non-uniform (cryptanalytic) task distribution? | open_problem | unverified | open | methodology hypothesis-selection induction generalisation weakness mdl occams-razor non-uniform-prior harness-evaluation open |
 | KN-OPEN-8a5965 | Does Simon's claimed polynomial-time DCP algorithm survive scrutiny, and if so does it reach the concrete Module-LWE parameters of ML-KEM / ML-DSA? | open_problem | unverified | open | quantum dcp dihedral lattice lwe mlwe ml-kem ml-dsa svp verification unverified-claim pqc post-quantum open adjacent |

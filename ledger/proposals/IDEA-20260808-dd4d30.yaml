@@ -1,0 +1,174 @@
+idea:
+  id: IDEA-20260808-dd4d30
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-FRODO-3260cc
+  goal_id: GOAL-FRODO-001
+  title: FrodoKEM's secret is a MATRIX with nbar columns, so its primal attack plants nbar
+    independent short vectors in one lattice — a rank-nbar dense sublattice, not a rank-1
+    uSVP — and the absence of ring structure makes nbar the whole of that rank, which is exactly
+    where plain LWE differs from ML-KEM.
+  class: mechanism
+  claim: 'In FrodoKEM the public key is B = A S + E with S, E of dimension n x nbar (RECALLED
+    nbar = 8; n = 640/976/1344, q = 2^15 or 2^16). The primal embedding therefore contains
+    nbar independent short vectors (one per secret column) in ONE lattice, so the relevant
+    success condition is the rank-nbar DENSE SUBLATTICE condition, not the rank-1 unique-SVP
+    condition that the standard estimate applies after reducing to a single column. CLAIM:
+    (1) the block size beta_dense at which reduction detects a rank-nbar dense sublattice
+    differs from the rank-1 beta_uSVP by a computable amount Delta at Frodo''s exact parameters;
+    (2) the CONTRAST with ML-KEM is structural and sharp — in a ring/module scheme the negacyclic
+    rotations X^j s are themselves short vectors in the same lattice, so the planted rank
+    is Theta(n) rather than nbar, and any dense-sublattice effect is a ring effect there and
+    a MULTI-COLUMN effect here; (3) therefore the honest statement is that Frodo''s plain
+    structure gives the attacker rank nbar = 8 for free while ML-KEM gives rank 256, and whether
+    that matters is decided by whether beta_dense < beta_uSVP at each scheme''s parameters.'
+  mechanism: 'Reduction detects a dense sublattice of rank r when the sublattice''s normalised
+    determinant is small enough relative to the ambient profile — the same mechanism that
+    produces the overstretched-NTRU regime (KN-TECH-045), which KN-TECH-041 records as the
+    single most consequential documented failure of GSA-based prediction, severe enough to
+    hide an entire attack regime for years. The rank-r condition is generally EASIER to satisfy
+    than the rank-1 condition when r short vectors of comparable length are present, because
+    the sublattice determinant scales as (short length)^r against an ambient determinant that
+    scales as q^{something}. Frodo supplies r = nbar = 8 by construction and for free: the
+    columns of S are independent and equally short, and they share A. The standard estimate
+    discards seven of them by attacking one column. Whether the discard costs anything is
+    a closed-form comparison at fixed parameters.'
+  why_not_a_renamed_known_approach: 'Nearest known: the standard multi-secret amortisation
+    observation, that one reduction serves several targets — a constant-factor (nbar-fold)
+    saving. That is NOT this: the claim here is that the SUCCESS CONDITION changes form, not
+    that the same condition is met more cheaply per target. Nearest corpus records: catalogue
+    "M1 — Dense-submodule transfer: is there an overstretched R-LWE / M-LWE?" asks the ring-side
+    question, and review note "B3 — ML-KEM is 0.2 bits from the NTRU fatigue point" applies
+    a fatigue computation to ML-KEM. Neither treats Frodo, and neither identifies nbar as
+    the rank parameter. GOAL-FRODO-001''s own non_duplication rule forbids re-estimating LWE
+    hardness at Frodo''s dimensions, so this proposal must be routed as a SUCCESS-CONDITION-FORM
+    question with any numeric estimate handed to the estimator-owning goal.'
+  predictions:
+  - observable: beta_dense (rank-nbar dense-sublattice condition) and beta_uSVP (rank-1 condition)
+      evaluated at Frodo-640/976/1344 under one pinned profile model, with sieve memory charged
+      at 2^{0.2075 beta} in both rows.
+    metric: Delta = beta_uSVP - beta_dense, and its core-SVP bit value.
+    predicted: Delta >= 0 with equality the likely outcome at nbar = 8 (eight vectors is a
+      very small rank against n ~ 640). Delta > 0 by more than a few bits would be a significant
+      finding about plain-LWE parameter selection.
+  - observable: 'The rank sweep: evaluate the same condition at r = 1, 2, 4, 8, 16, 32 with
+      all other parameters fixed.'
+    metric: beta_dense(r).
+    predicted: 'Monotone decreasing in r, with the decrease negligible for small r and material
+      only once r is a constant fraction of n. This sweep is also the ARTIFACT TELL: a condition
+      that does not vary with r is mis-derived.'
+  - observable: The ML-KEM contrast row, r = 256 (the negacyclic rotations), evaluated with
+      the identical code.
+    metric: beta_dense(256) versus beta_uSVP for ML-KEM at matched accounting.
+    predicted: A larger effect than Frodo's, but this row exists mainly as a CONTROL for the
+      rank machinery, since the corpus's inherited constraint already bounds ring structure
+      gains at about 17 bits — a gain materially above that would contradict a standing corpus
+      result and must be treated as an error in my computation until proved otherwise.
+  minimal_test: Closed-form arithmetic, no lattice reduction. (1) Acquire the FrodoKEM specification
+    and read n, q, nbar, and the error width (the source gate). (2) Write both success conditions
+    explicitly against one pinned profile model. (3) Evaluate the rank sweep and both schemes.
+    (4) Report Delta with memory charged and with the profile model named; hand any numeric
+    hardness estimate to the estimator-owning goal rather than claiming it here.
+  controls:
+  - RANK SWEEP DECAY: the effect must vanish at r = 1 by construction; if it does not, the
+      rank-1 limit of the condition is wrong.
+  - MATCHED-ACCOUNTING CONTROL: both rows must use the same profile model, the same memory
+      charge, and the same dimensions-for-free convention, or the difference is a convention
+      artifact.
+  - ML-KEM CONTRAST as a sanity control against the corpus's 17-bit algebra ceiling.
+  confounders:
+  - The nbar columns of S are independent but the corresponding lattice vectors may not be
+    linearly independent modulo the ambient reduction, in which case the effective rank is
+    below nbar.
+  - Dense-sublattice conditions in the literature are calibrated for specific secret distributions
+    and rank regimes; applying one at r = 8 with n = 640 may be far outside its calibrated
+    range, in which case the honest output is "the condition does not apply here, and here
+    is why", which is a legitimate closure.
+  - Frodo's error is a tabulated near-Gaussian, not a ternary or uniform secret; the condition's
+    parameterisation must match.
+  falsification_conditions:
+  - Delta = 0 to within the profile model's resolution at all three parameter sets — the multi-column
+    structure is worthless and the lane closes with a number.
+  - The rank-1 limit of the condition does not reproduce the standard uSVP condition — the
+    derivation is wrong.
+  - The ML-KEM contrast row exceeds the corpus's 17-bit algebra ceiling — my computation is
+    wrong, and that is the finding.
+  interpretation_limits: 'CLOSED-FORM MODEL READOUT, inheriting every heuristic of the profile
+    model it uses (GSA and its documented failures, per KN-TECH-041). It is NOT an estimate
+    of Frodo''s security and must not be reported as one: GOAL-FRODO-001 explicitly disclaims
+    the lattice-estimator lane and requires a hand-off if a batch finds itself deriving a
+    sieve cost. The deliverable is the FORM of the success condition and the sign of Delta,
+    not a bit-security number.'
+  assumptions:
+  - FrodoKEM's secret is an n x nbar matrix with nbar = 8 as recalled; the source gate must
+    confirm.
+  - A published dense-sublattice detection condition exists with a stated calibration range.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: A BKZ-beta-reduced basis detects a rank-r sublattice of normalised determinant
+      d_r when d_r^{1/r} falls below the ambient profile at the corresponding index, uniformly
+      for r << n and for the secret distributions used by FrodoKEM.
+    rigorous_ingredient: For r = 1 this reduces exactly to the standard uSVP success condition,
+      which is the calibrated baseline; the determinant of the sublattice generated by the
+      nbar columns is exactly computable from their Gram matrix, with no heuristic.
+    distribution_imitated: The Gaussian heuristic for the ambient lattice profile, i.e. that
+      the reduced basis behaves like a random lattice of the same determinant except where
+      the planted sublattice intrudes — the same model whose failure defines the overstretched
+      regime.
+    validation_route: 'Toy verification at n in {40, 60, 80} with nbar in {1, 2, 4, 8}: plant
+      the secret, reduce, and record the block size at which the sublattice is recovered,
+      against the predicted condition. TOY SCALE, clearly labelled; there is no shortcut to
+      Frodo''s n = 640 and none is claimed.'
+    tail_checks: Report the block size at which the FIRST of the nbar vectors is found separately
+      from the block size at which ALL are found; a condition that predicts the second but
+      is measured against the first will look confirmed for the wrong reason.
+  target_complexity:
+    time_exponent: 2^{0.292 beta_dense} against 2^{0.292 beta_uSVP}; the deliverable is Delta
+      = beta_uSVP - beta_dense, which is a bit-level shift, not an exponent move. Building
+      block, stated as such.
+    memory_exponent: 2^{0.2075 beta} in both rows, charged identically.
+    best_known_baseline: The standard single-column primal estimate for FrodoKEM at each parameter
+      set.
+    hidden_overhead_disclosure: The dense-sublattice condition's calibration range is the
+      hidden risk; using it at r = 8 may be extrapolation and must be labelled.
+    time_memory_tradeoff: Unchanged between the two rows; not a discriminating axis.
+  sota_delta: Expected zero at nbar = 8. The value is the STATEMENT of which success condition
+    applies to plain multi-column LWE, and the explicit contrast with the ring case, neither
+    of which the corpus currently records.
+  dominated_by: n/a (no attack-cost result claimed). Checked against the five Frodo records
+    and the two relevant catalogue entries (rlwe-mlwe "M1", review note "B3"); none evaluates
+    a rank-nbar condition. GOAL-MLKEM-003 and GOAL-MLKEM-004 own the estimator lane and dominate
+    on any numeric hardness claim, which is why no numeric claim is made here.
+  estimated_cost: 'Implementation: low (closed-form) plus optional toy verification. Compute:
+    low, with the toy arm at medium if reduction is run.'
+  recommended_priority: medium
+  honest_prior_of_survival: P(the rank-nbar condition is the correct form) ~ 0.7. P(Delta
+    > 2 bits at nbar = 8) ~ 0.15 — eight is a very small rank against n = 640 and I expect
+    the effect to be negligible, which is itself the useful answer for a scheme marketed on
+    conservatism. P(the ML-KEM contrast row stays inside the corpus's 17-bit ceiling) ~ 0.7;
+    if it does not, the most likely explanation is my error, and the record says so in advance.
+  novelty_status: unverified
+  novelty_screen: 'Read: EXISTING_PROPOSALS.txt (RQ-FRODO-3260cc rows and RQ-MLKEM-001/003
+    rows), EXISTING_HYPOTHESES.txt (H-FRODO-*, H-MLKEM-dc51f5), CATALOGUE_TITLES.txt (rlwe-mlwe
+    "M1", review "B3"), KNOWLEDGE_BARRIERS.txt (KN-TECH-045, -041, -046), GOAL-FRODO-001.yaml
+    and GOAL-MLKEM-005.yaml in full. WEB NOT SCREENED. External risk: multi-secret LWE and
+    dense-sublattice conditions both have literature I could not check.'
+  discriminated_from: Catalogue "M1 — Dense-submodule transfer" asks the ring-side question
+    for R-LWE/M-LWE; this is the plain-LWE multi-column question, where the rank is nbar rather
+    than n and the mechanism is column multiplicity rather than ring rotation. Review note
+    "B3" applies a fatigue computation to ML-KEM. Distinct from ordinary multi-target amortisation,
+    which changes the cost per target and not the success condition.
+  lossy_projection_test: 'PASSES. Tracked object: the normalised determinant d_r^{1/r} of
+    the sublattice spanned by the r planted short vectors — one scalar summarising an r x
+    r Gram matrix, discarding all directions and all individual norms. The fibre is every
+    configuration of r vectors with that normalised determinant. Discarded compatibly, because
+    the detection condition compares exactly this scalar against the ambient profile, and
+    it propagates deterministically under basis change (it is a basis invariant of the sublattice).
+    Contrast: tracking the r vectors themselves loses nothing and is the incumbent single-column
+    view iterated.'
+  source_refs:
+  - GOAL-FRODO-001.yaml (corpus, read in full) — including its non_duplication rule against
+    re-estimating LWE hardness, which routes any numeric output away from this goal.
+  - KN-TECH-041 (corpus, read in full) and KN-TECH-045 (title only) — GSA failure modes and
+    the overstretched/dense-sublattice regime.

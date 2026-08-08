@@ -1,0 +1,184 @@
+idea:
+  id: IDEA-20260808-90c7ab
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-INSTR-f8faa0
+  goal_id: GOAL-ECDLP-001
+  title: 'Two committed ledger records were rewritten in place 93 minutes after archival,
+    in a commit that added no run record — so the detector is a CONSERVATION LAW, not a diff:
+    evidence values may not change unless run artifacts appear, with legitimate mechanical
+    reshapes as the matched null that a naive diff would drown in'
+  class: control
+  claim: "SCOPE: this program's own record immutability. No cryptographic claim. THE MOTIVATING\
+    \ FACT, FROM CORR-20260727-007 DEFECT (b). Commit a325d824 archived 13 run records plus\
+    \ EV-STR-002, DEC-20260726-006 and a hypothesis status flip. Commit 5de2db97, 93 minutes\
+    \ later, REWROTE experiments/EXP-STR-002/analysis.md, EV-STR-002 and DEC-20260726-006\
+    \ — 6 files, 694 insertions, 213 deletions — ADDING ZERO RUN RECORDS. The superseded text\
+    \ reported two data points and concluded the structured solve was NOT cheaper; the replacement\
+    \ asserts measurements at bit sizes the superseded text said could not be generated and\
+    \ inverts the inference to \"confirmed\". This violated AGENTS.md rule 4 and was found\
+    \ only by a later validator reading git history. CLAIM. The detector is not \"did the\
+    \ file change\" — files legitimately change (EV-ECDLP-65b004 carries a documented mechanical\
+    \ reshape that preserved every value, and a disclosure note added later). The detector\
+    \ is a CONSERVATION LAW:\n  S1: a ledger record's SCALAR VALUE SET changes in a commit\
+    \ later than\n      its birth commit, with no superseding record minted in that commit;\n\
+    \  S2: an evidence or decision record gains or alters numeric fields in a\n      commit\
+    \ that adds zero files under runs/ or experiments/*/runs/;\n  S3: an archive receipt's\
+    \ declared record set differs from the commit's\n      actual changed paths.\nS2 is the\
+    \ sharp one and it is what would have fired on 5de2db97 immediately. THE ALGEBRAIC CONSTRUCTION\
+    \ THAT MAKES THE NULL WORK. Canonicalize each record to a flat multiset of (leaf-path-independent)\
+    \ scalar values, discarding nesting and key ordering. A mechanical reshape maps to the\
+    \ IDENTITY on that projection; a value edit does not. THIS IS THE LOSSY-PROJECTION TEST\
+    \ APPLIED LITERALLY: the projection is genuinely lossy (structure is discarded), what\
+    \ it discards is discarded compatibly with the operation of interest (reshaping preserves\
+    \ values), so the retained part propagates deterministically and a change in it is exactly\
+    \ a value edit. A naive textual diff loses nothing and is therefore not a detector but\
+    \ a change log — which is precisely why the in-place rewrite went unnoticed among 694\
+    \ insertions."
+  mechanism: Walk the commit graph; for each ledger record, identify its birth commit and
+    compute the canonicalized value multiset at every commit touching it. S1 fires on any
+    change in that multiset after birth. S2 additionally partitions commits by whether they
+    add run artifacts, which is a path predicate computable from the commit's changed-file
+    list. S3 compares each archive receipt's declared record set to the commit's actual paths,
+    which is what AGENTS.md's durable-commits section already requires the dispatcher to verify
+    and which this extends to a retrospective sweep. The hard case is a reshape that ALSO
+    flips one value — the exact shape of the real incident, since 5de2db97 both rewrote structure
+    and changed conclusions. The value-multiset projection catches it because the multiset
+    changes even though the structure change is legitimate; a structure-aware diff would report
+    a large legitimate-looking change and bury the flip.
+  why_not_a_renamed_known_approach: 'NEAREST KNOWN: git history inspection, which is exactly
+    how the incident WAS eventually found — by a validator reading history 93 minutes'' worth
+    of commits later, and only after a shell-less earlier session could not see it. The difference
+    is that this is a standing automated predicate with a declared null, run over the whole
+    history rather than by a human who happens to look. Against AGENTS.md''s dispatcher verification:
+    that checks a commit against its OWN declared paths at commit time; it does not detect
+    a later commit rewriting an earlier record, which is the failure that actually occurred.'
+  predictions:
+  - observable: S1 and S2 firings across the committed history
+    metric: count, with the known incident as a required positive
+    predicted: S2 must fire on 5de2db97. If it does not, the detector is broken and no other
+      verdict it produces is admissible.
+  - observable: S1 firings on legitimate reshapes
+    metric: count
+    predicted: Zero, by construction of the value-multiset projection. EV-ECDLP-65b004's documented
+      reshape is the specific null and must not fire.
+  - observable: S3 firings
+    metric: count of archive receipts whose declared set mismatches the commit
+    predicted: Reported, no value predicted. Any nonzero count is an evidence-integrity finding
+      under AGENTS.md rule 15.
+  - observable: total records whose value multiset changed after birth
+    metric: count and fraction
+    predicted: Reported as the baseline. This number does not currently exist anywhere in
+      the program.
+  minimal_test: 'PHASE 1 (read-only, zero risk): run S1/S2/S3 over the full committed history
+    and report firings, with 5de2db97 as the known positive and the EV-ECDLP-65b004 reshape
+    as the known null. PHASE 2: build synthetic histories with planted edits — (a) a value
+    flipped with no superseding record (must fire), (b) a value flipped WITH a superseding
+    record minted in the same commit (must NOT fire; that is the legal correction path), (c)
+    a pure reshape preserving all values (must not fire), (d) a reshape that also flips one
+    value (must fire — the hard case and the shape of the real incident) — and measure per-signal
+    detection. PHASE 3: report the sensitivity floor, i.e. whether a single flipped value
+    in a large legitimate change is detected.'
+  controls:
+  - KNOWN POSITIVE: 5de2db97 must fire S2. Failure invalidates the instrument.
+  - MATCHED NULL: the documented mechanical reshape must not fire S1. A detector that flags
+      legitimate reshapes will be switched off within a week and is therefore useless regardless
+      of its sensitivity.
+  - LEGAL-PATH NULL: an edit accompanied by a superseding record must not fire, or the instrument
+      penalizes the corrections the contract requires.
+  - DECAY / SENSITIVITY SWEEP: plant 1, 2, 5, 20 flipped values inside an otherwise legitimate
+      large change; detection should be flat at 1.0 if the projection is right. A detection
+      rate that RISES with the number of flips indicates the detector is thresholding on change
+      magnitude rather than on the conservation law, which is the wrong mechanism.
+  confounders:
+  - Some legitimate additions do add numeric fields without new runs — a validator disclosing
+    an independently computed hash, for example (EV-ECDLP-65b004 does exactly this). S2 must
+    distinguish ADDED disclosure fields from ALTERED claim fields, and the schema must mark
+    disclosure blocks or the false-positive rate will be unacceptable.
+  - Rebases rewrite commits; AGENTS.md forbids rebasing branches carrying run records, but
+    historical rebases would confuse birth-commit attribution and must be reported as unresolvable
+    rather than as firings.
+  - Bulk formatting passes (YAML normalization) can alter numeric representation without altering
+    value; canonicalization must compare parsed values, not strings.
+  - The instrument reads history and can only see what was committed; work never committed
+    is invisible, which is a stated coverage limit rather than a defect.
+  falsification_conditions:
+  - 5de2db97 does not fire — instrument broken, nothing reportable.
+  - The documented reshape fires — over-strict, unusable, must be fixed before deployment.
+  - The legal-path null fires — the instrument penalizes contract-compliant corrections.
+  - Detection rises with the number of planted flips — the mechanism is magnitude-thresholding,
+    not conservation, and the design is wrong.
+  interpretation_limits: Process instrumentation, not a cryptographic claim and not an accusation
+    about any session. A firing means a record's values changed after archival without a superseding
+    record in that commit; it is a contract-compliance fact. CORR-20260727-007 already records
+    the one known instance, states that it does NOT allege fabrication, and notes that the
+    phi column was positively reproduced. Historical firings are to be handled by superseding
+    records, never by editing the records that fired — which would repeat the original defect.
+  assumptions:
+  - Ledger records are parseable YAML with stable scalar leaves.
+  - Commit history is intact and unrebased for the range examined; where it is not, the range
+    is reported as uncovered.
+  heuristic_assumptions:
+  - id: HA-16
+    statement: (Reshape invariance.) Every legitimate mechanical reshape of a ledger record
+      preserves the multiset of scalar values exactly, so the canonical projection is invariant
+      under reshaping and changes only under a value edit.
+    rigorous_ingredient: Exact for a pure re-nesting, which is a relabelling of leaves and
+      by definition preserves the leaf multiset. The assumption is only that real reshapes
+      are pure in this sense.
+    distribution_imitated: None — an algebraic invariance claim, not a distributional one.
+    validation_route: Test on the reshapes already present in the committed history, of which
+      EV-ECDLP-65b004's is one documented example with its own reshape_note asserting that
+      no field's VALUE was changed. Compute the projection before and after and confirm equality.
+      Corpus-scale, zero risk, and it uses the record's own assertion as ground truth — if
+      the projection differs, either the assertion or the projection is wrong, and BOTH outcomes
+      are worth knowing.
+    tail_checks: Report every reshape where the multiset changed by a small number of elements;
+      those are precisely the reshapes-that-also-edited, the hardest and most important class.
+  target_complexity:
+    time_exponent: NO EXPONENT MOVES. Linear in (commits x records touched); a full-history
+      sweep is minutes.
+    memory_exponent: Negligible; streaming over commits.
+    best_known_baseline: 'Current practice: the dispatcher verifies a commit against its own
+      declared paths at commit time, which by construction cannot detect a later rewrite of
+      an earlier record. There is no standing detector for that.'
+    hidden_overhead_disclosure: The instrument sees only committed state; uncommitted work
+      and rebased ranges are outside its coverage, and the coverage fraction must be reported
+      with every result.
+    time_memory_tradeoff: Not applicable.
+  sota_delta: 'Zero on attack cost. Against current practice: converts a defect that required
+    a determined validator reading git history to find into a standing automated predicate
+    with a known positive, three nulls, and a measured sensitivity floor.'
+  dominated_by: CHECKED against every RQ-INSTR row in EXISTING_PROPOSALS.txt, against IDEA-20260807-a4f5c5
+    (certificate pipeline), IDEA-20260807-1c14d7 (enumeration completeness), and against AGENTS.md's
+    own durable-commit verification (which checks a commit against its declared paths at commit
+    time and does not cover later rewrites). Not dominated in-corpus. Externally, content-addressed
+    audit logs are standard engineering and would dominate the mechanism; the contribution
+    claimed is the conservation law S2 and the reshape null, and the external gap is stated.
+  estimated_cost: Implementation low-to-medium (git walk plus YAML canonicalization). Compute
+    negligible.
+  recommended_priority: high
+  honest_prior_of_survival: 0.85 that S1/S2 work with the known positive and the reshape null
+    as specified — the projection argument is algebraic. The main risk is the false-positive
+    rate from legitimate disclosure additions (the confounder named above), which could require
+    a schema change to keep the instrument usable; that is a design cost, not a refutation.
+  novelty_status: screened
+  novelty_screen: SCREENED against ledger/corrections/CORR-20260727-007.yaml (read in full,
+    including defect (b), the commit identifiers, and the superseded-text account), ledger/evidence/EV-ECDLP-65b004.yaml
+    (read in full, including its reshape_note), AGENTS.md durable-research-commits section,
+    all RQ-INSTR rows of EXISTING_PROPOSALS.txt, KNOWLEDGE_BARRIERS.txt (KN-FIND-030 on ID
+    allocation noted as adjacent but distinct), the other /tmp/ideas-ctx/*.txt files, and
+    my own X1.yaml. `screened` for in-corpus scope.
+  discriminated_from: 'AGENTS.md dispatcher verification: checks a commit against its own
+    declared paths at commit time; structurally cannot see a later commit rewriting an earlier
+    record. X1-10: artifact-hash integrity and reviewer calibration. X1-11: execution provenance
+    of numeric claims. All three target disjoint defect classes drawn from the same two incidents,
+    and none subsumes another. KN-FIND-030 (directory-scan ID allocation is not concurrency-safe):
+    a different integrity failure with a different mechanism.'
+  source_refs:
+  - ledger/corrections/CORR-20260727-007.yaml
+  - ledger/evidence/EV-ECDLP-65b004.yaml
+  - ledger/questions/RQ-INSTR-f8faa0.yaml
+  - AGENTS.md
+  - docs/inventor-protocol.md

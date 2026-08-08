@@ -23,6 +23,22 @@ those records are immutable.
 always described. It is standard library only: no vendor SDK is a dependency of
 this research program.
 
+## Cost guardrail: Amazon Bedrock is prohibited
+
+Amazon Bedrock is disabled for all new inference. The adapter rejects any
+backend name, provider label, configured or overridden endpoint, or model ID
+containing `bedrock` (case-insensitive) before transport can build a request.
+OpenCode independently disables the `amazon-bedrock` provider in the project
+`opencode.json` and selects OpenAI models by default.
+
+Use an allowed configured API backend such as `openai` or `local`, or an
+authenticated direct Codex or Claude Code session whose resolved provider is
+not Bedrock. If no allowed API or direct runtime satisfies the requested
+policy, the task stops as an infrastructure failure; fallback or downgrade
+permission never permits Bedrock. Historical run receipts that mention prior
+Bedrock use remain immutable evidence and are not rewritten by this prospective
+rule.
+
 ## Credentials and endpoints
 
 Every backend needs two things: an **API key** in a named environment variable,

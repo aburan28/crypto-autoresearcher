@@ -1,0 +1,131 @@
+idea:
+  id: IDEA-20260808-031a59
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-ICINV-475b5e
+  goal_id: GOAL-ECDLP-001
+  title: 'Isogeny-class relation aggregation is exactly cost-neutral, and it stays cost-neutral
+    even if transport between curves is free: collecting relations on all h ~ sqrt(p) curves
+    of the F_p-isogeny class is a typed decomposition, and typing is a penalty, not a lever.'
+  class: mechanism
+  claim: 'Let E_1, ..., E_h be the curves of the F_p-isogeny class of E (h = h(D) ~ sqrt(p)),
+    each with its own windowed or small-x factor base V_i of size B, and let phi_i : E ->
+    E_i be the connecting isogenies, which preserve the discrete logarithm exactly. A relation
+    collected on E_i pulls back to a relation on E, so the union of all h relation streams
+    looks like a factor base of size hB. The claim is that this is FALSE as a cost lever,
+    for a reason that does not depend on the cost of computing phi_i at all: a decomposition
+    is only usable if all m summands lie on the SAME curve, so the construction is exactly
+    the typed decomposition of KN-FIND-007 consequence 4, whose total is sum_i B^m = h*B^m
+    rather than the untyped (hB)^m. Per unit of solver work the yield is therefore identical
+    to running one curve h times, and the number of unknowns grows from B to hB, so the linear
+    algebra strictly worsens: total unknowns h*B with the same h*B^m/N relation rate gives
+    the identical C_rel/C_LA balance as a single curve at factor-base size B, plus an h^2
+    penalty in linear algebra unless the streams are kept separate — in which case nothing
+    has been shared. CONSEQUENCE: a free transport oracle (the polynomial-time class-group
+    action of Clapoti/PEGASIS, KN-LIT-1449) does not rescue it. The closure is unconditional
+    in transport cost, which is strictly stronger than the corpus''s current position.'
+  mechanism: 'Typed decompositions are bounded by the AM-GM inequality B_1...B_m <= (B/m)^m,
+    strictly below the untyped C(B+m-1,m) ~ B^m/m!; KN-FIND-007 measured the balanced-split
+    penalty as 4.817x at m = 3. Here the typing is by curve, which is the most extreme typing
+    possible: cross-curve sums are not defined without transport, and once transported they
+    are just sums on E again, at which point the factor base is the union of h pullbacks and
+    is no longer describable (the pullback of a window is an arbitrary set, so the solver
+    cost reverts to exhaustive). Either way the gain is zero: keep the sums within a curve
+    and pay the typing penalty, or transport and lose the describability that made the solve
+    cheap.'
+  why_not_a_renamed_known_approach: 'IDEA-20260807-7c00e6 closes the attractive version "solve
+    the ECDLP on a different curve of the class", i.e. moving the instance. This record closes
+    a different construction: aggregating RELATIONS from all curves simultaneously while solving
+    on E. It also differs from IDEA-20260807-c36472, which corrects the transport cost of
+    reaching a SPECIFIED curve; the present argument is transport-cost-free by design, so
+    a corrected (cheaper) transport cost cannot reopen it. And it differs from RQ-ICINV''s
+    core question (is a cost functional non-constant across the class), which is about variance;
+    this is about summing.'
+  predictions:
+  - observable: relations per unit solver work, one curve vs h curves
+    metric: relations obtained per 10^6 decomposition attempts, aggregated
+    predicted: identical to within Poisson error; the h-curve arm gains exactly h times the
+      relations for exactly h times the work
+  - observable: rank of the aggregated relation matrix
+    metric: rank / number of unknowns for the union factor base of size hB
+    predicted: the matrix is block-diagonal by curve up to the transported target column,
+      so the aggregated system is h independent systems and confers no rank advantage
+  - observable: effect of making transport free
+    metric: total charged cost with transport charged at 0
+    predicted: unchanged, because the typing penalty is combinatorial and not a transport
+      cost
+  minimal_test: "Toy: >-\n  pick a small ordinary isogeny class with h in [10, 50] at p ~\
+    \ 2^20 (enumerable by\nHilbert class polynomial or by a small-degree isogeny walk), set\
+    \ up a size-B window factor base on each curve, collect relations on each, transport them\
+    \ to E by the known isogenies, and measure (a) relations per attempt, (b) rank of the\
+    \ aggregated matrix, (c) end-to-end charged cost against a single-curve control at matched\
+    \ total solver work."
+  controls:
+  - Single-curve control at matched total solver work (not matched wall clock).
+  - 'Free-transport arm: recompute the same totals with transport charged at zero; the conclusion
+    must be unchanged, which is the specific thing this record asserts.'
+  - 'Random-partition null: partition one curve''s factor base into h blocks and forbid cross-block
+    sums; this synthetic "typing" must reproduce the same penalty, isolating typing from anything
+    isogeny-specific.'
+  confounders:
+  - Different curves in the class have different numbers of rational points with x in a window
+    (a factor-2 wobble); normalise by measured |V_i|, not by B.
+  - Isogeny transport can map a factor-base point to the identity or to a small-order point
+    if the degree is not coprime to N; exclude those degrees explicitly.
+  falsification_conditions:
+  - Aggregated relations per unit solver work exceed the single-curve rate by more than Poisson
+    error => the typing argument is wrong and the construction is a real lever.
+  - The aggregated matrix has rank exceeding the sum of per-curve ranks => cross-curve relations
+    exist that the argument says cannot, and the closure fails.
+  interpretation_limits: Closes one construction (relation aggregation across an isogeny class)
+    unconditionally in transport cost. It says nothing about whether some curve in the class
+    is individually weaker (that is RQ-ICINV's question), and nothing about supersingular
+    settings.
+  assumptions:
+  - DL is preserved by F_p-isogenies of degree coprime to N (standard).
+  - The class is the full set of curves with the same characteristic polynomial (Tate).
+  heuristic_assumptions:
+  - id: HA-1
+    statement: Per-curve decomposition yields are independent across the class, so aggregating
+      h streams multiplies both yield and work by exactly h.
+    rigorous_ingredient: KN-FIND-007's exact per-curve mean C(B+m-1,m)/N, which holds on every
+      curve since all curves in the class have the same N.
+    distribution_imitated: '"Independence of representation counts across independent groups
+      of the same order."'
+    validation_route: 'Toy class with h in [10,50]: measure per-curve yields, test pairwise
+      independence by correlation across shared targets (transported). Label toy.'
+    tail_checks: A positive correlation across curves would mean the class shares decomposition
+      structure, which would be a genuine RQ-ICINV finding and must be reported, not absorbed.
+  target_complexity:
+    time_exponent: '"No change: the aggregated family has the same exponent as single-curve
+      index calculus, i.e. E1-03''s master formula unchanged."'
+    memory_exponent: '"Strictly worse if the streams are merged (h*B unknowns); unchanged
+      if kept separate."'
+    best_known_baseline: '"rho N^{1/2}, memory O(1)."'
+    hidden_overhead_disclosure: '"Transport cost is deliberately set to zero to make the closure
+      unconditional; no o(1) claim."'
+    time_memory_tradeoff: '"n/a."'
+  sota_delta: 'Zero, by construction: the record''s content is that a family widely assumed
+    to be a lever has delta exactly zero, and that the assumption cannot be rescued by cheaper
+    transport.'
+  dominated_by: 'Pollard rho / vOW at N^{1/2}, memory O(1). Frontier rows checked: rho/vOW,
+    BSGS, Kuhn-Struik sqrt(TN), preprocessing S T^2 = N, special-curve attacks.'
+  estimated_cost: '"Implementation medium (isogeny walk over an ordinary class); compute low."'
+  recommended_priority: medium
+  honest_prior_of_survival: '"~0.85 that the closure holds as stated; it is a counting argument
+    plus a definition."'
+  novelty_status: screened
+  novelty_screen: Screened against EXISTING_PROPOSALS.txt (all RQ-ICINV-475b5e and RQ-ECDLP-002
+    rows), KN-FIND-007 in full, KNOWLEDGE_BARRIERS.txt, and the in-repo KN-LIT-1449 entry.
+    No record states the aggregation construction or its transport-independence. External
+    literature UNVERIFIED (no web access this session).
+  discriminated_from: IDEA-20260807-7c00e6 (move the instance to another curve — different
+    construction); IDEA-20260807-c36472 (transport cost correction — this record is transport-free);
+    IDEA-20260807-a127ab / e0ddc6 / e41559 (preprocessing-table transport in RQ-MTGT — tables,
+    not relation streams, and a different value predicate); KN-FIND-007 consequence 4 (typing
+    penalty — used as the input, not restated).
+  source_refs:
+  - KN-FIND-007 (in-repo, read in full)
+  - KN-LIT-1449 (in-repo, read; corpus marks it "reported")
+  - KN-TECH-028 (in-repo)

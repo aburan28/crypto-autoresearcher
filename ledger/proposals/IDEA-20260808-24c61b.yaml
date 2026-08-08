@@ -1,0 +1,167 @@
+idea:
+  id: IDEA-20260808-24c61b
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  title: 'ECDLP as structured subset-sum: the representation technique (Howgrave-Graham-Joux
+    / Becker-Coron-Joux), the one modern method that beats meet-in-the-middle for knapsacks,
+    is blocked for ECDLP by the attacker''s ignorance of the target modulo any small M, and
+    that missing ingredient is nameable and searchable.'
+  class: mechanism
+  claim: 'Write k in base B with m = log_B N digits, so Q = sum_j [d_j B^{j-1}] P with d_j
+    in [0,B). ECDLP is then EXACTLY a subset-sum instance over the group <P> with a known
+    structured generator set {[B^{j-1}]P} and unknown digits — the same shape whose integer
+    analogue is solved in 2^{0.291n} rather than 2^{0.5n} by the representation technique.
+    CLAIM A (closure with mechanism): the representation technique''s engine is the modular
+    filter "enumerate only u with u = r mod M on the left and only v with v = t - r mod M
+    on the right", which requires the TARGET RESIDUE t mod M. For ECDLP t = k is precisely
+    the unknown, and N is prime so <P> has no proper quotient to filter in; furthermore, by
+    the propagation-rigidity theorem (IDEA-20260806-c5d183) no nonconstant map on <P> propagates
+    deterministically except an injection. Hence the entire HGJ/BCJ family collapses to plain
+    meet-in-the-middle, i.e. BSGS, for ECDLP. CLAIM B (forward guidance, the part that is
+    not closed): the exact missing ingredient is an efficiently computable filter f on the
+    ENUMERATED INTEGERS (not on group elements) whose acceptance is compatible with the unknown
+    target, i.e. any of: (i) k mod M for one small M, from any side channel or structure;
+    (ii) a partial homomorphism defined on a dense subset of <P>; (iii) a bias in the digit
+    distribution of k for deployed generators. Each is a concrete, checkable object, and (iii)
+    is measurable today.'
+  mechanism: In integer subset-sum the target is a known integer, so the search space splits
+    into M congruence classes whose product must hit a known value, and each class can be
+    enumerated at 1/M cost while the number of representations of the target grows like binom(m,
+    m/2)-ish, so a sub-birthday exponent survives. In ECDLP the target is a known GROUP ELEMENT
+    and an unknown integer, so the class of u is known (we enumerate u) but the required class
+    of v is not, and there is no way to pair the halves without paying the full birthday.
+    This is why negation and automorphism quotients give only constant factors for rho (KN-TECH-018)
+    and why nothing better is known.
+  why_not_a_renamed_known_approach: 'Not BSGS: BSGS is the collapsed case, and this record
+    explains WHY the collapse happens rather than restating it. Not the GGM lower bound (KN-TECH-005):
+    the GGM bound forbids generic algorithms, whereas the representation technique is generic
+    in the group and non-generic in the integer encoding, so it is not covered by the GGM
+    argument and needs the separate reason given here. Not IDEA-20260806-c5d183: that record
+    proves the rigidity theorem about maps on <P>; this record applies it to a specific named
+    algorithm family and adds the target-residue obstruction, which rigidity alone does not
+    give.'
+  predictions:
+  - observable: any implemented HGJ/BCJ-style ECDLP variant
+    metric: charged group operations vs 0.886 sqrt(N)
+    predicted: ratio >= 1 for every parameter choice; no sub-birthday exponent
+  - observable: digit distribution of deployed ECDSA/ECDH scalars for a fixed generator
+    metric: chi-square of base-B digit histogram vs uniform, over public keys
+    predicted: uniform; a departure would be an implementation finding, not a math one, and
+      would immediately reopen claim B(iii)
+  - observable: number of representations of k as u + v with u, v drawn from an enlarged digit
+      alphabet [-B, 2B)
+    metric: representation multiplicity R
+    predicted: R grows exactly as in the integer case, confirming that the LOSS is the filter
+      and not the representation count — this is the discriminating measurement between "no
+      representations" and "representations unusable"
+  minimal_test: 'Toy instance N ~ 2^24: implement the HGJ split with the enlarged alphabet,
+    measure R (representation multiplicity) directly, and then attempt the filter with a GUESSED
+    k mod M for M in {3, 5, 7}. Cost is M times a smaller search. If guessed-residue HGJ beats
+    BSGS by the predicted factor divided by M, the mechanism is confirmed exactly and the
+    sole obstruction is quantified as "one residue".'
+  controls:
+  - Integer subset-sum arm with the identical code and a known target, to confirm the implementation
+    reproduces the published 2^{0.291n} behaviour before any ECDLP claim.
+  - BSGS control at matched charging.
+  confounders:
+  - Guessing k mod M multiplies work by M; if M is small the measured gain can look real while
+    being an artifact of the guess. The guess cost must be charged.
+  - Enlarged alphabets create digit carries; carries must be handled or R is overcounted.
+  falsification_conditions:
+  - Guessed-residue HGJ fails to beat BSGS even with the residue supplied free => the stated
+    mechanism is wrong and the loss is elsewhere (e.g. representation count).
+  - A filter with the required compatibility is exhibited => claim A is falsified and the
+    exponent 0.291-style analysis must be redone for ECDLP, which would be major.
+  interpretation_limits: Claim A is a closure of one named algorithm family under one named
+    obstruction; it is not a lower bound on ECDLP and not a statement about other non-generic
+    methods. Toy confirmations are toy.
+  assumptions:
+  - N prime; digits base B with m = log_B N; generator set {[B^{j-1}]P} public.
+  - Propagation-rigidity theorem as filed in IDEA-20260806-c5d183.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: With the enlarged alphabet [-B, 2B), the number R of (u,v) representations
+      of a fixed k is concentrated around its mean 3^{m}/B^{m} * (normalisation), matching
+      the integer subset-sum representation count for the same alphabet enlargement.
+    rigorous_ingredient: Exact count of digit representations with carries, a finite combinatorial
+      identity.
+    distribution_imitated: The HGJ representation-count analysis for random knapsacks.
+    validation_route: "Toy: >-\n  enumerate representations exactly for m <= 12 and B <= 2^4,\
+      \ compare with the\nclosed form. Label toy."
+    tail_checks: Minimum R over sampled k must be positive; an all-zero tail would break the
+      family for a different reason and must be reported separately.
+  target_complexity:
+    time_exponent: Claim A predicts N^{1/2} (no improvement). Claim B, if an ingredient were
+      found with modulus M = N^{mu}, predicts the HGJ exponent transported to the group setting,
+      which for the standard analysis lands near N^{0.29..0.34} depending on the alphabet;
+      that is the size of the prize and is stated conditionally, not asserted.
+    memory_exponent: '"N^{0.29..0.5}; the representation technique is memory-heavy, and any
+      claimed variant must charge it (KN-TECH-035)."'
+    best_known_baseline: '"rho N^{1/2} memory O(1); BSGS N^{1/2} memory N^{1/2}."'
+    hidden_overhead_disclosure: '"No o(1) claim. The M-guess factor is explicit and charged."'
+    time_memory_tradeoff: The family is strictly memory-heavy; against vOW at matched memory
+      w, rho already gives N^{1/2} at w = O(1), so a memory-N^{0.29} variant must beat N^{1/2}
+      outright.
+  sota_delta: 'Zero as an attack (Claim A is negative). The delta is in the search: it removes
+    a family that recurs in ideation, and it converts the removal into one nameable missing
+    object, which is a searchable target rather than a dead end.'
+  dominated_by: 'Pollard rho / vOW at N^{1/2}, memory O(1), dominates every instance of this
+    family under Claim A. Frontier rows checked: rho/vOW, BSGS, Kuhn-Struik multi-target,
+    preprocessing frontier S T^2 = N, special-curve attacks (out of scope).'
+  estimated_cost: '"Implementation medium (HGJ machinery + group arithmetic); compute low."'
+  recommended_priority: medium
+  honest_prior_of_survival: ~0.85 that Claim A is right (the obstruction is structural). ~0.05
+    that Claim B's ingredient (i) or (ii) exists for generic curves; ~0.10 that (iii) shows
+    anything in deployed implementations, where it would be an implementation finding.
+  novelty_status: unverified
+  novelty_screen: 'Grepped the whole dedup corpus for "subset.sum|knapsack|Howgrave|Becker.Coron|
+    representation technique|Wagner|generalized birthday": the only hit is IDEA-20260807-0085af
+    (a commutative signed-subset-sum QUOTIENT in the NCP lane, a different object). No ECDLP-as-knapsack
+    record exists. Marked unverified rather than screened because the observation that HGJ
+    needs the target residue is plausibly folklore in the knapsack literature, which could
+    not be checked (no web access this session).'
+  discriminated_from: IDEA-20260806-c5d183 (rigidity theorem — used as an input, not restated);
+    IDEA-20260806-071255 (naive-search emptiness — different quantifier); KN-TECH-005 (GGM
+    bound — covers generic algorithms only, not encoding-aware ones).
+  source_refs:
+  - IDEA-20260806-c5d183 (corpus)
+  - KN-TECH-005, KN-TECH-018, KN-TECH-031, KN-TECH-035 (in-repo)
+  - '"UNVERIFIED external: Howgrave-Graham & Joux 2010; Becker, Coron & Joux 2011. Cited from
+    memory."'
+  proof_search_map:
+    bottleneck: '"The modular filter that lets HGJ enumerate only a 1/M fraction of each half."'
+    baseline_embedding:
+      parameter_slice: '"M = 1 (no filter) reproduces BSGS exactly."'
+      reproduction_check: '"Symbolic: HGJ with M = 1 has time |L| = B^{m/2} = N^{1/2}."'
+    observation_collision:
+      observable: '"Representation multiplicity R together with filter feasibility."'
+      distinct_preimage_search: Integer knapsack and ECDLP have the same R and different feasibility
+        — the collision in R is exactly what localises the obstruction in the filter and not
+        the counting.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: '"Digit-representation encoding of k with an enlarged alphabet."'
+      predicted_gain: '"Would be N^{0.29} if a compatible filter existed; it does not."'
+    - transform: observable_fiber
+      proposed_object: '"The fibre of the map (u,v) -> u+v over the unknown target."'
+      predicted_gain: '"Shows the fibre is nonempty and large but unaddressable."'
+    quantifier_order: 'FOR ALL M > 1 and FOR ALL filters f computable from the enumerated
+      integer alone, the HGJ pairing condition requires knowledge of k mod M; since k is the
+      unknown and N is prime, NO such f exists that splits the search. NEGATION SOUGHT: EXISTS
+      a filter computable from the group element alone that is additively compatible.'
+    method_ceiling:
+      strongest_certifiable_claim: '"Closure of the HGJ/BCJ family for ECDLP under the stated
+        obstruction."'
+      nearby_object_control: The same argument applied to DL in F_p^*, where index calculus
+        supplies exactly the missing filter (smoothness of the integer lift) and the family
+        does help. That the argument correctly separates the two settings is the control.
+    proof_obligations:
+    - claim: '"HGJ requires the target residue"'
+      responsibility: correctness
+    - claim: '"<P> of prime order has no usable proper quotient"'
+      responsibility: scope
+    - claim: '"representation count R is unaffected"'
+      responsibility: size
