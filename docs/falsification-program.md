@@ -104,6 +104,7 @@ result contradicting a `proved`/`theorem` record needs independent
 | **D5 Fatigue closure** | "all standard approaches are closed", "no exceptional locus", from a screening count | apply the corpus's own closure standard: named obstruction, argument, forward guidance — else `unverified` |
 | **D6 Self-referential proof** | `proof_refs` points at the finding's own file | check whether any artifact outside the record supports it |
 | **D7 Caveat loss on promotion** | a record promoted from a task/lemma document, whose source states limits the record omits | diff the record against its source for vacuity notes, non-claims and scope lines |
+| **D8 Counted agreement** | confidence asserts N "independent" analyses agree | check their dates, campaigns and framing — same-day same-campaign agreement is one analysis reported N ways until shown otherwise |
 
 D6 is worth a single mechanical sweep before anything else. Parse the
 front-matter as YAML — a regex over the raw text silently misses flow-style
@@ -456,6 +457,39 @@ stands as written.
 Why the asymmetry bites: rule 4 means the corpus is *read forward* from an old
 record to its repairs, and immutability guarantees the stale record stays put to
 be found first. `check_currency.py` now covers all four mechanisms.
+
+### F-10e — KN-FIND-5c1a03, "three completely independent analyses" (D8)
+
+**Outcome — the characterisation stands; the independence claim does not.**
+`EV-FALSIFY-d07ef4`.
+
+The record carries `confidence: multiple_independent_analyses` and asserts
+"three completely independent analyses". Its three legs — `e7a3b1` (analytic),
+`9d2f56` (combinatorial), `7e4b90` (algebraic) — **all carry `added:
+2026-08-04`, as does 5c1a03 itself.** One campaign, one window, one framing,
+each leg derivation-tier with no external verification.
+
+This is the corpus's *own* quorum principle, outside its stated domain: "Three
+aliases that all fall back to one backend produce correlated judgements;
+counting them three times is not independent agreement."
+
+**And all three legs have since been qualified**, each by a separate probe here:
+e7a3b1's universal is unestablished (F-6); 9d2f56's "exact condition" — the very
+form 5c1a03 cites — was withdrawn by ff4a46 (F-8); 7e4b90's closure supplies
+three of five required elements (F-6b). A convergence inherits its legs.
+
+**Bonus — the corpus corroborates F-6 against itself.** F-6 found e7a3b1's title
+says "all six" while its table has **8** rows, and could not say which was
+intended. 5c1a03 calls the same leg "**8** character-sum proof methods". Written
+the same day, saying eight. The table is right; the title is the error.
+
+*Not disputed*: the characterisation itself — minimal algebraic structure vs
+richer structure — which is plausible and was not evaluated. Same-day filing
+doesn't prove the analyses weren't separate, only that the record claims
+independence while offering no evidence of it. Correlated is not wrong.
+
+New defect class **D8, counted agreement**: a confidence label that counts
+agreeing analyses must show they could have disagreed.
 
 ### F-1c — m = 6, the last untested structural case (D1)
 
