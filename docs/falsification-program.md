@@ -266,6 +266,41 @@ exponent now under correction (`CORR-20260808-733115`).
 construct a method evading the taxonomy, which is what a real refutation needs.
 The objection is that the record asserts exhaustiveness rather than arguing it.
 
+### F-6b — KN-FIND-7e4b90, "blocked for ordinary prime-field ECDLP" (D5)
+
+**Outcome — mathematics sound, closure incomplete, and it is the one that
+matters most.** `EV-FALSIFY-e58e4e`.
+
+(a) and (b) pass: the obstruction is structural and specific — Wesolowski needs
+`End(E)` a rank-4 definite quaternion algebra with 4D-LLL short vectors of norm
+`O(p^{1/3})`; ordinary prime-field curves have a rank-2 commutative imaginary
+quadratic order, so the lattice is 2D with shortest vector `O(√N)`, which *is*
+Pollard rho.
+
+It is arguably **understated**: the record says `|D| ~ p^{2/3}` with class number
+1 is "not the case for generic curves", but class number 1 is not a genericity
+condition — Baker–Heegner–Stark leaves finitely many such orders, max `|D| = 163`,
+so that case is impossible for *every* curve once p ≳ 2082. Flagged for a
+reviewer, not asserted.
+
+**(c) fails: zero statements of what remains open** — no successor, no revisit
+condition, no remaining uncertainty. AGENTS.md's integrity section asks for
+evidence, budget, test boundary, remaining uncertainty, and a concrete successor
+or revisit condition; this supplies three of five.
+
+Why it matters beyond its size: Wesolowski is the program's **canonical
+exemplar** (`docs/target-result-profile.md`). A record titled *blocked*, tagged
+`blocked`, closing the transfer of the program's own stated target, with no
+revisit condition and self-referential `proof_refs`, is the highest-consequence
+shape a closure can take here. And the successor already exists unnamed:
+**GOAL-SSI-001**, "Supersingular-isogeny cryptanalysis after the SIDH break" —
+exactly where the quaternion structure *does* occur. The scope line correctly
+excludes supersingular curves; the title does not, and one sentence would stop a
+later reader concluding the route is dead in this program. It is not.
+
+*Not established*: that the transfer is possible. No route past the rank-2
+obstruction was sought — that would be the real test, and it was not run.
+
 ### F-10d — KN-FIND-a8990a, Semaev cover structure (D2 reproduction)
 
 **Outcome — verifies in every particular checked.** `EV-FALSIFY-66f32d`. The
@@ -369,7 +404,7 @@ relation counts falls below the quoted `(m+1)/2`. **Null:** set the sweep cost
 to zero and confirm the model then reproduces exactly `(m+1)/2`, which
 localises any discrepancy to the omitted terms.
 
-### F-6b — KN-FIND-7e4b90, "blocked for ordinary prime-field ECDLP" (D5)
+
 
 The corpus's own closure standard (`docs/inventor-protocol.md`) requires a
 named obstruction, an argument, and forward guidance; a count of
