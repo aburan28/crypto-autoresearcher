@@ -136,6 +136,18 @@ class GeneratedBindingTests(unittest.TestCase):
                                       capability=capability):
                         self.assertIn(capability, text)
 
+    def test_coupled_write_overgrant_still_allows_new_artifact_creation(self) -> None:
+        """A write-only role must not be told to avoid the shared write primitive."""
+        for runtime, binding in self.roles_doc["roles"]["idea-generator"][
+                "runtime_bindings"].items():
+            if runtime not in {"codex_cli", "opencode"}:
+                continue
+            text = (REPO / binding).read_text(encoding="utf-8")
+            with self.subTest(runtime=runtime):
+                self.assertIn("only\nto create new files", text)
+                self.assertIn("edit_files", text)
+                self.assertNotIn("not: edit_files", text)
+
     def test_independent_review_roles_are_told_they_are_independent(self) -> None:
         for role, spec in self.roles_doc["roles"].items():
             if not spec["authority"].get("independent_of_producer"):
