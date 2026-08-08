@@ -102,6 +102,7 @@ result contradicting a `proved`/`theorem` record needs independent
 | **D4 Toy-to-crypto carry** | a constant measured at toy scale quoted at N=2^256 | vary the parameter the extrapolation holds fixed; if the constant moves, it is not a constant |
 | **D5 Fatigue closure** | "all standard approaches are closed", "no exceptional locus", from a screening count | apply the corpus's own closure standard: named obstruction, argument, forward guidance — else `unverified` |
 | **D6 Self-referential proof** | `proof_refs` points at the finding's own file | check whether any artifact outside the record supports it |
+| **D7 Caveat loss on promotion** | a record promoted from a task/lemma document, whose source states limits the record omits | diff the record against its source for vacuity notes, non-claims and scope lines |
 
 D6 is worth a single mechanical sweep before anything else. Parse the
 front-matter as YAML — a regex over the raw text silently misses flow-style
@@ -237,6 +238,40 @@ surfacing to a later reader, and it is exactly what no metadata reader or
 the file is **still tracked** — `.gitignore` does not apply to tracked files and
 `git rm --cached` was never run. Rebuilding the index still dirties a tracked
 file on every branch, which is the conflict the documented fix says it removed.
+
+### F-7 — KN-FIND-982fdf, C_t-minimality clauses (d) and (e) (D7)
+
+The first clauses in this program to be **decided** rather than sampled.
+Definition 3 (in the *lemma document*, not the finding) makes the order-based
+class finite — every prefix/suffix of the ordered x-values — so (d) and (e) are
+decidable on a fixed curve. `EV-FALSIFY-246cd8`.
+
+**Outcome — both clauses hold, exhaustively.** 72 curves, p ∈ 11–53, whole class
+enumerated: clause (d) holds every time, with exactly **two** identifying
+oracles (C_t and its complement), never a third. Zero violations. Clause (e)
+holds too — *and* holds for **40/40 random 1-bit oracles**, so standing alone it
+distinguishes C_t from nothing.
+
+**The defect is D7, caveat loss on promotion.** `ct_minimality_lemma.md` says
+exactly that: clause (e) is "true but **vacuous** unless combined with Lemma 4"
+— the word appears **4 times** — and it records an explicit non-claim, "minimal
+does *not* hold among all 1-bit oracles". The knowledge record carries
+**neither**: "vacuous" appears **zero** times in KN-FIND-982fdf. The source is
+more careful than the record promoted from it, and the record is what gets cited.
+
+Rule 2 was load-bearing here: the finding never defines "order-based", so
+without the `coordination/` sweep this probe would have reported the definition
+missing — which would have been wrong.
+
+*Not tested*: clauses (a), (b), (c). **(b), non-simulability, is the substantive
+one** and no enumeration over one curve can decide it. The corollary's weight
+rests on (b), which is untouched here.
+
+*Third probe defect, recorded not hidden*: the antichain check first compared
+sets by **inclusion** and reported `False` on all 72 curves. The claim is about
+the pointwise **information** order. Under the right order it holds everywhere.
+F-1's degree drop, F-10d's naive aggregation, and this — three times the
+instrument was wrong and the claim was right.
 
 ### F-6 — KN-FIND-e7a3b1, "all standard analytic approaches are closed" (D5)
 
