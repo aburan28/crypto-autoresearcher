@@ -484,7 +484,37 @@ Why the asymmetry bites: rule 4 means the corpus is *read forward* from an old
 record to its repairs, and immutability guarantees the stale record stays put to
 be found first. `check_currency.py` now covers all four mechanisms.
 
-### F-8 — KN-FIND-9d2f56 / ff4a46, Betti-Yield "exact condition" (D1) — NOT YET RUN
+### F-8 — KN-FIND-9d2f56 / ff4a46, Betti-Yield "exact condition" (D1)
+
+**Outcome — the pre-registered test is MOOT, and the real defect is linkage.**
+`EV-FALSIFY-0ed0d9`.
+
+F-8 was written to test an "exact condition" claim as an iff. That premise no
+longer holds: `ff4a46` has already narrowed it to a **necessary condition only**
+and explicitly disclaims sufficiency. There is no iff left to falsify —
+recorded as *moot*, not skipped.
+
+**Rule 2 saved this probe a fourth time.** 9d2f56's disjunction
+(`β₁ ≥ Ω(√N)` OR `⟨r₂⟩ = o(1)`) and its "equivalently … requires yield above the
+random baseline" *look* contradictory. They are not: `o(1)` **is** the negligible
+level, so "not o(1)" is "above the baseline" once the baseline is the
+pseudorandom AT-heuristic yield — exactly the identification ff4a46 makes.
+
+**The surviving defect is sharp.** ff4a46 says in terms "This record supersedes
+KN-FIND-9d2f56's wording". Yet 9d2f56 records `superseded_by: **null**`, contains
+**zero** references to ff4a46, and its **title still reads** "H-PSEUDO is the
+exact condition for sub-rho combinatorial ECDLP" — the precise formulation
+ff4a46 warns "can be read as claiming H-PSEUDO is a *sufficient* condition". A
+reader landing there gets the withdrawn claim under a `proved` label, with the
+correction unreachable.
+
+ff4a46 carries a machine-readable `repair_target` field — used by **1 of 58**
+records and read by no tool.
+
+*Not established*: anything about the theorem's truth, or about whether sub-rho
+is achievable — ff4a46 declines that question and so does this. Nor that
+`superseded_by` is the right field: this is a *partial* supersession (wording
+withdrawn, theorem preserved) the schema may not model.
 
 An exact-condition claim is an iff and fails if either direction fails.
 Construct toy complexes on both sides of the stated threshold and check both
