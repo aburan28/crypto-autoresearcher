@@ -1,0 +1,160 @@
+idea:
+  id: IDEA-20260808-bfa0b9
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-ICEX-001
+  goal_id: GOAL-ICEX-001
+  title: Batch T targets into one decomposition ideal by adjoining a single variable y with
+    the target-set polynomial g_T(y) of degree T, and measure whether the solving degree grows
+    like T^{1/(m+1)} or like T - the two answers correspond to two cost models this programme
+    uses interchangeably, and only one of them permits multi-target amortisation
+  class: composition
+  claim: 'Define the batched ideal I_T = < S_{m+1}(x_1..x_m, y), g_T(y), f_V(x_1),...,f_V(x_m)
+    > in F_p[x_1..x_m, y], where g_T(y) = prod_{j=1..T} (y - x(R_j)). Its solution set is
+    the union over the T targets of their decomposition sets, of size about T B^m / p. TWO
+    COMPETING COST MODELS, BOTH IN USE IN THIS CORPUS: (M1) cost is Theta(ncols(d_solve)^omega)
+    with d_solve set by the degree at which the Macaulay corank reaches the solution count,
+    giving d_solve = Theta((T B^m/p)^{1/(m+1)}) and cost about (T B^m/p)^omega, i.e. SUPERLINEAR
+    in T - batching loses. (M2) cost is governed by the generator degrees, and adjoining a
+    degree-T generator in ONE variable adds about T/2 to the semi-regular degree by E2-01''s
+    convolution argument, giving d_solve = Theta(mB/2 + T/2) and cost about ((mB+T)/2)^{(m+1)omega}
+    - also losing, but with a different exponent and a different crossover. CLAIM: the measured
+    d_solve(T) discriminates M1 from M2 sharply, because the two predict T^{1/(m+1)} and T
+    respectively - an exponent gap of at least a factor 3 at m = 2 - and the programme currently
+    has no evidence for either. A THIRD OUTCOME IS POSSIBLE AND IS THE ONE WORTH HUNTING:
+    d_solve(T) grows like log T or is flat over a range, which would mean batched descent
+    amortises and would change the multi-target exponent that must be compared against rho''s
+    sqrt(TN).'
+  mechanism: 'Multi-target is the one regime where index calculus classically wins even when
+    it loses per target, because the factor-base logarithms are computed once. This corpus
+    charges a per-target oracle and a one-off linear algebra but has never asked whether the
+    ORACLE itself amortises. The batched ideal is the natural object: the target enters S_{m+1}
+    as an ordinary variable, so batching costs exactly one more variable and one more generator,
+    and the question is entirely about how the solving degree responds. The structural reason
+    to expect something interesting is that g_T is univariate in y, so it contributes to the
+    Hilbert series as a single box factor (1 + y + ... + y^{T-1}) - the same shape as a membership
+    generator - which by E2-01''s own argument shifts the first non-positive coefficient by
+    about T/2 rather than by T. That is a factor 2 saving in the degree and is a building
+    block, not a result.'
+  why_not_a_renamed_known_approach: 'Nearest known: multi-target index calculus and the standard
+    "amortise the factor-base computation over many targets" argument, plus in-corpus IDEA-20260731-010
+    (one relation matrix, T descents) and catalogue A1-4 (the multi-target window and batch
+    size). Those amortise the LINEAR ALGEBRA; this asks whether the DECOMPOSITION ORACLE amortises,
+    which is a different stage and is where the cost sits under E2-02''s theta > 2 regime.
+    Nearest algebraic analogue is solving a system for many right-hand sides at once, standard
+    in linear algebra and not standard for a nonlinear target variable.'
+  predictions:
+  - observable: d_solve of I_T as a function of T
+    metric: fitted exponent in T, at m in {2,3}, B in {6,8}, T in {1,2,4,8,16}, p in {1009,4099}
+    predicted: M1 predicts slope 1/(m+1) (0.33 at m=2); M2 predicts slope 1 with an additive
+      offset mB/2. These are separable at T = 16 with >= 3 seeds. A measured slope near 0
+      over the tested range is the amortisation outcome and would justify a larger battery.
+  - observable: cost of the batched solve versus T separate solves
+    metric: counted field operations, ratio
+    predicted: 'Under M1 the ratio exceeds 1 (batching loses) for T >= 2; under an amortising
+      outcome it falls below 1 and the crossover T* is the deliverable. FORCED CHECK: at T
+      = 1 the two must be equal to within implementation noise, which is a free calibration.'
+  - observable: solution count recovered
+    metric: number of decompositions found across all T targets
+    predicted: Must equal the sum over targets of the individually-found counts. Any discrepancy
+      is an implementation error, not a phenomenon.
+  minimal_test: Build I_T for T in {1,2,4,8,16} at m in {2,3}, B in {6,8}, p in {1009,4099},
+    >= 3 seeds; compute d_solve by exact graded rank with the solution count obtained independently
+    by enumeration over V^m and the T targets; compare against the M1 and M2 predictions and
+    against T separate solves at matched accounting. Report the fitted slope with a CI and
+    a lack-of-fit statistic.
+  controls:
+  - T = 1 CALIBRATION: batched and unbatched must agree exactly; this is the plumbing gate.
+  - SOLUTION-COUNT RECONCILIATION per cell (above).
+  - RANDOM-TARGET-SET versus STRUCTURED-TARGET-SET arms: if the T targets are chosen as a
+      coset or an arithmetic progression, g_T becomes structured and any amortisation could
+      be an artifact of that structure rather than of batching. The random-target arm is the
+      honest one and the structured arm is the artifact detector.
+  - DUMMY-VARIABLE NULL: adjoin y with a degree-T generator that has NOTHING to do with the
+      targets (a random squarefree polynomial); the degree response to T must be the same
+      if the effect is generator-degree-driven rather than target-driven.
+  confounders:
+  - Larger T raises the solution count, which raises the corank threshold; the two effects
+    (more generators, more solutions) push d_solve in opposite directions and must be reported
+    separately.
+  - Duplicate roots in g_T (repeated targets) change its degree; targets must be distinct
+    and checked.
+  - The batched system has m+1 variables versus m, so column counts jump discontinuously at
+    T = 1 to T = 2; comparisons must use operation counts at matched variable count where
+    possible.
+  falsification_conditions:
+  - Fitted slope in T is consistent with 1/(m+1) and inconsistent with 0. M1 holds, batching
+    loses, and the multi-target lane is closed at this interface.
+  - Fitted slope is consistent with 1. M2 holds; also a loss, but it tells E2-01's null that
+    a univariate high-degree generator adds degree/2 as predicted, which is an independent
+    confirmation of that record.
+  - The dummy-variable null shows the same response. The effect is generic, not about targets,
+    and no multi-target conclusion may be drawn.
+  interpretation_limits: Toy tier; T <= 16 is far from the batch sizes at which multi-target
+    arguments bite. It cannot establish an amortisation exponent, only exclude the two hostile
+    ones or motivate a larger battery. It says nothing about descent, which is a separate
+    stage.
+  assumptions:
+  - Targets distinct and drawn uniformly.
+  - Exact arithmetic; solution counts obtained independently.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: The batched sequence is semi-regular, so its Hilbert series is the positive
+      truncation of (1+..+z^{B-1})^m (1+..+z^{T-1}) (1-z^{D_S}) in m+1 variables, and the
+      first non-positive coefficient sits at about (m(B-1) + (T-1) + D_S)/2.
+    rigorous_ingredient: 'Rigorous: the membership and target generators are univariate in
+      distinct variables, hence a regular sequence, so the box-convolution factor is exact.
+      Only the Semaev generator''s genericity is heuristic - the same single assumption as
+      E2-01.'
+    distribution_imitated: Froberg / Bardet-Faugere-Salvy semi-regularity.
+    validation_route: Compare the measured per-degree rank profile to the predicted coefficients
+      at every degree and every T on the toy ladder. TOY SCALE; no crypto-scale route exists
+      for this quantity.
+    tail_checks: Report the largest per-degree residual and the T at which it occurs; a residual
+      growing with T means the batched system departs from semi-regularity in a T-dependent
+      way, which is itself the amortisation signal.
+  target_complexity:
+    time_exponent: Under M1, batched cost about (T B^m/p)^omega versus T times the unbatched
+      cost - batching loses for omega > 1. Under the semi-regular reading, cost about ((mB+T)/2)^{(m+1)omega},
+      also losing. The record proposes no improvement; it decides which loss is real, and
+      identifies the only parameter regime (flat d_solve in T) that would not be a loss.
+    memory_exponent: C(d_solve + m+1, m+1) columns, larger than the unbatched system at every
+      T > 1; disclosed as a strict cost.
+    best_known_baseline: Multi-target generic bound sqrt(T N); T separate unbatched decomposition
+      solves.
+    hidden_overhead_disclosure: The extra variable changes the column count by a factor about
+      d_solve/(m+1) even at T = 1, which is a real overhead paid before any batching benefit.
+    time_memory_tradeoff: Batching trades memory (bigger Macaulay matrix) for a possible time
+      saving; under both hostile models it loses on both, which is the expected finding.
+  sota_delta: 'Zero on attack axes. Deliverable: a measured exponent for d_solve(T) with a
+    CI, discriminating two cost models this corpus uses interchangeably, and a crossover T*
+    if one exists. The multi-target comparator sqrt(TN) is stated explicitly, which no ICEX
+    record currently does.'
+  dominated_by: 'For T targets, generic multi-target DL at sqrt(TN) dominates every cell of
+    the batched family under both hostile cost models; rho and BSGS dominate at T = 1. Frontier
+    rows checked: rho, BSGS, VW, preprocessing S T^2 = Omega~(N), multi-target sqrt(TN). None
+    approached.'
+  estimated_cost: Implementation low (one extra variable in an existing builder); compute
+    medium (T = 16 at m = 3, B = 8 is the largest cell and should be attempted last).
+  recommended_priority: medium
+  honest_prior_of_survival: 0.65 that M1's slope 1/(m+1) is what is measured. 0.25 for the
+    semi-regular slope. 0.1 for a flat or logarithmic response over the tested range - the
+    only outcome that would matter, which is why the record exists despite an unfavourable
+    prior.
+  novelty_status: screened
+  novelty_class: speculative
+  novelty_screen: EXISTING_PROPOSALS titles including IDEA-20260731-010 (one matrix, T descents),
+    IDEA-20260731-013 (multi-target sqrt(TN), via citation in IDEA-20260806-7ea402), IDEA-20260726-001
+    (multi-target crossover K*), IDEA-20260726-005 (depth-2 descent tree); CATALOGUE_TITLES
+    A1-4; RQ-MTGT-2cabee at id level; KNOWLEDGE_BARRIERS; GOAL-ICEX-001.yaml. No corpus record
+    forms a batched decomposition IDEAL. WEB SEARCH UNAVAILABLE.
+  discriminated_from: IDEA-20260731-010 and catalogue A1-4 amortise the LINEAR ALGEBRA over
+    T targets; this batches the ORACLE, which is the stage that dominates under E2-02's theta
+    > 2 regime and which those records leave per-target. IDEA-20260726-001's K* is a crossover
+    in the number of targets for the whole pipeline; this record's T* is a crossover inside
+    one algebraic solve and is measured, not modelled. IDEA-20260726-005's depth-2 descent
+    tree enlarges the base rather than the target set.
+  source_refs:
+  - ledger/goals/GOAL-ICEX-001.yaml
+  - knowledge/findings/KN-FIND-007.md
