@@ -235,6 +235,10 @@ Only these end the run itself:
   reroute only to an allowed backend that satisfies the same model policy. If
   none exists, report a harness-wide infrastructure stop; fallback or downgrade
   permission never authorizes Bedrock.
+- A missing `api_direct` credential is not itself terminal when an authenticated
+  native Codex or Claude Code session satisfies the requested policy. Verify and
+  record that direct session's model provenance, and refuse it if its resolved
+  provider is Bedrock.
 - A harness-wide integrity failure that makes *any* durable work impossible:
   no resolvable backend for a `degradable: false` policy, a repository that
   cannot be pushed, or a ledger that will not validate on `main`. Report the

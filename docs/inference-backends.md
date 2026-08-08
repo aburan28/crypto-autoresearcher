@@ -28,14 +28,16 @@ this research program.
 Amazon Bedrock is disabled for all new inference. The adapter rejects any
 backend name, provider label, configured or overridden endpoint, or model ID
 containing `bedrock` (case-insensitive) before transport can build a request.
-OpenCode independently disables the `amazon-bedrock` provider in
-`.opencode/opencode.json` and selects OpenAI models by default.
+OpenCode independently disables the `amazon-bedrock` provider in the project
+`opencode.json` and selects OpenAI models by default.
 
-Use an allowed configured backend such as `openai` or `local`. If no allowed
-backend satisfies the requested policy, the task stops as an infrastructure
-failure; fallback or downgrade permission never permits Bedrock. Historical run
-receipts that mention prior Bedrock use remain immutable evidence and are not
-rewritten by this prospective rule.
+Use an allowed configured API backend such as `openai` or `local`, or an
+authenticated direct Codex or Claude Code session whose resolved provider is
+not Bedrock. If no allowed API or direct runtime satisfies the requested
+policy, the task stops as an infrastructure failure; fallback or downgrade
+permission never permits Bedrock. Historical run receipts that mention prior
+Bedrock use remain immutable evidence and are not rewritten by this prospective
+rule.
 
 ## Credentials and endpoints
 

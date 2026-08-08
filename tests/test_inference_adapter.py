@@ -108,7 +108,7 @@ def test_transport_rejects_tampered_bedrock_resolution(cfg):
 
 
 def test_opencode_disables_bedrock_and_uses_allowed_defaults():
-    opencode = json.loads((REPO / ".opencode/opencode.json").read_text())
+    opencode = json.loads((REPO / "opencode.json").read_text())
     assert "amazon-bedrock" in opencode["disabled_providers"]
     model_ids = [opencode["model"], opencode["small_model"]]
     model_ids.extend(

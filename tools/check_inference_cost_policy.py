@@ -11,7 +11,7 @@ sys.path.insert(0, str(REPO))
 
 from orchestration import adapter  # noqa: E402
 
-OPENCODE_CONFIG = REPO / ".opencode" / "opencode.json"
+OPENCODE_CONFIG = REPO / "opencode.json"
 FORBIDDEN = "bedrock"
 
 
@@ -33,7 +33,7 @@ def main() -> None:
     disabled = [str(value).casefold()
                 for value in opencode.get("disabled_providers", [])]
     if "amazon-bedrock" not in disabled:
-        fail(".opencode/opencode.json must disable provider 'amazon-bedrock'")
+        fail("opencode.json must disable provider 'amazon-bedrock'")
 
     targets: list[tuple[str, object]] = [
         ("model", opencode.get("model")),

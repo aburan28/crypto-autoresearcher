@@ -88,10 +88,12 @@ tool surface.
 16. **Amazon Bedrock is prohibited as a cost guardrail.** No runtime, agent,
     workflow, fallback, or model probe may select a provider, backend, endpoint,
     or model identifier containing `bedrock` (case-insensitive). Refuse before
-    making a network request and route through an allowed configured backend
-    such as `openai` or `local`; lack of an allowed backend is a terminal
-    infrastructure stop, never permission to use Bedrock. Historical receipts
-    that record prior Bedrock use remain immutable and must not be rewritten.
+    making a network request. API-backed `openai` and `local` runtimes are
+    allowed, as are authenticated direct Codex and Claude Code sessions whose
+    resolved provider is not Bedrock. Lack of any allowed API or direct runtime
+    is a terminal infrastructure stop, never permission to use Bedrock.
+    Historical receipts that record prior Bedrock use remain immutable and
+    must not be rewritten.
 
 ## Research-direction integrity and auditability
 
