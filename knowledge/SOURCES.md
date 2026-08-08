@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7832 |
-| — with a resolvable external identifier | 2227 |
+| Literature entries (`KN-LIT-*`) | 7834 |
+| — with a resolvable external identifier | 2229 |
 | — with no identifier recorded | 5605 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1321, doi 146, eprint 731, url 29. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1321, doi 146, eprint 733, url 29. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 9, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7473, `web` 317.
+`citation_verified` distribution: `False` 21, `True` 9, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7475, `web` 317.
 
 ## 1. Frozen source packages
 
@@ -106,7 +106,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2227 of 7832 `KN-LIT-*` entries carry an
+2229 of 7834 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2250,6 +2250,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-968 | DYNAMICS ON P1 : PREPERIODIC POINTS AND PAIRWISE STABILITY | 2022 | `arxiv:2212.13215` | read |
 | KN-LIT-969 | Efficient NIZKs and Signatures from Commit-and-Open Protocols in the QROM? | 2022 | `eprint:2022/270` | read |
 | KN-LIT-970 | Efficient Proofs of Knowledge for Threshold Relations | 2022 | `eprint:2022/746` | read |
+| KN-LIT-970963 | Dimension Reduction for SVP in HAWK: A Trace-Zero Approach | 2026 | `eprint:2026/1560` | read |
 | KN-LIT-971 | ELLIPTIC ANALOGUE OF IRREGULAR PRIME NUMBERS FOR THE pn -DIVISION FIELDS OF THE CURVES y 2 = x3 − (s4 + t2 )x | 2022 | `arxiv:2205.08946` | read |
 | KN-LIT-972 | Elliptic Loops | 2022 | `arxiv:2204.08019` | read |
 | KN-LIT-973 | Endomorphism Rings of Supersingular Elliptic Curves over Fp and Binary Quadratic Forms | 2022 | `arxiv:2203.02097` | read |
@@ -2310,6 +2311,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-cd9880 | McEliece cryptosystem implementation: theory and practice | 2008 | `doi:10.1007/978-3-540-88403-3_4` | web |
 | KN-LIT-ced593 | On the complexity of some cryptographic problems based on the general decoding problem | 2002 | `doi:10.1109/isit.1998.709047` | web |
 | KN-LIT-d15818 | FPGA-based Niederreiter cryptosystem using binary Goppa codes | 2018 | `eprint:2017/1180` | web |
+| KN-LIT-d4f467 | Embedded Elliptic Curves and Embedded Families for SNARK-Friendly Elliptic Curves | 2024 | `eprint:2024/1737` | read |
 | KN-LIT-d5b1a7 | Fast hardware architecture with efficient matrix computations for the key generation of Classic McEliece | 2025 | `doi:10.1109/tcsi.2025.3528119` | web |
 | KN-LIT-d5baac | Post-quantum WireGuard | 2021 | `eprint:2020/379` | web |
 | KN-LIT-d6d510 | An attack on the CFS scheme and on TII McEliece challenges | 2026 | `eprint:2026/430` | web |
