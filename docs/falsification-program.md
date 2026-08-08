@@ -452,6 +452,28 @@ Why the asymmetry bites: rule 4 means the corpus is *read forward* from an old
 record to its repairs, and immutability guarantees the stale record stays put to
 be found first. `check_currency.py` now covers all four mechanisms.
 
+### F-1c — m = 6, the last untested structural case (D1)
+
+**Outcome — holds, on a thin sample.** `RUN-FALSIFY-d770c1-007`. At m=6 the
+cover has degree 16, so admissible shapes are `[1]*16` and `[2]*8` only.
+Construction is `S_6 = Res_X(S_5(x1..x4,X), S_3(x5,x6,X))` — three nested
+resultant levels, full nominal degree asserted at each.
+
+**0 violations in 17 usable specialisations**, all `[2]*8`. Controls re-run
+rather than inherited (new code, three places for the RUN-001 fault to hide):
+positive **30/0**, null object **0/162**.
+
+**Honest limits.** n=17 is thin; a locus of density below ~1/17 would be
+invisible. And **no `[1]*16` was observed** — under Chebotarev the identity class
+has density 1/16, so seeing none in 17 draws is unremarkable (p ≈ 0.33) but
+leaves that class *unconfirmed* at m=6.
+
+*Probe starvation, recorded*: the first version yielded **1 usable specialisation
+in 97** and was **not reported**. Cause: a degree drop whenever an interpolation
+node collides with a fixed parameter, and m=6 has 17×9 nodes. Choosing nodes
+clear of the parameters fixed it — raising yield without weakening the test,
+since every degree assertion stays in force.
+
 ### F-5 — end-to-end BKK cost (D4) — **BLOCKED ON UPSTREAM, not skipped**
 
 `EV-FALSIFY-4144a5`. The record F-5 would audit, `EV-SEMAEV-7f7d22`, **does not
