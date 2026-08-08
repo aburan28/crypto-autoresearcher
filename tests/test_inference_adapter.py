@@ -10,6 +10,7 @@ from __future__ import annotations
 import io
 import json
 import urllib.error
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -62,6 +63,58 @@ def test_config_rejects_binding_for_unknown_backend(tmp_path):
     path.write_text(yaml.safe_dump(bindings))
     with pytest.raises(config_module.ConfigError, match="unknown backend"):
         adapter.load(bindings_path=path)
+
+
+def test_config_rejects_bedrock_backend_before_resolution(tmp_path):
+    providers = yaml.safe_load((REPO / "orchestration/providers.yaml").read_text())
+    providers["backends"]["amazon-bedrock"] = {
+        "display_name": "Amazon Bedrock",
+        "wire": "anthropic_messages",
+        "base_url": "https://bedrock-runtime.example.invalid",
+        "api_key_env": "AWS_ACCESS_KEY_ID",
+    }
+    path = tmp_path / "providers.yaml"
+    path.write_text(yaml.safe_dump(providers))
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.load(providers_path=path)
+
+
+def test_config_rejects_bedrock_model_hidden_under_allowed_backend(tmp_path):
+    bindings = yaml.safe_load((REPO / "orchestration/model-bindings.yaml").read_text())
+    bindings["bindings"]["openai"]["research-deep"]["model"] = (
+        "amazon-bedrock/us.example-model")
+    path = tmp_path / "bindings.yaml"
+    path.write_text(yaml.safe_dump(bindings))
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.load(bindings_path=path)
+
+
+def test_resolver_rejects_bedrock_endpoint_override(cfg):
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.resolve(
+            cfg, "research-deep", backend="zai",
+            env={"ZAI_BASE_URL": "https://bedrock-runtime.example.invalid"})
+
+
+def test_transport_rejects_tampered_bedrock_resolution(cfg):
+    resolution = adapter.resolve(cfg, "research-deep", backend="zai", env={})
+    tampered = replace(
+        resolution, resolved_model_id="amazon-bedrock/us.example-model")
+    with pytest.raises(config_module.ConfigError, match="forbidden by cost policy"):
+        adapter.build_request(
+            cfg, tampered, system=None,
+            messages=[adapter.Message("user", "must not send")],
+            env={"ZAI_API_KEY": "unused"})
+
+
+def test_opencode_disables_bedrock_and_uses_allowed_defaults():
+    opencode = json.loads((REPO / "opencode.json").read_text())
+    assert "amazon-bedrock" in opencode["disabled_providers"]
+    model_ids = [opencode["model"], opencode["small_model"]]
+    model_ids.extend(
+        agent["model"] for agent in opencode.get("agent", {}).values()
+        if agent.get("model"))
+    assert all("bedrock" not in model.casefold() for model in model_ids)
 
 
 # --------------------------------------------------------------------------
