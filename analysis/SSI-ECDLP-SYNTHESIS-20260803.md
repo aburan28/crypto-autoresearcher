@@ -134,6 +134,66 @@ late, and framed as item (2) behind a width-contract specification. Proposal
 `IDEA-20260803-82b2b7` gives that obstruction analysis a shape that can succeed or
 fail in one batch instead of accreting further.
 
+### Addendum, 2026-08-08: the concrete-cost line the FC0 lane displaced (batches 40–284f63)
+
+This document was written 2026-08-03, when `GOAL-SSI-001` had exactly the 40
+batches described above. It said nothing about SQIsign's concrete NIST-level
+cost because that work had not happened yet. It has since happened, and it
+belongs here rather than only in the ledger, because a reader of this
+synthesis with no further reference should not come away thinking the
+FC0/QM-STOPPING obstruction is the campaign's only content.
+
+`EXP-SSI-9b542d` (BATCH-284f63, repairing the rejected `EXP-SSI-697354`) prices
+the Wesolowski crossover-locus cost model at SQIsign's own NIST-I/III/V
+targets. Under the corrected `MC_P13_CORRECTED` formula, `S=A=c=0`: the gap
+below the target security level **grows with level**, not shrinks —
+`9.5387 / 21.9537 / 38.8387` bits at NIST-I/III/V respectively (`128 − 118.461337`,
+`192 − 170.046299`, `256 − 217.161337`). This has now been independently
+recomputed three separate times from raw output and matches to four decimal
+places each time: the original red team (`TASK-20260806-10980e`), a second
+independent red team on the same repair (`TASK-20260806-9536f4`), and a third,
+fully independent Validator pass re-deriving from `RUN-SSI-9b542d-001`'s raw
+JSON rather than any printed table (`EV-SSI-0c529c`, 2026-08-07), which also
+attacked the run's `BOUNDARY-CONDITION-GATE` negative control adversarially
+and confirmed it genuine rather than vacuous.
+
+**Read this finding at the scope it actually has, not more:**
+
+- It is a **cost-model result on an extrapolated estimator**, not an executed
+  attack. `certificate.kind: none` throughout — no discrete log, no key
+  recovery, nothing solved at any scale. No claim is made about SQIsign's
+  actual security.
+- The growing *security-level* gap is real, but **memory feasibility is the
+  only axis that actually favours NIST-III/V in practice**: the same run
+  confirms every tested level is memory-infeasible by 25–114 bits above
+  Earth's total storage. A shrinking theoretical margin next to a
+  memory-infeasible attack is not a practical threat, and this document does
+  not say otherwise.
+- A closely related but **distinct** figure exists and is explicitly **not**
+  what this addendum is about: `EV-SSI-59f7a2`'s NIST-I estimate of
+  `2^{120-123}` AES-equivalent operations (from the same Section-4.1
+  cost-model line, a different quantity — an absolute operation count, not a
+  margin-to-target gap). That record's number is not challenged, but its
+  framing carries an unresolved qualitative caveat (it labels a `OneEnd` cost
+  as a SQIsign security figure without carrying `SC-1`/`SC-3` — GRH at the
+  isogeny arrow, and concrete-cost inheritability). Do not conflate the two
+  figures; they come from the same experimental line but answer different
+  questions, and only the growing-gap figure is what this addendum corrects.
+- One further finding from the same independently-validated run, stated for
+  completeness rather than omitted: the crossover locus is **not monotone**
+  in the memory parameter near NIST-I's memory-saturation kink (`w = L_mem(256)`,
+  `p*` reverses from `295.26` to `370.69` bits as `w` crosses it) — a
+  non-blocking finding under the run's own frozen acceptance criteria, not a
+  defect, and it does not affect the growing-gap figures above.
+
+Sourced to `DEC-20260806-a00a28`, `DEC-20260806-e2a6fa`, `EV-SSI-a42460`,
+`EV-SSI-0c529c`, and `RUN-SSI-9b542d-001` directly. This addendum supersedes
+the "NIST-III/V retain comfortable margins" framing this document's own
+Section 3 (a different quantity entirely — the `GOAL-P13-001`
+Delfs-Galbraith-vs-Wesolowski margin, not this one) should never have been
+read as covering; see `DEC-20260807-f360f9` for why that sentence was left
+untouched rather than edited to carry these numbers.
+
 ### The one recommendation this document makes to the Coordinator
 
 Under `AGENTS.md` rule 9, deprioritizing a lane requires recording evidence, budget,

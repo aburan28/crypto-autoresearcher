@@ -1,0 +1,160 @@
+idea:
+  id: IDEA-20260808-2df781
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-FRODO-3260cc
+  goal_id: GOAL-FRODO-001
+  title: FrodoKEM's error table is a DYADIC distribution with a fixed denominator, so its
+    Renyi divergence from the rounded Gaussian is not a design tolerance but the value of
+    a finite integer program — solve it exactly and ask whether the published table is optimal.
+  class: measurement
+  claim: 'FrodoKEM samples chi from a tabulated CDF over a fixed number of uniform random
+    bits, so the realised distribution is EXACTLY dyadic: P[z] = c_z / 2^b for integers c_z
+    summing to 2^b, supported on |z| <= Z (RECALLED: Z = 12 for Frodo-640, with b = 15 or
+    16 to be read from primary text). The Renyi divergence R_a(chi || rounded-Gaussian) is
+    therefore a function of an integer vector in a finite, enumerable set. CLAIM: the exact
+    minimum of R_a over all symmetric dyadic distributions with denominator 2^b and support
+    |z| <= Z is computable by integer optimisation at each of Frodo-640/976/1344, and the
+    published table either attains it (design validated, with the residual divergence identified
+    as forced by the quantisation and not by a design choice) or does not, in which case the
+    gap is a concrete, actionable improvement available inside a live ISO/CFRG standardisation
+    window. Second, discriminating half: the SAME optimisation run at b+1 bits gives the marginal
+    value of one extra bit of sampler randomness, which converts "how much divergence is unavoidable"
+    from an assertion into a number.'
+  mechanism: 'R_a(P||Q) = (1/(a-1)) log sum_z P(z)^a Q(z)^{1-a} is a convex function of P
+    on the simplex; restricted to the dyadic lattice {c/2^b} it is a separable objective over
+    integer counts with one linear constraint (sum c_z = 2^b) and a symmetry constraint (c_z
+    = c_{-z}). That is a small integer program — at most Z+1 free variables with a single
+    knapsack constraint — solvable exactly by dynamic programming over the partial sums, in
+    exact rational arithmetic, with no heuristic anywhere. The security-relevant consequence
+    follows from the standard Renyi argument: a divergence bound converts into a bit-security
+    loss that grows with the number of samples the adversary consumes, so a smaller achievable
+    divergence is a smaller claimed loss at the same sample count, and the sample-count dependence
+    is exactly what GOAL-FRODO-001''s second completion criterion asks to be made explicit.'
+  why_not_a_renamed_known_approach: 'Nearest corpus records: IDEA-20260805-390957 (the chi
+    table is constrained by exact identities following from the sampler — a CONSISTENCY question),
+    IDEA-20260805-57fc49 (audit the printed divergence numbers), IDEA-20260805-411b60 (the
+    mutation control), IDEA-20260805-f16b44 (the charging rule for any discrepancy), and H-FRODO-8ea540
+    / H-FRODO-e0c651 (recompute the published quantities). Every one of those RECOMPUTES or
+    AUDITS the published table. This asks a different question — is the table OPTIMAL among
+    the tables the sampler''s own bit budget permits — which no recomputation can answer and
+    which requires an optimisation rather than an evaluation.'
+  predictions:
+  - observable: The exact minimum of R_a over symmetric dyadic distributions with denominator
+      2^b on |z| <= Z, at the published Renyi order a, for each parameter set.
+    metric: R_a^min in exact rational arithmetic, and the gap R_a(published) - R_a^min.
+    predicted: Gap >= 0 by definition; the discriminating question is whether it is zero.
+      A zero gap validates the design and identifies the residual as quantisation-forced.
+      A positive gap, converted through the published divergence-to-bit-loss rule, is a stated
+      number of bits recoverable by a table change alone.
+  - observable: The same minimum at b+1 and b-1 bits of sampler randomness.
+    metric: R_a^min(b+1)/R_a^min(b) and R_a^min(b-1)/R_a^min(b).
+    predicted: Monotone decreasing in b. If R_a^min does not decrease as b increases, the
+      optimisation is mis-specified — this is the built-in artifact tell.
+  - observable: NULL OBJECT — the same optimisation against a target distribution with a closed-form
+      answer (e.g. a discrete uniform, whose optimal dyadic approximation is exactly computable
+      by hand).
+    metric: Agreement of the solver with the hand answer.
+    predicted: Exact agreement. Disagreement means the solver is wrong and every other row
+      is void.
+  minimal_test: '(1) Acquire the FrodoKEM specification and read the table, b, Z, the target
+    rounded Gaussian''s parameter, and the published Renyi order a — the goal''s source gate
+    is shut and must be opened first. (2) Implement the mutation control BEFORE the optimisation:
+    seed a one-unit perturbation of a published count and confirm the pipeline''s divergence
+    changes detectably. (3) Solve the integer program exactly by DP over partial sums in exact
+    rationals. (4) Run the closed-form null. (5) Report R_a^min, the gap, and the b-sensitivity,
+    in exact arithmetic with no floating point.'
+  controls:
+  - MUTATION CONTROL FIRST (the goal's explicit instruction): a pipeline not shown to detect
+      a seeded one-unit table perturbation cannot report agreement as verification.
+  - CLOSED-FORM NULL on a target whose optimal dyadic approximation is known by hand.
+  - ORDER SWEEP: repeat at several Renyi orders a; the optimal table generally depends on
+      a, and a "best table" quoted without its order is meaningless.
+  confounders:
+  - The optimal table for divergence is not necessarily the optimal table for the decryption
+    failure rate, which depends on the distribution's tail. A table that minimises R_a may
+    worsen the DFR; both must be reported or the recommendation is one-sided.
+  - FrodoKEM's table may be constrained by implementation considerations (constant-time sampling,
+    table size, monotone CDF) beyond the ones modelled. Any "better" table must be checked
+    against those constraints before it is called an improvement.
+  - The published divergence may be an upper bound rather than the exact value; comparing
+    an exact minimum against an upper bound is not a like-for-like gap.
+  falsification_conditions:
+  - The published table attains R_a^min exactly at the published order — the design is optimal
+    and the lane closes with a positive, useful result.
+  - The mutation control fails to detect a seeded perturbation — instrument failure; nothing
+    interpretable.
+  - The b-sensitivity is non-monotone — the optimisation is mis-specified.
+  interpretation_limits: 'CRYPTO-TIER for the arithmetic (the computation is exact at the
+    true parameter sets, which is precisely why this goal exists), and NOTHING ABOVE TOY for
+    any security reading, per RQ-FRODO-3260cc''s split claim-tier ceiling. A better table
+    is a better BOUND, not an attack: it does not weaken FrodoKEM and must never be phrased
+    as doing so. A worse-than-optimal published table is a standardisation observation, and
+    its value depends entirely on the sample-count-dependent conversion that the goal''s second
+    criterion demands.'
+  assumptions:
+  - FrodoKEM's error sampler is a tabulated CDF over a fixed bit budget with symmetric support,
+    as recalled. The source gate must discharge this.
+  - A published Renyi order and divergence figure exist in the specification to compare against.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: The security-relevant objective is R_a at the published order a for the published
+      sample count, so minimising R_a at that order is the right optimisation; no other divergence
+      order becomes binding at the sample counts an IND-CCA adversary reaches.
+    rigorous_ingredient: The Renyi multiplicativity R_a(P^N || Q^N) = N R_a(P||Q) for the
+      log-form divergence is exact, so the sample-count dependence is a multiplication and
+      not an approximation. That much requires no heuristic.
+    distribution_imitated: The standard Renyi-divergence security-argument template, in which
+      the adversary's advantage is transported between the ideal and real distributions with
+      a loss controlled at one order.
+    validation_route: Compute R_a^min across a grid of orders a and the corresponding bit-losses
+      at a grid of sample counts, and identify which (a, N) pair binds. This is the exact
+      audit the goal's second completion criterion asks for and it costs the same DP run.
+    tail_checks: 'Report R_infinity (the max-log-ratio) as well as R_a: it is the worst case
+      over all orders and bounds every finite order, so a large R_infinity with a small R_a
+      signals that the chosen order is flattering the table.'
+  target_complexity:
+    time_exponent: NOT AN ATTACK. The optimisation is a DP over at most 2^b partial sums with
+      Z+1 items; polynomial and small.
+    memory_exponent: O(2^b) rationals in the naive DP, reducible by a bounded-denominator
+      argument; at b = 15 this is trivial.
+    best_known_baseline: The published FrodoKEM table and its printed divergence figure.
+    hidden_overhead_disclosure: None in the optimisation. The security reading inherits every
+      assumption of the divergence-to-bit-loss conversion, which is a separate audit.
+    time_memory_tradeoff: Not applicable.
+  sota_delta: Either a validation of the published table as divergence-optimal for its bit
+    budget (a genuinely useful positive), or a stated number of bits available from a table
+    change, deliverable inside the live standardisation window. Zero against any attack.
+  dominated_by: 'n/a (no attack-cost result claimed). Checked against all five Frodo records
+    (IDEA-20260805-390957, -411b60, -57fc49, -f16b44, H-FRODO-8ea540, H-FRODO-e0c651): all
+    evaluate or audit the published quantities; none optimises over the feasible set, so none
+    dominates. IDEA-20260805-411b60 dominates on the MUTATION-CONTROL axis and is a dependency
+    of this proposal, not a competitor.'
+  estimated_cost: 'Implementation: low-medium (exact-rational DP). Compute: low. The cost
+    is acquiring and transcribing the specification correctly.'
+  recommended_priority: medium
+  honest_prior_of_survival: P(the optimisation is well posed and solvable exactly) ~ 0.9.
+    P(the published table is NOT the optimum) ~ 0.45 — designers typically optimise a related
+    objective (often the max-log-ratio or the failure rate) rather than R_a at the reported
+    order, so a small gap is quite likely and would be informative rather than alarming. P(any
+    gap is worth more than 1 bit after conversion) ~ 0.15.
+  novelty_status: unverified
+  novelty_screen: 'Read: EXISTING_PROPOSALS.txt (all RQ-FRODO-3260cc rows), EXISTING_HYPOTHESES.txt
+    (H-FRODO-8ea540, -e0c651), CATALOGUE_TITLES.txt (no Frodo entries), KNOWLEDGE_BARRIERS.txt,
+    GOAL-FRODO-001.yaml in full. WEB NOT SCREENED.'
+  discriminated_from: IDEA-20260805-390957 asks whether the table satisfies exact identities
+    forced by the sampler (consistency); this asks whether it is optimal among tables the
+    sampler permits (optimality). IDEA-20260805-57fc49 audits the printed divergence; this
+    computes the best achievable one. H-FRODO-e0c651 recomputes; this optimises.
+  lossy_projection_test: 'PASSES. Tracked object: the integer count vector (c_0, ..., c_Z)
+    with sum 2^b — a projection of the sampler''s full implementation onto its output distribution,
+    discarding the CDF search structure, the bit-extraction order, the constant-time implementation
+    and the seed expansion. The fibre is every sampler realising the same law. Discarded compatibly,
+    because the Renyi argument depends on the sampler ONLY through its output distribution,
+    and that distribution propagates deterministically into the divergence. Tracking the sampler
+    code loses nothing and is not this object.'
+  source_refs:
+  - GOAL-FRODO-001.yaml and RQ-FRODO-3260cc (corpus, read in full) — including the shut source
+    gate, the mutation-control-first rule, and the split claim-tier ceiling.
+  - IDEA-20260805-411b60 (corpus proposal index) — the mutation control adopted as a dependency.
