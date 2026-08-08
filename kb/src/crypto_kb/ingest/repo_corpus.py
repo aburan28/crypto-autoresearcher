@@ -19,7 +19,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Collection, Iterator
 
 from crypto_kb.config import SOURCE_PREFIX
 from crypto_kb.metadata import metadata_key
@@ -248,11 +248,18 @@ def stage_repository(
     store,
     rules: tuple[StagingRule, ...] = RULES,
     limit_per_rule: int | None = None,
+    include: Collection[str] | None = None,
 ) -> list[StagedDocument]:
-    """Copy repository records into the corpus layout with derived sidecars."""
+    """Copy repository records into the corpus layout with derived sidecars.
+
+    ``include`` restricts staging to an explicit set of repository-relative
+    POSIX paths. The rules still decide *how* each file is staged; the set
+    decides *which* files exist at all, which is what pins a corpus whose
+    content must not move under an evaluation.
+    """
     git_commit = _git_commit(repo_root)
     staged: list[StagedDocument] = []
-    for document in iter_staged(repo_root, rules, git_commit, limit_per_rule):
+    for document in iter_staged(repo_root, rules, git_commit, limit_per_rule, include):
         store.put(document.source_key, document.data)
         store.put(
             metadata_key(document.source_key),
@@ -268,7 +275,9 @@ def iter_staged(
     rules: tuple[StagingRule, ...],
     git_commit: str,
     limit_per_rule: int | None = None,
+    include: Collection[str] | None = None,
 ) -> Iterator[StagedDocument]:
+    allowed = None if include is None else frozenset(include)
     seen_ids: set[str] = set()
     for rule in rules:
         count = 0
@@ -276,6 +285,8 @@ def iter_staged(
             if limit_per_rule is not None and count >= limit_per_rule:
                 break
             if not path.is_file():
+                continue
+            if allowed is not None and path.relative_to(repo_root).as_posix() not in allowed:
                 continue
             document = _stage_one(repo_root, path, rule, git_commit)
             if document is None:

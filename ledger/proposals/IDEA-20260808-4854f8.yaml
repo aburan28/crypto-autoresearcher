@@ -1,0 +1,150 @@
+idea:
+  id: IDEA-20260808-4854f8
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  title: The decryption failure rate is consumed in two places with OPPOSITE required directions
+    — an upper bound for correctness, a lower bound for failure-boosting cost — and only the
+    first is justified by the union bound the published computation uses; the pairwise correction
+    is exactly computable, and for FrodoKEM it is computable at TRUE parameters.
+  class: measurement
+  claim: 'Published DFRs combine a per-coordinate tail probability p across coordinates by
+    a union bound or an independence product. For CORRECTNESS that is sound (an upper bound).
+    For FAILURE BOOSTING it is unsound in direction: the attacker''s expected ciphertexts
+    per observed failure is 1/DFR_true, so an upper-bound DFR makes the attack look CHEAPER
+    than it is. CLAIM: the first inclusion-exclusion correction sum_{i<j} P[fail_i and fail_j]
+    is exactly computable for ML-KEM''s negacyclic structure and for FrodoKEM''s 8x8 message
+    block, and it is strictly positive because coordinate failure events are POSITIVELY associated
+    — different coefficients of the same ring product are sums over the SAME multiset of multiplicands,
+    re-paired. Hence DFR_true < DFR_union, and the gap, bounded above by log2(256) = 8 bits
+    for ML-KEM and log2(64) = 6 bits for Frodo, is a systematic attacker-favourable bias in
+    every published failure-boosting cost.'
+  mechanism: 'ML-KEM''s decryption error is w = e^T r - s^T(e_1 + c_u) + e_2 + c_v in R =
+    Z[X]/(X^256+1) with q = 3329. Coefficient i of a product f g is sum_j +/- f_j g_{i-j}:
+    different coefficients reuse the same multiplicands. That makes them uncorrelated at second
+    order (which is why the independence model looks fine on the variance) and dependent at
+    fourth order and beyond — and deep-tail events are exactly where higher-order dependence
+    lives. A second, structurally identical model error compounds it: the compression error
+    c_u is a DETERMINISTIC function of A^T r + e_1, so conditioning on c_u conditions r and
+    e_1, while the standard computation models c_u as an independent uniform. Both are the
+    same defect — a product measure substituted for a joint law — and one instrument probes
+    both.'
+  why_not_a_renamed_known_approach: 'Nearest corpus records: catalogue M2-1 (per-key DFR dispersion
+    — DFR as a random variable over KEYS), M2-2 (the encapsulator-known half of the failure
+    margin), M2-3 (under M = 1 the failure chain dies at stage 3), M2-4 (what one failure
+    is worth), and IDEA-20260807-05e12c (Compress fibres are non-uniform because q = 3329
+    is not a power of two). Those vary the key, vary the attack stage, or correct the MARGINAL
+    compression law. None addresses DEPENDENCE ACROSS COORDINATES, and none notes that one
+    number is consumed with two opposite required directions. KN-TECH-048''s rule "a revised
+    failure rate is not an attack" is accepted here: this is explicitly a correctness item.'
+  predictions:
+  - observable: Exact pairwise joint failure probability P[|w_i| > q/4 and |w_j| > q/4] for
+      all lags (j-i) mod n, by exact convolution at reduced ring degree n in {16, 32, 64}
+      with ML-KEM's true q, CBD and compression parameters.
+    metric: kappa(lag) = P[fail_i and fail_j] / (P[fail_i] P[fail_j]).
+    predicted: kappa > 1 at all lags (positive association). kappa < 1 at any lag reverses
+      the claimed direction and is the more consequential outcome.
+  - observable: FrodoKEM's 8x8 message-block failure events, where entries sharing a row of
+      S' or a column of S are structurally dependent — computable at TRUE parameters because
+      the error support is tiny.
+    metric: kappa for same-row, same-column and disjoint entry pairs.
+    predicted: kappa(same row) > kappa(disjoint) ~ 1. Equality means the sharing does not
+      transmit and the mechanism is dead for Frodo.
+  - observable: NULL CONTROL — all coordinates resampled independently, preserving every marginal
+      and destroying the ring/matrix structure.
+    metric: kappa for the null.
+    predicted: Exactly 1. Any deviation is a numerical artifact and voids the run.
+  minimal_test: Exact rational or interval convolution, no sampling. (1) Fix reduced n in
+    {16,32,64} with ML-KEM's true q = 3329, CBD parameters and compression widths, read from
+    FIPS 203. (2) Compute the exact joint law of (w_i, w_j) per lag by convolving over shared
+    multiplicands; read off kappa. (3) Repeat for the Frodo 8x8 block at its TRUE support.
+    (4) Run the independent-resampling null. (5) Report kappa tables and the resulting bits.
+  controls:
+  - INDEPENDENT-RESAMPLING NULL (kappa must be exactly 1).
+  - MARGINAL AUDIT: the computed per-coordinate probability must reproduce the published figure
+      at true parameters, or the transcription is wrong.
+  - MUTATION CONTROL borrowed from GOAL-FRODO-001: seed a one-unit table perturbation and
+      confirm detection before reporting any agreement as verification.
+  confounders:
+  - At reduced n the negacyclic wrap differs from n = 256, so kappa(lag) may not extrapolate;
+    the FRODO arm is the one computable at TRUE parameters and should carry any crypto-tier
+    claim.
+  - The true threshold sits at DFR ~ 2^{-140}, unreachable by direct convolution at full precision;
+    compute kappa at a shifted, representable threshold and state that its extrapolation to
+    q/4 is a modelling step, not a computation.
+  - Positive association at a shifted threshold does not entail it at the true threshold;
+    do not extrapolate a sign without an argument.
+  falsification_conditions:
+  - kappa = 1 within numerical error at all lags — coordinates are effectively independent;
+    lane closed.
+  - kappa < 1 — the association is negative and the bias runs the other way, a more consequential
+    finding than the one claimed.
+  - The bits gap is below 1 — real but immaterial.
+  interpretation_limits: 'A MODEL-CORRECTNESS item, not an attack. KN-TECH-048 binds: a revised
+    failure rate is not an attack, and for ML-KEM''s conservative parameters the published
+    analysis already places the required query count above practical limits. The Frodo arm
+    is crypto-tier (exact at true parameters); the ML-KEM arm is toy in n and must be labelled
+    so.'
+  assumptions:
+  - Published DFRs are computed with a union bound or an independence product over coordinates
+    — to be confirmed from FIPS 203 and the FrodoKEM specification before the run.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: The sign of kappa - 1 is invariant as the failure threshold moves from a computationally
+      reachable level to the true q/4 level, at fixed parameters.
+    rigorous_ingredient: Both coordinates are bilinear forms in the SAME independent variables;
+      conditioning on one being large raises the conditional second moment of the shared multiplicands,
+      hence of the other. Structural in outline, not a proof.
+    distribution_imitated: Positive association (FKG/Harris-type) for monotone functions of
+      independent variables — with the honest caveat that w is a SIGNED bilinear form and
+      |w_i| is not monotone in the underlying variables, so FKG does not apply directly and
+      this is genuinely heuristic.
+    validation_route: Compute kappa at three or four decreasing thresholds and check the sign
+      is stable and the magnitude trends monotonically. For the Frodo block this is doable
+      at TRUE parameters; for ML-KEM only at reduced n.
+    tail_checks: Report kappa at the deepest reachable threshold separately from the shallow
+      ones, and state the gap in orders of magnitude between the deepest computed threshold
+      and q/4.
+  target_complexity:
+    time_exponent: NOT AN ATTACK. The affected quantity is ciphertexts per observed failure
+      in a failure-boosting attack, moving by up to 8 bits. Since KN-TECH-048 records that
+      the query requirement already exceeds practical limits for NIST candidates, this cannot
+      make failure boosting competitive; it makes the published figure honest. Explicitly
+      a BUILDING BLOCK.
+    memory_exponent: Unchanged (the affected quantity is a probability, not a data structure).
+    best_known_baseline: The published DFR and the failure-boosting costs derived from it.
+    hidden_overhead_disclosure: The extrapolation of kappa from a reachable threshold to 2^{-140}
+      is the entire hidden step and must never be presented as a computation.
+    time_memory_tradeoff: Not applicable.
+  sota_delta: Zero attack improvement; a signed correction of up to 8 bits (ML-KEM) or 6 bits
+    (Frodo) to published failure-boosting inputs, in the direction that makes the attack HARDER
+    than reported.
+  dominated_by: 'n/a (no attack-cost result claimed). Checked against catalogue M2-1..M2-4
+    and IDEA-20260807-05e12c: none computes a joint coordinate law, so none dominates.'
+  estimated_cost: 'Implementation: medium (exact convolutions with interval arithmetic). Compute:
+    low-medium; the Frodo 8x8 arm is small, the ML-KEM arm grows with n.'
+  recommended_priority: medium
+  honest_prior_of_survival: P(kappa > 1 measurably at reduced n) ~ 0.55. P(the gap exceeds
+    3 bits) ~ 0.2. P(the Frodo arm is computable at true parameters) ~ 0.8 — that is the reason
+    to run it, since crypto-tier arithmetic claims are rare in this program.
+  novelty_status: unverified
+  novelty_screen: 'Read: EXISTING_PROPOSALS.txt (RQ-MLKEM-001 and RQ-FRODO-3260cc rows), CATALOGUE_TITLES.txt
+    (M2-1..M2-4), KNOWLEDGE_BARRIERS.txt, KN-TECH-048 in full, GOAL-FRODO-001.yaml in full,
+    my own L1.yaml. WEB NOT SCREENED.'
+  discriminated_from: M2-1 varies the key; this fixes the key and varies the coordinate pair.
+    IDEA-20260807-05e12c corrects the MARGINAL compression law; this addresses the JOINT law
+    across coordinates. IDEA-20260805-411b60 supplies the mutation-control discipline adopted
+    here rather than duplicated.
+  lossy_projection_test: 'PASSES. Tracked object: the pair of failure indicators (1[|w_i|
+    > q/4], 1[|w_j| > q/4]) — two bits distilled from the full error vector, with the fibre
+    being every error vector sharing that failure pattern. Discarded compatibly, because the
+    FO transform''s failure event is exactly a disjunction of these indicators, so the retained
+    bits are precisely what a decapsulation oracle reveals and they propagate deterministically
+    into the failure-boosting counter. Tracking w loses nothing and is the incumbent.'
+  source_refs:
+  - KN-TECH-048 (corpus, read in full) — failure boosting, its three stages, and the "a revised
+    failure rate is not an attack" rule.
+  - GOAL-FRODO-001.yaml (corpus, read in full) — the exact-arithmetic and mutation-control
+    discipline adopted here.

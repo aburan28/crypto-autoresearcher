@@ -1,0 +1,381 @@
+idea:
+  id: IDEA-20260808-e40da2
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-ECDSA-87625f
+  goal_id: GOAL-ECDSA-001
+  title: A closed-form, zero-compute location of the 1-bit-leakage boundary for the ENTIRE
+    bias-detection attack class, from the product rule plus the k-tree yield law — the balance
+    condition N/(k+1) >= 2^k log2(1/sinc(2^-l))^2 caps k at 4 for N=160 and 5 for N=256, forcing
+    Q ~ 2^36 at 160 bits (which is the relayed published figure) and Q ~ 2^47 at 256 bits,
+    so the 1-bit boundary at deployed size is a SAMPLE-ACQUISITION wall and not a compute
+    wall
+  class: mechanism
+  claim: "SCOPE. The BIAS-DETECTION CLASS of nonce-leakage attacks, defined formally below;\
+    \ group order N bits; exact l-bit top leakage; single victim key. NOT the plain ECDLP.\
+    \ NOT the lattice-with-predicate family, which is deliberately OUTSIDE the class — and\
+    \ that exclusion is the experiment's discriminator, not an oversight.\nTHE CLASS, DEFINED\
+    \ SO IT CAN BE ARGUED ABOUT. An attack is in class BD if it (i) forms integer combinations\
+    \ c of the given HNP samples using a merge tree of depth k over 2^k lists, so every output\
+    \ c has entries in {-1,0,+1} and support 2^k; and (ii) decides using only the empirical\
+    \ Fourier coefficient of the residuals at the frequencies a(c). Classical Bleichenbacher\
+    \ and its published descendants are in BD.\nTHE CLAIM. Within BD, and under HA-1 and HA-2\
+    \ of X1-01 plus HA-3 below, the two operating constraints\n  DETECTION:   s >= 2 * 2^k\
+    \ * log2( 1 / |sinc(2^{-l})| )\n  REDUCTION:   t = N - k*s,  t >= 0\n(s = log2 list size,\
+    \ t = log2 FFT size) admit a feasible balanced point s = t = N/(k+1) if and only if\n\
+    \  N / (k+1)  >=  2 * 2^k * log2( 1 / |sinc(2^{-l})| ).                (*)\nAt l = 1,\
+    \ |sinc(1/2)| = 2/pi = 0.6366198 and log2(1/0.6366198) = 0.6514, so the right side is\
+    \ 1.3028 * 2^k. DERIVED CONSEQUENCES, computed by hand this session, no compute:\n  N\
+    \ = 160: k = 4 gives 32.00 >= 20.84 (feasible); k = 5 gives\n           26.67 >= 41.69\
+    \ (INFEASIBLE). So k_max = 4, s = t = 32,\n           raw samples Q = 2^k * 2^s = 2^36.\n\
+    \  N = 256: k = 5 gives 42.67 >= 41.69 (feasible, and only just);\n           k = 6 gives\
+    \ 36.57 >= 83.4 (INFEASIBLE). So k_max = 5,\n           s = t = 42.67, Q = 2^47.67.\n\
+    \  N = 384: k = 5 gives 64.0 >= 41.69 (feasible); k = 6 gives\n           54.86 >= 83.4\
+    \ (infeasible). k_max = 5, s = t = 64,\n           Q = 2^69.\nTHE FIRST OF THESE IS A\
+    \ BASELINE-REPRODUCTION CHECK AND IT PASSES: RQ-ECDSA-87625f.provenance relays a published\
+    \ secp160r1 1-bit row at 2^36 EXPECTED SAMPLES. The formula, derived here from the product\
+    \ rule with no fitting and no free parameter, returns 2^36 at N = 160, l = 1. THE FORMULA\
+    \ IS PRE-REGISTERED; THE AGREEMENT WITH A RELAYED, UNVERIFIED NUMBER IS A POST-HOC OBSERVATION\
+    \ AND IS LABELLED AS ONE.\nTHE ANSWER TO THE GOAL'S HARDEST CRITERION. GOAL-ECDSA-001\
+    \ completion criterion 3 asks whether the 1-bit-at-256-bit gap is a resource gap or a\
+    \ structural obstruction. Within class BD the answer is: A RESOURCE GAP, QUANTIFIED —\
+    \ about 2^48 signatures from ONE victim key and about 2^43 machine words (of order 10^14\
+    \ bytes) of memory. The binding resource is SIGNATURE ACQUISITION, not computation: 2^48\
+    \ signatures at 10^6 signatures/second is 8.9 years of continuous signing by the victim.\
+    \ That is a statement about the LEAKAGE MODEL and it must never be restated as a statement\
+    \ about ECDSA or about ECDLP.\nTHE DISCRIMINATOR. If the published lattice-with-predicate\
+    \ family is later measured to recover keys at 256 bits with l = 1 using materially fewer\
+    \ than 2^47 samples, then the lattice family is NOT in class BD in any effective sense,\
+    \ the two families are genuinely incomparable at low leakage, and RQ-ECDSA-87625f's decision_target\
+    \ answers \"two frontiers\". If instead its sample requirement tracks (*), the bound is\
+    \ the shared constraint of both families and the answer is \"one frontier\". EITHER OUTCOME\
+    \ IS A RESULT AND BOTH ARE STATED BEFORE ANY MEASUREMENT."
+  mechanism: 'DERIVED IN-REPO THIS SESSION FROM X1-01''s PRODUCT RULE. Every arithmetic value
+    above was computed by hand and is reproducible with a calculator.
+
+    WHY THE TWO CONSTRAINTS. A merge tree of depth k over 2^k lists of size 2^s zeroes about
+    k*s bits of the multiplier (each of the k merge rounds cancels s bits by a birthday match
+    on an s-bit window), leaving t = N - k*s bits to be resolved by an FFT of size 2^t. That
+    is the REDUCTION constraint and it is the standard generalized-birthday accounting. Each
+    output combination has support 2^k with entries in {-1,+1}, so by X1-01 (O3) its bias
+    is |sinc(2^{-l})|^{2^k}. Bleichenbacher detection with M outputs in an FFT of size 2^t
+    needs peak M|B| above the sqrt(M) noise floor with a log(2^t) multiple-testing margin,
+    i.e. M >= |B|^{-2} up to that log factor; with M = 2^s this is the DETECTION constraint.
+    Balancing memory between the list store 2^s and the FFT table 2^t gives s = t = N/(k+1),
+    and substituting into DETECTION gives (*).
+
+    WHY THE CAP ON k IS SHARP AND WHY IT IS THE WHOLE STORY. The right side of (*) DOUBLES
+    with each increment of k while the left side only shrinks like N/(k+1). So (*) fails abruptly:
+    there is no gradual degradation, and k_max is determined by a single integer comparison.
+    This is why the boundary is a clean function of (N, l) and why it can be stated in closed
+    form. It is also why the l = 1 case is qualitatively different from l = 2: at l = 2, |sinc(1/4)|
+    = 0.9003163, log2(1/0.9003163) = 0.15145, so the right side is 0.3029 * 2^k, and N = 256
+    allows k = 7 (32.0 >= 38.8 fails) — recomputing: k = 6 gives 36.57 >= 19.4 (feasible),
+    k = 7 gives 32.0 >= 38.8 (infeasible), so k_max = 6, s = t = 36.57, Q = 2^42.57. DERIVED.
+    So one extra leaked bit at 256 buys about 2^5 in samples and a factor 2^6 in memory —
+    a quantitative statement of the value of a bit, which the literature reports only anecdotally.
+
+    THE POSITIVE CONTROL BUILT IN. Applying the identical machinery at N = 160, l = 1 must
+    return 2^36; at N = 256, l = 2 it must return a value consistent with the relayed claim
+    that 2-bit leakage is reached at 256 bits (RQ-ECDSA-87625f.motivation). A machine that
+    reproduces neither has no licence to speak about 1-bit at 256.
+
+    WHAT IS DELIBERATELY OUTSIDE. Attacks that (a) use coefficients of magnitude above 1,
+    (b) use a lattice reduction whose output vector is not a bounded-support +-1 combination,
+    (c) use a predicate oracle that tests candidate keys directly rather than reading a Fourier
+    peak, or (d) exploit dependence between nonces, are NOT in BD and the bound says nothing
+    about them. NAMING THE ESCAPE ROUTES IS PART OF THE CLOSURE STANDARD (docs/inventor-protocol.md
+    section 4) AND IS DONE HERE RATHER THAN LEFT IMPLICIT.'
+  why_not_a_renamed_known_approach: 'NEAREST KNOWN METHOD: the standard Bleichenbacher parameter
+    analysis, which every paper in the family performs for ITS OWN parameters. The difference
+    is quantifier order. Published analyses state: for THIS attack instance, these parameters
+    suffice. The claim here is: FOR ALL attacks in class BD, feasibility requires (*), hence
+    k <= k_max(N,l), hence Q >= 2^{k_max + N/(k_max+1)}. That is a lower bound over a class,
+    not a cost of an instance, and it is what converts "1-bit at 256 is hard" into a number
+    with a mechanism. Second difference: the bound is derived from the product rule (X1-01
+    O3) rather than from a per-paper simulation, so it has no fitted constants to tune. HONEST
+    RISK: a class-level statement of exactly this shape may exist in the literature I could
+    not read. Named prior-art check in Stage 0.'
+  predictions:
+  - observable: k_max as a function of (N, l) measured by direct search over the constraint
+      pair
+    metric: integer k_max
+    predicted: k_max(160,1) = 4; k_max(256,1) = 5; k_max(256,2) = 6; k_max(256,3) = 6 or 7
+      (boundary case, computed exactly in Stage 1); k_max(384,1) = 5. All DERIVED, pre-registered
+      before any run.
+  - observable: Total raw signatures Q required by a real, executed Bleichenbacher pipeline
+      at toy sizes N in {32, 40, 48}, l = 1
+    metric: log2 Q at first successful key recovery, median over 20 seeds
+    predicted: 'Within +-2 bits of k_max + N/(k_max+1) evaluated at that N. For N = 48, l
+      = 1: k = 2 gives 16.0 >= 5.21 (feasible), k = 3 gives 12.0 >= 10.4 (feasible), k = 4
+      gives 9.6 >= 20.8 (infeasible), so k_max = 3, s = t = 12, predicted log2 Q = 15. DERIVED.'
+  - observable: Peak memory of the same toy pipeline
+    metric: log2 (words), max of list store and FFT table
+    predicted: N/(k_max+1) within +-1.5 bits.
+  - observable: Whether the published lattice-with-predicate 256-bit 2-bit row's sample count
+      sits above or below 2^{k_max + N/(k_max+1)} = 2^42.6
+    metric: sign of the difference, in bits
+    predicted: BELOW by at least 10 bits, if the lattice family escapes class BD. At or above
+      means the families share the constraint. NO VALUE IS ASSERTED — this reads a published
+      number and the direction is the discriminator.
+  minimal_test: 'STAGE 1 (zero compute, minutes): evaluate (*) on the integer grid k in 0..10,
+    N in {32,40,48,64,112,160,256,384}, l in {1,2,3,4} and emit the k_max table. This alone
+    tests G1-style baseline reproduction against the relayed 2^36 figure. STAGE 2 (hours,
+    toy-scale, LABELLED TOY): implement the pipeline in pure Python at N in {32, 40, 48} with
+    l = 1 — generate signatures with a seeded RNG on a toy curve of prime order n, run a depth-k
+    merge (sort and merge on an s-bit window), FFT of size 2^t via a plain radix-2 transform,
+    read the peak, recover the top bits of d, iterate, and CERTIFY by checking d*G = Q with
+    a scalar multiplication independent of the solver. Sweep k around the predicted k_max
+    and confirm the predicted cliff: recovery at k <= k_max and failure at k = k_max + 1.'
+  controls:
+  - 'MATCHED NULL: run the identical pipeline on signatures with NO leakage (l = 0, nonces
+    fully uniform). The FFT peak must be consistent with the null order-statistic distribution
+    of 2^t complex Gaussian magnitudes, and NO key may be recovered. A pipeline that "recovers"
+    a key from unbiased nonces is broken and every number it produced is void.'
+  - 'DECAY TEST: sweep k upward past k_max. Recovery probability must FALL to the null level.
+    If recovery persists above k_max, the detection constraint is not the binding one and
+    the whole derivation is wrong — this is the canonical artifact tell applied to a cost
+    model.'
+  - 'CERTIFICATE: every claimed recovery re-verified by d*G == Q outside the solver (docs/claims-and-verification.md).
+    No statistical acceptance.'
+  - 'POSITIVE CONTROL AT KNOWN SETTINGS: l = 4 at N = 48 must recover easily and cheaply;
+    failure there indicts the implementation before any 1-bit conclusion is admissible.'
+  confounders:
+  - The detection constraint drops an O(1) and a log(2^t) factor. At toy N these are proportionally
+    LARGER than at N = 256, so a toy-scale agreement within +-2 bits is the strongest claim
+    available and the extrapolation to 256 carries that uncertainty explicitly.
+  - Real Bleichenbacher implementations iterate (recover top bits, reduce, repeat). The single-round
+    analysis above bounds one round; a multi-round attack amortizes and could beat the single-round
+    Q. THE BOUND IS THEREFORE A PER-ROUND BOUND AND IS STATED AS SUCH. Measuring the amortization
+    factor at toy scale is part of Stage 2.
+  - List sizes in a merge tree shrink or grow depending on the merge strategy; the balanced-birthday
+    assumption (each round preserves list size) is HA-3 and is the most likely source of a
+    1-2 bit offset.
+  - The relayed 2^36 figure may not mean what I assume ("expected samples" could be output
+    combinations rather than raw signatures). The agreement could be coincidental at the factor-2^k
+    level. Stated.
+  falsification_conditions:
+  - Stage 2 recovers keys at k = k_max + 1 with non-negligible probability at any tested toy
+    N. The detection constraint is not binding, (*) is wrong, and the 256-bit statement is
+    withdrawn.
+  - Stage 2's measured log2 Q departs from k_max + N/(k_max+1) by more than 3 bits at any
+    tested N, with the departure growing in N. The scaling law is wrong and no extrapolation
+    to 256 is licensed.
+  - The matched null recovers a key. Everything is void.
+  - Primary text (Stage 0) shows the published 160-bit 1-bit Fourier row used a k or list
+    size incompatible with the derived table. The reproduction fails and the failure localizes
+    to a named parameter.
+  interpretation_limits: A BOUND OVER A DEFINED CLASS, CONDITIONAL ON NAMED HEURISTICS, ABOUT
+    AN ASSUMED LEAKAGE MODEL. It is not a lower bound on nonce-leakage key recovery in general
+    — the predicate-lattice family is explicitly outside the class. It says NOTHING about
+    ECDSA's security absent leakage and NOTHING about the ECDLP (KN-OPEN-011 owns transfer).
+    "1-bit leakage at 256 bits costs 2^48 signatures" is a sentence that MUST carry "in class
+    BD, under an assumed exact-1-bit side channel, per round" in the same breath, every time.
+    Stage 2 is TOY SCALE (N <= 48) and validates a scaling law, not a 256-bit attack; presenting
+    it as crypto-scale validation is forbidden by AGENTS.md rule 7.
+  assumptions:
+  - Exact (error-free) top-l-bit leakage; the erroneous case multiplies the bias by (1 - e
+    2^l/(2^l - 1)) per H-ECDSA-7ccd4b B1 and shifts (*) accordingly, which is a stated extension
+    and not claimed here.
+  - Single victim key, no multi-key amortization.
+  - Merge tree over 2^k lists with +-1 coefficients; no coefficient growth.
+  heuristic_assumptions:
+  - id: HA-3
+    statement: (Balanced birthday merge.) FOR ALL k and FOR ALL list sizes 2^s in the region
+      considered, each of the k merge rounds, matching on a fresh s-bit window of the multiplier,
+      outputs a list of size 2^{s + o(s)} and zeroes exactly s bits, so after k rounds the
+      multiplier has N - k*s bits remaining and the output list has size 2^{s + o(s)}.
+    rigorous_ingredient: The expected number of matching pairs between two lists of size 2^s
+      on an s-bit window is exactly 2^{2s} * 2^{-s} = 2^s, by linearity of expectation over
+      uniform multipliers. Only concentration is assumed.
+    distribution_imitated: The classical birthday / generalized-birthday yield law for uniformly
+      random residues, the same statement Wagner-style k-tree analyses rest on.
+    validation_route: 'At toy N (32-64) instrument the merge directly: record the input and
+      output list sizes at every round for 50 seeds, and compare the measured output/input
+      ratio against 1. This is a DIRECT measurement of the heuristic, separated from the attack
+      (validation-ladder step 1, docs/inventor-protocol.md section 6). The shortcut that makes
+      it size-independent is that the ratio depends on the window width s and not on N, so
+      measuring at s = 12 constrains s = 42 unless a size-dependent mechanism is proposed.
+      TOY LABEL: the end-to-end pipeline is toy; the per-round ratio measurement is s-local.'
+    tail_checks: Report the empirical distribution of round output sizes against the Poisson
+      prediction with mean 2^s, and check the LOWER tail — a merge round that occasionally
+      collapses is what kills a deep tree, and the mean hides it.
+  - id: HA-4
+    statement: (Detection threshold.) FOR ALL t and M, a Bleichenbacher peak of height M|B|
+      in an FFT of size 2^t is distinguishable from the null maximum with constant probability
+      iff M|B| >= C0 sqrt(M ln(2^t)) for an absolute constant C0 of order 1, i.e. M >= C0^2
+      |B|^{-2} ln(2^t).
+    rigorous_ingredient: The null maximum of 2^t independent complex-Gaussian magnitudes concentrates
+      at sqrt(ln 2^t) times the per-bin scale — a standard extreme-value fact, not a heuristic.
+      What is heuristic is treating the FFT bins as independent and the residual sum as Gaussian.
+    distribution_imitated: The central limit theorem for the sum of M independent unit phasors,
+      and the Gumbel law for the maximum of many independent magnitudes.
+    validation_route: 'Measure the empirical null distribution of the FFT maximum at t in
+      {10, 12, 14, 16} over 10^3 seeds and fit the sqrt(ln 2^t) scaling; then measure the
+      smallest M at which the true peak separates, for known |B|. This calibrates C0 ONCE
+      and the calibrated C0 is carried into (*), replacing the assumed order-1 value. TOY
+      LABEL: toy-scale, but C0 is dimensionless and t-local.'
+    tail_checks: Compare the measured 99th percentile of the null maximum against the Gumbel
+      prediction; a heavier tail than Gumbel inflates C0 and moves k_max, and the direction
+      of the move is reported.
+  target_complexity:
+    time_exponent: Within class BD, TIME = 2^{k+s} merge operations plus t*2^t FFT operations,
+      minimized subject to (*). At l = 1 this gives 2^{N/(k_max+1) + O(log N)} with k_max
+      = 5 at N = 256, i.e. about 2^{42.7} operations — CHEAP. THE POINT OF THE RESULT IS THAT
+      TIME IS NOT THE BINDING RESOURCE. The best known baseline for this family, as RELAYED,
+      is 279-824 minutes at N = 160; nothing here beats it, and nothing here claims to.
+    memory_exponent: '2^{N/(k_max+1)} machine words: 2^{32} at N = 160 (about 68 GB at 16
+      bytes/word — DERIVED, against a RELAYED published 850 GiB, so the model under-counts
+      by about 3.6 bits and that gap is itself a reportable calibration), 2^{42.7} at N =
+      256 (about 2.1e14 bytes).'
+    best_known_baseline: 'RELAYED, UNVERIFIED, from RQ-ECDSA-87625f.provenance: secp160r1
+      1-bit at 2^25 samples / 824 min / 1939 GiB (lattice-with-predicate lineage) and 2^36
+      samples / 279 min / 850 GiB (Fourier lineage). This proposal beats neither; it EXPLAINS
+      the second one''s sample count and predicts the same family''s cost at 256.'
+    hidden_overhead_disclosure: (i) The constant C0 in HA-4 is unextracted and enters (*)
+      squared — a factor 4 error in C0^2 moves the right side of (*) by 2 bits and can flip
+      k_max at a boundary cell such as N = 256, l = 1 where the margin is 42.67 vs 41.69,
+      i.e. UNDER ONE BIT. THIS IS THE SINGLE MOST FRAGILE NUMBER IN THE RECORD AND IT IS FLAGGED
+      HERE RATHER THAN BURIED. (ii) The 2^{o(s)} in HA-3 accumulates over k rounds. (iii)
+      Multi-round amortization is not modelled and could reduce Q.
+    time_memory_tradeoff: 'Not balancing s and t gives a one-parameter family: for fixed k,
+      t = N - k*s, so memory max(2^s, 2^t) is minimized at s = t and raising s beyond N/(k+1)
+      trades FFT memory for list memory and raises Q. The balanced point is a genuine minimum,
+      not a convention. Parallelization: the merge is embarrassingly parallel over list partitions;
+      the FFT is the sequential bottleneck and its depth t is a hard floor that more cores
+      cannot buy down — the same sequential-depth argument IDEA-20260805-72bcb5 makes for
+      block Wiedemann, here for a different primitive.'
+  sota_delta: 'Attack cost improvement: ZERO, stated as zero. The delta is a BOUND the literature
+    does not state: a class-level cap k <= k_max(N,l) yielding Q >= 2^{k_max + N/(k_max+1)}
+    per round. Quantitatively, at (N,l) = (256,1) it places the class''s per-round sample
+    requirement at 2^47.7, about 2^11.7 above the 2^36 that the same class needs at N = 160
+    — i.e. a 96-bit increase in curve size costs about 12 bits of samples and about 11 bits
+    of memory within the class.'
+  dominated_by: 'CHECKED ACROSS EVERY ROW OF THE FRONTIER THIS PROGRAM HOLDS, ON TIME, MEMORY
+    AND SAMPLES. As an attack: dominated by both relayed published rows at N = 160 and by
+    every published row at any N, because it is not an attack. As a BOUND: nothing in this
+    program''s corpus dominates it — H-ECDSA-7ccd4b bounds a single family''s error sensitivity,
+    not a class''s sample requirement, and H-ECDSA-a23475 bounds nothing. EXTERNALLY: UNCHECKED,
+    because web access failed. A class-level Bleichenbacher parameter bound may well be published;
+    that is the Stage 0 question and until it is answered `dominated_by` for the bound is
+    honestly "unknown, one named candidate (eprint 2024/296 and the Bleichenbacher-lineage
+    literature), unchecked for a stated infrastructural reason".'
+  estimated_cost: 'Implementation medium (a correct radix-2 FFT, a merge tree, a toy curve,
+    and a certificate check — all pure Python, no external library, which matters because
+    the corpus records disagreement about whether numpy or Sage are present). Compute low:
+    Stage 1 is arithmetic; Stage 2 at N <= 48 needs about 2^15-2^18 signatures and an FFT
+    of size 2^12-2^16, well under 8 GB and a few CPU-hours for a 20-seed sweep.'
+  recommended_priority: high
+  honest_prior_of_survival: 0.45 that the k_max table survives Stage 2 at toy scale within
+    the stated +-2 bits AND is not already published. The internal reproduction of the relayed
+    2^36 at N = 160 from a parameter-free formula is genuinely surprising and is the main
+    reason the prior is not lower; the C0 fragility at the (256,1) cell (0.98 bits of margin)
+    is the main reason it is not higher. I explicitly expect the possibility that Stage 2
+    shifts k_max at 256 from 5 to 4, which would RAISE the predicted Q to 2^{4+51.2} = 2^55.2
+    and strengthen, not weaken, the "acquisition wall" conclusion.
+  novelty_status: unverified
+  novelty_screen: SCREENED against the same in-repo set as X1-01 (EXISTING_PROPOSALS.txt,
+    EXISTING_HYPOTHESES.txt including both H-ECDSA records read in full, REJECTED_TITLES.txt,
+    DEFERRED_TITLES.txt, CATALOGUE_TITLES.txt, KNOWLEDGE_BARRIERS.txt, knowledge/techniques/KN-TECH-019.md).
+    No record in the corpus states a class-level sample bound or a k_max table. NOT SCREENED
+    externally (web unavailable); the Bleichenbacher parameter literature is the obvious place
+    a similar table could live.
+  discriminated_from: 'H-ECDSA-7ccd4b Part B: derives the bias contraction under ERROR RATE
+    at fixed c_i = 1 and the (1-e)^m lattice success law; it does not vary the combination
+    weight, has no k, no list size, no FFT size, and makes no statement about sample counts
+    at any curve size. This record''s entire content is the (k, s, t) constraint pair and
+    the integer cap it forces. X1-01: supplies the propagation rule this record consumes;
+    X1-01 makes no numerical prediction and does not define class BD. IDEA-20260807-0f49b6:
+    a control on the ECDLP/lattice boundary (KN-OPEN-018), a different question entirely.'
+  source_refs:
+  - ledger/questions/RQ-ECDSA-87625f.yaml
+  - ledger/goals/GOAL-ECDSA-001.yaml
+  - ledger/hypotheses/H-ECDSA-7ccd4b.yaml
+  - knowledge/techniques/KN-TECH-019.md
+  - docs/claims-and-verification.md
+  - docs/inventor-protocol.md
+  proof_search_map:
+    bottleneck: The integer cap k <= k_max. Every downstream number — Q, memory, the 256-bit
+      boundary — is a function of that one integer, and the integer is decided by a single
+      inequality (*) whose right side doubles per increment. Removing or moving that cap is
+      the only way the conclusion changes.
+    baseline_embedding:
+      parameter_slice: 'N = 160, l = 1. The machinery must return k_max = 4, s = t = 32, Q
+        = 2^36, which is the relayed published figure for the Fourier row at that curve and
+        leakage. Second slice: k = 0 (no merge), where t = N and the attack degenerates to
+        a full-size FFT, reproducing the textbook statement that Bleichenbacher without range
+        reduction is infeasible.'
+      reproduction_check: 'SYMBOLIC AND ALREADY PERFORMED BY HAND THIS SESSION: at N = 160,
+        l = 1, k = 4: N/(k+1) = 32.0 and 1.3028 * 2^4 = 20.84, so 32 >= 20.84 holds; at k
+        = 5: 26.67 vs 41.69, fails. Hence k_max = 4 and Q = 2^{4+32} = 2^36. A frozen fixture
+        asserting these six numbers must be committed BEFORE Stage 2 runs.'
+    observation_collision:
+      observable: The single integer k_max, and through it the pair (log2 Q, log2 M).
+      distinct_preimage_search: 'A COLLISION EXISTS AND IS EXHIBITED. Different (l, C0) pairs
+        give the same k_max: at N = 256, k_max = 5 holds for l = 1 with C0 = 1, and k_max
+        = 5 also holds for a range of l and C0 around it, because the constraint is an integer
+        comparison with slack. So observing Q = 2^47.7 does NOT identify (l, C0). THE SEPARATING
+        INVARIANT is the RATIO Q(N=256)/Q(N=160) within one l, which is 2^11.7 at l = 1 and
+        a different value at l = 2 (2^{6.57} using k_max = 6, s = 36.57 vs k_max = 5 at 160...
+        to be computed exactly in Stage 1). Measuring the ratio across two curve sizes at
+        the SAME l separates the models; a single-size measurement cannot. This is why Stage
+        2 sweeps N.'
+    constructive_transforms:
+    - transform: stronger_invariant
+      proposed_object: Track the PAIR (bias exponent 2^k, reduction budget k*s) rather than
+        the attack's success probability. The pair is preserved through every merge round
+        and its two components move in opposite directions, which is exactly the structure
+        the final bound needs and which a success-probability-only analysis discards.
+      predicted_gain: Converts a per-instance parameter search into a class-level integer
+        cap, at zero compute.
+    - transform: observable_fiber
+      proposed_object: Hold Q fixed and vary the forgotten structure (k, s, t, l). The intrinsic
+        invariant distinguishing the fibres is k_max, which is determined by (N, l, C0) alone
+        and not by Q.
+      predicted_gain: Makes "the attack needs 2^36 samples" into "the attack needs k = 4,
+        and 2^36 is what k = 4 costs" — a mechanism rather than a number.
+    quantifier_order: 'CLAIMED IN THIS ORDER. THERE EXISTS a single inequality (*), fixed
+      before any evaluation and independent of the instance, SUCH THAT FOR ALL attacks A in
+      class BD and FOR ALL (N, l), if A succeeds per round then A''s parameters satisfy (*),
+      hence A uses at least 2^{k_max + N/(k_max+1)} raw samples. The witness inequality may
+      NOT depend on the attack, the instance, or the seed. THE WEAKER ORDER — for all A there
+      exists an inequality A satisfies — is vacuous and is explicitly NOT claimed. THE TRAP
+      BEING HUNTED: C0 in HA-4 is allowed to depend on the FFT size t but NOT on the instance.
+      If C0 must be tuned per instance the uniformity fails and the class-level statement
+      collapses to a per-instance one. Stage 2 measures C0 once and checks its stability across
+      t.'
+    method_ceiling:
+      strongest_certifiable_claim: 'At most: a per-round sample and memory lower bound for
+        class BD, conditional on HA-1..HA-4, with C0 calibrated at toy scale. It CANNOT certify
+        that nonce-leakage key recovery at (256, 1) is infeasible; cannot bound the lattice-with-predicate
+        family; cannot bound multi-round amortization; cannot say anything about ECDSA without
+        leakage or about the ECDLP; and cannot certify any published figure is wrong.'
+      nearby_object_control: 'THE OBJECT WHERE THE CONCLUSION MUST FAIL: l = 8 at N = 256.
+        There |sinc(2^-8)| = 0.99999 and log2(1/|sinc|) = 1.4e-5, so the right side of (*)
+        is negligible and k_max is limited only by t >= 0, i.e. the bound becomes vacuous
+        and recovery is easy — which is the known truth (8-bit leakage is comfortably broken).
+        A machine that reports a restrictive k_max at l = 8 has not identified the load-bearing
+        structure and every 1-bit number it produced is void. THIS CONTROL IS FREE AND MUST
+        BE RUN FIRST.'
+    proof_obligations:
+    - claim: The product rule gives |B| = |sinc(2^-l)|^{2^k} for a depth-k +-1 merge tree.
+      responsibility: correctness
+    - claim: A depth-k tree over lists of size 2^s zeroes k*s multiplier bits and outputs
+        2^{s+o(s)} combinations.
+      responsibility: feasibility
+    - claim: Detection needs M >= C0^2 |B|^{-2} ln(2^t), with C0 measured, not assumed.
+      responsibility: success_probability
+    - claim: The balanced point s = t = N/(k+1) minimizes peak memory for fixed k.
+      responsibility: memory
+    - claim: At N = 160, l = 1 the machinery returns Q = 2^36 (baseline reproduction).
+      responsibility: baseline
+    - claim: At l = 8 the bound is vacuous (nearby-object control).
+      responsibility: strictness
+    - claim: Every claimed toy recovery carries a d*G == Q certificate verified outside the
+        solver.
+      responsibility: interface
+    - claim: No sentence states a result without naming the leakage assumption and the class
+        restriction.
+      responsibility: scope
+    not_applicable_reason: null
