@@ -458,6 +458,36 @@ Why the asymmetry bites: rule 4 means the corpus is *read forward* from an old
 record to its repairs, and immutability guarantees the stale record stays put to
 be found first. `check_currency.py` now covers all four mechanisms.
 
+### F-10g — KN-FIND-015 and KN-FIND-013 (D2) — **F-10 complete**
+
+`EV-FALSIFY-f14d8c`. The last two table-bearing findings.
+
+**`KN-FIND-015`: derived arithmetic consistent, 12 of 12.** Carrier gaps
+4.29/8.69/14.12 vs recorded 4.3/8.7/14.1; MATZOV-2022 6.29/10.29/16.02 vs
+6.3/10.3/16.0; primal_bdd below NIST 2.80/6.04/1.28 vs 2.8/6.0/1.3; and
+primal_bdd beats dual_hybrid+fft in all three sets as stated.
+
+*Its measurements are not verifiable here* — lattice-estimator at the pinned
+commit isn't installed and can't be fetched. That's an environment limit, not a
+criticism: the pinning is exactly what makes reproduction possible elsewhere.
+
+**`KN-FIND-013`: an inconsistency I can exhibit but not resolve.** Its crossover
+Δ (9.5/14.4/14.8) is correctly *not* the simple NIST−baseline gap
+(3.5/11.9/12.3) — HEUR-S1 routes Δ through R inside a log. But the implied rate,
+gap÷Δ, is **0.37 / 0.83 / 0.83** CC bits per Δ bit. The 768 and 1024 rows agree
+to two decimals; **Kyber-512 differs by 2.2×**.
+
+It cannot be settled from the record: HEUR-S1 is stated in words but the
+Theorem 4.1 cost expression and per-set parameters are absent, so Δ is not
+recomputable. A **reproducibility gap, not a demonstrated error** — the 512 rate
+may be a genuine regime difference. Follow-up should look in `coordination/` and
+the `inputs/` paper text first.
+
+*Both records scope themselves well*: 015 labels its own level "estimate level
+(not a cryptanalytic certificate)"; 013 labels its result "(conditional)" and
+calls 012's ~84-bit figure "an *upper reference*, not a measured error". Their
+shared baseline column matches exactly.
+
 ### F-10f — the ML-KEM cluster: 012 / 014 / 031 (D2 reproduction)
 
 **First probe outside ECDLP** — which matters, because a defect pattern found
@@ -653,7 +683,7 @@ whose `proof_refs` name only itself.
 For every finding carrying a table, re-run the measurement from its recorded
 parameters and compare. F-2, F-3 and F-4 all began here.
 
-**Inventory: 17 findings carry markdown tables.** Five are done — `c7d31e`,
+**COMPLETE — all 17 reproduced or accounted for.** Original inventory: Five are done — `c7d31e`,
 `2a8b7e`, `d4f820`/`e7a3b1`/`4c9e71` (as F-2, F-4, F-3) and `ac28ed` (F-10a).
 Twelve remain, largest first: `a8990a` (10 rows), `012` (6), `029` (5), `030`
 (5), `528ca0` (5), `014` (4), `031` (4), `ff4a46` (4), `013` (3), `015` (3),
