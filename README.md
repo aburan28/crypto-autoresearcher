@@ -210,6 +210,20 @@ Manual path:
 5. Store every run with its exact command, revision, environment, seed, raw result, logs, and validity status.
 6. Record the Coordinator decision that follows from the evidence.
 
+## Host plugins
+
+The repository ships a thin, portable
+[`crypto-autoresearcher-harness`](plugins/crypto-autoresearcher-harness/README.md)
+plugin package for Codex, Claude Code, and OpenCode. It supplies a shared
+front-door skill and a read-only preflight; it does not duplicate the role
+contracts or create an alternate dispatch path. The checked-in bindings remain
+the authority: `.claude/agents/`, `.opencode/agent/`, and `.codex/agents/` are
+all generated from `orchestration/roles.yaml`.
+
+Install instructions and host-specific discovery details are in the plugin
+README. Every invocation begins with a no-cost readiness check before an agent
+can dispatch a task or call a backend.
+
 ## Local CLI
 
 The initial CLI uses only the Python standard library. Run it without installing the package:
