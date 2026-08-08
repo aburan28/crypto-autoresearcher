@@ -1,0 +1,218 @@
+idea:
+  id: IDEA-20260807-15f103
+  question_id: SG-ECDLP-002
+  added: '2026-08-07'
+  title: >-
+    CLOSURE with named obstruction: smooth-conductor descent within an isogeny
+    class requires a surface DLP weakness for generic discriminant D = t^2-4p,
+    but no such weakness exists (GLV gives only constant-factor speedup with
+    2D lattice short vector norm ~ p, so 2D rho costs p^{1/2} = same as standard
+    rho); the mechanism collapses to Pollard rho for generic curves and applies
+    only to special curve families (j=0, j=1728) excluded by standard selection
+  class: mechanism
+
+  claim: >-
+    Within an ordinary isogeny class (fixed trace t, fixed group order N), the
+    CM conductor f varies from 1 (surface, maximal order O_K) to O(sqrt(p))
+    (floor, minimal order). Curves with B-smooth conductor f are reachable from
+    the surface by a path of smooth-degree isogenies of total degree f.
+
+    MECHANISM: (1) Compute D = t^2-4p and conductor f. (2) If f is B-smooth,
+    walk to surface E_surface via smooth-degree isogenies (cost O(log f)).
+    (3) Apply special-curve algorithm on E_surface. (4) Transfer solution back.
+
+    OBSTRUCTION: For generic D with |D| ~ 4p, the surface has End(E_surface) = O_K
+    but NO KNOWN DLP WEAKNESS. The GLV endomorphism exists but has norm ~ sqrt(|D|)
+    ~ sqrt(p), giving a 2D lattice with determinant N ~ p and short vector norm
+    ~ sqrt(p*N) ~ p. The 2D Pollard rho cost is p^{1/2} = SAME as standard rho.
+    No exponent improvement.
+
+    CONCLUSION: The mechanism collapses to Pollard rho for generic curves. It
+    applies only to special discriminants D (class number 1, small |D|) which
+    correspond to special curve families (j=0, j=1728) excluded by standard
+    curve selection. This is a CLOSURE with a named obstruction: the
+    "surface-weakness gap" — no surface weakness exists for generic D.
+
+  mechanism: >-
+    (1) Compute the CM discriminant D = t^2-4p and the conductor f of End(E).
+    (2) If f is B-smooth, find a path of smooth-degree isogenies from E to the
+        surface curve E_surface (Kohel's algorithm, cost O(log f) isogenies).
+    (3) If E_surface has a known DLP weakness (e.g., GLV endomorphism), apply
+        the special-curve algorithm to solve DLP on E_surface.
+    (4) Transfer the solution back to E via the isogeny path (cost O(log f)).
+
+    The bottleneck is step (3): for generic D, no surface weakness exists.
+    The GLV endomorphism has norm ~ sqrt(|D|) ~ sqrt(p), so the 2D lattice
+    has short vector norm ~ sqrt(p*N) ~ p, giving 2D rho cost ~ p^{1/2} =
+    standard rho. No exponent improvement.
+
+  novelty_status: known_in_substance
+  novelty_note: >-
+    Smooth-conductor descent is a standard technique in the CSIDH/SIDH literature
+    for navigating the isogeny graph. The application to ECDLP transfer is
+    straightforward but requires a surface weakness that does not exist for
+    generic discriminants. This is a CLOSURE direction: the test is expected
+    to confirm that the approach is BLOCKED for generic curves.
+
+  avoids_tate_obstruction: true
+  avoids_tate_obstruction_reason: >-
+    Works entirely within a single isogeny class (fixed trace t). The Tate
+    theorem blocks crossing between classes; this mechanism does not attempt to.
+
+  assumptions:
+    - >-
+      The conductor f is B-smooth with probability rho(u) where u = log(f)/log(B),
+      per the Dickman-de Bruijn heuristic for smooth integers.
+    - >-
+      The surface curve E_surface has a known DLP weakness (e.g., GLV
+      endomorphism) for generic discriminant D. THIS ASSUMPTION IS FALSE for
+      generic D; no such weakness is known.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The CM conductor f of a random ordinary curve E/F_p behaves like a
+        uniformly random integer of size O(sqrt(p)) with respect to B-smoothness.
+      rigorous_support: >-
+        None. The distribution of conductors in isogeny classes is not well-understood;
+        this is a placeholder heuristic.
+      validation_plan: >-
+        At toy scale (bits=20), compute the conductor f for 1000 random curves
+        and compare the empirical B-smooth fraction to the Dickman-de Bruijn
+        prediction rho(u). Label as toy-scale only.
+
+  predictions:
+    - metric: smooth_conductor_fraction
+      direction: different
+      minimum_effect: >-
+        The fraction of curves with B-smooth conductor f is rho(u) where
+        u = log(f)/log(B). For f ~ sqrt(p) ~ 2^{128} and B = 2^{20},
+        u ~ 6.4, rho(u) ~ 10^{-6}. Negligible.
+    - metric: surface_weakness_existence
+      direction: different
+      minimum_effect: >-
+        For generic D = t^2-4p with |D| ~ 4p, the surface curve has
+        End(E_surface) = O_K but no known DLP weakness. The GLV endomorphism
+        exists but has norm ~ sqrt(|D|) ~ sqrt(p), giving no advantage (the
+        2D lattice has determinant N ~ p and short vector norm ~ sqrt(p*N) ~ p,
+        so 2D Pollard rho costs ~ p^{1/2} = same as standard rho).
+
+  minimal_test:
+    design: >-
+      At bits=20: (1) Generate 100 random prime-order curves E/F_p. (2) Compute
+      D = t^2-4p and the conductor f. (3) Check if f is 100-smooth. (4) For
+      smooth f, walk to the surface and check for GLV endomorphisms. (5) Measure
+      the GLV speedup (if any).
+    controls:
+      - >-
+        For curves with large (non-smooth) f, verify that the walk cost is
+        O(f) (exponential in log f), confirming the smoothness requirement.
+      - >-
+        For surface curves with generic D, verify that the GLV endomorphism
+        gives no speedup (2D lattice short vector norm ~ p).
+    required_metrics:
+      - smooth_conductor_fraction (empirical vs Dickman-de Bruijn)
+      - GLV_speedup_ratio (2D rho cost / standard rho cost)
+
+  falsification_conditions:
+    - >-
+      If no surface weakness exists for generic D (as expected), the mechanism
+      collapses to Pollard rho and is not viable.
+    - >-
+      If the smooth-conductor fraction is negligible (rho(u) ~ 10^{-6} at
+      crypto scale), the mechanism applies to a density-0 subset of curves.
+
+  confounders:
+    - >-
+      Special discriminants D (class number 1, small |D|) do give surface
+      weaknesses, but these correspond to special curve families (j=0, j=1728)
+      that are excluded by standard curve selection.
+
+  interpretation_limits:
+    - >-
+      A positive result (smooth conductor + surface weakness) would apply only
+      to a density-rho(u) subset of curves, not to generic ECDLP instances.
+    - >-
+      Does not apply to P-256, P-384, secp256k1, or any standardized curve.
+
+  dominated_by: >-
+    Pollard rho at exponent 1/2 for generic curves. The mechanism gives no
+    improvement unless a surface weakness for generic D is found (none known).
+  sota_delta:
+    time_exponent: not_applicable
+    memory_exponent: not_applicable
+    data_or_query_exponent: not_applicable
+    note: >-
+      For generic curves, the mechanism collapses to Pollard rho. The conditional
+      improvement (if a surface weakness existed) would be a constant factor
+      (GLV speedup), not an exponent change.
+
+  target_complexity:
+    time_exponent: 1/2 (same as Pollard rho for generic curves)
+    memory_exponent: 0 (same as Pollard rho)
+    best_known: 1/2 (Pollard rho)
+    hidden_overhead: >-
+      The smooth-conductor walk costs O(log f) isogeny computations, negligible
+      compared to rho's O(sqrt(N)) group operations.
+    tradeoff_note: >-
+      No time-memory tradeoff; the mechanism is a pre-processing step (find
+      smooth path) followed by a special-curve algorithm.
+
+  estimated_cost:
+    implementation: low (toy-scale test of smooth-conductor fraction)
+    compute: low (100 curves at bits=20)
+
+  recommended_priority: low
+
+  proof_search_map:
+    bottleneck: >-
+      Step (3): finding a surface weakness for generic D. No such weakness is
+      known; this is the load-bearing assumption.
+    baseline_embedding:
+      parameter_slice: >-
+        Generic prime-order curves E/F_p with CM discriminant D = t^2-4p,
+        |D| ~ 4p.
+      reproduction_check: >-
+        At bits=20, verify that surface curves with generic D have no GLV
+        speedup (2D rho cost = standard rho cost).
+    observation_collision:
+      observable: >-
+        GLV speedup ratio (2D rho cost / standard rho cost) as a function of
+        |D|.
+      distinct_preimage_search: >-
+        Find two curves with the same |D| but different speedup ratios (should
+        not exist; speedup depends only on |D|).
+    constructive_transforms:
+      - transform: boundary_lift
+        proposed_object: >-
+          A surface weakness for generic D (e.g., a non-trivial endomorphism
+          of norm << sqrt(|D|)).
+        predicted_gain: >-
+          If such a weakness existed, GLV would give O(N^{1/4}) DLP cost.
+          But no such weakness is known for generic D.
+    quantifier_order: >-
+      FOR ALL generic D (|D| ~ 4p, not class-number-1), DOES THERE EXIST a
+      surface weakness? Answer: NO (no known weakness).
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        Smooth-conductor descent is a viable mechanism IF a surface weakness
+        for generic D is found. No such weakness exists (known).
+      nearby_object_control: >-
+        For special D (class number 1, small |D|), surface weaknesses exist
+        (GLV with small-norm endomorphism), but these correspond to special
+        curve families excluded by standard selection.
+    proof_obligations:
+      - claim: Surface weakness exists for generic D
+        responsibility: feasibility (no known weakness; this is the blocker)
+      - claim: Smooth-conductor fraction is non-negligible
+        responsibility: size (Dickman-de Bruijn heuristic, toy-scale validation)
+    not_applicable_reason: >-
+      The mechanism collapses to Pollard rho for generic curves because no
+      surface weakness exists for generic D.
+
+  scope: >-
+    Applies to ordinary prime-field curves E/F_p with prime-order subgroup of
+    order N. For generic discriminant D = t^2-4p, the mechanism gives no
+    improvement over Pollard rho. For special D (class number 1, small |D|),
+    the mechanism gives a constant-factor GLV speedup but applies only to
+    special curve families excluded by standard selection.
