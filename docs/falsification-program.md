@@ -477,11 +477,22 @@ criticism: the pinning is exactly what makes reproduction possible elsewhere.
 gap÷Δ, is **0.37 / 0.83 / 0.83** CC bits per Δ bit. The 768 and 1024 rows agree
 to two decimals; **Kyber-512 differs by 2.2×**.
 
-It cannot be settled from the record: HEUR-S1 is stated in words but the
-Theorem 4.1 cost expression and per-set parameters are absent, so Δ is not
-recomputable. A **reproducibility gap, not a demonstrated error** — the 512 rate
-may be a genuine regime difference. Follow-up should look in `coordination/` and
-the `inputs/` paper text first.
+**RESOLVED — `CORR-20260808-65a36f`, and 013 is correct.** The recommended
+follow-up was run. The Case A model is in
+`BATCH-004/tasks/TASK-20260731-010/validation_notes.md`:
+`cost(Δ) = log2(2^Tsample + 2^(second_term+Δ))`. Solving `cost(Δ) = NIST`
+reproduces **9.4555 / 14.3597 / 14.7598** — every value to four decimals.
+
+The Kyber-512 anomaly is a **genuine regime difference**. Only the *second* term
+takes +Δ, so Δ moves the total only as it lifts that term past Tsample. The gap
+`Tsample − second_term` is **6.10** bits at Kyber-512 versus **2.17 / 2.11** at
+768/1024 — so far more of Δ is absorbed at 512. And the two sets with nearly
+equal gaps have nearly equal rates (0.83, 0.83), which is the consistency check
+the original observation was missing.
+
+*My error*: I declared it unresolvable while naming the search that resolved it.
+One grep away. Same shape as `CORR-20260808-733115` — a conclusion drawn from the
+record in hand rather than from the repository.
 
 *Both records scope themselves well*: 015 labels its own level "estimate level
 (not a cryptanalytic certificate)"; 013 labels its result "(conditional)" and
