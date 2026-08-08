@@ -166,6 +166,9 @@ def build_request(config, resolution: Resolution, *, system: str | None,
                   ) -> tuple[str, dict[str, str], dict[str, Any]]:
     """Return (url, headers, body) for this resolution. No network I/O."""
     env = os.environ if env is None else env
+    config.assert_inference_target_allowed(
+        resolution.backend, resolution.provider, resolution.base_url,
+        resolution.resolved_model_id, context="resolved inference target")
     protocol = config.wire_protocol(resolution.wire)
     backend = config.backend(resolution.backend)
     url = resolution.base_url + protocol["path"]
