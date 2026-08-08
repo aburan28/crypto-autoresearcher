@@ -3,6 +3,10 @@
 This is a Coordinator design artifact only. It does not approve, implement, or
 execute `EXP-XOR-4ded1d`, and it changes no existing hypothesis status.
 
+Archive retry note: the first snapshot attempt was not admitted because its
+commit message omitted required task identifiers; this package is being
+re-snapshotted before any independent review.
+
 The prior x-oracle experiment compared the true right-table key relation against
 a random predictor on the left query side. That comparison cannot distinguish
 oracle information from a table-distribution or MITM-strategy artifact. This
