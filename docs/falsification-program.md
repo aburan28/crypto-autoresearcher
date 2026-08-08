@@ -458,6 +458,39 @@ Why the asymmetry bites: rule 4 means the corpus is *read forward* from an old
 record to its repairs, and immutability guarantees the stale record stays put to
 be found first. `check_currency.py` now covers all four mechanisms.
 
+### F-10f — the ML-KEM cluster: 012 / 014 / 031 (D2 reproduction)
+
+**First probe outside ECDLP** — which matters, because a defect pattern found
+only in one domain may belong to that domain's authors rather than the corpus.
+`EV-FALSIFY-432634`.
+
+**Three records, three exact reproductions** from the archived vendor data.
+`KN-FIND-012`: all six table entries — 1802, −35.7045, and Pgood
+6668/11964/17823 **exactly**, not approximately. `KN-FIND-014`: all five aligned
+entries — 2223 / 3988 / 0 / gap 421. `KN-FIND-031` (withdrawn, but "not retracted
+as arithmetic"): the floor is **1.786031e-11 = 1/(4000·241³)** to full precision,
+so −35.70 is exactly the sampling resolution limit, as it claims.
+
+**The linkage defect, now with a number.** 012 references neither 014 nor 031,
+both of which amend it. A reader of 012 **as written** computes the T-gap as
+6668 − 1802 = **4866**. The correct aligned value is 2223 − 1802 = **421** — an
+**11.57× overstatement**, obtained from a current, unsuperseded record. Sharpest
+instance of the F-8a defect and the only one that can be quantified.
+
+*Small imprecision in 014*, for accuracy not substance: its summary says the gap
+"was overstated by factor 3". The **scale** factor is exactly 3 (verified); the
+quantity its own table calls **T-gap** moves 11.57×, since subtracting a fixed
+1802 doesn't scale linearly. It understates its own correction.
+
+*Worth saying*: `KN-FIND-012` is the most carefully scoped record met under this
+question — `provisional`, self-tagged `contested`, four explicit non-claims
+including "Not a key-recovery break of ML-KEM / FIPS 203". Its qualitative
+conclusion survives alignment intact: the aligned fraction inside is still 0.
+
+*Not established*: anything about ML-KEM or Kyber security. The vendor `.out`
+files are taken as given. **013 and 015 were currency-checked but not
+reproduced** — they remain open.
+
 ### F-10e — KN-FIND-5c1a03, "three completely independent analyses" (D8)
 
 **Outcome — the characterisation stands; the independence claim does not.**
