@@ -75,6 +75,14 @@ and it *supplies the missing proof* as Lemma 3.2. Withdrawn in
 `CORR-20260808-3d4031`. A probe that skips this check may not assert that any
 defect is unrepaired.
 
+**And sweep `coordination/` for prior reasoning.** The checker reports it as an
+*advisory* signal: those are working notes, not records, so a hit never makes a
+finding stale — it means someone may already have thought about this. F-3
+reported a finite-size-artifact diagnosis as this program's own; `BATCH-086/
+TASK-20260804-112/diagonal_analysis.md` had made the same argument four days
+earlier. Narrowed in `CORR-20260808-733115`. **Twice now** a "finding" of this
+program was already in the repository — that is a pattern, not bad luck.
+
 A clean result is not proof a record is current. It proves the three *known*
 mechanisms are clean, which is the most a mechanical check can say.
 
@@ -230,6 +238,34 @@ the file is **still tracked** — `.gitignore` does not apply to tracked files a
 `git rm --cached` was never run. Rebuilding the index still dirties a tracked
 file on every branch, which is the conflict the documented fix says it removed.
 
+### F-6 — KN-FIND-e7a3b1, "all standard analytic approaches are closed" (D5)
+
+Audited against the corpus's **own** closure standard, which
+`docs/inventor-protocol.md` explicitly applies to "the program's own standing
+saturation conclusions". `EV-FALSIFY-89e414`.
+
+**Outcome — not a fatigue report; the universal is unestablished.**
+
+- **(a) named obstruction — passes, well.** Each approach carries a specific
+  obstruction, plus a unifying one: `DL_G` is not algebraic in *j* over F_p, so
+  a method must want algebraic structure the DL lacks, or be computational not
+  information-theoretic, or want non-abelian structure `E(F_p) ≅ Z/N` lacks.
+- **(c) forward guidance — passes.** Hecke characters for CM curves are named as
+  the surviving route, with their limitation; H-PSEUDO is declared *open*, not
+  dead.
+- **(b) argument — passes for the eight, fails for the universal.** The
+  three-way taxonomy is *asserted* exhaustive over analytic methods, never
+  argued. Enumerating members of an unbounded class and concluding "all" is
+  exactly the inference this standard exists to catch.
+
+Two subsidiary defects: the title says **six**, the table has **eight** data
+rows; and the "DL random permutation" row is closed on `C ~ p^0.079`, the
+exponent now under correction (`CORR-20260808-733115`).
+
+*Not established*: that any closed approach works. No attempt was made to
+construct a method evading the taxonomy, which is what a real refutation needs.
+The objection is that the record asserts exhaustiveness rather than arguing it.
+
 ### F-10d — KN-FIND-a8990a, Semaev cover structure (D2 reproduction)
 
 **Outcome — verifies in every particular checked.** `EV-FALSIFY-66f32d`. The
@@ -333,7 +369,7 @@ relation counts falls below the quoted `(m+1)/2`. **Null:** set the sweep cost
 to zero and confirm the model then reproduces exactly `(m+1)/2`, which
 localises any discrepancy to the omitted terms.
 
-### F-6 — KN-FIND-e7a3b1, "all six standard analytic methods are closed" (D5)
+### F-6b — KN-FIND-7e4b90, "blocked for ordinary prime-field ECDLP" (D5)
 
 The corpus's own closure standard (`docs/inventor-protocol.md`) requires a
 named obstruction, an argument, and forward guidance; a count of

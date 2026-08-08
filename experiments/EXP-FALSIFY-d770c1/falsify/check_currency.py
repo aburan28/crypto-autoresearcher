@@ -81,6 +81,29 @@ def currency(record_id, root='.'):
         out['signals'].append(f'corrections naming it: {corrections}')
         out['notes'].append('a correction may amend, repair or withdraw -- READ IT; '
                             'it does not necessarily set current=False')
+
+    # coordination/** is where this repository's REASONING lives -- task
+    # analyses, red-team notes, batch syntheses. Those are working notes, not
+    # authoritative records, so a hit here never sets current=False. It means
+    # someone may already have thought about this, and a probe that skips it can
+    # present an existing diagnosis as new. That happened twice under
+    # RQ-FALSIFY-a2c501; see CORR-20260808-733115.
+    coord = []
+    for d, _dirs, files in os.walk(os.path.join(root, 'coordination')):
+        for fn in files:
+            if os.path.splitext(fn)[1] not in ('.md', '.yaml', '.yml', '.json'):
+                continue
+            p = os.path.join(d, fn)
+            try:
+                if record_id in open(p, errors='ignore').read():
+                    coord.append(os.path.relpath(p, root))
+            except OSError:
+                pass
+    if coord:
+        out['notes'].append(
+            f'ADVISORY: named in {len(coord)} coordination/ document(s) -- working '
+            f'notes, not records, so this does NOT make it stale. Read them before '
+            f'calling any diagnosis new. First: {coord[0]}')
     return out
 
 
