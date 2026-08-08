@@ -1,0 +1,335 @@
+idea:
+  id: IDEA-20260808-46d7ef
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  title: The tracked object is the CONTRACTION SCHEDULE, not the partial sum - integral key
+    recovery is variable elimination on a key/data hypergraph over the operation set {index-contract,
+    Walsh-Hadamard convolve}, and the exactly-optimal schedule is computable by a Held-Karp
+    DP in under 2^25 steps with no MILP or CP solver anywhere in the loop.
+  class: algorithm
+  claim: Let A be the campaign's own r-round integral key-recovery construction (sq_null.c
+    attack6n / attack7n, GOAL-AES-003 BATCH-002). Its cost is determined entirely by an ORDERED
+    ELIMINATION SCHEDULE on a hypergraph H_r whose vertices are the live data-byte coordinates
+    and the guessed key-byte coordinates, and whose hyperedges are the SubBytes and MixColumns
+    couplings. Under the cost model CM-3 unit, eliminating vertex v at a point where its closed
+    neighbourhood has size n(v) costs 2^{8*n(v)} table operations if done by index contraction,
+    and 8 * 2^{8*(n(v)-1)} if v is a key-addition vertex and the step is done as a Walsh-Hadamard
+    convolution over (GF(2)^8, XOR) - a factor 2^8/8 = 32 cheaper for that step. TWO CLAIMS,
+    BOTH FALSIFIABLE. (C-a) BASELINE EMBEDDING - restricting the operation set to {index-contract}
+    and the order to the hand-chosen one reproduces the campaign's measured attack6n operation
+    count EXACTLY (to the last counted table read), so the DP is a strict generalisation and
+    not a different attack. (C-b) OPTIMALITY - the Held-Karp DP over subsets of the m <= 20
+    eliminable vertices returns the exact minimum-cost schedule in the mixed operation set,
+    and that minimum is EITHER strictly below the hand-chosen schedule by at least 5 bits
+    at r = 6 (in which case the campaign has a strictly cheaper certified r=6 attack, BT-2
+    against its own frozen baseline), OR equal to it (in which case the hand-chosen schedule
+    is CERTIFIED OPTIMAL within the class, which is a scoped barrier statement at the docs/inventor-protocol.md
+    section 4 standard). NO IMPROVEMENT IS CLAIMED IN ADVANCE; the pre-registered deliverable
+    is the exact optimum plus its certificate.
+  mechanism: 'Partial sums is variable elimination in disguise. The attacker must evaluate
+    a functional SUM_{x in D} g(x, k) over a chosen data set D and test it against zero for
+    each candidate k. Writing g as a product of local factors (one per S-box, one per MixColumns
+    column) makes the sum a tensor network contraction; the partial-sums technique is one
+    particular contraction order, and its cost exponent is the INDUCED WIDTH of the hypergraph
+    under that order. Two facts make the optimum computable rather than searched. (1) The
+    number of vertices that can be eliminated in a nontrivial order is small - at r = 6 the
+    live set is four ciphertext columns plus the guessed key bytes, m <= 20 - so Held-Karp
+    over subsets is 2^20 * 20 < 2^25 arithmetic steps. (2) Key addition is a GROUP operation,
+    so a step that sums over all 2^8 values of one guessed key byte is a convolution over
+    (GF(2)^8, XOR) and can be computed for all key values simultaneously by a length-256 Walsh-Hadamard
+    transform: 8 * 2^8 additions instead of 2^16 lookups. Mixing the two operations changes
+    which order is optimal, because a WHT step rewards SCHEDULES THAT KEEP KEY BYTES LATE
+    while contraction rewards schedules that kill data coordinates early. That tension is
+    exactly what a DP resolves and a hand-derivation does not.'
+  why_not_a_renamed_known_approach: 'NEAREST KNOWN METHOD 1 - the partial-sums technique itself
+    (Ferguson et al., recalled_unverified), which GOAL-AES-001 lists as an ESTABLISHED FAMILY
+    ("partial-sum cost term") and which this record therefore does NOT use as its primary
+    lens. The difference: partial sums IS a schedule; my object is the SPACE OF SCHEDULES
+    and its exact optimum. A schedule is a point, the elimination-order hypergraph is the
+    space; the deliverable is a certificate about the space. NEAREST KNOWN METHOD 2 - an FFT/Walsh
+    reorganisation of the key sum (recalled_unverified as a 2024 result on 6-round AES; I
+    could not verify it this session and DO NOT rely on it). Even taking that result as real,
+    it fixes ONE step to a WHT and keeps the hand order. My object mixes the two operations
+    at every step and searches the order exactly. NEAREST INTERNAL RECORD - catalogue A1-10
+    (tensor-factorised truncated- pattern operator, "an executable substitute for the MILP
+    this machine does not have"). That object is a TRANSFER OPERATOR ON TRUNCATED DIFFERENCE
+    PATTERNS and its output is a distinguisher bound. Mine is an ELIMINATION ORDER ON A KEY/DATA
+    HYPERGRAPH and its output is a key- recovery operation count. Different vertex set, different
+    one-step rule, different deliverable. LOSSY-PROJECTION TEST (algebraic, run before any
+    compute, per docs/inventor-protocol.md section 2): the projection is state -> (set of
+    live coordinate indices, per-index cardinality). It DISCARDS all table VALUES and retains
+    only the support geometry. What it discards is discarded compatibly with the target''s
+    operations: SubBytes is a bijection on each byte and so acts as the identity on the index
+    set; MixColumns merges exactly four indices into four; key addition merges one key index
+    into the touched data indices. Every AES operation therefore acts on the retained part
+    deterministically without consulting the discarded values. The projection is genuinely
+    lossy (2^{8n} values collapse to one integer n) and is not a change of coordinates. PASSES.'
+  predictions:
+  - observable: DP output on the {index-contract}-only operation set with the order frozen
+      to the hand-chosen one
+    metric: log2(total counted table operations)
+    predicted: bit-identical to the campaign's committed attack6n instrumented counter, difference
+      exactly 0 bits
+  - observable: DP optimum over all orders, {index-contract} only, r = 6
+    metric: log2(operations), minus the hand-schedule figure
+    predicted: <= 0 by construction; a strictly negative value of >= 1 bit is the first informative
+      outcome
+  - observable: DP optimum over all orders, mixed {contract, WHT}, r = 6
+    metric: log2(operations), minus the {contract}-only optimum
+    predicted: <= -5.0 bits if at least one key-addition step survives in the optimal order;
+      exactly 0 if none does
+  - observable: monotonicity in r
+    metric: DP optimum at r = 4, 5, 6, 7
+    predicted: strictly increasing in r; any non-increase is the canonical artifact tell and
+      voids the run
+  - observable: null hypergraph control
+    metric: DP optimum on a random hypergraph with the identical degree sequence, minus DP
+      optimum on H_r
+    predicted: strictly positive (>= 3 bits); a value near 0 means the AES coupling structure
+      is not what the DP is exploiting
+  minimal_test: 'Stage 1 (no compute, hours): write H_r for r = 4, 5, 6 from the pinned FIPS-197
+    harness by symbolic tracing of attack6n, and hand-verify the hyperedge set against the
+    committed source. Stage 2 (minutes of compute): Held-Karp DP with a memory dimension carried
+    alongside time (a schedule whose peak live-table size exceeds the measured usable RAM
+    from MEAS-GOAL-AES-002-001 is INFEASIBLE and must be excluded, not reported as optimal).
+    Stage 3: cross-check the DP optimum by exhaustive enumeration of all m! orders for a truncated
+    instance with m <= 9 (362880 orders, trivial), which is a MECHANICAL optimality proof
+    for that instance. Stage 4: only if the DP finds a strictly cheaper schedule, implement
+    it and re-certify a key recovery under the existing BATCH-001 certificate discipline (recovered
+    key re-verified under pycryptodome AND the openssl CLI, attack code excluded from the
+    verification path).'
+  controls:
+  - Degree-matched random hypergraph null (prediction 5) - isolates "AES structure" from "any
+    sparse hypergraph".
+  - Round-count decay check across r = 4..7 (prediction 4).
+  - Exhaustive-permutation cross-check at m <= 9, which proves DP correctness mechanically
+    rather than by agreement.
+  - Memory-feasibility filter applied BEFORE reporting any optimum, so the answer is not an
+    unrealisable schedule.
+  - Operation-count instrumentation re-run by a session that did not author the DP, per GOAL-AES-003
+    independent_review_chain.
+  confounders:
+  - CM-3 charges a unit; a WHT step's unit is an 8-bit XOR-add, an index-contraction step's
+    unit is a table read. If those are charged at the same price the WHT gain is overstated.
+    THE COST MODEL MUST PRICE THEM SEPARATELY AND THE RED TEAM MUST ATTACK THAT PRICING FIRST.
+  - Cache behaviour - a 2^32-entry table read is not one unit on real hardware. Counted operations
+    and measured seconds can diverge; IDEA-20260807-8e20fe/A3-1 already flags exactly this
+    for two implementations of one candidate.
+  - The DP's optimum is over a CLASS. A schedule outside the class (e.g. one that guesses
+    key bits rather than bytes, or one using a non-group transform) is not covered and its
+    absence is not evidence.
+  - Hypergraph transcription error - a wrong hyperedge silently changes the optimum. Mitigated
+    by requiring stage 1's symbolic trace to reproduce attack6n's count exactly (C-a) before
+    any optimum is believed.
+  falsification_conditions:
+  - C-a fails - the {contract}-only, hand-order DP cost does not equal the committed attack6n
+    counter. Then H_r is wrong and NOTHING downstream may be reported.
+  - The mixed-operation optimum equals the {contract}-only optimum at every r in 4..7. Then
+    the WHT lever is inert for this attack shape and the record is a scoped negative on that
+    lever.
+  - The DP optimum equals the hand schedule at r = 6. Then the hand schedule is certified
+    optimal in-class and the deliverable is a barrier statement, not an attack.
+  - The random-hypergraph null returns the same optimum as H_r. Then the DP is measuring sparsity,
+    not AES.
+  - Every strictly-cheaper schedule the DP finds is memory-infeasible on the measured machine.
+    Then the gain is real in the model and unrealisable here, and MUST be reported as such
+    and never as an executed improvement.
+  interpretation_limits: Reduced-round only, toy tier, RQ-AES-001 ceiling adopted per RQ-AES-003.
+    A certified optimum is optimal WITHIN THE ELIMINATION-SCHEDULE CLASS on the hypergraph
+    as transcribed; it says nothing about attacks outside the class and nothing about full-round
+    or deployed AES. Any margin is against REF-A (definitional) and REF-B (this campaign's
+    own frozen baseline) and NEVER against the published state of the art, which is unadjudicable
+    here in either direction.
+  assumptions:
+  - The campaign's attack6n/attack7n sources and their instrumented counters are committed
+    and readable (GOAL-AES-003 BATCH-002 records them).
+  - Usable RAM and single-core throughput are already measured (MEAS-GOAL-AES-002-001/-002
+    report 7.555e7 enc/s single core and a 2^32 full-diagonal sweep at 53 s).
+  - numpy is installed (IDEA-20260805-78d9bd records this as a MEASURED environment fact contradicting
+    an earlier committed statement).
+  heuristic_assumptions:
+  - id: HA-1
+    statement: For every elimination order sigma of H_r, the number of DISTINCT values taken
+      by the partial-sum table after step j equals 2^{8 * n_j(sigma)} up to a factor bounded
+      by 1, where n_j is the closed-neighbourhood size. Formally - for all sigma, for all
+      j, the image of the step-j partial sum has cardinality in [2^{8 n_j} / c, 2^{8 n_j}]
+      with c <= 2.
+    rigorous_ingredient: The exact statement holds with c = 1 whenever the step-j map is injective
+      on the live coordinates, which is provable per step from SubBytes bijectivity and MixColumns
+      invertibility (both are FIPS-197 facts already verified in this repository's pinned
+      harness). Only steps that SUM (rather than relabel) can shrink the image, and those
+      are exactly the key-addition steps.
+    distribution_imitated: The balls-in-bins occupancy law - 2^{8 n_j} values thrown into
+      2^{8 n_j} cells fill a 1 - 1/e fraction. This is the same "behaves like a uniformly
+      random function of its size" move that Heuristic 1 of the exemplar paper makes for smoothness.
+    validation_route: TOY SCALE, LABELLED AS SUCH. Instrument the existing attack6n to record
+      the actual number of distinct partial-sum table entries at every step for r = 4 and
+      r = 5 over 2^32 data (the campaign has measured a sweep of this size at 53 s, so this
+      is affordable), and compare the empirical occupancy fraction against 1 - 1/e per step.
+      At r = 6 sample 2^24 of the data set and extrapolate WITH THE EXTRAPOLATION LABELLED.
+      There is no correspondence trick that makes this a crypto-scale validation and none
+      is claimed.
+    tail_checks: Report the MINIMUM observed occupancy fraction across all steps and all sampled
+      keys, not just the mean. A single step with occupancy below 1/4 falsifies c <= 2 and
+      means the DP's cost function is wrong in the attacker's favour, which would inflate
+      any claimed gain; that step must be re-priced before any optimum is reported.
+  - id: HA-2
+    statement: The DP's cost function is faithful - counted operations are within a factor
+      2 of measured wall-clock-normalised operations for every schedule the DP can output,
+      uniformly over schedules.
+    rigorous_ingredient: None. This is an ENGINEERING assumption about the machine, not a
+      mathematical one, and it is stated separately for that reason.
+    distribution_imitated: not applicable - this is a cost-model fidelity assumption, not
+      a distributional one.
+    validation_route: Implement two schedules with deliberately different memory profiles
+      (one table-heavy, one WHT-heavy) at r = 4, measure both, and compare the counted/measured
+      ratio. If the two ratios differ by more than 2x the DP is optimising the wrong objective
+      and must carry a measured per-operation price rather than a unit price.
+    tail_checks: Report the WORST ratio over schedules, not the mean. A cost model validated
+      only on the schedule it recommends is circular; the rejected schedules are the informative
+      ones.
+  target_complexity:
+    time_exponent: Target - strictly below the campaign's own frozen REF-B schedule at r =
+      6 by >= 5 bits if any key-addition step survives in the optimum, with any further gain
+      being the research output. THE SEARCH ITSELF is 2^m * m <= 2^25 arithmetic steps for
+      m <= 20, i.e. seconds, versus a MILP/CP formulation of the same question, which this
+      machine cannot run at all. NO improvement to the attack is claimed in advance; what
+      is claimed is that the optimum becomes COMPUTABLE AND CERTIFIABLE.
+    memory_exponent: DP itself - 2^m * (bits per state) <= 2^20 * 8 bytes = 8 MB, negligible.
+      The SCHEDULES it outputs carry peak live-table memory 2^{8 * max_j n_j}; this is carried
+      as a second DP dimension and schedules exceeding measured usable RAM are excluded as
+      infeasible rather than reported.
+    best_known_baseline: REF-B - the campaign's own committed attack6n/attack7n instrumented
+      counter at the same round count on the same machine in the same CM-3 unit. REF-A - 2^127
+      six-round AES-128 evaluations (definitional). The published frontier is NOT a baseline
+      here and no relation to it is asserted in either direction.
+    hidden_overhead_disclosure: The o(1)-equivalent here is the per-operation CONSTANT, and
+      it is not small - a WHT step's unit and a table-read unit differ in real cost by a factor
+      this proposal does not know and HA-2 is the instrument for it. Additionally, the DP
+      optimum is over a class whose boundary is set by the hypergraph transcription; a transcription
+      that omits a coupling makes the problem artificially easy, which is why C-a is a gate
+      and not a nicety.
+    time_memory_tradeoff: Explicit and central. The DP carries (time, peak-memory) as a Pareto
+      set rather than a scalar, so the deliverable is a FRONTIER of schedules, not one point.
+      Parallelisation - contraction steps over disjoint columns are embarrassingly parallel
+      across the machine's 4 cores; WHT steps are not further parallelisable at length 256.
+      Under max_concurrent 3 shared across three AES goals the realistic speedup is <= 3x
+      and is charged as such.
+  sota_delta: Against REF-A - any r = 6 key recovery at all is astronomically below 2^127
+    and that verdict is determinate but nearly uninformative (it is GOAL-AES-003's declared
+    entry ticket, BT-1, and very probably a rediscovery). Against REF-B - the honest delta
+    is UNKNOWN UNTIL THE DP RUNS, and the record's value is that it makes the delta a computed
+    number rather than an opinion. Against the published frontier - UNADJUDICABLE IN THIS
+    ENVIRONMENT, asserted in neither direction.
+  dominated_by: Not null and not "nothing". For the SEARCH problem (find the cheapest elimination
+    order), a MILP or CP solver dominates on expressiveness - it can encode constraints the
+    DP cannot - and is unavailable here; that is a capability gap, not a Pareto win for the
+    DP, and the DP's actual Pareto advantage is exactness at m <= 20 with zero solver dependency.
+    For the ATTACK problem at r = 6, `dominated_by` is UNRESOLVABLE-IN-THIS-ENVIRONMENT with
+    respect to the published literature (RQ-AES-002/003 R3), and is REF-B with respect to
+    anything this repository can adjudicate until the DP returns a strictly lower figure.
+    I checked every internal row I could name - REF-A, REF-B (attack6n at 69.39 s, itself
+    recorded as DOMINATED by brute force over the hinted residual in GOAL-AES-003 BATCH-001),
+    the r=5 recovery at 25.66 s, and the DP's own {contract}-only restriction.
+  estimated_cost: Implementation MEDIUM (hypergraph transcription is the delicate part and
+    needs the C-a gate; the DP itself is ~200 lines). Compute LOW (DP seconds; validation
+    sweeps at 2^32 are already measured at ~53 s; a re-certified r=6 run is minutes). Total
+    well inside one 1600 s producer slot plus one validation slot.
+  recommended_priority: high
+  honest_prior_of_survival: 'C-a (baseline embedding) passing - 0.7; it is a transcription
+    exercise and transcription errors are the likely failure. The mixed-operation optimum
+    being STRICTLY below the hand schedule by >= 5 bits - 0.35, because the WHT lever is a
+    real algebraic fact but the hand schedule may already sit at a corner where no key-addition
+    step survives. The optimum being strictly below by >= 10 bits - 0.10. Producing a DECISION
+    either way (improvement or in-class optimality certificate) - 0.85, and that is the reason
+    for the high priority: this idea has no null outcome that is uninformative.'
+  novelty_status: unverified
+  novelty_class: adaptation
+  novelty_screen: Screened against CATALOGUE_TITLES.txt A1-1..A1-13 and A2-1..A2-12 (the nearest
+    is A1-10, tensor-factorised truncated-pattern operator, which is a DISTINGUISHER-BOUND
+    operator and not a key-recovery elimination order); EXISTING_PROPOSALS.txt (nearest are
+    IDEA-20260805-72ec9a on the missing REF-B baseline and IDEA-20260807-bbefda on localisation,
+    neither of which proposes a schedule-space object); EXISTING_HYPOTHESES.txt (H-AES-a2b3ab
+    is the r=6 hinted partial-sums construction versus a brute-force baseline - it FIXES a
+    schedule, it does not search the space); REJECTED_TITLES.txt and DEFERRED_TITLES.txt (no
+    AES entries); KNOWLEDGE_BARRIERS.txt (no KN-FIND touches elimination ordering; the nearest
+    technique entry is KN-TECH-013, tensor-network contraction for counting and solving, which
+    is the GENERIC method this record specialises - stated openly rather than hidden). EXTERNAL
+    LITERATURE NOT SCREENED - web search unavailable. An FFT/Walsh improvement to 6-round
+    AES partial sums is RECALLED but UNVERIFIED and is treated as possibly-existing prior
+    art throughout.
+  discriminated_from: Catalogue A1-10 - different vertex set (key/data byte coordinates vs
+    truncated difference patterns), different one-step rule (neighbourhood merge vs pattern
+    transfer), different output (operation count vs bound). H-AES-a2b3ab - that hypothesis
+    compares ONE construction to ONE baseline; this proposes the certified optimum over the
+    class containing both. KN-TECH-013 - the generic technique; this record's contribution
+    is the mixed operation set {contract, WHT} and the exact Held-Karp tractability argument
+    at m <= 20 for this specific hypergraph.
+  source_refs:
+  - ref: Ferguson et al., partial sums / improved cryptanalysis of Rijndael
+    status: recalled_unverified
+    use: named as the established family this record declares OFF-LIMITS as a primary lens;
+      NOT used as authority.
+  - ref: An FFT/Walsh-Hadamard reorganisation of the 6-round AES partial-sum key search (recalled
+      as a 2024 result)
+    status: recalled_unverified
+    use: treated as possibly-existing prior art for the SINGLE-STEP WHT idea; the schedule-space
+      search is not attributed to it.
+  - ref: GOAL-AES-003 BATCH-001/BATCH-002 committed records (sq_null.c attack6n, 69.39 s;
+      r=5 recovery, 25.66 s; MEAS-GOAL-AES-002-001/-002)
+    status: internal_committed
+    use: the only figures in this record with provenance.
+  proof_search_map:
+    bottleneck: The elimination ORDER. Everything else in an integral key recovery is fixed
+      by the cipher; the order is the only free parameter, and it is currently chosen by hand
+      and defended by narrative.
+    baseline_embedding:
+      parameter_slice: Operation set restricted to {index-contract}, order frozen to attack6n's
+        committed order. This is an exact parameter slice of the proposal, not an analogy.
+      reproduction_check: Bit-exact agreement with the committed instrumented counter. Frozen
+        as a regression fixture before any optimisation is attempted.
+    observation_collision:
+      observable: total counted operations under CM-3.
+      distinct_preimage_search: TWO DISTINCT SCHEDULES WITH THE SAME COUNT ARE EXPECTED AND
+        ARE NOT A DEFECT, but two distinct HYPERGRAPHS with the same DP optimum WOULD be -
+        it would mean the optimum does not see the structure. The degree-matched random-hypergraph
+        null (prediction 5) is exactly this collision search and is mandatory before belief.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: the key/data coupling hypergraph H_r with the mixed operation set.
+      predicted_gain: Turns an unbounded design question into a finite DP over 2^m subsets,
+        m <= 20, with an exactness certificate.
+    - transform: specialization_pack
+      proposed_object: per-step Walsh-Hadamard convolution on (GF(2)^8, XOR).
+      predicted_gain: factor 2^8/8 = 32 (5 bits) per surviving key-addition step.
+    quantifier_order: FOR ALL r in {4,5,6,7}, FOR ALL elimination orders sigma of H_r and
+      all operation assignments in {contract, WHT}, THERE EXISTS a schedule sigma* computed
+      by the DP with cost(sigma*) <= cost(sigma). Note the order - the DP's guarantee is over
+      the CLASS, and the claim is NOT "for all attacks there exists a cheaper one".
+    method_ceiling:
+      strongest_certifiable_claim: '"No elimination schedule on H_r over {contract, WHT} costs
+        less than X operations under CM-3." That is the ceiling. It can never certify anything
+        about attacks that change the data set, guess bits rather than bytes, or use a non-group
+        transform.'
+      nearby_object_control: A cipher with the same hypergraph but a NON-GROUP key mixing
+        (e.g. key addition replaced by a keyed S-box lookup) has the identical H_r yet admits
+        NO WHT step. If the DP reports the same gain for that object, the gain is a property
+        of the graph and not of the group, and the WHT claim is refuted. THIS CONTROL IS CHEAP
+        AND MUST BE RUN.
+    proof_obligations:
+    - claim: H_r as transcribed reproduces attack6n's count exactly.
+      responsibility: baseline
+    - claim: Held-Karp returns the exact minimum over the class.
+      responsibility: correctness
+    - claim: DP runtime <= 2^m * m for m <= 20.
+      responsibility: runtime
+    - claim: peak live-table memory of the returned schedule fits measured RAM.
+      responsibility: memory
+    - claim: the per-step image-size model (HA-1) is within a factor 2.
+      responsibility: size
+    - claim: the reported margin is against REF-A and REF-B only.
+      responsibility: scope
+    not_applicable_reason: null

@@ -1,0 +1,204 @@
+idea:
+  id: IDEA-20260808-b3c97b
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-INSTR-f8faa0
+  goal_id: GOAL-ECDLP-001
+  title: 'Four fabricated artifact hashes passed reviewer, validator AND red team undetected,
+    so the review pipeline is itself an uncalibrated instrument: a defect ladder built from
+    that exact failure (wrong length, cyclic-filler low entropy, correct-format-wrong-file,
+    stale-commit) measures per-role sensitivity AND the escape-correlation factor, which decides
+    whether the fix is stronger reviewers or differentiated ones'
+  class: tooling
+  claim: 'SCOPE: this program''s own evidence pipeline. No cryptographic claim. THE MOTIVATING
+    FACT, FROM THE CORPUS. EV-ECDLP-65b004 carries four artifact hashes that its own later-added
+    integrity note describes as FABRICATED PLACEHOLDERS — each 62 hex characters where SHA-256
+    has 64, all four cyclic rotations of the same "0123456789abcdef" filler, not derived from
+    any file. The same record carries reviewer verdict CONDITIONAL_PASS, validator verdict
+    PASS with the note "All 120 arm-runs present and valid", and a red-team verdict raising
+    a FATAL objection to the interpretation. THREE INDEPENDENT REVIEWS, ZERO DETECTIONS OF
+    A DEFECT VISIBLE BY COUNTING CHARACTERS. CLAIM A (detector). A two-stage detector catches
+    this class at negligible cost: (D1) length and alphabet check; (D2) a nibble-transition
+    statistic — the fraction of the 63 adjacent-nibble transitions obeying the best affine
+    successor rule x -> x + c mod 16. For a genuine digest that fraction has mean 1/16 and
+    standard deviation about 0.030; the observed filler scores 1.0. A threshold at 0.5 therefore
+    has a false-positive rate on genuine digests far below any rate this corpus could exhibit,
+    and the corpus contains genuine digests to test it on (EV-ECDLP-65b004''s own independently
+    recomputed values are 64-hex and were produced by shasum). (D3) recomputation against
+    the bound commit, three verdicts: matches / mismatches / path absent. CLAIM B (calibration
+    of the reviewers, which is the real deliverable). Plant defects from a declared ladder
+    into SANDBOX COPIES of review packages, measure per-role detection s_R, s_V, s_T, and
+    compute the ESCAPE-CORRELATION FACTOR rho = P_observed(all three miss) / [(1-s_R)(1-s_V)(1-s_T)].
+    rho near 1 means the reviews are independent and the fix is to raise individual sensitivity
+    (automation, checklists). rho much greater than 1 means the reviews are correlated — all
+    three read the same salient fields and skip the same ones — and a fourth review of the
+    same kind buys nothing; the fix is ROLE DIFFERENTIATION with disjoint declared field coverage.
+    TWO EXPLANATIONS, TWO DIFFERENT REMEDIES, AND THE PROGRAM CANNOT CURRENTLY TELL THEM APART.'
+  mechanism: 'D2''s power comes from an elementary counting fact: a uniformly random 64-nibble
+    string has each adjacent transition matching a fixed successor rule with probability 1/16
+    independently, so the best-of-16 rule statistic concentrates tightly near 1/16 + a small
+    maximum-of-16 correction, while a cyclic filler scores exactly 1. The separation is not
+    marginal, it is the whole range of the statistic. D2 exists because D3 (recomputation)
+    is the strictly stronger check but is NOT ALWAYS APPLICABLE — the file may not exist at
+    the bound commit, may have been produced outside the repository, or may be large — and
+    the coverage fraction of D3 across this corpus is itself an unknown that the instrument
+    measures. CLAIM B''s mechanism is capture-recapture: three reviews of one artifact are
+    three capture occasions on the same defect population. With planted defects the per-role
+    sensitivities are directly observed; applying the same estimator to the corpus''s ALREADY-REVIEWED
+    records then yields an estimate of defects missed by all three, with a confidence interval.
+    That estimate is a number this program has never had. PROCESS SAFETY, WHICH IS LOAD-BEARING
+    AND NOT A FOOTNOTE: planted defects must live only in sandbox copies under a declared
+    plant manifest, sealed before the review and revealed after the verdict, and no planted
+    artifact may ever be committed to the ledger. An instrument that injects false records
+    into the evidence chain would itself be a fabrication vector, and the manifest-and-sandbox
+    discipline is what prevents that.'
+  why_not_a_renamed_known_approach: 'NEAREST KNOWN IN THIS PROGRAM: IDEA-20260807-a4f5c5,
+    which fault-injects the CERTIFICATE VERIFIER with sixteen planted faults (wrong scalar,
+    point off curve, summand outside the factor base). That targets a piece of CODE whose
+    job is to reject. This record targets the REVIEW PIPELINE — human or agent roles whose
+    sensitivity has never been measured — and its statistic is not a pass/fail per fault but
+    a per-role sensitivity plus an escape correlation. Outside this program, planted-defect
+    calibration of reviewers is standard practice in other fields; the novelty claimed is
+    only its application here, and the corpus evidence that it is needed.'
+  predictions:
+  - observable: D2 statistic on genuine SHA-256 digests already in the corpus versus on the
+      four EV-ECDLP-65b004 placeholders
+    metric: best-affine-successor transition fraction
+    predicted: Genuine digests concentrate near 0.06-0.20; the placeholders score 1.0. Complete
+      separation. Any genuine digest above 0.5 would be a false positive and must be reported.
+  - observable: coverage of D3 across the corpus
+    metric: fraction of hash claims whose named path exists at the bound commit
+    predicted: Reported, no value predicted. A low fraction is the finding that recomputation
+      is not universally available and that D1/D2 are therefore load-bearing.
+  - observable: per-role sensitivity on the planted ladder
+    metric: s_R, s_V, s_T per defect class
+    predicted: Higher for semantic defects (wrong statistic) than for format defects (short
+      hash). The EV-ECDLP-65b004 event predicts s < 0.5 for the format class in all three
+      roles.
+  - observable: escape-correlation factor rho
+    metric: ratio
+    predicted: Greater than 2. If rho is near 1, the three misses were an unlucky independent
+      coincidence and the remedy is sensitivity, not differentiation — a different and equally
+      actionable answer.
+  minimal_test: 'PHASE 1 (minutes, zero risk): run D1/D2/D3 over every artifact hash in the
+    committed ledger; report detections, the D2 distribution on genuine digests, and D3''s
+    coverage. This phase touches nothing and can only add information. PHASE 2 (hours): build
+    the defect ladder — L1 short hash, L2 cyclic filler at full length, L3 filler with k random
+    nibbles substituted for k in {5,10,20,40}, L4 correct-format hash of the wrong file, L5
+    correct hash at a different commit, L6 a genuine hash (matched null, must not fire). Run
+    the ladder past the automated detector, then past sandboxed review packages for each role
+    with a sealed plant manifest. PHASE 3: compute s_R, s_V, s_T and rho; apply the capture-recapture
+    estimator to the corpus''s already-reviewed records; report the estimated undetected-defect
+    count with its interval.'
+  controls:
+  - MATCHED NULL (L6): genuine digests must not fire D1 or D2. A detector that flags real
+      hashes is worse than none.
+  - DECAY TEST (L3): as k random nibbles replace filler, D2 detection must fall monotonically.
+      A statistic that does not decay when the structure it claims to detect is destroyed
+      is the canonical artifact tell (docs/inventor-protocol.md section 3).
+  - ROLE-BLIND CONTROL: identical packages to all three roles, plant manifest sealed until
+      all verdicts are in, so rho measures correlation and not information leakage between
+      roles.
+  - FALSE-POSITIVE CONTROL FOR THE REVIEW ARM: plant NON-defects that look suspicious (a legitimate
+      mechanical reshape, a legitimately changed file giving a different hash at a later commit).
+      A pipeline that flags these is over-strict, which is a distinct defect.
+  confounders:
+  - Reviewers who learn that plants exist change behaviour (Hawthorne effect). Report the
+    plant rate, keep it low, and treat measured sensitivity as an UPPER bound on unprimed
+    sensitivity.
+  - Agent reviewers are non-deterministic; per-role sensitivity must be estimated over repeats,
+    and the repeat count bounds the smallest resolvable rate at 1/N (the KN-FIND-031 caution,
+    respected rather than rediscovered).
+  - Capture-recapture assumes defect classes of comparable detectability; heterogeneity biases
+    the estimate downward, so the resulting count is a FLOOR and must be reported as one.
+  - D2 has no power against a defect built from a genuine-looking random string; it is a filler
+    detector, not a fabrication detector, and only D3 addresses the general case.
+  falsification_conditions:
+  - Any genuine corpus digest scores above 0.5 on D2 — the null fires, the threshold is wrong,
+    and D2 is withdrawn pending recalibration.
+  - D2 detection does not decay as random nibbles are substituted — the statistic is measuring
+    something other than the claimed structure.
+  - rho is statistically indistinguishable from 1 — the correlated-blindness hypothesis is
+    refuted and the remedy is sensitivity alone.
+  - Per-role sensitivity on the format class is high (above 0.8) — the EV-ECDLP-65b004 escape
+    was an outlier rather than a systematic gap, which is important and would redirect effort
+    elsewhere.
+  interpretation_limits: An instrumentation result about this program's own process. It is
+    not a cryptographic claim, not an accusation about any specific record or session, and
+    it moves no exponent. EV-ECDLP-65b004's substantive numbers were independently spot-checked
+    by the Coordinator against the run's own analysis file and are NOT invalidated by the
+    hash defect; only the hash-based integrity claim is, and the record itself says so. Measured
+    sensitivities are properties of the sampled defect ladder, not of "review quality" in
+    general.
+  assumptions:
+  - Artifact hashes are declared to be SHA-256 (64 hex); any other declared algorithm changes
+    D1's length constant and must be read from the record, not assumed.
+  - Sandbox copies and a sealed plant manifest are procedurally enforceable, so no planted
+    artifact can reach the ledger.
+  heuristic_assumptions:
+  - id: HA-14
+    statement: (Digest nibble uniformity.) For a genuine SHA-256 digest of a file not adversarially
+      chosen, the 64 hex nibbles behave as independent uniform draws from 16 symbols, so the
+      best-affine-successor transition fraction has mean 1/16 and standard deviation about
+      sqrt(63*(1/16)*(15/16))/63 = 0.030 before the best-of-16 maximum correction.
+    rigorous_ingredient: Pseudorandomness of SHA-256 output on non-adversarial inputs is the
+      standard modelling assumption underlying every use of it as a content identifier in
+      this repository; nothing stronger is needed.
+    distribution_imitated: The binomial law for matches against a fixed rule, plus the maximum
+      over 16 rules.
+    validation_route: 'Compute the statistic on every genuine digest already committed in
+      this corpus (thousands of them across run manifests) and compare the empirical distribution
+      against the binomial-plus-maximum prediction. This is a real, corpus-scale, zero-risk
+      measurement and it needs no new data. Not toy: it is the actual population the detector
+      will run on.'
+    tail_checks: Report the empirical maximum of the statistic over all genuine digests —
+      that maximum, not the mean, sets the usable threshold, and the smallest resolvable false-positive
+      rate is 1/(number of digests).
+  target_complexity:
+    time_exponent: NO EXPONENT MOVES; this is instrumentation. D1/D2 are O(1) per hash, D3
+      is one file read and one hash per claim. The review calibration costs one extra sandboxed
+      review pass per planted package.
+    memory_exponent: Negligible; streaming over the ledger.
+    best_known_baseline: 'Current practice: no automated hash check at all, and three unmeasured
+      review roles. There is no baseline to beat.'
+    hidden_overhead_disclosure: The review-arm calibration consumes reviewer capacity, which
+      is the program's scarcest resource; the plant rate must be chosen to bound that cost
+      and the cost must be stated in the batch budget rather than discovered mid-campaign.
+    time_memory_tradeoff: Not applicable.
+  sota_delta: 'Zero on attack cost. Against current practice: converts a defect class that
+    demonstrably escaped three reviews into one detected by a character-count and a transition
+    statistic, and produces the program''s first measured per-role sensitivity and escape-correlation
+    figures plus a floor on undetected defects in the existing corpus.'
+  dominated_by: CHECKED against every RQ-INSTR row in EXISTING_PROPOSALS.txt (IDEA-20260807-1c14d7
+    enumeration completeness, -257001 transport certificates, -34754f permutation null, -899c5e
+    Groebner meter, -a4f5c5 certificate fault injection, -c015f5 decay test, -caf061 multiplicity,
+    -efc8de positive control, -f6137c closure) and against IDEA-20260807-5ddd98 (control catalogue).
+    None covers artifact-hash integrity or review-role calibration. Not dominated in-corpus.
+    Externally, planted-defect reviewer calibration is standard elsewhere; the novelty is
+    application, not method, and that is stated.
+  estimated_cost: Implementation low (Phase 1 is a short script over the ledger). Compute
+    negligible. Phase 2-3 cost reviewer time, which is the real charge.
+  recommended_priority: high
+  honest_prior_of_survival: 0.9 that D1/D2 work as described (the separation is arithmetic,
+    not empirical). 0.6 that rho comes out materially above 1. The detector half is nearly
+    certain; the interesting uncertainty is entirely in the correlation measurement.
+  novelty_status: screened
+  novelty_screen: SCREENED against ledger/evidence/EV-ECDLP-65b004.yaml (read in full, including
+    the artifact_hash_integrity_finding and all three review verdicts), ledger/proposals/IDEA-20260807-a4f5c5.yaml
+    (read through section C), all RQ-INSTR rows of EXISTING_PROPOSALS.txt, KNOWLEDGE_BARRIERS.txt
+    (KN-FIND-029 and KN-FIND-031 noted as adjacent), REJECTED_TITLES.txt, DEFERRED_TITLES.txt,
+    CATALOGUE_TITLES.txt, and my own X1.yaml. `screened` for in-corpus scope.
+  discriminated_from: 'IDEA-20260807-a4f5c5: fault-injects the certificate verifier (code
+    that should reject bad mathematics); this calibrates the review roles and adds a hash-integrity
+    detector, neither of which that record contains. IDEA-20260807-efc8de: critiques the campaign''s
+    synthetic Bernoulli positive control for an ECDLP instrument; different object entirely.
+    KN-FIND-029 (five false-green escapes across three repairs of one mutation control): the
+    closest in spirit, about a code-level mutation control rather than about review-role sensitivity
+    or artifact hashes.'
+  source_refs:
+  - ledger/evidence/EV-ECDLP-65b004.yaml
+  - ledger/decisions/DEC-20260808-6a7ac4.yaml
+  - ledger/proposals/IDEA-20260807-a4f5c5.yaml
+  - ledger/questions/RQ-INSTR-f8faa0.yaml
+  - docs/inventor-protocol.md
