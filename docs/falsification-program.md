@@ -420,18 +420,6 @@ constant sits a stable 1.300× above the random null at every prime.
 Each states the target, the defect class, the decisive observation, and the
 null object. Written before execution so the outcome cannot be chosen after.
 
-### F-1b — KN-FIND-a1f3c2 over special families, and m ≥ 6 (D1)
-
-F-1 sampled curves uniformly, which is the wrong sampler for an exceptional
-locus. Re-run over families *enumerated as families*: j=0 and j=1728, CM by
-small discriminant, full rational 2-torsion (`f` split), anomalous
-(`#E = p`), supersingular, and curves with `j` in a prime subfield. Extend to
-m=6 (degree 16), where the "independence of the quadratic extensions" step has
-most to strain against. Same admissible-shape test, same null object.
-**Refuted if** any enumerated family yields an inadmissible shape.
-**Note:** a clean result here still does not repair the quantifier gap in the
-recorded proof; it only removes the places a counterexample was most likely.
-
 ### F-5 — KN-FIND-c7d31e end-to-end cost (D4)
 
 The speedup counts sweep work only. Re-cost with target generation and linear
@@ -483,6 +471,32 @@ stands as written.
 Why the asymmetry bites: rule 4 means the corpus is *read forward* from an old
 record to its repairs, and immutability guarantees the stale record stays put to
 be found first. `check_currency.py` now covers all four mechanisms.
+
+### F-1b — special families, re-scoped then run (D1)
+
+**Outcome — 0 violations on every family, and F-1b was mostly redundant.**
+`EV-FALSIFY-4e9c78`. Closed as pre-registered.
+
+Re-scoped twice. Its original motivation was voided by `CORR-20260808-3d4031`.
+Then a draft of this probe was about to assert that no run had tested special
+families — **checked before writing, and false**: a8990a's run enumerates
+j=0 (both congruence classes), j=1728 (both, one supersingular), and 4
+full-2-torsion curves. A deliberate family design, not a uniform sample.
+
+Genuinely uncovered: **anomalous curves** (#E = p). An exhaustive (a,b) scan
+over p ∈ 11–47 found 339. Result: **0 violations**, at m=4 and m=5, on all six
+families — anomalous, supersingular, j=0, j=1728, full-2-torsion, generic-j.
+
+**The anomalous result is the interesting one, and it is negative.** Anomalous
+curves are exactly where prime-field ECDLP is broken outright by the
+Smart/Satoh-Araki/Semaev lift. If any family carried an exceptional monodromy
+locus, that was the candidate. Their factorisation behaviour is indistinguishable
+from generic. The monodromy carries **no** signal about the one prime-field
+family whose ECDLP is known to be easy — which closes an obvious place to look.
+
+*Controls not re-run*: instrument unchanged from `RUN-FALSIFY-d770c1-001`, whose
+null object and positive control established it. Stated so "controls passed" is
+not claimed for a run that didn't execute them. *Remaining*: m ≥ 6.
 
 ### F-8 — KN-FIND-9d2f56 / ff4a46, Betti-Yield "exact condition" (D1)
 
