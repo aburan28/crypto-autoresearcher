@@ -81,6 +81,21 @@ def audit_cell(E, cell: dict) -> dict:
         raise ValueError(f"not a special-j cell: {cell['cell_id']}")
     P = tuple(map(int, cell["P"]))
     image = map_point(cell)
+    # The frozen geometric map chooses one of the two conjugate roots.  Match
+    # the scalar to that map rather than assuming SymPy's sorted root order.
+    candidates = [lam]
+    if fam == "j0":
+        candidates.append((lam * lam) % n)
+    else:
+        candidates.append((-lam) % n)
+    for candidate in candidates:
+        if E.mul(candidate, P) == image:
+            lam = candidate
+            break
+    if fam == "j0":
+        eigenvalues = [1, lam, (lam * lam) % n]
+    else:
+        eigenvalues = [1, lam, (-1) % n, (-lam) % n]
     scalar_image = E.mul(lam, P)
     map_verified = image == scalar_image and E.is_on_curve(image)
     relations = relation_vectors(eigenvalues, n)
