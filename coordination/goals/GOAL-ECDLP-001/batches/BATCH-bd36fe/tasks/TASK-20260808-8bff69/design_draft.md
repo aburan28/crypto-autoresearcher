@@ -57,7 +57,7 @@ Charge every arm in a single unit: **one field operation = one `E.add` evaluatio
 - CTRL-BLOB: implementation byte-identical to the frozen blob at its archived `sha256` (the no-reimplementation gate).
 - CTRL-YIELD-REF: B reproduces `R_A = R_B` (the Y_A=Y_B equality re-derived per-config as a machinery control).
 
-**Metrics:** primary per cell (`p,b` averaged over seeds): C_A, C_B, C_D (field adds), R_A/R_B/R_D relation counts, and R_D/R_B (null information rate); secondary: hash-table probes, wall-clock per arm, memory. No other metric is a hypothesis driver. 
+**Metrics:** primary per cell (`p,b` averaged over seeds): C_A, C_B, C_D (field adds), R_A/R_B/R_D relation counts, and R_D/R_B (null information rate); secondary: hash-table probes, wall-clock per arm, memory. No other metric is a hypothesis driver.
 
 **Stopping and early-exit rules:**
 - Fixed set of 24 cells (4 primes × 2 b × [A, B, D]) = 24 runs × 5 seeds = 120 arm-runs, ≤ 60 min wall budget total.
