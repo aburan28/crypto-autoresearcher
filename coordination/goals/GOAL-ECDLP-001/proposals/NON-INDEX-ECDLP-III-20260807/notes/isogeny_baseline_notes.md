@@ -60,3 +60,4 @@ this stage.
 
 `TASK-20260807-89508a` can now run with `isogeny_class_manifest.yaml` as fixed,
 including `variant_id` mapping and `chain_id` references for invariance comparisons.
+
