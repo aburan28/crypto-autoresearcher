@@ -224,6 +224,11 @@ Install instructions and host-specific discovery details are in the plugin
 README. Every invocation begins with a no-cost readiness check before an agent
 can dispatch a task or call a backend.
 
+For multiple local agents, the same package also ships opt-in snippets for a
+single loopback-only peer-check-in MCP daemon. It provides advisory presence
+only; the ledger, dispatch queue, and Coordinator archive flow remain the sole
+authority for research state.
+
 ## Local CLI
 
 The initial CLI uses only the Python standard library. Run it without installing the package:
