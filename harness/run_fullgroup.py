@@ -2474,10 +2474,25 @@ def _print_sweep(raw, role, base) -> None:
         shown = "--" if dens is None else f"{dens:.4f}"
         print(f"  {fb:>3} {shown:>8} " + " ".join(vals))
     if base["gate_applies_at_this_prime"]:
+        ck = base["checks"]
         print(f"  BASELINE GATE: passed={base['gate_passed']} "
-              f"operating fb={base['checks']['operating_row_fb']} "
-              f"VR={base['checks']['operating_row_variance_ratio']} "
-              f"target={base['checks']['operating_row_target']}")
+              f"operating fb={ck['operating_row_fb']} "
+              f"VR={ck['operating_row_variance_ratio']} "
+              f"reference={ck['operating_row_reference_value']} "
+              f"(from {(base.get('reference_run') or {}).get('run_id')})")
+        print(f"    every_row_in_band={ck['every_row_in_band_1_3_to_3_6']} "
+              f"rows_outside_band={ck['rows_outside_band']} "
+              f"monotonic_decay_is_false={ck['monotonic_decay_is_false']} "
+              f"operating_within_tolerance={ck['operating_row_within_tolerance']}")
+        rr = base["row_by_row_reproduction_reported_not_gating"]
+        print(f"    row-by-row vs reference (reported, not gating): "
+              f"{rr['n_rows_exactly_reproduced']}/{rr['n_rows_with_reference_counterpart']} "
+              f"exact, max|delta|={rr['max_abs_delta_vs_reference']}")
+        sc = base["reference_self_check"]
+        if sc:
+            print(f"    reference itself inside [1.3, 3.6] at every row: "
+                  f"{sc['reference_itself_inside_band_at_every_row']} "
+                  f"(rows outside: {sc['reference_rows_outside_frozen_band']})")
     ps = raw.get("persistence", {}).get(key)
     if ps:
         print(f"  F_p (Arm B) = {ps['F_p']} -> {ps['per_prime_binary']}; "
