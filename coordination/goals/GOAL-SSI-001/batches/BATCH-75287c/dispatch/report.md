@@ -6,12 +6,11 @@ Snapshot and independently review the corrected Stage 0/1 classical per-prime On
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-021025` | red-team | queued | 3 | TASK-20260809-1ca17b | coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-021025/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-021025/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-021025 |
-| `TASK-20260809-19035f` | validator | queued | 3 | TASK-20260809-1ca17b | coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-19035f/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-19035f/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-19035f |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20260809-baf7f1`: dependency_not_completed:TASK-20260809-19035f:queued, dependency_not_completed:TASK-20260809-021025:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Snapshot and independently review the corrected Stage 0/1 classical per-prime On
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b8b725fea3eb7d66e8a7a40033483bdec4050ccc0ea26f7efbbce5aea51af6e8`
+Plan SHA-256: `d0ed8265b5180421a036946e2b46a6248c6311df6e88f6170d227df48b5d9a7c`
