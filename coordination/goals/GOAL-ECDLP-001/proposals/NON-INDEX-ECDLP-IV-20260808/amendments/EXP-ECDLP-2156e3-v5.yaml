@@ -1,0 +1,207 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-2156e3
+  version_from: 4
+  version_to: 5
+  kind: candidate_window_freeze_before_prefilter_superseding_amendment
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  status: draft_pending_independent_review
+  approved_by: null
+  approved_by_decision: null
+  affected_runs: []
+  confirmatory_status: preserved
+  supersedes:
+    path: amendments/EXP-ECDLP-2156e3-v4.yaml
+    snapshot_commit: 196d362b5
+    treatment: immutable_prior_amendment_remains_unchanged
+  scope_statement: >-
+    This amendment repairs candidate-window ordering. The fixed per-degree
+    candidate cap is applied to the deterministic candidate-label stream before
+    rationality, class-membership, certificate, or solve-outcome decisions.
+    A refusal never refills the primary window with a later candidate. Every
+    in-window row and every later truncation marker remains serialized before
+    any target-side rho solve. This is a sampling and accounting repair only;
+    it does not approve Arm B, select a target, or assert a mathematical result.
+  defect: >-
+    The v2 candidate policy used the phrase first_12_constructible_per_degree.
+    Applying the v4 rationality prefilter before that cap would allow rejected
+    special labels to be replaced by later survivors, so the observed target
+    inventory and cost would depend on the filter. That creates selection bias
+    and can erase the exact refusal population the control is meant to measure.
+  corrected_order:
+    stages:
+      - id: S0
+        name: source_and_degree_window
+        action: >-
+          Freeze source-instance rows, degree list, target-label generator,
+          candidate seed, canonical candidate order, and per-degree cap before
+          inspecting any target-side cost or solve outcome.
+        required_binding: candidate_policy_digest
+      - id: S1
+        name: candidate_label_enumeration
+        action: >-
+          Materialize the deterministic stream of candidate labels and public
+          coefficient/kernel/map digests in canonical order. The generator may
+          use only source data, degree, target labels, and declared deterministic
+          arithmetic; it may not inspect action success, target rho, or timing.
+        required_binding: candidate_stream_digest
+      - id: S2
+        name: primary_window_cut
+        action: >-
+          Select exactly the first max_candidates_per_degree rows of the
+          candidate stream for each source and degree. Do not refill the window
+          after any rejection, unsupported degree, trace mismatch, congruence
+          refusal, certificate failure, or missing special action.
+        required_binding: primary_window_digest
+      - id: S3
+        name: later_row_truncation
+        action: >-
+          Record every later candidate as truncated with its ordinal and public
+          digest fields, without applying target-side solve logic. The truncation
+          boundary is fixed before any result or cost is inspected.
+        required_binding: truncation_digest
+      - id: S4
+        name: row_classification
+        action: >-
+          Apply characteristic/rationality prefilter, same-field/same-trace
+          reachability, exact map/kernel/subgroup/twist/replay checks, and
+          control labels only to the fixed primary window.
+        required_binding: classification_table_digest
+      - id: S5
+        name: solve_admission
+        action: >-
+          Admit target-side rho only for rows that pass every frozen gate. No
+          classification or target selection may be changed after a solve.
+        required_binding: admission_table_digest
+  cap_contract:
+    source_policy_path: protocol_inputs/isogeny_transfer/candidate_manifest.yaml
+    prior_value: first_12_constructible_per_degree
+    corrected_value: first_12_candidate_labels_per_source_degree_before_filter
+    max_candidates_per_degree: 12
+    dynamic_refill: forbidden
+    cap_control_matching: >-
+      C-RATIONALITY-POS, C-RATIONALITY-NEG, C-SAME-TRACE-ORDINARY,
+      C-NONSPECIAL, C-RANDMAP, C-IDENTITY, and C-POS use the same source rows,
+      candidate stream, ordinal cap, and truncation rule. A control may not
+      obtain extra rows because the special filter rejected a candidate.
+    later_rows: >-
+      Rows beyond the cap are truncation records, not a reserve pool. They may
+      not be promoted after observing refusal counts, target costs, map success,
+      or solve outcomes.
+  required_manifest_fields:
+    - candidate_policy_digest
+    - candidate_stream_digest
+    - primary_window_digest
+    - truncation_digest
+    - source_instance_id
+    - degree
+    - candidate_ordinal
+    - candidate_window_status
+    - target_j
+    - target_coefficients_digest
+    - kernel_digest
+    - map_digest
+    - prefilter_decision
+    - class_membership_decision
+    - certificate_decision
+    - refusal_reason
+  row_statuses:
+    in_window:
+      allowed_decisions: [candidate, rejected, unsupported, refusal, eligible_for_transfer]
+    truncated:
+      allowed_decisions: [truncated]
+      target_side_solve: forbidden
+      gate_evaluation: >-
+        Only public deterministic label and digest material needed to bind the
+        truncation record may be generated; no filter survivor can replace it.
+  cost_schema_additions:
+    fields:
+      candidate_stream_enumeration_ops: {type: integer, unit: field_operation}
+      primary_window_cut_ops: {type: integer, unit: event}
+      truncation_marker_ops: {type: integer, unit: event}
+      nonrefill_refusals: {type: integer, unit: event}
+    accounting: >-
+      Candidate-stream, window-cut, truncation, and non-refill refusal costs are
+      charged before transfer construction. The same fixed-window accounting is
+      used in one-shot and amortized vectors; no rejected row becomes free just
+      because it avoids target-side rho.
+    formulas:
+      one_shot: >-
+        C_1_v5 = C_stream + C_window_cut + C_truncation + C_filter +
+        C_class_filter + C_rejected + C_nonrefill_refusal + C_path_search +
+        C_construct + C_forward + C_serialize + C_target_rho +
+        C_inverse_or_dual + C_replay.
+      amortized: >-
+        For k in {1,8,64}, C_k_v5 = C_stream + C_window_cut + C_truncation +
+        C_filter + C_class_filter + C_rejected + C_nonrefill_refusal +
+        C_path_search + C_construct + k * (C_forward + C_serialize +
+        C_target_rho + C_inverse_or_dual + C_replay).
+  controls_added:
+    - id: C-FIXED-WINDOW
+      kind: cap-order-control
+      construction: >-
+        Replay the same candidate stream under every special, ordinary, random,
+        identity, and excluded-positive policy and compare the primary-window
+        and truncation digests before any solve.
+      expected: >-
+        All policies have identical candidate ordinals and truncation boundaries
+        for a matched source and degree; only row classifications differ.
+    - id: C-NO-REFILL
+      kind: refusal-accounting-control
+      construction: >-
+        Force a predeclared early congruence, class, or certificate refusal in
+        the primary window and verify that later candidates remain truncated.
+      expected: >-
+        The refusal is retained and charged; no later candidate is promoted.
+  verifier_contract:
+    independent_verifier: harness/verify_isogeny_transfer_v2.py
+    required_checks:
+      - candidate_policy_digest_recomputed
+      - candidate_stream_order_recomputed
+      - primary_window_digest_recomputed
+      - truncation_digest_recomputed
+      - no_dynamic_refill
+      - prefilter_and_class_gate_after_window_cut
+      - candidate_inventory_frozen_before_target_side_rho
+      - complete_transfer_certificate_for_admitted_rows
+    forbidden_shortcuts:
+      - first_n_survivors_after_prefilter
+      - refilling_after_rejection
+      - selecting_truncation_boundary_after_observing_cost
+      - omitting_later_row_truncation_markers
+      - using_target_solve_outcome_to_change_window
+  falsification_conditions_added:
+    - >-
+      Any control has a different primary-window or truncation digest for the
+      same matched source and degree; the inventory comparison is invalid.
+    - >-
+      A later candidate enters the primary window after an in-window refusal or
+      unsupported row; the run is invalid and no transfer conclusion is admitted.
+    - >-
+      The cap is applied after rationality, class, certificate, or solve
+      filtering; the v5 ordering contract is violated.
+    - >-
+      Truncation markers or candidate-stream costs are omitted from the charged
+      vector; the comparison is incomplete.
+    - >-
+      A no-refill control is interpreted as evidence that special targets are
+      unavailable outside the frozen window; that interpretation exceeds scope.
+  interpretation_gate:
+    fixed_window_observation: >-
+      A fixed-window refusal or no-gain observation applies only to the declared
+      source rows, degrees, candidate generator, and cap. It does not close the
+      special-target lane or another isogeny class.
+    efficiency_claim: >-
+      A prefilter may reduce downstream work only within the fixed window. It
+      cannot create an advantage by changing which candidates are measured.
+    no_exponent_claim: >-
+      Candidate-window ordering and refusal accounting do not imply a rho
+      exponent change or a cryptographic-scale ECDLP result.
+  dispatch_gate:
+    not_dispatchable: true
+    required_before_approval:
+      - independent review of EXP-ECDLP-2156e3-v4 and this v5 amendment together
+      - deterministic candidate-stream and window materializer frozen
+      - source-hash-bound implementation and conformance fixtures
+      - backend preflight passes without prohibited fallback
+      - Coordinator decision explicitly admits or rejects the repair
