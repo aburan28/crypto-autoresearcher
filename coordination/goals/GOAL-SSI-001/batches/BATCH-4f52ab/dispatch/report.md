@@ -6,12 +6,11 @@ Snapshot the schema-repaired review retry capsule and obtain fresh independent V
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-6f34ac` | validator | queued | 3 | TASK-20260809-887e42 | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-6f34ac/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-6f34ac/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-6f34ac |
-| `TASK-20260809-83623a` | red-team | queued | 3 | TASK-20260809-887e42 | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-83623a/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-83623a/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-83623a |
+| `TASK-20260809-1dfd9a` | coordinator | queued | 4 | TASK-20260809-6f34ac, TASK-20260809-83623a | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/archives/TASK-20260809-1dfd9a/ledger-receipt.json, ledger/evidence/EV-SSI-710df5.yaml, ledger/decisions/DEC-20260809-74fc86.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-4f52ab.yaml, ledger/goals/GOAL-SSI-001/goal.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/archives/TASK-20260809-1dfd9a, coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-6f34ac, coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-83623a, ledger/evidence/EV-SSI-710df5.yaml, ledger/decisions/DEC-20260809-74fc86.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-4f52ab.yaml, ledger/goals/GOAL-SSI-001/goal.yaml |
 
 ## Deferred or Blocked
 
-- `TASK-20260809-1dfd9a`: dependency_not_completed:TASK-20260809-6f34ac:queued, dependency_not_completed:TASK-20260809-83623a:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Snapshot the schema-repaired review retry capsule and obtain fresh independent V
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `80a11536da6d8afec2a7d6fd86d3c2a44f5f901b0a01abbeeba686aff73cc951`
+Plan SHA-256: `d1539e567f5366ce66b6d90e92013271b9bc638a5153c3fd8206ff7f2e1dbda2`
