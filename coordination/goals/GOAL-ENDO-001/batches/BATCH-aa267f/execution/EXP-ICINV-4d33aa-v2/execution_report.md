@@ -503,6 +503,27 @@ conditions F-iii and F-v is for the Reviewer and Coordinator.
 - Work is committed on `claude/ecdlp-endomorphism-analysis-4m2w3z`.
   **Not pushed. No PR opened or updated.**
 
+### Repository checks run after the last commit
+
+| check | result |
+|---|---|
+| `python3 tools/validate_ledger.py` | `OK: validated 5312 records, no new violations` (exit 0) |
+| `python3 tools/check_run_immutability.py` | `OK: no committed run artifacts were modified or deleted` |
+| `python3 tools/check_merge_hygiene.py --base origin/main` | `PASS: no conflict markers, no unparseable records, no identifier collisions`, scoped to the 135 files this branch adds or modifies (exit 0) |
+
+**Recorded rather than passed over:** the *unscoped* `check_merge_hygiene.py`
+sweep reports 6 unparseable records —
+`experiments/EXP-P13-NC2b/specification.yaml`,
+`experiments/EXP-P13-NC2d/specification.yaml`,
+`ledger/decisions/DEC-20260805-364e9e.yaml`,
+`ledger/decisions/DEC-20260805-48b52e.yaml`,
+`ledger/decisions/DEC-20260805-661790.yaml`,
+`ledger/evidence/EV-HAWK-af783e.yaml`. **All six already exist on
+`origin/main`, are untouched by this branch, and are byte-identical to their
+`origin/main` versions** (verified per file). They belong to other campaigns and
+are the scheduled `main-health.yml` sweep's business, not this task's; they are
+noted here so the next reader does not attribute them to this work.
+
 ---
 
 ## 12. Artifact paths
