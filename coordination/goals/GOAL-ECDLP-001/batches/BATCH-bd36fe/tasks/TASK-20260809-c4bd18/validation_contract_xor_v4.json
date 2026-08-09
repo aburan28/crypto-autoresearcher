@@ -1,0 +1,100 @@
+{
+  "schema": "xor-validator/v4",
+  "validator_version": "xor-validator/v4",
+  "command_template": "python3 tools/validate_xor_v4.py --run-schema schemas/run-manifest-xor-v4.schema.json --matrix-schema schemas/matrix-summary-xor-v4.schema.json --event-schema schemas/event-ledger-xor-v4.schema.json --fixtures coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260809-c4bd18/fixtures/fixture_manifest_xor_v4.json",
+  "no_experiment_execution": true,
+  "required_exit_code": 0,
+  "required_output": "VALIDATION_PASS",
+  "canonical_prng": {
+    "domain": "XOR-PRNG-v1",
+    "seed_field_tags": {
+      "campaign_seed_u64be": "01",
+      "p_u32be": "02",
+      "b_num_u32be": "03",
+      "b_den_u32be": "04",
+      "arm_ascii": "05",
+      "process_replica_u32be": "06",
+      "null_replica_u32be": "07",
+      "query_schedule_id_ascii": "08"
+    },
+    "field_order": ["campaign_seed_u64be", "p_u32be", "b_num_u32be", "b_den_u32be", "arm_ascii", "process_replica_u32be", "null_replica_u32be", "query_schedule_id_ascii"],
+    "field_encoding": "u8 tag || u32be byte_length || value bytes; no count, omission, padding, or terminator",
+    "counter_start": 0,
+    "counter_increment": 1,
+    "word_hex": "exactly 16 lower-case hexadecimal characters for first eight digest bytes in big-endian order",
+    "query_index": "zero-based accepted-query index; null for rejected draws",
+    "rejection_record": "accepted=false, query_index=null, query_x=null, byte>=floor(256/p)*p",
+    "fixture": {
+      "p": 101,
+      "b_num": 2,
+      "b_den": 5,
+      "arm": "D",
+      "campaign_seed": 1,
+      "process_replica": 0,
+      "null_replica": 0,
+      "query_schedule_id": "prefix-v4",
+      "seed_hex": "0100000008000000000000000102000000040000006503000000040000000204000000040000000505000000014406000000040000000007000000040000000008000000097072656669782d7634",
+      "seed_sha256": "10f945b50889e99c8532bcffb6d27eb3f0628f2c99253093a50c4211a46864f8",
+      "threshold_L": 202,
+      "first_consumed_words": [
+        {"counter": 0, "word_hex": "c844d77c44046bbc", "byte": "bc", "accepted": true, "query_index": 0, "query_x": 87},
+        {"counter": 1, "word_hex": "22459328d7f3bae6", "byte": "e6", "accepted": false, "query_index": null, "query_x": null},
+        {"counter": 2, "word_hex": "0aed63deec984ff1", "byte": "f1", "accepted": false, "query_index": null, "query_x": null},
+        {"counter": 3, "word_hex": "b9d637fe8a574719", "byte": "19", "accepted": true, "query_index": 1, "query_x": 25}
+      ]
+    }
+  },
+  "matrix_domain": {
+    "p_values": [101, 103, 107, 211],
+    "b_values": [{"b_num": 2, "b_den": 5}, {"b_num": 1, "b_den": 2}],
+    "arms": ["A", "B", "D"],
+    "expected_counts": {"A": 40, "B": 40, "D": 320, "total": 400},
+    "key_order": ["p", "b_num", "b_den", "arm", "seed", "process_replica", "null_replica"],
+    "shard_rule": "ordinal in the sorted complete key list modulo 4",
+    "expected_keys_per_shard": 100
+  },
+  "accepted_fixtures": [
+    {"id": "completed_valid", "path": "fixtures/completed_valid.json", "expected_status": "completed_valid", "expected_attempted": true, "expected_valid": true},
+    {"id": "completed_invalid", "path": "fixtures/completed_invalid.json", "expected_status": "completed_invalid", "expected_attempted": true, "expected_valid": false},
+    {"id": "failed_infrastructure", "path": "fixtures/failed_infrastructure.json", "expected_status": "failed_infrastructure", "expected_attempted": true, "expected_valid": false},
+    {"id": "resource_exhaustion", "path": "fixtures/resource_exhaustion.json", "expected_status": "resource_exhaustion", "expected_attempted": true, "expected_valid": false},
+    {"id": "cancelled_by_budget", "path": "fixtures/cancelled_by_budget.json", "expected_status": "cancelled_by_budget", "expected_attempted": true, "expected_valid": false},
+    {"id": "unattempted_matrix_arm", "path": "fixtures/unattempted_matrix_arm.json", "expected_state": "not_attempted", "expected_run_id": null}
+  ],
+  "rejected_fixtures": [
+    {"id": "attempted_false_completed_valid", "mutation": "set run.attempted=false while status=completed_valid", "reason": "per-run manifests are attempted records only"},
+    {"id": "terminal_reason_missing", "mutation": "set terminal_reason=null for completed_invalid", "reason": "every non-valid terminal state has a nonempty reason"},
+    {"id": "phase_total_mismatch", "mutation": "set phase_counters.total != sum of the seven named phases", "reason": "total is outside the phase-key sum and is replay-checked"},
+    {"id": "event_index_gap", "mutation": "remove or reorder one event_index", "reason": "event indices must equal 0..event_count-1"},
+    {"id": "duplicate_arm_key", "mutation": "duplicate one complete matrix arm_key", "reason": "the matrix is the exact 400-key domain"},
+    {"id": "duplicate_shard_number", "mutation": "set two shard numbers equal", "reason": "shards must be exactly 0,1,2,3"},
+    {"id": "empty_shard_membership", "mutation": "remove one of the 100 keys from a shard", "reason": "each shard owns exactly 100 keys and the union is the complete domain"},
+    {"id": "terminal_total_mismatch", "mutation": "change one matrix terminal count without changing arm states", "reason": "totals are recomputed from arms"},
+    {"id": "stale_predecessor_selected", "mutation": "select any of the three historical predecessor IDs as the future contract or dependency", "reason": "predecessor exclusion gate must fail"}
+  ],
+  "semantic_checks": [
+    "status/attempted/terminal_reason/result.valid relations",
+    "exact six-hex RUN and MATRIX identifier patterns",
+    "exact p and rational-b domain and A/B/D seed/replica constraints",
+    "required source_blobs keys and lower-case SHA-256 values",
+    "phase total equals the sum of exactly seven phase keys",
+    "event ledger event_index is contiguous and exception normalization is exact",
+    "candidate, relation, query, table, and E.add conservation equations",
+    "400 unique complete arm keys and exact 40/40/320 arm counts",
+    "exactly four unique shards with 100-key disjoint coverage",
+    "terminal totals equal arm states and declared=attempted+not_attempted",
+    "campaign wall/CPU/RSS/output equations and all caps",
+    "three-record predecessor exclusion is hash-matched and selected/dependency-free"
+  ],
+  "binding_requirements_before_freeze": {
+    "validator_sha256": "must be recorded after the validator source is created",
+    "fixture_sha256": "must record every accepted and rejected fixture byte hash",
+    "schema_sha256": "must record run, matrix, and event schema hashes",
+    "predecessor_exclusion_sha256": "must record this exact record hash",
+    "all_fixture_cases_must_pass": true,
+    "any_failure_blocks_approval": true,
+    "any_failure_blocks_executor_admission": true
+  },
+  "measured_fields": null,
+  "interpretation": "This package defines and tests control-plane validation only. It contains no ECDLP implementation, run, observation, cost result, security claim, or status transition."
+}
