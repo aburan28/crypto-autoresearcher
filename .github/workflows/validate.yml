@@ -18,7 +18,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,campaign-mcp,research-loop]"
 
       # Installed separately so the step above proves the core toolchain still
       # works without the agent runtime's dependency tree.
@@ -63,11 +63,6 @@ jobs:
           else
             python3 tools/check_merge_hygiene.py --absolute
           fi
-
-      # Installed separately so the step above proves the core toolchain still
-      # works without the agent runtime's dependency tree.
-      - name: Install api_direct runtime dependencies
-        run: pip install -r requirements-agent.txt
 
       - name: Validate ledger, experiments, and run records
         run: |
@@ -144,6 +139,9 @@ jobs:
       - name: Validate inference configuration (offline)
         run: python3 -m orchestration.adapter doctor
 
+      - name: Enforce no-Bedrock inference cost policy
+        run: python3 tools/check_inference_cost_policy.py
+
       - name: Check runtime role bindings have not drifted
         run: python3 tools/check_runtime_bindings.py
 
@@ -166,6 +164,12 @@ jobs:
           python3 tools/research_dispatch.py coordination/dispatch_queue.json \
             --output /tmp/current_dispatch.json \
             --report /tmp/current_dispatch.md
+
+      # The root pytest configuration deliberately scopes discovery to tests/
+      # and tools/, so the portable plugin package owns an explicit contract
+      # check rather than relying on incidental test discovery.
+      - name: Check portable plugin bundle
+        run: python3 plugins/crypto-autoresearcher-harness/tests/test_bundle.py
 
       - name: Run harness tests
         run: python3 -m pytest -q

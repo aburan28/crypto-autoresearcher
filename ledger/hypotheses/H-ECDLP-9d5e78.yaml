@@ -1,0 +1,183 @@
+hypothesis:
+  id: H-ECDLP-9d5e78
+  question_id: RQ-ECDLP-002
+  statement: >-
+    In the exact m=3, two-way split, x-coordinate MITM implementation frozen by
+    EXP-SEMAEV-f48dd1, Arm B (structured x-oracle queries) has lower field-
+    addition work than Arm A (exhaustive enumeration) because the split replaces
+    two additions per |F|^3 tuple with one addition per |F|^2 right-half pair
+    plus two additions per verified candidate. The oracle's marginal effect is
+    tested separately against Arm C (random queries): it is not predicted to
+    reduce candidate verification, and may increase it because structured queries
+    hit the table more often. This is a charged toy-scale cost statement, not an
+    ECDLP attack or an asymptotic improvement.
+  mechanism: >-
+    For m=3, Arm A computes P1+P2+P3 for every ordered triple, costing exactly
+    2|F|^3 field-level group additions in the frozen implementation. Arms B and C
+    share the same right-half table and perform |F|^2 additions to build it; each
+    surviving candidate then costs two verification additions. Thus the measured
+    field-operation difference isolates the MITM split from the query strategy,
+    while the B-versus-C candidate ratio isolates the oracle's marginal effect.
+  assumptions:
+    - >-
+      The frozen source artifacts are byte-identical to the SHA-256 values in
+      EXP-ECDLP-288336/specification.yaml; a mismatch invalidates the analysis.
+    - >-
+      The source run's own control checks are authoritative only as input data;
+      this successor recomputes the listed arithmetic and does not trust the
+      source evidence record's fabricated placeholder hashes.
+    - >-
+      Field-level group additions are a toy cost proxy. Hashing, dictionary
+      lookup, allocation, and memory locality are not included and limit the
+      result to the declared implementation and scale.
+    - >-
+      A/B equality of relation sets is represented by the source run's exact
+      relation counts and is checked cell-by-cell; no claim is made about an
+      untested m, field, oracle, or split.
+  proof_search_map:
+    bottleneck: >-
+      Determine whether the apparent MITM saving is a charged work reduction and
+      whether any saving belongs to the oracle rather than to the split itself.
+    baseline_embedding:
+      parameter_slice: >-
+        The exact 40-cell m=3 prime-field grid and the frozen Arm A exhaustive
+        implementation in EXP-SEMAEV-f48dd1.
+      reproduction_check: >-
+        Recompute every source cell's field-operation identities and SHA-256
+        bindings before aggregating any metric.
+    observation_collision:
+      observable: >-
+        field_operations and candidates_verified for the three matched arms.
+      distinct_preimage_search: >-
+        Compare B versus A (split effect) and B versus C (query-strategy effect);
+        do not interpret B versus C as a yield claim.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Two-way MITM table keyed by x(P2+P3), with exact candidate verification.
+        predicted_gain: >-
+          A constant-factor reduction in counted field additions at the frozen m=3
+          grid, with no exponent or memory improvement versus Pollard rho.
+    quantifier_order: >-
+      For every one of the 40 frozen (p,b,seed) cells, first verify source hashes
+      and source controls, then compute the exact A/B/C cost ratios; aggregate
+      only after cell-level validity is established. No conclusion quantifies over
+      other m, fields, oracle types, or implementations.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A scoped observation about this implementation's counted field additions
+        and the marginal candidate effect of its x-coordinate query strategy.
+      nearby_object_control: >-
+        Arm C uses the identical MITM table and verification path with deterministic
+        random queries; Arm A is the exhaustive same-relation baseline.
+    proof_obligations:
+      - claim: source artifacts are the intended frozen bytes
+        responsibility: interface
+      - claim: all 40 cells and three arms are present and valid
+        responsibility: correctness
+      - claim: A/B/C field-operation identities are recomputed exactly
+        responsibility: runtime
+      - claim: split saving and oracle marginal effect are not conflated
+        responsibility: scope
+      - claim: no exponent or crypto-scale claim follows
+        responsibility: scope
+    not_applicable_reason: >-
+      This is an empirical reanalysis of a frozen toy run, not a proof of a new
+      theorem or asymptotic bound; the map is retained to enforce the method
+      ceiling and collision controls.
+  asymptotic_claim:
+    problem: prime-field ECDLP relation search
+    prior_best: Pollard rho O(sqrt(N)) time with low memory
+    time_exponent: no improvement; the tested m=3 search remains O(|F|^3) enumeration-space
+    memory_exponent: O(|F|^2) for the MITM table, versus low memory for rho
+    hidden_cofactor: hash-table and memory-system costs are excluded from the field-op proxy
+    claim_kind: constant_factor
+  heuristic_assumptions: []
+  structural_ingredients: []
+  reduction_chain:
+    core_problem: >-
+      Charged comparison of a toy relation-search implementation
+    corollaries: []
+  predictions:
+    - metric: field_operations_B / field_operations_A
+      direction: lower
+      minimum_effect: < 1 on every valid cell, subject to the frozen field-op model
+    - metric: candidates_verified_B / candidates_verified_C
+      direction: different
+      minimum_effect: 'greater than 1 on average is expected; a value below 1 would show an oracle-specific filtering effect'
+    - metric: relations_found_A - relations_found_B
+      direction: different
+      minimum_effect: exactly 0 on every valid cell in the source data
+  test_boundary:
+    instances:
+      - 40 frozen cells from EXP-SEMAEV-f48dd1
+    parameters:
+      m: 3
+      primes: [101, 103, 107, 211]
+      b_values: [0.4, 0.5]
+      seeds: [1, 2, 3, 4, 5]
+      arms: [A_exhaustive, B_x_oracle_MITM, C_random_MITM]
+      cost_unit: counted field-level group additions
+    implementation: experiments/EXP-ECDLP-288336/code/analyze_mitm_cost.py
+    budget:
+      wall_clock_seconds_total: 120
+      maximum_memory_gb: 1
+      maximum_runs: 1
+  falsification_conditions:
+    - >-
+      Any source hash mismatch, missing cell, failed source control, or arithmetic
+      identity mismatch invalidates the analysis rather than falsifying the hypothesis.
+    - >-
+      A valid cell with field_operations_B >= field_operations_A falsifies the
+      claimed split saving at that cell and requires a scoped interpretation.
+    - >-
+      A valid aggregate with candidates_verified_B < candidates_verified_C falsifies
+      the prediction that the structured oracle is not a better filter than the
+      random-query control; it does not falsify the MITM split saving.
+    - >-
+      Any attempt to generalize the result to another m, field, oracle, curve
+      family, or crypto-scale parameter is outside the record and invalidates the
+      proposed interpretation, not the raw arithmetic.
+  interpretation_limits:
+    - >-
+      Toy-scale reanalysis only; no discrete logarithm is solved and no attack
+      improvement, exponent change, or crypto-scale claim is available.
+    - >-
+      The observed saving belongs to the MITM split unless the B-versus-C control
+      separately demonstrates an oracle-specific improvement. The source data's
+      B-versus-C yield difference is not a yield claim about the oracle.
+    - >-
+      The field-operation proxy excludes hash-table, allocation, cache, and
+      memory-bandwidth costs; it cannot certify wall-clock scaling.
+    - >-
+      Pollard rho remains the relevant generic baseline and dominates the tested
+      relation-search strategy in asymptotic time and memory.
+    - >-
+      Unexplored directions include m other than 3, other oracle outputs, other
+      MITM partitions, extension fields, and curve families; this record closes
+      none of them.
+  dominated_by: >-
+    Pollard rho with distinguished points in time and memory on the declared
+    prime-field ECDLP scope; the tested MITM table is also memory-heavier than rho.
+  sota_delta: >-
+    Zero exponent improvement. Any measured field-operation ratio is a
+    representation-specific constant at toy scale and is not a cryptographic
+    speedup claim.
+  status: analyzed
+  status_history:
+    - status: approved
+      decided_at: '2026-08-08'
+      decision_id: DEC-20260808-d7e914
+      rationale: >-
+        Approved as a repaired successor to the rejected yield comparison, with
+        the split effect, oracle marginal effect, hash integrity, and toy scope
+        explicitly separated before analysis.
+    - status: analyzed
+      decided_at: '2026-08-08'
+      decision_id: DEC-20260808-16678c
+      rationale: >-
+        RUN-ECDLP-288336-002 is valid after the v3 provenance correction and
+        independent validation PASS. The bounded toy observations support the
+        preregistered split-cost and query-control predictions; replication,
+        scale, and proof gates remain open.
+  proposed_by: coordinator

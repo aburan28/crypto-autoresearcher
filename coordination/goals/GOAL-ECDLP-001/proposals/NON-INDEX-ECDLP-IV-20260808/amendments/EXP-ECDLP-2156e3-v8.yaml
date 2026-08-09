@@ -1,0 +1,153 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-2156e3
+  version_from: 7
+  version_to: 8
+  kind: normalized_cost_denominator_binding_superseding_amendment
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  status: draft_pending_independent_review
+  approved_by: null
+  approved_by_decision: null
+  affected_runs: []
+  confirmatory_status: preserved
+  supersedes:
+    path: amendments/EXP-ECDLP-2156e3-v7.yaml
+    snapshot_commit: ac8a92a3c
+    treatment: immutable_prior_amendment_remains_unchanged
+  scope_statement: >-
+    This amendment binds the Arm-B normalization denominator to the measured
+    prime subgroup order. The immutable v1 metric text used sqrt(ell), where
+    ell is the isogeny degree; that symbol is not the DLP size and may vary
+    independently of N_subgroup. The corrected binding uses sqrt(N_subgroup)
+    for every raw cost vector and every baseline-policy cell. This is a metric
+    repair only and does not approve Arm B or assert a result.
+  defect: >-
+    The original experiment specification listed end-to-end charged solve cost
+    divided by sqrt(ell), while its cost schema and later reachability amendment
+    require sqrt(N_subgroup). Leaving both symbols visible without a superseding
+    binding permits an implementation to report a degree-dependent denominator
+    and create a spurious cross-degree signal.
+  normalization_contract:
+    denominator: sqrt(N_subgroup)
+    measured_quantity: >-
+      N_subgroup is the independently recomputed exact prime order of the
+      declared source/target subgroup used for the DLP instance. It must be
+      bound to the source and target curve digests and scalar-replay receipt.
+    degree_symbol: >-
+      ell denotes only the declared isogeny degree. It may appear as an
+      independent grouping variable and in construction/path cost fields, but
+      never as the normalization denominator or an implicit DLP-size proxy.
+    raw_vector_first: true
+    normalized_vector: >-
+      For every raw vector component C_i, report C_i / sqrt(N_subgroup) using
+      exact recorded N_subgroup and a deterministic numeric representation.
+      Preserve raw integer/event/byte/time fields without replacing them by a
+      scalar aggregate.
+    policy_cell_binding: >-
+      Apply the same denominator independently to C-DIRECT ordinary,
+      C-DIRECT-NEG, C-DIRECT-FULL, and every target-policy cell. A refused cell
+      has no normalized solve vector and must carry refusal status rather than a
+      fabricated zero.
+  receipt_contract:
+    required_fields:
+      - normalization_schema
+      - normalization_denominator_expression
+      - N_subgroup
+      - N_subgroup_source_curve_digest
+      - N_subgroup_target_curve_digest
+      - raw_cost_vector
+      - normalized_cost_vector
+      - baseline_policy_id
+      - target_policy_id
+      - refusal_or_validity_status
+    normalization_schema: crypto.autoresearch.ecdlp.sqrt_prime_order.v1
+    denominator_expression: sqrt(N_subgroup)
+    forbidden_fields:
+      - normalized_by_sqrt_ell
+      - inferred_subgroup_order
+      - degree_as_subgroup_size
+    refusal_rule: >-
+      Missing, composite, inconsistent, or unrecomputed N_subgroup invalidates
+      the normalized vector. The row is a validity/refusal record, not evidence
+      against the transfer hypothesis.
+  comparison_contract:
+    degree_strata: [2, 3, 4, 5, 7, 11]
+    required_reporting:
+      - raw_vector_by_degree_and_policy_cell
+      - normalized_vector_by_degree_and_policy_cell
+      - N_subgroup_by_source_and_target_digest
+      - degree_as_separate_grouping_field
+      - one_shot_targets_1_8_64
+    no_cross_degree_pooling: true
+    no_scalar_aggregate: >-
+      No scalar total-cost score may combine construction, field/group work,
+      serialization, memory, wall time, or policy cells without a separately
+      approved price table. Normalization does not authorize weighting.
+  controls_added:
+    - id: C-NORM-ORDER
+      kind: subgroup-order-normalization-control
+      construction: >-
+        Recompute source and target subgroup orders independently and replay the
+        exact denominator binding before comparing any degree or policy cell.
+      expected: >-
+        The denominator equals sqrt(N_subgroup) for every valid cell and is
+        independent of ell.
+    - id: C-NORM-DEGREE-MUTATION
+      kind: degree-symbol-invalidation-control
+      construction: >-
+        Mutate only the declared degree while retaining a matched subgroup
+        order in a conformance record and verify that normalization does not
+        change unless N_subgroup changes.
+      expected: >-
+        A degree-only mutation cannot alter the denominator; any sqrt(ell)
+        binding is rejected.
+  verifier_contract:
+    independent_verifier: harness/verify_isogeny_transfer_v2.py
+    required_checks:
+      - N_subgroup_recomputed_independently
+      - source_and_target_order_trace_consistency
+      - normalization_expression_exactly_sqrt_N_subgroup
+      - ell_not_used_as_denominator
+      - raw_vector_present_before_normalization
+      - normalized_vector_bound_to_curve_and_subgroup_digests
+      - baseline_and_target_policy_cell_bound
+      - refusal_rows_not_zero_filled
+      - no_scalar_price_table_without_approval
+    forbidden_shortcuts:
+      - normalize_by_sqrt_degree
+      - infer_N_subgroup_from_ell
+      - overwrite_raw_vector_with_normalized_value
+      - pool_degrees_before_reporting_per_degree_vectors
+      - compare_policy_cells_without_denominator_binding
+  falsification_conditions_added:
+    - >-
+      Any valid receipt uses sqrt(ell) or another degree-dependent denominator;
+      the normalized comparison is invalid.
+    - >-
+      N_subgroup is not independently recomputed or does not match curve/order
+      and scalar-replay certificates; the row is refused.
+    - >-
+      A refused cell receives a zero normalized solve vector; validity handling
+      is invalid and no result is admitted.
+    - >-
+      A degree-only mutation changes the denominator while N_subgroup is fixed;
+      the normalization implementation is defective.
+    - >-
+      A scalar aggregate or cross-policy price is introduced without a frozen
+      approval and price table; the comparison is invalid.
+  interpretation_gate:
+    metric_only: >-
+      Correct normalization prevents a degree-dependent measurement artifact;
+      it does not imply a speedup, exponent movement, or cryptographic-scale
+      conclusion.
+    scope: >-
+      Any future observation remains limited to the declared source rows,
+      subgroup certificates, degree budget, policy cells, and target counts.
+  dispatch_gate:
+    not_dispatchable: true
+    required_before_approval:
+      - independent review of EXP-ECDLP-2156e3-v7 and this v8 amendment together
+      - source-hash-bound normalization and receipt implementation frozen
+      - denominator and refusal conformance fixtures
+      - backend preflight passes without prohibited fallback
+      - Coordinator decision explicitly admits or rejects the correction

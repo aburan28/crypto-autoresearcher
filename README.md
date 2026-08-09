@@ -127,6 +127,13 @@ make doctor           # what is missing, before anything costs money
 per backend, role-binding drift, and suite health, then prints the specific
 next command for whatever is blocking. Everything is offline and free.
 
+Amazon Bedrock is disabled as a cost guardrail. OpenCode disables the provider
+and defaults to OpenAI models, while the repository adapter rejects any Bedrock
+backend, endpoint, or model identifier before inference. Authenticated direct
+Codex and Claude Code sessions are allowed when their resolved provider is not
+Bedrock, as are configured API backends such as `openai` or `local`; historical
+run receipts remain immutable.
+
 ```sh
 cp .env.example .env                      # fill in one key; .env is gitignored
 autoresearch backends                     # endpoints, key variables, what is bound
@@ -209,6 +216,25 @@ Manual path:
 4. Freeze an experiment protocol before dispatching it to the Executor.
 5. Store every run with its exact command, revision, environment, seed, raw result, logs, and validity status.
 6. Record the Coordinator decision that follows from the evidence.
+
+## Host plugins
+
+The repository ships a thin, portable
+[`crypto-autoresearcher-harness`](plugins/crypto-autoresearcher-harness/README.md)
+plugin package for Codex, Claude Code, and OpenCode. It supplies a shared
+front-door skill and a read-only preflight; it does not duplicate the role
+contracts or create an alternate dispatch path. The checked-in bindings remain
+the authority: `.claude/agents/`, `.opencode/agent/`, and `.codex/agents/` are
+all generated from `orchestration/roles.yaml`.
+
+Install instructions and host-specific discovery details are in the plugin
+README. Every invocation begins with a no-cost readiness check before an agent
+can dispatch a task or call a backend.
+
+For multiple local agents, the same package also ships opt-in snippets for a
+single loopback-only peer-check-in MCP daemon. It provides advisory presence
+only; the ledger, dispatch queue, and Coordinator archive flow remain the sole
+authority for research state.
 
 ## Local CLI
 

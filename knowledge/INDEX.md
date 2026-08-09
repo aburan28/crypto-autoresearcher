@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-8017 entries.
+8021 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7808,6 +7808,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-968 | DYNAMICS ON P1 : PREPERIODIC POINTS AND PAIRWISE STABILITY | literature | reported | read | elliptic-curve endomorphism pairing |
 | KN-LIT-969 | Efficient NIZKs and Signatures from Commit-and-Open Protocols in the QROM? | literature | reported | read | hash lattice mov-fr pairing pqc provable-security quantum signature zk-proof |
 | KN-LIT-970 | Efficient Proofs of Knowledge for Threshold Relations | literature | reported | read | dlp hash pairing zk-proof |
+| KN-LIT-970963 | Dimension Reduction for SVP in HAWK: A Trace-Zero Approach | literature | reported | read | svp hawk module-lip nrdpip quaternion trace-zero cyclotomic lattice |
 | KN-LIT-971 | ELLIPTIC ANALOGUE OF IRREGULAR PRIME NUMBERS FOR THE pn -DIVISION FIELDS OF THE CURVES y 2 = x3 − (s4 + t2 )x | literature | reported | read | class-group complexity-theory curve-arithmetic elliptic-curve number-theory |
 | KN-LIT-972 | Elliptic Loops | literature | reported | read | abelian-variety dlp elliptic-curve provable-security quantum |
 | KN-LIT-973 | Endomorphism Rings of Supersingular Elliptic Curves over Fp and Binary Quadratic Forms | literature | reported | read | class-group elliptic-curve endomorphism finite-field isogeny number-theory sidh-csidh supersingular |
@@ -7874,6 +7875,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-ced593 | On the complexity of some cryptographic problems based on the general decoding problem | literature | reported | web | isd syndrome-decoding code-based mceliece complexity general-decoding lpn |
 | KN-LIT-d15818 | FPGA-based Niederreiter cryptosystem using binary Goppa codes | literature | reported | web | classic-mceliece code-based implementation hardware fpga niederreiter goppa |
 | KN-LIT-d1a453 | Recognizing the structure of permuted reducible codes | literature | reported | false | code-based mceliece structural-attack key-recovery permuted-codes reducible-codes structural-recognition |
+| KN-LIT-d4f467 | Embedded Elliptic Curves and Embedded Families for SNARK-Friendly Elliptic Curves | literature | reported | read | embedded-curve snark pairing bandersnatch cm-method schnorr |
 | KN-LIT-d5b1a7 | Fast hardware architecture with efficient matrix computations for the key generation of Classic McEliece | literature | reported | web | classic-mceliece code-based implementation hardware key-generation matrix-computation fpga |
 | KN-LIT-d5baac | Post-quantum WireGuard | literature | reported | web | classic-mceliece code-based implementation protocol wireguard vpn hybrid deployment |
 | KN-LIT-d6d510 | An attack on the CFS scheme and on TII McEliece challenges | literature | reported | web | code-based mceliece structural-attack key-recovery cfs signatures challenges algebraic-cryptanalysis |
@@ -7932,7 +7934,9 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-026 | How large is the concrete security discount from module/ring structure, and does it grow with better techniques? | open_problem | reported | open | module-lwe ring-lwe lwe structure hybrid-attack coefficient-isometry sparse-secret fhe kyber ml-kem concrete-security cost-model symmetry open lattice |
 | KN-OPEN-027 | Is HAWK's module-LIP assumption reachable through nrd-PIP, and do the four heuristics hold? | open_problem | reported | open | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg heuristic unverified-heuristic pqc concrete-security open lattice |
 | KN-OPEN-028 | What is the corrected cost of the nrd-PIP route against HAWK, now that Heuristic 4 has failed and 1-3 are verified? | open_problem | read | closed_all_questions_answered | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg super-polynomial fractional-ideals heuristic retracted-claim pqc open lattice |
+| KN-OPEN-2c095b | Is the multiplicative-order deficit of a curve-derived lambda a fact about CM arithmetic, or a fact about small integers? | open_problem | unverified | open | ecdlp ordinary-curves cm endomorphism kernel-field multiplicative-order matched-null null-design heuristic-validation toy-scale open |
 | KN-OPEN-3f7a21 | Can this program's literature corpus support its own citation_verified markings, when 7457 of 7666 entries claim read against a downloads/ tree that has never existed in the repository? | open_problem | reported | open | corpus-integrity provenance citation-verified seeding novelty-screen knowledge-base meta open tooling audit |
+| KN-OPEN-5b3a08 | Does the shared harness/semaev.py's confirmed s4_expr bug, or build_factor_base's whole-curve (not target-subgroup) sampling, materially affect other Semaev/point-decomposition index-calculus experiments? | open_problem | established | open | semaev groebner harness-bug factor-base cofactor point-decomposition index-calculus cross-experiment shared-harness open |
 | KN-OPEN-875d43 | Does weakness beat description length as a hypothesis-selection proxy under a non-uniform (cryptanalytic) task distribution? | open_problem | unverified | open | methodology hypothesis-selection induction generalisation weakness mdl occams-razor non-uniform-prior harness-evaluation open |
 | KN-OPEN-8a5965 | Does Simon's claimed polynomial-time DCP algorithm survive scrutiny, and if so does it reach the concrete Module-LWE parameters of ML-KEM / ML-DSA? | open_problem | unverified | open | quantum dcp dihedral lattice lwe mlwe ml-kem ml-dsa svp verification unverified-claim pqc post-quantum open adjacent |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
