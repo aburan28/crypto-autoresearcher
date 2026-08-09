@@ -1,0 +1,178 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-2156e3
+  version_from: 6
+  version_to: 7
+  kind: direct_baseline_policy_binding_superseding_amendment
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  status: draft_pending_independent_review
+  approved_by: null
+  approved_by_decision: null
+  affected_runs: []
+  confirmatory_status: preserved
+  supersedes:
+    path: amendments/EXP-ECDLP-2156e3-v6.yaml
+    snapshot_commit: 914f92750
+    treatment: immutable_prior_amendment_remains_unchanged
+  scope_statement: >-
+    This amendment makes the Arm-B direct source baseline policy explicit. The
+    primary transfer comparison is against ordinary source-curve rho; direct
+    negation and direct full-verified-action modes are separate matched control
+    rows, never silently substituted or pooled. The correction does not approve
+    Arm B, select a target, or assert a mathematical result.
+  defect: >-
+    The frozen C-DIRECT control manifest labels its solver_policy as Arm-A-full
+    even though its map is none and the transfer hypothesis names direct rho as
+    the baseline. Without an explicit policy matrix, a target quotient result
+    can be compared to an inconsistent source policy or a missing full-action
+    certificate can be silently substituted.
+  baseline_policy_contract:
+    primary:
+      control_id: C-DIRECT
+      source_curve: identical_source_instance
+      solver_policy: ordinary
+      map: none
+      canonicalization: forbidden
+      purpose: >-
+        Generic source-curve rho baseline for the primary end-to-end transfer
+        comparison. It uses the same P,Q,N_subgroup, seed, trial schedule,
+        success definition, restart cap, and serialization contract.
+    matched_secondary:
+      - control_id: C-DIRECT-NEG
+        solver_policy: negation
+        map: verified_identity_negation_pair
+        admission: >-
+          Always require the ordinary negation certificate and carry its scalar
+          multiplier through representative changes; missing certificate is a
+          refusal, not an ordinary substitution.
+      - control_id: C-DIRECT-FULL
+        solver_policy: full
+        map: verified_Fp_defined_automorphism
+        admission: >-
+          Require the complete Arm-A field/order/eigenvalue/stabilizer/subgroup
+          certificate on the identical source instance. If unavailable, emit a
+          refusal row and do not replace it with ordinary or negation.
+    target_comparison_matrix:
+      primary: target_policy_full_vs_C-DIRECT-ordinary
+      matched_secondary:
+        - target_policy_ordinary_vs_C-DIRECT-ordinary
+        - target_policy_negation_vs_C-DIRECT-NEG
+        - target_policy_full_vs_C-DIRECT-FULL
+      interpretation: >-
+        Report every cell separately. A target-versus-ordinary result may show
+        the total value of moving to a special target; a same-policy cell
+        isolates transfer overhead from quotient policy. No scalar weighting or
+        pooled advantage is permitted without a separately approved price table.
+  control_manifest_correction:
+    prior:
+      C-DIRECT:
+        map: none
+        solver_policy: Arm-A-full
+    corrected:
+      C-DIRECT:
+        map: none
+        solver_policy: ordinary
+      C-DIRECT-NEG:
+        map: identity_negation_pair
+        solver_policy: negation
+      C-DIRECT-FULL:
+        map: source_automorphism_certificate
+        solver_policy: full
+    immutable_boundary: >-
+      The v2/v3 control manifests remain unchanged. This table is the v7
+      superseding binding and must be joined to a later source-hash-bound
+      implementation before any run.
+  matching_keys:
+    required:
+      - source_instance_id
+      - source_curve_digest
+      - P_digest
+      - Q_digest
+      - N_subgroup
+      - field_p
+      - seed
+      - trial_index
+      - max_steps
+      - max_restarts
+      - success_definition
+      - baseline_policy_id
+      - target_policy_id
+    no_cross_policy_substitution: true
+    no_target_selection_after_outcome: true
+  cost_schema_additions:
+    fields:
+      baseline_policy_id: {type: string, unit: label}
+      target_policy_id: {type: string, unit: label}
+      baseline_refusal: {type: integer, unit: event}
+      policy_pair_cell: {type: string, unit: label}
+    accounting: >-
+      Emit raw and normalized vectors for every baseline/target policy cell.
+      Refused matched controls remain visible and are not replaced by another
+      policy. Candidate, transfer, serialization, target-rho, inverse, replay,
+      memory, and wall-time costs remain charged independently.
+  controls_added:
+    - id: C-DIRECT-NEG
+      kind: matched_direct_negation_baseline
+      expected: >-
+        Same source instance and schedule as C-DIRECT with only the verified
+        identity/negation canonicalizer changed.
+    - id: C-DIRECT-FULL
+      kind: matched_direct_full_action_baseline
+      expected: >-
+        Same source instance and schedule with a complete verified full action;
+        absent action produces refusal, never policy substitution.
+    - id: C-BASELINE-CELL
+      kind: baseline-policy-matrix-control
+      expected: >-
+        Every reported target cell names its exact direct baseline policy and
+        cannot be pooled with another cell.
+  verifier_contract:
+    independent_verifier: harness/verify_isogeny_transfer_v2.py
+    required_checks:
+      - baseline_policy_id_recomputed
+      - target_policy_id_recomputed
+      - identical_source_instance_binding
+      - ordinary_direct_mode_has_no_canonicalizer
+      - negation_direct_mode_has_verified_negation_certificate
+      - full_direct_mode_has_complete_automorphism_certificate
+      - policy_pair_cell_not_pooled
+      - refusal_rows_not_substituted
+      - scalar_replay_and_transfer_certificate
+    forbidden_shortcuts:
+      - compare_target_full_to_direct_full_without_declaring_primary_cell
+      - label_map_none_as_full_solver
+      - substitute_ordinary_for_refused_full_control
+      - pool_target_vs_ordinary_and_target_vs_full_cells
+      - choose_baseline_after_observing_target_cost
+  falsification_conditions_added:
+    - >-
+      C-DIRECT is executed with a canonicalizer or full policy while labeled
+      ordinary; the affected comparison cell is invalid.
+    - >-
+      A target result lacks an explicit baseline_policy_id and policy-pair
+      cell; no transfer interpretation is admitted.
+    - >-
+      A refused direct full or negation control is replaced by ordinary output;
+      the control matrix is invalid.
+    - >-
+      Target-versus-ordinary and target-versus-full cells are pooled or scalar
+      weighted without an approved price table; the comparison is invalid.
+    - >-
+      A baseline policy is chosen after target solve cost or success is seen;
+      target-selection and interpretation contracts are violated.
+  interpretation_gate:
+    primary_cell: >-
+      Only the declared target_policy_full versus C-DIRECT-ordinary cell is the
+      primary total-value comparison. Secondary cells are descriptive and must
+      be reported separately.
+    no_exponent_claim: >-
+      Baseline-policy alignment cannot imply a rho exponent change or a
+      cryptographic-scale ECDLP result.
+  dispatch_gate:
+    not_dispatchable: true
+    required_before_approval:
+      - independent review of EXP-ECDLP-2156e3-v6 and this v7 amendment together
+      - source-hash-bound baseline matrix implementation frozen
+      - direct ordinary/negation/full conformance fixtures
+      - backend preflight passes without prohibited fallback
+      - Coordinator decision explicitly admits or rejects the correction
