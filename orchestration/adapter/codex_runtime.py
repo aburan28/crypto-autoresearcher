@@ -36,6 +36,7 @@ STATE_COLUMNS = (
 )
 FAILURE_CODES = frozenset({
     "invalid_argument", "receipt_exists", "codex_version_failed",
+    "forbidden_inference_target",
     "launch_timeout", "launch_nonzero_exit", "probe_output_mismatch",
     "thread_id_missing", "thread_id_ambiguous", "state_db_read_failed",
     "state_row_missing", "state_row_ambiguous", "rollout_path_invalid",
@@ -579,6 +580,14 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
                 not isinstance(timeout_seconds, int) or timeout_seconds <= 0):
             raise _ProbeFailure("invalid_argument")
         try:
+            # ``--model`` is an executable selector passed to the native CLI,
+            # so reject it before even the harmless-looking version subprocess:
+            # a caller-supplied Bedrock model must never reach ``codex exec``.
+            cfg.assert_inference_target_allowed(
+                model, context="Codex session probe requested model")
+        except config_module.ConfigError:
+            raise _ProbeFailure("forbidden_inference_target") from None
+        try:
             canonical_policy = cfg.canonical_policy(policy)
         except config_module.ConfigError:
             raise _ProbeFailure("invalid_argument") from None
@@ -671,6 +680,18 @@ def probe_codex_session(*, cfg: config_module.Config, codex_bin: str,
         })
         provider = row["model_provider"].strip() if isinstance(row["model_provider"], str) else ""
         body["runtime"]["provider"] = provider or None
+        try:
+            # A native Codex session cannot establish its provider without
+            # observing the session metadata after launch.  It must therefore
+            # never turn a consistently reported forbidden provider or model
+            # into a verified runtime receipt.
+            cfg.assert_inference_target_allowed(
+                row.get("model"), row.get("model_provider"),
+                session.get("model"), session.get("model_provider"),
+                turn.get("model"), turn.get("model_provider"),
+                context="observed Codex runtime target")
+        except config_module.ConfigError:
+            raise _ProbeFailure("forbidden_inference_target") from None
         # Preserve the runtime-bindings gate: all request/state/rollout checks
         # must fail closed before invoking the checker.  These placeholder
         # values consume no clock reading and are only a preliminary metadata

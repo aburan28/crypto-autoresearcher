@@ -1,0 +1,78 @@
+schema: crypto.autoresearch.ecdlp.isogeny_candidate_policy.v3
+status: successor_input_draft_pending_independent_review
+policy_version: arm-b-v9
+supersedes:
+  path: protocol_inputs/isogeny_transfer/candidate_manifest.yaml
+  sha256: bcb8d79f5940495a3938f31f41f49524d2f3cf6435191b76de7509ff3080391e
+  treatment: immutable_archived_input_remains_unchanged
+role: >-
+  This versioned successor freezes the pre-action candidate stream and fixed
+  window required by Arm-B v5/v6. It is a protocol input, not a materialized
+  candidate manifest, run receipt, or ECDLP evidence.
+source_instance_manifest: artifacts/automorphism_census/instance_manifest.yaml
+degrees: [2, 3, 4, 5, 7, 11]
+seeds: [101, 103, 107, 109, 113, 127, 131, 137]
+max_candidates_per_degree: 12
+pre_action_candidate_key:
+  schema: crypto.autoresearch.ecdlp.preaction_candidate_key.v1
+  fields:
+    - source_instance_id
+    - degree
+    - target_j
+    - target_coefficients_digest
+    - candidate_rank
+    - candidate_seed
+  ordering: bytewise(source_instance_id, degree, target_j, target_coefficients_digest, candidate_rank, candidate_seed)
+candidate_order: bytewise(source_instance_id, degree, target_j, target_coefficients_digest, candidate_rank, candidate_seed)
+window_policy:
+  cut: first_12_candidate_keys_per_source_and_degree
+  refill: forbidden
+  later_rows: record_all_as_truncated
+  freeze_before: first_target_side_rho_solve
+  post_window_work: >-
+    Kernel materialization, map construction, rationality and class gates,
+    certificate checks, and target-side solve admission occur only after the
+    candidate window and truncation rows are frozen.
+post_window_fields:
+  - kernel_digest
+  - map_digest
+  - certificate_digest
+  - attempted_stage
+  - refusal_reason
+truncation_fields:
+  required: [pre_action_candidate_key, candidate_ordinal, truncation_reason]
+refusal_fields:
+  required: [pre_action_candidate_key, refusal_reason, attempted_stage]
+null_digest_rule: >-
+  A null kernel, map, or certificate digest means that stage was not attempted
+  and must carry an explicit attempted-stage reason. Null is not an identity
+  map and does not admit a target-side solve.
+manifest_hash: sha256(canonical_utf8_yaml_with_lf_endings)
+required_row_kinds: [candidate, rejected, truncated, C-RANDMAP, C-NONSPECIAL, C-IDENTITY, C-POS, unsupported]
+random_map_seed: sha256(seed || "C-RANDMAP" || source_instance_id || degree || candidate_rank)
+even_degree_rule: dedicated_formula_or_explicit_unsupported_receipt
+target_strata:
+  unit-special: j in {0, 1728} with verified F_p-defined automorphism
+  cm-nonunit: verified non-unit CM endomorphism with subgroup eigenvalue
+  ordinary-other: ordinary target with no admitted special action
+  control-nonspecial: same-order non-special neighbor under same degree budget
+  excluded-positive: anomalous or small-embedding calibration
+stratum_gate: >-
+  A row may be labeled cm-nonunit only after a separate endomorphism
+  construction/eigenvalue certificate; a j-invariant label alone is
+  insufficient.
+current_arm_admission:
+  unit-special: admitted_if_Arm-A_certificate_valid
+  cm-nonunit: refusal_until_separate_S2_protocol_approval
+  ordinary-other: admitted_as_baseline_or_control
+  control-nonspecial: admitted_as_control
+  excluded-positive: retained_only_as_excluded_calibration
+accounting_boundary:
+  candidate_key_and_window_costs: charged_for_every_candidate_and_truncation
+  kernel_map_certificate_costs: charged_only_for_in_window_attempts
+  no_dynamic_refill: true
+  no_target_selection_after_observation: true
+claim_boundary: >-
+  The overlay repairs input ordering and stage boundaries only. It does not
+  select a target, authorize a run, or assert a transfer advantage.
+
