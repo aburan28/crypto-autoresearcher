@@ -6,12 +6,11 @@ Supersede the stale EV-WESO-001 anchor/crossover interpretation from the immutab
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-b30a85` | validator | queued | 3 | TASK-20260809-44fea0 | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-b30a85/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-b30a85/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-b30a85 |
 | `TASK-20260809-e805f6` | red-team | queued | 3 | TASK-20260809-44fea0 | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-e805f6/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-e805f6/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-e805f6 |
 
 ## Deferred or Blocked
 
-- `TASK-20260809-aa1a71`: dependency_not_completed:TASK-20260809-b30a85:queued, dependency_not_completed:TASK-20260809-e805f6:queued
+- `TASK-20260809-aa1a71`: dependency_not_completed:TASK-20260809-e805f6:queued
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Supersede the stale EV-WESO-001 anchor/crossover interpretation from the immutab
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `7baedef7d694b5b634b34e2ddf87aa11bd75bb476f4e127308ebbc74071dfbba`
+Plan SHA-256: `8990d308f6b4fc2e7e5513f0cc4f25e208828c10c23e94ecebfc1a4ae2a05525`
