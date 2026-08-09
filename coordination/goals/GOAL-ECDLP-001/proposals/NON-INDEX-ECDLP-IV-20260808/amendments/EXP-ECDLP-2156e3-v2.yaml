@@ -1,0 +1,249 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-2156e3
+  version_from: 1
+  version_to: 2
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  status: draft_pending_independent_review
+  approved_by: null
+  approved_by_decision: null
+  affected_runs: []
+  confirmatory_status: preserved
+  scope_statement: >-
+    This amendment pins the Arm-B implementation boundary and the end-to-end
+    charge model. It does not select targets from observed solve outcomes and
+    does not authorize Arm B before an immutable Arm-A snapshot exists. It
+    reserves ell for isogeny degree and uses N_subgroup for all DLP
+    normalization, and it binds deterministic candidate/null manifests and
+    an independent transfer verifier.
+  artifact_paths:
+    - protocol_inputs/implementation_boundary.yaml
+    - protocol_inputs/isogeny_transfer/candidate_manifest.yaml
+    - protocol_inputs/isogeny_transfer/control_manifest.yaml
+    - protocol_inputs/isogeny_transfer/cost_schema.yaml
+    - artifacts/isogeny_transfer/candidate_manifest.yaml
+    - artifacts/isogeny_transfer/candidate_manifest.sha256
+    - artifacts/isogeny_transfer/source_manifest.json
+    - artifacts/isogeny_transfer/raw_receipts.jsonl
+    - artifacts/isogeny_transfer/transfer_certificates.jsonl
+    - artifacts/isogeny_transfer/refusal_table.jsonl
+    - artifacts/isogeny_transfer/cost_table.csv
+    - validation/isogeny_transfer_report.yaml
+  budget_reconciliation:
+    prior_maximum_runs: 12
+    corrected_maximum_runs: 24
+    reason: >-
+      Arm B consumes the 24 frozen Arm-A source-instance rows; degree, seed,
+      candidate, control, and amortization entries are nested receipts within
+      each source-instance run unit.
+    approval_required: true
+    execution_gate: >-
+      The corrected budget and nested run-unit definition must be accepted in
+      the Coordinator decision before Arm-B admission.
+  changes:
+    - id: B1
+      field: implementation_and_command_binding
+      kind: addition_required_before_approval
+      prior_value: absent
+      corrected_value:
+        entrypoint: harness/run_ecdlp_isogeny_transfer_v2.py
+        supporting_modules:
+          - harness/isogeny_class.py
+          - harness/rho.py
+          - harness/runner.py
+          - harness/run_ecdlp_endo_census_v2.py
+          - harness/verify_isogeny_transfer_v2.py
+        implementation_version: ecdlp-isogeny-transfer-v2
+        candidate_generator_version: isogeny-candidate-enumerator-v2
+        frozen_input_files:
+          candidate_policy: protocol_inputs/isogeny_transfer/candidate_manifest.yaml
+          control_manifest: protocol_inputs/isogeny_transfer/control_manifest.yaml
+          cost_schema: protocol_inputs/isogeny_transfer/cost_schema.yaml
+          arm_a_snapshot: coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-IV-20260808/archives/TASK-20260809-819996/snapshot-receipt.json
+          source_instance_manifest: coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-IV-20260808/artifacts/automorphism_census/instance_manifest.yaml
+        command: >-
+          python3 -m harness.run_ecdlp_isogeny_transfer_v2
+          --degrees 2,3,4,5,7,11
+          --seeds 101,103,107,109,113,127,131,137
+          --target-policy full
+          --max-candidates-per-degree 12
+          --amortization-targets 1,8,64
+          --arm-a-snapshot coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-IV-20260808/archives/TASK-20260809-819996/snapshot-receipt.json
+          --source-instance-manifest coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-IV-20260808/artifacts/automorphism_census/instance_manifest.yaml
+          --candidate-policy protocol_inputs/isogeny_transfer/candidate_manifest.yaml
+          --control-manifest protocol_inputs/isogeny_transfer/control_manifest.yaml
+          --cost-schema protocol_inputs/isogeny_transfer/cost_schema.yaml
+          --out coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-IV-20260808/artifacts/isogeny_transfer
+        run_unit: >-
+          One run is one frozen Arm-A source_instance row. There are exactly
+          24 source-instance rows; degree, seed, candidate, control, and target
+          count entries are nested receipts within each row, not hidden extra
+          runs. Target counts 1, 8, and 64 are reporting scenarios over the
+          same frozen construction costs, not post-observation selection.
+        run_cardinality:
+          source_instance_rows: 24
+          degrees: [2, 3, 4, 5, 7, 11]
+          seeds: [101, 103, 107, 109, 113, 127, 131, 137]
+          maximum_runs: 24
+          cardinality_check: >-
+            The source-instance manifest hash must equal the Arm-A snapshot's
+            instance manifest hash and contain exactly 24 rows before candidate
+            enumeration begins.
+        pre_target_gate: >-
+          The policy file is materialized into the complete candidate manifest;
+          candidate, rejection, random-map, non-special, identity, and refusal
+          rows must then be serialized and SHA-256 bound before any target-side
+          rho solve. The driver must fail closed if the manifest hash, Arm-A
+          snapshot hash, or command expansion differs.
+        source_hash_gate: >-
+          The Executor may not be dispatched until the entrypoint, independent
+          verifier, and every supporting module exist and their hashes are
+          recorded in artifacts/isogeny_transfer/source_manifest.json.
+        implementation_status: planned_not_yet_built
+        dispatch_rule: >-
+          The command is a frozen interface requirement, not evidence that the
+          entrypoint exists. The Executor may not be dispatched until the file
+          exists at the pinned path and its source hash is recorded.
+    - id: B2
+      field: degree_implementation_boundary
+      kind: explicit_even_degree_guard
+      prior_value: >-
+        The frozen candidate list includes 2 and 4, while the existing
+        harness/isogeny_class.py velu_odd implementation explicitly refuses
+        even degrees.
+      corrected_value:
+        odd_degrees: [3, 5, 7, 11]
+        even_degrees: [2, 4]
+        required_behavior: >-
+          The new driver must either provide independently tested dedicated
+          2-/4-isogeny formulas or emit an explicit unsupported-implementation
+          receipt before any candidate is counted. It may not route an even
+          degree through velu_odd, return the identity map, or silently remove
+          the degree from the manifest.
+        claim_boundary: >-
+          An unsupported even-degree implementation is an infrastructure or
+          scope limitation, never a mathematical negative about degree 2 or 4.
+    - id: B3
+      field: target_selection_and_controls
+      kind: precommitment_guard
+      corrected_value:
+        selection_order: >-
+          Enumerate every candidate and rejection deterministically, then sort
+          by (source_instance_id, degree, target_j, target_coefficients_digest,
+          kernel_digest, map_digest) using bytewise UTF-8/hex ordering. Select
+          exactly the first 12 constructible candidates per degree and record
+          every later candidate as truncated, never as absent.
+        manifest_binding:
+          candidate_manifest: artifacts/isogeny_transfer/candidate_manifest.yaml
+          candidate_manifest_sha256: artifacts/isogeny_transfer/candidate_manifest.sha256
+          hash_algorithm: SHA-256 over canonical UTF-8 YAML with LF endings
+          freeze_point: before the first target-side solve, including all nulls
+        random_map_null: >-
+          C-RANDMAP uses derive_seed(seed, "C-RANDMAP", source_instance_id,
+          degree, candidate_rank) to generate a shape-matched map descriptor.
+          It is a representation/evaluation-cost null unless a homomorphism
+          certificate proves DLP scalar preservation; it must never be called
+          an end-to-end transport without that certificate.
+        target_strata:
+          - unit-special: j=0 or j=1728 with verified F_p-defined automorphism
+          - cm-nonunit: verified non-unit CM endomorphism with subgroup eigenvalue
+          - ordinary-other: ordinary target with no admitted special action
+          - control-nonspecial: same-order non-special neighbor
+          - excluded-positive: anomalous or small-embedding calibration
+        stratum_gate: >-
+          A j-invariant label is never sufficient for cm-nonunit admission;
+          that stratum requires a separate endomorphism construction, degree,
+          kernel, and subgroup-eigenvalue certificate. Unit-special belongs to
+          the Arm-A automorphism gate, not an automatic Arm-B advantage.
+        controls:
+          - C-DIRECT direct source-curve solve using Arm-A policies
+          - C-RANDMAP same-degree random map with matched evaluation/serialization cost
+          - C-NONSPECIAL same-order non-special isogeny neighbor
+          - C-IDENTITY identity transfer with all declared costs retained
+          - C-POS excluded anomalous or small-embedding target
+    - id: B4
+      field: transfer_certificate
+      kind: independent_correctness_guard
+      corrected_value: >-
+        Every candidate records F_p definition, source/target order, twist and
+        subgroup checks, kernel intersection result, forward image, inverse or
+        replay certificate, and independent verification that the recovered
+        scalar maps back to the original Q. A failed certificate invalidates
+        that candidate receipt and is not a hypothesis result.
+      certificate_schema:
+        fields:
+          - certificate_id
+          - source_manifest_sha256
+          - source_curve_digest
+          - target_curve_digest
+          - field_p
+          - degree_ell
+          - source_order
+          - target_order
+          - twist_order
+          - gcd_degree_N_subgroup
+          - kernel_points_digest
+          - kernel_intersection_result
+          - fp_rationality_result
+          - forward_map_digest
+          - inverse_or_dual_map_digest
+          - mapped_P_digest
+          - mapped_Q_digest
+          - recovered_scalar
+          - source_replay_result
+        independent_verifier: harness/verify_isogeny_transfer_v2.py
+        independence_rule: >-
+          The verifier may parse certificates and perform fresh field/group
+          arithmetic, but may not import the candidate construction or forward
+          image function. It must replay kP=Q on the source and, when inverse
+          data is claimed, replay the dual/inverse map and compare both digests.
+        invalidation: >-
+          Missing F_p, twist, gcd, kernel-intersection, inverse/dual, or source
+          replay fields invalidate the candidate; a verifier exception is an
+          invalid receipt, not a failed mathematical trial.
+    - id: B5
+      field: charged_end_to_end_cost
+      kind: addition_accounting_guard
+      corrected_value:
+        vector_schema:
+          units: integer operation/event counts; bytes for serialized_bytes;
+            milliseconds for wall_time_ms; peak_bytes for peak_memory_bytes
+          fields:
+            candidate_enumeration: int
+            rejected_candidate_work: int
+            kernel_construction_ops: int
+            map_construction_ops: int
+            forward_map_ops: int
+            inverse_or_dual_map_ops: int
+            serialization_bytes: int
+            deserialization_bytes: int
+            target_rho_ops: int
+            certificate_replay_ops: int
+            retries_and_failures: int
+            peak_memory_bytes: int
+            wall_time_ms: int
+        normalization: >-
+          Report every vector component raw and divided by sqrt(N_subgroup);
+          ell is reserved for isogeny degree. No scalar weighted score is
+          permitted without a separately approved operation-price table.
+        one_shot_formula: >-
+          C_1 = C_enumeration + C_rejected + C_construct + C_forward +
+          C_serialize + C_target_rho + C_inverse_or_dual + C_replay.
+        amortized_formula: >-
+          For k in {1,8,64}, C_k = C_enumeration + C_rejected + C_construct +
+          k * (C_forward + C_serialize + C_target_rho + C_inverse_or_dual +
+          C_replay); report the vector before and after division by k.
+        no_free_preprocessing: true
+    - id: B6
+      field: dependency
+      kind: ordering_guard
+      corrected_value: >-
+        Arm B remains blocked until the v2 protocol review and Coordinator
+        approval are archived, the Arm-A producer artifacts have passed a
+        Coordinator snapshot archive, and that receipt's exact SHA-256 is
+        supplied through --arm-a-snapshot. A queue that merely lists Arm B
+        after Arm A without a verified snapshot is invalid. The successor
+        queue must encode the chain: pre-review snapshot -> independent review
+        -> review snapshot/decision -> Arm-A execution -> Arm-A snapshot ->
+        Arm-B execution; the old v1 executor tasks remain blocked and may not
+        be selected.

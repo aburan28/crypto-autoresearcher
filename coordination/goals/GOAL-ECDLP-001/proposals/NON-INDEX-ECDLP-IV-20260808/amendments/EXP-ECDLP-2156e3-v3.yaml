@@ -1,0 +1,231 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-2156e3
+  version_from: 2
+  version_to: 3
+  kind: reachability_and_isogeny_class_gate_superseding_amendment
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  status: draft_pending_independent_review
+  approved_by: null
+  approved_by_decision: null
+  affected_runs: []
+  confirmatory_status: preserved
+  supersedes:
+    path: amendments/EXP-ECDLP-2156e3-v2.yaml
+    snapshot_commit: f199139ee7ebc942883c3aa6dea628fbfcde19fc
+    treatment: immutable_prior_amendment_remains_unchanged
+  scope_statement: >-
+    This amendment repairs the Arm-B reachability and same-isogeny-class gate.
+    It does not approve Arm B, select a target, import a prior scan as
+    evidence, change Arm A or S2, or authorize an experiment. A special
+    j-invariant is a candidate label only; a countable transfer must first
+    prove same-field same-trace class membership and then pass the independent
+    map/kernel/subgroup/replay verifier with all reachability and transfer
+    costs charged.
+  design_input_records:
+    - path: coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-III-20260807/artifacts/invariant_map.yaml
+      use: >-
+        Design input showing that trace and group order are stable across the
+        sampled isogeny families while j varies. No prior operation count or
+        special-target effect is imported as Arm-B evidence.
+    - path: coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-III-20260807/validation/L6_special_structure_scan.json
+      use: >-
+        Design input whose own summary reports no measured operation gain but
+        also reports control_matching_preserved=false. It motivates a stricter
+        class/reachability gate and is not treated as a valid negative result.
+    - path: experiments/EXP-CANL-108f26/specification.yaml
+      use: >-
+        Design input for the class-invariant reachability concern: moving within
+        an isogeny class preserves the trace and cannot turn a nonmatching class
+        into a small-discriminant special class. Its costs and claims are not
+        reused as an Arm-B measurement.
+  correction:
+    field: target_selection_and_controls.reachability
+    prior_value: >-
+      Candidate enumeration and transfer certificates were frozen, but the
+      pre-target contract did not require an explicit independently recomputed
+      source/target trace equality or distinguish a target outside the source
+      isogeny class from a failed transfer candidate.
+    corrected_value: >-
+      Apply a same-field same-trace class gate before a target can be admitted
+      to transfer or target-side rho. Trace mismatch is an explicit unreachable
+      refusal, not a mathematical negative. Trace equality is necessary but not
+      sufficient: the independent verifier must still validate the declared
+      map, kernel, subgroup, twist, and scalar replay.
+    reason: >-
+      A special j label does not make a target reachable from an arbitrary
+      source curve. Isogeny-class membership is controlled by the Frobenius
+      trace, while the prior structural scan did not preserve its control
+      matching. The gate separates class reachability from special-structure
+      effects and prevents a nonmatching target inventory from being counted as
+      a failed or successful transfer.
+  class_membership_gate:
+    status: frozen_design_required_before_approval
+    required_source_fields:
+      - field_p
+      - source_curve_digest
+      - source_trace
+      - source_order
+      - source_instance_id
+    required_target_fields:
+      - field_p
+      - target_curve_digest
+      - target_trace
+      - target_order
+      - target_j
+      - target_coefficients_digest
+    recomputation:
+      source_trace: >-
+        Independently compute the exact trace from the source curve and field;
+        do not trust a manifest label or infer it from a prior target result.
+      target_trace: >-
+        Independently compute the exact trace from the target curve and field;
+        do not infer it from kernel-list length, a claimed map, or target rho.
+      order_consistency: >-
+        Check source_order = field_p + 1 - source_trace and target_order =
+        field_p + 1 - target_trace using exact arithmetic before any transfer
+        cost is admitted.
+    decisions:
+      field_mismatch:
+        status: unreachable_refusal
+        reason: target_not_in_declared_prime_field
+        target_side_solve: forbidden
+      trace_mismatch:
+        status: unreachable_refusal
+        reason: target_not_in_source_frobenius_isogeny_class
+        target_side_solve: forbidden
+      trace_match_without_certificate:
+        status: pending_certificate
+        reason: class_membership_is_necessary_not_sufficient
+        target_side_solve: forbidden
+      trace_match_with_independent_certificate:
+        status: eligible_for_transfer_verification
+        reason: >-
+          Same-field same-trace membership passed; map, kernel, subgroup,
+          twist, inverse/dual, and source scalar replay remain mandatory.
+    invariants:
+      - >-
+        A trace mismatch is never counted as a negative result against the
+        special-target hypothesis.
+      - >-
+        A trace match does not waive the independent transfer certificate.
+      - >-
+        Candidate selection and all reachability refusals are serialized before
+        any target-side solve or target-count amortization is inspected.
+  special_target_inventory:
+    selection_independence:
+      target_inventory_frozen_before: first_target_side_rho_solve
+      solve_outcome_dependency: forbidden
+      target_j_labels: [0, 1728]
+      target_strata: [unit-special, ordinary-other, control-nonspecial, excluded-positive]
+    required_rows:
+      - special_target_candidate
+      - same_trace_ordinary_control
+      - trace_mismatch_unreachable_refusal
+      - map_or_kernel_rejection
+      - unsupported_degree
+      - truncated_after_predeclared_candidate_cap
+    twist_and_orientation:
+      rule: >-
+        Distinct twists, orientations, and coefficient models remain distinct
+        target rows. They may be merged only by an explicit public isomorphism
+        certificate whose cost and digest are retained.
+    class_invariant_note: >-
+      Walking or enumerating within one source isogeny class cannot change its
+      Frobenius trace or fundamental discriminant. A class with no admitted
+      special target remains a reachability refusal; it is not evidence that
+      special targets never help other classes.
+  controls_added:
+    - id: C-TRACE-MISMATCH
+      kind: unreachable_target_control
+      construction: >-
+        Predeclare target rows with a different independently recomputed trace
+        at the same field modulus and route them through the same inventory and
+        refusal serializer.
+      expected: >-
+        Every row is refused before transfer and target-side rho, with no cost
+        vector interpreted as a special-target result.
+    - id: C-SAME-TRACE-ORDINARY
+      kind: same_class_nonspecial_control
+      construction: >-
+        Use a predeclared ordinary target with the same field and trace, under
+        the same degree budget and candidate cap, when constructible.
+      expected: >-
+        Compare only after identical class, certificate, target-selection,
+        serialization, and replay accounting.
+  cost_schema_additions:
+    fields:
+      target_inventory_enumeration: {type: integer, unit: event}
+      class_membership_filter_ops: {type: integer, unit: field_operation}
+      source_trace_recomputation_ops: {type: integer, unit: field_operation}
+      target_trace_recomputation_ops: {type: integer, unit: field_operation}
+      path_search_ops: {type: integer, unit: group_operation}
+      unreachable_target_refusals: {type: integer, unit: event}
+    one_shot_formula: >-
+      C_1_v3 = C_inventory + C_class_filter + C_enumeration + C_rejected +
+      C_path_search + C_construct + C_forward + C_serialize + C_target_rho +
+      C_inverse_or_dual + C_replay.
+    amortized_formula: >-
+      For k in {1,8,64}, C_k_v3 = C_inventory + C_class_filter +
+      C_enumeration + C_rejected + C_path_search + C_construct + k *
+      (C_forward + C_serialize + C_target_rho + C_inverse_or_dual + C_replay).
+    no_free_reachability: true
+    normalization: >-
+      Preserve raw vectors and the existing sqrt(N_subgroup) normalization.
+      No scalar aggregate is introduced by this amendment.
+  verifier_contract_additions:
+    independent_verifier: harness/verify_isogeny_transfer_v2.py
+    required_checks:
+      - source_trace_recomputed_independently
+      - target_trace_recomputed_independently
+      - source_order_trace_consistency
+      - target_order_trace_consistency
+      - same_field_check
+      - same_trace_class_gate
+      - declared_degree_check
+      - complete_kernel_and_closure_check
+      - subgroup_intersection_check
+      - twist_membership_check
+      - independent_dual_or_inverse_replay
+      - source_scalar_replay
+    forbidden_shortcuts:
+      - infer_trace_from_target_order_label
+      - infer_class_membership_from_j_label
+      - infer_degree_from_kernel_list_length
+      - accept_trace_match_as_map_certificate
+      - select_target_after_observing_solve_outcome
+  interpretation_gate:
+    no_same_trace_special_target: >-
+      Record a reachability-limited observation for the declared inventory;
+      make no negative claim about ECDLP or other isogeny classes.
+    same_trace_special_target_but_cost_dominates: >-
+      Record a bounded no-gain observation for the tested degree, target-count,
+      and implementation scope only.
+    same_trace_special_target_and_control_correct_gain: >-
+      Retain as a toy-scale observation requiring independent validation and
+      red-team review; no exponent or cryptographic-scale claim follows.
+    trace_mismatch_rows: >-
+      Refusals only. They cannot enter the numerator, denominator, or advantage
+      statistic for the transfer comparison.
+  falsification_conditions_added:
+    - >-
+      A counted candidate has source/target trace mismatch or field mismatch;
+      the affected run is invalid and no transfer conclusion is admitted.
+    - >-
+      A target is selected after a solve outcome or after inspecting a target
+      cost; the target-selection contract is invalid.
+    - >-
+      A same-trace row is counted without an independently recomputed map,
+      kernel, subgroup, twist, inverse/dual, and source-replay certificate; the
+      row is refused, not negative evidence.
+    - >-
+      Reachability or target-inventory cost is omitted from the charged vector;
+      the comparison is invalid until repaired.
+  dispatch_gate:
+    not_dispatchable: true
+    required_before_approval:
+      - independent review of EXP-ECDLP-2156e3-v2 and this v3 amendment together
+      - deterministic trace and target-inventory implementation frozen
+      - source-hash-bound implementation and fixture suite
+      - backend preflight passes without prohibited fallback
+      - Coordinator decision explicitly admits or rejects the repair
