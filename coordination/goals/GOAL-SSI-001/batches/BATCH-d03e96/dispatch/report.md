@@ -6,14 +6,12 @@ Supersede only EV-SSI-59f7a2's unqualified OneEnd/SQIsign concrete-cost labeling
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-238546` | coordinator | queued | 1 | - | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/tasks/TASK-20260809-238546/correction_derivation.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/tasks/TASK-20260809-238546 |
+| `TASK-20260809-081bb1` | validator | queued | 3 | TASK-20260809-6e8601 | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-081bb1/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-081bb1/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-081bb1 |
+| `TASK-20260809-f2ea94` | red-team | queued | 3 | TASK-20260809-6e8601 | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-f2ea94/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-f2ea94/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-f2ea94 |
 
 ## Deferred or Blocked
 
-- `TASK-20260809-081bb1`: dependency_not_completed:TASK-20260809-6e8601:queued
 - `TASK-20260809-230fb5`: dependency_not_completed:TASK-20260809-081bb1:queued, dependency_not_completed:TASK-20260809-f2ea94:queued
-- `TASK-20260809-6e8601`: dependency_not_completed:TASK-20260809-238546:queued
-- `TASK-20260809-f2ea94`: dependency_not_completed:TASK-20260809-6e8601:queued
 
 ## Dispatch Gates
 
@@ -28,4 +26,4 @@ Supersede only EV-SSI-59f7a2's unqualified OneEnd/SQIsign concrete-cost labeling
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b27d190965a26048a2981d962d88273b95da95e0299fc7baa8f523c0435d2d2e`
+Plan SHA-256: `00f2883971bfdb18a883bffc351df60f311c4e63165f98b825301a3ca53821b7`
