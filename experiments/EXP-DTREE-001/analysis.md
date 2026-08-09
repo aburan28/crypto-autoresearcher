@@ -18,9 +18,14 @@ No content below was altered from what the Executor reported.
 ## 1. Observation
 
 **C1 (slope).** The frozen slope-grid rule yields 0 qualifying cells on all
-three tiny curves. This is arithmetically forced by the frozen inputs: the
-rule requires a subgroup order n ≥ 71.4 at any tested B′, and the frozen
-`generate_instance` seed-1 curves have n = 23, 19, 31 at 8/10/12 bits.
+three tiny curves. This is arithmetically forced by the frozen inputs: given
+the grid's own B′ ≥ 8 floor, the smallest achievable C(B′,3) is C(8,3) = 56
+(not the naive 50 the "n ≥ 71.4" shorthand assumes), so the precise
+necessary-and-sufficient threshold is n ≥ 56/0.7 = 80 — corrected during
+`/review-evidence` from an earlier, looser "n ≥ 71.4" (= 50/0.7) figure that
+was a necessary-but-not-sufficient shorthand, not a computational error; the
+conclusion is unchanged either way. The frozen `generate_instance` seed-1
+curves have n = 23, 19, 31 at 8/10/12 bits — far below either threshold.
 RUN-DTREE-002 confirms the confirmatory fit, CTRL-ENUMERATION-AUDIT, and all
 three tail checks are `not_applicable` as a direct consequence. A
 diagnostic-only point outside the grid (B′ = 8) shows P_dec = 0.96, 0.42,
@@ -40,10 +45,16 @@ small. 20-bit and 24-bit both fail the validity prefix (0/8 configurations
 each reach the 10-target minimum; actual n₁ = 3–4 at 20-bit, 6–7 at 24-bit).
 
 Where C2 is defined at all — six of eight 20-bit configurations — the range
-is 110–200, and every one of the six bootstrap 95% confidence intervals on
-C2/C1 lies entirely **above** 1 (lowest observed lower bound: 1.15). No
-configuration, at any size, meets the frozen success criterion
-C2 < 0.8·C1 with a CI entirely below 1.
+is 110–200. Of those six, **five** carry a reported bootstrap 95% CI on
+C2/C1 (corrected during `/review-evidence` from an earlier, incorrect "six"
+count): m2_x16 [1.25,4.75], m3_x16 [1.619,10.0], m3_x2 [1.15,9.625], m3_x4
+[2.133,4.0], m3_x8 [3.333,10.0] — all entirely **above** 1 (lowest lower
+bound: 1.15). The sixth, m2_x8 (point estimate C2=160.0), has no reported CI:
+only 854 of 2000 bootstrap replicates (42.7%) produced a computable ratio,
+below `costs.py`'s own 50% applicability floor, so its interval is genuinely
+not reported rather than merely omitted here. Its point estimate is
+directionally consistent with the other five. No configuration, at any size,
+meets the frozen success criterion C2 < 0.8·C1 with a CI entirely below 1.
 
 CTRL-GENERIC-HEURISTIC labels every computable cell (all at 20-bit)
 `non_generic_signal`: the measured/HEUR-001-predicted C2 ratio falls in
