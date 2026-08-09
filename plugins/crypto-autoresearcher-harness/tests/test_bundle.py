@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -25,7 +26,31 @@ class PluginBundleTests(unittest.TestCase):
         self.assertEqual(codex["name"], NAME)
         self.assertEqual(claude["name"], NAME)
         self.assertEqual(codex["skills"], "./skills/")
-        self.assertEqual(codex["version"], "0.1.0")
+        # A peer endpoint is a per-checkout operational choice.  The plugin
+        # itself stays offline until the user deliberately connects one using
+        # the host-specific client snippet after starting the local daemon.
+        self.assertNotIn("mcpServers", codex)
+        self.assertRegex(codex["version"], r"^0\.2\.0\+codex\.[a-z0-9-]+$")
+        self.assertEqual(claude["version"], "0.2.0")
+
+    def test_explicit_peer_mcp_host_templates_share_loopback_endpoint(self) -> None:
+        expected_url = "http://127.0.0.1:8765/mcp"
+        claude = json.loads(
+            (PLUGIN / "clients" / "claude-code.mcp.json").read_text(encoding="utf-8")
+        )
+        opencode = json.loads(
+            (PLUGIN / "clients" / "opencode.json").read_text(encoding="utf-8")
+        )
+        codex = tomllib.loads(
+            (PLUGIN / "clients" / "codex.toml").read_text(encoding="utf-8")
+        )
+        server_name = "crypto-autoresearcher-peer"
+        self.assertEqual(claude["mcpServers"][server_name]["type"], "http")
+        self.assertEqual(claude["mcpServers"][server_name]["url"], expected_url)
+        self.assertEqual(opencode["mcp"][server_name]["type"], "remote")
+        self.assertEqual(opencode["mcp"][server_name]["url"], expected_url)
+        self.assertTrue(opencode["mcp"][server_name]["enabled"])
+        self.assertEqual(codex["mcp_servers"][server_name]["url"], expected_url)
 
     def test_marketplaces_point_to_this_package(self) -> None:
         codex = json.loads(

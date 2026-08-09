@@ -1,0 +1,123 @@
+idea:
+  id: IDEA-20260808-750ead
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-SQISIGN-39f231
+  goal_id: GOAL-SQISIGN-002
+  title: The verifier is a decision procedure, so for a fixed public key it induces a computable
+    subset of the supersingular set -- the admissible-commitment locus -- and the density
+    of that locus is a published-data leak measurable exactly at toy scale by running Verify
+    on every curve.
+  class: measurement
+  claim: 'Fix pk and a message. The verification algorithm accepts or rejects each candidate
+    signature; projecting onto the commitment coordinate defines A(pk, m) = { E in V : some
+    completion of E to a full signature verifies }. CLAIM: |A(pk, m)| / |V| is a published-data
+    quantity, it is exactly computable at toy scale by exhaustive enumeration, and log2(|V|/|A|)
+    is a bit count that plugs directly into S1b-02''s conversion lemma as a set-shrinker with
+    gamma = 0. Two outcomes, defined in advance: (a) |A| = |V| (every curve is an admissible
+    commitment for some response), in which case the commitment coordinate carries zero key
+    information and the lane closes with a number; (b) |A| < |V| by a factor growing with
+    p, in which case the verifier itself is a free key-dependent screen and s > 0, which by
+    S1b-02 is exactly the condition for an exponent change.'
+  mechanism: 'In a sigma-protocol the verifier checks an algebraic relation between commitment,
+    challenge and response. If for some commitment curve NO response can satisfy the relation
+    under this public key, that curve is excluded, and the exclusion pattern is a function
+    of pk -- i.e. of the secret''s public shadow. Whether the pattern is informative is not
+    obvious a priori: for a complete sigma-protocol with a surjective response space one expects
+    |A| = |V|, but completeness is a statement about HONEST executions and says nothing about
+    which commitments admit SOME valid response. That gap is the measurable object.'
+  why_not_a_renamed_known_approach: 'Catalogue S3-1 and IDEA-20260807-ba5eda count the accept-fibre
+    on the signature ENCODING -- a subset of {0,1}^{8 SIGBYTES}, whose cardinality bears on
+    strong unforgeability. This record''s object is a subset of the CURVE SET, whose cardinality
+    bears on key leakage, and the two fibres are not in bijection: many encodings map to one
+    curve and some curves to none. S3-3''s simulator-alphabet audit asks which symbols the
+    simulator can emit; this asks which curves the verifier can be made to accept.'
+  predictions:
+  - observable: admissible-commitment density
+    metric: '|A(pk, m)| / |V|, exact, by running Verify over all curves and all responses
+      at toy scale'
+    predicted: 1.000 (outcome (a)) for a correctly specified surrogate. Any value below 1
+      is the interesting outcome.
+  - observable: key dependence of the exclusion pattern
+    metric: mutual information between the indicator 1{E in A(pk,m)} and pk, over all pk
+    predicted: 0 bits. A nonzero value is a free key-dependent screen and converts through
+      S1b-02.
+  - observable: message dependence
+    metric: variation of |A(pk,m)| over messages at fixed pk
+    predicted: None. Variation would indicate the challenge derivation is entangled with the
+      commitment space.
+  minimal_test: Toy, exhaustive, on the four committed 2-isogeny graphs. For each pk in V
+    (or a random sample of 50 when |V| = 611), each of 4 messages, and each commitment curve
+    E in V, search the (finite, small) response space for a verifying completion. Report |A|
+    exactly. Total work O(|V|^2 * |response space|), which is affordable at |V| <= 611 provided
+    the response space is kept small by construction -- and the record must state the response-space
+    size it uses, because shrinking it artificially would manufacture outcome (b).
+  controls:
+  - 'POSITIVE CONTROL (must fire): a rigged verifier that rejects commitments in a fixed half
+    of V. The measurement must return density 0.5 and nonzero mutual information.'
+  - 'NULL: a verifier that accepts everything. Density must be exactly 1.000 and mutual information
+    exactly 0.'
+  - 'RESPONSE-SPACE CONTROL: report |A| as a function of the response-space size, and show
+    it saturates. A non-saturating curve means the measurement is limited by the search, not
+    by the verifier.'
+  - 'PERMUTATION NULL: shuffle pk labels and recompute the mutual information; the real value
+    must exceed the shuffled distribution.'
+  confounders:
+  - Artificially truncating the response space produces spurious outcome (b). The saturation
+    control is the defence and is not optional.
+  - At |V| = 203 the mutual information estimator is badly biased upward on small samples;
+    a bias-corrected estimator with the permutation null is mandatory.
+  - The surrogate verifier is defined by this record; a negative closes the surrogate only.
+  falsification_conditions:
+  - The positive control does not return density 0.5.
+  - Density does not saturate in the response-space size -- the measurement is search-limited
+    and reports nothing about the verifier.
+  - Mutual information exceeds the permutation null, replicated across primes. Positive result;
+    escalate.
+  interpretation_limits: Toy tier. No Round-3 specification has been read, so the verifier
+    measured is a surrogate this record defines. The exact-enumeration property does not survive
+    to crypto scale and no extrapolation is offered.
+  assumptions:
+  - The surrogate protocol's response space is finite and enumerable at toy scale.
+  - The corpus's graph builder and its gates are available.
+  heuristic_assumptions:
+  - id: HB-5
+    statement: COMPLETENESS-DOES-NOT-IMPLY-SURJECTIVITY. The set of commitment curves admitting
+      some verifying response is not forced to be all of V by the protocol's completeness
+      property.
+    rigorous_ingredient: Completeness quantifies over HONEST transcripts only; the admissible
+      set quantifies over all commitments and all responses. The two quantifier orders differ,
+      and writing them out is the record's zero-compute half.
+    distribution_imitated: Not a distribution assumption; a quantifier-order observation,
+      labelled as such.
+    validation_route: Toy exhaustive enumeration, as above, with the rigged-verifier positive
+      control.
+    tail_checks: The honest commitments (those an honest signer actually produces) must all
+      lie in A by completeness; if any does not, the surrogate is broken.
+  target_complexity:
+    time_exponent: n/a for the measurement. Its output s feeds S1b-02's identity, where the
+      incumbent value is 1/3 and any s > 0 with gamma = 0 lowers it.
+    memory_exponent: O(|V|) at toy scale.
+    best_known_baseline: p^{1/3+o(1)} conditional key recovery with zero published data consumed.
+    hidden_overhead_disclosure: None.
+    time_memory_tradeoff: n/a.
+  sota_delta: Zero. A measurement with two pre-defined outcomes, one of which closes a lane
+    with a number and the other of which routes to S1b-02's conversion.
+  dominated_by: n/a (no result claimed).
+  estimated_cost: Implementation medium. Compute low-medium (O(|V|^2) with a small response
+    space).
+  recommended_priority: medium
+  honest_prior_of_survival: 0.9 that the measurement runs and the positive control fires.
+    0.1 that density is below 1 in the surrogate; a well-designed sigma-protocol should give
+    outcome (a), and outcome (a) is a clean, citable closure.
+  novelty_status: screened
+  novelty_screen: 'Screened against all six dedup files and S1.yaml. Nearest: catalogue S3-1,
+    S3-3, IDEA-20260807-ba5eda, H-SQISIGN-be57a1 (accept-fibre on the encoding). External
+    literature not screened (web unreachable).'
+  discriminated_from: H-SQISIGN-be57a1 and S3-1 project the accept-fibre onto the ENCODING;
+    this projects onto the COMMITMENT CURVE. Different object, different security property
+    (key leakage versus strong unforgeability), different cardinality.
+  source_refs:
+  - ledger/goals/GOAL-SQISIGN-002.yaml -- read in full.
+  - ledger/hypotheses/H-SQISIGN-be57a1 -- summary line only, from EXISTING_HYPOTHESES.txt.
