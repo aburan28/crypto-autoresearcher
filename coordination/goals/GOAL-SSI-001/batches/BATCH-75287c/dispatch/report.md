@@ -6,12 +6,11 @@ Snapshot and independently review the corrected Stage 0/1 classical per-prime On
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-1ca17b` | coordinator | queued | 2 | TASK-20260809-773d92 | coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/archives/TASK-20260809-1ca17b/snapshot-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/archives/TASK-20260809-1ca17b |
+| `TASK-20260809-021025` | red-team | queued | 3 | TASK-20260809-1ca17b | coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-021025/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-021025/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-021025 |
+| `TASK-20260809-19035f` | validator | queued | 3 | TASK-20260809-1ca17b | coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-19035f/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-19035f/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-75287c/reviews/TASK-20260809-19035f |
 
 ## Deferred or Blocked
 
-- `TASK-20260809-021025`: dependency_not_completed:TASK-20260809-1ca17b:queued
-- `TASK-20260809-19035f`: dependency_not_completed:TASK-20260809-1ca17b:queued
 - `TASK-20260809-baf7f1`: dependency_not_completed:TASK-20260809-19035f:queued, dependency_not_completed:TASK-20260809-021025:queued
 
 ## Dispatch Gates
@@ -27,4 +26,4 @@ Snapshot and independently review the corrected Stage 0/1 classical per-prime On
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `c2a1f8577fee6b3ea5c1a7e0eaa007e6b049db46218a0ee99546aa127a9e8b0a`
+Plan SHA-256: `4d97a0adffe48fbcb438a8bbf1939bd1ce9d1be3d8c1473eb3b241b9a7a259e7`
