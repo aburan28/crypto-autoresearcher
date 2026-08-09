@@ -1,0 +1,70 @@
+cost_model:
+  id: COST-ECDLP-5ec1c5-v2
+  version: 2
+  unit: integer_charged_work_units
+  formula: >-
+    W = SETUP + FADD + FSUB + 4*FMUL + 3*FSQR + 80*FINV +
+    SCALAR_ADD + 4*SCALAR_MUL + 20*AUT_CALL + 2*CANON_COMPARE +
+    8*CYCLE_STEP + 20*RECOVER_ATTEMPT + RETRY + PRECOMPUTE +
+    HASH_BYTES + SERIAL_BYTES + MEMORY_CHUNKS
+  weights:
+    SETUP: 1
+    FADD: 1
+    FSUB: 1
+    FMUL: 4
+    FSQR: 3
+    FINV: 80
+    SCALAR_ADD: 1
+    SCALAR_MUL: 4
+    AUT_CALL: 20
+    CANON_COMPARE: 2
+    CYCLE_STEP: 8
+    RECOVER_ATTEMPT: 20
+    RETRY: 1
+    PRECOMPUTE: 1
+    HASH_BYTES: 1
+    SERIAL_BYTES: 1
+    MEMORY_CHUNKS: 1
+    MEMORY_CHUNK_BYTES: 64
+  counter_schema:
+    integer_domain: nonnegative_unsigned_64_bit_integer
+    required_counters: [SETUP, FADD, FSUB, FMUL, FSQR, FINV, SCALAR_ADD, SCALAR_MUL, AUT_CALL, CANON_COMPARE, CYCLE_STEP, RECOVER_ATTEMPT, RETRY, PRECOMPUTE, HASH_BYTES, SERIAL_BYTES, MEMORY_CHUNKS]
+    diagnostic_unweighted_counters: [POINT_ADD_EVENTS, POINT_DOUBLE_EVENTS, GROUP_MAP_EVENTS, LOG_RECORDS, CERTIFICATE_FIELDS]
+  exclusive_ownership:
+    SETUP: instance_generation_and_certificate_replay_dispatch_overhead_only
+    FADD: field_add_wrapper_only
+    FSUB: field_subtract_wrapper_only
+    FMUL: field_multiply_wrapper_only
+    FSQR: field_square_wrapper_only
+    FINV: field_inverse_wrapper_only
+    SCALAR_ADD: coefficient_or_scalar_add_wrapper_only
+    SCALAR_MUL: coefficient_or_scalar_multiply_wrapper_only
+    AUT_CALL: group_map_dispatch_and_lookup_overhead_only; map_internal_field_work_uses_field_wrappers
+    CANON_COMPARE: encoded_state_lexicographic_comparison_only
+    CYCLE_STEP: cycle_detector_bookkeeping_only
+    RECOVER_ATTEMPT: collision-recovery bookkeeping excluding denominator field inverse
+    RETRY: fruitless-collision-or-cycle-retry dispatch only
+    PRECOMPUTE: fixed-table allocation and bookkeeping excluding underlying arithmetic
+    HASH_BYTES: SHA-256 input bytes hashed, counted once at the hashing wrapper
+    SERIAL_BYTES: bytes written to declared raw receipts, counted once at the serializer
+    MEMORY_CHUNKS: ceil(peak_memory_bytes / MEMORY_CHUNK_BYTES), counted once at run finalization
+  non_overlap_rules:
+    - Point addition and doubling are diagnostic events only; their field operations are charged through field wrappers and never through a point-operation counter.
+    - Group-map calls are charged through AUT_CALL; field operations performed inside a map are charged only through field wrappers.
+    - Recovery denominator inversion is FINV; RECOVER_ATTEMPT charges only control/recovery bookkeeping.
+    - Certificate replay arithmetic is charged through SETUP plus its field/scalar wrappers; CERTIFICATE_FIELDS is diagnostic only.
+    - Hash, serialization, and memory counters are charged only by their final wrappers and are not included in any aggregate counter.
+  primary_metric: W / sqrt(subgroup_order)
+  raw_vector_required: true
+  recomputation: >-
+    The validator rejects any missing required counter, non-integer/negative
+    counter, duplicate ownership, summary mismatch, or formula mismatch. It
+    recomputes W from this vector and checks the non-overlap rules before any
+    comparison statistic is read. Wall time is secondary and never replaces W.
+  paired_invariance:
+    pair_id: exact_match_per_source_control_pair
+    target_scalar: exact_match_per_source_control_pair
+    pair_token: exact_match_per_source_control_pair
+    partition_seed: exact_match_per_source_control_pair
+    stopping_rule: identical_for_all_variants
+    cost_model_id: exact_match_required
