@@ -569,6 +569,37 @@ def test_unknown_policy_writes_immutable_invalid_argument_receipt_without_launch
     assert receipt.read_bytes() == original
 
 
+def test_forbidden_model_writes_refusal_receipt_before_any_subprocess(tmp_path):
+    calls = []
+
+    def forbidden(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("no subprocess may launch for a forbidden model")
+
+    arguments, receipt, *_ = _case(tmp_path, process_runner=forbidden)
+    arguments["model"] = "amazon-BeDrOcK/us.example-model"
+    body = _failed(arguments, receipt, "forbidden_inference_target")
+    assert calls == []
+    assert body["version_check"] is None
+    assert body["launch"]["started_at"] is None
+
+
+def test_observed_bedrock_provider_cannot_be_verified(tmp_path):
+    provider = "Amazon-BeDrOcK"
+    arguments, receipt, _, session, turn, rollout = _case(
+        tmp_path, row_changes={"model_provider": provider})
+    session["payload"]["model_provider"] = provider
+    turn["payload"]["model_provider"] = provider
+    rollout.write_text(
+        "".join(json.dumps(event) + "\n" for event in (session, turn)),
+        encoding="utf-8")
+
+    body = _failed(arguments, receipt, "forbidden_inference_target")
+    assert body["runtime"]["provider"] == provider
+    assert body["verification"]["status"] == "failed"
+    assert body["verification"]["runtime_resolution_verified"] is False
+
+
 def test_cli_help_states_session_only_scope():
     result = subprocess.run(
         ["python3", "-m", "orchestration.adapter", "probe-codex-session", "--help"],
