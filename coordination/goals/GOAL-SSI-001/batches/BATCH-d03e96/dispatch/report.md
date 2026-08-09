@@ -6,12 +6,11 @@ Supersede only EV-SSI-59f7a2's unqualified OneEnd/SQIsign concrete-cost labeling
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-081bb1` | validator | queued | 3 | TASK-20260809-6e8601 | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-081bb1/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-081bb1/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-081bb1 |
-| `TASK-20260809-f2ea94` | red-team | queued | 3 | TASK-20260809-6e8601 | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-f2ea94/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-f2ea94/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/reviews/TASK-20260809-f2ea94 |
+| `TASK-20260809-230fb5` | coordinator | queued | 4 | TASK-20260809-081bb1, TASK-20260809-f2ea94 | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/archives/TASK-20260809-230fb5/ledger-receipt.json, ledger/evidence/EV-SSI-1b6db3.yaml, ledger/decisions/DEC-20260809-ea08ae.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-d03e96.yaml, ledger/goals/GOAL-SSI-001/goal.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/archives/TASK-20260809-230fb5, ledger/evidence/EV-SSI-1b6db3.yaml, ledger/decisions/DEC-20260809-ea08ae.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-d03e96.yaml, ledger/goals/GOAL-SSI-001/goal.yaml |
 
 ## Deferred or Blocked
 
-- `TASK-20260809-230fb5`: dependency_not_completed:TASK-20260809-081bb1:queued, dependency_not_completed:TASK-20260809-f2ea94:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Supersede only EV-SSI-59f7a2's unqualified OneEnd/SQIsign concrete-cost labeling
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `00f2883971bfdb18a883bffc351df60f311c4e63165f98b825301a3ca53821b7`
+Plan SHA-256: `f5f55183ba13946393864ee3c8ea2c30a2f653b43fc149495f2e59b8e33dfd32`
