@@ -30,6 +30,7 @@ class ProjectionError(ValueError):
 # is used only to select a pre-existing path; it is never an allocator for a
 # new durable identifier.
 GOAL_ID = re.compile(r"^GOAL-[A-Za-z0-9][A-Za-z0-9-]*$")
+SCHEMA_SUPERSESSION_ROOT = "ledger/corrections/schema-supersessions/"
 
 
 def canonical_json(value: Any) -> bytes:
@@ -171,6 +172,99 @@ def _source_file(repo_root: Path, path: Path) -> SourceFile:
     return SourceFile(path=relative, sha256=hashlib.sha256(content).hexdigest())
 
 
+def _append_source_once(
+    repo_root: Path, sources: list[SourceFile], path: Path
+) -> None:
+    """Append one hash-bound source, retaining a deterministic unique list."""
+
+    source = _source_file(repo_root, path)
+    if not any(existing.path == source.path for existing in sources):
+        sources.append(source)
+
+
+def _schema_supersession_target(
+    repo_root: Path, path: Path
+) -> tuple[Path, Path] | None:
+    """Return the registry and replacement for one corrected checkpoint source.
+
+    The authoritative validator routes immutable schema corrections through
+    ``tools/schema_supersession_registry.yaml``.  This derived observer must
+    follow the same registered replacement to avoid making a corrected goal
+    unreadable.  It remains fail-closed: both the original and replacement
+    hashes must match the registry, and the registry itself is returned so it
+    becomes part of the hash-bound, pinned projection input.
+    """
+
+    registry = repo_root / "tools" / "schema_supersession_registry.yaml"
+    if not _plain_file_exists(repo_root, registry):
+        return None
+    document = _read_yaml(registry)
+    if document.get("schema") != "schema-supersession-registry-v1":
+        raise ProjectionError(f"{registry} has an invalid schema supersession registry")
+    records = document.get("records") or []
+    if not isinstance(records, list):
+        raise ProjectionError(f"{registry} records must be a list")
+
+    relative = path.relative_to(repo_root).as_posix()
+    matches = []
+    for entry in records:
+        if not isinstance(entry, dict):
+            raise ProjectionError(f"{registry} records must contain mappings")
+        if entry.get("superseded_path") == relative:
+            matches.append(entry)
+    if not matches:
+        return None
+    if len(matches) != 1:
+        raise ProjectionError(f"{registry} registers {relative} more than once")
+
+    entry = matches[0]
+    if entry.get("kind") != "goal_checkpoint":
+        raise ProjectionError(
+            f"{registry} has an invalid checkpoint replacement kind for {relative}"
+        )
+    # The authoritative validator does not replace source bytes for an
+    # alias-only redirect.  Preserve that distinction here: a redirect points
+    # a record identifier at a canonical record, while a schema supersession
+    # substitutes a parseable representation of this checkpoint.
+    if entry.get("redirect_id"):
+        return None
+    replacement = entry.get("superseding_path")
+    expected_source = str(entry.get("superseded_sha256", "")).lower()
+    expected_replacement = str(entry.get("superseding_sha256", "")).lower()
+    if not isinstance(replacement, str) or not replacement:
+        raise ProjectionError(f"{registry} has an invalid replacement for {relative}")
+    if Path(replacement).is_absolute() or ".." in replacement.split("/"):
+        raise ProjectionError(
+            f"{registry} replacement must be repository-relative without '..': "
+            f"{replacement}"
+        )
+    if not replacement.startswith(SCHEMA_SUPERSESSION_ROOT):
+        raise ProjectionError(
+            f"{registry} replacement must live below {SCHEMA_SUPERSESSION_ROOT}: "
+            f"{replacement}"
+        )
+    if not re.fullmatch(r"[0-9a-f]{64}", expected_source):
+        raise ProjectionError(f"{registry} has an invalid source hash for {relative}")
+    if not re.fullmatch(r"[0-9a-f]{64}", expected_replacement):
+        raise ProjectionError(f"{registry} has an invalid replacement hash for {relative}")
+    replacement_path = repo_root / replacement
+    if not _plain_file_exists(repo_root, replacement_path):
+        raise ProjectionError(
+            f"registered schema replacement is missing: {replacement}"
+        )
+    actual_source = hashlib.sha256(path.read_bytes()).hexdigest()
+    actual_replacement = hashlib.sha256(replacement_path.read_bytes()).hexdigest()
+    if actual_source != expected_source:
+        raise ProjectionError(
+            f"registered superseded source hash does not match: {relative}"
+        )
+    if actual_replacement != expected_replacement:
+        raise ProjectionError(
+            f"registered superseding source hash does not match: {replacement}"
+        )
+    return registry, replacement_path
+
+
 def _head_commit(repo_root: Path) -> str | None:
     """Read the current local source commit without changing repository state."""
 
@@ -279,13 +373,23 @@ def load_materialized_goal(repo_root: str | Path, goal_id: str) -> MaterializedG
         if checkpoints_dir.is_dir():
             for shard in sorted(checkpoints_dir.glob("*.yaml")):
                 _assert_plain_source_path(root, shard)
-                entry = _read_yaml(shard).get("batch_checkpoint")
+                source = shard
+                registry: Path | None = None
+                supersession = _schema_supersession_target(root, shard)
+                if supersession is not None:
+                    registry, source = supersession
+                document = _read_yaml(source)
+                entry = document.get("batch_checkpoint")
                 if not isinstance(entry, dict):
                     raise ProjectionError(
                         f"{shard} is missing top-level batch_checkpoint mapping"
                     )
                 entries.append(copy.deepcopy(entry))
-                sources.append(_source_file(root, shard))
+                _append_source_once(root, sources, shard)
+                if registry is not None:
+                    _append_source_once(root, sources, registry)
+                if source != shard:
+                    _append_source_once(root, sources, source)
         if entries:
             existing = record.get("batch_checkpoints", [])
             if existing is None:
