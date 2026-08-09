@@ -203,10 +203,36 @@ Policies are vendor-neutral capability contracts
 (`orchestration/model-policies.yaml`); the model that serves one is chosen
 per backend in `orchestration/model-bindings.yaml` and resolved by
 `orchestration/adapter/`. Subagent frontmatter in `.claude/agents/` cannot
-express a policy, so per-role model selection under this runtime is
+express a policy, so per-role **model** selection under this runtime is
 process-level: launch the session with the resolved environment rather
 than mixing policies in one session, and keep `model: inherit` in the
 frontmatter.
+
+A policy's **reasoning effort** is the one part that does bind per subagent.
+Claude Code frontmatter accepts `effort: low|medium|high|xhigh|max`, so each
+agent in `.claude/agents/` carries the effort its own policy requests and one
+session can dispatch all five roles at their own depths:
+
+| subagent | policy | `effort` |
+| --- | --- | --- |
+| `coordinator` | `coordinator-orchestration-code` | `high` |
+| `idea-generator` | `research-deep` | `high` |
+| `executor` | `executor-implementation` | `medium` |
+| `validator` | `review-adversarial` | `xhigh` |
+| `red-team` | `review-adversarial` | `xhigh` |
+
+Those values are **derived, not chosen here**: role → `default_policy` in
+`orchestration/roles.yaml` → `reasoning_effort` in
+`orchestration/model-policies.yaml`. Retune by editing the policy, never the
+agent file; `tools/check_runtime_bindings.py` fails the build while the two
+disagree, and `--list` shows, per role and runtime, whether effort comes from
+the agent file or from the session. The Validator and Red Team share `xhigh`
+because they share one adversarial policy — they differ in what they attack,
+not in how hard they must think. Per-task escalation to `review-breakthrough`
+at `max` stays a Coordinator decision in the handoff, running in an independent
+session, so it is deliberately not expressible in frontmatter. Runtimes that
+cannot carry effort per agent (`codex_cli`, `opencode`) are recorded as `null`
+in `runtime_reasoning_effort` and take it from `adapter env` at launch.
 
 ```sh
 # resolve a role's policy and see exactly what would answer
@@ -221,9 +247,10 @@ That `env` output also sets `AUTORESEARCH_POLICY` and
 resolved model in each run manifest's `inference` block. Record
 `requested_policy` from the handoff alongside it, with `fallback_used:
 true` and a reason if they differ — never silently substitute. Do not edit
-`.claude/agents/*.md` tool lists directly: authority and tool surface come
-from `orchestration/roles.yaml`, and `tools/check_runtime_bindings.py`
-fails the build if the two disagree.
+`.claude/agents/*.md` tool lists or `effort:` values directly: authority and
+tool surface come from `orchestration/roles.yaml` and effort comes from the
+role's policy, and `tools/check_runtime_bindings.py` fails the build if any of
+them disagree.
 
 ## Typical loop
 
