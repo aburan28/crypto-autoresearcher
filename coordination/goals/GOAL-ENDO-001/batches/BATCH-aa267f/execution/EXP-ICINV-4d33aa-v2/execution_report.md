@@ -503,6 +503,22 @@ conditions F-iii and F-v is for the Reviewer and Coordinator.
 - Work is committed on `claude/ecdlp-endomorphism-analysis-4m2w3z`.
   **Not pushed. No PR opened or updated.**
 
+### Reproduction checks (completion gate: "the result reproduces from the recorded command and revision")
+
+Both were run **after** the last commit, write nothing, and consume no run
+budget.
+
+1. **The frozen decision rule re-executed read-only** in a fresh process over the
+   nine committed stage records, and its output compared against the emitted
+   `decision-rule-evaluation.json` of `RUN-ICINV-99f722` (excluding the two keys
+   the driver adds outside the rule, `null_first_evidence` and
+   `source_run_resolution`): **byte-equal, 16448 == 16448 characters of
+   canonical JSON**, `terminal_state INVALID` both times.
+2. **The change-A1 baseline re-run from its recorded command** with `--no-write`
+   at the same revision: all thirteen variance ratios reproduce the committed
+   `RUN-ICINV-f09176` values, `monotonic decay: False`, operating row fb = 9 at
+   1.579. Exact match at the four decimals the driver prints.
+
 ### Repository checks run after the last commit
 
 | check | result |
