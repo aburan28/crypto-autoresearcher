@@ -6,12 +6,11 @@ Refine the admitted SSI per-prime advice-frontier design and obtain fresh indepe
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-950724` | red-team | queued | 3 | TASK-20260809-53689c, TASK-20260809-3c76a9 | coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/reviews/TASK-20260809-950724/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/reviews/TASK-20260809-950724/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/reviews/TASK-20260809-950724 |
-| `TASK-20260809-9f5850` | validator | queued | 3 | TASK-20260809-53689c, TASK-20260809-3c76a9 | coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/reviews/TASK-20260809-9f5850/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/reviews/TASK-20260809-9f5850/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/reviews/TASK-20260809-9f5850 |
+| `TASK-20260809-0c65c9` | coordinator | queued | 4 | TASK-20260809-9f5850, TASK-20260809-950724 | coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/archives/TASK-20260809-0c65c9/ledger-receipt.json, ledger/evidence/EV-SSI-323324.yaml, ledger/decisions/DEC-20260809-9eabbb.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-6c960d.yaml, ledger/goals/GOAL-SSI-001/goal.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/archives/TASK-20260809-0c65c9, coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/reviews/TASK-20260809-9f5850, coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/reviews/TASK-20260809-950724, ledger/evidence/EV-SSI-323324.yaml, ledger/decisions/DEC-20260809-9eabbb.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-6c960d.yaml, ledger/goals/GOAL-SSI-001/goal.yaml |
 
 ## Deferred or Blocked
 
-- `TASK-20260809-0c65c9`: dependency_not_completed:TASK-20260809-9f5850:queued, dependency_not_completed:TASK-20260809-950724:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Refine the admitted SSI per-prime advice-frontier design and obtain fresh indepe
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e28ab3a3ccea433abe7726b63f8ba2c164185f4ccdf5e4f80978dcb728223bdd`
+Plan SHA-256: `e6e2b741a65a6adb72ab2e1254b5a52a5b468c474ffdd9d6214caef0d2c11619`
