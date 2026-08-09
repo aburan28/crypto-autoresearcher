@@ -28,7 +28,8 @@ Common rules frozen into every handoff:
 - budgets: wall_clock ≤ 2400 s/agent, single sage invocation > 600 s = infrastructure timeout (NOT evidence, AGENTS rule 5), reduce load and record deviation
 - artifacts: specification.yaml, .sage implementation, runs/RUN-*/{manifest.yaml,raw.json,stderr.txt}, analysis.md, ledger RQ/H/EV YAML records
 - executors do NOT git-commit (coordinator commits after review) and do NOT touch files outside their own EXP dir + their 3 ledger records
-- toy scope only: no result may be presented as crypto-scale (rules 6–7); honest negative = success (rule 8)
+- every result states its tested parameters, evidence scope, and transfer or
+  extrapolation assumptions; honest negative = success (rule 8)
 
 ## Stage 2 — Review & decide (Coordinator)
 

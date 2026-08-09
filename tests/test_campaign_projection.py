@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
 
 import pytest
 import subprocess
@@ -73,6 +74,58 @@ def test_sharded_goal_projection_merges_write_once_checkpoint_files(tmp_path: Pa
     assert checkpoint_by_batch(goal, "BATCH-a") == views[1]
     assert all(view.source_projection_hash == goal.projection_hash for view in views)
     assert len(goal.source_files) == 3
+
+
+def test_sharded_projection_uses_registered_schema_supersession(tmp_path: Path) -> None:
+    head = tmp_path / "ledger/goals/GOAL-TEST-007/goal.yaml"
+    shard = tmp_path / "ledger/goals/GOAL-TEST-007/checkpoints/BATCH-a.yaml"
+    replacement = tmp_path / (
+        "ledger/corrections/schema-supersessions/20260808/"
+        "ledger__goals__GOAL-TEST-007__checkpoints__BATCH-a.v2.yaml"
+    )
+    _write(
+        head,
+        """research_goal:
+  id: GOAL-TEST-007
+  status: active
+""",
+    )
+    _write(shard, "checkpoint_id: BATCH-a\n")
+    _write(
+        replacement,
+        """batch_checkpoint:
+  batch_id: BATCH-a
+  note: corrected
+""",
+    )
+    registry = tmp_path / "tools/schema_supersession_registry.yaml"
+    source_hash = hashlib.sha256(shard.read_bytes()).hexdigest()
+    replacement_hash = hashlib.sha256(replacement.read_bytes()).hexdigest()
+    _write(
+        registry,
+        f"""schema: schema-supersession-registry-v1
+records:
+  - kind: goal_checkpoint
+    superseded_path: ledger/goals/GOAL-TEST-007/checkpoints/BATCH-a.yaml
+    superseded_sha256: {source_hash}
+    superseding_path: ledger/corrections/schema-supersessions/20260808/ledger__goals__GOAL-TEST-007__checkpoints__BATCH-a.v2.yaml
+    superseding_sha256: {replacement_hash}
+    defect: malformed checkpoint
+    registered: '2026-08-08'
+""",
+    )
+
+    goal = load_materialized_goal(tmp_path, "GOAL-TEST-007")
+
+    assert goal.record["batch_checkpoints"] == [
+        {"batch_id": "BATCH-a", "note": "corrected"}
+    ]
+    assert {source.path for source in goal.source_files} == {
+        "ledger/goals/GOAL-TEST-007/goal.yaml",
+        "ledger/goals/GOAL-TEST-007/checkpoints/BATCH-a.yaml",
+        "ledger/corrections/schema-supersessions/20260808/"
+        "ledger__goals__GOAL-TEST-007__checkpoints__BATCH-a.v2.yaml",
+    }
 
 
 def test_projection_refuses_ambiguous_or_malformed_legacy_layout(tmp_path: Path) -> None:

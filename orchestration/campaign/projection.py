@@ -171,6 +171,51 @@ def _source_file(repo_root: Path, path: Path) -> SourceFile:
     return SourceFile(path=relative, sha256=hashlib.sha256(content).hexdigest())
 
 
+def _schema_supersession_target(repo_root: Path, path: Path) -> Path | None:
+    """Return the registered replacement for a schema-invalid source.
+
+    The authoritative validator routes immutable schema corrections through
+    ``tools/schema_supersession_registry.yaml``.  The campaign projector is a
+    read-only observer, but it must apply the same routing rule or a corrected
+    checkpoint remains unreadable to the status command.  Both the original
+    and replacement hashes are checked here so a local edit cannot silently
+    change the projected state.
+    """
+
+    registry = repo_root / "tools" / "schema_supersession_registry.yaml"
+    if not _plain_file_exists(repo_root, registry):
+        return None
+    document = _read_yaml(registry)
+    if document.get("schema") != "schema-supersession-registry-v1":
+        raise ProjectionError(f"{registry} has an invalid schema supersession registry")
+    relative = path.relative_to(repo_root).as_posix()
+    for entry in document.get("records", []) or []:
+        if not isinstance(entry, dict) or entry.get("superseded_path") != relative:
+            continue
+        replacement = entry.get("superseding_path")
+        expected_source = str(entry.get("superseded_sha256", "")).lower()
+        expected_replacement = str(entry.get("superseding_sha256", "")).lower()
+        if not isinstance(replacement, str) or not replacement:
+            raise ProjectionError(f"{registry} has an invalid replacement for {relative}")
+        replacement_path = repo_root / replacement
+        if not _plain_file_exists(repo_root, replacement_path):
+            raise ProjectionError(
+                f"registered schema replacement is missing: {replacement}"
+            )
+        actual_source = hashlib.sha256(path.read_bytes()).hexdigest()
+        actual_replacement = hashlib.sha256(replacement_path.read_bytes()).hexdigest()
+        if actual_source != expected_source:
+            raise ProjectionError(
+                f"registered superseded source hash does not match: {relative}"
+            )
+        if actual_replacement != expected_replacement:
+            raise ProjectionError(
+                f"registered superseding source hash does not match: {replacement}"
+            )
+        return replacement_path
+    return None
+
+
 def _head_commit(repo_root: Path) -> str | None:
     """Read the current local source commit without changing repository state."""
 
@@ -279,13 +324,23 @@ def load_materialized_goal(repo_root: str | Path, goal_id: str) -> MaterializedG
         if checkpoints_dir.is_dir():
             for shard in sorted(checkpoints_dir.glob("*.yaml")):
                 _assert_plain_source_path(root, shard)
-                entry = _read_yaml(shard).get("batch_checkpoint")
+                source = shard
+                document = _read_yaml(source)
+                entry = document.get("batch_checkpoint")
+                if not isinstance(entry, dict):
+                    replacement = _schema_supersession_target(root, shard)
+                    if replacement is not None:
+                        source = replacement
+                        document = _read_yaml(source)
+                        entry = document.get("batch_checkpoint")
                 if not isinstance(entry, dict):
                     raise ProjectionError(
                         f"{shard} is missing top-level batch_checkpoint mapping"
                     )
                 entries.append(copy.deepcopy(entry))
                 sources.append(_source_file(root, shard))
+                if source != shard:
+                    sources.append(_source_file(root, source))
         if entries:
             existing = record.get("batch_checkpoints", [])
             if existing is None:

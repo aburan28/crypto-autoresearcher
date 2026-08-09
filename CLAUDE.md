@@ -52,8 +52,8 @@ Code specifically.
 3. Timeouts/crashes/infra failures are never negative mathematical
    evidence.
 4. Every conclusion is scoped to the tested curves, parameters, solver,
-   and budget; toy-scale evidence is never presented as crypto-scale. Claim
-   tiers and solution certificates are defined in
+   and budget; tested scale and any transfer or extrapolation assumptions are
+   explicit. Claim tiers and solution certificates are defined in
    `docs/claims-and-verification.md`: any claimed solve/relation carries a
    certificate the run wrapper re-verifies independently, and no evidence
    record asserts above its claim tier.

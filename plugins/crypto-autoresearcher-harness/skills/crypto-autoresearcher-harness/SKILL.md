@@ -24,8 +24,9 @@ committed contracts remain the source of truth:
 
 Do not copy, reinterpret, or bypass those contracts. In particular, do not
 invent results, use a timeout or infrastructure failure as negative
-mathematical evidence, promote toy-curve observations to crypto-scale claims,
-or let any role other than the Coordinator change official research status.
+mathematical evidence, or let any role other than the Coordinator change
+official research status. When interpreting an observation beyond its direct
+setup, state the tested parameters, evidence scope, and transfer assumptions.
 
 ## 1. Resolve the checkout and preflight it
 
