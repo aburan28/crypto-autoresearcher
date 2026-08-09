@@ -1,0 +1,1275 @@
+validation_report:
+  id: VAL-20260808-768137
+  task_id: TASK-20260808-768137
+  goal_id: GOAL-MLKEM-005
+  batch_id: BATCH-cbe023
+  role: validator
+  independent_session: true
+  claim_tier: toy
+  claim_boundary: >-
+    Nothing in this report bears on ML-KEM security, on any FIPS 203 parameter
+    set, on any attack cost, or on any cost model. A passed validation means the
+    receipt is admissible evidence. It does not support any cryptanalytic claim,
+    does not demonstrate a speedup, and does not authorize promotion.
+
+  snapshot_validated:
+    producer_snapshot_commit: 6bafef862
+    producer_snapshot_receipt: coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/archives/TASK-20260808-a6a336/snapshot-receipt.json
+    notarizing_commit: 4f7c63703d50445c758fc6216ca8d4436e04ae2a
+    governing_contract: coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/tasks/TASK-20260808-35efa3/prereg.md
+    governing_contract_sha256: 2da554914e5d78146c1e6cafcdbd109aacbc1a1624ed1f8e94ae769f757fc4f8
+    worktree: /Volumes/SSD990/crypto-autoresearcher/.claude/worktrees/crypto-autoresearcher-kb-adfc38
+    branch: feat/crypto-autoresearcher-kb-adfc38
+    validator_head_at_review_start: ce3b070a9aeb0f11400a7d9c978230f2edafbc51
+    validator_head_at_review_end: 19880b379aa78e616706bfdd4bb3630865d32678
+    head_advanced_during_review: >-
+      Recorded rather than ignored. A concurrent GOAL-MCE-001 validator committed
+      19880b379 on this branch mid-review. I re-ran every binding check at the
+      new HEAD: the notarizing commit and the producer snapshot are both still
+      ancestors of HEAD, the prereg is still byte-identical
+      (2da554914e5d78146c1e6cafcdbd109aacbc1a1624ed1f8e94ae769f757fc4f8), and
+      all 18 declared artifact hashes still verify with 0 mismatches. Nothing
+      this review depends on moved.
+    working_tree_clean_at_review: true
+    nothing_committed_by_this_task: true
+
+  run_ids:
+    - TASK-20260808-2a9085   # Section A, AM-4 admissibility gate
+    - TASK-20260808-cece0c   # Section B, AM-6 positive control
+    - TASK-20260808-3a5f18   # Section C, AM-7 matched-V comparison
+
+  # =====================================================================
+  # 1. NOTARIZATION CHAIN -- checked BY ME, IN BOTH DIRECTIONS, IN THIS WORKTREE
+  # =====================================================================
+  notarization_chain:
+    checked_by: validator, in this worktree, with git plumbing run here
+    result: VERIFIED IN BOTH DIRECTIONS
+    forward_direction:
+      - check: sha256 of prereg.md in the working tree
+        command: shasum -a 256 <prereg.md>
+        value: 2da554914e5d78146c1e6cafcdbd109aacbc1a1624ed1f8e94ae769f757fc4f8
+        matches_task_card: true
+        matches_producer_sidecar: true
+        matches_notarizing_receipt_path_sha256: true
+      - check: sha256 of the prereg BLOB INSIDE the notarizing commit
+        command: git cat-file -p 4f7c63703:<prereg path> | shasum -a 256
+        value: 2da554914e5d78146c1e6cafcdbd109aacbc1a1624ed1f8e94ae769f757fc4f8
+        note: >-
+          identical to the working-tree file; git blob object also identical
+          (5e0da7b28f78dfb5e02f4c169def30cf96d0e862 at both commit and worktree),
+          so the frozen text has not moved since notarization.
+      - check: notarizing commit is an ancestor of the producer snapshot AND of HEAD
+        command: git merge-base --is-ancestor 4f7c63703 6bafef862 ; ... HEAD
+        result: true for both
+        v7_compliance: >-
+          the assertion is made against the NOTARIZING COMMIT ITSELF, not its
+          parent -- carried correction V-7. All three producers assert the same
+          way; I re-asserted it here independently.
+    reverse_direction:
+      - check: does prereg.md exist at the notarizing commit's PARENT (eaafdb711)?
+        result: ABSENT -- the freeze is genuinely created by 4f7c63703
+        why_this_matters: >-
+          BATCH-f19c37's defective check would have passed had the notarization
+          never happened. This is the check that closes that hole.
+      - check: do any producer artifacts exist AT the notarizing commit?
+        command: git ls-tree -r --name-only 4f7c63703 -- <each producer dir>
+        result: 0 files for TASK-20260808-2a9085, -cece0c and -3a5f18
+      - check: first commit introducing each producer artifact
+        result: 6bafef862 for all three producers -- a strict DESCENDANT of 4f7c63703
+      - check: entire history of prereg.md across all refs
+        command: git log --all --follow -- <prereg path>
+        result: exactly ONE commit (4f7c63703). The frozen text was never amended.
+    conclusion: >-
+      The thresholds provably predate every measurement they govern, as a
+      property of the repository rather than as a producer assertion. The
+      residue this cannot close is off-repository pre-computation; prereg 0.1 is
+      the declaration that answers it and it is closed by harness structure, not
+      by cryptography.
+
+  # =====================================================================
+  # 2. DEFECT D-2 -- WHICH PRODUCER DID WHAT, AND THE DISCLOSURE IS WRONG
+  # =====================================================================
+  defect_D2_adjudication:
+    finding_id: F-1
+    severity: material -- a FALSE statement in three committed artifacts and in
+      the Coordinator receipt; changes no measurement
+    what_the_record_claims: >-
+      report_am7.md sec.0, run_manifest.yaml (3a5f18) git.recorded_defect, and
+      snapshot-receipt.json open_for_the_reviews[4] all state that
+      measure_am7.py resolves REPO_ROOT FIVE levels above batches/, landing in
+      the ENCLOSING checkout, and that the recorded head_commit 111d04124 is
+      "that checkout's HEAD, not this worktree's". measure_g3.py (Section B)
+      inherited the claim into a source comment and into
+      results_g3.json.prereg_verification.defect_D2_guard.
+    what_I_measured:
+      - check: path arithmetic of the COMMITTED measure_am7.py
+        method: executed the committed file's own TASK_DIR/TASKS_DIR/BATCH_DIR/
+          BATCHES_DIR chain and both the 4x'..' and 5x'..' candidates
+        result: >-
+          the committed script uses FOUR '..' and resolves to
+          /Volumes/SSD990/.../crypto-autoresearcher-kb-adfc38 -- THIS worktree.
+          The five-level path would be .../.claude/worktrees.
+      - check: what HEAD does the five-level path actually report?
+        command: git -C /Volumes/SSD990/crypto-autoresearcher/.claude/worktrees rev-parse HEAD
+        result: d724be4c984e3435a143079cc29c209c5eda3934 (main), NOT 111d04124
+      - check: is 111d04124 on main at all?
+        command: git branch -a --contains 111d04124 ; git merge-base --is-ancestor 111d04124 d724be4c9
+        result: >-
+          contained ONLY by feat/crypto-autoresearcher-kb-adfc38 and its remote;
+          NOT an ancestor of main. main cannot ever have reported it.
+      - check: enclosing checkout's HEAD at AM-7's start time
+        command: git -C /Volumes/SSD990/crypto-autoresearcher reflog --date=iso
+        result: >-
+          the enclosing checkout sat on codex/crypto-autoresearcher-plugin at
+          6e490922d from 2026-08-08 16:45:57 -0700 until it moved to main at
+          19:55:25 -0700. AM-7 started 01:38:42Z = 18:38:42 -0700, inside that
+          window. It could not have read 111d04124 from there.
+      - check: this worktree's HEAD at AM-7's start time
+        command: git reflog --date=iso (this worktree)
+        result: >-
+          111d04124 committed 18:27:03 -0700; next commit 64fdf09aa at
+          18:54:00 -0700. AM-7 started 18:38:42 -0700. This worktree's HEAD WAS
+          111d04124 at that instant -- exactly what the run recorded.
+      - check: recorded dirty paths
+        result: >-
+          results_am7.json.git.worktree_dirty_paths lists untracked
+          BATCH-cbe023 producer directories, which exist only in this worktree
+          and are invisible from the enclosing checkout. Corroborates the same
+          conclusion.
+    verdict: >-
+      DEFECT D-2 AS RECORDED IS A MIS-DIAGNOSIS. Section C resolved its repo
+      root to THIS worktree and made the required ancestry assertion HERE. The
+      committed script is consistent with the recorded outputs, so this is a
+      false DISCLOSURE, not a substituted artifact.
+    which_producer_did_which:
+      section_A_TASK-20260808-2a9085: >-
+        resolves the root with `git rev-parse --show-toplevel` from the process
+        CWD (not anchored to __file__). command.txt shows relative paths run
+        from the worktree root, and its recorded head 111d04124 confirms the
+        CWD was this worktree. Self-consistent (it hashes the prereg at the same
+        root it asserts ancestry at) but it would not detect having read a
+        different checkout entirely.
+      section_B_TASK-20260808-cece0c: >-
+        __file__-anchored FOUR-level REPO_ROOT **plus an explicit guard** that
+        `git -C REPO_ROOT rev-parse --show-toplevel` equals REPO_ROOT, with
+        git_common_dir recorded. This is the strongest of the three. It is also
+        the one that inherited the false D-2 narrative into its own text.
+      section_C_TASK-20260808-3a5f18: >-
+        __file__-anchored FOUR-level REPO_ROOT, all git calls via `git -C
+        REPO_ROOT`, but NO show-toplevel verification. Structurally correct;
+        unverified in-band. It is the producer that recorded D-2 against itself.
+    direction_of_the_error: >-
+      AGAINST the producer's own interest -- it declares its git bookkeeping
+      worse than it was. This is not concealment. But it is a false statement in
+      an immutable record that propagated to two further artifacts and was
+      repeated by the Coordinator without independent checking, which is the
+      same failure mode a sibling validator recorded against the GOAL-MCE-001
+      Coordinator's archive-scope diagnosis this session.
+    required_action: >-
+      A superseding correction record, not an edit. Section B's D2 guard remains
+      a good practice regardless of the phantom it was built against.
+
+  # =====================================================================
+  # 3. ARTIFACT AND COMMIT INTEGRITY
+  # =====================================================================
+  artifact_checks:
+    - check: all declared path_sha256 recomputed from the working tree
+      declared_entries: 18
+      matched: 18
+      mismatched: 0
+      result: PASS
+    - check: snapshot commit scope equals declared scope
+      command: git diff-tree --no-commit-id --name-status -r 6bafef862
+      result: >-
+        19 files, ALL added: the 18 declared producer artifacts plus the
+        receipt. No file outside the declared set. PASS.
+    - check: declared parent_sha vs actual parent
+      declared: ed5cc287d54991480c23629b5ed477bb194dfa4c
+      actual: ed5cc287d54991480c23629b5ed477bb194dfa4c
+      result: PASS
+    - check: working tree equals the committed blobs
+      command: git diff 6bafef862 HEAD -- <tasks dir> ; git status --porcelain
+      result: empty diff, clean tree. PASS.
+    - check: producer artifact completeness against the AGENTS.md artifact policy
+      result: >-
+        PARTIAL. Sections A and B carry command.txt, stdout.log and stderr.log.
+        Section C carries NONE of the three; its manifest states stdout/stderr
+        went to a session scratchpad and are "NOT durable". See F-5.
+    - check: run manifests carry the full artifact-policy field set
+      result: >-
+        All three carry git revision + dirty state, environment and dependency
+        versions, seeds/randomness, inference block with model_verified and its
+        reason, resources, timings, validity status, and certificate.kind =
+        none with its reason. The gap recorded against BATCH-a44d08 (manifests
+        missing an inference block or model_verified) is NOT repeated. PASS.
+    - check: Coordinator receipt internal consistency
+      result: >-
+        MINOR DEFECT (F-6a). The binding field path_sha256 declares 18 paths and
+        every one verifies, but the prose says "EXACTLY the twelve declared
+        producer artifacts" and "All twelve recomputed by the Coordinator". The
+        correct count is eighteen. The binding field is right; the prose is not.
+    - check: receipt commit_sha binding
+      result: >-
+        commit_sha is null in both receipts (written pre-commit). Under
+        CLAUDE.md the archive binds to CONTENT first, so this is admissible; I
+        established the carrying commits myself (4f7c63703 and 6bafef862).
+
+  # =====================================================================
+  # 4. FORCED VALUES RE-DERIVED AS FIRST-CLASS ARTIFACTS
+  #    (the BATCH-a44d08 standard: bit-exact where the value is forced)
+  # =====================================================================
+  # Schema key required by agents/validator.md. The headline metrics, with the
+  # full per-quantity detail in forced_value_rederivations and
+  # independent_recomputations below.
+  metric_recomputations:
+    - metric: Section A -- G-Q of rdet (the R3-carrying candidate)
+      reported: 0.9969516728448583
+      recomputed: 0.9969516728448583
+      method: closed form q^{(d-k)/d} at L4, from the definition
+      match: bit-exact
+      ref: FV-3
+    - metric: Section A -- projector identity OD + V + beta^2/d - beta
+      reported: max residual 4.263256414560601e-14 over 6765 frames
+      recomputed: max residual 2.842171e-14 over my own 200 frames
+      match: same order, identity confirmed on an independent implementation
+      ref: FV-2
+    - metric: Section A -- G-INV maxima of the six diag-determined candidates
+      reported: E_I 0.7402074303569426, V 10.308384120311045,
+        m3 88.95097211783316, D 1.0990778616645653, W 1.3793650793650793,
+        OD 70.09739227645926
+      recomputed: T1-only subgrid maxima E_I 0.7339, V 0.9877, m3 1.0187,
+        W 1.0714, OD 6.1696, with my own Haar stream and my own seed
+      match: refusals reproduce independently, 1-2 orders above tau_inv = 0.01
+      ref: IND-1
+    - metric: Section A -- lambda_1(L)^2 at the small-d family
+      reported: 123237.0 / 218.0 / 167027.0 / 290.0
+      recomputed: 123237.0 / 218.0 / 167027.0 / 290.0
+      method: fpylll basis GSO path (producer used the integer Gram path)
+      match: bit-exact
+      ref: FV-6
+    - metric: Section B -- all 48 c_min(i) and c_pos(i)
+      reported: producer table, min margin 1.8608
+      recomputed: max absolute deviation 0.000e+00 at 48/48 from raw
+        (Delta_i, SE_step, SE_diff); min margin 1.8607641914511006
+      match: bit-exact
+      ref: FV-B1, FV-B2
+    - metric: Section B -- n_fire(c=6) per cell, and excluding already-increasing
+      reported: 6/7/9/7 and 3/5/7/5, 9 of 48 flagged
+      recomputed: 6/7/9/7 and 3/5/7/5, 9 of 48 flagged -- twice, once from this
+        batch's raw table and once from the committed BATCH-a44d08 snapshot
+      match: exact on both paths
+      ref: FV-B2, FV-B3
+    - metric: Section C -- Wilson 95% upper bound at x=0, R=300
+      reported: 0.012642971224546036
+      recomputed: 0.012642971224546034
+      match: 1 ulp; the whole prereg 4.6 reachability table also reproduces
+      ref: FV-C0
+    - metric: Section C -- SE(Delta_bar), nu_eff and the structural share at
+        all 10 targets
+      reported: producer decomposition tables; structural share >= 50% at 2 of 10
+      recomputed: MS_S, MS_P, MS_res, SE and nu_eff match to 1e-9 relative at
+        10/10 targets; structural share >= 50% at 2 of 10, so PRED-C2 FAILS
+      method: from the raw Delta_table_S_by_E only
+      match: yes
+      ref: FV-C3
+    - metric: Section C -- n_falsifying, n_suggestive, tightest detection floor
+      reported: 0, 0, 3.91%
+      recomputed: 0, 0, 3.9086% (at the NEGATIVE-VARIANCE-COMPONENT target --
+        see finding F-2)
+      match: yes
+      ref: FV-C3
+  forced_value_rederivations:
+    - id: FV-1
+      quantity: TRIV = tr(P^2) = beta, for every rank-beta tail frame
+      method: built 200 frames from scratch (my own basis construction, my own
+        QR path) over L1..L5 x 5 betas x 8 bases
+      my_value: max |tr(P^2) - beta| = 2.842171e-14
+      producer_value: G-INV max 1.3026616822268502e-15; G-Q 3.552713678800501e-16
+      match: YES -- TRIV is constant by algebra; the G-Q refusal of the laxity
+        control is FORCED, not measured
+    - id: FV-2
+      quantity: projector identity OD + V + beta^2/d = beta
+      my_value: max residual 2.842171e-14 over my 200 frames
+      producer_value: 4.263256414560601e-14 over 6765 frames (tol 1e-10)
+      match: YES -- same order; identity confirmed independently
+    - id: FV-3
+      quantity: rdet = |det B|^{1/d} = q^{(d-k)/d}, and its G-Q value
+      my_value: >-
+        L1 292.1592605135659 / L2 11.394470242525212 / L3 57.697486947006624 /
+        L4 328.0487785942785 / L5 10.147881099466655;
+        max G-Q over cells = 0.9969516728448583 at L4
+      producer_value: G_Q max_over_cells = 0.9969516728448583 at L4
+      match: BIT-EXACT
+    - id: FV-4
+      quantity: E[V]_haar = 2 beta (d-beta) / (d (d+2)) -- the declared scale
+        floor s_V, and s_m3 = s_V^{3/2}, s_W = sqrt(k*2beta(d-beta)/(d^2(d+2)))
+      my_values: >-
+        (100,15) 0.25 ; (140,20) 0.2414486921529175 ; (140,45) 0.4300804828973843 ;
+        (100,40) 0.47058823529411764 ; s_m3(100,40) 0.32282086615060485 ;
+        s_W(100,50,40) 0.48507125007266594
+      producer_values: identical in every gate row and in the collision probe
+      match: BIT-EXACT at every value checked
+    - id: FV-5
+      quantity: rank of A = A1 @ A2 mod q over R and over F_q, at r in {1,5,10,20,k}
+      my_value: >-
+        rank_R(A) = min(k,d-k) = 30 (L1) / 40 (L4) at EVERY rung;
+        rank_Fq(A) = r exactly at every rung (own Gaussian elimination mod q)
+      producer_value: _rank_realized = 30 and 40 at every rung
+      match: YES -- claim (e) confirmed independently
+    - id: FV-6
+      quantity: lambda_1(L)^2 by HKZ at the small-d family
+      my_value: L7 123237.0 / L8 218.0 / L9 167027.0 / L10 290.0
+      producer_value: identical (x9_pipeline_crosscheck)
+      match: BIT-EXACT, through a DIFFERENT fpylll entry point (basis GSO,
+        where the producer used the integer Gram matrix)
+    - id: FV-7
+      quantity: HKZ violation of BKZ(block_size=d) WITHOUT the explicit sweep
+      my_value: 0.0 at d=20; 7.5500e-03 at L9 (d=30); 3.0205e-03 at L10
+      producer_value: "violations up to 7.6e-3 observed at d = 30 before the sweep"
+      match: YES -- 7.5500e-03 rounds to 7.6e-3. With the sweep my violation is
+        0.0 at all four lattices, reproducing 1530/1530 verified-HKZ behaviour.
+    - id: FV-8
+      quantity: np.linalg.slogdet correctness on the exact bases that emit the
+        divide-by-zero / overflow / invalid RuntimeWarnings in stderr.log
+      my_value: >-
+        sign = +1.0 (no NaN) at all five cells; max relative deviation of
+        rdet from the closed form = 6.758e-15, at d=140 k=40
+      producer_value: manifest claims "correct to 6.76e-15 against the exact
+        closed form"
+      match: BIT-EXACT to the quoted digit. No NaN entered rdet; rdet's raw
+        residual count is the full 6560, none dropped.
+    - id: FV-9
+      quantity: the diagonal-collision probe, rebuilt from the prereg text with
+        my own construction
+      my_value: >-
+        max|diag(P1)-diag(P2)| = 0.0 ; max off-diagonal separation 0.433013 ;
+        rank 40/40 ; coll = 0.000e+00 for E_I, V, m3, W, OD, TRIV
+      producer_value: offdiag 0.4330127018922193, six exact zeros
+      match: YES -- and the six zeros are FORCED by algebra (see finding F-4)
+    - id: FV-B0
+      quantity: t_crit = t_{7,0.998}
+      my_value: 4.2071245566046755 (scipy.stats.t.ppf(0.998,7))
+      producer_value: 4.2071245566046755
+      match: BIT-EXACT
+    - id: FV-B1
+      quantity: ALL 48 Section B steps -- c_min(i), c_pos(i), fires(c) and the
+        post-injection Delta over the frozen 11-point c grid
+      method: re-derived from the raw (Delta_i, SE_step(i), SE_diff(t_i)) alone
+      result: >-
+        c_min matched 48/48 with max abs deviation 0.000e+00;
+        c_pos matched 48/48 with max abs deviation 0.000e+00;
+        fires(c) and post-injection Delta matched at all 48 x 11 cells;
+        0 degenerate steps
+    - id: FV-B2
+      quantity: min (c_min - c_pos) over 48, and the closed-form guarantee
+      my_value: >-
+        1.8607641914511006 ; max |post-injection Delta at c_min - (epsilon +
+        t_crit*SE_step)| = 5.204e-18 ; min post-injection Delta at c_min =
+        0.0024147884953880493 > 0
+      producer_value: 1.8608, all strictly positive
+      match: YES
+    - id: FV-B3
+      quantity: c_min re-derived from a DIFFERENT COMMITTED SNAPSHOT
+      method: >-
+        recomputed all 48 c_min from BATCH-a44d08 TASK-20260806-e17677
+        results_g3.json (committed at 770009042), using only its
+        (delta, se_step_paired, epsilon) fields and my own t_crit
+      result: >-
+        max |c_min(from a44d08) - c_min(this run)| = 0.0 over 48 steps;
+        n_fire(c=6) from the committed record alone = 6/7/9/7, identical to the
+        producer's. Section B's headline is derivable WITHOUT any number this
+        producer computed.
+    - id: FV-C0
+      quantity: Wilson 95% upper bounds -- the whole prereg 4.6 reachability table
+      my_values: >-
+        R300 x0 0.012642971224546034 ; R200 x0 0.018845326377266575 ;
+        x1 0.02777370439789293 ; x2 0.0357217617161768 ; x3 0.04316572879269026 ;
+        R100 x0 0.03699349820698568 ; R300 x5 0.0384153948330945 ;
+        R300 x6 0.042939620817860576
+      producer_value: 0.012642971224546036 and the identical recomputed table
+      match: YES (1 ulp at R300 x0; every rounded prereg constant reproduced)
+    - id: FV-C1
+      quantity: alpha_pair = 0.10/11 and |t|crit at nu = 7,10,21,31
+      my_values: >-
+        0.009090909090909092 ; 3.5704944642989136 ; 3.225441496767339 ;
+        2.873639740695952 ; 2.7829734812179545
+      producer_value: identical (declared_alpha_pair) and the prereg's rounded
+        3.5704944643 / 3.2254414968 / 2.8736397407 / 2.7829734812
+      match: BIT-EXACT
+    - id: FV-C2
+      quantity: TL reachable-V intervals [V_TL(1/2), V_TL(1)] at the four cells
+      my_values: >-
+        (100,30) [6.000000, 21.000000] ; (100,40) [4.000000, 24.000000] ;
+        (140,30) [8.571429, 23.571429] ; (140,40) [8.571429, 28.571429]
+      producer_value: identical; and (140,30)'s unreduced arm V = 6.750435 is
+        indeed below 8.571429, so its exclusion is forced by the frozen rule
+      match: BIT-EXACT
+    - id: FV-C3
+      quantity: the two-way random-effects decomposition at all 10 targets --
+        MS_S, MS_P, MS_res, SE(Delta_bar), nu_eff, |t|, relative difference,
+        detection floor, structural share
+      method: recomputed from the raw Delta_table_S_by_E (S=8 x E=4) only
+      result: >-
+        MS_S, MS_P, MS_res, SE and nu_eff matched the producer at all 10 targets
+        to 1e-9 relative. n_falsifying 0, n_suggestive 0, and the count of
+        targets with structural share >= 50% is 2 of 10, all reproduced.
+        My only initial divergence was my own arbitrary nu floor at the single
+        NEGATIVE-VARIANCE-COMPONENT target; the producer's choice (nu = residual
+        df = 21) is the principled one and yields the reported 3.91% floor.
+    - id: FV-D3
+      quantity: AM-6's self-reported defect D-3
+      method: ran `git show -s --format=%H|%ci|%s <sha>` under shell=True here
+      result: >-
+        rc=127, stdout empty, stderr "/bin/sh: %ci: command not found". The
+        format string's pipes are shell pipes. Defect reproduced exactly;
+        cosmetic, and no verification depends on it (the ancestry assertion uses
+        a separate list-argv subprocess call).
+    - id: FV-W
+      quantity: the prereg 5.4 forbidden-wording ban, scanned over report + JSON
+        + script for all three producers, by me
+      result: >-
+        Every hit is either inside a statement OF the ban itself or the
+        dependency note "gmpy2 ABSENT". No measured arm is described as absent,
+        no departure, vanishes, or consistent with zero. PASS.
+
+  # =====================================================================
+  # 5. INDEPENDENT RECOMPUTATIONS FROM SCRATCH (not re-runs of producer code)
+  # =====================================================================
+  independent_recomputations:
+    - id: IND-1
+      what: T1 (ambient isometry) invariance residuals, my own implementation,
+        my own Haar stream, my own seed (20260808), on L1/L3/L4 x 3 betas x
+        4 bases x 8 isometry draws
+      my_maxima: >-
+        E_I 7.3388e-01 ; V 9.8771e-01 ; m3 1.0187e+00 ; W 1.0714e+00 ;
+        OD 6.1696e+00 ; TRIV 8.2897e-16
+      producer_maxima_over_all_cells_and_T1T2T3: >-
+        E_I 0.7402 ; V 10.308 ; m3 88.951 ; W 1.3794 ; OD 70.097 ; TRIV 1.30e-15
+      conclusion: >-
+        The six G-INV refusals are REAL and reproduce under an independent
+        implementation with an independent RNG, at 1-2 orders above tau_inv =
+        0.01 and 13-14 orders above the T0 noise floor. They are not instrument
+        artifacts. TRIV's invariance likewise reproduces at 8e-16.
+    - id: IND-2
+      what: PRED-A1 -- mean E_I under T1 against the exact Haar target k/d
+      result: >-
+        PASS at all 9 of my cells; |mean - k/d| between 1.07e-04 and 4.06e-03
+        against the frozen tolerance max(4 SE, 0.02). The T1 implementation is
+        behaving as the exact Haar expectation requires.
+    - id: IND-3
+      what: MY OWN NULL -- a TL vs TL'' exact null rebuilt from the prereg text
+        with my own seeds, my own 8-pool bank, my own u = 0.7827458, my own
+        order-statistic path; R = 30 replicates at d=100, beta=40, S=8, E=4,
+        N=2^20, scored through my own implementation of the frozen criterion
+      my_result: >-
+        FALSE FALSIFICATIONS 0 of 30 ; median |t| 0.7107, p95 2.7037, max 3.9307 ;
+        median relative difference 0.013862, p95 0.027204, max 0.039145 ;
+        median nu_eff 2.4008, median |t|crit 7.880 ;
+        NEGATIVE-VARIANCE-COMPONENT 4/30 (13.3%) ;
+        median structural share 41.03%, >= 50% at 15 of 30
+      producer_N-A_d100_b40_R300: >-
+        x = 0 of 300 ; median |t| 0.5418, p95 2.4913 ; median relative 0.006457,
+        p95 0.022991 ; median nu_eff 2.3371 ; negVC 44/300 (14.7%) ;
+        median structural 31.38%
+      conclusion_1: >-
+        G-CAL's 0/300 is CORROBORATED by an independently constructed null. The
+        calibration is not an artifact of the producer's null construction.
+      conclusion_2: >-
+        BUT the null's own operating characteristics explain why 0 firings was
+        close to certain: the criterion's relative floor tau_rel = 0.15 sits
+        5.5x-6.5x above the null's p95 relative difference (0.023-0.027), and
+        the null's largest |t| (3.93) never approaches the median |t|crit
+        (7.88). G-CAL therefore certifies far less than "the instrument is
+        calibrated" suggests. See F-3.
+      conclusion_3: >-
+        The structural share reaches 50% in about half my null replicates, so
+        PRED-C2's failure is a statement about these 10 targets, not evidence
+        that the rebuilt estimator cannot recover the components.
+
+  # =====================================================================
+  # 6. CONTROL CHECKS AGAINST THE FROZEN CONTRACT
+  # =====================================================================
+  control_checks:
+    - id: CC-A1
+      control: X7 = TRIV, the LAXITY control -- must PASS G-INV and must FAIL G-Q
+      frozen_consequence: if TRIV PASSES G-Q the gate is INADMISSIBLE and no
+        admissibility claim may be reported (prereg 2.10 Form 1)
+      measured: G-INV 1.3026616822268502e-15 (pass); G-Q 3.552713678800501e-16
+        against tau_q = 0.10 -> REFUSED
+      independently_verified: >-
+        YES, and it is FORCED: tr(P^2) = tr(P) = beta for any rank-beta
+        projector, so |X(q=3329) - X(q=1)| is identically 0. The clause behaved,
+        and it could not have done otherwise.
+      result: PASS
+    - id: CC-A2
+      control: X8 = rdet and X9 = lam1n, the POSITIVE controls -- exact
+        invariants that MUST pass G-INV
+      frozen_consequence: if rdet FAILS G-INV the gate is INSTRUMENT-LIMITED and
+        NO REFUSAL OF ANY CANDIDATE MAY BE REPORTED (prereg 2.10(b))
+      measured: rdet 2.514254164288223e-13 (T1 2.51e-13, T2 0.0, T3 9.73e-16);
+        lam1n 7.150430661174418e-15; both far under tau_inv = 0.01
+      independently_verified: >-
+        YES for rdet, and it is the load-bearing half. det(BH) = +-det(B),
+        det(Pi B) = +-det(B), det(UB) = +-det(B) exactly, so rdet's invariance
+        is algebra; I confirmed the residual is float noise only and that the
+        slogdet RuntimeWarnings do NOT produce NaN (FV-8).
+      caveat_recorded_by_the_producer_and_confirmed_by_me: >-
+        lam1n and hkz go through the integer Gram matrix, which an ambient
+        isometry preserves EXACTLY, so their T0/T1 residuals measure only
+        Gram-formation noise and are a WEAK test of T1. Their T2/T3 residuals
+        are genuine. rdet does NOT share this weakness -- it goes through the
+        float64 BH product -- so the frozen clause rests on the strong control.
+      the_QR_path_is_separately_controlled: >-
+        rdet does not exercise the QR/GSO path where a spurious residual would
+        live. That path is controlled per candidate by T0, the mathematically
+        identity round trip, whose maximum over all ten candidates is 6.20e-11
+        against tau_num = 1e-6. The pair (rdet, T0) covers both.
+      result: PASS
+    - id: CC-A3
+      control: T0, the numerical round trip B -> B H H^T, required for every
+        candidate (G-NUM)
+      measured: max rho_T0 = 6.20e-11 (D), 6.54e-12 (m3), 6.66e-16 (E_I);
+        all under tau_num = 1e-6
+      result: PASS -- the noise floor is 4 to 10 orders below tau_inv, so the
+        six refusals cannot be manufactured by float noise
+    - id: CC-B1
+      control: NC-B1, c = 0 -- the un-injected family must return 0 of 48
+      measured: 0 of 48; max AM-3 statistic -0.19342160540508713, abs deviation
+        0.0 from the committed value
+      independently_verified: YES -- my 48-step recomputation reproduces
+        fires(c=0) = false at every step
+      result: PASS
+    - id: CC-B2
+      control: NC-B2, c = -6 -- a reinforced decrease must return 0 of 48
+      measured: 0 of 48; max statistic -8.211428539209706
+      independently_verified: YES
+      result: PASS
+    - id: CC-B3
+      control: NC-B3 -- every step with Delta_i > 0 flagged, n_fire reported
+        with and without them
+      measured: 9 of 48 flagged (matches the committed 9); n_fire(c=6) 29 with,
+        20 without
+      independently_verified: YES, 9/48 and both counts reproduced exactly
+      result: PASS
+    - id: CC-B4
+      control: reproduction floor -- 448 per-draw r values regenerated from the
+        carried seeds with NO new BKZ/LLL
+      measured: >-
+        0.0 against BATCH-a44d08's committed record; 2.220446049250313e-16
+        against BATCH-f19c37's, confined to d = 140 -- the exact one-ULP
+        deviation declared IN ADVANCE by prereg 3.5, and explicitly NOT rounded
+        to 0.0. c_min reproduction 0.0 in c units on both legs.
+      result: PASS -- and the declared-in-advance non-zero deviation is the
+        strongest single sign that this reproduction was not smoothed
+    - id: CC-C1
+      control: G-CAL -- Wilson 95% upper bound <= 0.040 for BOTH N-A and N-B in
+        BOTH null cells
+      measured: 0 of 300 in all four units; Wilson upper 0.012642971224546036
+        in each; R_min = 200 cleared everywhere, so no unit is UNDECIDED
+      independently_verified: >-
+        Wilson bound recomputed by me to 1 ulp; rate corroborated by my own
+        independently constructed null (IND-3, 0 of 30)
+      result: PASS, with the power caveat in F-3
+    - id: CC-C2
+      control: the delta = 0.50 admissibility clause -- the criterion must fire
+        at a 50% relative offset at EVERY target or the instrument is declared
+        UNDERPOWERED BY CONSTRUCTION
+      measured: fires at delta = 0.50 at all 10 targets; largest delta_min is
+        0.4242 (d100_b30 unreduced), so the clause passes with 0.076 to spare
+        at its tightest target
+      independently_verified: YES -- delta_min = max(floor, tau_rel) - realized
+        relative difference recomputed from my own SE and floor at every target
+      result: PASS
+    - id: CC-C3
+      control: N-A / N-B exactness (|V - V''| and |m3 - m3''| <= 1e-12) and the
+        N-B coordinate-permutation identity
+      measured: 7.11e-15 / 1.78e-15 (N-A); 5.33e-15 / 1.78e-15 (N-B)
+      independently_verified: >-
+        YES structurally -- V_TL and m3_TL depend on u alone and not on the
+        support or the pairing, which I re-derived in closed form, so the two
+        sides are equal in distribution and the true effect is exactly zero
+      result: PASS
+    - id: CC-C4
+      control: N-C, the Gaussian instrument check (PRED-C3)
+      measured: 0 falsifying of 120
+      producer_disclosure_confirmed: >-
+        N-C's relative-difference condition is degenerate by construction (both
+        D values sit at the sampling floor, so M is tiny and the median relative
+        difference is 100-102%); the criterion there is carried entirely by
+        condition (i). The producer states this. N-C is therefore a check on
+        condition (i) only, not a second calibration of the full criterion.
+      result: PASS with the stated scope
+    - id: CC-C5
+      control: the degenerate V = beta(1 - beta/d) pair, excluded BY RULE at
+        1e-9 before any data and reported as an instrument check
+      measured: "|t| 0.316 / 0.452 / 0.891 / 0.386; would not have fired"
+      result: PASS -- correctly never counted as support
+
+  # =====================================================================
+  # 7. FINDINGS ON THE NINE SPECIFIC CLAIMS
+  # =====================================================================
+  findings_on_specific_claims:
+    a_section_A_R3_classification:
+      claim: >-
+        all six diag-determined candidates fail G-INV (E_I 0.740, V 10.31,
+        m3 88.95, D 1.099, W 1.379, OD 70.10 vs tau_inv 0.01); rdet/lam1n/hkz
+        pass G-INV, G-NUM, G-Q and FAIL G-REL; R3 follows the frozen map applied
+        in order
+      verdict: CONFIRMED
+      detail: >-
+        Producer values are 0.7402074303569426, 10.308384120311045,
+        88.95097211783316, 1.0990778616645653, 1.3793650793650793,
+        70.09739227645926 -- the receipt's rounded quotations are faithful. My
+        independent implementation reproduces the same order of magnitude on a
+        subgrid (IND-1). Map order verified: R5 no (all ten pass G-NUM, max
+        6.20e-11); R4 no (see (c)); R1 empty (no candidate passes BOTH G-REL
+        clauses); R3 fires on rdet, lam1n, hkz; R2/R2' are exclusive of R3.
+      one_audit_point_the_producer_had_already_raised: >-
+        R5's text also fires on "a declared budget cap binds before that
+        candidate's arm completes", and the X9/X10 arm at L11 DID hit its 300 s
+        cap at 300.4 s. The producer reports BOTH readings in report_am4.md 1.1:
+        arm-level (headline, R3 = {rdet, lam1n, hkz}) and strict (R3 = {rdet}
+        alone, GEN-2 fails). The headline R3 is robust either way because rdet's
+        arm completed in full and reaches R3 by itself. I confirm this is the
+        correct handling and that the strict reading changes nothing that is
+        cited, since R2/R2' were never reached.
+      what_R3_actually_carries: >-
+        For X8 = rdet, R3 is FORCED by algebra given the frozen thresholds:
+        G-INV holds because det is a unimodular/orthogonal invariant, G-Q is the
+        closed form q^{(d-k)/d} vs 1 = 0.9969 (I re-derived it bit-exactly), and
+        G-REL1 is exactly 0 because rdet has no beta dependence at all. The
+        prereg predicted R3 for X8 and X9 in advance. The informative content of
+        Section A is therefore NOT the R3 headline but (i) the six G-INV
+        refusals, (ii) the D collision separation, and (iii) hkz being
+        admissible yet failing REL-2 at every mirrored pair.
+    b_section_A_controls:
+      claim: >-
+        TRIV refused by G-Q at 3.55e-16; rdet/lam1n pass G-INV at 2.5e-13 /
+        7.2e-15; these two clauses are what make the six refusals meaningful
+      verdict: CONFIRMED, and checked hardest
+      detail: see control_checks CC-A1, CC-A2, CC-A3 and FV-1, FV-3, FV-8.
+        TRIV's G-Q refusal is forced by tr(P^2) = beta. rdet's G-INV pass is
+        forced by determinant invariance and is the half the frozen clause rests
+        on; I verified no NaN entered it despite the slogdet warnings and that
+        its logabsdet is correct to 6.758e-15. lam1n's 7.150430661174418e-15
+        rounds to the quoted 7.2e-15.
+      residual_caveat: >-
+        rdet does not traverse the QR path, so it is not by itself a control for
+        the mechanism that could manufacture a false non-invariance. T0 covers
+        that path per candidate at <= 6.20e-11. Reported as a pair, the two
+        controls do cover both directions; neither alone would.
+    c_AM4_OBS_1_premise_and_R4:
+      claim: >-
+        AM4-OBS-1's premise is REFUTED for D (identical diagonals, D separated
+        15.8% of scale at L3, 7.5x floor) while R4 did NOT fire because prereg
+        2.7 excludes X4 from the trigger list -- is that reconciliation correct?
+      verdict: THE RECONCILIATION IS CORRECT. R4 should NOT have fired.
+      detail: >-
+        Both prereg 2.4 and prereg 2.7 restrict R4's premise clause to
+        X1, X2, X3, X5, and its measured-conclusion clause to X1..X5 passing
+        G-INV at every replicate. coll = 0 for X1, X2, X3, X5, so the premise
+        clause has no trigger; the minimum G-INV maxima over X1..X5 are 0.740,
+        0.987, 1.04, 1.10, 1.12, all far above tau_inv, so the
+        measured-conclusion clause has no trigger either. The producer applied
+        the frozen text exactly and reported the D result separately.
+      arithmetic_check: 0.1583725534036054 / 0.02113695528562117 = 7.493, so
+        "7.5x floor" is faithful; at L4 the separation is 0.03447 against a
+        0.02674 floor, only 1.29x, and the receipt quotes only the L3 figure
+        while the report gives both.
+      would_it_have_changed_the_headline: NO -- prereg 2.7 says R4 is "reported
+        first, then the remaining rows are evaluated on the rest", so R3 would
+        still be the outcome for rdet/lam1n/hkz.
+      but_see: finding F-4 -- the R4 premise clause could not have fired for any
+        candidate it lists, under any collision probe.
+    d_six_exact_zeros_disclosure:
+      claim: the six exact zeros are ARITHMETIC not corroboration, since those
+        six are manifest closed-form functions of diag(P)
+      verdict: THE DISCLOSURE IS COMPLETE. It neither understates nor overstates.
+      detail: >-
+        report_am4.md lines 340-346 states it explicitly and correctly, and
+        snapshot-receipt.json repeats it. I verified the algebra independently:
+        E_I, V, m3 and W are explicit sums over diag(P); TRIV = tr(P^2) = tr(P)
+        = beta identically; and OD = beta - V - beta^2/d by the projector
+        identity, which I confirmed to 2.84e-14 on my own frames. Since the
+        probe fixes diag(P2) = diag(P1) exactly, coll = 0 is forced for all six.
+        My own rebuild of the probe (FV-9) returns the same six zeros and the
+        same 0.433013 off-diagonal separation.
+      one_thing_the_disclosure_stops_short_of: it is stated about the CANDIDATES
+        ("the only one on which the premise had content was X4") rather than
+        about the R4 TRIGGER. Stated about the trigger it is stronger -- see F-4.
+    e_G_RANK_not_adjudicated:
+      claim: G-RANK is NOT ADJUDICATED because A = A1 @ A2 mod q forces rank
+        over F_q but not over R
+      verdict: CONFIRMED INDEPENDENTLY (FV-5)
+      detail: >-
+        I built the rank-r factors myself and measured rank_R(A) = min(k, d-k)
+        = 30 / 40 at EVERY rung r in {1,5,10,20,k}, while rank_Fq(A) = r
+        exactly. The GSO frame from QR(B^T) is computed over R, so the rank
+        ladder does not vary the quantity G-RANK's departure index is meant to
+        track; min(rank(A_S), beta) and min(k, beta) coincide at every rung and
+        the criterion cannot discriminate. NOT ADJUDICATED is right.
+      stale_field_correctly_superseded: >-
+        results_am4.json still carries the script's mechanical verdict "REFUSED
+        as a block-content adjudicator -- b* tracks rank(A_S)" for E_I at L4
+        (b* = 28 at r=1 vs 41 elsewhere). report_am4.md 8.2 explicitly supersedes
+        it and explains that with rank_R(A) constant the difference is a
+        different random draw of A (the rank-variant seed includes r), not a
+        rank effect. My measurement supports the report's reading over the JSON
+        field. The immutable JSON was correctly left unaltered.
+    f_HKZ_repair_and_verification:
+      claim: >-
+        the HKZ reducer was REPAIRED because fpylll's svp_call discards
+        improvements below lll_delta; unrepaired, hkz showed a spurious 1.7e-2
+        T3 residual and would have been refused as an artifact; 1530/1530
+        reductions verified HKZ
+      verdict: CONFIRMED, by an independent re-run through a different code path
+      detail: >-
+        FV-7: with one BKZ pass at block_size = d and no explicit sweep I
+        measured HKZ violations of 7.5500e-03 at L9 (d=30) and 3.0205e-03 at
+        L10, and 0.0 at d = 20 -- reproducing the producer's "up to 7.6e-3 at
+        d = 30". With the sweep added my violation is 0.0 at all four lattices.
+        FV-6: lambda_1^2 reproduces bit-exactly at L7/L8/L9/L10 (123237.0,
+        218.0, 167027.0, 290.0) through the BASIS GSO path, where the producer
+        used the integer Gram path -- two different fpylll entry points agreeing
+        exactly.
+      what_the_verification_does_and_does_not_establish: >-
+        The producer's verifier re-enumerates every index i over the projected
+        block [i,d) with radius r_i*(1+1e-7) and reports max_i (r_i - min)/r_i.
+        That is a genuine independent check that r_i = lambda_1(pi_i(L))^2, and
+        it returned 0.0 at 1530/1530. It uses fpylll's own Enumeration on the
+        same GSO, so a systematic fault in fpylll's enumerator would not be
+        caught by it -- but my independent reproduction through a different
+        entry point removes most of that residual. The 1.7e-2 unrepaired T3
+        residual is a producer-only counterfactual (the unrepaired run is not
+        an artifact of this batch); I did not attempt to reproduce it and it is
+        not load-bearing on any reported number.
+    g_section_B_counts_and_PRED_B1_scoring:
+      claim: >-
+        c_min(i) > c_pos(i) at 48/48, min margin 1.8608, post-injection Delta
+        strictly positive at c_min; n_fire(c=6) = 6/7/9/7; excluding
+        already-increasing steps 3/5/7/5, and d100_b30's 3 is BELOW PRED-B1's
+        threshold of 4
+      verdict: BOTH COUNTS CONFIRMED, bit-exactly, twice
+      detail: >-
+        FV-B1/FV-B2: all 48 c_min and c_pos re-derived from the raw
+        (Delta_i, SE_step, SE_diff) with max deviation 0.000e+00; fires(c) and
+        the post-injection Delta reproduced at all 48 x 11 grid cells;
+        min margin 1.8607641914511006; min post-injection Delta at c_min
+        0.0024147884953880493 > 0. FV-B3: the same 48 c_min re-derived from the
+        SEPARATE committed BATCH-a44d08 snapshot, deviation 0.0, giving
+        n_fire(c=6) = 6/7/9/7 from that record alone. Excluding the 9
+        already-increasing steps: 3/5/7/5, and 9 of 48 matches the committed 9.
+      is_scoring_PRED_B1_on_the_full_table_right: >-
+        PROCEDURALLY YES, and it is the only defensible choice. Prereg 3.5
+        freezes the threshold as a count out of 12 and 3.8 Form 3 says in terms
+        that "PRED-B1 is scored on the full table with the flagged count printed
+        beside it". Rescoring on the exclusion after seeing that it fails in one
+        cell would be exactly the post-hoc rule prereg 5.6 forbids.
+      but_the_substantive_reading_is_weaker_than_the_headline: >-
+        In d100_b30 exactly half the firings at c = 6 (3 of 6) sit on steps
+        already increasing in the raw data, so that cell's margin over the
+        threshold is entirely carried by them. Under the sensitivity analysis
+        the contract itself mandates printing, that cell FAILS PRED-B1 (3 < 4).
+        The firings are not vacuous -- NC-B1 shows no step fires at c = 0, so
+        even an already-increasing step needs a real injection to cross
+        t_crit = 4.207 -- but "the AM-3 gate CAN fire" is demonstrated more
+        weakly in d100_b30 than 6-of-12 suggests. The producer disclosed this
+        prominently and against interest, and the Coordinator carried it into
+        the receipt. That is the correct conduct.
+      one_framing_correction: >-
+        "c_min(i) > c_pos(i) at 48/48" is an ALGEBRAIC IDENTITY verified
+        numerically, not an empirical finding: c_min - c_pos = 1 +
+        t_crit*SE_step/SE_diff >= 1 whenever SE_diff > 0. The prereg says as
+        much ("a violation is an implementation error, not a finding") and the
+        producer repeats it. It must not be cited as evidence about the gate.
+    h_section_C_G_CAL_and_PRED_C2:
+      claim: >-
+        G-CAL met in four exact-null units at 0/300 each, Wilson upper 0.012643
+        vs 0.040; positive control fires at delta = 0.50 at all 10 targets;
+        PRED-C2 FAILS (structural share >= 50% at only 2 of 10)
+      verdict: ALL THREE CONFIRMED
+      detail: >-
+        Wilson upper recomputed independently to 0.012642971224546034 (producer
+        ...036, 1 ulp). The rate itself corroborated by my own independently
+        built null (IND-3, 0 of 30 with median |t| 0.71 and p95 |t| 2.70). The
+        SE decomposition recomputed from the raw S x E tables at all 10 targets:
+        MS_S, MS_P, MS_res, SE and nu_eff all match to 1e-9 relative, and the
+        structural shares reproduce as 17.5, 47.0, -750.8, 1265.0, 41.7, -35.2,
+        55.7, -12.9, 38.9, -37.8 percent -- 2 of 10 at or above 50%, so PRED-C2
+        FAILS. n_falsifying 0 and n_suggestive 0 reproduce. delta_min and the
+        delta = 0.50 firing reproduce at every target.
+      material_qualifications: see findings F-2 and F-3.
+    i_load_bearing_producer_only_values:
+      question: is any producer's headline load-bearing on a value only that
+        producer computed?
+      section_A: >-
+        NO for the headline. R3 is reached by X8 = rdet alone, and every rdet
+        quantity is closed form: I re-derived its G-Q (0.9969516728448583)
+        bit-exactly and its G-INV and G-REL1 values are forced by algebra. The
+        six refusals are producer-computed but I reproduced their magnitude with
+        an independent implementation and RNG. lam1n and hkz ARE producer-only
+        in their G-REL values, and under the strict R5 reading are not citable
+        at all -- neither is load-bearing.
+      section_B: >-
+        NO. I re-derived all 48 c_min and the entire n_fire table from the
+        SEPARATE committed BATCH-a44d08 snapshot, with deviation 0.0. Section
+        B's headline does not depend on any number this producer originated.
+      section_C: >-
+        PARTLY YES, and this is the batch's one genuine single-source
+        dependency. The 10 targets' raw S x E D-tables and the 1200 null
+        replicates exist only in this producer's output. Their GR side and the
+        unreduced arms reproduce against the committed BATCH-f19c37 record
+        (0.0, and the declared one-ULP 2.220446049250313e-16 at d = 140), and I
+        rebuilt the null myself and got the same regime -- but the TL arm at the
+        matched u values, and the 10 Delta tables that carry the CONSISTENT
+        verdict, are single-source. Any successor citing the CONSISTENT verdict
+        must cite it as resting on one run.
+
+  # =====================================================================
+  # 8. FINDINGS
+  # =====================================================================
+  findings:
+    - id: F-1
+      severity: material
+      title: Defect D-2 as recorded is a MIS-DIAGNOSIS, and it propagated
+      detail: see defect_D2_adjudication above. The AM-7 run DID resolve its
+        repo root to this worktree and DID make the ancestry assertion here.
+      affected_artifacts:
+        - tasks/TASK-20260808-3a5f18/report_am7.md (section 0)
+        - tasks/TASK-20260808-3a5f18/run_manifest.yaml (git.recorded_defect)
+        - tasks/TASK-20260808-cece0c/measure_g3.py (source comment)
+        - tasks/TASK-20260808-cece0c/results_g3.json (prereg_verification.defect_D2_guard)
+        - archives/TASK-20260808-a6a336/snapshot-receipt.json (open_for_the_reviews[4])
+      effect_on_evidence: NONE. No measurement, seed, threshold or verdict
+        depends on it. The notarization chain holds independently.
+      required_action: a superseding correction record. Do not edit the
+        immutable artifacts.
+      note_on_the_coordinator: >-
+        The receipt asserts the diagnosis as established fact, and adds
+        "the fix propagated within the batch". Neither half survives checking.
+        This is the same class of error a sibling validator recorded against
+        the GOAL-MCE-001 Coordinator's archive-scope diagnosis in this session:
+        a Coordinator claim about the git record, repeated rather than verified.
+    - id: F-2
+      severity: material
+      title: the family-level upper bound "3.91 percent relative" is taken at
+        the ONE target where the rebuilt SE degenerated to residual-only
+      detail: >-
+        The tightest detection floor, 3.91%, occurs at d100_b40 / graded_t0.0025
+        -- the single target flagged NEGATIVE-VARIANCE-COMPONENT, where
+        MS_S + MS_P - MS_res <= 0 and the frozen degenerate branch replaces the
+        two-way estimate with MS_res/(S*E) and nu_eff with the residual df 21.
+        That substitute estimator is precisely the residual-only variance model
+        AM-7 exists to replace. The report discloses the flag (section 2 table)
+        and discloses the nu_eff = 21 completion (implementation_completions),
+        but it does not connect either to the headline, and report_am7.md 8 and
+        the Coordinator receipt both quote "3.91 percent relative" as the
+        family-level upper bound with no such qualification.
+      quantification: >-
+        The second-tightest floor, at a NON-degenerate target, is 10.83%
+        (d100_b30 / graded_t0.0025). A family-level upper bound stated only over
+        targets whose two-way SE is well defined is therefore ~10.8%, not 3.91%.
+      required_action: >-
+        Any downstream citation of the upper bound should carry the qualifier,
+        or use the 10.83% figure. This is a reading correction, not a
+        computational error -- every number reproduces.
+    - id: F-3
+      severity: material (contract, not producer)
+      title: tau_rel = 0.15's stated justification does not hold against the
+        instrument it now governs
+      detail: >-
+        The prereg sets tau_rel = 0.15 as "1.67x the top of the measured null
+        median range 8.4-9.0%", from two nulls built against the SUPERSEDED
+        instrument. The rebuilt null's median relative difference is 0.65%
+        (producer N-A) and 1.39% (my own independent null), with p95 at 2.3% and
+        2.7%. So tau_rel now sits 17x-23x above the null's median and 5.5x-6.5x
+        above its p95, not 1.67x above its median.
+      consequence_measured: >-
+        The nearest approach to falsification -- d140_b40 / graded_t0.0050 with
+        |t| = 4.529 against |t|crit = 5.118 and relative difference 14.12%
+        against tau_rel = 15% -- is roughly 5x the rebuilt null's p95 relative
+        difference, yet it is recorded as NEITHER falsifying NOR suggestive,
+        because the frozen SUGGESTIVE band additionally requires relative
+        difference ABOVE tau_rel. The contract's "so a near miss is on the
+        record rather than discarded" clause therefore does not capture the one
+        near miss the run produced. The producer records it in prose anyway,
+        which is the right call.
+      why_the_prereg_guard_did_not_catch_it: >-
+        Section C's Form-1 guard against "the falsifier could not FIRE" is the
+        delta = 0.50 positive control. A 50% injected offset is more than 3x
+        tau_rel, so that control is insensitive to tau_rel being set an order of
+        magnitude above the instrument's own noise. G-CAL and the delta = 0.50
+        clause do point in opposite directions as designed, but the gap between
+        them is wide enough that both can pass while the criterion is far less
+        sensitive than either implies.
+      required_action: a successor amendment should re-derive tau_rel from the
+        REBUILT null's measured distribution, and should widen the SUGGESTIVE
+        band so a pair inside 0.8*|t|crit is recorded regardless of tau_rel.
+    - id: F-4
+      severity: material (contract, not producer)
+      title: R4's premise clause could not have fired for any candidate it lists
+      detail: >-
+        R4's premise clause triggers on coll > tau_inv for X1, X2, X3 or X5.
+        Every one of those four is a manifest closed-form function of diag(P)
+        (E_I, V, m3 and W are explicit sums over the diagonal), and the frozen
+        probe fixes diag(P2) = diag(P1) EXACTLY. So coll = 0 is forced by
+        algebra for all four, and no collision probe of this design could ever
+        fire that clause. The one frozen candidate on which the premise has
+        testable content, X4 = D, is the one the clause excludes.
+      consequence: >-
+        prereg 2.10 Form 4 claims a guard against "AM4-OBS-1 could not be
+        refuted" by naming two refutation events. One of those two is dead by
+        construction. The guard is half-effective; only the second event (a
+        carried observable passing G-INV at every replicate) remained live, and
+        it did not fire.
+      what_the_run_did_right: >-
+        The producer names the underlying fact plainly ("their coll = 0 is
+        arithmetic, not discovery ... so that a reader does not read six exact
+        zeros as six independent corroborations") and reports D's separation
+        with both cells and both floors. The defect is in the frozen map, not in
+        the execution.
+      required_action: >-
+        A successor R4 clause should trigger on ANY candidate whose collision
+        residual exceeds its own measured floor, X4 included, with the floor
+        reported per candidate.
+    - id: F-5
+      severity: minor (artifact policy)
+      title: Section C retains no durable stdout/stderr and its recorded exact
+        command is not executable as written
+      detail: >-
+        AGENTS.md's artifact policy requires each run to retain stdout and
+        stderr and the exact command. TASK-20260808-3a5f18 carries neither a
+        command.txt nor stdout.log nor stderr.log; its manifest states the logs
+        went to a session scratchpad and are "NOT durable" (stderr empty).
+        Separately, the manifest's `command:` uses a YAML folded scalar (>-),
+        so the long path is joined with a space and parses as
+        ".../tasks/ TASK-20260808-3a5f18/measure_am7.py" -- not runnable. The
+        same folding corrupts artifacts.write_scope. report_am7.md gives a third,
+        abbreviated form. Sections A and B do this correctly.
+      effect_on_evidence: >-
+        LIMITED. exit_code 0, invocation_cwd, wall/cpu/RSS, environment, seeds
+        and the full observation set are recorded in results_am7.json, and the
+        producer states every stdout line is also in the JSON. But the run
+        package is one artifact class short of the policy and its command cannot
+        be copy-pasted, so reproduction requires reconstruction.
+      required_action: successors must emit command.txt/stdout.log/stderr.log as
+        durable artifacts and must not put paths in folded YAML scalars.
+    - id: F-6
+      severity: minor
+      title: three small record defects, two already disclosed
+      items:
+        - id: F-6a
+          detail: >-
+            The snapshot receipt's prose says "twelve declared producer
+            artifacts" and "All twelve recomputed"; the binding path_sha256 map
+            declares EIGHTEEN and all eighteen verify. Prose count wrong,
+            binding field right.
+        - id: F-6b
+          detail: >-
+            AM-6's defect D-3 (a shell pipe in a git format string leaving
+            notarizing_commit_metadata empty) is real. I reproduced it: rc=127,
+            stderr "/bin/sh - %ci - command not found". Cosmetic, and correctly
+            not repaired in place under maximum_runs = 1.
+        - id: F-6c
+          detail: >-
+            results_am4.json retains a stale mechanical G-RANK verdict for E_I
+            at L4; report_am4.md 8.2 supersedes it explicitly and my measurement
+            (FV-5) supports the report. Correctly left unaltered.
+    - id: F-7
+      severity: informational
+      title: rule 12 remains UNMET and UNWAIVED, as all three producers record
+      detail: >-
+        Independence in this batch is PROCEDURAL (separate sessions, no shared
+        scratch, snapshot before review), never model-level. Every manifest
+        carries model_verified: false with its reason. My own session inherits
+        the same gap: requested_policy review-adversarial resolved to
+        anthropic:claude-opus-5 (effort xhigh) with fallback_used false and
+        independent_session true, but model_verified is FALSE -- per CLAUDE.md
+        per-role model and effort selection is process-level under Claude Code,
+        subagents keep model: inherit, the xhigh tier cannot be probed from
+        inside a subagent, and no adapter probe receipt exists. Recorded as a
+        verification gap, not claimed as satisfied.
+
+  # =====================================================================
+  # 9. THE ARRANGEMENT IN WHICH MY OWN CHECK COULD NOT FAIL -- BOTH DIRECTIONS
+  # =====================================================================
+  my_own_could_not_fail_arrangement:
+    direction_1_my_check_could_not_FAIL:
+      form: >-
+        A validation that only re-runs the producer's own arithmetic on the
+        producer's own numbers agrees by construction. Recomputing SE from a
+        JSON's own mean squares, or c_min from a JSON's own c_min inputs, tests
+        transcription and nothing else. Every such check passes whatever the
+        producer did upstream.
+      why_I_am_not_in_it:
+        - >-
+            Section A's decisive residuals were regenerated FROM SCRATCH: my own
+            basis construction, my own QR path, my own Haar generator, my own seed
+            (20260808). No producer number entered IND-1 or IND-2, and they
+            reproduce the refusals and PRED-A1 independently.
+        - The HKZ repair was re-tested through a DIFFERENT fpylll entry point
+          (basis GSO rather than the integer Gram matrix), reproducing
+          lambda_1^2 bit-exactly at four lattices and the 7.55e-3 pre-repair
+          violation at d = 30.
+        - Section B's 48 c_min were re-derived from a DIFFERENT COMMITTED
+          SNAPSHOT (BATCH-a44d08 at 770009042), not from this batch's JSON.
+        - Section C's calibration was re-tested with a null I BUILT MYSELF from
+          the prereg text, with my own seeds, my own pool bank, my own u and my
+          own order-statistic path -- the same TL vs TL' construction that
+          decided BATCH-a44d08.
+        - Every closed-form constant (E[V]_haar, rdet, TL reachable intervals,
+          Wilson endpoints, Student-t criticals, alpha_pair) was recomputed from
+          its definition, never read from the record.
+        - The notarization chain was checked with git plumbing run by me in this
+          worktree, in both directions, including the negative test that the
+          prereg is ABSENT at the notarizing commit's parent.
+      residue_I_cannot_close: >-
+        Off-repository pre-computation before the freeze. Nothing in the git
+        record can exclude it; prereg 0.1's declaration is what answers it, and
+        it is closed by harness structure rather than by cryptography.
+    direction_2_my_check_could_not_PASS:
+      form: >-
+        The mirror, and the live one here. A validator that has just returned
+        `failed` on a sibling batch, and is briefed that a sibling broke 5/5 of
+        that batch's audit commands and corrected its Coordinator, has a
+        standing incentive to find a fatal defect. Applied that way, `failed`
+        is a property of the reviewer, not of the receipt, and any batch fails.
+      why_I_am_not_in_it:
+        - >-
+            I fixed in advance what would force `failed`: (i) a broken notarization
+            chain in either direction, (ii) any producer number failing to reproduce
+            under independent re-derivation, (iii) a frozen control not behaving as
+            its clause required, (iv) an artifact hash mismatch or a scope-exceeding
+            snapshot commit.
+        - >-
+            Every one of those four checks PASSED, each with its number recorded
+            above, and I report them as passes rather than looking past them: 18/18
+            hashes, 19/19 commit scope, 48/48 c_min at deviation 0.0, 10/10 SE
+            decompositions, both directions of the chain.
+        - >-
+            The one material defect I found (F-1) makes the record MORE sound than
+            it claimed, not less. A could-not-pass arrangement cannot produce that
+            result: it was found by testing a claim the producer made AGAINST its
+            own interest, which is the opposite of adversarial cherry-picking.
+        - F-2, F-3 and F-4 are reading and CONTRACT defects that leave every
+          computed number standing; I say so explicitly rather than converting
+          them into an integrity failure.
+      residue_I_cannot_close: >-
+        I chose which quantities to rebuild from scratch and which to
+        re-derive from the record. A different choice tests a different
+        proposition. In particular I did not independently regenerate the 10
+        Section C target D-tables at the producer's u values, so the CONSISTENT
+        verdict rests on one run's TL arm (see claim (i)).
+
+  # =====================================================================
+  # 10. WAS AN ADMISSIBLE OBSERVABLE EXHIBITED, OR THE OBSTRUCTION ESTABLISHED?
+  # =====================================================================
+  plain_statement_required_by_the_completion_gate:
+    was_an_admissible_observable_exhibited: >-
+      NO. Admissible under the frozen contract means passing G-NUM, G-INV, G-Q
+      AND BOTH clauses of G-REL. No candidate did. R1 is empty.
+    what_was_exhibited_instead: >-
+      Three candidates -- rdet, lam1n, hkz -- pass G-NUM, G-INV and G-Q and FAIL
+      G-REL. That is outcome R3, ADMISSIBLE BUT NOT RELEVANT. For rdet this is
+      forced by algebra and was predicted in the prereg in advance; under the
+      strict reading of R5 (the L11 budget cap) rdet is the only one of the
+      three that may be cited, and R3 still holds.
+    was_the_obstruction_ESTABLISHED: >-
+      NO. R2 and R2' were never reached, because R3 fires before them in the
+      frozen order. No "no admissible predicate exists at the declared scope"
+      claim may be cited from this run in any form. The GEN-1/2/3 conditions
+      were evaluated anyway and hold under the arm-level reading (GEN-2 fails
+      under the strict reading), but they adjudicate nothing here.
+    the_honest_one_line_reading: >-
+      The obstruction is RELOCATED, not removed: the AM-4-invariant observables
+      this run could exhibit are the ones that carry no beta-dependence or no
+      block attribution, and the observables that carry block information are
+      the ones AM-4 refuses. hkz is the sharpest new fact -- it is admissible at
+      machine precision with verified-HKZ canonicality, and it still fails
+      REL-2, the block-attribution clause, at every mirrored pair. That closes
+      the cheap version of the prereg's repair (ii) and leaves both repairs open.
+    section_B_plain_statement: >-
+      The AM-3 gate CAN fire: 29 of 48 steps at a fixed c = 6, PRED-B1 met in
+      every cell on the frozen full-table scoring. This is NOT a statement that
+      it DID fire in BATCH-a44d08 (it did not), does NOT reinstate any withheld
+      reading, does NOT retire AM-3, and is NOT a demonstration that the gate
+      fires on a REAL violation -- only on an injected one. In d100_b30 half the
+      firings sit on already-increasing steps and the cell fails PRED-B1 under
+      the mandated exclusion.
+    section_C_plain_statement: >-
+      CONSISTENT, and it refutes nothing and validates nothing. The instrument
+      was rebuilt, its two gates passed in opposite directions, and it did not
+      separate the two families at any of 10 matched-V targets. Six of ten pairs
+      have detection floors at or above tau_rel, for which the only honest
+      reading is an upper bound at their own floor. BATCH-a44d08's Section C
+      verdict remains VOID IN BOTH DIRECTIONS and was correctly neither cited
+      nor used as a baseline.
+
+  # =====================================================================
+  # 11. HEURISTIC-VALIDATION, COST-MODEL AND PROOF-ARCHITECTURE CHECKS
+  # =====================================================================
+  heuristic_validation_checks:
+    - check: pre-registered prediction recorded before or independently of sampling
+      result: PASS -- established by the notarization chain in both directions,
+        not by self-report. PRED-A1..A5, PRED-B1, PRED-C1..C3 are all in the
+        frozen text at 4f7c63703, before any producer was dispatched.
+    - >-
+        check: sample size, seeds and sampling procedure in the manifest, and
+        the reported statistics recomputed from raw result: PASS -- n = 8
+        bases/draws, N = 2^20 per pool, E = 3 (Section A D arm) and E = 4
+        (Section C), R = 300 per null unit, all with the seed formulas and TAG
+        table frozen in prereg section 6. I recomputed the Section B table (48
+        steps) and the Section C decomposition (10 targets) from raw, not from
+        summaries.
+    - check: substitute-sampling correspondence cited and controlled
+      result: NOT APPLICABLE -- no correspondence substitutes for direct
+        sampling in this batch. The nearest analogue is Section C's TL family
+        standing in for a frame family at matched V, and it is controlled by
+        N-A (TL side), N-B (GR side) and N-C (error law), plus the mandatory
+        exactness checks. Recorded, not silently omitted.
+    - check: scale binding and toy-scale limitation
+      result: PASS -- claim_tier toy is stated unconditionally in every artifact
+        and in both receipts, with the explicit statement that no number
+        measured at d <= 140 is transported to beta = 606, d = 1420, to any
+        FIPS 203 parameter set, or to any attack cost, by extrapolation or by
+        analogy. No producer transported one.
+  cost_model_checks:
+    - check: concrete cost table with declared unit
+      result: NOT APPLICABLE -- this batch produces no cost model, no attack
+        cost, and no complexity claim. There is nothing to price and no
+        per-attempt-cost x inverse-success-probability bookkeeping to verify.
+        The only cost statements are wall-clock and RSS budgets, which are
+        recorded with their units and their caps (Section A 854.4 s of 10800 s,
+        789 MB of 8 GB; Section B 68.6 s, 1.42 GB; Section C 3919.04 s of 5400 s,
+        1.156 GiB of 4 GiB) and were all respected.
+    - check: memory reported alongside time
+      result: PASS at all three producers.
+  proof_architecture_checks:
+    - check: baseline fixture reproduces exactly
+      result: PASS -- Section B reproduces the committed BATCH-a44d08 record
+        bit-exactly on 448 r values and 48 c_min; Section C reproduces the
+        committed BATCH-f19c37 GR arms at 0.0 and 2.220446049250313e-16 with the
+        deviation declared in advance and not rounded.
+    - check: strictness witness for any improvement claim
+      result: NOT APPLICABLE -- no improvement over any baseline is claimed.
+    - check: observation collisions bound to their enumerated scope
+      result: PASS -- the diagonal-collision probe is bound to one (d,k,beta)
+        cell and reported as such; PROBE-L is labelled SUPPLEMENTARY and NOT
+        pre-registered; neither is offered as a general identifiability result.
+    - check: method ceiling and nearby-object control
+      result: PASS in the applicable sense -- OBS-GEN states the ceiling for the
+        whole f(P) class (any O(d)-invariant function of the tail-frame
+        projector is constant in d and beta), and X7 = tr(P^2) is the nearby
+        object that instantiates it. Both were verified numerically.
+    - check: quantifier fidelity
+      result: PASS -- every negative is stated as an upper bound at a printed
+        floor, and no per-cell result is presented as a uniform one.
+
+  # =====================================================================
+  # 12. LIMITATIONS
+  # =====================================================================
+  limitations:
+    - Claim tier TOY, unconditionally. d <= 140, beta <= 95, q <= 3329, n = 8
+      bases. Nothing here bears on ML-KEM, FIPS 203, or any attack cost.
+    - This validation establishes ADMISSIBILITY of a receipt. It supports no
+      cryptanalytic claim, demonstrates no speedup, and authorizes no promotion.
+    - I did not independently regenerate Section C's 10 target D-tables at the
+      producer's u values; the CONSISTENT verdict rests on a single run's TL arm
+      (finding claim (i)).
+    - My independent null (IND-3) is R = 30 at one cell with an 8-pool bank, not
+      R = 300 at two cells with a 20-pool bank. It corroborates the producer's
+      null regime; it does not re-establish the 0/300 rate at that precision.
+    - I did not reproduce the unrepaired-HKZ 1.7e-2 T3 residual counterfactual;
+      it is a producer-only statement about a run that is not an artifact of
+      this batch, and it is not load-bearing on any reported number.
+    - lam1n and hkz T0/T1 residuals are a WEAK test of ambient-isometry
+      invariance because the integer Gram matrix is exactly isometry-preserved.
+      The producer discloses this. Their T2/T3 residuals are genuine.
+    - Section A's X9/X10 arm at L11 hit its declared 300 s cap. That is
+      INFRASTRUCTURE SIGNAL and is never a refusal and never an obstruction.
+      Both R5 readings are on the record and the headline is robust to both.
+    - Rule 12 (independent review-breakthrough at max) is UNMET and UNWAIVED in
+      this goal, including for this report. model_verified is false here.
+    - No ledger record, hypothesis status or knowledge entry is moved by this
+      report. I committed nothing.
+
+  # =====================================================================
+  # 13. VERDICT
+  # =====================================================================
+  verdict: passed
+  verdict_rationale: >-
+    The notarization chain holds in both directions and I checked it myself in
+    this worktree, including the negative test that the frozen text is ABSENT at
+    the notarizing commit's parent and that no producer artifact existed at the
+    notarizing commit. All 18 declared artifact hashes recompute; the snapshot
+    commit changes exactly the 18 declared paths plus its receipt and has the
+    declared parent; the tree is clean. Every forced value I could re-derive
+    re-derived, most of them bit-exactly, and the two that matter most were
+    re-derived by paths independent of this producer entirely -- Section B's 48
+    c_min from a different committed snapshot at deviation 0.0, and Section A's
+    HKZ pipeline through a different fpylll entry point. Both frozen safety
+    clauses behaved: the laxity control was refused by G-Q and the positive
+    control passed G-INV, so the six refusals are not instrument artifacts, and
+    I confirmed both are forced rather than fortunate. All eight controls across
+    the three sections behaved as their clauses required, and my own
+    independently constructed TL vs TL' null corroborates the G-CAL rate.
+    The four defects I found are a false DISCLOSURE (F-1), a headline
+    qualification (F-2), two frozen-contract design defects (F-3, F-4), and
+    artifact-policy gaps (F-5, F-6). None is a fabrication, a hash mismatch, a
+    control failure, a scope violation, or a broken chain, and none changes a
+    computed number. The receipt is admissible evidence with the corrections and
+    qualifications recorded above attached to it.
+  what_this_verdict_does_not_mean:
+    - It does not endorse the R3 headline as informative; for rdet, R3 is forced
+      by algebra and was predicted in advance.
+    - It does not endorse "the AM-3 gate CAN fire" as a demonstration of power
+      on a real violation, and d100_b30 fails PRED-B1 under the mandated
+      exclusion.
+    - It does not endorse CONSISTENT as support for the L2 tail-sufficiency
+      proposition, which stays OPEN IN BOTH DIRECTIONS, nor the 3.91% upper
+      bound without F-2's qualifier.
+    - It does not clear rule 12, which stays UNMET and UNWAIVED.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/reviews/TASK-20260808-768137/validation_report.yaml
+  inputs_read:
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/tasks/TASK-20260808-35efa3/prereg.md
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/tasks/TASK-20260808-35efa3/prereg_sha256.txt
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/tasks/TASK-20260808-2a9085/ (7 files)
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/tasks/TASK-20260808-cece0c/ (7 files)
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/tasks/TASK-20260808-3a5f18/ (4 files)
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/archives/TASK-20260808-e725b4/snapshot-receipt.json
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/archives/TASK-20260808-a6a336/snapshot-receipt.json
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-a44d08/tasks/TASK-20260806-e17677/results_g3.json
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/dispatch_queue.json
+  inference:
+    requested_policy: review-adversarial
+    resolved: anthropic:claude-opus-5 (effort xhigh) via
+      `orchestration.adapter resolve --role validator --independent-session`
+    fallback_used: false
+    degraded_allowed: false
+    independent_session: true
+    model_verified: false
+    model_verified_reason: >-
+      Per CLAUDE.md, per-role model and effort selection is process-level under
+      Claude Code and subagents keep model: inherit. The session model is
+      claude-opus-5, matching the resolved binding, but the xhigh tier cannot be
+      probed from inside a subagent and no adapter probe receipt exists.
+      Recorded as a verification gap, not claimed as satisfied.
+  budget:
+    maximum_runs: 1
+    memory_gb: 4
+    wall_clock_seconds: 7200
+    respected: true
+    note: >-
+      All validator computation ran in one session within the declared budget.
+      The heaviest item, my own null (IND-3), used 710 s wall and stayed well
+      under 4 GB by evaluating one error pool at a time.
+  nothing_committed: true
+  handoff: >-
+    Return this path to the Coordinator's ledger archive task
+    TASK-20260808-6a8e73 for durable commit. F-1 requires a superseding
+    correction record naming the three producer artifacts and the snapshot
+    receipt that carry the false D-2 diagnosis. F-3 and F-4 are amendment
+    requests against the frozen contract for a successor batch, not repairs to
+    this one.

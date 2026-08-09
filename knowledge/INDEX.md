@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-8016 entries.
+8017 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -62,6 +62,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-d1c853 | Wesolowski Heuristic-1 pairing rule — walk length vs smooth-norm pair count (unvalidated empirically) | internal_finding |  |  | wesolowski supersingular-isogeny heuristic-1 smooth-norm walk-length pairing-rule p13 unvalidated |
 | KN-FIND-d4f820 | H-PSEUDO empirical measurement — DL character sum constant C(p) ~ p^{0.055} at toy prime-field scale | internal_finding | preliminary_empirical |  | hpseudo character-sum fourier discrete-log semaev factor-base toy-scale scaling |
 | KN-FIND-e7a3b1 | H-PSEUDO proof approaches — all six standard analytic methods are closed; H-PSEUDO is a new open problem | internal_finding | proved_negative |  | hpseudo character-sum proof-attempts ddh bgs weil weyl michel-venkatesh open-problem |
+| KN-FIND-f38a89 | AM4-OBS-1 corrected and narrowed: its diagonal premise is refuted, its conclusion is subsumed by the projector-conjugacy argument OBS-GEN | internal_finding | derivation |  | am4-obs-1 obs-gen invariance lattice-observables gso-projector ml-kem instrument-design correction negative-result toy-scale |
 | KN-FIND-f8c290 | Semaev index calculus complexity is tight — achievable lower bound confirmed at toy scale | internal_finding | preliminary_empirical |  | semaev index-calculus achievability complexity-tight prime-field ecdlp toy-scale |
 | KN-FIND-ff4a46 | Wording repair for KN-FIND-9d2f56: align with corrected H-PSEUDO orientation | internal_finding | proved |  | betti-yield h-pseudo wording-repair kn-find-9d2f56 orientation-fix |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
