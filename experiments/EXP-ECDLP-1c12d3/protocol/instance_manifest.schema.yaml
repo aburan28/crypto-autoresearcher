@@ -1,0 +1,113 @@
+schema: crypto.autoresearch.ecdlp.instance-manifest.v5
+encoding: YAML-1.2
+point_encoding: fixed_width_little_endian_coordinates_with_ff_infinity
+required_fields:
+  - instance_id
+  - pair_id
+  - role
+  - seed
+  - p
+  - p_primality_witness
+  - curve_a
+  - curve_b
+  - discriminant_nonzero_witness
+  - curve_order
+  - curve_order_count_method
+  - subgroup_order
+  - subgroup_primality_witness
+  - cofactor
+  - base_point_P
+  - base_point_order_certificate
+  - twist_order
+  - twist_cofactor
+  - non_anomalous_certificate
+  - embedding_degree
+  - automorphism_kind
+  - automorphism_formula
+  - automorphism_field_witness
+  - automorphism_order
+  - declared_generators
+  - map_entry_schema_version
+  - generated_group_maps
+  - composition_table
+  - group_closure_witness
+  - group_order_certificate
+  - subgroup_eigenvalue_lambda
+  - eigenvalue_certificate
+  - allowed_stabilizer_sizes
+  - effective_orbit_size
+  - stabilizer_certificate
+  - pair_token_preimage
+  - pair_token
+  - pair_token_digest
+  - target_x
+  - target_derivation_preimage
+  - target_derivation_digest
+acceptance:
+  p:
+    range: 2 <= p < 2^18
+    primality: deterministic_miller_rabin_bases_[2,3,5,7,11,13,17]
+  curve:
+    equation: y^2 = x^3 + a*x + b mod p
+    nonsingular: (4*a^3 + 27*b^2) mod p != 0
+    order: exhaustive_x_count_plus_infinity
+  subgroup:
+    curve_order: h*n
+    n_prime: deterministic_trial_division_for_n_lt_2^18
+    cofactor: h <= 4
+    size: n.bit_length() >= p.bit_length()-2
+    point: P_on_curve_and_nP_is_infinity_and_P_not_infinity
+  twist:
+    count: independent_quadratic_twist_enumeration
+    disposition: certificate_recorded_but_twist_never_admitted_as_primary
+  ordinary:
+    non_anomalous: curve_order != p
+    embedding_degree: no_k_in_[1,12]_with_p^k mod n == 1
+  automorphism:
+    map_entry_schema:
+      required_fields: [map_index, generator_word, formula, field_witness, composition_row, map_on_P, certified_scalar_lambda, scalar_certificate, replay_witness]
+      index_rule: contiguous_zero_based_unique_indices
+      closure_rule: every_entry_is_the_duplicate_free_closure_of_declared_generators
+      selected_map_rule: canonicalization_receipt_references_map_index_and_that_entry_lambda
+    field: formula_coefficients_in_F_p_and_every_generated_map_replays_on_every_curve_point
+    subgroup: every_generated_map_preserves_subgroup_and_its_own_certified_scalar_lambda_is_replayed_on_P
+    closure: generated_group_maps_is_exact_duplicate_free_closure_of_declared_generators_and_composition_table_replays_every_map_pair
+    order: automorphism_order == len(generated_group_maps) == independently_recomputed_group_order_and_group_closure_witness_length
+    stabilizer: >-
+      For every emitted state, stabilizer_size is in the complete positive
+      divisor list allowed_stabilizer_sizes, the replayed fixing-map count is
+      exactly stabilizer_size, and effective_orbit_size * stabilizer_size equals
+      automorphism_order.
+  pairing:
+    pair_token:
+      preimage: >-
+        u32_be(len("PAIR-ID-v1")) || UTF8("PAIR-ID-v1") || u32_be(seed) ||
+        u32_be(len(pair_id)) || UTF8(pair_id) || u32_be(field_bits)
+      digest: lowercase_hex_sha256_of_pair_token_preimage
+      retained_fields: [pair_token_preimage, pair_token, pair_token_digest]
+    target:
+      preimage: >-
+        u32_be(len("PAIR-TARGET-v1")) || UTF8("PAIR-TARGET-v1") ||
+        pair_token_raw_32_bytes || u32_be(subgroup_order)
+      digest: lowercase_hex_sha256_of_target_derivation_preimage
+      formula: 1 + int(target_derivation_digest, big-endian) mod (subgroup_order-1)
+      retained_fields: [target_derivation_preimage, target_derivation_digest, subgroup_order, target_x]
+      frozen_replay_vector:
+        seed: 101
+        pair_id: G01
+        field_bits: 12
+        subgroup_order: 1009
+        pair_token_preimage_hex: 0000000a504149522d49442d763100000065000000034730310000000c
+        pair_token_hex: 29656248d40cabdee13daa128018083de383dd650e9c3e6eaa32783b9f145594
+        target_derivation_preimage_hex: 0000000e504149522d5441524745542d763129656248d40cabdee13daa128018083de383dd650e9c3e6eaa32783b9f145594000003f1
+        target_derivation_digest_hex: 62c5111c589fe9db1e506d910863593bd202486c7564b88fcf6368779f698b1c
+        target_x: 237
+    validator_rule: >-
+      Recompute pair_token_preimage, pair_token, target_derivation_preimage,
+      target_derivation_digest, and target_x from the manifest seed, pair_id,
+      field_bits, and subgroup_order. Reject any byte, digest, or integer
+      mismatch; source and matched-random manifests must match all paired
+      target fields exactly.
+rejection:
+  fail_closed: true
+  disposition: invalid_infrastructure_row_not_mathematical_evidence
