@@ -6,7 +6,7 @@ Supersede the stale EV-WESO-001 anchor/crossover interpretation from the immutab
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-aa1a71` | coordinator | queued | 4 | TASK-20260809-b30a85, TASK-20260809-e805f6 | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/archives/TASK-20260809-aa1a71/ledger-receipt.json, ledger/evidence/EV-SSI-e8cc71.yaml, ledger/decisions/DEC-20260809-39eb45.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-dbfee9.yaml, ledger/goals/GOAL-SSI-001/goal.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/archives/TASK-20260809-aa1a71, ledger/evidence/EV-SSI-e8cc71.yaml, ledger/decisions/DEC-20260809-39eb45.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-dbfee9.yaml, ledger/goals/GOAL-SSI-001/goal.yaml |
+| `TASK-20260809-aa1a71` | coordinator | queued | 4 | TASK-20260809-b30a85, TASK-20260809-e805f6 | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/archives/TASK-20260809-aa1a71/ledger-receipt.json, ledger/evidence/EV-SSI-e8cc71.yaml, ledger/decisions/DEC-20260809-39eb45.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-dbfee9.yaml, ledger/goals/GOAL-SSI-001/goal.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/archives/TASK-20260809-aa1a71, coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-b30a85, coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-e805f6, ledger/evidence/EV-SSI-e8cc71.yaml, ledger/decisions/DEC-20260809-39eb45.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-dbfee9.yaml, ledger/goals/GOAL-SSI-001/goal.yaml |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `5fbfc975a2b4af4316a7b838c251e0fa916151abbd688aefe893ce9474fb7564`
+Plan SHA-256: `7c052410fcb74296c6d1cccdb89a75136b7e7ab6ff9502b2781b3e04bc059a9d`
