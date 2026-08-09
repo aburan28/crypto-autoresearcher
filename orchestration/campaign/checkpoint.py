@@ -52,7 +52,17 @@ def checkpoints(goal: MaterializedGoal) -> tuple[CheckpointView, ...]:
             continue
         entry = copy.deepcopy(raw)
         batch_id = entry.get("batch_id")
-        batch_id = batch_id if isinstance(batch_id, str) else None
+        checkpoint_id = entry.get("checkpoint_id")
+        if isinstance(batch_id, str):
+            # Some legacy checkpoint records use ``checkpoint_id`` instead of
+            # ``batch_id``.  When both are present, fail closed on a conflict
+            # rather than silently choosing an identifier for lookup.
+            if isinstance(checkpoint_id, str) and checkpoint_id != batch_id:
+                batch_id = None
+        elif isinstance(checkpoint_id, str):
+            batch_id = checkpoint_id
+        else:
+            batch_id = None
         payload = {
             "schema": "crypto.autoresearch.checkpoint_view.v1",
             "goal_id": goal.goal_id,
