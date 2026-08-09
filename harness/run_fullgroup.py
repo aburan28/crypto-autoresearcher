@@ -2059,43 +2059,47 @@ def main(argv=None) -> int:
             resolution = {}
             s1s, s2s, s3s = {}, {}, {}
             stage3_not_run: dict = {}
+            # Pass 1: stages 1 and 2 at every prime, then every stage-3 record
+            # that EXISTS. A stage-3 record may legitimately be absent, so the
+            # question of why is asked only after all of them have been read.
             for p in fg.PRIMES_REQUIRED:
                 for stage, store in ((1, s1s), (2, s2s), (3, s3s)):
                     rid = run_id_for(stage, p)
                     if os.path.exists(os.path.join(RUNS_ROOT, rid, "raw-result.json")):
                         store[p] = load_run(rid)
                         resolution[f"stage{stage}|p={p}"] = {"used": rid}
-                        continue
-                    if stage != 3:
+                    elif stage != 3:
                         missing.append(rid)
-                        continue
-                    # A stage-3 record may be absent ONLY because SR3 halted the
-                    # experiment at an earlier prime (deviation D10). That is read
-                    # from the run records themselves -- an earlier prime whose
-                    # baseline gate is recorded as failed -- and never asserted.
-                    halted_at = [q for q in STAGE3_PRIME_ORDER
-                                 if q in s3s
-                                 and s3s[q]["data"]["raw"]["baseline_reproduction"]
-                                        .get("gate_applies_at_this_prime")
-                                 and s3s[q]["data"]["raw"]["baseline_reproduction"]
-                                        .get("gate_passed") is not True]
-                    if halted_at:
-                        stage3_not_run[p] = (
-                            f"NOT RUN. Stopping rule SR3 fired at p={halted_at[0]} "
-                            f"(run {run_id_for(3, halted_at[0])}): 'If the "
-                            f"baseline-reproduction control fails, STOP and return the "
-                            f"defect'. Stage 3 is executed one prime per invocation in the "
-                            f"contract's order {STAGE3_PRIME_ORDER}, so this prime was "
-                            f"never launched. This is a MISSING MEASUREMENT, not a "
-                            f"COLLAPSES, not a PERSISTS, and not evidence in any "
-                            f"direction; it makes the run INVALID under the contract's own "
-                            f"'fewer than two primes yield a persistence verdict' rule and "
-                            f"returns for this prime.")
-                        resolution[f"stage{stage}|p={p}"] = {
-                            "used": None, "expected": rid,
-                            "why": stage3_not_run[p]}
-                    else:
-                        missing.append(rid)
+            # Pass 2: a stage-3 record may be absent ONLY because SR3 halted the
+            # experiment at a prime that WAS run (deviation D10). That is read
+            # from the run records themselves -- a prime whose baseline gate is
+            # recorded as failed -- and is never asserted.
+            halted_at = [q for q in STAGE3_PRIME_ORDER
+                         if q in s3s
+                         and s3s[q]["data"]["raw"]["baseline_reproduction"]
+                                .get("gate_applies_at_this_prime")
+                         and s3s[q]["data"]["raw"]["baseline_reproduction"]
+                                .get("gate_passed") is not True]
+            for p in fg.PRIMES_REQUIRED:
+                if p in s3s:
+                    continue
+                rid = run_id_for(3, p)
+                if halted_at:
+                    stage3_not_run[p] = (
+                        f"NOT RUN. Stopping rule SR3 fired at p={halted_at[0]} "
+                        f"(run {run_id_for(3, halted_at[0])}): 'If the "
+                        f"baseline-reproduction control fails, STOP and return the "
+                        f"defect'. Stage 3 is executed one prime per invocation in the "
+                        f"contract's order {STAGE3_PRIME_ORDER}, so this prime was "
+                        f"never launched. This is a MISSING MEASUREMENT, not a "
+                        f"COLLAPSES, not a PERSISTS, and not evidence in any "
+                        f"direction; it makes the run INVALID under the contract's own "
+                        f"'fewer than two primes yield a persistence verdict' rule and "
+                        f"returns for this prime.")
+                    resolution[f"stage3|p={p}"] = {
+                        "used": None, "expected": rid, "why": stage3_not_run[p]}
+                else:
+                    missing.append(rid)
             if missing:
                 raise PreconditionRefusal(f"missing stage run records: {missing}")
             dec = evaluate_decision_rule_v2(s1s, s2s, s3s, stage3_not_run)
