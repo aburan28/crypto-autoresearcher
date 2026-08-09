@@ -6,12 +6,11 @@ Refresh and independently review the closed-list classical per-prime OneEnd advi
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-9990b8` | coordinator | queued | 2 | TASK-20260809-b28c39 | coordination/goals/GOAL-SSI-001/batches/BATCH-f68c05/archives/TASK-20260809-9990b8/snapshot-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-f68c05/archives/TASK-20260809-9990b8 |
+| `TASK-20260809-099b4d` | red-team | queued | 3 | TASK-20260809-9990b8 | coordination/goals/GOAL-SSI-001/batches/BATCH-f68c05/reviews/TASK-20260809-099b4d/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-f68c05/reviews/TASK-20260809-099b4d/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-f68c05/reviews/TASK-20260809-099b4d |
+| `TASK-20260809-69d1f1` | validator | queued | 3 | TASK-20260809-9990b8 | coordination/goals/GOAL-SSI-001/batches/BATCH-f68c05/reviews/TASK-20260809-69d1f1/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-f68c05/reviews/TASK-20260809-69d1f1/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-f68c05/reviews/TASK-20260809-69d1f1 |
 
 ## Deferred or Blocked
 
-- `TASK-20260809-099b4d`: dependency_not_completed:TASK-20260809-9990b8:queued
-- `TASK-20260809-69d1f1`: dependency_not_completed:TASK-20260809-9990b8:queued
 - `TASK-20260809-7e85ad`: dependency_not_completed:TASK-20260809-69d1f1:queued, dependency_not_completed:TASK-20260809-099b4d:queued
 
 ## Dispatch Gates
@@ -27,4 +26,4 @@ Refresh and independently review the closed-list classical per-prime OneEnd advi
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9059d043a6fae24061040bb71342e80b218605767dcfe497da484852d47c90d2`
+Plan SHA-256: `cb94ae506ad64235e9c297f92d5173117404074f75febaaa86d75d5e7bf03ed5`
