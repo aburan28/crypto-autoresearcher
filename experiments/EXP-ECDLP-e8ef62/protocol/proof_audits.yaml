@@ -1,0 +1,88 @@
+proof_audits:
+  schema: crypto.autoresearch.ecdlp.proof-search-audits.v4
+  status: frozen_fixture
+  not_empirical_evidence: true
+  baseline_reproduction:
+    applies: true
+    object_model: coefficient_group_fixture
+    modulus_n: 101
+    target_scalar_x: 37
+    transition_constants:
+      A: [1, 0, 3]
+      B: [2, 1, 0]
+    initial_coefficients: [0, 0]
+    expected_first_three_coefficients:
+      - [1, 2]
+      - [1, 3]
+      - [4, 3]
+    fixture_mode: true
+    selector_schedule: [0, 1, 2]
+    selector_input_encoding:
+      domain_tag: FIXTURE-PARTITION-v1
+      encoded_point_bytes: [00, 01, 02]
+      step_indices: [0, 1, 2]
+      preimage_hex: [464958545552452d504152544954494f4e2d7631000102, 464958545552452d504152544954494f4e2d7631000103, 464958545552452d504152544954494f4e2d7631000104]
+    fixture_execution_rule: >-
+      In fixture_mode the implementation uses selector_schedule directly and
+      does not infer a selector from an unstated hash convention. The primary
+      walk uses the separately frozen PART-v3 hash contract.
+    certificate_equation:
+      mode: exact_coefficient_group
+      modulus: 101
+      target_scalar_x: 37
+      formula: R(a,b) = (a + b*target_scalar_x) mod modulus_n
+      coefficient_group_acceptance_rule: >-
+        The fixture state is exactly the residue-class coefficient tuple
+        (a,b) in Z_101^2; no curve point encoding is inferred or accepted for
+        this audit. For every emitted before/after tuple, the implementation
+        must emit R(a,b) and match the frozen integer residue below.
+      expected_initial:
+        coefficients: [0, 0]
+        residue: 0
+      expected_steps:
+        - {step: 0, selector: 0, before: [0, 0], after: [1, 2], residue: 75}
+        - {step: 1, selector: 1, before: [1, 2], after: [1, 3], residue: 11}
+        - {step: 2, selector: 2, before: [1, 3], after: [4, 3], residue: 14}
+      expected_negation_transforms:
+        - {input: [0, 0], output: [0, 0], residue: 0}
+        - {input: [1, 2], output: [100, 99], residue: 26}
+        - {input: [1, 3], output: [100, 98], residue: 90}
+        - {input: [4, 3], output: [97, 98], residue: 87}
+      exact_output_rule: >-
+        The audit fails unless every expected step, coefficient-group residue,
+        negation output, and negation residue matches these frozen values using
+        exact arithmetic. The result is a fixture reproduction check only.
+    negation_map:
+      coefficient_transform: '[a, b] -> [-a mod 101, -b mod 101]'
+      representative_rule: lexicographically_minimum_encoded_pair
+    reproduction_gate: >-
+      rho_census.py must emit the same coefficient sequence, map transform,
+      and certificate equation for this fixture before instance generation.
+    failure_disposition: block_approval
+  observation_collision:
+    applies: true
+    object_model: quotient_collision_certificate_fixture
+    modulus_n: 101
+    target_scalar_x: 37
+    point_value: 69
+    identical_preimage: {a: 12, b: 7}
+    identical_duplicate: {a: 12, b: 7}
+    quotient_equivalent_preimage: {a: 89, b: 94}
+    distinct_valid_first_preimage: {a: 12, b: 7}
+    distinct_valid_second_preimage: {a: 39, b: 9}
+    distinct_valid_expected_denominator: 2
+    distinct_valid_expected_recovered_x: 37
+    expected_behavior:
+      equal_coefficient_collision: fruitless_retry_and_no_solve
+      quotient_equivalent_collision: canonical_duplicate_and_no_double_count
+      distinct_valid_collision: recover_x_37_and_verify_37_times_P_equals_Q
+    collision_gate: >-
+      The raw receipt must distinguish an identical pair, an orbit duplicate,
+      and the distinct valid pair. It must show b2-b1=2 mod 101, recover x=37,
+      and verify the scalar certificate; counting either duplicate as an
+      independent success blocks approval.
+    failure_disposition: block_approval
+  audit_scope_note: >-
+    These are cheap pre-compute protocol fixtures, not a curve run and not
+    evidence for H-ECDLP-63d136. Any inapplicability must be recorded with a
+    reason and Coordinator disposition rather than silently omitted.
