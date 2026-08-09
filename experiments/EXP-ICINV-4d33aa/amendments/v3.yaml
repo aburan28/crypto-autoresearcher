@@ -1,0 +1,373 @@
+protocol_amendment:
+  experiment_id: EXP-ICINV-4d33aa
+  version_from: 2
+  version_to: 3
+  filed_at: '2026-08-09'
+  filed_by: coordinator (GOAL-ENDO-001, BATCH-aa267f)
+  status: filed_before_re_execution
+  applies_to: >-
+    FUTURE COMPUTATION ONLY. No existing run record is edited, overwritten, or
+    has its own terminal_state changed (AGENTS.md rule 4).
+    experiments/EXP-ICINV-4d33aa/runs/RUN-ICINV-99f722/decision-rule-evaluation.json
+    still reads terminal_state: INVALID, exactly as committed; so do
+    RUN-ICINV-c670c2 (p=6007 stage 3, SR3 gate FAILED) and the version-1 runs
+    v2 already left untouched. This amendment authorizes a NEW run record,
+    under a new run id, that reads already-committed per-curve measurements as
+    ITS OWN declared, hashed input (see change A9) and evaluates the
+    version-3 decision rule against them for the first time. That is a new
+    computation over old but untainted inputs, not a re-score of an existing
+    one -- see DEC-20260809-de11f9's own limitation that "no evidence record
+    is written from this decision" and the reasoning under A9 below for why
+    that is a materially different situation from how amendment v2 treated
+    version-1's data.
+  reason: >-
+    DEC-20260809-de11f9. Amendment v2 change A1 discharged the parameter
+    mismatch that made version 1's SR3 gate unsatisfiable by construction:
+    version 2's Arm A0 reproduced the correctly re-measured p=6007 baseline
+    (EXP-ICINV-55c2d8/RUN-ICINV-f09176) at 13 of 13 rows exactly, max
+    |delta| = 0.0. The gate still failed. The re-measured baseline ITSELF
+    crosses below the [1.3, 3.6] band's floor at its two lowest-density,
+    highest-variance rows (fb=4: 1.2315292605941532; fb=5: 1.1125313273888915;
+    read directly from RUN-ICINV-f09176/raw-result.json "rows"). This is
+    exactly what amendment v2's own standing caution A5 predicted BEFORE this
+    run existed: "[1.3, 3.6] is the outward-rounded hull of the committed rows
+    themselves -- floor slack 0.020397 ... any successor that keeps it must
+    expect legitimate sampling variation to cross it." The literal
+    point-estimate band check treats a variance-ratio ESTIMATE, computed from
+    a finite class of n_curves=140 members, as if it had zero sampling
+    uncertainty. It does not. A gate built on that fiction was always going to
+    fail at the noisiest rows on a long enough run of fresh draws, independent
+    of whether H-ICINV-6c7920's mechanism is true, false, or untestable at
+    these parameters -- which is precisely why DEC-20260809-de11f9 recorded
+    `decision: pause` rather than dispatching a third attempt unchanged.
+  changes:
+  - id: A7
+    field: >-
+      frozen_decision_rule.state_2 baseline-reproduction sub-check
+      `every_row_in_band_1_3_to_3_6` (implemented as
+      harness/run_fullgroup.py:baseline_reproduction_v2, per-row field
+      `in_band_1_3_to_3_6`)
+    kind: defect_repair_gate_design
+    from: >-
+      A LITERAL POINT-ESTIMATE MEMBERSHIP TEST: row `fb` passes iff
+      1.3 <= variance_ratio_measured[fb] <= 3.6, full stop. The measured
+      ratio's own sampling uncertainty (it is an estimate over n_curves=140
+      independent per-curve rates, exactly the population `binomial_null_verdict`
+      already treats as finite and noisy for every OTHER verdict in this
+      campaign) plays no role in the comparison.
+    to: >-
+      A STATISTICAL COMPARISON: row `fb` passes iff a 95% confidence interval
+      for the TRUE variance ratio R_true underlying that row's OWN measured
+      point estimate overlaps the fixed [1.3, 3.6] band. THE BAND ITSELF IS
+      NOT MOVED, WIDENED, OR RE-ESTIMATED -- it stays exactly [1.3, 3.6],
+      per amendment v1/v2's forbidden clause on this point, which this
+      amendment does not touch. What changes is that the comparison accounts
+      for the point estimate's own known sampling distribution instead of
+      treating it as exact.
+
+      EXACT FORMULA, reusing (not replacing) the machinery amendment v2's own
+      controls already treat as frozen and validated -- the Wilson-Hilferty
+      normal approximation to chi-square(df) quantiles at
+      harness/exp_icinv.py:binomial_null_verdict lines 428-433 (z=1.96,
+      the SAME 95% two-sided confidence level the frozen contract's own
+      controls list already names for NULL-B: "the chi-square dispersion test
+      and its Wilson-Hilferty 95% acceptance band", specification.yaml
+      `controls[0]`). binomial_null_verdict uses this approximation to ask
+      "is the observed dispersion consistent with R_true=1?" This change asks
+      the natural generalisation, "what values of R_true IS the observed
+      dispersion consistent with?", and reads off whether the resulting
+      interval reaches the frozen band:
+
+        df := n_curves - 1                     # 139 at both p=4001, p=6007
+        stat := df * variance_ratio_measured[fb]
+        lo := df * (1 - 2/(9*df) - 1.96*sqrt(2/(9*df))) ** 3
+        hi := df * (1 - 2/(9*df) + 1.96*sqrt(2/(9*df))) ** 3
+        r_true_95pct_ci := [stat / hi, stat / lo]
+        row_passes := (stat/hi <= 3.6) and (stat/lo >= 1.3)   # CI overlaps [1.3,3.6]
+
+      `lo` and `hi` here are the SAME chi2(df) quantile approximations
+      `binomial_null_verdict` computes for its own acceptance band; this
+      change does not invent new statistical machinery, it reads the same
+      approximation the other direction (solving for the parameter given the
+      statistic, rather than testing the statistic given the parameter).
+    rationale: >-
+      THIS IS A STRICT GENERALISATION, NOT A RELAXATION IN THE DIRECTION OF
+      LEAST RESISTANCE. A confidence interval always contains its own point
+      estimate, so every row that passed the OLD literal check (all thirteen
+      at p=4001; eleven of thirteen at p=6007) still passes the new one
+      unconditionally -- this change cannot fail a row amendment v2's gate
+      already passed. It can only ADMIT rows whose point estimate sits outside
+      [1.3, 3.6] but whose own quantified sampling uncertainty is consistent
+      with the band, which is exactly and only the failure mode DEC-20260809-de11f9
+      diagnosed: fb=4 and fb=5 at p=6007, both at the lowest-density,
+      highest-variance end of the sweep where sampling noise is largest.
+
+      NOT VACUOUS, VERIFIED BEFORE THIS TEXT WAS FROZEN (script and full
+      output kept as this amendment's own verification artifact,
+      experiments/EXP-ICINV-4d33aa/amendments/v3-verification.py and
+      v3-verification-output.txt). At n_curves=140 (df=139) the redesigned
+      check still REJECTS a row whose measured ratio is 1.00 (CI
+      [0.8010, 1.2841], no overlap with [1.3, 3.6]) or 4.50 (CI
+      [3.6045, 5.7783], no overlap) -- a ratio near the null value of 1
+      (no over-dispersion at all) or one well above the historical ceiling
+      still fails. The effective acceptance region at this sample size widens
+      from the literal [1.3, 3.6] to roughly (1.00, 4.50), not to the entire
+      real line: the gate keeps a real, falsifiable constraint, it stops
+      being falsified by the specific, quantified, already-disclosed sampling
+      noise at the two noisiest rows of a thirteen-row sweep.
+    confirmed_effect_on_the_run_that_motivated_this_change: >-
+      DISCLOSED IN FULL RATHER THAN LEFT IMPLICIT, because it bears directly
+      on confirmatory_status below. Recomputed fresh in this filing turn
+      (not transcribed from an earlier session) from
+      experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-f09176/raw-result.json
+      "rows", at z=1.96, df=139: fb=4, ratio=1.2315292605941532,
+      95% CI = [0.986452, 1.581376], overlaps [1.3, 3.6]: true (literal
+      check: false). fb=5, ratio=1.1125313273888915,
+      95% CI = [0.891135, 1.428573], overlaps: true (literal: false). fb=6,
+      ratio=1.4518421211510657 (sanity row, already literal-passing),
+      95% CI = [1.162922, 1.864274], overlaps: true (literal: true, no
+      regression). Under this redesign, and holding every other v2 check
+      fixed, RUN-ICINV-99f722's `every_row_..._band` sub-check at p=6007
+      would read true rather than false. This does not by itself make any
+      run OUTCOME -- SR3 also requires the third prime, and the redesigned
+      check must be re-evaluated by code the Coordinator does not write, not
+      asserted from this arithmetic (see A9 and `what_this_amendment_does_not_do`).
+  - id: A8
+    field: implementation discipline (edit prohibition, cross-check requirement)
+    kind: addition
+    from: (absent)
+    to: >-
+      harness/exp_icinv.py MUST STILL NOT BE EDITED -- that invalidation rule
+      is unchanged and still frozen (see below) and this amendment does not
+      request an exception to it. The Wilson-Hilferty chi2(df) bound
+      computation in change A7's formula MUST THEREFORE BE REIMPLEMENTED,
+      not imported, inside harness/exp_icinv_fullgroup.py, exactly as this
+      module's docstring already does for `verify_committed_cyclic_base`
+      ("re-derives that function's base point here ONLY to certify its
+      support, and then proves the re-derivation correct against the
+      committed function's own output"). The new function -- proposed name
+      `chi2_wilson_hilferty_bounds`, taking (df, z) and returning (lo, hi) --
+      MUST carry a mandatory self-check, run once at the start of any run that
+      uses it and recorded in the run's artifacts (proposed:
+      wilson-hilferty-crosscheck.json), that calls the COMMITTED
+      `exp_icinv.binomial_null_verdict` on synthetic data constructed to
+      exercise a representative range of df (at minimum df in
+      {1, 5, 20, 69, 138, 139}, covering every stratum floor and both
+      class sizes this contract's own controls list already names) and
+      confirms the local reimplementation's (lo, hi) match the committed
+      function's own (lo, hi) to within 1e-9 relative at every probed df.
+      A mismatch at any probed df makes the run INVALID: the duplication this
+      edit prohibition forces must be verified-equal, not merely
+      intended-equal.
+    rationale: >-
+      The edit prohibition on harness/exp_icinv.py exists so the committed
+      EV-ENDO-10109d baseline stays callable and byte-identical
+      (specification.yaml invalidation_rules); it was not written with this
+      kind of reuse in mind and this amendment does not ask to weaken it.
+      Reimplementing four lines of arithmetic is cheap; reimplementing them
+      WRONG and having the two copies silently drift is exactly the kind of
+      defect this campaign's own rules exist to catch before it reaches a
+      record (CORR-20260807-a24675 was a smaller instance of the same failure
+      mode: a value that should have been read from a single source of truth
+      was instead copied, and the copy was wrong). The cross-check makes the
+      duplication auditable rather than merely asserted.
+  - id: A9
+    field: data provenance for the p=4001 and p=6007 stage-3 gate re-evaluation
+    kind: addition
+    from: (absent)
+    to: >-
+      Version 2's Stage 3 per-curve measurements at p=4001
+      (RUN-ICINV-40622f) and p=6007 (RUN-ICINV-c670c2) MAY be read as the
+      declared input to a fresh version-3 gate computation WITHOUT redrawing
+      samples, because the measurement itself is not in question: Arm A0 is a
+      deterministic function of the frozen seed (20260807), the frozen class
+      selection rule, and the frozen sampler, and a genuine re-draw under the
+      same seed and parameters would reproduce the SAME thirteen numbers
+      exactly (this is the same fact that let Arm A0 reproduce the
+      A1-corrected baseline at delta 0.0). Re-running it would cost budget to
+      learn nothing SR4 does not already fix in advance. The new run's
+      manifest MUST name the source run id, path, and sha256 for every value
+      it reads this way (the same discipline amendment v2 change A4 already
+      requires of the baseline-provenance.json block), so the new record is
+      exactly as auditable as if the numbers had been measured fresh.
+
+      p=2003 IS DIFFERENT AND MAY NOT BE TREATED THE SAME WAY. Stage 3 at
+      p=2003 was never executed under version 2 at all (DEC-20260809-de11f9:
+      "SR3 halted stage 3 before reaching it"). Whether Stage 1 and Stage 2
+      already exist validly for p=2003 under version 2 (candidate run ids
+      visible in the working tree include RUN-ICINV-fg-stage1-p2003 and
+      several RUN-ICINV-fg-nullr*-p2003 directories, but their timestamps and
+      naming are consistent with version-1 origin and this Coordinator has
+      NOT audited which, if any, were produced by version 2's own Stage 1/2
+      commits (d7aa5701, 627f7ca5) rather than carried over from version 1)
+      is an AUDIT the executor dispatched under this amendment must perform
+      and declare before relying on anything at p=2003 -- this amendment
+      authorizes the audit and, if it finds no valid version-2 Stage 1/2
+      record at p=2003, a fresh Stage 1/2/3 execution at p=2003 under the
+      unchanged sampler and class-selection rules. This amendment does NOT
+      itself assert that a fresh p=2003 measurement is or is not needed; it
+      requires the question be settled by inspection, declared in the run
+      record, and never assumed.
+    rationale: >-
+      Reusing untainted, already-committed, deterministic measurements is
+      efficient and does not weaken evidential standing; treating an
+      unmeasured prime as if it were measured would. The two are easy to
+      conflate under time pressure and this change exists to keep them
+      separated by an explicit audit step rather than by care alone. This is
+      also why `affected_runs` below states plainly that this treatment of
+      v2's OWN data is NOT the same decision amendment v2 made about v1's
+      data, and names the reason the two situations differ.
+  unchanged_and_still_frozen:
+  - >-
+    The [1.3, 3.6] band's own endpoints. Nothing in this amendment moves,
+    widens, or re-derives them; A7 changes how a row is compared against the
+    band, never the band.
+  - >-
+    monotonic_decay_is_false and operating_row_within_tolerance, the other two
+    of SR3's three sub-checks. Neither was the failure DEC-20260809-de11f9
+    diagnosed (the operating row, fb=9, passed at delta -0.0122 against a
+    +-0.25 tolerance) and neither is touched by this amendment.
+  - >-
+    Every invalidation rule from the original contract, including the
+    prohibitions on editing harness/exp_icinv.py, on using
+    exp_icinv.permutation_null (NULL-C), and on recomputing sum sets per arm
+    -- see change A8 for how the edit prohibition specifically constrains this
+    amendment's own implementation.
+  - >-
+    Amendment v2 changes A1 through A6 in full: the re-measured p=6007
+    baseline under EXP-ICINV-55c2d8, the run_saturation.py:run class-selection
+    tie-break, the budget of 30 runs, the source_sha256 binding requirement
+    on every transcribed-looking value, and the A6 source-provenance
+    precondition. This amendment adds to v2, it does not reopen it.
+  - >-
+    SR6, no outcome shopping: the terminal state is computed inside the run
+    by code frozen before the run executes, not selected afterward. A7's
+    formula is fixed in this text, before any new run under version 3 exists;
+    it does not become negotiable after a new run reads it.
+  - >-
+    The `reference_self_check` block's disclosure of whether the reference
+    run's OWN point estimate falls inside [1.3, 3.6] at every row
+    (baseline_reproduction_v2 field `reference_itself_inside_band_at_every_row`).
+    This is a plain-fact disclosure required by amendment v2's own A1
+    forbidden clause and A5 caution, not a gate, and it stays a LITERAL
+    point-estimate report -- applying A7's statistical treatment to it would
+    blur the exact fact it exists to state plainly. A7 changes what makes
+    Arm A0 PASS; it does not change what the run discloses about the
+    reference's own raw numbers.
+  affected_runs:
+  - >-
+    RUN-ICINV-99f722, RUN-ICINV-c670c2, RUN-ICINV-40622f, and every version-1
+    run stand exactly as committed. None is edited, re-scored, or has its
+    terminal_state changed.
+  - >-
+    THIS IS NOT THE SAME TREATMENT AMENDMENT V2 GAVE VERSION-1'S DATA, AND THE
+    DIFFERENCE IS STATED HERE RATHER THAN LEFT FOR A READER TO ASSUME
+    CONSISTENCY. Amendment v2 required version-1's p=6007 baseline to be
+    RE-MEASURED because it was compared at the WRONG PARAMETERS (T=500,
+    eleven factor-base sizes, against a T=400/thirteen-size contract) --
+    the measurement itself was not comparable to what the gate needed, so
+    reusing it was not an option. Version 2's OWN p=4001 and p=6007 Stage 3
+    measurements have no such defect: they were taken at the contract's own
+    frozen parameters, with source-hash-bound provenance (A6, independently
+    confirmed satisfied by this Coordinator in DEC-20260809-de11f9), and Arm
+    A0 reproduced the corrected reference at delta 0.0. What failed was the
+    GATE applied to good data, not the data. Change A9 authorizes reading
+    that good data again under the corrected gate; it does not authorize
+    anything resembling reuse of a measurement taken at the wrong parameters.
+  - >-
+    p=2003 has no Stage 3 measurement under either version and is not
+    "affected" by this amendment in the reuse sense -- see A9's audit
+    requirement for how it is handled.
+  confirmatory_status: exploratory_only
+  confirmatory_status_note: >-
+    UNCHANGED FROM AMENDMENT V2, AND FOR A REASON THAT IS NOW STRICTLY
+    STRONGER THAN V2's OWN. Amendment v2 capped its successor run's evidence
+    at `preliminary` because the Coordinator drafting it had already seen two
+    primes' worth of persistence statistics from version 1. This filing
+    Coordinator has seen MORE than that: change A7's
+    confirmed_effect_on_the_run_that_motivated_this_change block above states
+    plainly that the specific two rows (fb=4, fb=5 at p=6007) which drove this
+    redesign are ALREADY KNOWN to pass under the new check, computed and
+    disclosed in this same filing, before any version-3 run exists. A
+    protocol change engineered in view of the exact numbers it needs to
+    accommodate, and then evaluated against those same numbers, is
+    definitionally not blind. This does not make the redesign wrong -- A7's
+    rationale stands on general statistical grounds (a finite-sample point
+    estimate has real, quantifiable sampling uncertainty; treating it as
+    exact was always a fragile gate design, and A5 said so in writing on
+    2026-08-07, before this specific failure occurred) independent of having
+    seen these rows -- but it does mean any evidence record arising from a
+    version-3 run at p=4001 or p=6007 is capped at `preliminary` for this
+    reason ALONE, regardless of what the three-prime persistence majority
+    turns out to be once p=2003 is genuinely, freshly measured. A
+    confirmatory test of H-ICINV-6c7920 under this design needs a prime this
+    amendment's own drafting never touched -- p=2003 is the closest this
+    experiment has to that, and only if A9's audit finds no prior version-2
+    measurement to reuse there either.
+  what_this_amendment_does_not_do:
+  - >-
+    It does not assert that any version-3 run will reach an OUTCOME state. SR3
+    is three sub-checks; A7 changes one of them. Monotonic decay, the
+    operating-row tolerance, and the persistence/stratification statistics at
+    a still-unmeasured p=2003 are all still open questions this amendment
+    does not answer.
+  - >-
+    It does not move, widen, or re-estimate the [1.3, 3.6] band under any
+    name. See A7's `to` field and the unchanged_and_still_frozen entry above.
+  - >-
+    It does not resolve CORR-20260807-d78e2f. The confound against
+    EV-ENDO-10109d's density-independence finding stands exactly as open as
+    it was before this amendment.
+  - >-
+    It does not move any hypothesis status. H-ICINV-6c7920 is neither
+    supported nor refuted by a gate-design change.
+  - >-
+    It does not authorize execution. Under AGENTS.md rule 1 a version-3 run
+    needs its own approval and its own handoff, exactly as v2 did; this file
+    makes the protocol coherent, it does not license compute. See
+    approval_scope_limit below once approved_by is filled.
+  approved_by: null
+  approved_by_note: >-
+    NOT APPROVED, DELIBERATELY. Filed by the Coordinator as the redesign the
+    user selected from three named candidates in response to
+    DEC-20260809-de11f9's next_actions (question asked via AskUserQuestion:
+    "Which SR3 gate redesign should the EXP-ICINV-4d33aa v3 amendment use?";
+    answer: "Statistical comparison"). That selection fixed the CATEGORY of
+    redesign; it did not review the specific formula, the confidence level
+    (95%, chosen to match -- not independently invent -- the level already
+    frozen for NULL-B's own acceptance band elsewhere in this same contract),
+    the edit-prohibition workaround in A8, or the data-provenance decision in
+    A9, all of which are drafted here for the first time. Following the same
+    two-step discipline used for amendment v2 (drafted and filed unapproved,
+    reviewed, then approved in a separate act), this file is filed now and
+    awaits that review. No run may be dispatched against it until approved_by
+    is filled by an approval decision, and A8's cross-check and A9's p=2003
+    audit are both required before any run this amendment authorizes is
+    admitted as evidence, whether or not they are satisfied by the time
+    approval is granted.
+  refs:
+  - GOAL-ENDO-001
+  - BATCH-aa267f
+  - EXP-ICINV-4d33aa
+  - H-ICINV-6c7920
+  - RQ-ICINV-475b5e
+  - EXP-ICINV-55c2d8
+  - EV-ENDO-10109d
+  - DEC-20260809-de11f9
+  - TASK-20260809-caa93e
+  - experiments/EXP-ICINV-4d33aa/amendments/v2.yaml
+  - CORR-20260807-14431d
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-sonnet-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one
+      model the session runs on. Recorded, never silently substituted
+      (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.
