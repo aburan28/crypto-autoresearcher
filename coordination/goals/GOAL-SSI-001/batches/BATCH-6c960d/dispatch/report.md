@@ -6,7 +6,7 @@ Refine the admitted SSI per-prime advice-frontier design and obtain fresh indepe
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-0c65c9` | coordinator | queued | 4 | TASK-20260809-9f5850, TASK-20260809-950724 | coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/archives/TASK-20260809-0c65c9/ledger-receipt.json, ledger/evidence/EV-SSI-323324.yaml, ledger/decisions/DEC-20260809-9eabbb.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-6c960d.yaml, ledger/goals/GOAL-SSI-001/goal.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/archives/TASK-20260809-0c65c9, coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/reviews/TASK-20260809-9f5850, coordination/goals/GOAL-SSI-001/batches/BATCH-6c960d/reviews/TASK-20260809-950724, ledger/evidence/EV-SSI-323324.yaml, ledger/decisions/DEC-20260809-9eabbb.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-6c960d.yaml, ledger/goals/GOAL-SSI-001/goal.yaml |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e6e2b741a65a6adb72ab2e1254b5a52a5b468c474ffdd9d6214caef0d2c11619`
+Plan SHA-256: `c853ca08bed413250023664a789ac28be40055e901c9ba42b3604543d35f580f`
