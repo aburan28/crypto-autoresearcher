@@ -1,0 +1,526 @@
+schema: review_report/v1
+
+task_id: TASK-20260809-4a4203
+reviewed_snapshot_task_id: TASK-20260809-9d39e8
+reviewed_snapshot_commit: "2d40dfad452a86681d8b43b569b0cd072b50671f"
+
+reviewed_artifact_paths:
+  - path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md
+    role: producer_design
+    sha256_recomputed: "521521b553f824278f8991311cc0592412706f55cf06fd23ea6eb8ab6732c31d"
+    sha256_expected_from_snapshot_queue: "521521b553f824278f8991311cc0592412706f55cf06fd23ea6eb8ab6732c31d"
+    sha256_match: true
+  - path: ledger/handoffs/TASK-20260808-8bff69.yaml
+    role: producer_handoff
+    sha256_recomputed: "ae4fc9dbf7ec26739759120a96f32adb7b35e6197f14decd548fa3d043c952bf"
+    sha256_expected_from_snapshot_queue: "ae4fc9dbf7ec26739759120a96f32adb7b35e6197f14decd548fa3d043c952bf"
+    sha256_match: true
+  - path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/archives/TASK-20260809-9d39e8/snapshot-receipt.json
+    role: snapshot_receipt
+    sha256_recomputed: "11f1a67ddfe8885b2ce7d76a243f5a2d9232a1b5cbe1455fddcf389b52c400ef"
+    sha256_expected_from_snapshot_queue: "11f1a67ddfe8885b2ce7d76a243f5a2d9232a1b5cbe1455fddcf389b52c400ef"
+    sha256_match: true
+
+reviewed_contract_paths:
+  - path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/batch.yaml
+    sha256_recomputed: "b8662f67cbfc96b334aa6720deee479f499a2dc6d740a1d28d754ef7214b0440"
+  - path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/dispatch_queue.json
+    sha256_recomputed: "9cc7c592b39ca0129746c7d9863ff095f4274c00b38ad222903c9a4a6b0ad5f5"
+
+snapshot_provenance:
+  result: PASS
+  receipt_path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/archives/TASK-20260809-9d39e8/snapshot-receipt.json
+  receipt_commit_sha_field: null
+  receipt_commit_sha_note: >-
+    The receipt explicitly leaves its own commit SHA null because a commit
+    cannot contain its own SHA; the dispatch queue is the authoritative
+    post-commit binding inspected for the actual commit and complete path
+    hashes.
+  queue_snapshot_commit: "2d40dfad452a86681d8b43b569b0cd072b50671f"
+  queue_snapshot_parent: "59b287893ca048ade54ec05e38bd3ba226d96296"
+  git_checks:
+    commit_exists_as_commit_object: true
+    commit_subject: "archive TASK-20260809-9d39e8 BATCH-bd36fe design snapshot"
+    parent_matches_queue: true
+    commit_reachable_from_review_head: true
+    exact_declared_diff_contains_only_three_snapshot_paths: true
+    source_blobs_at_snapshot_match_recomputed_hashes: true
+  dependency_and_archival_checks:
+    producer_to_snapshot: "TASK-20260809-9d39e8 depends_on TASK-20260808-8bff69 and archives the two producer artifacts plus its receipt."
+    snapshot_to_review: "TASK-20260809-4a4203 depends_on TASK-20260809-9d39e8 and reads the declared snapshot and producer inputs."
+    review_to_review_snapshot: "TASK-20260809-41bbe3 depends_on TASK-20260809-4a4203 and is the declared Coordinator archive for this report."
+    report_write_scope_matches_artifact_path: true
+    provenance_conclusion: >-
+      The immutable snapshot and dependency chain are admissible as inputs to
+      this review. This is a provenance check only and is not evidence about
+      any experiment or ECDLP claim.
+
+verdict: REVISE
+verdict_scope:
+  type: design_only
+  precise_scope: >-
+    Admissibility of the proposed toy-scale Arm A/Arm B/Arm D design and the
+    explicitly retained Arm C continuity control for a later approval review.
+  verdict_does_not_mean: >-
+    This verdict is not a result about ECDLP cost, security, a cryptographic
+    scale, an asymptotic exponent, a deployed scheme, or the truth of the
+    proposed mechanism. It says only that the current design package needs
+    repair before it can be considered for a later freeze decision.
+  current_claim_ceiling: >-
+    The inspected batch and snapshot correctly state analysis/design-only and
+    toy-only ceilings; no experiment is admitted by this report.
+
+findings:
+  - id: F-001
+    severity: blocking
+    exact_path_section: >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md:15,36-48,67-75
+    reasoning: >-
+      Arm A and Arm B are intended to return the complete relation set, while
+      Arm D is explicitly expected to return only a random subset at the same
+      query count (design lines 46-48). Therefore raw C_D is not a like-for-
+      like cost for the same output as C_A or C_B. The F2 interpretation that
+      C_B >= C_D means the structure alone reaches the same point is not
+      supported: D has not been required to reach the B/A relation target.
+      The same problem affects the prediction C_D < C_A. A cheaper partial
+      search can reflect less output rather than a cheaper route to the same
+      task.
+    recommended_repair: >-
+      Define the output target before costing. Compare A and B at complete
+      coverage, and make D a cost-versus-coverage null curve or require D to
+      reach a pre-registered coverage target R* before any cross-arm cost
+      comparison. Retain raw D coverage as a null diagnostic, but do not call
+      an unnormalized C_D comparison a same-task speedup. Gate F1/F2 on a
+      valid, deduplicated, explicitly matched coverage target.
+
+  - id: F-002
+    severity: blocking
+    exact_path_section: >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md:21-23,38-43,60,75
+    reasoning: >-
+      The declared primary unit is one E.add evaluation, but the stated
+      formulas assume that every B match is a true relation and that D's
+      bucket collisions are the only extra verification work. Exact x-key
+      lookup is not group equality: x collisions, sign representatives,
+      duplicate triples, bucket insertion, candidate deduplication, and false
+      candidate verification must be measured rather than assumed away. The
+      design also assigns hash probing and random-query generation zero primary
+      cost while reporting wall-clock as a secondary measure, without defining
+      whether any wall-clock "speedup" is allowed. The cost declaration is
+      placed after earlier "cheaper" language at lines 15 and 36, and the
+      formula at line 75 defines only the A-versus-B ratio, not the D-versus-B
+      comparison.
+    recommended_repair: >-
+      Move a complete charged-cost declaration ahead of every speedup or
+      cheaper statement. Define C_add,j as an instrumented count of every
+      E.add evaluation in the exact implementation path, including all table
+      construction, left-side preparation, candidate verification, collision
+      handling, and deduplication; report the exact realized |F| and bucket
+      sizes. Define a separate C_wall,j that includes hashing, PRNG, memory,
+      and lookup costs, and prohibit generic speedup language unless the
+      selected unit is named. Pre-register both normalized deltas (A versus B
+      and B versus D) and treat the displayed asymptotic-looking formulas as
+      predictions, not accounting identities.
+
+  - id: F-003
+    severity: blocking
+    exact_path_section: >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md:25-32,54-60,67-71
+    reasoning: >-
+      Arm D is a plausible true-null concept because it keeps the table and
+      nominal query count while replacing the query source with a uniform F_p
+      value. The matched-null requirement is not yet satisfied, however.
+      CTRL-PRNG-NO-COLLISION conditions the null on collision-free PRNG output
+      but does not state whether collisions among queries, with table keys, or
+      in candidate buckets are being excluded. Rejecting ordinary with-
+      replacement random behavior changes the null distribution; rejecting
+      table collisions would remove the very null events being measured. Same
+      count and same table are not enough without a precise query generator,
+      encoding, seed pairing, duplicate policy, and collision accounting.
+    recommended_repair: >-
+      Specify an exact uniform-from-F_p-with-replacement generator, retain
+      duplicates, derive deterministic paired arm substreams from each seed,
+      and log query values or a sufficient collision summary. Define separate
+      query-query, query-table, bucket, and verified-candidate counts. Do not
+      invalidate a D run because of ordinary random collisions. State the
+      exact shared table bytes, lookup representation, and per-cell pairing
+      that make D a same-shape null rather than merely a lower-cost arm.
+
+  - id: F-004
+    severity: blocking
+    exact_path_section: >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md:62-71
+    reasoning: >-
+      The early-exit rule selects the first four cells without specifying a
+      deterministic cell order and says that two C_D <= C_B observations
+      immediately falsify prediction 1, record a negative result, and close
+      the successor. That is not reconciled with the later "any cell" F2
+      rule, with the fixed 24-cell design, or with the requirement that only
+      the Coordinator changes official status. F3's 0.95 threshold has no
+      stated null distribution, uncertainty, or decision rationale; R_D/R_B
+      below 0.95 is expected from the proposed random null and does not by
+      itself show that the oracle is informative, while a value at least 0.95
+      does not establish that the oracle has no information.
+    recommended_repair: >-
+      Pre-register a deterministic cell order, valid-cell and missing-cell
+      handling, and a null-calibrated coverage decision rule with an explicit
+      uncertainty method. A sequential stop may stop collection only; it must
+      classify the unrun cells as not attempted or cancelled_by_budget and
+      cannot close a lane or perform a status transition. Have the Coordinator
+      decide any scoped interpretation after the complete review chain.
+
+  - id: F-005
+    severity: blocking
+    exact_path_section: >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md:50-52,62-65; ledger/handoffs/TASK-20260808-8bff69.yaml:58-66; coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/dispatch_queue.json:79-95
+    reasoning: >-
+      The design gives a total of 120 arm-runs and a 60-minute wall budget,
+      but no per-run wall limit, CPU accounting, maximum memory for the table,
+      disk/output cap, parallelism plan, or reconciliation showing how those
+      totals are obtained. The design-only batch and top-level handoff set
+      maximum_runs to 0, while the nested handoff copy in the dispatch queue
+      records maximum_runs: 1. The no-run constraint is clear in prose, but
+      this budget discrepancy leaves the operational meaning of a run
+      ambiguous. No rule states how a timeout, resource exhaustion, invalid
+      control, or partial four-cell stop affects the remaining budget.
+    recommended_repair: >-
+      Create a successor design/handoff rather than editing the immutable
+      snapshot. Reconcile every design-only maximum_runs field to zero (or
+      explicitly define a non-experiment task invocation field), and give the
+      future experiment a per-arm budget matrix with wall time, CPU, memory,
+      disk, parallelism, expected table size, total reconciliation, and
+      terminal handling for timeout/resource exhaustion/invalidity. Preserve
+      the batch's current no-run ceiling.
+
+  - id: F-006
+    severity: blocking
+    exact_path_section: >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md:25-32,45-48,50-60,73
+    reasoning: >-
+      Arm C is listed as a retained candidate/control and is included in the
+      follow-through text, but it has no mechanism, prediction, exact frozen
+      input/seed contract, falsification criterion, budget, stopping rule, or
+      arm-specific artifact path. It is also omitted from the stated 24-cell
+      A/B/D run count. "PRNG approximately as frozen" is not a reproducible
+      design boundary. If C is historical context only, its presence in the
+      proposed arm table and follow-through is misleading; if it is an arm,
+      the contract is incomplete.
+    recommended_repair: >-
+      Either remove C from the candidate set and label it solely as a cited
+      historical control with an exact immutable reference, or specify C with
+      the same mechanism/prediction/boundary/control/metric/budget/stopping/
+      artifact fields as A, B, and D and include it in the run matrix and
+      budget. Do not use an approximate frozen reference.
+
+  - id: F-007
+    severity: blocking
+    exact_path_section: >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md:19-23,50-60,73; templates/research-records.md:112-179,214-251
+    reasoning: >-
+      The design names a CTRL-BLOB and an implementation blob but supplies no
+      exact implementation path or SHA-256 in the snapshot. The required
+      artifact list also does not explicitly require the complete per-run
+      command, commit and dirty-tree state, environment/dependency versions,
+      seeds, stdout/stderr, resource measurements, model policy/provenance,
+      model verification, or raw per-arm query/collision/candidate records.
+      The template and AGENTS.md artifact policy require those bindings for a
+      future run. Without them, a later implementation could silently change
+      the operation count or null distribution while still claiming CTRL-BLOB.
+    recommended_repair: >-
+      In a new design record, bind the exact implementation and frozen source
+      blob paths and hashes, define the raw-results schema for every arm and
+      seed, and list all required manifest provenance fields, logs, resource
+      measurements, analysis, amendment directory, snapshot archive, review
+      reports, and ledger archive. Keep the current snapshot immutable.
+
+  - id: F-008
+    severity: blocking
+    exact_path_section: >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md:77-80; ledger/handoffs/TASK-20260808-8bff69.yaml:43-44,62-65
+    reasoning: >-
+      The draft sets dominated_by to null and says a frontier was checked, but
+      it names no frontier rows or IDs and supplies no time, memory, data/query,
+      or charged-cost values for each comparison. Adding a charged dimension
+      does not by itself prove that no existing row dominates the proposal.
+      sota_delta is qualitative ("none claimed", "first charged-cost artifact",
+      and "future delta must be measured") rather than a quantitative vector.
+      This does not meet the inventor protocol's rule that null requires a
+      check against every frontier row and that sota_delta says quantitatively
+      how the numbers compare.
+    recommended_repair: >-
+      Add an auditable frontier table naming every considered row and its
+      units/values, or set dominated_by to the specific dominating record.
+      Replace the qualitative sota_delta with a numeric pre-run comparison
+      vector (for example yield delta, query-count delta, added-arm delta, and
+      explicitly undefined measured-cost delta) tied to named baseline records;
+      do not call the design the first such artifact until the complete
+      frontier is documented.
+
+  - id: F-009
+    severity: moderate
+    exact_path_section: >-
+      orchestration/roles.yaml:101-136; agents/; coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/dispatch_queue.json:174-226
+    reasoning: >-
+      The dispatch queue accepts the abstract reviewer role and the policy
+      requires an independent review session, but the inspected runtime role
+      table has bindings for coordinator, idea-generator, executor, validator,
+      and red-team only; there is no agents/reviewer.md or reviewer runtime
+      binding. The repository preflight consequently reports five consistent
+      roles, not a separately bound reviewer role. This does not invalidate the
+      bytes or the design logic, but it prevents the role-specific runtime
+      contract and exact model provenance from being machine-verified for this
+      task.
+    recommended_repair: >-
+      Before relying on machine dispatch for a future review, add a generated
+      reviewer contract/binding or explicitly route the task through the
+      existing validator or red-team contract while preserving the independent
+      review policy. Do not infer a model identifier from a product label.
+
+explicit_checks:
+  mechanism:
+    overall: REVISE
+    arms:
+      - arm: A
+        answer: partial
+        inspected: >-
+          Full exhaustive enumeration over the stated toy factor-base space
+          is identified as the baseline, but the 2|F|^3 count is not yet bound
+          to an exact implementation trace and realized |F|.
+      - arm: B
+        answer: partial
+        inspected: >-
+          The table-plus-exact-x-lookup mechanism is described, but the text
+          conflates x equality with group equality and assumes away bucket and
+          false-candidate work.
+      - arm: D
+        answer: partial
+        inspected: >-
+          Random-from-F_p is a plausible null substitution, but the query
+          generator, duplicate policy, collision policy, and output target are
+          not fully specified.
+      - arm: C
+        answer: fail_as_candidate
+        inspected: >-
+          C is only described as an approximately frozen PRNG continuity arm;
+          it has no standalone design contract and is absent from the fixed
+          A/B/D budget.
+
+  prediction:
+    overall: REVISE
+    answer: >-
+      C_A > C_D > C_B and R_A = R_B >= R_D are stated, but the D cost
+      comparison is not output-matched and the null-rate interpretation is not
+      identified by a calibrated null distribution. The A/B relation equality
+      is appropriately treated as a machinery control, not a new yield claim.
+
+  exact_test_boundary:
+    overall: partial
+    answer: >-
+      The inspected bytes specify m=3, p in {101,103,107,211}, b in
+      {0.4,0.5}, seeds {1..5}, and eight (p,b) groups. They do not specify
+      exact realized factor-base cardinalities, arm seed substreams, query
+      ordering, deterministic cell ordering, deduplication semantics, or a
+      complete boundary for retained Arm C. The 24 arm-cell versus 120
+      arm-run arithmetic is understandable for A/B/D but excludes C while C
+      remains proposed.
+
+  control:
+    overall: FAIL
+    answer: >-
+      CTRL-QUERY-COUNT, CTRL-BLOB, and CTRL-YIELD-REF are named and directly
+      inspected in the design, but CTRL-PRNG-NO-COLLISION is not a validly
+      specified true-null control until its collision scope and conditioning
+      are defined. Same table and query count do not establish matched shape;
+      the required same-shape null must preserve encoding, seed pairing,
+      replacement behavior, and all ordinary collision events.
+
+  cost:
+    overall: FAIL
+    answer: >-
+      A primary E.add-count unit and an A-versus-B ratio are present, but the
+      declaration is not first in the artifact, is not an exact end-to-end
+      accounting identity, omits or assumes collision-related work, and does
+      not define the D comparison or wall-clock semantics. The proposed raw
+      C_D comparison is also not coverage matched.
+
+  metrics:
+    overall: partial
+    answer: >-
+      C_A/C_B/C_D, relation counts, R_D/R_B, probes, wall-clock, and memory
+      are named. Missing are exact per-arm/per-seed raw counts for all E.add
+      calls, bucket and false-positive counts, query-query and query-table
+      collisions, realized |F|, output coverage curves, a pre-registered
+      uncertainty/aggregation rule, and an explicit channel for unexpected
+      observations. The sentence that no other metric is a driver must not
+      suppress anomalous measurements required by AGENTS.md rule 8.
+
+  budget:
+    overall: FAIL
+    answer: >-
+      The 24 A/B/D cells, five seeds, 120 arm-runs, and 60-minute total are
+      stated, but per-run wall/CPU/memory/disk/parallelism and reconciliation
+      are absent. The nested handoff maximum_runs: 1 conflicts with the
+      design-only zero ceilings in the batch and top-level handoff.
+
+  stopping:
+    overall: FAIL
+    answer: >-
+      A fixed matrix, one early-exit condition, and infrastructure-failure
+      classification are present. The early-exit condition lacks fixed order,
+      valid-cell semantics, statistical calibration, and proper handling of
+      unrun cells, and its "close the successor" language exceeds reviewer
+      authority and the batch's no-status-transition ceiling.
+
+  artifacts:
+    overall: FAIL
+    answer: >-
+      The draft names a future specification, implementation blob, run
+      manifest/raw/analysis files, snapshot, ledger, and three review roles,
+      but does not bind the implementation hash or enumerate the complete
+      required run provenance and raw control artifacts required by the
+      repository policy.
+
+  pareto:
+    overall: FAIL
+    dominated_by: >-
+      The literal null is not auditable from this snapshot: no complete
+      frontier row set, IDs, units, or per-axis values are supplied.
+    sota_delta: >-
+      The literal value is qualitative rather than quantitative. The proposed
+      design must report a numeric comparison vector or a specific dominating
+      record; no measured cost delta may be claimed before a future run.
+
+  no_run:
+    overall: PASS
+    answer: >-
+      The batch claim ceiling, handoff constraints, snapshot receipt
+      no_run_authorized flag, and maximum_runs: 0 fields were inspected. This
+      review performed no experiment, ran no research code, created no data,
+      and did not approve, freeze, or dispatch an Executor task. The nested
+      maximum_runs: 1 inconsistency is recorded as F-005 and does not enlarge
+      the current authorization.
+
+  scope_and_claim_ceiling:
+    overall: PASS
+    answer: >-
+      The inspected batch and queue explicitly prohibit ECDLP attack, cost,
+      exponent, asymptotic, cryptographic-scale, and deployed-scheme claims.
+      The design repeatedly labels the universe toy-scale/design-only. This
+      review makes no mathematical or security conclusion.
+
+arm_reviews:
+  - arm: A
+    mechanism: pass_with_cost_repair
+    prediction: pass_as_baseline_prediction
+    exact_test_boundary: partial_shared_boundary
+    falsification_criteria: partial
+    matched_controls: partial
+    metrics: partial
+    charged_cost_model: fail_until_instrumented
+    resource_and_run_budget: fail_shared_budget_gap
+    stopping_rules: fail_shared_stopping_gap
+    required_artifacts: fail_shared_artifact_gap
+    pareto_fields: fail_shared_pareto_gap
+    no_run_design_only_ceiling: pass
+    review_note: >-
+      A is a useful complete-output baseline, but its measured cost must be
+      the exact implementation count and its relation set must be deduplicated
+      and bound to the same output definition used for B.
+  - arm: B
+    mechanism: partial_x_lookup_description
+    prediction: partial_due_to_unmeasured_x_bucket_collisions
+    exact_test_boundary: partial_shared_boundary
+    falsification_criteria: fail_until_coverage_gated
+    matched_controls: partial_yield_reference_only
+    metrics: fail_missing_candidate_and_bucket_counts
+    charged_cost_model: fail_until_instrumented
+    resource_and_run_budget: fail_shared_budget_gap
+    stopping_rules: fail_shared_stopping_gap
+    required_artifacts: fail_shared_artifact_gap
+    pareto_fields: fail_shared_pareto_gap
+    no_run_design_only_ceiling: pass
+    review_note: >-
+      B can be compared with A after both are required to return the same
+      complete relation target; its exact x lookup cannot be treated as a
+      proof that only true-match candidates are verified.
+  - arm: D
+    mechanism: partial_true_null_candidate
+    prediction: fail_as_raw_same_task_cost_comparison
+    exact_test_boundary: fail_until_generator_and_output_are_fixed
+    falsification_criteria: fail_f3_uncalibrated_and_f2_unmatched
+    matched_controls: fail_collision_conditioning
+    metrics: fail_missing_coverage_curve_and_collision_channels
+    charged_cost_model: fail_until_coverage_normalized
+    resource_and_run_budget: fail_shared_budget_gap
+    stopping_rules: fail_shared_stopping_gap
+    required_artifacts: fail_shared_artifact_gap
+    pareto_fields: fail_shared_pareto_gap
+    no_run_design_only_ceiling: pass
+    review_note: >-
+      D is the right kind of null candidate for isolating query information,
+      but only a matched null diagnostic or coverage-normalized comparison is
+      currently justified by the design bytes.
+  - arm: C
+    mechanism: fail_underspecified_continuity_arm
+    prediction: fail_not_stated
+    exact_test_boundary: fail_not_stated
+    falsification_criteria: fail_not_stated
+    matched_controls: fail_not_stated
+    metrics: fail_not_stated
+    charged_cost_model: fail_not_stated
+    resource_and_run_budget: fail_not_included_in_24_cell_budget
+    stopping_rules: fail_not_stated
+    required_artifacts: fail_not_stated
+    pareto_fields: fail_shared_pareto_gap
+    no_run_design_only_ceiling: pass
+    review_note: >-
+      Remove C as a candidate or give it a full arm contract and budget; an
+      approximate historical reference is not a reproducible control.
+
+queue_and_runtime_check:
+  dispatch_queue_dependency_contract: PASS
+  snapshot_archival_contract: PASS
+  reviewer_task_artifact_path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/reviews/TASK-20260809-4a4203/review_report.yaml
+  reviewer_task_write_scope: coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/reviews/TASK-20260809-4a4203/
+  review_archive_task: TASK-20260809-41bbe3
+  repository_preflight:
+    generated_bindings_current: true
+    roles_consistent: true
+    backend_usable: false
+    result: >-
+      The read-only preflight passed generated binding and role consistency but
+      reported no usable configured API backend. The current native Codex
+      session was used for this bounded review; this is an operational
+      provenance limitation, not evidence about the design.
+
+inference:
+  requested_policy: review-adversarial
+  resolved_model_id: null
+  resolved_model_id_source: >-
+    The current runtime did not expose an exact native Codex model identifier
+    to this task. No identifier was inferred from the product label or from a
+    repository binding.
+  reasoning_effort: xhigh
+  independent_session: true
+  fallback_used: false
+  degraded_requirements: []
+  model_verified: false
+  model_verification_note: >-
+    The repository model probe was not performed successfully; the read-only
+    preflight reported no usable configured API backend. The required false
+    value is therefore preserved.
+
+authority_and_actions:
+  independent_adversarial_review_only: true
+  no_experiment_run: true
+  no_research_code_executed: true
+  no_data_created: true
+  no_executor_task_created: true
+  no_protocol_approval_or_freeze: true
+  no_ledger_or_hypothesis_or_goal_edit: true
+  no_official_status_transition: true
+  no_mathematical_or_security_conclusion: true
+
+next_action: >-
+  Revise the design through a new successor record to repair all blocking
+  findings.
