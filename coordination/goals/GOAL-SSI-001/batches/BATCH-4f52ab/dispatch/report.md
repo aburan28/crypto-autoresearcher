@@ -6,13 +6,12 @@ Snapshot the schema-repaired review retry capsule and obtain fresh independent V
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-887e42` | coordinator | queued | 2 | TASK-20260809-cc33a4 | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/archives/TASK-20260809-887e42/snapshot-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/archives/TASK-20260809-887e42 |
+| `TASK-20260809-6f34ac` | validator | queued | 3 | TASK-20260809-887e42 | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-6f34ac/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-6f34ac/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-6f34ac |
+| `TASK-20260809-83623a` | red-team | queued | 3 | TASK-20260809-887e42 | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-83623a/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-83623a/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-4f52ab/reviews/TASK-20260809-83623a |
 
 ## Deferred or Blocked
 
 - `TASK-20260809-1dfd9a`: dependency_not_completed:TASK-20260809-6f34ac:queued, dependency_not_completed:TASK-20260809-83623a:queued
-- `TASK-20260809-6f34ac`: dependency_not_completed:TASK-20260809-887e42:queued
-- `TASK-20260809-83623a`: dependency_not_completed:TASK-20260809-887e42:queued
 
 ## Dispatch Gates
 
@@ -27,4 +26,4 @@ Snapshot the schema-repaired review retry capsule and obtain fresh independent V
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `9c67381c62ce65f92d61313789b2493d7876368785486b76f35230ea1afbe10d`
+Plan SHA-256: `80a11536da6d8afec2a7d6fd86d3c2a44f5f901b0a01abbeeba686aff73cc951`
