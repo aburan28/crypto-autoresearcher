@@ -6,7 +6,7 @@ Supersede only EV-SSI-59f7a2's unqualified OneEnd/SQIsign concrete-cost labeling
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-230fb5` | coordinator | queued | 4 | TASK-20260809-081bb1, TASK-20260809-f2ea94 | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/archives/TASK-20260809-230fb5/ledger-receipt.json, ledger/evidence/EV-SSI-1b6db3.yaml, ledger/decisions/DEC-20260809-ea08ae.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-d03e96.yaml, ledger/goals/GOAL-SSI-001/goal.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-d03e96/archives/TASK-20260809-230fb5, ledger/evidence/EV-SSI-1b6db3.yaml, ledger/decisions/DEC-20260809-ea08ae.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-d03e96.yaml, ledger/goals/GOAL-SSI-001/goal.yaml |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
@@ -25,4 +25,4 @@ None.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `f5f55183ba13946393864ee3c8ea2c30a2f653b43fc149495f2e59b8e33dfd32`
+Plan SHA-256: `5b927b6759b015a7209397ee6bb3ea877ee1a9eebd793b4a6726a1d0ae7adbde`
