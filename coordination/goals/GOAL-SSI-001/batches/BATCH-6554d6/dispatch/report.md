@@ -6,12 +6,11 @@ Repair the remaining SSI advice-frontier design gaps and obtain fresh independen
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-2ded5b` | red-team | queued | 3 | TASK-20260809-c58735, TASK-20260809-f1c4fa | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-2ded5b/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-2ded5b/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-2ded5b |
-| `TASK-20260809-4492f4` | validator | queued | 3 | TASK-20260809-c58735, TASK-20260809-f1c4fa | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-4492f4/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-4492f4/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-4492f4 |
+| `TASK-20260809-7fbbb0` | coordinator | queued | 4 | TASK-20260809-4492f4, TASK-20260809-2ded5b | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/archives/TASK-20260809-7fbbb0/ledger-receipt.json, ledger/evidence/EV-SSI-584f42.yaml, ledger/decisions/DEC-20260809-28dff0.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-6554d6.yaml, ledger/goals/GOAL-SSI-001/goal.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/archives/TASK-20260809-7fbbb0, coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-4492f4, coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-2ded5b, ledger/evidence/EV-SSI-584f42.yaml, ledger/decisions/DEC-20260809-28dff0.yaml, ledger/goals/GOAL-SSI-001/checkpoints/BATCH-6554d6.yaml, ledger/goals/GOAL-SSI-001/goal.yaml |
 
 ## Deferred or Blocked
 
-- `TASK-20260809-7fbbb0`: dependency_not_completed:TASK-20260809-4492f4:queued, dependency_not_completed:TASK-20260809-2ded5b:queued
+None.
 
 ## Dispatch Gates
 
@@ -26,4 +25,4 @@ Repair the remaining SSI advice-frontier design gaps and obtain fresh independen
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `b31174d0b810fa78b58c29e046cfe3140a4cf62738c10a980a63836ed2ee5a42`
+Plan SHA-256: `cf0047d224228f8179b2f0858cbc2f64cb70c7244513131f0e4bd00abfd7be2c`
