@@ -6,8 +6,8 @@ Supersede the stale EV-WESO-001 anchor/crossover interpretation from the immutab
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-b30a85` | validator | queued | 3 | TASK-20260809-44fea0 | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-b30a85/validation_report.yaml | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-b30a85 |
-| `TASK-20260809-e805f6` | red-team | queued | 3 | TASK-20260809-44fea0 | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-e805f6/red_team_report.md | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-e805f6 |
+| `TASK-20260809-b30a85` | validator | queued | 3 | TASK-20260809-44fea0 | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-b30a85/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-b30a85/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-b30a85 |
+| `TASK-20260809-e805f6` | red-team | queued | 3 | TASK-20260809-44fea0 | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-e805f6/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-e805f6/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-dbfee9/reviews/TASK-20260809-e805f6 |
 
 ## Deferred or Blocked
 
@@ -26,4 +26,4 @@ Supersede the stale EV-WESO-001 anchor/crossover interpretation from the immutab
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `2606600ad3a6453d0ab4bc4b68a3f9ae402e8d6f44ad204f759efdd9f8cbc939`
+Plan SHA-256: `7baedef7d694b5b634b34e2ddf87aa11bd75bb476f4e127308ebbc74071dfbba`
