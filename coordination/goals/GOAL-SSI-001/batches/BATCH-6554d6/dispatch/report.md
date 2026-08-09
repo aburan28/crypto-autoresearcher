@@ -6,12 +6,11 @@ Repair the remaining SSI advice-frontier design gaps and obtain fresh independen
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260809-f1c4fa` | coordinator | queued | 2 | TASK-20260809-c58735 | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/archives/TASK-20260809-f1c4fa/snapshot-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/archives/TASK-20260809-f1c4fa |
+| `TASK-20260809-2ded5b` | red-team | queued | 3 | TASK-20260809-c58735, TASK-20260809-f1c4fa | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-2ded5b/red_team_report.md, coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-2ded5b/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-2ded5b |
+| `TASK-20260809-4492f4` | validator | queued | 3 | TASK-20260809-c58735, TASK-20260809-f1c4fa | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-4492f4/validation_report.yaml, coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-4492f4/runtime-session-receipt.json | coordination/goals/GOAL-SSI-001/batches/BATCH-6554d6/reviews/TASK-20260809-4492f4 |
 
 ## Deferred or Blocked
 
-- `TASK-20260809-2ded5b`: dependency_not_completed:TASK-20260809-f1c4fa:queued
-- `TASK-20260809-4492f4`: dependency_not_completed:TASK-20260809-f1c4fa:queued
 - `TASK-20260809-7fbbb0`: dependency_not_completed:TASK-20260809-4492f4:queued, dependency_not_completed:TASK-20260809-2ded5b:queued
 
 ## Dispatch Gates
@@ -27,4 +26,4 @@ Repair the remaining SSI advice-frontier design gaps and obtain fresh independen
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `93be20ea3e1a456ee7f20a45fafcb2a52cef372d80422222b69b7feb0674b557`
+Plan SHA-256: `b31174d0b810fa78b58c29e046cfe3140a4cf62738c10a980a63836ed2ee5a42`
