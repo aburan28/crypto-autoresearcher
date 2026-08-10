@@ -172,6 +172,77 @@ roles:
       codex_cli: .codex/agents/red-team.toml
       opencode: .opencode/agent/red-team.md
 
+  # ------------------------------------------------------------------
+  # Policy-tier variants.
+  #
+  # `runtime_reasoning_effort` above binds a role's DEFAULT policy to its agent
+  # file. But `model-policies.yaml` routing_rules send some tasks of an existing
+  # role to a different policy: a claimed breakthrough, a proposed closure, or a
+  # result contradicting validated evidence goes to `review-breakthrough`; a
+  # re-run of a frozen command goes to `executor-mechanical`. One agent file
+  # carries one effort, so those routes had no binding at all here — under this
+  # runtime the escalated review could only be downgraded (forbidden:
+  # `review-breakthrough` is `degradable: false`) or launched as a whole
+  # separate session.
+  #
+  # A variant is the SAME ROLE at a different policy tier: identical contract,
+  # identical authority, identical capabilities, different reasoning effort.
+  # The checker enforces exactly that, so a variant can never become a
+  # privilege-escalation route — the only thing it may change is how hard the
+  # model thinks. Dispatch queues keep naming the canonical role
+  # (`tools/research_dispatch.py` ROLES is unchanged); the runtime picks the
+  # variant from the task's `inference.policy`, and an escalated review still
+  # runs in its own independent session.
+  #
+  # Variants exist only for runtimes that can express effort per agent. A
+  # runtime with `runtime_reasoning_effort: null` takes the escalation from
+  # `adapter env` at launch and needs no second binding.
+  # ------------------------------------------------------------------
+
+  executor-mechanical:
+    variant_of: executor
+    contract: agents/executor.md
+    default_policy: executor-mechanical
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: true
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    runtime_bindings:
+      claude_code: .claude/agents/executor-mechanical.md
+
+  validator-breakthrough:
+    variant_of: validator
+    contract: agents/validator.md
+    default_policy: review-breakthrough
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    runtime_bindings:
+      claude_code: .claude/agents/validator-breakthrough.md
+
+  red-team-breakthrough:
+    variant_of: red-team
+    contract: agents/red-team.md
+    default_policy: review-breakthrough
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands, web_search]
+    runtime_bindings:
+      claude_code: .claude/agents/red-team-breakthrough.md
+
+# A role carrying `variant_of` must match its base role's contract, authority
+# and capabilities EXACTLY, and must resolve to a different policy than the
+# base -- otherwise it is either a second name for the same thing or a way to
+# gain authority without saying so. Both are checker errors.
+#
 # Roles whose `independent_of_producer` is true must resolve to a policy with
 # `independent_session_required: true`; the checker enforces this so a review
 # role can never be quietly routed through a non-independent session.

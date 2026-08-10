@@ -11,7 +11,8 @@ model: inherit
 # reasoning_effort. Same tier as the Validator by design: both are the
 # adversarial gate, and they differ in what they attack (receipts and controls
 # versus interpretation and cost model), not in how hard they have to think.
-# Change the policy, not this line.
+# A claimed breakthrough routes to `review-breakthrough` at `max`, which is the
+# sibling binding `red-team-breakthrough`. Change the policy, not this line.
 effort: xhigh
 ---
 

@@ -10,10 +10,15 @@ Code specifically.
 
 ## Harness layout
 
-- **Subagents** (`.claude/agents/`): `coordinator`, `idea-generator`,
-  `executor`, `validator`, and `red-team`. These are the operational versions
-  of the role contracts in `agents/*.md`. Research work is done BY these
-  subagents; the top-level session orchestrates and talks to the user.
+- **Subagents** (`.claude/agents/`): five roles — `coordinator`,
+  `idea-generator`, `executor`, `validator`, `red-team` — plus three
+  **policy-tier variants** of them: `executor-mechanical`,
+  `validator-breakthrough`, `red-team-breakthrough`. These are the operational
+  versions of the role contracts in `agents/*.md`. Research work is done BY
+  these subagents; the top-level session orchestrates and talks to the user.
+  Which one runs a queued task is decided by its (`role`, `inference.policy`)
+  pair — see `/launch-research-harness` step 6 and the effort table under
+  "Model policy note".
 - **Skills** (`.claude/skills/`), one per lifecycle stage:
   - `/propose-ideas` — ideation for a research question
   - `/design-experiment` — hypothesis + frozen approved protocol
@@ -236,6 +241,9 @@ session can dispatch all five roles at their own depths:
 | `executor` | `executor-implementation` | `medium` |
 | `validator` | `review-adversarial` | `xhigh` |
 | `red-team` | `review-adversarial` | `xhigh` |
+| `executor-mechanical` | `executor-mechanical` | `low` |
+| `validator-breakthrough` | `review-breakthrough` | `max` |
+| `red-team-breakthrough` | `review-breakthrough` | `max` |
 
 Those values are **derived, not chosen here**: role → `default_policy` in
 `orchestration/roles.yaml` → `reasoning_effort` in
@@ -244,9 +252,16 @@ agent file; `tools/check_runtime_bindings.py` fails the build while the two
 disagree, and `--list` shows, per role and runtime, whether effort comes from
 the agent file or from the session. The Validator and Red Team share `xhigh`
 because they share one adversarial policy — they differ in what they attack,
-not in how hard they must think. Per-task escalation to `review-breakthrough`
-at `max` stays a Coordinator decision in the handoff, running in an independent
-session, so it is deliberately not expressible in frontmatter. Runtimes that
+not in how hard they must think. Per-task escalation stays a Coordinator
+decision in the handoff and still runs in its own independent session; because
+one agent file carries one effort, the escalated tiers are SIBLING bindings
+rather than a second value in the base file — `review-breakthrough` at `max`
+(`validator-breakthrough`, `red-team-breakthrough`) and `executor-mechanical`
+at `low` for judgment-free re-runs. Those three are declared in `roles.yaml`
+with `variant_of`, and the checker holds them to their base role's contract,
+authority and tools exactly, so a variant can only change how hard the model
+thinks. Without them `review-breakthrough` — which is `degradable: false` —
+could not be honoured on this runtime at all. Runtimes that
 cannot carry effort per agent (`codex_cli`, `opencode`) are recorded as `null`
 in `runtime_reasoning_effort` and take it from `adapter env` at launch.
 

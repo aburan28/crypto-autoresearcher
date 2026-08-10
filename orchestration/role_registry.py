@@ -295,6 +295,7 @@ def check(roles_doc: dict[str, Any],
 
         if policies_doc is not None:
             problems.extend(_check_policy(role, spec, policies_doc))
+            problems.extend(_check_variant(roles_doc, role, spec))
 
         for runtime, binding_path in (spec.get("runtime_bindings") or {}).items():
             path = REPO / binding_path
@@ -375,6 +376,50 @@ def _check_effort(roles_doc: dict[str, Any], policies_doc: dict[str, Any],
             f"{role}/{runtime}: binding declares {field}: {declared!r} but "
             f"policy {policy_id} requests {wanted!r}"]
     return []
+
+
+def _check_variant(roles_doc: dict[str, Any], role: str,
+                   spec: dict[str, Any]) -> list[str]:
+    """A policy-tier variant may change how hard a role thinks, and nothing else.
+
+    One agent file carries one effort, so a role whose tasks are sometimes
+    routed to a different policy needs a second binding to reach that tier at
+    all. That second binding is the risk: `variant_of` is otherwise a way to
+    mint a role with a familiar name and quietly different authority. The only
+    difference a variant may carry is its policy -- and it must carry one, or it
+    is a second name for a role that already exists.
+    """
+    base_role = spec.get("variant_of")
+    if base_role is None:
+        return []
+    base = (roles_doc.get("roles") or {}).get(base_role)
+    if base is None:
+        return [f"{role}: variant_of names unknown role {base_role!r}"]
+
+    problems: list[str] = []
+    if base.get("variant_of"):
+        problems.append(
+            f"{role}: variant of {base_role}, which is itself a variant; tiers "
+            f"hang off a base role, never off each other")
+    if spec.get("contract") != base.get("contract"):
+        problems.append(
+            f"{role}: variant of {base_role} must share its contract "
+            f"({base.get('contract')}), not {spec.get('contract')}")
+    if spec.get("authority") != base.get("authority"):
+        problems.append(
+            f"{role}: variant of {base_role} declares different authority; a "
+            f"variant may differ only in policy tier")
+    if sorted(spec.get("capabilities") or []) != sorted(
+            base.get("capabilities") or []):
+        problems.append(
+            f"{role}: variant of {base_role} declares different capabilities; "
+            f"a variant may differ only in policy tier")
+    if spec.get("default_policy") == base.get("default_policy"):
+        problems.append(
+            f"{role}: variant of {base_role} resolves to the same policy "
+            f"({base.get('default_policy')}), so it is a duplicate rather than "
+            f"a tier")
+    return problems
 
 
 def _check_policy(role: str, spec: dict[str, Any],

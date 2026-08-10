@@ -45,7 +45,14 @@ def main() -> int:
         runtimes = sorted({r for cap in roles_doc["capabilities"].values() for r in cap})
         for role, spec in roles_doc["roles"].items():
             effort = policy_reasoning_effort(policies_doc, spec["default_policy"])
-            print(f"\n{role}  policy={spec['default_policy']}  effort={effort}")
+            # A variant is the same role at another policy tier, and which tier
+            # a task gets is decided by its `inference.policy`, not by the
+            # dispatcher's taste. Print the link so the table answers "which
+            # agent runs this task" without a second lookup.
+            variant = spec.get("variant_of")
+            variant_note = f"  variant_of={variant}" if variant else ""
+            print(f"\n{role}  policy={spec['default_policy']}  "
+                  f"effort={effort}{variant_note}")
             for runtime in runtimes:
                 tools = expected_tools(roles_doc, role, runtime)
                 binding = (spec.get("runtime_bindings") or {}).get(runtime, "-")
