@@ -260,7 +260,8 @@ cheaper ones.
 - Snapshot archive before independent review; ledger archive before promotion.
 - Never fabricate commands, outputs, timings, statistics, citations, or runs.
 - Infra failures/timeouts are not mathematical counterevidence.
-- Toy-curve results never become crypto-scale claims.
+- Small- or toy-curve results are admissible; record the tested parameters and
+  any transfer or extrapolation assumptions explicitly.
 - Record requested policy + resolved model; no silent policy downgrade.
 - Never use Amazon Bedrock. OpenCode and the inference adapter must reject any
   Bedrock provider, backend, endpoint, or model before a request is sent.
