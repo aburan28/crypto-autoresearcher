@@ -1,0 +1,805 @@
+experiment:
+  id: EXP-CANL-96b0ad
+  hypothesis_id: H-CANL-e59a06
+  question_id: RQ-CANL-63098f
+  goal_id: GOAL-ENDO-001
+  batch_id: null
+  batch_id_note: >-
+    Deliberately null, not omitted. This drafting session has no Bash access
+    and cannot run `tools/allocate_id.py --next batch`. The orchestrating
+    session must mint or bind a BATCH-* at dispatch time and record that
+    choice in a ledger archive commit; inventing one here would violate the
+    prohibition on minting IDs by any means other than the allocator.
+  version: 1
+  status: review_required
+  retrospective: false
+  retrospective_note: >-
+    THIS IS A PRE-REGISTRATION. Nothing in this file was written after
+    seeing a result; no run of EXP-CANL-96b0ad exists at the time of
+    writing and the runs/ directory does not yet exist on disk (it must be
+    created empty alongside amendments/ by the orchestrating session; this
+    drafting session has no tool that creates an empty directory). Every
+    threshold below is frozen before execution and may be changed only by a
+    versioned protocol_amendment under experiments/EXP-CANL-96b0ad/amendments/.
+
+  title: >-
+    The norm-form dichotomy of the CM order: does the Serre-Tate canonical
+    lift's O-module structure move the JKSST Xedni-failure quantity, tested
+    as one exhaustive partition of |D_E| into a generic regime where CM
+    strictly cannot help (C1, IDEA-20260807-fd5a24) and a small-discriminant
+    escape -- containing j=0, j=1728, and secp256k1's own CM class -- where
+    it helps by an exactly quantified, bounded constant and never touches
+    the exponent (C2, IDEA-20260807-11b93d), with a mandatory small-p
+    covering-fraction calibration gating both verdicts (CTRL,
+    IDEA-20260807-761a8c)
+
+  objective: >-
+    Test H-CANL-e59a06's two falsifiable claims, C1 and C2, as one
+    experiment with shared setup, shared controls, and shared reporting,
+    per RQ-CANL-63098f's decision_target: "A proposal must state how CM
+    changes [the canonical-height-of-order-N quantity], or it is closed on
+    arrival." Neither claim alone discharges that bar -- C1 covers only
+    |D_E| > 4*C_0^2 and C2 only |D_E| <= 4*C_0^2, and each source proposal's
+    own text says the other is not optional. This experiment routes real
+    curves to whichever regime they fall in by direct measurement (Lemma 1's
+    threshold), measures each regime's own falsifiable prediction with
+    exact integer arithmetic wherever the quantity is exact, and reads
+    neither verdict until CTRL's covering-fraction decay-slope calibration
+    passes on both CM and non-CM arms. The design is built so H-CANL-e59a06
+    can lose in either direction on either claim: C1 can be REOPENED if CM
+    is found to help even in the generic regime; C2 can be found EMPTY (a
+    stronger negative than predicted) or DANGEROUS (a real, exponent-neutral
+    but larger-than-predicted gain, which would still not be an attack but
+    would require escalation). A result in which nothing can be overturned
+    is a failed design.
+
+  inputs:
+    implementation:
+      new_module: harness/exp_canl.py
+      new_module_purpose: >-
+        Imaginary-quadratic-order arithmetic: norm form N(alpha) for
+        alpha = a + b*w, unit-group enumeration, shell enumeration
+        S(C_0) = {alpha : N(alpha) <= C_0^2} with unit/non-unit split,
+        alpha_min (Lemma-1-minimizing element) computation, lambda:O->Z/N
+        reduction (lambda(pi)=1, lambda(sqrt(D_0)) = (2-t)/f mod N, extended
+        Z-linearly, per H-CANL-e59a06 mechanism STEP 5's lambda formula),
+        and exact reachable-count enumeration for both the O-shell arm and
+        the matched Z-range arm. Shared by C1 and C2.
+      new_module_height: harness/canonical_height.py
+      new_module_height_purpose: >-
+        mpmath-based canonical height on a short-Weierstrass curve over Q
+        via the standard local-height decomposition, at >= 12 significant
+        digits; used by C1's ratio_of_minima measurement and by CTRL's
+        naive-height-vs-canonical-height shift diagnostic. GENUINELY NEW:
+        harness/toycurve.py provides only F_p arithmetic and has no
+        number-field or real/archimedean height code today.
+      new_driver: harness/run_canl.py
+      new_driver_purpose: >-
+        Orchestrates every stage below in the frozen order, computes the
+        frozen_decision_rule's terminal state from the run's own measured
+        values (never selected afterward by a human), and emits every
+        required artifact.
+      reused_unmodified:
+        - harness/toycurve.py
+        - harness/isogeny_class.py
+      reused_functions_named: >-
+        harness/isogeny_class.py: trace_of_frobenius, curve_order,
+        frobenius_discriminant, fundamental_discriminant, cm_eigenvalues
+        (ALREADY COMMITTED code solving lambda^2+lambda+1=0 mod N for
+        D0=-3 and lambda^2+1=0 mod N for D0=-4 -- reused directly for C2's
+        tautology and non-unit checks rather than reimplemented), j_invariant,
+        twists_of_j. harness/toycurve.py: EllipticCurve.add, .mul, .negate,
+        .is_on_curve, .order_bsgs (F_p group law and order-finding, used by
+        every concrete-curve stage of C1, C2, and CTRL).
+      edit_prohibition: >-
+        harness/toycurve.py and harness/isogeny_class.py MUST NOT be
+        edited by this experiment. Every new computation goes in
+        harness/exp_canl.py, harness/canonical_height.py, or
+        harness/run_canl.py, so every already-committed run in this goal
+        (including EXP-ICINV-4d33aa's) remains reproducible against the
+        unmodified files.
+      no_class_enumeration_note: >-
+        Unlike EXP-ICINV-4d33aa, this contract needs NO full isogeny-class
+        enumeration and does not call class_census, enumerate_curves, or
+        isogeny_classes anywhere on its critical path. Both C1 and C2
+        measure single curves of a stated, directly-verified CM type; there
+        is no within-class variance question here. This is a genuine
+        reduction in computational profile relative to this goal's other
+        contracts and is why the prime ladder below can safely reach
+        further than {2003, 4001, 6007, 10007} without O(p^2) cost.
+    prime_ladder_rule_frozen: >-
+      p_i := smallest prime >= 10^i for i in {2,3,4,5,6}, computed by
+      sympy.nextprime(10**i - 1) and INDEPENDENTLY RE-VERIFIED by
+      sympy.isprime(p_i) before any use (construction and verification use
+      the same library call but are logged as two separate steps so a
+      library-level bug is at least self-consistent-checked). i=2,3,4 are
+      expected to yield 101, 1009, 10007 (matching IDEA-20260807-761a8c's
+      own suggested ladder and reusing 10007, already exercised as
+      EXP-ICINV-4d33aa's primes_stretch_optional entry in this same goal).
+      i=5,6 are NOT hand-asserted by this drafting pass -- this session has
+      no Bash and cannot itself verify primality of 6- and 7-digit
+      candidates, so the RULE is frozen instead of specific numbers, and
+      the Executor's run record must log the five resulting primes
+      explicitly in manifest.yaml. If any candidate fails its own
+      isprime() check (a defect in the construction, not a mathematical
+      possibility), the run is INVALID and returns to the Coordinator, not
+      silently substituted.
+    c2_congruence_ladder_rule_frozen: >-
+      q_i := smallest prime >= 10^i with q_i = 1 (mod 3), for i in
+      {3,4,5,6}, via the same construction-then-independently-reverify
+      discipline plus a mod-3 filter. q_3 = 1009 by hand (1009 = 3*336+1),
+      shared with the main ladder. Used to instantiate C2's j=0 hard gate
+      (requires p = 1 mod 3) and its concrete non-unit/reachable-count
+      measurements at multiple decades.
+    class_number_one_discriminants_frozen: [-3, -4, -7, -8, -11, -12, -16, -19, -27, -28, -43, -67, -163]
+    c1_discriminant_rule_frozen: >-
+      For each prime on the main ladder, find the ordinary curve with the
+      LARGEST |t| among the first 200 candidate (a,b) pairs searched in a
+      fixed deterministic order (a,b from a fixed PRNG seeded 20260807,
+      matching this goal's seed convention, filtering for non-singular
+      curves via harness/toycurve.py's discriminant check and ordinary
+      reduction via trace_of_frobenius), compute D_E =
+      frobenius_discriminant(p, t), and route it to C1 if |D_E| > 4*max(C_0
+      tested) = 256; if the first candidate does not satisfy this
+      (possible at the smallest ladder prime, p=101, where 4p=404 caps
+      |D_E| below 4*8^2=256 only marginally), retry with the next candidate
+      in the fixed search order and log the retry count. This is a
+      SELECTION-BY-ENUMERATION rule, not a hand-picked discriminant,
+      matching this goal's standing practice (EXP-ICINV-4d33aa's own
+      primary_class rule).
+    auxiliary_k_rule_frozen: >-
+      For a Z-rank / regime with s total coefficient slots (s = r_Z+1 for
+      the Z-arm, s = r_Z/2+1 for the O-arm), the first s-1 slots are fixed,
+      declared, non-random auxiliary integers k_i = i+1 for i=1..s-1, and
+      the final slot is the target. A SECOND, independently fixed auxiliary
+      tuple k_i = s+i for i=1..s-1 is run as an internal consistency
+      check: the two reachable-count runs must agree exactly (this is an
+      exact, non-statistical arithmetic quantity; any disagreement is a
+      code defect, not measurement noise, and is reported as such under
+      invalidation_rules). This rule is an addition beyond what either
+      source proposal specified explicitly, made to remove an ambiguity
+      neither IDEA-20260807-fd5a24 nor IDEA-20260807-11b93d pinned down.
+    parameters:
+      C_0_grid_full_enumeration: [1, 2, 3, 5, 8]
+      C_0_grid_shell_diagnostic_only: [1, 2, 3, 5, 8, 10, 15, 20]
+      r_Z_grid: [2, 4]
+      seeds: [20260807, 20260808, 11235813]
+      lemma1_search_box: "|a|, |b| <= 50, per swept D_E (Stage-0 gate)"
+      tautology_sample_size: 1000
+      height_precision_digits: 12
+    arms_frozen:
+      CTRL_calibration: >-
+        6 global curves over Q (3 CM with h(D_E)=1 drawn from the
+        class-number-one list, 3 matched non-CM of the same exhibited rank
+        and minimal discriminant magnitude within a factor 2), each reduced
+        at all 5 main-ladder primes; naive-height enumeration box (U, W)
+        frozen and identical across every arm; measures rho_lift, fits the
+        decay slope, runs nulls N1-N5, plants a positive and a negative
+        target. Exactly IDEA-20260807-761a8c's own design, made a
+        first-class internal stage of this contract rather than an
+        external cross-reference (see provenance.corrections_made_to_source_material
+        in the paired hypothesis for why the mechanically-derived
+        contracts' external reference, EXP-INSTR-2d32ba, was dropped).
+      C1_generic: >-
+        Curves selected by c1_discriminant_rule_frozen at each main-ladder
+        prime. STAGE A: alpha_min-corrected ratio_of_minima sweep over the
+        realized |D_E| values (needs no reduction mod p, pure number-field
+        height computation via harness/canonical_height.py on the curve
+        y^2=x^3+ax+b lifted from the toy F_p curve's own (a,b), or a
+        matched CM curve over Q with the same D_E where the toy curve's
+        own model does not have rational CM -- see procedure below). STAGE
+        B: exact reachable-k-count enumeration at every (C_0, r_Z) in the
+        full-enumeration grid, using lambda reduction at each ladder prime,
+        against the Z-case comparison arm on the identical prime and
+        auxiliary tuple.
+      C2_escape: >-
+        Curves at class-number-one discriminants, concretely realized as
+        j=0 (D_0=-3) at c2_congruence_ladder primes and, as a stretch, j=1728
+        (D_0=-4) at primes = 1 mod 4 found by the same rule-based
+        discipline. STAGE A: exact shell enumeration and unit/non-unit
+        split for every (D_E, C_0) in class_number_one_discriminants x
+        C_0_grid_shell_diagnostic_only (cheap, milliseconds). STAGE B:
+        tautology hard gate (P6). STAGE C: non-unit relation check (P7).
+        STAGE D: exact reachable-residue-count enumeration at every (C_0,
+        r_Z) in the full-enumeration grid, against the same Z-case
+        comparison arm C1 uses (shared, per cost_sharing_requirement).
+        STAGE E: threshold control at |D_E| = 4*C_0^2 -/+ 1, identical
+        code, for the C_0 values where a class-number-one discriminant sits
+        near that boundary.
+      Z_BASELINE_shared: >-
+        The non-CM reachable-count comparison arm, computed ONCE per
+        (prime, C_0, r_Z, auxiliary-tuple) cell and reused by both C1 and
+        C2 (cost_sharing_requirement below) -- both regimes are compared
+        against the identical baseline, which is also this contract's
+        proof_search_map baseline-embedding fixture.
+      NULL_matched_noncm: >-
+        A non-CM elliptic curve E'/Q of the same Mordell-Weil rank and
+        minimal discriminant magnitude within a factor 2 of the CM lift's,
+        with a random order-2 or order-3 Z-linear automorphism of its
+        Mordell-Weil lattice substituted for the genuine O-action. Measures
+        the identical alpha_min-corrected ratio_of_minima quantity. Shared
+        by C1's null_object_control and CTRL's null N3 -- one measurement,
+        two consumers, per H-CANL-e59a06 prediction P12.
+      NULL_synthetic_ring_C2: >-
+        A rank-2 coefficient ring with the right shape (same determinant as
+        a tested D_E) and no arithmetic, for C2's reachable-residue-count
+        comparison: the naive product of coordinate ranges, no structure.
+      NULL_synthetic_surjection_CTRL: A random lattice with matched regulator and a random surjection onto Z/N, per 761a8c's N2.
+      NULL_rank0_torsion_CTRL: A rank-0 CM curve, coverage forced to |tors|/N = O(1)/N at every B, per 761a8c's N5.
+      PLANTED_positive_negative_CTRL: >-
+        For each CTRL global curve, a point with height below the smallest
+        ladder bound (planted positive, must recover at 100%) and a target
+        outside the subgroup generated by the exhibited generators'
+        reductions where that subgroup is proper (planted negative, must
+        report failure at 0% false positive).
+    certificate_semantics: >-
+      Per docs/claims-and-verification.md, applied to each exact-algebra
+      check this contract makes: (a) the tautology check (P6) IS a
+      `kind: decomposition` certificate in the existing schema -- target =
+      the identity point O, summands = [P, zeta*P, zeta^2*P, ...] -- and
+      the run wrapper re-verifies it by literally recomputing the point sum
+      with harness/toycurve.py:add, independent of whatever code produced
+      the claim that it holds. (b) A Stage-0 Lemma-1 counterexample, if one
+      is ever found, is packaged as a refutation-artifact counterexample
+      certificate (docs/claims-and-verification.md, "Refutation
+      artifacts"): the exact (a, b, D_E) triple plus an independent
+      recomputation of N(alpha) via a SECOND, separately written formula
+      (direct floating-point evaluation of |a + b*(D_E+sqrt(D_E))/2|^2 at
+      high precision, cross-checked against the exact-integer formula used
+      by the search), not merely asserted by the search's own arithmetic.
+      (c) The exact reachable-k / reachable-residue counts are `kind: none`
+      -- pure measurement, nothing solved or claimed as a relation, stated
+      explicitly per docs/claims-and-verification.md's own guidance rather
+      than left blank -- but each such count is spot-checked by
+      independently recomputing a random 1% sample of the enumerated
+      residues through a second, separately written reducer function, and
+      any disagreement on the spot-check makes the cell INVALID rather than
+      silently trusted.
+    cost_sharing_requirement: >-
+      The Z-case reachable-count baseline is a function of (prime, C_0,
+      r_Z, auxiliary tuple) ALONE -- it does not depend on which regime
+      (C1 or C2) is being compared against it. It MUST be computed once per
+      cell and reused by both C1's and C2's arm contrasts. An
+      implementation that recomputes it per regime is a defect even if the
+      numbers agree, exactly mirroring EXP-ICINV-4d33aa's own sum-set
+      sharing requirement.
+
+  controls:
+    - >-
+      NULL OBJECT, C1 (from IDEA-20260807-fd5a24, MANDATORY AND BLOCKING).
+      Matched non-CM curve with a synthetic order-2/3 lattice automorphism;
+      the alpha_min-corrected ratio_of_minima must stay O(1) as |D_E| grows.
+      Reused as CTRL's null N3 (prediction P12): a synthetic arm that also
+      grows falsifies CM-attribution for BOTH regimes at once.
+    - >-
+      POSITIVE CONTROL, C1. Small-|D_E| discriminants (D_0 in
+      {-3,-4,-7,-8,-11}), where the alpha_min-ratio must stay O(1) --the
+      instrument must SEE the escape or it cannot report a negative
+      anywhere in C1.
+    - >-
+      KNOWN-ANSWER HEIGHT CONTROL, shared by C1 and CTRL. Multiplication-by-m
+      (N(m)=m^2, m <= 5) and the CM curves y^2=x^3+k (alpha=zeta_3, N=1),
+      y^2=x^3+a*x (alpha=i, N=1), checked to >= 12 significant digits.
+    - >-
+      NULL OBJECT, C2 (from IDEA-20260807-11b93d, MANDATORY AND BLOCKING).
+      Synthetic rank-2 coefficient ring, no arithmetic; naive product of
+      coordinate ranges. If the CM arm's reachable-residue count does not
+      exceed this null, C2's part (D) is empty.
+    - >-
+      THRESHOLD CONTROL, C2. |D_E| = 4*C_0^2 -/+ 1, identical code; the
+      gain must collapse to <= 1 on the C1 side and be > 1 on the C2 side.
+      A flat gain across the boundary falsifies sensitivity to the
+      load-bearing structure.
+    - >-
+      k-RESAMPLE CONTROL, C2 and CTRL (DECOMPOSITION.md L7's canonical
+      control, adopted with attribution per 761a8c). Resample the target k
+      with curve, lift, and P fixed; the tautology relation and every
+      curve-only statistic must be UNCHANGED. Movement is an implementation
+      leak.
+    - >-
+      NULLS N1-N5, CTRL (IDEA-20260807-761a8c). N1 matched non-CM curve
+      (decay parameter p); N2 random lattice with matched regulator and a
+      random surjection (decay parameter rank); N3 synthetic O-action
+      (decay parameter |D_E|, shared with the C1 null object above); N4
+      target reshuffle (shared with the k-resample control above); N5
+      rank-0 torsion-only arm (coverage forced to O(1)/N).
+    - >-
+      TWO-DIRECTIONAL PLANTED-SIGNAL CHECK, CTRL. Planted positive (a point
+      of known small height; must recover at every ladder p, 100% rate)
+      and planted negative (a target outside the reachable subgroup; must
+      report failure, 0% false positive). Neither direction may be skipped
+      per docs/inventor-protocol.md section 3.
+    - >-
+      RANK-1 CLOSED-FORM SELF-VALIDATION, CTRL (instrument's own
+      known-answer case). On a rank-1 curve with generator P0, rho_lift has
+      an exact closed form (multiples [m]*red(P0) with m^2*hhat(P0) <= B);
+      the pipeline must reproduce it as an exact integer at every ladder
+      point.
+    - >-
+      BASELINE-REPRODUCTION CONTROL, BLOCKING, shared by C1 and C2. The
+      Z-case reachable-count fixture (proof_search_map baseline_embedding)
+      must reproduce its closed-form expected count with collisions
+      accounted for, exactly, before either regime's CM arm is compared
+      against it.
+    - >-
+      DUAL-AUXILIARY-TUPLE CONSISTENCY CHECK (added by this design, not in
+      either source proposal). Every exact reachable-count measurement is
+      run twice with two independently fixed auxiliary-k tuples
+      (auxiliary_k_rule_frozen); the two counts must agree exactly. A
+      disagreement is a code defect, reported under invalidation_rules, not
+      absorbed as noise.
+    - >-
+      CERTIFICATE/CENSUS RULE (campaign standing rule, restated because
+      this contract has no class-level census on its critical path): every
+      claimed exact relation or count is independently re-verified per
+      certificate_semantics above; a verification failure makes the run
+      invalid and never negative evidence.
+
+  independent_variables:
+    - regime arm (CTRL, C1, C2, Z-baseline) -- THE VARIABLE OF INTEREST
+    - discriminant D_E (main-ladder-realized for C1; class-number-one list for C2)
+    - C_0 (coefficient/norm bound)
+    - r_Z (Z-rank of the comparison)
+    - prime p (5-rung main ladder; 4-rung C2 congruence ladder)
+    - auxiliary-k tuple (two independently fixed tuples, per cell)
+    - seed (3 seeds, for the tautology sample and any Monte Carlo sub-step; exact enumerations are seed-independent by construction and this is itself checked)
+
+  metrics:
+    primary:
+      - "P1: min N(alpha) over the Stage-0 Lemma-1 search, per swept D_E, exact integers"
+      - "P2: alpha_min-corrected ratio_of_minima, per D_E, with numerical precision reported (C1)"
+      - "P3/P4: reachable_k_count, CM-generic and Z-baseline arms, exact, per (C_0, r_Z, prime) (C1)"
+      - "P5: exact |S(C_0)| and unit/non-unit split, per (D_E, C_0) (C2)"
+      - "P6: tautology pass/fail on every one of 1000 sampled points, per ladder prime (C2)"
+      - "P7: lambda(1-zeta_3) and other non-unit shell elements' lambda images, exact, per prime (C2)"
+      - "P8/P9: reachable_residue_count, CM-shell and Z-baseline arms, exact, per (C_0, r_Z, prime), including the threshold-boundary pair (C2)"
+      - "P10: fitted instance_count_exponent with its interval, per regime"
+      - "P11: fitted covering-fraction decay slope with jackknife interval, per CTRL arm including every null (CTRL, GATING)"
+      - "P12: companion-height ratio (alpha_min-corrected), genuine O-action versus synthetic N3, per D_E (shared C1/CTRL)"
+    secondary:
+      - dual-auxiliary-tuple agreement per cell (exact match expected)
+      - "shell-count relative error against 2*pi*C_0^2/sqrt(|D_E|), per cell (C2)"
+      - lambda-collision multiset and collision counts (C2, tests HEUR-CANL-S1/S2)
+      - "empirical max |hhat - h_x/2| per curve (CTRL, tests HEUR-CANL-C2)"
+      - planted-positive recovery rate and planted-negative false-positive rate, per curve per prime (CTRL)
+      - retry count under c1_discriminant_rule_frozen, per prime (C1)
+      - f_E (conductor) per realized curve, with f_E > 1 cells reported separately and never pooled with f_E = 1 cells
+      - wall clock, peak RSS, and point-addition / integer-operation counts per stage
+      - the five verified ladder primes and the four verified C2-congruence primes, logged explicitly with their isprime() check results
+
+  heuristic_under_test: HEUR-CANL-C1
+  heuristic_under_test_note: >-
+    HEUR-CANL-C1 (761a8c's forced covering-fraction decay slope) is named
+    as the single schema id because it is the heuristic that GATES every
+    other reading in this contract (H-CANL-e59a06 statement, "the control
+    gates both regimes"; falsification condition F11 below voids P2-P10 on
+    its own failure). The same run also validates HEUR-CANL-N1, HEUR-CANL-N2
+    (C1's assumptions), HEUR-CANL-S1, HEUR-CANL-S2 (C2's assumptions), and
+    HEUR-CANL-C2 (CTRL's naive-height-capture assumption), each with its
+    own metric and falsification_condition as specified in
+    H-CANL-e59a06.heuristic_assumptions; the single-id schema field does
+    not narrow what this experiment actually tests.
+
+  preregistered_prediction:
+    quantity: >-
+      The instance-count exponent (P10) fitted separately for C1 and C2
+      across the prime ladder, and the reachable-count ratio each regime's
+      own falsifiable claim rests on (P3/P4 for C1, P8/P9 for C2), read
+      only after the CTRL calibration certificate (P11) passes.
+    formula: >-
+      FORCED VALUES, derived pre-run, never tuned to data. C1:
+      reachable_k_count(CM-generic)/reachable_k_count(Z-baseline) <= 1,
+      predicted exactly (2*C_0+1)^{-r_Z/2}; alpha_min-ratio_of_minima >=
+      sqrt(|D_E|)/2 with log-log slope 0.5 (CI containing 0.5, excluding 0
+      and 1); instance_count_exponent interval excludes 0.5 and is
+      consistent with 1. C2: reachable_residue_count(CM-shell)/reachable_residue_count(Z-baseline)
+      in [0.5*C_0, 4*C_0] for C_0 >= 5; shell count within 15% relative
+      error of 2*pi*C_0^2/sqrt(|D_E|) for C_0 >= 5; instance_count_exponent
+      interval excludes 0.5 and is consistent with 1. CTRL: covering-fraction
+      decay slope = -1.00 +/- 0.15 on every arm including every null;
+      planted-positive recovery 100%; planted-negative false positives 0%.
+    source: >-
+      Pre-registered in H-CANL-e59a06 (predictions P1-P12), itself
+      synthesizing IDEA-20260807-fd5a24, IDEA-20260807-11b93d, and
+      IDEA-20260807-761a8c's own pre-registered predictions, with the
+      alpha_min correction (H-CANL-e59a06 mechanism STEP 3) applied
+      uniformly wherever a "ratio_of_minima" / "companion-height ratio" is
+      measured. Never tuned to data; no run of this contract exists yet.
+
+  frozen_decision_rule:
+    evaluation_order: >-
+      Terminal states are evaluated STRICTLY IN THIS ORDER; the first that
+      fires is the run's verdict for its scope. GLOBAL gates are evaluated
+      first and, if any fires, END THE RUN with no regime verdict for
+      either C1 or C2. If all global gates pass, C1's waterfall and C2's
+      waterfall are each evaluated independently (C1 does not depend on
+      C2's own hard gate, SR1c/G3 below, and proceeds even if G3 fails; C2
+      does). The full terminal-state space is
+      {global states} union {(c1_state, c2_state) : c1_state in
+      C1_STATES, c2_state in C2_STATES}, EXHAUSTIVE AND DISJOINT BY
+      CONSTRUCTION: every run ends in exactly one cell, either a single
+      global state or a reported pair. No configuration of results leaves
+      every cell unfired and none fires two.
+    global_gate_G0_instrument_selfcheck:
+      fires_when: >-
+        The known-answer height control (multiplication-by-m,
+        y^2=x^3+k, y^2=x^3+a*x) fails at 12-digit precision, OR CTRL's
+        rank-1 closed-form self-validation fails to reproduce an exact
+        integer at any ladder point.
+      terminal_state: INVALID
+      meaning: >-
+        Instrument defect in the height or enumeration pipeline itself,
+        independent of any CM claim. Returns to the Executor with the
+        concrete defect; not evidence in either direction.
+    global_gate_G1_lemma1_premise:
+      fires_when: >-
+        The Stage-0 Lemma-1 integer search (|a|,|b| <= 50, per swept D_E)
+        finds N(alpha) < |D_E|/4 for some alpha=a+b*w, b != 0.
+      terminal_state: PREMISE_FAILED_BOUNDARY
+      meaning: >-
+        Presumptively an implementation defect in the search (default
+        classification: INVALID, returned to Executor) UNLESS the
+        counterexample is independently reproduced via the second,
+        separately-written norm formula required by certificate_semantics,
+        in which case it is packaged as a refutation-artifact
+        counterexample certificate and ESCALATED to an independent
+        review-breakthrough session (AGENTS.md rule 12) before any record
+        treats it as genuine. Either way, the |D_E| vs 4*C_0^2 partition
+        this contract routes curves by is not usable until resolved, and
+        H-CANL-e59a06's dichotomy is withdrawn as mis-specified (not
+        refuted) pending a corrected threshold under a versioned
+        protocol_amendment.
+    global_gate_G2_calibration_certificate:
+      fires_when: >-
+        Any CTRL arm's (including any of the five nulls') covering-fraction
+        decay slope falls outside -1.00 +/- 0.15, OR any null misfires in
+        its required direction, OR planted-positive recovery is below
+        100%, OR planted-negative false-positive rate is above 0%.
+      terminal_state: INVALID_CALIBRATION
+      meaning: >-
+        No C1 or C2 verdict, positive or negative, may be read from this
+        run (AGENTS.md rule 5; H-CANL-e59a06 falsification condition F11).
+        This is the "null first" gate mirroring EXP-ICINV-4d33aa's SR2 and
+        is written to the run record before either regime's own
+        substantive stages are interpreted, even if computed in parallel
+        for wall-clock efficiency.
+    global_gate_G3_c2_tautology_hard_gate:
+      fires_when: The tautology check (P6) fails on any of the 1000 sampled points, at any tested C2 prime.
+      terminal_state: C2_PREMISE_FAILED
+      scope: C2 ONLY. C1 is UNAFFECTED and proceeds to its own waterfall regardless.
+      meaning: >-
+        C2's own hard gate collapses; C2 is withdrawn as mis-specified for
+        this run, not refuted. The overall run may still deliver a full,
+        valid C1 verdict, reported honestly as a PARTIAL run covering only
+        the generic regime.
+    global_gate_G4_baseline_reproduction:
+      fires_when: The shared Z-baseline reachable-count fixture does not reproduce its closed-form expected count exactly (proof_search_map baseline_embedding).
+      terminal_state: INVALID
+      meaning: The arm contrast that both C1 and C2 depend on is uninterpretable; returns to Executor as a defect, never a result.
+    C1_waterfall_evaluated_if_G0_G1_G2_G4_pass:
+      C1_INSTRUMENT_INVALID:
+        fires_when: >-
+          The C1 null-object control reproduces the CM ratio's growth, OR
+          the small-|D_E| positive control fails to show the O(1) escape,
+          OR the dual-auxiliary-tuple consistency check disagrees for any
+          C1 cell.
+        meaning: Instrument cannot see what it needs to see, or has a code defect; no C1 verdict, positive or negative.
+      C1_SLOPE_ANOMALY:
+        fires_when: >-
+          (checked only if C1_INSTRUMENT_INVALID does not fire) The
+          alpha_min-corrected ratio_of_minima's fitted log-log slope
+          against |D_E| has a 95% CI excluding 0.5.
+        meaning: >-
+          Default presumption: a remaining height-implementation defect
+          (report as INVALID-C1, return to Executor). If independently
+          replicated with a height implementation separately verified
+          correct on every known-answer case, escalate to
+          review-breakthrough (AGENTS.md rule 12) before treating this as a
+          genuine anomaly in Lemma 2, a standard, previously-unchallenged
+          fact.
+      C1_REFUTED_REOPEN:
+        fires_when: (checked only if neither state above fires) reachable_k_count ratio (P3/P4) exceeds 1 in the generic regime, at any tested (C_0, r_Z, prime) cell.
+        meaning: >-
+          C1 is refuted. CM genuinely helps even at large |D_E|. Triggers
+          GOAL-ENDO-001 pause condition P3 and AGENTS.md rule 12
+          review-breakthrough escalation before any record states the
+          excess. This REOPENS the lane; it is the single pre-registered
+          outcome that does so.
+      C1_SUPPORTED:
+        fires_when: None of the above fire, reachable_k_count ratio <= 1 as predicted at every tested cell, and instance_count_exponent's interval excludes 0.5.
+        meaning: C1 confirmed at toy scale -- in the generic regime, CM strictly does not help, and quantifiably hurts by the predicted constant.
+    C2_waterfall_evaluated_if_G0_G1_G2_G4_pass_and_G3_does_not_fire:
+      C2_INSTRUMENT_INVALID:
+        fires_when: >-
+          The shell count |S(C_0)| deviates from the predicted
+          2*pi*C_0^2/sqrt(|D_E|) beyond the stated tolerance, OR the
+          threshold control shows the same gain on both sides of
+          |D_E|=4*C_0^2, OR the k-resample control shows any curve-only
+          statistic moving with k, OR the dual-auxiliary-tuple consistency
+          check disagrees for any C2 cell.
+        meaning: Implementation defect or insensitive instrument; no C2 verdict, positive or negative.
+      C2_TAUTOLOGY_TOTAL:
+        fires_when: (checked only if C2_INSTRUMENT_INVALID does not fire) lambda(alpha) = 0 for EVERY tested non-unit shell element.
+        meaning: The escape is entirely tautological; part (D) is empty. C2 refuted, a STRONGER negative than predicted -- C1's theorem is reported as effectively covering the whole domain.
+      C2_GAIN_ABSENT:
+        fires_when: (checked only if neither state above fires) reachable_residue_gain < 1 at |D_E| = 3.
+        meaning: The small-|D_E| escape does not exist even as a constant. C2 refuted, safe direction.
+      C2_GAIN_EXCESSIVE:
+        fires_when: (checked only if none of the above fire) reachable_residue_gain grows faster than C_0^2 at any tested cell.
+        meaning: >-
+          Counting is wrong in the attacker's favour. C2 superseded,
+          GOAL-ENDO-001 pause condition P3 fires, and AGENTS.md rule 12
+          review-breakthrough is required before any record states the
+          excess. NOT an attack (still N^{1-o(1)}, still dominated by rho)
+          but treated with the same escalation discipline as C1_REFUTED_REOPEN
+          because it contradicts a specific, pre-registered quantitative
+          prediction in the attacker's favour.
+      C2_SUPPORTED:
+        fires_when: None of the above fire, reachable_residue_gain lands in [0.5*C_0, 4*C_0], and instance_count_exponent's interval excludes 0.5.
+        meaning: C2 confirmed at toy scale -- a genuine, bounded Theta(C_0) constant gain, still N^{1-o(1)}, still dominated by rho.
+    evidence_strength_calibration_frozen: >-
+      A run in which BOTH C1 and C2 reach a *_SUPPORTED or a clean refuted
+      state (not *_INSTRUMENT_INVALID / *_PREMISE_FAILED) at all three
+      seeds and on at least 4 of 5 main-ladder primes permits an evidence
+      record of strength `replicated`. Any run reaching a verdict on only
+      one regime (G3 fired, or fewer primes/seeds agree) caps the resulting
+      evidence record at `preliminary` for the affected regime and the
+      dissenting prime/seed must be named. Fixed before execution so
+      strength cannot be chosen after seeing which way the results went.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Every prime is generated by prime_ladder_rule_frozen /
+      c2_congruence_ladder_rule_frozen, topping out at the smallest prime
+      >= 10^6 -- toy by this campaign's own claim-tier table (max field bit
+      size <= 32 bits substantially covers this range; 10^6 is ~20 bits).
+      No full isogeny-class enumeration occurs anywhere in this contract
+      (see inputs.implementation.no_class_enumeration_note), so the O(p^2)
+      cost that bounds this goal's other contracts to p <= 10^4 does not
+      apply here, but the claim tier is set by the FIELD SIZE, not by which
+      operations are cheap at it, and stays toy regardless. Evidence from
+      any run under this contract is capped at claim_tier: toy and may not
+      be presented as crypto-scale validation (AGENTS.md rule 7). sota_delta
+      is ZERO: nothing here produces or claims a speedup against parallel
+      Pollard rho (0.886*sqrt(N), KN-TECH-001/KN-TECH-006), its
+      automorphism-discounted variant (KN-TECH-018), or BSGS (KN-TECH-031),
+      in either regime, even under C2's best-case predicted gain.
+    correspondence: null
+    correspondence_note: >-
+      No sampling correspondence is used. C1 and C2 both measure directly
+      constructed curves of a verified CM type at toy primes; there is no
+      isometry claim to state and no citation to make, matching this goal's
+      own convention (EXP-ICINV-4d33aa's identical null + note pattern) for
+      contracts that draw samples directly rather than through a
+      correspondence trick to reach scale.
+
+  tail_checks:
+    - >-
+      EXTREME-CELL CHECK. At every (regime, prime, C_0, r_Z) report the
+      exact reachable count alongside its ratio to the naive combinatorial
+      upper bound (2*C_0+1)^{slots} or |S(C_0)|^{slots}; a ratio far below 1
+      indicates heavy lambda-collision and must be explained via the
+      collision multiset (HEUR-CANL-S1/S2), not silently absorbed.
+    - >-
+      DEGENERATE-CELL CHECK. Report every cell where reachable_k_count or
+      reachable_residue_count is exactly 0 or exactly the full naive upper
+      bound; either is a signature of a collapsed enumeration or an N too
+      small relative to C_0 (HEUR-CANL-S1's own declared failure regime)
+      and must be explained, not pooled with well-behaved cells.
+    - >-
+      f_E STRATIFICATION TAIL. Every realized curve's conductor f_E is
+      reported; f_E > 1 cells are listed separately in every table and
+      never averaged into f_E = 1 cells, per H-CANL-e59a06's own open
+      assumption on non-maximal orders.
+    - >-
+      COVERING-FRACTION TAIL (CTRL). The two ladder points with the largest
+      slope-fit residual per arm, alongside the computed injectivity
+      threshold per curve, so a near-band-edge slope is visible as such and
+      never presented as a clean pass.
+    - >-
+      RETRY TAIL (C1). The retry count under c1_discriminant_rule_frozen at
+      every prime; a prime requiring an unusually large number of retries
+      to find a qualifying |D_E| is flagged, since it may indicate the
+      C_0 grid and the ladder's smallest prime are too close to the
+      regime boundary to be informative there.
+    - >-
+      DUAL-AUXILIARY-TUPLE TAIL. Every cell's two independently-fixed-tuple
+      counts are reported side by side, not just their agreement/disagreement
+      verdict, so a reviewer can see the margin even on passing cells.
+
+  replication:
+    seeds: [20260807, 20260808, 11235813]
+    independent_instances: 5
+    replication_note: >-
+      Independent instances are the 5 main-ladder primes (each an
+      independently constructed curve set, independently verified prime),
+      not merely RNG seeds -- this mirrors EXP-ICINV-4d33aa's own
+      three-independent-prime design, extended to five because this
+      contract's per-prime cost is far lower (no class enumeration). The 3
+      declared seeds govern the tautology sample (1000 random points) and
+      the c1_discriminant_rule_frozen candidate search; every EXACT
+      enumeration (shell counts, reachable counts, Lemma-1 search) is
+      seed-independent by construction, and that independence is itself
+      checked (a seed-to-seed disagreement on an exact quantity is a code
+      defect, reported under invalidation_rules). No single prime, seed, or
+      auxiliary tuple can carry either regime's verdict: the frozen
+      decision rule requires agreement across the declared majority of
+      primes (evidence_strength_calibration_frozen) before `replicated`
+      strength is available.
+
+  budget:
+    wall_clock_seconds_per_run: 21600
+    total_cpu_hours: 24
+    maximum_memory_gb: 8
+    maximum_runs: 30
+    budget_note: >-
+      NO FIELD HERE IS NULL. Dominant cost is the exact reachable-count
+      enumeration: at C_0=8, r_Z=4, the Z-baseline arm enumerates up to
+      (17)^5 ~ 1.4M tuples and the C2-shell arm up to (shell size at
+      |D_E|=3, C_0=8 ~ 232)^3 ~ 12.5M tuples, per (prime, auxiliary-tuple)
+      cell; across the full C_0 x r_Z grid, 5 main-ladder primes, 2
+      auxiliary tuples, this is order 10^8-10^9 basic modular-arithmetic
+      operations in pure Python, estimated at low tens of minutes to a few
+      hours per prime. CTRL's ladder measurement is comparatively cheap
+      (O(U*W) trial x-values per curve, independent of p, per 761a8c's own
+      cost note). One run record per (arm, prime) pair: 5 CTRL-ladder
+      points + 5 C1 points + up to 4 C2-congruence points + Stage-0 gates
+      counted as their own quick runs + headroom for the i=5,6 ladder
+      primes' construction/verification steps = fits within maximum_runs.
+      If any cell's in-memory tuple materialization risks exceeding
+      maximum_memory_gb (the ~12.5M-tuple C2 cells at the largest tested
+      C_0), the Executor MUST stream/chunk the enumeration and accumulate a
+      running distinct-count (e.g. a bounded hash set with incremental
+      reporting) rather than materializing the full tuple list; this is a
+      correctness-relevant implementation constraint, not merely a
+      performance one, and is stated here rather than left to Executor
+      discretion. An unbudgeted task is one this Coordinator must reject
+      under its own operating rules; every number above is stated so none
+      is unbudgeted.
+
+  stopping_rules:
+    - "SR1 STAGE GATE. Global gates G0-G4 run FIRST, in the order given in frozen_decision_rule.evaluation_order, before any regime's substantive (non-Stage-0) measurement is INTERPRETED. G0 and G1 cost seconds to minutes; if either fires, STOP before any sweep."
+    - "SR2 NULL/CALIBRATION FIRST. G2 (CTRL's full calibration certificate: ladder + 5 nulls + planted positive/negative) is measured and WRITTEN TO THE RUN RECORD before either C1's or C2's substantive verdict is read, mirroring EXP-ICINV-4d33aa's SR2. It may be COMPUTED in parallel with C1/C2's own sweeps for wall-clock efficiency, but its pass/fail is what gates whether those sweeps' results may be interpreted at all."
+    - "SR3 BASELINE GATE. G4 (shared Z-baseline reachable-count fixture) must pass before any C1 or C2 arm contrast is computed; if it fails, STOP and return the defect."
+    - "SR4 C2 HARD GATE, SCOPED. G3 (tautology check) gates C2 only; a failure there does not stop C1's own waterfall."
+    - "SR5 FROZEN GRID. Stop at the declared primes (both ladders), C_0 values, r_Z values, discriminants, and seeds. No extension, no additional prime, no additional C_0, no additional seed without a versioned protocol_amendment filed under experiments/EXP-CANL-96b0ad/amendments/ BEFORE the extra data is generated."
+    - "SR6 BUDGET. On exceeding wall_clock_seconds_per_run for any single (arm, prime) run, stop that run and record status failed_infrastructure with partial artifacts retained. Per AGENTS.md rule 5 this is never negative mathematical evidence and never a verdict."
+    - "SR7 NO OUTCOME SHOPPING. The terminal state (a global state, or the (C1_state, C2_state) pair) is computed by the frozen decision rule inside the run and written to the run record. It is not selected afterward by a human, and the set of reported metrics does not depend on which state fired."
+    - "SR8 ESCALATION STOP. Any of C1_REFUTED_REOPEN, C2_GAIN_EXCESSIVE, or an independently-reproduced Stage-0 Lemma-1 counterexample halts further dispatch on this lane pending an independent review-breakthrough session (AGENTS.md rule 12; GOAL-ENDO-001 pause condition P3), before any record states the excess."
+
+  invalidation_rules:
+    - "A timeout, crash, memory exhaustion, or dependency failure makes the run failed_infrastructure and is NEVER negative mathematical evidence (AGENTS.md rule 5)."
+    - "Any of the two independently-verified prime constructions (main ladder or C2-congruence ladder) fails its own isprime() check -> INVALID (construction defect); the run does not silently substitute a different prime."
+    - "The dual-auxiliary-tuple consistency check disagrees on any cell -> that cell is INVALID (a code defect on an exact arithmetic quantity, not measurement noise); reported explicitly, never pooled with agreeing cells."
+    - "The certificate_semantics spot-check (1% independent re-derivation of enumerated residues) disagrees on any cell -> that cell is INVALID."
+    - "The shared Z-baseline is recomputed separately for C1 and for C2 rather than shared per (prime, C_0, r_Z, auxiliary tuple) -> INVALID, even if the numbers happen to agree (cost_sharing_requirement)."
+    - "The arms are not measured on identical primes, C_0 values, r_Z values, or auxiliary tuples within a comparison -> INVALID; the design's entire claim rests on holding everything but the regime fixed."
+    - "harness/toycurve.py or harness/isogeny_class.py is modified by this experiment -> INVALID; the committed baseline must remain callable and byte-identical for every other contract in this goal."
+    - "Any claimed exact relation (tautology, Lemma-1 counterexample) whose certificate fails independent re-verification under certificate_semantics makes the run completed_invalid, per docs/claims-and-verification.md."
+    - "A curve's realized f_E > 1 is pooled with f_E = 1 cells in any reported aggregate -> INVALID for that aggregate; report separately or not at all."
+    - "Fewer than 4 of the 5 main-ladder primes yield a usable C1 verdict, or fewer than 2 of the 4 C2-congruence-ladder primes yield a usable C2 verdict -> INVALID (insufficient measurement), returned for the missing primes rather than decided on what is available."
+
+  success_criterion: >-
+    The experiment SUCCEEDS iff ALL of the following hold, and it can
+    plainly fail: (S-a) global gates G0, G2, G4 all pass (G1 passing is
+    also required for a full success; G1 firing with an INVALID
+    classification is a defect-return, not a success, while G1 firing with
+    an ESCALATED classification is a different, non-routine outcome handled
+    under SR8, not scored as this criterion's success or failure); (S-b)
+    the dual-auxiliary-tuple and certificate spot-check consistency checks
+    pass on every measured cell; (S-c) the shared Z-baseline reproduces its
+    closed-form expected count exactly; (S-d) C1's waterfall terminates in
+    exactly one of its four states, with all tail checks reported; (S-e) IF
+    G3 (C2's tautology gate) passes, C2's waterfall ALSO terminates in
+    exactly one of its five states, with all tail checks reported; IF G3
+    fails, the run is still a SUCCESS covering C1 alone, reported
+    explicitly as a partial run with C2 withdrawn as mis-specified; (S-f)
+    at least 4 of 5 main-ladder primes yield a C1 verdict and (when G3
+    passes) at least 2 of 4 C2-congruence primes yield a C2 verdict.
+    NEGATIVES THIS CRITERION ADMITS, EXPLICITLY. Success is NOT a
+    particular outcome: C1_SUPPORTED, C1_REFUTED_REOPEN, C2_SUPPORTED,
+    C2_TAUTOLOGY_TOTAL, C2_GAIN_ABSENT, and C2_GAIN_EXCESSIVE are ALL
+    successes of this criterion if reached validly -- each is a genuine,
+    falsifiable scientific outcome the design was built to allow. The
+    criterion FAILS on INVALID, INVALID_CALIBRATION, PREMISE_FAILED_BOUNDARY,
+    any *_INSTRUMENT_INVALID state, a failed baseline reproduction, a
+    failed consistency or spot-check, or an insufficient number of primes.
+    A contract in which no result counts as a failure would be rejected by
+    this Coordinator's own operating rules, and this is not such a
+    contract.
+
+  falsification_criterion: >-
+    H-CANL-e59a06's C1 claim IS REFUTED, recorded as such and not softened,
+    if C1_REFUTED_REOPEN fires on a valid run (reachable_k_count ratio > 1
+    in the generic regime at any tested cell, surviving the instrument and
+    slope checks): this is F4 in H-CANL-e59a06 and it REOPENS the lane.
+    C1's claim is also withdrawn as UNVERIFIABLE AT THIS DESIGN (not
+    refuted) if C1_INSTRUMENT_INVALID fires, or if C1_SLOPE_ANOMALY fires
+    without an independently-verified-correct height implementation (F2/F3
+    in H-CANL-e59a06). H-CANL-e59a06's C2 claim IS REFUTED, in the SAFE
+    direction, if C2_TAUTOLOGY_TOTAL or C2_GAIN_ABSENT fires on a valid run
+    (F8 in H-CANL-e59a06): the escape is tautological or illusory even as a
+    constant, and C1's theorem is reported as covering the whole domain.
+    C2's claim is REFUTED in the DANGEROUS direction, triggering escalation
+    under SR8, if C2_GAIN_EXCESSIVE fires (F9 in H-CANL-e59a06). C2's claim
+    is withdrawn as UNVERIFIABLE AT THIS DESIGN if C2_INSTRUMENT_INVALID
+    fires (F6/F10), and WITHDRAWN AS MIS-SPECIFIED (not refuted) if G3
+    fires (C2_PREMISE_FAILED). Separately, EITHER OR BOTH claims are
+    WITHDRAWN AS MIS-SPECIFIED, not refuted, if G1 (Lemma-1 premise) or G2
+    (calibration certificate) fires: the dichotomy's own partition, or the
+    instrument's own fitness to read either partition's verdict, failed
+    before either regime's substantive claim was ever tested.
+
+  required_artifacts:
+    - experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/command.txt
+    - experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/environment.json
+    - experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/stderr.log
+    - "experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/prime-verification.json -- every ladder prime, its construction rule, and its independent isprime() re-check. BLOCKING artifact."
+    - "experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/calibration-certificate.json -- CTRL's full G2 output: slopes with jackknife intervals per arm, all five null verdicts, planted positive/negative results. BLOCKING artifact; no C1 or C2 output may be read from a run without a passing one."
+    - "experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/lemma1-search.json -- the full Stage-0 search output per swept D_E, and any counterexample with its independent cross-check."
+    - "experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/c1-measurements.json -- alpha_min-ratio sweep, reachable_k_count tables (both auxiliary tuples), null-arm and positive-control values."
+    - "experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/c2-measurements.json -- shell enumeration, tautology results (all 1000 points per prime), non-unit lambda images, reachable_residue_count tables (both auxiliary tuples), threshold-control pair."
+    - "experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/decision-rule-evaluation.json -- every global gate's inputs and outcome, each waterfall's per-state check inputs, and the emitted terminal state(s)."
+    - "experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/tail-checks.json -- all six tail checks of the tail_checks block."
+    - "experiments/EXP-CANL-96b0ad/runs/<RUN-ID>/certificates/ -- one file per certified exact relation (tautology instances, any Lemma-1 counterexample), each independently re-verified per certificate_semantics."
+    - harness/exp_canl.py
+    - harness/canonical_height.py
+    - harness/run_canl.py
+    - A run manifest inference block recording requested_policy from the handoff, the resolved model id, fallback_used, and model_verified (AGENTS.md artifact policy and the CLAUDE.md model policy note).
+
+  assigned_to: executor
+  approved_by: null
+  approval_note: >-
+    NOT APPROVED, DELIBERATELY. Status is review_required. Under AGENTS.md
+    rule 1 only a Coordinator approves an experiment, and this contract was
+    produced by a Coordinator SUBAGENT under an explicit instruction to
+    draft and not approve -- "You are drafting, NOT approving... a human
+    Coordinator session reviews and approves your draft afterward." A
+    contract approved by its own author in the same act is not a reviewed
+    contract, and this drafting session has neither the authority nor
+    (having no Bash) the ability to run any code against it regardless. No
+    run may be executed against this file until approved_by is filled by a
+    separate Coordinator approval decision record, matching the exact
+    two-step discipline EXP-ICINV-4d33aa's own original approved_by_note
+    used before its later, separate approval.
+
+  provenance:
+    parent_idea_id:
+      - IDEA-20260807-fd5a24
+      - IDEA-20260807-11b93d
+    control_idea_id: IDEA-20260807-761a8c
+    discharges: >-
+      CORR-20260810-6e4fa7's required_action item 2 and GOAL-ENDO-001
+      next_action N7's corrected instruction. See
+      ledger/hypotheses/H-CANL-e59a06.yaml provenance block for the full
+      derivation-provenance discussion, including which of the seven
+      mechanically-rendered EXP-CANL-* drafts were consulted and which were
+      deliberately not carried into this contract, and the two corrections
+      made to the source material (the dangling EXP-INSTR-2d32ba reference,
+      and the ratio_of_minima / alpha_min metric fix) before either was
+      propagated here.
+    id_allocation_provenance: >-
+      EXP-CANL-96b0ad was supplied pre-minted by the launching session as
+      already verified free. This drafting session independently
+      re-verified freeness by Glob immediately before writing:
+      experiments/EXP-CANL-96b0ad/** returned no matches. This session did
+      not and could not run tools/allocate_id.py (no Bash).
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-sonnet-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one
+      model the session runs on. Recorded, never silently substituted
+      (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.
