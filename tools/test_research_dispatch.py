@@ -221,6 +221,41 @@ class DispatchPlannerTests(unittest.TestCase):
             deferred_by_id(plan)["CHILD"], ["dependency_not_completed:PARENT:failed"]
         )
 
+    def test_failure_provenance_ledger_archive_can_preserve_failed_source(self) -> None:
+        failed = task("FAILED", 10, state="failed", role="validator")
+        successor = task("SUCCESSOR", 20, state="completed", role="validator")
+        successor["supersedes_failed_task"] = "FAILED"
+        archive = archive_task(
+            "LEDGER",
+            [failed, successor],
+            priority=90,
+            kind="ledger",
+        )
+        archive["dispatch_exception"] = {
+            "kind": "terminal_failure_provenance_archive",
+            "scientific_effect": "none",
+            "failed_tasks_reclassified_completed": False,
+            "successor_review_completed_independently": True,
+        }
+        plan = dispatch.select(queue(failed, successor, archive, maximum=1))
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["LEDGER"])
+        self.assertTrue(plan["gates"]["all_selected_dependencies_completed"])
+        self.assertTrue(plan["gates"]["terminal_noncompleted_tasks_do_not_unblock_successors"])
+
+    def test_failure_provenance_archive_requires_completed_independent_successor(self) -> None:
+        failed = task("FAILED", 10, state="failed", role="validator")
+        archive = archive_task("LEDGER", [failed], priority=90, kind="ledger")
+        archive["dispatch_exception"] = {
+            "kind": "terminal_failure_provenance_archive",
+            "scientific_effect": "none",
+            "failed_tasks_reclassified_completed": False,
+            "successor_review_completed_independently": True,
+        }
+        with self.assertRaisesRegex(
+            dispatch.DispatchError, "lacks a completed independent successor"
+        ):
+            dispatch.select(queue(failed, archive, maximum=1))
+
     def test_running_task_consumes_a_slot(self) -> None:
         running = task("RUNNING", 1, state="running")
         ready = task("READY", 90)

@@ -29,6 +29,11 @@ capabilities:
   # silently doing without. `tools/check_runtime_bindings.py --list` shows
   # which roles that excludes.
   web_search:    {claude_code: [WebSearch, WebFetch], codex_cli: [web], opencode: [webfetch, websearch]}
+  # Live in-process messaging between agents in ONE session. Claude Code is the
+  # only runtime that has it; the others are listed nowhere here on purpose,
+  # which is exactly why this capability may only ever appear under
+  # `optional_capabilities` (see below) and never under `capabilities`.
+  send_messages: {claude_code: [SendMessage]}
 
 # Capabilities a runtime grants unconditionally and cannot withhold from a
 # role, whatever the contract says.
@@ -54,6 +59,67 @@ runtime_capability_coupling:
   codex_cli: [[write_files, edit_files]]
   opencode: [[write_files, edit_files]]
 
+# Capabilities a role USES where the runtime has them and does without where it
+# does not.
+#
+# Everything in `capabilities` is REQUIRED: a runtime that cannot express one
+# cannot host the role at all, and `expected_tools` returns None so the caller
+# refuses rather than running a quietly diminished agent. That is right for the
+# open web -- an Idea Generator with no web search is not a diminished Idea
+# Generator, it is the wrong agent.
+#
+# It is wrong for messaging, and putting `send_messages` in the required list
+# would have made all five roles unhostable on codex_cli and opencode in one
+# edit -- five roles times two runtimes, reported as "runtime cannot express
+# every capability this role needs". The role does not need it: live messaging
+# is a same-session convenience, and `tools/agent_bus.py` carries the same
+# traffic durably on EVERY runtime through run_commands. A Validator on
+# OpenCode that cannot SendMessage is still a Validator.
+#
+# So: granted where the vocabulary maps it, silently absent where it does not,
+# and never a reason to refuse a runtime. It is still declared per role rather
+# than assumed, so removing it from a role remains a deliberate edit, and
+# `--list` prints it as OPTIONAL so a reader can see where it landed.
+#
+# Declared per role below as `optional_capabilities`.
+
+# Per-subagent reasoning effort: which runtimes can carry it in the agent
+# definition itself, and in what terms.
+#
+# How much a role should think is already answered, once, in
+# `model-policies.yaml`: each policy states a `reasoning_effort`, calibrated per
+# role rather than set high everywhere (deciding a state transition is
+# reasoning-bound; running a frozen protocol is not). This table answers a
+# strictly narrower question -- can a runtime express that number PER AGENT, or
+# must it be set process-level for the whole session?
+#
+# The difference is operational, not cosmetic. Set process-level, every subagent
+# in a session thinks as hard as whichever policy the session was launched
+# under, so an Executor replaying a frozen protocol burns Validator-grade
+# thinking and a Validator invoked from an Executor session reviews at Executor
+# depth. Expressed per agent, one session can dispatch all five roles and each
+# gets the depth its own policy asked for.
+#
+# `field` is the runtime's own key; `levels` is what it accepts. A runtime
+# mapped to `null` cannot express effort per agent, so its roles take effort
+# from `python3 -m orchestration.adapter env --role <role>` at launch, exactly
+# as they take the model. Absent from this table means the same thing as null;
+# the two runtimes are listed explicitly so "cannot" is recorded rather than
+# inferred from silence -- the same reason `runtime_grants_always` exists.
+#
+# `tools/check_runtime_bindings.py` fails the build when a binding's declared
+# effort disagrees with its role's policy, so effort drifts no more quietly
+# than a tool grant does.
+runtime_reasoning_effort:
+  claude_code:
+    field: effort
+    levels: [low, medium, high, xhigh, max]
+  # Codex rejects unknown keys in an agent role file; effort arrives as
+  # `-c model_reasoning_effort=...` from the adapter instead.
+  codex_cli: null
+  # OpenCode frontmatter carries `temperature`, not a reasoning-effort level.
+  opencode: null
+
 # Execution limits for the api_direct runtime (orchestration/agent/). These are
 # defaults; a task's own budget narrows them and never widens them.
 api_direct:
@@ -74,6 +140,7 @@ roles:
       may_execute_experiments: false
       independent_of_producer: false
     capabilities: [read_files, search_files, write_files, edit_files]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/coordinator.md
       codex_cli: .codex/agents/coordinator.toml
@@ -88,6 +155,7 @@ roles:
       may_execute_experiments: false
       independent_of_producer: false
     capabilities: [read_files, search_files, write_files, web_search]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/idea-generator.md
       codex_cli: .codex/agents/idea-generator.toml
@@ -102,6 +170,7 @@ roles:
       may_execute_experiments: true
       independent_of_producer: false
     capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/executor.md
       codex_cli: .codex/agents/executor.toml
@@ -116,6 +185,7 @@ roles:
       may_execute_experiments: false
       independent_of_producer: true
     capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/validator.md
       codex_cli: .codex/agents/validator.toml
@@ -130,11 +200,86 @@ roles:
       may_execute_experiments: false
       independent_of_producer: true
     capabilities: [read_files, search_files, write_files, edit_files, run_commands, web_search]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/red-team.md
       codex_cli: .codex/agents/red-team.toml
       opencode: .opencode/agent/red-team.md
 
+  # ------------------------------------------------------------------
+  # Policy-tier variants.
+  #
+  # `runtime_reasoning_effort` above binds a role's DEFAULT policy to its agent
+  # file. But `model-policies.yaml` routing_rules send some tasks of an existing
+  # role to a different policy: a claimed breakthrough, a proposed closure, or a
+  # result contradicting validated evidence goes to `review-breakthrough`; a
+  # re-run of a frozen command goes to `executor-mechanical`. One agent file
+  # carries one effort, so those routes had no binding at all here — under this
+  # runtime the escalated review could only be downgraded (forbidden:
+  # `review-breakthrough` is `degradable: false`) or launched as a whole
+  # separate session.
+  #
+  # A variant is the SAME ROLE at a different policy tier: identical contract,
+  # identical authority, identical capabilities, different reasoning effort.
+  # The checker enforces exactly that, so a variant can never become a
+  # privilege-escalation route — the only thing it may change is how hard the
+  # model thinks. Dispatch queues keep naming the canonical role
+  # (`tools/research_dispatch.py` ROLES is unchanged); the runtime picks the
+  # variant from the task's `inference.policy`, and an escalated review still
+  # runs in its own independent session.
+  #
+  # Variants exist only for runtimes that can express effort per agent. A
+  # runtime with `runtime_reasoning_effort: null` takes the escalation from
+  # `adapter env` at launch and needs no second binding.
+  # ------------------------------------------------------------------
+
+  executor-mechanical:
+    variant_of: executor
+    contract: agents/executor.md
+    default_policy: executor-mechanical
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: true
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    optional_capabilities: [send_messages]
+    runtime_bindings:
+      claude_code: .claude/agents/executor-mechanical.md
+
+  validator-breakthrough:
+    variant_of: validator
+    contract: agents/validator.md
+    default_policy: review-breakthrough
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    optional_capabilities: [send_messages]
+    runtime_bindings:
+      claude_code: .claude/agents/validator-breakthrough.md
+
+  red-team-breakthrough:
+    variant_of: red-team
+    contract: agents/red-team.md
+    default_policy: review-breakthrough
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands, web_search]
+    optional_capabilities: [send_messages]
+    runtime_bindings:
+      claude_code: .claude/agents/red-team-breakthrough.md
+
+# A role carrying `variant_of` must match its base role's contract, authority
+# and capabilities EXACTLY, and must resolve to a different policy than the
+# base -- otherwise it is either a second name for the same thing or a way to
+# gain authority without saying so. Both are checker errors.
+#
 # Roles whose `independent_of_producer` is true must resolve to a policy with
 # `independent_session_required: true`; the checker enforces this so a review
 # role can never be quietly routed through a non-independent session.

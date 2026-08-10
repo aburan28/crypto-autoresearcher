@@ -50,6 +50,7 @@ INDEPENDENT_REVIEW_ROLES = {"reviewer", "validator", "red-team"}
 TERMINAL_STATES = {"completed", "failed", "invalid", "cancelled"}
 STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
 ARCHIVE_KINDS = {"snapshot", "ledger"}
+FAILURE_PROVENANCE_ARCHIVE_KIND = "terminal_failure_provenance_archive"
 SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
@@ -148,6 +149,84 @@ def scope_overlaps(left: str, right: str) -> bool:
 
 def is_archive(task: dict[str, Any]) -> bool:
     return "archive" in task
+
+
+def _completed_failure_successor_exists(
+    failed_id: str,
+    task: dict[str, Any],
+    by_id: dict[str, dict[str, Any]],
+) -> bool:
+    """Return whether an archived failed task has a completed successor chain."""
+
+    source_ids = set(task["archive"]["source_task_ids"])
+    frontier = [failed_id]
+    visited: set[str] = set()
+    while frontier:
+        predecessor = frontier.pop()
+        if predecessor in visited:
+            continue
+        visited.add(predecessor)
+        for candidate in by_id.values():
+            if (
+                candidate["id"] in source_ids
+                and candidate.get("supersedes_failed_task") == predecessor
+            ):
+                if (
+                    candidate["state"] == "completed"
+                    and candidate["role"] in INDEPENDENT_REVIEW_ROLES
+                ):
+                    return True
+                frontier.append(candidate["id"])
+    return False
+
+
+def _failure_provenance_dependencies(
+    task: dict[str, Any], by_id: dict[str, dict[str, Any]]
+) -> set[str]:
+    """Return terminal failures an isolated archive may preserve without unblocking work."""
+
+    exception = task.get("dispatch_exception")
+    if not isinstance(exception, dict) or exception.get("kind") != FAILURE_PROVENANCE_ARCHIVE_KIND:
+        return set()
+    if not is_archive(task) or task["archive"]["kind"] != "ledger":
+        raise DispatchError(
+            f"task {task['id']} may use {FAILURE_PROVENANCE_ARCHIVE_KIND} only on a ledger archive"
+        )
+    if task["role"] != "coordinator":
+        raise DispatchError(f"failure-provenance archive {task['id']} must be coordinator-owned")
+    if (
+        exception.get("scientific_effect") != "none"
+        or exception.get("failed_tasks_reclassified_completed") is not False
+        or exception.get("successor_review_completed_independently") is not True
+    ):
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} has an invalid dispatch_exception boundary"
+        )
+    failed = {
+        dependency
+        for dependency in task["depends_on"]
+        if by_id[dependency]["state"] in {"failed", "invalid", "cancelled"}
+    }
+    if not failed:
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} must name a terminal failed dependency"
+        )
+    source_ids = set(task["archive"]["source_task_ids"])
+    if not failed.issubset(source_ids):
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} may exempt only archived source tasks"
+        )
+    missing_successors = sorted(
+        dependency
+        for dependency in failed
+        if not _completed_failure_successor_exists(dependency, task, by_id)
+    )
+    if missing_successors:
+        raise DispatchError(
+            f"failure-provenance archive {task['id']} lacks a completed independent successor "
+            f"for {missing_successors}"
+        )
+    return failed
 
 
 def assert_acyclic(graph: dict[str, list[str]]) -> None:
@@ -523,11 +602,7 @@ def validate_queue(
 
     for task in tasks:
         if task["state"] == "running":
-            incomplete = [
-                dependency
-                for dependency in task["depends_on"]
-                if by_id[dependency]["state"] != "completed"
-            ]
+            incomplete = blockers(task, by_id)
             if incomplete:
                 raise DispatchError(
                     f"running task {task['id']} has incomplete dependencies {incomplete}"
@@ -554,9 +629,10 @@ def validate_queue(
 
 def blockers(task: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> list[str]:
     output: list[str] = []
+    preserved_failures = _failure_provenance_dependencies(task, by_id)
     for dependency in task["depends_on"]:
         state = by_id[dependency]["state"]
-        if state != "completed":
+        if state != "completed" and dependency not in preserved_failures:
             output.append(f"dependency_not_completed:{dependency}:{state}")
     if task["state"] == "blocked":
         output.append("task_marked_blocked")
@@ -742,8 +818,7 @@ def select(
                 if is_archive(task)
             ),
             "terminal_noncompleted_tasks_do_not_unblock_successors": all(
-                all(by_id[dependency]["state"] == "completed"
-                    for dependency in task["depends_on"])
+                not blockers(task, by_id)
                 for task in selected
             ),
             "claim_relevant_tasks_have_independent_review": all(
