@@ -634,7 +634,17 @@ def o_arm_cell(N: int, C0: int, r_Z: int, D_E: int, t: int, f: int, which: str) 
            "reachable_count": count, "naive_upper_bound": naive_ub}
 
 
-def run_c1(main_ladder_primes: list[int], C0_max: int = 8) -> dict:
+def get_z_baseline(cache: dict, p: int, C0: int, r_Z: int, which: str) -> dict:
+    """cost_sharing_requirement: the Z-baseline is a function of (prime, C0,
+    r_Z, aux tuple) ALONE -- computed once per cell (shared_z_baseline_cache)
+    and looked up here by both run_c1 and run_c2, never recomputed."""
+    key = (p, C0, r_Z, which)
+    if key not in cache:
+        cache[key] = z_baseline_cell(p, C0, r_Z, which)
+    return cache[key]
+
+
+def run_c1(main_ladder_primes: list[int], z_cache: dict, C0_max: int = 8) -> dict:
     curves = {}
     ratio_points = []   # (|D_E|, ratio_of_minima) for the slope fit
     cell_results = []
@@ -655,7 +665,7 @@ def run_c1(main_ladder_primes: list[int], C0_max: int = 8) -> dict:
         for C0 in C0_grid_for(C0_max):
             for r_Z in RZ_GRID:
                 for which in ("A", "B"):
-                    z_cell = z_baseline_cell(p, C0, r_Z, which)
+                    z_cell = get_z_baseline(z_cache, p, C0, r_Z, which)
                     o_cell = o_arm_cell(p, C0, r_Z, D_E, t, f, which)
                     ratio_kc = (o_cell["reachable_count"] / z_cell["reachable_count"]
                                if z_cell["reachable_count"] else float("nan"))
@@ -846,7 +856,7 @@ def c2_shell_lambda_images(D_E: int, C0: int, curve: dict, N: int) -> dict:
            "all_zero": all(k % N == 0 for k in images) if images else True}
 
 
-def run_c2(c2_ladder_primes: list[int], main_ladder_primes: list[int],
+def run_c2(c2_ladder_primes: list[int], main_ladder_primes: list[int], z_cache: dict,
           C0_max: int = 8, tautology_n: int = 1000) -> dict:
     curves = {p: c2_congruence_curve(p) for p in c2_ladder_primes}
     tautology = {}
@@ -876,7 +886,7 @@ def run_c2(c2_ladder_primes: list[int], main_ladder_primes: list[int],
                                          for (a, b) in sh.elements})
                     coeff_sets = [lambda_vals] * s
                     count, _ = ec.reachable_residue_count(coeff_sets, k, p)
-                    z_cell = z_baseline_cell(p, C0, r_Z, which)
+                    z_cell = get_z_baseline(z_cache, p, C0, r_Z, which)
                     gain = count / z_cell["reachable_count"] if z_cell["reachable_count"] else float("nan")
                     cell_results.append({
                         "p": p, "C0": C0, "r_Z": r_Z, "aux_tuple": which,
@@ -999,12 +1009,333 @@ def c2_waterfall(c2_result: dict) -> dict:
            "sample_out_of_band": [c for c in all_band_checked if c not in in_band][:5]}
 
 
+# ============================================================================
+# Full orchestration: frozen evaluation order, all artifacts
+# ============================================================================
+
+def _json_safe(obj):
+    if isinstance(obj, dict):
+        return {str(k): _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        return [_json_safe(v) for v in obj]
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return str(obj)
+        return obj
+    return obj
+
+
+def full_run(C0_max: int = 8, tautology_n: int = 1000) -> dict:
+    t_start = time.time()
+    stages = {}
+
+    ladders = build_prime_ladders()
+    stages["prime_verification"] = ladders
+    if not ladders["all_valid"]:
+        stages["global_state"] = "INVALID"
+        stages["global_reason"] = "prime construction failed its own isprime() re-check"
+        return stages
+
+    main_primes = ladders["main_ladder_primes"]
+    c2_primes = ladders["c2_ladder_primes"]
+
+    g0 = gate_G0()
+    stages["G0"] = g0
+    if g0["fires"]:
+        stages["global_state"] = "INVALID"
+        stages["global_reason"] = "G0 instrument self-check failed"
+        return stages
+
+    # Curve selection for C1 happens before G1 so G1 can sweep the ACTUAL
+    # realized D_E values (curve selection is not "interpretation" of any
+    # regime verdict; only the waterfalls below are gated by G0-G4).
+    c1_curves_preview = {p: find_c1_curve(p, C0_max=C0_max) for p in main_primes}
+    swept_D = sorted(set([c["D_E"] for c in c1_curves_preview.values()] +
+                         list(ec.CLASS_NUMBER_ONE_DISCRIMINANTS)))
+    g1 = gate_G1(swept_D, box=50)
+    stages["G1"] = g1
+    # G1 does not stop the run on its own presumptive-defect classification
+    # (only an INDEPENDENTLY REPRODUCED counterexample would escalate/stop
+    # per SR8); it is recorded and, if it fires, both regimes are withdrawn
+    # as mis-specified per falsification_criterion, not silently continued.
+    g1_blocks = g1["fires"]
+
+    g2 = gate_G2(main_primes)
+    stages["G2"] = g2
+
+    g4 = gate_G4(main_primes)
+    stages["G4"] = g4
+
+    if g2["fires"] or g4["fires"] or g1_blocks:
+        stages["global_state"] = (
+            "PREMISE_FAILED_BOUNDARY" if g1_blocks else
+            ("INVALID_CALIBRATION" if g2["fires"] else "INVALID"))
+        stages["global_reason"] = (
+            f"G1={g1_blocks} G2={g2['fires']} G4={g4['fires']}")
+        return stages
+
+    z_cache = {}
+    c1_result = run_c1(main_primes, z_cache, C0_max=C0_max)
+    c1_result["curves"] = {p: c1_curves_preview[p] for p in main_primes}  # reuse, not recomputed
+    c1_verdict = c1_waterfall(g2, c1_result)
+    stages["c1_result"] = c1_result
+    stages["c1_verdict"] = c1_verdict
+
+    c2_result = run_c2(c2_primes, main_primes, z_cache, C0_max=C0_max, tautology_n=tautology_n)
+    g3 = gate_G3(c2_result)
+    stages["G3"] = g3
+    stages["c2_result"] = c2_result
+    if g3["fires"]:
+        stages["c2_verdict"] = {"state": "WITHDRAWN_MISSPECIFIED_G3", "g3": g3}
+    else:
+        stages["c2_verdict"] = c2_waterfall(c2_result)
+
+    stages["z_cache_cell_count"] = len(z_cache)
+    stages["wall_seconds"] = time.time() - t_start
+    stages["global_state"] = None
+    return stages
+
+
+def tail_checks(stages: dict) -> dict:
+    """The six tail_checks blocks from the frozen contract, computed from
+    whatever cells were actually measured."""
+    out = {}
+    c1 = stages.get("c1_result")
+    c2 = stages.get("c2_result")
+
+    extreme = []
+    degenerate = []
+    if c1:
+        for c in c1["cells"]:
+            nub = c["o_arm"]["naive_upper_bound"]
+            rc_ = c["o_arm"]["reachable_count"]
+            extreme.append({"arm": "C1", "p": c["p"], "C0": c["C0"], "r_Z": c["r_Z"],
+                           "ratio_to_naive_bound": rc_ / nub if nub else None})
+            if rc_ in (0, nub):
+                degenerate.append({"arm": "C1", "p": c["p"], "C0": c["C0"],
+                                  "r_Z": c["r_Z"], "reachable_count": rc_, "bound": nub})
+    if c2:
+        for c in c2["cells"]:
+            sh = c["shell_size"]
+            rc_ = c["reachable_residue_count"]
+            extreme.append({"arm": "C2", "p": c["p"], "C0": c["C0"], "r_Z": c["r_Z"],
+                           "shell_size": sh, "reachable_residue_count": rc_})
+            if rc_ == 0:
+                degenerate.append({"arm": "C2", "p": c["p"], "C0": c["C0"],
+                                  "r_Z": c["r_Z"], "reachable_residue_count": rc_})
+    out["extreme_cell_check"] = extreme
+    out["degenerate_cell_check"] = degenerate
+
+    fE = []
+    if c1:
+        for p, c in c1["curves"].items():
+            fE.append({"arm": "C1", "p": p, "f_E": c["f_E"], "pooled_with_f1": False})
+    if c2:
+        for p, c in c2["curves"].items():
+            fE.append({"arm": "C2", "p": p, "f_E": c["f_E"], "pooled_with_f1": False})
+    out["fE_stratification_tail"] = fE
+
+    ctrl_tail = []
+    g2 = stages.get("G2")
+    if g2:
+        for label, arm in g2["per_curve_arms"].items():
+            fit = arm["slope_fit"]
+            resid = None
+            if fit.get("jackknife_slopes"):
+                resid = sorted(range(len(fit["jackknife_slopes"])),
+                               key=lambda i: abs(fit["jackknife_slopes"][i] - fit["slope"]))[-2:]
+            ctrl_tail.append({"curve": label, "slope": fit.get("slope"),
+                             "largest_residual_indices": resid})
+    out["covering_fraction_tail"] = ctrl_tail
+
+    retry_tail = []
+    if c1:
+        for p, c in c1["curves"].items():
+            retry_tail.append({"p": p, "retry_count": c["retry_count"], "pool_size": c["pool_size"]})
+    out["retry_tail_c1"] = retry_tail
+
+    dual_tail = []
+    if c1:
+        dual_tail.append({"arm": "C1", "consistent": c1["dual_aux_tuple_consistent"]})
+    if c2:
+        dual_tail.append({"arm": "C2", "consistent": c2["dual_aux_tuple_consistent"]})
+    out["dual_aux_tuple_tail"] = dual_tail
+
+    return out
+
+
+def emit_certificates(stages: dict, run_dir: str) -> list[str]:
+    """One file per certified exact relation, independently re-verified.
+
+    Tautology certificates (kind: decomposition) are re-verified here by
+    literally recomputing the point sum with harness/toycurve.py:add, using
+    the raw (P, zetaP, zeta2P, sum) already recorded -- but recomputed AGAIN
+    from scratch in this function, independent of c2_tautology_check's own
+    accumulation, per certificate_semantics.
+    """
+    os.makedirs(os.path.join(run_dir, "certificates"), exist_ok=True)
+    paths = []
+    c2 = stages.get("c2_result")
+    if not c2:
+        return paths
+    for p, taut in c2.get("tautology", {}).items():
+        curve = c2["curves"][p]
+        E = EllipticCurve(p, curve["a"], curve["b"])
+        for i, cert in enumerate(taut.get("sample_certs", [])):
+            P, zP, z2P = cert["P"], cert["zetaP"], cert["zeta2P"]
+            recomputed = E.add(E.add(tuple(P), tuple(zP)), tuple(z2P))
+            reverified = recomputed is None
+            path = os.path.join(run_dir, "certificates", f"tautology-p{p}-{i}.json")
+            with open(path, "w") as fh:
+                json.dump(_json_safe({
+                    "kind": "decomposition", "prime": p,
+                    "statement": {"target": None, "summands": [P, zP, z2P]},
+                    "claimed_identity": cert["identity"],
+                    "independent_recompute_sum": recomputed,
+                    "verified": reverified,
+                    "verifier": "harness/run_canl.py:emit_certificates (toycurve.py:add)",
+                }), fh, indent=2, default=str)
+            paths.append(path)
+    return paths
+
+
+def write_artifacts(stages: dict, run_suffix: str | None = None) -> str:
+    run_suffix = run_suffix or secrets.token_hex(3)
+    run_id = f"RUN-{EXP_AREA}-{run_suffix}"
+    run_root = os.path.join(REPO, "experiments", EXP_ID, "runs", run_id)
+    if os.path.exists(run_root):
+        raise FileExistsError(f"{run_root} already exists; run records are immutable")
+    os.makedirs(run_root)
+
+    def dump(name, obj):
+        with open(os.path.join(run_root, name), "w") as fh:
+            json.dump(_json_safe(obj), fh, indent=2, default=str)
+
+    dump("prime-verification.json", stages.get("prime_verification"))
+    dump("calibration-certificate.json", stages.get("G2"))
+    dump("lemma1-search.json", stages.get("G1"))
+    dump("c1-measurements.json", stages.get("c1_result"))
+    dump("c2-measurements.json", stages.get("c2_result"))
+
+    global_state = stages.get("global_state")
+    decision = {
+        "global_gates": {
+            "G0": {"fires": stages.get("G0", {}).get("fires"),
+                  "terminal_state": stages.get("G0", {}).get("terminal_state")},
+            "G1": {"fires": stages.get("G1", {}).get("fires"),
+                  "terminal_state": stages.get("G1", {}).get("terminal_state")},
+            "G2": {"fires": stages.get("G2", {}).get("fires"),
+                  "terminal_state": stages.get("G2", {}).get("terminal_state")},
+            "G3": {"fires": stages.get("G3", {}).get("fires") if stages.get("G3") else None,
+                  "terminal_state": stages.get("G3", {}).get("terminal_state") if stages.get("G3") else None},
+            "G4": {"fires": stages.get("G4", {}).get("fires"),
+                  "terminal_state": stages.get("G4", {}).get("terminal_state")},
+        },
+        "global_state": global_state,
+        "global_reason": stages.get("global_reason"),
+        "c1_verdict": stages.get("c1_verdict"),
+        "c2_verdict": stages.get("c2_verdict"),
+    }
+    dump("decision-rule-evaluation.json", decision)
+    dump("tail-checks.json", tail_checks(stages))
+
+    cert_paths = emit_certificates(stages, run_root)
+
+    dump("raw-result.json", stages)
+
+    return run_root, run_id, decision, cert_paths
+
+
 __all__ = [
     "build_prime_ladders", "gate_G0", "gate_G1", "ctrl_curves",
     "rho_lift_measure", "fit_slope_loglog", "gate_G2", "aux_tuple",
-    "z_baseline_cell", "gate_G4", "shared_z_baseline_cache",
+    "z_baseline_cell", "gate_G4", "shared_z_baseline_cache", "get_z_baseline",
     "find_c1_curve", "o_arm_cell", "run_c1", "c1_waterfall", "C0_grid_for",
     "c2_shell_diagnostics", "c2_congruence_curve", "c2_tautology_check",
     "c2_nonunit_lambda", "c2_shell_lambda_images", "run_c2", "gate_G3",
-    "c2_waterfall",
+    "c2_waterfall", "full_run", "tail_checks", "emit_certificates",
+    "write_artifacts",
 ]
+
+
+_COMMAND = "python3 -m harness.run_canl"
+
+
+def main():
+    """Full reproduction-package entry point: runs the sweep AND writes every
+    required top-level artifact (manifest.yaml, command.txt,
+    environment.json, stdout.log, stderr.log) in the SAME process, so
+    harness/runner.py:source_provenance() sees every module this run
+    actually imported (docs/evidence-and-reproducibility.md)."""
+    import contextlib
+    import io as _io
+    import yaml
+    from harness import runner as hrun
+
+    stdout_buf, stderr_buf = _io.StringIO(), _io.StringIO()
+    started = time.time()
+    with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+        stages = full_run(C0_max=8, tautology_n=1000)
+    finished = time.time()
+
+    run_root, run_id, decision, cert_paths = write_artifacts(stages)
+
+    commit, dirty = hrun.git_state()
+    provenance = hrun.source_provenance()
+    env = hrun.environment()
+    inference = hrun._inference_block()
+
+    global_state = stages.get("global_state")
+    c1v = stages.get("c1_verdict", {}).get("state") if stages.get("c1_verdict") else None
+    c2v = stages.get("c2_verdict", {}).get("state") if stages.get("c2_verdict") else None
+    status = "completed_valid" if global_state is None else "completed_invalid"
+
+    manifest = {"run": {
+        "id": run_id, "experiment_id": EXP_ID, "status": status,
+        "code": {"commit": commit, "dirty": dirty, "command": _COMMAND,
+                "source": provenance},
+        "inference": inference, "environment": env,
+        "inputs": {"curve_id": "n/a (full sweep, not a single-curve run)",
+                  "seed": SEEDS,
+                  "parameters": {"C0_grid_full": C0_GRID_FULL,
+                                "C0_grid_shell": C0_GRID_SHELL,
+                                "r_Z_grid": RZ_GRID, "C0_max_used": 8,
+                                "tautology_n": 1000}},
+        "timing": {"started_at": hrun._iso(started), "finished_at": hrun._iso(finished),
+                  "wall_seconds": round(finished - started, 6)},
+        "result": {"global_state": global_state, "c1_verdict": c1v, "c2_verdict": c2v,
+                  "valid": status == "completed_valid",
+                  "certificate": {"kind": "decomposition" if cert_paths else "none",
+                                 "n_certificates": len(cert_paths)}},
+        "artifacts": {"command": "command.txt", "environment": "environment.json",
+                     "stdout": "stdout.log", "stderr": "stderr.log",
+                     "raw_result": "raw-result.json",
+                     "prime_verification": "prime-verification.json",
+                     "calibration_certificate": "calibration-certificate.json",
+                     "lemma1_search": "lemma1-search.json",
+                     "c1_measurements": "c1-measurements.json",
+                     "c2_measurements": "c2-measurements.json",
+                     "decision_rule_evaluation": "decision-rule-evaluation.json",
+                     "tail_checks": "tail-checks.json", "certificates_dir": "certificates/"},
+    }}
+
+    with open(os.path.join(run_root, "manifest.yaml"), "w") as fh:
+        yaml.safe_dump(manifest, fh, sort_keys=False)
+    with open(os.path.join(run_root, "command.txt"), "w") as fh:
+        fh.write(_COMMAND + "\n")
+    with open(os.path.join(run_root, "environment.json"), "w") as fh:
+        json.dump(env, fh, indent=2, sort_keys=True)
+    with open(os.path.join(run_root, "stdout.log"), "w") as fh:
+        fh.write(stdout_buf.getvalue())
+    with open(os.path.join(run_root, "stderr.log"), "w") as fh:
+        fh.write(stderr_buf.getvalue())
+
+    print(f"WROTE {run_id} at {run_root}")
+    print(json.dumps(_json_safe(decision), indent=2, default=str))
+    print(f"certificates: {len(cert_paths)}")
+    print(f"provenance all_pinned={provenance['all_pinned']}")
+    return run_id, run_root
+
+
+if __name__ == "__main__":
+    main()
