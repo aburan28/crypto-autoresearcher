@@ -10,10 +10,35 @@ Code specifically.
 
 ## Harness layout
 
-- **Subagents** (`.claude/agents/`): `coordinator`, `idea-generator`,
-  `executor`, `validator`, and `red-team`. These are the operational versions
-  of the role contracts in `agents/*.md`. Research work is done BY these
-  subagents; the top-level session orchestrates and talks to the user.
+- **Subagents** (`.claude/agents/`): five roles — `coordinator`,
+  `idea-generator`, `executor`, `validator`, `red-team` — plus three
+  **policy-tier variants** of them: `executor-mechanical`,
+  `validator-breakthrough`, `red-team-breakthrough`. These are the operational
+  versions of the role contracts in `agents/*.md`. Research work is done BY
+  these subagents; the top-level session orchestrates and talks to the user.
+
+  Each carries a **reasoning effort** calibrated by its model policy, so a
+  frozen protocol is not re-derived at review depth and a claimed break is not
+  reviewed at execution depth:
+
+  | subagent | policy | effort |
+  |---|---|---|
+  | `executor-mechanical` | `executor-mechanical` | low |
+  | `executor` | `executor-implementation` | medium |
+  | `coordinator` | `coordinator-orchestration-code` | high |
+  | `idea-generator` | `research-deep` | high |
+  | `validator` | `review-adversarial` | xhigh |
+  | `red-team` | `review-adversarial` | xhigh |
+  | `validator-breakthrough` | `review-breakthrough` | max |
+  | `red-team-breakthrough` | `review-breakthrough` | max |
+
+  A variant is the SAME role at a different policy tier: identical contract,
+  authority and tools, different depth. `tools/check_runtime_bindings.py`
+  enforces both halves — a binding's `effort` must equal its policy's
+  `reasoning_effort`, and a variant may differ from its base in nothing but
+  policy. Run `python3 tools/check_runtime_bindings.py --list` for the resolved
+  table; `/launch-research-harness` step 6 maps a queued task's
+  (`role`, `inference.policy`) onto the agent that runs it.
 - **Skills** (`.claude/skills/`), one per lifecycle stage:
   - `/propose-ideas` — ideation for a research question
   - `/design-experiment` — hypothesis + frozen approved protocol
@@ -203,10 +228,22 @@ Policies are vendor-neutral capability contracts
 (`orchestration/model-policies.yaml`); the model that serves one is chosen
 per backend in `orchestration/model-bindings.yaml` and resolved by
 `orchestration/adapter/`. Subagent frontmatter in `.claude/agents/` cannot
-express a policy, so per-role model selection under this runtime is
+express a policy, so per-role MODEL selection under this runtime is
 process-level: launch the session with the resolved environment rather
 than mixing policies in one session, and keep `model: inherit` in the
 frontmatter.
+
+**Reasoning effort is the exception, and only because this runtime can carry
+it.** A Claude Code subagent definition accepts `effort:
+low|medium|high|xhigh|max`, so each binding states the effort its policy asks
+for and `tools/check_runtime_bindings.py` fails the build when the two drift —
+in either direction, which matters because a review that quietly thinks less
+than its policy requires still returns a signed-off verdict. Runtimes that
+cannot carry it (Codex role files reject unknown keys) still resolve effort
+process-level through the adapter; `roles.yaml`'s `runtime_reasoning_effort`
+map says which is which. Do not add a model identifier to a binding on the same
+reasoning: effort is a contract stated once in the policy, a model id is the
+output of policy × backend resolution.
 
 ```sh
 # resolve a role's policy and see exactly what would answer

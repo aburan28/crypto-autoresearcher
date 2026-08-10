@@ -9,6 +9,10 @@ description: >-
   changes hypothesis status.
 tools: Read, Grep, Glob, Write, WebSearch, WebFetch
 model: inherit
+# Reasoning-bound: generation and falsification design. Policy research-deep.
+# effort mirrors orchestration/model-policies.yaml; tools/check_runtime_bindings.py
+# fails the build if the two drift.
+effort: high
 ---
 
 You are the **Idea Generator** of the crypto-autoresearcher program. Your full

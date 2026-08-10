@@ -54,6 +54,29 @@ runtime_capability_coupling:
   codex_cli: [[write_files, edit_files]]
   opencode: [[write_files, edit_files]]
 
+# Reasoning effort is a POLICY fact, and one runtime can now express it.
+#
+# `orchestration/model-policies.yaml` calibrates `reasoning_effort` per policy
+# and explains why: deciding whether evidence justifies a state transition is
+# reasoning-bound, running a frozen protocol is instruction-bound. Until now
+# that number could only be applied process-level, by launching a session with
+# the resolved environment, because no runtime agent format could carry it.
+#
+# Claude Code subagent definitions accept an `effort` field
+# (low|medium|high|xhigh|max), so on that runtime the number is carried by the
+# binding itself and `tools/check_runtime_bindings.py` fails the build when a
+# binding's effort stops matching its policy's `reasoning_effort`. A runtime
+# absent from this map still resolves effort process-level via
+# `python -m orchestration.adapter env`; nothing about the policy layer changes.
+#
+# MODEL SELECTION IS STILL NOT EXPRESSIBLE and must not be added here. Effort is
+# a capability contract stated once in the policy; a model identifier is the
+# output of policy x backend resolution and belongs to the adapter.
+runtime_reasoning_effort:
+  claude_code:
+    frontmatter_field: effort
+    levels: [low, medium, high, xhigh, max]
+
 # Execution limits for the api_direct runtime (orchestration/agent/). These are
 # defaults; a task's own budget narrows them and never widens them.
 api_direct:
@@ -135,6 +158,69 @@ roles:
       codex_cli: .codex/agents/red-team.toml
       opencode: .opencode/agent/red-team.md
 
+  # ------------------------------------------------------------------
+  # Policy-tier variants.
+  #
+  # `model-policies.yaml` routing_rules already send SOME tasks of an existing
+  # role to a different policy: a claimed breakthrough goes to
+  # `review-breakthrough`, a re-run of a frozen command goes to
+  # `executor-mechanical`. Those routes had no runtime binding, so under Claude
+  # Code they could not be honoured at all -- a breakthrough review had to run
+  # at the adversarial tier (a silent downgrade, forbidden) or pause the goal.
+  #
+  # A variant is the SAME ROLE at a different policy tier: identical contract,
+  # identical authority, identical capabilities, different reasoning effort.
+  # The checker enforces exactly that, so a variant can never become a
+  # privilege-escalation route -- the only thing it may change is how hard the
+  # model thinks. Dispatch queues keep naming the canonical role
+  # (`tools/research_dispatch.py` ROLES is unchanged); the runtime picks the
+  # variant from the task's `inference.policy`.
+  # ------------------------------------------------------------------
+
+  executor-mechanical:
+    variant_of: executor
+    contract: agents/executor.md
+    default_policy: executor-mechanical
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: true
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    runtime_bindings:
+      claude_code: .claude/agents/executor-mechanical.md
+
+  validator-breakthrough:
+    variant_of: validator
+    contract: agents/validator.md
+    default_policy: review-breakthrough
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    runtime_bindings:
+      claude_code: .claude/agents/validator-breakthrough.md
+
+  red-team-breakthrough:
+    variant_of: red-team
+    contract: agents/red-team.md
+    default_policy: review-breakthrough
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: true
+    capabilities: [read_files, search_files, write_files, edit_files, run_commands, web_search]
+    runtime_bindings:
+      claude_code: .claude/agents/red-team-breakthrough.md
+
 # Roles whose `independent_of_producer` is true must resolve to a policy with
 # `independent_session_required: true`; the checker enforces this so a review
 # role can never be quietly routed through a non-independent session.
+#
+# A role carrying `variant_of` must match its base role's contract, authority
+# and capabilities EXACTLY, and must resolve to a different policy than the
+# base -- otherwise it is either a second name for the same thing or a way to
+# gain authority without saying so. Both are checker errors.

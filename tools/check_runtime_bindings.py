@@ -24,10 +24,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from orchestration.role_registry import (  # noqa: E402
     ROLES_PATH, check, expected_tools, load_policies, load_roles,
-    parse_frontmatter, role_spec)
+    parse_frontmatter, role_effort, role_spec)
 
 __all__ = ["ROLES_PATH", "check", "expected_tools", "load_policies",
-           "load_roles", "parse_frontmatter", "role_spec"]
+           "load_roles", "parse_frontmatter", "role_effort", "role_spec"]
 
 
 def main() -> int:
@@ -40,8 +40,13 @@ def main() -> int:
 
     if args.list:
         runtimes = sorted({r for cap in roles_doc["capabilities"].values() for r in cap})
+        policies_doc = load_policies()
         for role, spec in roles_doc["roles"].items():
-            print(f"\n{role}  policy={spec['default_policy']}")
+            effort = role_effort(roles_doc, policies_doc, role)
+            variant = spec.get("variant_of")
+            variant_note = f"  variant_of={variant}" if variant else ""
+            print(f"\n{role}  policy={spec['default_policy']}  "
+                  f"effort={effort}{variant_note}")
             for runtime in runtimes:
                 tools = expected_tools(roles_doc, role, runtime)
                 binding = (spec.get("runtime_bindings") or {}).get(runtime, "-")

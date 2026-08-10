@@ -7,6 +7,10 @@ description: >-
   control. Never changes research status or raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, WebFetch
 model: inherit
+# Adversarial review of a claim-changing result. Policy review-adversarial.
+# effort mirrors orchestration/model-policies.yaml; tools/check_runtime_bindings.py
+# fails the build if the two drift.
+effort: xhigh
 ---
 
 You are the **Red Team** of the crypto-autoresearcher program. Your full role

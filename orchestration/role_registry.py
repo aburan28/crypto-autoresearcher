@@ -29,6 +29,47 @@ def load_policies(path: Path = POLICIES_PATH) -> dict[str, Any]:
         return yaml.safe_load(handle)
 
 
+def runtime_effort_field(roles_doc: dict[str, Any], runtime: str) -> str | None:
+    """Frontmatter key `runtime` uses for reasoning effort, or None.
+
+    None means the runtime's agent format cannot carry effort, so the number is
+    applied process-level by `python -m orchestration.adapter env` instead. That
+    is a real answer: it is why this check exists for Claude Code and not for
+    the Codex CLI, whose role files reject unknown keys.
+    """
+    mapping = (roles_doc.get("runtime_reasoning_effort") or {}).get(runtime)
+    return (mapping or {}).get("frontmatter_field")
+
+
+def runtime_effort_levels(roles_doc: dict[str, Any], runtime: str) -> list[str]:
+    mapping = (roles_doc.get("runtime_reasoning_effort") or {}).get(runtime)
+    return list((mapping or {}).get("levels") or [])
+
+
+def resolved_effort(policies_doc: dict[str, Any], policy_id: str) -> str | None:
+    """The effort a policy actually REQUESTS per call.
+
+    `reasoning_effort` when stated, otherwise the `requires.reasoning_effort`
+    floor -- the same defaulting `model-policies.yaml` documents, kept in one
+    place so a binding and the adapter cannot disagree about what a policy asks
+    for.
+    """
+    policy = (policies_doc.get("policies") or {}).get(policy_id)
+    if policy is None:
+        return None
+    effort = policy.get("reasoning_effort")
+    if effort is None:
+        effort = (policy.get("requires") or {}).get("reasoning_effort")
+    return effort
+
+
+def role_effort(roles_doc: dict[str, Any], policies_doc: dict[str, Any],
+                role: str) -> str | None:
+    """Effort a role's default policy asks for."""
+    return resolved_effort(policies_doc,
+                           role_spec(roles_doc, role).get("default_policy"))
+
+
 def role_spec(roles_doc: dict[str, Any], role: str) -> dict[str, Any]:
     try:
         return roles_doc["roles"][role]
@@ -219,6 +260,7 @@ def check(roles_doc: dict[str, Any],
 
         if policies_doc is not None:
             problems.extend(_check_policy(role, spec, policies_doc))
+            problems.extend(_check_variant(roles_doc, role, spec, policies_doc))
 
         for runtime, binding_path in (spec.get("runtime_bindings") or {}).items():
             path = REPO / binding_path
@@ -255,6 +297,101 @@ def check(roles_doc: dict[str, Any],
                     f"{role}/{runtime}: granted tools do not match the "
                     f"capabilities in roles.yaml, which imply "
                     f"{sorted(wanted)} ({detail})")
+            if policies_doc is not None:
+                problems.extend(_check_effort(roles_doc, policies_doc, role,
+                                              spec, runtime, path))
+    return problems
+
+
+def _check_effort(roles_doc: dict[str, Any], policies_doc: dict[str, Any],
+                  role: str, spec: dict[str, Any], runtime: str,
+                  path: Path) -> list[str]:
+    """A binding that can state effort must state the one its policy asks for.
+
+    Effort is the dominant cost and latency term in this program and it is
+    calibrated per policy for stated reasons. A binding free to carry its own
+    number is a second answer to a question the policy layer already answers,
+    and the failure is silent in both directions: a review that quietly thinks
+    less than its policy requires still returns a signed-off verdict.
+    """
+    field = runtime_effort_field(roles_doc, runtime)
+    if field is None:
+        return []      # runtime resolves effort process-level; nothing to check
+    policy_id = spec.get("default_policy")
+    wanted = resolved_effort(policies_doc, policy_id)
+    if wanted is None:
+        return [f"{role}/{runtime}: policy {policy_id!r} states no reasoning "
+                f"effort, so the binding's {field!r} cannot be checked"]
+    try:
+        frontmatter = parse_frontmatter(path)
+    except ValueError as exc:
+        return [f"{role}/{runtime}: {exc}"]
+
+    problems: list[str] = []
+    declared = frontmatter.get(field)
+    if declared is None:
+        problems.append(
+            f"{role}/{runtime}: binding states no {field!r}; policy "
+            f"{policy_id} asks for {wanted!r}")
+    elif str(declared) != str(wanted):
+        problems.append(
+            f"{role}/{runtime}: binding states {field}={declared!r} but policy "
+            f"{policy_id} asks for {wanted!r}")
+
+    levels = runtime_effort_levels(roles_doc, runtime)
+    if declared is not None and levels and str(declared) not in levels:
+        problems.append(
+            f"{role}/{runtime}: {field}={declared!r} is not one of {levels}")
+
+    # The model stays the policy layer's answer even now that effort is not.
+    model = frontmatter.get("model")
+    if model is not None and str(model) != "inherit":
+        problems.append(
+            f"{role}/{runtime}: binding names model {model!r}; a binding may "
+            f"carry effort but never a model identifier -- use "
+            f"`model: inherit` and resolve the model through the adapter")
+    return problems
+
+
+def _check_variant(roles_doc: dict[str, Any], role: str, spec: dict[str, Any],
+                   policies_doc: dict[str, Any]) -> list[str]:
+    """A policy-tier variant may change how hard a role thinks, and nothing else.
+
+    Without this, `variant_of` is a way to mint a role with the same familiar
+    name and quietly different authority. The only difference a variant is
+    allowed to carry is its policy -- and it must carry one, or it is a second
+    name for a role that already exists.
+    """
+    base_role = spec.get("variant_of")
+    if base_role is None:
+        return []
+    base = (roles_doc.get("roles") or {}).get(base_role)
+    if base is None:
+        return [f"{role}: variant_of names unknown role {base_role!r}"]
+
+    problems: list[str] = []
+    if spec.get("contract") != base.get("contract"):
+        problems.append(
+            f"{role}: variant of {base_role} must share its contract "
+            f"({base.get('contract')}), not {spec.get('contract')}")
+    if spec.get("authority") != base.get("authority"):
+        problems.append(
+            f"{role}: variant of {base_role} declares different authority; a "
+            f"variant may differ only in policy tier")
+    if sorted(spec.get("capabilities") or []) != sorted(
+            base.get("capabilities") or []):
+        problems.append(
+            f"{role}: variant of {base_role} declares different capabilities; "
+            f"a variant may differ only in policy tier")
+    if spec.get("default_policy") == base.get("default_policy"):
+        problems.append(
+            f"{role}: variant of {base_role} resolves to the same policy "
+            f"({base.get('default_policy')}), so it is a duplicate rather than "
+            f"a tier")
+    if spec.get("variant_of") and base.get("variant_of"):
+        problems.append(
+            f"{role}: variant of {base_role}, which is itself a variant; "
+            f"tiers hang off a base role, never off each other")
     return problems
 
 

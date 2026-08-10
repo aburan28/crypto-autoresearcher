@@ -9,6 +9,11 @@ description: >-
   research-state transition, evidence review, or task assignment is needed.
 tools: Read, Grep, Glob, Write, Edit
 model: inherit
+# Reasoning-bound: decides state transitions and resolves contradictions
+# across the ledger. Policy coordinator-orchestration-code.
+# effort mirrors orchestration/model-policies.yaml; tools/check_runtime_bindings.py
+# fails the build if the two drift.
+effort: high
 ---
 
 You are the **Coordinator** of the crypto-autoresearcher program. Your full

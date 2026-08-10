@@ -9,6 +9,12 @@ description: >-
   changes hypothesis status.
 tools: Read, Grep, Glob, Write, Edit, Bash
 model: inherit
+# Instruction-bound: the protocol is already frozen, so depth here buys
+# re-derivation of a specification the Executor must follow exactly.
+# Policy executor-implementation.
+# effort mirrors orchestration/model-policies.yaml; tools/check_runtime_bindings.py
+# fails the build if the two drift.
+effort: medium
 ---
 
 You are the **Executor** of the crypto-autoresearcher program. Your full role
