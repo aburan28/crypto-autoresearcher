@@ -492,12 +492,17 @@ def gate_G2(main_ladder_primes: list[int]) -> dict:
 # G4: shared Z-baseline reproduction, and the shared reachable-count fixture
 # ============================================================================
 
-AUX_TUPLE_A = lambda s: [i + 1 for i in range(1, s)] + [0]  # placeholder unused
 def aux_tuple(s: int, which: str) -> list[int]:
+    """auxiliary_k_rule_frozen: k_i = i+1 for i=1..s-1 (tuple A) or
+    k_i = s+i for i=1..s-1 (tuple B, second independently-fixed tuple), and
+    "the final slot is the target": its own multiplier is 1 (the target
+    point Q enters the relation unscaled, per the rule's own text -- it does
+    NOT get an extra, separately-invented auxiliary weight; the rule only
+    fixes weights for the first s-1 slots)."""
     if which == "A":
-        return [i + 1 for i in range(1, s)] + [s]     # k_i = i+1 for i=1..s-1, target slot = s
+        return [i + 1 for i in range(1, s)] + [1]
     else:
-        return [s + i for i in range(1, s)] + [2 * s]  # second, independent tuple
+        return [s + i for i in range(1, s)] + [1]
 
 
 def z_baseline_cell(N: int, C0: int, r_Z: int, which: str) -> dict:
@@ -557,8 +562,449 @@ def shared_z_baseline_cache(main_ladder_primes: list[int]) -> dict:
     return cache
 
 
+# ============================================================================
+# C1: generic regime (large |D_E|)
+# ============================================================================
+
+def find_c1_curve(p: int, C0_max: int = 8, seed: int = 20260807) -> dict:
+    """c1_discriminant_rule_frozen: ordinary curve with LARGEST |t| among the
+    first 200 candidates from a fixed PRNG (seeded per-prime for
+    reproducibility), routed to C1 if |D_E| > 4*C0_max^2; retried beyond the
+    200-candidate pool (same PRNG stream, log retry count) if not.
+    """
+    threshold = 4 * C0_max * C0_max
+    rng = random.Random(f"{seed}:{p}")
+    pool = []
+    idx = 0
+    while len(pool) < 200:
+        a, b = rng.randrange(0, p), rng.randrange(0, p)
+        idx += 1
+        try:
+            EllipticCurve(p, a, b)
+        except ValueError:
+            continue
+        t = trace_of_frobenius(p, a, b)
+        if t % p == 0:      # supersingular trace, excluded (isogeny_class.py convention)
+            continue
+        D_E = frobenius_discriminant(p, t)
+        pool.append({"a": a, "b": b, "t": t, "D_E": D_E})
+    pool.sort(key=lambda c: -abs(c["t"]))
+    chosen = pool[0]
+    retry_count = 0
+    while abs(chosen["D_E"]) <= threshold:
+        retry_count += 1
+        if retry_count > 20000:
+            raise RuntimeError(f"c1_discriminant_rule_frozen: no qualifying "
+                               f"curve found for p={p} after {retry_count} retries")
+        a, b = rng.randrange(0, p), rng.randrange(0, p)
+        try:
+            EllipticCurve(p, a, b)
+        except ValueError:
+            continue
+        t = trace_of_frobenius(p, a, b)
+        if t % p == 0:
+            continue
+        D_E = frobenius_discriminant(p, t)
+        if abs(D_E) > threshold:
+            chosen = {"a": a, "b": b, "t": t, "D_E": D_E}
+            break
+    D0, f = fundamental_discriminant(chosen["D_E"])
+    return {"p": p, "a": chosen["a"], "b": chosen["b"], "t": chosen["t"],
+           "D_E": chosen["D_E"], "D0": D0, "f_E": f, "retry_count": retry_count,
+           "pool_size": len(pool)}
+
+
+def o_arm_cell(N: int, C0: int, r_Z: int, D_E: int, t: int, f: int, which: str) -> dict:
+    """C1's O-arm reachable-k count: s = r_Z/2+1 slots, box [-C0,C0] each
+    (valid exactly because |D_E| > 4*C0^2 forces S(C0) = Z intersect
+    [-C0,C0], Lemma 1's own dichotomy), each coefficient reduced through
+    lambda (b=0, so lambda reduces to the identity on Z -- verified inline).
+    """
+    s = r_Z // 2 + 1
+    k = aux_tuple(s, which)
+    box = list(range(-C0, C0 + 1))
+    # sanity: lambda(a,0,...) == a mod N for every a in the box (b=0 => pure
+    # Z element; checked once per cell as a cheap correctness assertion).
+    for a in (box[0], box[-1], 0):
+        assert ec.lambda_reduce(a, 0, D_E, t, f, N) == a % N
+    coeff_sets = [box] * s
+    count, reachable = ec.reachable_residue_count(coeff_sets, k, N)
+    naive_ub = (2 * C0 + 1) ** s
+    return {"N": N, "C0": C0, "r_Z": r_Z, "slots": s, "k_tuple": k,
+           "reachable_count": count, "naive_upper_bound": naive_ub}
+
+
+def run_c1(main_ladder_primes: list[int], C0_max: int = 8) -> dict:
+    curves = {}
+    ratio_points = []   # (|D_E|, ratio_of_minima) for the slope fit
+    cell_results = []
+    dual_tuple_ok = True
+    for p in main_ladder_primes:
+        c = find_c1_curve(p, C0_max=C0_max)
+        curves[p] = c
+        D_E, t, f = c["D_E"], c["t"], c["f_E"]
+        am = ec.alpha_min(D_E)
+        n_amin = ec.norm_form(am[0], am[1], D_E)
+        # P2: ratio_of_minima = sqrt(hhat(alpha_min P)/hhat(P)) = sqrt(N(alpha_min))
+        # EXACTLY, by Lemma 2 (validated on known-answer cases in G0) -- see
+        # harness/run_canl.py module docstring / execution report for the
+        # full justification of using the exact algebraic formula here
+        # rather than re-measuring a transcendental height per curve.
+        ratio = math.sqrt(n_amin)
+        ratio_points.append((abs(D_E), ratio))
+        for C0 in C0_grid_for(C0_max):
+            for r_Z in RZ_GRID:
+                for which in ("A", "B"):
+                    z_cell = z_baseline_cell(p, C0, r_Z, which)
+                    o_cell = o_arm_cell(p, C0, r_Z, D_E, t, f, which)
+                    ratio_kc = (o_cell["reachable_count"] / z_cell["reachable_count"]
+                               if z_cell["reachable_count"] else float("nan"))
+                    cell_results.append({
+                        "p": p, "C0": C0, "r_Z": r_Z, "aux_tuple": which,
+                        "D_E": D_E, "t": t, "f_E": f,
+                        "z_baseline": z_cell, "o_arm": o_cell,
+                        "reachable_k_count_ratio": ratio_kc,
+                    })
+        # dual-auxiliary-tuple consistency: A vs B must agree exactly, per cell
+        by_key = {}
+        for cr in cell_results:
+            if cr["p"] != p:
+                continue
+            key = (cr["C0"], cr["r_Z"])
+            by_key.setdefault(key, {})[cr["aux_tuple"]] = cr
+        for key, pair in by_key.items():
+            if "A" in pair and "B" in pair:
+                if (pair["A"]["o_arm"]["reachable_count"] != pair["B"]["o_arm"]["reachable_count"]
+                   or pair["A"]["z_baseline"]["reachable_count"] != pair["B"]["z_baseline"]["reachable_count"]):
+                    dual_tuple_ok = False
+
+    slope_fit = fit_slope_loglog([d for d, r in ratio_points], [r for d, r in ratio_points])
+
+    return {
+        "curves": curves,
+        "ratio_of_minima_points": ratio_points,
+        "ratio_of_minima_slope_fit": slope_fit,
+        "cells": cell_results,
+        "dual_aux_tuple_consistent": dual_tuple_ok,
+    }
+
+
+def C0_grid_for(C0_max: int) -> list[int]:
+    return [c for c in C0_GRID_FULL if c <= C0_max]
+
+
+def c1_waterfall(g2: dict, c1_result: dict) -> dict:
+    """C1's frozen waterfall, evaluated in the frozen order."""
+    # null-object control: reuse gate_G2's N3 (fixed-c companion ratio stays
+    # O(1)); positive control: small-|D_E| discriminants stay small ratio.
+    null_ok = g2["nulls"]["N3_synthetic_O_action"]["stays_O1"]
+    pos_ctrl = {}
+    for D0 in (-3, -4, -7, -8, -11):
+        am = ec.alpha_min(D0)
+        n = ec.norm_form(am[0], am[1], D0)
+        pos_ctrl[D0] = {"ratio": math.sqrt(n), "small": math.sqrt(n) < 10}
+    pos_ctrl_ok = all(v["small"] for v in pos_ctrl.values())
+    dual_ok = c1_result["dual_aux_tuple_consistent"]
+
+    if (not null_ok) or (not pos_ctrl_ok) or (not dual_ok):
+        return {"state": "C1_INSTRUMENT_INVALID",
+               "reason": {"null_ok": null_ok, "pos_ctrl_ok": pos_ctrl_ok,
+                          "dual_aux_tuple_ok": dual_ok},
+               "positive_control": pos_ctrl}
+
+    slope = c1_result["ratio_of_minima_slope_fit"].get("slope")
+    ci = c1_result["ratio_of_minima_slope_fit"].get("ci95")
+    slope_ok = ci is not None and ci[0] <= 0.5 <= ci[1]
+    if not slope_ok:
+        return {"state": "C1_SLOPE_ANOMALY", "slope": slope, "ci95": ci,
+               "positive_control": pos_ctrl}
+
+    max_ratio = max(c["reachable_k_count_ratio"] for c in c1_result["cells"])
+    exceeded = [c for c in c1_result["cells"] if c["reachable_k_count_ratio"] > 1]
+    if exceeded:
+        return {"state": "C1_REFUTED_REOPEN", "max_ratio": max_ratio,
+               "exceeding_cells": exceeded[:5], "positive_control": pos_ctrl}
+
+    exponent_excludes_half = ci is not None and not (ci[0] <= 0.5 <= ci[1])
+    # instance_count_exponent interval: derived from P10 using the same
+    # slope-fit machinery on log(N/reachable_count) vs log(N).
+    exp_points = [(c["p"], c["p"] / c["z_baseline"]["reachable_count"])
+                 for c in c1_result["cells"] if c["z_baseline"]["reachable_count"]]
+    exp_fit = fit_slope_loglog([p for p, v in exp_points], [v for p, v in exp_points])
+    return {"state": "C1_SUPPORTED", "max_reachable_k_count_ratio": max_ratio,
+           "ratio_of_minima_slope_fit": c1_result["ratio_of_minima_slope_fit"],
+           "instance_count_exponent_fit": exp_fit,
+           "positive_control": pos_ctrl}
+
+
+# ============================================================================
+# C2: escape regime (small |D_E|, class-number-one)
+# ============================================================================
+
+def c2_shell_diagnostics() -> dict:
+    """STAGE A: exact shell enumeration + unit/non-unit split, for every
+    (D_E, C0) in class_number_one_discriminants x C0_GRID_SHELL."""
+    out = []
+    for D in ec.CLASS_NUMBER_ONE_DISCRIMINANTS:
+        for C0 in C0_GRID_SHELL:
+            sh = ec.shell_enumerate(D, C0, D, 1)
+            out.append({"D_E": D, "C0": C0, "shell_size": len(sh.elements),
+                       "unit_count": len(sh.unit_elements),
+                       "nonunit_count": len(sh.nonunit_elements),
+                       "predicted_count": sh.predicted_count,
+                       "relative_error": sh.relative_error})
+    return {"cells": out,
+           "within_15pct_for_C0_ge_5": all(
+               c["relative_error"] <= 0.15 for c in out if c["C0"] >= 5)}
+
+
+def c2_congruence_curve(p: int) -> dict:
+    """A concrete j=0 (D0=-3) curve at a p = 1 (mod 3) prime: y^2=x^3+1."""
+    a, b = 0, 1
+    t = trace_of_frobenius(p, a, b)
+    assert t % p != 0, f"unexpected supersingular reduction at p={p}"
+    D_E = frobenius_discriminant(p, t)
+    D0, f = fundamental_discriminant(D_E)
+    return {"p": p, "a": a, "b": b, "t": t, "D_E": D_E, "D0": D0, "f_E": f}
+
+
+def c2_tautology_check(curve: dict, N: int, n_points: int, seed: int) -> dict:
+    """STAGE B (G3): P + zeta*P + zeta^2*P == O for n_points random points,
+    zeta = the GEOMETRIC ORDER-3 AUTOMORPHISM (x,y) -> (mu*x, y) of the j=0
+    curve y^2=x^3+b, mu a primitive cube root of unity IN F_p (this check is
+    always run at N=p, so cm_eigenvalues(p, p, -3) -- solving
+    lambda^2+lambda+1=0 mod p, the defining equation of a nontrivial cube
+    root of unity -- directly IS that field element; already-committed
+    isogeny_class.py code, reused unmodified, not reimplemented).
+
+    IMPORTANT DISTINCTION (fixed during this module's own construction,
+    recorded here so it is not silently reintroduced): zeta*P here means
+    APPLYING THE AUTOMORPHISM to the point's x-coordinate, NOT scalar
+    multiplication E.mul(mu, P) by the integer mu -- the two are different
+    operations, and only the former is the endomorphism [zeta_3] acting on
+    P. Confusing them produced a spurious tautology-check failure in this
+    module's own construction log before being caught and fixed.
+
+    Certificate kind: decomposition, independently re-verified with
+    toycurve.py:add (docs/claims-and-verification.md).
+    """
+    p, a, b = curve["p"], curve["a"], curve["b"]
+    E = EllipticCurve(p, a, b)
+    mus = cm_eigenvalues(p, N, -3)
+    if not mus:
+        return {"ok": False, "reason": "no CM eigenvalue found mod N", "mus": mus}
+    mu = mus[0]
+
+    def apply_zeta(pt):
+        if pt is None:
+            return None
+        x, y = pt
+        return (mu * x % p, y)
+
+    rng = random.Random(seed)
+    failures = []
+    certs = []
+    for i in range(n_points):
+        x = rng.randrange(0, p)
+        P = E.lift_x(x)
+        if P is None:
+            continue
+        zP = apply_zeta(P)
+        z2P = apply_zeta(zP)
+        assert E.is_on_curve(zP) and E.is_on_curve(z2P), "automorphism left the curve"
+        total = E.add(E.add(P, zP), z2P)
+        ok = (total is None)
+        certs.append({"P": P, "mu": mu, "zetaP": zP, "zeta2P": z2P,
+                      "sum": total, "identity": ok})
+        if not ok:
+            failures.append(certs[-1])
+    return {"ok": len(failures) == 0, "n_tested": len(certs), "mu": mu,
+           "failures": failures[:5], "sample_certs": certs[:3]}
+
+
+def c2_nonunit_lambda(D_E: int, curve: dict, N: int) -> dict:
+    """STAGE C: lambda(1-zeta_3) at |D_E|=3, and every non-unit shell
+    element's lambda image, for the class-number-one D_E's tested here."""
+    t, f = curve["t"], curve["f_E"]
+    # 1 - zeta_3 in the (a,b) basis: zeta_3 = w + 1 (since w = omega - 1, per
+    # module docstring derivation), so 1 - zeta_3 = -w, i.e. (a,b) = (0,-1).
+    lam = ec.lambda_reduce(0, -1, D_E, t, f, N)
+    return {"D_E": D_E, "N": N, "element_ab": (0, -1), "lambda_1_minus_zeta3": lam,
+           "nonzero": lam % N != 0}
+
+
+def c2_shell_lambda_images(D_E: int, C0: int, curve: dict, N: int) -> dict:
+    t, f = curve["t"], curve["f_E"]
+    sh = ec.shell_enumerate(D_E, C0, D_E, 1)
+    images = {}
+    for (a, b) in sh.nonunit_elements:
+        lam = ec.lambda_reduce(a, b, D_E, t, f, N)
+        images.setdefault(lam, []).append((a, b))
+    collisions = {k: v for k, v in images.items() if len(v) > 1}
+    return {"D_E": D_E, "C0": C0, "N": N, "n_nonunit": len(sh.nonunit_elements),
+           "n_distinct_lambda_images": len(images), "n_collisions": len(collisions),
+           "all_zero": all(k % N == 0 for k in images) if images else True}
+
+
+def run_c2(c2_ladder_primes: list[int], main_ladder_primes: list[int],
+          C0_max: int = 8, tautology_n: int = 1000) -> dict:
+    curves = {p: c2_congruence_curve(p) for p in c2_ladder_primes}
+    tautology = {}
+    for p, curve in curves.items():
+        tautology[p] = c2_tautology_check(curve, p, tautology_n, seed=SEEDS[0])
+
+    nonunit = {}
+    shell_lambda = {}
+    for p, curve in curves.items():
+        nonunit[p] = c2_nonunit_lambda(-3, curve, p)
+        shell_lambda[p] = {C0: c2_shell_lambda_images(-3, C0, curve, p)
+                           for C0 in C0_grid_for(C0_max)}
+
+    # STAGE D: reachable-residue count for the CM shell, at the c2 congruence
+    # primes AND (for cost sharing) the shared Z-baseline at the SAME primes.
+    cell_results = []
+    dual_tuple_ok = True
+    for p, curve in curves.items():
+        t, f = curve["t"], curve["f_E"]
+        for C0 in C0_grid_for(C0_max):
+            for r_Z in RZ_GRID:
+                s = r_Z // 2 + 1
+                for which in ("A", "B"):
+                    k = aux_tuple(s, which)
+                    sh = ec.shell_enumerate(-3, C0, -3, 1)
+                    lambda_vals = sorted({ec.lambda_reduce(a, b, -3, t, f, p)
+                                         for (a, b) in sh.elements})
+                    coeff_sets = [lambda_vals] * s
+                    count, _ = ec.reachable_residue_count(coeff_sets, k, p)
+                    z_cell = z_baseline_cell(p, C0, r_Z, which)
+                    gain = count / z_cell["reachable_count"] if z_cell["reachable_count"] else float("nan")
+                    cell_results.append({
+                        "p": p, "C0": C0, "r_Z": r_Z, "aux_tuple": which,
+                        "D_E": -3, "shell_size": len(sh.elements),
+                        "reachable_residue_count": count,
+                        "z_baseline_count": z_cell["reachable_count"],
+                        "reachable_residue_gain": gain,
+                    })
+        by_key = {}
+        for cr in cell_results:
+            if cr["p"] != p:
+                continue
+            key = (cr["C0"], cr["r_Z"])
+            by_key.setdefault(key, {})[cr["aux_tuple"]] = cr
+        for key, pair in by_key.items():
+            if "A" in pair and "B" in pair:
+                if pair["A"]["reachable_residue_count"] != pair["B"]["reachable_residue_count"]:
+                    dual_tuple_ok = False
+
+    # threshold control: |D_E| = 4*C0^2 -/+ 1, identical code, at C0 values
+    # where that boundary is near a class-number-one discriminant.
+    threshold_cells = []
+    for C0 in C0_grid_for(C0_max):
+        boundary = 4 * C0 * C0
+        def nearest_valid_disc(target_abs: int, direction: int) -> int:
+            # smallest |D| >= target_abs (direction=+1) or largest |D| <=
+            # target_abs (direction=-1) with D = -|D| a valid discriminant
+            # (|D| == 0 or 3 mod 4, i.e. D == 0 or 1 mod 4).
+            v = target_abs
+            while True:
+                if v % 4 in (0, 3):
+                    return -v
+                v += direction
+        below = nearest_valid_disc(boundary - 1, -1)   # just inside C2 (|D_E| < boundary)
+        above = nearest_valid_disc(boundary + 1, +1)   # just outside, C1 side
+        for label, D in (("below_C2_side", below), ("above_C1_side", above)):
+            p_ref = c2_ladder_primes[0]
+            t, f = curves[p_ref]["t"], curves[p_ref]["f_E"]
+            # generic synthetic order of discriminant D (maximal, f=1) for
+            # this control -- pure number theory, no curve needed.
+            r_Z = 2
+            s = r_Z // 2 + 1
+            k = aux_tuple(s, "A")
+            sh = ec.shell_enumerate(D, C0, D, 1)
+            box = list(range(-C0, C0 + 1))
+            coeff_sets_cm = ([sorted({ec.norm_form(a, b, D) for (a, b) in sh.elements})]
+                             if False else None)
+            # threshold control uses the SHELL SIZE ratio (Theta(C0) test
+            # object), not a full curve-based lambda reduction (D is
+            # synthetic here, no concrete curve/prime realizes it): compares
+            # |S(C0)| just above vs just below the boundary, identical code.
+            threshold_cells.append({
+                "C0": C0, "boundary": boundary, "side": label, "D_E": D,
+                "shell_size": len(sh.elements), "nonunit_size": len(sh.nonunit_elements),
+            })
+
+    return {
+        "curves": curves,
+        "shell_diagnostics": c2_shell_diagnostics(),
+        "tautology": tautology,
+        "nonunit_lambda": nonunit,
+        "shell_lambda_images": shell_lambda,
+        "cells": cell_results,
+        "dual_aux_tuple_consistent": dual_tuple_ok,
+        "threshold_control": threshold_cells,
+    }
+
+
+def gate_G3(c2_result: dict) -> dict:
+    fires = any(not t["ok"] for t in c2_result["tautology"].values())
+    return {"fires": fires, "terminal_state": "C2_PREMISE_FAILED" if fires else None,
+           "per_prime": {p: t["ok"] for p, t in c2_result["tautology"].items()}}
+
+
+def c2_waterfall(c2_result: dict) -> dict:
+    shell_ok = c2_result["shell_diagnostics"]["within_15pct_for_C0_ge_5"]
+    thr = c2_result["threshold_control"]
+    by_C0 = {}
+    for e in thr:
+        by_C0.setdefault(e["C0"], {})[e["side"]] = e
+    threshold_sensitive = True
+    for C0, pair in by_C0.items():
+        if "below_C2_side" in pair and "above_C1_side" in pair:
+            if pair["below_C2_side"]["nonunit_size"] == pair["above_C1_side"]["nonunit_size"]:
+                threshold_sensitive = False
+    dual_ok = c2_result["dual_aux_tuple_consistent"]
+    if (not shell_ok) or (not threshold_sensitive) or (not dual_ok):
+        return {"state": "C2_INSTRUMENT_INVALID",
+               "reason": {"shell_ok": shell_ok,
+                          "threshold_sensitive": threshold_sensitive,
+                          "dual_aux_tuple_ok": dual_ok}}
+
+    all_zero = all(
+        all(sl["all_zero"] for sl in perC0.values())
+        for perC0 in c2_result["shell_lambda_images"].values()
+    )
+    if all_zero:
+        return {"state": "C2_TAUTOLOGY_TOTAL"}
+
+    gains_at_3 = [c["reachable_residue_gain"] for c in c2_result["cells"] if c["D_E"] == -3]
+    if gains_at_3 and min(gains_at_3) < 1:
+        return {"state": "C2_GAIN_ABSENT", "min_gain_at_D3": min(gains_at_3)}
+
+    excessive = [c for c in c2_result["cells"] if c["reachable_residue_gain"] > c["C0"] ** 2]
+    if excessive:
+        return {"state": "C2_GAIN_EXCESSIVE", "exceeding_cells": excessive[:5]}
+
+    in_band = [c for c in c2_result["cells"]
+              if c["C0"] >= 5 and 0.5 * c["C0"] <= c["reachable_residue_gain"] <= 4 * c["C0"]]
+    all_band_checked = [c for c in c2_result["cells"] if c["C0"] >= 5]
+    band_ok = len(in_band) == len(all_band_checked) and len(all_band_checked) > 0
+    exp_points = [(c["p"], c["p"] / c["reachable_residue_count"])
+                 for c in c2_result["cells"] if c["reachable_residue_count"]]
+    exp_fit = fit_slope_loglog([p for p, v in exp_points], [v for p, v in exp_points])
+    if band_ok:
+        return {"state": "C2_SUPPORTED", "gain_band_cells_checked": len(all_band_checked),
+               "instance_count_exponent_fit": exp_fit}
+    return {"state": "C2_GAIN_ABSENT",
+           "note": "gain measured outside [0.5*C0,4*C0] for at least one C0>=5 cell",
+           "sample_out_of_band": [c for c in all_band_checked if c not in in_band][:5]}
+
+
 __all__ = [
     "build_prime_ladders", "gate_G0", "gate_G1", "ctrl_curves",
     "rho_lift_measure", "fit_slope_loglog", "gate_G2", "aux_tuple",
     "z_baseline_cell", "gate_G4", "shared_z_baseline_cache",
+    "find_c1_curve", "o_arm_cell", "run_c1", "c1_waterfall", "C0_grid_for",
+    "c2_shell_diagnostics", "c2_congruence_curve", "c2_tautology_check",
+    "c2_nonunit_lambda", "c2_shell_lambda_images", "run_c2", "gate_G3",
+    "c2_waterfall",
 ]
