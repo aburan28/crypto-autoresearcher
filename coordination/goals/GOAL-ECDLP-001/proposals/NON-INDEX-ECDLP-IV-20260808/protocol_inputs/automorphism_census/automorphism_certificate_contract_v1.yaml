@@ -1,0 +1,227 @@
+schema: crypto.autoresearch.ecdlp.automorphism_certificate.v1
+status: successor_input_draft_pending_independent_review
+contract_version: automorphism-certificate-v1
+purpose: >-
+  Define the exact, source-hash-bound certificate for an admitted prime-field
+  automorphism action and for the event-level effective orbit size m_eff used
+  by the Arm-A quotient-rho comparison. This is a conformance contract, not a
+  census, a discrete-log certificate, or an ECDLP result.
+source_binding:
+  required_paths:
+    - protocol_inputs/automorphism_census/instance_manifest_v4.yaml
+    - protocol_inputs/automorphism_census/prime_stream_contract_v1.yaml
+    - protocol_inputs/automorphism_census/automorphism_certificate_contract_v1.yaml
+  bind_before: curve_coefficients_point_generation_and_rho
+  hash_algorithm: SHA-256
+  unspecified_map_or_root: refusal_before_full_walk
+field_and_curve:
+  characteristic: prime_p
+  required: p > 3
+  curve_model: y^2 = x^3 + a*x + b over F_p
+  coefficient_canonicalization: [a_mod_p, b_mod_p]
+  nonsingularity_check: (4*a^3 + 27*b^2) mod p != 0
+  j_invariant_formula: 1728*(4*a^3)*inverse_mod_p(4*a^3 + 27*b^2) mod p
+  family_predicates:
+    ordinary:
+      require: j_invariant not in [0, 1728]
+      admitted_action: negation_only
+    j0_unit:
+      require: [a == 0, b != 0, p mod 3 == 1]
+      admitted_action: order_3_generator_and_negation
+    j1728_unit:
+      require: [b == 0, a != 0, p mod 4 == 1]
+      admitted_action: order_4_generator
+  family_mismatch: refusal
+field_root_selection:
+  interval: [2, p - 1]
+  order: ascending_integer
+  zeta3:
+    predicate: z^3 mod p == 1 and z != 1
+    select: least_integer_satisfying_predicate
+    required_for: j0_unit
+  i4:
+    predicate: i^2 mod p == p - 1
+    select: least_integer_satisfying_predicate
+    required_for: j1728_unit
+  root_not_found: refusal
+point_encoding:
+  field_byte_width: ceil(field_bits / 8)
+  integer_encoding: unsigned_big_endian_fixed_width
+  infinity_encoding_hex: '00'
+  affine_encoding: '01 || x_bytes || y_bytes'
+  coordinate_range: 0 <= coordinate < p
+  ordering: bytewise_lexicographic
+  noncanonical_coordinate_or_encoding: invalid_receipt
+map_generators:
+  identity:
+    name: id
+    formula: (x, y) -> (x, y)
+    order: 1
+  negation:
+    name: neg
+    formula: (x, y) -> (x, -y mod p)
+    order: 2
+  j0_unit:
+    name: phi
+    formula: (x, y) -> (zeta3*x mod p, y)
+    curve_identity: (zeta3*x)^3 + b == x^3 + b mod p
+    order: 3
+    full_action_elements: [id, phi, phi2, neg, neg_phi, neg_phi2]
+    composition:
+      phi2: phi_after_phi
+      neg_phi: neg_after_phi
+      neg_phi2: neg_after_phi2
+  j1728_unit:
+    name: psi
+    formula: (x, y) -> (-x mod p, i4*y mod p)
+    curve_identity: (i4*y)^2 == (-x)^3 + a*(-x) mod p
+    order: 4
+    full_action_elements: [id, psi, psi2, psi3]
+    composition:
+      psi2: psi_after_psi
+      psi3: psi_after_psi_after_psi
+      psi2_equals_neg: required
+  ordinary:
+    name: neg
+    formula: (x, y) -> (x, -y mod p)
+    order: 2
+action_policy:
+  ordinary:
+    elements: [id]
+    admitted_action_order: 1
+  negation:
+    elements: [id, neg]
+    admitted_action_order: 2
+  full:
+    ordinary_elements: [id]
+    j0_unit_elements: [id, phi, phi2, neg, neg_phi, neg_phi2]
+    j1728_unit_elements: [id, psi, psi2, psi3]
+    select_by_declared_curve_family: true
+  no_implicit_extra_maps: true
+  map_order_or_element_mismatch: refusal
+certificate_checks:
+  curve_and_points:
+    - source_curve_digest_recomputed
+    - p_prime_and_field_bits_match_manifest
+    - coefficients_canonical_and_nonsingular
+    - P_and_Q_have_canonical_encodings
+    - P_and_Q_on_source_curve
+    - P_nonidentity
+    - N_subgroup_prime_and_exact
+    - N_subgroup_times_P_is_identity
+    - N_subgroup_times_Q_is_identity
+  generator:
+    - root_selection_recomputed
+    - generator_formula_recomputed
+    - every_generator_image_on_curve
+    - curve_identity_recomputed_symbolically_from_declared_formula
+    - generator_composition_table_recomputed
+    - declared_generator_order_holds_on_curve
+    - generator_order_holds_on_nonidentity_P
+    - map_P_and_map_Q_are_serialized
+  subgroup:
+    - N_subgroup_times_every_map_of_P_is_identity
+    - mapped_P_is_nonidentity
+    - action_is_closed_on_serialized_element_set
+    - no_discrete_log_or_secret_scalar_used
+  replay:
+    - fixed_point_replay_set_recomputed_from_source_hash
+    - map_addition_replay_checks_recomputed
+    - inverse_and_composition_replay_checks_recomputed
+  failure_policy: any_failed_check_is_refusal_or_invalid_receipt
+replay_fixture:
+  point_seed_message: source_instance_id || 0x1f || trial_index || 0x1f || automorphism_fixture
+  candidate_rank_encoding: unsigned_64_bit_big_endian
+  derive_candidates: sha256(root_digest_bytes || candidate_rank_bytes)
+  select_points: first_declared_count_of_distinct_nonidentity_curve_points
+  required_count: 8
+  no_secret_oracle: true
+  fixture_digest: sha256(canonical_utf8_jsonl_with_lf_endings)
+event_stabilizer:
+  state_domain: nonidentity_walk_state_R
+  image_order: declared_action_element_order
+  image_equality: canonical_point_encoding_byte_equality
+  stabilizer_definition: elements_whose_image_equals_R
+  required_fields:
+    - trial_index
+    - event_index
+    - state_digest
+    - action_policy
+    - action_element_names
+    - image_encodings
+    - stabilizer_element_names
+    - action_order
+    - stabilizer_size
+    - m_eff
+    - canonical_representative
+    - canonicalization_comparisons
+    - automorphism_evaluations
+  m_eff_formula: action_order / stabilizer_size
+  require_exact_integer: true
+  no_observed_collision_or_post_solve_choice: true
+  summary:
+    required: [event_count, minimum_m_eff, maximum_m_eff, frequency_table, frequency_table_digest]
+    frequency_table_order: ascending_m_eff
+canonicalization:
+  representative: minimum_bytewise_encoding_over_declared_action_images
+  tie_rule: first_declared_action_element_order
+  infinity_and_short_orbit_cases: serialize_all_images_and_stabilizer
+  omitted_image_or_comparison_cost: invalid_receipt
+certificate_transcript:
+  required_sections:
+    - source_binding
+    - curve_and_subgroup
+    - root_selection
+    - generator_maps
+    - composition_table
+    - replay_fixture
+    - event_stabilizer_rows
+    - cost_accounting
+    - refusal_or_acceptance
+  ordering: source_row_then_trial_then_event_then_action_element
+  digest: sha256(canonical_utf8_jsonl_with_lf_endings)
+  required_digest_fields:
+    - source_manifest_sha256
+    - instance_manifest_sha256
+    - prime_stream_contract_sha256
+    - automorphism_contract_sha256
+    - curve_digest
+    - certificate_digest
+    - replay_fixture_digest
+cost_accounting:
+  charge_every:
+    - root_candidate_check
+    - map_evaluation
+    - field_operation
+    - point_encoding
+    - canonicalization_comparison
+    - stabilizer_equality_check
+    - composition_replay
+    - certificate_serialization
+  fields:
+    - field_additions
+    - field_multiplications
+    - field_squarings
+    - field_inversions
+    - automorphism_evaluations
+    - canonicalization_comparisons
+    - certificate_replay_ops
+    - serialized_bytes
+  omitted_or_zeroed_cost: invalid_receipt
+conformance_controls:
+  - id: C-AUT-REPLAY
+    expected: independent replays produce byte-identical certificate and transcript digests
+  - id: C-AUT-ROOT-MUTATION
+    expected: selecting the other valid root changes root and certificate binding; no relabeling is allowed
+  - id: C-AUT-FAMILY-MUTATION
+    expected: changing declared family without changing curve predicates yields refusal
+  - id: C-AUT-ORDER
+    expected: altered composition or generator order yields refusal before rho
+  - id: C-AUT-NO-ORACLE
+    expected: source, verifier, and replay logs contain no secret scalar or DLP oracle call
+claim_boundary: >-
+  Passing this contract establishes only deterministic automorphism-map and
+  stabilizer-certificate reproducibility for the declared toy-scale source
+  instance. It does not establish action availability beyond the tested row,
+  an automorphism quotient speedup, an isogeny transfer, exponent movement,
+  or any ECDLP conclusion.

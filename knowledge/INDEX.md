@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-8009 entries.
+8021 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -62,6 +62,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-FIND-d1c853 | Wesolowski Heuristic-1 pairing rule — walk length vs smooth-norm pair count (unvalidated empirically) | internal_finding |  |  | wesolowski supersingular-isogeny heuristic-1 smooth-norm walk-length pairing-rule p13 unvalidated |
 | KN-FIND-d4f820 | H-PSEUDO empirical measurement — DL character sum constant C(p) ~ p^{0.055} at toy prime-field scale | internal_finding | preliminary_empirical |  | hpseudo character-sum fourier discrete-log semaev factor-base toy-scale scaling |
 | KN-FIND-e7a3b1 | H-PSEUDO proof approaches — all six standard analytic methods are closed; H-PSEUDO is a new open problem | internal_finding | proved_negative |  | hpseudo character-sum proof-attempts ddh bgs weil weyl michel-venkatesh open-problem |
+| KN-FIND-f38a89 | AM4-OBS-1 corrected and narrowed: its diagonal premise is refuted, its conclusion is subsumed by the projector-conjugacy argument OBS-GEN | internal_finding | derivation |  | am4-obs-1 obs-gen invariance lattice-observables gso-projector ml-kem instrument-design correction negative-result toy-scale |
 | KN-FIND-f8c290 | Semaev index calculus complexity is tight — achievable lower bound confirmed at toy scale | internal_finding | preliminary_empirical |  | semaev index-calculus achievability complexity-tight prime-field ecdlp toy-scale |
 | KN-FIND-ff4a46 | Wording repair for KN-FIND-9d2f56: align with corrected H-PSEUDO orientation | internal_finding | proved |  | betti-yield h-pseudo wording-repair kn-find-9d2f56 orientation-fix |
 | KN-LIT-001 | Summation polynomials and the discrete logarithm problem on elliptic curves | literature | reported | web | semaev summation-polynomial index-calculus point-decomposition ecdlp foundational |
@@ -3510,6 +3511,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-3998 | Fully Secure Accountable-Authority Identity-Based Encryption | literature | reported | read | quantum |
 | KN-LIT-3999 | Fully Secure Attribute-Based Encryption for t-CNF from LWE | literature | reported | read | lattice mpc provable-security quantum |
 | KN-LIT-3c87b9 | RACE: a Rapid ARM Cryptographic Engine for code-based Classic McEliece PQC scheme | literature | reported | web | classic-mceliece code-based implementation arm engine acceleration |
+| KN-LIT-3c9f21 | A distinguisher for high rate McEliece cryptosystems | literature | reported | web | code-based mceliece structural-attack distinguisher high-rate goppa algebraic-cryptanalysis foundational claim-class-corrected |
 | KN-LIT-3f2ee6 | Verifying Classic McEliece: examining the role of formal methods in post-quantum cryptography standardisation | literature | reported | web | classic-mceliece code-based implementation formal-verification formal-methods standardisation methodology |
 | KN-LIT-400 | On the class numbers of the fields of the pn-torsion points of certain elliptic curves over Q | literature | reported | read | abelian-variety class-group complexity-theory elliptic-curve number-theory provable-security |
 | KN-LIT-4000 | Fully Secure Functional Encryption for Inner Products, from Standard Assumptions | literature | reported | read | lattice pairing provable-security quantum rsa |
@@ -4622,6 +4624,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-4c8135 | Polynomial time key-recovery attack on high rate random alternant codes | literature | reported | web | code-based mceliece structural-attack key-recovery alternant-codes polynomial-time high-rate algebraic-cryptanalysis |
 | KN-LIT-4dadec | Module-Lattice-Based Digital Signature Standard (FIPS 204) | literature |  | partial | ml-dsa fips-204 dilithium lattice-signature nist-standard selfTargetMSIS msis |
 | KN-LIT-4f3b80 | A Single-Trace Side-Channel Attack on ML-DSA: Practical Full-Key Recovery from a Single Faulty Signature | literature |  | partial | ml-dsa fips-204 voltage-glitch single-trace fault-injection cortex-m4 hedged-signing |
+| KN-LIT-4fa25d | Classic McEliece: conservative code-based cryptography: what plaintext confirmation means | literature | reported | web | code-based mceliece plaintext-confirmation kem fujisaki-okamoto primary-source |
 | KN-LIT-500 | ELLIPTIC CURVES IN ISOGENY CLASSES | literature | reported | read | complexity-theory elliptic-curve isogeny pairing quantum |
 | KN-LIT-5000 | Multi-Key Homomorphic Authenticators | literature | reported | read | fhe lattice quantum |
 | KN-LIT-5001 | Multi-Key Homomorphic Signatures Unforgeable under Insider Corruption? | literature | reported | read | lattice mpc signature zk-proof |
@@ -6836,8 +6839,10 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-6999 | The Indifferentiability of the Duplex and its Practical Applications | literature | reported | read | hash mov-fr pairing provable-security symmetric |
 | KN-LIT-6a786b | The use of information sets in decoding cyclic codes | literature | reported | web | isd syndrome-decoding code-based mceliece prange foundational cyclic-codes |
 | KN-LIT-6ad1af | Classic McEliece hardware implementation with enhanced side-channel and fault resistance | literature | reported | web | classic-mceliece code-based implementation hardware side-channel-resistance fault-resistance countermeasure |
+| KN-LIT-6b1fc8 | Understanding the new distinguisher of alternant codes at degree 2 | literature | reported | web | code-based mceliece structural-attack distinguisher alternant-codes algebraic-cryptanalysis claim-class-corrected |
 | KN-LIT-6bdee9 | Side-channel attacks on the McEliece and Niederreiter public-key cryptosystems | literature | reported | web | side-channel code-based classic-mceliece implementation-attack niederreiter survey foundational countermeasures |
 | KN-LIT-6c6f5e | Verified non-recursive calculation of Beneš networks applied to Classic McEliece | literature | reported | web | classic-mceliece code-based implementation formal-verification benes-network permutation proof-assistant |
+| KN-LIT-6da230 | Classic McEliece: conservative code-based cryptography: guide for security reviewers | literature | reported | read | code-based mceliece isd security-categories memory-cost structural-attacks primary-source |
 | KN-LIT-6dcb5b | Verified fast formulas for control bits for permutation networks | literature | reported | false | classic-mceliece code-based implementation formal-verification permutation-network control-bits constant-time |
 | KN-LIT-6e1eb5 | A side-channel attack against Classic McEliece when loading the Goppa polynomial | literature | reported | web | side-channel code-based classic-mceliece implementation-attack goppa-polynomial key-loading power-analysis |
 | KN-LIT-700 | PRIME TORSION IN THE BRAUER GROUP OF AN ELLIPTIC CURVE | literature | reported | read | curve-arithmetic elliptic-curve hyperelliptic quantum |
@@ -7615,6 +7620,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-7c2620 | Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE | literature | unverified | web | ring-lwe module-lwe hybrid-attack decoding-attack sparse-secret ternary-secret fhe-parameters lattice-estimator concrete-security 128-bit-security bootstrapping-cost unread-primary-source rq-fhe-001 |
 | KN-LIT-7c4620 | A heuristic subexponential attack on the McEliece cryptosystem | literature | reported | web | code-based mceliece structural-attack key-recovery goppa subexponential heuristic algebraic-cryptanalysis |
 | KN-LIT-7c6f53 | Cryptanalysis of the original McEliece cryptosystem | literature | reported | web | isd syndrome-decoding code-based mceliece canteaut-chabaud cryptanalysis original-parameters record |
+| KN-LIT-7d2077 | Classic McEliece: conservative code-based cryptography: guide for implementors | literature | reported | web | code-based mceliece key-sizes implementation constant-time primary-source |
 | KN-LIT-7d6c98 | Profiled side-channel attack on cryptosystems based on the binary syndrome decoding problem | literature | reported | web | side-channel code-based classic-mceliece implementation-attack profiled-attack syndrome-decoding generic-attack |
 | KN-LIT-7ee1a9 | Understanding the new distinguisher of alternant codes at degree 2 | literature | reported | web | code-based mceliece structural-attack key-recovery distinguisher alternant-codes algebraic-cryptanalysis |
 | KN-LIT-800 | On the distribution of orders of Frobenius action on `-torsion of abelian surfaces | literature | reported | read | abelian-variety curve-arithmetic elliptic-curve endomorphism factoring finite-field |
@@ -7672,6 +7678,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-847 | Commitment Schemes from Supersingular Elliptic | literature | reported | read | dlp elliptic-curve endomorphism factoring hash isogeny lattice pqc protocol provable-security quantum sidh-csidh signature supersingular zk-proof |
 | KN-LIT-848 | Complete Analysis of Implementing Isogeny-based Cryptography using Huff Form of Elliptic Curves | literature | reported | read | curve-arithmetic dlp elliptic-curve endomorphism finite-field isogeny pairing pqc protocol quantum sidh-csidh signature supersingular |
 | KN-LIT-849 | Complete Practical Side-Channel-Assisted Reverse Engineering of AES-Like Ciphers | literature | reported | read | cryptanalysis pairing quantum side-channel symmetric |
+| KN-LIT-84b674 | Classic McEliece: conservative code-based cryptography: cryptosystem specification | literature | reported | web | code-based mceliece goppa niederreiter specification parameters kem primary-source |
 | KN-LIT-850 | CONGRUENCES BETWEEN RAMANUJAN’S TAU FUNCTION | literature | reported | read | elliptic-curve isogeny number-theory pairing provable-security |
 | KN-LIT-851 | CONSTANT TAMAGAWA NUMBERS OF SPECIAL ELLIPTIC CURVES | literature | reported | read | elliptic-curve finite-field isogeny number-theory |
 | KN-LIT-852 | Constructing Cubic Curves with Involutions | literature | reported | read | elliptic-curve lattice |
@@ -7833,6 +7840,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-999 | Local inversion of maps: A new attack on | literature | reported | read | binary-field cryptanalysis dlp ecdlp elliptic-curve finite-field rsa |
 | KN-LIT-a24b73 | Triple Cryptanalysis of Isogeny-Based VRFs from Asiacrypt 2025 | literature | reported | read | vrf isogeny cgl radical-isogenies cryptanalysis unique-provability |
 | KN-LIT-a409fc | New approaches to reduced complexity decoding | literature | reported | web | isd syndrome-decoding code-based mceliece complexity reduced-complexity-decoding historical |
+| KN-LIT-a4d70e | The syzygy distinguisher | literature | reported | web | code-based mceliece structural-attack distinguisher syzygy commutative-algebra alternant-codes algebraic-cryptanalysis claim-class-corrected |
 | KN-LIT-a58ca4 | How to lose some weight - a practical template syndrome decoding attack | literature | reported | web | side-channel code-based classic-mceliece implementation-attack template-attack syndrome-decoding practical isd |
 | KN-LIT-a740ab | Optimized implementation of encapsulation and decapsulation of Classic McEliece on ARMv8 | literature | reported | web | classic-mceliece code-based implementation arm armv8 encapsulation decapsulation |
 | KN-LIT-a85246 | Multi-instance security degradation of code-based KEMs | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security multi-target kem classic-mceliece bike hqc provable-security |
@@ -7859,6 +7867,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-bfef5d | Leveraging HLS to design a versatile & high-performance Classic McEliece accelerator | literature | reported | web | classic-mceliece code-based implementation hardware hls accelerator versatile |
 | KN-LIT-c0a19f | Modeling bit flipping decoding based on nonorthogonal check sums with application to iterative decoding attack of McEliece cryptosystem | literature | reported | web | code-based mceliece structural-attack key-recovery bit-flipping iterative-decoding ldpc attack-modelling |
 | KN-LIT-c2c4d0 | Reaction attacks against several public-key cryptosystems | literature | reported | false | cca kem provable-security code-based reaction-attack decoding-failure foundational attack |
+| KN-LIT-c41d8b | Polynomial time key-recovery attack on high rate random alternant codes (boundary corrected: generic alternant only, Goppa codes explicitly excluded) | literature | reported | transcription_of_full_text_at_recorded_sha256 | code-based mceliece structural-attack key-recovery alternant-codes generic-alternant goppa-exclusion polynomial-time high-rate small-field algebraic-cryptanalysis |
 | KN-LIT-c4974d | Analysis of backdoored (Classic) McEliece in a multi-user setting | literature | reported | web | side-channel code-based classic-mceliece implementation-attack backdoor multi-user key-generation subversion |
 | KN-LIT-caabe2 | Two decoding algorithms for linear codes | literature | reported | false | isd syndrome-decoding code-based mceliece dumer algorithm historical |
 | KN-LIT-cd29fd | Quantum sieving for code-based cryptanalysis and its limitations for ISD | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum sieving quantum-sieving negative-result cost-model |
@@ -7871,6 +7880,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-d5baac | Post-quantum WireGuard | literature | reported | web | classic-mceliece code-based implementation protocol wireguard vpn hybrid deployment |
 | KN-LIT-d6d510 | An attack on the CFS scheme and on TII McEliece challenges | literature | reported | web | code-based mceliece structural-attack key-recovery cfs signatures challenges algebraic-cryptanalysis |
 | KN-LIT-d78021 | AI for code-based cryptography | literature | reported | web | code-based mceliece structural-attack key-recovery machine-learning ai-for-cryptanalysis methodology |
+| KN-LIT-d82a53 | A note on the Goppa code distinguishing problem | literature | reported | web | code-based mceliece structural-attack goppa distinguisher indistinguishability claim-class-corrected |
 | KN-LIT-d962e5 | A safety-critical, RISC-V SoC integrated and ASIC-ready Classic McEliece accelerator | literature | reported | web | classic-mceliece code-based implementation hardware asic risc-v soc safety-critical |
 | KN-LIT-dd47da | Optimizing BJMM with nearest neighbors: full decoding in 2^{2n/21} and McEliece security | literature | reported | false | isd syndrome-decoding code-based mceliece concrete-security bjmm nearest-neighbor asymptotics mceliece-security |
 | KN-LIT-de5373 | Security analysis for BIKE, Classic McEliece and HQC against the quantum ISD algorithms | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security quantum classic-mceliece bike hqc nist-pqc |
@@ -7881,6 +7891,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-e530e8 | Side channels in the McEliece PKC | literature | reported | web | side-channel code-based classic-mceliece implementation-attack timing-attack foundational historical |
 | KN-LIT-e800e6 | A key-recovery side-channel attack on Classic McEliece implementations | literature | reported | web | side-channel code-based classic-mceliece implementation-attack key-recovery reference-implementation practical |
 | KN-LIT-e8eaf8 | A designer's guide to KEMs | literature | reported | web | cca kem provable-security code-based kem-design foundational methodology |
+| KN-LIT-eb2b9b | NIST IR 8545: Status Report on the Fourth Round of the NIST Post-Quantum Cryptography Standardization Process | literature | reported | web | pqc standardization nist mceliece bike hqc code-based primary-source |
 | KN-LIT-ef4327 | Concrete time/memory trade-offs in generalised Stern's ISD algorithm | literature | reported | web | isd syndrome-decoding code-based mceliece concrete-security stern time-memory-tradeoff concrete-security |
 | KN-LIT-f1073f | On breaking McEliece keys using brute force | literature | reported | web | code-based mceliece structural-attack key-recovery brute-force key-space goppa concrete-security |
 | KN-LIT-f1eb40 | Algebraic key-recovery side-channel attack on Classic McEliece | literature | reported | web | side-channel code-based classic-mceliece implementation-attack key-recovery algebraic profiling |
@@ -7925,6 +7936,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-OPEN-028 | What is the corrected cost of the nrd-PIP route against HAWK, now that Heuristic 4 has failed and 1-3 are verified? | open_problem | read | closed_all_questions_answered | hawk module-lip lattice-isomorphism-problem nrd-pip principal-ideal-problem quaternion lenstra-silverberg super-polynomial fractional-ideals heuristic retracted-claim pqc open lattice |
 | KN-OPEN-2c095b | Is the multiplicative-order deficit of a curve-derived lambda a fact about CM arithmetic, or a fact about small integers? | open_problem | unverified | open | ecdlp ordinary-curves cm endomorphism kernel-field multiplicative-order matched-null null-design heuristic-validation toy-scale open |
 | KN-OPEN-3f7a21 | Can this program's literature corpus support its own citation_verified markings, when 7457 of 7666 entries claim read against a downloads/ tree that has never existed in the repository? | open_problem | reported | open | corpus-integrity provenance citation-verified seeding novelty-screen knowledge-base meta open tooling audit |
+| KN-OPEN-5b3a08 | Does the shared harness/semaev.py's confirmed s4_expr bug, or build_factor_base's whole-curve (not target-subgroup) sampling, materially affect other Semaev/point-decomposition index-calculus experiments? | open_problem | established | open | semaev groebner harness-bug factor-base cofactor point-decomposition index-calculus cross-experiment shared-harness open |
 | KN-OPEN-875d43 | Does weakness beat description length as a hypothesis-selection proxy under a non-uniform (cryptanalytic) task distribution? | open_problem | unverified | open | methodology hypothesis-selection induction generalisation weakness mdl occams-razor non-uniform-prior harness-evaluation open |
 | KN-OPEN-8a5965 | Does Simon's claimed polynomial-time DCP algorithm survive scrutiny, and if so does it reach the concrete Module-LWE parameters of ML-KEM / ML-DSA? | open_problem | unverified | open | quantum dcp dihedral lattice lwe mlwe ml-kem ml-dsa svp verification unverified-claim pqc post-quantum open adjacent |
 | KN-TECH-001 | Pollard rho for ECDLP (generic square-root baseline) | technique | established |  | pollard-rho baseline generic ecdlp |
