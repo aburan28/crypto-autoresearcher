@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7849 |
-| — with a resolvable external identifier | 2239 |
+| Literature entries (`KN-LIT-*`) | 7850 |
+| — with a resolvable external identifier | 2240 |
 | — with no identifier recorded | 5610 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1322, doi 147, eprint 737, url 33. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1322, doi 147, eprint 738, url 33. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 9, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7481, `transcription_of_full_text_at_recorded_sha256` 1, `web` 325.
+`citation_verified` distribution: `False` 21, `True` 9, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7481, `transcription_of_full_text_at_recorded_sha256` 1, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -106,7 +106,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2239 of 7849 `KN-LIT-*` entries carry an
+2240 of 7850 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2069,6 +2069,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-797 | On some p-adic Galois representations and form class groups | 2020 | `arxiv:2009.13837` | read |
 | KN-LIT-798 | On the algebraic functional equation for the mixed signed Selmer group over multiple Zp-extensions | 2020 | `arxiv:2004.10592` | read |
 | KN-LIT-799 | ON THE ANTICYCLOTOMIC IWASAWA THEORY OF RATIONAL ELLIPTIC | 2020 | `arxiv:2008.02571` | read |
+| KN-LIT-7baf07 | Quasipolynomial Cryptanalysis of the McEliece Cryptosystem (or: PIR Meets McEliece) | 2026 | `eprint:2026/1630` | web |
 | KN-LIT-7c2620 | Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE | 2026 | `eprint:2026/366` | web |
 | KN-LIT-7c4620 | A heuristic subexponential attack on the McEliece cryptosystem | 2026 | `eprint:2026/1232` | web |
 | KN-LIT-7c6f53 | Cryptanalysis of the original McEliece cryptosystem | 1998 | `doi:10.1007/3-540-49649-1_16` | web |

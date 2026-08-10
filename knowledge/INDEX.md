@@ -3,7 +3,7 @@
 Generated from entry frontmatter by `tools/build_knowledge_index.py` —
 do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 
-8030 entries.
+8031 entries.
 
 | ID | Title | Type | Confidence | Verified/Status | Tags |
 |---|---|---|---|---|---|
@@ -7619,6 +7619,7 @@ do not hand-edit facts here. Regenerate via `/curate-knowledge`.
 | KN-LIT-797 | On some p-adic Galois representations and form class groups | literature | reported | read | class-group elliptic-curve extension-field isogeny number-theory pairing |
 | KN-LIT-798 | On the algebraic functional equation for the mixed signed Selmer group over multiple Zp-extensions | literature | reported | read | abelian-variety elliptic-curve number-theory pairing provable-security supersingular |
 | KN-LIT-799 | ON THE ANTICYCLOTOMIC IWASAWA THEORY OF RATIONAL ELLIPTIC | literature | reported | read | curve-arithmetic elliptic-curve isogeny number-theory pairing provable-security |
+| KN-LIT-7baf07 | Quasipolynomial Cryptanalysis of the McEliece Cryptosystem (or: PIR Meets McEliece) | literature | reported | web | code-based mceliece classic-mceliece goppa structural-attack distinguish-then-recover quasipolynomial pir locally-decodable-codes heuristic |
 | KN-LIT-7c2620 | Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE | literature | unverified | web | ring-lwe module-lwe hybrid-attack decoding-attack sparse-secret ternary-secret fhe-parameters lattice-estimator concrete-security 128-bit-security bootstrapping-cost unread-primary-source rq-fhe-001 |
 | KN-LIT-7c4620 | A heuristic subexponential attack on the McEliece cryptosystem | literature | reported | web | code-based mceliece structural-attack key-recovery goppa subexponential heuristic algebraic-cryptanalysis |
 | KN-LIT-7c6f53 | Cryptanalysis of the original McEliece cryptosystem | literature | reported | web | isd syndrome-decoding code-based mceliece canteaut-chabaud cryptanalysis original-parameters record |
