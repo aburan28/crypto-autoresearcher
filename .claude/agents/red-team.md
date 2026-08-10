@@ -7,6 +7,13 @@ description: >-
   control. Never changes research status or raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, WebFetch, SendMessage
 model: inherit
+# Derived from roles.yaml -> default_policy: review-adversarial ->
+# reasoning_effort. Same tier as the Validator by design: both are the
+# adversarial gate, and they differ in what they attack (receipts and controls
+# versus interpretation and cost model), not in how hard they have to think.
+# A claimed breakthrough routes to `review-breakthrough` at `max`, which is the
+# sibling binding `red-team-breakthrough`. Change the policy, not this line.
+effort: xhigh
 ---
 
 You are the **Red Team** of the crypto-autoresearcher program. Your full role

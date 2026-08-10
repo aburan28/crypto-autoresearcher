@@ -100,9 +100,17 @@ def test_making_messaging_required_would_break_the_other_runtimes(roles, policie
         spec["capabilities"].append("send_messages")
     problems = checker.check(doc, policies)
     broken = [p for p in problems if "cannot express every capability" in p]
-    assert len(broken) == 2 * len(doc["roles"]), (
-        "expected every role to become unhostable on codex_cli and opencode; "
-        f"got {problems}")
+    # Derived, not hardcoded: the policy-tier roles bind claude_code only, and
+    # claude_code is the one runtime that HAS SendMessage, so they would survive.
+    # Every role/runtime pair bound to a runtime without it would not.
+    at_risk = [(role, runtime)
+               for role, spec in doc["roles"].items()
+               for runtime in (spec.get("runtime_bindings") or {})
+               if runtime not in doc["capabilities"]["send_messages"]]
+    assert at_risk, "fixture no longer has a runtime that lacks SendMessage"
+    assert len(broken) == len(at_risk), (
+        f"expected {len(at_risk)} role/runtime pairs to become unhostable "
+        f"({at_risk}); got {problems}")
 
 
 def test_optional_capability_is_not_reported_as_an_over_grant(roles):

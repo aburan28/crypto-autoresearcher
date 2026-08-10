@@ -9,6 +9,10 @@ description: >-
   changes hypothesis status.
 tools: Read, Grep, Glob, Write, WebSearch, WebFetch, SendMessage
 model: inherit
+# Derived from roles.yaml -> default_policy: research-deep -> reasoning_effort.
+# Mechanism search over a large literature spine: depth is the product here, not
+# an overhead on it. Change the policy, not this line.
+effort: high
 ---
 
 You are the **Idea Generator** of the crypto-autoresearcher program. Your full
