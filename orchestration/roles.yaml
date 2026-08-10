@@ -29,6 +29,11 @@ capabilities:
   # silently doing without. `tools/check_runtime_bindings.py --list` shows
   # which roles that excludes.
   web_search:    {claude_code: [WebSearch, WebFetch], codex_cli: [web], opencode: [webfetch, websearch]}
+  # Live in-process messaging between agents in ONE session. Claude Code is the
+  # only runtime that has it; the others are listed nowhere here on purpose,
+  # which is exactly why this capability may only ever appear under
+  # `optional_capabilities` (see below) and never under `capabilities`.
+  send_messages: {claude_code: [SendMessage]}
 
 # Capabilities a runtime grants unconditionally and cannot withhold from a
 # role, whatever the contract says.
@@ -53,6 +58,30 @@ runtime_grants_always:
 runtime_capability_coupling:
   codex_cli: [[write_files, edit_files]]
   opencode: [[write_files, edit_files]]
+
+# Capabilities a role USES where the runtime has them and does without where it
+# does not.
+#
+# Everything in `capabilities` is REQUIRED: a runtime that cannot express one
+# cannot host the role at all, and `expected_tools` returns None so the caller
+# refuses rather than running a quietly diminished agent. That is right for the
+# open web -- an Idea Generator with no web search is not a diminished Idea
+# Generator, it is the wrong agent.
+#
+# It is wrong for messaging, and putting `send_messages` in the required list
+# would have made all five roles unhostable on codex_cli and opencode in one
+# edit -- five roles times two runtimes, reported as "runtime cannot express
+# every capability this role needs". The role does not need it: live messaging
+# is a same-session convenience, and `tools/agent_bus.py` carries the same
+# traffic durably on EVERY runtime through run_commands. A Validator on
+# OpenCode that cannot SendMessage is still a Validator.
+#
+# So: granted where the vocabulary maps it, silently absent where it does not,
+# and never a reason to refuse a runtime. It is still declared per role rather
+# than assumed, so removing it from a role remains a deliberate edit, and
+# `--list` prints it as OPTIONAL so a reader can see where it landed.
+#
+# Declared per role below as `optional_capabilities`.
 
 # Per-subagent reasoning effort: which runtimes can carry it in the agent
 # definition itself, and in what terms.
@@ -111,6 +140,7 @@ roles:
       may_execute_experiments: false
       independent_of_producer: false
     capabilities: [read_files, search_files, write_files, edit_files]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/coordinator.md
       codex_cli: .codex/agents/coordinator.toml
@@ -125,6 +155,7 @@ roles:
       may_execute_experiments: false
       independent_of_producer: false
     capabilities: [read_files, search_files, write_files, web_search]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/idea-generator.md
       codex_cli: .codex/agents/idea-generator.toml
@@ -139,6 +170,7 @@ roles:
       may_execute_experiments: true
       independent_of_producer: false
     capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/executor.md
       codex_cli: .codex/agents/executor.toml
@@ -153,6 +185,7 @@ roles:
       may_execute_experiments: false
       independent_of_producer: true
     capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/validator.md
       codex_cli: .codex/agents/validator.toml
@@ -167,6 +200,7 @@ roles:
       may_execute_experiments: false
       independent_of_producer: true
     capabilities: [read_files, search_files, write_files, edit_files, run_commands, web_search]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/red-team.md
       codex_cli: .codex/agents/red-team.toml
@@ -209,6 +243,7 @@ roles:
       may_execute_experiments: true
       independent_of_producer: false
     capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/executor-mechanical.md
 
@@ -222,6 +257,7 @@ roles:
       may_execute_experiments: false
       independent_of_producer: true
     capabilities: [read_files, search_files, write_files, edit_files, run_commands]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/validator-breakthrough.md
 
@@ -235,6 +271,7 @@ roles:
       may_execute_experiments: false
       independent_of_producer: true
     capabilities: [read_files, search_files, write_files, edit_files, run_commands, web_search]
+    optional_capabilities: [send_messages]
     runtime_bindings:
       claude_code: .claude/agents/red-team-breakthrough.md
 

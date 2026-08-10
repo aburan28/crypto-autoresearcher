@@ -74,14 +74,40 @@ def capability_couplings(roles_doc: dict[str, Any],
     return [list(group) for group in couplings.get(runtime, [])]
 
 
+def optional_capabilities(roles_doc: dict[str, Any], role: str) -> list[str]:
+    """Capabilities the role uses where available and does without otherwise.
+
+    Distinct from `capabilities`, which are REQUIRED: a runtime that cannot
+    express one of those cannot host the role, and `expected_tools` returns
+    None so the caller refuses rather than running a diminished agent. That is
+    the right answer for the open web and the wrong one for live messaging,
+    which every runtime can do durably through `tools/agent_bus.py` anyway.
+
+    Declaring messaging required would have made all five roles unhostable on
+    codex_cli and opencode in a single edit.
+    """
+    return list(role_spec(roles_doc, role).get("optional_capabilities") or [])
+
+
 def effective_capabilities(roles_doc: dict[str, Any], role: str,
                            runtime: str) -> list[str]:
     """What the role actually holds on this runtime.
 
     The contract, widened by whatever the runtime cannot withhold: capabilities
-    it grants unconditionally, plus the closure of any it cannot separate.
+    it grants unconditionally, plus the closure of any it cannot separate, plus
+    the optional ones this runtime happens to support.
     """
     capabilities = list(role_spec(roles_doc, role)["capabilities"])
+
+    # Optional capabilities join only where the vocabulary maps them for this
+    # runtime. Filtering HERE rather than in expected_tools is what keeps an
+    # unsupported optional from reading as "this runtime cannot host the role":
+    # expected_tools returns None on any capability it cannot map, so an
+    # unfiltered optional would refuse the runtime outright.
+    vocabulary = roles_doc["capabilities"]
+    for capability in optional_capabilities(roles_doc, role):
+        if runtime in vocabulary.get(capability, {}):
+            capabilities.append(capability)
 
     def add(capability: str) -> bool:
         if capability in capabilities:
@@ -110,7 +136,11 @@ def over_granted(roles_doc: dict[str, Any], role: str,
     than enforced by the harness. That is a fact to weigh when choosing where
     to run a role, not an error -- so it is reported, never silently dropped.
     """
-    contracted = set(role_spec(roles_doc, role)["capabilities"])
+    # Optional capabilities are contracted too -- the role asked for them, just
+    # conditionally. Omitting them here would report every Claude Code role as
+    # over-granted on `send_messages`, which is the opposite of the truth.
+    contracted = (set(role_spec(roles_doc, role)["capabilities"])
+                  | set(optional_capabilities(roles_doc, role)))
     return [capability
             for capability in effective_capabilities(roles_doc, role, runtime)
             if capability not in contracted]
