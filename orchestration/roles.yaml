@@ -54,6 +54,43 @@ runtime_capability_coupling:
   codex_cli: [[write_files, edit_files]]
   opencode: [[write_files, edit_files]]
 
+# Per-subagent reasoning effort: which runtimes can carry it in the agent
+# definition itself, and in what terms.
+#
+# How much a role should think is already answered, once, in
+# `model-policies.yaml`: each policy states a `reasoning_effort`, calibrated per
+# role rather than set high everywhere (deciding a state transition is
+# reasoning-bound; running a frozen protocol is not). This table answers a
+# strictly narrower question -- can a runtime express that number PER AGENT, or
+# must it be set process-level for the whole session?
+#
+# The difference is operational, not cosmetic. Set process-level, every subagent
+# in a session thinks as hard as whichever policy the session was launched
+# under, so an Executor replaying a frozen protocol burns Validator-grade
+# thinking and a Validator invoked from an Executor session reviews at Executor
+# depth. Expressed per agent, one session can dispatch all five roles and each
+# gets the depth its own policy asked for.
+#
+# `field` is the runtime's own key; `levels` is what it accepts. A runtime
+# mapped to `null` cannot express effort per agent, so its roles take effort
+# from `python3 -m orchestration.adapter env --role <role>` at launch, exactly
+# as they take the model. Absent from this table means the same thing as null;
+# the two runtimes are listed explicitly so "cannot" is recorded rather than
+# inferred from silence -- the same reason `runtime_grants_always` exists.
+#
+# `tools/check_runtime_bindings.py` fails the build when a binding's declared
+# effort disagrees with its role's policy, so effort drifts no more quietly
+# than a tool grant does.
+runtime_reasoning_effort:
+  claude_code:
+    field: effort
+    levels: [low, medium, high, xhigh, max]
+  # Codex rejects unknown keys in an agent role file; effort arrives as
+  # `-c model_reasoning_effort=...` from the adapter instead.
+  codex_cli: null
+  # OpenCode frontmatter carries `temperature`, not a reasoning-effort level.
+  opencode: null
+
 # Execution limits for the api_direct runtime (orchestration/agent/). These are
 # defaults; a task's own budget narrows them and never widens them.
 api_direct:

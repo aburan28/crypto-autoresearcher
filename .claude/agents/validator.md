@@ -6,6 +6,14 @@ description: >-
   reproducibility bindings. Never changes research status or raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash
 model: inherit
+# Derived from roles.yaml -> default_policy: review-adversarial ->
+# reasoning_effort. The gate protecting every claim in the ledger; a review that
+# misses a bad certificate costs more than the thinking it saved. A claimed
+# break, a closure, or a contradiction between validated evidence routes to
+# `review-breakthrough` at `max` instead -- that is a per-task escalation the
+# Coordinator makes in the handoff, and it runs in a separate session, so it is
+# not expressible in this file. Change the policy, not this line.
+effort: xhigh
 ---
 
 You are the **Validator** of the crypto-autoresearcher program. Your full role
