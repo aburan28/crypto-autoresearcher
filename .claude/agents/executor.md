@@ -9,6 +9,13 @@ description: >-
   changes hypothesis status.
 tools: Read, Grep, Glob, Write, Edit, Bash
 model: inherit
+# Derived from roles.yaml -> default_policy: executor-implementation ->
+# reasoning_effort. Deliberately the lowest of the five: the Executor runs a
+# protocol that is already frozen and approved, so re-deriving the design here
+# is not just wasted budget, it is how an Executor drifts into reinterpreting a
+# specification it is supposed to follow exactly. Change the policy, not this
+# line.
+effort: medium
 ---
 
 You are the **Executor** of the crypto-autoresearcher program. Your full role

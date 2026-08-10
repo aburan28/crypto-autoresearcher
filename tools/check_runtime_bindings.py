@@ -23,11 +23,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from orchestration.role_registry import (  # noqa: E402
-    ROLES_PATH, check, expected_tools, load_policies, load_roles,
-    parse_frontmatter, role_spec)
+    ROLES_PATH, check, effort_support, expected_effort, expected_tools,
+    load_policies, load_roles, parse_frontmatter, policy_reasoning_effort,
+    role_spec)
 
-__all__ = ["ROLES_PATH", "check", "expected_tools", "load_policies",
-           "load_roles", "parse_frontmatter", "role_spec"]
+__all__ = ["ROLES_PATH", "check", "effort_support", "expected_effort",
+           "expected_tools", "load_policies", "load_roles",
+           "parse_frontmatter", "policy_reasoning_effort", "role_spec"]
 
 
 def main() -> int:
@@ -37,19 +39,36 @@ def main() -> int:
     args = parser.parse_args()
 
     roles_doc = load_roles()
+    policies_doc = load_policies()
 
     if args.list:
         runtimes = sorted({r for cap in roles_doc["capabilities"].values() for r in cap})
         for role, spec in roles_doc["roles"].items():
-            print(f"\n{role}  policy={spec['default_policy']}")
+            effort = policy_reasoning_effort(policies_doc, spec["default_policy"])
+            # A variant is the same role at another policy tier, and which tier
+            # a task gets is decided by its `inference.policy`, not by the
+            # dispatcher's taste. Print the link so the table answers "which
+            # agent runs this task" without a second lookup.
+            variant = spec.get("variant_of")
+            variant_note = f"  variant_of={variant}" if variant else ""
+            print(f"\n{role}  policy={spec['default_policy']}  "
+                  f"effort={effort}{variant_note}")
             for runtime in runtimes:
                 tools = expected_tools(roles_doc, role, runtime)
                 binding = (spec.get("runtime_bindings") or {}).get(runtime, "-")
+                # Where the effort above actually comes from at run time: the
+                # agent file, or the session `adapter env` launched the runtime
+                # with. An operator reading this table is usually deciding where
+                # to run a role, and that is the difference that decides it.
+                source = ("agent file"
+                          if expected_effort(roles_doc, policies_doc, role, runtime)
+                          else "session")
                 print(f"  {runtime:<12} {binding:<36} "
+                      f"effort:{source:<11} "
                       f"{', '.join(tools) if tools else 'UNSUPPORTED'}")
         return 0
 
-    problems = check(roles_doc, load_policies())
+    problems = check(roles_doc, policies_doc)
     if problems:
         print(f"{len(problems)} runtime-binding problem(s):")
         for problem in problems:
