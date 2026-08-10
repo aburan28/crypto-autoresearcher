@@ -29,47 +29,6 @@ def load_policies(path: Path = POLICIES_PATH) -> dict[str, Any]:
         return yaml.safe_load(handle)
 
 
-def runtime_effort_field(roles_doc: dict[str, Any], runtime: str) -> str | None:
-    """Frontmatter key `runtime` uses for reasoning effort, or None.
-
-    None means the runtime's agent format cannot carry effort, so the number is
-    applied process-level by `python -m orchestration.adapter env` instead. That
-    is a real answer: it is why this check exists for Claude Code and not for
-    the Codex CLI, whose role files reject unknown keys.
-    """
-    mapping = (roles_doc.get("runtime_reasoning_effort") or {}).get(runtime)
-    return (mapping or {}).get("frontmatter_field")
-
-
-def runtime_effort_levels(roles_doc: dict[str, Any], runtime: str) -> list[str]:
-    mapping = (roles_doc.get("runtime_reasoning_effort") or {}).get(runtime)
-    return list((mapping or {}).get("levels") or [])
-
-
-def resolved_effort(policies_doc: dict[str, Any], policy_id: str) -> str | None:
-    """The effort a policy actually REQUESTS per call.
-
-    `reasoning_effort` when stated, otherwise the `requires.reasoning_effort`
-    floor -- the same defaulting `model-policies.yaml` documents, kept in one
-    place so a binding and the adapter cannot disagree about what a policy asks
-    for.
-    """
-    policy = (policies_doc.get("policies") or {}).get(policy_id)
-    if policy is None:
-        return None
-    effort = policy.get("reasoning_effort")
-    if effort is None:
-        effort = (policy.get("requires") or {}).get("reasoning_effort")
-    return effort
-
-
-def role_effort(roles_doc: dict[str, Any], policies_doc: dict[str, Any],
-                role: str) -> str | None:
-    """Effort a role's default policy asks for."""
-    return resolved_effort(policies_doc,
-                           role_spec(roles_doc, role).get("default_policy"))
-
-
 def role_spec(roles_doc: dict[str, Any], role: str) -> dict[str, Any]:
     try:
         return roles_doc["roles"][role]
@@ -155,6 +114,55 @@ def over_granted(roles_doc: dict[str, Any], role: str,
     return [capability
             for capability in effective_capabilities(roles_doc, role, runtime)
             if capability not in contracted]
+
+
+def effort_support(roles_doc: dict[str, Any],
+                   runtime: str) -> dict[str, Any] | None:
+    """How `runtime` expresses per-agent reasoning effort, or None if it cannot.
+
+    None is a real answer, like `expected_tools` returning None: the runtime
+    takes its effort process-level from `orchestration.adapter env` instead, and
+    a caller that checks agent files must not invent a field to compare.
+    """
+    table = roles_doc.get("runtime_reasoning_effort") or {}
+    support = table.get(runtime)
+    return dict(support) if isinstance(support, dict) else None
+
+
+def policy_reasoning_effort(policies_doc: dict[str, Any],
+                            policy_id: str) -> str:
+    """The effort a policy actually REQUESTS per call.
+
+    `model-policies.yaml` keeps two numbers apart on purpose:
+    `requires.reasoning_effort` is the floor a backend must support, and
+    `reasoning_effort` is what is requested. The floor is the default when the
+    request is omitted -- the same rule `orchestration.adapter` applies -- so
+    the agent definition and the adapter can never disagree about which of the
+    two an agent file is quoting.
+    """
+    policy = policies_doc["policies"][policy_id]
+    requested = policy.get("reasoning_effort")
+    if requested is None:
+        requested = (policy.get("requires") or {}).get("reasoning_effort")
+    if requested is None:
+        raise ValueError(
+            f"policy {policy_id!r} states neither reasoning_effort nor "
+            f"requires.reasoning_effort, so no effort can be bound to an agent")
+    return str(requested)
+
+
+def expected_effort(roles_doc: dict[str, Any], policies_doc: dict[str, Any],
+                    role: str, runtime: str) -> str | None:
+    """Effort a role's binding on `runtime` must declare, or None if it cannot.
+
+    Derived, never stored twice: role -> default_policy -> requested effort.
+    Changing how hard a role thinks is a one-line edit in `model-policies.yaml`,
+    and the bindings are then wrong until they are updated, which is the point.
+    """
+    if effort_support(roles_doc, runtime) is None:
+        return None
+    return policy_reasoning_effort(
+        policies_doc, role_spec(roles_doc, role)["default_policy"])
 
 
 def missing_capabilities(roles_doc: dict[str, Any], role: str,
@@ -249,6 +257,33 @@ def read_binding(runtime: str, path: Path) -> tuple[Any, set[str]]:
     return reader(Path(path))
 
 
+def _read_claude_effort(path: Path) -> Any:
+    return parse_frontmatter(path).get("effort")
+
+
+# Only runtimes listed in `runtime_reasoning_effort` with a field need one.
+EFFORT_READERS = {
+    "claude_code": _read_claude_effort,
+}
+
+
+def read_declared_effort(runtime: str, path: Path) -> Any:
+    """The reasoning effort an agent file declares, or None if it declares none.
+
+    Raises for a runtime the table says can express effort but that has no
+    reader: an unread field is an unchecked field, and this checker exists
+    precisely so nothing about a role is trusted rather than verified.
+    """
+    try:
+        reader = EFFORT_READERS[runtime]
+    except KeyError:
+        raise ValueError(
+            f"runtime {runtime!r} declares per-agent reasoning effort in "
+            f"roles.yaml but has no effort reader; add one to EFFORT_READERS"
+        ) from None
+    return reader(Path(path))
+
+
 def check(roles_doc: dict[str, Any],
           policies_doc: dict[str, Any] | None = None) -> list[str]:
     """Every way a runtime binding can disagree with the role contract."""
@@ -260,7 +295,7 @@ def check(roles_doc: dict[str, Any],
 
         if policies_doc is not None:
             problems.extend(_check_policy(role, spec, policies_doc))
-            problems.extend(_check_variant(roles_doc, role, spec, policies_doc))
+            problems.extend(_check_variant(roles_doc, role, spec))
 
         for runtime, binding_path in (spec.get("runtime_bindings") or {}).items():
             path = REPO / binding_path
@@ -298,69 +333,61 @@ def check(roles_doc: dict[str, Any],
                     f"capabilities in roles.yaml, which imply "
                     f"{sorted(wanted)} ({detail})")
             if policies_doc is not None:
-                problems.extend(_check_effort(roles_doc, policies_doc, role,
-                                              spec, runtime, path))
+                problems.extend(
+                    _check_effort(roles_doc, policies_doc, role, runtime, path))
     return problems
 
 
 def _check_effort(roles_doc: dict[str, Any], policies_doc: dict[str, Any],
-                  role: str, spec: dict[str, Any], runtime: str,
-                  path: Path) -> list[str]:
-    """A binding that can state effort must state the one its policy asks for.
-
-    Effort is the dominant cost and latency term in this program and it is
-    calibrated per policy for stated reasons. A binding free to carry its own
-    number is a second answer to a question the policy layer already answers,
-    and the failure is silent in both directions: a review that quietly thinks
-    less than its policy requires still returns a signed-off verdict.
-    """
-    field = runtime_effort_field(roles_doc, runtime)
-    if field is None:
-        return []      # runtime resolves effort process-level; nothing to check
-    policy_id = spec.get("default_policy")
-    wanted = resolved_effort(policies_doc, policy_id)
-    if wanted is None:
-        return [f"{role}/{runtime}: policy {policy_id!r} states no reasoning "
-                f"effort, so the binding's {field!r} cannot be checked"]
+                  role: str, runtime: str, path: Path) -> list[str]:
+    """Compare a binding's declared reasoning effort against its policy."""
+    support = effort_support(roles_doc, runtime)
+    if support is None:
+        return []
+    field = support.get("field", "effort")
+    levels = list(support.get("levels") or [])
+    policy_id = role_spec(roles_doc, role)["default_policy"]
     try:
-        frontmatter = parse_frontmatter(path)
+        wanted = expected_effort(roles_doc, policies_doc, role, runtime)
+    except (KeyError, ValueError) as exc:
+        # An unresolvable policy is already reported by `_check_policy`; adding
+        # a second line for the same cause would only bury it.
+        return [] if isinstance(exc, KeyError) else [f"{role}: {exc}"]
+
+    if wanted not in levels:
+        return [
+            f"{role}/{runtime}: policy {policy_id} requests reasoning effort "
+            f"{wanted!r}, which this runtime cannot express (accepts "
+            f"{levels}); run the role under a runtime that can, or state an "
+            f"expressible effort in model-policies.yaml"]
+
+    try:
+        declared = read_declared_effort(runtime, path)
     except ValueError as exc:
         return [f"{role}/{runtime}: {exc}"]
 
-    problems: list[str] = []
-    declared = frontmatter.get(field)
     if declared is None:
-        problems.append(
-            f"{role}/{runtime}: binding states no {field!r}; policy "
-            f"{policy_id} asks for {wanted!r}")
-    elif str(declared) != str(wanted):
-        problems.append(
-            f"{role}/{runtime}: binding states {field}={declared!r} but policy "
-            f"{policy_id} asks for {wanted!r}")
-
-    levels = runtime_effort_levels(roles_doc, runtime)
-    if declared is not None and levels and str(declared) not in levels:
-        problems.append(
-            f"{role}/{runtime}: {field}={declared!r} is not one of {levels}")
-
-    # The model stays the policy layer's answer even now that effort is not.
-    model = frontmatter.get("model")
-    if model is not None and str(model) != "inherit":
-        problems.append(
-            f"{role}/{runtime}: binding names model {model!r}; a binding may "
-            f"carry effort but never a model identifier -- use "
-            f"`model: inherit` and resolve the model through the adapter")
-    return problems
+        return [
+            f"{role}/{runtime}: binding declares no `{field}`, so this "
+            f"subagent inherits the session's reasoning effort instead of the "
+            f"{wanted!r} its policy {policy_id} asks for"]
+    if declared != wanted:
+        return [
+            f"{role}/{runtime}: binding declares {field}: {declared!r} but "
+            f"policy {policy_id} requests {wanted!r}"]
+    return []
 
 
-def _check_variant(roles_doc: dict[str, Any], role: str, spec: dict[str, Any],
-                   policies_doc: dict[str, Any]) -> list[str]:
+def _check_variant(roles_doc: dict[str, Any], role: str,
+                   spec: dict[str, Any]) -> list[str]:
     """A policy-tier variant may change how hard a role thinks, and nothing else.
 
-    Without this, `variant_of` is a way to mint a role with the same familiar
-    name and quietly different authority. The only difference a variant is
-    allowed to carry is its policy -- and it must carry one, or it is a second
-    name for a role that already exists.
+    One agent file carries one effort, so a role whose tasks are sometimes
+    routed to a different policy needs a second binding to reach that tier at
+    all. That second binding is the risk: `variant_of` is otherwise a way to
+    mint a role with a familiar name and quietly different authority. The only
+    difference a variant may carry is its policy -- and it must carry one, or it
+    is a second name for a role that already exists.
     """
     base_role = spec.get("variant_of")
     if base_role is None:
@@ -370,6 +397,10 @@ def _check_variant(roles_doc: dict[str, Any], role: str, spec: dict[str, Any],
         return [f"{role}: variant_of names unknown role {base_role!r}"]
 
     problems: list[str] = []
+    if base.get("variant_of"):
+        problems.append(
+            f"{role}: variant of {base_role}, which is itself a variant; tiers "
+            f"hang off a base role, never off each other")
     if spec.get("contract") != base.get("contract"):
         problems.append(
             f"{role}: variant of {base_role} must share its contract "
@@ -388,10 +419,6 @@ def _check_variant(roles_doc: dict[str, Any], role: str, spec: dict[str, Any],
             f"{role}: variant of {base_role} resolves to the same policy "
             f"({base.get('default_policy')}), so it is a duplicate rather than "
             f"a tier")
-    if spec.get("variant_of") and base.get("variant_of"):
-        problems.append(
-            f"{role}: variant of {base_role}, which is itself a variant; "
-            f"tiers hang off a base role, never off each other")
     return problems
 
 

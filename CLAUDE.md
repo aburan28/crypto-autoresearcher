@@ -16,29 +16,9 @@ Code specifically.
   `validator-breakthrough`, `red-team-breakthrough`. These are the operational
   versions of the role contracts in `agents/*.md`. Research work is done BY
   these subagents; the top-level session orchestrates and talks to the user.
-
-  Each carries a **reasoning effort** calibrated by its model policy, so a
-  frozen protocol is not re-derived at review depth and a claimed break is not
-  reviewed at execution depth:
-
-  | subagent | policy | effort |
-  |---|---|---|
-  | `executor-mechanical` | `executor-mechanical` | low |
-  | `executor` | `executor-implementation` | medium |
-  | `coordinator` | `coordinator-orchestration-code` | high |
-  | `idea-generator` | `research-deep` | high |
-  | `validator` | `review-adversarial` | xhigh |
-  | `red-team` | `review-adversarial` | xhigh |
-  | `validator-breakthrough` | `review-breakthrough` | max |
-  | `red-team-breakthrough` | `review-breakthrough` | max |
-
-  A variant is the SAME role at a different policy tier: identical contract,
-  authority and tools, different depth. `tools/check_runtime_bindings.py`
-  enforces both halves — a binding's `effort` must equal its policy's
-  `reasoning_effort`, and a variant may differ from its base in nothing but
-  policy. Run `python3 tools/check_runtime_bindings.py --list` for the resolved
-  table; `/launch-research-harness` step 6 maps a queued task's
-  (`role`, `inference.policy`) onto the agent that runs it.
+  Which one runs a queued task is decided by its (`role`, `inference.policy`)
+  pair — see `/launch-research-harness` step 6 and the effort table under
+  "Model policy note".
 - **Skills** (`.claude/skills/`), one per lifecycle stage:
   - `/propose-ideas` — ideation for a research question
   - `/design-experiment` — hypothesis + frozen approved protocol
@@ -48,6 +28,8 @@ Code specifically.
   - `/curate-knowledge` — maintain the knowledge corpus
   - `/coordinate-research-goal` — launch and continuously coordinate a committed
     research goal across dispatch batches
+  - `/agent-bus` — send and read messages between sessions running in separate
+    chats, worktrees, containers, or runtimes
 - **State**:
   - `ledger/` — canonical YAML records (questions, proposals, hypotheses,
     evidence, decisions, handoffs)
@@ -215,6 +197,20 @@ collisions were the first instance of it and are already fixed the same way.
   live session. Before resuming a goal, run
   `python3 tools/merge_digest.py --since $(git merge-base HEAD origin/main) --until origin/main`,
   or `tools/sync_open_branches.py --digest` for every branch at once.
+- **Sessions talk to each other through a write-once feed, not a channel.**
+  `tools/agent_bus.py` carries messages between sessions in different chats,
+  worktrees, containers, or runtimes: one write-once file per message under
+  `coordination/bus/`, addressed by ROLE (`coordinator`, `executor-2`) because
+  roles outlive the sessions playing them. Read state is derived from separate
+  receipt files, so a broadcast is acked per reader and no two writers ever
+  touch the same bytes. Same feed discipline as the merge digest above — check
+  `inbox --as <addr>` on wake and before reporting done; nothing delivers.
+  The runtime's own `SendMessage` is the live alternative and reaches only
+  peers `ListAgents` can see, which for a cloud session is none.
+  **A message is a pointer, never a permission**: it cannot approve an
+  experiment, move a hypothesis, or stand in as evidence, and real work still
+  travels as a `TASK-*` handoff through the dispatcher. See
+  `docs/inter-agent-messaging.md`.
 - **Branch drift is a scheduled job, not your job.**
   `.github/workflows/sync-branches.yml` runs `tools/sync_open_branches.py` every
   six hours. It refuses any branch committed to within `--idle-minutes` (default
@@ -228,22 +224,46 @@ Policies are vendor-neutral capability contracts
 (`orchestration/model-policies.yaml`); the model that serves one is chosen
 per backend in `orchestration/model-bindings.yaml` and resolved by
 `orchestration/adapter/`. Subagent frontmatter in `.claude/agents/` cannot
-express a policy, so per-role MODEL selection under this runtime is
+express a policy, so per-role **model** selection under this runtime is
 process-level: launch the session with the resolved environment rather
 than mixing policies in one session, and keep `model: inherit` in the
 frontmatter.
 
-**Reasoning effort is the exception, and only because this runtime can carry
-it.** A Claude Code subagent definition accepts `effort:
-low|medium|high|xhigh|max`, so each binding states the effort its policy asks
-for and `tools/check_runtime_bindings.py` fails the build when the two drift —
-in either direction, which matters because a review that quietly thinks less
-than its policy requires still returns a signed-off verdict. Runtimes that
-cannot carry it (Codex role files reject unknown keys) still resolve effort
-process-level through the adapter; `roles.yaml`'s `runtime_reasoning_effort`
-map says which is which. Do not add a model identifier to a binding on the same
-reasoning: effort is a contract stated once in the policy, a model id is the
-output of policy × backend resolution.
+A policy's **reasoning effort** is the one part that does bind per subagent.
+Claude Code frontmatter accepts `effort: low|medium|high|xhigh|max`, so each
+agent in `.claude/agents/` carries the effort its own policy requests and one
+session can dispatch all five roles at their own depths:
+
+| subagent | policy | `effort` |
+| --- | --- | --- |
+| `coordinator` | `coordinator-orchestration-code` | `high` |
+| `idea-generator` | `research-deep` | `high` |
+| `executor` | `executor-implementation` | `medium` |
+| `validator` | `review-adversarial` | `xhigh` |
+| `red-team` | `review-adversarial` | `xhigh` |
+| `executor-mechanical` | `executor-mechanical` | `low` |
+| `validator-breakthrough` | `review-breakthrough` | `max` |
+| `red-team-breakthrough` | `review-breakthrough` | `max` |
+
+Those values are **derived, not chosen here**: role → `default_policy` in
+`orchestration/roles.yaml` → `reasoning_effort` in
+`orchestration/model-policies.yaml`. Retune by editing the policy, never the
+agent file; `tools/check_runtime_bindings.py` fails the build while the two
+disagree, and `--list` shows, per role and runtime, whether effort comes from
+the agent file or from the session. The Validator and Red Team share `xhigh`
+because they share one adversarial policy — they differ in what they attack,
+not in how hard they must think. Per-task escalation stays a Coordinator
+decision in the handoff and still runs in its own independent session; because
+one agent file carries one effort, the escalated tiers are SIBLING bindings
+rather than a second value in the base file — `review-breakthrough` at `max`
+(`validator-breakthrough`, `red-team-breakthrough`) and `executor-mechanical`
+at `low` for judgment-free re-runs. Those three are declared in `roles.yaml`
+with `variant_of`, and the checker holds them to their base role's contract,
+authority and tools exactly, so a variant can only change how hard the model
+thinks. Without them `review-breakthrough` — which is `degradable: false` —
+could not be honoured on this runtime at all. Runtimes that
+cannot carry effort per agent (`codex_cli`, `opencode`) are recorded as `null`
+in `runtime_reasoning_effort` and take it from `adapter env` at launch.
 
 ```sh
 # resolve a role's policy and see exactly what would answer
@@ -258,9 +278,10 @@ That `env` output also sets `AUTORESEARCH_POLICY` and
 resolved model in each run manifest's `inference` block. Record
 `requested_policy` from the handoff alongside it, with `fallback_used:
 true` and a reason if they differ — never silently substitute. Do not edit
-`.claude/agents/*.md` tool lists directly: authority and tool surface come
-from `orchestration/roles.yaml`, and `tools/check_runtime_bindings.py`
-fails the build if the two disagree.
+`.claude/agents/*.md` tool lists or `effort:` values directly: authority and
+tool surface come from `orchestration/roles.yaml` and effort comes from the
+role's policy, and `tools/check_runtime_bindings.py` fails the build if any of
+them disagree.
 
 ## Typical loop
 

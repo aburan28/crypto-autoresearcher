@@ -6,9 +6,14 @@ description: >-
   reproducibility bindings. Never changes research status or raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash
 model: inherit
-# Adversarial review of a claim-changing result. Policy review-adversarial.
-# effort mirrors orchestration/model-policies.yaml; tools/check_runtime_bindings.py
-# fails the build if the two drift.
+# Derived from roles.yaml -> default_policy: review-adversarial ->
+# reasoning_effort. The gate protecting every claim in the ledger; a review that
+# misses a bad certificate costs more than the thinking it saved. A claimed
+# break, a closure, or a contradiction between validated evidence routes to
+# `review-breakthrough` at `max` instead -- a per-task escalation the
+# Coordinator makes in the handoff. One agent file carries one effort, so that
+# tier is a SIBLING binding (`validator-breakthrough`), still dispatched as its
+# own independent session. Change the policy, not this line.
 effort: xhigh
 ---
 

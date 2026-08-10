@@ -9,10 +9,12 @@ description: >-
   research-state transition, evidence review, or task assignment is needed.
 tools: Read, Grep, Glob, Write, Edit
 model: inherit
-# Reasoning-bound: decides state transitions and resolves contradictions
-# across the ledger. Policy coordinator-orchestration-code.
-# effort mirrors orchestration/model-policies.yaml; tools/check_runtime_bindings.py
-# fails the build if the two drift.
+# Reasoning effort for this subagent, derived from roles.yaml ->
+# default_policy: coordinator-orchestration-code -> reasoning_effort. Deciding
+# whether evidence justifies a state transition is the reasoning-bound job in
+# this program; this is where depth is worth paying for. Never hand-tune it
+# here -- change the policy, which every runtime reads, and
+# `tools/check_runtime_bindings.py` fails the build while the two disagree.
 effort: high
 ---
 
