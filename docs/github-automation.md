@@ -47,7 +47,7 @@ review paths below cannot drift apart — the same discipline
 ### Division of labor with CI
 
 `.github/workflows/validate.yml` enforces everything mechanical: ledger schema,
-cross-references, the numeric `claim_tier` ceiling, run companion artifacts,
+cross-references, the declared `claim_tier` metadata, run companion artifacts,
 `experiments/**/runs/**` immutability, knowledge-index freshness, runtime
 bindings, dispatch-queue validity, and the test suite. `REVIEW.md` tells the
 reviewer not to repeat any of it.

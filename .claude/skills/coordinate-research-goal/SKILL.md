@@ -233,6 +233,8 @@ Report the following, then start the next batch without waiting:
   `main` merged into it;
 - the exact next action and why it reduces the remaining uncertainty.
 
-Never call a passing validator, a snapshot commit, or a toy result a
-cryptanalytic improvement. The ledger archive makes work durable; it does not
-upgrade the strength or scope of the evidence.
+Never call a passing validator or a snapshot commit a cryptanalytic
+improvement. A small-instance result may be an improvement when its mechanism,
+scope, and transfer assumptions are stated and supported by the cited
+artifacts. The ledger archive makes work durable; it does not by itself upgrade
+the evidence.

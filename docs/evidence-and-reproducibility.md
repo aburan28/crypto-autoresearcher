@@ -29,7 +29,9 @@ Every evidence record must state:
 - a scale-relevance label — `toy-scale`, `feasibility-scale`, or `cryptographic-scale` — with its justification (direct computation at the stated size, or an exact correspondence/embedding at the stated size);
 - the largest claim justified by the data.
 
-A result on toy prime fields establishes behavior only on the tested toy distribution. It may motivate a scaling study but does not establish a P-256 result.
+A result on a small prime field establishes a measured result on the tested
+distribution. It may also support a broader conclusion when the record states
+the transfer argument, assumptions, and remaining uncertainty explicitly.
 
 ## Negative-result semantics
 
@@ -180,7 +182,9 @@ Required reporting:
 
 Scale labeling and strength:
 
-- Each record carries the scale-relevance label required under Claim boundaries. Evidence gathered at cryptographically sized parameters via an exact correspondence is labeled `cryptographic-scale` with the correspondence named; toy-scale direct experiments motivate a scaling study but never establish cryptographic-scale behavior.
+- Each record carries a scale-relevance label and names the parameters actually
+  tested. Evidence transferred beyond the directly tested range names the
+  correspondence, model, or extrapolation and its unresolved assumptions.
 - Agreement between data and prediction supports the heuristic; it does not prove it. The main theorem remains conditional, and no ledger transition may relabel a heuristic-conditional claim as unconditional.
 
 ## Concrete-cost estimation artifacts
