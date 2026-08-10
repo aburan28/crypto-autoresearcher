@@ -118,7 +118,14 @@ class GeneratedBindingTests(unittest.TestCase):
                     forced = set(over_granted(self.roles_doc, role, runtime))
                     effective = set(
                         effective_capabilities(self.roles_doc, role, runtime))
-                    contracted = set(role_spec(self.roles_doc, role)["capabilities"])
+                    # "Contracted" means everything the role asked for, and an
+                    # optional capability is asked for -- just conditionally on
+                    # the runtime having it. Counting only the required ones
+                    # would report `send_messages` on Claude Code as forced by
+                    # the runtime, when the role requested it.
+                    spec_doc = role_spec(self.roles_doc, role)
+                    contracted = (set(spec_doc["capabilities"])
+                                  | set(spec_doc.get("optional_capabilities") or []))
                     self.assertEqual(effective - contracted, forced)
 
     def test_an_over_grant_is_stated_in_the_binding_it_affects(self) -> None:
@@ -135,6 +142,18 @@ class GeneratedBindingTests(unittest.TestCase):
                     with self.subTest(role=role, runtime=runtime,
                                       capability=capability):
                         self.assertIn(capability, text)
+
+    def test_coupled_write_overgrant_still_allows_new_artifact_creation(self) -> None:
+        """A write-only role must not be told to avoid the shared write primitive."""
+        for runtime, binding in self.roles_doc["roles"]["idea-generator"][
+                "runtime_bindings"].items():
+            if runtime not in {"codex_cli", "opencode"}:
+                continue
+            text = (REPO / binding).read_text(encoding="utf-8")
+            with self.subTest(runtime=runtime):
+                self.assertIn("only\nto create new files", text)
+                self.assertIn("edit_files", text)
+                self.assertNotIn("not: edit_files", text)
 
     def test_independent_review_roles_are_told_they_are_independent(self) -> None:
         for role, spec in self.roles_doc["roles"].items():
