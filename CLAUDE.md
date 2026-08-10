@@ -23,6 +23,8 @@ Code specifically.
   - `/curate-knowledge` — maintain the knowledge corpus
   - `/coordinate-research-goal` — launch and continuously coordinate a committed
     research goal across dispatch batches
+  - `/agent-bus` — send and read messages between sessions running in separate
+    chats, worktrees, containers, or runtimes
 - **State**:
   - `ledger/` — canonical YAML records (questions, proposals, hypotheses,
     evidence, decisions, handoffs)
@@ -190,6 +192,20 @@ collisions were the first instance of it and are already fixed the same way.
   live session. Before resuming a goal, run
   `python3 tools/merge_digest.py --since $(git merge-base HEAD origin/main) --until origin/main`,
   or `tools/sync_open_branches.py --digest` for every branch at once.
+- **Sessions talk to each other through a write-once feed, not a channel.**
+  `tools/agent_bus.py` carries messages between sessions in different chats,
+  worktrees, containers, or runtimes: one write-once file per message under
+  `coordination/bus/`, addressed by ROLE (`coordinator`, `executor-2`) because
+  roles outlive the sessions playing them. Read state is derived from separate
+  receipt files, so a broadcast is acked per reader and no two writers ever
+  touch the same bytes. Same feed discipline as the merge digest above — check
+  `inbox --as <addr>` on wake and before reporting done; nothing delivers.
+  The runtime's own `SendMessage` is the live alternative and reaches only
+  peers `ListAgents` can see, which for a cloud session is none.
+  **A message is a pointer, never a permission**: it cannot approve an
+  experiment, move a hypothesis, or stand in as evidence, and real work still
+  travels as a `TASK-*` handoff through the dispatcher. See
+  `docs/inter-agent-messaging.md`.
 - **Branch drift is a scheduled job, not your job.**
   `.github/workflows/sync-branches.yml` runs `tools/sync_open_branches.py` every
   six hours. It refuses any branch committed to within `--idle-minutes` (default
