@@ -833,19 +833,23 @@ def c2_tautology_check(curve: dict, N: int, n_points: int, seed: int) -> dict:
 
 
 def c2_nonunit_lambda(D_E: int, curve: dict, N: int) -> dict:
-    """STAGE C: lambda(1-zeta_3) at |D_E|=3, and every non-unit shell
-    element's lambda image, for the class-number-one D_E's tested here."""
+    """STAGE C: lambda(-w) [== lambda(1-zeta_3) EXACTLY WHEN D_E=-3, f_E=1
+    (the maximal order); at a realized f_E > 1, -w is still a genuine
+    non-unit element of the curve's ACTUAL order but is not literally
+    "1-zeta_3" since zeta_3 does not lie in a non-maximal suborder -- see
+    exp_canl.py:unit_group's own docstring, and this run's f_E findings in
+    the execution report], for the class-number-one D_E's tested here."""
     t, f = curve["t"], curve["f_E"]
-    # 1 - zeta_3 in the (a,b) basis: zeta_3 = w + 1 (since w = omega - 1, per
-    # module docstring derivation), so 1 - zeta_3 = -w, i.e. (a,b) = (0,-1).
+    is_literal_1_minus_zeta3 = (D_E == -3 and f == 1)
     lam = ec.lambda_reduce(0, -1, D_E, t, f, N)
-    return {"D_E": D_E, "N": N, "element_ab": (0, -1), "lambda_1_minus_zeta3": lam,
-           "nonzero": lam % N != 0}
+    return {"D_E": D_E, "f_E": f, "N": N, "element_ab": (0, -1),
+           "is_literal_1_minus_zeta3": is_literal_1_minus_zeta3,
+           "lambda_minus_w": lam, "nonzero": lam % N != 0}
 
 
 def c2_shell_lambda_images(D_E: int, C0: int, curve: dict, N: int) -> dict:
     t, f = curve["t"], curve["f_E"]
-    sh = ec.shell_enumerate(D_E, C0, D_E, 1)
+    sh = ec.shell_enumerate(D_E, C0, curve.get("D0", D_E), f)
     images = {}
     for (a, b) in sh.nonunit_elements:
         lam = ec.lambda_reduce(a, b, D_E, t, f, N)
@@ -863,11 +867,23 @@ def run_c2(c2_ladder_primes: list[int], main_ladder_primes: list[int], z_cache: 
     for p, curve in curves.items():
         tautology[p] = c2_tautology_check(curve, p, tautology_n, seed=SEEDS[0])
 
+    # NOTE (D_E consistency fix): the concrete curve y^2=x^3+1 at these
+    # c2-congruence primes does NOT generally realize the MAXIMAL order
+    # D0=-3, f=1 -- checked directly against every sextic twist
+    # (isogeny_class.py:twists_of_j) and confirmed none of the 6 twists is
+    # maximal at any of the 4 tested primes (see execution report). Every
+    # lambda/shell computation below therefore uses the curve's own
+    # REALIZED (D_E, f_E) consistently -- NOT a hardcoded D_E=-3 -- since
+    # lambda_of_w's formula depends on D_E directly and mixing a hardcoded
+    # D_E=-3 with the curve's actual (t, f_E>1) would be internally
+    # inconsistent (an earlier version of this function did exactly that
+    # and was caught and fixed before being reported).
     nonunit = {}
     shell_lambda = {}
     for p, curve in curves.items():
-        nonunit[p] = c2_nonunit_lambda(-3, curve, p)
-        shell_lambda[p] = {C0: c2_shell_lambda_images(-3, C0, curve, p)
+        D_E = curve["D_E"]
+        nonunit[p] = c2_nonunit_lambda(D_E, curve, p)
+        shell_lambda[p] = {C0: c2_shell_lambda_images(D_E, C0, curve, p)
                            for C0 in C0_grid_for(C0_max)}
 
     # STAGE D: reachable-residue count for the CM shell, at the c2 congruence
@@ -876,13 +892,14 @@ def run_c2(c2_ladder_primes: list[int], main_ladder_primes: list[int], z_cache: 
     dual_tuple_ok = True
     for p, curve in curves.items():
         t, f = curve["t"], curve["f_E"]
+        D_E = curve["D_E"]
         for C0 in C0_grid_for(C0_max):
             for r_Z in RZ_GRID:
                 s = r_Z // 2 + 1
                 for which in ("A", "B"):
                     k = aux_tuple(s, which)
-                    sh = ec.shell_enumerate(-3, C0, -3, 1)
-                    lambda_vals = sorted({ec.lambda_reduce(a, b, -3, t, f, p)
+                    sh = ec.shell_enumerate(D_E, C0, curve["D0"], f)
+                    lambda_vals = sorted({ec.lambda_reduce(a, b, D_E, t, f, p)
                                          for (a, b) in sh.elements})
                     coeff_sets = [lambda_vals] * s
                     count, _ = ec.reachable_residue_count(coeff_sets, k, p)
@@ -890,7 +907,7 @@ def run_c2(c2_ladder_primes: list[int], main_ladder_primes: list[int], z_cache: 
                     gain = count / z_cell["reachable_count"] if z_cell["reachable_count"] else float("nan")
                     cell_results.append({
                         "p": p, "C0": C0, "r_Z": r_Z, "aux_tuple": which,
-                        "D_E": -3, "shell_size": len(sh.elements),
+                        "D_E": D_E, "f_E": f, "shell_size": len(sh.elements),
                         "reachable_residue_count": count,
                         "z_baseline_count": z_cell["reachable_count"],
                         "reachable_residue_gain": gain,
