@@ -85,9 +85,8 @@ of its size". The contract must include:
   The prediction is written before any run and is never adjusted afterward.
 - **Scale access.** State how the design reaches relevant scale — for example
   an exact correspondence (Deuring: maximal orders ↔ supersingular curves)
-  that permits sampling at cryptographically sized parameters instead of toy
-  instances. If only toy scale is reachable, the test boundary must say so
-  and `claim_tier` is capped accordingly.
+  that permits sampling at larger parameters. If a smaller scale is used, the
+  test boundary and any transfer assumptions must be stated explicitly.
 - **Sample-size justification.** Derive the sample count from the smallest
   predicted probability the experiment must resolve. If the predicted tail
   probability is q, plan enough samples that the expected tail count is

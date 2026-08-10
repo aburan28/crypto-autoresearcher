@@ -35,8 +35,8 @@ contract is in `agents/red-team.md`; the global inter-agent contract is in
   actually transfers to the structured object at hand (a minimal-degree
   isogeny or lattice shortest vector is not a uniformly random integer — name
   the cheapest experiment that would expose the deviation); the validation
-  evidence is at the claimed cryptographic scale, not toy scale (AGENTS rule
-  7); the o(1)/polylog overhead, per-entry constants, and memory cost are
+  evidence states its tested scale and transfer assumptions; the o(1)/polylog
+  overhead, per-entry constants, and memory cost are
   made explicit and tested against the headline exponent at standardized
   parameter sizes, including the van Oorschot–Wiener time–memory
   interpolation back to the old baseline; total expected cost equals

@@ -210,10 +210,9 @@ experiment:
     formula: null               # e.g. rho(u) ~ u^{-u(1+o(1))}, with u defined
     source: null                # theorem the prediction derives from, cited
   scale_relevance:
-    tier: toy | medium | crypto # ceiling on what runs at this scale may support;
-                                # must match the claim_tier of resulting evidence
-    justification: null         # why conclusions transfer across scale, or their
-                                # stated limit
+    tier: toy | medium | crypto | null # descriptive tested scale label
+    justification: null         # tested parameters and any transfer or
+                                # extrapolation assumptions
     correspondence: null        # sampling correspondence used to reach scale,
                                 # if any (e.g. Deuring correspondence): the
                                 # isometry claim and its citation; null means
@@ -284,7 +283,7 @@ evidence:
   type: empirical | theoretical | literature
   direction: supports | weakens | contradicts | neutral
   strength: anecdotal | preliminary | replicated | strong | inconclusive | contradictory
-  claim_tier: toy | medium | crypto      # ceiling on what this record may assert
+  claim_tier: toy | medium | crypto      # descriptive evidence-scale label
   certificate_refs: []                   # run certificates backing any claimed solve/relation
   proof_status: certificate | derivation | empirical_only | not_applicable
                                          # strongest checkable basis for the stated
@@ -300,9 +299,9 @@ evidence:
 ```
 
 `claim_tier` and certificate semantics are defined in
-`docs/claims-and-verification.md`. The tier may never exceed what the
-supporting runs' parameters allow, and any claimed solve must reference a
-`verified: true` certificate.
+`docs/claims-and-verification.md`. The tier describes the tested evidence;
+records must state their parameters, scope, and transfer assumptions, and any
+claimed solve must reference a `verified: true` certificate.
 
 ## Focused campaign claim
 

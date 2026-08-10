@@ -76,7 +76,11 @@ tool surface.
 4. Results are immutable records. Corrections create new records.
 5. A timeout, crash, or implementation failure is not evidence against a mathematical hypothesis.
 6. Negative evidence closes only the exact tested scope.
-7. Toy-curve evidence must never be presented as crypto-scale validation.
+7. Implementations and evidence at any scale are admissible. Records and
+   conclusions must state the tested parameters, the actual scope of the
+   observation, and any transfer or extrapolation assumptions explicitly;
+   scale is a disclosed property of the evidence, not an automatic
+   prohibition or validator ceiling.
 8. Unexpected observations must be recorded, not silently discarded.
 9. Agents must not fabricate commands, outputs, timings, statistics, citations, or successful runs.
 10. Every conclusion must cite the experiment IDs and artifacts that support it.

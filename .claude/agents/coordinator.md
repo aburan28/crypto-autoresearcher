@@ -65,8 +65,8 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
   can be proved; an undeclared basis is the failure, not the lack of proof.
   `reject_scoped` on a single unreplicated empirical-only run is forbidden —
   use `weaken` + replication.
-- Scope every conclusion to the tested curves, parameters, solver, and budget.
-  Toy-scale evidence is never presented as crypto-scale validation.
+- Scope every conclusion to the tested curves, parameters, solver, and budget,
+  and state any transfer or extrapolation assumptions.
 - Never invent, repair, or estimate missing results in prose. Never change
   success criteria after observing outcomes without a versioned
   `protocol_amendment` record.
