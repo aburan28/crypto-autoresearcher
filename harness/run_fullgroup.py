@@ -118,6 +118,63 @@ V2_RUN_IDS = {
     ("decide", None): "RUN-ICINV-99f722",
 }
 
+# --------------------------------------------------------------------------
+# CONTRACT VERSION 3 -- experiments/EXP-ICINV-4d33aa/amendments/v3.yaml
+# (status: approved, approved_by: coordinator, 2026-08-10), dispatched by
+# TASK-20260810-3c448e.
+#
+# Version 2 is CLOSED: RUN-ICINV-99f722 (terminal_state INVALID) and every
+# run that fed it stand exactly as committed; nothing below re-scores them.
+# `baseline_reproduction_v2` and `evaluate_decision_rule_v2` are retained
+# UNMODIFIED beside the `*_v3` functions this section adds. Version 3
+# implements amendment v3 change A7 (the CI-overlap SR3 sub-check, replacing
+# ONLY the `every_row_in_band_1_3_to_3_6` sub-check's gating role), change A8
+# (the Wilson-Hilferty self-check, implemented in
+# harness/exp_icinv_fullgroup.py:wilson_hilferty_crosscheck), and change A9
+# (the p=4001/p=6007 reuse-without-redraw provenance, and the p=2003 audit).
+# --------------------------------------------------------------------------
+
+CONTRACT_VERSION_V3 = fg.CONTRACT_VERSION_V3
+AMENDMENT_PATH_V3 = fg.AMENDMENT_PATH_V3
+HANDOFF_ID_V3 = "TASK-20260810-3c448e"
+
+# Version-3 run ids. Minted with `tools/allocate_id.py --next` is not available
+# for RUN-* (no pattern is enforced for that prefix in validate_ledger.py), so
+# each token below is a random 6-hex suffix generated independently of any
+# scan of committed state and confirmed free with
+# `python3 tools/allocate_id.py --check` before use (AGENTS.md rule 14), the
+# same discipline V2_RUN_IDS above records for itself. They are written here
+# as POINTERS; no measured value is transcribed anywhere in this module.
+#
+# (3, 2003) is a FRESH Stage 3 measurement (change A9 audit: no valid
+# version-2 Stage 1/2 record covers Stage 3 there, since SR3 halted before
+# reaching it under version 2, and no valid Stage 3 record exists under any
+# version -- see `audit_p2003_stage12_provenance` below for the audit itself).
+# (3, 4001) and (3, 6007) are NEW run ids for a NEW COMPUTATION: amendment v3
+# change A9 authorizes reading version 2's own Stage 3 per-curve measurements
+# at those two primes as declared, hashed input WITHOUT redrawing samples, but
+# a new gate computation over old data is still a new run and gets a new id
+# (AGENTS.md rule 4: run records are immutable, never re-keyed).
+V3_RUN_IDS = {
+    (3, 2003): "RUN-ICINV-4bf6c8",
+    (3, 4001): "RUN-ICINV-476e12",
+    (3, 6007): "RUN-ICINV-ff0806",
+    ("decide", None): "RUN-ICINV-849d1d",
+}
+
+# Stage 1 and Stage 2 are UNCHANGED by amendment v3 (A7/A8/A9 touch only Stage
+# 3's baseline-reproduction sub-check and its data provenance), so version 3
+# reads version 2's own valid Stage 1/2 records as dependencies rather than
+# re-running them. This dict names which record is read at each (stage, p);
+# `audit_p2003_stage12_provenance` below independently confirms the p=2003
+# entries are genuinely version-2 in origin before anything depends on them.
+V3_STAGE12_SOURCE = {
+    (1, 2003): V2_RUN_IDS[(1, 2003)], (1, 4001): V2_RUN_IDS[(1, 4001)],
+    (1, 6007): V2_RUN_IDS[(1, 6007)],
+    (2, 2003): V2_RUN_IDS[(2, 2003)], (2, 4001): V2_RUN_IDS[(2, 4001)],
+    (2, 6007): V2_RUN_IDS[(2, 6007)],
+}
+
 
 # --------------------------------------------------------------------------
 # run-record writing (this driver writes its own manifest -- see NOTE)
@@ -1259,6 +1316,403 @@ def baseline_reproduction_v2(p: int, cells: dict, role: str, n_curves: int) -> d
     }
 
 
+# --------------------------------------------------------------------------
+# CONTRACT VERSION 3 additions (amendment v3 changes A7, A8, A9)
+# --------------------------------------------------------------------------
+
+
+def reconstruct_rows_from_columnar(per_curve_table: dict) -> list[dict]:
+    """CHANGE A9's reuse mechanics: rebuild per-(curve, arm, fb_size, seed, T)
+    row dicts from a COMMITTED run's `per-curve-measurements.json["table"]`,
+    the exact inverse of `columnar()`. No sample is redrawn and no hit count
+    is recomputed -- every value is read verbatim from the three normalised
+    tables and joined back on `curve_idx` (and `curve_idx, fb_size` for the
+    sum-set facts) into the row shape `cells_for`/`fg.aggregate_rows` consume.
+
+    VALIDATED, not merely asserted: reconstructing p=4001's Arm A0/A1/B rows
+    from RUN-ICINV-40622f/per-curve-measurements.json and re-aggregating them
+    with `cells_for` reproduces every one of that run's own 351 committed
+    `cell-aggregates.json` cells' pooled variance ratios to better than 1e-9
+    absolute (checked by hand before this function was relied on; see the
+    execution report). p=6007 (RUN-ICINV-c670c2) has no `cell-aggregates.json`
+    at all -- its SR3 gate failed under version 2 before Arm B's cells were
+    aggregated and written, though the per-curve hit counts for every arm
+    (including B) were already computed by the shared sweep and ARE present in
+    its `per-curve-measurements.json` -- so this reconstruction is the ONLY
+    way to read that prime's Arm B data without a fresh, budget-costing,
+    seed-identical (hence provably redundant) re-draw.
+    """
+    curves_tbl = per_curve_table["curves"]
+    sums_tbl = per_curve_table["sumsets"]
+    meas_tbl = per_curve_table["measurements"]
+    cbyidx = {row[0]: dict(zip(curves_tbl["columns"], row)) for row in curves_tbl["rows"]}
+    sbykey = {(row[0], row[1]): dict(zip(sums_tbl["columns"], row))
+             for row in sums_tbl["rows"]}
+    out = []
+    for row in meas_tbl["rows"]:
+        m = dict(zip(meas_tbl["columns"], row))
+        c = cbyidx[m["curve_idx"]]
+        s = sbykey[(m["curve_idx"], m["fb_size"])]
+        out.append({**c, **s, **m})
+    return out
+
+
+def load_stage3_cells_v3(p: int, source_run_id: str) -> dict:
+    """CHANGE A9. The Arm A0/A1/B cells at `p`, read WITHOUT redrawing.
+
+    If the source run's own `cell-aggregates.json` exists (its SR3 gate
+    passed under version 2, so its cells were aggregated and written), that
+    file is read directly -- it is already exactly `cells_for`'s output.
+    Otherwise (SR3 failed there under version 2, as at p=6007) the cells are
+    REBUILT from that same run's `per-curve-measurements.json`, which retains
+    every arm's raw hit counts regardless of the gate outcome (see
+    `reconstruct_rows_from_columnar`). Either path reads only already-written,
+    already-hashed, already-committed numbers; nothing is redrawn.
+    """
+    run_dir = os.path.join(RUNS_ROOT, source_run_id)
+    cells_path = os.path.join(run_dir, "cell-aggregates.json")
+    pcm_path = os.path.join(run_dir, "per-curve-measurements.json")
+    if os.path.exists(cells_path):
+        with open(cells_path, "rb") as f:
+            blob = f.read()
+        cells = json.loads(blob)["cells"]
+        return {"cells": cells, "method": "read directly from cell-aggregates.json "
+                "(the source run's SR3 gate passed under version 2, so its cells were "
+                "already aggregated and written)",
+                "source_file": os.path.relpath(cells_path, REPO),
+                "source_file_sha256": hashlib.sha256(blob).hexdigest()}
+    if not os.path.exists(pcm_path):
+        raise FileNotFoundError(
+            f"change A9 reuse requires {source_run_id}'s per-curve-measurements.json "
+            f"to exist; it does not")
+    with open(pcm_path, "rb") as f:
+        blob = f.read()
+    doc = json.loads(blob)
+    # Two shapes exist across this driver's own history, both already
+    # committed: the normal stage-3 success path wraps the three normalised
+    # tables under a "table" key (`_sweep_artifacts`); the SR3-gate-failure
+    # exception handler (main(), `except BaselineGateFailure`) writes
+    # `columnar(...)`'s output directly with no wrapper, which is the shape
+    # RUN-ICINV-c670c2 (p=6007, SR3 failed under version 2) actually has.
+    # Both are read here rather than assuming one.
+    table = doc["table"] if "table" in doc else doc
+    rows = reconstruct_rows_from_columnar(table)
+    arms = sorted({r["arm"] for r in rows})
+    role = "primary"
+    cells = cells_for(rows, arms, role)
+    return {"cells": cells, "method": "RECONSTRUCTED from per-curve-measurements.json "
+            "(the source run's SR3 gate FAILED under version 2, so cell-aggregates.json "
+            "was never written; every arm's raw hit counts were already computed by "
+            "the shared sweep before the gate check and are retained in this file "
+            "regardless of the gate outcome -- see reconstruct_rows_from_columnar)",
+            "source_file": os.path.relpath(pcm_path, REPO),
+            "source_file_sha256": hashlib.sha256(blob).hexdigest(),
+            "n_rows_reconstructed": len(rows)}
+
+
+def audit_p2003_stage12_provenance() -> dict:
+    """CHANGE A9's MANDATORY p=2003 audit, performed and declared rather than
+    assumed. Stage 3 at p=2003 was never executed under any version (SR3
+    halted the per-prime sequence at p=6007 before reaching it under version
+    2; version 1 never reached SR3 at all at p=2003 either). Whether a VALID
+    version-2 Stage 1/2 record already exists there is a fact this function
+    checks, not asserts: for every candidate directory named in amendment
+    v3.yaml change A9 (the version-1-looking `RUN-ICINV-fg-stage1-p2003` /
+    `RUN-ICINV-fg-nullr*-p2003` family) AND for the short-id directories this
+    driver's own `V3_STAGE12_SOURCE` proposes to read
+    (`RUN-ICINV-65bc20`, `RUN-ICINV-84bd66`), it reads each manifest's
+    `run.handoff_id` and `run.code.commit`, and independently runs
+    `git log --diff-filter=A` on the manifest's own path to find the commit
+    that FIRST ADDED it, exactly as the amendment text proposes.
+    """
+    def _first_added_commit(path: str) -> str | None:
+        try:
+            out = subprocess.run(
+                ["git", "log", "--diff-filter=A", "--format=%H", "--", path],
+                cwd=REPO, capture_output=True, text=True)
+            lines = [ln for ln in out.stdout.strip().splitlines() if ln]
+            return lines[-1] if lines else None      # oldest = first added
+        except Exception as exc:                                # pragma: no cover
+            return f"error: {exc}"
+
+    def _inspect(run_id: str) -> dict | None:
+        man_path = os.path.join(RUNS_ROOT, run_id, "manifest.yaml")
+        if not os.path.exists(man_path):
+            return None
+        with open(man_path, "rb") as f:
+            blob = f.read()
+        man = (yaml.safe_load(blob.decode("utf-8")) or {}).get("run") or {}
+        rel = os.path.relpath(man_path, REPO)
+        return {
+            "run_id": run_id,
+            "manifest_path": rel,
+            "manifest_sha256": hashlib.sha256(blob).hexdigest(),
+            "declared_handoff_id": man.get("handoff_id"),
+            "declared_commit": (man.get("code") or {}).get("commit"),
+            "declared_dirty": (man.get("code") or {}).get("dirty"),
+            "declared_stage": man.get("stage"),
+            "declared_status": man.get("status"),
+            "manifest_first_added_at_commit": _first_added_commit(rel),
+        }
+
+    v1_looking_candidates = ["RUN-ICINV-fg-stage1-p2003", "RUN-ICINV-fg-nullr-p2003",
+                             "RUN-ICINV-fg-nullr-v2-p2003", "RUN-ICINV-fg-nullr-v3-p2003"]
+    v2_short_id_candidates = [V2_RUN_IDS[(1, 2003)], V2_RUN_IDS[(2, 2003)]]
+
+    v1_looking = {rid: _inspect(rid) for rid in v1_looking_candidates}
+    v2_short = {rid: _inspect(rid) for rid in v2_short_id_candidates}
+
+    def _is_valid_v2(rec: dict | None) -> bool:
+        return bool(rec) and rec["declared_handoff_id"] == HANDOFF_ID \
+            and rec["declared_status"] == "completed_valid"
+
+    v1_looking_are_v2 = {rid: _is_valid_v2(rec) for rid, rec in v1_looking.items()}
+    v2_short_are_v2 = {rid: _is_valid_v2(rec) for rid, rec in v2_short.items()}
+    stage1_valid = v2_short_are_v2.get(V2_RUN_IDS[(1, 2003)], False)
+    stage2_valid = v2_short_are_v2.get(V2_RUN_IDS[(2, 2003)], False)
+
+    return {
+        "change": "A9",
+        "amendment": AMENDMENT_PATH_V3,
+        "question": ("does a valid version-2 Stage 1/2 record already exist at p=2003, "
+                    "so a fresh Stage 1/2 measurement can be skipped there (Stage 3 "
+                    "still needs a fresh measurement regardless -- see "
+                    "`what_this_means_for_stage3` below)"),
+        "v1_looking_candidates_named_in_amendment": v1_looking,
+        "v1_looking_candidates_are_actually_version2": v1_looking_are_v2,
+        "v2_short_id_candidates_this_driver_proposes_to_read": v2_short,
+        "v2_short_id_candidates_are_valid_version2": v2_short_are_v2,
+        "audit_result": {
+            "stage1_p2003_valid_version2_record_exists": stage1_valid,
+            "stage1_p2003_source": (V2_RUN_IDS[(1, 2003)] if stage1_valid else None),
+            "stage2_p2003_valid_version2_record_exists": stage2_valid,
+            "stage2_p2003_source": (V2_RUN_IDS[(2, 2003)] if stage2_valid else None),
+        },
+        "what_this_means_for_stage3": (
+            "Stage 3 (the primary-class Arm A0/A1/B density sweep) has NO valid record "
+            "at p=2003 under ANY version regardless of this audit's Stage 1/2 outcome -- "
+            "DEC-20260809-de11f9 confirmed SR3 halted the per-prime execution order "
+            "[4001, 6007, 2003] at p=6007, before p=2003 was ever reached, and version 1 "
+            "never reached SR3 at p=2003 either (its own p=2003 primary-class run, "
+            "RUN-ICINV-fg-primary-p2003, predates SR3's introduction in this driver's "
+            "version-2 baseline-reproduction control and never evaluated it). A FRESH "
+            "Stage 3 measurement at p=2003 is therefore required by amendment v3 change "
+            "A9 regardless of the Stage 1/2 audit result above, and this run performs "
+            "one under the unchanged sampler and class-selection rules (Stage 1/2 are "
+            "untouched by amendment v3 and READ from the valid version-2 records named "
+            "above rather than re-measured, when `audit_result` finds them valid)."),
+    }
+
+
+def baseline_reproduction_v3(p: int, cells: dict, role: str, n_curves: int) -> dict:
+    """SR3 under contract version 3 (amendment change A7).
+
+    Starts from EXACTLY `baseline_reproduction_v2`'s row table and reference
+    provenance (change A1/A4, unchanged) and ADDS, per row, a 95% confidence
+    interval for the TRUE variance ratio R_true underlying that row's own
+    measured point estimate (`fg.r_true_95pct_ci`, amendment v3 change A7's
+    formula, itself built on `fg.chi2_wilson_hilferty_bounds`, change A8).
+
+    THE OLD LITERAL `in_band_1_3_to_3_6` FIELD IS KEPT AND REPORTED, now
+    explicitly labelled `contributes_to_gate: false`. The NEW field
+    `ci_overlaps_band_1_3_to_3_6` is what `checks["every_row_..._band"]`
+    actually gates on. `monotonic_decay_is_false` and
+    `operating_row_within_tolerance` are NOT TOUCHED -- copied verbatim from
+    the same computation `baseline_reproduction_v2` performs, per amendment
+    v3's explicit statement that neither was the defect and neither is in
+    scope for this change. THE BAND [1.3, 3.6] ITSELF IS NOT MOVED, WIDENED,
+    OR RE-ESTIMATED anywhere in this function; only the per-row comparison
+    against it changes.
+    """
+    ref = fg.load_baseline_v2(p)
+    rows = []
+    by_fb = {}
+    for fb in fg.FB_SIZES:
+        key = f"{role}|A0|seed={fg.SEED_PRIMARY}|T={fg.TARGET_COUNT_PRIMARY}|fb={fb}"
+        c = cells.get(key)
+        if c is None:
+            continue
+        by_fb[fb] = c
+        vr = c["stats"]["pooled"]["ratio"]
+        rvr = ref["rows"].get(fb) if ref else None
+        ci_lo, ci_hi = fg.r_true_95pct_ci(vr, n_curves)
+        ci_overlaps = bool(ci_lo <= fg.BASELINE_VR_BAND[1] and ci_hi >= fg.BASELINE_VR_BAND[0])
+        rows.append({
+            "fb_size": fb,
+            "mean_density_3V_over_order": c["mean_density_3V_over_order"],
+            "mean_rate": c["stats"]["pooled"]["mean"],
+            "variance_ratio_measured": vr,
+            "verdict": c["stats"]["pooled"]["verdict"],
+            "reference_variance_ratio": rvr,
+            "reference_verdict": (ref["row_verdicts"].get(fb) if ref else None),
+            "delta_vs_reference": (None if rvr is None else vr - rvr),
+            "exact_match_with_reference": (None if rvr is None
+                                           else bool(abs(vr - rvr) < 1e-9)),
+            "reference_counterpart_exists": rvr is not None,
+            "in_band_1_3_to_3_6": bool(
+                fg.BASELINE_VR_BAND[0] <= vr <= fg.BASELINE_VR_BAND[1]),
+            "in_band_1_3_to_3_6_contributes_to_gate": False,
+            "in_band_1_3_to_3_6_note": ("KEPT AND REPORTED, non-gating (amendment v3 "
+                                        "change A7): the literal point-estimate "
+                                        "membership test that motivated this redesign"),
+            "reference_in_band_1_3_to_3_6": (
+                None if rvr is None else
+                bool(fg.BASELINE_VR_BAND[0] <= rvr <= fg.BASELINE_VR_BAND[1])),
+            "df": n_curves - 1,
+            "r_true_95pct_ci": [ci_lo, ci_hi],
+            "ci_overlaps_band_1_3_to_3_6": ci_overlaps,
+            "ci_overlaps_band_1_3_to_3_6_contributes_to_gate": True,
+            "ci_formula": ("amendment v3 change A7: df=n_curves-1; stat=df*ratio; "
+                          "(lo,hi)=chi2_wilson_hilferty_bounds(df,1.96); "
+                          "r_true_95pct_ci=[stat/hi, stat/lo]; passes iff that "
+                          "interval overlaps [1.3, 3.6]"),
+        })
+    op_fb = fg.operating_row(by_fb)
+    op_vr = by_fb[op_fb]["stats"]["pooled"]["ratio"] if op_fb is not None else None
+    mono = fg.monotonic_decay([r["variance_ratio_measured"] for r in rows])
+
+    applies = (ref is not None) and role == "primary"
+    ref_op = ref["operating_variance_ratio"] if ref else None
+    stated = fg.CONTRACT_STATED_OPERATING_VR.get(p) if role == "primary" else None
+
+    checks = {
+        "every_row_in_band_1_3_to_3_6": bool(all(r["ci_overlaps_band_1_3_to_3_6"]
+                                                 for r in rows)),
+        "every_row_in_band_1_3_to_3_6_gate_definition": (
+            "amendment v3 change A7: gates on ci_overlaps_band_1_3_to_3_6 per row, NOT "
+            "on the literal in_band_1_3_to_3_6 field (kept, reported, non-gating)"),
+        "rows_outside_band_literal_non_gating": [r["fb_size"] for r in rows
+                                                 if not r["in_band_1_3_to_3_6"]],
+        "rows_outside_band_ci_gating": [r["fb_size"] for r in rows
+                                        if not r["ci_overlaps_band_1_3_to_3_6"]],
+        "monotonic_decay_is_false": bool(mono is False),
+        "operating_row_fb": op_fb,
+        "operating_row_variance_ratio": op_vr,
+        "operating_row_reference_value": ref_op,
+        "operating_row_reference_source": (
+            None if ref is None else
+            f"{ref['run_id']} row_closest_to_operating_density.variance_ratio, read at "
+            f"run time from {ref['raw_result_path']} (sha256 {ref['raw_result_sha256']})"),
+        "operating_row_within_tolerance": (
+            None if ref_op is None or op_vr is None
+            else bool(abs(op_vr - ref_op) <= fg.BASELINE_OPERATING_TOLERANCE)),
+        "tolerance": fg.BASELINE_OPERATING_TOLERANCE,
+        "contract_stated_reference_reported_not_gating": (
+            None if stated is None or op_vr is None else {
+                "value": stated,
+                "provenance": ("the frozen contract's own prose in "
+                               "controls.BASELINE-REPRODUCTION CONTROL"),
+                "delta": op_vr - stated,
+                "would_be_within_tolerance": bool(
+                    abs(op_vr - stated) <= fg.BASELINE_OPERATING_TOLERANCE),
+            }),
+    }
+    passed = (None if not applies else bool(
+        checks["every_row_in_band_1_3_to_3_6"] and checks["monotonic_decay_is_false"]
+        and checks["operating_row_within_tolerance"]))
+
+    matched = [r for r in rows if r["exact_match_with_reference"] is True]
+    comparable = [r for r in rows if r["reference_counterpart_exists"]]
+    reproduction = {
+        "n_rows_with_reference_counterpart": len(comparable),
+        "n_rows_exactly_reproduced": len(matched),
+        "max_abs_delta_vs_reference": (
+            max((abs(r["delta_vs_reference"]) for r in comparable), default=None)),
+        "note": ("this row-by-row comparison is REPORTED, not gating, unchanged from "
+                 "version 2"),
+    }
+    reference_self_check = (None if ref is None else {
+        "reference_run_id": ref["run_id"],
+        "reference_rows_outside_frozen_band": ref["rows_outside_frozen_band"],
+        "reference_row_values_outside_band": {
+            str(fb): ref["rows"][fb] for fb in ref["rows_outside_frozen_band"]},
+        "reference_itself_inside_band_at_every_row":
+            ref["reference_itself_inside_band_at_every_row"],
+        "what_this_means": (
+            "unchanged from version 2: the band is never moved. Amendment v3 change A7 "
+            "changes how a MEASURED row is compared to the fixed band, not how the "
+            "reference itself is reported here."),
+    })
+
+    return {
+        "contract_version": CONTRACT_VERSION_V3,
+        "amendment": AMENDMENT_PATH_V3,
+        "p": p, "class_role": role, "arm": "A0", "seed": fg.SEED_PRIMARY,
+        "T": fg.TARGET_COUNT_PRIMARY, "n_curves": n_curves,
+        "gate_applies_at_this_prime": applies,
+        "gate_applies_note": ("the contract states the baseline-reproduction control for "
+                              "Arm A0 on the PRIMARY class at the primes that have a "
+                              "reference sweep (p=4001 and p=6007). p=2003 has none, and "
+                              "the NULL-R class is not the object EV-ENDO-10109d measured; "
+                              "both are reported here without a gate."),
+        "reference_run": (None if ref is None else {
+            "run_id": ref["run_id"], "experiment_id": ref["experiment_id"],
+            "raw_result_path": ref["raw_result_path"],
+            "raw_result_sha256": ref["raw_result_sha256"],
+            "manifest_path": ref["manifest_path"],
+            "manifest_sha256": ref["manifest_sha256"],
+            "declared_seed_as_read": ref["declared_seed_as_read"],
+            "declared_parameters_as_read": ref["declared_parameters_as_read"],
+            "n_targets": ref["n_targets"], "fb_sizes": ref["fb_sizes"],
+            "trace": ref["trace"], "order": ref["order"], "n_curves": ref["n_curves"],
+            "monotonic_decay": ref["monotonic_decay"],
+            "operating_fb": ref["operating_fb"],
+            "operating_variance_ratio": ref["operating_variance_ratio"]}),
+        "reference_values_provenance": (
+            "read at run time from the run record named above and bound by its SHA-256; "
+            "NOT transcribed into source at any precision (amendment change A4, "
+            "CORR-20260807-a24675)"),
+        "frozen_run_parameters": {"n_targets": fg.TARGET_COUNT_PRIMARY,
+                                  "fb_sizes": fg.FB_SIZES},
+        "parameter_mismatch_with_reference_run": (
+            None if ref is None else
+            {"target_count": ref["n_targets"] != fg.TARGET_COUNT_PRIMARY,
+             "fb_grid": ref["fb_sizes"] != fg.FB_SIZES}),
+        "rows": rows,
+        "monotonic_decay": mono,
+        "checks": checks,
+        "row_by_row_reproduction_reported_not_gating": reproduction,
+        "reference_self_check": reference_self_check,
+        "gate_passed": passed,
+    }
+
+
+def evaluate_decision_rule_v3(stage1s: dict, stage2s: dict, stage3s: dict,
+                              stage3_not_run: dict) -> dict:
+    """THE FROZEN RULE, EVALUATED BY THE RUN (SR6), UNDER CONTRACT VERSION 3.
+
+    The rule itself is UNCHANGED by amendment v3 -- evaluation order, the 1.3
+    persistence threshold, S1/S2/S3, the three-prime majority and the strength
+    calibration are all `unchanged_and_still_frozen` in v3.yaml. `A7` changes
+    ONLY one sub-check inside `baseline_reproduction_v3`'s `checks` dict; this
+    function consumes that dict exactly as `evaluate_decision_rule_v2` does
+    (same keys: `gate_applies_at_this_prime`, `gate_passed`, `checks`,
+    `reference_run`, `reference_self_check`), so the shared logic is called
+    directly rather than duplicated, and only the version-identifying fields
+    of the returned dict are patched.
+    """
+    dec = evaluate_decision_rule_v2(stage1s, stage2s, stage3s, stage3_not_run)
+    dec["contract_version"] = CONTRACT_VERSION_V3
+    dec["protocol_amendment"] = AMENDMENT_PATH_V3
+    dec["decision_rule_source"] = (
+        "experiments/EXP-ICINV-4d33aa/specification.yaml frozen_decision_rule (status "
+        "approved, approved_at 2026-08-07), unchanged by amendment v3 "
+        "(v3.yaml unchanged_and_still_frozen); the ONLY change amendment v3 makes to "
+        "this rule's inputs is A7's redesign of baseline_reproduction's "
+        "every_row_in_band_1_3_to_3_6 sub-check, computed by baseline_reproduction_v3 "
+        "before this function is called")
+    dec["evidence_strength_calibration"] = (
+        "3-0 majority permits `replicated`; a 2-1 majority CAPS the resulting evidence "
+        "record at `preliminary` and the dissenting prime must be named. NOTE: "
+        "amendment v3 `confirmatory_status: exploratory_only` caps ANY evidence record "
+        "arising from this run at `preliminary` REGARDLESS of the majority, for a "
+        "reason STRENGTHENED beyond amendment v2's own (v3.yaml "
+        "confirmatory_status_note: the redesign was engineered in view of the exact "
+        "numeric effect on the two rows that motivated it, disclosed in v3.yaml before "
+        "this run existed). This Executor writes no evidence record.")
+    return dec
+
+
 def persistence_and_stratification(p: int, cells: dict, role: str) -> dict:
     """State 2 (F_p) and state 3 (S1/S2/S3) inputs, per density row.
 
@@ -1907,13 +2361,453 @@ def git_context() -> dict:
     }
 
 
+# --------------------------------------------------------------------------
+# CONTRACT VERSION 3 driver (amendment v3 changes A7, A8, A9). Isolated from
+# the version-2 stage/decide dispatch above rather than threaded into it: `1`,
+# `2`, `3` and `decide` are exercised by two prior committed executions and a
+# Validator's byte-equal re-run (VAL-20260807-9c31ab), and this section adds
+# new stages `3v3` and `decidev3` beside them without touching a line of that
+# code path.
+# --------------------------------------------------------------------------
+
+
+def assemble_stage3_v3_reused(p: int, source_run_id: str) -> dict:
+    """CHANGE A9 reuse path for p in {4001, 6007}. Assembles the SAME `raw`
+    dict shape `stage_sweep` produces for a fresh measurement, but every
+    curve-level, sum-set-level and coverage fact is READ UNCHANGED from
+    `source_run_id`'s own committed `raw-result.json` and
+    `per-curve-measurements.json` -- nothing there depends on the SR3 gate
+    outcome and nothing there is redrawn. Only `cells` (reconstructed when the
+    source's own gate failed and `cell-aggregates.json` was therefore never
+    written -- see `load_stage3_cells_v3`), `baseline_reproduction` (change
+    A7's CI-overlap gate) and `persistence` (never computed under version 2 at
+    p=6007, since SR3 halted before it) are (re)computed.
+    """
+    run_dir = os.path.join(RUNS_ROOT, source_run_id)
+    raw_path = os.path.join(run_dir, "raw-result.json")
+    with open(raw_path, "rb") as f:
+        raw_blob = f.read()
+    src = json.loads(raw_blob)["raw"]
+
+    loaded = load_stage3_cells_v3(p, source_run_id)
+    cells = loaded["cells"]
+    n_curves = src["n_curves"]
+
+    pcm_path = os.path.join(run_dir, "per-curve-measurements.json")
+    with open(pcm_path, "rb") as f:
+        pcm_blob = f.read()
+    pcm_doc = json.loads(pcm_blob)
+    table = pcm_doc["table"] if "table" in pcm_doc else pcm_doc
+    rows = reconstruct_rows_from_columnar(table)
+
+    base = baseline_reproduction_v3(p, cells, "primary", n_curves)
+    persistence = persistence_and_stratification(p, cells, "primary")
+
+    op_key_prefix = f"primary|A0|seed={fg.SEED_PRIMARY}|T={fg.TARGET_COUNT_PRIMARY}|fb="
+    op_by_fb = {fb: cells[op_key_prefix + str(fb)] for fb in fg.FB_SIZES
+               if (op_key_prefix + str(fb)) in cells}
+    op_fb = fg.operating_row(op_by_fb)
+    tails = fg.tail_checks(rows, cells, src["coverage_certificates"], fg.SEED_PRIMARY,
+                           fg.TARGET_COUNT_PRIMARY)
+    tails["t_scaling_tail"] = ({arm: fg.t_scaling(rows, arm, fg.SEED_PRIMARY, op_fb)
+                                for arm in src["arms"]} if op_fb is not None else None)
+
+    return {
+        "p": p, "stage": 3, "class_role": "primary",
+        "trace": src["trace"], "order": src["order"], "n_curves": n_curves,
+        "arms": src["arms"], "selection": src["selection"], "census": src["census"],
+        "coverage_certificates": src["coverage_certificates"],
+        "premise_gate": src["premise_gate"],
+        "sumset_sharing": src["sumset_sharing"],
+        "cells": cells, "planted_cells": src.get("planted_cells", {}),
+        "identity_checks": src["identity_checks"],
+        "identity_all_hold": src["identity_all_hold"],
+        "dropped_or_short_cells": src["dropped_or_short_cells"],
+        "tail_checks": tails, "birthday_check_sample": src["birthday_check_sample"],
+        "rows": rows, "operating_fb": op_fb,
+        "baseline_reproduction": base,
+        "baseline_provenance": fg.baseline_provenance(fg.PRIMES_REQUIRED),
+        "persistence": persistence,
+        "change_A9_reuse_provenance": {
+            "source_run_id": source_run_id,
+            "source_raw_result_path": os.path.relpath(raw_path, REPO),
+            "source_raw_result_sha256": hashlib.sha256(raw_blob).hexdigest(),
+            "source_per_curve_measurements_path": os.path.relpath(pcm_path, REPO),
+            "source_per_curve_measurements_sha256": hashlib.sha256(pcm_blob).hexdigest(),
+            "cells_reconstruction_method": loaded["method"],
+            "cells_source_file": loaded["source_file"],
+            "cells_source_file_sha256": loaded["source_file_sha256"],
+            "fields_read_unchanged_from_source": [
+                "trace", "order", "n_curves", "arms", "selection", "census",
+                "coverage_certificates", "premise_gate", "sumset_sharing",
+                "planted_cells", "identity_checks", "identity_all_hold",
+                "dropped_or_short_cells", "birthday_check_sample"],
+            "fields_recomputed_in_this_run": [
+                "cells (reconstructed from per-curve-measurements.json when the source "
+                "run's own cell-aggregates.json does not exist, i.e. its SR3 gate failed "
+                "under version 2; read directly from cell-aggregates.json otherwise)",
+                "baseline_reproduction (change A7's CI-overlap gate; the entire point of "
+                "this run)",
+                "persistence (Arm B statistics over the (re)aggregated cells; NEVER "
+                "computed under version 2 at p=6007, since SR3 halted before it)",
+                "tail_checks (recomputed over the reconstructed rows and cells; not "
+                "redrawn -- every hit count is read verbatim from the source)"],
+            "no_sample_was_redrawn": True,
+            "rationale": ("amendment v3 change A9: Arm A0 is deterministic given the "
+                         "frozen seed (20260807); reading these already-committed "
+                         "per-curve measurements is not distinguishable from a fresh "
+                         "draw at the same seed and costs no budget to learn nothing "
+                         "SR4 does not already fix in advance"),
+        },
+    }
+
+
+def run_id_for_v3(stage, p) -> str:
+    """Contract version 3 run ids: minted tokens, never derived at run time."""
+    key = ("decide", None) if stage in ("decidev3", "decide") else (3, p)
+    try:
+        return V3_RUN_IDS[key]
+    except KeyError:
+        raise PreconditionRefusal(
+            f"no version-3 run id is minted for stage {stage} at p={p}. Every run id "
+            f"is minted with a token confirmed free by tools/allocate_id.py --check "
+            f"before use (AGENTS.md rule 14); this driver does not invent one.")
+
+
+def _sweep_artifacts_v3(p, role, raw, base, run_id, wh_crosscheck: dict,
+                        p2003_audit: dict | None) -> dict:
+    """Same shape as `_sweep_artifacts` (version 2), with the aggregate decide
+    run id pointed at V3's own, and change A8's cross-check plus (at p=2003)
+    change A9's audit added as first-class, always-present artifacts.
+    """
+    art = _sweep_artifacts(p, role, raw, base, run_id)
+    art["decision-rule-evaluation.json"]["scope"] = (
+        f"stage {raw['stage']} (contract version 3) -- per-prime inputs to the frozen "
+        f"rule at p={p}. The TERMINAL STATE is emitted by "
+        f"{run_id_for_v3('decidev3', None)} over the three stage-3 records plus the "
+        f"reused version-2 stage-1/stage-2 records.")
+    art["decision-rule-evaluation.json"]["contract_version"] = CONTRACT_VERSION_V3
+    art["decision-rule-evaluation.json"]["protocol_amendment"] = AMENDMENT_PATH_V3
+    art["wilson-hilferty-crosscheck.json"] = wh_crosscheck
+    if "change_A9_reuse_provenance" in raw:
+        art["change-a9-provenance.json"] = raw["change_A9_reuse_provenance"]
+    if p2003_audit is not None:
+        art["change-a9-p2003-audit.json"] = p2003_audit
+    return art
+
+
+def main_v3(args) -> int:
+    """CONTRACT VERSION 3 -- amendment v3.yaml (status: approved, approved_by:
+    coordinator, 2026-08-10), dispatched by TASK-20260810-3c448e.
+
+    Implements stages `3v3` (per-prime SR3 gate re-evaluation under change A7,
+    fresh at p=2003 and reused-without-redraw at p=4001/p=6007 under change
+    A9) and `decidev3` (the frozen decision rule over those three records plus
+    the reused, valid version-2 stage-1/stage-2 records).
+    """
+    cap = int(args.memory_gb * (1 << 30))
+    try:
+        resource.setrlimit(resource.RLIMIT_AS, (cap, cap))
+    except (ValueError, OSError) as exc:
+        print(f"  WARNING: could not set RLIMIT_AS: {exc}", file=sys.stderr)
+
+    command = "python3 -m harness.run_fullgroup " + " ".join(sys.argv[1:])
+    started = time.time()
+    deadline = started + args.max_seconds
+    tee_out, tee_err = Tee(sys.stdout), Tee(sys.stderr)
+    real_out, real_err = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = tee_out, tee_err
+
+    status, valid, invalid_reason = "completed_valid", True, None
+    raw: dict = {}
+    metrics: dict = {}
+    extra: dict = {}
+    gctx = git_context()
+    wh_crosscheck: dict = {}
+    p2003_audit = None
+
+    try:
+        print(f"== {EXP_ID} stage {args.stage} (CONTRACT VERSION 3) "
+              f"{'p=' + str(args.p) if args.p else ''} ==")
+        print(f"  git HEAD {gctx['head'][:12]} branch {gctx['branch']} "
+              f"origin/main {gctx['origin_main'][:12]} "
+              f"behind/ahead {gctx['behind_ahead_vs_origin_main']}")
+        digest = fg.committed_file_digest()
+        audit_c = fg.self_audit_no_null_c()
+        print(f"  harness/exp_icinv.py byte-identical to HEAD: {digest['byte_identical']}")
+        print(f"  NULL-C (permutation_null) call sites in this experiment: "
+              f"{audit_c['call_sites_total']}")
+        if not digest["byte_identical"]:
+            raise ContractViolation("harness/exp_icinv.py differs from its committed "
+                                    "version; the contract makes that INVALID")
+        if audit_c["call_sites_total"]:
+            raise ContractViolation("NULL-C is used; the contract makes that INVALID")
+
+        # ---- CHANGE A8, BLOCKING PRECONDITION ON A7 ----
+        # Run BEFORE any gate result computed by baseline_reproduction_v3 is
+        # interpreted, and written to wilson-hilferty-crosscheck.json whatever
+        # the outcome (never only on success).
+        print("  change A8: running the Wilson-Hilferty cross-check "
+              f"at df in {list((1, 5, 20, 69, 138, 139))} ...")
+        wh_crosscheck = fg.wilson_hilferty_crosscheck()
+        print(f"  change A8 result: all_within_tolerance="
+              f"{wh_crosscheck['all_within_tolerance']}")
+        if not wh_crosscheck["all_within_tolerance"]:
+            raise ContractViolation(
+                "amendment v3 change A8: the Wilson-Hilferty cross-check MISMATCHED the "
+                "committed exp_icinv.binomial_null_verdict at at least one probed df; "
+                "the run is INVALID and no gate result computed from "
+                "chi2_wilson_hilferty_bounds may be interpreted. Detail: "
+                + json.dumps([r for r in wh_crosscheck["rows"] if not r["within_tolerance"]]))
+
+        if args.stage == "3v3":
+            if args.p not in (2003, 4001, 6007):
+                raise PreconditionRefusal(
+                    f"--stage 3v3 requires --p in (2003, 4001, 6007); got {args.p}")
+            run_id = run_id_for_v3(3, args.p)
+
+            if args.p == 2003:
+                # ---- CHANGE A9's p=2003 AUDIT, DECLARED BEFORE RELIANCE ----
+                p2003_audit = audit_p2003_stage12_provenance()
+                print(f"  change A9 p=2003 audit: stage1_valid_v2="
+                      f"{p2003_audit['audit_result']['stage1_p2003_valid_version2_record_exists']} "
+                      f"stage2_valid_v2="
+                      f"{p2003_audit['audit_result']['stage2_p2003_valid_version2_record_exists']}")
+                if not (p2003_audit["audit_result"]["stage1_p2003_valid_version2_record_exists"]
+                        and p2003_audit["audit_result"]["stage2_p2003_valid_version2_record_exists"]):
+                    raise PreconditionRefusal(
+                        "change A9's p=2003 audit found no valid version-2 Stage 1/2 record; "
+                        "this driver does not fall back to a version-1 record silently. A "
+                        "fresh Stage 1/2 measurement at p=2003 would be required first, under "
+                        "a separately dispatched stage (not implemented by --stage 3v3, which "
+                        "is Stage 3 only) -- refusing rather than guessing.")
+                s1 = V3_STAGE12_SOURCE[(1, 2003)]
+                s2 = V3_STAGE12_SOURCE[(2, 2003)]
+                _require_run(s1, "SR1: stage 1's coverage certificate must exist first")
+                _require_run(s2, "SR2: the NULL-R matched null and planted signal must be "
+                                 "written to the run record BEFORE a primary Arm B verdict "
+                                 "is read")
+                s1data, s2data = load_run(s1), load_run(s2)
+                if s1data["data"]["raw"]["premise_gate"]["premise_failed"]:
+                    raise PreconditionRefusal(
+                        f"SR1: {s1} reports PREMISE-FAILED; stop and report. No outcome "
+                        f"may be evaluated at any prime.")
+                print(f"  p=2003: NO valid version-2/version-1 Stage 3 record exists "
+                      f"(SR3 halted before p=2003 was reached under version 2; version 1 "
+                      f"never reached SR3 at p=2003 either). Running a FRESH Stage 3 "
+                      f"measurement under the unchanged sampler and class-selection rules.")
+                raw = stage_sweep(2003, "primary", deadline,
+                                  require=[s1data["run_id"], s2data["run_id"]])
+                raw["dependencies"] = [
+                    {"run_id": d["run_id"], "path": d["path"], "sha256": d["sha256"]}
+                    for d in (s1data, s2data)]
+                raw["change_A9_p2003_audit"] = p2003_audit
+                base = baseline_reproduction_v3(2003, raw["cells"], "primary",
+                                                raw["n_curves"])
+                raw["baseline_reproduction"] = base
+                raw["baseline_provenance"] = fg.baseline_provenance(fg.PRIMES_REQUIRED)
+                # p=2003 has no committed reference sweep, so the gate does not apply
+                # here (base["gate_applies_at_this_prime"] is False) and SR3 cannot
+                # halt at this prime -- unchanged from version 2's own behaviour.
+                raw["persistence"] = persistence_and_stratification(
+                    2003, raw["cells"], "primary")
+            else:
+                source_run_id = V2_RUN_IDS[(3, args.p)]
+                print(f"  p={args.p}: change A9 reuse path -- reading version 2's own "
+                      f"Stage 3 measurement {source_run_id} WITHOUT redrawing samples.")
+                raw = assemble_stage3_v3_reused(args.p, source_run_id)
+                base = raw["baseline_reproduction"]
+
+            metrics = _sweep_metrics(args.p, "primary", raw, base)
+            extra = _sweep_artifacts_v3(args.p, "primary", raw, base, run_id,
+                                        wh_crosscheck, p2003_audit)
+            _print_sweep(raw, "primary", base)
+
+        else:                                            # decidev3
+            run_id = run_id_for_v3("decidev3", None)
+            missing = []
+            resolution = {}
+            s1s, s2s, s3s = {}, {}, {}
+            for p in fg.PRIMES_REQUIRED:
+                s1_id = V3_STAGE12_SOURCE[(1, p)]
+                s2_id = V3_STAGE12_SOURCE[(2, p)]
+                s3_id = run_id_for_v3(3, p)
+                for stage, rid, store in ((1, s1_id, s1s), (2, s2_id, s2s), (3, s3_id, s3s)):
+                    if os.path.exists(os.path.join(RUNS_ROOT, rid, "raw-result.json")):
+                        store[p] = load_run(rid)
+                        resolution[f"stage{stage}|p={p}"] = {
+                            "used": rid,
+                            "reused_from_version_2": stage in (1, 2)}
+                    else:
+                        missing.append(rid)
+            if missing:
+                raise PreconditionRefusal(f"missing stage run records: {missing}")
+            stage3_not_run: dict = {}      # every required prime has a v3 Stage-3 record
+            dec = evaluate_decision_rule_v3(s1s, s2s, s3s, stage3_not_run)
+            dec["source_run_resolution"] = resolution
+            raw = {"decision": dec,
+                  "sources": {rid["run_id"]: {"path": rid["path"], "sha256": rid["sha256"]}
+                              for store in (s1s, s2s, s3s) for rid in store.values()},
+                  "baseline_provenance": fg.baseline_provenance(fg.PRIMES_REQUIRED),
+                  "stretch_prime_10007": {
+                      "run": False,
+                      "reason": "permitted stretch only (test_boundary); not run."}}
+            metrics = {"terminal_state": dec["terminal_state"],
+                      "aggregate_persistence": dec["aggregate_persistence"],
+                      "stratification_verdict": dec["stratification_verdict"],
+                      "F_p": {p: v["F_p"] for p, v in dec["per_prime"].items()},
+                      "per_prime_binary": {p: v["binary"] for p, v in dec["per_prime"].items()},
+                      "majority_shape": dec["majority_shape"],
+                      "n_invalidations": len(dec["invalidations"]),
+                      "n_premise_failures": len(dec["premise_failures"])}
+            extra = _decide_artifacts(dec, s1s, s2s, s3s)
+            extra["baseline-provenance.json"] = raw["baseline_provenance"]
+            extra["wilson-hilferty-crosscheck.json"] = wh_crosscheck
+            p2003_src = s3s.get(2003)
+            if p2003_src is not None:
+                a9 = p2003_src["data"]["raw"].get("change_A9_p2003_audit")
+                if a9 is not None:
+                    extra["change-a9-p2003-audit.json"] = a9
+            if dec["terminal_state"] == "INVALID":
+                valid, invalid_reason = False, json.dumps(dec["invalidations"])[:2000]
+                status = "completed_invalid"
+            print(f"\n  TERMINAL STATE: {dec['terminal_state']}")
+            print(f"  aggregate persistence: {dec['aggregate_persistence']} "
+                  f"{dec['majority_counts']}   stratification: {dec['stratification_verdict']}")
+            for p, v in sorted(dec["per_prime"].items()):
+                if v.get("no_verdict_reason"):
+                    print(f"    p={p}: NO PERSISTENCE VERDICT -- {v['no_verdict_reason']}")
+                    continue
+                print(f"    p={p}: F_p={v['F_p']} -> {v['binary']} "
+                      f"(rows {v['n_rows']}, inconclusive {v['n_inconclusive']}, "
+                      f"S_positive={v['S_prime_positive']})")
+            for inv in dec["invalidations"]:
+                print(f"    INVALIDATION: {inv['rule']}"
+                      + (f" (p={inv['p']})" if "p" in inv else ""))
+
+    except BaselineGateFailure as exc:
+        status, valid = "completed_invalid", False
+        invalid_reason = ("SR3 baseline-reproduction control FAILED: " +
+                          json.dumps(exc.detail["checks"]))
+        run_id = run_id_for_v3(3, args.p)
+        metrics = {"baseline_gate_passed": False, "p": args.p, "checks": exc.detail["checks"]}
+        extra = {"baseline-reproduction.json": exc.detail,
+                "wilson-hilferty-crosscheck.json": wh_crosscheck}
+        print(f"\n  SR3 BASELINE GATE FAILED -- stopping. {exc.detail['checks']}",
+              file=sys.stderr)
+    except TimeoutError as exc:
+        status, valid = "failed_infrastructure", False
+        invalid_reason = (f"wall-clock budget of {args.max_seconds}s exhausted: {exc}. "
+                          f"Per AGENTS.md rule 5 this is NOT negative mathematical evidence "
+                          f"and NOT a verdict; partial artifacts are retained.")
+        run_id = (run_id_for_v3("decidev3", None) if args.stage == "decidev3"
+                 else run_id_for_v3(3, args.p)) + "-partial"
+        metrics = {"partial": True, "reason": str(exc)}
+        extra = {"partial-state.json": {"raw_keys": sorted(raw)},
+                "wilson-hilferty-crosscheck.json": wh_crosscheck}
+        print(f"\n  BUDGET EXHAUSTED: {exc}", file=sys.stderr)
+    except MemoryError as exc:
+        status, valid = "failed_infrastructure", False
+        invalid_reason = (f"memory cap of {args.memory_gb} GB exhausted: {exc}. NOT negative "
+                          f"mathematical evidence and NOT a verdict (AGENTS.md rule 5).")
+        run_id = (run_id_for_v3("decidev3", None) if args.stage == "decidev3"
+                 else run_id_for_v3(3, args.p)) + "-partial"
+        metrics = {"partial": True, "reason": "MemoryError"}
+        extra = {"wilson-hilferty-crosscheck.json": wh_crosscheck}
+        print(f"\n  MEMORY CAP EXHAUSTED: {exc}", file=sys.stderr)
+    except PreconditionRefusal as exc:
+        sys.stdout, sys.stderr = real_out, real_err
+        print(f"REFUSED (no run record written, nothing was measured): {exc}",
+              file=sys.stderr)
+        return 4
+    except ContractViolation as exc:
+        status, valid = "completed_invalid", False
+        invalid_reason = f"contract invalidation rule fired before measurement: {exc}"
+        run_id = (run_id_for_v3("decidev3", None) if args.stage == "decidev3"
+                 else run_id_for_v3(3, args.p)) + "-invalid"
+        metrics = {"invalid": True, "reason": str(exc)}
+        extra = {"wilson-hilferty-crosscheck.json": wh_crosscheck}
+        if p2003_audit is not None:
+            extra["change-a9-p2003-audit.json"] = p2003_audit
+        print(f"\n  CONTRACT VIOLATION: {exc}", file=sys.stderr)
+    except Exception as exc:                       # preserved, never swallowed
+        import traceback
+        status, valid = "failed_infrastructure", False
+        invalid_reason = (f"unhandled {type(exc).__name__}: {exc}. Per AGENTS.md rule 5 an "
+                          f"infrastructure or implementation failure is NEVER negative "
+                          f"mathematical evidence and never a verdict; partial artifacts "
+                          f"are retained.")
+        run_id = (run_id_for_v3("decidev3", None) if args.stage == "decidev3"
+                 else run_id_for_v3(3, args.p)) + "-failed"
+        metrics = {"partial": True, "reason": f"{type(exc).__name__}: {exc}"}
+        extra = {"partial-state.json": {"raw_keys": sorted(raw),
+                                        "traceback": traceback.format_exc()},
+                "wilson-hilferty-crosscheck.json": wh_crosscheck}
+        print(f"\n  FAILED: {type(exc).__name__}: {exc}\n{traceback.format_exc()}",
+              file=sys.stderr)
+
+    finished = time.time()
+    raw = dict(raw)
+    if "cells" in raw:
+        raw["cells"] = (f"{len(raw['cells'])} (arm, seed, T, fb_size) cells with their "
+                        f"NULL-B verdicts, bands and r-stratified decompositions are "
+                        f"written once to cell-aggregates.json; they are not duplicated here")
+    if "rows" in raw:
+        raw["rows"] = (f"{len(raw['rows'])} per-(curve, arm, fb_size, seed, T) rows are "
+                       f"written once, in columnar form, to per-curve-measurements.json; "
+                       f"they are not duplicated here")
+    raw["git_context"] = gctx
+    raw["frozen_parameters"] = {
+        "fb_sizes": fg.FB_SIZES, "target_counts": fg.TARGET_COUNTS,
+        "target_count_primary": fg.TARGET_COUNT_PRIMARY, "seeds": fg.SEEDS,
+        "primes_required": fg.PRIMES_REQUIRED, "arity": fg.ARITY,
+        "operating_density_target": fg.OPERATING_DENSITY_TARGET}
+    raw["integrity"] = {"exp_icinv_digest": fg.committed_file_digest(),
+                        "null_c_audit": fg.self_audit_no_null_c()}
+    sys.stdout, sys.stderr = real_out, real_err
+    try:
+        _ = runner.source_provenance()
+    except Exception as exc:                                  # pragma: no cover
+        print(f"REFUSED (change A6): source provenance could not be computed: {exc}",
+              file=sys.stderr)
+        return 5
+    run_dir = write_run_package(
+        run_id, status=status, command=command, started=started, finished=finished,
+        parameters={"p": args.p, "stage": args.stage,
+                   "fb_sizes": fg.FB_SIZES, "target_counts": fg.TARGET_COUNTS,
+                   "seeds": fg.SEEDS,
+                   "wall_clock_cap_seconds": args.max_seconds,
+                   "memory_cap_bytes": cap},
+        metrics=metrics, raw=raw, extra_artifacts=extra,
+        stdout=tee_out.buf.getvalue(), stderr=tee_err.buf.getvalue(),
+        valid=valid, invalid_reason=invalid_reason,
+        curve_id=(f"CLASS-p{args.p}" if args.p else "AGGREGATE"),
+        seed=fg.SEED_PRIMARY, stage=str(args.stage), deviations=DEVIATIONS_ALWAYS,
+        certificate={"kind": "none",
+                    "note": ("pure measurement run: no discrete log is solved and no "
+                             "factor-base relation is claimed, so there is nothing to "
+                             "certify under docs/claims-and-verification.md. The exact "
+                             "SUPPORT certificates are controls and live in "
+                             "coverage-certificates.json; each is verified against an "
+                             "independently enumerated point set.")})
+    print("wrote", os.path.relpath(run_dir, REPO), f"status={status}")
+    return 0 if valid else 3
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--stage", required=True, choices=["1", "2", "3", "decide"])
+    ap.add_argument("--stage", required=True,
+                    choices=["1", "2", "3", "decide", "3v3", "decidev3"])
     ap.add_argument("--p", type=int, default=None)
     ap.add_argument("--max-seconds", type=float, default=14400.0)
     ap.add_argument("--memory-gb", type=float, default=4.0)
     args = ap.parse_args(argv)
+
+    if args.stage in ("3v3", "decidev3"):
+        # CONTRACT VERSION 3 (amendment v3.yaml, changes A7/A8/A9): a separate
+        # driver function, isolated from the version-2 dispatch below so that
+        # code path is never touched by this addition. See `main_v3`.
+        return main_v3(args)
 
     cap = int(args.memory_gb * (1 << 30))
     try:
