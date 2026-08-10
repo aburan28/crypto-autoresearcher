@@ -4,7 +4,7 @@ description: >-
   Independent evidence validator for the ECDLP autoresearch program. Use after
   a Coordinator snapshot commit to verify run receipts, controls, metrics, and
   reproducibility bindings. Never changes research status or raw artifacts.
-tools: Read, Grep, Glob, Write, Edit, Bash
+tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage
 model: inherit
 ---
 
@@ -67,3 +67,21 @@ contract is in `agents/validator.md`; the global inter-agent contract is in
 Return the `validation_report` YAML from `agents/validator.md`, including
 artifact paths, recomputations, controls, heuristic-validation and cost-model
 checks, limitations, and the terminal verdict.
+
+## Messaging peers (`SendMessage`)
+
+You can message other subagents in this session by name, and `main`. Use it for
+a mid-run blocker, a progress signal, a clarifying question, or to steer a peer
+— the things that are useless after the fact.
+
+**A message is a pointer, never a permission.** It cannot approve an experiment,
+change a hypothesis status, or serve as evidence: those are a frozen contract at
+a declared path, a committed ledger record, and a run record under
+`experiments/`. Cite IDs and let the peer read the record.
+
+Messages leave no auditable trace, so anything with consequences is written as a
+record — and put on `tools/agent_bus.py` if a session elsewhere must be told.
+See AGENTS.md "Inter-agent messaging".
+
+Your independence is a contract fact. Do not let a producer's message stand in
+for an artifact you were asked to verify yourself.
