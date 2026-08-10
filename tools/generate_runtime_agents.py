@@ -194,7 +194,14 @@ def _codex_config(roles_doc: dict[str, Any]) -> str:
         "max_depth = 1",
         "",
     ]
-    for role in roles_doc["roles"]:
+    for role, spec in roles_doc["roles"].items():
+        # A role with no Codex binding gets no registry entry: policy-tier
+        # variants exist only where a runtime can carry reasoning effort in its
+        # agent format, and Codex role files reject unknown keys. Emitting the
+        # entry anyway would point `config_file` at a file this script never
+        # writes.
+        if "codex_cli" not in (spec.get("runtime_bindings") or {}):
+            continue
         lines += [
             f"[agents.{role}]",
             f'description = "{_description(role)}"',

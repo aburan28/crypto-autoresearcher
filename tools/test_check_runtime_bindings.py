@@ -8,11 +8,14 @@ from pathlib import Path
 import pytest
 import yaml
 
+REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(REPO))
 
 import check_runtime_bindings as checker  # noqa: E402
-
-REPO = Path(__file__).resolve().parents[1]
+# `over_granted` is not part of the checker's re-exported surface;
+# generate_runtime_agents.py reaches for the registry directly the same way.
+from orchestration import role_registry  # noqa: E402
 
 
 @pytest.fixture
@@ -59,6 +62,61 @@ def test_runtime_without_a_needed_capability_cannot_host_the_role(roles):
     assert checker.expected_tools(doc, "executor", "claude_code") is None
     problems = checker.check(doc)
     assert any("cannot express every capability" in p for p in problems)
+
+
+def test_optional_capability_is_granted_where_the_runtime_supports_it(roles):
+    tools = checker.expected_tools(roles, "coordinator", "claude_code")
+    assert "SendMessage" in tools
+
+
+def test_optional_capability_is_absent_where_it_is_not_supported(roles):
+    """Silently absent, NOT a refusal. This is the whole point of the tier."""
+    for runtime in ("codex_cli", "opencode"):
+        tools = checker.expected_tools(roles, "coordinator", runtime)
+        assert tools is not None, f"{runtime} was refused over an optional capability"
+        assert "SendMessage" not in tools
+
+
+def test_optional_capability_never_makes_a_runtime_unhostable(roles):
+    """The regression this tier exists to prevent.
+
+    `send_messages` is mapped for claude_code alone. Declared as a REQUIRED
+    capability it would make every role unhostable on codex_cli and opencode --
+    five roles times two runtimes -- because expected_tools returns None for any
+    capability the runtime cannot map. Declared optional, every role still runs
+    everywhere it ran before.
+    """
+    assert checker.check(roles) == []
+    for role in roles["roles"]:
+        for runtime in ("codex_cli", "opencode"):
+            assert checker.expected_tools(roles, role, runtime) is not None
+
+
+def test_making_messaging_required_would_break_the_other_runtimes(roles, policies):
+    """Pins WHY it is optional, so nobody 'tidies' it into the required list."""
+    doc = copy.deepcopy(roles)
+    for spec in doc["roles"].values():
+        spec.get("optional_capabilities", []).clear()
+        spec["capabilities"].append("send_messages")
+    problems = checker.check(doc, policies)
+    broken = [p for p in problems if "cannot express every capability" in p]
+    # Derived, not hardcoded: the policy-tier roles bind claude_code only, and
+    # claude_code is the one runtime that HAS SendMessage, so they would survive.
+    # Every role/runtime pair bound to a runtime without it would not.
+    at_risk = [(role, runtime)
+               for role, spec in doc["roles"].items()
+               for runtime in (spec.get("runtime_bindings") or {})
+               if runtime not in doc["capabilities"]["send_messages"]]
+    assert at_risk, "fixture no longer has a runtime that lacks SendMessage"
+    assert len(broken) == len(at_risk), (
+        f"expected {len(at_risk)} role/runtime pairs to become unhostable "
+        f"({at_risk}); got {problems}")
+
+
+def test_optional_capability_is_not_reported_as_an_over_grant(roles):
+    """It was asked for, just conditionally -- an over-grant is the opposite."""
+    assert "send_messages" not in role_registry.over_granted(
+        roles, "coordinator", "claude_code")
 
 
 def test_missing_contract_file_is_caught(roles):
