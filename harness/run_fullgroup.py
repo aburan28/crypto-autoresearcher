@@ -1585,6 +1585,12 @@ def baseline_reproduction_v3(p: int, cells: dict, role: str, n_curves: int) -> d
                                                  if not r["in_band_1_3_to_3_6"]],
         "rows_outside_band_ci_gating": [r["fb_size"] for r in rows
                                         if not r["ci_overlaps_band_1_3_to_3_6"]],
+        # alias for `_print_sweep`, which is shared with version 2's checks dict
+        # shape: THIS is the gating list under version 3 (the CI-overlap one),
+        # matching what "rows_outside_band" meant under version 2 (the list
+        # that made a row fail the gate).
+        "rows_outside_band": [r["fb_size"] for r in rows
+                              if not r["ci_overlaps_band_1_3_to_3_6"]],
         "monotonic_decay_is_false": bool(mono is False),
         "operating_row_fb": op_fb,
         "operating_row_variance_ratio": op_vr,
