@@ -1,0 +1,582 @@
+validation_report:
+  id: VAL-20260809-28c68e
+  task_id: TASK-20260809-28c68e
+  goal_id: GOAL-ARGON-001
+  question_id: RQ-ARGON-141710
+  batch_id: BATCH-09d69e
+  producer_task_id: TASK-20260809-4e04eb
+  snapshot_task_id: TASK-20260809-862322
+  role: validator
+  independent_session: true
+  reviewed_object: >-
+    The snapshot-archived producer package from TASK-20260809-4e04eb
+    (proposal.md, receipt.yaml), committed at
+    coordination/goals/GOAL-ARGON-001/batches/BATCH-09d69e/tasks/TASK-20260809-4e04eb/,
+    together with its snapshot receipt at
+    coordination/goals/GOAL-ARGON-001/batches/BATCH-09d69e/archives/TASK-20260809-862322/snapshot-receipt.json.
+    Not the working tree; the committed content only.
+
+  claim_tier: >-
+    PROPOSAL ONLY. No experiment ran (budget: runs_authorized 0 /
+    maximum_runs 1 unused). Nothing in the reviewed object is a measurement,
+    an attack, or a security claim, and nothing in this report is either.
+    This report validates whether the proposal is an admissible, internally
+    consistent, honestly-sourced ARTIFACT that a later /design-experiment
+    step may build on -- it does not test, confirm, or extend the proposal's
+    hypothesis.
+
+  claim_boundary: >-
+    A passed verdict here means: the snapshot commit's content matches its
+    declared hashes and parent; the stated mechanism, quantitative
+    prediction and two-tier falsification criterion are genuine and
+    computable by a future implementer; the RFC 9106 access-failure claim is
+    honestly represented and its RECALLED claims (C1-C7) are, on independent
+    spot-check against the actual RFC text, accurate; no real
+    password/credential/corpus data is named or assumed; and no security
+    verdict or parameter recommendation/deprecation is smuggled in. It does
+    NOT mean: that Argon2's depth-robustness is weaker than claimed, that
+    the rho <= 0.5 prediction is true, that any RFC-recommended parameter
+    set is safe or unsafe, or that the sketched measurement in proposal.md
+    Sec.6 has been run. This proposal authorizes nothing beyond a later
+    /design-experiment step reading it as a starting point.
+
+  # =====================================================================
+  # 1-2. SNAPSHOT RECEIPT AND COMMIT INTEGRITY (independently recomputed)
+  # =====================================================================
+  artifact_checks:
+    - check: per-path sha256 recomputed from the committed git blob (git show <sha>:<path> | shasum -a 256)
+      declared_entries: 2
+      matched: 2
+      mismatched: 0
+      detail: >-
+        proposal.md: feb040627eaf13db1b5e43fc47b7be63dee014f2c9c60ca4dee30375399547d4
+        (declared == git-blob == working-tree, all three identical).
+        receipt.yaml: 38adb543d3b91bee8ceab78e5584c59b036f8a1ad06ff70566c23d84aa7608f9
+        (declared == git-blob == working-tree, all three identical).
+      result: PASS
+    - check: snapshot commit reachable from HEAD
+      command: git merge-base --is-ancestor da073ca9d3e142602cc6256f4cb448610d238134 HEAD
+      result: "true (HEAD = da073ca9d3e142602cc6256f4cb448610d238134's own descendant chain; HEAD itself is on this branch)"
+      result_status: PASS
+    - check: declared parent vs actual parent
+      declared_expected_parent: dce4cf0616a94b36b95e1390cd6b083c8c0f158f
+      actual_parent: dce4cf0616a94b36b95e1390cd6b083c8c0f158f
+      result: PASS, exact match
+    - check: working tree is clean (not a working-tree-only receipt)
+      command: git status --porcelain
+      result: "empty -- clean tree, nothing uncommitted at review time"
+      result_status: PASS
+    - check: commit changes exactly the two declared_paths, no more and no fewer
+        (TASK-20260809-862322's own completion_gate wording)
+      command: git show --stat da073ca9d ; git diff-tree --no-commit-id --name-status -r da073ca9d
+      result: >-
+        FAIL AS LITERALLY STATED. The commit touches FOUR files: the two
+        declared_paths (proposal.md, receipt.yaml, both content-verified
+        above), PLUS snapshot-receipt.json itself (expected and necessary --
+        the handoff explicitly requires the receipt be committed inside the
+        commit it describes, and this path is TASK-20260809-862322's own
+        declared artifact_paths entry, not scope creep), PLUS
+        coordination/goals/GOAL-ARGON-001/batches/BATCH-09d69e/dispatch_queue.json,
+        which is OUTSIDE TASK-20260809-862322's declared write_scope
+        (["coordination/goals/GOAL-ARGON-001/batches/BATCH-09d69e/archives/TASK-20260809-862322"])
+        and outside its artifact_paths. The dispatch_queue.json diff itself
+        is limited to flipping two "state": "queued" -> "completed" fields
+        (for TASK-20260809-4e04eb and TASK-20260809-862322) plus cosmetic
+        JSON re-serialization (unicode-escaping existing em-dashes as
+        — in unrelated, unchanged-in-meaning text for OTHER tasks'
+        handoff blocks, an artifact of re-writing the whole file rather than
+        a targeted edit). No hypothesis, ledger, or producer-content field
+        was altered. The archive.commit_sha/parent_sha/path_sha256 fields
+        for TASK-20260809-862322 inside dispatch_queue.json were NOT filled
+        in with the real values (still null/empty) despite the file being
+        touched in this same commit -- consistent with that being
+        TASK-20260809-53b369's (the downstream ledger-archive task's) job,
+        since that task's write_scope explicitly includes dispatch_queue.json
+        and TASK-20260809-862322's does not.
+      severity: minor process-compliance defect, self-disclosed in the commit
+        message ("a deliberate deviation ... not a silent write outside the
+        declared scope"), not a content-integrity defect. Does not affect
+        the hash-verified proposal.md/receipt.yaml content this review turns
+        on. Flagged per this task's Operating Rules item 1 ("Confirm the
+        snapshot receipt's declared paths ... match the committed files")
+        and the general write_scope containment rule in AGENTS.md/CLAUDE.md.
+      recommended_action: >-
+        Coordinator should note this in the BATCH-09d69e archive record; no
+        repair to the snapshot commit is warranted (it is immutable and the
+        deviation is disclosed and content-neutral), but a future snapshot
+        task should either add dispatch_queue.json state transitions to its
+        own declared write_scope or leave state transitions to the
+        downstream task that already owns that file.
+
+  # =====================================================================
+  # 3. HYPOTHESIS INTERNAL CONSISTENCY -- MECHANISM / PREDICTION / FALSIFICATION
+  # =====================================================================
+  hypothesis_consistency_checks:
+    - check: explicit mechanism stated (proposal.md Sec.4)
+      result: PASS
+      detail: >-
+        Three-step causal chain, each step citing which recalled claim (C1,
+        general depth-robust-graph theory, C6) it depends on: (1) per-lane
+        chain lower-bounds depth at t*q-1; (2) whether a removal set
+        shatters the chain depends on how far reference edges bridge
+        relative to gap size (standard depth-robust-graph argument,
+        correctly attributed as classical, not invented here); (3) IF
+        within-window offset selection is recency-biased (C6, explicitly
+        under test, not assumed), typical bridging distance is short, so a
+        sparser removal set should suffice than for a uniform-reference
+        graph.
+    - check: quantitative prediction stated (proposal.md Sec.4)
+      result: PASS
+      detail: >-
+        rho = |S*_real| / |S*_unif| (scale-free, fraction of q), predicted
+        rho <= 0.5 at every tested RFC-recommended (t,q) pair, against a
+        matched null (G_unif) built with identical chain edges and identical
+        window sizes W(j), differing only in uniform vs specified reference
+        selection -- this is a genuine null-object control per
+        docs/inventor-protocol.md Sec.3, correctly matched on window size so
+        a rho deviation is attributable to the within-window selection rule
+        and not a window-size artifact (explicitly discussed as a
+        confounder in Sec.7).
+    - check: falsification criterion is well-defined -- two tiers, both computable
+      result: PASS, with one minor completeness gap noted below
+      material_effect_tier: >-
+        rho >= 0.8 falsifies the material-effect claim at any tested (t,q);
+        rho in [0.5, 0.8) is defined as a reported partial effect, not
+        rounded into either bucket. This is unambiguous given rho and S* are
+        defined.
+      precondition_tier: >-
+        KS-test of empirical z_j/W(j) against Uniform[0,1); if the test does
+        not reject uniformity (e.g. p > 0.05 at an adequately powered sample
+        size), C6 itself is falsified and the mechanism has no supporting
+        premise, independent of what rho numerically comes out to. Fully
+        computable: the KS statistic and test are standard, and this check
+        is correctly sequenced before any expensive e-DRS compute (Sec.4,
+        Sec.6 step 3) -- cheapest falsifier first, matching
+        docs/inventor-protocol.md Sec.3's "structural tell" discipline.
+      minor_gap_noted: >-
+        S* itself depends on a "declared greedy heuristic" (Sec.6 step 5:
+        DP-based longest-path computation, remove the node "closest to the
+        path's midpoint" on "some" current longest path, repeat). This
+        under-specifies two things a fully frozen protocol would need: (a)
+        which longest path is chosen when several exist of equal length,
+        and (b) which of the two candidate nodes is "the midpoint" when the
+        path length is even. This is a genuine, if small, gap in exact
+        reproducibility -- but the task and proposal both explicitly frame
+        Sec.6 as "NOT frozen -- a sketch only" for a later
+        /design-experiment step, so this is correctly out of scope for this
+        deliverable rather than a defect in it. Recorded here so the later
+        freeze step does not silently inherit the ambiguity.
+    - check: null-object / structural-tell control named per
+        docs/inventor-protocol.md Sec.3 ("what should the measured quantity
+        do as the parameter meant to destroy it increases")
+      result: PASS
+      detail: >-
+        Sec.4's secondary control sweeps q at fixed t and states the
+        expected behavior explicitly: rho trending toward 1 or staying flat
+        as q grows is expected either way; rho trending SHARPLY TOWARD 0 as
+        q grows is named as the "excess that doesn't decay" artifact
+        signature this program treats as grounds for suspicion (greedy
+        heuristic degrading differentially, implementation divergence)
+        before being reported as a scaling finding. This is exactly the
+        check this validator's operating rules require be present.
+
+  # =====================================================================
+  # 4. RFC 9106 SOURCE-ACCESS CLAIM -- SPOT-CHECKED AGAINST THE PRIMARY TEXT
+  # =====================================================================
+  rfc9106_independent_check:
+    producer_claim: >-
+      RFC 9106 could not be obtained this session; 6 WebFetch/WebSearch route
+      attempts, all failing with an identical backend-model infrastructure
+      error referencing model id
+      "us.anthropic.claude-haiku-4-5-20251001-v1:0"; every algorithm-level
+      detail in the proposal is labeled RECALLED, UNVERIFIED (proposal.md
+      Sec.3, table C1-C7); no numeric RFC 9106 parameter-table value is
+      asserted anywhere.
+    my_independent_attempt: >-
+      This validator session has no WebFetch/WebSearch tool bound to a
+      callable function either (same as the producer reported). I attempted
+      a direct HTTP fetch via Bash instead: `curl -s --max-time 20
+      https://www.rfc-editor.org/rfc/rfc9106.txt`. Result: HTTP 200, full
+      975-line RFC text retrieved successfully.
+    significant_finding: >-
+      I SUCCEEDED WHERE THE PRODUCER FAILED, but via a materially different
+      mechanism (raw HTTP fetch, not the WebFetch/WebSearch tool). This
+      confirms the producer's own diagnosis rather than contradicting it:
+      the blocker was isolated to the WebFetch/WebSearch tool's page-
+      summarization backend model dependency, not a general network,
+      firewall, or DNS outage in this environment -- raw HTTP access to
+      rfc-editor.org works fine from this worktree/session. This is
+      session/tool-specific infrastructure, exactly as the producer
+      classified it (AGENTS.md rule 3: infra failure, not evidence about
+      Argon2 in any direction), and is actionable: a future session with a
+      working WebFetch/WebSearch tool, OR one willing to use a raw
+      HTTP-fetch route, should be able to obtain RFC 9106 without difficulty.
+      Recorded for the Coordinator's next-batch triage; I did not use this
+      fetch to complete the proposal's own deferred literature-acquisition
+      step (Sec.6 step 1), per this task's explicit instruction to check,
+      not finish, that work -- I used it only to spot-check the already-made
+      C1-C7 claims below.
+    scope_discipline: >-
+      I did not build any graph, run any KS test, or attempt the
+      Alwen-Blocki/Alwen-Blocki-Pietrzak primary-literature search the
+      proposal's Sec.10/Sec.11 leaves open. Those remain open per the
+      proposal's own accounting.
+    per_claim_spot_check:
+      - claim: "C1 -- chain edge B[i][j] <- B[i][j-1], plus pass-wrap from B[i][q-1] in later passes"
+        rfc_source: "RFC 9106 Sec.3.2, Figures 5 and 6"
+        rfc_text: "B[i][j] = G(B[i][j-1], B[l][z])  [pass 0];  B[i][0] = G(B[i][q-1], B[l][z]) XOR B[i][0]  [pass >= 1]"
+        verdict: CONFIRMED, including the pass-wrap sub-detail the proposal
+          flagged as needing RFC confirmation (yes, pass >=1's first block
+          chains from that lane's LAST block of the previous pass).
+      - claim: "C2 -- exactly one reference edge per block, to an earlier block B[l][z]"
+        rfc_source: "RFC 9106 Sec.3.2 Figure 5, Sec.3.4.2"
+        verdict: CONFIRMED.
+      - claim: "C3 -- Argon2i is data-independent"
+        rfc_source: "RFC 9106 Sec.1, line ~103"
+        rfc_text: "Argon2i uses data-independent memory access, which is preferred for ... resistance to timing attacks."
+        verdict: CONFIRMED, near-verbatim.
+      - claim: "C4 -- Argon2d is data-dependent"
+        rfc_source: "RFC 9106 Sec.1, line ~100; Sec.3.4.1.1"
+        rfc_text: "Argon2d uses data-dependent memory access ... J_1 is given by the first 32 bits of block B[i][j-1]"
+        verdict: CONFIRMED.
+      - claim: "C5 -- Argon2id: Argon2i-style for first half of first pass, Argon2d-style for the rest"
+        rfc_source: "RFC 9106 Sec.1 line ~105; Sec.3.4.1.3"
+        rfc_text: >-
+          "Argon2id works as Argon2i for the first half of the first pass
+          over the memory and as Argon2d for the rest"; "If the pass number
+          is 0 and the slice number is 0 or 1, then compute J_1 and J_2 as
+          for Argon2i, else compute J_1 and J_2 as for Argon2d."
+        verdict: CONFIRMED, near-verbatim, including that this task's
+          self-assessed "medium" confidence and "roughly first half" hedge
+          on the split point was warranted caution rather than needed
+          caution -- the RFC text is in fact precise (slice 0 or 1 of pass
+          0, out of 4 slices), which the proposal did not need but also did
+          not wrongly assert.
+      - claim: "C6 -- within-window offset is drawn by a monotone, non-uniform
+          transform of a uniform 32-bit value, biasing toward one end of the
+          window (recalled direction: toward recent blocks)"
+        rfc_source: "RFC 9106 Sec.3.4.2, Figures 12-13"
+        rfc_text: >-
+          "J_1 -> |W|(1 - J_1^2/2^64)"; integer form "x = J_1^2/2^32; y =
+          (|W|*x)/2^32; zz = |W|-1-y; take the zz-th index from W"
+        verdict: >-
+          DIRECTIONALLY CONFIRMED, numerically imprecise as recalled -- and
+          the proposal explicitly declined to assert the exact formula as
+          fact, so this is not a defect. The RFC's actual transform is a
+          monotone, strictly non-uniform function of J_1 (confirmed
+          non-uniform: since J_1 ~ Uniform[0,2^32), J_1^2/2^64 is NOT
+          uniform on [0,1) -- its density diverges at 0, so the resulting
+          zz concentrates near |W|-1). The producer's recalled formula "z =
+          (W-1) - W*J1^2/2^32" has the right shape (same monotone
+          direction, same "|W|-1 minus a J1^2-driven term" structure) but
+          the wrong normalization exponent (recalled 2^32 where the RFC's
+          exact form uses 2^64, reconciled through the two-step integer
+          approximation). The proposal's own text says exactly this should
+          be treated as unconfirmed: "I recall something of the shape ...
+          but do not assert this formula here as fact." That hedge was
+          correct and necessary.
+      - claim: "C7 -- RFC 9106 Sec.4 gives specific recommended (t,m,p) tuples; no numeric value asserted in the proposal"
+        rfc_source: "RFC 9106 Sec.4"
+        rfc_text: >-
+          "select Argon2id with t=1 iteration, p=4 lanes, m=2^21 ... FIRST
+          RECOMMENDED option"; "t=3 iterations, p=4 lanes, m=2^16 ...
+          SECOND RECOMMENDED option"
+        verdict: CONFIRMED that such a table exists with specific tuples;
+          confirmed the proposal asserts none of these numbers itself,
+          exactly as it claims.
+    overall_rfc_spot_check_verdict: >-
+      All seven RECALLED claims (C1-C7) are accurate to what RFC 9106
+      actually specifies, at the level of precision the proposal itself
+      claims for each (high-confidence claims C1-C5, C7 confirmed near-
+      exactly; the one medium-low-confidence claim, C6, confirmed
+      directionally with the specific numeric formula appropriately left
+      unasserted). This is a genuinely strong result for a memory-recalled
+      table under this program's discipline -- but it remains RECALLED, now
+      independently corroborated by one validator's spot-check, not a
+      program-filed KN-LIT citation of RFC 9106 itself. The proposal's own
+      Sec.6 step 1 (obtain and file RFC 9106 as a primary source) is still
+      the correct next action; I did not do that filing here.
+
+  # =====================================================================
+  # 5. SYNTHETIC-INPUT / NO-REAL-CREDENTIAL-DATA CHECK
+  # =====================================================================
+  synthetic_input_check:
+    method: "grep -inE 'password|credential|corpus|leaked|dataset|breach|rockyou' proposal.md, all hits inspected in context"
+    result: PASS
+    detail: >-
+      Every "password"/"corpus" occurrence is either (a) explicitly hedged
+      as synthetic/arbitrary/non-secret ("arbitrary, non-secret
+      password/salt/associated-data bytes chosen in-run"; "no real password,
+      credential, leaked corpus, or third-party dataset is named or assumed
+      anywhere below"), (b) a reference to this program's own literature
+      corpus (knowledge/literature/), or (c) a description of RFC 9106's own
+      documented rationale for Argon2i's design (side-channel resistance
+      w.r.t. password content), not a use of real password data. No
+      filename, dataset name, or credential value of any kind appears
+      anywhere in the document.
+
+  # =====================================================================
+  # 6. NO SMUGGLED SECURITY VERDICT OR PARAMETER RECOMMENDATION/DEPRECATION
+  # =====================================================================
+  scope_creep_check:
+    method: "grep -inE 'recommend|deprecat|unsafe|insecure|should (use|avoid)|not safe|is safe' proposal.md, all hits inspected in context"
+    result: PASS
+    detail: >-
+      All "recommend(ed)" hits refer to RFC 9106's OWN recommended-parameter
+      table as a noun phrase ("RFC-recommended (t,q) pair"), never to this
+      proposal recommending anything. Sec.5 states explicitly, in its own
+      itemized scope-limits list: "No claim that any recommended parameter
+      set is unsafe, and no recommendation or deprecation of any parameter
+      set, per this goal's explicit prohibition." No occurrence of
+      "unsafe"/"insecure"/"deprecat*" applied to Argon2 or any parameter
+      set was found. The claim-tier header at the top of the document makes
+      the same restriction the first thing a reader sees.
+
+  # =====================================================================
+  # 7. DEDUP CLAIM -- FIVE SIBLING PROPOSALS AND THE FLAGGED a915ea DEFECT
+  # =====================================================================
+  dedup_verification:
+    - check: all five cited sibling proposal files exist and belong to RQ-ARGON-141710
+      files_checked:
+        - ledger/proposals/IDEA-20260809-a915ea.yaml
+        - ledger/proposals/IDEA-20260809-ac98b5.yaml
+        - ledger/proposals/IDEA-20260809-b17238.yaml
+        - ledger/proposals/IDEA-20260809-b9e9cc.yaml
+        - ledger/proposals/IDEA-20260809-c059a7.yaml
+      result: PASS -- all five exist, all five carry question_id RQ-ARGON-141710
+        and goal_id GOAL-ARGON-001.
+    - check: the flagged factual error in IDEA-20260809-a915ea's dominated_by field
+      producer_claim: >-
+        a915ea's dominated_by field asserts "no memory-hard-function records
+        exist in the corpus," which the producer says is false because
+        knowledge/INDEX.md has eight matching rows.
+      independent_verification: >-
+        Read ledger/proposals/IDEA-20260809-a915ea.yaml directly: its
+        dominated_by field reads verbatim "Not dominated by any corpus
+        record; no memory-hard-function records exist in the corpus." Then
+        independently grepped knowledge/INDEX.md for the same pattern class
+        (Argon2|memory-hard|depth-robust|pebbling|Alwen|Blocki|scrypt|
+        Percival) and found exactly the same eight rows the producer cites
+        (KN-LIT-3385, -4894, -494, -5442, -6385, -6793, -7033, -7247), then
+        confirmed each of the eight is a real, git-tracked file under
+        knowledge/literature/ with actual literature-record content (not an
+        artifact of a stale or locally-regenerated index) -- spot-checked
+        KN-LIT-494.md's frontmatter directly.
+      result: >-
+        THE FLAGGED ERROR IS REAL. a915ea's dominated_by field is factually
+        false as written; the corpus does contain eight memory-hard-
+        function-adjacent literature records. The producer's flag (proposal.md
+        Sec.1, Sec.11) is accurate and correctly scoped -- it notes the
+        error rather than silently repeating or silently correcting it in
+        a5915ea itself (which would have been outside this task's write_scope),
+        and defers reconciliation to the Coordinator, which is the correct
+        division of authority under AGENTS.md ("Only the Coordinator may
+        change the official status of a hypothesis").
+    - check: characterization of the other four siblings and of KN-LIT-7247/KN-LIT-3385
+      result: PASS, spot-checked at the level of question_id/goal_id/title
+        consistency; not independently re-read in full (outside this
+        validation's necessary scope -- the load-bearing claim is the
+        a915ea dominated_by error, which is verified above).
+
+  # =====================================================================
+  # PROOF-ARCHITECTURE AND HEURISTIC-VALIDATION CHECKS -- APPLICABILITY
+  # =====================================================================
+  proof_architecture_checks:
+    applicable: false
+    reason: >-
+      Not a theorem, asymptotic bound, certificate family, reduction, or
+      closure argument (docs/inventor-protocol.md Sec.8 / KN-TECH-080
+      scope). The dispatch queue's own task entry states no proof_search_map
+      is required, and the proposal is explicitly a "measurement"-class
+      idea per agents/idea-generator.md's taxonomy (confirmed: "class:
+      measurement" is a defined taxonomy value there). No violation from
+      omitting a proof_search_map.
+
+  heuristic_validation_checks:
+    applicable: partial
+    reason: >-
+      No sampling or experiment has been run (this is a proposal, budget
+      runs_authorized: 0), so most of this validator's heuristic-validation
+      duties (recompute empirical CDF from raw samples, verify correspondence
+      theorem citation, check cost bookkeeping against an executed run) are
+      not yet applicable and will apply to the FUTURE frozen experiment, not
+      to this record.
+    what_was_checked_now:
+      - check: is the theoretical prediction stated before any sampling?
+        result: PASS by construction -- no sampling exists yet at all; rho <= 0.5
+          and the KS-uniformity precondition are both stated as predictions
+          to be tested, not fit to any data.
+      - check: are the two named heuristic assumptions (Sec.8, H1 and H2) formally
+          stated, given a named justification class, and paired with a
+          declared validation route?
+        result: PASS. H1 (compression-function output modeled as uniform,
+          random-oracle-style heuristic) and H2 (marginal-distribution /
+          configuration-model sufficiency, imitating Molloy-Reed-style
+          results) both name their justification class honestly as
+          "none proven for this specific construction," name the classical
+          analogy being imitated, and state a concrete validation route
+          (chi-squared/KS test on real G-outputs for H1; independent-
+          resampling intermediate-control comparison at small q for H2).
+
+  cost_model_checks:
+    - check: does the cost section (proposal.md Sec.9) declare units and flag
+        optimistic assumptions, per this program's cost-unit-honesty rule?
+      result: PASS, appropriately scoped for a measurement-cost (not an
+        attacker-cost) section.
+      detail: >-
+        Units declared per line (O(q) time/memory per lane per variant, one
+        G-evaluation per block for data-dependent indexing; O(q^2) naive
+        worst case for the greedy heuristic's removal-round DP; exponential
+        worst case for the small-scale exact/ILP cross-check). Explicitly
+        flags the O(q^2) naive cost as a named, unresolved risk for
+        literal RFC-scale q ("this task does not commit to that
+        engineering; it is named as a cost risk"), and explicitly states
+        memory is well under the 2 GB task budget only at the
+        small-to-moderate q this proposal is scoped to, flagging that
+        RFC-recommended q's numeric value (still unknown, Sec.0) may exceed
+        it. This is honest cost-scoping for a proposal stage; it is not and
+        does not claim to be a concrete per-attempt-cost x
+        inverse-success-probability adversary cost table, because this
+        record makes no attacker-cost claim at all (Sec.5 states this
+        explicitly).
+      not_applicable_here: >-
+        Per-attempt-cost x inverse-success-probability bookkeeping
+        (validator duty 6) applies to an attack/tradeoff cost claim; this
+        record explicitly disclaims making one, so that check is inapplicable
+        to THIS record and will bind on the later attack-cost measurement
+        this goal's next_action itself names as separate, later work.
+
+  control_checks:
+    - check: null-object control named and matched correctly (Sec.4, Sec.7)
+      result: PASS -- see hypothesis_consistency_checks above; G_unif is
+        matched on chain edges and window size W(j), isolating the
+        within-window selection rule as the only source of a measured rho
+        deviation.
+    - check: structural-tell / decay-direction control named (Sec.4 secondary control)
+      result: PASS -- explicit statement of what rho should do (not decay
+        sharply toward 0) as q grows, matching this validator's mandate to
+        check for "a quantity that does not decay when it should."
+    - check: sampling-variance control named (Sec.7 confounders)
+      result: PASS -- G_unif's own single-draw sampling variance is named
+        as a confounder with an explicit remedy (average over multiple
+        independent draws, report variance).
+
+  # =====================================================================
+  # ADDITIONAL SANITY CHECK (not in the named duties, run for confidence)
+  # =====================================================================
+  additional_checks:
+    - check: does tools/validate_ledger.py corroborate the snapshot commit
+        message's claim of "5569 records, no new violations"?
+      command: python3 tools/validate_ledger.py
+      result: >-
+        Reproduced independently: "OK: validated 5569 records, no new
+        violations." Matches the commit message's claim exactly.
+
+  # =====================================================================
+  # FINDINGS SUMMARY
+  # =====================================================================
+  findings:
+    - id: F-1
+      severity: minor (process compliance, not content integrity)
+      title: >-
+        Snapshot commit da073ca9d touches dispatch_queue.json, which is
+        outside TASK-20260809-862322's declared write_scope and
+        artifact_paths
+      detail: See artifact_checks entry above. Self-disclosed in the commit
+        message; content-neutral (state-field flips + cosmetic JSON
+        re-serialization only); the archive.commit_sha/parent_sha fields
+        for this task inside dispatch_queue.json remain correctly deferred
+        to TASK-20260809-53b369, which does own that path.
+      effect_on_this_review: NONE -- the two artifacts this review turns on
+        (proposal.md, receipt.yaml) verify bit-exact against their declared
+        hashes regardless.
+      required_action: Coordinator should note this in the batch archive;
+        no repair of the immutable commit is warranted.
+    - id: F-2
+      severity: informational
+      title: RFC 9106 was independently obtained by this validator via raw
+        HTTP fetch, where the producer's WebFetch/WebSearch tool failed
+      detail: See rfc9106_independent_check above. Confirms the producer's
+        own diagnosis (tool/backend-specific infra failure, not a general
+        network outage) rather than contradicting it.
+      required_action: Coordinator should route the future /design-experiment
+        step's RFC-9106-acquisition precondition (proposal.md Sec.6 step 1)
+        toward a raw-fetch-capable tool/session, since that path is now
+        demonstrated to work in this environment.
+    - id: F-3
+      severity: informational, correctly out of scope for this deliverable
+      title: The greedy eps-depth-reducing-set heuristic (Sec.6 step 5) has
+        an unresolved tie-breaking rule
+      detail: See hypothesis_consistency_checks above. Does not block this
+        proposal (explicitly a sketch, not frozen) but should be resolved
+        before any future EXP-* contract freezes this procedure.
+      required_action: Note for whoever runs the later /design-experiment step.
+    - id: F-4
+      severity: none -- positive finding
+      title: All seven RECALLED claims (C1-C7) independently confirmed accurate
+        against the actual RFC 9106 primary text
+      detail: See rfc9106_independent_check.per_claim_spot_check above.
+    - id: F-5
+      severity: none -- positive finding
+      title: The flagged factual error in sibling proposal IDEA-20260809-a915ea's
+        dominated_by field is real and correctly characterized
+      detail: See dedup_verification above.
+
+  metric_recomputations: []
+  metric_recomputations_note: >-
+    None applicable -- no experiment executed, no metric reported by this
+    proposal beyond the (not-yet-computed) rho prediction it states as a
+    future test outcome.
+
+  run_ids: []
+  run_ids_note: "No runs authorized or executed at this task's budget (runs_authorized: 0)."
+
+  limitations:
+    - >-
+      This review re-derives what is independently derivable at proposal
+      stage: hash/commit integrity, RFC-9106 accuracy spot-checks, dedup
+      claims, and internal consistency of the stated mechanism/prediction/
+      falsification criterion. It does NOT execute or verify the sketched
+      graph measurement itself (no code was run against the real Argon2
+      indexing functions), because no such code exists yet -- Sec.6 is
+      explicitly unfrozen sketch, not an executable artifact, and this
+      task's own budget authorizes 0 runs.
+    - >-
+      The RFC 9106 spot-check in this report covers exactly the seven
+      claims (C1-C7) the proposal itself enumerates as load-bearing
+      RECALLED premises; it is not an exhaustive reading of RFC 9106, and it
+      does not substitute for the proposal's own still-open Sec.6 step 1
+      (file RFC 9106 as a primary KN-LIT source).
+    - >-
+      The Alwen-Blocki/Alwen-Blocki-Pietrzak primary-literature novelty
+      question (proposal.md Sec.10, Sec.11) remains genuinely unverified;
+      this validator did not attempt that search, consistent with this
+      task's instruction to check the artifact, not complete the producer's
+      deferred work.
+    - >-
+      dominated_by verification (Sec.7) was targeted at the specific flagged
+      claim in a915ea; the other four sibling proposals' content was
+      spot-checked for existence/question_id/title only, not re-audited line
+      by line.
+
+  verdict: passed
+  overall_verdict: pass_with_qualifications
+  verdict_rationale: >-
+    passed (terminal, per agents/validator.md's admissibility enum): the
+    reviewed snapshot is a genuine, hash-verified, reachable commit; the
+    proposal's mechanism, quantitative prediction and two-tier falsification
+    criterion are explicit and computable; the RFC 9106 access-failure claim
+    is honest and its RECALLED claims independently check out against the
+    primary text; no real credential data appears; no security verdict or
+    parameter recommendation is smuggled in; and the dedup claim, including
+    the flagged sibling-record defect, is independently confirmed accurate.
+    pass_with_qualifications (finer-grained, per this task's own deliverable
+    format): because of F-1 (an out-of-write-scope write inside the snapshot
+    commit, disclosed but real) and F-3 (an unresolved tie-breaking detail
+    in the sketched, explicitly-unfrozen greedy heuristic). Neither defect
+    compromises the content this review is asked to validate; both are
+    named for the Coordinator's downstream batch triage rather than treated
+    as blocking.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ARGON-001/batches/BATCH-09d69e/reviews/TASK-20260809-28c68e/validation_report.yaml
