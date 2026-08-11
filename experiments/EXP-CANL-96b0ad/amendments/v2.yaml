@@ -1,0 +1,805 @@
+protocol_amendment:
+  experiment_id: EXP-CANL-96b0ad
+  version_from: 1
+  version_to: 2
+  filed_at: '2026-08-11'
+  filed_by: coordinator (GOAL-ENDO-001, BATCH-74ebef), drafting subagent
+  status: filed_before_re_execution
+  drafting_session_capability_note: >-
+    THIS FILING SESSION HAS NO Bash / CODE-EXECUTION TOOL. Every claim below
+    is one of exactly two kinds, and each is labelled which: (i) a
+    HAND-DERIVED mathematical result -- worked by manual arithmetic during
+    drafting, shown with full intermediate steps so a reader can check it
+    independently without running anything, and (ii) a WRITTEN-BUT-NOT-YET-
+    EXECUTED verification script
+    (experiments/EXP-CANL-96b0ad/amendments/v2-verification.py) that a
+    Bash-capable session (the top-level Coordinator or a dispatched
+    Executor) must run and capture as
+    experiments/EXP-CANL-96b0ad/amendments/v2-verification-output.txt
+    BEFORE this amendment is treated as fully verified across its whole
+    grid. No output file is fabricated here (AGENTS.md rule 5); its absence
+    is disclosed, not smoothed over, exactly as prior drafting sessions in
+    this campaign disclosed their own missing Bash access rather than
+    guessing (see H-CANL-e59a06's own `batch_id_note` and
+    `id_allocation_provenance` for the precedent this follows). See
+    `verification_status` below for the itemized breakdown of what is and
+    is not independently confirmed as of this filing.
+  applies_to: >-
+    FUTURE COMPUTATION ONLY. No existing run record is edited, overwritten,
+    or has its own terminal_state changed (AGENTS.md rule 4).
+    experiments/EXP-CANL-96b0ad/runs/RUN-CANL-78b8bd/decision-rule-evaluation.json
+    still reads C1_INSTRUMENT_INVALID / C2_INSTRUMENT_INVALID, exactly as
+    committed. This amendment authorizes a future NEW run under a new run
+    id, once separately approved; it does not itself authorize dispatch
+    (AGENTS.md rule 1 -- only the top-level Coordinator approves an
+    experiment or a run, never this drafting session).
+  reason: >-
+    CORR-20260810-308774 (the auxiliary_k_rule_frozen construction assumes
+    two differently-fixed integer-weight tuples give identical
+    reachable-count sums; false in general, independently re-confirmed by
+    that correction via direct enumeration) and CORR-20260810-685434
+    (independent Validator + Red Team review of RUN-CANL-78b8bd, widening
+    the required v2 scope to four additional findings: A, the f_E=1
+    conductor-conflation artifact; B, the never-invoked certificate
+    spot-check; C, the slot-count/projectivity assumption for non-maximal
+    orders; D, the D1 aggregation-granularity risk) both require a v2
+    protocol_amendment before any second dispatch of this experiment.
+    CORR-20260810-308774's own required_action item 2 additionally asks
+    this amendment to assess (not necessarily fix) the shell-count
+    tolerance and C0=1 threshold-tie findings from the same run.
+  changes:
+    - id: B1
+      field: >-
+        inputs.auxiliary_k_rule_frozen (the two-tuple auxiliary-weight
+        construction) and controls[10] ("DUAL-AUXILIARY-TUPLE CONSISTENCY
+        CHECK"), and the corresponding gating logic inside
+        harness/run_canl.py:c1_waterfall / c2_waterfall
+        (`dual_aux_tuple_ok`) and invalidation_rules item 3.
+      kind: defect_repair_gate_design
+      from: >-
+        TWO FIXED, LINEARLY-GROWING WEIGHT TUPLES (k_i = i+1 for tuple A,
+        k_i = slots+i for tuple B, i = 1..slots-1, target slot weight 1),
+        REQUIRED TO PRODUCE THE EXACT SAME reachable-count on every cell, a
+        premise CORR-20260810-308774 independently re-verified is
+        mathematically false in general (worked example: weights (1,2) vs
+        (1,3) over box {-1,0,1} give 7 vs 9 achievable sums) and confirmed
+        against this run's own actual disagreeing cell (p=101, C0=1,
+        r_Z=2, O-arm weights [2,1] vs [3,1], 7 vs 9) by the independent
+        Validator review.
+      to: >-
+        A TWO-PART REDESIGN. (a) NEW auxiliary_k_rule_v2: for a cell with
+        C0 and slot count s (s = r_Z+1 for the Z-baseline arm, s = r_Z//2+1
+        for the C1 O-arm and the C2 CM-shell arm), tuple A uses
+        base b_A(C0) = 2*C0+1 and tuple B uses base b_B(C0) = 2*C0+2 --
+        MIXED-RADIX (balanced positional-number-system) weights,
+        k_i = b^i for i = 1..(s-1) (the "first s-1 slots" the frozen rule's
+        own text names), target slot weight 1 (=b^0), UNCHANGED shape from
+        the frozen rule (still fixed, declared, non-random, still C0-
+        dependent only, still leaves the target's own coefficient
+        unscaled), only the specific integer VALUES change. This
+        construction is C0-DEPENDENT where the v1 rule was not (a
+        necessary consequence of making the separation condition hold at
+        every tested C0, not an optional embellishment).
+
+        LEMMA (hand-derived in full below, not merely asserted): for any
+        base b >= 2*C0+1 and weights w_i = b^{i-1} (i=1..s), the map
+        (c_1,...,c_s) |-> sum_i w_i*c_i, c_i in [-C0,C0], is INJECTIVE OVER
+        Z -- i.e. exactly (2*C0+1)^s distinct achievable integer sums, the
+        full naive combinatorial bound, zero collisions. Proof by
+        induction on s. Base case s=1: trivial (w_1=1, the map is the
+        identity on [-C0,C0], (2*C0+1)^1 distinct values). Inductive step:
+        assume the first s-1 slots (weights w_1..w_{s-1}, all powers of b
+        up to b^{s-2}) achieve exactly (2*C0+1)^{s-1} distinct sums, and
+        (by the same argument used for `z_baseline_cell`'s own `span`
+        computation) this achievable set is contained in the interval
+        [-C0*(b^{s-1}-1)/(b-1), C0*(b^{s-1}-1)/(b-1)], which has width
+        2*C0*(b^{s-1}-1)/(b-1) <= b^{s-1}-1 < b^{s-1} = w_s (using
+        b-1 >= 2*C0, i.e. b >= 2*C0+1, exactly the separation condition).
+        So every distinct choice of c_s in [-C0,C0] shifts this ENTIRE
+        interval by a MULTIPLE of w_s strictly larger than the interval's
+        own width, so the 2*C0+1 shifted copies are pairwise disjoint;
+        combined with the s-1 slots' own injectivity, the whole map on s
+        slots is injective, with exactly (2*C0+1)*(2*C0+1)^{s-1} =
+        (2*C0+1)^s distinct sums. QED. This holds for BOTH b_A=2*C0+1 and
+        b_B=2*C0+2 (both satisfy b >= 2*C0+1; the general proof only needs
+        the inequality, not equality, so b_B=2*C0+2 is a strictly SAFER
+        margin, not merely "also happens to work").
+
+        CONSEQUENCE: wherever a cell has NO MODULAR WRAPAROUND -- which,
+        by the SAME algebra (span = 2*C0*sum(all s weights) =
+        (2*C0+1)*(b^s-1)/(b-1) = b^s-1 when b=2*C0+1 exactly, so
+        no_wraparound (span < N) is EXACTLY EQUIVALENT to
+        (2*C0+1)^s <= N, i.e. the naive bound itself already fits under
+        the modulus, independent of which specific collision-free weights
+        are used) -- tuple A's and tuple B's reachable_count mod N are
+        BOTH FORCED to equal (2*C0+1)^s exactly, hence PROVABLY EQUAL TO
+        EACH OTHER. This is a provable consequence of the construction, not
+        an empirical hope, exactly discharging CORR-20260810-308774's own
+        required_action wording.
+
+        HAND-WORKED SMALL EXAMPLE (s=2, C0=1, contrasted directly against
+        CORR's own old-weights example): tuple A (base 3) = [3,1]:
+        achievable sums over c1,c2 in {-1,0,1} = {-4,-3,-2,-1,0,1,2,3,4},
+        9 DISTINCT values = naive bound 3^2=9 (verified by hand,
+        enumerated in full: -3-1,-3+0,-3+1,0-1,0+0,0+1,3-1,3+0,3+1 =
+        -4,-3,-2,-1,0,1,2,3,4, all distinct). Tuple B (base 4) = [4,1]:
+        achievable sums = {-5,-4,-3,-1,0,1,3,4,5}, 9 DISTINCT values =
+        naive bound. BOTH equal 9, hence agree with each other -- in
+        direct contrast to the OLD weights (1,2)/(1,3), which gave 7 vs 9
+        (CORR's own finding, reproduced fresh in
+        v2-verification.py Part 1).
+
+        (b) WHERE THE PROVABLE GUARANTEE DOES NOT REACH: cells where
+        (2*C0+1)^s > N (wraparound; pigeonhole guarantees SOME mod-N
+        collision, and which specific residues collide is not determined
+        by this construction alone), AND -- separately -- every cell of
+        C2's CM-shell arm regardless of wraparound status (its coefficient
+        sets are lambda-images of shell elements, a subset of Z/N with no
+        interval structure the mixed-radix proof above needs; the proof's
+        premise that the per-slot alphabet is a symmetric integer interval
+        [-C0,C0] does not hold there). In BOTH these regimes, the
+        cross-tuple "must agree exactly" requirement is DOWNGRADED from a
+        blocking invalidation gate to a REPORTED comparison (the existing
+        DUAL-AUXILIARY-TUPLE TAIL in tail_checks, unchanged, already
+        reports both tuples' counts side by side): a disagreement there is
+        no longer, by itself, evidence of a code defect (the mathematical
+        premise that made "must agree" a sound requirement does not hold
+        in this regime), so it can no longer gate C1_INSTRUMENT_INVALID /
+        C2_INSTRUMENT_INVALID on its own. Cell-level correctness in this
+        regime instead rests on change B3's spot-check (now actually
+        wired in, per Finding B) -- this is the Validator's own suggested
+        alternative (b) from their report ("each tuple's own count must
+        match its own closed-form prediction" / the equivalent
+        spot-check-based check), adopted here specifically for the regime
+        where alternative (a)'s provable guarantee does not extend, rather
+        than in place of it.
+      rationale: >-
+        This is a STRICT IMPROVEMENT in the regime where the guarantee
+        holds (a genuine proof replaces an empirical hope, exactly what
+        CORR-20260810-308774 asked for) and an HONEST NARROWING, not a
+        silent one, in the regime where no two-tuple construction can give
+        a provable guarantee at all (pigeonhole is pigeonhole; no choice
+        of weights avoids it once the naive bound exceeds N, or once the
+        alphabet is not an interval). Both regimes are DISCLOSED, not
+        assumed: v2-verification.py Part 2 computes exactly which of the
+        grid's (C0, s, N) cells fall in each regime (see
+        `verification_status` below for hand-computed highlights -- e.g.
+        the Z-baseline arm's largest cell, C0=8/r_Z=4/s=5, wraps around
+        even at the LARGEST main-ladder prime, 1000003, since
+        17^5=1419857 > 1000003).
+      design_decision_flagged_for_coordinator_review: >-
+        DOWNGRADING the dual-tuple check to a reported (non-gating)
+        comparison in the wraparound / CM-shell regime is a genuine design
+        choice with an alternative this drafting session did not adopt:
+        the frozen contract's OWN text could instead be read to require
+        that a v2 run simply REPORT more wraparound/shell cells as
+        untestable-by-this-check (rather than downgrading the check's own
+        gating role), forcing evidence_strength_calibration_frozen's
+        `preliminary` cap to apply more broadly. This drafting session
+        judged the downgrade-to-reported-comparison-plus-spot-check
+        reading more useful (it keeps a real, executed defect-detection
+        mechanism in every regime, per change B3, rather than merely
+        disclaiming coverage) and consistent with the Validator's own
+        suggested alternative (b), but this is exactly the kind of
+        threshold-design choice AGENTS.md reserves for the approving
+        Coordinator, not this drafting session, to confirm.
+    - id: B2
+      field: >-
+        C2's Stage D (harness/run_canl.py:run_c2, lines 889-914, the
+        reachable_residue_gain computation P8 that C2_SUPPORTED /
+        C2_GAIN_ABSENT / C2_TAUTOLOGY_TOTAL / C2_GAIN_EXCESSIVE all key
+        on) and its supporting per-cell calls to
+        harness/exp_canl.py:shell_enumerate / lambda_reduce /
+        c2_nonunit_lambda / c2_shell_lambda_images.
+      kind: defect_repair_mechanism_fidelity
+      from: >-
+        Every f_E / D_E used in Stage D's shell_enumerate / lambda_reduce
+        calls is `curve["D_E"]` / `curve["f_E"]`, computed EXCLUSIVELY from
+        harness/isogeny_class.py:frobenius_discriminant(p,t) = t*t-4*p,
+        i.e. disc(Z[pi]) -- the discriminant of the order generated by
+        FROBENIUS ALONE. At the four realized c2-congruence curves
+        (p=1009: t=62, D_E=-192, f_E=8; p=10009: t=182, D_E=-6912, f_E=48;
+        p=100003: t=632, D_E=-588, f_E=14; p=1000003: t=2000, D_E=-12,
+        f_E=2 -- all copied verbatim from RUN-CANL-78b8bd's own committed
+        c2-measurements.json, not re-measured), NONE has f_E=1, and the
+        original execution report and CORR-20260810-308774 both framed
+        this as a fact about which primes/twists the frozen ladder happens
+        to select.
+      to: >-
+        HAND-RE-DERIVED FROM SCRATCH, INDEPENDENTLY OF CORR-20260810-685434's
+        OWN TEXT (not merely restated), before being adopted: for a j=0
+        curve y^2=x^3+A at p = 1 (mod 3), the map sigma: (x,y) -> (mu*x,y),
+        mu^3=1 in F_p, satisfies (mu*x)^3+A = mu^3*x^3+A = x^3+A identically
+        in A -- so sigma is an F_p-RATIONAL AUTOMORPHISM of the curve, for
+        EVERY sextic twist A, requiring no field extension. Viewed as an
+        endomorphism, sigma has order 3 as a group automorphism, so
+        Z[sigma] subset End_{F_p}(E) is a subring satisfying the minimal
+        polynomial x^2+x+1=0 (the defining equation of a primitive cube
+        root of unity) -- this is EXACTLY the object
+        harness/isogeny_class.py:cm_eigenvalues(p,N,-3) computes and
+        H-CANL-e59a06's own `assumptions` block already states as
+        "verified constructively," and it is exactly what G3's tautology
+        gate (P + sigma*P + sigma^2*P = O, 100% over 4000 sampled points
+        across all 4 primes, 12 independently-re-verified certificates)
+        CONSTRUCTIVELY CONFIRMS: sigma genuinely satisfies that minimal
+        polynomial on the curve's own group law, not merely as an abstract
+        automorphism of the variety. disc(x^2+x+1) = 1-4 = -3, a FUNDAMENTAL
+        discriminant (Q(sqrt(-3))'s ring of integers is generated by a
+        primitive cube root of unity over Z; -3 is squarefree up to the
+        standard D=0,1 mod 4 convention and admits no further index-2
+        refinement), so Z[sigma] IS ALREADY the maximal order O_K of
+        Q(sqrt(-3)). Since every order in a number field is contained in
+        the (unique) maximal order, and Z[sigma] subset End_{F_p}(E)
+        subset O_K subset O_K, the containment O_K subset End_{F_p}(E)
+        subset O_K forces End_{F_p}(E) = O_K EXACTLY -- f_E := the
+        conductor of End_{F_p}(E) (not of Z[pi]) is FORCED to 1,
+        UNCONDITIONALLY, for every twist A and every p = 1 (mod 3), by an
+        argument that never touches Z[pi]'s own conductor at all. (This is
+        the SAME conclusion CORR-20260810-685434 Finding A and the
+        independent Validator/Red Team reviews reached; re-derived here
+        from scratch as this task's own instructions require, not
+        transcribed.) The IDENTICAL argument, by the same steps, forces
+        f_E=1 for j=1728 curves at p = 1 (mod 4) via
+        sigma': (x,y)->(-x,i*y), i^2=-1, disc(x^2+1)=-4, also fundamental.
+
+        WHAT MUST NOT BE DONE (a genuinely new finding of this drafting
+        session, going beyond both prior reviews' analysis, and hand-
+        verified below): naively substituting f=1 directly into the
+        EXISTING harness/exp_canl.py:lambda_of_w(D_E, t, f, N) formula
+        (as both the Validator's own "required control" wording and the
+        Red Team's Hunt 1 "cheap ... few lines of code" framing suggest)
+        is MATHEMATICALLY WRONG, not merely an approximation. That
+        formula's derivation (see its own docstring) is only valid when
+        the order being tested and Z[pi]'s own expression coincide -- it
+        implicitly assumes pi = (t + f*sqrt(D0))/2 with the SAME f passed
+        in, i.e. that f IS Z[pi]'s conductor. Substituting f:=1 there
+        silently asserts pi = (t+sqrt(D0))/2, WHICH IS FALSE for these
+        curves (their true relation is pi = (t + f_pi*sqrt(D0))/2 with
+        f_pi in {8,48,14,2} respectively -- a fixed structural fact about
+        how Frobenius itself embeds relative to sqrt(D0), NOT a free
+        parameter). HAND-VERIFIED, p=1009 (t=62, f_pi=8, D0=-3, N=1009):
+        naive substitution lambda_of_w(D_E=-3, t=62, f=1, N=1009) =
+        (-3+2-62)*inverse(2) mod 1009 = (-63 mod 1009)*505 mod 1009 = 473.
+        CORRECTLY-DERIVED value (below) = 247. These DISAGREE (473 != 247)
+        -- the naive substitution is not merely unproven, it is
+        demonstrably a DIFFERENT number from the mathematically correct
+        one, at the very first curve checked.
+
+        CORRECTED FORMULA (hand-derived in full, reproduced in
+        v2-verification.py Part 3): pi, expressed in the MAXIMAL order's
+        OWN basis {1, w0}, w0 := (D0+sqrt(D0))/2, is pi = A + f_pi*w0
+        where A := (t - f_pi*D0)/2 (an integer, since pi is an algebraic
+        integer and {1,w0} is a Z-basis of O_K -- checked, not assumed,
+        for p=1009: A = (62-8*(-3))/2 = 86/2 = 43, matching an independent
+        by-hand check that pi = 31+4*sqrt(-3) = 43+8*w0 exactly).
+        lambda(pi) = 1 (the SAME fixed-eigenspace convention, unchanged)
+        gives A + f_pi*lambda(w0) = 1 (mod N), i.e.
+        lambda(w0) = (1-A) * inverse(f_pi) (mod N) -- requiring
+        gcd(f_pi, N) = 1 (the SAME precondition the old formula already
+        required, now correctly stated in terms of f_pi, which is trivially
+        satisfied here: f_pi in {8,48,14,2}, N in {1009,10009,100003,1000003},
+        no shared factors since N is prime and vastly larger than f_pi).
+        HAND-VERIFIED, p=1009: inverse(8) mod 1009 = 883 (since
+        8*883=7064=7*1009+1). lambda(w0) = (1-43 mod 1009)*883 mod 1009 =
+        967*883 mod 1009 = 853861 mod 1009 = 247. NONZERO mod 1009 -- a
+        genuine, non-tautological reduced coefficient, consistent with
+        HEUR-CANL-S1's own requirement.
+
+        Stage D's shell_enumerate calls change from
+        `shell_enumerate(curve["D_E"], C0, curve["D0"], curve["f_E"])` to
+        `shell_enumerate(D0, C0, D0, 1)` (the maximal order's OWN
+        discriminant used directly for both the norm form and the unit
+        classification -- this substitution, unlike the lambda one above,
+        IS straightforwardly correct, since shell_enumerate has no
+        pi-relationship baked into its own derivation, only "which order's
+        norm form to use"). lambda_reduce calls change to use the NEW
+        `lambda_of_w0_maximal_order(D0, t, f_pi, N)` in place of
+        `lambda_of_w(D_E, t, f, N)`, with f_pi := the curve's own realized
+        `f_E` (Z[pi]'s conductor, UNCHANGED, still computed the same way,
+        just relabelled for clarity so it is never again silently read as
+        "the order's own conductor").
+
+        APPLICABILITY GUARD (must be checked, not assumed, at runtime):
+        this substitution applies ONLY when p = 1 (mod 3) and the curve
+        genuinely has j=0 (asserted, not merely constructed-and-hoped, via
+        harness/isogeny_class.py:j_invariant(p,a,b) == 0), or p = 1 (mod 4)
+        with j=1728. Both hold by construction for every curve
+        c2_congruence_curve builds (y^2=x^3+1 at a p=1(mod 3) prime), but
+        the guard must be an explicit runtime assertion, per this
+        amendment's own discipline of never silently assuming a premise
+        that happens to hold today.
+      rationale: >-
+        Discharges CORR-20260810-685434 Finding A while correcting a
+        SPECIFIC, concrete implementation error (the naive f=1
+        substitution) that this drafting session found by attempting the
+        "cheap required control" both prior reviews suggested and
+        discovering it does not actually give the right answer. This is
+        exactly the kind of independent re-derivation this task's own
+        instructions require rather than "taking the corrections' word for
+        it" -- and it changes what change B2 actually specifies (a new
+        function, not a parameter substitution into an old one).
+      what_this_does_not_certify: >-
+        This re-derivation is a from-scratch mathematical argument,
+        cross-checked against H-CANL-e59a06's own "verified constructively"
+        assumption and RUN-CANL-78b8bd's own passing G3 gate (both already
+        independently confirmed by two separate reviews), plus one
+        concrete numeric worked example (p=1009). It is NOT an
+        independent from-scratch computation of End_{F_p}(E) via an
+        explicit isogeny or division-polynomial method for all four
+        curves (CORR-20260810-685434's own required_action item 2 names
+        this as the stronger, not-yet-performed check: "an explicit
+        isogeny or division-polynomial check that mu genuinely generates
+        an index-1 suborder"). That stronger check remains open and is
+        NOT authorized or performed by this amendment; it is named here as
+        a candidate for a future, separate verification task if the
+        approving Coordinator judges the automorphism argument (now
+        independently re-derived three times -- by CORR-20260810-685434's
+        own drafting Coordinator, by the Red Team, and by this drafting
+        session) insufficiently certain on its own.
+    - id: B3
+      field: >-
+        certificate_semantics (c) (the 1% independent reachable-count
+        spot-check) and its wiring into harness/run_canl.py.
+      kind: defect_repair_missing_wiring
+      from: >-
+        harness/exp_canl.py:spot_check_reachable is defined, exported in
+        __all__, and documented as satisfying the frozen contract's own
+        BLOCKING certificate_semantics (c) requirement, but is never
+        called anywhere in harness/run_canl.py (confirmed independently by
+        the Validator report via direct grep of the committed file). Every
+        one of the 180 exact reachable-count cells in RUN-CANL-78b8bd (100
+        C1 + 80 C2) went unspot-checked, and the execution report's own
+        completion-gate checklist conflated this with the (genuinely
+        executed) tautology-certificate re-verification, a different check
+        on a different quantity.
+      to: >-
+        `spot_check_reachable` MUST be called once per cell, immediately
+        after every `reachable_residue_count` call in
+        `z_baseline_cell`, `o_arm_cell`, and C2 Stage D's per-cell loop
+        (harness/run_canl.py lines ~508-534, ~617-634, ~889-914
+        respectively, per the v1 line numbers the Validator report cites --
+        the Executor implementing this change must re-locate the exact
+        lines against whatever version of the file it is editing, since
+        change B1/B2 above also touch nearby code). Sample size: per the
+        contract's own literal text ("a random 1% sample of the enumerated
+        residues"), `max(5, round(0.01 * reachable_count))` freshly-drawn
+        coefficient tuples per cell, using a DECLARED seed derived
+        deterministically from (prime, C0, r_Z, aux_tuple_label) so the
+        spot-check itself is reproducible (not re-randomized on every
+        run). A spot-check disagreement on any cell makes that specific
+        cell INVALID (per the already-frozen invalidation_rules text,
+        unchanged by this amendment) and is reported explicitly, never
+        silently absorbed into the aggregate. The per-cell spot-check
+        pass/fail and its sample size MUST be recorded as a new field on
+        every cell's own entry in c1-measurements.json / c2-measurements.json
+        (e.g. `spot_check: {sample_size, passed}`), not merely a
+        run-level boolean, so a reviewer can see which specific cells
+        cleared it.
+      rationale: >-
+        Discharges CORR-20260810-685434 Finding B directly; no design
+        choice is involved (the function already exists and is already
+        specified by the frozen contract -- this is purely a wiring
+        defect). Also directly SUPPORTS change B1's own design: in the
+        wraparound / CM-shell regime where the dual-tuple cross-agreement
+        gate is downgraded to a reported comparison, this spot-check
+        becomes the cell's ONLY executed collision/defect-detection
+        mechanism, so wiring it in is a precondition for change B1's own
+        soundness, not an independent nice-to-have.
+    - id: B4
+      field: >-
+        H-CANL-e59a06's own STEP 1 open assumption (r_Z = 2*r_O
+        automatic for maximal O, open for non-maximal O) as it bears on
+        C2's Stage D hard-coded `s = r_Z // 2 + 1` slot count
+        (harness/run_canl.py line 623, `o_arm_cell`, and the analogous
+        Stage D slot-count computation in `run_c2`).
+      kind: addition
+      from: (absent -- Stage D silently assumed the halved slot count applies)
+      to: >-
+        Once change B2's fix is applied, EVERY realized C2-congruence
+        curve has f_E=1 (the maximal order) BY THE SAME UNCONDITIONAL
+        ARGUMENT change B2 re-derives -- not merely "expected to" or
+        "as a byproduct that might or might not hold." Per H-CANL-e59a06's
+        own STEP 1 text ("automatic for maximal O"), this DOES resolve
+        Finding C for these specific curves: r_Z = 2*r_O is the automatic,
+        Dedekind-domain case whenever f_E=1, which change B2 forces
+        unconditionally for j=0 at p=1(mod 3) and j=1728 at p=1(mod 4),
+        independent of which twist or which such prime is chosen. STATED
+        PLAINLY, PER THIS TASK'S OWN INSTRUCTIONS, RATHER THAN LEFT
+        AMBIGUOUS: this drafting session judges Finding C RESOLVED AS A
+        BYPRODUCT OF CHANGE B2 for the curves this contract's own
+        c2_congruence_ladder_rule_frozen constructs (j=0 curves at
+        p=1 mod 3) -- this is NOT independently re-derived beyond change
+        B2's own argument (there is no separate proof step; "maximal
+        implies automatic projectivity" is H-CANL-e59a06's own already-
+        stated fact, not something this amendment re-derives from a
+        different direction), so it should be read as exactly as certain
+        as change B2 itself, not as additional independent confirmation.
+
+        REQUIRED RUNTIME CHECK (must be checked, not assumed, even though
+        this drafting session believes it will pass): the run driver MUST
+        explicitly compute and assert `f_E == 1` (via the SAME
+        automorphism-forced argument, i.e. checking p mod 3 == 1 and
+        j == 0 for D0=-3 curves) for every C2-congruence curve BEFORE
+        using `s = r_Z//2+1` for that curve's Stage D cells. If this
+        assertion ever fails for a curve this contract's ladder rule
+        constructs in the future (e.g. under a different, not-yet-used
+        c2_congruence_ladder_rule extension), the corresponding cells MUST
+        be flagged `PROJECTIVITY_UNVERIFIED` and excluded from
+        `reachable_residue_gain` reporting rather than silently computed
+        with an unjustified slot count -- this is the honest fallback
+        Finding C's own text names for the case the byproduct resolution
+        does NOT hold.
+      rationale: >-
+        Directly answers this task's own instruction to state plainly
+        whether Finding C is resolved or remains open, rather than
+        assuming the byproduct resolution without checking. It IS resolved
+        for the specific curves this contract constructs, conditional on
+        change B2, with an explicit runtime guard against silent failure
+        if that ever stops being true.
+    - id: B5
+      field: >-
+        frozen_decision_rule (the C1 and C2 waterfalls) and
+        evidence_strength_calibration_frozen -- the D1
+        one-run-for-the-whole-grid aggregation design
+        (harness/run_canl.py:full_run, c1_waterfall, c2_waterfall).
+      kind: defect_repair_gate_design
+      from: >-
+        `c1_waterfall` and `c2_waterfall` each compute ONE aggregate
+        terminal state pooling ALL cells across ALL primes (`max(...)`,
+        `any(...)` over every (prime, C0, r_Z, aux_tuple) combination).
+        `evidence_strength_calibration_frozen`'s own text presupposes a
+        PER-PRIME predicate ("at least 4 of 5 main-ladder primes... the
+        dissenting prime/seed must be named" for `preliminary` strength)
+        that the current aggregate design cannot express: a single
+        anomalous cell at one prime either silently gets absorbed into a
+        false full-agreement `*_SUPPORTED` claim, or flips the ENTIRE run
+        to the most escalatory state available
+        (`C1_REFUTED_REOPEN`/`C2_GAIN_EXCESSIVE`, triggering SR8) with no
+        path to "4/5 agree, one dissenting prime named." Both independent
+        reviews (Validator section 9, Red Team Hunt 3) found this
+        independently and agree it did not affect RUN-CANL-78b8bd's own
+        (uniform, prime-independent) dual-tuple-bug outcome but WILL
+        matter the moment a future run reaches a genuine, prime-specific
+        disagreement.
+      to: >-
+        FUNCTIONAL SPECIFICATION (the exact code restructuring is
+        Executor implementation work this Coordinator subagent does not
+        write, per AGENTS.md's own division of authority -- this is a
+        requirements change, not a patch). `c1_waterfall` must be
+        evaluated ONCE PER main-ladder prime, restricted to that prime's
+        own cells, yielding a per-prime state in
+        {C1_INSTRUMENT_INVALID, C1_SLOPE_ANOMALY, C1_REFUTED_REOPEN,
+        C1_SUPPORTED} (the SAME four states, unchanged); `c2_waterfall`
+        likewise per c2-congruence-ladder prime, restricted to that
+        prime's own cells, yielding the SAME five existing states. The
+        null-object-control / positive-control components of
+        C1_INSTRUMENT_INVALID's `fires_when` (which are GLOBAL CTRL
+        quantities, not per-C1-prime) stay evaluated once, globally, and
+        gate every prime's C1 waterfall identically -- only the
+        dual-aux-tuple / slope / reachable-count-ratio components become
+        per-prime. A NEW required artifact,
+        `decision-rule-evaluation.json`'s existing structure extended with
+        `c1_verdict_by_prime: {prime: state}` and
+        `c2_verdict_by_prime: {prime: state}`, records every per-prime
+        state explicitly. The AGGREGATE terminal state reported at the top
+        level is then a DECLARED, FROZEN function of that table (fixed in
+        THIS amendment's text, before any run exists, per SR7 "no outcome
+        shopping"):
+          - C1: if ANY prime reaches C1_REFUTED_REOPEN, the aggregate is
+            C1_REFUTED_REOPEN regardless of the other primes (a single
+            genuine reopening finding is NOT diluted by majority vote --
+            SR8's escalation trigger is preserved exactly as frozen).
+          - Else, if >=4 of 5 primes reach C1_SUPPORTED, aggregate =
+            "C1_SUPPORTED (replicated)"; if exactly 3 of 5 do (a genuine
+            majority short of the frozen 4/5 bar), aggregate =
+            "C1_SUPPORTED (preliminary, dissenting prime(s) named:
+            [list])"; fewer than 3 of 5 reaching C1_SUPPORTED does not
+            support an aggregate C1_SUPPORTED claim at any strength.
+          - Else if all non-instrument-invalid primes agree on
+            C1_SLOPE_ANOMALY or C1_INSTRUMENT_INVALID, aggregate reflects
+            that state; a genuine prime-level split between
+            C1_INSTRUMENT_INVALID and a substantive state is reported as
+            "MIXED, per-prime table required reading" rather than
+            collapsed to either extreme.
+        C2's rollup is the SAME shape at the frozen 2-of-4 bar for
+        `preliminary` / a to-be-declared bar for `replicated` (the frozen
+        contract's own `evidence_strength_calibration_frozen` text does
+        not state a C2-specific replicated bar beyond "all three seeds
+        and 4 of 5 primes" applying to BOTH regimes jointly when both
+        reach a verdict -- this amendment does not invent a new C2-only
+        threshold, it operationalizes the existing text's own 4/5 language
+        applied to C2's 4-prime ladder as "all 4").
+      design_decision_flagged_for_coordinator_review: >-
+        The EXACT majority thresholds above (4/5, 3/5 for `preliminary`
+        C1; the C2 rollup's own bar) are this drafting session's own
+        reading of `evidence_strength_calibration_frozen`'s prose into a
+        computable rule -- the frozen text itself only fixes the
+        `replicated` bar (4/5) and the general shape of `preliminary`
+        ("caps... and the dissenting prime/seed must be named"), not an
+        exact minimum for `preliminary` to apply at all (is 2/5 also
+        `preliminary`, or does it become something weaker?). This
+        drafting session chose 3/5 as the `preliminary` floor because it
+        is the smallest majority, but this is a genuine threshold choice
+        the approving Coordinator should confirm or revise, not something
+        this amendment can claim is uniquely forced by the frozen text.
+      rationale: >-
+        Discharges CORR-20260810-685434 Finding D exactly as both
+        independent reviews recommended (Validator: "make the aggregate
+        terminal state a documented function of that table"; Red Team:
+        "restructure... or at minimum add a per-prime pass/fail table...
+        so replicated vs preliminary strength is a computed property").
+        This is real, nontrivial Executor implementation work (a genuine
+        rewrite of two waterfall functions and the top-level orchestration
+        in `full_run`), not a small patch, and the Executor dispatched
+        under this amendment should scope and budget it explicitly rather
+        than treat it as incidental to changes B1-B3.
+    - id: B6
+      field: >-
+        C2's shell-count 15% relative-error tolerance (P5,
+        `shell_diagnostics.within_15pct_for_C0_ge_5`) and the C0=1
+        threshold-sensitivity check
+        (`c2_waterfall`'s `threshold_sensitive` component).
+      kind: partial_defect_repair_and_explicit_deferral
+      from: >-
+        A flat 15% relative-error tolerance applied uniformly across all
+        13 class-number-one discriminants and all C_0 >= 5 (unjustified in
+        the frozen contract -- traced by the Red Team to
+        IDEA-20260807-11b93d's own bare `minimum_effect` field, no
+        derivation of the shell-count formula's own disclosed
+        O(C0*|D_E|^{-1/4}+1) error term's implied constant), which both
+        independent reviews confirmed fails at exactly the two
+        largest-magnitude discriminants (D_E=-67 at C0=5, 19.85% error;
+        D_E=-163 at C0=8, 17.47% error) for a STRUCTURAL reason (relative
+        error is guaranteed to spike where the leading term
+        2*pi*C0^2/sqrt(|D_E|) is itself small, independent of any real CM
+        effect). Separately, the threshold-sensitivity check is
+        DEGENERATE at C0=1 for every one of the 13 class-number-one
+        discriminants (independently re-confirmed by the Validator: the
+        minimum nonzero non-unit norm in any of these orders is
+        provably >= 2, so the nonunit shell at C0=1 is FORCED to be
+        exactly {(0,0)} regardless of any real threshold-sensitivity
+        signal).
+      to: >-
+        TWO SEPARATE TREATMENTS, deliberately not resolved with the same
+        confidence. (i) C0=1 EXCLUSION -- RESOLVED, adopted with full
+        confidence: the C0=1 row is EXCLUDED from the threshold-sensitivity
+        hard gate's own `fires_when` clause (report it instead as a
+        DEGENERATE-CELL tail check entry, which `tail_checks` already has
+        a slot for). This is unconditionally safe: both reviews
+        independently confirmed the C0=1 degeneracy is discriminant-
+        independent and provable from the order structure alone, not an
+        artifact of any specific run's data, so removing it from the hard
+        gate cannot hide a real signal at any discriminant. (ii) THE 15%
+        TOLERANCE ITSELF -- EXPLICITLY DEFERRED, NOT RESOLVED, because
+        this drafting session lacks the full per-cell shell-count grid
+        (only the two failing cells' concrete numbers and aggregate
+        relative-error statistics are available from the two review
+        reports; the complete 65-cell C0>=5 grid's raw observed counts are
+        not reproduced in either report or in this session's own reach
+        without Bash access to re-run `shell_enumerate`). Red Team's own
+        estimate of an absolute-error constant (c in roughly [1.4, 1.7]
+        from the two known failing cells) suggests an absolute bound
+        `|observed-predicted| <= c*(C0*|D_E|^{-1/4}+1)` at c=2 would admit
+        both currently-failing cells -- HAND-VERIFIED here: D_E=-67,C0=5:
+        predicted=19.19, observed=23, |diff|=3.81 <= 2*(5*67^-0.25+1) =
+        2*2.747 = 5.49 (passes); D_E=-163,C0=8: predicted=31.49,
+        observed~=37.0, |diff|~=5.51 <= 2*(8*163^-0.25+1) = 2*3.239 = 6.48
+        (passes) -- BUT switching wholesale to an absolute bound is NOT
+        adopted here because it would be STRICTER than the current 15%
+        relative check at LARGE C0 (e.g. C0=20, D_E=-163: 15% of the
+        ~1968.5 predicted count allows deviations up to ~295, while the
+        c=2 absolute bound only allows ~13.2), and this drafting session
+        has no data confirming the actual observed shell counts at large
+        C0 stay within that materially tighter bound -- adopting it
+        without that data risks introducing a NEW, unverified invalidation
+        at cells that currently pass, which this amendment's own
+        discipline (verify before relying, per this task's own
+        instructions) forbids. The 15% relative tolerance therefore STAYS
+        UNCHANGED as the gating criterion for now.
+      required_diagnostic_before_any_future_tightening: >-
+        A future amendment revisiting the 15% tolerance must first have
+        the Executor report the FULL C0_grid_shell_diagnostic_only x
+        class_number_one_discriminants_frozen grid's raw observed shell
+        counts (not merely pass/fail against 15%) as a required diagnostic
+        artifact, so an absolute-bound replacement can be checked for
+        no-regression across the WHOLE grid the way change B1's
+        mixed-radix construction was checked across its whole grid in this
+        amendment (v2-verification.py Part 1/2) -- not merely against the
+        two currently-known failing cells.
+      rationale: >-
+        Directly answers CORR-20260810-308774's own required_action item 2
+        ("independently assess... not necessarily fix in the same way")
+        and both reviews' recommendation to revisit these findings, while
+        being honest that a full fix needs data this drafting session does
+        not have -- matching this campaign's own precedent for partial,
+        disclosed improvements (EXP-ICINV-4d33aa amendment v4's own "does
+        not fully close the gap... named as a candidate for a future
+        version" pattern) rather than either ignoring the finding or
+        overclaiming a fix beyond what is actually verified.
+  unchanged_and_still_frozen:
+    - >-
+      Every threshold, formula, and prediction in H-CANL-e59a06 itself
+      (P1-P12) and every other part of EXP-CANL-96b0ad's
+      `frozen_decision_rule` not named in changes B1-B6 above: G0, G1, G2,
+      G4's own logic, C1's null-object/positive-control components (as
+      global CTRL quantities, unaffected by B5's per-prime restructuring
+      of the dual-tuple/slope/ratio components), C2's tautology hard gate
+      (G3), the threshold-control check (unaffected by B6, which touches
+      only the shell-tolerance and C0=1-degeneracy components), and every
+      SR1-SR8 stopping rule.
+    - >-
+      The class_number_one_discriminants_frozen list, the prime_ladder_rule
+      and c2_congruence_ladder_rule (UNCHANGED -- change B2 fixes how
+      D_E/f_E is COMPUTED for the curves these rules already select, not
+      which primes are selected; Red Team's own Hunt 5 explicitly
+      recommends against redesigning the ladder rule, and this amendment
+      follows that recommendation), the C_0_grid_full_enumeration,
+      C_0_grid_shell_diagnostic_only, and r_Z_grid values.
+    - >-
+      harness/toycurve.py and harness/isogeny_class.py's edit prohibition,
+      unchanged and still binding on any Executor implementing this
+      amendment.
+    - >-
+      cost_sharing_requirement (the shared Z-baseline cache) -- change B1's
+      new weight construction still produces exactly one Z-baseline value
+      per (prime, C0, r_Z, aux_tuple) cell, shared by C1 and C2 as before;
+      nothing here reintroduces per-regime recomputation.
+    - >-
+      RUN-CANL-78b8bd's own terminal states, C1_INSTRUMENT_INVALID and
+      C2_INSTRUMENT_INVALID, and every artifact under
+      experiments/EXP-CANL-96b0ad/runs/RUN-CANL-78b8bd/ -- see
+      `affected_runs` below.
+    - >-
+      SR7, no outcome shopping: every formula and threshold in changes
+      B1-B6 is fixed in this text, before any version-2 run of this
+      experiment exists.
+  affected_runs:
+    - >-
+      RUN-CANL-78b8bd stands exactly as committed. Its terminal states
+      (C1_INSTRUMENT_INVALID, C2_INSTRUMENT_INVALID) are not re-scored,
+      its manifest and every measurement file are not edited, and
+      CORR-20260810-308774 / CORR-20260810-685434 remain the authoritative,
+      citable record of what that run found and why it is invalid as
+      reported. This amendment governs only a future, separately-approved
+      dispatch under a new run id.
+  what_this_amendment_does_not_do:
+    - >-
+      It does not authorize execution. Under AGENTS.md rule 1 a version-2
+      run of EXP-CANL-96b0ad needs its own approval and its own dispatched
+      handoff; this drafting session has neither the authority nor (having
+      no Bash) the ability to run anything regardless. `approved_by` stays
+      `null` below, deliberately.
+    - >-
+      It does not move H-CANL-e59a06's status. That hypothesis stays
+      `specified`, `approved_by: null`, exactly as it already is; nothing
+      here is evidence for or against C1 or C2.
+    - >-
+      It does not independently, from-scratch, compute End_{F_p}(E) for
+      the four c2-congruence curves via an explicit isogeny or
+      division-polynomial method -- change B2's `what_this_does_not_certify`
+      block states this precisely. The automorphism argument is
+      hand-re-derived and numerically spot-checked (one curve, one
+      formula evaluation) here, not exhaustively computed.
+    - >-
+      It does not resolve the 15% shell-count tolerance question (change
+      B6, part ii) -- explicitly deferred pending data this session does
+      not have, not silently dropped.
+    - >-
+      It does not run, and cannot run, v2-verification.py. Every number in
+      this file labelled HAND-VERIFIED or HAND-WORKED was computed by
+      manual arithmetic, shown in full above; every claim about the WHOLE
+      grid (all C0/s/N combinations, all 65 shell cells) is either a
+      general proof (change B1's mixed-radix injectivity lemma, which does
+      not depend on run-time computation to be true) or explicitly marked
+      pending execution in `verification_status` below.
+    - >-
+      It does not touch harness/toycurve.py, harness/isogeny_class.py, or
+      any other file outside experiments/EXP-CANL-96b0ad/amendments/ --
+      this file and its companion verification script are the only
+      artifacts this drafting session wrote or edited.
+  verification_status:
+    hand_derived_and_shown_in_full_above:
+      - >-
+        Change B1's mixed-radix injectivity lemma (general proof, base
+        b >= 2*C0+1, by induction on slot count) and its no-wraparound
+        equivalence ((2*C0+1)^s <= N).
+      - >-
+        Change B1's small worked example (s=2, C0=1): tuple A (base 3) and
+        tuple B (base 4) both give exactly 9 distinct achievable sums,
+        contrasted against the OLD weights' 7-vs-9 disagreement.
+      - >-
+        Change B2's automorphism-forces-maximal-order argument (disc(x^2+
+        x+1)=-3, a fundamental discriminant, forcing End_{F_p}(E)=O_K),
+        re-derived from scratch by this drafting session, independently of
+        (though consistent with) CORR-20260810-685434's own text.
+      - >-
+        Change B2's corrected lambda(w0) formula, its full derivation from
+        pi = A + f_pi*w0, and its evaluation at p=1009 (lambda(w0)=247),
+        contrasted against the naive, WRONG f=1 substitution
+        (lambda=473) -- a genuine disagreement, hand-computed, not merely
+        asserted to differ.
+      - >-
+        Change B6's absolute-error-bound check at the two known failing
+        cells (both pass at c=2) and the reasoning for why this is
+        insufficient to adopt the bound globally (large-C0 cells not
+        checked, no raw data available).
+    written_but_not_executed_pending_a_bash_capable_session:
+      - >-
+        experiments/EXP-CANL-96b0ad/amendments/v2-verification.py Part 1:
+        exhaustive (not merely spot-checked) confirmation of change B1's
+        injectivity lemma across the FULL grid (C0 in {1,2,3,5,8}, s in
+        {2,3,5}), for both tuple A and tuple B.
+      - >-
+        v2-verification.py Part 2: the full no-wraparound / wraparound
+        classification table across all (C0, s) x all 5 main-ladder
+        primes (this amendment's own prose above states only the single
+        most extreme cell, C0=8/s=5, by hand; the full table needs
+        execution).
+      - >-
+        v2-verification.py Part 3: the SAME corrected-vs-naive lambda(w0)
+        comparison as the hand-worked p=1009 example above, but for all
+        four c2-congruence curves (p=10009, 100003, 1000003 are NOT
+        hand-verified in this filing -- only p=1009 is).
+      - >-
+        v2-verification.py Part 4: nonzero-ness of the corrected lambda(w0)
+        at all four curves (only p=1009's nonzero-ness, 247 != 0, is
+        hand-confirmed here).
+    required_before_this_amendment_is_relied_upon_for_approval: >-
+      A Bash-capable session (the top-level Coordinator, or an Executor
+      under a dispatched diagnostic-only TASK-* with no run authorization)
+      must run `python3
+      experiments/EXP-CANL-96b0ad/amendments/v2-verification.py`, capture
+      its output verbatim as
+      experiments/EXP-CANL-96b0ad/amendments/v2-verification-output.txt,
+      and confirm every PART's `all_ok` / `all_nonzero` flag is True and
+      every `agree` column in Part 3 is False (i.e. the naive substitution
+      is confirmed wrong at all four curves, not just p=1009) before this
+      amendment's changes B1 and B2 are treated as verified beyond the
+      hand-worked examples above. This is a genuine gap in this filing,
+      disclosed rather than closed by assertion.
+  refs:
+    - GOAL-ENDO-001
+    - BATCH-74ebef
+    - EXP-CANL-96b0ad
+    - H-CANL-e59a06
+    - RQ-CANL-63098f
+    - RUN-CANL-78b8bd
+    - CORR-20260810-308774
+    - CORR-20260810-685434
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-74ebef/execution/EXP-CANL-96b0ad/validation_report.md
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-74ebef/execution/EXP-CANL-96b0ad/redteam_report.md
+    - TASK-20260810-122b59
+    - experiments/EXP-CANL-96b0ad/amendments/v2-verification.py
+  approved_by: null
+  approved_by_note: >-
+    NOT APPROVED, DELIBERATELY. Filed by a Coordinator subagent under an
+    explicit instruction to draft and not approve, following the exact
+    two-step discipline this campaign already uses for
+    experiments/EXP-ICINV-4d33aa's own amendments v2/v3/v4 and for
+    EXP-CANL-96b0ad's own original specification.yaml: a contract or
+    amendment approved by its own drafting author in the same act is not a
+    reviewed contract. A separate top-level Coordinator session must
+    independently read this file, `ledger/corrections/CORR-20260810-308774.yaml`,
+    `ledger/corrections/CORR-20260810-685434.yaml`, the validation and
+    red-team reports, and `experiments/EXP-CANL-96b0ad/amendments/v2-verification.py`
+    in full, run and capture that verification script's output per
+    `verification_status` above, resolve the two design decisions flagged
+    inline (change B1's downgrade-to-reported-comparison choice; change
+    B5's exact majority thresholds), and record an independent
+    `coordinator_decision` before `approved_by` is filled and before any
+    run is dispatched against this file. No run may be executed against
+    this amendment until that happens.
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-sonnet-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one
+      model the session runs on. Recorded, never silently substituted
+      (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.
