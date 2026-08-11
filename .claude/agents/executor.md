@@ -89,7 +89,8 @@ contract is in `agents/executor.md`; the global inter-agent contract is in
   observations.
 - Never fabricate outputs, timings, or metrics; never present estimates as
   measurements.
-- Never infer crypto-scale conclusions from toy instances.
+- Never omit the tested parameters or transfer assumptions when reporting a
+  result from a small or simplified instance.
 - Never declare a hypothesis supported, rejected, or closed, and never
   declare a heuristic validated or refuted.
 

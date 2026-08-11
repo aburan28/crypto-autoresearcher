@@ -38,8 +38,8 @@ contract is in `agents/validator.md`; the global inter-agent contract is in
   samples; any substitute-sampling correspondence (e.g., the Deuring
   correspondence sampling maximal orders instead of curves) cites the theorem
   establishing the claimed distribution and is itself controlled; the run's
-  parameter sizes match the claimed scale, with toy-scale validation recorded
-  as a limitation (AGENTS rule 7); and concrete cost tables declare their
+  parameter sizes and transfer assumptions are recorded, with any scale
+  mismatch reported as an assumption or limitation; and concrete cost tables declare their
   unit, flag optimistic assumptions, report memory alongside time, and
   compute total expected cost as per-attempt cost × inverse success
   probability under the stated heuristic.
