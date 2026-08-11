@@ -1,0 +1,638 @@
+validation_report:
+  id: TASK-20260809-603dc5
+  task_id: TASK-20260809-603dc5
+  role: validator
+  goal: GOAL-HQC-001
+  batch: BATCH-412513
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  validates: TASK-20260809-a79e4f
+  authorizing_decision: DEC-20260809-46e85c
+  snapshot_commit_validated: 1f8d61ac9f6a9ec5f138b4951a5bcaac95fca9b6
+  snapshot_parent_sha: 67f1f0dfae80162aee5d7a0ef3805c14c30fa495
+  snapshot_receipt: coordination/goals/GOAL-HQC-001/batches/BATCH-412513/archives/TASK-20260809-a87710/snapshot-receipt.json
+  claim_tier: toy
+  independent_session: true
+  reasoning_effort_used: xhigh
+
+  scope_note: >-
+    Reviewed the Coordinator-committed snapshot at commit 1f8d61ac9
+    (parent 67f1f0dfa), NOT any working-tree-only artifact. Verified the
+    working tree at HEAD (18934eb07, which only backfills
+    dispatch_queue.json's archive block) is byte-identical to that snapshot
+    at every one of the 7 task-directory paths -- `git status --porcelain`
+    on the task directory is clean and every file's sha256 matches the
+    receipt exactly (see artifact_checks). This report validates ONE
+    matched-pair reconstruction and extension: PS-R3, V3 defect at
+    decode_blocks, two pre-registered stages (10,000 zero-new-entropy
+    reconstructed pairs, then 20,000 fresh-shard pairs). Claim tier TOY,
+    hard ceiling; nothing here is a statement about HQC, A17, its
+    decoding-failure rate, or any standardized parameter set. All
+    independent code run for this review lives outside the repository (in
+    this session's scratchpad), writes nothing under experiments/,
+    stage_a.py, measure.py, or any producer's task directory, and is not
+    part of this report's artifact_paths.
+
+  run_ids: []
+  run_ids_note: >-
+    No experiments/ run record exists for this task; per this campaign's
+    established convention (EV-HQC-bfb257, EV-HQC-dd85c1), coordination-task
+    artifacts are cited by path and hash.
+
+  artifact_checks:
+    - artifact: design.md
+      present: true
+      sha256_matches_snapshot_receipt: true
+      predates_matched_pair_results_json: true
+      note: >-
+        File mtimes internal to the task directory are strictly ordered
+        (design.md 09:05 < matched_pair.py 09:07 < matched_pair_results.json
+        09:08 < matched_pair_report.md 09:10 < run_manifest.yaml 09:11,
+        local time), consistent with run_manifest.yaml's recorded
+        stage-1/stage-2 UTC timestamps (16:07:46-16:08:06Z = 09:07-09:08
+        PDT). States, before any run, the crossed stage-1 configuration,
+        the bit-identity gate and its exact target arrays, the stage-2
+        T2 = clamp(round(10000*(SE*2.80/0.20)**2), 20000, 60000) formula
+        with delta/z/floor/cap fixed, the primary cell k=m=17, the
+        matched-pair-jackknife-on-the-difference construction, and the
+        12 pre-declared fresh stage-2 shard indices (8000-8011).
+    - artifact: matched_pair.py
+      present: true
+      sha256_matches_snapshot_receipt: true
+      reuses_stage_a_and_measure_read_only: true
+      sha256_pins_verified_against_files_on_disk: true
+      pin_values: >-
+        stage_a.py pin 06a0a618...681405 and measure.py pin
+        a4fd1ecb...4f5dc8, both re-verified by this review's own
+        sha256_file() call against the actual committed files at their
+        read-scope paths -- both match exactly.
+      new_code_scope_confirmed: >-
+        Read in full. New code is exactly: make_defected_decode_blocks
+        (V3 wrapper, calls the imported original_decode_blocks directly,
+        confirmed not a reimplementation), dual_decode_shard (generation
+        body byte-for-byte identical in call sequence to stage_a.py's own
+        _t_shard -- same sha_key/CTRStream/fixed_weight_support/
+        support_to_int/ring_mul_sparse calls in the same order with the
+        same domain strings v0..v4, same D2/D3 checks -- extended only to
+        call decode_a then decode_b on the same generated `bits` array
+        per batch instead of one decode), and matched_pair_stats (the
+        jackknife-on-the-difference). decode_blocks itself does not
+        mutate its `bits` argument in place (traced: every step of
+        stage_a.decode_blocks reads via .reshape()/.sum() and never
+        assigns into `blk` or `bits`), so calling decode_a(bits) then
+        decode_b(bits) on the identical array cannot corrupt the pairing
+        via aliasing -- checked by direct code inspection, not assumed.
+    - artifact: matched_pair_results.json
+      present: true
+      sha256_matches_snapshot_receipt: true
+      stage1_stage2_present: true
+      per_trial_S_arrays_present_for_all_4_stage1_arms: true
+      k_range_present: "2..26 (25 cells), both stages, per-shard and pooled"
+    - artifact: matched_pair_report.md
+      present: true
+      sha256_matches_snapshot_receipt: true
+    - artifact: run_manifest.yaml
+      present: true
+      sha256_matches_snapshot_receipt: true
+      command_git_dirty_seeds_environment_present: true
+      dirty_tree_at_run_time: true
+      dirty_tree_explanation_checked: >-
+        run_manifest.yaml states the only dirty entries at stage-1 start
+        were this task's own not-yet-committed design.md and
+        matched_pair.py. Verified against git history: commit 67f1f0dfa
+        (recorded as run_manifest.yaml's git.commit) is exactly the parent
+        of the snapshot commit 1f8d61ac9, and the snapshot commit's diff
+        (`git show --stat`) adds exactly the 7 declared task artifacts plus
+        the archive task's own snapshot-receipt.json, nothing else outside
+        the task's write_scope. task_card.yaml (pre-existing, committed
+        earlier at d224bc833) is correctly excluded from both the
+        executor's artifact_paths and the receipt's path_sha256, and
+        `git status` at that path shows no modification.
+      resource_records_present: >-
+        core-seconds and wall-seconds reported separately per stage
+        (3.73/3.337 stage 1, 6.565/6.102 stage 2), both far under the
+        400 core-second / 1800 wall-second authorization; runs_used: 2
+        matches maximum_runs: 2 in task_card.yaml.
+    - artifact: stdout.log
+      present: true
+      sha256_matches_snapshot_receipt: true
+      content_consistent_with_json: >-
+        Both stages' selftest PASS lines and the printed SE_pooled@k=17
+        value (0.096624) match matched_pair_results.json's
+        stage1_SE_pooled_k17_paired exactly.
+    - artifact: stderr.log
+      present: true
+      sha256_matches_snapshot_receipt: true
+      empty: true
+      note: expected given exit_code 0 on both invocations; not a gap.
+    - artifact: snapshot-receipt.json (TASK-20260809-a87710)
+      present: true
+      commit_sha_matches_actual: "1f8d61ac9f6a9ec5f138b4951a5bcaac95fca9b6, confirmed via git rev-parse"
+      parent_sha_matches_actual: "67f1f0dfae80162aee5d7a0ef3805c14c30fa495, confirmed via git rev-parse"
+      all_7_path_sha256_entries_verified_against_committed_files: true
+      dispatch_queue_json_task_a87710_archive_block_matches_receipt: true
+      note: >-
+        dispatch_queue.json's TASK-20260809-a87710.archive block (written in
+        the later backfill commit 18934eb07, resolving the receipt's own
+        documented fixed-point/self-hash problem) reproduces the receipt's
+        commit_sha, parent_sha and all path_sha256 values exactly, plus the
+        receipt's own hash. TASK-20260809-a79e4f and TASK-20260809-a87710
+        both read state: completed in the live queue.
+
+  independent_reproduction:
+    method: >-
+      Wrote an entirely separate script (not derived from matched_pair.py's
+      source, no import of it, no execution of it) that loads stage_a.py
+      and measure.py fresh via the same sha256 pins, re-verifies the pins
+      independently against the files on disk, implements its own V3
+      defect wrapper coded directly from design.md's stated mechanism, and
+      implements its own generation loop and its own matched-pair
+      leave-one-batch-out jackknife (using stage_a.py's single-(hist,k)
+      log2_A_from_hist, NOT measure.py's vectorized log2_A_from_hists, as
+      the primary estimator call -- a different code path than the
+      executor used for its own per_k table). Chunk size for the
+      generate-once/decode-twice loop was deliberately set to 1000 (vs the
+      executor's batch=64), to rule out any silent batch-boundary
+      dependence. All independent computation ran in this session's
+      scratchpad and wrote no artifact under any task's write_scope, the
+      repository's experiments/ tree, or any producer directory.
+    checks_performed:
+      - name: sha256 re-verification of stage_a.py and measure.py
+        result: >-
+          Independently recomputed; both match the pins in design.md and
+          matched_pair.py exactly (06a0a618...681405 / a4fd1ecb...4f5dc8).
+      - name: determinism gate, reproduced independently (constraint 1)
+        result: >-
+          Regenerated shard 5000 (defected) and shard 6000 (undefected) at
+          5,000 trials each, from scratch, via my own driver. The resulting
+          S_histogram arrays are BIT-IDENTICAL to pilot_results.json's
+          committed MEASUREMENT.defected.S_histogram and
+          MEASUREMENT.undefected.S_histogram. D2/D3: 0/0 violations on both
+          shards, matching the executor's report. This is a fresh,
+          independent pass of the same check the executor's own
+          fail-closed gate performed and the BATCH-2ecaa1 Validator
+          performed once before (per the handoff, a failure here would be
+          an environment/determinism regression -- none occurred).
+      - name: pairing genuineness (constraint 2)
+        result: >-
+          For all four stage-1 arms (shard 5000 true/defected, shard 6000
+          true/defected), my independently-regenerated per-trial S arrays
+          are BIT-IDENTICAL, entry-for-entry, to matched_pair_results.json's
+          persisted stage1_per_trial_S arrays -- despite my driver
+          generating bits in chunks of 1000 vs. the executor's batches of
+          64. Since decode_blocks (traced above) does not mutate its input
+          and the generation is a pure function of (ps_id, shard,
+          MASTER_SEED, trial_index) independent of chunk/batch boundaries,
+          this is strong evidence that entry i of the true-decode and
+          defected-decode arrays on a given shard derive from the SAME
+          underlying generated draw, by construction, not by post-hoc
+          alignment -- the exact property design.md Section 1 and
+          EV-HQC-dd85c1 O9 claim. Additionally: at every k checked, the
+          paired (matched-pair-on-the-difference) jackknife SE is smaller
+          than the unpaired (independent-arm quadrature) SE by a factor of
+          ~1.75x-10.4x (see metric_recomputations) -- exactly the
+          signature expected of a genuine positive within-pair correlation
+          from a shared draw; if the "pairing" were spurious (e.g. the two
+          arms were actually independent draws mislabeled as paired), the
+          paired and unpaired SEs would be statistically indistinguishable
+          rather than systematically several-fold apart.
+      - name: jackknife-on-the-difference vs. separately-jackknifed arms,
+          code-level check (constraint 2, second half)
+        result: >-
+          Traced matched_pair.matched_pair_stats(): bh_true and bh_def are
+          both built by stage_a.batch_hists() with the SAME nb=200 applied
+          to arrays of the SAME length T, so fold i removes the SAME
+          trial-index range from both arms; loo_diff[i] = loo_def[i] -
+          loo_true[i] is computed per-fold BEFORE the jackknife SE formula
+          is applied, and se_paired = jse(loo_diff) is the SE of that
+          per-fold difference series -- not sqrt(SE_true^2 + SE_def^2),
+          which is computed separately and correctly labeled
+          se_unpaired. My own independent implementation reproduces this
+          same distinction from scratch (own loop, own jse()) and its
+          numbers match the executor's se_paired/se_unpaired values
+          exactly at every (stage, arm, k) checked.
+      - name: cross-check of two independently-coded estimator
+          implementations
+        result: >-
+          measure.py's vectorized comb_matrix-based log2_A_from_hists and
+          stage_a.py's own single-(hist,k) log2_A_from_hist are two
+          separately-committed formulations of the same estimator. At
+          k=17, stage-1 pooled: my log2_Ahat_17(true)=-1.0237393960262544
+          (stage_a formula) vs -1.0237393960262438 (measure.py vectorized
+          formula on the identical histogram); defected arm likewise
+          agrees to ~1e-11. Difference is floating-point summation-order
+          noise, not a formula discrepancy.
+
+  metric_recomputations:
+    - metric: >-
+        Stage 1, per-shard and pooled matched-pair diff/paired-SE/z at
+        k in {5, 10, 17, 20, 24} (k=17 primary + 4 others, exceeding the
+        "at least three other k" requirement), from raw per-trial data
+        generated by my own driver (constraint 3)
+      method: >-
+        My own regenerated S_true/S_def arrays for shards 5000 and 6000
+        (see independent_reproduction), pooled in the executor's declared
+        fixed order (5000 then 6000), fed through my own from-scratch
+        matched-pair jackknife implementation.
+      result: EXACT MATCH at every (shard, k) checked, to full float
+        precision (differences <1e-9, consistent with summation-order
+        noise only).
+      table_stage1_pooled_T10000:
+        - k: 5
+          executor: {diff: -0.000500, se_paired: 0.001108, z: -0.451692}
+          mine: {diff: -0.000500, se_paired: 0.001108, z: -0.451692}
+        - k: 10
+          executor: {diff: 0.002899, se_paired: 0.009615, z: 0.301470}
+          mine: {diff: 0.002899, se_paired: 0.009615, z: 0.301470}
+        - k: 17
+          executor: {diff: 0.051567, se_paired: 0.096624, z: 0.533691}
+          mine: {diff: 0.051567350222, se_paired: 0.096624061125, z: 0.533690569638}
+        - k: 20
+          executor: {diff: 0.100150, se_paired: 0.194191, z: 0.515728}
+          mine: {diff: 0.100150, se_paired: 0.194191, z: 0.515728}
+        - k: 24
+          executor: {diff: 0.199139, se_paired: 0.392556, z: 0.507288}
+          mine: {diff: 0.199139, se_paired: 0.392556, z: 0.507288}
+      table_stage1_per_shard_k17:
+        - shard: 5000
+          executor: {diff: 0.10178, se_paired: 0.12511, z: 0.814}
+          mine: {diff: 0.101778015037, se_paired: 0.125105527022, z: 0.813537318929}
+        - shard: 6000
+          executor: {diff: 0.01082, se_paired: 0.14990, z: 0.072}
+          mine: {diff: 0.010823370788, se_paired: 0.149898689485, z: 0.072204572468}
+      verdict: PASS -- the paired diff/SE/z statistic recomputes bit-for-bit
+        from raw trial data via an independently-written driver at every
+        cell checked.
+    - metric: >-
+        Stage 2, pooled matched-pair diff/paired-SE/z at k in
+        {5, 10, 17, 20, 24}, from raw per-trial data REGENERATED by my own
+        driver (the executor did not persist stage-2 raw arrays; I
+        regenerated shards 8000-8003 at their reported per-shard trial
+        counts from scratch, 20,000 trials total, independently)
+      method: same as stage 1, applied to freshly regenerated stage-2 data.
+      result: EXACT MATCH at every k checked.
+      table_stage2_pooled_T20000:
+        - k: 5
+          executor: {diff: -0.000134, se_paired: 0.000740, z: -0.180795}
+          mine: {diff: -0.000134, se_paired: 0.000740, z: -0.180795}
+        - k: 10
+          executor: {diff: 0.006255, se_paired: 0.005609, z: 1.115184}
+          mine: {diff: 0.006255, se_paired: 0.005609, z: 1.115184}
+        - k: 17
+          executor: {diff: 0.11479, se_paired: 0.08841, z: 1.298}
+          mine: {diff: 0.114793, se_paired: 0.088405, z: 1.298478}
+        - k: 20
+          executor: {diff: 0.253367, se_paired: 0.213374, z: 1.187431}
+          mine: {diff: 0.253367, se_paired: 0.213374, z: 1.187431}
+        - k: 24
+          executor: {diff: 0.590227, se_paired: 0.556422, z: 1.060754}
+          mine: {diff: 0.590227, se_paired: 0.556422, z: 1.060754}
+      d2_d3_stage2_independent: "0/0 violations, matching executor's total_d2_fail=0/total_d3_fail=0"
+      verdict: PASS.
+    - metric: >-
+        Stage-2 trial-count rule: T2 = clamp(round(10000*(SE*2.80/0.20)**2),
+        20000, 60000) applied to stage 1's own measured pooled SE, not
+        tuned after seeing stage 2 (constraint 4)
+      method: >-
+        (a) Code-level check: in matched_pair.py's main(), the --stage 1
+        invocation computes se_k17 from R["stage1"] and writes
+        R["stage2_trial_count_rule"] (including T2) into
+        matched_pair_results.json BEFORE returning; the --stage 2
+        invocation reads T2 = R["stage2_trial_count_rule"]["T2"] from that
+        already-written file and never recomputes or overrides it from
+        anything computed during stage 2. (b) Timing check: run_manifest.yaml
+        records stage 1 finishing at 2026-08-11T16:07:50Z and stage 2
+        starting at 16:08:00Z, a >2 s gap consistent with a materially
+        separate invocation reading a completed file, not an in-process
+        continuation. (c) Independent arithmetic check: applying the
+        formula to the EXECUTOR's reported SE_pooled_measured_k17
+        (0.09662406112454607) reproduces T2=20000 (T2_raw=18298.97, floor
+        binds). (d) Independent arithmetic check on MY OWN measured
+        SE_pooled at k=17 (0.09662406112454315, agreeing with the
+        executor's to 1e-9) reproduces the identical T2=20000.
+      result: >-
+        T2_planned = T2_achieved = 20000 (mp["stage2"]["achieved_equals_planned"]
+        = true, no truncation), and the substitution is shown verbatim in
+        the artifact. Constants delta=0.20, z=2.80, floor=20000, cap=60000
+        are hardcoded module-level constants in matched_pair.py, matching
+        DEC-20260809-46e85c and design.md word-for-word, not derived at
+        run time from any measured quantity.
+      verdict: PASS -- no evidence of post-hoc size tuning; the size-fixing
+        mechanism is structurally incapable of using stage-2 data (T2 is
+        written to disk and read back, not recomputed).
+    - metric: SE-versus-trial-count exponent, reported independently (constraint 5)
+      method: >-
+        OLS on log(SE_paired@k=17) vs log(T) across (T=5000, mean of the
+        two per-shard paired SEs; T=10000, pooled stage-1 paired SE; T=T2,
+        pooled stage-2 paired SE), using MY OWN regenerated SE values
+        throughout (not read from matched_pair_results.json).
+      result: >-
+        exponent = 0.31862351594872185 (mine) vs 0.3186 (executor's
+        reported figure, matching mine to 1e-9). OUTSIDE the pre-specified
+        [0.4, 0.6] band -- CONFIRMED INDEPENDENTLY, not merely accepted
+        from the executor's report.
+      verdict: PASS (recomputation matches); the underlying anomaly is
+        real, not a reporting or arithmetic error. See limitations for
+        this review's own assessment of how much weight the anomaly itself
+        should carry.
+
+  control_checks:
+    - control: fail-closed self-tests (sha256 pin mismatch, injection
+        invariant break)
+      pre_registered: true (design.md Section 4, before any real data run)
+      correctly_applied: true
+      note: >-
+        Traced both selftest functions: each constructs a genuine mismatch
+        (a deliberately wrong sha256 constant; a wrapper whose actual
+        shift is 2 positions while its own invariant check asserts
+        shift-by-1) and calls the SAME load_module()/injection-invariant
+        code path used by the real run. Both raise SystemExit with a
+        message naming the mismatch; main() re-raises
+        FAILED_IMPLEMENTATION if either verdict is not PASS, before the
+        real module load or the real injection wrapper is used.
+        stdout.log confirms both selftests actually executed and printed
+        PASS in all four instances (both stages x both selftests) during
+        the authorized run, not merely asserted afterward in the JSON.
+    - control: D2 (exact generation weight) / D3 (support cap) hard
+        invariants
+      pre_registered: true (inherited unmodified from stage_a.py, checked
+        upstream of decoding on every trial, decoder-independent)
+      correctly_applied: true
+      note: >-
+        0 violations in both stages, both the committed run and this
+        review's independent regeneration (10,000 + 20,000 trials each).
+    - control: stage-1 determinism gate as a negative/regression control
+      pre_registered: true (design.md Section 2.1, FAIL-CLOSED, RUN FIRST)
+      correctly_applied: true
+      note: >-
+        Code-level check confirms gate_determinism.verdict is checked
+        BEFORE any stage-1 statistic or the T2 substitution is computed;
+        on failure the run reports invalid_measurement and returns without
+        computing anything downstream (verified in code, and the actual
+        run's verdict was PASS both as reported and as independently
+        reproduced by this review).
+    - control_gap_carried_forward_not_new: >-
+        No POSITIVE control has been run through the real-sampler
+        detection chain anywhere in this campaign (EV-HQC-dd85c1
+        unresolved_confound, carried forward unchanged; the V1
+        positive-control pilot is explicitly sequenced to the immediately
+        following batch by DEC-20260809-46e85c and is out of THIS task's
+        scope by design). Per docs/inventor-protocol.md Section 3, any
+        report of a signal without a null-object/positive-control
+        calibration is not yet evidence of detection power -- but neither
+        stage of this task claims a detection (both z values are well
+        under 1.96), so this gap does not undermine the specific numbers
+        recomputed here; it bears on how much weight any FUTURE
+        significant result from this chain could carry, and is flagged
+        for that reason, not as a defect of this task.
+    - null_object_decay_check: >-
+        Not a "quantity that fails to decay when it should" situation:
+        the paired SE DOES decrease monotonically with T (0.1375 at
+        T=5000 mean-of-shards -> 0.0966 at T=10000 -> 0.0884 at T=20000,
+        confirmed independently). The anomaly is a DECAY-RATE anomaly
+        (measured exponent 0.32, weaker than the 1/sqrt(T) exponent 0.5
+        the required-T derivation assumes), not an absence of decay. This
+        distinction matters for how the finding should be read and is
+        stated explicitly rather than left ambiguous.
+
+  heuristic_validation_checks: not_applicable
+  heuristic_validation_checks_note: >-
+    This is a matched-pair estimator-reconstruction and SE-scaling check,
+    not a Dickman-de Bruijn-style heuristic validation against a
+    pre-registered theoretical CDF; docs/target-result-profile.md's
+    checklist items 1-3 do not apply to this artifact class. No
+    Deuring-correspondence-style substitute sampling is used anywhere in
+    this task (item 3 not applicable). Item 4 (scale binding) is addressed
+    under limitations. Items 5-6 (cost-unit honesty, cost bookkeeping) are
+    addressed under cost_model_checks, to the extent this task reports a
+    cost at all (it is a mechanical measurement, not a cost-model claim).
+
+  cost_model_checks:
+    - check: unit and comparison honesty
+      result: >-
+        Core-seconds and wall-seconds are reported separately per stage in
+        run_manifest.yaml, the same units used throughout this campaign
+        (EV-HQC-bfb257, EV-HQC-dd85c1 O11). No unit ambiguity found.
+    - check: total-cost bookkeeping for a hypothetical full run
+      result: >-
+        This task does not attempt a full T_req-scale cost projection and
+        design.md/matched_pair_report.md do not claim one -- correctly out
+        of scope per DEC-20260809-46e85c's own limitations
+        ("experiments/EXP-HQC-982268/specification.yaml IS NOT AMENDED...
+        the full 3.09e5-trial run is NOT authorized"). No per-attempt-cost
+        x inverse-success-probability bookkeeping was required or offered
+        here, and none was fabricated.
+    - check: measured-vs-authorized budget honesty
+      result: >-
+        10.295 core-seconds / 9.439 wall-seconds spent against 400/1800
+        authorized -- an order of magnitude under budget, consistent with
+        DEC-20260809-46e85c's own 20-40 core-second estimate (EV-HQC-dd85c1
+        O11). This review's own independent regeneration (stage 1 + stage
+        2 combined, single-process, no optimization) completed in 8.9 s
+        wall-clock, the same order of magnitude, corroborating that the
+        reported cost is not understated.
+
+  proof_architecture_checks: not_applicable
+  proof_architecture_checks_note: >-
+    Not a proof-oriented deliverable (no theorem, bound, certificate
+    family, reduction, or closure argument); docs/inventor-protocol.md
+    Section 8 / KN-TECH-080 checks do not apply.
+
+  inventor_protocol_section6_ladder_check:
+    - item: "each assumption the complexity analysis rests on was isolated
+        and measured separately, with the specific failure mode named"
+      status: met, for what this task claims
+      finding: >-
+        This task does not carry a complexity/speedup claim; it isolates
+        and separately measures exactly two assumptions the campaign's
+        required-T derivation depends on: (a) whether a matched-pair
+        design's paired jackknife SE genuinely undercuts the between-shard
+        design's SE on the pilot's own draws (measured: yes, ratio
+        ~1.75x-10.4x across k, ~3.1x at k=17, both stages), and (b)
+        whether the assumed 1/sqrt(T) SE scaling holds (measured: no --
+        exponent 0.32, outside [0.4,0.6], named explicitly as an anomaly
+        rather than absorbed).
+    - item: "the whole pipeline was run on a scaled-down instance of the
+        same shape, with the claimed improvement/effect as a measured
+        ratio, not a projection"
+      status: met
+      finding: >-
+        No speedup is claimed. The claimed quantities (diff, paired SE,
+        z, the paired/unpaired ratio, the fitted exponent) are all
+        end-to-end measured on the real pipeline at PS-R3 toy scale, not
+        projected, and this review recomputed every one of them from raw
+        data independently.
+    - item: "any cheat in a real-scale partial run is named individually and
+        classified as completeness-preserving or soundness-losing"
+      status: met
+      finding: >-
+        run_manifest.yaml's protocol_deviations names four departures
+        (macOS os.sched_getaffinity fallback; dual_decode_shard as new
+        driver code rather than a reuse of _t_shard's own body, with the
+        determinism gate as the check on whether this substitution changed
+        anything observable; D5/CTRL-REPLAY not run, matching
+        pilot_injection.py's own convention; stage-2 raw per-trial arrays
+        not persisted). None trades away soundness of the reported
+        statistic -- (a) is provenance-only, (b) is the exact substitution
+        design.md pre-registers and gates with the determinism check,
+        which this review independently re-passed, (c) is a disclosed,
+        precedented convention, and (d) is reproducibility-preserving
+        (deterministic PRNG) rather than soundness-losing, which this
+        review confirmed BY ACTUALLY REGENERATING stage 2's raw data from
+        scratch and matching every reported statistic.
+    - item: "the reproducibility pointer was exercised -- artifacts rebuilt
+        from scratch and listed, not asserted"
+      status: met, exceeded
+      finding: >-
+        This review rebuilt BOTH stages' raw per-trial data from scratch
+        (stage 1: shards 5000/6000, matched against pilot_results.json and
+        against the persisted per-trial arrays; stage 2: shards
+        8000-8003, which the executor did not persist at all, so this is
+        the first independent regeneration of that data), using an
+        independently-written driver and jackknife implementation with a
+        different chunk size and a different (but mathematically
+        equivalent, separately-committed) estimator code path.
+
+  limitations:
+    - >-
+      Toy-scale, hard ceiling: PS-R3 only, one defect class (V3), one
+      injection point (decode_blocks last-block window), 10,000 + 20,000
+      matched-pair trials -- roughly 10% of the smallest matched-pair
+      T_req figure in EV-HQC-dd85c1 O5 (17,625) and a small fraction of
+      the 3.09e5-trial full run. Nothing here is a statement about HQC,
+      A17, its decoding-failure rate, or any standardized parameter set.
+    - >-
+      No positive control exists anywhere in this campaign's real-sampler
+      detection chain (carried forward, not new; V1 positive control is
+      sequenced to the next batch by DEC-20260809-46e85c). Neither stage
+      of this task claims a detection, so this does not undermine the
+      numbers validated here, but it means the campaign still cannot
+      distinguish "the chain would fire on a real effect" from "the chain
+      has never been shown to fire on anything," and any future
+      significant z from this same instrument should be read with that in
+      mind.
+    - >-
+      The fitted SE-vs-T exponent (0.3186, independently confirmed) rests
+      on only 3 (T, SE) points, and two of them -- T=5,000 (mean of the
+      two stage-1 per-shard SEs) and T=10,000 (the pooled SE from those
+      SAME two shards) -- are NOT statistically independent observations;
+      they are two different aggregations of the identical 10,000
+      underlying trials. Only the T=T2=20,000 point comes from disjoint
+      fresh data. This does not make the anomaly spurious (it is
+      correctly measured and correctly disclosed per AGENTS.md rule 8, and
+      DEC-20260809-46e85c's pre-registered rule that it supersedes
+      branches A/B/C when outside [0.4,0.6] is triggered on the numbers as
+      measured), but it means the exponent estimate itself carries less
+      independent statistical information than "3 points" suggests, and a
+      Coordinator relying on it for a scaling-law conclusion should treat
+      it as a flagged anomaly warranting the scaling-characterization task
+      DEC-20260809-46e85c's rationale already anticipates, not as a
+      precisely-estimated exponent.
+    - >-
+      A contributing (not exclusive) candidate explanation for the
+      sub-1/sqrt(T) exponent: the two stage-1 per-shard paired SEs at
+      T=5,000 differ from each other by ~20% (0.1251 vs 0.1499, both
+      independently confirmed), which is itself consistent with ordinary
+      jackknife-SE sampling noise at N_JACK_BATCHES=200 over T=5,000 (25
+      trials per fold). This is offered as context for the Coordinator's
+      downstream reading of the anomaly, not as a resolution of it -- this
+      review did not test whether it fully accounts for the measured
+      exponent.
+    - >-
+      This review's independent code reproduces 5 of the 25 reported k
+      cells per (stage, arm) exactly (k=5,10,17,20,24, including the
+      primary cell and exceeding the "at least three other k"
+      requirement); all matched to full float precision. This is strong
+      but not exhaustive evidence that every one of the remaining 20
+      reported cells at each (stage, arm) would also match.
+    - >-
+      This review ran on the same platform/Python/numpy combination
+      (macOS-arm64, Python 3.13.1, numpy 2.4.0) as the executor's own run,
+      not a third independent environment; it therefore adds
+      implementation independence (fresh, differently-structured code) but
+      not additional cross-platform determinism evidence beyond what the
+      executor's own run_manifest.yaml already discloses relative to the
+      pilot's original Linux/Python 3.11.15/numpy 2.4.6 environment.
+    - >-
+      This review recomputes and cross-checks the release-condition inputs
+      named in DEC-20260809-46e85c's knowledge_promotion section (the
+      SE-ratio replication test) but does not itself apply that release
+      condition -- doing so is a Coordinator act. For the record: the
+      independently-confirmed paired/unpaired SE ratios at k=17 are 2.902
+      (shard 5000), 3.224 (shard 6000), 3.117 (stage-1 pooled), and 3.769
+      (stage-2 pooled), against the Red Team's single-shard 2.78x.
+
+  admissibility_verdict: ADMIT
+  admissibility_verdict_rationale: >-
+    Every artifact is present, hash-bound to the Coordinator-committed
+    snapshot (1f8d61ac9), and internally consistent (stdout.log,
+    matched_pair_results.json, run_manifest.yaml, and
+    matched_pair_report.md all agree on every number checked). The
+    determinism gate is independently reproduced bit-identically against
+    pilot_results.json's committed arrays from a from-scratch driver. The
+    pairing is genuine: independently-regenerated per-trial S arrays match
+    the persisted stage1_per_trial_S arrays bit-for-bit despite a
+    different chunking strategy, and the paired jackknife is verified,
+    both by code inspection and by independent reimplementation, to be
+    computed on the per-batch DIFFERENCE rather than by combining
+    separately-jackknifed arms. diff/SE/z at k=17 and four additional k
+    values recompute exactly from raw per-trial data generated by this
+    review's own driver, for stage 1 (per-shard and pooled) AND for stage
+    2 (which this review regenerated from scratch, since the executor did
+    not persist stage-2 raw arrays). The stage-2 trial count is
+    structurally and arithmetically confirmed to follow the pre-registered
+    clamp formula applied only to stage-1's own measured SE, with no
+    mechanism by which stage-2 data could have influenced it. The fitted
+    SE-vs-T exponent (0.3186, outside the pre-specified [0.4,0.6] band) is
+    independently confirmed as a genuine, correctly-computed anomaly, not
+    an arithmetic or reporting error -- this review additionally surfaces
+    that the 3-point fit has fewer independent degrees of freedom than it
+    appears to, which the Coordinator should weigh but which does not
+    change the recomputation's verdict. This receipt is admissible
+    evidence for DEC-20260809-46e85c's pre-registered decision rule and
+    for the pending KN-TECH release condition.
+
+  independent_mechanical_soundness_judgement: MECHANICALLY_SOUND
+  independent_mechanical_soundness_judgement_rationale: >-
+    Based on this review's own checks, not the executor's characterization:
+    (1) the determinism gate is real and independently reproducible; (2)
+    the matched-pair construction is genuine (same-draw pairing confirmed
+    by exact reproduction under a differently-chunked independent driver,
+    not merely asserted); (3) the paired-vs-unpaired jackknife distinction
+    is correctly implemented, confirmed both by code trace and by
+    independent reimplementation; (4) all reported diff/SE/z figures
+    recompute exactly from raw data at every cell checked, in both stages;
+    (5) the stage-2 sizing rule is structurally incapable of using
+    stage-2 data, confirmed by code trace and by timing; (6) the disclosed
+    SE-vs-T exponent anomaly is real and independently confirmed, and its
+    evidentiary weight (not its existence) is the one place this review
+    adds a caveat beyond the executor's own honest disclosure.
+
+  verdict: passed
+  verdict_note: >-
+    "passed" maps to this report's ADMIT recommendation above per
+    agents/validator.md's terminal-verdict vocabulary and this campaign's
+    established convention (TASK-20260806-8d4d48). This verdict certifies
+    the RECEIPT's integrity and the factual/statistical claims checked
+    above; it authorizes nothing beyond that -- not an ECDLP claim, not a
+    demonstrated speedup, not a promotion of H-HQC-18d1b4's status
+    (unchanged, remains proposed), and not application of
+    DEC-20260809-46e85c's pre-registered branch rule, which remains the
+    Coordinator's act, not this report's.
+
+  artifact_paths:
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/reviews/TASK-20260809-603dc5/validation_report.yaml
+  reviewed_snapshot_paths:
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/design.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/matched_pair.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/matched_pair_results.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/matched_pair_report.md
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/run_manifest.yaml
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/stdout.log
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/stderr.log
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/archives/TASK-20260809-a87710/snapshot-receipt.json
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py
+    - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/pilot_results.json
+    - ledger/decisions/DEC-20260809-46e85c.yaml
+    - ledger/evidence/EV-HQC-dd85c1.yaml
