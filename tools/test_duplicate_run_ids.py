@@ -75,19 +75,19 @@ class DuplicateRunIdMapTests(unittest.TestCase):
         """The reason these are tolerable at all.
 
         `ctx.run_params` keeps the LAST manifest globbed for a colliding id
-        while `ctx.ids` keeps the FIRST, so the claim-tier ceiling is evaluated
+        while `ctx.ids` keeps the FIRST, so scale metadata is evaluated
         against an arbitrarily selected manifest. That is only harmless while
-        every manifest sharing an id agrees on its tier. The moment one does
-        not, an evidence record can carry a tier that was checked against a run
-        it never cited -- exactly the rule-7 failure the ceiling exists to
-        prevent -- so this fails loudly rather than waiting to be noticed.
+        every manifest sharing an id agrees on its scale metadata. The moment
+        one does not, an evidence record can carry metadata that was checked
+        against a run it never cited, so this fails loudly rather than waiting
+        to be noticed.
         """
         divergent = sorted(k for k, v in self.current["records"].items()
                            if v["tier_divergent"])
         self.assertEqual(
             divergent, [],
-            f"colliding run ids whose manifests disagree on claim tier: "
-            f"{divergent}. The tier ceiling is now unsound for any evidence "
+            f"colliding run ids whose manifests disagree on scale metadata: "
+            f"{divergent}. Scale metadata is ambiguous for any evidence "
             f"record citing them.")
 
     def test_check_mode_passes_on_the_committed_tree(self) -> None:

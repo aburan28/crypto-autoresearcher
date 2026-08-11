@@ -65,13 +65,11 @@ the Red Team additionally answers:
    would expose a systematic deviation from the random model, and check
    whether minimality, symmetry, or multiplicity effects (cf. Remark 1 of the
    exemplar) bias the probability the other way.
-3. **Scale honesty.** Is the heuristic validated at the claimed cryptographic
-   scale (in the exemplar: p = 5·2^248−1 with 100,000 samples and
-   p = 27·2^500−1 with 10,000 samples, reached via the Deuring
-   correspondence) or only at toy scale? Toy-scale smoothness data never
-   validates a heuristic at cryptographic sizes (AGENTS rule 7); if direct
-   sampling is infeasible, require the substitute-sampling argument that
-   makes the claimed scale reachable.
+3. **Scale honesty.** Are the tested parameters, claimed scope, and transfer
+   assumptions explicit (in the exemplar: p = 5·2^248−1 with 100,000 samples
+   and p = 27·2^500−1 with 10,000 samples, reached via the Deuring
+   correspondence)? If direct sampling is infeasible, challenge the
+   substitute-sampling argument and quantify the remaining uncertainty.
 4. **Hidden-overhead attack.** Recompute the cost model with the o(1)/polylog
    overheads, per-entry constants, and memory made explicit. The exemplar
    itself discloses a superpolynomial overhead in the o(1) term and memory ≈

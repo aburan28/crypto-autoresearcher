@@ -35,25 +35,46 @@ The same boundary applies to permissions. If an action was denied in your
 session, asking a peer to perform it is not a workaround — it launders a
 decision the user made. Route it back to the user.
 
-## Transport 1: live, same machine — `SendMessage`
+## Transport 1: live, within one session — `SendMessage`
 
-When two sessions are alive and mutually reachable (typically local Claude Code
-sessions on one machine), the runtime already carries messages between them
-with no repository involvement:
+Inside a single Claude Code session, the main thread and every subagent it
+spawns can message each other by name, plus `main`. Delivery is automatic —
+there is no inbox to check.
+
+```text
+SendMessage {to: "validator", message: "run receipt for RUN-... is missing"}
+SendMessage {to: "main", message: "blocked: contract declares no seed"}
+```
+
+All five roles hold this on Claude Code. It is declared in
+`orchestration/roles.yaml` as the `send_messages` **optional capability** — a
+tier distinct from the required `capabilities`, because a required capability
+that a runtime cannot express makes the role unhostable there, and `SendMessage`
+exists only on Claude Code. Declaring it required would have made all five roles
+unhostable on `codex_cli` and `opencode` in one edit. Optional means: granted on
+Claude Code, silently absent elsewhere, never a reason to refuse a runtime.
+`tools/test_check_runtime_bindings.py` pins that both ways.
+
+Best for: a mid-run blocker, a progress signal, a clarifying question, steering
+a long-running peer — things that are useless after the fact.
+
+Its limits: it reaches only peers in **this session**, and it leaves **no
+auditable trace**. Nothing said here survives the session or reaches a reviewer.
+
+### Also live: across sessions on one machine
+
+The same tool reaches other Claude Code sessions that are alive and mutually
+reachable, typically local sessions on one machine:
 
 ```text
 ListAgents                       # who is reachable right now
 SendMessage {to: "<name>", message: "..."}
 ```
 
-Best for: a quick synchronous question to a session you can see, or steering a
-peer you just spawned.
-
-Its limit is structural and is why it is not the default here: it reaches only
-sessions that are **live and reachable now**. A cloud/web session runs in its
-own container and lists no peers at all — this repository's own sessions
-usually see `No reachable agents`. Nothing is retained, so a session that
-starts tomorrow cannot learn what was said today.
+A cloud/web session runs in its own container and lists no peers at all — this
+repository's own sessions usually see `No reachable agents`. And since nothing
+is retained, a session that starts tomorrow cannot learn what was said today.
+That is why the durable bus below is the default.
 
 ## Transport 2: durable, anywhere — `tools/agent_bus.py`
 
@@ -154,10 +175,12 @@ and before you report done.** That is enough, and it is what a feed asks for.
 
 | Situation | Use |
 |---|---|
+| Peer is a subagent of this session | `SendMessage` |
 | Peer is live, local, and listed by `ListAgents` | `SendMessage` |
 | Peer is in another container, worktree, or runtime | `agent_bus.py` |
 | Receiver does not exist yet | `agent_bus.py` |
 | It should survive the session | `agent_bus.py` |
+| A reviewer will need to see it | **neither** — a record |
 | Assigning real research work | **neither** — a `TASK-*` handoff |
 
 That last row is the common mistake. The bus is for *coordination about* work:

@@ -76,7 +76,11 @@ tool surface.
 4. Results are immutable records. Corrections create new records.
 5. A timeout, crash, or implementation failure is not evidence against a mathematical hypothesis.
 6. Negative evidence closes only the exact tested scope.
-7. Toy-curve evidence must never be presented as crypto-scale validation.
+7. Implementations and evidence at any scale are admissible. Records and
+   conclusions must state the tested parameters, the actual scope of the
+   observation, and any transfer or extrapolation assumptions explicitly;
+   scale is a disclosed property of the evidence, not an automatic
+   prohibition or validator ceiling.
 8. Unexpected observations must be recorded, not silently discarded.
 9. Agents must not fabricate commands, outputs, timings, statistics, citations, or successful runs.
 10. Every conclusion must cite the experiment IDs and artifacts that support it.
@@ -333,6 +337,36 @@ around the rules above:
 Bus records are coordination traffic: `validate_ledger.py` does not know about
 them, and they are immutable like everything else — a correction supersedes by
 reference and never overwrites.
+
+### Two transports, one rule
+
+Messaging exists at two layers, and **every limit above applies identically to
+both**:
+
+- **Across sessions** — `tools/agent_bus.py`, durable, any runtime.
+- **Within one session** — `SendMessage`, live, between subagents of a single
+  Claude Code session. Declared as the `send_messages` optional capability in
+  `orchestration/roles.yaml` and held by all five roles on that runtime.
+
+The in-process layer is the *more* dangerous of the two, not the less. A
+Coordinator subagent and an Executor subagent in one session can now talk
+directly, in real time, with nothing written down — which is precisely the
+shape of an approval that never happened. So, restated because the live
+transport makes it easy to forget:
+
+- A Coordinator subagent saying "approved" **is not an approval**. Approval is
+  a frozen contract at a declared path plus a committed decision record. An
+  Executor that cannot find both refuses, no matter who said what in-session.
+- A message is not a deliverable. Work product goes to the task directory
+  under the assigned `write_scope`; a result that exists only in a peer's
+  message never happened.
+- Messages leave no auditable trace. Anything that must survive the session —
+  a decision, a receipt, a handoff, an objection that bears on a claim — is
+  written as a record, and put on the bus if a peer must be told.
+
+Use the live layer for what it is good at: a mid-run blocker, a progress
+signal, a clarifying question, steering a long-running peer. Use records for
+everything that has consequences.
 
 ## Dynamic dispatch
 
