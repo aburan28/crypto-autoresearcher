@@ -1,0 +1,176 @@
+handoff:
+  id: TASK-20260811-a3eb96
+  from: coordinator
+  to: executor
+  status_note: >-
+    THIS HANDOFF IS RECORDED, NOT DISPATCHED. No batch slot has been minted for it in any
+    dispatch queue, no archive task has been assigned to it, and no Executor session has
+    been launched against it. It exists so that the act DEC-20260811-8da7cc names has a
+    written specification with a budget and a completion gate, rather than living only in
+    a decision's prose. Dispatching it is a separate Coordinator act.
+  objective: >-
+    Implement a DECLARED, EXPLICIT content-first archive binding mode in
+    tools/research_dispatch.py, so that an archive task whose source artifacts were already
+    committed before the archive task ran can be bound by CONTENT rather than by
+    exact-changed-path equality against one commit; and add regression tests covering
+    exactly the BATCH-33b207 shape - 17 declared source artifact paths split across two
+    commits that are both ancestors of HEAD, one of which (53d3fed02f568a98ad5c42bac3d3e147ebd141b2)
+    changes 55 paths in total and is therefore a 40-path superset of what the archive
+    declares. The uncertainty this reduces is whether the archive chain can bind a package
+    whose custody is intact but whose commit topology the current verifier cannot express;
+    DEC-20260811-8da7cc demonstrated that no Coordinator queue edit can, and that the only
+    remaining lever is the tool itself.
+  uncertainty_reduced: >-
+    Whether an already-committed, byte-verified producer package can be bound into the
+    archive chain without weakening any of the verifier's integrity rules - and if so, at
+    what declared, visible cost.
+  inputs:
+  - ledger/decisions/DEC-20260811-8da7cc.yaml
+  - ledger/decisions/DEC-20260810-4b8bbc.yaml
+  - tools/research_dispatch.py
+  - coordination/goals/GOAL-ECTD-001/batches/BATCH-33b207/dispatch_queue.json
+  - coordination/goals/GOAL-ECTD-001/batches/BATCH-33b207/archives/TASK-20260806-a49026/snapshot-receipt.json
+  - AGENTS.md
+  - docs/claims-and-verification.md
+  constraints:
+  - >-
+    THE MODE MUST BE DECLARED IN THE QUEUE AND NEVER INFERRED. An archive is bound by
+    content only because its own queue entry says so in an explicit field. The verifier
+    must not decide on its own that a commit-scope check "looks like" it should be relaxed,
+    and it must not fall back to content silently on any new condition.
+  - >-
+    FULL COVERAGE IS MANDATORY. A content-first archive must declare a path_sha256 entry
+    for EVERY path in expected_paths (the archive's artifact_paths union its sources'
+    artifact_paths), and every declared path must be verified against HEAD. Partial
+    coverage is a rejection, not a degradation.
+  - >-
+    A CONTENT MISMATCH MUST STAY FATAL. This is the load-bearing invariant of the existing
+    _verify_content_only and it must survive unchanged: what may be relaxed is the binding
+    to a commit, never the binding to bytes.
+  - >-
+    IT MUST BE VISIBLE, NOT SILENT. A content-first archive must be appended to the plan's
+    existing content_only_archives degradation list, with its task id and an explicit
+    reason, so a reader of the dispatch plan sees which archives are commit-bound and which
+    are content-bound without reading the queue.
+  - >-
+    IT MUST NOT BE SATISFIABLE BY DECLARING A COMMIT THAT DOES NOT EXIST. The present
+    unreachable-commit fallback already rewards a bad declaration with a weaker check; the
+    new mode must not extend that. Declaring the mode explicitly is the only legitimate way
+    to reach it.
+  - >-
+    IT MUST NOT WEAKEN _validate_review_chains. An independent review must still be required
+    to depend on the snapshot archive of the artifacts it reviews.
+  - >-
+    IT MUST NOT WEAKEN THE EXACTLY-ONCE ASSIGNMENT RULE. Every non-archive task must still
+    be assigned to exactly one archive task.
+  - >-
+    IT MUST NOT WEAKEN COORDINATOR OWNERSHIP OF ARCHIVE TASKS. Archive tasks remain
+    Coordinator-role tasks; nothing here gives another role the ability to bind an archive.
+  - >-
+    DO NOT EDIT ANY COMMITTED LEDGER RECORD, ARCHIVE RECEIPT, RUN ARTIFACT, OR THE
+    BATCH-33b207 dispatch_queue.json AS PART OF THIS TASK. This task changes tooling and
+    tests only. Re-binding the BATCH-33b207 archive under the new mode is a SEPARATE
+    Coordinator act, taken after the review below.
+  - >-
+    THE RESULTING TOOLING CHANGE REQUIRES INDEPENDENT REVIEW BEFORE ANY ARCHIVE IS RE-BOUND
+    WITH IT. independent_session_required is false for the implementation itself, because
+    writing and testing a verifier is not a claim about research; it is true in substance
+    for the review that must follow, and no archive may be re-bound under this mode until
+    that review exists. A verifier relaxation is exactly the kind of change that must not
+    make its debut underneath a live archive.
+  - >-
+    REPORT, DO NOT DECIDE, ON PREVENTION. The root cause is a producing session committing
+    its own artifacts before the snapshot archive task runs, which leaves the archive with
+    nothing to stage and forces it to bind commits it did not make. Report whether a
+    queue-validation-time guard is feasible - for example, detecting at plan time that a
+    producer's declared artifact_paths are already committed while its snapshot archive is
+    still queued - and what it would cost in false positives. Whether to adopt such a guard
+    is a Coordinator decision, not this task's.
+  - >-
+    NO FABRICATION. Report the tests you actually ran and their actual output. If the
+    BATCH-33b207 regression fixture cannot be constructed faithfully, say so and describe
+    the gap rather than approximating it.
+  deliverables:
+  - >-
+    A change to tools/research_dispatch.py implementing the declared content-first archive
+    binding mode, with the queue field that declares it documented in the same change.
+  - >-
+    Regression tests covering the BATCH-33b207 shape: 17 declared source paths split across
+    two ancestor commits, one a 55-path superset; plus negative tests proving a content
+    mismatch is still fatal, partial path_sha256 coverage is still rejected, an undeclared
+    archive still gets the commit-scope check, and a nonexistent declared commit does not
+    reach the new mode.
+  - >-
+    A short implementation note recording what changed, which existing invariants were
+    re-verified as unchanged (review chains, exactly-once assignment, Coordinator
+    ownership), and the actual test output.
+  - >-
+    The prevention report described in the constraints, as a finding for the Coordinator
+    rather than a change.
+  artifact_paths: []
+  artifact_paths_note: >-
+    DELIBERATELY EMPTY, AND THIS IS NOT AN OVERSIGHT. No batch or queue slot has been minted
+    for this task, so there is no assigned write_scope and no archive task that owns its
+    outputs. Inventing plausible paths now would create an archive-coverage defect of
+    exactly the kind this task exists to fix: declared paths that no archive can bind. The
+    paths will be declared by the Coordinator act that dispatches this handoff into a queue,
+    together with its write_scope and its archiving task, and they must agree with that
+    queue's artifact_paths because nothing checks the two against each other.
+  archived_by: null
+  archived_by_note: >-
+    NULL BECAUSE NO ARCHIVE TASK EXISTS FOR THIS HANDOFF YET. Every deliverable must be
+    assigned to exactly one archival task before it can be treated as durable; that
+    assignment is made when this handoff is dispatched into a batch, not here. A named
+    archive task that was never created is worse than an honest null.
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: true
+    degraded_allowed: false
+    independent_session_required: false
+    fallback_reason_note: >-
+      fallback_allowed is true because this Claude Code harness cannot resolve the policy
+      aliases in orchestration/model-policies.yaml; the executing session must record
+      requested_policy, the resolved model id, fallback_used and its reason in its own
+      manifest rather than substituting silently (AGENTS.md rule 11). No resolved model id
+      is asserted here, because this handoff has not been dispatched and no session has
+      resolved one.
+  budget:
+    wall_clock_seconds: 7200
+    memory_gb: 4
+    maximum_runs: 1
+  completion_gate:
+  - >-
+    The declared content-first binding mode is implemented and is reachable ONLY via an
+    explicit queue declaration, demonstrated by a test in which an undeclared archive of the
+    same shape is still rejected.
+  - >-
+    Regression tests reproduce the BATCH-33b207 shape and pass under the new mode, with the
+    actual test command and output recorded.
+  - >-
+    Negative tests pass: content mismatch fatal, partial path_sha256 coverage rejected,
+    nonexistent declared commit does not reach the new mode.
+  - >-
+    _validate_review_chains, the exactly-once archive assignment rule, and Coordinator
+    ownership of archive tasks are demonstrably unchanged, with the tests that show it named.
+  - >-
+    Content-first archives appear in the plan's content_only_archives list with task id and
+    reason.
+  - >-
+    The prevention report is delivered as a finding, with feasibility and false-positive
+    cost stated, and no guard is adopted unilaterally.
+  - >-
+    No committed ledger record, archive receipt, run artifact, or dispatch queue was edited
+    by this task.
+  return_format: >-
+    Implementation note plus prevention report, citing the exact test commands and their
+    actual output, and naming any constraint above that could not be satisfied together with
+    why. Do not re-bind any archive; report readiness and stop.
+  recorded_by: coordinator
+  recorded_at: '2026-08-11'
+  authority: >-
+    DEC-20260811-8da7cc. That decision found the Coordinator repair menu of
+    DEC-20260810-4b8bbc empty under current tooling and reassigned the act to the Executor.
+    This record is the specification of that act and confers no approval by itself: an
+    Executor session starts from this handoff dispatched into a queue with a declared write
+    scope, not from the record's existence.
