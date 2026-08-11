@@ -343,7 +343,9 @@ cheaper ones.
 - Snapshot archive before independent review; ledger archive before promotion.
 - Never fabricate commands, outputs, timings, statistics, citations, or runs.
 - Infra failures/timeouts are not mathematical counterevidence.
-- Toy-curve results never become crypto-scale claims.
+- Small- or toy-curve results are admissible; record the tested parameters and
+  any transfer or extrapolation assumptions explicitly. Toy-curve results
+  never become crypto-scale claims.
 - Record requested policy + resolved model; no silent policy downgrade —
   including by dispatching a lower-effort subagent than the task's policy
   selects (step 6).
