@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7850 |
-| — with a resolvable external identifier | 2240 |
+| Literature entries (`KN-LIT-*`) | 7851 |
+| — with a resolvable external identifier | 2241 |
 | — with no identifier recorded | 5610 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1322, doi 147, eprint 738, url 33. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1323, doi 147, eprint 738, url 33. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 9, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7481, `transcription_of_full_text_at_recorded_sha256` 1, `web` 326.
+`citation_verified` distribution: `False` 21, `True` 9, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `partial` 5, `read` 7481, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -106,7 +106,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2240 of 7850 `KN-LIT-*` entries carry an
+2241 of 7851 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1743,6 +1743,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-599 | EVALUATION OF GAUSSIAN HYPERGEOMETRIC SERIES USING HUFF’S MODELS OF ELLIPTIC CURVES | 2018 | `arxiv:1805.08475` | read |
 | KN-LIT-5f3698 | Sloppy Alice attacks! Adaptive chosen ciphertext attacks on the McEliece public-key cryptosystem | 2002 | `doi:10.1007/978-1-4757-3585-7_7` | web |
 | KN-LIT-5f8f0a | Code-based cryptography | 2009 | `doi:10.1007/978-3-540-88702-7_4` | web |
+| KN-LIT-5ff88f | Polynomial time key-recovery attack on high rate random alternant codes (boundary completed: the Goppa exclusion is phase-scoped, present-tense, unproved, and conjectured by its authors to fall) | 2024 | `arxiv:2304.14757v3` | transcription_of_full_text_at_recorded_sha256 |
 | KN-LIT-600 | Fiat-Shamir and Correlation Intractability from Strong KDM-Secure Encryption? | 2018 | `eprint:2018/131` | read |
 | KN-LIT-601 | First-Order Masking with Only Two Random Bits | 2018 | `eprint:2018/1007` | read |
 | KN-LIT-602 | GALOIS REPRESENTATIONS ATTACHED TO ELLIPTIC CURVES WITH COMPLEX MULTIPLICATION ÁLVARO LOZANO-ROBLEDO | 2018 | `arxiv:1809.02584` | read |
