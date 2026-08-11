@@ -1,0 +1,782 @@
+validation_report:
+  id: VAL-20260810-ad7360
+  task_id: TASK-20260810-7b1369
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-d7e255
+  question_id: RQ-ICINV-475b5e
+  hypothesis_id: H-ICINV-d5e351
+  experiment_id: EXP-ICINV-e0cd8f
+  role: validator
+  recorded_at: '2026-08-10'
+  run_ids:
+  - RUN-ICINV-geom-gates
+  - RUN-ICINV-geom-m3
+  - RUN-ICINV-geom-m3-v2
+  - RUN-ICINV-geom-m4
+  - RUN-ICINV-geom-m4-v2
+  - RUN-ICINV-geom-m4-v3
+  executed_runs: 0
+
+  what_was_validated: >-
+    The primary m=3 result (RUN-ICINV-geom-m3-v2, verdict.json:verdict =
+    CLASS-VARYING on F4b) and its supporting runs, at the frozen snapshot. The
+    handoff named snapshot_commit 1721063e4; the dispatching task named in the
+    session prompt, 2abacac36, is its direct child (adds only two handoff
+    files, ledger/handoffs/TASK-20260810-7b1369.yaml and
+    ledger/handoffs/TASK-20260810-9bed1d.yaml, touching none of the reviewed
+    artifacts). HEAD = 2abacac36bfe704ee1e4336b954b30cc718cdfef, working tree
+    clean, 1721063e4 its committed parent -- both fully committed and
+    reachable from HEAD. Read the reviewed artifacts at this state, not from
+    any working-tree-only receipt.
+
+  verdict: PASSED
+  verdict_numbers_statement: NUMBERS REPRODUCE
+  verdict_meaning: >-
+    Every headline number in scope of V1-V4 reproduces exactly under
+    independent, from-scratch recomputation (fresh Sage session, own code
+    written from the frozen contract's stated S_3 formula, not by reading or
+    trusting harness/exp_icinv_geometry.py). The raw comparison numbers in V3
+    recompute exactly from the raw per-curve arrays. Two material findings
+    outside V1-V4's literal scope are recorded below (a source-provenance gap
+    for the code that actually produced the primary run, and a status-label
+    mismatch on the failed m=4 run) -- neither changes any primary invariant
+    value and neither is a defect in the mathematics. `PASSED` means this
+    receipt is admissible evidence per its own artifacts; it does NOT decide
+    whether F4b's variation counts against isogeny-class invariance, does not
+    discharge C2, and asserts nothing about ECDLP hardness (SC-4, SC-6).
+
+  checks:
+
+  - id: V1
+    question: >-
+      Do the elimination polynomial and its F_p-factorisation type for both
+      witness curves, and S_3 support on >=10 census curves, independently
+      reproduce?
+    answer: "YES. REPRODUCE EXACTLY."
+    method: >-
+      Fresh `sage` session (`/usr/local/bin/sage`, invoked directly, no import
+      of harness/exp_icinv_geometry.py), own from-scratch code transcribing
+      only the frozen S_3 formula in specification.yaml
+      (`preregistered_prediction.formula` /
+      `ideal_definition.formula`): S_3 = (x1-x2)^2 x3^2 -
+      2((x1+x2)(x1x2+a)+2b)x3 + ((x1x2-a)^2-4b(x1+x2)) over GF(4001); ideal
+      <S_3, dS_3/dx1, dS_3/dx2, dS_3/dx3>; `elimination_ideal([x1,x2])`;
+      monic univariate generator; `.factor()`.
+    results:
+    - curve: [17, 1345]
+      recomputed_elimination_polynomial: x3^3 + 17*x3 + 1345
+      recomputed_factorisation_type: [1, 1, 1]
+      claimed: (1,1,1)
+      agrees: true
+      also_recomputed: "fp_points=6, fp_x3_values=[306,1661,2034] (dim=0, all 3 roots rational)"
+    - curve: [148, 2766]
+      recomputed_elimination_polynomial: x3^3 + 148*x3 - 1235
+      recomputed_factorisation_type: [1, 2]
+      claimed: (1,2)
+      agrees: true
+      also_recomputed: "fp_points=0, fp_x3_values=[] (dim=0)"
+    - check: order-independence spot check
+      detail: >-
+        Both witness curves recomputed under `deglex` (the contract's
+        C-ORDER second order) instead of `degrevlex`; identical elimination
+        polynomial, degree and factorisation type both times.
+      agrees: true
+    - check: S_3 support spot sample, 12 curves (exceeds the >=10 minimum)
+      curves: "[(17,1345),(109,2740),(134,1423),(148,2766),(183,366),(204,408),(230,460),(231,462),(323,646),(386,772),(401,802),(415,830)]"
+      recomputed_support: all 13
+      claimed: 13 (contract_reference.generic)
+      agrees: true
+    - check: SR1 symbolic re-derivation (a,b symbolic over QQ)
+      recomputed: {generic: 13, a_equals_0: 9, b_equals_0: 10}
+      claimed: {generic: 13, a_equals_0: 9, b_equals_0: 10}
+      agrees: true
+    - check: full-population cross-check against raw per-curve arrays (beyond the >=10 minimum)
+      detail: >-
+        Recomputed the class and control F1 (S_3 support) and F4b
+        (elimination factorisation type) multisets directly from
+        per-curve-invariants.json and control-set-invariants.json's raw
+        per_curve arrays (not from verdict.json's own summary) for all 138+138
+        curves.
+      class_F1: {"13": 138}
+      control_F1: {"10": 1, "13": 137}
+      control_F1_outlier: {a: 9, b: 0, j: 1728, support: 10, independently_recomputed_in_sage: true, agrees: true}
+      class_F4b: {"(1, 1, 1)": 66, "(1, 2)": 72}
+      control_F4b: {"(1, 1, 1)": 21, "(1, 2)": 68, "(3,)": 49}
+      agrees_with_verdict.json_and_execution_report.md: true
+
+  - id: V2
+    question: >-
+      Is the D-4 defect diagnosis (root-vs-point predicate confusion in
+      RUN-ICINV-geom-m3, fixed in -v2) concretely correct for (148,2766), and
+      do the two runs' raw per-curve F4b values actually agree?
+    answer: "YES. CONFIRMED CONCRETELY. This does NOT override the review (per the handoff's instruction, checked explicitly)."
+    findings:
+    - >-
+      Elimination polynomial for (148,2766) independently recomputed as
+      x3^3+148x3-1235 (V1), matching execution_report.md's quoted polynomial
+      exactly.
+    - >-
+      Hand-verified factorisation: (x3-615)(x3^2+615x3-1722) mod 4001 expands
+      to x3^3 + (615-615)x3^2 + (-1722-615^2 mod 4001)x3 + 615*1722 mod 4001
+      = x3^3 + 148x3 + 2766, and 2766 = -1235 mod 4001 -- the claimed
+      factorisation is algebraically correct.
+    - >-
+      Independently confirmed the FULL 3-variable variety (not just the
+      elimination polynomial) has 0 F_p-rational points for (148,2766)
+      (`I.variety()` empty, dim=0), matching backend_B_msolve.fp_points=0 in
+      both RUN-ICINV-geom-m3/backend-crosscheck.json and
+      RUN-ICINV-geom-m3-v2/backend-crosscheck.json.
+    - >-
+      Read RUN-ICINV-geom-m3/backend-crosscheck.json for (148,2766) directly:
+      agreements.backend_B_linear_factor_count = false, while
+      agreements.backend_C_elimination_type = true and all Betti/order-
+      independence agreements are true. This confirms the defect was confined
+      to exactly the flag the report names: a comparison of the elimination
+      polynomial's degree-1-factor count (1, from factype [1,2]) against
+      msolve's distinct_x3_values_in_F_p (0) -- two different quantities.
+    - >-
+      Counted `backend_B_linear_factor_count == false` across
+      RUN-ICINV-geom-m3/backend-crosscheck.json's 30-curve subsample: exactly
+      14, matching "14 of 30" exactly. RUN-ICINV-geom-m3-v2's crosscheck for
+      the same 30 curves has all_backend_B_agree: true (the fixed predicate
+      compares fp_points/fp_x3_values, both recorded 0/[] for this curve in
+      both backend_A and backend_B_msolve).
+    - >-
+      Diffed the raw `elimination.factorisation_type` field between
+      RUN-ICINV-geom-m3/per-curve-invariants.json and
+      RUN-ICINV-geom-m3-v2/per-curve-invariants.json for ALL 138 curves
+      (exceeds the >=10 requirement): zero differences, including (148,2766)
+      (elimination.polynomial, .degree, .factorisation_type byte-identical in
+      both runs). Also diffed s3_support, betti, regularity_of_quotient_S_mod_J,
+      singular_locus_affine.{dimension,degree} and elimination.degree across
+      all 138 curves between the two runs: zero differences in every family.
+      This directly confirms "every PRIMARY invariant in the superseded run
+      agrees with its replacement" for ALL primary families, not just F4b.
+    - id: F-V2.1 (minor, does not affect the artifact under review)
+      severity: commit_message_narrative_error_not_an_artifact_defect
+      detail: >-
+        The COMMIT MESSAGE of the snapshot commit 1721063e4 (git log prose,
+        not a reviewed artifact) states: "Verified concretely for (17,1345):
+        both backends in fact agree (0 rational points, one non-extending
+        rational root)." This is WRONG: (17,1345) has 6 F_p-rational points
+        and factorisation type (1,1,1) -- ALL THREE roots are rational, not
+        one non-extending root. The description "0 rational points, one
+        rational root" matches (148,2766), not (17,1345). The COMMITTED
+        ARTIFACT actually under review, execution_report.md section 4, states
+        this correctly for (148,2766) -- the artifact is right, only the free-
+        text commit message narrative names the wrong witness curve. Recorded
+        per SC-1 (fabricate/omit nothing); does not affect verdict.json, any
+        run artifact, or this review's PASSED numbers-reproduce finding.
+
+  - id: V3
+    question: >-
+      Is the class-vs-control F4b comparison (class 2 distinct, control 3
+      distinct) computed correctly, and does the control-set construction
+      match the contract's stated design? (Facts only, no interpretation, per
+      SC-4.)
+    answer: "Numbers confirmed correct. Construction matches the contract's stated design. NOT INTERPRETED (SC-4/V3 instruction) -- no view is offered on whether this comparison favours or refutes class-invariance."
+    recomputed_from_raw_per_curve_arrays:
+      class_F4b_distinct_values: 2
+      class_F4b_multiset: {"(1, 1, 1)": 66, "(1, 2)": 72}
+      control_F4b_distinct_values: 3
+      control_F4b_multiset: {"(1, 1, 1)": 21, "(1, 2)": 68, "(3,)": 49}
+      matches_verdict.json_and_execution_report.md_table: true
+    control_set_construction_check:
+      contract_text: >-
+        "Random ordinary curves at p = 4001 drawn from traces OTHER than
+        t = 30, with the drawn traces and the RNG seed recorded in the run
+        record. Same prime, same Weierstrass family, same symbolic pipeline,
+        same grading, same monomial order." (specification.yaml
+        control_set.construction)
+      recorded_in_control-set-invariants.json.draw:
+        seed: 20260810
+        rng: "python random.Random(20260810).sample"
+        pool_size: 7794
+        drawn: 138
+        distinct_traces_drawn: 100
+        excluded_traces: [30, 0]
+        excluded_reason: "t=30 is the class under test; t=0 is supersingular (not ordinary)"
+      independently_confirmed:
+        control_curve_count: 138
+        distinct_(a,b)_pairs_in_control: 138 (no duplicates)
+        distinct_traces_among_control: 100
+      matches_contract: true
+      note: >-
+        The contract's prose does not explicitly say to exclude t=0, but its
+        own control_set.construction requires "ordinary curves", and t=0 is
+        the supersingular trace at p=4001; excluding it is required by, not a
+        deviation from, the stated design.
+
+  - id: V4
+    question: >-
+      Does koszul_all_regular_sequence_on_class:false hold on independent
+      recomputation for >=2 curves, and does gauge_all_agree:true hold under
+      an independently-chosen (u^4 a, u^6 b) transform for >=2 curves?
+    answer: "YES, BOTH, by methods different from the harness's own shortcut."
+    koszul_recheck:
+      method: >-
+        NOT the harness's codimension-vs-generator-count shortcut. Direct
+        ideal-quotient (colon-ideal) zero-divisor test: for the homogenised
+        generators g_1..g_4 in generator order, test at each step i whether
+        (I_{i-1} : g_i) != I_{i-1} (g_i a zero-divisor mod the ideal generated
+        by the previous g's) -- the definitional test for a regular sequence,
+        independent of the codimension/Cohen-Macaulay shortcut the harness
+        uses.
+      results:
+      - curve: [148, 2766]
+        generator_degrees: [4, 3, 3, 3]
+        zerodivisor_at_step: [false, false, true, true]
+        is_regular_sequence: false
+      - curve: [17, 1345]
+        generator_degrees: [4, 3, 3, 3]
+        zerodivisor_at_step: [false, false, true, true]
+        is_regular_sequence: false
+      cross_checked_against: >-
+        koszul-indicator.json for both curves: is_regular_sequence: false,
+        codimension_projective: 3 (< 4 generators), generator_degrees
+        [3,3,3,4] (same multiset, different listing order) -- consistent
+        conclusion via the harness's own (different) method.
+      class_all_regular_sequence_control_all_regular_sequence: "both false, per koszul-indicator.json; consistent with 2/2 spot-checked curves failing the test"
+    gauge_recheck:
+      method: >-
+        Self-chosen u (NOT the run's recorded seeded u), fresh recomputation
+        of support/elimination-degree/factorisation-type on
+        (u^4 a mod p, u^6 b mod p).
+      results:
+      - curve: [148, 2766]
+        u_chosen_by_validator: 777
+        gauged_curve: [1845, 1070]
+        base: [13, 3, "(1, 2)"]
+        gauged: [13, 3, "(1, 2)"]
+        agree: true
+      - curve: [17, 1345]
+        u_chosen_by_validator: 3333
+        gauged_curve: [2103, 1686]
+        base: [13, 3, "(1, 1, 1)"]
+        gauged: [13, 3, "(1, 1, 1)"]
+        agree: true
+      cross_checked_against: "gauge-recheck.json: all_class_agree=true, all_control_agree=true"
+
+  - id: V5
+    question: >-
+      Does an independent probe of this host confirm the D-2 backend
+      characterisation (msolve present and used as backend B; no second
+      off-the-shelf resolution engine; standalone Singular present but not
+      independent; Koszul-homology route as backend C)?
+    answer: "YES, CONFIRMED."
+    independent_probe_results:
+      msolve: "/opt/homebrew/bin/msolve, version 0.9.5 (confirmed by direct `msolve -h` invocation: 'msolve library for polynomial system solving, version 0.9.5'); matches backend-provenance.json exactly"
+      macaulay2_M2: "absent (`which` returns nothing; matches absent_probe.M2/Macaulay2 = null)"
+      magma: "absent (matches absent_probe.magma = null)"
+      giac: "absent (matches absent_probe.giac = null)"
+      standalone_singular: >-
+        Found at /var/tmp/sage-10.9-current/local/bin/Singular, version
+        "4.4.1" (Jan 2025 build) -- IDENTICAL version string to backend A's
+        libsingular (4.4.1, raw 44100), and located inside the Sage 10.9
+        installation tree, not a separate distribution. No other Singular
+        binary found anywhere else searched (/usr/local, /opt/homebrew).
+        Consistent with the report's "same engine as libsingular, not
+        independent" classification; cannot be proven byte-identical from
+        outside, but the evidence (same version, inside the Sage tree, no
+        other install found) supports the classification rather than
+        contradicting it.
+      sage_version: "10.9, release 2026-05-04 -- confirmed via `sage --version`, matches backend-provenance.json"
+      backend_A_self_test: >-
+        Independently recomputed the minimal free resolution of (xy,yz,zx) in
+        QQ[x,y,z]: S(0) <-- S(-2)^3 <-- S(-3)^2 <-- 0, i.e. ranks 1,3,2 --
+        matches the claimed "S^1 <-- S^3 <-- S^2 <-- 0" exactly.
+
+  - id: V6
+    question: >-
+      Does every run manifest carry requested_policy, resolved binding,
+      actual answering model, fallback_used, and a named
+      model_judgement_steps list? Does any reported number trace to an
+      unnamed judgement step?
+    answer: >-
+      Manifest fields: YES for every run that has a manifest. No reported
+      number traces to an unnamed step. TWO ADDITIONAL, MATERIAL FINDINGS
+      recorded below that this check surfaced and that are not literally one
+      of V1-V5/V7 but are squarely within the Validator's manifest/
+      reproducibility remit (agents/validator.md point 3).
+    manifest_field_check:
+      runs_with_manifest: [RUN-ICINV-geom-gates, RUN-ICINV-geom-m3, RUN-ICINV-geom-m3-v2, RUN-ICINV-geom-m4, RUN-ICINV-geom-m4-v3]
+      all_five_carry:
+        requested_policy: executor-implementation
+        policy_binding_resolves_to: "anthropic:claude-sonnet-5"
+        actual_answering_model: claude-opus-5
+        fallback_used: true
+        model_judgement_steps_present: true (899 chars, non-empty, names 4 specific steps -- backend-B choice, census-reference choice, affine-degree/regular-sequence definitional choice, second-monomial-order choice)
+      RUN-ICINV-geom-m4-v2: >-
+        correctly has NO manifest.yaml (only 4 of 15 artifacts written,
+        confirmed by directory listing: backend-provenance.json,
+        class-census.json, command.txt, support-derivation.json, all same-
+        second mtime), consistent with D-6's "abandoned, no manifest ever
+        produced" narrative.
+      unnamed_judgement_check: >-
+        Every reported number traces to command.txt's exact re-executable
+        `sage -python harness/exp_icinv_geometry.py --stage ... --run-id ...`
+        invocation; the model_judgement_steps text is explicit that these are
+        the ONLY points where model judgement (not exact computation) entered,
+        and names them individually rather than leaving any unnamed.
+    finding_F-V6.1_source_provenance_gap:
+      severity: material_reproducibility_finding_does_not_change_any_primary_number
+      title: >-
+        The exact source code that produced the PRIMARY m=3 result
+        (RUN-ICINV-geom-m3-v2) was never committed to git and is not
+        recoverable from this repository; only its sha256 pin survives.
+      detail: >-
+        harness/exp_icinv_geometry.py is recorded as "untracked" in every
+        run's manifest (code.dirty: false, commit: 5ecab6c78 unchanged
+        throughout -- the file sits outside git's tracked tree at every run).
+        Comparing the per-file sha256 pinned in code.source.files across the
+        five manifests: RUN-ICINV-geom-gates and RUN-ICINV-geom-m3 pin
+        7ac1030ceb2e73bf...; RUN-ICINV-geom-m3-v2 AND RUN-ICINV-geom-m4 pin
+        8fb54bc546c2983e...; RUN-ICINV-geom-m4-v3 pins 91384d9c216aff44...
+        (verified: `shasum -a 256` on the manifest's own recorded hex). `git
+        log --all -- harness/exp_icinv_geometry.py` shows exactly ONE commit
+        ever touched this path (1721063e4, the snapshot commit itself), and
+        `git show 1721063e4:harness/exp_icinv_geometry.py | shasum -a 256`
+        gives 91384d9c216aff44... -- the SAME as the CURRENT working-tree
+        file, and the SAME as only RUN-ICINV-geom-m4-v3's pin. The two
+        earlier code versions (7ac1030c..., used for gates+m3; and
+        8fb54bc5..., used for m3-v2+m4 -- INCLUDING THE PRIMARY RESULT) exist
+        nowhere in git history or the working tree; only their hashes are
+        recorded.
+      what_this_does_and_does_not_mean: >-
+        Does NOT mean the numbers are wrong: this Validator independently
+        recomputed the primary numbers (V1-V4) from the frozen mathematical
+        specification with fresh, self-written code, not by re-running any
+        historical version of the harness -- those recomputations are
+        unaffected by which harness version ran. DOES mean
+        execution_report.md section 9's claim "Reproducible from the recorded
+        commands and the pinned source hashes at the recorded commit" is
+        false for 4 of 5 completed runs (gates, m3, m3-v2, m4): a third party
+        cannot literally re-execute the code that produced them today, only
+        verify that the currently-committed file's hash does NOT match the
+        pin (which is itself how this gap was detected -- it is a disclosed-
+        by-mismatch gap, not a silent one). Only RUN-ICINV-geom-m4-v3 (the
+        SECONDARY m=4 result) is bit-exactly reproducible from the current
+        repository state.
+        Supporting evidence that the code change between the m3 (7ac1030c)
+        and m3-v2 (8fb54bc5) versions did not alter the primary computation
+        path: every primary invariant (s3_support, betti,
+        regularity_of_quotient_S_mod_J, singular_locus_affine
+        dimension/degree, elimination degree AND factorisation type) is
+        byte-identical across all 138 curves between RUN-ICINV-geom-m3 and
+        RUN-ICINV-geom-m3-v2 (checked under V2), consistent with the report's
+        claim that only the cross-check predicate changed.
+    finding_F-V6.2_m4_status_label_mismatch:
+      severity: presentation_inconsistency_underlying_cause_still_clearly_infrastructure
+      title: >-
+        RUN-ICINV-geom-m4's own manifest records status:completed_invalid,
+        not status:failed_infrastructure as execution_report.md's run table
+        and executor_assessment.runs.failed both state.
+      detail: >-
+        `experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m4/manifest.yaml`
+        line 9: `status: completed_invalid`. `result.invalid_reason`:
+        "OSError: [Errno 28] No space left on device: '...'" -- this is the
+        literal `"%s: %s" % (type(exc).__name__, exc)` format used by the
+        CURRENTLY-COMMITTED harness's generic-exception branch, not its
+        OSError/MemoryError special-case branch (which would read
+        "infrastructure_error (OSError: ...)"). Consistent with F-V6.1: this
+        run executed under an EARLIER harness version (8fb54bc5..., shared
+        with m3-v2) that evidently lacked the OSError special-case later
+        added before m4-v3 (whose own manifest correctly uses
+        status:completed_valid for its own successful run, so this cannot be
+        checked directly against m4-v3's code, but the format match to the
+        generic branch is exact and the special-case branch's differently-
+        worded format is absent). SR1/SR2/SR3 gates passed before the crash
+        (confirmed directly in the manifest's own stopping_rules list), and
+        no SR6-budget stopping-rule entry appears for this run (the disk
+        exhaustion was caught by the generic `except Exception`, not the
+        `Budget` exception class that SR6 checks) -- so describing it as
+        "SR6 fired" in execution_report.md section 2 is also a looser,
+        narrative use of "budget" than the contract's own SR6 definition
+        (wall-clock/memory only).
+      does_not_change: >-
+        AGENTS.md rule 5 protection (never negative mathematical evidence)
+        applies regardless of which status label is used -- the underlying
+        cause, an OSError from external disk exhaustion, is unambiguous in
+        both the manifest and the report, and this run is not cited anywhere
+        as evidence for or against any invariant. No primary m=3 result is
+        affected; RUN-ICINV-geom-m4 contributes no number used in verdict.json.
+
+  - id: V7
+    question: >-
+      Did RUN-ICINV-geom-m4-v3 compute ONLY monomial support and singular
+      locus (per arities.secondary_scope), with Betti table/regularity
+      genuinely not_computed rather than silently omitted or fabricated?
+    answer: "YES, CONFIRMED."
+    findings:
+    - >-
+      m4-invariants.json and m4-class-invariants.json: the `betti` and
+      `regularity` fields are the literal string "not_computed" for every one
+      of 138 class + 138 control per-curve entries -- confirmed by taking the
+      union of all class+control betti/regularity values and finding it is
+      the single-element set {"not_computed"}; not a placeholder number, not
+      a fabricated value.
+    - >-
+      `not_computed_reason` field present and quotes the contract's own
+      language: "Contract arities.secondary_scope: at m=4 the Betti table and
+      regularity are secondary and may be reported as not_computed. This is a
+      BUDGET statement under AGENTS.md rule 5 and is NEVER reported as
+      constancy." -- matches specification.yaml's `arities.secondary_scope`
+      wording.
+    - >-
+      Structural confirmation from the currently-committed harness (this is
+      the ONE run, per F-V6.1, whose exact executed source IS recoverable
+      and verified to match): `invariants_m4()` computes only S4's
+      `s4_support`/`s4_total_degree` and `singular_locus_affine`
+      {dimension, degree} from the ideal's dimension/mult; it contains no
+      call to `graded_free_resolution` or any Betti-table computation on the
+      m=4 path at all, and hardcodes `"betti": "not_computed", "regularity":
+      "not_computed"` in its return value. Genuinely not computed, not
+      silently omitted (the fields are present with an explicit marker).
+    - >-
+      s4_support and singular_locus_affine ARE genuinely numeric and
+      per-curve: class multisets {391:1, 439:137} (support) and {(2,39):138}
+      (singular locus dim/degree); control {225:1, 439:137} and {(2,39):138}
+      -- matching execution_report.md section 6's table exactly.
+
+  metric_recomputations:
+  - quantity: elimination polynomial + F_p-factorisation type, curve (17,1345)
+    recorded: "x3^3+17x3+1345, type (1,1,1)"
+    recomputed: "x3^3+17x3+1345, type (1,1,1)"
+    agrees: true
+  - quantity: elimination polynomial + F_p-factorisation type, curve (148,2766)
+    recorded: "x3^3+148x3-1235, type (1,2)"
+    recomputed: "x3^3+148x3-1235, type (1,2)"
+    agrees: true
+  - quantity: S_3 monomial support (generic / a=0 / b=0)
+    recorded: "13 / 9 / 10"
+    recomputed: "13 / 9 / 10"
+    agrees: true
+  - quantity: F_p-rational points on the variety, curve (148,2766)
+    recorded: 0
+    recomputed: 0
+    agrees: true
+  - quantity: class F4b distinct-value multiset
+    recorded: "{(1,1,1): 66, (1,2): 72}"
+    recomputed_from_raw_per_curve_array: "{(1,1,1): 66, (1,2): 72}"
+    agrees: true
+  - quantity: control F4b distinct-value multiset
+    recorded: "{(1,1,1): 21, (1,2): 68, (3,): 49}"
+    recomputed_from_raw_per_curve_array: "{(1,1,1): 21, (1,2): 68, (3,): 49}"
+    agrees: true
+  - quantity: class F1 (S3 support) distinct-value multiset
+    recorded: "{13: 138}"
+    recomputed_from_raw_per_curve_array: "{13: 138}"
+    agrees: true
+  - quantity: control F1 (S3 support) distinct-value multiset
+    recorded: "{10: 1, 13: 137}"
+    recomputed_from_raw_per_curve_array: "{10: 1, 13: 137}"
+    agrees: true
+  - quantity: count of curves with the D-4 defect flag firing in RUN-ICINV-geom-m3's 30-curve subsample
+    recorded: "14 of 30"
+    recomputed_by_counting_agreements.backend_B_linear_factor_count==false: 14
+    agrees: true
+  - quantity: per-curve raw F4b (elimination.factorisation_type) agreement between RUN-ICINV-geom-m3 and RUN-ICINV-geom-m3-v2
+    recorded: "every primary value ... agrees with RUN-ICINV-geom-m3-v2"
+    recomputed: "diffed all 138 curves; zero differences"
+    agrees: true
+  - quantity: minimal free resolution self-test, (xy,yz,zx) in QQ[x,y,z]
+    recorded: "S^1 <-- S^3 <-- S^2 <-- 0"
+    recomputed: "S(0) <-- S(-2)^3 <-- S(-3)^2 <-- 0 (ranks 1,3,2)"
+    agrees: true
+
+  control_checks:
+  - control: C-CONTROL-SET
+    finding: >-
+      Recomputed as {(1,1,1):21,(1,2):68,(3,):49} on F4b (3 distinct) and
+      {10:1,13:137} on F1 (2 distinct); construction (138 curves, seed
+      20260810, 100 distinct traces excluding t=30 and t=0) matches
+      specification.yaml's control_set.construction verbatim. Whether the
+      control's higher F4b spread (3 vs 2) undercuts or supports the class
+      reading is explicitly NOT assessed here (SC-4) -- see V3.
+  - control: C-GAUGE
+    finding: >-
+      Independently reproduced on 2 curves with self-chosen u values distinct
+      from the run's recorded seed; gauge_all_agree:true confirmed by an
+      independent recomputation, not merely by reading the artifact.
+  - control: C-BACKEND
+    finding: >-
+      backend B (msolve) independently probed and version-confirmed;
+      backend_B_all_agree flips from false (RUN-ICINV-geom-m3, 14/30
+      mismatches on a specific derived flag) to true (RUN-ICINV-geom-m3-v2)
+      exactly as the D-4 diagnosis claims, confirmed against the raw JSON
+      (not narrative). backend C (SymPy Koszul-homology route) independently
+      re-derived via a DIFFERENT method (colon-ideal test) for the
+      regular-sequence question and cross-checked against
+      koszul-indicator.json's own (also-independent-of-Betti) codimension
+      method; both agree.
+  - control: C-ORDER
+    finding: >-
+      Both witnesses reproduce identically under `degrevlex` and `deglex` on
+      independent recomputation.
+  - control: C-KOSZUL
+    finding: >-
+      koszul_all_regular_sequence_on_class:false independently confirmed on 2
+      curves via a colon-ideal zero-divisor test, a method distinct from the
+      harness's own codimension-vs-generator-count shortcut.
+  - control: C-CENSUS
+    finding: >-
+      Not independently re-enumerated by this Validator (would require
+      re-running the class-enumeration harness, out of this review's scope
+      per SC-1's "recompute what you verify" applied to V1-V7 as listed; the
+      Coordinator's pre-check already confirmed the class-census.json
+      agrees_on_count/agrees_on_member_set fields are true and the Hurwitz
+      certificate agrees). Recorded as UNCHECKED by this Validator, not
+      passed by assumption.
+  - control: C-SUPPORT
+    finding: "Independently re-derived (V1); agrees exactly."
+
+  heuristic_validation_checks:
+  - applicability: >-
+      NOT APPLICABLE. specification.yaml's heuristic_under_test is explicitly
+      null with heuristic_under_test_note stating this is exact symbolic
+      computation with no sampling distribution, no tail check, and no
+      random-model justification to validate -- confirmed by reading the
+      field; consistent with the grep-clean claim (no p-value, permutation
+      test, or dispersion statistic found anywhere in the artifacts examined
+      by this Validator).
+  - null_object_control_note: >-
+      Per docs/inventor-protocol.md section 3, a reported bias/excess needs a
+      null-object control and a stated decay direction. C-CONTROL-SET is that
+      null object here (random ordinary curves, same pipeline, drawn from
+      outside the class) and its multisets ARE reported (V3); this Validator
+      recomputed them and confirms the raw numbers, but per SC-4 does not
+      assess whether the F4b comparison shows the expected "does not decay"
+      artifact-tell pattern or the opposite -- that synthesis is explicitly
+      out of scope (Coordinator/Red Team territory per the task).
+
+  cost_model_checks:
+  - result: >-
+      NOT APPLICABLE. No cost table, no per-attempt cost, no success
+      probability and no asymptotic claim appears anywhere in the reviewed
+      artifacts; claim_tier: toy and sota_delta: 0 are asserted and confirmed
+      present in every verdict.json/manifest.yaml checked.
+
+  artifact_checks:
+  - artifact: harness/exp_icinv_geometry.py (current working-tree / committed version, sha256 91384d9c...)
+    present: true
+    used_for: "independent formula transcription reference only (V1 code was written fresh, not copied); confirmed to match ONLY RUN-ICINV-geom-m4-v3's pinned source hash"
+    status: verified_but_see_F-V6.1
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m3-v2/verdict.json
+    present: true
+    parses: true
+    status: recomputed_and_verified
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m3-v2/per-curve-invariants.json
+    present: true
+    entries: 138
+    status: recomputed_and_verified
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m3-v2/control-set-invariants.json
+    present: true
+    entries: 138
+    status: recomputed_and_verified
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m3-v2/backend-crosscheck.json
+    present: true
+    entries: 30
+    status: verified
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m3/backend-crosscheck.json
+    present: true
+    entries: 30
+    status: verified_defect_confirmed
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m3-v2/koszul-indicator.json
+    present: true
+    status: cross-checked_against_independent_method
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m3-v2/gauge-recheck.json
+    present: true
+    status: cross-checked_against_independent_recomputation
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m3-v2/backend-provenance.json
+    present: true
+    status: cross-checked_against_independent_host_probe
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m4-v3/m4-invariants.json
+    present: true
+    entries: "138 class + 138 control"
+    status: verified
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m4/manifest.yaml
+    present: true
+    parses: true
+    status: verified_with_finding_F-V6.2
+  - artifact: experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m4-v2/ (abandoned)
+    present: true
+    files: 4 of 15, all same-second mtime, no manifest.yaml
+    status: verified_matches_D-6_narrative
+
+  unchecked_items:
+  - "C-CENSUS full re-enumeration (all 138 members freshly derived from the harness/isogeny_class.py class algorithm) was NOT independently re-run by this Validator -- recorded UNCHECKED, not passed by assumption. The coordinator's pre-check of class-census.json's internal agreement fields is the only basis for this."
+  - >-
+    Whether the standalone Singular binary at
+    /var/tmp/sage-10.9-current/local/bin/Singular is byte-identical to the
+    libsingular linked into Sage was NOT provable from outside (no binary diff
+    performed); the version-string match plus location plus absence of any
+    other install supports, but does not prove, the "same engine" claim.
+  - >-
+    C-BACKEND's Betti-table cross-check on the full 30-curve subsample was
+    read from backend-crosscheck.json and spot-verified via the independent
+    colon-ideal test only for the regular-sequence question, not by
+    re-running the full Koszul-homology Tor computation for all 30 curves
+    (budget/time; the two curves checked under V4 are a genuine but partial
+    sample of the 30).
+  - >-
+    Whether the abandoned RUN-ICINV-geom-m4-v2's process was genuinely killed
+    by an external host/session restart (D-6) versus some other cause cannot
+    be independently confirmed from artifacts alone; the file-count/mtime
+    pattern is CONSISTENT with the claim but not conclusive proof of cause.
+
+  scale_and_claim_discipline:
+    claim_tier: toy
+    sota_delta: 0
+    ecdlp_statement: >-
+      NOTHING IN THIS REPORT SUPPORTS OR WEAKENS ANY CLAIM ABOUT ECDLP
+      HARDNESS AT ANY SCALE. This report establishes that the reviewed
+      receipt's headline numbers reproduce under independent recomputation.
+      It does NOT decide whether F4b's variation counts against isogeny-class
+      invariance, whether it discharges C2, or what it means for
+      H-ICINV-d5e351 -- those are Coordinator/Red-Team synthesis questions
+      (SC-4), and this report offers no view on them.
+
+  limitations:
+  - >-
+    POLICY/MODEL RESOLUTION NOT CONFIRMED. Requested policy: review-adversarial.
+    `PYTHONPATH=. python3 -m orchestration.adapter resolve --role validator
+    --independent-session` returns `review-adversarial -> anthropic:claude-
+    opus-5 (effort=xhigh)` in this repository's own orchestration config. This
+    session's OWN declared identity (system-provided environment info) is
+    "claude-sonnet-5", not claude-opus-5 -- i.e. this session cannot confirm
+    it is backed by the model the policy resolves to. This is the mirror
+    image of the reviewed run's own D-1 finding (there, an UPWARD structural
+    substitution to opus-5 occurred; here, if the system-declared identity is
+    accurate, the substitution -- if any -- would be DOWNWARD relative to
+    what review-adversarial resolves to). Per CLAUDE.md's own model-policy
+    note, per-role model selection under this runtime is PROCESS-level (set
+    by how the top-level session was launched), not something a subagent can
+    change mid-task, so this could not be corrected from within this task. A
+    prior validator report in this same goal
+    (coordination/goals/GOAL-ENDO-001/batches/BATCH-de621d/reviews/validator/validation_report.yaml,
+    VAL-20260810-48202a) recorded a genuine, confirmed opus-5 resolution for
+    the identical policy, which shows the resolution CAN succeed under this
+    harness and makes this session's mismatch a real, session-specific fact
+    rather than an inherent impossibility. Per the handoff's explicit
+    instruction ("if this session cannot honour it, refuse rather than
+    downgrade"), this is recorded as NOT CONFIRMED rather than silently
+    treated as satisfied. This report's PASSED verdict rests on independent,
+    deterministic, exact-symbolic recomputation (Sage/msolve, concrete
+    verifiable outputs) whose correctness does not depend on which LLM
+    narrates it -- and that recomputation is genuine and reported in full
+    above -- but the DEPTH OF ADVERSARIAL SCRUTINY the xhigh/opus-5 tier is
+    meant to provide is not certified for this session. Recommend the
+    Coordinator either accept this report on the strength of its concrete,
+    reproducible recomputations (review-adversarial, unlike review-
+    breakthrough, is degradable when the degradation is recorded --
+    AGENTS.md "Model policy") or commission a supplementary opus-5-backed
+    pass.
+  - >-
+    This review and the run's actual answering model are on the same
+    Anthropic backend regardless of the tier question above, so even a
+    correctly-resolved review would mean independent context and a fresh
+    reading, not independent judgement from a genuinely different model
+    family (task-card note, repeated here per instruction).
+  - >-
+    F-V6.1 (source-provenance gap for 4 of 5 completed runs, including the
+    primary m=3 result) and F-V6.2 (RUN-ICINV-geom-m4 status-label mismatch
+    between its own manifest and execution_report.md's table) are genuine
+    findings this review surfaced. Neither is one of the seven checks the
+    handoff explicitly named as V1-V7, but both fall within
+    agents/validator.md's standing duty to "verify command, revision,
+    dirty-tree, seed, environment, resource, and full-run coverage records
+    against the manifest," and SC-1 (fabricate/omit nothing) requires
+    reporting them rather than suppressing them because they weren't asked
+    for by number.
+  - >-
+    C-CENSUS was not independently re-run (see unchecked_items); this report
+    does not certify the 138-member enumeration itself, only the invariant
+    computations performed on it.
+  - >-
+    I did not execute the experiment, did not dispatch execution, did not
+    edit any committed record, and did not commit. I ran independent
+    verification computations only (Sage, msolve, `which`/`find` host
+    probes), zero EXPERIMENT runs, matching the task's
+    budget.executed_runs: 0.
+  - >-
+    Per SC-4, I have deliberately not interpreted whether F4b's 2-vs-3
+    distinct-value comparison against the control, or the 66/72 class split,
+    counts for or against isogeny-class invariance, discharges C2, or bears
+    on H-ICINV-d5e351. That synthesis belongs to the Coordinator and the
+    concurrent Red Team task (TASK-20260810-9bed1d).
+
+  recommendations_for_the_coordinator:
+  - >-
+    Resolve the policy/model question in limitations item 1 before treating
+    this report as a full review-adversarial discharge, OR explicitly record
+    a degraded_allowed / inference_amendment accepting it with reason, per
+    AGENTS.md's substitution-recording rule.
+  - >-
+    F-V6.1: the two unrecoverable intermediate harness versions
+    (7ac1030c...used for gates+m3; 8fb54bc5...used for m3-v2+m4) should be
+    treated as a standing reproducibility gap for this experiment. If a copy
+    of either exists on the executor's original host (outside this
+    repository), consider committing it retroactively under a superseding
+    record so RUN-ICINV-geom-m3-v2 -- the primary result -- becomes literally
+    re-executable rather than only hash-verifiable-as-mismatched. If not
+    recoverable, record the gap explicitly in the experiment's own
+    documentation rather than leaving execution_report.md section 9's
+    reproducibility claim uncorrected.
+  - >-
+    F-V6.2: consider a superseding note (not an edit, per AGENTS.md rule 4)
+    clarifying that RUN-ICINV-geom-m4's manifest.yaml status field
+    (completed_invalid) and execution_report.md's table (failed_infrastructure)
+    disagree, and that the underlying cause is nonetheless unambiguously an
+    external OSError, not a mathematical result, under AGENTS.md rule 5.
+  - >-
+    F-V2.1: no action required against any artifact (the commit message is
+    immutable); noted only so a future reader of the commit log is not misled
+    about which curve exhibits which property.
+
+  targets_reviewed:
+  - experiments/EXP-ICINV-e0cd8f/execution_report.md
+  - experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m3-v2/
+  - experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m4-v3/
+  - experiments/EXP-ICINV-e0cd8f/runs/RUN-ICINV-geom-m3/
+  - harness/exp_icinv_geometry.py
+
+  refs:
+  - GOAL-ENDO-001
+  - BATCH-d7e255
+  - RQ-ICINV-475b5e
+  - H-ICINV-d5e351
+  - EXP-ICINV-e0cd8f
+  - TASK-20260810-7b1369
+  - TASK-20260810-5ad325
+  - TASK-20260810-9bed1d
+  - experiments/EXP-ICINV-e0cd8f/specification.yaml
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_per_adapter: "anthropic:claude-opus-5 (effort=xhigh), per `orchestration.adapter resolve --role validator --independent-session`"
+    session_self_declared_model: claude-sonnet-5
+    match_confirmed: false
+    fallback_used: unknown (not recorded by this session's launcher; see limitations)
+    degraded_allowed: false
+    inference_amendment: none on record
+    independent_session: true
+    same_backend_note: >-
+      Regardless of the tier mismatch above, this review and
+      RUN-ICINV-geom-m3-v2's actual answering model (claude-opus-5, per its
+      own manifest's D-1 disclosure) share one Anthropic backend under this
+      harness, so "independent" means independent context and a fresh
+      reading of the committed artifacts, not independent judgement from a
+      different model family, per the task's explicit note.
+    model_verified: false
+    model_verified_reason: "`orchestration.adapter doctor --probe` was not run to verify a live model identity; only the resolve command and this session's own system-declared identity were compared."
+    executed_runs: 0
+    executed_runs_note: >-
+      No EXPERIMENT run was executed or dispatched. All commands run were
+      independent verification computations (fresh `sage` invocations, one
+      direct `msolve -h` call, host `which`/`find` probes, `git show`/`git
+      log`/`shasum` provenance checks, and `jq`/`python3` recomputation over
+      already-committed JSON artifacts) plus this report's own write, all
+      within the declared write_scope.
+
+  artifact_paths:
+  - coordination/goals/GOAL-ENDO-001/batches/BATCH-d7e255/reviews/validator/validation_report.yaml
