@@ -210,10 +210,9 @@ experiment:
     formula: null               # e.g. rho(u) ~ u^{-u(1+o(1))}, with u defined
     source: null                # theorem the prediction derives from, cited
   scale_relevance:
-    tier: toy | medium | crypto # ceiling on what runs at this scale may support;
-                                # must match the claim_tier of resulting evidence
-    justification: null         # why conclusions transfer across scale, or their
-                                # stated limit
+    tier: toy | medium | crypto | null # descriptive tested scale label
+    justification: null         # tested parameters and any transfer or
+                                # extrapolation assumptions
     correspondence: null        # sampling correspondence used to reach scale,
                                 # if any (e.g. Deuring correspondence): the
                                 # isometry claim and its citation; null means
@@ -224,11 +223,30 @@ experiment:
   replication:
     seeds: []
     independent_instances: 0
+  # Budget floors. Historical contracts carry budgets far below anything the
+  # hardware required -- 90 s cells and 255 s scripts (EXP-ICI-001), sized to a
+  # ~280 s tool timeout rather than to the computation. Those caps censored
+  # cells and forced checkpoint engines to be written around them
+  # (src/h012c_block_m4ri.py). The tool cap is now 600 s
+  # (.claude/settings.json), so size a budget to the WORK and let the stopping
+  # rules end the run. Below these floors, state in the objective why:
+  #   wall_clock_seconds_per_run >= 600     (one full tool window)
+  #   maximum_memory_gb          >= 8       (DREG peaked at 7.16 GB)
+  # Existing frozen contracts keep their budgets: they are immutable, and a
+  # re-budgeted protocol is a NEW contract, not an edit to an approved one.
   budget:
     wall_clock_seconds_per_run: null
     total_cpu_hours: null
     maximum_memory_gb: null
     maximum_runs: null
+    maximum_workers: null   # optional; omitted == 1 == the run process alone.
+                            # Declaring N > 1 lets a LOCKED run create N-1
+                            # descendants (RLIMIT_NPROC is raised from zero to a
+                            # bound that is recorded in the approval lock and the
+                            # manifest). Declare it only for work that has passed
+                            # parallel.verify_determinism, and never above the
+                            # core count: the run is charged for its whole
+                            # process group's CPU against total_cpu_hours.
   stopping_rules: []
   invalidation_rules: []
   success_criterion: null
@@ -284,7 +302,7 @@ evidence:
   type: empirical | theoretical | literature
   direction: supports | weakens | contradicts | neutral
   strength: anecdotal | preliminary | replicated | strong | inconclusive | contradictory
-  claim_tier: toy | medium | crypto      # ceiling on what this record may assert
+  claim_tier: toy | medium | crypto      # descriptive evidence-scale label
   certificate_refs: []                   # run certificates backing any claimed solve/relation
   proof_status: certificate | derivation | empirical_only | not_applicable
                                          # strongest checkable basis for the stated
@@ -300,9 +318,9 @@ evidence:
 ```
 
 `claim_tier` and certificate semantics are defined in
-`docs/claims-and-verification.md`. The tier may never exceed what the
-supporting runs' parameters allow, and any claimed solve must reference a
-`verified: true` certificate.
+`docs/claims-and-verification.md`. The tier describes the tested evidence;
+records must state their parameters, scope, and transfer assumptions, and any
+claimed solve must reference a `verified: true` certificate.
 
 ## Focused campaign claim
 

@@ -19,7 +19,7 @@ batches is not. Finishing a batch is a checkpoint, never an exit — do not stop
 to ask whether to continue, and do not treat a quiet batch as a reason to wind
 down. The campaign ends only at a committed terminal status (see "Completion
 and pause"), and when it does, control returns to
-`/launch-research-harness` step 8, which selects the next goal. Indefinite
+`/launch-research-harness` step 9, which selects the next goal. Indefinite
 operation adds no urgency and removes no gate: every batch still archives,
 reviews, and scopes its claims exactly as before.
 
@@ -55,15 +55,29 @@ reviews, and scopes its claims exactly as before.
 For every batch, run this sequence:
 
 1. Render the dispatch plan. Start at most the queue's declared
-   `max_concurrent` non-archive tasks with disjoint write scopes. The
+   `max_concurrent` non-archive tasks with disjoint write scopes, **each in a
+   subagent** — never in this session. Choose the subagent from the task's
+   (`role`, `inference.policy`) pair using the table in
+   `.claude/skills/launch-research-harness/SKILL.md` step 6; each agent carries
+   the reasoning effort its policy calibrates (`executor-mechanical` low →
+   `executor` medium → `coordinator`/`idea-generator` high →
+   `validator`/`red-team` xhigh → the `-breakthrough` review pair max).
+   Launch them in one message so they run concurrently. The
    tooling's fixed ceiling of three was removed on explicit user direction
    (2026-08-05); size `max_concurrent` to the environment's real headroom —
    see `.claude/skills/launch-research-harness/SKILL.md`'s "Concurrency" note.
 2. When a producer reaches a terminal result, run its Coordinator-only
    `snapshot` archive task alone. Its Git receipt must verify before a
    Validator, Reviewer, or Red Team reads the result.
-3. Run the required independent review tasks. Treat receipt validity,
-   mathematical interpretation, and baseline comparison as separate checks.
+3. Run the required independent review tasks, each as a FRESH subagent call
+   rather than a continuation of the producer's session — a continuation
+   carries the producer's context and is not an independent session. A claimed
+   breakthrough, a proposed closure, or a result contradicting prior validated
+   evidence routes to the `review-breakthrough` tier
+   (`validator-breakthrough` / `red-team-breakthrough`, effort max), which is
+   `degradable: false`: if it cannot be served, pause the goal rather than
+   review it at a lower tier. Treat receipt validity, mathematical
+   interpretation, and baseline comparison as separate checks.
 4. Run the Coordinator-only `ledger` archive task alone. It commits exact
    review reports, analysis, evidence, decision, hypothesis status, and any
    knowledge update; its Git diff, parent, record IDs, and file hashes must
@@ -219,6 +233,8 @@ Report the following, then start the next batch without waiting:
   `main` merged into it;
 - the exact next action and why it reduces the remaining uncertainty.
 
-Never call a passing validator, a snapshot commit, or a toy result a
-cryptanalytic improvement. The ledger archive makes work durable; it does not
-upgrade the strength or scope of the evidence.
+Never call a passing validator or a snapshot commit a cryptanalytic
+improvement. A small-instance result may be an improvement when its mechanism,
+scope, and transfer assumptions are stated and supported by the cited
+artifacts. The ledger archive makes work durable; it does not by itself upgrade
+the evidence.
